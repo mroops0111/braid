@@ -1,0 +1,229 @@
+import type {
+  EdgeId,
+  GraphEdge,
+  GraphNode,
+  GraphOperation,
+  ModelSnapshot,
+  NewGraphEdge,
+  NewGraphNode,
+  NodeId,
+} from '@telos/schema'
+import { ConflictError, NotFoundError } from '../errors.js'
+import { newEdgeId, newNodeId } from '../ids.js'
+
+interface MutableGraphState {
+  nodes: Map<NodeId, GraphNode>
+  edges: Map<EdgeId, GraphEdge>
+}
+
+export class Model {
+  private state: MutableGraphState
+
+  constructor(snapshot?: ModelSnapshot) {
+    this.state = {
+      nodes: new Map((snapshot?.nodes ?? []).map(node => [node.id, node])),
+      edges: new Map((snapshot?.edges ?? []).map(edge => [edge.id, edge])),
+    }
+  }
+
+  // ------- Single-op helpers (delegate to applyOperations) ------------------
+
+  addNode(payload: NewGraphNode): NodeId {
+    const node = this.materializeNode(payload)
+    this.applyValidatedAdd(this.state, node)
+    return node.id
+  }
+
+  addNodes(payloads: NewGraphNode[]): NodeId[] {
+    const nodes = payloads.map(payload => this.materializeNode(payload))
+    const draft = this.cloneState()
+    for (const node of nodes) this.applyValidatedAdd(draft, node)
+    this.state = draft
+    return nodes.map(node => node.id)
+  }
+
+  removeNode(nodeId: NodeId): void {
+    this.applyOperations([{ op: 'removeNode', nodeId }])
+  }
+
+  removeNodes(nodeIds: NodeId[]): void {
+    this.applyOperations([{ op: 'removeNodes', nodeIds }])
+  }
+
+  updateNode(nodeId: NodeId, patch: Partial<GraphNode>): void {
+    this.applyOperations([{ op: 'updateNode', nodeId, patch }])
+  }
+
+  addEdge(payload: NewGraphEdge): EdgeId {
+    const edge = this.materializeEdge(payload)
+    this.applyValidatedAddEdge(this.state, edge)
+    return edge.id
+  }
+
+  // ------- Batch / mixed-op transaction --------------------------------------
+
+  applyOperations(operations: GraphOperation[]): void {
+    const draft = this.cloneState()
+    for (const operation of operations) this.applyOperation(draft, operation)
+    this.state = draft
+  }
+
+  // ------- Queries -----------------------------------------------------------
+
+  findNode(nodeId: NodeId): GraphNode | undefined {
+    return this.state.nodes.get(nodeId)
+  }
+
+  findEdgesFromNode(nodeId: NodeId): GraphEdge[] {
+    return [...this.state.edges.values()].filter(edge => edge.fromNodeId === nodeId)
+  }
+
+  toSnapshot(): ModelSnapshot {
+    return {
+      nodes: [...this.state.nodes.values()],
+      edges: [...this.state.edges.values()],
+    }
+  }
+
+  // ------- Private -----------------------------------------------------------
+
+  private cloneState(): MutableGraphState {
+    return {
+      nodes: new Map(this.state.nodes),
+      edges: new Map(this.state.edges),
+    }
+  }
+
+  private materializeNode(payload: NewGraphNode): GraphNode {
+    return {
+      id: payload.id ?? newNodeId(),
+      type: payload.type,
+      name: payload.name,
+      description: payload.description,
+      status: payload.status ?? 'draft',
+      metadata: payload.metadata ?? { sourceReferences: [] },
+      embedding: payload.embedding,
+    }
+  }
+
+  private materializeEdge(payload: NewGraphEdge): GraphEdge {
+    return {
+      id: payload.id ?? newEdgeId(),
+      type: payload.type,
+      fromNodeId: payload.fromNodeId,
+      toNodeId: payload.toNodeId,
+      metadata: payload.metadata ?? { sourceReferences: [] },
+    }
+  }
+
+  private applyValidatedAdd(state: MutableGraphState, node: GraphNode): void {
+    if (state.nodes.has(node.id)) {
+      throw new ConflictError(`Node id "${node.id}" already exists`)
+    }
+    state.nodes.set(node.id, node)
+  }
+
+  private applyValidatedRemove(state: MutableGraphState, nodeId: NodeId): void {
+    if (!state.nodes.has(nodeId)) {
+      throw new NotFoundError(`Node "${nodeId}" not found`)
+    }
+    state.nodes.delete(nodeId)
+    for (const [edgeId, edge] of state.edges) {
+      if (edge.fromNodeId === nodeId || edge.toNodeId === nodeId) {
+        state.edges.delete(edgeId)
+      }
+    }
+  }
+
+  private applyValidatedUpdate(
+    state: MutableGraphState,
+    nodeId: NodeId,
+    patch: Partial<GraphNode>,
+  ): void {
+    const existing = state.nodes.get(nodeId)
+    if (!existing) {
+      throw new NotFoundError(`Node "${nodeId}" not found`)
+    }
+    state.nodes.set(nodeId, { ...existing, ...patch, id: existing.id })
+  }
+
+  private applyValidatedAddEdge(state: MutableGraphState, edge: GraphEdge): void {
+    if (!state.nodes.has(edge.fromNodeId)) {
+      throw new NotFoundError(`Edge source "${edge.fromNodeId}" not found`)
+    }
+    if (!state.nodes.has(edge.toNodeId)) {
+      throw new NotFoundError(`Edge target "${edge.toNodeId}" not found`)
+    }
+    if (state.edges.has(edge.id)) {
+      throw new ConflictError(`Edge id "${edge.id}" already exists`)
+    }
+    state.edges.set(edge.id, edge)
+  }
+
+  private applyValidatedRemoveEdge(state: MutableGraphState, edgeId: EdgeId): void {
+    if (!state.edges.has(edgeId)) {
+      throw new NotFoundError(`Edge "${edgeId}" not found`)
+    }
+    state.edges.delete(edgeId)
+  }
+
+  private applyValidatedUpdateEdge(
+    state: MutableGraphState,
+    edgeId: EdgeId,
+    patch: Partial<GraphEdge>,
+  ): void {
+    const existing = state.edges.get(edgeId)
+    if (!existing) {
+      throw new NotFoundError(`Edge "${edgeId}" not found`)
+    }
+    state.edges.set(edgeId, { ...existing, ...patch, id: existing.id })
+  }
+
+  private applyOperation(state: MutableGraphState, operation: GraphOperation): void {
+    switch (operation.op) {
+      case 'addNode':
+        this.applyValidatedAdd(state, this.materializeNode(operation.payload))
+        return
+      case 'addNodes':
+        for (const payload of operation.payloads) {
+          this.applyValidatedAdd(state, this.materializeNode(payload))
+        }
+        return
+      case 'removeNode':
+        this.applyValidatedRemove(state, operation.nodeId)
+        return
+      case 'removeNodes':
+        for (const nodeId of operation.nodeIds) this.applyValidatedRemove(state, nodeId)
+        return
+      case 'updateNode':
+        this.applyValidatedUpdate(state, operation.nodeId, operation.patch as Partial<GraphNode>)
+        return
+      case 'updateNodes':
+        for (const update of operation.updates) {
+          this.applyValidatedUpdate(state, update.nodeId, update.patch as Partial<GraphNode>)
+        }
+        return
+      case 'addEdge':
+        this.applyValidatedAddEdge(state, this.materializeEdge(operation.payload))
+        return
+      case 'addEdges':
+        for (const payload of operation.payloads) {
+          this.applyValidatedAddEdge(state, this.materializeEdge(payload))
+        }
+        return
+      case 'removeEdge':
+        this.applyValidatedRemoveEdge(state, operation.edgeId)
+        return
+      case 'removeEdges':
+        for (const edgeId of operation.edgeIds) this.applyValidatedRemoveEdge(state, edgeId)
+        return
+      case 'updateEdge':
+        this.applyValidatedUpdateEdge(state, operation.edgeId, operation.patch as Partial<GraphEdge>)
+        return
+      case 'updateEdges':
+        for (const update of operation.updates) {
+          this.applyValidatedUpdateEdge(state, update.edgeId, update.patch as Partial<GraphEdge>)
+        }
+    }
+  }
+}

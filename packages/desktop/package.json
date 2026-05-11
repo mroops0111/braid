@@ -1,0 +1,23 @@
+{
+  "name": "@telos/desktop",
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Telos Tauri desktop shell. Embeds @telos/server as sidecar; reuses @telos/studio for UI.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "echo 'desktop build runs Tauri in Phase 6'",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "dev": "echo 'tauri dev (Phase 6)'",
+    "clean": "rm -rf dist .turbo *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@telos/schema": "workspace:*",
+    "@telos/server": "workspace:*",
+    "@telos/studio": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}

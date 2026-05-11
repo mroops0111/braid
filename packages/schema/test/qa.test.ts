@@ -1,0 +1,182 @@
+import { describe, expect, it } from 'vitest'
+import {
+  Answer,
+  AnswerEvent,
+  AskContext,
+  Citation,
+  NodeCitation,
+  Question,
+  QuestionChannel,
+  SourceCitation,
+} from '../src/index.js'
+
+const isoTimestamp = '2026-05-09T12:00:00+08:00'
+const validEmbedding = {
+  vector: [0.1, 0.2],
+  modelId: 'voyage-3',
+  createdAt: isoTimestamp,
+}
+
+describe('questionChannel (open brand — channels are plugin-extensible)', () => {
+  it('accepts any non-empty string', () => {
+    expect(QuestionChannel.parse('studio')).toBe('studio')
+    expect(QuestionChannel.parse('mcp')).toBe('mcp')
+  })
+  it('rejects empty', () => {
+    expect(QuestionChannel.safeParse('').success).toBe(false)
+  })
+})
+
+describe('question', () => {
+  it('parses a complete question', () => {
+    const question = Question.parse({
+      id: 'q-1',
+      text: 'what is voidTask?',
+      embedding: validEmbedding,
+      timestamp: isoTimestamp,
+      askedBy: 'u-1',
+      channel: 'studio',
+    })
+    expect(question.text).toContain('voidTask')
+  })
+  it('rejects empty text', () => {
+    expect(
+      Question.safeParse({
+        id: 'q-1',
+        text: '',
+        embedding: validEmbedding,
+        timestamp: isoTimestamp,
+        askedBy: 'u-1',
+        channel: 'studio',
+      }).success,
+    ).toBe(false)
+  })
+})
+
+describe('citation', () => {
+  it('parses NodeCitation', () => {
+    const citation = NodeCitation.parse({
+      kind: 'node',
+      nodeId: 'n-1',
+      snippet: 'voidTask command',
+    })
+    expect(citation.kind).toBe('node')
+  })
+
+  it('parses SourceCitation', () => {
+    const citation = SourceCitation.parse({
+      kind: 'source',
+      sourceId: 's-1',
+      location: { uri: 'file:///x.ts', startLine: 5 },
+      snippet: 'function voidTask()',
+    })
+    expect(citation.kind).toBe('source')
+  })
+
+  it('Citation discriminates by kind', () => {
+    const node = Citation.parse({ kind: 'node', nodeId: 'n-1', snippet: 'x' })
+    expect(node.kind).toBe('node')
+
+    const source = Citation.parse({
+      kind: 'source',
+      sourceId: 's-1',
+      location: { uri: 'x' },
+      snippet: 'x',
+    })
+    expect(source.kind).toBe('source')
+  })
+
+  it('Citation rejects unknown kind', () => {
+    expect(Citation.safeParse({ kind: 'mystery' }).success).toBe(false)
+  })
+})
+
+describe('answer', () => {
+  it('parses with both citation kinds', () => {
+    const answer = Answer.parse({
+      id: 'a-1',
+      questionId: 'q-1',
+      text: 'voidTask voids a task.',
+      citations: [
+        { kind: 'node', nodeId: 'n-1', snippet: 'x' },
+        { kind: 'source', sourceId: 's-1', location: { uri: 'x' }, snippet: 'y' },
+      ],
+      generatedBy: 'agent-anthropic',
+      confidence: 0.92,
+    })
+    expect(answer.citations).toHaveLength(2)
+  })
+
+  it('rejects confidence > 1', () => {
+    expect(
+      Answer.safeParse({
+        id: 'a-1',
+        questionId: 'q-1',
+        text: 'x',
+        citations: [],
+        generatedBy: 'a-1',
+        confidence: 1.1,
+      }).success,
+    ).toBe(false)
+  })
+})
+
+describe('askContext', () => {
+  it('parses minimal payload', () => {
+    const context = AskContext.parse({ askedBy: 'u-1', channel: 'cli' })
+    expect(context.scope).toBeUndefined()
+  })
+
+  it('parses scope with defaults', () => {
+    const context = AskContext.parse({
+      askedBy: 'u-1',
+      channel: 'studio',
+      scope: {},
+    })
+    expect(context.scope?.pathGlobs).toEqual([])
+    expect(context.scope?.boundedContextHints).toEqual([])
+  })
+})
+
+describe('answerEvent', () => {
+  it('start event has questionId', () => {
+    const event = AnswerEvent.parse({ event: 'start', questionId: 'q-1' })
+    expect(event.event).toBe('start')
+  })
+  it('token event has text', () => {
+    const event = AnswerEvent.parse({ event: 'token', text: 'hello' })
+    expect(event.event).toBe('token')
+  })
+  it('citation event embeds Citation', () => {
+    const event = AnswerEvent.parse({
+      event: 'citation',
+      citation: { kind: 'node', nodeId: 'n-1', snippet: 'x' },
+    })
+    expect(event.event).toBe('citation')
+  })
+  it('end event carries confidence + suggestExtract', () => {
+    const event = AnswerEvent.parse({
+      event: 'end',
+      answerId: 'a-1',
+      confidence: 0.5,
+      suggestExtract: true,
+    })
+    if (event.event === 'end') {
+      expect(event.suggestExtract).toBe(true)
+    }
+  })
+  it('end event defaults suggestExtract to false', () => {
+    const event = AnswerEvent.parse({
+      event: 'end',
+      answerId: 'a-1',
+      confidence: 0.9,
+    })
+    if (event.event === 'end') {
+      expect(event.suggestExtract).toBe(false)
+    }
+  })
+  it('error event has message', () => {
+    const event = AnswerEvent.parse({ event: 'error', message: 'agent down' })
+    expect(event.event).toBe('error')
+  })
+})

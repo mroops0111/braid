@@ -1,0 +1,25 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+coverage
+*.tsbuildinfo
+
+# Tooling cache
+.turbo
+
+# OS
+.DS_Store
+
+# IDE
+.idea
+.vscode
+
+# Secrets / env
+.env
+.env.local
+.env.*.local
+
+# Docs
+docs/

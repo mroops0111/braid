@@ -1,0 +1,28 @@
+{
+  "name": "@telos/studio",
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Telos web viewer (Vite + React + TanStack). Browser-first UI for the whole product team.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "echo 'studio build wires up in Phase 1.5 once UI entry exists'",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "dev": "vite",
+    "clean": "rm -rf dist .turbo *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@telos/schema": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vitest": "^2.1.0"
+  }
+}
