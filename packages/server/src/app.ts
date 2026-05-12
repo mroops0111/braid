@@ -1,5 +1,6 @@
 import type { AppDependencies } from './composition.js'
 import { Hono } from 'hono'
+import { corsMiddleware } from './middleware/cors.js'
 import { errorHandler } from './middleware/error.js'
 import { createClarifyRouter } from './routes/clarify.js'
 import { createDecisionsRouter } from './routes/decisions.js'
@@ -11,8 +12,18 @@ import { createProposalsRouter } from './routes/proposals.js'
 import { createSkillsRouter } from './routes/skills.js'
 import { createWorkspacesRouter } from './routes/workspaces.js'
 
-export function createApp(deps: AppDependencies): Hono {
+export interface AppOptions {
+  readonly corsOrigins?: readonly string[]
+}
+
+export function createApp(deps: AppDependencies, options: AppOptions = {}): Hono {
   const app = new Hono()
+  app.use(
+    '*',
+    options.corsOrigins
+      ? corsMiddleware({ allowedOrigins: options.corsOrigins })
+      : corsMiddleware(),
+  )
   app.onError(errorHandler)
 
   app.route('/health', healthRouter)

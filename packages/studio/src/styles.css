@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", "Menlo", "Consolas", monospace;
+
+  /* Linear-inspired zinc-on-zinc dark palette */
+  --color-bg: oklch(0.145 0 0);              /* zinc-950 */
+  --color-bg-elevated: oklch(0.175 0 0);     /* slightly lighter for cards */
+  --color-bg-hover: oklch(0.21 0 0);
+  --color-border: oklch(0.27 0 0);           /* zinc-800 */
+  --color-border-strong: oklch(0.32 0 0);
+  --color-fg: oklch(0.985 0 0);
+  --color-fg-muted: oklch(0.71 0 0);
+  --color-fg-subtle: oklch(0.55 0 0);
+  --color-accent: oklch(0.65 0.18 256);      /* blue-500-ish */
+  --color-accent-fg: oklch(0.985 0 0);
+  --color-success: oklch(0.7 0.16 145);
+  --color-warning: oklch(0.78 0.15 80);
+  --color-danger: oklch(0.62 0.22 25);
+}
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+  }
+  body {
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+  *:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+  ::selection {
+    background: oklch(0.45 0.15 256 / 0.4);
+  }
+}
+
+/* Custom scrollbar — Mac-like, thin */
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border-radius: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: var(--color-fg-subtle);
+  }
+}

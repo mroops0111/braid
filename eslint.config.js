@@ -37,4 +37,11 @@ export default antfu(
       'test/prefer-lowercase-title': 'off',
     },
   },
+  {
+    // React components / view helpers — explicit return types are noise.
+    files: ['packages/studio/**/*.{ts,tsx}'],
+    rules: {
+      'ts/explicit-function-return-type': 'off',
+    },
+  },
 )
