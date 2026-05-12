@@ -17,59 +17,59 @@ describe('proposalStatus', () => {
 })
 
 describe('graphOperation', () => {
-  const cases: { op: string, payload: unknown }[] = [
-    { op: 'addNode', payload: { op: 'addNode', payload: validNewGraphNode } },
-    { op: 'addNodes', payload: { op: 'addNodes', payloads: [validNewGraphNode] } },
-    { op: 'removeNode', payload: { op: 'removeNode', nodeId: 'n-1' } },
-    { op: 'removeNodes', payload: { op: 'removeNodes', nodeIds: ['n-1', 'n-2'] } },
+  const cases: { name: string, payload: unknown }[] = [
+    { name: 'addNode', payload: { operation: 'addNode', payload: validNewGraphNode } },
+    { name: 'addNodes', payload: { operation: 'addNodes', payloads: [validNewGraphNode] } },
+    { name: 'removeNode', payload: { operation: 'removeNode', nodeId: 'n-1' } },
+    { name: 'removeNodes', payload: { operation: 'removeNodes', nodeIds: ['n-1', 'n-2'] } },
     {
-      op: 'updateNode',
-      payload: { op: 'updateNode', nodeId: 'n-1', patch: { name: 'x' } },
+      name: 'updateNode',
+      payload: { operation: 'updateNode', nodeId: 'n-1', patch: { name: 'x' } },
     },
     {
-      op: 'updateNodes',
+      name: 'updateNodes',
       payload: {
-        op: 'updateNodes',
+        operation: 'updateNodes',
         updates: [{ nodeId: 'n-1', patch: { name: 'x' } }],
       },
     },
     {
-      op: 'addEdge',
+      name: 'addEdge',
       payload: {
-        op: 'addEdge',
+        operation: 'addEdge',
         payload: { type: 'contains', fromNodeId: 'n-1', toNodeId: 'n-2' },
       },
     },
     {
-      op: 'addEdges',
+      name: 'addEdges',
       payload: {
-        op: 'addEdges',
+        operation: 'addEdges',
         payloads: [{ type: 'contains', fromNodeId: 'n-1', toNodeId: 'n-2' }],
       },
     },
-    { op: 'removeEdge', payload: { op: 'removeEdge', edgeId: 'e-1' } },
-    { op: 'removeEdges', payload: { op: 'removeEdges', edgeIds: ['e-1'] } },
+    { name: 'removeEdge', payload: { operation: 'removeEdge', edgeId: 'e-1' } },
+    { name: 'removeEdges', payload: { operation: 'removeEdges', edgeIds: ['e-1'] } },
     {
-      op: 'updateEdge',
-      payload: { op: 'updateEdge', edgeId: 'e-1', patch: { type: 'triggers' } },
+      name: 'updateEdge',
+      payload: { operation: 'updateEdge', edgeId: 'e-1', patch: { type: 'triggers' } },
     },
     {
-      op: 'updateEdges',
+      name: 'updateEdges',
       payload: {
-        op: 'updateEdges',
+        operation: 'updateEdges',
         updates: [{ edgeId: 'e-1', patch: { type: 'triggers' } }],
       },
     },
   ]
 
-  for (const { op, payload } of cases) {
-    it(`accepts ${op}`, () => {
-      expect(GraphOperation.parse(payload).op).toBe(op)
+  for (const { name, payload } of cases) {
+    it(`accepts ${name}`, () => {
+      expect(GraphOperation.parse(payload).operation).toBe(name)
     })
   }
 
-  it('rejects unknown op', () => {
-    expect(GraphOperation.safeParse({ op: 'mystery' }).success).toBe(false)
+  it('rejects unknown operation discriminator', () => {
+    expect(GraphOperation.safeParse({ operation: 'mystery' }).success).toBe(false)
   })
 })
 
@@ -77,10 +77,11 @@ describe('proposal', () => {
   it('parses a complete pending proposal with mixed batch ops', () => {
     const proposal = Proposal.parse({
       id: 'p-1',
+      workspaceId: 'w-1',
       status: 'pending',
       operations: [
-        { op: 'addNodes', payloads: [validNewGraphNode, validNewGraphNode] },
-        { op: 'removeEdges', edgeIds: ['e-1', 'e-2', 'e-3'] },
+        { operation: 'addNodes', payloads: [validNewGraphNode, validNewGraphNode] },
+        { operation: 'removeEdges', edgeIds: ['e-1', 'e-2', 'e-3'] },
       ],
       generatedBy: 'extract',
       generatedAt: isoTimestamp,
@@ -92,6 +93,7 @@ describe('proposal', () => {
   it('accepts optional reviewer fields', () => {
     const proposal = Proposal.parse({
       id: 'p-1',
+      workspaceId: 'w-1',
       status: 'applied',
       operations: [],
       generatedBy: 'extract',
@@ -106,6 +108,7 @@ describe('proposal', () => {
   it('accepts externalReferences (v2 forward-compat)', () => {
     const proposal = Proposal.parse({
       id: 'p-1',
+      workspaceId: 'w-1',
       status: 'pending',
       operations: [],
       generatedBy: 'extract',
@@ -115,11 +118,25 @@ describe('proposal', () => {
     })
     expect(proposal.externalReferences?.[0]?.kind).toBe('github')
   })
+
+  it('rejects proposal without workspaceId', () => {
+    expect(
+      Proposal.safeParse({
+        id: 'p-1',
+        status: 'pending',
+        operations: [],
+        generatedBy: 'extract',
+        generatedAt: isoTimestamp,
+        rationale: 'x',
+      }).success,
+    ).toBe(false)
+  })
 })
 
 describe('proposalDraft', () => {
   it('does not require id / status / generatedAt', () => {
     const draft = ProposalDraft.parse({
+      workspaceId: 'w-1',
       operations: [],
       generatedBy: 'extract',
       rationale: 'x',

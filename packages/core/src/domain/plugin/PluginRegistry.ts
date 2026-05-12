@@ -1,9 +1,23 @@
-import type { PluginId, PluginType } from '@telos/schema'
+import type {
+  AgentKind,
+  ChannelKind,
+  OntologyId,
+  PluginId,
+  PluginType,
+  StorageKind,
+  ViewKind,
+} from '@telos/schema'
+import type { AgentPlugin } from './AgentPlugin.js'
+import type { ChannelPlugin } from './ChannelPlugin.js'
+import type { Generator } from './Generator.js'
+import type { Ontology } from './Ontology.js'
 import type { Plugin } from './Plugin.js'
+import type { StoragePlugin } from './StoragePlugin.js'
+import type { Validator } from './Validator.js'
 import { ConflictError, NotFoundError } from '../errors.js'
 
 export class PluginRegistry {
-  private plugins = new Map<PluginId, Plugin>()
+  private readonly plugins = new Map<PluginId, Plugin>()
 
   register(plugin: Plugin): void {
     if (this.plugins.has(plugin.id)) {
@@ -12,23 +26,94 @@ export class PluginRegistry {
     this.plugins.set(plugin.id, plugin)
   }
 
-  get<T extends Plugin = Plugin>(pluginId: PluginId): T {
-    const plugin = this.plugins.get(pluginId)
-    if (!plugin) {
-      throw new NotFoundError(`Plugin "${pluginId}" not found`)
-    }
-    return plugin as T
-  }
-
   has(pluginId: PluginId): boolean {
     return this.plugins.has(pluginId)
   }
 
-  listByType(pluginType: PluginType): Plugin[] {
-    return [...this.plugins.values()].filter(plugin => plugin.type === pluginType)
+  list(): readonly Plugin[] {
+    return [...this.plugins.values()]
   }
 
-  list(): Plugin[] {
-    return [...this.plugins.values()]
+  listByType(pluginType: PluginType): readonly Plugin[] {
+    return this.list().filter(plugin => plugin.type === pluginType)
+  }
+
+  ontologies(): readonly Ontology[] {
+    return this.listByType('ontology') as readonly Ontology[]
+  }
+
+  findOntology(ontologyId: OntologyId): Ontology | undefined {
+    return this.ontologies().find(ontology => ontology.ontologyId === ontologyId)
+  }
+
+  requireOntology(ontologyId: OntologyId): Ontology {
+    const ontology = this.findOntology(ontologyId)
+    if (!ontology)
+      throw new NotFoundError(`Ontology "${ontologyId}" not registered`)
+    return ontology
+  }
+
+  validators(): readonly Validator[] {
+    return this.listByType('validator') as readonly Validator[]
+  }
+
+  generators(): readonly Generator[] {
+    return this.listByType('generator') as readonly Generator[]
+  }
+
+  findGenerator(viewKind: ViewKind): Generator | undefined {
+    return this.generators().find(generator => generator.viewKind === viewKind)
+  }
+
+  requireGenerator(viewKind: ViewKind): Generator {
+    const generator = this.findGenerator(viewKind)
+    if (!generator)
+      throw new NotFoundError(`No generator registered for viewKind "${viewKind}"`)
+    return generator
+  }
+
+  agentPlugins(): readonly AgentPlugin[] {
+    return this.listByType('agent') as readonly AgentPlugin[]
+  }
+
+  findAgentPlugin(kind: AgentKind): AgentPlugin | undefined {
+    return this.agentPlugins().find(plugin => plugin.kind === kind)
+  }
+
+  requireAgentPlugin(kind: AgentKind): AgentPlugin {
+    const plugin = this.findAgentPlugin(kind)
+    if (!plugin)
+      throw new NotFoundError(`No agent plugin registered for kind "${kind}"`)
+    return plugin
+  }
+
+  storagePlugins(): readonly StoragePlugin[] {
+    return this.listByType('storage') as readonly StoragePlugin[]
+  }
+
+  findStoragePlugin(kind: StorageKind): StoragePlugin | undefined {
+    return this.storagePlugins().find(plugin => plugin.kind === kind)
+  }
+
+  requireStoragePlugin(kind: StorageKind): StoragePlugin {
+    const plugin = this.findStoragePlugin(kind)
+    if (!plugin)
+      throw new NotFoundError(`No storage plugin registered for kind "${kind}"`)
+    return plugin
+  }
+
+  channelPlugins(): readonly ChannelPlugin[] {
+    return this.listByType('channel') as readonly ChannelPlugin[]
+  }
+
+  findChannelPlugin(kind: ChannelKind): ChannelPlugin | undefined {
+    return this.channelPlugins().find(plugin => plugin.kind === kind)
+  }
+
+  requireChannelPlugin(kind: ChannelKind): ChannelPlugin {
+    const plugin = this.findChannelPlugin(kind)
+    if (!plugin)
+      throw new NotFoundError(`No channel plugin registered for kind "${kind}"`)
+    return plugin
   }
 }

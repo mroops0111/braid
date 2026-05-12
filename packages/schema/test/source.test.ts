@@ -1,142 +1,105 @@
 import { describe, expect, it } from 'vitest'
 import {
-  FactFragment,
-  IntentFragment,
-  IntentFragmentType,
-  Scope,
+  FilesystemSourceDescriptor,
+  McpSourceDescriptor,
   SourceDescriptor,
-  SourceFragment,
   SourceKind,
+  SourceRole,
 } from '../src/index.js'
 
-describe('sourceDescriptor', () => {
-  it('parses with config blob', () => {
-    const descriptor = SourceDescriptor.parse({
-      id: 's-1',
-      pluginId: 'source-github',
-      kind: 'code',
-      config: { repo: 'org/repo' },
-    })
-    expect(descriptor.kind).toBe('code')
+describe('sourceRole', () => {
+  it('accepts code / intent', () => {
+    expect(SourceRole.parse('code')).toBe('code')
+    expect(SourceRole.parse('intent')).toBe('intent')
   })
-
-  it('rejects unknown kind', () => {
-    const result = SourceDescriptor.safeParse({
-      id: 's-1',
-      pluginId: 'source-x',
-      kind: 'mystery',
-      config: {},
-    })
-    expect(result.success).toBe(false)
+  it('rejects unknown role', () => {
+    expect(SourceRole.safeParse('external').success).toBe(false)
   })
 })
 
 describe('sourceKind', () => {
-  it('has three kinds: intent / code / external', () => {
-    expect(SourceKind.options).toEqual(['intent', 'code', 'external'])
+  it('accepts filesystem / mcp', () => {
+    expect(SourceKind.parse('filesystem')).toBe('filesystem')
+    expect(SourceKind.parse('mcp')).toBe('mcp')
   })
 })
 
-describe('scope', () => {
-  it('defaults to empty arrays', () => {
-    const scope = Scope.parse({})
-    expect(scope.tokens).toEqual([])
-    expect(scope.pathGlobs).toEqual([])
+describe('filesystemSourceDescriptor', () => {
+  it('parses minimal filesystem source', () => {
+    const source = FilesystemSourceDescriptor.parse({
+      kind: 'filesystem',
+      id: 'src-api',
+      role: 'code',
+      name: 'api',
+      path: '/abs/code/api',
+    })
+    expect(source.kind).toBe('filesystem')
+    expect(source.path).toBe('/abs/code/api')
   })
 
-  it('accepts tokens + globs', () => {
-    const scope = Scope.parse({
-      tokens: ['service-a'],
-      pathGlobs: ['src/**/*.ts'],
+  it('accepts optional language', () => {
+    const source = FilesystemSourceDescriptor.parse({
+      kind: 'filesystem',
+      id: 'src-api',
+      role: 'code',
+      name: 'api',
+      path: '/abs/code/api',
+      language: 'typescript',
     })
-    expect(scope.tokens).toContain('service-a')
+    expect(source.language).toBe('typescript')
   })
 })
 
-describe('intentFragmentType (open brand — concrete types live in source plugins)', () => {
-  it('accepts any non-empty string', () => {
-    expect(IntentFragmentType.parse('prd')).toBe('prd')
-    expect(IntentFragmentType.parse('design-doc')).toBe('design-doc')
-  })
-  it('rejects empty', () => {
-    expect(IntentFragmentType.safeParse('').success).toBe(false)
-  })
-})
-
-describe('intentFragment', () => {
-  it('parses with arbitrary fragmentType', () => {
-    const fragment = IntentFragment.parse({
-      kind: 'intent',
-      sourceId: 's-1',
-      text: 'Users can void a task',
-      location: { uri: 'file:///prd.md' },
-      fragmentType: 'prd',
+describe('mcpSourceDescriptor', () => {
+  it('parses minimal mcp source', () => {
+    const source = McpSourceDescriptor.parse({
+      kind: 'mcp',
+      id: 'src-redmine',
+      role: 'intent',
+      name: 'redmine',
+      mcpServerId: 'redmine',
     })
-    expect(fragment.fragmentType).toBe('prd')
+    expect(source.kind).toBe('mcp')
+    expect(source.mcpServerId).toBe('redmine')
   })
 
-  it('rejects empty fragmentType', () => {
-    const result = IntentFragment.safeParse({
-      kind: 'intent',
-      sourceId: 's-1',
-      text: 'x',
-      location: { uri: 'x' },
-      fragmentType: '',
+  it('parses with scope hints', () => {
+    const source = McpSourceDescriptor.parse({
+      kind: 'mcp',
+      id: 'src-redmine',
+      role: 'intent',
+      name: 'redmine',
+      mcpServerId: 'redmine',
+      scope: { tags: ['project:DS'], paths: [] },
     })
-    expect(result.success).toBe(false)
+    expect(source.scope?.tags).toEqual(['project:DS'])
   })
 })
 
-describe('factFragment', () => {
-  it('parses with codeSymbol', () => {
-    const fragment = FactFragment.parse({
-      kind: 'fact',
-      sourceId: 's-1',
-      text: 'function voidTask() { ... }',
-      location: { uri: 'file:///src/task.ts' },
-      codeSymbol: { file: 'src/task.ts', symbol: 'voidTask', language: 'typescript' },
+describe('sourceDescriptor (discriminated union)', () => {
+  it('discriminates by kind', () => {
+    const fs = SourceDescriptor.parse({
+      kind: 'filesystem',
+      id: 'a',
+      role: 'code',
+      name: 'a',
+      path: '/abs',
     })
-    expect(fragment.codeSymbol?.symbol).toBe('voidTask')
+    expect(fs.kind).toBe('filesystem')
+
+    const mcp = SourceDescriptor.parse({
+      kind: 'mcp',
+      id: 'b',
+      role: 'intent',
+      name: 'b',
+      mcpServerId: 'srv',
+    })
+    expect(mcp.kind).toBe('mcp')
   })
 
-  it('codeSymbol is optional', () => {
-    const fragment = FactFragment.parse({
-      kind: 'fact',
-      sourceId: 's-1',
-      text: 'x',
-      location: { uri: 'x' },
-    })
-    expect(fragment.codeSymbol).toBeUndefined()
-  })
-})
-
-describe('sourceFragment union', () => {
-  it('discriminates intent vs fact via kind', () => {
-    const intent = SourceFragment.parse({
-      kind: 'intent',
-      sourceId: 's-1',
-      text: 'x',
-      location: { uri: 'x' },
-      fragmentType: 'rfc',
-    })
-    expect(intent.kind).toBe('intent')
-
-    const fact = SourceFragment.parse({
-      kind: 'fact',
-      sourceId: 's-1',
-      text: 'x',
-      location: { uri: 'x' },
-    })
-    expect(fact.kind).toBe('fact')
-  })
-
-  it('rejects other kinds', () => {
-    const result = SourceFragment.safeParse({
-      kind: 'mystery',
-      sourceId: 's-1',
-      text: 'x',
-      location: { uri: 'x' },
-    })
-    expect(result.success).toBe(false)
+  it('rejects unknown kind', () => {
+    expect(
+      SourceDescriptor.safeParse({ kind: 'http', id: 'a', role: 'code', name: 'a' }).success,
+    ).toBe(false)
   })
 })

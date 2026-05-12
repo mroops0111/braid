@@ -6,6 +6,7 @@ import {
   QuestionId,
   Timestamp,
   UserId,
+  WorkspaceId,
 } from './common.js'
 
 export const DecisionAction = z.enum([
@@ -29,6 +30,7 @@ export type DecisionReferences = z.infer<typeof DecisionReferences>
 
 export const Decision = z.object({
   id: DecisionId,
+  workspaceId: WorkspaceId,
   timestamp: Timestamp,
   action: DecisionAction,
   by: DecisionActor,
@@ -36,3 +38,11 @@ export const Decision = z.object({
   references: DecisionReferences,
 })
 export type Decision = z.infer<typeof Decision>
+
+export const DecisionFilter = z.object({
+  workspaceId: WorkspaceId.optional(),
+  actions: z.array(DecisionAction).optional(),
+  limit: z.number().int().positive().optional(),
+  offset: z.number().int().nonnegative().optional(),
+})
+export type DecisionFilter = z.infer<typeof DecisionFilter>

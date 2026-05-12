@@ -146,9 +146,9 @@ describe('Model', () => {
   describe('applyOperations (mixed batch)', () => {
     it('applies node + edge operations in one transaction', () => {
       const ops: GraphOperation[] = [
-        { op: 'addNode', payload: newNode({ id: 'a' as NodeId }) },
-        { op: 'addNode', payload: newNode({ id: 'b' as NodeId }) },
-        { op: 'addEdge', payload: { type: 'contains', fromNodeId: 'a' as NodeId, toNodeId: 'b' as NodeId } },
+        { operation: 'addNode', payload: newNode({ id: 'a' as NodeId }) },
+        { operation: 'addNode', payload: newNode({ id: 'b' as NodeId }) },
+        { operation: 'addEdge', payload: { type: 'contains', fromNodeId: 'a' as NodeId, toNodeId: 'b' as NodeId } },
       ]
       model.applyOperations(ops)
       const snapshot = model.toSnapshot()
@@ -158,8 +158,8 @@ describe('Model', () => {
 
     it('rolls back the entire batch when one op fails', () => {
       const ops: GraphOperation[] = [
-        { op: 'addNode', payload: newNode({ id: 'a' as NodeId }) },
-        { op: 'removeNode', nodeId: 'missing' as NodeId },
+        { operation: 'addNode', payload: newNode({ id: 'a' as NodeId }) },
+        { operation: 'removeNode', nodeId: 'missing' as NodeId },
       ]
       expect(() => model.applyOperations(ops)).toThrow(NotFoundError)
       expect(model.toSnapshot().nodes).toEqual([])
@@ -167,12 +167,12 @@ describe('Model', () => {
 
     it('supports batch ops (addNodes / removeNodes)', () => {
       model.applyOperations([
-        { op: 'addNodes', payloads: [newNode({ id: 'a' as NodeId }), newNode({ id: 'b' as NodeId })] },
+        { operation: 'addNodes', payloads: [newNode({ id: 'a' as NodeId }), newNode({ id: 'b' as NodeId })] },
       ])
       expect(model.toSnapshot().nodes).toHaveLength(2)
 
       model.applyOperations([
-        { op: 'removeNodes', nodeIds: ['a' as NodeId, 'b' as NodeId] },
+        { operation: 'removeNodes', nodeIds: ['a' as NodeId, 'b' as NodeId] },
       ])
       expect(model.toSnapshot().nodes).toEqual([])
     })
@@ -183,13 +183,13 @@ describe('Model', () => {
       const a = model.addNode(newNode({ id: 'a' as NodeId }))
       const b = model.addNode(newNode({ id: 'b' as NodeId }))
       const edgeId = model.addEdge({ type: 'contains', fromNodeId: a, toNodeId: b })
-      model.applyOperations([{ op: 'updateEdge', edgeId, patch: { type: 'triggers' } }])
+      model.applyOperations([{ operation: 'updateEdge', edgeId, patch: { type: 'triggers' } }])
       expect(model.toSnapshot().edges[0]?.type).toBe('triggers')
     })
 
     it('updateEdge throws NotFoundError if edge missing', () => {
       expect(() => model.applyOperations([
-        { op: 'updateEdge', edgeId: 'missing' as never, patch: { type: 'contains' } },
+        { operation: 'updateEdge', edgeId: 'missing' as never, patch: { type: 'contains' } },
       ])).toThrow()
     })
 
@@ -197,7 +197,7 @@ describe('Model', () => {
       const a = model.addNode(newNode({ id: 'a' as NodeId }))
       const b = model.addNode(newNode({ id: 'b' as NodeId }))
       const edgeId = model.addEdge({ type: 'contains', fromNodeId: a, toNodeId: b })
-      model.applyOperations([{ op: 'removeEdge', edgeId }])
+      model.applyOperations([{ operation: 'removeEdge', edgeId }])
       expect(model.toSnapshot().edges).toEqual([])
     })
 
@@ -205,7 +205,7 @@ describe('Model', () => {
       const a = model.addNode(newNode({ id: 'a' as NodeId }))
       const b = model.addNode(newNode({ id: 'b' as NodeId }))
       model.applyOperations([{
-        op: 'updateNodes',
+        operation: 'updateNodes',
         updates: [
           { nodeId: a, patch: { name: 'AA' } },
           { nodeId: b, patch: { name: 'BB' } },
@@ -223,7 +223,7 @@ describe('Model', () => {
       const e1 = model.addEdge({ type: 'contains', fromNodeId: a, toNodeId: b })
       const e2 = model.addEdge({ type: 'contains', fromNodeId: a, toNodeId: c })
       model.applyOperations([{
-        op: 'updateEdges',
+        operation: 'updateEdges',
         updates: [
           { edgeId: e1, patch: { type: 'triggers' } },
           { edgeId: e2, patch: { type: 'emits' } },
@@ -239,14 +239,14 @@ describe('Model', () => {
       const b = model.addNode(newNode({ id: 'b' as NodeId }))
       const c = model.addNode(newNode({ id: 'c' as NodeId }))
       model.applyOperations([{
-        op: 'addEdges',
+        operation: 'addEdges',
         payloads: [
           { type: 'contains', fromNodeId: a, toNodeId: b, id: 'e1' as never },
           { type: 'contains', fromNodeId: a, toNodeId: c, id: 'e2' as never },
         ],
       }])
       expect(model.toSnapshot().edges).toHaveLength(2)
-      model.applyOperations([{ op: 'removeEdges', edgeIds: ['e1' as never, 'e2' as never] }])
+      model.applyOperations([{ operation: 'removeEdges', edgeIds: ['e1' as never, 'e2' as never] }])
       expect(model.toSnapshot().edges).toEqual([])
     })
   })
@@ -265,6 +265,24 @@ describe('Model', () => {
       model.addEdge({ type: 'contains', fromNodeId: a, toNodeId: b })
       model.addEdge({ type: 'emits', fromNodeId: a, toNodeId: c })
       expect(model.findEdgesFromNode(a)).toHaveLength(2)
+    })
+  })
+
+  describe('Model.preview (pure projection)', () => {
+    it('returns a new snapshot without mutating the input', () => {
+      const original = { nodes: [], edges: [] }
+      const ops: GraphOperation[] = [
+        { operation: 'addNode', payload: { type: 'command', name: 'x', id: 'n-1' as NodeId } as never },
+      ]
+      const next = Model.preview(original, ops)
+      expect(next.nodes).toHaveLength(1)
+      expect(original.nodes).toEqual([])
+    })
+
+    it('throws when operations are invalid (e.g. removing missing node)', () => {
+      expect(() => Model.preview({ nodes: [], edges: [] }, [
+        { operation: 'removeNode', nodeId: 'missing' as NodeId },
+      ])).toThrow(NotFoundError)
     })
   })
 })

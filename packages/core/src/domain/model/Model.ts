@@ -26,7 +26,11 @@ export class Model {
     }
   }
 
-  // ------- Single-op helpers (delegate to applyOperations) ------------------
+  static preview(snapshot: ModelSnapshot, operations: readonly GraphOperation[]): ModelSnapshot {
+    const model = new Model(snapshot)
+    model.applyOperations([...operations])
+    return model.toSnapshot()
+  }
 
   addNode(payload: NewGraphNode): NodeId {
     const node = this.materializeNode(payload)
@@ -43,15 +47,15 @@ export class Model {
   }
 
   removeNode(nodeId: NodeId): void {
-    this.applyOperations([{ op: 'removeNode', nodeId }])
+    this.applyOperations([{ operation: 'removeNode', nodeId }])
   }
 
   removeNodes(nodeIds: NodeId[]): void {
-    this.applyOperations([{ op: 'removeNodes', nodeIds }])
+    this.applyOperations([{ operation: 'removeNodes', nodeIds }])
   }
 
   updateNode(nodeId: NodeId, patch: Partial<GraphNode>): void {
-    this.applyOperations([{ op: 'updateNode', nodeId, patch }])
+    this.applyOperations([{ operation: 'updateNode', nodeId, patch }])
   }
 
   addEdge(payload: NewGraphEdge): EdgeId {
@@ -60,15 +64,11 @@ export class Model {
     return edge.id
   }
 
-  // ------- Batch / mixed-op transaction --------------------------------------
-
   applyOperations(operations: GraphOperation[]): void {
     const draft = this.cloneState()
     for (const operation of operations) this.applyOperation(draft, operation)
     this.state = draft
   }
-
-  // ------- Queries -----------------------------------------------------------
 
   findNode(nodeId: NodeId): GraphNode | undefined {
     return this.state.nodes.get(nodeId)
@@ -84,8 +84,6 @@ export class Model {
       edges: [...this.state.edges.values()],
     }
   }
-
-  // ------- Private -----------------------------------------------------------
 
   private cloneState(): MutableGraphState {
     return {
@@ -180,7 +178,7 @@ export class Model {
   }
 
   private applyOperation(state: MutableGraphState, operation: GraphOperation): void {
-    switch (operation.op) {
+    switch (operation.operation) {
       case 'addNode':
         this.applyValidatedAdd(state, this.materializeNode(operation.payload))
         return
@@ -224,6 +222,11 @@ export class Model {
         for (const update of operation.updates) {
           this.applyValidatedUpdateEdge(state, update.edgeId, update.patch as Partial<GraphEdge>)
         }
+        return
+      default: {
+        const exhaustive: never = operation
+        throw new Error(`Unhandled GraphOperation: ${JSON.stringify(exhaustive)}`)
+      }
     }
   }
 }

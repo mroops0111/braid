@@ -1,4 +1,13 @@
-import type { AbsolutePath, ProductManifest, Workspace as WorkspaceData, WorkspaceId } from '@telos/schema'
+import type {
+  AbsolutePath,
+  AgentId,
+  McpServerId,
+  ProductManifest,
+  SourceId,
+  StorageKind,
+  Workspace as WorkspaceData,
+  WorkspaceId,
+} from '@telos/schema'
 import { describe, expect, it } from 'vitest'
 import { NotFoundError, Workspace } from '../../../src/index.js'
 
@@ -7,8 +16,58 @@ function manifest(overrides: Partial<ProductManifest> = {}): ProductManifest {
     name: 'demo',
     version: '0.0.0',
     ontologyId: 'ddd' as never,
-    agents: { default: 'claudeCode', tasks: { extract: 'claudeCode', ask: 'anthropicApi' } },
-    sources: [],
+    agents: {
+      default: 'claude-default',
+      tasks: { extract: 'claude-default', ask: 'claude-default' },
+    },
+    agentBindings: [
+      {
+        id: 'claude-default' as AgentId,
+        kind: 'claude-code' as never,
+        model: 'opus',
+        effort: 'high',
+        extraArgs: [],
+        env: {},
+      },
+    ],
+    sources: [
+      {
+        kind: 'filesystem',
+        id: 'src-api' as SourceId,
+        role: 'code',
+        name: 'api',
+        path: '/abs/code/a' as AbsolutePath,
+        language: 'typescript',
+      },
+      {
+        kind: 'filesystem',
+        id: 'src-prd' as SourceId,
+        role: 'intent',
+        name: 'prd',
+        path: '/abs/intent' as AbsolutePath,
+      },
+      {
+        kind: 'mcp',
+        id: 'src-redmine' as SourceId,
+        role: 'intent',
+        name: 'redmine',
+        mcpServerId: 'redmine' as McpServerId,
+      },
+    ],
+    mcpServers: [
+      {
+        id: 'redmine' as McpServerId,
+        transport: 'stdio',
+        command: 'npx',
+        args: ['-y', '@telos/mcp-redmine'],
+        env: {},
+      },
+    ],
+    storage: {
+      kind: 'neo4j' as StorageKind,
+      config: { uri: 'bolt://localhost:7687', user: 'neo4j' },
+    },
+    channels: [],
     ...overrides,
   }
 }
@@ -19,12 +78,6 @@ function data(overrides: Partial<WorkspaceData> = {}): WorkspaceData {
     rootPath: '/abs/path' as AbsolutePath,
     productManifest: manifest(),
     pluginConfig: { plugins: [] },
-    codeRefs: [
-      { name: 'service-a', path: '/abs/code/a' as AbsolutePath },
-    ],
-    intentRefs: [
-      { name: 'prd-folder', path: '/abs/intent' as AbsolutePath },
-    ],
     ...overrides,
   }
 }
@@ -39,46 +92,63 @@ describe('Workspace', () => {
 
   describe('resolveAgentForTask', () => {
     it('returns task-specific agent when configured', () => {
-      const workspace = new Workspace(data())
-      expect(workspace.resolveAgentForTask('ask')).toBe('anthropicApi')
+      const m = manifest({
+        agents: { default: 'claude-default', tasks: { ask: 'claude-fast' } },
+      })
+      const workspace = new Workspace(data({ productManifest: m }))
+      expect(workspace.resolveAgentForTask('ask')).toBe('claude-fast')
     })
 
     it('falls back to default agent when task not mapped', () => {
       const workspace = new Workspace(data())
-      expect(workspace.resolveAgentForTask('unmapped')).toBe('claudeCode')
+      expect(workspace.resolveAgentForTask('unmapped')).toBe('claude-default')
     })
   })
 
-  describe('codeRef / intentRef lookups', () => {
-    it('finds by name', () => {
+  describe('source filtering', () => {
+    it('codeSources / intentSources split by role', () => {
       const workspace = new Workspace(data())
-      expect(workspace.findCodeRef('service-a')?.path).toBe('/abs/code/a')
-      expect(workspace.findIntentRef('prd-folder')?.path).toBe('/abs/intent')
+      expect(workspace.codeSources()).toHaveLength(1)
+      expect(workspace.intentSources()).toHaveLength(2)
     })
 
-    it('returns undefined when missing', () => {
+    it('filesystemSources / mcpSources split by kind', () => {
       const workspace = new Workspace(data())
-      expect(workspace.findCodeRef('missing')).toBeUndefined()
+      expect(workspace.filesystemSources()).toHaveLength(2)
+      expect(workspace.mcpSources()).toHaveLength(1)
     })
 
-    it('requireCodeRef throws NotFoundError', () => {
+    it('resolveAddDirs returns paths of filesystem sources', () => {
       const workspace = new Workspace(data())
-      expect(() => workspace.requireCodeRef('missing')).toThrow(NotFoundError)
+      expect(workspace.resolveAddDirs()).toEqual(['/abs/code/a', '/abs/intent'])
     })
 
-    it('requireCodeRef returns the found ref', () => {
+    it('findSource / requireSource lookup by name', () => {
       const workspace = new Workspace(data())
-      expect(workspace.requireCodeRef('service-a').name).toBe('service-a')
+      expect(workspace.findSource('api')?.kind).toBe('filesystem')
+      expect(workspace.findSource('missing')).toBeUndefined()
+      expect(() => workspace.requireSource('missing')).toThrow(NotFoundError)
+    })
+  })
+
+  describe('mcp servers', () => {
+    it('findMcpServer looks up by id', () => {
+      const workspace = new Workspace(data())
+      expect(workspace.findMcpServer('redmine' as McpServerId)?.transport).toBe('stdio')
+      expect(workspace.findMcpServer('xwiki' as McpServerId)).toBeUndefined()
     })
 
-    it('requireIntentRef returns the found ref', () => {
-      const workspace = new Workspace(data())
-      expect(workspace.requireIntentRef('prd-folder').name).toBe('prd-folder')
+    it('resolveMcpServerForSource throws when server not declared', () => {
+      const m = manifest({ mcpServers: [] })
+      const workspace = new Workspace(data({ productManifest: m }))
+      const mcpSource = workspace.mcpSources()[0]!
+      expect(() => workspace.resolveMcpServerForSource(mcpSource)).toThrow(NotFoundError)
     })
 
-    it('requireIntentRef throws NotFoundError', () => {
+    it('resolveMcpServerForSource returns matching config', () => {
       const workspace = new Workspace(data())
-      expect(() => workspace.requireIntentRef('missing')).toThrow(NotFoundError)
+      const mcpSource = workspace.mcpSources()[0]!
+      expect(workspace.resolveMcpServerForSource(mcpSource).id).toBe('redmine')
     })
   })
 

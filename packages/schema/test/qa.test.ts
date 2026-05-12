@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   Answer,
-  AnswerEvent,
-  AskContext,
   Citation,
   NodeCitation,
   Question,
@@ -118,65 +116,5 @@ describe('answer', () => {
         confidence: 1.1,
       }).success,
     ).toBe(false)
-  })
-})
-
-describe('askContext', () => {
-  it('parses minimal payload', () => {
-    const context = AskContext.parse({ askedBy: 'u-1', channel: 'cli' })
-    expect(context.scope).toBeUndefined()
-  })
-
-  it('parses scope with defaults', () => {
-    const context = AskContext.parse({
-      askedBy: 'u-1',
-      channel: 'studio',
-      scope: {},
-    })
-    expect(context.scope?.pathGlobs).toEqual([])
-    expect(context.scope?.boundedContextHints).toEqual([])
-  })
-})
-
-describe('answerEvent', () => {
-  it('start event has questionId', () => {
-    const event = AnswerEvent.parse({ event: 'start', questionId: 'q-1' })
-    expect(event.event).toBe('start')
-  })
-  it('token event has text', () => {
-    const event = AnswerEvent.parse({ event: 'token', text: 'hello' })
-    expect(event.event).toBe('token')
-  })
-  it('citation event embeds Citation', () => {
-    const event = AnswerEvent.parse({
-      event: 'citation',
-      citation: { kind: 'node', nodeId: 'n-1', snippet: 'x' },
-    })
-    expect(event.event).toBe('citation')
-  })
-  it('end event carries confidence + suggestExtract', () => {
-    const event = AnswerEvent.parse({
-      event: 'end',
-      answerId: 'a-1',
-      confidence: 0.5,
-      suggestExtract: true,
-    })
-    if (event.event === 'end') {
-      expect(event.suggestExtract).toBe(true)
-    }
-  })
-  it('end event defaults suggestExtract to false', () => {
-    const event = AnswerEvent.parse({
-      event: 'end',
-      answerId: 'a-1',
-      confidence: 0.9,
-    })
-    if (event.event === 'end') {
-      expect(event.suggestExtract).toBe(false)
-    }
-  })
-  it('error event has message', () => {
-    const event = AnswerEvent.parse({ event: 'error', message: 'agent down' })
-    expect(event.event).toBe('error')
   })
 })

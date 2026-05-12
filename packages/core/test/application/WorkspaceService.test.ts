@@ -1,7 +1,6 @@
 import type { AbsolutePath, ProductManifest, Workspace as WorkspaceData, WorkspaceId } from '@telos/schema'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { NotFoundError, Workspace, WorkspaceService } from '../../src/index.js'
-import { InMemoryWorkspaceRepository } from '../fakes/InMemoryWorkspaceRepository.js'
+import { InMemoryWorkspaceRepository, NotFoundError, Workspace, WorkspaceService } from '../../src/index.js'
 
 const rootPath = '/abs/path' as AbsolutePath
 

@@ -1,51 +1,41 @@
 import { z } from 'zod'
-import { PluginId, SourceId, SourceLocation } from './common.js'
+import { AbsolutePath, SourceId } from './common.js'
+import { McpServerId } from './mcp.js'
 
-export const SourceKind = z.enum(['intent', 'code', 'external'])
+export const SourceRole = z.enum(['code', 'intent'])
+export type SourceRole = z.infer<typeof SourceRole>
+
+export const SourceKind = z.enum(['filesystem', 'mcp'])
 export type SourceKind = z.infer<typeof SourceKind>
 
-export const SourceDescriptor = z.object({
+export const FilesystemSourceDescriptor = z.object({
+  kind: z.literal('filesystem'),
   id: SourceId,
-  pluginId: PluginId,
-  kind: SourceKind,
-  // Plugin's own configSchema validates this further; here we only carry it.
-  config: z.unknown(),
+  role: SourceRole,
+  name: z.string().min(1),
+  path: AbsolutePath,
+  language: z.string().optional(),
 })
+export type FilesystemSourceDescriptor = z.infer<typeof FilesystemSourceDescriptor>
+
+export const McpSourceScope = z.object({
+  tags: z.array(z.string()).default([]),
+  paths: z.array(z.string()).default([]),
+})
+export type McpSourceScope = z.infer<typeof McpSourceScope>
+
+export const McpSourceDescriptor = z.object({
+  kind: z.literal('mcp'),
+  id: SourceId,
+  role: SourceRole,
+  name: z.string().min(1),
+  mcpServerId: McpServerId,
+  scope: McpSourceScope.optional(),
+})
+export type McpSourceDescriptor = z.infer<typeof McpSourceDescriptor>
+
+export const SourceDescriptor = z.discriminatedUnion('kind', [
+  FilesystemSourceDescriptor,
+  McpSourceDescriptor,
+])
 export type SourceDescriptor = z.infer<typeof SourceDescriptor>
-
-export const Scope = z.object({
-  tokens: z.array(z.string()).default([]),
-  pathGlobs: z.array(z.string()).default([]),
-})
-export type Scope = z.infer<typeof Scope>
-
-export const IntentFragmentType = z.string().min(1).brand<'IntentFragmentType'>()
-export type IntentFragmentType = z.infer<typeof IntentFragmentType>
-
-export const IntentFragment = z.object({
-  kind: z.literal('intent'),
-  sourceId: SourceId,
-  text: z.string(),
-  location: SourceLocation,
-  fragmentType: IntentFragmentType,
-})
-export type IntentFragment = z.infer<typeof IntentFragment>
-
-export const CodeSymbol = z.object({
-  file: z.string(),
-  symbol: z.string(),
-  language: z.string(),
-})
-export type CodeSymbol = z.infer<typeof CodeSymbol>
-
-export const FactFragment = z.object({
-  kind: z.literal('fact'),
-  sourceId: SourceId,
-  text: z.string(),
-  location: SourceLocation,
-  codeSymbol: CodeSymbol.optional(),
-})
-export type FactFragment = z.infer<typeof FactFragment>
-
-export const SourceFragment = z.discriminatedUnion('kind', [IntentFragment, FactFragment])
-export type SourceFragment = z.infer<typeof SourceFragment>

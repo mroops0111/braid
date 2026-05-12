@@ -21,7 +21,7 @@ describe('clarifyCandidate', () => {
     const candidate = ClarifyCandidate.parse({
       id: 'cc-1',
       description: 'merge them',
-      proposedOperations: [{ op: 'removeNode', nodeId: 'n-1' }],
+      proposedOperations: [{ operation: 'removeNode', nodeId: 'n-1' }],
     })
     expect(candidate.proposedOperations).toHaveLength(1)
   })
@@ -31,6 +31,7 @@ describe('clarifyTicket', () => {
   it('parses pending ticket with candidates', () => {
     const ticket = ClarifyTicket.parse({
       id: 'ct-1',
+      workspaceId: 'w-1',
       question: 'voidTask vs cancelTask: same command?',
       candidates: [
         { id: 'cc-1', description: 'yes, merge' },
@@ -45,6 +46,7 @@ describe('clarifyTicket', () => {
     expect(
       ClarifyTicket.safeParse({
         id: 'ct-1',
+        workspaceId: 'w-1',
         question: '',
         candidates: [],
         status: 'pending',
@@ -55,12 +57,13 @@ describe('clarifyTicket', () => {
   it('accepts answered ticket with selection + resolution', () => {
     const ticket = ClarifyTicket.parse({
       id: 'ct-1',
+      workspaceId: 'w-1',
       question: 'x?',
       candidates: [{ id: 'cc-1', description: 'a' }],
       status: 'answered',
       answeredBy: 'u-1',
       selectedCandidateId: 'cc-1',
-      resolution: [{ op: 'removeNode', nodeId: 'n-1' }],
+      resolution: [{ operation: 'removeNode', nodeId: 'n-1' }],
     })
     expect(ticket.selectedCandidateId).toBe('cc-1')
   })
@@ -68,6 +71,7 @@ describe('clarifyTicket', () => {
   it('accepts externalReferences (v2 forward-compat)', () => {
     const ticket = ClarifyTicket.parse({
       id: 'ct-1',
+      workspaceId: 'w-1',
       question: 'x?',
       candidates: [],
       status: 'pending',

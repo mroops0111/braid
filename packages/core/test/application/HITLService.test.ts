@@ -2,24 +2,33 @@ import type {
   ClarifyCandidateId,
   ClarifyTicketId,
   NodeId,
+  PluginId,
   ProposalId,
   SkillId,
+  Timestamp,
   UserId,
+  ValidationCode,
   WorkspaceId,
 } from '@telos/schema'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   ClarifyTicket,
+  ConflictError,
   HITLService,
+  InMemoryClarifyTicketRepository,
+  InMemoryDecisionRepository,
+  InMemoryModelRepository,
+  InMemoryProposalRepository,
   NotFoundError,
+  PluginRegistry,
   Proposal,
+  ValidationError,
+  ValidationService,
+  type Validator,
 } from '../../src/index.js'
-import { InMemoryClarifyTicketRepository } from '../fakes/InMemoryClarifyTicketRepository.js'
-import { InMemoryDecisionRepository } from '../fakes/InMemoryDecisionRepository.js'
-import { InMemoryModelRepository } from '../fakes/InMemoryModelRepository.js'
-import { InMemoryProposalRepository } from '../fakes/InMemoryProposalRepository.js'
+import { FixedClock } from '../fakes/FixedClock.js'
 
-const isoTimestamp = '2026-05-09T12:00:00+08:00'
+const isoTimestamp = '2026-05-09T12:00:00+08:00' as Timestamp
 const workspaceId = 'w-1' as WorkspaceId
 const userId = 'u-1' as UserId
 
@@ -28,6 +37,7 @@ describe('HITLService', () => {
   let clarifyRepository: InMemoryClarifyTicketRepository
   let decisionRepository: InMemoryDecisionRepository
   let modelRepository: InMemoryModelRepository
+  let clock: FixedClock
   let service: HITLService
 
   beforeEach(() => {
@@ -35,20 +45,25 @@ describe('HITLService', () => {
     clarifyRepository = new InMemoryClarifyTicketRepository()
     decisionRepository = new InMemoryDecisionRepository()
     modelRepository = new InMemoryModelRepository()
+    clock = new FixedClock(isoTimestamp)
+    const validationService = new ValidationService({ pluginRegistry: new PluginRegistry() })
     service = new HITLService({
       proposalRepository,
       clarifyRepository,
       decisionRepository,
       modelRepository,
+      validationService,
+      clock,
     })
   })
 
   const seedProposal = async (id = 'p-1') => {
     const proposal = new Proposal({
       id: id as ProposalId,
+      workspaceId,
       status: 'pending',
       operations: [
-        { op: 'addNode', payload: { type: 'command', name: 'voidTask', id: 'n-1' as NodeId } as never },
+        { operation: 'addNode', payload: { type: 'command', name: 'voidTask', id: 'n-1' as NodeId } as never },
       ],
       generatedBy: 'extract' as SkillId,
       generatedAt: isoTimestamp,
@@ -61,25 +76,72 @@ describe('HITLService', () => {
   describe('applyProposal', () => {
     it('applies operations to model and records decision', async () => {
       await seedProposal()
-      const decision = await service.applyProposal('p-1' as ProposalId, workspaceId, userId)
+      const decision = await service.applyProposal('p-1' as ProposalId, userId)
 
       expect(decision.action).toBe('applyProposal')
       expect(decision.references.proposalId).toBe('p-1')
+      expect(decision.workspaceId).toBe(workspaceId)
       expect((await modelRepository.load(workspaceId)).nodes).toHaveLength(1)
       expect(await decisionRepository.list()).toHaveLength(1)
     })
 
     it('marks proposal as applied', async () => {
       await seedProposal()
-      await service.applyProposal('p-1' as ProposalId, workspaceId, userId)
+      await service.applyProposal('p-1' as ProposalId, userId)
       const reloaded = await proposalRepository.load('p-1' as ProposalId)
       expect(reloaded.status).toBe('applied')
     })
 
     it('throws NotFoundError for unknown proposal', async () => {
       await expect(
-        service.applyProposal('missing' as ProposalId, workspaceId, userId),
+        service.applyProposal('missing' as ProposalId, userId),
       ).rejects.toThrow(NotFoundError)
+    })
+
+    it('throws ConflictError when applying an already-applied proposal', async () => {
+      await seedProposal()
+      await service.applyProposal('p-1' as ProposalId, userId)
+      await expect(
+        service.applyProposal('p-1' as ProposalId, userId),
+      ).rejects.toThrow(ConflictError)
+    })
+
+    it('decision timestamp comes from the injected Clock', async () => {
+      await seedProposal()
+      const fixed = '2030-01-01T00:00:00+00:00' as Timestamp
+      clock.set(fixed)
+      const decision = await service.applyProposal('p-1' as ProposalId, userId)
+      expect(decision.timestamp).toBe(fixed)
+    })
+
+    it('throws ValidationError when a validator reports an error and leaves proposal pending', async () => {
+      const blockingValidator: Validator = {
+        id: 'block' as PluginId,
+        type: 'validator',
+        configSchema: { parse: (value: unknown) => value } as never,
+        validate: async () => [
+          { code: 'TELOS-BLOCK' as ValidationCode, severity: 'error', message: 'nope' },
+        ],
+      }
+      const registry = new PluginRegistry()
+      registry.register(blockingValidator)
+      const blockingService = new HITLService({
+        proposalRepository,
+        clarifyRepository,
+        decisionRepository,
+        modelRepository,
+        validationService: new ValidationService({ pluginRegistry: registry }),
+        clock,
+      })
+
+      await seedProposal()
+      await expect(
+        blockingService.applyProposal('p-1' as ProposalId, userId),
+      ).rejects.toThrow(ValidationError)
+
+      const reloaded = await proposalRepository.load('p-1' as ProposalId)
+      expect(reloaded.status).toBe('pending')
+      expect((await modelRepository.load(workspaceId)).nodes).toEqual([])
     })
   })
 
@@ -103,6 +165,7 @@ describe('HITLService', () => {
     it('marks ticket as skipped + records decision with rationale', async () => {
       await clarifyRepository.save(new ClarifyTicket({
         id: 'ct-1' as ClarifyTicketId,
+        workspaceId,
         question: 'irrelevant?',
         candidates: [],
         status: 'pending',
@@ -123,20 +186,20 @@ describe('HITLService', () => {
 
   describe('answerClarifyTicket', () => {
     it('applies the selected candidate operations and records decision', async () => {
-      // seed a node to be removed by candidate
       await modelRepository.applyOperations(workspaceId, [
-        { op: 'addNode', payload: { type: 'command', name: 'x', id: 'n-x' as NodeId } as never },
+        { operation: 'addNode', payload: { type: 'command', name: 'x', id: 'n-x' as NodeId } as never },
       ])
 
       await clarifyRepository.save(new ClarifyTicket({
         id: 'ct-1' as ClarifyTicketId,
+        workspaceId,
         question: 'remove n-x?',
         candidates: [
           {
             id: 'cc-1' as ClarifyCandidateId,
             description: 'yes',
             sourceReferences: [],
-            proposedOperations: [{ op: 'removeNode', nodeId: 'n-x' as NodeId }],
+            proposedOperations: [{ operation: 'removeNode', nodeId: 'n-x' as NodeId }],
           },
         ],
         status: 'pending',
@@ -145,11 +208,11 @@ describe('HITLService', () => {
       const decision = await service.answerClarifyTicket(
         'ct-1' as ClarifyTicketId,
         'cc-1' as ClarifyCandidateId,
-        workspaceId,
         userId,
       )
 
       expect(decision.action).toBe('answerClarifyTicket')
+      expect(decision.workspaceId).toBe(workspaceId)
       expect((await modelRepository.load(workspaceId)).nodes).toEqual([])
 
       const reloaded = await clarifyRepository.load('ct-1' as ClarifyTicketId)

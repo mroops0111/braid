@@ -31,8 +31,6 @@ export const NodeCitation = z.object({
 })
 export type NodeCitation = z.infer<typeof NodeCitation>
 
-// SourceCitation lets QAService cite raw code/intent when the model doesn't
-// yet cover the asked-about area; later extract may upgrade it to NodeCitation.
 export const SourceCitation = z.object({
   kind: z.literal('source'),
   sourceId: SourceId,
@@ -53,29 +51,3 @@ export const Answer = z.object({
   confidence: z.number().min(0).max(1),
 })
 export type Answer = z.infer<typeof Answer>
-
-export const AskContext = z.object({
-  askedBy: UserId,
-  channel: QuestionChannel,
-  scope: z
-    .object({
-      pathGlobs: z.array(z.string()).default([]),
-      boundedContextHints: z.array(z.string()).default([]),
-    })
-    .optional(),
-})
-export type AskContext = z.infer<typeof AskContext>
-
-export const AnswerEvent = z.discriminatedUnion('event', [
-  z.object({ event: z.literal('start'), questionId: QuestionId }),
-  z.object({ event: z.literal('token'), text: z.string() }),
-  z.object({ event: z.literal('citation'), citation: Citation }),
-  z.object({
-    event: z.literal('end'),
-    answerId: AnswerId,
-    confidence: z.number().min(0).max(1),
-    suggestExtract: z.boolean().default(false),
-  }),
-  z.object({ event: z.literal('error'), message: z.string() }),
-])
-export type AnswerEvent = z.infer<typeof AnswerEvent>

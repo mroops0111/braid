@@ -9,6 +9,10 @@ export interface WorkspaceServiceDeps {
 export class WorkspaceService {
   constructor(private readonly deps: WorkspaceServiceDeps) {}
 
+  async list(): Promise<Workspace[]> {
+    return this.deps.workspaceRepository.list()
+  }
+
   async load(rootPath: AbsolutePath): Promise<Workspace> {
     return this.deps.workspaceRepository.load(rootPath)
   }

@@ -88,5 +88,17 @@ export type ModelSnapshot = z.infer<typeof ModelSnapshot>
 export const GraphNodeFilter = z.object({
   types: z.array(NodeTypeId).optional(),
   statuses: z.array(NodeStatus).optional(),
+  nameContains: z.string().optional(),
+  limit: z.number().int().positive().optional(),
+  offset: z.number().int().nonnegative().optional(),
 })
 export type GraphNodeFilter = z.infer<typeof GraphNodeFilter>
+
+export const GraphEdgeFilter = z.object({
+  types: z.array(EdgeTypeId).optional(),
+  fromNodeId: NodeId.optional(),
+  toNodeId: NodeId.optional(),
+  limit: z.number().int().positive().optional(),
+  offset: z.number().int().nonnegative().optional(),
+})
+export type GraphEdgeFilter = z.infer<typeof GraphEdgeFilter>

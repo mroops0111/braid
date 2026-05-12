@@ -5,6 +5,7 @@ import {
   ExternalReference,
   SourceReference,
   UserId,
+  WorkspaceId,
 } from './common.js'
 import { GraphOperation } from './proposal.js'
 
@@ -21,6 +22,7 @@ export type ClarifyCandidate = z.infer<typeof ClarifyCandidate>
 
 export const ClarifyTicket = z.object({
   id: ClarifyTicketId,
+  workspaceId: WorkspaceId,
   question: z.string().min(1),
   candidates: z.array(ClarifyCandidate),
   status: ClarifyStatus,
@@ -32,6 +34,9 @@ export const ClarifyTicket = z.object({
 export type ClarifyTicket = z.infer<typeof ClarifyTicket>
 
 export const ClarifyFilter = z.object({
+  workspaceId: WorkspaceId.optional(),
   statuses: z.array(ClarifyStatus).optional(),
+  limit: z.number().int().positive().optional(),
+  offset: z.number().int().nonnegative().optional(),
 })
 export type ClarifyFilter = z.infer<typeof ClarifyFilter>

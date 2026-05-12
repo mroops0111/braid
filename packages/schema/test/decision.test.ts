@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Decision, DecisionAction, DecisionActor } from '../src/index.js'
+import { Decision, DecisionAction, DecisionActor, DecisionFilter } from '../src/index.js'
 
 const isoTimestamp = '2026-05-09T12:00:00+08:00'
 
@@ -28,6 +28,7 @@ describe('decision', () => {
   it('parses applyProposal decision', () => {
     const decision = Decision.parse({
       id: 'd-1',
+      workspaceId: 'w-1',
       timestamp: isoTimestamp,
       action: 'applyProposal',
       by: 'u-1',
@@ -39,6 +40,7 @@ describe('decision', () => {
   it('parses with optional rationale', () => {
     const decision = Decision.parse({
       id: 'd-1',
+      workspaceId: 'w-1',
       timestamp: isoTimestamp,
       action: 'rejectProposal',
       by: 'u-1',
@@ -51,6 +53,7 @@ describe('decision', () => {
   it('parses system-actor manual edit', () => {
     const decision = Decision.parse({
       id: 'd-1',
+      workspaceId: 'w-1',
       timestamp: isoTimestamp,
       action: 'manualEdit',
       by: 'system',
@@ -63,11 +66,39 @@ describe('decision', () => {
     expect(
       Decision.safeParse({
         id: 'd-1',
+        workspaceId: 'w-1',
         timestamp: isoTimestamp,
         action: 'mystery',
         by: 'u-1',
         references: {},
       }).success,
     ).toBe(false)
+  })
+
+  it('rejects decision without workspaceId', () => {
+    expect(
+      Decision.safeParse({
+        id: 'd-1',
+        timestamp: isoTimestamp,
+        action: 'applyProposal',
+        by: 'u-1',
+        references: {},
+      }).success,
+    ).toBe(false)
+  })
+})
+
+describe('decisionFilter', () => {
+  it('all fields optional', () => {
+    expect(DecisionFilter.parse({})).toEqual({})
+  })
+  it('accepts workspaceId / actions / limit / offset', () => {
+    const filter = DecisionFilter.parse({
+      workspaceId: 'w-1',
+      actions: ['applyProposal'],
+      limit: 10,
+      offset: 0,
+    })
+    expect(filter.workspaceId).toBe('w-1')
   })
 })

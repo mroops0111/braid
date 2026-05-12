@@ -12,9 +12,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "dev": "tsx watch src/server.ts",
-    "clean": "rm -rf dist .turbo *.tsbuildinfo"
+    "clean": "rm -rf dist .turbo *.tsbuildinfo coverage"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.0",
@@ -23,6 +24,7 @@
     "@telos/schema": "workspace:*",
     "hono": "^4.6.0",
     "pino": "^9.5.0",
+    "yaml": "^2.9.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
