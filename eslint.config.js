@@ -17,7 +17,6 @@ export default antfu(
       '**/.turbo',
       'pnpm-lock.yaml',
       'docs/**',
-      'skills/**',
       '**/skills/**/*.md',
       '**/*.tsbuildinfo',
     ],
