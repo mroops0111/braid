@@ -1,7 +1,8 @@
 import type { Proposal } from '@telos/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, X } from 'lucide-react'
+import { Check, Inbox, X } from 'lucide-react'
 import { useState } from 'react'
+import { EmptyState } from '@/components/EmptyState'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
@@ -21,9 +22,11 @@ export function ProposalsPage({ workspaceId }: ProposalsPageProps) {
     return <div className="p-4 text-sm text-muted-foreground">Loading proposals…</div>
   if (!data || data.items.length === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-        No pending proposals. Run /telos-extract or /telos-clarify to produce some.
-      </div>
+      <EmptyState
+        icon={Inbox}
+        title="No pending proposals"
+        description="Run /telos-extract or /telos-clarify to produce graph mutations awaiting HITL review."
+      />
     )
   }
 
@@ -33,7 +36,7 @@ export function ProposalsPage({ workspaceId }: ProposalsPageProps) {
         {data.items.map(proposal => (
           <li key={proposal.id} className="relative">
             {selected?.id === proposal.id && (
-              <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-primary" />
+              <span className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-primary" />
             )}
             <button
               type="button"
@@ -69,9 +72,11 @@ export function ProposalsPage({ workspaceId }: ProposalsPageProps) {
               />
             )
           : (
-              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                Select a proposal.
-              </div>
+              <EmptyState
+                icon={Inbox}
+                title="Pick a proposal"
+                description="Select a proposal on the left to review the operations and apply or reject it."
+              />
             )}
       </div>
     </div>

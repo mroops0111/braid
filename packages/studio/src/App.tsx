@@ -1,6 +1,7 @@
-import { Command } from 'lucide-react'
+import { Command, FolderGit2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { CommandPalette, type TabKey } from './components/CommandPalette'
+import { EmptyState } from './components/EmptyState'
 import { Sidebar } from './components/Sidebar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { useWorkspaces } from './lib/queries'
@@ -56,7 +57,7 @@ export function App() {
               </Tabs>
             )
           : (
-              <EmptyState />
+              <NoWorkspaceState />
             )}
       </main>
       <CommandPalette
@@ -91,10 +92,12 @@ function Header({ workspaceId }: { workspaceId: string | null }) {
   )
 }
 
-function EmptyState() {
+function NoWorkspaceState() {
   return (
-    <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-      Register a workspace from the sidebar to get started.
-    </div>
+    <EmptyState
+      icon={FolderGit2}
+      title="No workspace registered"
+      description="Register a workspace from the sidebar to get started."
+    />
   )
 }

@@ -1,6 +1,7 @@
 import type { GraphNode } from '@telos/schema'
-import { X } from 'lucide-react'
+import { GitBranch, X } from 'lucide-react'
 import { useState } from 'react'
+import { EmptyState } from '@/components/EmptyState'
 import { StatusBadge } from '@/components/StatusBadge'
 import { useModelSnapshot } from '@/lib/queries'
 
@@ -18,9 +19,11 @@ export function GraphPage({ workspaceId }: GraphPageProps) {
     return <div className="p-4 text-sm text-muted-foreground">No data.</div>
   if (data.nodes.length === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-        Graph is empty. Run /telos-extract to populate it.
-      </div>
+      <EmptyState
+        icon={GitBranch}
+        title="Graph is empty"
+        description="Run /telos-extract to populate it from your codebase and intent docs."
+      />
     )
   }
 

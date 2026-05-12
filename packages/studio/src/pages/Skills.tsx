@@ -1,6 +1,7 @@
 import type { SkillEvent, SkillManifest } from '@telos/schema'
-import { Play } from 'lucide-react'
+import { Play, Sparkles } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { EmptyState } from '@/components/EmptyState'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,7 +27,7 @@ export function SkillsPage({ workspaceId }: SkillsPageProps) {
           {data.items.map(manifest => (
             <li key={manifest.id} className="relative">
               {selected?.id === manifest.id && (
-                <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-primary" />
+                <span className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-primary" />
               )}
               <button
                 type="button"
@@ -57,8 +58,12 @@ export function SkillsPage({ workspaceId }: SkillsPageProps) {
             <SkillRunner workspaceId={workspaceId} skill={selected} key={selected.id} />
           )
         : (
-            <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-              Select a skill on the left.
+            <div className="flex-1">
+              <EmptyState
+                icon={Sparkles}
+                title="Pick a skill"
+                description="Select a skill on the left to run it against this workspace."
+              />
             </div>
           )}
     </div>

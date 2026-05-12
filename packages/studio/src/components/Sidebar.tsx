@@ -36,7 +36,7 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect }: SidebarProp
           {workspaces.map(ws => (
             <li key={ws.id} className="relative">
               {ws.id === activeWorkspaceId && (
-                <span className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-primary" />
+                <span className="absolute inset-y-1 left-0 w-[3px] rounded-r-full bg-primary" />
               )}
               <button
                 type="button"
