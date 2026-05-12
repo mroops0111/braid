@@ -1,16 +1,28 @@
 import type { Workspace as WorkspaceData } from '@telos/schema'
+import type { WorkspaceRegistryFile } from './WorkspaceRegistryFile.js'
 import { readFile, stat } from 'node:fs/promises'
-import { basename, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { NotFoundError, ValidationError, Workspace, type WorkspaceRepository } from '@telos/core'
 import { AbsolutePath, ProductManifest, WorkspaceId } from '@telos/schema'
 import { parseMarkdownFrontmatter } from './frontmatter.js'
 import { workspaceProductManifestPath } from './paths.js'
 
+export interface FsWorkspaceRepositoryDeps {
+  readonly registry: WorkspaceRegistryFile
+}
+
 export class FsWorkspaceRepository implements WorkspaceRepository {
   private readonly cache = new Map<AbsolutePath, Workspace>()
 
+  constructor(private readonly deps: FsWorkspaceRepositoryDeps) {}
+
   async list(): Promise<Workspace[]> {
-    return [...this.cache.values()]
+    const rootPaths = await this.deps.registry.list()
+    const workspaces: Workspace[] = []
+    for (const rootPath of rootPaths) {
+      workspaces.push(await this.load(rootPath))
+    }
+    return workspaces
   }
 
   async load(rootPath: AbsolutePath): Promise<Workspace> {
@@ -23,6 +35,7 @@ export class FsWorkspaceRepository implements WorkspaceRepository {
   }
 
   async save(workspace: Workspace): Promise<void> {
+    await this.deps.registry.add(workspace.rootPath)
     this.cache.set(workspace.rootPath, workspace)
   }
 
@@ -33,7 +46,7 @@ export class FsWorkspaceRepository implements WorkspaceRepository {
     const { frontmatter } = parseMarkdownFrontmatter<unknown>(raw)
     const productManifest = this.parseManifest(frontmatter, manifestPath)
     const data: WorkspaceData = {
-      id: WorkspaceId.parse(basename(rootPath)),
+      id: WorkspaceId.parse(productManifest.name),
       rootPath: AbsolutePath.parse(resolve(rootPath)),
       productManifest,
       pluginConfig: { plugins: [] },

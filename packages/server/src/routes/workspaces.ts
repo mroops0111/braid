@@ -37,6 +37,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   router.post('/', zValidator('json', RegisterBodySchema), async (context) => {
     const { rootPath } = context.req.valid('json')
     const workspace = await deps.workspaceService.load(rootPath)
+    await deps.workspaceService.save(workspace)
     return context.json(workspace.toData(), 201)
   })
 
