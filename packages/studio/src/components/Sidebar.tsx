@@ -81,12 +81,12 @@ function RegisterWorkspaceDialog() {
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm" className="w-full justify-start">
           <Plus />
-          Register workspace
+          Register Workspace
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Register workspace</DialogTitle>
+          <DialogTitle>Register Workspace</DialogTitle>
           <DialogDescription>
             Provide the absolute path to a directory containing PRODUCT.md.
           </DialogDescription>

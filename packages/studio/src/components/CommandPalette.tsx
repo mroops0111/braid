@@ -57,7 +57,7 @@ export function CommandPalette({
       <CommandList>
         <CommandEmpty>No results.</CommandEmpty>
 
-        <CommandGroup heading="Go to">
+        <CommandGroup heading="Go To">
           {TAB_ITEMS.map(({ id, label, Icon }) => (
             <CommandItem
               key={id}
