@@ -18,6 +18,7 @@ export default antfu(
       'pnpm-lock.yaml',
       'docs/**',
       'skills/**',
+      '**/skills/**/*.md',
       '**/*.tsbuildinfo',
     ],
   },

@@ -8,9 +8,11 @@ export interface MarkdownDocument<T> {
 }
 
 /**
- * Splits a markdown file into YAML frontmatter + body. The frontmatter must be
- * wrapped between `---` delimiters on their own lines, as the first content of
- * the file. Throws if the format is malformed.
+ * Splits a markdown file into YAML frontmatter + body. Wraps the YAML
+ * between `---` delimiters on their own lines at the top of the file.
+ * Keys are normalised from kebab-case (YAML convention, used by Claude
+ * Code itself) to camelCase (TS convention) recursively so Zod schemas
+ * can declare fields naturally in TS.
  */
 export function parseMarkdownFrontmatter<T>(content: string): MarkdownDocument<T> {
   const lines = content.split('\n')
@@ -29,5 +31,24 @@ export function parseMarkdownFrontmatter<T>(content: string): MarkdownDocument<T
   }
   const yamlSource = lines.slice(1, closingIndex).join('\n')
   const body = lines.slice(closingIndex + 1).join('\n')
-  return { frontmatter: parseYaml(yamlSource) as T, body }
+  const raw = parseYaml(yamlSource) as unknown
+  return { frontmatter: normaliseKeys(raw) as T, body }
+}
+
+function kebabToCamelCase(key: string): string {
+  return key.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase())
+}
+
+function normaliseKeys(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(normaliseKeys)
+  }
+  if (value !== null && typeof value === 'object') {
+    const result: Record<string, unknown> = {}
+    for (const [key, nested] of Object.entries(value)) {
+      result[kebabToCamelCase(key)] = normaliseKeys(nested)
+    }
+    return result
+  }
+  return value
 }

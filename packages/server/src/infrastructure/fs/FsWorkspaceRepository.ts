@@ -6,10 +6,6 @@ import { AbsolutePath, ProductManifest, WorkspaceId } from '@telos/schema'
 import { parseMarkdownFrontmatter } from './frontmatter.js'
 import { workspaceProductManifestPath } from './paths.js'
 
-export interface FsWorkspaceRepositoryOptions {
-  readonly registryFile?: string
-}
-
 export class FsWorkspaceRepository implements WorkspaceRepository {
   private readonly cache = new Map<AbsolutePath, Workspace>()
 

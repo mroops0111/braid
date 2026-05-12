@@ -1,10 +1,12 @@
 import type {
   AbsolutePath,
+  ClaudeCodeSkillFrontmatter,
   McpServerId,
   SkillFrontmatter,
   SkillId,
   SkillManifest as SkillManifestData,
   SkillOrigin,
+  TelosSkillExtension,
 } from '@telos/schema'
 import type { Workspace } from '../workspace/Workspace.js'
 
@@ -32,6 +34,17 @@ export class SkillManifest {
     return this.data.frontmatter
   }
 
+  /** Claude Code-recognised frontmatter fields (name, description, argument-hint, …). */
+  get claudeCodeFields(): ClaudeCodeSkillFrontmatter {
+    const { telos: _telos, ...claudeFields } = this.data.frontmatter
+    return claudeFields
+  }
+
+  /** Telos-only extension fields under the `telos:` namespace. */
+  get telosFields(): TelosSkillExtension {
+    return this.data.frontmatter.telos
+  }
+
   get extensionPath(): AbsolutePath | undefined {
     return this.data.extensionPath
   }
@@ -45,17 +58,17 @@ export class SkillManifest {
   }
 
   requiresMcpServer(serverId: McpServerId): boolean {
-    return this.data.frontmatter.requiredMcpServers.includes(serverId)
+    return this.telosFields.requiredMcpServers.includes(serverId)
   }
 
   readinessIssuesFor(workspace: Workspace, env: Readonly<Record<string, string | undefined>>): readonly SkillReadinessIssue[] {
     const issues: SkillReadinessIssue[] = []
-    for (const name of this.data.frontmatter.requiredEnv) {
+    for (const name of this.telosFields.requiredEnv) {
       if (!env[name]) {
         issues.push({ kind: 'missing-env', target: name })
       }
     }
-    for (const serverId of this.data.frontmatter.requiredMcpServers) {
+    for (const serverId of this.telosFields.requiredMcpServers) {
       if (!workspace.findMcpServer(serverId)) {
         issues.push({ kind: 'missing-mcp-server', target: serverId })
       }

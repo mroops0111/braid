@@ -67,9 +67,11 @@ function manifestData(overrides: Partial<SkillManifestData> = {}): SkillManifest
       name: 'telos-ask',
       description: 'answer questions',
       disableModelInvocation: false,
-      requiredEnv: [],
-      requiredPaths: [],
-      requiredMcpServers: [],
+      telos: {
+        requiredEnv: [],
+        requiredPaths: [],
+        requiredMcpServers: [],
+      },
     },
     ...overrides,
   }
@@ -110,13 +112,42 @@ describe('SkillManifest', () => {
           name: 'x',
           description: 'y',
           disableModelInvocation: false,
-          requiredEnv: [],
-          requiredPaths: [],
-          requiredMcpServers: ['redmine' as McpServerId],
+          telos: {
+            requiredEnv: [],
+            requiredPaths: [],
+            requiredMcpServers: ['redmine' as McpServerId],
+          },
         },
       }))
       expect(m.requiresMcpServer('redmine' as McpServerId)).toBe(true)
       expect(m.requiresMcpServer('xwiki' as McpServerId)).toBe(false)
+    })
+  })
+
+  describe('claudeCodeFields / telosFields split', () => {
+    it('claudeCodeFields strips the telos namespace', () => {
+      const m = new SkillManifest(manifestData())
+      expect(m.claudeCodeFields).toEqual({
+        name: 'telos-ask',
+        description: 'answer questions',
+        disableModelInvocation: false,
+      })
+    })
+
+    it('telosFields returns the telos extension block', () => {
+      const m = new SkillManifest(manifestData({
+        frontmatter: {
+          name: 'telos-ask',
+          description: 'a',
+          disableModelInvocation: false,
+          telos: {
+            requiredEnv: ['JIRA_TOKEN'],
+            requiredPaths: ['intent'],
+            requiredMcpServers: ['redmine' as McpServerId],
+          },
+        },
+      }))
+      expect(m.telosFields.requiredEnv).toEqual(['JIRA_TOKEN'])
     })
   })
 
@@ -127,9 +158,11 @@ describe('SkillManifest', () => {
           name: 'x',
           description: 'y',
           disableModelInvocation: false,
-          requiredEnv: ['TELOS_API_URL'],
-          requiredPaths: [],
-          requiredMcpServers: ['redmine' as McpServerId],
+          telos: {
+            requiredEnv: ['TELOS_API_URL'],
+            requiredPaths: [],
+            requiredMcpServers: ['redmine' as McpServerId],
+          },
         },
       }))
       const issues = m.readinessIssuesFor(workspace(), { TELOS_API_URL: 'http://localhost' })
@@ -142,9 +175,11 @@ describe('SkillManifest', () => {
           name: 'x',
           description: 'y',
           disableModelInvocation: false,
-          requiredEnv: ['JIRA_TOKEN'],
-          requiredPaths: [],
-          requiredMcpServers: [],
+          telos: {
+            requiredEnv: ['JIRA_TOKEN'],
+            requiredPaths: [],
+            requiredMcpServers: [],
+          },
         },
       }))
       const issues = m.readinessIssuesFor(workspace(), {})
@@ -157,9 +192,11 @@ describe('SkillManifest', () => {
           name: 'x',
           description: 'y',
           disableModelInvocation: false,
-          requiredEnv: [],
-          requiredPaths: [],
-          requiredMcpServers: ['xwiki' as McpServerId],
+          telos: {
+            requiredEnv: [],
+            requiredPaths: [],
+            requiredMcpServers: ['xwiki' as McpServerId],
+          },
         },
       }))
       const issues = m.readinessIssuesFor(workspace({ withMcpServer: 'redmine' as McpServerId }), {})

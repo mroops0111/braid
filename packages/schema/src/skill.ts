@@ -21,14 +21,43 @@ export type SkillRun = z.infer<typeof SkillRun>
 export const SkillOrigin = z.enum(['builtin', 'workspace', 'extension'])
 export type SkillOrigin = z.infer<typeof SkillOrigin>
 
-export const SkillFrontmatter = z.object({
+/**
+ * Frontmatter fields recognised by the Claude Code CLI itself. Anything in
+ * this object lives at the top level of the YAML block; the CLI reads these
+ * to register the slash command, enforce invocation rules, etc.
+ *
+ * Keep camelCase in TS but emit kebab-case in YAML (handled by the
+ * frontmatter parser's key normaliser).
+ */
+export const ClaudeCodeSkillFrontmatter = z.object({
   name: z.string().min(1),
   description: z.string().min(1),
   argumentHint: z.string().optional(),
   disableModelInvocation: z.boolean().default(false),
+  allowedTools: z.array(z.string()).optional(),
+  model: z.string().optional(),
+})
+export type ClaudeCodeSkillFrontmatter = z.infer<typeof ClaudeCodeSkillFrontmatter>
+
+/**
+ * Telos-specific extension fields. Live under the `telos:` key of the YAML
+ * frontmatter so they never collide with Claude Code's own fields, present
+ * or future. Read by `SubprocessSkillRunner` for preflight validation
+ * (env / path / MCP availability) before spawning.
+ */
+export const TelosSkillExtension = z.object({
   requiredEnv: z.array(z.string()).default([]),
   requiredPaths: z.array(z.string()).default([]),
   requiredMcpServers: z.array(McpServerId).default([]),
+})
+export type TelosSkillExtension = z.infer<typeof TelosSkillExtension>
+
+export const SkillFrontmatter = ClaudeCodeSkillFrontmatter.extend({
+  telos: TelosSkillExtension.default({
+    requiredEnv: [],
+    requiredPaths: [],
+    requiredMcpServers: [],
+  }),
 })
 export type SkillFrontmatter = z.infer<typeof SkillFrontmatter>
 

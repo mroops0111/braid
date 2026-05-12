@@ -69,27 +69,41 @@ describe('skillOrigin', () => {
 })
 
 describe('skillFrontmatter', () => {
-  it('parses minimal frontmatter with defaults', () => {
+  it('parses minimal frontmatter with defaults (no telos extension)', () => {
     const fm = SkillFrontmatter.parse({
       name: 'telos-ask',
       description: 'answer questions',
     })
     expect(fm.disableModelInvocation).toBe(false)
-    expect(fm.requiredEnv).toEqual([])
-    expect(fm.requiredMcpServers).toEqual([])
+    expect(fm.telos.requiredEnv).toEqual([])
+    expect(fm.telos.requiredMcpServers).toEqual([])
   })
 
-  it('parses full frontmatter', () => {
+  it('parses full frontmatter with telos extension', () => {
     const fm = SkillFrontmatter.parse({
       name: 'telos-import-jira',
       description: 'sync Jira tickets',
       argumentHint: '[project-key]',
       disableModelInvocation: true,
-      requiredEnv: ['JIRA_TOKEN'],
-      requiredPaths: ['intent/jira'],
-      requiredMcpServers: ['jira'],
+      allowedTools: ['Read', 'Grep', 'Bash'],
+      telos: {
+        requiredEnv: ['JIRA_TOKEN'],
+        requiredPaths: ['intent/jira'],
+        requiredMcpServers: ['jira'],
+      },
     })
-    expect(fm.requiredMcpServers).toEqual(['jira'])
+    expect(fm.allowedTools).toEqual(['Read', 'Grep', 'Bash'])
+    expect(fm.telos.requiredMcpServers).toEqual(['jira'])
+  })
+
+  it('does not mix Claude Code fields with telos extension fields', () => {
+    const fm = SkillFrontmatter.parse({
+      name: 'telos-ask',
+      description: 'a',
+      telos: { requiredEnv: ['X'] },
+    })
+    expect('requiredEnv' in fm).toBe(false)
+    expect(fm.telos.requiredEnv).toEqual(['X'])
   })
 
   it('rejects empty name', () => {

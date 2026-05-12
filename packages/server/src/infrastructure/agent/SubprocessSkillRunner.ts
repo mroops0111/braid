@@ -6,13 +6,25 @@ import type {
 } from '@telos/core'
 import type { AbsolutePath, SkillEvent, SkillId, SkillRunId } from '@telos/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
+import { mkdir, mkdtemp, rm, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import { newSkillRunId, NotFoundError } from '@telos/core'
 import { SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema } from '@telos/schema'
 import { writeMcpConfigFile } from './mcpConfig.js'
 import { LineBuffer, parseJsonLine } from './streamJsonParser.js'
 
 export type SpawnFn = (command: string, args: readonly string[], options: SpawnOptions) => ChildProcess
+
+/**
+ * Additional directories to expose under the session's `.claude/skills/`
+ * tree. Typically used for non-skill reference content (e.g. `shared/`
+ * that builtin SKILL.md files reference via `.claude/skills/shared/...`).
+ */
+export interface SkillReferenceDir {
+  readonly name: string
+  readonly path: AbsolutePath
+}
 
 export interface SubprocessSkillRunnerDeps {
   readonly skillRegistry: SkillRegistry
@@ -21,6 +33,10 @@ export interface SubprocessSkillRunnerDeps {
   readonly spawn?: SpawnFn
   readonly clock?: () => string
   readonly tempDir?: string
+  /** Extra directories symlinked alongside skills (e.g. shared reference docs). */
+  readonly referenceDirs?: readonly SkillReferenceDir[]
+  /** Delete the per-run session directory after the run. Default `true`. */
+  readonly cleanupSession?: boolean
 }
 
 export class SubprocessSkillRunner implements SkillRunner {
@@ -30,10 +46,8 @@ export class SubprocessSkillRunner implements SkillRunner {
 
   async *run(workspace: Workspace, skillId: SkillId, args: string): AsyncIterable<SkillEvent> {
     const manifest = await this.deps.skillRegistry.get(workspace, skillId)
-    const mcpConfigFile = await writeMcpConfigFile(
-      workspace,
-      this.deps.tempDir ?? tmpdir(),
-    )
+    const sessionDir = await this.buildSessionDir(workspace)
+    const mcpConfigFile = await writeMcpConfigFile(workspace, sessionDir)
     const invocation = this.deps.agentBinding.resolveSpawn({
       skillId,
       args,
@@ -46,6 +60,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     const runId = newSkillRunId()
     const spawnFn = this.deps.spawn ?? (await defaultSpawn())
     const child = spawnFn(invocation.bin, [...invocation.args], {
+      cwd: sessionDir,
       env: invocation.env,
       stdio: ['ignore', 'pipe', 'pipe'],
     })
@@ -63,7 +78,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       const parsed = parseJsonLine(line)
       if (parsed === undefined)
         return
-      const mapped = mapSubprocessEvent(parsed, runId)
+      const mapped = mapSubprocessEvent(parsed)
       if (mapped)
         events.push(mapped)
     })
@@ -87,6 +102,10 @@ export class SubprocessSkillRunner implements SkillRunner {
       exitCode,
       at: this.now(),
     })
+
+    if (this.deps.cleanupSession !== false) {
+      await rm(sessionDir, { recursive: true, force: true })
+    }
   }
 
   async *resume(_workspace: Workspace, runId: SkillRunId): AsyncIterable<SkillEvent> {
@@ -109,12 +128,50 @@ export class SubprocessSkillRunner implements SkillRunner {
     this.running.delete(validated)
   }
 
+  /**
+   * Materialises a per-run session directory containing:
+   *
+   *   <session>/
+   *     .claude/skills/<slash-name>/   → symlink per skill manifest
+   *     .claude/skills/<ref-name>/     → symlink per referenceDir (e.g. shared/)
+   *
+   * The spawn cwd points here so Claude Code's slash command resolver
+   * finds every skill registered with the workspace, and SKILL.md files
+   * can use `.claude/skills/shared/...` paths reliably.
+   */
+  private async buildSessionDir(workspace: Workspace): Promise<string> {
+    const parentDir = this.deps.tempDir ?? tmpdir()
+    await mkdir(parentDir, { recursive: true })
+    const sessionDir = await mkdtemp(join(parentDir, 'telos-session-'))
+    const skillsDir = join(sessionDir, '.claude', 'skills')
+    await mkdir(skillsDir, { recursive: true })
+
+    const manifests = await this.deps.skillRegistry.list(workspace)
+    const linked = new Set<string>()
+    for (const manifest of manifests) {
+      const slashName = manifest.frontmatter.name
+      if (linked.has(slashName))
+        continue
+      linked.add(slashName)
+      await symlink(dirname(manifest.path), join(skillsDir, slashName), 'dir')
+    }
+
+    for (const reference of this.deps.referenceDirs ?? []) {
+      if (linked.has(reference.name))
+        continue
+      linked.add(reference.name)
+      await symlink(reference.path, join(skillsDir, reference.name), 'dir')
+    }
+
+    return sessionDir
+  }
+
   private now(): string {
     return (this.deps.clock ?? (() => new Date().toISOString()))()
   }
 }
 
-function mapSubprocessEvent(raw: { type: string, [key: string]: unknown }, _runId: SkillRunId): SkillEvent | undefined {
+function mapSubprocessEvent(raw: { type: string, [key: string]: unknown }): SkillEvent | undefined {
   if (raw.type === 'text' && typeof raw.text === 'string') {
     return SkillEventSchema.parse({ type: 'message', text: raw.text })
   }
