@@ -1,6 +1,6 @@
 import type { Workspace } from '@telos/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, Plus } from 'lucide-react'
+import { FolderGit2, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/queries'
@@ -17,38 +17,37 @@ interface SidebarProps {
 
 export function Sidebar({ workspaces, activeWorkspaceId, onSelect }: SidebarProps) {
   return (
-    <aside className="flex w-60 flex-col border-r border-zinc-800 bg-zinc-925" style={{ backgroundColor: 'oklch(0.16 0 0)' }}>
-      <div className="flex h-11 items-center border-b border-zinc-800 px-4">
+    <aside className="flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+      <div className="flex h-11 items-center px-4">
         <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded-full border border-zinc-600" />
+          <div className="size-2.5 rounded-full bg-primary" />
           <span className="text-sm font-semibold tracking-tight">Telos</span>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin p-2">
-        <div className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+      <div className="flex-1 overflow-y-auto scrollbar-thin px-2 pb-2">
+        <div className="px-2 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
           Workspaces
         </div>
         <ul className="space-y-px">
           {workspaces.length === 0 && (
-            <li className="px-2 py-1.5 text-xs text-zinc-600">No workspace yet.</li>
+            <li className="px-2 py-1.5 text-xs text-sidebar-foreground/40">No workspace yet.</li>
           )}
           {workspaces.map(ws => (
-            <li key={ws.id}>
+            <li key={ws.id} className="relative">
+              {ws.id === activeWorkspaceId && (
+                <span className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-primary" />
+              )}
               <button
                 type="button"
                 onClick={() => onSelect(ws.id)}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-zinc-300 transition-colors hover:bg-zinc-800',
-                  ws.id === activeWorkspaceId && 'bg-zinc-800 text-zinc-100',
+                  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors duration-150',
+                  'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground',
+                  ws.id === activeWorkspaceId && 'bg-sidebar-accent text-sidebar-foreground',
                 )}
               >
-                <Check
-                  className={cn(
-                    'h-3.5 w-3.5 shrink-0',
-                    ws.id === activeWorkspaceId ? 'text-blue-400' : 'text-transparent',
-                  )}
-                />
+                <FolderGit2 className="size-3.5 shrink-0 text-sidebar-foreground/50" />
                 <span className="truncate font-medium">{ws.id}</span>
               </button>
             </li>
@@ -56,7 +55,7 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect }: SidebarProp
         </ul>
       </div>
 
-      <div className="border-t border-zinc-800 p-2">
+      <div className="border-t border-sidebar-border p-2">
         <RegisterWorkspaceDialog />
       </div>
     </aside>
@@ -81,7 +80,7 @@ function RegisterWorkspaceDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm" className="w-full justify-start">
-          <Plus className="h-3.5 w-3.5" />
+          <Plus />
           Register workspace
         </Button>
       </DialogTrigger>
@@ -99,12 +98,11 @@ function RegisterWorkspaceDialog() {
           onChange={e => setRootPath(e.target.value)}
         />
         {register.error && (
-          <p className="text-xs text-red-400">{(register.error as Error).message}</p>
+          <p className="text-xs text-destructive">{(register.error as Error).message}</p>
         )}
         <DialogFooter>
           <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
           <Button
-            variant="primary"
             size="sm"
             disabled={!rootPath || register.isPending}
             onClick={() => register.mutate(rootPath)}

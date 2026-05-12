@@ -1,6 +1,7 @@
 import type { GraphNode } from '@telos/schema'
+import { X } from 'lucide-react'
 import { useState } from 'react'
-import { Badge } from '@/components/ui/badge'
+import { StatusBadge } from '@/components/StatusBadge'
 import { useModelSnapshot } from '@/lib/queries'
 
 interface GraphPageProps {
@@ -12,12 +13,12 @@ export function GraphPage({ workspaceId }: GraphPageProps) {
   const [selected, setSelected] = useState<GraphNode | null>(null)
 
   if (isLoading)
-    return <div className="p-4 text-sm text-zinc-500">Loading graph…</div>
+    return <div className="p-4 text-sm text-muted-foreground">Loading graph…</div>
   if (!data)
-    return <div className="p-4 text-sm text-zinc-500">No data.</div>
+    return <div className="p-4 text-sm text-muted-foreground">No data.</div>
   if (data.nodes.length === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center text-sm text-zinc-500">
+      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
         Graph is empty. Run /telos-extract to populate it.
       </div>
     )
@@ -30,7 +31,7 @@ export function GraphPage({ workspaceId }: GraphPageProps) {
         <EdgeTable edges={data.edges} />
       </div>
       {selected && (
-        <aside className="w-96 shrink-0 overflow-y-auto scrollbar-thin border-l border-zinc-800 bg-zinc-925" style={{ backgroundColor: 'oklch(0.16 0 0)' }}>
+        <aside className="w-96 shrink-0 overflow-y-auto scrollbar-thin border-l border-border bg-card">
           <NodeDetail node={selected} onClose={() => setSelected(null)} />
         </aside>
       )}
@@ -49,18 +50,18 @@ function NodeTable({
 }) {
   return (
     <section>
-      <h3 className="px-4 pb-1 pt-3 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+      <h3 className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         Nodes (
         {nodes.length}
         )
       </h3>
       <table className="w-full text-sm">
-        <thead className="text-zinc-500">
-          <tr className="border-y border-zinc-800 text-[11px] uppercase tracking-wider">
-            <th className="px-4 py-2 text-left font-medium">ID</th>
-            <th className="px-4 py-2 text-left font-medium">Type</th>
-            <th className="px-4 py-2 text-left font-medium">Name</th>
-            <th className="px-4 py-2 text-left font-medium">Status</th>
+        <thead>
+          <tr className="border-y border-border text-[10px] uppercase tracking-wider text-muted-foreground">
+            <th className="px-4 py-2 text-left font-semibold">ID</th>
+            <th className="px-4 py-2 text-left font-semibold">Type</th>
+            <th className="px-4 py-2 text-left font-semibold">Name</th>
+            <th className="px-4 py-2 text-left font-semibold">Status</th>
           </tr>
         </thead>
         <tbody>
@@ -68,15 +69,15 @@ function NodeTable({
             <tr
               key={node.id}
               onClick={() => onSelect(node)}
-              className={`cursor-pointer border-b border-zinc-900 hover:bg-zinc-900 ${
-                node.id === selectedId ? 'bg-zinc-900' : ''
+              className={`cursor-pointer border-b border-border/50 transition-colors duration-150 hover:bg-accent ${
+                node.id === selectedId ? 'bg-accent' : ''
               }`}
             >
-              <td className="px-4 py-1.5 font-mono text-xs text-zinc-300">{node.id}</td>
-              <td className="px-4 py-1.5 font-mono text-xs text-zinc-500">{node.type}</td>
-              <td className="px-4 py-1.5 text-zinc-200">{node.name}</td>
+              <td className="px-4 py-1.5 font-mono text-xs text-foreground">{node.id}</td>
+              <td className="px-4 py-1.5 font-mono text-xs text-muted-foreground">{node.type}</td>
+              <td className="px-4 py-1.5 text-foreground">{node.name}</td>
               <td className="px-4 py-1.5">
-                <Badge variant={node.status as never}>{node.status}</Badge>
+                <StatusBadge status={node.status} />
               </td>
             </tr>
           ))}
@@ -91,25 +92,25 @@ function EdgeTable({ edges }: { edges: readonly { id: string, type: string, from
     return null
   return (
     <section>
-      <h3 className="px-4 pb-1 pt-4 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+      <h3 className="px-4 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         Edges (
         {edges.length}
         )
       </h3>
       <table className="w-full text-sm">
-        <thead className="text-zinc-500">
-          <tr className="border-y border-zinc-800 text-[11px] uppercase tracking-wider">
-            <th className="px-4 py-2 text-left font-medium">Type</th>
-            <th className="px-4 py-2 text-left font-medium">From</th>
-            <th className="px-4 py-2 text-left font-medium">To</th>
+        <thead>
+          <tr className="border-y border-border text-[10px] uppercase tracking-wider text-muted-foreground">
+            <th className="px-4 py-2 text-left font-semibold">Type</th>
+            <th className="px-4 py-2 text-left font-semibold">From</th>
+            <th className="px-4 py-2 text-left font-semibold">To</th>
           </tr>
         </thead>
         <tbody>
           {edges.map(edge => (
-            <tr key={edge.id} className="border-b border-zinc-900">
-              <td className="px-4 py-1.5 font-mono text-xs text-zinc-500">{edge.type}</td>
-              <td className="px-4 py-1.5 font-mono text-xs text-zinc-300">{edge.fromNodeId}</td>
-              <td className="px-4 py-1.5 font-mono text-xs text-zinc-300">{edge.toNodeId}</td>
+            <tr key={edge.id} className="border-b border-border/50">
+              <td className="px-4 py-1.5 font-mono text-xs text-muted-foreground">{edge.type}</td>
+              <td className="px-4 py-1.5 font-mono text-xs text-foreground">{edge.fromNodeId}</td>
+              <td className="px-4 py-1.5 font-mono text-xs text-foreground">{edge.toNodeId}</td>
             </tr>
           ))}
         </tbody>
@@ -123,16 +124,22 @@ function NodeDetail({ node, onClose }: { node: GraphNode, onClose: () => void })
     <div className="p-4">
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
-          <div className="font-mono text-xs text-zinc-500">{node.type}</div>
-          <h2 className="text-sm font-semibold text-zinc-100">{node.name}</h2>
+          <div className="font-mono text-xs text-muted-foreground">{node.type}</div>
+          <h2 className="text-sm font-semibold text-foreground">{node.name}</h2>
         </div>
-        <button onClick={onClose} className="text-xs text-zinc-500 hover:text-zinc-200">close</button>
+        <button
+          onClick={onClose}
+          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          aria-label="Close"
+        >
+          <X className="size-3.5" />
+        </button>
       </div>
-      <Badge variant={node.status as never}>{node.status}</Badge>
+      <StatusBadge status={node.status} />
       {node.description && (
-        <p className="mt-3 whitespace-pre-wrap text-sm text-zinc-300">{node.description}</p>
+        <p className="mt-3 whitespace-pre-wrap text-sm text-foreground/90">{node.description}</p>
       )}
-      <pre className="mt-4 overflow-x-auto rounded border border-zinc-800 bg-zinc-950 p-2 font-mono text-[11px] text-zinc-400">
+      <pre className="mt-4 overflow-x-auto rounded-md border border-border bg-background p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
         {JSON.stringify(node, null, 2)}
       </pre>
     </div>
