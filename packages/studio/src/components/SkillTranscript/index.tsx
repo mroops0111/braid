@@ -1,5 +1,6 @@
 import type { SkillEvent } from '@telos/schema'
 import { groupTranscript } from './groupTranscript'
+import { Markdown } from './Markdown'
 import { ToolGroup } from './ToolGroup'
 
 interface SkillTranscriptProps {
@@ -42,7 +43,7 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
         </div>
       )
     case 'message':
-      return <div className="text-foreground whitespace-pre-wrap">{event.text}</div>
+      return <Markdown text={event.text} />
     case 'tool-call':
     case 'tool-result':
       return null

@@ -165,6 +165,7 @@ Produced N proposals + M clarify tickets:
 # Notes
 
 - **Do not** POST to any apply / reject endpoint. Write the JSON file only
+- **Never use em-dashes (`—`) or en-dashes (`–`) in output text** (proposal rationale, clarify question / candidate descriptions, etc.). Use periods, colons, commas, or parentheses instead
 - Span multiple bounded contexts → split into multiple proposals, each < 30 ops
 - Found pre-existing bad nodes (wrong type, missing description) but no
   source mentions them → produce ClarifyTicket, do not silently fix

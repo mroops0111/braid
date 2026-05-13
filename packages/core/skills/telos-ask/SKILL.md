@@ -161,6 +161,7 @@ Always produce two sections separated by `---`.
 # Notes
 
 - **Do not write any file** under `$TELOS_WORKSPACE/artifacts/`. Read-only skill
+- **Never use em-dashes (`—`) or en-dashes (`–`) in output text.** Use periods, colons, commas, or parentheses instead
 - **Do not POST** to any API endpoint
 - If the question reveals the graph is wrong / outdated, **suggest** running
   `/telos-extract` or `/telos-clarify`; do not modify the graph yourself
