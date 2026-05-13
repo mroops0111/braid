@@ -15,7 +15,7 @@ import { join } from 'node:path'
 import { SkillManifest, type SkillRegistry, Workspace } from '@telos/core'
 import { describe, expect, it } from 'vitest'
 import { ClaudeCodeAgentBinding } from '../../../src/infrastructure/agent/ClaudeCodeAgentBinding.js'
-import { SubprocessSkillRunner } from '../../../src/infrastructure/agent/SubprocessSkillRunner.js'
+import { mapSubprocessEvents, SubprocessSkillRunner } from '../../../src/infrastructure/agent/SubprocessSkillRunner.js'
 import { createMockSpawn } from '../../helpers/mockSpawn.js'
 
 const descriptor: AgentBindingDescriptor = {
@@ -166,5 +166,116 @@ describe('SubprocessSkillRunner', () => {
     }
     const completed = events.find(e => e.type === 'completed')
     expect(completed?.exitCode).toBe(137)
+  })
+
+  it('maps claude nested stream-json (assistant + result) into message + tool-call events', async () => {
+    const rootPath = (await mkdtemp(join(tmpdir(), 'telos-runner-'))) as AbsolutePath
+    const { spawn } = createMockSpawn([{
+      stdoutLines: [
+        JSON.stringify({ type: 'system', subtype: 'init', cwd: '/tmp' }),
+        JSON.stringify({
+          type: 'assistant',
+          message: { content: [
+            { type: 'thinking', thinking: 'hidden' },
+            { type: 'text', text: 'Found 3 nodes.' },
+            { type: 'tool_use', id: 't1', name: 'Read', input: { path: '/PRODUCT.md' } },
+          ] },
+        }),
+        JSON.stringify({
+          type: 'result',
+          subtype: 'success',
+          is_error: false,
+          result: 'This workspace tracks the order pipeline.',
+        }),
+      ],
+      exitCode: 0,
+    }])
+
+    const runner = new SubprocessSkillRunner({
+      skillRegistry: await makeSkillRegistry(rootPath),
+      agentBinding: new ClaudeCodeAgentBinding(descriptor),
+      apiUrl: 'http://localhost:4321',
+      spawn,
+      tempDir: rootPath,
+      clock: () => '2026-05-12T00:00:00+00:00',
+    })
+
+    const events: Array<{ type: string, text?: string, tool?: string }> = []
+    for await (const event of runner.run(makeWorkspace(rootPath), 'telos-ask' as SkillId, '')) {
+      events.push(event as never)
+    }
+
+    expect(events.map(e => e.type)).toEqual([
+      'started',
+      'message',
+      'tool-call',
+      'message',
+      'completed',
+    ])
+    expect(events[1]?.text).toBe('Found 3 nodes.')
+    expect(events[2]?.tool).toBe('Read')
+    expect(events[3]?.text).toBe('This workspace tracks the order pipeline.')
+  })
+
+  it('maps claude result with is_error=true into an error event', async () => {
+    const rootPath = (await mkdtemp(join(tmpdir(), 'telos-runner-'))) as AbsolutePath
+    const { spawn } = createMockSpawn([{
+      stdoutLines: [
+        JSON.stringify({ type: 'result', subtype: 'error', is_error: true, result: 'Unknown command: /telos-ask' }),
+      ],
+      exitCode: 0,
+    }])
+
+    const runner = new SubprocessSkillRunner({
+      skillRegistry: await makeSkillRegistry(rootPath),
+      agentBinding: new ClaudeCodeAgentBinding(descriptor),
+      apiUrl: 'http://localhost:4321',
+      spawn,
+      tempDir: rootPath,
+      clock: () => '2026-05-12T00:00:00+00:00',
+    })
+
+    const events: Array<{ type: string, message?: string }> = []
+    for await (const event of runner.run(makeWorkspace(rootPath), 'telos-ask' as SkillId, '')) {
+      events.push(event as never)
+    }
+
+    expect(events.map(e => e.type)).toEqual(['started', 'error', 'completed'])
+    expect(events[1]?.message).toBe('Unknown command: /telos-ask')
+  })
+})
+
+describe('mapSubprocessEvents', () => {
+  const now = '2026-05-12T00:00:00+00:00'
+
+  it('ignores system / rate_limit / user-success envelopes', () => {
+    expect(mapSubprocessEvents({ type: 'system', subtype: 'init' }, now)).toEqual([])
+    expect(mapSubprocessEvents({ type: 'rate_limit_event' }, now)).toEqual([])
+    expect(mapSubprocessEvents({
+      type: 'user',
+      message: { content: [{ type: 'tool_result', is_error: false, content: 'ok' }] },
+    }, now)).toEqual([])
+  })
+
+  it('surfaces user.tool_result with is_error=true as an error event', () => {
+    const result = mapSubprocessEvents({
+      type: 'user',
+      message: { content: [{ type: 'tool_result', is_error: true, content: 'bash: cmd not found' }] },
+    }, now)
+    expect(result).toHaveLength(1)
+    expect(result[0]?.type).toBe('error')
+  })
+
+  it('expands assistant.message.content[] into one event per text / tool_use part', () => {
+    const result = mapSubprocessEvents({
+      type: 'assistant',
+      message: {
+        content: [
+          { type: 'text', text: 'hi' },
+          { type: 'tool_use', name: 'Bash', input: { command: 'ls' } },
+        ],
+      },
+    }, now)
+    expect(result.map(e => e.type)).toEqual(['message', 'tool-call'])
   })
 })

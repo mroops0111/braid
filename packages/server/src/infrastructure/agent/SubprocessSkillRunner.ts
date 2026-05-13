@@ -66,45 +66,76 @@ export class SubprocessSkillRunner implements SkillRunner {
     })
     this.running.set(runId, child)
 
-    yield SkillEventSchema.parse({
-      type: 'started',
-      runId,
-      skillId,
-      at: this.now(),
-    })
+    yield SkillEventSchema.parse({ type: 'started', runId, skillId, at: this.now() })
 
-    const events: SkillEvent[] = []
-    const buffer = new LineBuffer((line) => {
+    const queue: SkillEvent[] = []
+    let resolver: (() => void) | null = null
+    let finished = false
+
+    const wake = (): void => {
+      if (resolver) {
+        const r = resolver
+        resolver = null
+        r()
+      }
+    }
+    const enqueue = (event: SkillEvent): void => {
+      queue.push(event)
+      wake()
+    }
+
+    const stdoutBuffer = new LineBuffer((line) => {
       const parsed = parseJsonLine(line)
       if (parsed === undefined)
         return
-      const mapped = mapSubprocessEvent(parsed)
-      if (mapped)
-        events.push(mapped)
+      for (const event of mapSubprocessEvents(parsed, this.now())) {
+        enqueue(event)
+      }
+    })
+    const stderrBuffer = new LineBuffer((line) => {
+      enqueue(SkillEventSchema.parse({ type: 'message', text: `[stderr] ${line}` }))
     })
 
     child.stdout?.setEncoding('utf-8')
-    child.stdout?.on('data', (chunk: string) => buffer.append(chunk))
+    child.stdout?.on('data', (chunk: string) => stdoutBuffer.append(chunk))
+    child.stderr?.setEncoding('utf-8')
+    child.stderr?.on('data', (chunk: string) => stderrBuffer.append(chunk))
 
-    const exitCode = await new Promise<number>((resolve) => {
-      child.on('close', code => resolve(code ?? 0))
+    child.on('close', (code) => {
+      stdoutBuffer.flush()
+      stderrBuffer.flush()
+      enqueue(SkillEventSchema.parse({
+        type: 'completed',
+        runId,
+        exitCode: code ?? 0,
+        at: this.now(),
+      }))
+      finished = true
+      wake()
     })
-    buffer.flush()
-    this.running.delete(runId)
 
-    for (const event of events) {
-      yield event
+    try {
+      while (true) {
+        if (queue.length > 0) {
+          yield queue.shift()!
+          continue
+        }
+        if (finished)
+          break
+        await new Promise<void>((r) => {
+          if (queue.length > 0 || finished) {
+            r()
+            return
+          }
+          resolver = r
+        })
+      }
     }
-
-    yield SkillEventSchema.parse({
-      type: 'completed',
-      runId,
-      exitCode,
-      at: this.now(),
-    })
-
-    if (this.deps.cleanupSession !== false) {
-      await rm(sessionDir, { recursive: true, force: true })
+    finally {
+      this.running.delete(runId)
+      if (this.deps.cleanupSession !== false) {
+        await rm(sessionDir, { recursive: true, force: true })
+      }
     }
   }
 
@@ -171,29 +202,90 @@ export class SubprocessSkillRunner implements SkillRunner {
   }
 }
 
-function mapSubprocessEvent(raw: { type: string, [key: string]: unknown }): SkillEvent | undefined {
+interface RawEvent { readonly type: string, readonly [key: string]: unknown }
+interface RawContentPart { readonly type?: string, readonly [key: string]: unknown }
+
+/**
+ * Maps a single line of `claude --output-format stream-json` into zero or
+ * more `SkillEvent`s. Claude emits five envelope shapes:
+ *
+ *   - `type=system`         → startup/init meta. Ignored.
+ *   - `type=assistant`      → `message.content[]` of text / tool_use / thinking.
+ *   - `type=user`           → echoed tool_result; we only surface `is_error`.
+ *   - `type=rate_limit_*`   → informational. Ignored.
+ *   - `type=result`         → final outcome (`is_error` + `result` string).
+ *
+ * Plus the legacy flat shapes used by older tests: `type=text`, `type=tool_use`,
+ * `type=artifact-written`, `type=error`. Kept for backward compatibility.
+ */
+export function mapSubprocessEvents(raw: RawEvent, now: string): SkillEvent[] {
+  const out: SkillEvent[] = []
+
+  if (raw.type === 'assistant') {
+    const content = readContent(raw)
+    for (const part of content) {
+      if (part?.type === 'text' && typeof part.text === 'string' && part.text.length > 0) {
+        out.push(SkillEventSchema.parse({ type: 'message', text: part.text }))
+      }
+      else if (part?.type === 'tool_use' && typeof part.name === 'string') {
+        out.push(SkillEventSchema.parse({ type: 'tool-call', tool: part.name, args: part.input ?? null }))
+      }
+    }
+    return out
+  }
+
+  if (raw.type === 'user') {
+    const content = readContent(raw)
+    for (const part of content) {
+      if (part?.type === 'tool_result' && part.is_error === true) {
+        const text = typeof part.content === 'string'
+          ? part.content
+          : JSON.stringify(part.content)
+        out.push(SkillEventSchema.parse({ type: 'error', message: `tool error: ${text}`, at: now }))
+      }
+    }
+    return out
+  }
+
+  if (raw.type === 'result') {
+    const isError = raw.is_error === true
+    const text = typeof raw.result === 'string' ? raw.result : ''
+    if (isError) {
+      out.push(SkillEventSchema.parse({ type: 'error', message: text || 'skill run failed', at: now }))
+    }
+    else if (text.length > 0) {
+      out.push(SkillEventSchema.parse({ type: 'message', text }))
+    }
+    return out
+  }
+
+  // Legacy / flat fixtures (kept for tests and any tool that emits a simpler shape).
   if (raw.type === 'text' && typeof raw.text === 'string') {
-    return SkillEventSchema.parse({ type: 'message', text: raw.text })
+    return [SkillEventSchema.parse({ type: 'message', text: raw.text })]
   }
   if (raw.type === 'tool_use' && typeof raw.name === 'string') {
-    return SkillEventSchema.parse({ type: 'tool-call', tool: raw.name, args: raw.input ?? null })
+    return [SkillEventSchema.parse({ type: 'tool-call', tool: raw.name, args: raw.input ?? null })]
   }
   if (raw.type === 'artifact-written' && typeof raw.artifactKind === 'string') {
-    return SkillEventSchema.parse({
+    return [SkillEventSchema.parse({
       type: 'artifact-written',
       artifactKind: raw.artifactKind,
       artifactId: raw.artifactId,
       path: raw.path,
-    })
+    })]
   }
   if (raw.type === 'error' && typeof raw.message === 'string') {
-    return SkillEventSchema.parse({
-      type: 'error',
-      message: raw.message,
-      at: new Date().toISOString(),
-    })
+    return [SkillEventSchema.parse({ type: 'error', message: raw.message, at: now })]
   }
-  return undefined
+
+  return out
+}
+
+function readContent(raw: RawEvent): RawContentPart[] {
+  const message = raw.message as { content?: unknown } | undefined
+  if (!message || !Array.isArray(message.content))
+    return []
+  return message.content as RawContentPart[]
 }
 
 async function defaultSpawn(): Promise<SpawnFn> {
