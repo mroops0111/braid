@@ -1,0 +1,27 @@
+/**
+ * Kùzu graph schema. One generic `Node` and one generic `Edge` table covers
+ * every ontology because the Telos ontology lives in `type` / `metadata`
+ * properties, not in Kùzu's table catalogue. This keeps schema migrations
+ * tied to *Telos schema* changes rather than to user-defined ontology edits.
+ */
+export const DDL_CREATE_NODE_TABLE = `
+  CREATE NODE TABLE IF NOT EXISTS Node(
+    id STRING,
+    type STRING,
+    name STRING,
+    description STRING,
+    status STRING,
+    metadata STRING,
+    embedding STRING,
+    PRIMARY KEY (id)
+  );
+`
+
+export const DDL_CREATE_EDGE_TABLE = `
+  CREATE REL TABLE IF NOT EXISTS Edge(
+    FROM Node TO Node,
+    id STRING,
+    type STRING,
+    metadata STRING
+  );
+`

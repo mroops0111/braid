@@ -1,4 +1,5 @@
 artifacts/
 code/
 .env
+.telos/
 .telos-sessions/

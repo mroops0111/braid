@@ -32,7 +32,7 @@ agentBindings:
     env: {}
 
 storage:
-  kind: in-memory
+  kind: kuzu
   config: {}
 
 channels:
@@ -51,7 +51,7 @@ above to point at your own intent (PRD / RFC) directories and codebases.
 ```bash
 WORKSPACE_DIR="$(pwd)/examples/example-workspace"
 
-# Boot the server (uses in-memory storage by default)
+# Boot the server (uses embedded Kuzu storage; data lives at .telos/model.kuzu)
 pnpm --filter @telos/server dev
 ```
 

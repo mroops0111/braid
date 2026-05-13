@@ -3,7 +3,8 @@ import type { AppDependencies } from './composition.js'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import process from 'node:process'
-import { builtinSkillsRoot } from '@telos/core'
+import { builtinSkillsRoot, NotFoundError } from '@telos/core'
+import { KuzuModelRepository } from '@telos/storage-kuzu'
 import { composeApp } from './composition.js'
 import { ClaudeCodeAgentBinding } from './infrastructure/agent/ClaudeCodeAgentBinding.js'
 import { SubprocessSkillRunner } from './infrastructure/agent/SubprocessSkillRunner.js'
@@ -29,9 +30,8 @@ export interface ComposeFsOptions {
 /**
  * Production composition root: real filesystem persistence for workspaces /
  * proposals / clarify / decisions, built-in skills loaded from `@telos/core`,
- * Claude Code subprocess agent.
- *
- * Model storage stays in-memory until Sprint D wires Neo4j.
+ * Claude Code subprocess agent. Model storage uses Kuzu (embedded, zero-infra)
+ * per workspace at `<workspace>/.telos/model.kuzu`.
  */
 export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
   const telosHome = options.telosHome ?? process.env.TELOS_HOME ?? join(homedir(), '.telos')
@@ -47,6 +47,16 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
   const proposalRepository = new FsProposalRepository({ workspaceRoots })
   const clarifyRepository = new FsClarifyTicketRepository({ workspaceRoots })
   const decisionRepository = new FsDecisionRepository({ workspaceRoots })
+
+  const modelRepository = new KuzuModelRepository({
+    resolveDbPath: async (workspaceId) => {
+      const roots = await workspaceRoots()
+      const root = roots.get(workspaceId)
+      if (!root)
+        throw new NotFoundError(`Workspace "${workspaceId}" not registered`)
+      return join(root, '.telos', 'model.kuzu')
+    },
+  })
 
   const skillRegistry = new FsSkillRegistry({
     builtinSkillsRoot: builtinSkillsRoot as AbsolutePath,
@@ -78,6 +88,7 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
     proposalRepository,
     clarifyRepository,
     decisionRepository,
+    modelRepository,
     skillRegistry,
     skillRunner,
     runRepository,

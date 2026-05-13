@@ -1,8 +1,8 @@
 {
-  "name": "@telos/server",
+  "name": "@telos/storage-kuzu",
   "type": "module",
   "version": "0.0.0",
-  "description": "Telos REST + (later) MCP server. Hono on Node 20.",
+  "description": "Kuzu embedded graph storage adapter for Telos. Zero-infra alternative to Neo4j (desktop / single-user).",
   "license": "Apache-2.0",
   "exports": {
     ".": "./src/index.ts"
@@ -13,23 +13,14 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "dev": "tsx watch src/server.ts",
     "clean": "rm -rf dist .turbo *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@hono/node-server": "^1.13.0",
-    "@hono/zod-validator": "^0.4.0",
     "@telos/core": "workspace:*",
     "@telos/schema": "workspace:*",
-    "@telos/storage-kuzu": "workspace:*",
-    "hono": "^4.6.0",
-    "pino": "^9.5.0",
-    "yaml": "^2.9.0",
-    "zod": "^3.24.0"
+    "kuzu": "^0.11.0"
   },
   "devDependencies": {
-    "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
   }
