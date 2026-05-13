@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, Inbox, X } from 'lucide-react'
 import { useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
+import { ListRow } from '@/components/ListRow'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
@@ -34,31 +35,25 @@ export function ProposalsPage({ workspaceId }: ProposalsPageProps) {
     <div className="flex h-full">
       <ul className="w-96 shrink-0 overflow-y-auto scrollbar-thin border-r border-border">
         {data.items.map(proposal => (
-          <li key={proposal.id} className="relative">
-            {selected?.id === proposal.id && (
-              <span className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-primary" />
-            )}
-            <button
-              type="button"
-              onClick={() => setSelected(proposal)}
-              className={`flex w-full flex-col gap-1 border-b border-border px-4 py-3 text-left transition-colors duration-150 hover:bg-accent ${
-                selected?.id === proposal.id ? 'bg-accent' : ''
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-mono text-xs text-foreground">{proposal.id}</span>
-                <StatusBadge status={proposal.status} />
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {proposal.operations.length}
-                {' '}
-                ops · by
-                {' '}
-                {proposal.generatedBy}
-              </div>
-              <div className="line-clamp-2 text-xs text-foreground/80">{proposal.rationale}</div>
-            </button>
-          </li>
+          <ListRow
+            key={proposal.id}
+            active={selected?.id === proposal.id}
+            onClick={() => setSelected(proposal)}
+            className="flex-col gap-1"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-xs text-foreground">{proposal.id}</span>
+              <StatusBadge status={proposal.status} />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {proposal.operations.length}
+              {' '}
+              ops · by
+              {' '}
+              {proposal.generatedBy}
+            </div>
+            <div className="line-clamp-2 text-xs text-foreground/80">{proposal.rationale}</div>
+          </ListRow>
         ))}
       </ul>
       <div className="flex-1 overflow-hidden">

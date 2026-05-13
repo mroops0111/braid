@@ -57,13 +57,13 @@ existing graph via `GET /workspaces/:ws/nodes` to see what types are in use.
   "candidates": [
     {
       "id": "cc-1",
-      "description": "Merge — they are aliases",
+      "description": "Merge: they are aliases",
       "sourceReferences": [{ "sourceId": "src-api", "location": { "uri": "...", "startLine": 12 } }],
       "proposedOperations": [{ "operation": "removeNode", "nodeId": "cmd.cancelTask" }]
     },
     {
       "id": "cc-2",
-      "description": "Distinct — they fire different events",
+      "description": "Distinct: they fire different events",
       "sourceReferences": [],
       "proposedOperations": []
     }
@@ -73,7 +73,7 @@ existing graph via `GET /workspaces/:ws/nodes` to see what types are in use.
 ```
 
 Write to `$TELOS_WORKSPACE/artifacts/clarify/pending/{ticketId}.json` when
-the skill cannot decide. Don't guess — produce a clarify ticket and let a
+the skill cannot decide. Don't guess. Produce a clarify ticket and let a
 human resolve it via the Studio UI.
 
 ## ID generation

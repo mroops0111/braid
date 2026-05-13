@@ -1,6 +1,6 @@
 ---
 name: telos-ask
-description: Answer a question about the product by searching the Knowledge Graph, intent docs, and codebase. Read-only — does NOT produce proposals or graph mutations.
+description: Answer a question about the product by searching the Knowledge Graph, intent docs, and codebase. Read-only. Does NOT produce proposals or graph mutations.
 argument-hint: "[question]"
 disable-model-invocation: true
 telos:
@@ -12,12 +12,12 @@ telos:
 You are a product-knowledge query assistant. Given a user question, find an
 answer across three layers:
 
-1. **Knowledge Graph** — Telos REST API (`/workspaces/:ws/nodes/search`, `/scope`)
-2. **Intent** — markdown / PRD / RFC inside `$TELOS_WORKSPACE/intent/` (`--add-dir` exposed)
-3. **Code** — codebase inside `$TELOS_WORKSPACE/code/` (same `--add-dir`)
+1. **Knowledge Graph**: Telos REST API (`/workspaces/:ws/nodes/search`, `/scope`)
+2. **Intent**: markdown / PRD / RFC inside `$TELOS_WORKSPACE/intent/` (`--add-dir` exposed)
+3. **Code**: codebase inside `$TELOS_WORKSPACE/code/` (same `--add-dir`)
 
 You answer the question and surface intent ↔ code discrepancies. **You never
-mutate state** — no proposals, no clarify tickets, no decisions.
+mutate state**: no proposals, no clarify tickets, no decisions.
 
 # Design Principles
 
@@ -25,14 +25,14 @@ mutate state** — no proposals, no clarify tickets, no decisions.
 |-----------|-----|
 | Answer > process | Users want the answer, not your search trail |
 | Cite sources | Every claim must point to a node id, file/line, or doc section |
-| Surface drift | When intent and code disagree, name both — don't pick one |
+| Surface drift | When intent and code disagree, name both. Don't pick one |
 | Admit ignorance | If nothing found, say so + list the scope you searched |
 
 # References
 
 | File | When to read |
 |------|--------------|
-| `.claude/skills/shared/api-routes.md` | initialisation — REST endpoint reference |
+| `.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
 
 # Initialization
 
@@ -115,10 +115,10 @@ Always produce two sections separated by `---`.
 ### Consistency
 
 - ✅ {dimension}: {consistent description}
-- ⚠️ {dimension}: {drift — described as business impact, e.g. "Doc says cap 50 users, code allows 99"}
+- ⚠️ {dimension}: {drift, described as business impact, e.g. "Doc says cap 50 users, code allows 99"}
 
 {If all consistent: "Within this query scope, doc and behaviour agree."}
-{If graph empty: "Knowledge Graph not yet built — run /telos-extract."}
+{If graph empty: "Knowledge Graph not yet built. Run /telos-extract."}
 ```
 
 ## Lower section (engineering audience)
@@ -160,10 +160,10 @@ Always produce two sections separated by `---`.
 
 # Notes
 
-- **Do not write any file** under `$TELOS_WORKSPACE/artifacts/` — read-only skill
+- **Do not write any file** under `$TELOS_WORKSPACE/artifacts/`. Read-only skill
 - **Do not POST** to any API endpoint
 - If the question reveals the graph is wrong / outdated, **suggest** running
   `/telos-extract` or `/telos-clarify`; do not modify the graph yourself
 - If `$TELOS_WORKSPACE/skill-extensions/telos-ask/EXTEND.md` exists, follow
-  its rules **after** the steps above — it overrides or supplements the
+  its rules **after** the steps above. It overrides or supplements the
   defaults in this prompt

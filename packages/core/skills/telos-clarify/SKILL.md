@@ -1,6 +1,6 @@
 ---
 name: telos-clarify
-description: Process answered ClarifyTickets — turn the chosen candidate into a Proposal for HITL apply. Optionally raise a new ClarifyTicket if the resolution breaks graph invariants.
+description: Process answered ClarifyTickets by turning the chosen candidate into a Proposal for HITL apply. Optionally raise a new ClarifyTicket if the resolution breaks graph invariants.
 argument-hint: "[clarifyTicketId | all]"
 disable-model-invocation: true
 telos:
@@ -29,8 +29,8 @@ materialise their choice into a reviewable Proposal.
 
 | File | When to read |
 |------|--------------|
-| `.claude/skills/shared/api-routes.md` | initialisation — REST endpoint reference |
-| `.claude/skills/shared/artifact-formats.md` | before writing — exact Proposal JSON shape |
+| `.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
+| `.claude/skills/shared/artifact-formats.md` | before writing. Exact Proposal JSON shape |
 
 # Initialization
 
@@ -129,5 +129,5 @@ Processed N tickets: M proposals produced, K new clarify tickets raised, L skipp
 - If a candidate's `resolution` is an empty array (user picked an option that has no graph impact) → do **not** produce a Proposal; move ticket to `applied/` as a record only
 - Don't reprocess already-applied tickets: check `clarify/applied/` and `clarify/skipped/` first
 - If `$TELOS_WORKSPACE/skill-extensions/telos-clarify/EXTEND.md` exists,
-  follow its rules **after** the steps above — workspace-specific
+  follow its rules **after** the steps above. Workspace-specific
   supplementary-op rules go there

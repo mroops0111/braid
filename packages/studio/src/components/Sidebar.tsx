@@ -4,7 +4,7 @@ import { FolderGit2, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/queries'
-import { cn } from '@/lib/utils'
+import { ListRow } from './ListRow'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog'
 import { Input } from './ui/input'
@@ -34,23 +34,15 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect }: SidebarProp
             <li className="px-2 py-1.5 text-xs text-sidebar-foreground/40">No workspace yet.</li>
           )}
           {workspaces.map(ws => (
-            <li key={ws.id} className="relative">
-              {ws.id === activeWorkspaceId && (
-                <span className="absolute inset-y-1 left-0 w-[3px] rounded-r-full bg-primary" />
-              )}
-              <button
-                type="button"
-                onClick={() => onSelect(ws.id)}
-                className={cn(
-                  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors duration-150',
-                  'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground',
-                  ws.id === activeWorkspaceId && 'bg-sidebar-accent text-sidebar-foreground',
-                )}
-              >
-                <FolderGit2 className="size-3.5 shrink-0 text-sidebar-foreground/50" />
-                <span className="truncate font-medium">{ws.id}</span>
-              </button>
-            </li>
+            <ListRow
+              key={ws.id}
+              variant="sidebar"
+              active={ws.id === activeWorkspaceId}
+              onClick={() => onSelect(ws.id)}
+            >
+              <FolderGit2 className="size-3.5 shrink-0 text-sidebar-foreground/50" />
+              <span className="truncate font-medium">{ws.id}</span>
+            </ListRow>
           ))}
         </ul>
       </div>

@@ -81,7 +81,7 @@ function Header({ workspaceId }: { workspaceId: string | null }) {
               <span className="font-mono text-foreground">{workspaceId}</span>
             )
           : (
-              <span className="text-muted-foreground/60">— none registered</span>
+              <span className="text-muted-foreground/60">(none registered)</span>
             )}
       </div>
       <kbd className="hidden items-center gap-1 rounded border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline-flex">

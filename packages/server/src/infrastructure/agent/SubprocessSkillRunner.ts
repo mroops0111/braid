@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { newSkillRunId, NotFoundError } from '@telos/core'
 import { SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema } from '@telos/schema'
+import { createAsyncQueue } from './asyncQueue.js'
 import { writeMcpConfigFile } from './mcpConfig.js'
 import { LineBuffer, parseJsonLine } from './streamJsonParser.js'
 
@@ -66,70 +67,24 @@ export class SubprocessSkillRunner implements SkillRunner {
     })
     this.running.set(runId, child)
 
-    yield SkillEventSchema.parse({ type: 'started', runId, skillId, at: this.now() })
-
-    const queue: SkillEvent[] = []
-    let resolver: (() => void) | null = null
-    let finished = false
-
-    const wake = (): void => {
-      if (resolver) {
-        const r = resolver
-        resolver = null
-        r()
-      }
-    }
-    const enqueue = (event: SkillEvent): void => {
-      queue.push(event)
-      wake()
-    }
-
-    const stdoutBuffer = new LineBuffer((line) => {
-      const parsed = parseJsonLine(line)
-      if (parsed === undefined)
-        return
-      for (const event of mapSubprocessEvents(parsed, this.now())) {
-        enqueue(event)
-      }
-    })
-    const stderrBuffer = new LineBuffer((line) => {
-      enqueue(SkillEventSchema.parse({ type: 'message', text: `[stderr] ${line}` }))
-    })
-
-    child.stdout?.setEncoding('utf-8')
-    child.stdout?.on('data', (chunk: string) => stdoutBuffer.append(chunk))
-    child.stderr?.setEncoding('utf-8')
-    child.stderr?.on('data', (chunk: string) => stderrBuffer.append(chunk))
-
-    child.on('close', (code) => {
-      stdoutBuffer.flush()
-      stderrBuffer.flush()
-      enqueue(SkillEventSchema.parse({
-        type: 'completed',
-        runId,
-        exitCode: code ?? 0,
-        at: this.now(),
-      }))
-      finished = true
-      wake()
-    })
-
     try {
-      while (true) {
-        if (queue.length > 0) {
-          yield queue.shift()!
-          continue
-        }
-        if (finished)
-          break
-        await new Promise<void>((r) => {
-          if (queue.length > 0 || finished) {
-            r()
-            return
-          }
-          resolver = r
-        })
-      }
+      yield SkillEventSchema.parse({ type: 'started', runId, skillId, at: this.now() })
+
+      const queue = createAsyncQueue<SkillEvent>()
+      const buffers = attachOutputBuffers(child, queue.push, () => this.now())
+
+      child.on('close', (code) => {
+        buffers.flush()
+        queue.push(SkillEventSchema.parse({
+          type: 'completed',
+          runId,
+          exitCode: code ?? 0,
+          at: this.now(),
+        }))
+        queue.end()
+      })
+
+      yield * queue.iterate()
     }
     finally {
       this.running.delete(runId)
@@ -146,7 +101,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     }
     yield SkillEventSchema.parse({
       type: 'message',
-      text: `Resumed run "${runId}" — streaming live output not implemented`,
+      text: `Resumed run "${runId}". Streaming live output not implemented.`,
     })
   }
 
@@ -199,6 +154,44 @@ export class SubprocessSkillRunner implements SkillRunner {
 
   private now(): string {
     return (this.deps.clock ?? (() => new Date().toISOString()))()
+  }
+}
+
+/**
+ * Wires a spawned child's stdout / stderr into a callback that receives one
+ * mapped SkillEvent per emitted line. stdout is parsed as JSON (claude
+ * stream-json); stderr is wrapped verbatim into a `[stderr]` message event
+ * so it shows up in the transcript alongside model output.
+ *
+ * Returns a `flush` you call from the child's `close` handler so the last
+ * line without a trailing newline still reaches the consumer.
+ */
+function attachOutputBuffers(
+  child: ChildProcess,
+  onEvent: (event: SkillEvent) => void,
+  now: () => string,
+): { flush: () => void } {
+  const stdout = new LineBuffer((line) => {
+    const parsed = parseJsonLine(line)
+    if (parsed === undefined)
+      return
+    for (const event of mapSubprocessEvents(parsed, now()))
+      onEvent(event)
+  })
+  const stderr = new LineBuffer((line) => {
+    onEvent(SkillEventSchema.parse({ type: 'message', text: `[stderr] ${line}` }))
+  })
+
+  child.stdout?.setEncoding('utf-8')
+  child.stdout?.on('data', (chunk: string) => stdout.append(chunk))
+  child.stderr?.setEncoding('utf-8')
+  child.stderr?.on('data', (chunk: string) => stderr.append(chunk))
+
+  return {
+    flush: () => {
+      stdout.flush()
+      stderr.flush()
+    },
   }
 }
 

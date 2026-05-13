@@ -2,9 +2,9 @@
 
 All skills run inside a `claude` subprocess that receives:
 
-- `TELOS_API_URL` — base URL of the running Telos server (e.g. `http://localhost:4321`)
-- `TELOS_WORKSPACE` — absolute path to the workspace root directory
-- `TELOS_WORKSPACE_ID` — workspace identifier (used in URL path)
+- `TELOS_API_URL`: base URL of the running Telos server (e.g. `http://localhost:4321`)
+- `TELOS_WORKSPACE`: absolute path to the workspace root directory
+- `TELOS_WORKSPACE_ID`: workspace identifier (used in URL path)
 
 Skills query / mutate state by calling these endpoints with `curl`. The full path
 template is `${TELOS_API_URL}/workspaces/${TELOS_WORKSPACE_ID}/...`.
@@ -32,7 +32,7 @@ template is `${TELOS_API_URL}/workspaces/${TELOS_WORKSPACE_ID}/...`.
 | `GET` | `/workspaces/:ws/decisions?action=&limit=&offset=` | `{ items: [Decision] }` |
 | `GET` | `/workspaces/:ws/decisions/:id` | `Decision` |
 
-## HITL artifacts (write) — usually via filesystem
+## HITL artifacts (write), usually via filesystem
 
 Skills do **not** mutate state through the API. They write JSON to the
 workspace's `artifacts/` directory; the server picks it up on the next read.
@@ -43,7 +43,7 @@ workspace's `artifacts/` directory; the server picks it up on the next read.
 | ClarifyTicket (new) | `$TELOS_WORKSPACE/artifacts/clarify/pending/{clarifyTicketId}.json` |
 
 Apply / Reject / Answer / Skip transitions happen via the API (route
-`POST /proposals/:id/apply`, etc.) — but those are triggered by a human in
+`POST /proposals/:id/apply`, etc.). Those are triggered by a human in
 the UI, not by a skill.
 
 ## Error semantics

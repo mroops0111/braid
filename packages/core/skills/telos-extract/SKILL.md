@@ -30,8 +30,8 @@ and let the human pick.
 
 | File | When to read |
 |------|--------------|
-| `.claude/skills/shared/api-routes.md` | initialisation — REST endpoint reference |
-| `.claude/skills/shared/artifact-formats.md` | before writing — exact Proposal / ClarifyTicket JSON shape |
+| `.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
+| `.claude/skills/shared/artifact-formats.md` | before writing. Exact Proposal / ClarifyTicket JSON shape |
 
 # Initialization
 
@@ -81,7 +81,7 @@ For each candidate:
 - Graph **has same id** with different content → `updateNode`
 - Graph **has identical content** → skip
 - Graph **lacks the id** → `addNode`
-- Graph **has id but source deleted** → `updateNode` setting `status: deprecated`. **Do not `removeNode`** — preserve history.
+- Graph **has id but source deleted** → `updateNode` setting `status: deprecated`. **Do not `removeNode`**. Preserve history.
 
 Apply analogous rules for edges (`CONTAINS`, `EMITS`, `TRIGGERS`, `CONSTRAINED_BY`, …).
 
@@ -130,8 +130,8 @@ cat > "$TMP" <<EOF
   "workspaceId": "$TELOS_WORKSPACE_ID",
   "question": "voidTask and cancelTask: same command or distinct?",
   "candidates": [
-    { "id": "cc-1", "description": "Merge — they are aliases (signup.md §3 uses voidTask, signup.controller.ts uses cancelTask)", "sourceReferences": [], "proposedOperations": [...] },
-    { "id": "cc-2", "description": "Treat as distinct — they fire different events", "sourceReferences": [], "proposedOperations": [...] }
+    { "id": "cc-1", "description": "Merge: they are aliases (signup.md §3 uses voidTask, signup.controller.ts uses cancelTask)", "sourceReferences": [], "proposedOperations": [...] },
+    { "id": "cc-2", "description": "Treat as distinct: they fire different events", "sourceReferences": [], "proposedOperations": [...] }
   ],
   "status": "pending"
 }
@@ -139,7 +139,7 @@ EOF
 mv "$TMP" "$TELOS_WORKSPACE/artifacts/clarify/pending/$TICKET_ID.json"
 ```
 
-Each candidate must carry its own `proposedOperations` — the user's pick
+Each candidate must carry its own `proposedOperations`. The user's pick
 determines which ops run.
 
 # Output
@@ -164,10 +164,10 @@ Produced N proposals + M clarify tickets:
 
 # Notes
 
-- **Do not** POST to any apply / reject endpoint — write the JSON file only
+- **Do not** POST to any apply / reject endpoint. Write the JSON file only
 - Span multiple bounded contexts → split into multiple proposals, each < 30 ops
 - Found pre-existing bad nodes (wrong type, missing description) but no
   source mentions them → produce ClarifyTicket, do not silently fix
 - If `$TELOS_WORKSPACE/skill-extensions/telos-extract/EXTEND.md` exists,
-  follow its rules **after** the steps above — workspace-specific
+  follow its rules **after** the steps above. Workspace-specific
   ID conventions / status enums / source patterns go there

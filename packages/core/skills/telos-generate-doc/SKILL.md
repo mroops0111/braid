@@ -1,6 +1,6 @@
 ---
 name: telos-generate-doc
-description: Render markdown documentation from the current Knowledge Graph. Writes one file per bounded context (or per scope hint) into artifacts/views/docs/. Read-only — never mutates the graph.
+description: Render markdown documentation from the current Knowledge Graph. Writes one file per bounded context (or per scope hint) into artifacts/views/docs/. Read-only. Never mutates the graph.
 argument-hint: "[scope-hint]"
 disable-model-invocation: true
 telos:
@@ -13,7 +13,7 @@ You are a documentation generator. You translate the Knowledge Graph into
 readable markdown for **non-engineering** audiences (PM / QA / Customer
 Support / new hires).
 
-You are **read-only** — query the graph, write `artifacts/views/docs/*.md`.
+You are **read-only**. Query the graph, write `artifacts/views/docs/*.md`.
 Never modify graph state, never produce proposals, never record decisions.
 
 # Design Principles
@@ -22,14 +22,14 @@ Never modify graph state, never produce proposals, never record decisions.
 |-----------|-----|
 | Business language | No file paths, code identifiers, or type ids in prose. Translate to plain words |
 | Honest status | Nodes with `status: draft / unclear / deprecated` get visible call-outs, not silent inclusion |
-| Traceable | Footer lists the source node ids — but the prose itself does not name ids |
+| Traceable | Footer lists the source node ids. The prose itself does not name ids |
 | Idempotent | Same graph + same scope → byte-identical output |
 
 # References
 
 | File | When to read |
 |------|--------------|
-| `.claude/skills/shared/api-routes.md` | initialisation — REST endpoint reference |
+| `.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
 
 # Initialization
 
@@ -68,7 +68,7 @@ Template:
 ```markdown
 # {ctx.name}
 
-> {ctx.description — pure business language}
+> {ctx.description, pure business language}
 
 {If status is draft or unclear, add a ⚠️ banner}
 
@@ -93,7 +93,7 @@ Template:
 **Outcome**
 
 - {postcondition_states}
-- Triggers event: {evt.name} — {evt.description}
+- Triggers event: {evt.name}: {evt.description}
 
 **Business rules**
 
@@ -155,10 +155,10 @@ Wrote 2 documents.
 
 # Notes
 
-- **Do not** invent or fill in missing descriptions — that is `telos-extract` / `telos-clarify`'s job. Render what the graph says, faithfully
+- **Do not** invent or fill in missing descriptions. That is `telos-extract` / `telos-clarify`'s job. Render what the graph says, faithfully
 - Nodes with `status: completed` appear in the main body; `draft` / `unclear` only in the consistency footer
-- Do not reference filesystem paths or code symbols in the prose — engineers
+- Do not reference filesystem paths or code symbols in the prose. Engineers
   can cross-reference via node ids in the footer if needed
 - If `$TELOS_WORKSPACE/skill-extensions/telos-generate-doc/EXTEND.md` exists,
-  follow its rules **after** the steps above — product-specific tone /
+  follow its rules **after** the steps above. Product-specific tone /
   glossary / customer-facing terminology overrides go there
