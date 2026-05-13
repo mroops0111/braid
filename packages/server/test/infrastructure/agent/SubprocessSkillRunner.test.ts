@@ -257,25 +257,32 @@ describe('mapSubprocessEvents', () => {
     }, now)).toEqual([])
   })
 
-  it('surfaces user.tool_result with is_error=true as an error event', () => {
-    const result = mapSubprocessEvents({
+  it('emits user.tool_result as a tool-result event (isError flag mirrors stream)', () => {
+    const ok = mapSubprocessEvents({
       type: 'user',
-      message: { content: [{ type: 'tool_result', is_error: true, content: 'bash: cmd not found' }] },
+      message: { content: [{ type: 'tool_result', tool_use_id: 't1', is_error: false, content: 'ok' }] },
     }, now)
-    expect(result).toHaveLength(1)
-    expect(result[0]?.type).toBe('error')
+    expect(ok).toHaveLength(1)
+    expect(ok[0]).toMatchObject({ type: 'tool-result', toolCallId: 't1', output: 'ok', isError: false })
+
+    const bad = mapSubprocessEvents({
+      type: 'user',
+      message: { content: [{ type: 'tool_result', tool_use_id: 't2', is_error: true, content: 'bash: cmd not found' }] },
+    }, now)
+    expect(bad[0]).toMatchObject({ type: 'tool-result', toolCallId: 't2', isError: true })
   })
 
-  it('expands assistant.message.content[] into one event per text / tool_use part', () => {
+  it('expands assistant.message.content[] into one event per text / tool_use part with toolCallId', () => {
     const result = mapSubprocessEvents({
       type: 'assistant',
       message: {
         content: [
           { type: 'text', text: 'hi' },
-          { type: 'tool_use', name: 'Bash', input: { command: 'ls' } },
+          { type: 'tool_use', id: 'toolu_abc', name: 'Bash', input: { command: 'ls' } },
         ],
       },
     }, now)
     expect(result.map(e => e.type)).toEqual(['message', 'tool-call'])
+    expect(result[1]).toMatchObject({ type: 'tool-call', tool: 'Bash', toolCallId: 'toolu_abc' })
   })
 })

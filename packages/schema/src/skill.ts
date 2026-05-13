@@ -86,6 +86,15 @@ export const SkillEventToolCall = z.object({
   type: z.literal('tool-call'),
   tool: z.string().min(1),
   args: z.unknown(),
+  /** Stable id from the agent's stream, used to pair with a tool-result. */
+  toolCallId: z.string().min(1).optional(),
+})
+
+export const SkillEventToolResult = z.object({
+  type: z.literal('tool-result'),
+  toolCallId: z.string().min(1),
+  output: z.string(),
+  isError: z.boolean(),
 })
 
 export const SkillArtifactKind = z.enum(['proposal', 'clarify', 'decision', 'view'])
@@ -115,6 +124,7 @@ export const SkillEvent = z.discriminatedUnion('type', [
   SkillEventStarted,
   SkillEventMessage,
   SkillEventToolCall,
+  SkillEventToolResult,
   SkillEventArtifactWritten,
   SkillEventCompleted,
   SkillEventError,

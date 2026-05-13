@@ -168,6 +168,36 @@ describe('skillEvent (discriminated union)', () => {
     expect(SkillEvent.parse({ type: 'tool-call', tool: 'Read', args: { path: '/x' } }).type).toBe('tool-call')
   })
 
+  it('parses tool-call with optional toolCallId', () => {
+    const evt = SkillEvent.parse({
+      type: 'tool-call',
+      tool: 'Read',
+      args: { path: '/x' },
+      toolCallId: 'toolu_abc',
+    })
+    if (evt.type !== 'tool-call')
+      throw new Error('unexpected')
+    expect(evt.toolCallId).toBe('toolu_abc')
+  })
+
+  it('parses tool-result', () => {
+    const evt = SkillEvent.parse({
+      type: 'tool-result',
+      toolCallId: 'toolu_abc',
+      output: 'file contents',
+      isError: false,
+    })
+    if (evt.type !== 'tool-result')
+      throw new Error('unexpected')
+    expect(evt.toolCallId).toBe('toolu_abc')
+    expect(evt.isError).toBe(false)
+  })
+
+  it('rejects tool-result without required fields', () => {
+    expect(SkillEvent.safeParse({ type: 'tool-result' }).success).toBe(false)
+    expect(SkillEvent.safeParse({ type: 'tool-result', toolCallId: 'x', output: 'y' }).success).toBe(false)
+  })
+
   it('parses artifact-written', () => {
     const evt = SkillEvent.parse({
       type: 'artifact-written',

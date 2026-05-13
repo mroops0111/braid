@@ -228,7 +228,14 @@ export function mapSubprocessEvents(raw: RawEvent, now: string): SkillEvent[] {
         out.push(SkillEventSchema.parse({ type: 'message', text: part.text }))
       }
       else if (part?.type === 'tool_use' && typeof part.name === 'string') {
-        out.push(SkillEventSchema.parse({ type: 'tool-call', tool: part.name, args: part.input ?? null }))
+        const event: Record<string, unknown> = {
+          type: 'tool-call',
+          tool: part.name,
+          args: part.input ?? null,
+        }
+        if (typeof part.id === 'string' && part.id.length > 0)
+          event.toolCallId = part.id
+        out.push(SkillEventSchema.parse(event))
       }
     }
     return out
@@ -237,11 +244,16 @@ export function mapSubprocessEvents(raw: RawEvent, now: string): SkillEvent[] {
   if (raw.type === 'user') {
     const content = readContent(raw)
     for (const part of content) {
-      if (part?.type === 'tool_result' && part.is_error === true) {
-        const text = typeof part.content === 'string'
+      if (part?.type === 'tool_result' && typeof part.tool_use_id === 'string') {
+        const output = typeof part.content === 'string'
           ? part.content
-          : JSON.stringify(part.content)
-        out.push(SkillEventSchema.parse({ type: 'error', message: `tool error: ${text}`, at: now }))
+          : JSON.stringify(part.content ?? '')
+        out.push(SkillEventSchema.parse({
+          type: 'tool-result',
+          toolCallId: part.tool_use_id,
+          output,
+          isError: part.is_error === true,
+        }))
       }
     }
     return out
