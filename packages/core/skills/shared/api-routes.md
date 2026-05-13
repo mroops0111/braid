@@ -5,6 +5,7 @@ All skills run inside a `claude` subprocess that receives:
 - `TELOS_API_URL`: base URL of the running Telos server (e.g. `http://localhost:4321`)
 - `TELOS_WORKSPACE`: absolute path to the workspace root directory
 - `TELOS_WORKSPACE_ID`: workspace identifier (used in URL path)
+- `TELOS_SESSION_DIR`: absolute path to the spawn cwd. Use this when reading shared skill refs (e.g. `$TELOS_SESSION_DIR/.claude/skills/shared/...`); do **not** assume `.claude/skills/` lives under `$TELOS_WORKSPACE`.
 
 Skills query / mutate state by calling these endpoints with `curl`. The full path
 template is `${TELOS_API_URL}/workspaces/${TELOS_WORKSPACE_ID}/...`.

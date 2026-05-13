@@ -29,8 +29,8 @@ materialise their choice into a reviewable Proposal.
 
 | File | When to read |
 |------|--------------|
-| `.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
-| `.claude/skills/shared/artifact-formats.md` | before writing. Exact Proposal JSON shape |
+| `$TELOS_SESSION_DIR/.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
+| `$TELOS_SESSION_DIR/.claude/skills/shared/artifact-formats.md` | before writing. Exact Proposal JSON shape |
 
 # Initialization
 

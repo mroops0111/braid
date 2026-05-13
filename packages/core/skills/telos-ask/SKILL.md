@@ -32,7 +32,7 @@ mutate state**: no proposals, no clarify tickets, no decisions.
 
 | File | When to read |
 |------|--------------|
-| `.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
+| `$TELOS_SESSION_DIR/.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
 
 # Initialization
 

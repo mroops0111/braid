@@ -30,8 +30,8 @@ and let the human pick.
 
 | File | When to read |
 |------|--------------|
-| `.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
-| `.claude/skills/shared/artifact-formats.md` | before writing. Exact Proposal / ClarifyTicket JSON shape |
+| `$TELOS_SESSION_DIR/.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
+| `$TELOS_SESSION_DIR/.claude/skills/shared/artifact-formats.md` | before writing. Exact Proposal / ClarifyTicket JSON shape |
 
 # Initialization
 
@@ -117,7 +117,7 @@ EOF
 mv "$TMP" "$TELOS_WORKSPACE/artifacts/proposals/pending/$PROPOSAL_ID.json"
 ```
 
-Full GraphOperation shapes are in `.claude/skills/shared/artifact-formats.md`.
+Full GraphOperation shapes are in `$TELOS_SESSION_DIR/.claude/skills/shared/artifact-formats.md`.
 
 ## Step 5: write ClarifyTicket (low-confidence candidates)
 

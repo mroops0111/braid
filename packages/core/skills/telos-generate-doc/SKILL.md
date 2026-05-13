@@ -29,7 +29,7 @@ Never modify graph state, never produce proposals, never record decisions.
 
 | File | When to read |
 |------|--------------|
-| `.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
+| `$TELOS_SESSION_DIR/.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
 
 # Initialization
 

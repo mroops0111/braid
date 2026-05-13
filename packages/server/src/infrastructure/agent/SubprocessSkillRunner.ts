@@ -80,9 +80,13 @@ export class SubprocessSkillRunner implements SkillRunner {
     })
 
     const spawnFn = this.deps.spawn ?? (await defaultSpawn())
+    // TELOS_SESSION_DIR resolves ambiguity in SKILL.md paths: claude sees
+    // both `TELOS_WORKSPACE` (real workspace root) and a cwd that lives
+    // inside it, and otherwise guesses wrong about which one `.claude/...`
+    // is rooted in.
     const child = spawnFn(invocation.bin, [...invocation.args], {
       cwd: sessionDir,
-      env: invocation.env,
+      env: { ...invocation.env, TELOS_SESSION_DIR: sessionDir },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     this.running.set(runId, child)
