@@ -54,6 +54,51 @@ export async function runSkillStream(options: SseRunOptions): Promise<void> {
   }
 }
 
+export interface SseReadOptions {
+  readonly url: string
+  readonly signal?: AbortSignal
+  readonly onEvent: (event: SkillEvent) => void
+  readonly onError?: (error: Error) => void
+}
+
+/**
+ * Read-only counterpart to `runSkillStream`: GETs an SSE endpoint and
+ * delivers each parsed SkillEvent. Used by the Runs tab to replay a
+ * persisted event log.
+ */
+export async function readSkillEventStream(options: SseReadOptions): Promise<void> {
+  const init: RequestInit = { method: 'GET' }
+  if (options.signal)
+    init.signal = options.signal
+  const response = await fetch(options.url, init)
+  if (!response.ok || !response.body) {
+    throw new Error(`Event stream failed: ${response.status} ${response.statusText}`)
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done)
+        break
+      buffer += decoder.decode(value, { stream: true })
+      const events = buffer.split('\n\n')
+      buffer = events.pop() ?? ''
+      for (const block of events) {
+        const parsed = parseSseBlock(block)
+        if (parsed)
+          options.onEvent(parsed)
+      }
+    }
+  }
+  catch (error) {
+    options.onError?.(error as Error)
+  }
+}
+
 function parseSseBlock(block: string): SkillEvent | undefined {
   let data = ''
   for (const line of block.split('\n')) {

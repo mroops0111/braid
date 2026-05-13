@@ -81,10 +81,15 @@ function SkillRunner({ workspaceId, skill }: SkillRunnerProps) {
 
   const reset = () => {
     abortRef.current?.abort()
+    const sessionToForget = sessionId
     setEvents([])
     setError(null)
     setSessionId(null)
     setArgs('')
+    if (sessionToForget) {
+      // Fire-and-forget: server reclaims the per-session cwd.
+      void api.forgetSession(workspaceId, sessionToForget)
+    }
   }
 
   const run = async () => {

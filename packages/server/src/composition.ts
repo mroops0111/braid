@@ -4,6 +4,7 @@ import type {
   DecisionRepository,
   ModelRepository,
   ProposalRepository,
+  RunRepository,
   SkillRegistry,
   SkillRunner,
   WorkspaceRepository,
@@ -16,6 +17,7 @@ import {
   InMemoryProposalRepository,
   InMemoryWorkspaceRepository,
   ModelService,
+  noopRunRepository,
   PluginRegistry,
   SystemClock,
   ValidationService,
@@ -35,6 +37,7 @@ export interface AppDependencies {
   workspaceRepository: WorkspaceRepository
   skillRegistry: SkillRegistry | undefined
   skillRunner: SkillRunner | undefined
+  runRepository: RunRepository
   clock: Clock
 }
 
@@ -48,6 +51,7 @@ export interface ComposeOptions {
   pluginRegistry?: PluginRegistry
   skillRegistry?: SkillRegistry
   skillRunner?: SkillRunner
+  runRepository?: RunRepository
 }
 
 export function composeApp(options: ComposeOptions = {}): AppDependencies {
@@ -84,6 +88,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     workspaceRepository,
     skillRegistry: options.skillRegistry,
     skillRunner: options.skillRunner,
+    runRepository: options.runRepository ?? noopRunRepository,
     clock,
   }
 }

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { AbsolutePath, SkillId, SkillRunId, Timestamp, UserId } from './common.js'
+import { AbsolutePath, SkillId, SkillRunId, Timestamp, UserId, WorkspaceId } from './common.js'
 import { McpServerId } from './mcp.js'
 
 export const SkillRunStatus = z.enum(['running', 'succeeded', 'failed', 'cancelled'])
@@ -145,3 +145,26 @@ export const SkillEvent = z.discriminatedUnion('type', [
   SkillEventError,
 ])
 export type SkillEvent = z.infer<typeof SkillEvent>
+
+/**
+ * Persisted summary of a single skill run, written to the workspace's
+ * `artifacts/runs/index.jsonl` (append-only). The same runId can appear in
+ * multiple lines as the run progresses (started, session-started, completed);
+ * the reader keeps the last entry per runId.
+ *
+ * The full event stream for a run lives separately at
+ * `artifacts/runs/<runId>.jsonl` (one SkillEvent per line).
+ */
+export const RunRecord = z.object({
+  runId: SkillRunId,
+  workspaceId: WorkspaceId,
+  skillId: SkillId,
+  args: z.string(),
+  resumed: z.boolean().default(false),
+  /** Set once claude reports its session id; absent for runs that errored before that point. */
+  sessionId: z.string().min(1).optional(),
+  startedAt: Timestamp,
+  completedAt: Timestamp.optional(),
+  exitCode: z.number().int().optional(),
+})
+export type RunRecord = z.infer<typeof RunRecord>

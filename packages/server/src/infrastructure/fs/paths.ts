@@ -24,6 +24,18 @@ export function viewsDir(workspaceRoot: AbsolutePath, kind: string): string {
   return join(workspaceArtifactsDir(workspaceRoot), 'views', kind)
 }
 
+export function runsDir(workspaceRoot: AbsolutePath): string {
+  return join(workspaceArtifactsDir(workspaceRoot), 'runs')
+}
+
+export function runIndexPath(workspaceRoot: AbsolutePath): string {
+  return join(runsDir(workspaceRoot), 'index.jsonl')
+}
+
+export function runEventsPath(workspaceRoot: AbsolutePath, runId: string): string {
+  return join(runsDir(workspaceRoot), `${runId}.jsonl`)
+}
+
 export function workspaceSkillsDir(workspaceRoot: AbsolutePath): string {
   return join(workspaceRoot, 'skills')
 }

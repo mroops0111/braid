@@ -8,6 +8,7 @@ export const queryKeys = {
   proposals: (workspaceId: string, status?: string) => ['workspaces', workspaceId, 'proposals', status ?? 'all'] as const,
   clarify: (workspaceId: string) => ['workspaces', workspaceId, 'clarify'] as const,
   decisions: (workspaceId: string) => ['workspaces', workspaceId, 'decisions'] as const,
+  runs: (workspaceId: string) => ['workspaces', workspaceId, 'runs'] as const,
 }
 
 export function useWorkspaces() {
@@ -26,6 +27,14 @@ export function useModelSnapshot(workspaceId: string | undefined) {
   return useQuery({
     queryKey: workspaceId ? queryKeys.modelSnapshot(workspaceId) : ['model', 'none'],
     queryFn: () => api.modelSnapshot(workspaceId!),
+    enabled: !!workspaceId,
+  })
+}
+
+export function useRuns(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: workspaceId ? queryKeys.runs(workspaceId) : ['runs', 'none'],
+    queryFn: () => api.listRuns(workspaceId!),
     enabled: !!workspaceId,
   })
 }

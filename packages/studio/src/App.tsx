@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { useWorkspaces } from './lib/queries'
 import { GraphPage } from './pages/Graph'
 import { ProposalsPage } from './pages/Proposals'
+import { RunsPage } from './pages/Runs'
 import { SkillsPage } from './pages/Skills'
 
 export function App() {
@@ -43,6 +44,7 @@ export function App() {
                     <TabsTrigger value="skills">Skills</TabsTrigger>
                     <TabsTrigger value="graph">Graph</TabsTrigger>
                     <TabsTrigger value="proposals">Proposals</TabsTrigger>
+                    <TabsTrigger value="runs">Runs</TabsTrigger>
                   </TabsList>
                 </div>
                 <TabsContent value="skills" className="overflow-hidden">
@@ -53,6 +55,9 @@ export function App() {
                 </TabsContent>
                 <TabsContent value="proposals" className="overflow-hidden">
                   <ProposalsPage workspaceId={activeId} />
+                </TabsContent>
+                <TabsContent value="runs" className="overflow-hidden">
+                  <RunsPage workspaceId={activeId} />
                 </TabsContent>
               </Tabs>
             )

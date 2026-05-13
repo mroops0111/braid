@@ -1,10 +1,11 @@
 import type {
+  RunRepository,
   SkillRegistry,
   SkillRunner,
   Workspace,
   WorkspaceRepository,
 } from '@telos/core'
-import type { SkillId } from '@telos/schema'
+import type { RunRecord, SkillId } from '@telos/schema'
 import { zValidator } from '@hono/zod-validator'
 import { NotFoundError } from '@telos/core'
 import { SkillId as SkillIdSchema, WorkspaceId } from '@telos/schema'
@@ -22,6 +23,7 @@ export interface SkillsRouterDeps {
   readonly skillRegistry: SkillRegistry
   readonly skillRunner: SkillRunner
   readonly workspaceRepository: WorkspaceRepository
+  readonly runRepository: RunRepository
 }
 
 export function createSkillsRouter(deps: SkillsRouterDeps): Hono {
@@ -49,7 +51,30 @@ export function createSkillsRouter(deps: SkillsRouterDeps): Hono {
 
     return streamSSE(context, async (stream) => {
       const options = resumeSessionId ? { resumeSessionId } : undefined
+      let record: RunRecord | undefined
       for await (const event of deps.skillRunner.run(workspace, skillId as SkillId, args, options)) {
+        if (event.type === 'started') {
+          record = {
+            runId: event.runId,
+            workspaceId: workspace.id,
+            skillId: event.skillId,
+            args: event.args,
+            resumed: event.resumed,
+            startedAt: event.at,
+            ...(resumeSessionId ? { sessionId: resumeSessionId } : {}),
+          }
+          await deps.runRepository.saveRecord(workspace, record)
+        }
+        if (record)
+          await deps.runRepository.appendEvent(workspace, record.runId, event)
+        if (event.type === 'session-started' && record) {
+          record = { ...record, sessionId: event.sessionId }
+          await deps.runRepository.saveRecord(workspace, record)
+        }
+        if (event.type === 'completed' && record) {
+          record = { ...record, completedAt: event.at, exitCode: event.exitCode }
+          await deps.runRepository.saveRecord(workspace, record)
+        }
         await stream.writeSSE({
           event: event.type,
           data: JSON.stringify(event),

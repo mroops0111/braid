@@ -1,5 +1,5 @@
 import type { SkillManifest, Workspace } from '@telos/schema'
-import { Boxes, FolderGit2, GitBranch, Inbox, Sparkles } from 'lucide-react'
+import { Boxes, FolderGit2, GitBranch, History, Inbox, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {
   CommandDialog,
@@ -20,12 +20,13 @@ interface CommandPaletteProps {
   onSelectTab: (tab: TabKey) => void
 }
 
-export type TabKey = 'skills' | 'graph' | 'proposals'
+export type TabKey = 'skills' | 'graph' | 'proposals' | 'runs'
 
 const TAB_ITEMS: { id: TabKey, label: string, Icon: typeof Sparkles }[] = [
   { id: 'skills', label: 'Skills', Icon: Sparkles },
   { id: 'graph', label: 'Graph', Icon: GitBranch },
   { id: 'proposals', label: 'Proposals', Icon: Inbox },
+  { id: 'runs', label: 'Runs', Icon: History },
 ]
 
 export function CommandPalette({
@@ -124,5 +125,6 @@ function shortcutFor(tab: TabKey): string {
     case 'skills': return 'g s'
     case 'graph': return 'g g'
     case 'proposals': return 'g p'
+    case 'runs': return 'g r'
   }
 }

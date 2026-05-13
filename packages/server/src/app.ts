@@ -9,6 +9,7 @@ import { healthRouter } from './routes/health.js'
 import { createModelRouter } from './routes/model.js'
 import { createNodesRouter } from './routes/nodes.js'
 import { createProposalsRouter } from './routes/proposals.js'
+import { createRunsRouter } from './routes/runs.js'
 import { createSkillsRouter } from './routes/skills.js'
 import { createWorkspacesRouter } from './routes/workspaces.js'
 
@@ -46,6 +47,12 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Hono
   if (deps.skillRegistry && deps.skillRunner) {
     workspaceScoped.route('/skills', createSkillsRouter({
       skillRegistry: deps.skillRegistry,
+      skillRunner: deps.skillRunner,
+      workspaceRepository: deps.workspaceRepository,
+      runRepository: deps.runRepository,
+    }))
+    workspaceScoped.route('/runs', createRunsRouter({
+      runRepository: deps.runRepository,
       skillRunner: deps.skillRunner,
       workspaceRepository: deps.workspaceRepository,
     }))

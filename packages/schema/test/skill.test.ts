@@ -256,3 +256,36 @@ describe('skillEvent (discriminated union)', () => {
     expect(SkillEvent.safeParse({ type: 'whatever' }).success).toBe(false)
   })
 })
+
+describe('runRecord', () => {
+  it('parses a minimal in-progress record', async () => {
+    const { RunRecord } = await import('../src/skill.js')
+    const rec = RunRecord.parse({
+      runId: 'sr-1',
+      workspaceId: 'demo',
+      skillId: 'telos-ask',
+      args: 'hi',
+      startedAt: isoTimestamp,
+    })
+    expect(rec.resumed).toBe(false)
+    expect(rec.completedAt).toBeUndefined()
+    expect(rec.exitCode).toBeUndefined()
+  })
+
+  it('parses a completed record with sessionId + exitCode', async () => {
+    const { RunRecord } = await import('../src/skill.js')
+    const rec = RunRecord.parse({
+      runId: 'sr-2',
+      workspaceId: 'demo',
+      skillId: 'telos-ask',
+      args: 'hi',
+      resumed: true,
+      sessionId: 'sess-abc',
+      startedAt: isoTimestamp,
+      completedAt: isoTimestamp,
+      exitCode: 0,
+    })
+    expect(rec.sessionId).toBe('sess-abc')
+    expect(rec.exitCode).toBe(0)
+  })
+})

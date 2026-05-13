@@ -5,6 +5,7 @@ import type {
   GraphNode,
   ModelSnapshot,
   Proposal,
+  RunRecord,
   SkillManifest,
   Workspace,
 } from '@telos/schema'
@@ -70,4 +71,15 @@ export const api = {
 
   skillRunUrl: (workspaceId: string, skillId: string) =>
     `${baseUrl}/workspaces/${workspaceId}/skills/${skillId}/run`,
+
+  listRuns: (workspaceId: string) =>
+    fetchJson<ItemList<RunRecord>>(`/workspaces/${workspaceId}/runs`),
+  runEventsUrl: (workspaceId: string, runId: string) =>
+    `${baseUrl}/workspaces/${workspaceId}/runs/${runId}/events`,
+  forgetSession: (workspaceId: string, sessionId: string) =>
+    fetch(`${baseUrl}/workspaces/${workspaceId}/runs/sessions/${sessionId}`, { method: 'DELETE' })
+      .then((r) => {
+        if (!r.ok && r.status !== 404)
+          throw new Error(`forgetSession failed: ${r.status} ${r.statusText}`)
+      }),
 }

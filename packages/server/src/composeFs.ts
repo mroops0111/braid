@@ -10,6 +10,7 @@ import { SubprocessSkillRunner } from './infrastructure/agent/SubprocessSkillRun
 import { FsClarifyTicketRepository } from './infrastructure/fs/FsClarifyTicketRepository.js'
 import { FsDecisionRepository } from './infrastructure/fs/FsDecisionRepository.js'
 import { FsProposalRepository } from './infrastructure/fs/FsProposalRepository.js'
+import { FsRunRepository } from './infrastructure/fs/FsRunRepository.js'
 import { FsSkillRegistry } from './infrastructure/fs/FsSkillRegistry.js'
 import { FsWorkspaceRepository } from './infrastructure/fs/FsWorkspaceRepository.js'
 import { WorkspaceRegistryFile } from './infrastructure/fs/WorkspaceRegistryFile.js'
@@ -69,6 +70,8 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
     ],
   })
 
+  const runRepository = new FsRunRepository()
+
   return composeApp({
     workspaceRepository,
     proposalRepository,
@@ -76,5 +79,6 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
     decisionRepository,
     skillRegistry,
     skillRunner,
+    runRepository,
   })
 }
