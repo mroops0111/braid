@@ -1,6 +1,6 @@
 import type { SkillEvent, SkillManifest } from '@telos/schema'
 import { Play, Plus, Sparkles } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
 import { SkillTranscript } from '@/components/SkillTranscript'
@@ -9,15 +9,33 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { api } from '@/lib/api'
 import { useSkills } from '@/lib/queries'
-import { runSkillStream } from '@/lib/sse'
+import { readSkillEventStream, runSkillStream } from '@/lib/sse'
+
+export interface SkillsContinuation {
+  sessionId: string
+  skillId: string
+  runIds: string[]
+}
 
 interface SkillsPageProps {
   workspaceId: string
+  continuation?: SkillsContinuation | null
+  onContinuationConsumed?: () => void
 }
 
-export function SkillsPage({ workspaceId }: SkillsPageProps) {
+export function SkillsPage({ workspaceId, continuation, onContinuationConsumed }: SkillsPageProps) {
   const { data } = useSkills(workspaceId)
   const [selected, setSelected] = useState<SkillManifest | null>(null)
+
+  // When the user clicks "Continue Conversation" in the Runs tab, the
+  // matching skill auto-selects so SkillRunner can hydrate from history.
+  useEffect(() => {
+    if (!continuation || !data)
+      return
+    const match = data.items.find(m => m.id === continuation.skillId)
+    if (match)
+      setSelected(match)
+  }, [continuation, data])
 
   if (!data)
     return <div className="p-4 text-sm text-muted-foreground">Loading skills…</div>
@@ -51,7 +69,13 @@ export function SkillsPage({ workspaceId }: SkillsPageProps) {
       </div>
       {selected
         ? (
-            <SkillRunner workspaceId={workspaceId} skill={selected} key={selected.id} />
+            <SkillRunner
+              workspaceId={workspaceId}
+              skill={selected}
+              continuation={continuation && continuation.skillId === selected.id ? continuation : null}
+              {...(onContinuationConsumed ? { onContinuationConsumed } : {})}
+              key={selected.id}
+            />
           )
         : (
             <div className="flex-1">
@@ -69,15 +93,56 @@ export function SkillsPage({ workspaceId }: SkillsPageProps) {
 interface SkillRunnerProps {
   workspaceId: string
   skill: SkillManifest
+  continuation?: SkillsContinuation | null
+  onContinuationConsumed?: () => void
 }
 
-function SkillRunner({ workspaceId, skill }: SkillRunnerProps) {
+function SkillRunner({ workspaceId, skill, continuation, onContinuationConsumed }: SkillRunnerProps) {
   const [args, setArgs] = useState('')
   const [events, setEvents] = useState<SkillEvent[]>([])
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [hydrating, setHydrating] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+
+  // Replay every recorded turn into local state when the user clicks
+  // "Continue Conversation" in the Runs tab. The next Send will then
+  // claude --resume on top of this context.
+  useEffect(() => {
+    if (!continuation || continuation.sessionId === sessionId)
+      return
+    const controller = new AbortController()
+    abortRef.current?.abort()
+    setEvents([])
+    setError(null)
+    setArgs('')
+    setHydrating(true)
+    void (async () => {
+      try {
+        const loaded: SkillEvent[] = []
+        for (const runId of continuation.runIds) {
+          await readSkillEventStream({
+            url: api.runEventsUrl(workspaceId, runId),
+            signal: controller.signal,
+            onEvent: event => loaded.push(event),
+          })
+        }
+        if (controller.signal.aborted)
+          return
+        setEvents(loaded)
+        setSessionId(continuation.sessionId)
+        onContinuationConsumed?.()
+      }
+      catch (err) {
+        setError(`Failed to load history: ${(err as Error).message}`)
+      }
+      finally {
+        setHydrating(false)
+      }
+    })()
+    return () => controller.abort()
+  }, [continuation, workspaceId, sessionId, onContinuationConsumed])
 
   const reset = () => {
     abortRef.current?.abort()
@@ -140,7 +205,7 @@ function SkillRunner({ workspaceId, skill }: SkillRunnerProps) {
           </Button>
         )}
       </div>
-      <SkillTranscript events={events} error={error} running={running} />
+      <SkillTranscript events={events} error={error} running={running || hydrating} />
       <div className="flex items-center gap-2 border-t border-border px-4 py-2.5">
         <Input
           placeholder={

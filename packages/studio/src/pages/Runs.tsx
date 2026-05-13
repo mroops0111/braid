@@ -1,16 +1,24 @@
 import type { RunRecord, SkillEvent } from '@telos/schema'
-import { History, MessagesSquare } from 'lucide-react'
+import { ArrowRight, History, MessagesSquare } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
 import { SkillTranscript } from '@/components/SkillTranscript'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { useRuns } from '@/lib/queries'
 import { readSkillEventStream } from '@/lib/sse'
 
+export interface ContinueRequest {
+  sessionId: string
+  skillId: string
+  runIds: string[]
+}
+
 interface RunsPageProps {
   workspaceId: string
+  onContinue: (request: ContinueRequest) => void
 }
 
 interface SessionGroup {
@@ -23,7 +31,7 @@ interface SessionGroup {
   lastStartedAt: string
 }
 
-export function RunsPage({ workspaceId }: RunsPageProps) {
+export function RunsPage({ workspaceId, onContinue }: RunsPageProps) {
   const { data, isLoading } = useRuns(workspaceId)
   const [selectedGroup, setSelectedGroup] = useState<SessionGroup | null>(null)
 
@@ -70,7 +78,14 @@ export function RunsPage({ workspaceId }: RunsPageProps) {
       </ul>
       <div className="flex-1 overflow-hidden">
         {selectedGroup
-          ? <RunReplay workspaceId={workspaceId} group={selectedGroup} key={selectedGroup.groupId} />
+          ? (
+              <RunReplay
+                workspaceId={workspaceId}
+                group={selectedGroup}
+                onContinue={onContinue}
+                key={selectedGroup.groupId}
+              />
+            )
           : (
               <EmptyState
                 icon={MessagesSquare}
@@ -83,7 +98,13 @@ export function RunsPage({ workspaceId }: RunsPageProps) {
   )
 }
 
-function RunReplay({ workspaceId, group }: { workspaceId: string, group: SessionGroup }) {
+interface RunReplayProps {
+  workspaceId: string
+  group: SessionGroup
+  onContinue: (request: ContinueRequest) => void
+}
+
+function RunReplay({ workspaceId, group, onContinue }: RunReplayProps) {
   const [events, setEvents] = useState<SkillEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -113,23 +134,39 @@ function RunReplay({ workspaceId, group }: { workspaceId: string, group: Session
     return () => controller.abort()
   }, [workspaceId, group.groupId, group.records])
 
+  const canContinue = group.sessionId !== null
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <span className="font-mono text-sm text-foreground">
-          /
-          {group.skillId}
-        </span>
-        <span className="text-xs text-muted-foreground">
-          {group.records.length}
-          {' '}
-          turn
-          {group.records.length === 1 ? '' : 's'}
-          {' '}
-          •
-          {' '}
-          {formatTimestamp(group.lastStartedAt)}
-        </span>
+      <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-mono text-sm text-foreground">
+            /
+            {group.skillId}
+          </span>
+          <span className="truncate text-xs text-muted-foreground">
+            {group.records.length}
+            {' '}
+            turn
+            {group.records.length === 1 ? '' : 's'}
+            {' '}
+            ·
+            {' '}
+            {formatTimestamp(group.lastStartedAt)}
+          </span>
+        </div>
+        {canContinue && (
+          <Button
+            size="sm"
+            onClick={() => onContinue({
+              sessionId: group.sessionId!,
+              skillId: group.skillId,
+              runIds: group.records.map(r => r.runId),
+            })}
+          >
+            Continue Conversation
+            <ArrowRight />
+          </Button>
+        )}
       </div>
       <SkillTranscript events={events} error={error} running={loading} />
     </div>

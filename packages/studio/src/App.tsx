@@ -8,12 +8,13 @@ import { useWorkspaces } from './lib/queries'
 import { GraphPage } from './pages/Graph'
 import { ProposalsPage } from './pages/Proposals'
 import { RunsPage } from './pages/Runs'
-import { SkillsPage } from './pages/Skills'
+import { type SkillsContinuation, SkillsPage } from './pages/Skills'
 
 export function App() {
   const { data: workspaces } = useWorkspaces()
   const [activeId, setActiveId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabKey>('skills')
+  const [continuation, setContinuation] = useState<SkillsContinuation | null>(null)
 
   useEffect(() => {
     if (!activeId && workspaces?.items.length) {
@@ -48,7 +49,11 @@ export function App() {
                   </TabsList>
                 </div>
                 <TabsContent value="skills" className="overflow-hidden">
-                  <SkillsPage workspaceId={activeId} />
+                  <SkillsPage
+                    workspaceId={activeId}
+                    continuation={continuation}
+                    onContinuationConsumed={() => setContinuation(null)}
+                  />
                 </TabsContent>
                 <TabsContent value="graph" className="overflow-hidden">
                   <GraphPage workspaceId={activeId} />
@@ -57,7 +62,13 @@ export function App() {
                   <ProposalsPage workspaceId={activeId} />
                 </TabsContent>
                 <TabsContent value="runs" className="overflow-hidden">
-                  <RunsPage workspaceId={activeId} />
+                  <RunsPage
+                    workspaceId={activeId}
+                    onContinue={(c) => {
+                      setContinuation(c)
+                      setActiveTab('skills')
+                    }}
+                  />
                 </TabsContent>
               </Tabs>
             )
