@@ -88,7 +88,6 @@ describe('skill routes', () => {
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
       spawn,
-      tempDir: rootPath,
     })
     const deps = composeApp({ skillRegistry, skillRunner })
     await deps.workspaceRepository.save(workspace)
@@ -116,7 +115,6 @@ describe('skill routes', () => {
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
       spawn,
-      tempDir: rootPath,
     })
     const deps = composeApp({ skillRegistry, skillRunner })
     await deps.workspaceRepository.save(workspace)

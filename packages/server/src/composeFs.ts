@@ -61,16 +61,17 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
     env: {},
   })
 
+  const runRepository = new FsRunRepository()
+
   const skillRunner = new SubprocessSkillRunner({
     skillRegistry,
     agentBinding,
     apiUrl,
+    runRepository,
     referenceDirs: [
       { name: 'shared', path: join(builtinSkillsRoot, 'shared') as AbsolutePath },
     ],
   })
-
-  const runRepository = new FsRunRepository()
 
   return composeApp({
     workspaceRepository,

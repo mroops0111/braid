@@ -1,5 +1,6 @@
 import type {
   AgentBinding,
+  RunRepository,
   SkillRegistry,
   SkillRunner,
   SkillRunOptions,
@@ -7,11 +8,11 @@ import type {
 } from '@telos/core'
 import type { AbsolutePath, SkillEvent, SkillId, SkillRunId } from '@telos/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
-import { mkdir, mkdtemp, rm, symlink } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdir, rm, symlink } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { newSkillRunId, NotFoundError } from '@telos/core'
 import { SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema } from '@telos/schema'
+import { sessionDirPath } from '../fs/paths.js'
 import { createAsyncQueue } from './asyncQueue.js'
 import { writeMcpConfigFile } from './mcpConfig.js'
 import { LineBuffer, parseJsonLine } from './streamJsonParser.js'
@@ -34,11 +35,16 @@ export interface SubprocessSkillRunnerDeps {
   readonly apiUrl: string
   readonly spawn?: SpawnFn
   readonly clock?: () => string
-  readonly tempDir?: string
   /** Extra directories symlinked alongside skills (e.g. shared reference docs). */
   readonly referenceDirs?: readonly SkillReferenceDir[]
   /** Delete the per-run session directory after the run. Default `true`. */
   readonly cleanupSession?: boolean
+  /**
+   * Optional. When provided, lets the runner recover a session dir after a
+   * server restart by scanning persisted run records for the matching
+   * sessionId. Without it, only the in-memory map serves resumes.
+   */
+  readonly runRepository?: RunRepository
 }
 
 export class SubprocessSkillRunner implements SkillRunner {
@@ -60,10 +66,8 @@ export class SubprocessSkillRunner implements SkillRunner {
     options?: SkillRunOptions,
   ): AsyncIterable<SkillEvent> {
     const manifest = await this.deps.skillRegistry.get(workspace, skillId)
-    const reusedDir = options?.resumeSessionId
-      ? this.sessionDirs.get(options.resumeSessionId)
-      : undefined
-    const sessionDir = reusedDir ?? await this.buildSessionDir(workspace)
+    const runId = newSkillRunId()
+    const sessionDir = await this.resolveSessionDir(workspace, runId, options?.resumeSessionId)
     const mcpConfigFile = await writeMcpConfigFile(workspace, sessionDir)
     const invocation = this.deps.agentBinding.resolveSpawn({
       skillId,
@@ -75,7 +79,6 @@ export class SubprocessSkillRunner implements SkillRunner {
       ...(options?.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
     })
 
-    const runId = newSkillRunId()
     const spawnFn = this.deps.spawn ?? (await defaultSpawn())
     const child = spawnFn(invocation.bin, [...invocation.args], {
       cwd: sessionDir,
@@ -164,9 +167,43 @@ export class SubprocessSkillRunner implements SkillRunner {
   }
 
   /**
+   * Picks the cwd to spawn claude in: a cached dir for `resumeSessionId`
+   * (hot map first, then a scan of persisted run records so a server
+   * restart can still recover), else a fresh dir keyed by `runId`.
+   */
+  private async resolveSessionDir(
+    workspace: Workspace,
+    runId: SkillRunId,
+    resumeSessionId: string | undefined,
+  ): Promise<string> {
+    if (resumeSessionId) {
+      const cached = this.sessionDirs.get(resumeSessionId)
+      if (cached)
+        return cached
+      const recovered = await this.recoverSessionDir(workspace, resumeSessionId)
+      if (recovered) {
+        this.sessionDirs.set(resumeSessionId, recovered)
+        return recovered
+      }
+    }
+    return this.buildSessionDir(workspace, runId)
+  }
+
+  private async recoverSessionDir(workspace: Workspace, sessionId: string): Promise<string | undefined> {
+    if (!this.deps.runRepository)
+      return undefined
+    const records = await this.deps.runRepository.listRecords(workspace)
+    // The very first turn of a session owns the dir; later turns share it.
+    const first = records
+      .filter(r => r.sessionId === sessionId && !r.resumed)
+      .sort((a, b) => a.startedAt.localeCompare(b.startedAt))[0]
+    return first ? sessionDirPath(workspace.rootPath, first.runId) : undefined
+  }
+
+  /**
    * Materialises a per-run session directory containing:
    *
-   *   <session>/
+   *   <workspace>/.telos-sessions/<runId>/
    *     .claude/skills/<slash-name>/   → symlink per skill manifest
    *     .claude/skills/<ref-name>/     → symlink per referenceDir (e.g. shared/)
    *
@@ -174,10 +211,8 @@ export class SubprocessSkillRunner implements SkillRunner {
    * finds every skill registered with the workspace, and SKILL.md files
    * can use `.claude/skills/shared/...` paths reliably.
    */
-  private async buildSessionDir(workspace: Workspace): Promise<string> {
-    const parentDir = this.deps.tempDir ?? tmpdir()
-    await mkdir(parentDir, { recursive: true })
-    const sessionDir = await mkdtemp(join(parentDir, 'telos-session-'))
+  private async buildSessionDir(workspace: Workspace, runId: SkillRunId): Promise<string> {
+    const sessionDir = sessionDirPath(workspace.rootPath, runId)
     const skillsDir = join(sessionDir, '.claude', 'skills')
     await mkdir(skillsDir, { recursive: true })
 

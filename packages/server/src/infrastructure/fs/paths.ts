@@ -36,6 +36,17 @@ export function runEventsPath(workspaceRoot: AbsolutePath, runId: string): strin
   return join(runsDir(workspaceRoot), `${runId}.jsonl`)
 }
 
+// claude stores conversation memory keyed by cwd, so resume must spawn from
+// the same dir as the first turn. Putting it inside the workspace (not /tmp)
+// keeps the path derivable from runId and lets it survive a server restart.
+export function sessionsDir(workspaceRoot: AbsolutePath): string {
+  return join(workspaceRoot, '.telos-sessions')
+}
+
+export function sessionDirPath(workspaceRoot: AbsolutePath, runId: string): string {
+  return join(sessionsDir(workspaceRoot), runId)
+}
+
 export function workspaceSkillsDir(workspaceRoot: AbsolutePath): string {
   return join(workspaceRoot, 'skills')
 }

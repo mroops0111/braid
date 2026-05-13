@@ -16,6 +16,7 @@ import { SkillManifest, type SkillRegistry, Workspace } from '@telos/core'
 import { describe, expect, it } from 'vitest'
 import { ClaudeCodeAgentBinding } from '../../../src/infrastructure/agent/ClaudeCodeAgentBinding.js'
 import { mapSubprocessEvents, SubprocessSkillRunner } from '../../../src/infrastructure/agent/SubprocessSkillRunner.js'
+import { FsRunRepository } from '../../../src/infrastructure/fs/FsRunRepository.js'
 import { createMockSpawn } from '../../helpers/mockSpawn.js'
 
 const descriptor: AgentBindingDescriptor = {
@@ -96,7 +97,6 @@ describe('SubprocessSkillRunner', () => {
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
       spawn,
-      tempDir: rootPath,
       clock: () => '2026-05-12T00:00:00+00:00',
     })
 
@@ -128,7 +128,6 @@ describe('SubprocessSkillRunner', () => {
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
       spawn,
-      tempDir: rootPath,
       cleanupSession: false,
       referenceDirs: [{ name: 'shared', path: sharedDir as AbsolutePath }],
     })
@@ -140,7 +139,8 @@ describe('SubprocessSkillRunner', () => {
 
     const sessionCwd = invocations[0]?.options.cwd as string
     expect(sessionCwd).toBeTruthy()
-    expect(sessionCwd).toContain('telos-session-')
+    expect(sessionCwd).toContain('.telos-sessions/')
+    expect(sessionCwd.startsWith(rootPath)).toBe(true)
 
     const skillsRoot = join(sessionCwd, '.claude', 'skills')
     const skillNames = await readdir(skillsRoot)
@@ -157,7 +157,6 @@ describe('SubprocessSkillRunner', () => {
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
       spawn,
-      tempDir: rootPath,
     })
 
     const events: Array<{ type: string, exitCode?: number }> = []
@@ -196,7 +195,6 @@ describe('SubprocessSkillRunner', () => {
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
       spawn,
-      tempDir: rootPath,
       clock: () => '2026-05-12T00:00:00+00:00',
     })
 
@@ -226,7 +224,6 @@ describe('SubprocessSkillRunner', () => {
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
       spawn,
-      tempDir: rootPath,
     })
 
     const events: Array<{ type: string, args?: string, resumed?: boolean }> = []
@@ -250,7 +247,6 @@ describe('SubprocessSkillRunner', () => {
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
       spawn,
-      tempDir: rootPath,
       cleanupSession: false,
     })
 
@@ -259,7 +255,7 @@ describe('SubprocessSkillRunner', () => {
       // drain
     }
     const firstCwd = invocations[0]!.options.cwd as string
-    expect(firstCwd).toContain('telos-session-')
+    expect(firstCwd).toContain('.telos-sessions/')
 
     // Second turn: resumeSessionId = sess-1 must spawn from the same cwd.
     for await (const _ of runner.run(
@@ -274,6 +270,67 @@ describe('SubprocessSkillRunner', () => {
     expect(secondCwd).toBe(firstCwd)
   })
 
+  it('recovers session dir from RunRepository after the in-memory map is lost', async () => {
+    const rootPath = (await mkdtemp(join(tmpdir(), 'telos-runner-'))) as AbsolutePath
+    const { spawn, invocations } = createMockSpawn([
+      { stdoutLines: [JSON.stringify({ type: 'system', subtype: 'init', session_id: 'sess-r' })], exitCode: 0 },
+      { stdoutLines: [], exitCode: 0 },
+    ])
+
+    const runRepository = new FsRunRepository()
+    const workspace = makeWorkspace(rootPath)
+    const skillRegistry = await makeSkillRegistry(rootPath)
+
+    // Build runner A, run first turn so the dir + record exist on disk.
+    const runnerA = new SubprocessSkillRunner({
+      skillRegistry,
+      agentBinding: new ClaudeCodeAgentBinding(descriptor),
+      apiUrl: 'http://localhost:4321',
+      spawn,
+      cleanupSession: false,
+      runRepository,
+    })
+    let firstRunId: string | undefined
+    for await (const event of runnerA.run(workspace, 'telos-ask' as SkillId, 'first')) {
+      if (event.type === 'started')
+        firstRunId = event.runId
+    }
+    expect(firstRunId).toBeTruthy()
+    // Simulate the route writing the record back to the repo after seeing
+    // started + session-started. Without this the runner has nothing to scan.
+    await runRepository.saveRecord(workspace, {
+      runId: firstRunId! as never,
+      workspaceId: workspace.id,
+      skillId: 'telos-ask' as SkillId,
+      args: 'first',
+      resumed: false,
+      sessionId: 'sess-r',
+      startedAt: '2026-05-12T00:00:00+00:00',
+    })
+
+    // Build runner B with an empty in-memory map (server restart).
+    const runnerB = new SubprocessSkillRunner({
+      skillRegistry,
+      agentBinding: new ClaudeCodeAgentBinding(descriptor),
+      apiUrl: 'http://localhost:4321',
+      spawn,
+      cleanupSession: false,
+      runRepository,
+    })
+    for await (const _ of runnerB.run(
+      workspace,
+      'telos-ask' as SkillId,
+      'follow up',
+      { resumeSessionId: 'sess-r' },
+    )) {
+      // drain
+    }
+
+    const firstCwd = invocations[0]!.options.cwd as string
+    const secondCwd = invocations[1]!.options.cwd as string
+    expect(secondCwd).toBe(firstCwd)
+  })
+
   it('resumeSessionId option flows to agent binding and started.resumed=true', async () => {
     const rootPath = (await mkdtemp(join(tmpdir(), 'telos-runner-'))) as AbsolutePath
     const { spawn, invocations } = createMockSpawn([{ stdoutLines: [], exitCode: 0 }])
@@ -283,7 +340,6 @@ describe('SubprocessSkillRunner', () => {
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
       spawn,
-      tempDir: rootPath,
     })
 
     const events: Array<{ type: string, resumed?: boolean }> = []
@@ -321,7 +377,6 @@ describe('SubprocessSkillRunner', () => {
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
       spawn,
-      tempDir: rootPath,
       clock: () => '2026-05-12T00:00:00+00:00',
     })
 
