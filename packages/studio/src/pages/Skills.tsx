@@ -1,5 +1,5 @@
 import type { SkillEvent, SkillManifest } from '@telos/schema'
-import { Play, Sparkles } from 'lucide-react'
+import { Play, Plus, Sparkles } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
@@ -76,20 +76,37 @@ function SkillRunner({ workspaceId, skill }: SkillRunnerProps) {
   const [events, setEvents] = useState<SkillEvent[]>([])
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  const run = async () => {
+  const reset = () => {
     abortRef.current?.abort()
-    abortRef.current = new AbortController()
     setEvents([])
     setError(null)
+    setSessionId(null)
+    setArgs('')
+  }
+
+  const run = async () => {
+    if (!args.trim() || running)
+      return
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+    setError(null)
     setRunning(true)
+    const promptToSend = args
+    setArgs('')
     try {
       await runSkillStream({
         url: api.skillRunUrl(workspaceId, skill.id),
-        args,
+        args: promptToSend,
+        ...(sessionId ? { resumeSessionId: sessionId } : {}),
         signal: abortRef.current.signal,
-        onEvent: event => setEvents(prev => [...prev, event]),
+        onEvent: (event) => {
+          if (event.type === 'session-started')
+            setSessionId(event.sessionId)
+          setEvents(prev => [...prev, event])
+        },
         onError: err => setError(err.message),
       })
     }
@@ -98,18 +115,34 @@ function SkillRunner({ workspaceId, skill }: SkillRunnerProps) {
     }
   }
 
+  const turnCount = events.filter(e => e.type === 'started').length
+  const isFollowUp = sessionId !== null
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <span className="font-mono text-sm text-foreground">
-          /
-          {skill.frontmatter.name}
-        </span>
-        <span className="text-xs text-muted-foreground">{skill.frontmatter.description}</span>
+      <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-mono text-sm text-foreground">
+            /
+            {skill.frontmatter.name}
+          </span>
+          <span className="truncate text-xs text-muted-foreground">{skill.frontmatter.description}</span>
+        </div>
+        {turnCount > 0 && (
+          <Button variant="ghost" size="sm" onClick={reset} disabled={running}>
+            <Plus />
+            New Conversation
+          </Button>
+        )}
       </div>
-      <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+      <SkillTranscript events={events} error={error} running={running} />
+      <div className="flex items-center gap-2 border-t border-border px-4 py-2.5">
         <Input
-          placeholder={skill.frontmatter.argumentHint ?? 'args…'}
+          placeholder={
+            isFollowUp
+              ? 'Ask a follow-up…'
+              : (skill.frontmatter.argumentHint ?? 'args…')
+          }
           value={args}
           onChange={e => setArgs(e.target.value)}
           onKeyDown={(e) => {
@@ -118,13 +151,13 @@ function SkillRunner({ workspaceId, skill }: SkillRunnerProps) {
           }}
           disabled={running}
           className="flex-1 font-mono"
+          autoFocus
         />
-        <Button size="sm" onClick={run} disabled={running}>
+        <Button size="sm" onClick={run} disabled={running || !args.trim()}>
           <Play />
-          {running ? 'Running…' : 'Run'}
+          {running ? 'Running…' : isFollowUp ? 'Send' : 'Run'}
         </Button>
       </div>
-      <SkillTranscript events={events} error={error} running={running} />
     </div>
   )
 }

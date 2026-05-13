@@ -217,6 +217,96 @@ describe('SubprocessSkillRunner', () => {
     expect(events[3]?.text).toBe('This workspace tracks the order pipeline.')
   })
 
+  it('started event carries args and defaults resumed=false', async () => {
+    const rootPath = (await mkdtemp(join(tmpdir(), 'telos-runner-'))) as AbsolutePath
+    const { spawn } = createMockSpawn([{ stdoutLines: [], exitCode: 0 }])
+
+    const runner = new SubprocessSkillRunner({
+      skillRegistry: await makeSkillRegistry(rootPath),
+      agentBinding: new ClaudeCodeAgentBinding(descriptor),
+      apiUrl: 'http://localhost:4321',
+      spawn,
+      tempDir: rootPath,
+    })
+
+    const events: Array<{ type: string, args?: string, resumed?: boolean }> = []
+    for await (const event of runner.run(makeWorkspace(rootPath), 'telos-ask' as SkillId, 'what is X')) {
+      events.push(event as never)
+    }
+    const started = events.find(e => e.type === 'started')
+    expect(started?.args).toBe('what is X')
+    expect(started?.resumed).toBe(false)
+  })
+
+  it('reuses the same session dir when resuming an existing claude session', async () => {
+    const rootPath = (await mkdtemp(join(tmpdir(), 'telos-runner-'))) as AbsolutePath
+    const { spawn, invocations } = createMockSpawn([
+      { stdoutLines: [JSON.stringify({ type: 'system', subtype: 'init', session_id: 'sess-1' })], exitCode: 0 },
+      { stdoutLines: [], exitCode: 0 },
+    ])
+
+    const runner = new SubprocessSkillRunner({
+      skillRegistry: await makeSkillRegistry(rootPath),
+      agentBinding: new ClaudeCodeAgentBinding(descriptor),
+      apiUrl: 'http://localhost:4321',
+      spawn,
+      tempDir: rootPath,
+      cleanupSession: false,
+    })
+
+    // First turn: claude reports session sess-1, runner captures the dir.
+    for await (const _ of runner.run(makeWorkspace(rootPath), 'telos-ask' as SkillId, 'first')) {
+      // drain
+    }
+    const firstCwd = invocations[0]!.options.cwd as string
+    expect(firstCwd).toContain('telos-session-')
+
+    // Second turn: resumeSessionId = sess-1 must spawn from the same cwd.
+    for await (const _ of runner.run(
+      makeWorkspace(rootPath),
+      'telos-ask' as SkillId,
+      'follow up',
+      { resumeSessionId: 'sess-1' },
+    )) {
+      // drain
+    }
+    const secondCwd = invocations[1]!.options.cwd as string
+    expect(secondCwd).toBe(firstCwd)
+  })
+
+  it('resumeSessionId option flows to agent binding and started.resumed=true', async () => {
+    const rootPath = (await mkdtemp(join(tmpdir(), 'telos-runner-'))) as AbsolutePath
+    const { spawn, invocations } = createMockSpawn([{ stdoutLines: [], exitCode: 0 }])
+
+    const runner = new SubprocessSkillRunner({
+      skillRegistry: await makeSkillRegistry(rootPath),
+      agentBinding: new ClaudeCodeAgentBinding(descriptor),
+      apiUrl: 'http://localhost:4321',
+      spawn,
+      tempDir: rootPath,
+    })
+
+    const events: Array<{ type: string, resumed?: boolean }> = []
+    for await (const event of runner.run(
+      makeWorkspace(rootPath),
+      'telos-ask' as SkillId,
+      'follow up',
+      { resumeSessionId: 'abc-123' },
+    )) {
+      events.push(event as never)
+    }
+
+    const started = events.find(e => e.type === 'started')
+    expect(started?.resumed).toBe(true)
+
+    const spawnArgs = invocations[0]!.args
+    const resumeIdx = spawnArgs.indexOf('--resume')
+    expect(resumeIdx).toBeGreaterThan(-1)
+    expect(spawnArgs[resumeIdx + 1]).toBe('abc-123')
+    // The prompt arg drops the leading "/skill-name" when resuming.
+    expect(spawnArgs[1]).toBe('follow up')
+  })
+
   it('maps claude result with is_error=true into an error event', async () => {
     const rootPath = (await mkdtemp(join(tmpdir(), 'telos-runner-'))) as AbsolutePath
     const { spawn } = createMockSpawn([{
@@ -248,13 +338,23 @@ describe('SubprocessSkillRunner', () => {
 describe('mapSubprocessEvents', () => {
   const now = '2026-05-12T00:00:00+00:00'
 
-  it('ignores system / rate_limit / user-success envelopes', () => {
+  it('ignores system without session_id / rate_limit / user-success envelopes', () => {
     expect(mapSubprocessEvents({ type: 'system', subtype: 'init' }, now)).toEqual([])
     expect(mapSubprocessEvents({ type: 'rate_limit_event' }, now)).toEqual([])
     expect(mapSubprocessEvents({
       type: 'user',
       message: { content: [{ type: 'tool_result', is_error: false, content: 'ok' }] },
     }, now)).toEqual([])
+  })
+
+  it('maps system/init with session_id to a session-started event', () => {
+    const out = mapSubprocessEvents({
+      type: 'system',
+      subtype: 'init',
+      session_id: 'abc-123-uuid',
+    }, now)
+    expect(out).toHaveLength(1)
+    expect(out[0]).toMatchObject({ type: 'session-started', sessionId: 'abc-123-uuid' })
   })
 
   it('emits user.tool_result as a tool-result event (isError flag mirrors stream)', () => {

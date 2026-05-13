@@ -16,6 +16,8 @@ export interface AgentSpawnInput {
   readonly manifest: SkillManifest
   readonly apiUrl: string
   readonly mcpConfigFile?: AbsolutePath
+  /** Claude session id to continue (sets `--resume <id>` on the spawn). */
+  readonly resumeSessionId?: string
 }
 
 export interface AgentBinding {

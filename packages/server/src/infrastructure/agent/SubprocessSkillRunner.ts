@@ -2,6 +2,7 @@ import type {
   AgentBinding,
   SkillRegistry,
   SkillRunner,
+  SkillRunOptions,
   Workspace,
 } from '@telos/core'
 import type { AbsolutePath, SkillEvent, SkillId, SkillRunId } from '@telos/schema'
@@ -42,12 +43,27 @@ export interface SubprocessSkillRunnerDeps {
 
 export class SubprocessSkillRunner implements SkillRunner {
   private readonly running = new Map<SkillRunId, ChildProcess>()
+  /**
+   * sessionId → absolute session-dir path. Claude stores per-cwd conversation
+   * state, so a follow-up turn must spawn from the same cwd as the first one.
+   * We populate this once the first turn's `session-started` event arrives,
+   * and look it up on subsequent runs that pass `resumeSessionId`.
+   */
+  private readonly sessionDirs = new Map<string, string>()
 
   constructor(private readonly deps: SubprocessSkillRunnerDeps) {}
 
-  async *run(workspace: Workspace, skillId: SkillId, args: string): AsyncIterable<SkillEvent> {
+  async *run(
+    workspace: Workspace,
+    skillId: SkillId,
+    args: string,
+    options?: SkillRunOptions,
+  ): AsyncIterable<SkillEvent> {
     const manifest = await this.deps.skillRegistry.get(workspace, skillId)
-    const sessionDir = await this.buildSessionDir(workspace)
+    const reusedDir = options?.resumeSessionId
+      ? this.sessionDirs.get(options.resumeSessionId)
+      : undefined
+    const sessionDir = reusedDir ?? await this.buildSessionDir(workspace)
     const mcpConfigFile = await writeMcpConfigFile(workspace, sessionDir)
     const invocation = this.deps.agentBinding.resolveSpawn({
       skillId,
@@ -56,6 +72,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       manifest,
       apiUrl: this.deps.apiUrl,
       mcpConfigFile: mcpConfigFile as unknown as AbsolutePath,
+      ...(options?.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
     })
 
     const runId = newSkillRunId()
@@ -67,8 +84,16 @@ export class SubprocessSkillRunner implements SkillRunner {
     })
     this.running.set(runId, child)
 
+    let capturedSessionId: string | null = options?.resumeSessionId ?? null
     try {
-      yield SkillEventSchema.parse({ type: 'started', runId, skillId, at: this.now() })
+      yield SkillEventSchema.parse({
+        type: 'started',
+        runId,
+        skillId,
+        args,
+        resumed: options?.resumeSessionId !== undefined,
+        at: this.now(),
+      })
 
       const queue = createAsyncQueue<SkillEvent>()
       const buffers = attachOutputBuffers(child, queue.push, () => this.now())
@@ -84,14 +109,38 @@ export class SubprocessSkillRunner implements SkillRunner {
         queue.end()
       })
 
-      yield * queue.iterate()
+      for await (const event of queue.iterate()) {
+        if (event.type === 'session-started') {
+          capturedSessionId = event.sessionId
+          this.sessionDirs.set(event.sessionId, sessionDir)
+        }
+        yield event
+      }
     }
     finally {
       this.running.delete(runId)
-      if (this.deps.cleanupSession !== false) {
+      // Keep the session dir on disk if a session id was captured: claude
+      // stores conversation state per-cwd, so the dir must survive between
+      // turns. The dir is GC'd when the user starts a New Conversation via
+      // `forgetSession(sessionId)`.
+      const keepForResume = capturedSessionId !== null
+      if (this.deps.cleanupSession !== false && !keepForResume) {
         await rm(sessionDir, { recursive: true, force: true })
       }
     }
+  }
+
+  /**
+   * Drop the session-dir mapping for a session id (and remove the dir if it
+   * still belongs to us). Called by the "New Conversation" flow.
+   */
+  async forgetSession(sessionId: string): Promise<void> {
+    const dir = this.sessionDirs.get(sessionId)
+    if (!dir)
+      return
+    this.sessionDirs.delete(sessionId)
+    if (this.deps.cleanupSession !== false)
+      await rm(dir, { recursive: true, force: true })
   }
 
   async *resume(_workspace: Workspace, runId: SkillRunId): AsyncIterable<SkillEvent> {
@@ -213,6 +262,11 @@ interface RawContentPart { readonly type?: string, readonly [key: string]: unkno
  */
 export function mapSubprocessEvents(raw: RawEvent, now: string): SkillEvent[] {
   const out: SkillEvent[] = []
+
+  if (raw.type === 'system' && raw.subtype === 'init' && typeof raw.session_id === 'string') {
+    out.push(SkillEventSchema.parse({ type: 'session-started', sessionId: raw.session_id }))
+    return out
+  }
 
   if (raw.type === 'assistant') {
     const content = readContent(raw)

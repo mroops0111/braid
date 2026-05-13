@@ -155,9 +155,37 @@ describe('skillEvent (discriminated union)', () => {
       type: 'started',
       runId: 'sr-1',
       skillId: 'ask',
+      args: 'what is X',
       at: isoTimestamp,
     })
-    expect(evt.type).toBe('started')
+    if (evt.type !== 'started')
+      throw new Error('unexpected')
+    expect(evt.args).toBe('what is X')
+    expect(evt.resumed).toBe(false)
+  })
+
+  it('parses started with resumed=true', () => {
+    const evt = SkillEvent.parse({
+      type: 'started',
+      runId: 'sr-2',
+      skillId: 'ask',
+      args: 'follow up question',
+      resumed: true,
+      at: isoTimestamp,
+    })
+    if (evt.type !== 'started')
+      throw new Error('unexpected')
+    expect(evt.resumed).toBe(true)
+  })
+
+  it('parses session-started', () => {
+    const evt = SkillEvent.parse({
+      type: 'session-started',
+      sessionId: 'abc-123-uuid',
+    })
+    if (evt.type !== 'session-started')
+      throw new Error('unexpected')
+    expect(evt.sessionId).toBe('abc-123-uuid')
   })
 
   it('parses message', () => {

@@ -3,6 +3,8 @@ import type { SkillEvent } from '@telos/schema'
 export interface SseRunOptions {
   readonly url: string
   readonly args: string
+  /** Continue an existing claude conversation (id from a prior session-started event). */
+  readonly resumeSessionId?: string
   readonly signal?: AbortSignal
   readonly onEvent: (event: SkillEvent) => void
   readonly onError?: (error: Error) => void
@@ -13,10 +15,13 @@ export interface SseRunOptions {
  * Resolves when the stream closes (subprocess exits or aborted).
  */
 export async function runSkillStream(options: SseRunOptions): Promise<void> {
+  const body: Record<string, unknown> = { args: options.args }
+  if (options.resumeSessionId)
+    body.resumeSessionId = options.resumeSessionId
   const init: RequestInit = {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ args: options.args }),
+    body: JSON.stringify(body),
   }
   if (options.signal)
     init.signal = options.signal

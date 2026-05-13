@@ -10,9 +10,14 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
   }
 
   resolveSpawn(input: AgentSpawnInput): SpawnInvocation {
+    // When resuming, the prompt is just the user's follow-up text — claude
+    // already holds the conversation context and the original slash command.
+    const promptArg = input.resumeSessionId
+      ? input.args
+      : `/${input.manifest.frontmatter.name} ${input.args}`
     const baseArgs: string[] = [
       '-p',
-      `/${input.manifest.frontmatter.name} ${input.args}`,
+      promptArg,
       '--output-format',
       'stream-json',
       '--verbose',
@@ -20,6 +25,9 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
       '--model',
       this.descriptor.model,
     ]
+    if (input.resumeSessionId) {
+      baseArgs.push('--resume', input.resumeSessionId)
+    }
     if (this.descriptor.effort) {
       baseArgs.push('--effort', this.descriptor.effort)
     }

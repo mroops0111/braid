@@ -14,6 +14,8 @@ import { z } from 'zod'
 
 const RunBodySchema = z.object({
   args: z.string().default(''),
+  /** Continue an existing claude conversation (from a prior session-started event). */
+  resumeSessionId: z.string().min(1).optional(),
 })
 
 export interface SkillsRouterDeps {
@@ -43,10 +45,11 @@ export function createSkillsRouter(deps: SkillsRouterDeps): Hono {
   router.post('/:skillId/run', zValidator('json', RunBodySchema), async (context) => {
     const workspace = await loadWorkspaceForRequest(context.req.param('workspaceId'), deps.workspaceRepository)
     const skillId = SkillIdSchema.parse(context.req.param('skillId'))
-    const { args } = context.req.valid('json')
+    const { args, resumeSessionId } = context.req.valid('json')
 
     return streamSSE(context, async (stream) => {
-      for await (const event of deps.skillRunner.run(workspace, skillId as SkillId, args)) {
+      const options = resumeSessionId ? { resumeSessionId } : undefined
+      for await (const event of deps.skillRunner.run(workspace, skillId as SkillId, args, options)) {
         await stream.writeSSE({
           event: event.type,
           data: JSON.stringify(event),

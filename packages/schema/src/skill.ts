@@ -74,7 +74,21 @@ export const SkillEventStarted = z.object({
   type: z.literal('started'),
   runId: SkillRunId,
   skillId: SkillId,
+  /** The user-supplied argument string for this run (shown in the transcript). */
+  args: z.string(),
+  /** True when this run resumed an existing claude session (follow-up turn). */
+  resumed: z.boolean().default(false),
   at: Timestamp,
+})
+
+/**
+ * Captured once claude reports its conversation session id. The frontend
+ * keeps this and passes it back on the next run to continue the same
+ * conversation via `claude --resume`.
+ */
+export const SkillEventSessionStarted = z.object({
+  type: z.literal('session-started'),
+  sessionId: z.string().min(1),
 })
 
 export const SkillEventMessage = z.object({
@@ -122,6 +136,7 @@ export const SkillEventError = z.object({
 
 export const SkillEvent = z.discriminatedUnion('type', [
   SkillEventStarted,
+  SkillEventSessionStarted,
   SkillEventMessage,
   SkillEventToolCall,
   SkillEventToolResult,
