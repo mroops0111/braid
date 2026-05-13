@@ -1,5 +1,5 @@
 import type { SkillEvent, SkillManifest } from '@telos/schema'
-import { Play, Sparkles } from 'lucide-react'
+import { ChevronRight, Play, Sparkles } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
 import { Badge } from '@/components/ui/badge'
@@ -160,6 +160,41 @@ function SkillTranscript({ events, error, running }: SkillTranscriptProps) {
   )
 }
 
+function ToolCallLine({ tool, args }: { tool: string, args: unknown }) {
+  const compact = formatArgsPreview(args)
+  const expanded = JSON.stringify(args, null, 2)
+  return (
+    <details className="group my-0.5 rounded border border-border/40 bg-muted/20 open:bg-muted/30">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 px-2 py-1 marker:hidden hover:bg-accent/40">
+        <ChevronRight className="size-3 shrink-0 text-muted-foreground transition-transform duration-150 group-open:rotate-90" />
+        <span className="font-medium text-amber-400">{tool}</span>
+        {compact && (
+          <span className="truncate text-muted-foreground/80">{compact}</span>
+        )}
+      </summary>
+      <pre className="overflow-x-auto border-t border-border/40 px-2 py-1.5 text-[11px] leading-relaxed text-muted-foreground">
+        {expanded}
+      </pre>
+    </details>
+  )
+}
+
+function formatArgsPreview(args: unknown): string {
+  if (args === null || args === undefined)
+    return ''
+  if (typeof args !== 'object') {
+    return String(args).slice(0, 80)
+  }
+  const record = args as Record<string, unknown>
+  // Surface the most useful field first — command for Bash, file_path for Read, etc.
+  const interesting = record.command ?? record.file_path ?? record.path ?? record.query ?? record.url
+  if (typeof interesting === 'string') {
+    return interesting.length > 80 ? `${interesting.slice(0, 77)}…` : interesting
+  }
+  const json = JSON.stringify(args)
+  return json.length > 80 ? `${json.slice(0, 77)}…` : json
+}
+
 function TranscriptLine({ event }: { event: SkillEvent }) {
   switch (event.type) {
     case 'started':
@@ -172,17 +207,8 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
     case 'message':
       return <div className="text-foreground whitespace-pre-wrap">{event.text}</div>
     case 'tool-call':
-      return (
-        <div className="text-amber-400">
-          [tool]
-          {' '}
-          {event.tool}
-          <span className="text-muted-foreground">
-            {' '}
-            {JSON.stringify(event.args).slice(0, 120)}
-          </span>
-        </div>
-      )
+      return <ToolCallLine tool={event.tool} args={event.args} />
+
     case 'artifact-written':
       return (
         <div className="text-emerald-400">
