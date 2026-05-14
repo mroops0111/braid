@@ -17,4 +17,14 @@ export class InMemoryWorkspaceRepository implements WorkspaceRepository {
   async save(workspace: Workspace): Promise<void> {
     this.store.set(workspace.rootPath, workspace)
   }
+
+  async remove(rootPath: AbsolutePath): Promise<void> {
+    if (this.store.has(rootPath))
+      this.store.remove(rootPath)
+  }
+
+  invalidate(rootPath: AbsolutePath): void {
+    if (this.store.has(rootPath))
+      this.store.remove(rootPath)
+  }
 }

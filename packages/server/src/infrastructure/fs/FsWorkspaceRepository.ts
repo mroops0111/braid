@@ -39,6 +39,15 @@ export class FsWorkspaceRepository implements WorkspaceRepository {
     this.cache.set(workspace.rootPath, workspace)
   }
 
+  async remove(rootPath: AbsolutePath): Promise<void> {
+    await this.deps.registry.remove(rootPath)
+    this.cache.delete(rootPath)
+  }
+
+  invalidate(rootPath: AbsolutePath): void {
+    this.cache.delete(rootPath)
+  }
+
   private async readFromDisk(rootPath: AbsolutePath): Promise<Workspace> {
     await this.assertDirectoryExists(rootPath)
     const manifestPath = workspaceProductManifestPath(rootPath)

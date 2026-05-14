@@ -9,10 +9,11 @@ import type {
   StorageDescriptor,
   StorageKind,
 } from '@telos/schema'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { ProductManifest as ProductManifestSchema } from '@telos/schema'
 import { stringify as stringifyYaml } from 'yaml'
+import { parseMarkdownFrontmatter } from './frontmatter.js'
 
 const FRONTMATTER_DELIMITER = '---'
 
@@ -71,6 +72,22 @@ export async function writeProductManifest(workspaceRoot: string, manifest: Prod
   const body = `\n# ${heading}\n`
   const content = `${FRONTMATTER_DELIMITER}\n${yaml}\n${FRONTMATTER_DELIMITER}\n${body}`
   const path = join(workspaceRoot, 'PRODUCT.md')
+  await writeFile(path, content, 'utf-8')
+  return path
+}
+
+/**
+ * Replace the YAML frontmatter of an existing PRODUCT.md while preserving the
+ * markdown body underneath. Used by workspace mutation endpoints so user-written
+ * prose (e.g. project notes added below the frontmatter) survives a manifest
+ * update. The file must exist; throws otherwise.
+ */
+export async function updateProductManifest(workspaceRoot: string, manifest: ProductManifest): Promise<string> {
+  const path = join(workspaceRoot, 'PRODUCT.md')
+  const existing = await readFile(path, 'utf-8')
+  const { body } = parseMarkdownFrontmatter<unknown>(existing)
+  const yaml = stringifyYaml(manifest, { sortMapEntries: false }).trimEnd()
+  const content = `${FRONTMATTER_DELIMITER}\n${yaml}\n${FRONTMATTER_DELIMITER}\n${body}`
   await writeFile(path, content, 'utf-8')
   return path
 }
