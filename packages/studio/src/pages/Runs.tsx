@@ -1,14 +1,13 @@
 import type { RunRecord, SkillEvent } from '@telos/schema'
 import { ArrowRight, History, MessagesSquare } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
 import { SkillTranscript } from '@/components/SkillTranscript'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { api } from '@/lib/api'
 import { useRuns } from '@/lib/queries'
-import { readSkillEventStream } from '@/lib/sse'
+import { runStore } from '@/lib/runStore'
 
 export interface ContinueRequest {
   sessionId: string
@@ -105,34 +104,17 @@ interface RunReplayProps {
 }
 
 function RunReplay({ workspaceId, group, onContinue }: RunReplayProps) {
-  const [events, setEvents] = useState<SkillEvent[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
+  // Hydrate every turn in this group into the central store so the SSE
+  // tail keeps going even if the user switches tabs.
   useEffect(() => {
-    const controller = new AbortController()
-    setEvents([])
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        for (const record of group.records) {
-          await readSkillEventStream({
-            url: api.runEventsUrl(workspaceId, record.runId),
-            signal: controller.signal,
-            onEvent: event => setEvents(prev => [...prev, event]),
-          })
-        }
-      }
-      catch (err) {
-        setError((err as Error).message)
-      }
-      finally {
-        setLoading(false)
-      }
-    })()
-    return () => controller.abort()
-  }, [workspaceId, group.groupId, group.records])
+    for (const record of group.records)
+      runStore.loadRun(workspaceId, record.runId, record.skillId)
+  }, [workspaceId, group.records])
+
+  // Aggregate events from all turns. Cache the snapshot so
+  // useSyncExternalStore sees a stable reference when nothing changed.
+  const cached = useGroupSnapshot(workspaceId, group)
+  const { events, phase, error } = cached
 
   const canContinue = group.sessionId !== null
   return (
@@ -168,9 +150,49 @@ function RunReplay({ workspaceId, group, onContinue }: RunReplayProps) {
           </Button>
         )}
       </div>
-      <SkillTranscript events={events} error={error} running={loading} />
+      <SkillTranscript events={events} error={error ?? null} running={phase === 'streaming'} />
     </div>
   )
+}
+
+interface GroupSnapshot {
+  events: SkillEvent[]
+  phase: 'streaming' | 'done' | 'error' | 'idle'
+  error?: string
+}
+
+function useGroupSnapshot(workspaceId: string, group: SessionGroup): GroupSnapshot {
+  return useSyncExternalStore(
+    cb => runStore.subscribe(cb),
+    () => getGroupSnapshot(workspaceId, group),
+  )
+}
+
+const groupCache = new Map<string, GroupSnapshot>()
+const groupInputs = new Map<string, ReadonlyArray<unknown>>()
+
+function getGroupSnapshot(workspaceId: string, group: SessionGroup): GroupSnapshot {
+  const key = `${workspaceId}|${group.groupId}`
+  const states = group.records.map(r => runStore.getRun(workspaceId, r.runId))
+  const cached = groupInputs.get(key)
+  if (cached && cached.length === states.length && cached.every((s, i) => s === states[i])) {
+    return groupCache.get(key)!
+  }
+  const events: SkillEvent[] = []
+  let phase: 'streaming' | 'done' | 'error' | 'idle' = 'idle'
+  let error: string | undefined
+  for (const state of states) {
+    if (!state)
+      continue
+    events.push(...state.events)
+    phase = state.phase
+    if (state.error)
+      error = state.error
+  }
+  const snapshot: GroupSnapshot = { events, phase, ...(error ? { error } : {}) }
+  groupInputs.set(key, states)
+  groupCache.set(key, snapshot)
+  return snapshot
 }
 
 function groupBySession(records: readonly RunRecord[]): SessionGroup[] {

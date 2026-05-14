@@ -71,6 +71,17 @@ export const api = {
 
   skillRunUrl: (workspaceId: string, skillId: string) =>
     `${baseUrl}/workspaces/${workspaceId}/skills/${skillId}/run`,
+  startSkillRun: (workspaceId: string, skillId: string, args: string, resumeSessionId?: string) =>
+    fetchJson<{ runId: string }>(
+      `/workspaces/${workspaceId}/skills/${skillId}/run`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          args,
+          ...(resumeSessionId ? { resumeSessionId } : {}),
+        }),
+      },
+    ),
 
   listRuns: (workspaceId: string) =>
     fetchJson<ItemList<RunRecord>>(`/workspaces/${workspaceId}/runs`),
