@@ -35,7 +35,7 @@ export class SourceLoaderRunner {
     for (const source of workspace.filesystemSources()) {
       if (!source.loader)
         continue
-      const report = await this.runIngest(source, source.loader)
+      const report = await this.runIngest(workspace, source, source.loader)
       outcomes.push({ sourceId: source.id, report })
     }
     return outcomes
@@ -50,15 +50,22 @@ export class SourceLoaderRunner {
     const loader = this.deps.pluginRegistry.requireSourceLoader(source.loader.kind)
     if (!loader.sync)
       throw new ValidationError(`Loader "${source.loader.kind}" does not support sync`)
-    return loader.sync(source.loader.config, source.path)
+    return loader.sync(source.loader.config, source.path, {
+      workspaceId: workspace.id,
+      sourceId: source.id,
+    })
   }
 
   private async runIngest(
+    workspace: Workspace,
     source: FilesystemSourceDescriptor,
     loader: SourceLoaderDescriptor,
   ): Promise<IngestReport> {
     const plugin = this.deps.pluginRegistry.requireSourceLoader(loader.kind)
-    return plugin.ingest(loader.config, source.path)
+    return plugin.ingest(loader.config, source.path, {
+      workspaceId: workspace.id,
+      sourceId: source.id,
+    })
   }
 }
 

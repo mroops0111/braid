@@ -64,7 +64,7 @@ describe('productManifest', () => {
         },
       ],
       mcpServers: [
-        { id: 'redmine', transport: 'stdio', command: 'npx', args: ['-y', '@telos/mcp-redmine'] },
+        { id: 'redmine', transport: 'streamable-http', url: 'https://redmine.example.com/mcp' },
       ],
       storage: baseStorage,
       channels: [{ kind: 'http', config: { port: 4321 } }],

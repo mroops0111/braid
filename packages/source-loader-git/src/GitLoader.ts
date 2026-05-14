@@ -36,6 +36,7 @@ export class GitLoader implements SourceLoader {
   readonly configSchema = GitLoaderConfig
 
   async ingest(rawConfig: unknown, destination: AbsolutePath): Promise<IngestReport> {
+    // GitLoader doesn't need the per-source context: auth is in env / ${VAR}.
     const config = GitLoaderConfig.parse(rawConfig)
     const url = interpolateEnv(config.url)
     await rm(destination, { recursive: true, force: true })
@@ -55,6 +56,7 @@ export class GitLoader implements SourceLoader {
   }
 
   async sync(rawConfig: unknown, destination: AbsolutePath): Promise<SyncReport> {
+    // GitLoader doesn't need the per-source context: auth is in env / ${VAR}.
     const config = GitLoaderConfig.parse(rawConfig)
     const git = simpleGit({ baseDir: destination })
     const before = (await git.revparse(['HEAD'])).trim()

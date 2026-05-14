@@ -57,10 +57,8 @@ function manifest(overrides: Partial<ProductManifest> = {}): ProductManifest {
     mcpServers: [
       {
         id: 'redmine' as McpServerId,
-        transport: 'stdio',
-        command: 'npx',
-        args: ['-y', '@telos/mcp-redmine'],
-        env: {},
+        transport: 'streamable-http',
+        url: 'https://redmine.example.com/mcp',
       },
     ],
     storage: {
@@ -134,7 +132,7 @@ describe('Workspace', () => {
   describe('mcp servers', () => {
     it('findMcpServer looks up by id', () => {
       const workspace = new Workspace(data())
-      expect(workspace.findMcpServer('redmine' as McpServerId)?.transport).toBe('stdio')
+      expect(workspace.findMcpServer('redmine' as McpServerId)?.transport).toBe('streamable-http')
       expect(workspace.findMcpServer('xwiki' as McpServerId)).toBeUndefined()
     })
 

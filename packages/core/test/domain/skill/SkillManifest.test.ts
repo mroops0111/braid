@@ -19,10 +19,8 @@ function workspace(overrides?: { withMcpServer?: McpServerId | false }): Workspa
       ? []
       : [{
           id: (overrides?.withMcpServer ?? ('redmine' as McpServerId)),
-          transport: 'stdio' as const,
-          command: 'npx',
-          args: [],
-          env: {},
+          transport: 'streamable-http' as const,
+          url: 'https://example.com/mcp',
         }]
 
   const productManifest: ProductManifest = {

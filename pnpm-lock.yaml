@@ -166,6 +166,9 @@ importers:
       '@telos/schema':
         specifier: workspace:*
         version: link:../schema
+      '@telos/source-loader-gdrive':
+        specifier: workspace:*
+        version: link:../source-loader-gdrive
       '@telos/source-loader-git':
         specifier: workspace:*
         version: link:../source-loader-git
@@ -188,6 +191,25 @@ importers:
       tsx:
         specifier: ^4.19.0
         version: 4.21.0
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@22.19.18)(lightningcss@1.32.0)
+
+  packages/source-loader-gdrive:
+    dependencies:
+      '@telos/core':
+        specifier: workspace:*
+        version: link:../core
+      '@telos/schema':
+        specifier: workspace:*
+        version: link:../schema
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
       typescript:
         specifier: ^5.7.0
         version: 5.9.3

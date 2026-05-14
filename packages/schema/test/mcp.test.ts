@@ -11,53 +11,45 @@ describe('mcpServerId (branded)', () => {
 })
 
 describe('mcpTransport', () => {
-  it('accepts stdio / sse / http', () => {
-    expect(McpTransport.parse('stdio')).toBe('stdio')
-    expect(McpTransport.parse('sse')).toBe('sse')
-    expect(McpTransport.parse('http')).toBe('http')
+  it('accepts streamable-http (the only supported transport for v0.1)', () => {
+    expect(McpTransport.parse('streamable-http')).toBe('streamable-http')
   })
-  it('rejects unknown transport', () => {
+  it('rejects deprecated transports', () => {
+    expect(McpTransport.safeParse('stdio').success).toBe(false)
+    expect(McpTransport.safeParse('sse').success).toBe(false)
+    expect(McpTransport.safeParse('http').success).toBe(false)
     expect(McpTransport.safeParse('grpc').success).toBe(false)
   })
 })
 
 describe('mcpServerConfig (discriminated union)', () => {
-  it('parses a stdio server', () => {
+  it('parses a streamable-http server with headers', () => {
     const config = McpServerConfig.parse({
-      id: 'redmine',
-      transport: 'stdio',
-      command: 'npx',
-      args: ['-y', '@telos/mcp-redmine'],
-      env: { REDMINE_API_KEY: 'xxx' },
+      id: 'redmine-prod',
+      transport: 'streamable-http',
+      url: 'https://mcp.example.com/mcp',
+      // eslint-disable-next-line no-template-curly-in-string -- literal placeholder for runtime env interpolation
+      headers: { Authorization: 'Bearer ${REDMINE_TOKEN}' },
     })
-    if (config.transport !== 'stdio')
-      throw new Error('unexpected')
-    expect(config.command).toBe('npx')
+    expect(config.transport).toBe('streamable-http')
+    expect(config.url).toBe('https://mcp.example.com/mcp')
+    expect(config.headers?.Authorization).toContain('REDMINE_TOKEN')
   })
 
-  it('parses an sse server', () => {
+  it('parses without headers', () => {
     const config = McpServerConfig.parse({
-      id: 'remote',
-      transport: 'sse',
-      url: 'https://mcp.example.com/sse',
+      id: 'public',
+      transport: 'streamable-http',
+      url: 'https://mcp.example.com/mcp',
     })
-    if (config.transport !== 'sse')
-      throw new Error('unexpected')
-    expect(config.url).toBe('https://mcp.example.com/sse')
+    expect(config.transport).toBe('streamable-http')
   })
 
-  it('parses an http server', () => {
-    const config = McpServerConfig.parse({
-      id: 'remote',
-      transport: 'http',
-      url: 'https://mcp.example.com',
-    })
-    expect(config.transport).toBe('http')
-  })
-
-  it('rejects invalid stdio without command', () => {
-    expect(
-      McpServerConfig.safeParse({ id: 'a', transport: 'stdio', args: [] }).success,
-    ).toBe(false)
+  it('rejects non-URL', () => {
+    expect(McpServerConfig.safeParse({
+      id: 'bad',
+      transport: 'streamable-http',
+      url: 'not-a-url',
+    }).success).toBe(false)
   })
 })

@@ -11,6 +11,7 @@ import {
   PluginRegistry,
 } from '@telos/core'
 import { DDDOntology, DDDOntologyValidator } from '@telos/ontology-ddd'
+import { GoogleDriveLoader } from '@telos/source-loader-gdrive'
 import { GitLoader } from '@telos/source-loader-git'
 import { KuzuModelRepository } from '@telos/storage-kuzu'
 import { composeApp } from './composition.js'
@@ -23,6 +24,8 @@ import { FsRunRepository } from './infrastructure/fs/FsRunRepository.js'
 import { FsSkillRegistry } from './infrastructure/fs/FsSkillRegistry.js'
 import { FsWorkspaceRepository } from './infrastructure/fs/FsWorkspaceRepository.js'
 import { WorkspaceRegistryFile } from './infrastructure/fs/WorkspaceRegistryFile.js'
+import { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
+import { FsSecretStore } from './infrastructure/secrets/SecretStore.js'
 
 export interface ComposeFsOptions {
   /** Where to persist registered workspace paths. Default `$TELOS_HOME` or `~/.telos`. */
@@ -44,6 +47,15 @@ export interface ComposeFsOptions {
 export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
   const telosHome = options.telosHome ?? process.env.TELOS_HOME ?? join(homedir(), '.telos')
   const apiUrl = options.apiUrl ?? 'http://localhost:4321'
+
+  const secretStore = new FsSecretStore(join(telosHome, 'secrets'))
+
+  const googleClientId = process.env.TELOS_GOOGLE_CLIENT_ID
+  const googleClientSecret = process.env.TELOS_GOOGLE_CLIENT_SECRET
+  const googleRedirect = process.env.TELOS_GOOGLE_REDIRECT_URI ?? `${apiUrl}/oauth/google/callback`
+  const googleOAuth = googleClientId && googleClientSecret
+    ? new GoogleOAuth({ clientId: googleClientId, clientSecret: googleClientSecret, redirectUri: googleRedirect })
+    : undefined
 
   const registry = new WorkspaceRegistryFile(join(telosHome, 'workspaces.json'))
   const workspaceRepository = new FsWorkspaceRepository({ registry })
@@ -89,6 +101,41 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
   pluginRegistry.register(new DDDOntologyValidator(dddOntology))
   pluginRegistry.register(new GitLoader())
 
+  if (googleOAuth) {
+    // GoogleDriveLoader requires OAuth to be configured. We resolve the
+    // access token per (workspaceId, sourceId): read stored tokens from
+    // the secret store, refresh if expired, persist the rotated access
+    // token, hand the bearer to the loader.
+    const oauth = googleOAuth
+    pluginRegistry.register(new GoogleDriveLoader({
+      resolveAccessToken: async ({ workspaceId, sourceId }) => {
+        const key = `${workspaceId}--${sourceId}`
+        const stored = await secretStore.read<{
+          accessToken: string
+          refreshToken: string
+          expiresAt: string
+        }>('oauth-google', key)
+        if (!stored) {
+          throw new NotFoundError(
+            `Google Drive source "${sourceId}" on workspace "${workspaceId}" is not connected. `
+            + `Authorise via POST /oauth/google/start.`,
+          )
+        }
+        // 60-second skew so we don't hand out a token about to expire mid-request.
+        const stillValidUntil = new Date(stored.expiresAt).getTime() - 60_000
+        if (Date.now() < stillValidUntil)
+          return stored.accessToken
+        const refreshed = await oauth.refreshAccessToken(stored.refreshToken)
+        await secretStore.write('oauth-google', key, {
+          ...stored,
+          accessToken: refreshed.accessToken,
+          expiresAt: refreshed.expiresAt,
+        })
+        return refreshed.accessToken
+      },
+    }))
+  }
+
   const skillRunner = new SubprocessSkillRunner({
     skillRegistry,
     agentBinding,
@@ -99,7 +146,7 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
     ],
   })
 
-  return composeApp({
+  const deps = composeApp({
     workspaceRepository,
     proposalRepository,
     clarifyRepository,
@@ -110,4 +157,9 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
     runRepository,
     pluginRegistry,
   })
+  return {
+    ...deps,
+    secretStore,
+    ...(googleOAuth ? { googleOAuth } : {}),
+  }
 }

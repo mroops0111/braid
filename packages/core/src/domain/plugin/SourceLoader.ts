@@ -1,5 +1,16 @@
-import type { AbsolutePath, LoaderKind, Timestamp } from '@telos/schema'
+import type { AbsolutePath, LoaderKind, SourceId, Timestamp, WorkspaceId } from '@telos/schema'
 import type { Plugin } from './Plugin.js'
+
+/**
+ * Per-call context passed to a loader. Lets loaders look up per-source
+ * state (OAuth tokens, sync cursors) keyed by `(workspaceId, sourceId)`
+ * without those values leaking into the descriptor's `config`. Loaders
+ * that don't need it can ignore it.
+ */
+export interface SourceLoaderContext {
+  readonly workspaceId: WorkspaceId
+  readonly sourceId: SourceId
+}
 
 export interface IngestReport {
   /** Local path where the source content now lives (under destination). */
@@ -40,6 +51,6 @@ export interface SourceLoader extends Plugin {
   readonly type: 'source-loader'
   readonly kind: LoaderKind
 
-  ingest: (config: unknown, destination: AbsolutePath) => Promise<IngestReport>
-  sync?: (config: unknown, destination: AbsolutePath) => Promise<SyncReport>
+  ingest: (config: unknown, destination: AbsolutePath, context: SourceLoaderContext) => Promise<IngestReport>
+  sync?: (config: unknown, destination: AbsolutePath, context: SourceLoaderContext) => Promise<SyncReport>
 }

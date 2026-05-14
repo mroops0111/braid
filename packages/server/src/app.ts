@@ -8,6 +8,7 @@ import { createEdgesRouter } from './routes/edges.js'
 import { healthRouter } from './routes/health.js'
 import { createModelRouter } from './routes/model.js'
 import { createNodesRouter } from './routes/nodes.js'
+import { createOAuthRouter } from './routes/oauth.js'
 import { createOntologyRouter } from './routes/ontology.js'
 import { createProposalsRouter } from './routes/proposals.js'
 import { createRunsRouter } from './routes/runs.js'
@@ -65,6 +66,13 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Hono
   }
 
   app.route('/workspaces/:workspaceId', workspaceScoped)
+
+  if (deps.secretStore) {
+    app.route('/oauth', createOAuthRouter({
+      secretStore: deps.secretStore,
+      ...(deps.googleOAuth ? { google: deps.googleOAuth } : {}),
+    }))
+  }
 
   return app
 }

@@ -9,6 +9,8 @@ import type {
   SkillRunner,
   WorkspaceRepository,
 } from '@telos/core'
+import type { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
+import type { SecretStore } from './infrastructure/secrets/SecretStore.js'
 import {
   HITLService,
   InMemoryClarifyTicketRepository,
@@ -38,6 +40,13 @@ export interface AppDependencies {
   skillRegistry: SkillRegistry | undefined
   skillRunner: SkillRunner | undefined
   runRepository: RunRepository
+  /** OAuth secret storage (file-based; pluggable for hosted deployments). */
+  secretStore?: SecretStore
+  /**
+   * Google OAuth client. Undefined when env vars aren't set; routes
+   *  respond with 503 in that case.
+   */
+  googleOAuth?: GoogleOAuth
   clock: Clock
 }
 
