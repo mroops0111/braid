@@ -79,7 +79,7 @@ describe('GoogleDriveLoader', () => {
         name: 'Roadmap',
         mimeType: DOC_MIME,
         modifiedTime: '2026-05-01T00:00:00Z',
-        parents: ['root'],
+        parents: ['demo-folder'],
         exports: { 'text/markdown': '# Roadmap\n\nh1 body' },
       },
       {
@@ -87,7 +87,7 @@ describe('GoogleDriveLoader', () => {
         name: 'diagram.png',
         mimeType: 'image/png',
         modifiedTime: '2026-05-01T00:00:00Z',
-        parents: ['root'],
+        parents: ['demo-folder'],
         content: Buffer.from([0x89, 0x50, 0x4E, 0x47]), // PNG magic
       },
       {
@@ -95,7 +95,7 @@ describe('GoogleDriveLoader', () => {
         name: 'subdir',
         mimeType: FOLDER_MIME,
         modifiedTime: '2026-05-01T00:00:00Z',
-        parents: ['root'],
+        parents: ['demo-folder'],
       },
       {
         id: 'doc-2',
@@ -112,7 +112,7 @@ describe('GoogleDriveLoader', () => {
       fetchFn,
     })
 
-    const report = await loader.ingest({ folderId: 'root' }, dest)
+    const report = await loader.ingest({ folderId: 'demo-folder' }, dest)
     expect(report.localPath).toBe(dest)
     expect((report.metadata as { fileCount?: number }).fileCount).toBe(3)
 
@@ -133,14 +133,14 @@ describe('GoogleDriveLoader', () => {
         name: 'Survey',
         mimeType: 'application/vnd.google-apps.form',
         modifiedTime: '2026-05-01T00:00:00Z',
-        parents: ['root'],
+        parents: ['demo-folder'],
       },
       {
         id: 'doc-1',
         name: 'Note',
         mimeType: DOC_MIME,
         modifiedTime: '2026-05-01T00:00:00Z',
-        parents: ['root'],
+        parents: ['demo-folder'],
         exports: { 'text/markdown': 'hi' },
       },
     ])
@@ -149,15 +149,23 @@ describe('GoogleDriveLoader', () => {
       resolveAccessToken: async () => 'fake',
       fetchFn,
     })
-    const report = await loader.ingest({ folderId: 'root' }, dest)
+    const report = await loader.ingest({ folderId: 'demo-folder' }, dest)
     expect((report.metadata as { fileCount?: number }).fileCount).toBe(1)
     expect(await readdir(dest)).toEqual(['Note.md'])
   })
 
+  it('rejects folderId "root" so we never mirror the entire My Drive by accident', async () => {
+    const loader = new GoogleDriveLoader({
+      resolveAccessToken: async () => 'fake',
+      fetchFn: buildMockFetch([]),
+    })
+    await expect(loader.ingest({ folderId: 'root' }, dest)).rejects.toThrow(/root/i)
+  })
+
   it('recursive=false ignores subfolders', async () => {
     const fetchFn = buildMockFetch([
-      { id: 'doc-1', name: 'A', mimeType: DOC_MIME, modifiedTime: 'x', parents: ['root'], exports: { 'text/markdown': 'a' } },
-      { id: 'sub', name: 'sub', mimeType: FOLDER_MIME, modifiedTime: 'x', parents: ['root'] },
+      { id: 'doc-1', name: 'A', mimeType: DOC_MIME, modifiedTime: 'x', parents: ['demo-folder'], exports: { 'text/markdown': 'a' } },
+      { id: 'sub', name: 'sub', mimeType: FOLDER_MIME, modifiedTime: 'x', parents: ['demo-folder'] },
       { id: 'doc-2', name: 'B', mimeType: DOC_MIME, modifiedTime: 'x', parents: ['sub'], exports: { 'text/markdown': 'b' } },
     ])
 
@@ -165,7 +173,7 @@ describe('GoogleDriveLoader', () => {
       resolveAccessToken: async () => 'fake',
       fetchFn,
     })
-    await loader.ingest({ folderId: 'root', recursive: false }, dest)
+    await loader.ingest({ folderId: 'demo-folder', recursive: false }, dest)
     expect(await readdir(dest)).toEqual(['A.md'])
   })
 })

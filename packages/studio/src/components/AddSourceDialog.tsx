@@ -93,7 +93,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
   const valid = name.trim().length > 0
     && (kind === 'mcp' ? mcpServerId.trim().length > 0 : path.trim().length > 0)
     && (loaderKind !== 'git' || gitUrl.trim().length > 0)
-    && (loaderKind !== 'gdrive' || (gdriveFolderId.trim().length > 0 && oauthConnected))
+    && (loaderKind !== 'gdrive' || (gdriveFolderId.trim().length > 0 && gdriveFolderId.trim() !== 'root' && oauthConnected))
 
   return (
     <Dialog
@@ -153,6 +153,11 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
                     <>
                       <Field label="Google Drive folder ID">
                         <Input value={gdriveFolderId} onChange={e => setGdriveFolderId(e.target.value)} placeholder="1abc…" />
+                        {gdriveFolderId.trim() === 'root' && (
+                          <p className="text-[11px] text-destructive">
+                            "root" mirrors your entire My Drive (rejected by the loader). Create a dedicated subfolder and paste its ID.
+                          </p>
+                        )}
                       </Field>
                       <div className="rounded-md border border-border p-3">
                         <div className="flex items-center justify-between gap-2">

@@ -21,8 +21,18 @@ const GOOGLE_NATIVE_EXPORT: Record<string, { mimeType: string, extension: string
 }
 
 export const GoogleDriveLoaderConfig = z.object({
-  /** Drive folder id (the long alphanumeric in the URL). */
-  folderId: z.string().min(1),
+  /**
+   * Drive folder id (the long alphanumeric in the URL). Reject the alias
+   * `root` outright: it expands to the user's entire My Drive and would
+   * mirror every file they own, which is almost never what someone wants
+   * from an "intent docs" source and easily costs gigabytes + minutes.
+   * Make people pick a specific subfolder.
+   */
+  folderId: z.string()
+    .min(1)
+    .refine(value => value !== 'root', {
+      message: 'folderId "root" refers to the entire My Drive and is rejected. Create a dedicated subfolder and use its id instead.',
+    }),
   /**
    * Whether to follow subfolders recursively. Default true. Disable for
    * flat folder mirrors where nested folders should be skipped.
