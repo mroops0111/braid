@@ -105,7 +105,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add source</DialogTitle>
+          <DialogTitle>Add Source</DialogTitle>
           <DialogDescription>Source rows are appended to PRODUCT.md and ingested if a loader is set.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
@@ -162,7 +162,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
                       <div className="rounded-md border border-border p-3">
                         <div className="flex items-center justify-between gap-2">
                           <div>
-                            <p className="text-xs font-medium">Google account</p>
+                            <p className="text-xs font-medium">Google Account</p>
                             <p className="text-[11px] text-muted-foreground">
                               {oauthConnected
                                 ? `Connected for source "${sourceId}". Re-renaming will require re-connecting.`

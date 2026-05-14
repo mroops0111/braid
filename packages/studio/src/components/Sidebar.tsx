@@ -62,11 +62,11 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect, onOpenDetails
       <div className="space-y-0.5 border-t border-sidebar-border p-2">
         <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => setWizardOpen(true)}>
           <Sparkles />
-          Create workspace
+          Create Workspace
         </Button>
         <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => setRegisterOpen(true)}>
           <FolderPlus />
-          Register existing
+          Register Existing
         </Button>
       </div>
 

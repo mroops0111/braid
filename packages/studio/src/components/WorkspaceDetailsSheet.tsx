@@ -69,9 +69,9 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
         />
 
         <section>
-          <SectionHeader title="Sources" onAdd={() => setAddSourceOpen(true)} addLabel="Add source" />
+          <SectionHeader title="Sources" onAdd={() => setAddSourceOpen(true)} addLabel="Add Source" />
           {workspace.productManifest.sources.length === 0
-            ? <p className="mt-2 text-[11px] text-muted-foreground">None yet. Click "Add source" to ingest from git, gdrive, or a manual directory.</p>
+            ? <p className="mt-2 text-[11px] text-muted-foreground">None yet. Click "Add Source" to ingest from git, gdrive, or a manual directory.</p>
             : (
                 <ul className="mt-2 space-y-1.5">
                   {workspace.productManifest.sources.map(source => (
@@ -87,7 +87,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
         </section>
 
         <section>
-          <SectionHeader title="MCP servers" />
+          <SectionHeader title="MCP Servers" />
           {workspace.productManifest.mcpServers.length === 0
             ? <p className="mt-2 text-[11px] text-muted-foreground">None.</p>
             : (
@@ -263,7 +263,7 @@ function UnregisterButton({ workspaceId, onUnregistered }: { workspaceId: string
   if (!armed) {
     return (
       <Button variant="ghost" size="sm" onClick={() => setArmed(true)} className="w-full text-destructive">
-        Unregister workspace
+        Unregister Workspace
       </Button>
     )
   }

@@ -42,7 +42,7 @@ export function RunsPage({ workspaceId, onContinue }: RunsPageProps) {
     return (
       <EmptyState
         icon={History}
-        title="No runs yet"
+        title="No Runs Yet"
         description="Skill runs from this workspace will appear here. Open the Skills tab and run something."
       />
     )
@@ -88,7 +88,7 @@ export function RunsPage({ workspaceId, onContinue }: RunsPageProps) {
           : (
               <EmptyState
                 icon={MessagesSquare}
-                title="Pick a conversation"
+                title="Pick a Conversation"
                 description="Select a run on the left to replay its events here."
               />
             )}

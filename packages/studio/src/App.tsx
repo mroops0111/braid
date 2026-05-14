@@ -151,13 +151,13 @@ function NoWorkspaceState({ onSelect }: { onSelect: (id: string) => void }) {
       <div className="mt-6 grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2">
         <ActionCard
           icon={Sparkles}
-          title="Create new workspace"
+          title="Create New Workspace"
           description="Scaffold a fresh PRODUCT.md, pick intent + code sources, and let Telos ingest them."
           onClick={() => setWizardOpen(true)}
         />
         <ActionCard
           icon={FolderPlus}
-          title="Register existing"
+          title="Register Existing"
           description="You already have a PRODUCT.md on disk and just want Telos to track it."
           onClick={() => setRegisterOpen(true)}
         />

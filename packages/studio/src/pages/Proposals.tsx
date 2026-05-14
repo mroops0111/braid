@@ -25,7 +25,7 @@ export function ProposalsPage({ workspaceId }: ProposalsPageProps) {
     return (
       <EmptyState
         icon={Inbox}
-        title="No pending proposals"
+        title="No Pending Proposals"
         description="Run /telos-extract or /telos-clarify to produce graph mutations awaiting HITL review."
       />
     )
@@ -69,7 +69,7 @@ export function ProposalsPage({ workspaceId }: ProposalsPageProps) {
           : (
               <EmptyState
                 icon={Inbox}
-                title="Pick a proposal"
+                title="Pick a Proposal"
                 description="Select a proposal on the left to review the operations and apply or reject it."
               />
             )}

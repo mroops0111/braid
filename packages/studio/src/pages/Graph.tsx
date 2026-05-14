@@ -21,7 +21,7 @@ export function GraphPage({ workspaceId }: GraphPageProps) {
     return (
       <EmptyState
         icon={GitBranch}
-        title="Graph is empty"
+        title="Graph Is Empty"
         description="Run /telos-extract to populate it from your codebase and intent docs."
       />
     )

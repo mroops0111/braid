@@ -47,7 +47,7 @@ const STEP_ORDER: StepKey[] = ['basics', 'sources', 'mcp', 'advanced', 'confirm'
 const STEP_LABELS: Record<StepKey, string> = {
   basics: 'Basics',
   sources: 'Sources',
-  mcp: 'MCP servers',
+  mcp: 'MCP Servers',
   advanced: 'Advanced',
   confirm: 'Review',
   progress: 'Creating',
@@ -118,7 +118,7 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
     >
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Create workspace</DialogTitle>
+          <DialogTitle>Create Workspace</DialogTitle>
           <DialogDescription>
             Telos will write a fresh PRODUCT.md and ingest any loader-backed sources.
           </DialogDescription>
@@ -308,11 +308,11 @@ function SourcesStep({ sources, onChange }: {
       <div className="flex gap-2">
         <Button variant="ghost" size="sm" onClick={() => add('intent')}>
           <Plus />
-          Intent source
+          Intent Source
         </Button>
         <Button variant="ghost" size="sm" onClick={() => add('code')}>
           <Plus />
-          Code source
+          Code Source
         </Button>
       </div>
     </div>
@@ -460,7 +460,7 @@ function McpStep({ servers, onChange }: {
       </div>
       <Button variant="ghost" size="sm" onClick={add}>
         <Plus />
-        Add MCP server
+        Add MCP Server
       </Button>
     </div>
   )
@@ -526,7 +526,7 @@ function ConfirmStep({ name, rootPath, description, sources, mcpServers, ontolog
             )}
       </div>
       <div>
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">MCP servers</div>
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">MCP Servers</div>
         {mcpServers.length === 0
           ? <p className="text-muted-foreground/70">None.</p>
           : (

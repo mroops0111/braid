@@ -81,7 +81,7 @@ export function SkillsPage({ workspaceId, continuation, onContinuationConsumed }
             <div className="flex-1">
               <EmptyState
                 icon={Sparkles}
-                title="Pick a skill"
+                title="Pick a Skill"
                 description="Select a skill on the left to run it against this workspace."
               />
             </div>

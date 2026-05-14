@@ -39,7 +39,7 @@ export function RegisterWorkspaceDialog({ open, onOpenChange, onRegistered }: Re
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Register existing workspace</DialogTitle>
+          <DialogTitle>Register Existing Workspace</DialogTitle>
           <DialogDescription>
             Point Telos at a directory that already contains a PRODUCT.md.
           </DialogDescription>
