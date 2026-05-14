@@ -30,7 +30,10 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Hono
   app.onError(errorHandler)
 
   app.route('/health', healthRouter)
-  app.route('/workspaces', createWorkspacesRouter({ workspaceService: deps.workspaceService }))
+  app.route('/workspaces', createWorkspacesRouter({
+    workspaceService: deps.workspaceService,
+    sourceLoaderRunner: deps.sourceLoaderRunner,
+  }))
 
   const workspaceScoped = new Hono()
   workspaceScoped.route('/model', createModelRouter({ modelService: deps.modelService }))

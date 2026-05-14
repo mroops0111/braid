@@ -1,4 +1,5 @@
 import type {
+  AbsolutePath,
   FilesystemSourceDescriptor,
   SourceId,
   SourceLoaderDescriptor,
@@ -7,6 +8,9 @@ import type { Clock } from '../domain/Clock.js'
 import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
 import type { IngestReport, SyncReport } from '../domain/plugin/SourceLoader.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
+import { stat } from 'node:fs/promises'
+import { isAbsolute, resolve } from 'node:path'
+import { AbsolutePath as AbsolutePathSchema } from '@telos/schema'
 import { NotFoundError, ValidationError } from '../domain/errors.js'
 
 export interface SourceLoaderRunnerDeps {
@@ -48,12 +52,22 @@ export class SourceLoaderRunner {
     if (!source.loader)
       throw new ValidationError(`Source "${sourceId}" has no loader; nothing to sync`)
     const loader = this.deps.pluginRegistry.requireSourceLoader(source.loader.kind)
+    const context = { workspaceId: workspace.id, sourceId: source.id }
+    const destination = resolveSourcePath(workspace, source)
+    // If the destination doesn't exist yet (first run after register),
+    // fall back to ingest. The user's intent for "sync" is "make this
+    // source current"; whether that's a fresh clone or a pull is plumbing.
+    if (!(await pathExists(destination))) {
+      const ingest = await loader.ingest(source.loader.config, destination, context)
+      return {
+        changed: true,
+        ...(ingest.metadata ? { metadata: ingest.metadata } : {}),
+        fetchedAt: ingest.fetchedAt,
+      }
+    }
     if (!loader.sync)
-      throw new ValidationError(`Loader "${source.loader.kind}" does not support sync`)
-    return loader.sync(source.loader.config, source.path, {
-      workspaceId: workspace.id,
-      sourceId: source.id,
-    })
+      throw new ValidationError(`Loader "${source.loader.kind}" does not support sync and destination already exists`)
+    return loader.sync(source.loader.config, destination, context)
   }
 
   private async runIngest(
@@ -62,7 +76,7 @@ export class SourceLoaderRunner {
     loader: SourceLoaderDescriptor,
   ): Promise<IngestReport> {
     const plugin = this.deps.pluginRegistry.requireSourceLoader(loader.kind)
-    return plugin.ingest(loader.config, source.path, {
+    return plugin.ingest(loader.config, resolveSourcePath(workspace, source), {
       workspaceId: workspace.id,
       sourceId: source.id,
     })
@@ -72,4 +86,25 @@ export class SourceLoaderRunner {
 export interface IngestOutcome {
   readonly sourceId: SourceId
   readonly report: IngestReport
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await stat(path)
+    return true
+  }
+  catch {
+    return false
+  }
+}
+
+/**
+ * PRODUCT.md `sources[].path` can be relative (e.g. `./intent`) or
+ * absolute. Loaders need an absolute path to operate on. Relative paths
+ * are resolved against the workspace's `rootPath`.
+ */
+function resolveSourcePath(workspace: Workspace, source: FilesystemSourceDescriptor): AbsolutePath {
+  if (isAbsolute(source.path))
+    return source.path
+  return AbsolutePathSchema.parse(resolve(workspace.rootPath, source.path))
 }

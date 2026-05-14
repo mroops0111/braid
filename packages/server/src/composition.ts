@@ -21,6 +21,7 @@ import {
   ModelService,
   noopRunRepository,
   PluginRegistry,
+  SourceLoaderRunner,
   SystemClock,
   ValidationService,
   WorkspaceService,
@@ -31,6 +32,7 @@ export interface AppDependencies {
   hitlService: HITLService
   modelService: ModelService
   validationService: ValidationService
+  sourceLoaderRunner: SourceLoaderRunner
   pluginRegistry: PluginRegistry
   proposalRepository: ProposalRepository
   clarifyRepository: ClarifyTicketRepository
@@ -75,6 +77,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const workspaceService = new WorkspaceService({ workspaceRepository })
   const modelService = new ModelService({ modelRepository })
   const validationService = new ValidationService({ pluginRegistry })
+  const sourceLoaderRunner = new SourceLoaderRunner({ pluginRegistry, clock })
   const hitlService = new HITLService({
     proposalRepository,
     clarifyRepository,
@@ -89,6 +92,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     hitlService,
     modelService,
     validationService,
+    sourceLoaderRunner,
     pluginRegistry,
     proposalRepository,
     clarifyRepository,

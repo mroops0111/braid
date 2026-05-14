@@ -1,6 +1,7 @@
-import type { WorkspaceService } from '@telos/core'
+import type { SourceLoaderRunner, WorkspaceService } from '@telos/core'
 import { zValidator } from '@hono/zod-validator'
-import { AbsolutePath, WorkspaceId } from '@telos/schema'
+import { NotFoundError } from '@telos/core'
+import { AbsolutePath, SourceId, WorkspaceId } from '@telos/schema'
 import { Hono } from 'hono'
 import { z } from 'zod'
 
@@ -10,6 +11,7 @@ const RegisterBodySchema = z.object({
 
 export interface WorkspacesRouterDeps {
   workspaceService: WorkspaceService
+  sourceLoaderRunner: SourceLoaderRunner
 }
 
 export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
@@ -39,6 +41,20 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     const workspace = await deps.workspaceService.load(rootPath)
     await deps.workspaceService.save(workspace)
     return context.json(workspace.toData(), 201)
+  })
+
+  // Per-source sync. Looks up the source's loader and invokes `sync` (or
+  // falls back to `ingest` if the loader doesn't implement sync).
+  // Loader-less sources return 400 — there's nothing to do.
+  router.post('/:workspaceId/sources/:sourceId/sync', async (context) => {
+    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+    const sourceId = SourceId.parse(context.req.param('sourceId'))
+    const workspaces = await deps.workspaceService.list()
+    const workspace = workspaces.find(ws => ws.id === workspaceId)
+    if (!workspace)
+      throw new NotFoundError(`Workspace "${workspaceId}" not registered`)
+    const report = await deps.sourceLoaderRunner.syncOne(workspace, sourceId)
+    return context.json(report)
   })
 
   return router
