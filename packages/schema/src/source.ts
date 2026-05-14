@@ -8,6 +8,29 @@ export type SourceRole = z.infer<typeof SourceRole>
 export const SourceKind = z.enum(['filesystem', 'mcp'])
 export type SourceKind = z.infer<typeof SourceKind>
 
+/**
+ * Provisioning kind for a filesystem source. Identifies which `SourceLoader`
+ * plugin populates the local path before claude reads it. Branded so users
+ * can register custom loaders without editing this file.
+ */
+export const LoaderKind = z.string().min(1).brand<'LoaderKind'>()
+export type LoaderKind = z.infer<typeof LoaderKind>
+
+/**
+ * Per-source loader config. `kind` selects the loader plugin; `config` is
+ * opaque here and validated by the loader's own `configSchema` at runtime.
+ *
+ * Omitting `loader` on a `FilesystemSourceDescriptor` means "manual": the
+ * user manages the directory themselves; Telos performs no ingestion or
+ * sync. That's the default and preserves backwards compatibility with
+ * existing workspaces.
+ */
+export const SourceLoaderDescriptor = z.object({
+  kind: LoaderKind,
+  config: z.unknown(),
+})
+export type SourceLoaderDescriptor = z.infer<typeof SourceLoaderDescriptor>
+
 export const FilesystemSourceDescriptor = z.object({
   kind: z.literal('filesystem'),
   id: SourceId,
@@ -15,6 +38,7 @@ export const FilesystemSourceDescriptor = z.object({
   name: z.string().min(1),
   path: AbsolutePath,
   language: z.string().optional(),
+  loader: SourceLoaderDescriptor.optional(),
 })
 export type FilesystemSourceDescriptor = z.infer<typeof FilesystemSourceDescriptor>
 

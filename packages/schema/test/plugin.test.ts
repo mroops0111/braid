@@ -2,18 +2,19 @@ import { describe, expect, it } from 'vitest'
 import { PluginDescriptor, PluginType } from '../src/index.js'
 
 describe('pluginType', () => {
-  it('lists 6 plugin types (agent / channel / generator / ontology / storage / validator)', () => {
+  it('lists the registered plugin types', () => {
     expect(PluginType.options).toEqual([
       'agent',
       'channel',
       'generator',
       'ontology',
+      'source-loader',
       'storage',
       'validator',
     ])
   })
 
-  it('rejects "source" (sources are workspace descriptors, not plugins)', () => {
+  it('rejects "source" (sources are workspace descriptors, not plugins; loaders provision them)', () => {
     expect(PluginType.safeParse('source').success).toBe(false)
   })
 

@@ -11,6 +11,7 @@ import {
   PluginRegistry,
 } from '@telos/core'
 import { DDDOntology, DDDOntologyValidator } from '@telos/ontology-ddd'
+import { GitLoader } from '@telos/source-loader-git'
 import { KuzuModelRepository } from '@telos/storage-kuzu'
 import { composeApp } from './composition.js'
 import { ClaudeCodeAgentBinding } from './infrastructure/agent/ClaudeCodeAgentBinding.js'
@@ -86,6 +87,7 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
   pluginRegistry.register(new EvidenceValidator())
   pluginRegistry.register(new OrphanEdgeValidator())
   pluginRegistry.register(new DDDOntologyValidator(dddOntology))
+  pluginRegistry.register(new GitLoader())
 
   const skillRunner = new SubprocessSkillRunner({
     skillRegistry,

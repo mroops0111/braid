@@ -1,8 +1,8 @@
 {
-  "name": "@telos/server",
+  "name": "@telos/source-loader-git",
   "type": "module",
   "version": "0.0.0",
-  "description": "Telos REST + (later) MCP server. Hono on Node 20.",
+  "description": "Git source-loader plugin: clone a remote repo into a workspace source path; sync via fetch + reset.",
   "license": "Apache-2.0",
   "exports": {
     ".": "./src/index.ts"
@@ -13,25 +13,15 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "dev": "tsx watch src/server.ts",
     "clean": "rm -rf dist .turbo *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@hono/node-server": "^1.13.0",
-    "@hono/zod-validator": "^0.4.0",
     "@telos/core": "workspace:*",
-    "@telos/ontology-ddd": "workspace:*",
     "@telos/schema": "workspace:*",
-    "@telos/source-loader-git": "workspace:*",
-    "@telos/storage-kuzu": "workspace:*",
-    "hono": "^4.6.0",
-    "pino": "^9.5.0",
-    "yaml": "^2.9.0",
+    "simple-git": "^3.36.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
   }

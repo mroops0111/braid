@@ -1,6 +1,7 @@
 import type {
   AgentKind,
   ChannelKind,
+  LoaderKind,
   OntologyId,
   PluginId,
   PluginType,
@@ -12,6 +13,7 @@ import type { ChannelPlugin } from './ChannelPlugin.js'
 import type { Generator } from './Generator.js'
 import type { Ontology } from './Ontology.js'
 import type { Plugin } from './Plugin.js'
+import type { SourceLoader } from './SourceLoader.js'
 import type { StoragePlugin } from './StoragePlugin.js'
 import type { Validator } from './Validator.js'
 import { ConflictError, NotFoundError } from '../errors.js'
@@ -100,6 +102,21 @@ export class PluginRegistry {
     if (!plugin)
       throw new NotFoundError(`No storage plugin registered for kind "${kind}"`)
     return plugin
+  }
+
+  sourceLoaders(): readonly SourceLoader[] {
+    return this.listByType('source-loader') as readonly SourceLoader[]
+  }
+
+  findSourceLoader(kind: LoaderKind): SourceLoader | undefined {
+    return this.sourceLoaders().find(loader => loader.kind === kind)
+  }
+
+  requireSourceLoader(kind: LoaderKind): SourceLoader {
+    const loader = this.findSourceLoader(kind)
+    if (!loader)
+      throw new NotFoundError(`No source loader registered for kind "${kind}"`)
+    return loader
   }
 
   channelPlugins(): readonly ChannelPlugin[] {

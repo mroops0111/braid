@@ -6,6 +6,7 @@ export const PluginType = z.enum([
   'channel',
   'generator',
   'ontology',
+  'source-loader',
   'storage',
   'validator',
 ])
