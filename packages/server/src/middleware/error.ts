@@ -22,13 +22,16 @@ function statusFor(error: TelosError): number {
 }
 
 function problemFromTelosError(error: TelosError): TelosProblemJson {
-  return {
+  const problem: TelosProblemJson = {
     type: `${PROBLEM_BASE_URL}/${error.code.toLowerCase()}` as TelosProblemJson['type'],
     title: error.name,
     status: statusFor(error),
     code: error.code,
     detail: error.message,
   }
+  if (error instanceof ValidationError && Array.isArray(error.issues))
+    problem.issues = error.issues as TelosProblemJson['issues']
+  return problem
 }
 
 function problemFromZodError(error: ZodError): TelosProblemJson {

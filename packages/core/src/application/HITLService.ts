@@ -1,10 +1,12 @@
 import type {
   ClarifyCandidateId,
+  ClarifyDraft,
   ClarifyTicketId,
   Decision,
   DecisionAction,
   DecisionReferences,
   GraphOperation,
+  ProposalDraft,
   ProposalId,
   UserId,
   ValidationIssue,
@@ -17,7 +19,9 @@ import type { ProposalRepository } from '../domain/hitl/ProposalRepository.js'
 import type { ModelRepository } from '../domain/model/ModelRepository.js'
 import type { ValidationService } from './ValidationService.js'
 import { ValidationError } from '../domain/errors.js'
-import { newDecisionId } from '../domain/ids.js'
+import { ClarifyTicket } from '../domain/hitl/ClarifyTicket.js'
+import { Proposal } from '../domain/hitl/Proposal.js'
+import { newClarifyTicketId, newDecisionId, newProposalId } from '../domain/ids.js'
 
 export interface HITLServiceDeps {
   proposalRepository: ProposalRepository
@@ -30,6 +34,41 @@ export interface HITLServiceDeps {
 
 export class HITLService {
   constructor(private readonly deps: HITLServiceDeps) {}
+
+  // Server-side proposal creation. Validates ops against the current graph,
+  // mints id + generatedAt, persists. Returns the saved Proposal so the
+  // caller (HTTP route) can hand the id back to the skill.
+  async submitProposal(draft: ProposalDraft): Promise<Proposal> {
+    await this.assertOperationsValid(draft.workspaceId, draft.operations)
+    const proposal = new Proposal({
+      id: newProposalId(),
+      workspaceId: draft.workspaceId,
+      status: 'pending',
+      operations: draft.operations,
+      generatedBy: draft.generatedBy,
+      generatedAt: this.deps.clock.now(),
+      rationale: draft.rationale,
+      ...(draft.externalReferences ? { externalReferences: draft.externalReferences } : {}),
+    })
+    await this.deps.proposalRepository.save(proposal)
+    return proposal
+  }
+
+  // Server-side clarify ticket creation. No graph validation: clarify
+  // ticket candidates' proposedOperations are only validated when the user
+  // selects one via answerClarifyTicket.
+  async submitClarifyTicket(draft: ClarifyDraft): Promise<ClarifyTicket> {
+    const ticket = new ClarifyTicket({
+      id: newClarifyTicketId(),
+      workspaceId: draft.workspaceId,
+      question: draft.question,
+      candidates: draft.candidates,
+      status: 'pending',
+      ...(draft.externalReferences ? { externalReferences: draft.externalReferences } : {}),
+    })
+    await this.deps.clarifyRepository.save(ticket)
+    return ticket
+  }
 
   async applyProposal(proposalId: ProposalId, userId: UserId): Promise<Decision> {
     const proposal = await this.deps.proposalRepository.load(proposalId)
@@ -107,7 +146,7 @@ export class HITLService {
     const snapshot = await this.deps.modelRepository.load(workspaceId)
     const result = await this.deps.validationService.validateOperations(snapshot, operations)
     if (!result.ok) {
-      throw new ValidationError(this.formatValidationErrors(result.issues))
+      throw new ValidationError(this.formatValidationErrors(result.issues), result.issues)
     }
   }
 

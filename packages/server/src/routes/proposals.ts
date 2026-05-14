@@ -1,6 +1,6 @@
 import type { HITLService, ModelRepository, ProposalRepository, ValidationService } from '@telos/core'
 import { zValidator } from '@hono/zod-validator'
-import { ProposalId, ProposalStatus, UserId, WorkspaceId } from '@telos/schema'
+import { ProposalDraft, ProposalId, ProposalStatus, UserId, WorkspaceId } from '@telos/schema'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { assertEntityInWorkspace } from './helpers.js'
@@ -20,6 +20,11 @@ const RejectBodySchema = z.object({
   userId: UserId,
 })
 
+// Skill-facing create. Body must carry `workspaceId` matching the route
+// param; we let zod parse the rest of the ProposalDraft fields and let
+// HITLService.submitProposal validate ops against the live graph.
+const CreateBodySchema = ProposalDraft.omit({ workspaceId: true })
+
 export interface ProposalsRouterDeps {
   hitlService: HITLService
   proposalRepository: ProposalRepository
@@ -29,6 +34,16 @@ export interface ProposalsRouterDeps {
 
 export function createProposalsRouter(deps: ProposalsRouterDeps): Hono {
   const router = new Hono()
+
+  // Create. Returns 201 + the saved proposal on success, 400 + `issues`
+  // when ops fail validation. Skills call this instead of writing JSON files
+  // so they pick up validation errors on the write call, not on apply.
+  router.post('/', zValidator('json', CreateBodySchema), async (context) => {
+    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+    const body = context.req.valid('json')
+    const proposal = await deps.hitlService.submitProposal({ workspaceId, ...body })
+    return context.json(proposal.toData(), 201)
+  })
 
   router.get('/', zValidator('query', ListQuerySchema), async (context) => {
     const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))

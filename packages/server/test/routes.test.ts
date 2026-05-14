@@ -7,6 +7,61 @@ const isoTimestamp = '2026-05-09T12:00:00+08:00'
 const workspaceId = 'w-1' as WorkspaceId
 const userId = 'u-1'
 
+describe('POST /workspaces/:ws/proposals', () => {
+  it('creates a pending proposal, server-mints id + generatedAt', async () => {
+    const { app } = buildTestApp()
+    const response = await app.request(`/workspaces/${workspaceId}/proposals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        operations: [
+          { operation: 'addNode', payload: { type: 'command', name: 'x', id: 'n-1' } },
+        ],
+        generatedBy: 'extract',
+        rationale: 'creating via POST',
+      }),
+    })
+    expect(response.status).toBe(201)
+    const body = await response.json()
+    expect(body.status).toBe('pending')
+    expect(typeof body.id).toBe('string')
+    expect(body.id.length).toBeGreaterThan(0)
+    expect(typeof body.generatedAt).toBe('string')
+  })
+
+  it('returns 400 when body missing required fields', async () => {
+    const { app } = buildTestApp()
+    const response = await app.request(`/workspaces/${workspaceId}/proposals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operations: [] }),
+    })
+    expect(response.status).toBe(400)
+  })
+})
+
+describe('POST /workspaces/:ws/clarify', () => {
+  it('creates a pending clarify ticket with server-minted id', async () => {
+    const { app } = buildTestApp()
+    const response = await app.request(`/workspaces/${workspaceId}/clarify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: 'merge or split?',
+        candidates: [
+          { id: 'c-1', description: 'merge', sourceReferences: [], proposedOperations: [] },
+          { id: 'c-2', description: 'split', sourceReferences: [], proposedOperations: [] },
+        ],
+      }),
+    })
+    expect(response.status).toBe(201)
+    const body = await response.json()
+    expect(body.status).toBe('pending')
+    expect(body.candidates).toHaveLength(2)
+    expect(typeof body.id).toBe('string')
+  })
+})
+
 describe('POST /workspaces/:ws/proposals/:id/apply', () => {
   it('applies a seeded proposal and returns a decision', async () => {
     const { app, deps } = buildTestApp()

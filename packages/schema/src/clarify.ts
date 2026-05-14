@@ -33,6 +33,14 @@ export const ClarifyTicket = z.object({
 })
 export type ClarifyTicket = z.infer<typeof ClarifyTicket>
 
+export const ClarifyDraft = z.object({
+  workspaceId: WorkspaceId,
+  question: z.string().min(1),
+  candidates: z.array(ClarifyCandidate),
+  externalReferences: z.array(ExternalReference).optional(),
+})
+export type ClarifyDraft = z.infer<typeof ClarifyDraft>
+
 export const ClarifyFilter = z.object({
   workspaceId: WorkspaceId.optional(),
   statuses: z.array(ClarifyStatus).optional(),
