@@ -116,6 +116,12 @@ export const api = {
   syncSource: (workspaceId: string, sourceId: string) =>
     fetchJson<IngestSummary>(`/workspaces/${workspaceId}/sources/${sourceId}/sync`, { method: 'POST' }),
 
+  startGoogleOAuth: (workspaceId: string, sourceId: string) =>
+    fetchJson<{ authorizationUrl: string }>('/oauth/google/start', {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, sourceId }),
+    }),
+
   listSkills: (workspaceId: string) =>
     fetchJson<ItemList<SkillManifest>>(`/workspaces/${workspaceId}/skills`),
 
