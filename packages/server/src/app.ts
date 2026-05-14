@@ -8,6 +8,7 @@ import { createEdgesRouter } from './routes/edges.js'
 import { healthRouter } from './routes/health.js'
 import { createModelRouter } from './routes/model.js'
 import { createNodesRouter } from './routes/nodes.js'
+import { createOntologyRouter } from './routes/ontology.js'
 import { createProposalsRouter } from './routes/proposals.js'
 import { createRunsRouter } from './routes/runs.js'
 import { createSkillsRouter } from './routes/skills.js'
@@ -37,12 +38,18 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Hono
   workspaceScoped.route('/proposals', createProposalsRouter({
     hitlService: deps.hitlService,
     proposalRepository: deps.proposalRepository,
+    modelRepository: deps.modelRepository,
+    validationService: deps.validationService,
   }))
   workspaceScoped.route('/clarify', createClarifyRouter({
     hitlService: deps.hitlService,
     clarifyRepository: deps.clarifyRepository,
   }))
   workspaceScoped.route('/decisions', createDecisionsRouter({ decisionRepository: deps.decisionRepository }))
+  workspaceScoped.route('/ontology', createOntologyRouter({
+    workspaceRepository: deps.workspaceRepository,
+    pluginRegistry: deps.pluginRegistry,
+  }))
 
   if (deps.skillRegistry && deps.skillRunner) {
     workspaceScoped.route('/skills', createSkillsRouter({

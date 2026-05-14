@@ -22,16 +22,27 @@ template is `${TELOS_API_URL}/workspaces/${TELOS_WORKSPACE_ID}/...`.
 
 `q` matches `nameContains` (case-insensitive substring on node name).
 
+## Ontology
+
+| Method | Path | Returns |
+|--------|------|---------|
+| `GET` | `/workspaces/:ws/ontology` | `{ ontologyId, nodeTypes: NodeTypeDescriptor[], edgeTypes: EdgeTypeDescriptor[] }` |
+
+Single source of truth for the valid `node.type` / `edge.type` values. Skills MUST call this and use the returned ids verbatim (case-sensitive). Adding a new type happens in the ontology plugin; both this endpoint and the server-side validator pick it up automatically.
+
 ## HITL artifacts (read)
 
 | Method | Path | Returns |
 |--------|------|---------|
 | `GET` | `/workspaces/:ws/proposals?status=pending&limit=&offset=` | `{ items: [Proposal] }` |
 | `GET` | `/workspaces/:ws/proposals/:id` | `Proposal` |
+| `GET` | `/workspaces/:ws/proposals/:id/validate` | `{ ok: boolean, issues: ValidationIssue[] }` (dry-run; no state change) |
 | `GET` | `/workspaces/:ws/clarify?status=pending` | `{ items: [ClarifyTicket] }` |
 | `GET` | `/workspaces/:ws/clarify/:id` | `ClarifyTicket` |
 | `GET` | `/workspaces/:ws/decisions?action=&limit=&offset=` | `{ items: [Decision] }` |
 | `GET` | `/workspaces/:ws/decisions/:id` | `Decision` |
+
+`/proposals/:id/validate` runs the same validators the apply path runs. Skills should call it after writing a proposal and iterate on the returned `issues` instead of waiting for a human to discover problems on Apply.
 
 ## HITL artifacts (write), usually via filesystem
 

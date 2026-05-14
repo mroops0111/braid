@@ -36,11 +36,16 @@ and let the human pick.
 # Initialization
 
 1. Read `$TELOS_WORKSPACE/PRODUCT.md` to learn the active `ontologyId`, sources, and MCP servers.
-2. Load current graph state:
+2. **Load the ontology** (canonical list of valid node / edge types). Do this *before* generating any operations; do not guess type names from intent / code.
+   ```bash
+   curl -sf "$TELOS_API_URL/workspaces/$TELOS_WORKSPACE_ID/ontology"
+   ```
+   The response is `{ ontologyId, nodeTypes: [...], edgeTypes: [...] }`. Every `node.type` you emit MUST equal one of `nodeTypes[].id`; every `edge.type` MUST equal one of `edgeTypes[].id`. Case-sensitive. If you are tempted to use `context` / `CONTAINS`, stop and re-check the response.
+3. Load current graph state:
    ```bash
    curl -sf "$TELOS_API_URL/workspaces/$TELOS_WORKSPACE_ID/model/snapshot"
    ```
-3. Parse `scope-hint` argument (bounded-context name / file path / sub-dir / or empty).
+4. Parse `scope-hint` argument (bounded-context name / file path / sub-dir / or empty).
 
 # Procedure
 
@@ -62,20 +67,18 @@ Cap each proposal at **< 30 operations**. Split into multiple proposals if neede
 
 ## Step 2: derive candidate operations
 
-For the active ontology (default `ddd`, see `productManifest.ontologyId`),
-map source signals to node types:
+The shape of the ID is a hint for humans; the `type` field is the contract. Use ontology types you fetched in Initialization step 2. Common ID conventions:
 
-| Signal in intent / code | Node type |
-|---|---|
-| Section "## Bounded Context" / subsystem name | `ctx.{name}` |
-| Aggregate root class (`@Aggregate` decorator / class with `apply()`) | `agg.{name}` |
-| HTTP route handler / command handler / Cypher mutation | `cmd.{name}` |
-| HTTP GET / repository query | `qry.{name}` |
-| `@DomainEvent` / event class | `evt.{name}` |
-| `if (!user.canX()) throw` / validation guard | `rule.{name}` |
-| Role / JWT scope / actor description | `actor.{name}` |
-| Web page / route | `web.{name}` |
-| Metric / dashboard query | `metric.{name}` |
+| Signal in intent / code | ID convention | `type` to set |
+|---|---|---|
+| Section "## Bounded Context" / subsystem name | `ctx.{name}` | the boundedContext type from the ontology |
+| Aggregate root class | `agg.{name}` | the aggregate type |
+| HTTP route handler / command handler | `cmd.{name}` | the command type |
+| HTTP GET / repository query | `qry.{name}` | the query type |
+| `@DomainEvent` / event class | `evt.{name}` | the event type |
+| `if (!user.canX()) throw` / validation guard | `rule.{name}` | the rule type |
+
+The literal `type` strings differ between ontologies. **Always read them off the `/ontology` response**, do not memorise them. Same applies to edges: use exact `edgeTypes[].id` strings (e.g. `contains`, not `CONTAINS`).
 
 For each candidate:
 - Graph **has same id** with different content → `updateNode`
@@ -83,18 +86,23 @@ For each candidate:
 - Graph **lacks the id** → `addNode`
 - Graph **has id but source deleted** → `updateNode` setting `status: deprecated`. **Do not `removeNode`**. Preserve history.
 
-Apply analogous rules for edges (`CONTAINS`, `EMITS`, `TRIGGERS`, `CONSTRAINED_BY`, …).
+## Step 3: assess confidence + evidence per candidate
 
-## Step 3: assess confidence per candidate
+For each candidate node you intend to emit, set `metadata` according to where the evidence lives:
 
-For each candidate operation, ask:
+- **Intent source only** (no code yet, e.g. a fresh PRD): `metadata.sourceReferences = [intent ref]` + `metadata.implementationMissing = true`. Status stays `draft`.
+- **Code source only** (running code with no spec): `metadata.sourceReferences = [code ref]` + `metadata.intentMissing = true`. Status `draft`.
+- **Both sources agree**: `metadata.sourceReferences = [intent ref, code ref]`. Status `draft` (only the human applies → `completed`).
+- **Both sources disagree**: drop the candidate into a ClarifyTicket. Do not write a guess.
 
-1. Is the evidence sufficient? (Source location cited?)
-2. Is there contradiction? (intent vs code disagreeing?)
-3. Would applying it break other parts of the graph? (orphaning references?)
+Every node you emit MUST have `metadata` set. A node with `metadata.sourceReferences: []` AND no `implementationMissing` AND no `intentMissing` will be rejected by the server validator.
 
-If **any** answer is "uncertain" → move the candidate into a ClarifyTicket
-instead of the Proposal.
+Also ask:
+
+1. Would applying it break other parts of the graph? (orphaning references?)
+2. Are there contradictions between two intent docs?
+
+If **any** answer is "uncertain" → ClarifyTicket, not Proposal.
 
 ## Step 4: write Proposal (high-confidence candidates)
 
@@ -119,7 +127,27 @@ mv "$TMP" "$TELOS_WORKSPACE/artifacts/proposals/pending/$PROPOSAL_ID.json"
 
 Full GraphOperation shapes are in `$TELOS_SESSION_DIR/.claude/skills/shared/artifact-formats.md`.
 
-## Step 5: write ClarifyTicket (low-confidence candidates)
+## Step 5: self-validate the proposal (feedback loop)
+
+After every proposal you write, **immediately validate it** by calling the dry-run endpoint:
+
+```bash
+curl -sf "$TELOS_API_URL/workspaces/$TELOS_WORKSPACE_ID/proposals/$PROPOSAL_ID/validate"
+```
+
+Response shape: `{ ok: boolean, issues: [{ code, severity, message, nodeId?, edgeId? }] }`.
+
+- `ok: true` and no `severity: "error"` issues → proposal is ready, move on.
+- `ok: false` (any error) → **fix the proposal in place and re-validate**. Loop up to **3 times**. For each iteration:
+  1. Read the current proposal JSON.
+  2. For each `error` issue, edit the relevant node / edge payload to resolve it (e.g. switch `type: "context"` → the canonical id you fetched from `/ontology`; add the missing `metadata.implementationMissing` flag; remove a duplicate id).
+  3. Atomic re-write (`mv tmp final`) to the same `pending/$PROPOSAL_ID.json`.
+  4. Re-call `/validate`.
+- If after 3 iterations there are still errors, do NOT silently move on. Emit the remaining issues in your final stdout summary so the human sees them. Don't keep retrying.
+
+`severity: "warning"` issues do not block apply; mention them in the proposal `rationale` if they are intentional, otherwise treat them like errors.
+
+## Step 6: write ClarifyTicket (low-confidence candidates)
 
 ```bash
 TICKET_ID="ct-$(date -u +%Y-%m-%d)-$(uuidgen | cut -c1-8)"
@@ -155,12 +183,14 @@ Produced N proposals + M clarify tickets:
 
 # Completion Checklist
 
-- [ ] At least one artifact written, OR stdout explicitly states "graph already covers this scope, nothing to do"
-- [ ] Each operation has stated rationale (overall in `rationale`, or inline notes)
+- [ ] Ontology fetched from `/ontology` before any operation was drafted
+- [ ] Every node has `metadata.sourceReferences` AND/OR an `implementationMissing` / `intentMissing` flag
+- [ ] Every `node.type` matches a `nodeTypes[].id` from `/ontology`; every `edge.type` matches an `edgeTypes[].id`
+- [ ] Each proposal was re-validated via `/proposals/:id/validate` after the last write, and `ok: true`
 - [ ] No `removeNode` of a node still referenced elsewhere (deprecate instead)
 - [ ] Each ClarifyTicket candidate carries `proposedOperations`
 - [ ] All file writes use `mv tmp final` atomic pattern
-- [ ] Final stdout lists outcomes
+- [ ] Final stdout lists outcomes (or, if validation still failed after 3 rounds, lists the remaining issues)
 
 # Notes
 

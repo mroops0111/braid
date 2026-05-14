@@ -1,4 +1,4 @@
-import type { HITLService, ProposalRepository } from '@telos/core'
+import type { HITLService, ModelRepository, ProposalRepository, ValidationService } from '@telos/core'
 import { zValidator } from '@hono/zod-validator'
 import { ProposalId, ProposalStatus, UserId, WorkspaceId } from '@telos/schema'
 import { Hono } from 'hono'
@@ -23,6 +23,8 @@ const RejectBodySchema = z.object({
 export interface ProposalsRouterDeps {
   hitlService: HITLService
   proposalRepository: ProposalRepository
+  modelRepository: ModelRepository
+  validationService: ValidationService
 }
 
 export function createProposalsRouter(deps: ProposalsRouterDeps): Hono {
@@ -42,6 +44,19 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): Hono {
     const proposal = await deps.proposalRepository.load(proposalId)
     assertEntityInWorkspace(workspaceId, proposal.workspaceId, 'Proposal', proposalId)
     return context.json(proposal.toData())
+  })
+
+  // Pre-apply check: returns the validation issues a skill would hit if it
+  // tried to apply this proposal right now. Skills call this after writing
+  // their proposal so they can iterate on issues without the user in the loop.
+  router.get('/:proposalId/validate', async (context) => {
+    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+    const proposalId = ProposalId.parse(context.req.param('proposalId'))
+    const proposal = await deps.proposalRepository.load(proposalId)
+    assertEntityInWorkspace(workspaceId, proposal.workspaceId, 'Proposal', proposalId)
+    const snapshot = await deps.modelRepository.load(workspaceId)
+    const result = await deps.validationService.validateOperations(snapshot, proposal.operations)
+    return context.json(result)
   })
 
   router.post(
