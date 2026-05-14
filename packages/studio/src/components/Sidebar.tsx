@@ -1,21 +1,22 @@
 import type { Workspace } from '@telos/schema'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { FolderGit2, Plus } from 'lucide-react'
+import { FolderGit2, FolderPlus, Sparkles } from 'lucide-react'
 import { useState } from 'react'
-import { api } from '@/lib/api'
-import { queryKeys } from '@/lib/queries'
+import { CreateWorkspaceWizard } from './CreateWorkspaceWizard'
 import { ListRow } from './ListRow'
+import { RegisterWorkspaceDialog } from './RegisterWorkspaceDialog'
 import { Button } from './ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog'
-import { Input } from './ui/input'
 
 interface SidebarProps {
   workspaces: Workspace[]
   activeWorkspaceId: string | null
   onSelect: (id: string) => void
+  onOpenDetails: (id: string) => void
 }
 
-export function Sidebar({ workspaces, activeWorkspaceId, onSelect }: SidebarProps) {
+export function Sidebar({ workspaces, activeWorkspaceId, onSelect, onOpenDetails }: SidebarProps) {
+  const [wizardOpen, setWizardOpen] = useState(false)
+  const [registerOpen, setRegisterOpen] = useState(false)
+
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="flex h-11 items-center px-4">
@@ -42,67 +43,35 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect }: SidebarProp
             >
               <FolderGit2 className="size-3.5 shrink-0 text-sidebar-foreground/50" />
               <span className="truncate font-medium">{ws.id}</span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenDetails(ws.id)
+                }}
+                className="ml-auto rounded p-0.5 text-sidebar-foreground/40 opacity-0 hover:bg-sidebar-accent hover:text-sidebar-foreground group-hover:opacity-100"
+                title="Details"
+              >
+                ⋯
+              </button>
             </ListRow>
           ))}
         </ul>
       </div>
 
-      <div className="border-t border-sidebar-border p-2">
-        <RegisterWorkspaceDialog />
-      </div>
-    </aside>
-  )
-}
-
-function RegisterWorkspaceDialog() {
-  const queryClient = useQueryClient()
-  const [open, setOpen] = useState(false)
-  const [rootPath, setRootPath] = useState('')
-
-  const register = useMutation({
-    mutationFn: (path: string) => api.registerWorkspace(path),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces() })
-      setOpen(false)
-      setRootPath('')
-    },
-  })
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="w-full justify-start">
-          <Plus />
-          Register Workspace
+      <div className="space-y-0.5 border-t border-sidebar-border p-2">
+        <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => setWizardOpen(true)}>
+          <Sparkles />
+          Create workspace
         </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Register Workspace</DialogTitle>
-          <DialogDescription>
-            Provide the absolute path to a directory containing PRODUCT.md.
-          </DialogDescription>
-        </DialogHeader>
-        <Input
-          autoFocus
-          placeholder="/abs/path/to/workspace"
-          value={rootPath}
-          onChange={e => setRootPath(e.target.value)}
-        />
-        {register.error && (
-          <p className="text-xs text-destructive">{(register.error as Error).message}</p>
-        )}
-        <DialogFooter>
-          <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button
-            size="sm"
-            disabled={!rootPath || register.isPending}
-            onClick={() => register.mutate(rootPath)}
-          >
-            {register.isPending ? 'Registering…' : 'Register'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => setRegisterOpen(true)}>
+          <FolderPlus />
+          Register existing
+        </Button>
+      </div>
+
+      <CreateWorkspaceWizard open={wizardOpen} onOpenChange={setWizardOpen} onCreated={onSelect} />
+      <RegisterWorkspaceDialog open={registerOpen} onOpenChange={setRegisterOpen} onRegistered={onSelect} />
+    </aside>
   )
 }

@@ -3,16 +3,61 @@ import type {
   Decision,
   GraphEdge,
   GraphNode,
+  McpServerConfig,
   ModelSnapshot,
+  ProductManifestDraft,
   Proposal,
   RunRecord,
   SkillManifest,
+  SourceDescriptor,
   Workspace,
 } from '@telos/schema'
 
 const baseUrl = import.meta.env.VITE_TELOS_API_URL ?? 'http://localhost:4321'
 
 export interface ItemList<T> { items: T[] }
+
+export interface IngestSummary {
+  sourceId: string
+  changed: boolean
+  metadata?: Record<string, unknown>
+  fetchedAt?: string
+  notes?: readonly string[]
+}
+
+export interface ScaffoldResult {
+  workspace: Workspace
+  ingest: IngestSummary[]
+}
+
+export interface AddSourceResult {
+  workspace: Workspace
+  ingest?: IngestSummary
+}
+
+export interface PatchWorkspaceResult {
+  workspace: Workspace
+  renamed?: boolean
+  previousId?: string
+  newId?: string
+}
+
+/**
+ * Caller-friendly error: carries the original status code so the UI can
+ * map known cases (404, 409, 400 with specific text) to suggested actions
+ * rather than dumping raw `application/problem+json` on the user.
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly detail?: string,
+    readonly problem?: { title?: string, code?: string },
+  ) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${baseUrl}${path}`, {
@@ -24,15 +69,52 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   })
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
-    throw new Error(`${response.status} ${response.statusText}: ${detail}`)
+    let problem: { title?: string, code?: string, detail?: string } | undefined
+    try {
+      problem = JSON.parse(detail)
+    }
+    catch { /* not JSON */ }
+    const message = problem?.detail ?? problem?.title ?? detail ?? `${response.status} ${response.statusText}`
+    throw new ApiError(message, response.status, detail, problem)
   }
+  if (response.status === 204)
+    return undefined as T
   return response.json() as Promise<T>
 }
 
 export const api = {
   listWorkspaces: () => fetchJson<ItemList<Workspace>>('/workspaces'),
+  getWorkspace: (workspaceId: string) =>
+    fetchJson<Workspace>(`/workspaces/${workspaceId}`),
   registerWorkspace: (rootPath: string) =>
     fetchJson<Workspace>('/workspaces', { method: 'POST', body: JSON.stringify({ rootPath }) }),
+  scaffoldWorkspace: (rootPath: string, manifest: ProductManifestDraft) =>
+    fetchJson<ScaffoldResult>('/workspaces/scaffold', {
+      method: 'POST',
+      body: JSON.stringify({ rootPath, manifest }),
+    }),
+  patchWorkspace: (workspaceId: string, patch: {
+    name?: string
+    description?: string
+    ontologyId?: string
+    mcpServers?: McpServerConfig[]
+  }) =>
+    fetchJson<PatchWorkspaceResult>(`/workspaces/${workspaceId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
+  unregisterWorkspace: (workspaceId: string) =>
+    fetchJson<void>(`/workspaces/${workspaceId}`, { method: 'DELETE' }),
+
+  addSource: (workspaceId: string, source: SourceDescriptor) =>
+    fetchJson<AddSourceResult>(`/workspaces/${workspaceId}/sources`, {
+      method: 'POST',
+      body: JSON.stringify(source),
+    }),
+  removeSource: (workspaceId: string, sourceId: string) =>
+    fetchJson<{ workspace: Workspace }>(`/workspaces/${workspaceId}/sources/${sourceId}`, { method: 'DELETE' }),
+  syncSource: (workspaceId: string, sourceId: string) =>
+    fetchJson<IngestSummary>(`/workspaces/${workspaceId}/sources/${sourceId}/sync`, { method: 'POST' }),
 
   listSkills: (workspaceId: string) =>
     fetchJson<ItemList<SkillManifest>>(`/workspaces/${workspaceId}/skills`),
