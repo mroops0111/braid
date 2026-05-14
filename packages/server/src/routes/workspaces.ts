@@ -1,12 +1,19 @@
 import type { SourceLoaderRunner, WorkspaceService } from '@telos/core'
+import { stat } from 'node:fs/promises'
 import { zValidator } from '@hono/zod-validator'
-import { NotFoundError } from '@telos/core'
-import { AbsolutePath, SourceId, WorkspaceId } from '@telos/schema'
+import { NotFoundError, ValidationError } from '@telos/core'
+import { AbsolutePath, ProductManifestDraft, SourceId, WorkspaceId } from '@telos/schema'
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { fillManifestDefaults, writeProductManifest } from '../infrastructure/fs/productManifestWriter.js'
 
 const RegisterBodySchema = z.object({
   rootPath: AbsolutePath,
+})
+
+const ScaffoldBodySchema = z.object({
+  rootPath: AbsolutePath,
+  manifest: ProductManifestDraft,
 })
 
 export interface WorkspacesRouterDeps {
@@ -43,9 +50,28 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     return context.json(workspace.toData(), 201)
   })
 
+  // Create a workspace from scratch: write PRODUCT.md with server-filled
+  // defaults, register it, and run every loader-backed source's `ingest`
+  // so the local filesystem is hydrated by the time the user can run a
+  // skill. Refuses to overwrite an existing PRODUCT.md — the user can
+  // call `POST /workspaces` instead to register what's already there.
+  router.post('/scaffold', zValidator('json', ScaffoldBodySchema), async (context) => {
+    const { rootPath, manifest: draft } = context.req.valid('json')
+    if (await pathExists(`${rootPath}/PRODUCT.md`))
+      throw new ValidationError(`A PRODUCT.md already exists at "${rootPath}". Use POST /workspaces to register it instead.`)
+    const manifest = fillManifestDefaults(draft)
+    await writeProductManifest(rootPath, manifest, manifest.description)
+    const workspace = await deps.workspaceService.load(rootPath)
+    await deps.workspaceService.save(workspace)
+    const ingestOutcomes = await deps.sourceLoaderRunner.ingestAll(workspace)
+    return context.json({
+      workspace: workspace.toData(),
+      ingest: ingestOutcomes.map(o => ({ sourceId: o.sourceId, ...o.report })),
+    }, 201)
+  })
+
   // Per-source sync. Looks up the source's loader and invokes `sync` (or
-  // falls back to `ingest` if the loader doesn't implement sync).
-  // Loader-less sources return 400 — there's nothing to do.
+  // falls back to `ingest` if the destination doesn't exist yet).
   router.post('/:workspaceId/sources/:sourceId/sync', async (context) => {
     const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
     const sourceId = SourceId.parse(context.req.param('sourceId'))
@@ -58,4 +84,14 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   })
 
   return router
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await stat(path)
+    return true
+  }
+  catch {
+    return false
+  }
 }
