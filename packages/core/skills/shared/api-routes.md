@@ -42,21 +42,20 @@ Single source of truth for the valid `node.type` / `edge.type` values. Skills MU
 | `GET` | `/workspaces/:ws/decisions?action=&limit=&offset=` | `{ items: [Decision] }` |
 | `GET` | `/workspaces/:ws/decisions/:id` | `Decision` |
 
-`/proposals/:id/validate` runs the same validators the apply path runs. Skills should call it after writing a proposal and iterate on the returned `issues` instead of waiting for a human to discover problems on Apply.
+`/proposals/:id/validate` runs the same validators the apply path runs. Useful for debugging an existing proposal or for tools that don't want to commit yet; for skill writes prefer `POST /proposals` which validates inline.
 
-## HITL artifacts (write), usually via filesystem
+## HITL artifacts (write)
 
-Skills do **not** mutate state through the API. They write JSON to the
-workspace's `artifacts/` directory; the server picks it up on the next read.
+Skills create artifacts via these endpoints. The server validates the body, mints the id, stamps `generatedAt`, and persists. **Do not write JSON files directly under `artifacts/` from a skill.**
 
-| Artifact | Location |
-|----------|----------|
-| Proposal (new) | `$TELOS_WORKSPACE/artifacts/proposals/pending/{proposalId}.json` |
-| ClarifyTicket (new) | `$TELOS_WORKSPACE/artifacts/clarify/pending/{clarifyTicketId}.json` |
+| Method | Path | Body | Returns |
+|--------|------|------|---------|
+| `POST` | `/workspaces/:ws/proposals` | `ProposalDraft` (`operations`, `generatedBy`, `rationale`, optional `externalReferences`) | `201 Proposal` on success; `400 { issues: [...] }` on validation failure |
+| `POST` | `/workspaces/:ws/clarify` | `ClarifyDraft` (`question`, `candidates`, optional `externalReferences`) | `201 ClarifyTicket` |
 
-Apply / Reject / Answer / Skip transitions happen via the API (route
-`POST /proposals/:id/apply`, etc.). Those are triggered by a human in
-the UI, not by a skill.
+`POST /proposals` runs the same validators as Apply; a 400 response carries `issues` so the skill can fix the body and retry (cap at 3 rounds, then surface remaining issues to the user). Candidates' `proposedOperations` inside a clarify ticket are validated only when a user later picks one via `POST /clarify/:id/answer`.
+
+Apply / Reject / Answer / Skip transitions happen via the API (route `POST /proposals/:id/apply`, etc.) and are triggered by a human in the UI, not by a skill.
 
 ## Error semantics
 

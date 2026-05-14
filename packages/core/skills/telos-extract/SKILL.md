@@ -104,67 +104,62 @@ Also ask:
 
 If **any** answer is "uncertain" → ClarifyTicket, not Proposal.
 
-## Step 4: write Proposal (high-confidence candidates)
+## Step 4: submit the Proposal via POST
 
-Atomic write to `$TELOS_WORKSPACE/artifacts/proposals/pending/{id}.json`:
+Submit the proposal to the server. The server validates the ops, mints
+the id + `generatedAt`, and persists the file. Do **not** write the
+proposal JSON to disk yourself.
 
 ```bash
-PROPOSAL_ID="p-$(date -u +%Y-%m-%d)-$(uuidgen | cut -c1-8)"
-TMP=$(mktemp)
-cat > "$TMP" <<EOF
-{
-  "id": "$PROPOSAL_ID",
-  "workspaceId": "$TELOS_WORKSPACE_ID",
-  "status": "pending",
-  "operations": [ /* GraphOperation[] */ ],
-  "generatedBy": "telos-extract",
-  "generatedAt": "$(date -u -Iseconds)",
-  "rationale": "Extracted ctx.signup from intent/auth/*.md + code/api/src/auth/*. Adds 3 commands, 2 events, 1 rule."
-}
-EOF
-mv "$TMP" "$TELOS_WORKSPACE/artifacts/proposals/pending/$PROPOSAL_ID.json"
+BODY=$(jq -n --arg rat "Extracted ctx.signup from intent/auth/*.md. Adds 3 commands, 2 events, 1 rule." \
+  --argjson ops '[ /* GraphOperation[] */ ]' \
+  '{ operations: $ops, generatedBy: "telos-extract", rationale: $rat }')
+
+RESPONSE=$(curl -sS -X POST "$TELOS_API_URL/workspaces/$TELOS_WORKSPACE_ID/proposals" \
+  -H 'Content-Type: application/json' \
+  -d "$BODY" \
+  -w '\n__HTTP_STATUS__:%{http_code}')
+STATUS=$(echo "$RESPONSE" | grep -o '__HTTP_STATUS__:[0-9]*' | cut -d: -f2)
+BODY_JSON=$(echo "$RESPONSE" | sed 's/__HTTP_STATUS__:[0-9]*//')
 ```
 
 Full GraphOperation shapes are in `$TELOS_SESSION_DIR/.claude/skills/shared/artifact-formats.md`.
 
-## Step 5: self-validate the proposal (feedback loop)
+### Reading the response
 
-After every proposal you write, **immediately validate it** by calling the dry-run endpoint:
+- **201 Created** → success. `BODY_JSON` is the saved Proposal (with the
+  server-minted `id`). Done.
+- **400 with `code: "TELOS-VAL"`** → validation failed. `BODY_JSON.issues`
+  is an array of `{ code, severity, message, nodeId?, edgeId? }`. Fix the
+  cited issues (e.g. wrong `type`, missing `metadata.implementationMissing`,
+  duplicate node id) and **POST the corrected body again**. Loop up to **3 times**.
+- **400 with any other code** (e.g. zod schema mismatch) → fix the body shape
+  and resend.
+- **409 Conflict** → an ID you supplied already exists. Either supply a fresh
+  id or drop that operation. Resend.
+- **5xx** → bail out and report to stdout. Don't retry on server errors.
+
+If after 3 rounds of validation errors there are still issues, do NOT keep
+trying. Emit the remaining issues in your final stdout summary so the human
+sees them.
+
+`severity: "warning"` issues do not block apply; mention them in the proposal
+`rationale` if they are intentional, otherwise treat them like errors.
+
+## Step 5: submit ClarifyTicket via POST (low-confidence candidates)
 
 ```bash
-curl -sf "$TELOS_API_URL/workspaces/$TELOS_WORKSPACE_ID/proposals/$PROPOSAL_ID/validate"
-```
+BODY=$(jq -n \
+  --arg q "voidTask and cancelTask: same command or distinct?" \
+  --argjson cs '[
+    { "id": "cc-1", "description": "Merge: they are aliases", "sourceReferences": [], "proposedOperations": [] },
+    { "id": "cc-2", "description": "Treat as distinct", "sourceReferences": [], "proposedOperations": [] }
+  ]' \
+  '{ question: $q, candidates: $cs }')
 
-Response shape: `{ ok: boolean, issues: [{ code, severity, message, nodeId?, edgeId? }] }`.
-
-- `ok: true` and no `severity: "error"` issues → proposal is ready, move on.
-- `ok: false` (any error) → **fix the proposal in place and re-validate**. Loop up to **3 times**. For each iteration:
-  1. Read the current proposal JSON.
-  2. For each `error` issue, edit the relevant node / edge payload to resolve it (e.g. switch `type: "context"` → the canonical id you fetched from `/ontology`; add the missing `metadata.implementationMissing` flag; remove a duplicate id).
-  3. Atomic re-write (`mv tmp final`) to the same `pending/$PROPOSAL_ID.json`.
-  4. Re-call `/validate`.
-- If after 3 iterations there are still errors, do NOT silently move on. Emit the remaining issues in your final stdout summary so the human sees them. Don't keep retrying.
-
-`severity: "warning"` issues do not block apply; mention them in the proposal `rationale` if they are intentional, otherwise treat them like errors.
-
-## Step 6: write ClarifyTicket (low-confidence candidates)
-
-```bash
-TICKET_ID="ct-$(date -u +%Y-%m-%d)-$(uuidgen | cut -c1-8)"
-TMP=$(mktemp)
-cat > "$TMP" <<EOF
-{
-  "id": "$TICKET_ID",
-  "workspaceId": "$TELOS_WORKSPACE_ID",
-  "question": "voidTask and cancelTask: same command or distinct?",
-  "candidates": [
-    { "id": "cc-1", "description": "Merge: they are aliases (signup.md §3 uses voidTask, signup.controller.ts uses cancelTask)", "sourceReferences": [], "proposedOperations": [...] },
-    { "id": "cc-2", "description": "Treat as distinct: they fire different events", "sourceReferences": [], "proposedOperations": [...] }
-  ],
-  "status": "pending"
-}
-EOF
-mv "$TMP" "$TELOS_WORKSPACE/artifacts/clarify/pending/$TICKET_ID.json"
+curl -sS -X POST "$TELOS_API_URL/workspaces/$TELOS_WORKSPACE_ID/clarify" \
+  -H 'Content-Type: application/json' \
+  -d "$BODY"
 ```
 
 Each candidate must carry its own `proposedOperations`. The user's pick
@@ -186,15 +181,15 @@ Produced N proposals + M clarify tickets:
 - [ ] Ontology fetched from `/ontology` before any operation was drafted
 - [ ] Every node has `metadata.sourceReferences` AND/OR an `implementationMissing` / `intentMissing` flag
 - [ ] Every `node.type` matches a `nodeTypes[].id` from `/ontology`; every `edge.type` matches an `edgeTypes[].id`
-- [ ] Each proposal was re-validated via `/proposals/:id/validate` after the last write, and `ok: true`
+- [ ] Each proposal was submitted via `POST /proposals` and the final response was 201 (not 4xx)
 - [ ] No `removeNode` of a node still referenced elsewhere (deprecate instead)
 - [ ] Each ClarifyTicket candidate carries `proposedOperations`
-- [ ] All file writes use `mv tmp final` atomic pattern
-- [ ] Final stdout lists outcomes (or, if validation still failed after 3 rounds, lists the remaining issues)
+- [ ] Final stdout lists outcomes (or, if a POST kept returning 400 after 3 rounds, lists the remaining issues)
 
 # Notes
 
-- **Do not** POST to any apply / reject endpoint. Write the JSON file only
+- Skill creates artifacts via `POST /proposals` and `POST /clarify`. **Do not** write JSON files to `artifacts/` directly. The server handles atomic persistence + validation in one shot.
+- **Do not** POST to `apply` / `reject` / `answer` / `skip` endpoints. Those are human-triggered through the UI.
 - **Never use em-dashes (`—`) or en-dashes (`–`) in output text** (proposal rationale, clarify question / candidate descriptions, etc.). Use periods, colons, commas, or parentheses instead
 - Span multiple bounded contexts → split into multiple proposals, each < 30 ops
 - Found pre-existing bad nodes (wrong type, missing description) but no

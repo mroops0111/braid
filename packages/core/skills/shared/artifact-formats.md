@@ -1,10 +1,10 @@
 # Artifact JSON formats
 
-All skills that produce graph mutations write **Proposal JSON** to
-`$TELOS_WORKSPACE/artifacts/proposals/pending/{proposalId}.json`. The server
-loads this file on the next list / apply request.
+Skills create artifacts via the server API (`POST /workspaces/:ws/proposals` and `POST /workspaces/:ws/clarify`). The server validates the body, mints `id` / `generatedAt`, sets `status: "pending"`, and persists to disk. The shapes below describe the **request body** the skill sends and the **full record** the API returns.
 
 ## Proposal
+
+Server response (and on-disk shape):
 
 ```json
 {
@@ -15,6 +15,17 @@ loads this file on the next list / apply request.
   "generatedBy": "extract",
   "generatedAt": "2026-05-12T14:23:00+08:00",
   "rationale": "One paragraph: why these ops, what triggered the proposal."
+}
+```
+
+Request body for `POST /workspaces/:ws/proposals` is the same minus the server-controlled fields (`id`, `status`, `generatedAt`):
+
+```json
+{
+  "operations": [ /* GraphOperation[] */ ],
+  "generatedBy": "extract",
+  "rationale": "One paragraph: why these ops, what triggered the proposal.",
+  "externalReferences": [{ "kind": "redmine", "url": "...", "label": "..." }]
 }
 ```
 
@@ -42,10 +53,7 @@ back to Redmine / Jira / XWiki source tickets.
 { "operation": "updateEdges", "updates": [{ "edgeId": "...", "patch": {...} }] }
 ```
 
-`type` and `status` valid values are defined by the active **Ontology**
-plugin (default `ontology-ddd`). Pull the current ontology types from
-`GET /workspaces/:ws/ontology` (when Phase 4+ exposes it), or check the
-existing graph via `GET /workspaces/:ws/nodes` to see what types are in use.
+`type` and `status` valid values are defined by the active **Ontology** plugin (default `ontology-ddd`). Pull the current ontology types from `GET /workspaces/:ws/ontology`. The server validator rejects any type not in that list.
 
 ## ClarifyTicket (when extract / model finds ambiguity)
 
@@ -72,26 +80,17 @@ existing graph via `GET /workspaces/:ws/nodes` to see what types are in use.
 }
 ```
 
-Write to `$TELOS_WORKSPACE/artifacts/clarify/pending/{ticketId}.json` when
-the skill cannot decide. Don't guess. Produce a clarify ticket and let a
-human resolve it via the Studio UI.
+Submit via `POST /workspaces/:ws/clarify` when the skill cannot decide. Don't guess. Produce a clarify ticket and let a human resolve it via the Studio UI.
 
 ## ID generation
 
-Generate stable, descriptive IDs from inside the skill:
-
-- Proposal: `p-{ISO-date}-{4-char hash}` e.g. `p-2026-05-12-a3f1`
-- ClarifyTicket: `ct-{ISO-date}-{4-char hash}`
-- New node IDs follow ontology conventions (e.g. ddd uses `cmd.voidTask`,
-  `ctx.signup`, etc.)
-
-Use `uuidgen | cut -c1-8` (macOS / Linux) or `head -c 16 /dev/urandom | base64`
-to generate the random suffix from bash.
+Node and edge IDs are minted by the skill (ontology-style: `cmd.voidTask`, `ctx.signup`, `evt.OrderPlaced`, …). Proposal and clarify ticket IDs are minted by the server when you POST; **do not pre-mint them in the skill**.
 
 ## Atomic writes
 
-The server scans `artifacts/proposals/pending/` and reads any `.json` it
-finds. To avoid a partial-write race, write to a `.tmp` first and rename:
+You don't need them. The server handles atomic persistence (`mv tmp final` inside `FsProposalRepository`). Skills just POST.
+
+(Legacy bash example, kept for historical reference; do not use in new skills:)
 
 ```bash
 cat > "$tmp" <<EOF

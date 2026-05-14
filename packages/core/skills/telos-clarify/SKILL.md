@@ -71,28 +71,40 @@ Resolve issues:
 - Minor (need a deprecation step before remove) → add supplementary ops to the resolution
 - Major (a remove cascades catastrophically) → write a **new** ClarifyTicket with `relatedTicket: $TICKET_ID` and ask the user. **Do not** force-apply.
 
-## Step 3: build & write the Proposal
+## Step 3: submit the Proposal via POST
+
+The server validates the ops, mints the id, and persists. Do not write the
+JSON file yourself.
 
 ```bash
-PROPOSAL_ID="p-$(date -u +%Y-%m-%d)-$(uuidgen | cut -c1-8)"
-TMP=$(mktemp)
-cat > "$TMP" <<EOF
-{
-  "id": "$PROPOSAL_ID",
-  "workspaceId": "$TELOS_WORKSPACE_ID",
-  "status": "pending",
-  "operations": $RESOLUTION,
-  "generatedBy": "telos-clarify",
-  "generatedAt": "$(date -u -Iseconds)",
-  "rationale": "Materialised from ClarifyTicket $TICKET_ID, candidate $SELECTED."
-}
-EOF
-mv "$TMP" "$TELOS_WORKSPACE/artifacts/proposals/pending/$PROPOSAL_ID.json"
+BODY=$(jq -n \
+  --argjson ops "$RESOLUTION" \
+  --arg rat "Materialised from ClarifyTicket $TICKET_ID, candidate $SELECTED." \
+  '{ operations: $ops, generatedBy: "telos-clarify", rationale: $rat }')
+
+RESPONSE=$(curl -sS -X POST "$TELOS_API_URL/workspaces/$TELOS_WORKSPACE_ID/proposals" \
+  -H 'Content-Type: application/json' \
+  -d "$BODY" \
+  -w '\n__HTTP_STATUS__:%{http_code}')
+STATUS=$(echo "$RESPONSE" | grep -o '__HTTP_STATUS__:[0-9]*' | cut -d: -f2)
+BODY_JSON=$(echo "$RESPONSE" | sed 's/__HTTP_STATUS__:[0-9]*//')
+PROPOSAL_ID=$(echo "$BODY_JSON" | jq -r '.id')
 ```
 
-## Step 4: mark the ticket applied
+If `STATUS=400` with `code: "TELOS-VAL"`, look at `BODY_JSON.issues` and decide:
 
-Move the ticket file from `answered/` to `applied/` and stamp the `proposalId`:
+- The candidate's ops violate an invariant the user couldn't have foreseen
+  (e.g. removes a node still referenced) → write a **new** ClarifyTicket
+  asking how to proceed; **do not** force-resend.
+- The candidate's ops are valid but a sibling op also in `$RESOLUTION` is
+  bad → only happens if you injected supplementary ops in Step 2; revisit.
+
+## Step 4: mark the ticket applied (interim)
+
+There is not yet a server endpoint for "this ticket was materialised into a
+proposal" (we only have `POST /clarify/:id/answer` which is for the human
+approving + applying directly). Until that endpoint exists, move the file
+manually:
 
 ```bash
 TICKET_PATH="$TELOS_WORKSPACE/artifacts/clarify/answered/$TICKET_ID.json"
@@ -102,6 +114,9 @@ echo "$UPDATED" > "$TMP"
 mv "$TMP" "$TELOS_WORKSPACE/artifacts/clarify/applied/$TICKET_ID.json"
 rm -f "$TICKET_PATH"
 ```
+
+TODO(server): replace this with `PATCH /clarify/:id { proposalId }` so the
+skill never touches `artifacts/clarify/` directly.
 
 # Output
 
@@ -117,14 +132,14 @@ Processed N tickets: M proposals produced, K new clarify tickets raised, L skipp
 
 # Completion Checklist
 
-- [ ] Every `answered` ticket has an outcome (proposal written, new clarify raised, or skipped with reason)
+- [ ] Every `answered` ticket has an outcome (proposal submitted, new clarify raised, or skipped with reason)
 - [ ] Each produced Proposal's `rationale` cites the source ticket id + candidate id
-- [ ] Each processed ticket moved from `answered/` to `applied/` with `proposalId` stamped
-- [ ] All file writes use `mv tmp final` atomic pattern
+- [ ] Each processed ticket moved from `answered/` to `applied/` with `proposalId` stamped (Step 4)
 - [ ] Final stdout lists each ticket's outcome
 
 # Notes
 
+- Proposals are created via `POST /proposals` (server mints id + validates). **Do not** write proposal JSON directly to disk.
 - **Do not modify** `operations` except to preserve invariants (don't change user intent)
 - **Never use em-dashes (`—`) or en-dashes (`–`) in output text** (proposal rationale, new clarify candidate descriptions, etc.). Use periods, colons, commas, or parentheses instead
 - If a candidate's `resolution` is an empty array (user picked an option that has no graph impact) → do **not** produce a Proposal; move ticket to `applied/` as a record only
