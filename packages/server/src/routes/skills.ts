@@ -1,16 +1,14 @@
 import type {
-  RunRepository,
   SkillRegistry,
   SkillRunner,
   Workspace,
   WorkspaceRepository,
 } from '@telos/core'
-import type { RunRecord, SkillId } from '@telos/schema'
+import type { SkillId } from '@telos/schema'
 import { zValidator } from '@hono/zod-validator'
 import { NotFoundError } from '@telos/core'
 import { SkillId as SkillIdSchema, WorkspaceId } from '@telos/schema'
 import { Hono } from 'hono'
-import { streamSSE } from 'hono/streaming'
 import { z } from 'zod'
 
 const RunBodySchema = z.object({
@@ -23,7 +21,6 @@ export interface SkillsRouterDeps {
   readonly skillRegistry: SkillRegistry
   readonly skillRunner: SkillRunner
   readonly workspaceRepository: WorkspaceRepository
-  readonly runRepository: RunRepository
 }
 
 export function createSkillsRouter(deps: SkillsRouterDeps): Hono {
@@ -44,43 +41,18 @@ export function createSkillsRouter(deps: SkillsRouterDeps): Hono {
     return context.json(manifest.toData())
   })
 
+  // Fire-and-forget run. The subprocess + event drain runs in the background;
+  // events are persisted to JSONL and broadcast to subscribers regardless of
+  // whether the client stays connected. The client tails progress via
+  // `GET /workspaces/:ws/runs/:runId/events`, which can be opened and closed
+  // freely without affecting the run.
   router.post('/:skillId/run', zValidator('json', RunBodySchema), async (context) => {
     const workspace = await loadWorkspaceForRequest(context.req.param('workspaceId'), deps.workspaceRepository)
     const skillId = SkillIdSchema.parse(context.req.param('skillId'))
     const { args, resumeSessionId } = context.req.valid('json')
-
-    return streamSSE(context, async (stream) => {
-      const options = resumeSessionId ? { resumeSessionId } : undefined
-      let record: RunRecord | undefined
-      for await (const event of deps.skillRunner.run(workspace, skillId as SkillId, args, options)) {
-        if (event.type === 'started') {
-          record = {
-            runId: event.runId,
-            workspaceId: workspace.id,
-            skillId: event.skillId,
-            args: event.args,
-            resumed: event.resumed,
-            startedAt: event.at,
-            ...(resumeSessionId ? { sessionId: resumeSessionId } : {}),
-          }
-          await deps.runRepository.saveRecord(workspace, record)
-        }
-        if (record)
-          await deps.runRepository.appendEvent(workspace, record.runId, event)
-        if (event.type === 'session-started' && record) {
-          record = { ...record, sessionId: event.sessionId }
-          await deps.runRepository.saveRecord(workspace, record)
-        }
-        if (event.type === 'completed' && record) {
-          record = { ...record, completedAt: event.at, exitCode: event.exitCode }
-          await deps.runRepository.saveRecord(workspace, record)
-        }
-        await stream.writeSSE({
-          event: event.type,
-          data: JSON.stringify(event),
-        })
-      }
-    })
+    const options = resumeSessionId ? { resumeSessionId } : undefined
+    const runId = await deps.skillRunner.start(workspace, skillId as SkillId, args, options)
+    return context.json({ runId }, 202)
   })
 
   return router

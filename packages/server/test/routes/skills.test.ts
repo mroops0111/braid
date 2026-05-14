@@ -18,6 +18,7 @@ import { createApp } from '../../src/app.js'
 import { composeApp } from '../../src/composition.js'
 import { ClaudeCodeAgentBinding } from '../../src/infrastructure/agent/ClaudeCodeAgentBinding.js'
 import { SubprocessSkillRunner } from '../../src/infrastructure/agent/SubprocessSkillRunner.js'
+import { FsRunRepository } from '../../src/infrastructure/fs/FsRunRepository.js'
 import { createMockSpawn } from '../helpers/mockSpawn.js'
 
 const descriptor: AgentBindingDescriptor = {
@@ -87,6 +88,7 @@ describe('skill routes', () => {
       skillRegistry,
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
+      runRepository: new FsRunRepository(),
       spawn,
     })
     const deps = composeApp({ skillRegistry, skillRunner })
@@ -100,7 +102,7 @@ describe('skill routes', () => {
     expect(body.items[0].id).toBe('ask')
   })
 
-  it('POST /workspaces/:ws/skills/:id/run streams SSE events', async () => {
+  it('POST /workspaces/:ws/skills/:id/run returns 202 + runId; events come via /runs/:id/events', async () => {
     const rootPath = (await mkdtemp(join(tmpdir(), 'telos-skill-route-'))) as AbsolutePath
     const workspace = makeWorkspace(rootPath)
     const { spawn } = createMockSpawn([{
@@ -114,6 +116,7 @@ describe('skill routes', () => {
       skillRegistry,
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
+      runRepository: new FsRunRepository(),
       spawn,
     })
     const deps = composeApp({ skillRegistry, skillRunner })
@@ -126,13 +129,10 @@ describe('skill routes', () => {
       body: JSON.stringify({ args: 'what is voidTask' }),
     })
 
-    expect(response.status).toBe(200)
-    expect(response.headers.get('Content-Type')).toContain('text/event-stream')
-
-    const text = await response.text()
-    expect(text).toContain('event: started')
-    expect(text).toContain('event: message')
-    expect(text).toContain('event: completed')
+    expect(response.status).toBe(202)
+    const body = await response.json() as { runId: string }
+    expect(typeof body.runId).toBe('string')
+    expect(body.runId.length).toBeGreaterThan(0)
   })
 
   it('returns 404 when workspace is not registered', async () => {
@@ -142,6 +142,7 @@ describe('skill routes', () => {
       skillRegistry,
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
+      runRepository: new FsRunRepository(),
       spawn,
     })
     const deps = composeApp({ skillRegistry, skillRunner })

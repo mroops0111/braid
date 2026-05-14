@@ -1,12 +1,14 @@
 import type {
   AgentBinding,
   RunRepository,
+  SkillEventListener,
   SkillRegistry,
   SkillRunner,
   SkillRunOptions,
+  SkillRunSubscription,
   Workspace,
 } from '@telos/core'
-import type { AbsolutePath, SkillEvent, SkillId, SkillRunId } from '@telos/schema'
+import type { AbsolutePath, RunRecord, SkillEvent, SkillId, SkillRunId } from '@telos/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import { mkdir, rm, symlink } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -33,38 +35,46 @@ export interface SubprocessSkillRunnerDeps {
   readonly skillRegistry: SkillRegistry
   readonly agentBinding: AgentBinding
   readonly apiUrl: string
+  /** Required: runs persist their event log here as the source of truth for replays. */
+  readonly runRepository: RunRepository
   readonly spawn?: SpawnFn
   readonly clock?: () => string
   /** Extra directories symlinked alongside skills (e.g. shared reference docs). */
   readonly referenceDirs?: readonly SkillReferenceDir[]
   /** Delete the per-run session directory after the run. Default `true`. */
   readonly cleanupSession?: boolean
-  /**
-   * Optional. When provided, lets the runner recover a session dir after a
-   * server restart by scanning persisted run records for the matching
-   * sessionId. Without it, only the in-memory map serves resumes.
-   */
-  readonly runRepository?: RunRepository
 }
 
+interface ActiveRun {
+  readonly workspace: Workspace
+  readonly child: ChildProcess
+}
+
+/**
+ * Spawns a claude subprocess per run and tees its event stream to:
+ *   1. The persisted JSONL log via `RunRepository.appendEvent`.
+ *   2. In-memory subscribers (HTTP /runs/:id/events tailers, tests).
+ *
+ * The HTTP client connection is decoupled from the subprocess lifecycle:
+ * `start()` returns the runId immediately, the drain runs as a background
+ * task, and the event stream survives any number of client reconnects.
+ */
 export class SubprocessSkillRunner implements SkillRunner {
-  private readonly running = new Map<SkillRunId, ChildProcess>()
-  /**
-   * sessionId → absolute session-dir path. Claude stores per-cwd conversation
-   * state, so a follow-up turn must spawn from the same cwd as the first one.
-   * We populate this once the first turn's `session-started` event arrives,
-   * and look it up on subsequent runs that pass `resumeSessionId`.
-   */
+  private readonly running = new Map<SkillRunId, ActiveRun>()
+  /** sessionId → cwd for resuming. claude needs the same cwd between turns. */
   private readonly sessionDirs = new Map<string, string>()
+  private readonly subscribers = new Map<SkillRunId, Set<SkillEventListener>>()
+  /** How many events have been emitted (and persisted) per run so far. */
+  private readonly positions = new Map<SkillRunId, number>()
 
   constructor(private readonly deps: SubprocessSkillRunnerDeps) {}
 
-  async *run(
+  async start(
     workspace: Workspace,
     skillId: SkillId,
     args: string,
     options?: SkillRunOptions,
-  ): AsyncIterable<SkillEvent> {
+  ): Promise<SkillRunId> {
     const manifest = await this.deps.skillRegistry.get(workspace, skillId)
     const runId = newSkillRunId()
     const sessionDir = await this.resolveSessionDir(workspace, runId, options?.resumeSessionId)
@@ -81,66 +91,72 @@ export class SubprocessSkillRunner implements SkillRunner {
 
     const spawnFn = this.deps.spawn ?? (await defaultSpawn())
     // TELOS_SESSION_DIR resolves ambiguity in SKILL.md paths: claude sees
-    // both `TELOS_WORKSPACE` (real workspace root) and a cwd that lives
-    // inside it, and otherwise guesses wrong about which one `.claude/...`
-    // is rooted in.
+    // both `TELOS_WORKSPACE` and a cwd that lives inside it, and would
+    // otherwise guess wrong about which one `.claude/skills/...` is rooted in.
     const child = spawnFn(invocation.bin, [...invocation.args], {
       cwd: sessionDir,
       env: { ...invocation.env, TELOS_SESSION_DIR: sessionDir },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
-    this.running.set(runId, child)
+    this.running.set(runId, { workspace, child })
 
-    let capturedSessionId: string | null = options?.resumeSessionId ?? null
-    try {
-      yield SkillEventSchema.parse({
-        type: 'started',
-        runId,
-        skillId,
-        args,
-        resumed: options?.resumeSessionId !== undefined,
-        at: this.now(),
-      })
-
-      const queue = createAsyncQueue<SkillEvent>()
-      const buffers = attachOutputBuffers(child, queue.push, () => this.now())
-
-      child.on('close', (code) => {
-        buffers.flush()
-        queue.push(SkillEventSchema.parse({
-          type: 'completed',
-          runId,
-          exitCode: code ?? 0,
-          at: this.now(),
-        }))
-        queue.end()
-      })
-
-      for await (const event of queue.iterate()) {
-        if (event.type === 'session-started') {
-          capturedSessionId = event.sessionId
-          this.sessionDirs.set(event.sessionId, sessionDir)
-        }
-        yield event
-      }
+    // Persist the started record up front so listing endpoints see the run
+    // immediately, even before any subprocess output.
+    const startedAt = this.now()
+    const initialRecord: RunRecord = {
+      runId,
+      workspaceId: workspace.id,
+      skillId,
+      args,
+      resumed: options?.resumeSessionId !== undefined,
+      startedAt,
+      ...(options?.resumeSessionId ? { sessionId: options.resumeSessionId } : {}),
     }
-    finally {
-      this.running.delete(runId)
-      // Keep the session dir on disk if a session id was captured: claude
-      // stores conversation state per-cwd, so the dir must survive between
-      // turns. The dir is GC'd when the user starts a New Conversation via
-      // `forgetSession(sessionId)`.
-      const keepForResume = capturedSessionId !== null
-      if (this.deps.cleanupSession !== false && !keepForResume) {
-        await rm(sessionDir, { recursive: true, force: true })
-      }
+    await this.deps.runRepository.saveRecord(workspace, initialRecord)
+
+    // Fire-and-forget the drain so the HTTP request that called start()
+    // can return immediately.
+    void this.drain({
+      workspace,
+      runId,
+      child,
+      skillId,
+      args,
+      sessionDir,
+      resumeSessionId: options?.resumeSessionId,
+      startedAt,
+      initialRecord,
+    })
+
+    return runId
+  }
+
+  subscribe(runId: SkillRunId, listener: SkillEventListener): SkillRunSubscription {
+    const set = this.subscribers.get(runId) ?? new Set<SkillEventListener>()
+    set.add(listener)
+    this.subscribers.set(runId, set)
+    return {
+      unsubscribe: () => {
+        set.delete(listener)
+        if (set.size === 0)
+          this.subscribers.delete(runId)
+      },
+      positionAtSubscribe: this.positions.get(runId) ?? 0,
     }
   }
 
-  /**
-   * Drop the session-dir mapping for a session id (and remove the dir if it
-   * still belongs to us). Called by the "New Conversation" flow.
-   */
+  isActive(runId: SkillRunId): boolean {
+    return this.running.has(runId)
+  }
+
+  async cancel(runId: SkillRunId): Promise<void> {
+    const validated = SkillRunIdSchema.parse(runId)
+    const active = this.running.get(validated)
+    if (!active)
+      throw new NotFoundError(`SkillRun "${validated}" not active`)
+    active.child.kill('SIGTERM')
+  }
+
   async forgetSession(sessionId: string): Promise<void> {
     const dir = this.sessionDirs.get(sessionId)
     if (!dir)
@@ -150,31 +166,97 @@ export class SubprocessSkillRunner implements SkillRunner {
       await rm(dir, { recursive: true, force: true })
   }
 
-  async *resume(_workspace: Workspace, runId: SkillRunId): AsyncIterable<SkillEvent> {
-    const child = this.running.get(runId)
-    if (!child) {
-      throw new NotFoundError(`SkillRun "${runId}" not active`)
-    }
-    yield SkillEventSchema.parse({
-      type: 'message',
-      text: `Resumed run "${runId}". Streaming live output not implemented.`,
-    })
-  }
+  private async drain(input: {
+    workspace: Workspace
+    runId: SkillRunId
+    child: ChildProcess
+    skillId: SkillId
+    args: string
+    sessionDir: string
+    resumeSessionId: string | undefined
+    startedAt: string
+    initialRecord: RunRecord
+  }): Promise<void> {
+    let record = input.initialRecord
+    let capturedSessionId: string | null = input.resumeSessionId ?? null
 
-  async cancel(runId: SkillRunId): Promise<void> {
-    const validated = SkillRunIdSchema.parse(runId)
-    const child = this.running.get(validated)
-    if (!child)
-      throw new NotFoundError(`SkillRun "${validated}" not active`)
-    child.kill('SIGTERM')
-    this.running.delete(validated)
+    try {
+      await this.emit(input.workspace, input.runId, SkillEventSchema.parse({
+        type: 'started',
+        runId: input.runId,
+        skillId: input.skillId,
+        args: input.args,
+        resumed: input.resumeSessionId !== undefined,
+        at: input.startedAt,
+      }))
+
+      const queue = createAsyncQueue<SkillEvent>()
+      const buffers = attachOutputBuffers(input.child, queue.push, () => this.now())
+
+      input.child.on('close', (code) => {
+        buffers.flush()
+        queue.push(SkillEventSchema.parse({
+          type: 'completed',
+          runId: input.runId,
+          exitCode: code ?? 0,
+          at: this.now(),
+        }))
+        queue.end()
+      })
+
+      for await (const event of queue.iterate()) {
+        if (event.type === 'session-started') {
+          capturedSessionId = event.sessionId
+          this.sessionDirs.set(event.sessionId, input.sessionDir)
+          record = { ...record, sessionId: event.sessionId }
+          await this.deps.runRepository.saveRecord(input.workspace, record)
+        }
+        if (event.type === 'completed') {
+          record = { ...record, completedAt: event.at, exitCode: event.exitCode }
+          await this.deps.runRepository.saveRecord(input.workspace, record)
+        }
+        await this.emit(input.workspace, input.runId, event)
+      }
+    }
+    finally {
+      this.running.delete(input.runId)
+      // Drop subscribers once the run is fully drained so they can finish their
+      // own loops (e.g. SSE writers waiting on iteration end).
+      this.subscribers.delete(input.runId)
+      // Keep the session dir on disk if a session id was captured: claude
+      // stores conversation state per-cwd, so the dir must survive between
+      // turns. The dir is GC'd when the user starts a New Conversation via
+      // `forgetSession(sessionId)`.
+      const keepForResume = capturedSessionId !== null
+      if (this.deps.cleanupSession !== false && !keepForResume) {
+        await rm(input.sessionDir, { recursive: true, force: true }).catch(() => {})
+      }
+    }
   }
 
   /**
-   * Picks the cwd to spawn claude in: a cached dir for `resumeSessionId`
-   * (hot map first, then a scan of persisted run records so a server
-   * restart can still recover), else a fresh dir keyed by `runId`.
+   * Persist the event to JSONL, then broadcast to live subscribers.
+   * Persistence happens first so a subscriber that arrived just before this
+   * emit is guaranteed to receive an event whose `position` is strictly
+   * greater than `positionAtSubscribe`.
    */
+  private async emit(workspace: Workspace, runId: SkillRunId, event: SkillEvent): Promise<void> {
+    await this.deps.runRepository.appendEvent(workspace, runId, event)
+    const next = (this.positions.get(runId) ?? 0) + 1
+    this.positions.set(runId, next)
+    const listeners = this.subscribers.get(runId)
+    if (!listeners)
+      return
+    for (const listener of listeners) {
+      try {
+        listener(event)
+      }
+      catch {
+        // A buggy listener mustn't break delivery to others.
+      }
+    }
+  }
+
   private async resolveSessionDir(
     workspace: Workspace,
     runId: SkillRunId,
@@ -194,27 +276,13 @@ export class SubprocessSkillRunner implements SkillRunner {
   }
 
   private async recoverSessionDir(workspace: Workspace, sessionId: string): Promise<string | undefined> {
-    if (!this.deps.runRepository)
-      return undefined
     const records = await this.deps.runRepository.listRecords(workspace)
-    // The very first turn of a session owns the dir; later turns share it.
     const first = records
       .filter(r => r.sessionId === sessionId && !r.resumed)
       .sort((a, b) => a.startedAt.localeCompare(b.startedAt))[0]
     return first ? sessionDirPath(workspace.rootPath, first.runId) : undefined
   }
 
-  /**
-   * Materialises a per-run session directory containing:
-   *
-   *   <workspace>/.telos-sessions/<runId>/
-   *     .claude/skills/<slash-name>/   → symlink per skill manifest
-   *     .claude/skills/<ref-name>/     → symlink per referenceDir (e.g. shared/)
-   *
-   * The spawn cwd points here so Claude Code's slash command resolver
-   * finds every skill registered with the workspace, and SKILL.md files
-   * can use `.claude/skills/shared/...` paths reliably.
-   */
   private async buildSessionDir(workspace: Workspace, runId: SkillRunId): Promise<string> {
     const sessionDir = sessionDirPath(workspace.rootPath, runId)
     const skillsDir = join(sessionDir, '.claude', 'skills')

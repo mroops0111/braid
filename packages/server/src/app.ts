@@ -56,7 +56,6 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Hono
       skillRegistry: deps.skillRegistry,
       skillRunner: deps.skillRunner,
       workspaceRepository: deps.workspaceRepository,
-      runRepository: deps.runRepository,
     }))
     workspaceScoped.route('/runs', createRunsRouter({
       runRepository: deps.runRepository,

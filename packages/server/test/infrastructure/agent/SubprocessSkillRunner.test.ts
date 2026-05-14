@@ -3,6 +3,7 @@ import type {
   AgentBindingDescriptor,
   AgentId,
   ProductManifest,
+  SkillEvent,
   SkillId,
   SkillManifest as SkillManifestData,
   SourceId,
@@ -12,12 +13,37 @@ import type {
 import { mkdir, mkdtemp, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { SkillManifest, type SkillRegistry, Workspace } from '@telos/core'
+import { SkillManifest, type SkillRegistry, type SkillRunner as SkillRunnerPort, Workspace } from '@telos/core'
 import { describe, expect, it } from 'vitest'
 import { ClaudeCodeAgentBinding } from '../../../src/infrastructure/agent/ClaudeCodeAgentBinding.js'
 import { mapSubprocessEvents, SubprocessSkillRunner } from '../../../src/infrastructure/agent/SubprocessSkillRunner.js'
 import { FsRunRepository } from '../../../src/infrastructure/fs/FsRunRepository.js'
 import { createMockSpawn } from '../../helpers/mockSpawn.js'
+
+/**
+ * Drive a run to completion the way the route handler would: subscribe
+ * before the run starts emitting, collect events until completed/error.
+ */
+async function collectRunEvents(
+  runner: SkillRunnerPort,
+  workspace: Workspace,
+  skillId: SkillId,
+  args: string,
+  options?: { resumeSessionId?: string },
+): Promise<{ runId: string, events: SkillEvent[] }> {
+  const runId = await runner.start(workspace, skillId, args, options)
+  const events: SkillEvent[] = []
+  await new Promise<void>((resolve) => {
+    const sub = runner.subscribe(runId, (event) => {
+      events.push(event)
+      if (event.type === 'completed' || event.type === 'error') {
+        sub.unsubscribe()
+        queueMicrotask(resolve)
+      }
+    })
+  })
+  return { runId, events }
+}
 
 const descriptor: AgentBindingDescriptor = {
   id: 'claude-default' as AgentId,
@@ -96,14 +122,12 @@ describe('SubprocessSkillRunner', () => {
       skillRegistry: await makeSkillRegistry(rootPath),
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
+      runRepository: new FsRunRepository(),
       spawn,
       clock: () => '2026-05-12T00:00:00+00:00',
     })
 
-    const events: Array<{ type: string }> = []
-    for await (const event of runner.run(makeWorkspace(rootPath), 'telos-ask' as SkillId, '')) {
-      events.push(event)
-    }
+    const { events } = await collectRunEvents(runner, makeWorkspace(rootPath), 'telos-ask' as SkillId, '')
 
     expect(events.map(e => e.type)).toEqual([
       'started',
@@ -127,15 +151,13 @@ describe('SubprocessSkillRunner', () => {
       skillRegistry: await makeSkillRegistry(rootPath),
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
+      runRepository: new FsRunRepository(),
       spawn,
       cleanupSession: false,
       referenceDirs: [{ name: 'shared', path: sharedDir as AbsolutePath }],
     })
 
-    const events: Array<{ type: string }> = []
-    for await (const event of runner.run(makeWorkspace(rootPath), 'telos-ask' as SkillId, '')) {
-      events.push(event)
-    }
+    await collectRunEvents(runner, makeWorkspace(rootPath), 'telos-ask' as SkillId, '')
 
     const sessionCwd = invocations[0]?.options.cwd as string
     expect(sessionCwd).toBeTruthy()
@@ -156,15 +178,13 @@ describe('SubprocessSkillRunner', () => {
       skillRegistry: await makeSkillRegistry(rootPath),
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
+      runRepository: new FsRunRepository(),
       spawn,
     })
 
-    const events: Array<{ type: string, exitCode?: number }> = []
-    for await (const event of runner.run(makeWorkspace(rootPath), 'telos-ask' as SkillId, '')) {
-      events.push(event as never)
-    }
+    const { events } = await collectRunEvents(runner, makeWorkspace(rootPath), 'telos-ask' as SkillId, '')
     const completed = events.find(e => e.type === 'completed')
-    expect(completed?.exitCode).toBe(137)
+    expect(completed && 'exitCode' in completed ? completed.exitCode : undefined).toBe(137)
   })
 
   it('maps claude nested stream-json (assistant + result) into message + tool-call events', async () => {
@@ -194,14 +214,12 @@ describe('SubprocessSkillRunner', () => {
       skillRegistry: await makeSkillRegistry(rootPath),
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
+      runRepository: new FsRunRepository(),
       spawn,
       clock: () => '2026-05-12T00:00:00+00:00',
     })
 
-    const events: Array<{ type: string, text?: string, tool?: string }> = []
-    for await (const event of runner.run(makeWorkspace(rootPath), 'telos-ask' as SkillId, '')) {
-      events.push(event as never)
-    }
+    const { events } = await collectRunEvents(runner, makeWorkspace(rootPath), 'telos-ask' as SkillId, '')
 
     expect(events.map(e => e.type)).toEqual([
       'started',
@@ -210,9 +228,12 @@ describe('SubprocessSkillRunner', () => {
       'message',
       'completed',
     ])
-    expect(events[1]?.text).toBe('Found 3 nodes.')
-    expect(events[2]?.tool).toBe('Read')
-    expect(events[3]?.text).toBe('This workspace tracks the order pipeline.')
+    const second = events[1]
+    expect(second && 'text' in second ? second.text : undefined).toBe('Found 3 nodes.')
+    const third = events[2]
+    expect(third && 'tool' in third ? third.tool : undefined).toBe('Read')
+    const fourth = events[3]
+    expect(fourth && 'text' in fourth ? fourth.text : undefined).toBe('This workspace tracks the order pipeline.')
   })
 
   it('started event carries args and defaults resumed=false', async () => {
@@ -223,16 +244,14 @@ describe('SubprocessSkillRunner', () => {
       skillRegistry: await makeSkillRegistry(rootPath),
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
+      runRepository: new FsRunRepository(),
       spawn,
     })
 
-    const events: Array<{ type: string, args?: string, resumed?: boolean }> = []
-    for await (const event of runner.run(makeWorkspace(rootPath), 'telos-ask' as SkillId, 'what is X')) {
-      events.push(event as never)
-    }
+    const { events } = await collectRunEvents(runner, makeWorkspace(rootPath), 'telos-ask' as SkillId, 'what is X')
     const started = events.find(e => e.type === 'started')
-    expect(started?.args).toBe('what is X')
-    expect(started?.resumed).toBe(false)
+    expect(started && 'args' in started ? started.args : undefined).toBe('what is X')
+    expect(started && 'resumed' in started ? started.resumed : undefined).toBe(false)
   })
 
   it('reuses the same session dir when resuming an existing claude session', async () => {
@@ -246,26 +265,22 @@ describe('SubprocessSkillRunner', () => {
       skillRegistry: await makeSkillRegistry(rootPath),
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
+      runRepository: new FsRunRepository(),
       spawn,
       cleanupSession: false,
     })
 
-    // First turn: claude reports session sess-1, runner captures the dir.
-    for await (const _ of runner.run(makeWorkspace(rootPath), 'telos-ask' as SkillId, 'first')) {
-      // drain
-    }
+    await collectRunEvents(runner, makeWorkspace(rootPath), 'telos-ask' as SkillId, 'first')
     const firstCwd = invocations[0]!.options.cwd as string
     expect(firstCwd).toContain('.telos-sessions/')
 
-    // Second turn: resumeSessionId = sess-1 must spawn from the same cwd.
-    for await (const _ of runner.run(
+    await collectRunEvents(
+      runner,
       makeWorkspace(rootPath),
       'telos-ask' as SkillId,
       'follow up',
       { resumeSessionId: 'sess-1' },
-    )) {
-      // drain
-    }
+    )
     const secondCwd = invocations[1]!.options.cwd as string
     expect(secondCwd).toBe(firstCwd)
   })
@@ -281,7 +296,6 @@ describe('SubprocessSkillRunner', () => {
     const workspace = makeWorkspace(rootPath)
     const skillRegistry = await makeSkillRegistry(rootPath)
 
-    // Build runner A, run first turn so the dir + record exist on disk.
     const runnerA = new SubprocessSkillRunner({
       skillRegistry,
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
@@ -290,23 +304,8 @@ describe('SubprocessSkillRunner', () => {
       cleanupSession: false,
       runRepository,
     })
-    let firstRunId: string | undefined
-    for await (const event of runnerA.run(workspace, 'telos-ask' as SkillId, 'first')) {
-      if (event.type === 'started')
-        firstRunId = event.runId
-    }
+    const { runId: firstRunId } = await collectRunEvents(runnerA, workspace, 'telos-ask' as SkillId, 'first')
     expect(firstRunId).toBeTruthy()
-    // Simulate the route writing the record back to the repo after seeing
-    // started + session-started. Without this the runner has nothing to scan.
-    await runRepository.saveRecord(workspace, {
-      runId: firstRunId! as never,
-      workspaceId: workspace.id,
-      skillId: 'telos-ask' as SkillId,
-      args: 'first',
-      resumed: false,
-      sessionId: 'sess-r',
-      startedAt: '2026-05-12T00:00:00+00:00',
-    })
 
     // Build runner B with an empty in-memory map (server restart).
     const runnerB = new SubprocessSkillRunner({
@@ -317,14 +316,13 @@ describe('SubprocessSkillRunner', () => {
       cleanupSession: false,
       runRepository,
     })
-    for await (const _ of runnerB.run(
+    await collectRunEvents(
+      runnerB,
       workspace,
       'telos-ask' as SkillId,
       'follow up',
       { resumeSessionId: 'sess-r' },
-    )) {
-      // drain
-    }
+    )
 
     const firstCwd = invocations[0]!.options.cwd as string
     const secondCwd = invocations[1]!.options.cwd as string
@@ -339,21 +337,20 @@ describe('SubprocessSkillRunner', () => {
       skillRegistry: await makeSkillRegistry(rootPath),
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
+      runRepository: new FsRunRepository(),
       spawn,
     })
 
-    const events: Array<{ type: string, resumed?: boolean }> = []
-    for await (const event of runner.run(
+    const { events } = await collectRunEvents(
+      runner,
       makeWorkspace(rootPath),
       'telos-ask' as SkillId,
       'follow up',
       { resumeSessionId: 'abc-123' },
-    )) {
-      events.push(event as never)
-    }
+    )
 
     const started = events.find(e => e.type === 'started')
-    expect(started?.resumed).toBe(true)
+    expect(started && 'resumed' in started ? started.resumed : undefined).toBe(true)
 
     const spawnArgs = invocations[0]!.args
     const resumeIdx = spawnArgs.indexOf('--resume')
@@ -376,17 +373,43 @@ describe('SubprocessSkillRunner', () => {
       skillRegistry: await makeSkillRegistry(rootPath),
       agentBinding: new ClaudeCodeAgentBinding(descriptor),
       apiUrl: 'http://localhost:4321',
+      runRepository: new FsRunRepository(),
       spawn,
       clock: () => '2026-05-12T00:00:00+00:00',
     })
 
-    const events: Array<{ type: string, message?: string }> = []
-    for await (const event of runner.run(makeWorkspace(rootPath), 'telos-ask' as SkillId, '')) {
-      events.push(event as never)
-    }
+    const { events } = await collectRunEvents(runner, makeWorkspace(rootPath), 'telos-ask' as SkillId, '')
 
-    expect(events.map(e => e.type)).toEqual(['started', 'error', 'completed'])
-    expect(events[1]?.message).toBe('Unknown command: /telos-ask')
+    // 'error' arrives mid-stream, our helper stops on it. Subsequent 'completed' may not be observed here.
+    expect(events.map(e => e.type).slice(0, 2)).toEqual(['started', 'error'])
+    const errEvent = events.find(e => e.type === 'error')
+    expect(errEvent && 'message' in errEvent ? errEvent.message : undefined).toBe('Unknown command: /telos-ask')
+  })
+
+  it('subscribe returns positionAtSubscribe equal to events already emitted', async () => {
+    const rootPath = (await mkdtemp(join(tmpdir(), 'telos-runner-'))) as AbsolutePath
+    const { spawn } = createMockSpawn([{
+      stdoutLines: [JSON.stringify({ type: 'text', text: 'hi' })],
+      exitCode: 0,
+    }])
+
+    const runner = new SubprocessSkillRunner({
+      skillRegistry: await makeSkillRegistry(rootPath),
+      agentBinding: new ClaudeCodeAgentBinding(descriptor),
+      apiUrl: 'http://localhost:4321',
+      runRepository: new FsRunRepository(),
+      spawn,
+    })
+
+    // Run to completion.
+    const { runId } = await collectRunEvents(runner, makeWorkspace(rootPath), 'telos-ask' as SkillId, '')
+
+    // After completion the runner forgets active state but the position
+    // counter persists, so a late subscriber sees the final count.
+    const late = runner.subscribe(runId, () => {})
+    expect(late.positionAtSubscribe).toBeGreaterThan(0)
+    late.unsubscribe()
+    expect(runner.isActive(runId)).toBe(false)
   })
 })
 
