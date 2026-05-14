@@ -160,6 +160,9 @@ importers:
       '@telos/core':
         specifier: workspace:*
         version: link:../core
+      '@telos/ontology-ddd':
+        specifier: workspace:*
+        version: link:../../plugins/ontology-ddd
       '@telos/schema':
         specifier: workspace:*
         version: link:../schema
@@ -298,6 +301,9 @@ importers:
 
   plugins/ontology-ddd:
     dependencies:
+      '@telos/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@telos/schema':
         specifier: workspace:*
         version: link:../../packages/schema

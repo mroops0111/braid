@@ -3,7 +3,14 @@ import type { AppDependencies } from './composition.js'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import process from 'node:process'
-import { builtinSkillsRoot, NotFoundError } from '@telos/core'
+import {
+  builtinSkillsRoot,
+  EvidenceValidator,
+  NotFoundError,
+  OrphanEdgeValidator,
+  PluginRegistry,
+} from '@telos/core'
+import { DDDOntology, DDDOntologyValidator } from '@telos/ontology-ddd'
 import { KuzuModelRepository } from '@telos/storage-kuzu'
 import { composeApp } from './composition.js'
 import { ClaudeCodeAgentBinding } from './infrastructure/agent/ClaudeCodeAgentBinding.js'
@@ -73,6 +80,13 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
 
   const runRepository = new FsRunRepository()
 
+  const pluginRegistry = new PluginRegistry()
+  const dddOntology = new DDDOntology()
+  pluginRegistry.register(dddOntology)
+  pluginRegistry.register(new EvidenceValidator())
+  pluginRegistry.register(new OrphanEdgeValidator())
+  pluginRegistry.register(new DDDOntologyValidator(dddOntology))
+
   const skillRunner = new SubprocessSkillRunner({
     skillRegistry,
     agentBinding,
@@ -92,5 +106,6 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
     skillRegistry,
     skillRunner,
     runRepository,
+    pluginRegistry,
   })
 }
