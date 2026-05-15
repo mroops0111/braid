@@ -11,6 +11,7 @@ import type {
 import type { ModelRepository } from '../../domain/model/ModelRepository.js'
 import { NotFoundError } from '../../domain/errors.js'
 import { Model } from '../../domain/model/Model.js'
+import { paginate } from '../../domain/paginate.js'
 
 export class InMemoryModelRepository implements ModelRepository {
   private readonly models = new Map<WorkspaceId, Model>()
@@ -102,10 +103,4 @@ export class InMemoryModelRepository implements ModelRepository {
     this.models.set(workspaceId, fresh)
     return fresh
   }
-}
-
-function paginate<T>(items: readonly T[], limit?: number, offset?: number): T[] {
-  const start = offset ?? 0
-  const end = limit !== undefined ? start + limit : undefined
-  return items.slice(start, end)
 }

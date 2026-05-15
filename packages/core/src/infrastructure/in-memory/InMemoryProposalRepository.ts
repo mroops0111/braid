@@ -1,6 +1,7 @@
 import type { ProposalFilter, ProposalId } from '@telos/schema'
 import type { Proposal } from '../../domain/hitl/Proposal.js'
 import type { ProposalRepository } from '../../domain/hitl/ProposalRepository.js'
+import { paginate } from '../../domain/paginate.js'
 import { InMemoryKeyedStore } from './InMemoryKeyedStore.js'
 
 export class InMemoryProposalRepository implements ProposalRepository {
@@ -34,10 +35,4 @@ export class InMemoryProposalRepository implements ProposalRepository {
   async remove(proposalId: ProposalId): Promise<void> {
     this.store.remove(proposalId)
   }
-}
-
-function paginate<T>(items: readonly T[], limit?: number, offset?: number): T[] {
-  const start = offset ?? 0
-  const end = limit !== undefined ? start + limit : undefined
-  return items.slice(start, end)
 }

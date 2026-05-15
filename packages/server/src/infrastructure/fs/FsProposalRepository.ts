@@ -1,7 +1,7 @@
 import type { AbsolutePath, ProposalFilter, ProposalId, ProposalStatus, WorkspaceId } from '@telos/schema'
 import { rm } from 'node:fs/promises'
 import { join } from 'node:path'
-import { NotFoundError, Proposal, type ProposalRepository } from '@telos/core'
+import { NotFoundError, paginate, Proposal, type ProposalRepository } from '@telos/core'
 import { Proposal as ProposalSchema } from '@telos/schema'
 import { listJsonFiles, moveFile, readJsonFile, writeJsonFile } from './jsonFileStore.js'
 import { PROPOSAL_STATUSES, proposalsDir } from './paths.js'
@@ -88,10 +88,4 @@ export class FsProposalRepository implements ProposalRepository {
     }
     return undefined
   }
-}
-
-function paginate<T>(items: readonly T[], limit?: number, offset?: number): T[] {
-  const start = offset ?? 0
-  const end = limit !== undefined ? start + limit : undefined
-  return items.slice(start, end)
 }

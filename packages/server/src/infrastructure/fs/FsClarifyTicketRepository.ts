@@ -6,7 +6,7 @@ import type {
   WorkspaceId,
 } from '@telos/schema'
 import { join } from 'node:path'
-import { ClarifyTicket, type ClarifyTicketRepository, NotFoundError } from '@telos/core'
+import { ClarifyTicket, type ClarifyTicketRepository, NotFoundError, paginate } from '@telos/core'
 import { ClarifyTicket as ClarifyTicketSchema } from '@telos/schema'
 import { listJsonFiles, moveFile, readJsonFile, writeJsonFile } from './jsonFileStore.js'
 import { CLARIFY_STATUSES, clarifyDir } from './paths.js'
@@ -79,10 +79,4 @@ export class FsClarifyTicketRepository implements ClarifyTicketRepository {
     }
     return undefined
   }
-}
-
-function paginate<T>(items: readonly T[], limit?: number, offset?: number): T[] {
-  const start = offset ?? 0
-  const end = limit !== undefined ? start + limit : undefined
-  return items.slice(start, end)
 }

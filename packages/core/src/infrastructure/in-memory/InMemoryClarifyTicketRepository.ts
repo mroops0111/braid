@@ -1,6 +1,7 @@
 import type { ClarifyFilter, ClarifyTicketId } from '@telos/schema'
 import type { ClarifyTicket } from '../../domain/hitl/ClarifyTicket.js'
 import type { ClarifyTicketRepository } from '../../domain/hitl/ClarifyTicketRepository.js'
+import { paginate } from '../../domain/paginate.js'
 import { InMemoryKeyedStore } from './InMemoryKeyedStore.js'
 
 export class InMemoryClarifyTicketRepository implements ClarifyTicketRepository {
@@ -26,10 +27,4 @@ export class InMemoryClarifyTicketRepository implements ClarifyTicketRepository 
   async save(ticket: ClarifyTicket): Promise<void> {
     this.store.set(ticket.id, ticket)
   }
-}
-
-function paginate<T>(items: readonly T[], limit?: number, offset?: number): T[] {
-  const start = offset ?? 0
-  const end = limit !== undefined ? start + limit : undefined
-  return items.slice(start, end)
 }
