@@ -11,7 +11,7 @@ import type {
 } from '@telos/schema'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { ProductManifest as ProductManifestSchema } from '@telos/schema'
+import { OntologyId, ProductManifest as ProductManifestSchema } from '@telos/schema'
 import { stringify as stringifyYaml } from 'yaml'
 import { parseMarkdownFrontmatter } from './frontmatter.js'
 
@@ -49,7 +49,7 @@ export function fillManifestDefaults(draft: ProductManifestDraft): ProductManife
     name: draft.name,
     version: draft.version ?? '0.1.0',
     ...(draft.description ? { description: draft.description } : {}),
-    ontologyId: draft.ontologyId ?? ('ddd' as never),
+    ontologyId: draft.ontologyId ?? OntologyId.parse('ddd'),
     sources: draft.sources,
     mcpServers: draft.mcpServers,
     agents: draft.agents ?? DEFAULT_AGENTS,

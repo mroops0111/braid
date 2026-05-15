@@ -1,4 +1,5 @@
 import type { SourceDescriptor } from '@telos/schema'
+import { asAbsolutePath, asLoaderKind, asMcpServerId, asSourceId } from './brands'
 
 export interface SourceDraft {
   role: 'intent' | 'code'
@@ -17,27 +18,27 @@ export function nameToId(name: string): string {
 }
 
 export function toSourceDescriptor(draft: SourceDraft): SourceDescriptor {
-  const id = nameToId(draft.name)
+  const id = asSourceId(nameToId(draft.name))
   if (draft.kind === 'mcp') {
     return {
       kind: 'mcp',
-      id: id as never,
+      id,
       role: draft.role,
       name: draft.name,
-      mcpServerId: draft.mcpServerId as never,
+      mcpServerId: asMcpServerId(draft.mcpServerId),
     }
   }
   const loader = draft.loaderKind === 'git'
-    ? { kind: 'git' as never, config: { url: draft.gitUrl, ...(draft.gitBranch ? { branch: draft.gitBranch } : {}) } }
+    ? { kind: asLoaderKind('git'), config: { url: draft.gitUrl, ...(draft.gitBranch ? { branch: draft.gitBranch } : {}) } }
     : draft.loaderKind === 'gdrive'
-      ? { kind: 'gdrive' as never, config: { folderId: draft.gdriveFolderId } }
+      ? { kind: asLoaderKind('gdrive'), config: { folderId: draft.gdriveFolderId } }
       : undefined
   return {
     kind: 'filesystem',
-    id: id as never,
+    id,
     role: draft.role,
     name: draft.name,
-    path: draft.path as never,
+    path: asAbsolutePath(draft.path),
     ...(loader ? { loader } : {}),
   }
 }

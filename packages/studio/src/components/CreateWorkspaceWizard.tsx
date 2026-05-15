@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { api } from '@/lib/api'
+import { asMcpServerId, asOntologyId, asStorageKind } from '@/lib/brands'
 import { type ErrorCase, humaniseApiError } from '@/lib/errors'
 import { queryKeys } from '@/lib/queries'
 import { toSourceDescriptor } from '@/lib/sourceDraft'
@@ -643,10 +644,10 @@ function buildDraft(input: {
   return {
     name: input.name,
     ...(input.description ? { description: input.description } : {}),
-    ontologyId: input.ontologyId as ProductManifestDraft['ontologyId'],
+    ontologyId: asOntologyId(input.ontologyId),
     sources,
     mcpServers,
-    storage: { kind: input.storageKind as never, config: {} },
+    storage: { kind: asStorageKind(input.storageKind), config: {} },
   }
 }
 
@@ -662,7 +663,7 @@ function toMcpServerConfig(draft: McpDraft): McpServerConfig {
     headers[trimmed.slice(0, colon).trim()] = trimmed.slice(colon + 1).trim()
   }
   return {
-    id: draft.id as never,
+    id: asMcpServerId(draft.id),
     transport: 'streamable-http',
     url: draft.url,
     ...(Object.keys(headers).length > 0 ? { headers } : {}),
