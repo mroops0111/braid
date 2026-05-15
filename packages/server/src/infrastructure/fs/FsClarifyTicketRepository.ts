@@ -1,14 +1,12 @@
 import type {
   AbsolutePath,
   ClarifyFilter,
-  ClarifyStatus,
   ClarifyTicketId,
   WorkspaceId,
 } from '@telos/schema'
-import { join } from 'node:path'
-import { ClarifyTicket, type ClarifyTicketRepository, NotFoundError, paginate } from '@telos/core'
+import { ClarifyTicket, type ClarifyTicketRepository, paginate } from '@telos/core'
 import { ClarifyTicket as ClarifyTicketSchema } from '@telos/schema'
-import { listJsonFiles, moveFile, readJsonFile, writeJsonFile } from './jsonFileStore.js'
+import { FsStatusedJsonRepository } from './FsStatusedJsonRepository.js'
 import { CLARIFY_STATUSES, clarifyDir } from './paths.js'
 
 export interface FsClarifyTicketRepositoryOptions {
@@ -16,67 +14,37 @@ export interface FsClarifyTicketRepositoryOptions {
 }
 
 export class FsClarifyTicketRepository implements ClarifyTicketRepository {
-  constructor(private readonly options: FsClarifyTicketRepositoryOptions) {}
+  private readonly base: FsStatusedJsonRepository<ClarifyTicket, typeof CLARIFY_STATUSES[number], ClarifyTicketId>
+
+  constructor(options: FsClarifyTicketRepositoryOptions) {
+    this.base = new FsStatusedJsonRepository(
+      {
+        entityName: 'ClarifyTicket',
+        statuses: CLARIFY_STATUSES,
+        dirFor: clarifyDir,
+        parse: raw => new ClarifyTicket(ClarifyTicketSchema.parse(raw)),
+        serialize: entity => entity.toData(),
+        idOf: entity => entity.id,
+        statusOf: entity => entity.status,
+        workspaceIdOf: entity => entity.workspaceId,
+      },
+      options.workspaceRoots,
+    )
+  }
 
   async list(filter?: ClarifyFilter): Promise<ClarifyTicket[]> {
-    const roots = await this.options.workspaceRoots()
-    const candidateWorkspaces = filter?.workspaceId
-      ? new Map([[filter.workspaceId, roots.get(filter.workspaceId)]].filter(([, path]) => path) as [WorkspaceId, AbsolutePath][])
-      : roots
-    const statuses = filter?.statuses && filter.statuses.length > 0
-      ? filter.statuses
-      : CLARIFY_STATUSES
-
-    const tickets: ClarifyTicket[] = []
-    for (const [, root] of candidateWorkspaces) {
-      for (const status of statuses) {
-        const files = await listJsonFiles(clarifyDir(root, status))
-        for (const file of files) {
-          const data = await readJsonFile<unknown>(file)
-          tickets.push(new ClarifyTicket(ClarifyTicketSchema.parse(data)))
-        }
-      }
-    }
+    const tickets = await this.base.list({
+      ...(filter?.workspaceId !== undefined ? { workspaceId: filter.workspaceId } : {}),
+      ...(filter?.statuses !== undefined ? { statuses: filter.statuses } : {}),
+    })
     return paginate(tickets, filter?.limit, filter?.offset)
   }
 
-  async load(clarifyTicketId: ClarifyTicketId): Promise<ClarifyTicket> {
-    const found = await this.locate(clarifyTicketId)
-    if (!found)
-      throw new NotFoundError(`ClarifyTicket "${clarifyTicketId}" not found`)
-    const data = await readJsonFile<unknown>(found.path)
-    return new ClarifyTicket(ClarifyTicketSchema.parse(data))
+  load(clarifyTicketId: ClarifyTicketId): Promise<ClarifyTicket> {
+    return this.base.load(clarifyTicketId)
   }
 
-  async save(ticket: ClarifyTicket): Promise<void> {
-    const roots = await this.options.workspaceRoots()
-    const root = roots.get(ticket.workspaceId)
-    if (!root)
-      throw new NotFoundError(`Workspace "${ticket.workspaceId}" not registered`)
-    const data = ticket.toData()
-    const targetPath = join(clarifyDir(root, data.status), `${data.id}.json`)
-    const existing = await this.locate(ticket.id)
-    if (existing && existing.path !== targetPath) {
-      await moveFile(existing.path, targetPath)
-    }
-    await writeJsonFile(targetPath, data)
-  }
-
-  private async locate(ticketId: ClarifyTicketId): Promise<{ path: string, status: ClarifyStatus } | undefined> {
-    const roots = await this.options.workspaceRoots()
-    for (const [, root] of roots) {
-      for (const status of CLARIFY_STATUSES) {
-        const candidatePath = join(clarifyDir(root, status), `${ticketId}.json`)
-        try {
-          await readJsonFile(candidatePath)
-          return { path: candidatePath, status }
-        }
-        catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
-            throw error
-        }
-      }
-    }
-    return undefined
+  save(ticket: ClarifyTicket): Promise<void> {
+    return this.base.save(ticket)
   }
 }

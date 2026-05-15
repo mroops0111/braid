@@ -1,9 +1,7 @@
-import type { AbsolutePath, ProposalFilter, ProposalId, ProposalStatus, WorkspaceId } from '@telos/schema'
-import { rm } from 'node:fs/promises'
-import { join } from 'node:path'
-import { NotFoundError, paginate, Proposal, type ProposalRepository } from '@telos/core'
+import type { AbsolutePath, ProposalFilter, ProposalId, WorkspaceId } from '@telos/schema'
+import { paginate, Proposal, type ProposalRepository } from '@telos/core'
 import { Proposal as ProposalSchema } from '@telos/schema'
-import { listJsonFiles, moveFile, readJsonFile, writeJsonFile } from './jsonFileStore.js'
+import { FsStatusedJsonRepository } from './FsStatusedJsonRepository.js'
 import { PROPOSAL_STATUSES, proposalsDir } from './paths.js'
 
 export interface FsProposalRepositoryOptions {
@@ -11,29 +9,29 @@ export interface FsProposalRepositoryOptions {
 }
 
 export class FsProposalRepository implements ProposalRepository {
-  constructor(private readonly options: FsProposalRepositoryOptions) {}
+  private readonly base: FsStatusedJsonRepository<Proposal, typeof PROPOSAL_STATUSES[number], ProposalId>
+
+  constructor(options: FsProposalRepositoryOptions) {
+    this.base = new FsStatusedJsonRepository(
+      {
+        entityName: 'Proposal',
+        statuses: PROPOSAL_STATUSES,
+        dirFor: proposalsDir,
+        parse: raw => new Proposal(ProposalSchema.parse(raw)),
+        serialize: entity => entity.toData(),
+        idOf: entity => entity.id,
+        statusOf: entity => entity.status,
+        workspaceIdOf: entity => entity.workspaceId,
+      },
+      options.workspaceRoots,
+    )
+  }
 
   async list(filter?: ProposalFilter): Promise<Proposal[]> {
-    const roots = await this.options.workspaceRoots()
-    const candidateWorkspaces = filter?.workspaceId
-      ? new Map([[filter.workspaceId, roots.get(filter.workspaceId)]].filter(([, path]) => path) as [WorkspaceId, AbsolutePath][])
-      : roots
-    const statuses = filter?.statuses && filter.statuses.length > 0
-      ? filter.statuses
-      : PROPOSAL_STATUSES
-
-    let proposals: Proposal[] = []
-    for (const [, workspaceRoot] of candidateWorkspaces) {
-      for (const status of statuses) {
-        const directory = proposalsDir(workspaceRoot, status)
-        const files = await listJsonFiles(directory)
-        for (const file of files) {
-          const data = await readJsonFile<unknown>(file)
-          proposals.push(new Proposal(ProposalSchema.parse(data)))
-        }
-      }
-    }
-
+    let proposals = await this.base.list({
+      ...(filter?.workspaceId !== undefined ? { workspaceId: filter.workspaceId } : {}),
+      ...(filter?.statuses !== undefined ? { statuses: filter.statuses } : {}),
+    })
     if (filter?.generatedBy && filter.generatedBy.length > 0) {
       const skills = filter.generatedBy
       proposals = proposals.filter(proposal => skills.includes(proposal.generatedBy))
@@ -41,51 +39,15 @@ export class FsProposalRepository implements ProposalRepository {
     return paginate(proposals, filter?.limit, filter?.offset)
   }
 
-  async load(proposalId: ProposalId): Promise<Proposal> {
-    const found = await this.locate(proposalId)
-    if (!found)
-      throw new NotFoundError(`Proposal "${proposalId}" not found`)
-    const data = await readJsonFile<unknown>(found.path)
-    return new Proposal(ProposalSchema.parse(data))
+  load(proposalId: ProposalId): Promise<Proposal> {
+    return this.base.load(proposalId)
   }
 
-  async save(proposal: Proposal): Promise<void> {
-    const roots = await this.options.workspaceRoots()
-    const root = roots.get(proposal.workspaceId)
-    if (!root)
-      throw new NotFoundError(`Workspace "${proposal.workspaceId}" not registered`)
-    const data = proposal.toData()
-    const targetDir = proposalsDir(root, data.status)
-    const targetPath = join(targetDir, `${data.id}.json`)
-    const existing = await this.locate(proposal.id)
-    if (existing && existing.path !== targetPath) {
-      await moveFile(existing.path, targetPath)
-    }
-    await writeJsonFile(targetPath, data)
+  save(proposal: Proposal): Promise<void> {
+    return this.base.save(proposal)
   }
 
-  async remove(proposalId: ProposalId): Promise<void> {
-    const found = await this.locate(proposalId)
-    if (!found)
-      throw new NotFoundError(`Proposal "${proposalId}" not found`)
-    await rm(found.path)
-  }
-
-  private async locate(proposalId: ProposalId): Promise<{ path: string, status: ProposalStatus } | undefined> {
-    const roots = await this.options.workspaceRoots()
-    for (const [, root] of roots) {
-      for (const status of PROPOSAL_STATUSES) {
-        const candidatePath = join(proposalsDir(root, status), `${proposalId}.json`)
-        try {
-          await readJsonFile(candidatePath)
-          return { path: candidatePath, status }
-        }
-        catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
-            throw error
-        }
-      }
-    }
-    return undefined
+  remove(proposalId: ProposalId): Promise<void> {
+    return this.base.remove(proposalId)
   }
 }

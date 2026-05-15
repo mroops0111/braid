@@ -1,0 +1,108 @@
+import type { AbsolutePath, WorkspaceId } from '@telos/schema'
+import { rm } from 'node:fs/promises'
+import { join } from 'node:path'
+import { NotFoundError } from '@telos/core'
+import { listJsonFiles, moveFile, readJsonFile, writeJsonFile } from './jsonFileStore.js'
+
+export interface FsStatusedJsonRepositoryConfig<TEntity, TStatus extends string, TId extends string> {
+  /** Used in NotFoundError messages, e.g. "Proposal" or "ClarifyTicket". */
+  readonly entityName: string
+  /** Exhaustive status list, used by `locate` to scan every possible folder. */
+  readonly statuses: readonly TStatus[]
+  /** Maps `(workspace root, status)` to the directory holding `{id}.json` files. */
+  readonly dirFor: (workspaceRoot: AbsolutePath, status: TStatus) => string
+  /** Parses raw JSON read from disk into a domain entity (schema validation + class wrap). */
+  readonly parse: (raw: unknown) => TEntity
+  /** Unwrap an entity to the plain JSON shape written to disk. */
+  readonly serialize: (entity: TEntity) => unknown
+  readonly idOf: (entity: TEntity) => TId
+  readonly statusOf: (entity: TEntity) => TStatus
+  readonly workspaceIdOf: (entity: TEntity) => WorkspaceId
+}
+
+export interface FsStatusedJsonListFilter<TStatus extends string> {
+  readonly workspaceId?: WorkspaceId
+  readonly statuses?: readonly TStatus[]
+}
+
+export class FsStatusedJsonRepository<TEntity, TStatus extends string, TId extends string> {
+  constructor(
+    private readonly config: FsStatusedJsonRepositoryConfig<TEntity, TStatus, TId>,
+    private readonly workspaceRoots: () => Promise<ReadonlyMap<WorkspaceId, AbsolutePath>>,
+  ) {}
+
+  async list(filter?: FsStatusedJsonListFilter<TStatus>): Promise<TEntity[]> {
+    const roots = await this.candidateRoots(filter?.workspaceId)
+    const statuses = filter?.statuses?.length ? filter.statuses : this.config.statuses
+
+    const entities: TEntity[] = []
+    for (const root of roots.values()) {
+      for (const status of statuses) {
+        const files = await listJsonFiles(this.config.dirFor(root, status))
+        for (const file of files) {
+          const data = await readJsonFile<unknown>(file)
+          entities.push(this.config.parse(data))
+        }
+      }
+    }
+    return entities
+  }
+
+  async load(id: TId): Promise<TEntity> {
+    const found = await this.locate(id)
+    if (!found)
+      throw new NotFoundError(`${this.config.entityName} "${id}" not found`)
+    const data = await readJsonFile<unknown>(found.path)
+    return this.config.parse(data)
+  }
+
+  async save(entity: TEntity): Promise<void> {
+    const roots = await this.workspaceRoots()
+    const workspaceId = this.config.workspaceIdOf(entity)
+    const root = roots.get(workspaceId)
+    if (!root)
+      throw new NotFoundError(`Workspace "${workspaceId}" not registered`)
+    const id = this.config.idOf(entity)
+    const status = this.config.statusOf(entity)
+    const targetPath = join(this.config.dirFor(root, status), `${id}.json`)
+    const existing = await this.locate(id)
+    if (existing && existing.path !== targetPath)
+      await moveFile(existing.path, targetPath)
+    await writeJsonFile(targetPath, this.config.serialize(entity))
+  }
+
+  async remove(id: TId): Promise<void> {
+    const found = await this.locate(id)
+    if (!found)
+      throw new NotFoundError(`${this.config.entityName} "${id}" not found`)
+    await rm(found.path)
+  }
+
+  async locate(id: TId): Promise<{ readonly path: string, readonly status: TStatus } | undefined> {
+    const roots = await this.workspaceRoots()
+    for (const root of roots.values()) {
+      for (const status of this.config.statuses) {
+        const candidatePath = join(this.config.dirFor(root, status), `${id}.json`)
+        try {
+          await readJsonFile(candidatePath)
+          return { path: candidatePath, status }
+        }
+        catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
+            throw error
+        }
+      }
+    }
+    return undefined
+  }
+
+  private async candidateRoots(
+    workspaceId: WorkspaceId | undefined,
+  ): Promise<ReadonlyMap<WorkspaceId, AbsolutePath>> {
+    const roots = await this.workspaceRoots()
+    if (!workspaceId)
+      return roots
+    const root = roots.get(workspaceId)
+    return root ? new Map([[workspaceId, root]]) : new Map()
+  }
+}
