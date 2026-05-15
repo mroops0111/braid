@@ -1,7 +1,7 @@
-import type { SourceDescriptor } from '@telos/schema'
 import { useMutation } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '@/lib/api'
+import { nameToId, toSourceDescriptor } from '@/lib/sourceDraft'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
@@ -62,7 +62,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
 
   const add = useMutation({
     mutationFn: () => {
-      const source = buildSource({ role, kind, name, path, loaderKind, gitUrl, gitBranch, gdriveFolderId, mcpServerId })
+      const source = toSourceDescriptor({ role, kind, name, path, loaderKind, gitUrl, gitBranch, gdriveFolderId, mcpServerId })
       return api.addSource(workspaceId, source)
     },
     onSuccess: () => {
@@ -211,46 +211,6 @@ function Field({ label, children }: { label: string, children: React.ReactNode }
       {children}
     </div>
   )
-}
-
-function nameToId(name: string): string {
-  return name.replace(/[^a-z0-9-]/gi, '-').toLowerCase()
-}
-
-function buildSource(input: {
-  role: 'intent' | 'code'
-  kind: 'filesystem' | 'mcp'
-  name: string
-  path: string
-  loaderKind: '' | 'git' | 'gdrive'
-  gitUrl: string
-  gitBranch: string
-  gdriveFolderId: string
-  mcpServerId: string
-}): SourceDescriptor {
-  const id = nameToId(input.name)
-  if (input.kind === 'mcp') {
-    return {
-      kind: 'mcp',
-      id: id as never,
-      role: input.role,
-      name: input.name,
-      mcpServerId: input.mcpServerId as never,
-    }
-  }
-  const loader = input.loaderKind === 'git'
-    ? { kind: 'git' as never, config: { url: input.gitUrl, ...(input.gitBranch ? { branch: input.gitBranch } : {}) } }
-    : input.loaderKind === 'gdrive'
-      ? { kind: 'gdrive' as never, config: { folderId: input.gdriveFolderId } }
-      : undefined
-  return {
-    kind: 'filesystem',
-    id: id as never,
-    role: input.role,
-    name: input.name,
-    path: input.path as never,
-    ...(loader ? { loader } : {}),
-  }
 }
 
 function humanise(error: unknown): string {

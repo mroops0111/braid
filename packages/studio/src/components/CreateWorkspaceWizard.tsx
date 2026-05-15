@@ -1,10 +1,12 @@
-import type { McpServerConfig, ProductManifestDraft, SourceDescriptor } from '@telos/schema'
+import type { McpServerConfig, ProductManifestDraft } from '@telos/schema'
 import type { IngestSummary } from '@/lib/api'
+import type { SourceDraft as SourceDraftBase } from '@/lib/sourceDraft'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { queryKeys } from '@/lib/queries'
+import { toSourceDescriptor } from '@/lib/sourceDraft'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
@@ -12,22 +14,7 @@ import { Label } from './ui/label'
 
 type StepKey = 'basics' | 'sources' | 'mcp' | 'advanced' | 'confirm' | 'progress'
 
-interface SourceDraft {
-  uiId: string
-  kind: 'filesystem' | 'mcp'
-  role: 'intent' | 'code'
-  name: string
-  /* filesystem-only */
-  path: string
-  loaderKind: '' | 'git' | 'gdrive'
-  /* git loader config */
-  gitUrl: string
-  gitBranch: string
-  /* gdrive loader config */
-  gdriveFolderId: string
-  /* mcp-only */
-  mcpServerId: string
-}
+type SourceDraft = SourceDraftBase & { uiId: string }
 
 interface McpDraft {
   uiId: string
@@ -652,32 +639,6 @@ function buildDraft(input: {
     sources,
     mcpServers,
     storage: { kind: input.storageKind as never, config: {} },
-  }
-}
-
-function toSourceDescriptor(draft: SourceDraft): SourceDescriptor {
-  const idForName = (s: string) => s.replace(/[^a-z0-9-]/gi, '-').toLowerCase()
-  if (draft.kind === 'mcp') {
-    return {
-      kind: 'mcp',
-      id: idForName(draft.name) as never,
-      role: draft.role,
-      name: draft.name,
-      mcpServerId: draft.mcpServerId as never,
-    }
-  }
-  const loader = draft.loaderKind === 'git'
-    ? { kind: 'git' as never, config: { url: draft.gitUrl, ...(draft.gitBranch ? { branch: draft.gitBranch } : {}) } }
-    : draft.loaderKind === 'gdrive'
-      ? { kind: 'gdrive' as never, config: { folderId: draft.gdriveFolderId } }
-      : undefined
-  return {
-    kind: 'filesystem',
-    id: idForName(draft.name) as never,
-    role: draft.role,
-    name: draft.name,
-    path: draft.path as never,
-    ...(loader ? { loader } : {}),
   }
 }
 
