@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ValidationIssue } from './validation.js'
+import { ValidationIssues } from './validation.js'
 
 export const TelosProblemJson = z.object({
   type: z.string().url(),
@@ -9,6 +9,6 @@ export const TelosProblemJson = z.object({
   detail: z.string().optional(),
   // Structured validation issues, present on `TELOS-VAL` 400 responses so
   // clients can read failures programmatically (instead of parsing `detail`).
-  issues: z.array(ValidationIssue).optional(),
+  issues: ValidationIssues.optional(),
 })
 export type TelosProblemJson = z.infer<typeof TelosProblemJson>

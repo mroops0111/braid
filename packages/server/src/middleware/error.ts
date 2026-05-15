@@ -29,8 +29,8 @@ function problemFromTelosError(error: TelosError): TelosProblemJson {
     code: error.code,
     detail: error.message,
   }
-  if (error instanceof ValidationError && Array.isArray(error.issues))
-    problem.issues = error.issues as TelosProblemJson['issues']
+  if (error instanceof ValidationError && error.issues)
+    problem.issues = [...error.issues]
   return problem
 }
 

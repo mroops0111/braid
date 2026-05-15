@@ -17,8 +17,11 @@ export const ValidationIssue = z.object({
 })
 export type ValidationIssue = z.infer<typeof ValidationIssue>
 
+export const ValidationIssues = z.array(ValidationIssue)
+export type ValidationIssues = z.infer<typeof ValidationIssues>
+
 export const ValidationResult = z.object({
   ok: z.boolean(),
-  issues: z.array(ValidationIssue).default([]),
+  issues: ValidationIssues.default([]),
 })
 export type ValidationResult = z.infer<typeof ValidationResult>

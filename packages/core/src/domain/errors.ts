@@ -1,3 +1,5 @@
+import type { ValidationIssue } from '@telos/schema'
+
 export class TelosError extends Error {
   readonly code: string
 
@@ -9,11 +11,12 @@ export class TelosError extends Error {
 }
 
 export class ValidationError extends TelosError {
-  readonly issues?: unknown
+  readonly issues?: readonly ValidationIssue[]
 
-  constructor(message: string, issues?: unknown, options?: { cause?: unknown }) {
+  constructor(message: string, issues?: readonly ValidationIssue[], options?: { cause?: unknown }) {
     super('TELOS-VAL', message, options)
-    this.issues = issues
+    if (issues)
+      this.issues = issues
   }
 }
 

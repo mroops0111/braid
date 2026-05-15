@@ -1,3 +1,5 @@
+import type { ValidationIssue } from '@telos/schema'
+import { ValidationCode } from '@telos/schema'
 import { describe, expect, it } from 'vitest'
 import {
   ConflictError,
@@ -24,11 +26,19 @@ describe('TelosError base', () => {
 
 describe('ValidationError', () => {
   it('uses TELOS-VAL code and reports issues', () => {
-    const error = new ValidationError('bad input', { issues: ['x is required'] })
+    const issues: ValidationIssue[] = [
+      { code: ValidationCode.parse('x-required'), severity: 'error', message: 'x is required' },
+    ]
+    const error = new ValidationError('bad input', issues)
     expect(error.code).toBe('TELOS-VAL')
     expect(error.name).toBe('ValidationError')
-    expect(error.issues).toEqual({ issues: ['x is required'] })
+    expect(error.issues).toEqual(issues)
     expect(error).toBeInstanceOf(TelosError)
+  })
+
+  it('omits issues when none are supplied', () => {
+    const error = new ValidationError('bad input')
+    expect(error.issues).toBeUndefined()
   })
 })
 
