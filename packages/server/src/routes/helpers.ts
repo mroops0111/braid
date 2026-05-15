@@ -1,3 +1,4 @@
+import type { Workspace, WorkspaceRepository } from '@telos/core'
 import type { WorkspaceId } from '@telos/schema'
 import { NotFoundError } from '@telos/core'
 
@@ -10,4 +11,15 @@ export function assertEntityInWorkspace(
   if (expected !== actual) {
     throw new NotFoundError(`${entityKind} "${entityId}" not found in workspace "${expected}"`)
   }
+}
+
+export async function loadWorkspaceById(
+  workspaceId: WorkspaceId,
+  workspaceRepository: WorkspaceRepository,
+): Promise<Workspace> {
+  const workspaces = await workspaceRepository.list()
+  const match = workspaces.find(workspace => workspace.id === workspaceId)
+  if (!match)
+    throw new NotFoundError(`Workspace "${workspaceId}" not registered`)
+  return match
 }

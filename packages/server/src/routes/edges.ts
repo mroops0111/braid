@@ -1,8 +1,9 @@
 import type { ModelService } from '@telos/core'
 import { zValidator } from '@hono/zod-validator'
-import { EdgeTypeId, NodeId, WorkspaceId } from '@telos/schema'
+import { EdgeTypeId, NodeId } from '@telos/schema'
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { getWorkspaceId } from '../middleware/workspaceId.js'
 
 const ListQuerySchema = z.object({
   type: z.union([EdgeTypeId, z.array(EdgeTypeId)]).optional(),
@@ -20,7 +21,7 @@ export function createEdgesRouter(deps: EdgesRouterDeps): Hono {
   const router = new Hono()
 
   router.get('/', zValidator('query', ListQuerySchema), async (context) => {
-    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+    const workspaceId = getWorkspaceId(context)
     const { type, fromNodeId, toNodeId, limit, offset } = context.req.valid('query')
     const types = type === undefined ? undefined : Array.isArray(type) ? type : [type]
     const edges = await deps.modelService.listEdges(workspaceId, {

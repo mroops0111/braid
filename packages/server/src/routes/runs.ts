@@ -1,15 +1,16 @@
 import type {
   RunRepository,
   SkillRunner,
-  Workspace,
   WorkspaceRepository,
 } from '@telos/core'
 import type { SkillEvent } from '@telos/schema'
 import { NotFoundError } from '@telos/core'
-import { SkillRunId, WorkspaceId } from '@telos/schema'
+import { SkillRunId } from '@telos/schema'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { createAsyncQueue } from '../infrastructure/agent/asyncQueue.js'
+import { getWorkspaceId } from '../middleware/workspaceId.js'
+import { loadWorkspaceById } from './helpers.js'
 
 export interface RunsRouterDeps {
   readonly runRepository: RunRepository
@@ -21,7 +22,7 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
   const router = new Hono()
 
   router.get('/', async (context) => {
-    const workspace = await loadWorkspaceForRequest(context.req.param('workspaceId'), deps.workspaceRepository)
+    const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const items = await deps.runRepository.listRecords(workspace)
     return context.json({ items })
   })
@@ -30,7 +31,7 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
   // events as they arrive. Clients can open / close / reopen this stream
   // freely; the underlying subprocess and event log are not affected.
   router.get('/:runId/events', async (context) => {
-    const workspace = await loadWorkspaceForRequest(context.req.param('workspaceId'), deps.workspaceRepository)
+    const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const runId = SkillRunId.parse(context.req.param('runId'))
 
     return streamSSE(context, async (stream) => {
@@ -90,16 +91,4 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
   })
 
   return router
-}
-
-async function loadWorkspaceForRequest(
-  rawWorkspaceId: string | undefined,
-  workspaceRepository: WorkspaceRepository,
-): Promise<Workspace> {
-  const workspaceId = WorkspaceId.parse(rawWorkspaceId)
-  const workspaces = await workspaceRepository.list()
-  const match = workspaces.find(workspace => workspace.id === workspaceId)
-  if (!match)
-    throw new NotFoundError(`Workspace "${workspaceId}" not registered`)
-  return match
 }

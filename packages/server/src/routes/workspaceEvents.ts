@@ -1,8 +1,8 @@
 import type { WorkspaceEvent, WorkspaceEventBus } from '@telos/core'
-import { WorkspaceId } from '@telos/schema'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { createAsyncQueue } from '../infrastructure/agent/asyncQueue.js'
+import { getWorkspaceId, workspaceIdMiddleware } from '../middleware/workspaceId.js'
 
 export interface WorkspaceEventsRouterDeps {
   readonly eventBus: WorkspaceEventBus
@@ -18,8 +18,8 @@ export interface WorkspaceEventsRouterDeps {
 export function createWorkspaceEventsRouter(deps: WorkspaceEventsRouterDeps): Hono {
   const router = new Hono()
 
-  router.get('/:workspaceId/events', async (context) => {
-    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+  router.get('/:workspaceId/events', workspaceIdMiddleware, async (context) => {
+    const workspaceId = getWorkspaceId(context)
     return streamSSE(context, async (stream) => {
       const queue = createAsyncQueue<WorkspaceEvent>()
       const unsubscribe = deps.eventBus.subscribe(workspaceId, (event) => {

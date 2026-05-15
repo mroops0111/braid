@@ -13,11 +13,11 @@ import {
   SourceDescriptor as SourceDescriptorSchema,
   SourceId,
   StorageDescriptor,
-  WorkspaceId,
 } from '@telos/schema'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { fillManifestDefaults, updateProductManifest, writeProductManifest } from '../infrastructure/fs/productManifestWriter.js'
+import { getWorkspaceId, workspaceIdMiddleware } from '../middleware/workspaceId.js'
 
 const RegisterBodySchema = z.object({
   rootPath: AbsolutePath,
@@ -51,8 +51,8 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     return context.json({ items: workspaces.map(workspace => workspace.toData()) })
   })
 
-  router.get('/:workspaceId', async (context) => {
-    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+  router.get('/:workspaceId', workspaceIdMiddleware, async (context) => {
+    const workspaceId = getWorkspaceId(context)
     const workspace = await deps.workspaceService.findById(workspaceId)
     return context.json(workspace.toData())
   })
@@ -86,8 +86,8 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   // Add a source to an existing workspace. Rewrites PRODUCT.md and runs
   // `ingest` if the source is loader-backed so the local filesystem is
   // populated before the user runs a skill against it.
-  router.post('/:workspaceId/sources', zValidator('json', SourceDescriptorSchema), async (context) => {
-    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+  router.post('/:workspaceId/sources', workspaceIdMiddleware, zValidator('json', SourceDescriptorSchema), async (context) => {
+    const workspaceId = getWorkspaceId(context)
     const source = context.req.valid('json') as SourceDescriptor
     const workspace = await deps.workspaceService.findById(workspaceId)
     if (workspace.findSource(source.name))
@@ -107,8 +107,8 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
 
   // Remove a source from the manifest. Local files (e.g. cloned git repos)
   // are left on disk; the user can `rm -rf` them manually if they want.
-  router.delete('/:workspaceId/sources/:sourceId', async (context) => {
-    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+  router.delete('/:workspaceId/sources/:sourceId', workspaceIdMiddleware, async (context) => {
+    const workspaceId = getWorkspaceId(context)
     const sourceId = SourceId.parse(context.req.param('sourceId'))
     const workspace = await deps.workspaceService.findById(workspaceId)
     const source = workspace.sources.find(entry => entry.id === sourceId)
@@ -123,8 +123,8 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
 
   // Per-source sync. Looks up the source's loader and invokes `sync` (or
   // falls back to `ingest` if the destination doesn't exist yet).
-  router.post('/:workspaceId/sources/:sourceId/sync', async (context) => {
-    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+  router.post('/:workspaceId/sources/:sourceId/sync', workspaceIdMiddleware, async (context) => {
+    const workspaceId = getWorkspaceId(context)
     const sourceId = SourceId.parse(context.req.param('sourceId'))
     const workspace = await deps.workspaceService.findById(workspaceId)
     const report = await deps.sourceLoaderRunner.syncOne(workspace, sourceId)
@@ -134,8 +134,8 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   // Update workspace-level manifest fields. Renaming changes the
   // WorkspaceId (derived from `manifest.name`) so callers should re-fetch
   // the workspace list after a successful rename.
-  router.patch('/:workspaceId', zValidator('json', PatchWorkspaceBodySchema), async (context) => {
-    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+  router.patch('/:workspaceId', workspaceIdMiddleware, zValidator('json', PatchWorkspaceBodySchema), async (context) => {
+    const workspaceId = getWorkspaceId(context)
     const patch = context.req.valid('json')
     const workspace = await deps.workspaceService.findById(workspaceId)
     const nextManifest: ProductManifest = {
@@ -160,8 +160,8 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   // Unregister a workspace. Files (PRODUCT.md, .telos/, ingested sources)
   // are left on disk — the user can re-register via POST /workspaces or
   // delete the directory manually.
-  router.delete('/:workspaceId', async (context) => {
-    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+  router.delete('/:workspaceId', workspaceIdMiddleware, async (context) => {
+    const workspaceId = getWorkspaceId(context)
     const workspace = await deps.workspaceService.findById(workspaceId)
     await deps.workspaceService.remove(workspace.rootPath)
     return context.body(null, 204)

@@ -1,8 +1,9 @@
 import type { ClarifyTicketRepository, HITLService } from '@telos/core'
 import { zValidator } from '@hono/zod-validator'
-import { ClarifyCandidateId, ClarifyDraft, ClarifyStatus, ClarifyTicketId, UserId, WorkspaceId } from '@telos/schema'
+import { ClarifyCandidateId, ClarifyDraft, ClarifyStatus, ClarifyTicketId, UserId } from '@telos/schema'
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { assertEntityInWorkspace } from './helpers.js'
 
 const ListQuerySchema = z.object({
@@ -35,14 +36,14 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): Hono {
   // from the URL). Candidates' proposedOperations are NOT validated here;
   // they are validated when a user picks one via answerClarifyTicket.
   router.post('/', zValidator('json', CreateBodySchema), async (context) => {
-    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+    const workspaceId = getWorkspaceId(context)
     const body = context.req.valid('json')
     const ticket = await deps.hitlService.submitClarifyTicket({ workspaceId, ...body })
     return context.json(ticket.toData(), 201)
   })
 
   router.get('/', zValidator('query', ListQuerySchema), async (context) => {
-    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+    const workspaceId = getWorkspaceId(context)
     const { status, limit, offset } = context.req.valid('query')
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
     const tickets = await deps.clarifyRepository.list({ workspaceId, statuses, limit, offset })
@@ -50,7 +51,7 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): Hono {
   })
 
   router.get('/:clarifyTicketId', async (context) => {
-    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+    const workspaceId = getWorkspaceId(context)
     const ticketId = ClarifyTicketId.parse(context.req.param('clarifyTicketId'))
     const ticket = await deps.clarifyRepository.load(ticketId)
     assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'ClarifyTicket', ticketId)
@@ -61,7 +62,7 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): Hono {
     '/:clarifyTicketId/answer',
     zValidator('json', AnswerBodySchema),
     async (context) => {
-      const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+      const workspaceId = getWorkspaceId(context)
       const ticketId = ClarifyTicketId.parse(context.req.param('clarifyTicketId'))
       const { candidateId, userId } = context.req.valid('json')
       const ticket = await deps.clarifyRepository.load(ticketId)
@@ -75,7 +76,7 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): Hono {
     '/:clarifyTicketId/skip',
     zValidator('json', SkipBodySchema),
     async (context) => {
-      const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+      const workspaceId = getWorkspaceId(context)
       const ticketId = ClarifyTicketId.parse(context.req.param('clarifyTicketId'))
       const { reason, userId } = context.req.valid('json')
       const ticket = await deps.clarifyRepository.load(ticketId)

@@ -1,8 +1,9 @@
 import type { HITLService, ModelRepository, ProposalRepository, ValidationService } from '@telos/core'
 import { zValidator } from '@hono/zod-validator'
-import { ProposalDraft, ProposalId, ProposalStatus, UserId, WorkspaceId } from '@telos/schema'
+import { ProposalDraft, ProposalId, ProposalStatus, UserId } from '@telos/schema'
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { assertEntityInWorkspace } from './helpers.js'
 
 const ListQuerySchema = z.object({
@@ -39,14 +40,14 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): Hono {
   // when ops fail validation. Skills call this instead of writing JSON files
   // so they pick up validation errors on the write call, not on apply.
   router.post('/', zValidator('json', CreateBodySchema), async (context) => {
-    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+    const workspaceId = getWorkspaceId(context)
     const body = context.req.valid('json')
     const proposal = await deps.hitlService.submitProposal({ workspaceId, ...body })
     return context.json(proposal.toData(), 201)
   })
 
   router.get('/', zValidator('query', ListQuerySchema), async (context) => {
-    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+    const workspaceId = getWorkspaceId(context)
     const { status, limit, offset } = context.req.valid('query')
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
     const proposals = await deps.proposalRepository.list({ workspaceId, statuses, limit, offset })
@@ -54,7 +55,7 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): Hono {
   })
 
   router.get('/:proposalId', async (context) => {
-    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+    const workspaceId = getWorkspaceId(context)
     const proposalId = ProposalId.parse(context.req.param('proposalId'))
     const proposal = await deps.proposalRepository.load(proposalId)
     assertEntityInWorkspace(workspaceId, proposal.workspaceId, 'Proposal', proposalId)
@@ -65,7 +66,7 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): Hono {
   // tried to apply this proposal right now. Skills call this after writing
   // their proposal so they can iterate on issues without the user in the loop.
   router.get('/:proposalId/validate', async (context) => {
-    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+    const workspaceId = getWorkspaceId(context)
     const proposalId = ProposalId.parse(context.req.param('proposalId'))
     const proposal = await deps.proposalRepository.load(proposalId)
     assertEntityInWorkspace(workspaceId, proposal.workspaceId, 'Proposal', proposalId)
@@ -78,7 +79,7 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): Hono {
     '/:proposalId/apply',
     zValidator('json', ApplyBodySchema),
     async (context) => {
-      const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+      const workspaceId = getWorkspaceId(context)
       const proposalId = ProposalId.parse(context.req.param('proposalId'))
       const { userId } = context.req.valid('json')
       const proposal = await deps.proposalRepository.load(proposalId)
@@ -92,7 +93,7 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): Hono {
     '/:proposalId/reject',
     zValidator('json', RejectBodySchema),
     async (context) => {
-      const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+      const workspaceId = getWorkspaceId(context)
       const proposalId = ProposalId.parse(context.req.param('proposalId'))
       const { reason, userId } = context.req.valid('json')
       const proposal = await deps.proposalRepository.load(proposalId)

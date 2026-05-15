@@ -1,8 +1,9 @@
 import type { DecisionRepository } from '@telos/core'
 import { zValidator } from '@hono/zod-validator'
-import { DecisionAction, DecisionId, WorkspaceId } from '@telos/schema'
+import { DecisionAction, DecisionId } from '@telos/schema'
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { assertEntityInWorkspace } from './helpers.js'
 
 const ListQuerySchema = z.object({
@@ -19,7 +20,7 @@ export function createDecisionsRouter(deps: DecisionsRouterDeps): Hono {
   const router = new Hono()
 
   router.get('/', zValidator('query', ListQuerySchema), async (context) => {
-    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+    const workspaceId = getWorkspaceId(context)
     const { action, limit, offset } = context.req.valid('query')
     const actions = action === undefined ? undefined : Array.isArray(action) ? action : [action]
     const decisions = await deps.decisionRepository.list({ workspaceId, actions, limit, offset })
@@ -27,7 +28,7 @@ export function createDecisionsRouter(deps: DecisionsRouterDeps): Hono {
   })
 
   router.get('/:decisionId', async (context) => {
-    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+    const workspaceId = getWorkspaceId(context)
     const decisionId = DecisionId.parse(context.req.param('decisionId'))
     const decision = await deps.decisionRepository.load(decisionId)
     assertEntityInWorkspace(workspaceId, decision.workspaceId, 'Decision', decisionId)

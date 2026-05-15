@@ -2,6 +2,7 @@ import type { AppDependencies } from './composition.js'
 import { Hono } from 'hono'
 import { corsMiddleware } from './middleware/cors.js'
 import { errorHandler } from './middleware/error.js'
+import { workspaceIdMiddleware } from './middleware/workspaceId.js'
 import { createClarifyRouter } from './routes/clarify.js'
 import { createDecisionsRouter } from './routes/decisions.js'
 import { createEdgesRouter } from './routes/edges.js'
@@ -38,6 +39,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Hono
   app.route('/workspaces', createWorkspaceEventsRouter({ eventBus: deps.eventBus }))
 
   const workspaceScoped = new Hono()
+  workspaceScoped.use('*', workspaceIdMiddleware)
   workspaceScoped.route('/model', createModelRouter({ modelService: deps.modelService }))
   workspaceScoped.route('/nodes', createNodesRouter({ modelService: deps.modelService }))
   workspaceScoped.route('/edges', createEdgesRouter({ modelService: deps.modelService }))
