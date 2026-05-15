@@ -23,7 +23,8 @@ import {
 } from '@telos/core'
 import { describe, expect, it } from 'vitest'
 import { ClaudeCodeAgentBinding } from '../../../src/infrastructure/agent/ClaudeCodeAgentBinding.js'
-import { mapSubprocessEvents, SubprocessSkillRunner } from '../../../src/infrastructure/agent/SubprocessSkillRunner.js'
+import { mapSubprocessEvents } from '../../../src/infrastructure/agent/subprocessEventStream.js'
+import { SubprocessSkillRunner } from '../../../src/infrastructure/agent/SubprocessSkillRunner.js'
 import { FsRunRepository } from '../../../src/infrastructure/fs/FsRunRepository.js'
 import { createMockSpawn } from '../../helpers/mockSpawn.js'
 

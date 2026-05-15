@@ -14,11 +14,15 @@ import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import { mkdir, rm, symlink } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { newSkillRunId, NotFoundError } from '@telos/core'
-import { SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema } from '@telos/schema'
+import {
+  AbsolutePath as AbsolutePathSchema,
+  SkillEvent as SkillEventSchema,
+  SkillRunId as SkillRunIdSchema,
+} from '@telos/schema'
 import { sessionDirPath } from '../fs/paths.js'
 import { createAsyncQueue } from './asyncQueue.js'
 import { writeMcpConfigFile } from './mcpConfig.js'
-import { LineBuffer, parseJsonLine } from './streamJsonParser.js'
+import { attachOutputBuffers } from './subprocessEventStream.js'
 
 export type SpawnFn = (command: string, args: readonly string[], options: SpawnOptions) => ChildProcess
 
@@ -57,15 +61,6 @@ interface ActiveRun {
   readonly child: ChildProcess
 }
 
-/**
- * Spawns a claude subprocess per run and tees its event stream to:
- *   1. The persisted JSONL log via `RunRepository.appendEvent`.
- *   2. In-memory subscribers (HTTP /runs/:id/events tailers, tests).
- *
- * The HTTP client connection is decoupled from the subprocess lifecycle:
- * `start()` returns the runId immediately, the drain runs as a background
- * task, and the event stream survives any number of client reconnects.
- */
 export class SubprocessSkillRunner implements SkillRunner {
   private readonly running = new Map<SkillRunId, ActiveRun>()
   /** sessionId → cwd for resuming. claude needs the same cwd between turns. */
@@ -92,7 +87,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       workspace,
       manifest,
       apiUrl: this.deps.apiUrl,
-      mcpConfigFile: mcpConfigFile as unknown as AbsolutePath,
+      mcpConfigFile: AbsolutePathSchema.parse(mcpConfigFile),
       ...(options?.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
     })
 
@@ -247,26 +242,19 @@ export class SubprocessSkillRunner implements SkillRunner {
         outcome: sawError ? 'error' : exitCode === 0 ? 'success' : 'error',
         at: this.now(),
       })
-      // Drop subscribers once the run is fully drained so they can finish their
-      // own loops (e.g. SSE writers waiting on iteration end).
       this.subscribers.delete(input.runId)
       // Keep the session dir on disk if a session id was captured: claude
       // stores conversation state per-cwd, so the dir must survive between
-      // turns. The dir is GC'd when the user starts a New Conversation via
-      // `forgetSession(sessionId)`.
+      // turns. GC happens via forgetSession(sessionId).
       const keepForResume = capturedSessionId !== null
-      if (this.deps.cleanupSession !== false && !keepForResume) {
+      if (this.deps.cleanupSession !== false && !keepForResume)
         await rm(input.sessionDir, { recursive: true, force: true }).catch(() => {})
-      }
     }
   }
 
-  /**
-   * Persist the event to JSONL, then broadcast to live subscribers.
-   * Persistence happens first so a subscriber that arrived just before this
-   * emit is guaranteed to receive an event whose `position` is strictly
-   * greater than `positionAtSubscribe`.
-   */
+  // Persist first, then broadcast. A subscriber that arrived just before
+  // this emit is guaranteed to receive events strictly past its
+  // positionAtSubscribe.
   private async emit(workspace: Workspace, runId: SkillRunId, event: SkillEvent): Promise<void> {
     await this.deps.runRepository.appendEvent(workspace, runId, event)
     const next = (this.positions.get(runId) ?? 0) + 1
@@ -338,147 +326,6 @@ export class SubprocessSkillRunner implements SkillRunner {
   private now(): string {
     return (this.deps.clock ?? (() => new Date().toISOString()))()
   }
-}
-
-/**
- * Wires a spawned child's stdout / stderr into a callback that receives one
- * mapped SkillEvent per emitted line. stdout is parsed as JSON (claude
- * stream-json); stderr is wrapped verbatim into a `[stderr]` message event
- * so it shows up in the transcript alongside model output.
- *
- * Returns a `flush` you call from the child's `close` handler so the last
- * line without a trailing newline still reaches the consumer.
- */
-function attachOutputBuffers(
-  child: ChildProcess,
-  onEvent: (event: SkillEvent) => void,
-  now: () => string,
-): { flush: () => void } {
-  const stdout = new LineBuffer((line) => {
-    const parsed = parseJsonLine(line)
-    if (parsed === undefined)
-      return
-    for (const event of mapSubprocessEvents(parsed, now()))
-      onEvent(event)
-  })
-  const stderr = new LineBuffer((line) => {
-    onEvent(SkillEventSchema.parse({ type: 'message', text: `[stderr] ${line}` }))
-  })
-
-  child.stdout?.setEncoding('utf-8')
-  child.stdout?.on('data', (chunk: string) => stdout.append(chunk))
-  child.stderr?.setEncoding('utf-8')
-  child.stderr?.on('data', (chunk: string) => stderr.append(chunk))
-
-  return {
-    flush: () => {
-      stdout.flush()
-      stderr.flush()
-    },
-  }
-}
-
-interface RawEvent { readonly type: string, readonly [key: string]: unknown }
-interface RawContentPart { readonly type?: string, readonly [key: string]: unknown }
-
-/**
- * Maps a single line of `claude --output-format stream-json` into zero or
- * more `SkillEvent`s. Claude emits five envelope shapes:
- *
- *   - `type=system`         → startup/init meta. Ignored.
- *   - `type=assistant`      → `message.content[]` of text / tool_use / thinking.
- *   - `type=user`           → echoed tool_result; we only surface `is_error`.
- *   - `type=rate_limit_*`   → informational. Ignored.
- *   - `type=result`         → final outcome (`is_error` + `result` string).
- *
- * Plus the legacy flat shapes used by older tests: `type=text`, `type=tool_use`,
- * `type=artifact-written`, `type=error`. Kept for backward compatibility.
- */
-export function mapSubprocessEvents(raw: RawEvent, now: string): SkillEvent[] {
-  const out: SkillEvent[] = []
-
-  if (raw.type === 'system' && raw.subtype === 'init' && typeof raw.session_id === 'string') {
-    out.push(SkillEventSchema.parse({ type: 'session-started', sessionId: raw.session_id }))
-    return out
-  }
-
-  if (raw.type === 'assistant') {
-    const content = readContent(raw)
-    for (const part of content) {
-      if (part?.type === 'text' && typeof part.text === 'string' && part.text.length > 0) {
-        out.push(SkillEventSchema.parse({ type: 'message', text: part.text }))
-      }
-      else if (part?.type === 'tool_use' && typeof part.name === 'string') {
-        const event: Record<string, unknown> = {
-          type: 'tool-call',
-          tool: part.name,
-          args: part.input ?? null,
-        }
-        if (typeof part.id === 'string' && part.id.length > 0)
-          event.toolCallId = part.id
-        out.push(SkillEventSchema.parse(event))
-      }
-    }
-    return out
-  }
-
-  if (raw.type === 'user') {
-    const content = readContent(raw)
-    for (const part of content) {
-      if (part?.type === 'tool_result' && typeof part.tool_use_id === 'string') {
-        const output = typeof part.content === 'string'
-          ? part.content
-          : JSON.stringify(part.content ?? '')
-        out.push(SkillEventSchema.parse({
-          type: 'tool-result',
-          toolCallId: part.tool_use_id,
-          output,
-          isError: part.is_error === true,
-        }))
-      }
-    }
-    return out
-  }
-
-  if (raw.type === 'result') {
-    const isError = raw.is_error === true
-    const text = typeof raw.result === 'string' ? raw.result : ''
-    if (isError) {
-      out.push(SkillEventSchema.parse({ type: 'error', message: text || 'skill run failed', at: now }))
-    }
-    else if (text.length > 0) {
-      out.push(SkillEventSchema.parse({ type: 'message', text }))
-    }
-    return out
-  }
-
-  // Legacy / flat fixtures (kept for tests and any tool that emits a simpler shape).
-  if (raw.type === 'text' && typeof raw.text === 'string') {
-    return [SkillEventSchema.parse({ type: 'message', text: raw.text })]
-  }
-  if (raw.type === 'tool_use' && typeof raw.name === 'string') {
-    return [SkillEventSchema.parse({ type: 'tool-call', tool: raw.name, args: raw.input ?? null })]
-  }
-  if (raw.type === 'artifact-written' && typeof raw.artifactKind === 'string') {
-    return [SkillEventSchema.parse({
-      type: 'artifact-written',
-      artifactKind: raw.artifactKind,
-      artifactId: raw.artifactId,
-      path: raw.path,
-    })]
-  }
-  if (raw.type === 'error' && typeof raw.message === 'string') {
-    return [SkillEventSchema.parse({ type: 'error', message: raw.message, at: now })]
-  }
-
-  return out
-}
-
-function readContent(raw: RawEvent): RawContentPart[] {
-  const message = raw.message as { content?: unknown } | undefined
-  if (!message || !Array.isArray(message.content))
-    return []
-  return message.content as RawContentPart[]
 }
 
 async function defaultSpawn(): Promise<SpawnFn> {
