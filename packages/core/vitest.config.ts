@@ -13,11 +13,7 @@ export default defineConfig({
       exclude: [
         'src/index.ts',
         'src/**/*Repository.ts',
-        'src/domain/agent/Agent.ts',
-        'src/domain/generation/Generator.ts',
         'src/domain/plugin/Plugin.ts',
-        'src/domain/source/Source.ts',
-        'src/domain/model/EmbeddingIndex.ts',
       ],
       thresholds: {
         statements: 80,
