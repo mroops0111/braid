@@ -25,3 +25,11 @@ coverage
 
 # Docs
 docs/
+
+# Example workspaces — only tracked manifests / source seeds should ever
+# be committed. Runtime state (Kuzu graph, run logs, session dirs, MCP
+# config) is regenerated on every fresh boot and must not be in git.
+examples/*/.telos/
+examples/*/.telos-sessions/
+examples/*/artifacts/
+examples/*/.telos-mcp-*.json
