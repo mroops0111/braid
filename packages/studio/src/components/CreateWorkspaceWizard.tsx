@@ -4,7 +4,8 @@ import type { SourceDraft as SourceDraftBase } from '@/lib/sourceDraft'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { api, ApiError } from '@/lib/api'
+import { api } from '@/lib/api'
+import { type ErrorCase, humaniseApiError } from '@/lib/errors'
 import { queryKeys } from '@/lib/queries'
 import { toSourceDescriptor } from '@/lib/sourceDraft'
 import { Button } from './ui/button'
@@ -29,6 +30,13 @@ interface CreateWorkspaceWizardProps {
   onOpenChange: (open: boolean) => void
   onCreated?: (workspaceId: string) => void
 }
+
+const WIZARD_ERROR_CASES: readonly ErrorCase[] = [
+  {
+    match: e => e.status === 400 && e.message.includes('PRODUCT.md already exists'),
+    message: 'A PRODUCT.md already exists at that path. Either pick a different path, or close this dialog and use "Register existing workspace" instead.',
+  },
+]
 
 const STEP_ORDER: StepKey[] = ['basics', 'sources', 'mcp', 'advanced', 'confirm', 'progress']
 const STEP_LABELS: Record<StepKey, string> = {
@@ -566,7 +574,7 @@ function ProgressStep({ status, error, ingest, onClose }: {
     return (
       <div className="space-y-3 py-2">
         <p className="text-sm text-destructive">Workspace creation failed.</p>
-        <pre className="max-h-40 overflow-auto rounded-md bg-muted p-2 text-[11px]">{humanise(error)}</pre>
+        <pre className="max-h-40 overflow-auto rounded-md bg-muted p-2 text-[11px]">{humaniseApiError(error, WIZARD_ERROR_CASES)}</pre>
         <div className="flex justify-end">
           <Button size="sm" onClick={onClose}>Close</Button>
         </div>
@@ -659,15 +667,4 @@ function toMcpServerConfig(draft: McpDraft): McpServerConfig {
     url: draft.url,
     ...(Object.keys(headers).length > 0 ? { headers } : {}),
   }
-}
-
-function humanise(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.status === 400 && error.message.includes('PRODUCT.md already exists'))
-      return 'A PRODUCT.md already exists at that path. Either pick a different path, or close this dialog and use "Register existing workspace" instead.'
-    return error.message
-  }
-  if (error instanceof Error)
-    return error.message
-  return String(error)
 }

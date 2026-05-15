@@ -1,10 +1,18 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { api, ApiError } from '@/lib/api'
+import { api } from '@/lib/api'
+import { type ErrorCase, humaniseApiError } from '@/lib/errors'
 import { queryKeys } from '@/lib/queries'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
+
+const REGISTER_ERROR_CASES: readonly ErrorCase[] = [
+  {
+    match: e => e.status === 404 && e.message.includes('PRODUCT.md'),
+    message: 'No PRODUCT.md found in that folder. Did you mean to create a new workspace? Cancel and pick "Create workspace" instead.',
+  },
+]
 
 interface RegisterWorkspaceDialogProps {
   open: boolean
@@ -51,7 +59,7 @@ export function RegisterWorkspaceDialog({ open, onOpenChange, onRegistered }: Re
           onChange={e => setRootPath(e.target.value)}
         />
         {register.error && (
-          <p className="text-xs text-destructive">{humanise(register.error)}</p>
+          <p className="text-xs text-destructive">{humaniseApiError(register.error, REGISTER_ERROR_CASES)}</p>
         )}
         <DialogFooter>
           <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -66,15 +74,4 @@ export function RegisterWorkspaceDialog({ open, onOpenChange, onRegistered }: Re
       </DialogContent>
     </Dialog>
   )
-}
-
-function humanise(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.status === 404 && error.message.includes('PRODUCT.md'))
-      return 'No PRODUCT.md found in that folder. Did you mean to create a new workspace? Cancel and pick "Create workspace" instead.'
-    return error.message
-  }
-  if (error instanceof Error)
-    return error.message
-  return String(error)
 }

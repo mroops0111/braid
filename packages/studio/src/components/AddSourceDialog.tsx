@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { api, ApiError } from '@/lib/api'
+import { api } from '@/lib/api'
+import { humaniseApiError } from '@/lib/errors'
 import { nameToId, toSourceDescriptor } from '@/lib/sourceDraft'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
@@ -179,7 +180,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
                           </Button>
                         </div>
                         {startOauth.error && (
-                          <p className="mt-2 text-[11px] text-destructive">{humanise(startOauth.error)}</p>
+                          <p className="mt-2 text-[11px] text-destructive">{humaniseApiError(startOauth.error)}</p>
                         )}
                       </div>
                     </>
@@ -191,7 +192,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
                   <Input value={mcpServerId} onChange={e => setMcpServerId(e.target.value)} placeholder="must match an MCP server declared in this workspace" />
                 </Field>
               )}
-          {add.error && <p className="text-xs text-destructive">{humanise(add.error)}</p>}
+          {add.error && <p className="text-xs text-destructive">{humaniseApiError(add.error)}</p>}
         </div>
         <DialogFooter>
           <Button variant="ghost" size="sm" onClick={close}>Cancel</Button>
@@ -211,15 +212,4 @@ function Field({ label, children }: { label: string, children: React.ReactNode }
       {children}
     </div>
   )
-}
-
-function humanise(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.status === 400 && error.message.includes('already exists'))
-      return error.message
-    return error.message
-  }
-  if (error instanceof Error)
-    return error.message
-  return String(error)
 }

@@ -2,7 +2,8 @@ import type { McpServerConfig, SourceDescriptor, Workspace } from '@telos/schema
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Database, GitBranch, HardDrive, Plug, RefreshCw, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { api, ApiError } from '@/lib/api'
+import { api } from '@/lib/api'
+import { humaniseApiError } from '@/lib/errors'
 import { queryKeys } from '@/lib/queries'
 import { AddSourceDialog } from './AddSourceDialog'
 import { Button } from './ui/button'
@@ -163,7 +164,7 @@ function RenameSection({ workspace, onRenamed }: { workspace: Workspace, onRenam
         <Label htmlFor="desc">Description</Label>
         <Input id="desc" value={description} onChange={e => setDescription(e.target.value)} placeholder="(optional)" />
       </div>
-      {patch.error && <p className="text-[11px] text-destructive">{humanise(patch.error)}</p>}
+      {patch.error && <p className="text-[11px] text-destructive">{humaniseApiError(patch.error)}</p>}
       <div className="flex justify-end">
         <Button size="sm" disabled={!dirty || patch.isPending} onClick={() => patch.mutate()}>
           {patch.isPending ? 'Saving…' : 'Save'}
@@ -223,7 +224,7 @@ function SourceRow({ workspaceId, source, onChange }: {
         </p>
       )}
       {(sync.error || remove.error) && (
-        <p className="mt-1 text-[10px] text-destructive">{humanise(sync.error ?? remove.error)}</p>
+        <p className="mt-1 text-[10px] text-destructive">{humaniseApiError(sync.error ?? remove.error)}</p>
       )}
     </li>
   )
@@ -272,7 +273,7 @@ function UnregisterButton({ workspaceId, onUnregistered }: { workspaceId: string
       <p className="text-[11px] text-muted-foreground">
         Removes from Telos. PRODUCT.md and all source files stay on disk; you can re-register later.
       </p>
-      {remove.error && <p className="text-[11px] text-destructive">{humanise(remove.error)}</p>}
+      {remove.error && <p className="text-[11px] text-destructive">{humaniseApiError(remove.error)}</p>}
       <div className="flex gap-2">
         <Button variant="ghost" size="sm" className="flex-1" onClick={() => setArmed(false)}>Cancel</Button>
         <Button size="sm" className="flex-1" onClick={() => remove.mutate()} disabled={remove.isPending}>
@@ -281,14 +282,4 @@ function UnregisterButton({ workspaceId, onUnregistered }: { workspaceId: string
       </div>
     </div>
   )
-}
-
-function humanise(error: unknown): string {
-  if (error instanceof ApiError)
-    return error.message
-  if (error instanceof Error)
-    return error.message
-  if (error == null)
-    return ''
-  return String(error)
 }
