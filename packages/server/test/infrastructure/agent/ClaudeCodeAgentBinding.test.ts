@@ -1,7 +1,7 @@
-import type { AbsolutePath, AgentBindingDescriptor, AgentId, ProductManifest, SkillId, SkillManifest as SkillManifestData, SourceId, StorageKind, WorkspaceId } from '@telos/schema'
-import { SkillManifest, Workspace } from '@telos/core'
+import type { AbsolutePath, AgentBindingDescriptor, AgentId, SkillId, SourceId } from '@telos/schema'
 import { describe, expect, it } from 'vitest'
 import { ClaudeCodeAgentBinding } from '../../../src/infrastructure/agent/ClaudeCodeAgentBinding.js'
+import { makeSkillManifest, makeWorkspace } from '../../helpers/fakes.js'
 
 const descriptor: AgentBindingDescriptor = {
   id: 'claude-opus' as AgentId,
@@ -12,12 +12,9 @@ const descriptor: AgentBindingDescriptor = {
   env: { FOO: 'bar' },
 }
 
-function makeWorkspace(): Workspace {
-  const manifest: ProductManifest = {
-    name: 'demo',
-    version: '0.0.0',
-    ontologyId: 'ddd' as never,
-    agents: { default: 'claude-opus', tasks: {} },
+function buildWorkspace() {
+  return makeWorkspace({
+    rootPath: '/abs/ws' as AbsolutePath,
     agentBindings: [descriptor],
     sources: [{
       kind: 'filesystem',
@@ -26,43 +23,18 @@ function makeWorkspace(): Workspace {
       name: 'api',
       path: '/abs/code/api' as AbsolutePath,
     }],
-    mcpServers: [],
-    storage: { kind: 'in-memory' as StorageKind, config: {} },
-    channels: [],
-  }
-  return new Workspace({
-    id: 'ws-1' as WorkspaceId,
-    rootPath: '/abs/ws' as AbsolutePath,
-    productManifest: manifest,
-    pluginConfig: { plugins: [] },
   })
 }
 
-function makeManifest(): SkillManifest {
-  const data: SkillManifestData = {
-    id: 'ask' as SkillId,
-    origin: 'builtin',
-    path: '/abs/skills/ask/SKILL.md' as AbsolutePath,
-    frontmatter: {
-      name: 'telos-ask',
-      description: 'a',
-      disableModelInvocation: false,
-      requiredEnv: [],
-      requiredPaths: [],
-      requiredMcpServers: [],
-    },
-  }
-  return new SkillManifest(data)
-}
-
 describe('ClaudeCodeAgentBinding', () => {
-  it('resolveSpawn assembles claude CLI args', () => {
+  it('assembles claude CLI args with model, effort, mcp config, extra args, and code source --add-dir', () => {
     const binding = new ClaudeCodeAgentBinding(descriptor)
+
     const result = binding.resolveSpawn({
       skillId: 'ask' as SkillId,
       args: 'what is voidTask',
-      workspace: makeWorkspace(),
-      manifest: makeManifest(),
+      workspace: buildWorkspace(),
+      manifest: makeSkillManifest({ id: 'ask' }),
       apiUrl: 'http://localhost:4321',
       mcpConfigFile: '/tmp/.mcp.json' as AbsolutePath,
     })
@@ -80,22 +52,24 @@ describe('ClaudeCodeAgentBinding', () => {
     expect(result.args).toContain('--verbose-stream')
   })
 
-  it('passes workspace + api info via env', () => {
+  it('forwards workspace path, workspace id, api url, and descriptor env into the child env', () => {
     const binding = new ClaudeCodeAgentBinding(descriptor)
+
     const result = binding.resolveSpawn({
       skillId: 'ask' as SkillId,
       args: '',
-      workspace: makeWorkspace(),
-      manifest: makeManifest(),
+      workspace: buildWorkspace(),
+      manifest: makeSkillManifest({ id: 'ask' }),
       apiUrl: 'http://localhost:4321',
     })
+
     expect(result.env.TELOS_WORKSPACE).toBe('/abs/ws')
     expect(result.env.TELOS_WORKSPACE_ID).toBe('ws-1')
     expect(result.env.TELOS_API_URL).toBe('http://localhost:4321')
     expect(result.env.FOO).toBe('bar')
   })
 
-  it('throws when descriptor kind is not claude-code', () => {
+  it('throws when the binding descriptor is not claude-code', () => {
     expect(() => new ClaudeCodeAgentBinding({
       ...descriptor,
       kind: 'anthropic-api' as never,
