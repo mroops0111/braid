@@ -7,12 +7,3 @@ export interface RunRepository {
   listRecords: (workspace: Workspace) => Promise<readonly RunRecord[]>
   readEvents: (workspace: Workspace, runId: SkillRunId) => AsyncIterable<SkillEvent>
 }
-
-export const noopRunRepository: RunRepository = {
-  async saveRecord() {},
-  async appendEvent() {},
-  async listRecords() {
-    return []
-  },
-  async * readEvents() {},
-}
