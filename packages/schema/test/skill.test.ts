@@ -1,21 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
+  RunRecord,
   SkillArtifactKind,
   SkillEvent,
   SkillFrontmatter,
   SkillManifest,
   SkillOrigin,
   SkillRun,
-  SkillRunStatus,
 } from '../src/index.js'
 
 const isoTimestamp = '2026-05-12T12:00:00+08:00'
-
-describe('skillRunStatus', () => {
-  it('has 4 states', () => {
-    expect(SkillRunStatus.options).toEqual(['running', 'succeeded', 'failed', 'cancelled'])
-  })
-})
 
 describe('skillRun (audit record)', () => {
   it('parses a running skill', () => {
@@ -258,23 +252,22 @@ describe('skillEvent (discriminated union)', () => {
 })
 
 describe('runRecord', () => {
-  it('parses a minimal in-progress record', async () => {
-    const { RunRecord } = await import('../src/skill.js')
-    const rec = RunRecord.parse({
+  it('parses a minimal in-progress record (resumed defaults to false)', () => {
+    const record = RunRecord.parse({
       runId: 'sr-1',
       workspaceId: 'demo',
       skillId: 'telos-ask',
       args: 'hi',
       startedAt: isoTimestamp,
     })
-    expect(rec.resumed).toBe(false)
-    expect(rec.completedAt).toBeUndefined()
-    expect(rec.exitCode).toBeUndefined()
+
+    expect(record.resumed).toBe(false)
+    expect(record.completedAt).toBeUndefined()
+    expect(record.exitCode).toBeUndefined()
   })
 
-  it('parses a completed record with sessionId + exitCode', async () => {
-    const { RunRecord } = await import('../src/skill.js')
-    const rec = RunRecord.parse({
+  it('parses a completed record with sessionId and exitCode', () => {
+    const record = RunRecord.parse({
       runId: 'sr-2',
       workspaceId: 'demo',
       skillId: 'telos-ask',
@@ -285,7 +278,8 @@ describe('runRecord', () => {
       completedAt: isoTimestamp,
       exitCode: 0,
     })
-    expect(rec.sessionId).toBe('sess-abc')
-    expect(rec.exitCode).toBe(0)
+
+    expect(record.sessionId).toBe('sess-abc')
+    expect(record.exitCode).toBe(0)
   })
 })

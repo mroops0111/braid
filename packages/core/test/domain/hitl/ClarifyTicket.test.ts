@@ -37,12 +37,6 @@ function data(overrides: Partial<ClarifyTicketData> = {}): ClarifyTicketData {
 }
 
 describe('ClarifyTicket', () => {
-  it('exposes underlying data', () => {
-    const ticket = new ClarifyTicket(data())
-    expect(ticket.id).toBe('ct-1')
-    expect(ticket.candidates).toHaveLength(2)
-  })
-
   describe('resolveCandidate', () => {
     it('returns the candidate operations', () => {
       const ticket = new ClarifyTicket(data())

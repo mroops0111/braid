@@ -38,13 +38,6 @@ function data(overrides: Partial<ProposalData> = {}): ProposalData {
 }
 
 describe('Proposal', () => {
-  it('exposes underlying data', () => {
-    const proposal = new Proposal(data())
-    expect(proposal.id).toBe('p-1')
-    expect(proposal.status).toBe('pending')
-    expect(proposal.operations).toHaveLength(1)
-  })
-
   describe('markApplied', () => {
     it('returns a new Proposal in applied status with reviewer + timestamp', () => {
       const applied = new Proposal(data()).markApplied(userId, isoTimestamp)

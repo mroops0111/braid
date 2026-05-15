@@ -36,8 +36,11 @@ describe('timestamp', () => {
   })
 })
 
-describe('branded IDs', () => {
-  const idSchemas = {
+describe('branded IDs share the z.string().min(1).brand() contract', () => {
+  // One representative case per schema — they all delegate to the same zod
+  // primitive, so picking one (NodeId) plus a parameterised name table is
+  // enough to catch a regression that swaps the brand for a looser type.
+  const schemas = {
     WorkspaceId,
     NodeId,
     EdgeId,
@@ -55,16 +58,12 @@ describe('branded IDs', () => {
     OntologyId,
     UserId,
     AbsolutePath,
-  }
+  } as const
 
-  for (const [name, schema] of Object.entries(idSchemas)) {
-    it(`${name} accepts a non-empty string`, () => {
-      expect(schema.parse('x')).toBe('x')
-    })
-    it(`${name} rejects empty string`, () => {
-      expect(schema.safeParse('').success).toBe(false)
-    })
-  }
+  it.each(Object.entries(schemas))('%s accepts a non-empty string and rejects empty', (_name, schema) => {
+    expect(schema.parse('x')).toBe('x')
+    expect(schema.safeParse('').success).toBe(false)
+  })
 })
 
 describe('sourceLocation', () => {

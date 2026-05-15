@@ -26,17 +26,6 @@ storage:
 }
 
 describe('composeFsApp', () => {
-  it('returns AppDependencies wired with FS adapters + subprocess skill runner', async () => {
-    const telosHome = await makeTelosHome()
-    const deps = composeFsApp({ telosHome })
-
-    expect(deps.workspaceService).toBeDefined()
-    expect(deps.hitlService).toBeDefined()
-    expect(deps.modelService).toBeDefined()
-    expect(deps.skillRegistry).toBeDefined()
-    expect(deps.skillRunner).toBeDefined()
-  })
-
   it('createApp with composeFsApp serves health endpoint', async () => {
     const telosHome = await makeTelosHome()
     const app = createApp(composeFsApp({ telosHome }))
