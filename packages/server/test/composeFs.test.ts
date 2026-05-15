@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -70,5 +70,42 @@ describe('composeFsApp', () => {
     const body = await response.json()
     const ids = (body.items as Array<{ id: string }>).map(item => item.id).sort()
     expect(ids).toEqual(['telos-ask', 'telos-clarify', 'telos-extract', 'telos-generate-doc'])
+  })
+
+  it('POST /workspaces/scaffold rolls back PRODUCT.md and registry on ingest failure', async () => {
+    // A source whose loader.kind isn't registered makes
+    // SourceLoaderRunner.ingestAll throw. Verify the route catches it,
+    // removes the just-written PRODUCT.md, and leaves the registry empty
+    // so a retry doesn't trip on "PRODUCT.md already exists".
+    const telosHome = await makeTelosHome()
+    const wsDir = await mkdtemp(join(tmpdir(), 'telos-scaffold-rollback-'))
+    const app = createApp(composeFsApp({ telosHome }))
+
+    const response = await app.request('/workspaces/scaffold', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rootPath: wsDir,
+        manifest: {
+          name: 'rollback-demo',
+          sources: [{
+            kind: 'filesystem',
+            id: 'intent',
+            role: 'intent',
+            name: 'intent',
+            path: './intent',
+            loader: { kind: 'this-loader-does-not-exist', config: {} },
+          }],
+        },
+      }),
+    })
+
+    expect(response.status).toBeGreaterThanOrEqual(400)
+
+    await expect(stat(join(wsDir, 'PRODUCT.md'))).rejects.toThrow(/ENOENT/)
+
+    const listResponse = await app.request('/workspaces')
+    const list = await listResponse.json() as { items: unknown[] }
+    expect(list.items).toEqual([])
   })
 })

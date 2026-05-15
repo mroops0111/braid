@@ -1,6 +1,7 @@
 import type { SourceLoaderRunner, Workspace, WorkspaceService } from '@telos/core'
 import type { ProductManifest, SourceDescriptor } from '@telos/schema'
-import { stat } from 'node:fs/promises'
+import { rm, stat } from 'node:fs/promises'
+import { join } from 'node:path'
 import { zValidator } from '@hono/zod-validator'
 import { NotFoundError, ValidationError } from '@telos/core'
 import {
@@ -65,22 +66,32 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   })
 
   // Create a workspace from scratch: write PRODUCT.md with server-filled
-  // defaults, register it, and run every loader-backed source's `ingest`
-  // so the local filesystem is hydrated by the time the user can run a
-  // skill. Refuses to overwrite an existing PRODUCT.md.
+  // defaults, run every loader-backed source's `ingest`, then register.
+  // If ingest fails (wrong git branch, missing OAuth scope, etc.) we
+  // delete the PRODUCT.md we just wrote and drop the parse cache, so
+  // the user's retry sees a clean slate instead of "PRODUCT.md already
+  // exists" or a stale cached config.
   router.post('/scaffold', zValidator('json', ScaffoldBodySchema), async (context) => {
     const { rootPath, manifest: draft } = context.req.valid('json')
-    if (await pathExists(`${rootPath}/PRODUCT.md`))
+    const productPath = join(rootPath, 'PRODUCT.md')
+    if (await pathExists(productPath))
       throw new ValidationError(`A PRODUCT.md already exists at "${rootPath}". Use POST /workspaces to register it instead.`)
     const manifest = fillManifestDefaults(draft)
     await writeProductManifest(rootPath, manifest, manifest.description)
-    const workspace = await deps.workspaceService.load(rootPath)
-    await deps.workspaceService.save(workspace)
-    const ingestOutcomes = await deps.sourceLoaderRunner.ingestAll(workspace)
-    return context.json({
-      workspace: workspace.toData(),
-      ingest: ingestOutcomes.map(o => ({ sourceId: o.sourceId, ...o.report })),
-    }, 201)
+    try {
+      const workspace = await deps.workspaceService.load(rootPath)
+      const ingestOutcomes = await deps.sourceLoaderRunner.ingestAll(workspace)
+      await deps.workspaceService.save(workspace)
+      return context.json({
+        workspace: workspace.toData(),
+        ingest: ingestOutcomes.map(o => ({ sourceId: o.sourceId, ...o.report })),
+      }, 201)
+    }
+    catch (error) {
+      await rm(productPath, { force: true })
+      deps.workspaceService.invalidate(rootPath)
+      throw error
+    }
   })
 
   // Add a source to an existing workspace. Rewrites PRODUCT.md and runs
