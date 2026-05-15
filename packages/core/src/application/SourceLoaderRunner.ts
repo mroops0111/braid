@@ -8,6 +8,7 @@ import type { Clock } from '../domain/Clock.js'
 import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
 import type { IngestReport, SyncReport } from '../domain/plugin/SourceLoader.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
+import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import { stat } from 'node:fs/promises'
 import { isAbsolute, resolve } from 'node:path'
 import { AbsolutePath as AbsolutePathSchema } from '@telos/schema'
@@ -16,6 +17,8 @@ import { NotFoundError, ValidationError } from '../domain/errors.js'
 export interface SourceLoaderRunnerDeps {
   readonly pluginRegistry: PluginRegistry
   readonly clock: Clock
+  /** Optional pub/sub for Studio invalidation; see HITLService for the pattern. */
+  readonly eventBus?: WorkspaceEventBus
 }
 
 /**
@@ -41,6 +44,13 @@ export class SourceLoaderRunner {
         continue
       const report = await this.runIngest(workspace, source, source.loader)
       outcomes.push({ sourceId: source.id, report })
+      this.deps.eventBus?.publish({
+        type: 'source.synced',
+        workspaceId: workspace.id,
+        sourceId: source.id,
+        changed: true,
+        at: this.deps.clock.now(),
+      })
     }
     return outcomes
   }
@@ -59,15 +69,29 @@ export class SourceLoaderRunner {
     // source current"; whether that's a fresh clone or a pull is plumbing.
     if (!(await pathExists(destination))) {
       const ingest = await loader.ingest(source.loader.config, destination, context)
-      return {
+      const report: SyncReport = {
         changed: true,
         ...(ingest.metadata ? { metadata: ingest.metadata } : {}),
         fetchedAt: ingest.fetchedAt,
       }
+      this.publishSynced(workspace, source.id, report)
+      return report
     }
     if (!loader.sync)
       throw new ValidationError(`Loader "${source.loader.kind}" does not support sync and destination already exists`)
-    return loader.sync(source.loader.config, destination, context)
+    const report = await loader.sync(source.loader.config, destination, context)
+    this.publishSynced(workspace, source.id, report)
+    return report
+  }
+
+  private publishSynced(workspace: Workspace, sourceId: SourceId, report: SyncReport): void {
+    this.deps.eventBus?.publish({
+      type: 'source.synced',
+      workspaceId: workspace.id,
+      sourceId,
+      changed: report.changed,
+      at: this.deps.clock.now(),
+    })
   }
 
   private async runIngest(

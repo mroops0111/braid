@@ -13,7 +13,14 @@ import type {
 import { mkdir, mkdtemp, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { SkillManifest, type SkillRegistry, type SkillRunner as SkillRunnerPort, Workspace } from '@telos/core'
+import {
+  SkillManifest,
+  type SkillRegistry,
+  type SkillRunner as SkillRunnerPort,
+  Workspace,
+  type WorkspaceEvent,
+  type WorkspaceEventBus,
+} from '@telos/core'
 import { describe, expect, it } from 'vitest'
 import { ClaudeCodeAgentBinding } from '../../../src/infrastructure/agent/ClaudeCodeAgentBinding.js'
 import { mapSubprocessEvents, SubprocessSkillRunner } from '../../../src/infrastructure/agent/SubprocessSkillRunner.js'
@@ -410,6 +417,130 @@ describe('SubprocessSkillRunner', () => {
     expect(late.positionAtSubscribe).toBeGreaterThan(0)
     late.unsubscribe()
     expect(runner.isActive(runId)).toBe(false)
+  })
+
+  describe('WorkspaceEventBus integration', () => {
+    function makeRecordingBus() {
+      const events: WorkspaceEvent[] = []
+      const waiters: Array<{ predicate: (events: readonly WorkspaceEvent[]) => boolean, resolve: () => void }> = []
+      const bus: WorkspaceEventBus = {
+        publish: (event) => {
+          events.push(event)
+          for (let i = waiters.length - 1; i >= 0; i--) {
+            const waiter = waiters[i]!
+            if (waiter.predicate(events)) {
+              waiters.splice(i, 1)
+              waiter.resolve()
+            }
+          }
+        },
+        subscribe: () => () => {},
+      }
+      const waitFor = (predicate: (events: readonly WorkspaceEvent[]) => boolean): Promise<void> => {
+        if (predicate(events))
+          return Promise.resolve()
+        return new Promise<void>((resolve) => {
+          waiters.push({ predicate, resolve })
+        })
+      }
+      return { bus, events, waitFor }
+    }
+
+    it('publishes run.started + run.completed{outcome:success} on a clean exit', async () => {
+      const rootPath = (await mkdtemp(join(tmpdir(), 'telos-runner-'))) as AbsolutePath
+      const { spawn } = createMockSpawn([{ stdoutLines: [], exitCode: 0 }])
+      const { bus, events: busEvents, waitFor } = makeRecordingBus()
+
+      const runner = new SubprocessSkillRunner({
+        skillRegistry: await makeSkillRegistry(rootPath),
+        agentBinding: new ClaudeCodeAgentBinding(descriptor),
+        apiUrl: 'http://localhost:4321',
+        runRepository: new FsRunRepository(),
+        spawn,
+        eventBus: bus,
+      })
+
+      await collectRunEvents(runner, makeWorkspace(rootPath), 'telos-ask' as SkillId, '')
+      await waitFor(events => events.some(e => e.type === 'run.completed'))
+
+      const types = busEvents.map(e => e.type)
+      expect(types).toEqual(['run.started', 'run.completed'])
+      const completed = busEvents[1]!
+      expect(completed.type).toBe('run.completed')
+      if (completed.type === 'run.completed')
+        expect(completed.outcome).toBe('success')
+    })
+
+    it('publishes outcome:error when the subprocess exits non-zero', async () => {
+      const rootPath = (await mkdtemp(join(tmpdir(), 'telos-runner-'))) as AbsolutePath
+      const { spawn } = createMockSpawn([{ stdoutLines: [], exitCode: 137 }])
+      const { bus, events: busEvents, waitFor } = makeRecordingBus()
+
+      const runner = new SubprocessSkillRunner({
+        skillRegistry: await makeSkillRegistry(rootPath),
+        agentBinding: new ClaudeCodeAgentBinding(descriptor),
+        apiUrl: 'http://localhost:4321',
+        runRepository: new FsRunRepository(),
+        spawn,
+        eventBus: bus,
+      })
+
+      await collectRunEvents(runner, makeWorkspace(rootPath), 'telos-ask' as SkillId, '')
+      await waitFor(events => events.some(e => e.type === 'run.completed'))
+
+      const completed = busEvents.find(e => e.type === 'run.completed')!
+      if (completed.type === 'run.completed')
+        expect(completed.outcome).toBe('error')
+    })
+
+    it('publishes outcome:error when an error event fired during the run, even on exit 0', async () => {
+      // Simulates an error.result with is_error=true followed by a clean
+      // process exit. Wire-level: claude prints the error event before
+      // closing stdio. We expect outcome=error because business logic
+      // failed, not just because the OS-level exit was non-zero.
+      const rootPath = (await mkdtemp(join(tmpdir(), 'telos-runner-'))) as AbsolutePath
+      const { spawn } = createMockSpawn([{
+        stdoutLines: [
+          JSON.stringify({ type: 'result', subtype: 'error', is_error: true, result: 'oops' }),
+        ],
+        exitCode: 0,
+      }])
+      const { bus, events: busEvents, waitFor } = makeRecordingBus()
+
+      const runner = new SubprocessSkillRunner({
+        skillRegistry: await makeSkillRegistry(rootPath),
+        agentBinding: new ClaudeCodeAgentBinding(descriptor),
+        apiUrl: 'http://localhost:4321',
+        runRepository: new FsRunRepository(),
+        spawn,
+        eventBus: bus,
+      })
+
+      await collectRunEvents(runner, makeWorkspace(rootPath), 'telos-ask' as SkillId, '')
+      await waitFor(events => events.some(e => e.type === 'run.completed'))
+
+      const completed = busEvents.find(e => e.type === 'run.completed')!
+      if (completed.type === 'run.completed')
+        expect(completed.outcome).toBe('error')
+    })
+
+    it('runs cleanly when no eventBus is injected (legacy callers)', async () => {
+      // Pre-Theme-2 callers don't pass eventBus. The runner must not crash.
+      const rootPath = (await mkdtemp(join(tmpdir(), 'telos-runner-'))) as AbsolutePath
+      const { spawn } = createMockSpawn([{ stdoutLines: [], exitCode: 0 }])
+
+      const runner = new SubprocessSkillRunner({
+        skillRegistry: await makeSkillRegistry(rootPath),
+        agentBinding: new ClaudeCodeAgentBinding(descriptor),
+        apiUrl: 'http://localhost:4321',
+        runRepository: new FsRunRepository(),
+        spawn,
+      })
+
+      await expect(collectRunEvents(runner, makeWorkspace(rootPath), 'telos-ask' as SkillId, ''))
+        .resolves
+        .toBeDefined()
+    })
   })
 })
 

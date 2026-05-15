@@ -13,6 +13,7 @@ import { createOntologyRouter } from './routes/ontology.js'
 import { createProposalsRouter } from './routes/proposals.js'
 import { createRunsRouter } from './routes/runs.js'
 import { createSkillsRouter } from './routes/skills.js'
+import { createWorkspaceEventsRouter } from './routes/workspaceEvents.js'
 import { createWorkspacesRouter } from './routes/workspaces.js'
 
 export interface AppOptions {
@@ -34,6 +35,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Hono
     workspaceService: deps.workspaceService,
     sourceLoaderRunner: deps.sourceLoaderRunner,
   }))
+  app.route('/workspaces', createWorkspaceEventsRouter({ eventBus: deps.eventBus }))
 
   const workspaceScoped = new Hono()
   workspaceScoped.route('/model', createModelRouter({ modelService: deps.modelService }))

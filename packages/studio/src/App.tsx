@@ -2,11 +2,13 @@ import { Command, FolderPlus, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { CommandPalette, type TabKey } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
+import { InFlightRunBanner } from './components/InFlightRunBanner'
 import { RegisterWorkspaceDialog } from './components/RegisterWorkspaceDialog'
 import { Sidebar } from './components/Sidebar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
 import { useWorkspaces } from './lib/queries'
+import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
 import { GraphPage } from './pages/Graph'
 import { ProposalsPage } from './pages/Proposals'
 import { RunsPage } from './pages/Runs'
@@ -26,6 +28,8 @@ export function App() {
     }
   }, [activeId, workspaces])
 
+  useWorkspaceEvents(activeId)
+
   const items = workspaces?.items ?? []
 
   function openDetails(id: string) {
@@ -43,6 +47,7 @@ export function App() {
       />
       <main className="flex flex-1 flex-col overflow-hidden">
         <Header workspaceId={activeId} onOpenDetails={() => activeId && openDetails(activeId)} />
+        <InFlightRunBanner workspaceId={activeId} />
         {activeId
           ? (
               <Tabs

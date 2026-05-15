@@ -18,6 +18,7 @@ import type { DecisionRepository } from '../domain/hitl/DecisionRepository.js'
 import type { ProposalRepository } from '../domain/hitl/ProposalRepository.js'
 import type { ModelRepository } from '../domain/model/ModelRepository.js'
 import type { ValidationService } from './ValidationService.js'
+import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import { ValidationError } from '../domain/errors.js'
 import { ClarifyTicket } from '../domain/hitl/ClarifyTicket.js'
 import { Proposal } from '../domain/hitl/Proposal.js'
@@ -30,6 +31,13 @@ export interface HITLServiceDeps {
   modelRepository: ModelRepository
   validationService: ValidationService
   clock: Clock
+  /**
+   * Optional pub/sub. Injected at the composition root so Studio's
+   * `useWorkspaceEvents` SSE invalidates its react-query caches the
+   * moment a proposal / clarify-ticket changes. Tests without a bus pass
+   * undefined and skip the notifications.
+   */
+  eventBus?: WorkspaceEventBus
 }
 
 export class HITLService {
@@ -51,6 +59,12 @@ export class HITLService {
       ...(draft.externalReferences ? { externalReferences: draft.externalReferences } : {}),
     })
     await this.deps.proposalRepository.save(proposal)
+    this.deps.eventBus?.publish({
+      type: 'proposal.created',
+      workspaceId: proposal.workspaceId,
+      proposalId: proposal.id,
+      at: this.deps.clock.now(),
+    })
     return proposal
   }
 
@@ -67,6 +81,12 @@ export class HITLService {
       ...(draft.externalReferences ? { externalReferences: draft.externalReferences } : {}),
     })
     await this.deps.clarifyRepository.save(ticket)
+    this.deps.eventBus?.publish({
+      type: 'clarify.created',
+      workspaceId: ticket.workspaceId,
+      ticketId: ticket.id,
+      at: this.deps.clock.now(),
+    })
     return ticket
   }
 
@@ -77,6 +97,12 @@ export class HITLService {
     const applied = proposal.markApplied(userId, this.deps.clock.now())
     await this.deps.modelRepository.applyOperations(proposal.workspaceId, [...proposal.operations])
     await this.deps.proposalRepository.save(applied)
+    this.deps.eventBus?.publish({
+      type: 'proposal.applied',
+      workspaceId: proposal.workspaceId,
+      proposalId: proposal.id,
+      at: this.deps.clock.now(),
+    })
 
     return this.recordDecision({
       workspaceId: proposal.workspaceId,
@@ -90,6 +116,12 @@ export class HITLService {
     const proposal = await this.deps.proposalRepository.load(proposalId)
     const rejected = proposal.markRejected(userId, this.deps.clock.now())
     await this.deps.proposalRepository.save(rejected)
+    this.deps.eventBus?.publish({
+      type: 'proposal.rejected',
+      workspaceId: proposal.workspaceId,
+      proposalId: proposal.id,
+      at: this.deps.clock.now(),
+    })
 
     return this.recordDecision({
       workspaceId: proposal.workspaceId,
@@ -112,6 +144,12 @@ export class HITLService {
     const applied = ticket.markApplied(candidateId, userId)
     await this.deps.modelRepository.applyOperations(ticket.workspaceId, operations)
     await this.deps.clarifyRepository.save(applied)
+    this.deps.eventBus?.publish({
+      type: 'clarify.answered',
+      workspaceId: ticket.workspaceId,
+      ticketId: ticket.id,
+      at: this.deps.clock.now(),
+    })
 
     return this.recordDecision({
       workspaceId: ticket.workspaceId,
@@ -129,6 +167,12 @@ export class HITLService {
     const ticket = await this.deps.clarifyRepository.load(clarifyTicketId)
     const skipped = ticket.markSkipped(userId)
     await this.deps.clarifyRepository.save(skipped)
+    this.deps.eventBus?.publish({
+      type: 'clarify.skipped',
+      workspaceId: ticket.workspaceId,
+      ticketId: ticket.id,
+      at: this.deps.clock.now(),
+    })
 
     return this.recordDecision({
       workspaceId: ticket.workspaceId,

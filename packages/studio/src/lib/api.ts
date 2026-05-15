@@ -15,6 +15,10 @@ import type {
 
 const baseUrl = import.meta.env.VITE_TELOS_API_URL ?? 'http://localhost:4321'
 
+export function workspaceEventsUrl(workspaceId: string): string {
+  return `${baseUrl}/workspaces/${workspaceId}/events`
+}
+
 export interface ItemList<T> { items: T[] }
 
 export interface IngestSummary {
@@ -175,6 +179,8 @@ export const api = {
     fetchJson<ItemList<RunRecord>>(`/workspaces/${workspaceId}/runs`),
   runEventsUrl: (workspaceId: string, runId: string) =>
     `${baseUrl}/workspaces/${workspaceId}/runs/${runId}/events`,
+  cancelRun: (workspaceId: string, runId: string) =>
+    fetchJson<void>(`/workspaces/${workspaceId}/runs/${runId}/cancel`, { method: 'POST' }),
   forgetSession: (workspaceId: string, sessionId: string) =>
     fetch(`${baseUrl}/workspaces/${workspaceId}/runs/sessions/${sessionId}`, { method: 'DELETE' })
       .then((r) => {

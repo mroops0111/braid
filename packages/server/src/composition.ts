@@ -7,6 +7,7 @@ import type {
   RunRepository,
   SkillRegistry,
   SkillRunner,
+  WorkspaceEventBus,
   WorkspaceRepository,
 } from '@telos/core'
 import type { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
@@ -17,6 +18,7 @@ import {
   InMemoryDecisionRepository,
   InMemoryModelRepository,
   InMemoryProposalRepository,
+  InMemoryWorkspaceEventBus,
   InMemoryWorkspaceRepository,
   ModelService,
   noopRunRepository,
@@ -33,6 +35,7 @@ export interface AppDependencies {
   modelService: ModelService
   validationService: ValidationService
   sourceLoaderRunner: SourceLoaderRunner
+  eventBus: WorkspaceEventBus
   pluginRegistry: PluginRegistry
   proposalRepository: ProposalRepository
   clarifyRepository: ClarifyTicketRepository
@@ -63,6 +66,12 @@ export interface ComposeOptions {
   skillRegistry?: SkillRegistry
   skillRunner?: SkillRunner
   runRepository?: RunRepository
+  /**
+   * Pre-created event bus. Pass the same instance you wired into
+   * `SubprocessSkillRunner` so subscribers see runner events. Defaults
+   * to a fresh `InMemoryWorkspaceEventBus` for tests / in-memory boot.
+   */
+  eventBus?: WorkspaceEventBus
 }
 
 export function composeApp(options: ComposeOptions = {}): AppDependencies {
@@ -74,10 +83,11 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const workspaceRepository = options.workspaceRepository ?? new InMemoryWorkspaceRepository()
   const pluginRegistry = options.pluginRegistry ?? new PluginRegistry()
 
+  const eventBus = options.eventBus ?? new InMemoryWorkspaceEventBus()
   const workspaceService = new WorkspaceService({ workspaceRepository })
   const modelService = new ModelService({ modelRepository })
   const validationService = new ValidationService({ pluginRegistry })
-  const sourceLoaderRunner = new SourceLoaderRunner({ pluginRegistry, clock })
+  const sourceLoaderRunner = new SourceLoaderRunner({ pluginRegistry, clock, eventBus })
   const hitlService = new HITLService({
     proposalRepository,
     clarifyRepository,
@@ -85,6 +95,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     modelRepository,
     validationService,
     clock,
+    eventBus,
   })
 
   return {
@@ -93,6 +104,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     modelService,
     validationService,
     sourceLoaderRunner,
+    eventBus,
     pluginRegistry,
     proposalRepository,
     clarifyRepository,

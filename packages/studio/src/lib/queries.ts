@@ -3,8 +3,11 @@ import { api } from './api'
 
 export const queryKeys = {
   workspaces: () => ['workspaces'] as const,
+  workspaceDetail: (workspaceId: string) => ['workspaces', workspaceId, 'detail'] as const,
   skills: (workspaceId: string) => ['workspaces', workspaceId, 'skills'] as const,
   modelSnapshot: (workspaceId: string) => ['workspaces', workspaceId, 'model', 'snapshot'] as const,
+  nodes: (workspaceId: string) => ['workspaces', workspaceId, 'nodes'] as const,
+  edges: (workspaceId: string) => ['workspaces', workspaceId, 'edges'] as const,
   proposals: (workspaceId: string, status?: string) => ['workspaces', workspaceId, 'proposals', status ?? 'all'] as const,
   clarify: (workspaceId: string) => ['workspaces', workspaceId, 'clarify'] as const,
   decisions: (workspaceId: string) => ['workspaces', workspaceId, 'decisions'] as const,

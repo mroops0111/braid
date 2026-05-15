@@ -7,6 +7,7 @@ import type {
   SkillRunOptions,
   SkillRunSubscription,
   Workspace,
+  WorkspaceEventBus,
 } from '@telos/core'
 import type { AbsolutePath, RunRecord, SkillEvent, SkillId, SkillRunId } from '@telos/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
@@ -43,6 +44,12 @@ export interface SubprocessSkillRunnerDeps {
   readonly referenceDirs?: readonly SkillReferenceDir[]
   /** Delete the per-run session directory after the run. Default `true`. */
   readonly cleanupSession?: boolean
+  /**
+   * Optional pub/sub for workspace-scoped notifications. Used by Studio
+   * to invalidate run / proposal lists in real time without polling.
+   * Tests can leave this undefined.
+   */
+  readonly eventBus?: WorkspaceEventBus
 }
 
 interface ActiveRun {
@@ -113,6 +120,13 @@ export class SubprocessSkillRunner implements SkillRunner {
       ...(options?.resumeSessionId ? { sessionId: options.resumeSessionId } : {}),
     }
     await this.deps.runRepository.saveRecord(workspace, initialRecord)
+    this.deps.eventBus?.publish({
+      type: 'run.started',
+      workspaceId: workspace.id,
+      runId,
+      skillId,
+      at: startedAt,
+    })
 
     // Fire-and-forget the drain so the HTTP request that called start()
     // can return immediately.
@@ -179,6 +193,8 @@ export class SubprocessSkillRunner implements SkillRunner {
   }): Promise<void> {
     let record = input.initialRecord
     let capturedSessionId: string | null = input.resumeSessionId ?? null
+    let sawError = false
+    let exitCode = 0
 
     try {
       await this.emit(input.workspace, input.runId, SkillEventSchema.parse({
@@ -213,13 +229,24 @@ export class SubprocessSkillRunner implements SkillRunner {
         }
         if (event.type === 'completed') {
           record = { ...record, completedAt: event.at, exitCode: event.exitCode }
+          exitCode = event.exitCode
           await this.deps.runRepository.saveRecord(input.workspace, record)
         }
+        if (event.type === 'error')
+          sawError = true
         await this.emit(input.workspace, input.runId, event)
       }
     }
     finally {
       this.running.delete(input.runId)
+      this.deps.eventBus?.publish({
+        type: 'run.completed',
+        workspaceId: input.workspace.id,
+        runId: input.runId,
+        skillId: input.skillId,
+        outcome: sawError ? 'error' : exitCode === 0 ? 'success' : 'error',
+        at: this.now(),
+      })
       // Drop subscribers once the run is fully drained so they can finish their
       // own loops (e.g. SSE writers waiting on iteration end).
       this.subscribers.delete(input.runId)

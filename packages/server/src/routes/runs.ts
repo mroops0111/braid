@@ -72,6 +72,15 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
     })
   })
 
+  // SIGTERM the underlying claude subprocess. The drain loop emits a
+  // `completed` event with the actual exit code, which the SSE tailers
+  // receive normally. 404 if the run already finished.
+  router.post('/:runId/cancel', async (context) => {
+    const runId = SkillRunId.parse(context.req.param('runId'))
+    await deps.skillRunner.cancel(runId)
+    return context.body(null, 204)
+  })
+
   router.delete('/sessions/:sessionId', async (context) => {
     const sessionId = context.req.param('sessionId')
     if (!sessionId)

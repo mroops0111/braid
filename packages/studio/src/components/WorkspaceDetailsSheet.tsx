@@ -37,7 +37,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
 }) {
   const queryClient = useQueryClient()
   const { data: workspace, isLoading, error } = useQuery({
-    queryKey: ['workspaces', workspaceId, 'detail'],
+    queryKey: queryKeys.workspaceDetail(workspaceId),
     queryFn: () => api.getWorkspace(workspaceId),
   })
   const [addSourceOpen, setAddSourceOpen] = useState(false)

@@ -6,6 +6,7 @@ import process from 'node:process'
 import {
   builtinSkillsRoot,
   EvidenceValidator,
+  InMemoryWorkspaceEventBus,
   NotFoundError,
   OrphanEdgeValidator,
   PluginRegistry,
@@ -136,11 +137,13 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
     }))
   }
 
+  const eventBus = new InMemoryWorkspaceEventBus()
   const skillRunner = new SubprocessSkillRunner({
     skillRegistry,
     agentBinding,
     apiUrl,
     runRepository,
+    eventBus,
     referenceDirs: [
       { name: 'shared', path: join(builtinSkillsRoot, 'shared') as AbsolutePath },
     ],
@@ -156,6 +159,7 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
     skillRunner,
     runRepository,
     pluginRegistry,
+    eventBus,
   })
   return {
     ...deps,

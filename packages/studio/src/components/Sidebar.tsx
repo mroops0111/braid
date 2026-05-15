@@ -1,6 +1,7 @@
 import type { Workspace } from '@telos/schema'
-import { FolderGit2, FolderPlus, Sparkles } from 'lucide-react'
+import { FolderGit2, FolderPlus, Loader2, Sparkles } from 'lucide-react'
 import { useState } from 'react'
+import { usePendingProposals, useRuns } from '@/lib/queries'
 import { CreateWorkspaceWizard } from './CreateWorkspaceWizard'
 import { ListRow } from './ListRow'
 import { RegisterWorkspaceDialog } from './RegisterWorkspaceDialog'
@@ -43,13 +44,14 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect, onOpenDetails
             >
               <FolderGit2 className="size-3.5 shrink-0 text-sidebar-foreground/50" />
               <span className="truncate font-medium">{ws.id}</span>
+              <WorkspaceBadges workspaceId={ws.id} />
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation()
                   onOpenDetails(ws.id)
                 }}
-                className="ml-auto rounded p-0.5 text-sidebar-foreground/40 opacity-0 hover:bg-sidebar-accent hover:text-sidebar-foreground group-hover:opacity-100"
+                className="ml-1 rounded p-0.5 text-sidebar-foreground/40 opacity-0 hover:bg-sidebar-accent hover:text-sidebar-foreground group-hover:opacity-100"
                 title="Details"
               >
                 ⋯
@@ -73,5 +75,32 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect, onOpenDetails
       <CreateWorkspaceWizard open={wizardOpen} onOpenChange={setWizardOpen} onCreated={onSelect} />
       <RegisterWorkspaceDialog open={registerOpen} onOpenChange={setRegisterOpen} onRegistered={onSelect} />
     </aside>
+  )
+}
+
+function WorkspaceBadges({ workspaceId }: { workspaceId: string }) {
+  // For the active workspace, useWorkspaceEvents keeps these query keys
+  // live. For inactive workspaces the counts are slightly stale until
+  // the user opens it; acceptable cost to avoid N concurrent SSEs.
+  const { data: proposals } = usePendingProposals(workspaceId)
+  const { data: runs } = useRuns(workspaceId)
+  const pending = proposals?.items.length ?? 0
+  const running = runs?.items.filter(r => !r.completedAt).length ?? 0
+  if (pending === 0 && running === 0)
+    return null
+  return (
+    <span className="ml-auto flex items-center gap-1.5 text-[10px] text-sidebar-foreground/60">
+      {running > 0 && (
+        <span className="flex items-center gap-0.5" title={`${running} run${running === 1 ? '' : 's'} in flight`}>
+          <Loader2 className="size-2.5 animate-spin text-primary" />
+          {running}
+        </span>
+      )}
+      {pending > 0 && (
+        <span className="rounded bg-sidebar-accent px-1 py-0.5 text-sidebar-foreground/70" title={`${pending} pending proposal${pending === 1 ? '' : 's'}`}>
+          {pending}
+        </span>
+      )}
+    </span>
   )
 }
