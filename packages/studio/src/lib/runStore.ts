@@ -1,4 +1,5 @@
 import type { SkillEvent } from '@telos/schema'
+import { api } from './api'
 
 export type RunPhase = 'streaming' | 'done' | 'error'
 
@@ -11,8 +12,6 @@ export interface RunState {
   readonly error?: string
   readonly sessionId?: string
 }
-
-const baseUrl = import.meta.env.VITE_TELOS_API_URL ?? 'http://localhost:4321'
 
 function runKey(workspaceId: string, runId: string): string {
   return `${workspaceId}|${runId}`
@@ -142,10 +141,7 @@ class RunStore {
   private async consumeStream(workspaceId: string, runId: string, signal: AbortSignal): Promise<void> {
     const key = runKey(workspaceId, runId)
     try {
-      const response = await fetch(
-        `${baseUrl}/workspaces/${workspaceId}/runs/${runId}/events`,
-        { signal },
-      )
+      const response = await fetch(api.runEventsUrl(workspaceId, runId), { signal })
       if (!response.ok || !response.body) {
         this.markPhase(workspaceId, runId, 'error', `${response.status} ${response.statusText}`)
         return
