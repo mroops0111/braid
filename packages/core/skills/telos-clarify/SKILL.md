@@ -99,24 +99,19 @@ If `STATUS=400` with `code: "TELOS-VAL"`, look at `BODY_JSON.issues` and decide:
 - The candidate's ops are valid but a sibling op also in `$RESOLUTION` is
   bad → only happens if you injected supplementary ops in Step 2; revisit.
 
-## Step 4: mark the ticket applied (interim)
-
-There is not yet a server endpoint for "this ticket was materialised into a
-proposal" (we only have `POST /clarify/:id/answer` which is for the human
-approving + applying directly). Until that endpoint exists, move the file
-manually:
+## Step 4: link the ticket to the proposal
 
 ```bash
-TICKET_PATH="$TELOS_WORKSPACE/artifacts/clarify/answered/$TICKET_ID.json"
-UPDATED=$(jq --arg pid "$PROPOSAL_ID" '.status = "applied" | .proposalId = $pid' "$TICKET_PATH")
-TMP=$(mktemp)
-echo "$UPDATED" > "$TMP"
-mv "$TMP" "$TELOS_WORKSPACE/artifacts/clarify/applied/$TICKET_ID.json"
-rm -f "$TICKET_PATH"
+curl -sf -X PATCH \
+  "$TELOS_API_URL/workspaces/$TELOS_WORKSPACE_ID/clarify/$TICKET_ID" \
+  -H 'Content-Type: application/json' \
+  -d "$(jq -n --arg pid "$PROPOSAL_ID" --arg uid "${TELOS_USER_ID:-telos-clarify}" \
+        '{ proposalId: $pid, userId: $uid }')"
 ```
 
-TODO(server): replace this with `PATCH /clarify/:id { proposalId }` so the
-skill never touches `artifacts/clarify/` directly.
+This transitions the ticket `answered → applied` and stamps `proposalId`
+so the UI can navigate from a ticket back to its Proposal. The server
+holds the state machine; never write to `artifacts/clarify/` directly.
 
 # Output
 

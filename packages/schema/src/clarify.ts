@@ -3,6 +3,7 @@ import {
   ClarifyCandidateId,
   ClarifyTicketId,
   ExternalReference,
+  ProposalId,
   SourceReference,
   UserId,
   WorkspaceId,
@@ -29,6 +30,12 @@ export const ClarifyTicket = z.object({
   answeredBy: UserId.optional(),
   selectedCandidateId: ClarifyCandidateId.optional(),
   resolution: z.array(GraphOperation).optional(),
+  /**
+   * Set on `pending → answered → applied` transitions when the
+   * telos-clarify skill wraps the resolution into a Proposal. Lets the
+   * UI link back from a ticket to the Proposal that materialised it.
+   */
+  proposalId: ProposalId.optional(),
   externalReferences: z.array(ExternalReference).optional(),
 })
 export type ClarifyTicket = z.infer<typeof ClarifyTicket>

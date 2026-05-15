@@ -92,9 +92,11 @@ export class HITLService {
 
   async applyProposal(proposalId: ProposalId, userId: UserId): Promise<Decision> {
     const proposal = await this.deps.proposalRepository.load(proposalId)
-    await this.assertOperationsValid(proposal.workspaceId, [...proposal.operations])
-
+    // Check the status transition first so a re-apply of an already-applied
+    // proposal raises ConflictError instead of whatever validation issue its
+    // ops would now produce against the post-first-apply graph.
     const applied = proposal.markApplied(userId, this.deps.clock.now())
+    await this.assertOperationsValid(proposal.workspaceId, [...proposal.operations])
     await this.deps.modelRepository.applyOperations(proposal.workspaceId, [...proposal.operations])
     await this.deps.proposalRepository.save(applied)
     this.deps.eventBus?.publish({
@@ -132,6 +134,14 @@ export class HITLService {
     })
   }
 
+  /**
+   * Record the user's chosen candidate. Validates the resolution
+   * operations against the current graph so we fail loudly here rather
+   * than later when the telos-clarify skill tries to build a Proposal,
+   * but does **not** apply them — that's the Proposal review's job.
+   * Ticket moves `pending → answered`; resolution + selectedCandidateId
+   * are stamped onto it.
+   */
   async answerClarifyTicket(
     clarifyTicketId: ClarifyTicketId,
     candidateId: ClarifyCandidateId,
@@ -141,9 +151,8 @@ export class HITLService {
     const operations = [...ticket.resolveCandidate(candidateId)]
     await this.assertOperationsValid(ticket.workspaceId, operations)
 
-    const applied = ticket.markApplied(candidateId, userId)
-    await this.deps.modelRepository.applyOperations(ticket.workspaceId, operations)
-    await this.deps.clarifyRepository.save(applied)
+    const answered = ticket.markAnswered(candidateId, userId)
+    await this.deps.clarifyRepository.save(answered)
     this.deps.eventBus?.publish({
       type: 'clarify.answered',
       workspaceId: ticket.workspaceId,
@@ -156,6 +165,36 @@ export class HITLService {
       action: 'answerClarifyTicket',
       by: userId,
       references: { clarifyTicketId },
+    })
+  }
+
+  /**
+   * Close the loop after the telos-clarify skill has materialised an
+   * `answered` ticket's resolution into a Proposal. Ticket moves
+   * `answered → applied` and stamps the linking proposalId. No graph
+   * mutation here — the Proposal apply path already handled that.
+   */
+  async linkClarifyTicketToProposal(
+    clarifyTicketId: ClarifyTicketId,
+    proposalId: ProposalId,
+    userId: UserId,
+  ): Promise<Decision> {
+    const ticket = await this.deps.clarifyRepository.load(clarifyTicketId)
+    const applied = ticket.markAppliedWithProposal(proposalId)
+    await this.deps.clarifyRepository.save(applied)
+    this.deps.eventBus?.publish({
+      type: 'clarify.applied',
+      workspaceId: ticket.workspaceId,
+      ticketId: ticket.id,
+      proposalId,
+      at: this.deps.clock.now(),
+    })
+
+    return this.recordDecision({
+      workspaceId: ticket.workspaceId,
+      action: 'applyClarifyTicket',
+      by: userId,
+      references: { clarifyTicketId, proposalId },
     })
   }
 

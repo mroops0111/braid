@@ -13,6 +13,7 @@ export const DecisionAction = z.enum([
   'applyProposal',
   'rejectProposal',
   'answerClarifyTicket',
+  'applyClarifyTicket',
   'skipClarifyTicket',
   'manualEdit',
 ])

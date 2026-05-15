@@ -9,6 +9,7 @@ export const queryKeys = {
   nodes: (workspaceId: string) => ['workspaces', workspaceId, 'nodes'] as const,
   edges: (workspaceId: string) => ['workspaces', workspaceId, 'edges'] as const,
   proposals: (workspaceId: string, status?: string) => ['workspaces', workspaceId, 'proposals', status ?? 'all'] as const,
+  proposalValidation: (workspaceId: string, proposalId: string) => ['workspaces', workspaceId, 'proposals', proposalId, 'validate'] as const,
   clarify: (workspaceId: string) => ['workspaces', workspaceId, 'clarify'] as const,
   decisions: (workspaceId: string) => ['workspaces', workspaceId, 'decisions'] as const,
   runs: (workspaceId: string) => ['workspaces', workspaceId, 'runs'] as const,
@@ -47,5 +48,13 @@ export function usePendingProposals(workspaceId: string | undefined) {
     queryKey: workspaceId ? queryKeys.proposals(workspaceId, 'pending') : ['proposals', 'none'],
     queryFn: () => api.listProposals(workspaceId!, 'pending'),
     enabled: !!workspaceId,
+  })
+}
+
+export function useProposalValidation(workspaceId: string, proposalId: string | null) {
+  return useQuery({
+    queryKey: proposalId ? queryKeys.proposalValidation(workspaceId, proposalId) : ['proposal-validation', 'none'],
+    queryFn: () => api.validateProposal(workspaceId, proposalId!),
+    enabled: !!proposalId,
   })
 }

@@ -18,6 +18,7 @@ interface WorkspaceEvent {
     | 'proposal.rejected'
     | 'clarify.created'
     | 'clarify.answered'
+    | 'clarify.applied'
     | 'clarify.skipped'
     | 'source.synced'
 }
@@ -54,6 +55,10 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
       queryClient.invalidateQueries({ queryKey: queryKeys.modelSnapshot(workspaceId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.nodes(workspaceId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.edges(workspaceId) })
+      // Pre-validation results depend on the current graph; re-fetch
+      // them after any mutation so the Proposals tab can't show stale
+      // "no issues" against a snapshot that changed under it.
+      queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId, 'proposals'], exact: false })
     }
     const invalidateWorkspace = (): void => {
       queryClient.invalidateQueries({ queryKey: queryKeys.workspaceDetail(workspaceId) })
@@ -75,7 +80,11 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
     })
     source.addEventListener('proposal.rejected', invalidateProposals)
     source.addEventListener('clarify.created', invalidateClarify)
-    source.addEventListener('clarify.answered', () => {
+    // `clarify.answered` is just a status update — graph stays untouched
+    // until the telos-clarify skill wraps it into a Proposal and the
+    // user reviews + applies. Don't refresh the graph here.
+    source.addEventListener('clarify.answered', invalidateClarify)
+    source.addEventListener('clarify.applied', () => {
       invalidateClarify()
       invalidateGraph()
     })

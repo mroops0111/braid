@@ -185,6 +185,53 @@ describe('POST /workspaces/:ws/clarify/:id/answer', () => {
   })
 })
 
+describe('PATCH /workspaces/:ws/clarify/:id', () => {
+  it('moves an answered ticket to applied and stamps proposalId', async () => {
+    const { app, deps } = buildTestApp()
+    await deps.clarifyRepository.save(new ClarifyTicket({
+      id: 'ct-link' as ClarifyTicketId,
+      workspaceId,
+      question: 'q?',
+      candidates: [],
+      status: 'answered',
+    }))
+
+    const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-link`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ proposalId: 'p-99', userId }),
+    })
+
+    expect(response.status).toBe(200)
+    const decision = await response.json() as { action: string, references: { proposalId?: string } }
+    expect(decision.action).toBe('applyClarifyTicket')
+    expect(decision.references.proposalId).toBe('p-99')
+
+    const reloaded = await deps.clarifyRepository.load('ct-link' as ClarifyTicketId)
+    expect(reloaded.status).toBe('applied')
+    expect(reloaded.proposalId).toBe('p-99')
+  })
+
+  it('returns 409 when ticket has not been answered yet', async () => {
+    const { app, deps } = buildTestApp()
+    await deps.clarifyRepository.save(new ClarifyTicket({
+      id: 'ct-pending' as ClarifyTicketId,
+      workspaceId,
+      question: 'q?',
+      candidates: [],
+      status: 'pending',
+    }))
+
+    const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-pending`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ proposalId: 'p-99', userId }),
+    })
+
+    expect(response.status).toBe(409)
+  })
+})
+
 describe('POST /workspaces/:ws/clarify/:id/skip', () => {
   it('marks the ticket as skipped', async () => {
     const { app, deps } = buildTestApp()

@@ -1,6 +1,6 @@
 import type { ClarifyTicketRepository, HITLService } from '@telos/core'
 import { zValidator } from '@hono/zod-validator'
-import { ClarifyCandidateId, ClarifyDraft, ClarifyStatus, ClarifyTicketId, UserId } from '@telos/schema'
+import { ClarifyCandidateId, ClarifyDraft, ClarifyStatus, ClarifyTicketId, ProposalId, UserId } from '@telos/schema'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
@@ -19,6 +19,11 @@ const AnswerBodySchema = z.object({
 
 const SkipBodySchema = z.object({
   reason: z.string().min(1),
+  userId: UserId,
+})
+
+const LinkProposalBodySchema = z.object({
+  proposalId: ProposalId,
   userId: UserId,
 })
 
@@ -68,6 +73,25 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): Hono {
       const ticket = await deps.clarifyRepository.load(ticketId)
       assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'ClarifyTicket', ticketId)
       const decision = await deps.hitlService.answerClarifyTicket(ticketId, candidateId, userId)
+      return context.json(decision)
+    },
+  )
+
+  // Skill-facing: the telos-clarify skill calls this once it has wrapped
+  // an `answered` ticket's resolution into a Proposal. Transitions the
+  // ticket `answered → applied` and stamps the linking proposalId so the
+  // UI can navigate from a ticket back to its Proposal. No graph
+  // mutation happens here; the Proposal apply already covered that.
+  router.patch(
+    '/:clarifyTicketId',
+    zValidator('json', LinkProposalBodySchema),
+    async (context) => {
+      const workspaceId = getWorkspaceId(context)
+      const ticketId = ClarifyTicketId.parse(context.req.param('clarifyTicketId'))
+      const { proposalId, userId } = context.req.valid('json')
+      const ticket = await deps.clarifyRepository.load(ticketId)
+      assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'ClarifyTicket', ticketId)
+      const decision = await deps.hitlService.linkClarifyTicketToProposal(ticketId, proposalId, userId)
       return context.json(decision)
     },
   )

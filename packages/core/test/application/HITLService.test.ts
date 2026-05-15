@@ -185,7 +185,9 @@ describe('HITLService', () => {
   })
 
   describe('answerClarifyTicket', () => {
-    it('applies the selected candidate operations and records decision', async () => {
+    it('records the chosen candidate as answered without mutating the graph', async () => {
+      // The user's answer is just a selection signal: graph writes go
+      // through the telos-clarify skill's Proposal path, not here.
       await modelRepository.applyOperations(workspaceId, [
         { operation: 'addNode', payload: { type: 'command', name: 'x', id: 'n-x' as NodeId } as never },
       ])
@@ -213,11 +215,96 @@ describe('HITLService', () => {
 
       expect(decision.action).toBe('answerClarifyTicket')
       expect(decision.workspaceId).toBe(workspaceId)
-      expect((await modelRepository.load(workspaceId)).nodes).toEqual([])
+      const snapshot = await modelRepository.load(workspaceId)
+      expect(snapshot.nodes).toHaveLength(1)
 
       const reloaded = await clarifyRepository.load('ct-1' as ClarifyTicketId)
-      expect(reloaded.status).toBe('applied')
+      expect(reloaded.status).toBe('answered')
       expect(reloaded.selectedCandidateId).toBe('cc-1')
+      expect(reloaded.resolution).toEqual([{ operation: 'removeNode', nodeId: 'n-x' }])
+    })
+
+    it('rejects answers whose resolution ops fail validation', async () => {
+      // Removing a node that doesn't exist trips the structural validator
+      // — surface the error here rather than letting the skill blow up
+      // later trying to wrap it into a Proposal.
+      await clarifyRepository.save(new ClarifyTicket({
+        id: 'ct-2' as ClarifyTicketId,
+        workspaceId,
+        question: 'remove ghost?',
+        candidates: [
+          {
+            id: 'cc-1' as ClarifyCandidateId,
+            description: 'yes',
+            sourceReferences: [],
+            proposedOperations: [{ operation: 'removeNode', nodeId: 'ghost' as NodeId }],
+          },
+        ],
+        status: 'pending',
+      }))
+
+      await expect(service.answerClarifyTicket(
+        'ct-2' as ClarifyTicketId,
+        'cc-1' as ClarifyCandidateId,
+        userId,
+      )).rejects.toThrow()
+
+      const reloaded = await clarifyRepository.load('ct-2' as ClarifyTicketId)
+      expect(reloaded.status).toBe('pending')
+    })
+  })
+
+  describe('linkClarifyTicketToProposal', () => {
+    it('moves an answered ticket to applied and stamps proposalId', async () => {
+      await clarifyRepository.save(new ClarifyTicket({
+        id: 'ct-3' as ClarifyTicketId,
+        workspaceId,
+        question: 'q?',
+        candidates: [{
+          id: 'cc-1' as ClarifyCandidateId,
+          description: 'a',
+          sourceReferences: [],
+          proposedOperations: [],
+        }],
+        status: 'answered',
+        selectedCandidateId: 'cc-1' as ClarifyCandidateId,
+        resolution: [],
+        answeredBy: userId,
+      }))
+
+      const decision = await service.linkClarifyTicketToProposal(
+        'ct-3' as ClarifyTicketId,
+        'p-99' as ProposalId,
+        userId,
+      )
+
+      expect(decision.action).toBe('applyClarifyTicket')
+      expect(decision.references.proposalId).toBe('p-99')
+
+      const reloaded = await clarifyRepository.load('ct-3' as ClarifyTicketId)
+      expect(reloaded.status).toBe('applied')
+      expect(reloaded.proposalId).toBe('p-99')
+    })
+
+    it('refuses to link a ticket that has not been answered yet', async () => {
+      await clarifyRepository.save(new ClarifyTicket({
+        id: 'ct-4' as ClarifyTicketId,
+        workspaceId,
+        question: 'q?',
+        candidates: [{
+          id: 'cc-1' as ClarifyCandidateId,
+          description: 'a',
+          sourceReferences: [],
+          proposedOperations: [],
+        }],
+        status: 'pending',
+      }))
+
+      await expect(service.linkClarifyTicketToProposal(
+        'ct-4' as ClarifyTicketId,
+        'p-99' as ProposalId,
+        userId,
+      )).rejects.toThrow(ConflictError)
     })
   })
 })

@@ -6,11 +6,28 @@ import type {
   ClarifyTicketId,
   ExternalReference,
   GraphOperation,
+  ProposalId,
   UserId,
   WorkspaceId,
 } from '@telos/schema'
 import { ConflictError, NotFoundError } from '../errors.js'
 
+/**
+ * Lifecycle:
+ *   pending  → answered → applied
+ *           ↘ skipped
+ *
+ * `markAnswered` records the user's choice but does NOT mutate the
+ * graph; the resolution is snapshotted onto the ticket and the
+ * telos-clarify skill is expected to wrap it into a Proposal. Once
+ * that Proposal lands the ticket transitions to `applied` via
+ * `markAppliedWithProposal`, which only stamps the proposalId — the
+ * actual graph mutation happens inside `HITLService.applyProposal`.
+ *
+ * Keeping these two transitions distinct preserves the invariant
+ * "only HITLService.applyProposal writes Kùzu": clarify answers go
+ * through the same review gate as any other agent output.
+ */
 export class ClarifyTicket {
   constructor(private readonly data: ClarifyTicketData) {}
 
@@ -20,6 +37,8 @@ export class ClarifyTicket {
   get candidates(): readonly ClarifyCandidate[] { return this.data.candidates }
   get status(): ClarifyStatus { return this.data.status }
   get selectedCandidateId(): ClarifyCandidateId | undefined { return this.data.selectedCandidateId }
+  get resolution(): readonly GraphOperation[] | undefined { return this.data.resolution }
+  get proposalId(): ProposalId | undefined { return this.data.proposalId }
   get externalReferences(): readonly ExternalReference[] | undefined { return this.data.externalReferences }
 
   resolveCandidate(candidateId: ClarifyCandidateId): readonly GraphOperation[] {
@@ -30,20 +49,29 @@ export class ClarifyTicket {
     return candidate.proposedOperations
   }
 
-  markApplied(candidateId: ClarifyCandidateId, userId: UserId): ClarifyTicket {
-    this.requirePending('answer')
+  markAnswered(candidateId: ClarifyCandidateId, userId: UserId): ClarifyTicket {
+    this.requireStatus('answer', 'pending')
     const operations = this.resolveCandidate(candidateId)
     return new ClarifyTicket({
       ...this.data,
-      status: 'applied',
+      status: 'answered',
       selectedCandidateId: candidateId,
       answeredBy: userId,
       resolution: [...operations],
     })
   }
 
+  markAppliedWithProposal(proposalId: ProposalId): ClarifyTicket {
+    this.requireStatus('apply', 'answered')
+    return new ClarifyTicket({
+      ...this.data,
+      status: 'applied',
+      proposalId,
+    })
+  }
+
   markSkipped(userId: UserId): ClarifyTicket {
-    this.requirePending('skip')
+    this.requireStatus('skip', 'pending')
     return new ClarifyTicket({
       ...this.data,
       status: 'skipped',
@@ -55,10 +83,10 @@ export class ClarifyTicket {
     return this.data
   }
 
-  private requirePending(action: string): void {
-    if (this.data.status !== 'pending') {
+  private requireStatus(action: string, expected: ClarifyStatus): void {
+    if (this.data.status !== expected) {
       throw new ConflictError(
-        `Cannot ${action} clarify ticket "${this.data.id}": current status is "${this.data.status}", expected "pending"`,
+        `Cannot ${action} clarify ticket "${this.data.id}": current status is "${this.data.status}", expected "${expected}"`,
       )
     }
   }

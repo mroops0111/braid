@@ -1,13 +1,13 @@
-import type { Proposal } from '@telos/schema'
+import type { Proposal, ValidationIssue, ValidationSeverity } from '@telos/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, Inbox, X } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Check, Inbox, Info, X } from 'lucide-react'
 import { useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
-import { queryKeys, usePendingProposals } from '@/lib/queries'
+import { queryKeys, usePendingProposals, useProposalValidation } from '@/lib/queries'
 
 interface ProposalsPageProps {
   workspaceId: string
@@ -88,6 +88,12 @@ function ProposalDetail({
   onComplete: () => void
 }) {
   const queryClient = useQueryClient()
+  const [rejectReason, setRejectReason] = useState('')
+  const [rejectOpen, setRejectOpen] = useState(false)
+
+  const validation = useProposalValidation(workspaceId, proposal.id)
+  const errorCount = validation.data?.issues.filter(issue => issue.severity === 'error').length ?? 0
+  const blockedByErrors = errorCount > 0
 
   const apply = useMutation({
     mutationFn: () => api.applyProposal(workspaceId, proposal.id, DEFAULT_USER_ID),
@@ -106,9 +112,13 @@ function ProposalDetail({
     },
   })
 
+  const applyTitle = blockedByErrors
+    ? `Cannot apply: ${errorCount} validation error${errorCount === 1 ? '' : 's'} must be resolved first.`
+    : undefined
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+      <header className="flex items-start justify-between gap-2 border-b border-border px-4 py-3">
         <div className="flex-1">
           <div className="font-mono text-xs text-muted-foreground">{proposal.id}</div>
           <div className="text-sm font-medium text-foreground">{proposal.rationale}</div>
@@ -116,8 +126,9 @@ function ProposalDetail({
         <div className="flex gap-2">
           <Button
             size="sm"
-            disabled={apply.isPending}
+            disabled={apply.isPending || blockedByErrors || validation.isLoading}
             onClick={() => apply.mutate()}
+            title={applyTitle}
           >
             <Check />
             Apply
@@ -126,7 +137,7 @@ function ProposalDetail({
             variant="destructive"
             size="sm"
             disabled={reject.isPending}
-            onClick={() => reject.mutate('Rejected from Studio')}
+            onClick={() => setRejectOpen(open => !open)}
           >
             <X />
             Reject
@@ -134,6 +145,26 @@ function ProposalDetail({
         </div>
       </header>
       <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <ValidationPanel
+          isLoading={validation.isLoading}
+          error={validation.error}
+          issues={validation.data?.issues ?? []}
+          ok={validation.data?.ok ?? null}
+        />
+
+        {rejectOpen && (
+          <RejectForm
+            value={rejectReason}
+            onChange={setRejectReason}
+            onCancel={() => {
+              setRejectOpen(false)
+              setRejectReason('')
+            }}
+            onSubmit={() => reject.mutate(rejectReason.trim())}
+            isPending={reject.isPending}
+          />
+        )}
+
         <h3 className="px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           Operations (
           {proposal.operations.length}
@@ -150,4 +181,133 @@ function ProposalDetail({
       </div>
     </div>
   )
+}
+
+function ValidationPanel({ isLoading, error, issues, ok }: {
+  isLoading: boolean
+  error: unknown
+  issues: readonly ValidationIssue[]
+  ok: boolean | null
+}) {
+  if (isLoading) {
+    return <p className="px-4 pt-3 text-[11px] text-muted-foreground">Validating against the current graph…</p>
+  }
+  if (error) {
+    return (
+      <p className="mx-4 mt-3 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
+        Validation request failed:
+        {' '}
+        {error instanceof Error ? error.message : String(error)}
+      </p>
+    )
+  }
+  if (ok && issues.length === 0) {
+    return (
+      <p className="mx-4 mt-3 rounded-md border border-border bg-card px-3 py-2 text-[11px] text-muted-foreground">
+        No validation issues. Safe to apply.
+      </p>
+    )
+  }
+  const grouped = groupBySeverity(issues)
+  return (
+    <div className="space-y-2 px-4 pt-3">
+      {(['error', 'warning', 'info'] as const).map((severity) => {
+        const list = grouped[severity]
+        if (list.length === 0)
+          return null
+        return <IssueGroup key={severity} severity={severity} issues={list} />
+      })}
+    </div>
+  )
+}
+
+const SEVERITY_PALETTE: Record<ValidationSeverity, {
+  icon: typeof AlertCircle
+  border: string
+  bg: string
+  text: string
+}> = {
+  error: { icon: AlertCircle, border: 'border-destructive/40', bg: 'bg-destructive/5', text: 'text-destructive' },
+  warning: { icon: AlertTriangle, border: 'border-amber-500/40', bg: 'bg-amber-500/5', text: 'text-amber-500' },
+  info: { icon: Info, border: 'border-border', bg: 'bg-muted/30', text: 'text-muted-foreground' },
+}
+
+function IssueGroup({ severity, issues }: { severity: ValidationSeverity, issues: readonly ValidationIssue[] }) {
+  const palette = SEVERITY_PALETTE[severity]
+  const Icon = palette.icon
+  return (
+    <div className={`rounded-md border ${palette.border} ${palette.bg} px-3 py-2`}>
+      <div className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider ${palette.text}`}>
+        <Icon className="size-3" />
+        {severity}
+        {' '}
+        (
+        {issues.length}
+        )
+      </div>
+      <ul className="mt-1.5 space-y-1">
+        {issues.map((issue, index) => (
+          <li key={`${issue.code}-${index}`} className="text-[11px] text-foreground/90">
+            <span className="font-mono text-foreground/60">
+              [
+              {issue.code}
+              ]
+            </span>
+            {' '}
+            {issue.message}
+            {(issue.nodeId || issue.edgeId || issue.path) && (
+              <span className="ml-1 font-mono text-[10px] text-muted-foreground">
+                →
+                {' '}
+                {issue.nodeId ?? issue.edgeId ?? issue.path}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function RejectForm({ value, onChange, onCancel, onSubmit, isPending }: {
+  value: string
+  onChange: (value: string) => void
+  onCancel: () => void
+  onSubmit: () => void
+  isPending: boolean
+}) {
+  const hasReason = value.trim().length > 0
+  return (
+    <div className="mx-4 mt-3 space-y-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2">
+      <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Reject Reason
+      </label>
+      <textarea
+        autoFocus
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        rows={3}
+        placeholder="Why are you rejecting this proposal? Pasted into the decision log; useful for skill iteration."
+        className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+      />
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
+        <Button
+          variant="destructive"
+          size="sm"
+          disabled={!hasReason || isPending}
+          onClick={onSubmit}
+        >
+          {isPending ? 'Rejecting…' : 'Submit Rejection'}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function groupBySeverity(issues: readonly ValidationIssue[]): Record<ValidationSeverity, ValidationIssue[]> {
+  const groups: Record<ValidationSeverity, ValidationIssue[]> = { error: [], warning: [], info: [] }
+  for (const issue of issues)
+    groups[issue.severity].push(issue)
+  return groups
 }

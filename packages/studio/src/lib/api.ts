@@ -10,6 +10,7 @@ import type {
   RunRecord,
   SkillManifest,
   SourceDescriptor,
+  ValidationResult,
   Workspace,
 } from '@telos/schema'
 
@@ -152,6 +153,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ reason, userId }),
     }),
+  validateProposal: (workspaceId: string, proposalId: string) =>
+    fetchJson<ValidationResult>(`/workspaces/${workspaceId}/proposals/${proposalId}/validate`),
 
   listClarify: (workspaceId: string, status?: string) => {
     const query = status ? `?status=${status}` : ''

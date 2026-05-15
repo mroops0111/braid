@@ -5,6 +5,7 @@ import type {
   ClarifyTicketId,
   GraphOperation,
   NodeId,
+  ProposalId,
   UserId,
   WorkspaceId,
 } from '@telos/schema'
@@ -50,16 +51,38 @@ describe('ClarifyTicket', () => {
     })
   })
 
-  describe('markApplied', () => {
-    it('returns a new ticket in applied status with answeredBy + resolution', () => {
-      const applied = new ClarifyTicket(data()).markApplied('cc-1' as ClarifyCandidateId, userId)
-      expect(applied.status).toBe('applied')
-      expect(applied.selectedCandidateId).toBe('cc-1')
+  describe('markAnswered', () => {
+    it('moves pending → answered, stamping selectedCandidateId + resolution + answeredBy', () => {
+      const answered = new ClarifyTicket(data()).markAnswered('cc-1' as ClarifyCandidateId, userId)
+
+      expect(answered.status).toBe('answered')
+      expect(answered.selectedCandidateId).toBe('cc-1')
+      expect(answered.resolution).toEqual([{ operation: 'removeNode', nodeId: 'n-x' }])
     })
 
     it('throws ConflictError when ticket is not pending', () => {
-      const ticket = new ClarifyTicket(data({ status: 'applied' }))
-      expect(() => ticket.markApplied('cc-1' as ClarifyCandidateId, userId)).toThrow(ConflictError)
+      const ticket = new ClarifyTicket(data({ status: 'answered' }))
+      expect(() => ticket.markAnswered('cc-1' as ClarifyCandidateId, userId)).toThrow(ConflictError)
+    })
+
+    it('throws NotFoundError when candidate id missing', () => {
+      const ticket = new ClarifyTicket(data())
+      expect(() => ticket.markAnswered('missing' as ClarifyCandidateId, userId)).toThrow(NotFoundError)
+    })
+  })
+
+  describe('markAppliedWithProposal', () => {
+    it('moves answered → applied and stamps proposalId', () => {
+      const answered = new ClarifyTicket(data({ status: 'answered', selectedCandidateId: 'cc-1' as ClarifyCandidateId }))
+      const applied = answered.markAppliedWithProposal('p-1' as ProposalId)
+
+      expect(applied.status).toBe('applied')
+      expect(applied.proposalId).toBe('p-1')
+    })
+
+    it('throws ConflictError when ticket is not answered (must answer first)', () => {
+      const ticket = new ClarifyTicket(data())
+      expect(() => ticket.markAppliedWithProposal('p-1' as ProposalId)).toThrow(ConflictError)
     })
   })
 

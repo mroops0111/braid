@@ -4,11 +4,12 @@ import { Decision, DecisionAction, DecisionActor, DecisionFilter } from '../src/
 const isoTimestamp = '2026-05-09T12:00:00+08:00'
 
 describe('decisionAction', () => {
-  it('has 5 actions', () => {
+  it('enumerates every HITL transition we record', () => {
     expect(DecisionAction.options).toEqual([
       'applyProposal',
       'rejectProposal',
       'answerClarifyTicket',
+      'applyClarifyTicket',
       'skipClarifyTicket',
       'manualEdit',
     ])

@@ -25,6 +25,7 @@ export type WorkspaceEvent =
   | ProposalRejectedEvent
   | ClarifyCreatedEvent
   | ClarifyAnsweredEvent
+  | ClarifyAppliedEvent
   | ClarifySkippedEvent
   | SourceSyncedEvent
 
@@ -77,6 +78,14 @@ export interface ClarifyAnsweredEvent {
   readonly type: 'clarify.answered'
   readonly workspaceId: WorkspaceId
   readonly ticketId: ClarifyTicketId
+  readonly at: string
+}
+
+export interface ClarifyAppliedEvent {
+  readonly type: 'clarify.applied'
+  readonly workspaceId: WorkspaceId
+  readonly ticketId: ClarifyTicketId
+  readonly proposalId: ProposalId
   readonly at: string
 }
 
