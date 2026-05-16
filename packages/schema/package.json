@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.0",
   "description": "Zod schemas + TS types for the Telos domain model. Shared by core / server / studio / cli / sdk / plugins.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "exports": {
     ".": "./src/index.ts"
   },

@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.0",
   "description": "Telos command-line interface. cac + ink.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "main": "./src/main.ts",
   "bin": {
     "telos": "./dist/main.js"

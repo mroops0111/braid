@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.0",
   "description": "Git source-loader plugin: clone a remote repo into a workspace source path; sync via fetch + reset.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "exports": {
     ".": "./src/index.ts"
   },

@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.0",
   "description": "Telos Tauri desktop shell. Embeds @telos/server as sidecar; reuses @telos/studio for UI.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "scripts": {
     "build": "echo 'desktop build runs Tauri in Phase 6'",
     "typecheck": "tsc -p tsconfig.json --noEmit",

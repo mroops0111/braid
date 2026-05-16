@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.0",
   "description": "Telos REST + (later) MCP server. Hono on Node 20.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "exports": {
     ".": "./src/index.ts"
   },

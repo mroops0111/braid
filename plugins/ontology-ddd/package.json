@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.0",
   "description": "Default DDD-flavored ontology plugin. Provides core DDD node and edge type sets.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "exports": {
     ".": "./src/index.ts"
   },
