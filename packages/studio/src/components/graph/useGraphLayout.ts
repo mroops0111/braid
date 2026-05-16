@@ -4,7 +4,11 @@ import dagre from '@dagrejs/dagre'
 import { useMemo } from 'react'
 
 const NODE_WIDTH = 200
-const NODE_HEIGHT = 64
+// Card height varies with the description subtitle. Reserve enough
+// vertical space for the longer case so edges going around cards have
+// room. Real cards may render shorter; that just makes the gap larger,
+// which is fine for readability.
+const NODE_HEIGHT = 92
 
 export interface NodeCardData extends Record<string, unknown> {
   node: GraphNode
@@ -36,10 +40,15 @@ export function useGraphLayout(nodes: readonly GraphNode[], edges: readonly Grap
 function layout(nodes: readonly GraphNode[], edges: readonly GraphEdge[]): LaidOutGraph {
   const graph = new dagre.graphlib.Graph()
   graph.setDefaultEdgeLabel(() => ({}))
-  // Top-down for DDD: boundedContext sits at the top, aggregates / commands
-  // / events / rules descend. Tight intra-rank spacing because cards are
-  // small and the canvas is dense.
-  graph.setGraph({ rankdir: 'TB', ranksep: 56, nodesep: 24, edgesep: 12 })
+  // Top-down for DDD: boundedContext sits at the top; aggregates,
+  // commands, events, rules descend from it. Spacing tuned so edge
+  // labels (placed at the segment midpoint by react-flow) land in the
+  // gap between rows rather than overlapping the cards on either side.
+  //   ranksep: vertical gap between ranks  — wide enough to fit two
+  //            stacked edge labels with their background pills.
+  //   nodesep: horizontal gap between sibling cards on the same rank.
+  //   edgesep: lateral gap between parallel edges that share endpoints.
+  graph.setGraph({ rankdir: 'TB', ranksep: 110, nodesep: 64, edgesep: 24 })
 
   for (const node of nodes)
     graph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT })
@@ -66,11 +75,14 @@ function layout(nodes: readonly GraphNode[], edges: readonly GraphEdge[]): LaidO
     }
   })
 
+  // Default edge type (bezier) — the curve handles densely-fanned
+  // edges out of a single source much better than smoothstep's
+  // right-angle routing, which shared vertical segments and made the
+  // canvas read as overlapping pipes.
   const flowEdges: Edge<EdgeCardData>[] = edges.map(edge => ({
     id: edge.id,
     source: edge.fromNodeId,
     target: edge.toNodeId,
-    type: 'smoothstep',
     label: edge.type,
     data: { edge },
   }))

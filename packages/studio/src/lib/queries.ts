@@ -6,6 +6,7 @@ export const queryKeys = {
   workspaceDetail: (workspaceId: string) => ['workspaces', workspaceId, 'detail'] as const,
   skills: (workspaceId: string) => ['workspaces', workspaceId, 'skills'] as const,
   modelSnapshot: (workspaceId: string) => ['workspaces', workspaceId, 'model', 'snapshot'] as const,
+  ontology: (workspaceId: string) => ['workspaces', workspaceId, 'ontology'] as const,
   nodes: (workspaceId: string) => ['workspaces', workspaceId, 'nodes'] as const,
   edges: (workspaceId: string) => ['workspaces', workspaceId, 'edges'] as const,
   proposals: (workspaceId: string, status?: string) => ['workspaces', workspaceId, 'proposals', status ?? 'all'] as const,
@@ -40,6 +41,18 @@ export function useRuns(workspaceId: string | undefined) {
     queryKey: workspaceId ? queryKeys.runs(workspaceId) : ['runs', 'none'],
     queryFn: () => api.listRuns(workspaceId!),
     enabled: !!workspaceId,
+  })
+}
+
+export function useOntology(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: workspaceId ? queryKeys.ontology(workspaceId) : ['ontology', 'none'],
+    queryFn: () => api.getOntology(workspaceId!),
+    enabled: !!workspaceId,
+    // The ontology is plugin-bound and only changes if the workspace
+    // switches `ontologyId` in its PRODUCT.md (rare). Avoid refetching
+    // on every focus.
+    staleTime: 60_000,
   })
 }
 

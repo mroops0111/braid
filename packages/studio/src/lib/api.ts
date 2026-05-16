@@ -5,6 +5,7 @@ import type {
   GraphNode,
   McpServerConfig,
   ModelSnapshot,
+  OntologyResponse,
   ProductManifestDraft,
   Proposal,
   RunRecord,
@@ -138,6 +139,9 @@ export const api = {
 
   listEdges: (workspaceId: string) =>
     fetchJson<ItemList<GraphEdge>>(`/workspaces/${workspaceId}/edges`),
+
+  getOntology: (workspaceId: string) =>
+    fetchJson<OntologyResponse>(`/workspaces/${workspaceId}/ontology`),
 
   listProposals: (workspaceId: string, status?: string) => {
     const query = status ? `?status=${status}` : ''

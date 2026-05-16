@@ -1,4 +1,4 @@
-import { Command, FolderPlus, Sparkles } from 'lucide-react'
+import { Command, FolderPlus, Settings2, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { CommandPalette, type TabKey } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
@@ -125,8 +125,14 @@ function Header({ workspaceId, onOpenDetails }: { workspaceId: string | null, on
         <span className="text-muted-foreground">Workspace</span>
         {workspaceId
           ? (
-              <button type="button" onClick={onOpenDetails} className="font-mono text-foreground hover:underline">
-                {workspaceId}
+              <button
+                type="button"
+                onClick={onOpenDetails}
+                title="Open workspace settings"
+                className="group flex h-7 items-center gap-1.5 rounded-md border border-transparent px-2 text-foreground transition-colors hover:border-border hover:bg-accent"
+              >
+                <span className="font-mono">{workspaceId}</span>
+                <Settings2 className="size-3 text-muted-foreground transition-colors group-hover:text-foreground" />
               </button>
             )
           : (
