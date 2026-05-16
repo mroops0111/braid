@@ -39,6 +39,22 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.19.18)(lightningcss@1.32.0)
 
+  examples/redoc-extending-ddd:
+    dependencies:
+      '@telos/ontology-ddd':
+        specifier: workspace:*
+        version: link:../../plugins/ontology-ddd
+      '@telos/schema':
+        specifier: workspace:*
+        version: link:../../packages/schema
+      '@telos/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   packages/cli:
     dependencies:
       '@telos/core':
@@ -135,6 +151,9 @@ importers:
 
   packages/sdk:
     dependencies:
+      '@telos/core':
+        specifier: workspace:*
+        version: link:../core
       '@telos/schema':
         specifier: workspace:*
         version: link:../schema
@@ -360,6 +379,9 @@ importers:
       '@telos/schema':
         specifier: workspace:*
         version: link:../../packages/schema
+      '@telos/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       zod:
         specifier: ^3.24.0
         version: 3.25.76

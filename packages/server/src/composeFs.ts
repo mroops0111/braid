@@ -8,11 +8,12 @@ import {
   EvidenceValidator,
   InMemoryWorkspaceEventBus,
   NotFoundError,
+  OntologyTypeValidator,
   OrphanEdgeValidator,
   PluginRegistry,
   StructuralValidator,
 } from '@telos/core'
-import { DDDOntology, DDDOntologyValidator } from '@telos/ontology-ddd'
+import { dddOntology } from '@telos/ontology-ddd'
 import { GoogleDriveLoader } from '@telos/source-loader-gdrive'
 import { GitLoader } from '@telos/source-loader-git'
 import { KuzuModelRepository } from '@telos/storage-kuzu'
@@ -80,10 +81,6 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
     },
   })
 
-  const skillRegistry = new FsSkillRegistry({
-    builtinSkillsRoot: builtinSkillsRoot as AbsolutePath,
-  })
-
   const agentBinding = new ClaudeCodeAgentBinding({
     id: 'claude-default' as AgentId,
     kind: 'claude-code' as AgentKind,
@@ -96,11 +93,10 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
   const runRepository = new FsRunRepository()
 
   const pluginRegistry = new PluginRegistry()
-  const dddOntology = new DDDOntology()
   pluginRegistry.register(dddOntology)
   pluginRegistry.register(new EvidenceValidator())
   pluginRegistry.register(new OrphanEdgeValidator())
-  pluginRegistry.register(new DDDOntologyValidator(dddOntology))
+  pluginRegistry.register(new OntologyTypeValidator(dddOntology))
   pluginRegistry.register(new StructuralValidator(dddOntology))
   pluginRegistry.register(new GitLoader())
 
@@ -138,6 +134,13 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
       },
     }))
   }
+
+  // Built after pluginRegistry is populated so plugin-shipped SKILL.md
+  // files mount under the `plugin` skill origin alongside builtins.
+  const skillRegistry = new FsSkillRegistry({
+    builtinSkillsRoot: builtinSkillsRoot as AbsolutePath,
+    pluginRegistry,
+  })
 
   const eventBus = new InMemoryWorkspaceEventBus()
   const skillRunner = new SubprocessSkillRunner({

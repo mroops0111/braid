@@ -1,9 +1,10 @@
-import type { AbsolutePath, AgentId, ProductManifest, SourceId, StorageKind, WorkspaceId } from '@telos/schema'
+import type { AbsolutePath, AgentId, PluginId, ProductManifest, SkillId, SourceId, StorageKind, WorkspaceId } from '@telos/schema'
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { NotFoundError, Workspace } from '@telos/core'
+import { NotFoundError, type Plugin, PluginRegistry, Workspace } from '@telos/core'
 import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
 import { FsSkillRegistry } from '../../../src/infrastructure/fs/FsSkillRegistry.js'
 
 async function makeWorkspace(): Promise<{ workspace: Workspace, root: AbsolutePath }> {
@@ -100,5 +101,70 @@ describe('FsSkillRegistry', () => {
     const { workspace } = await makeWorkspace()
     const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
     await expect(registry.get(workspace, 'missing' as never)).rejects.toThrow(NotFoundError)
+  })
+
+  describe('plugin-shipped skills', () => {
+    function fakeOntologyWithSkill(pluginId: string, skillId: string, directory: string): Plugin {
+      return {
+        id: pluginId as PluginId,
+        type: 'ontology' as const,
+        configSchema: z.object({}),
+        skills: [{ id: skillId as SkillId, directory }],
+      } satisfies Plugin
+    }
+
+    it('lists plugin skills under the plugin origin', async () => {
+      const builtinRoot = (await mkdtemp(join(tmpdir(), 'telos-builtin-'))) as AbsolutePath
+      const pluginRoot = (await mkdtemp(join(tmpdir(), 'telos-plugin-'))) as AbsolutePath
+      await writeSkillFile(pluginRoot, 'redoc-design', 'redoc-design')
+
+      const pluginRegistry = new PluginRegistry()
+      pluginRegistry.register(fakeOntologyWithSkill(
+        'plugin.redoc',
+        'redoc-design',
+        join(pluginRoot, 'redoc-design'),
+      ))
+
+      const { workspace } = await makeWorkspace()
+      const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot, pluginRegistry })
+      const manifest = await registry.get(workspace, 'redoc-design' as never)
+      expect(manifest.origin).toBe('plugin')
+      expect(manifest.frontmatter.name).toBe('redoc-design')
+    })
+
+    it('workspace skills override plugin skills with the same id', async () => {
+      const builtinRoot = (await mkdtemp(join(tmpdir(), 'telos-builtin-'))) as AbsolutePath
+      const pluginRoot = (await mkdtemp(join(tmpdir(), 'telos-plugin-'))) as AbsolutePath
+      await writeSkillFile(pluginRoot, 'redoc-design', 'redoc-design-plugin')
+
+      const pluginRegistry = new PluginRegistry()
+      pluginRegistry.register(fakeOntologyWithSkill(
+        'plugin.redoc',
+        'redoc-design',
+        join(pluginRoot, 'redoc-design'),
+      ))
+
+      const { workspace, root } = await makeWorkspace()
+      await writeSkillFile(join(root, 'skills'), 'redoc-design', 'redoc-design-local')
+
+      const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot, pluginRegistry })
+      const manifest = await registry.get(workspace, 'redoc-design' as never)
+      expect(manifest.origin).toBe('workspace')
+      expect(manifest.frontmatter.name).toBe('redoc-design-local')
+    })
+
+    it('throws when plugin declares a skill but SKILL.md is missing', async () => {
+      const builtinRoot = (await mkdtemp(join(tmpdir(), 'telos-builtin-'))) as AbsolutePath
+      const pluginRegistry = new PluginRegistry()
+      pluginRegistry.register(fakeOntologyWithSkill(
+        'plugin.broken',
+        'broken-skill',
+        '/nonexistent/path',
+      ))
+
+      const { workspace } = await makeWorkspace()
+      const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot, pluginRegistry })
+      await expect(registry.list(workspace)).rejects.toThrow(/broken-skill/)
+    })
   })
 })

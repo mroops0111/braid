@@ -19,6 +19,7 @@
   "dependencies": {
     "@telos/core": "workspace:*",
     "@telos/schema": "workspace:*",
+    "@telos/sdk": "workspace:*",
     "zod": "^3.24.0"
   },
   "devDependencies": {

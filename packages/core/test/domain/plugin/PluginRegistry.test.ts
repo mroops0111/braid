@@ -113,6 +113,33 @@ describe('PluginRegistry', () => {
     expect(registry.listByType('storage')).toHaveLength(0)
   })
 
+  describe('pluginSkills', () => {
+    function fakePluginWithSkills(id: string, skillIds: readonly string[]): Plugin {
+      return {
+        ...fakePlugin(id, 'validator'),
+        skills: skillIds.map(s => ({ id: s as never, directory: `/abs/${s}` })),
+      }
+    }
+
+    it('aggregates skills across plugins and tags them with the contributor id', () => {
+      registry.register(fakePluginWithSkills('p1', ['extract-foo']))
+      registry.register(fakePluginWithSkills('p2', ['extract-bar', 'fix-baz']))
+      const skills = registry.pluginSkills()
+      expect(skills.map(s => s.id)).toEqual(['extract-foo', 'extract-bar', 'fix-baz'])
+      expect(skills.find(s => s.id === 'fix-baz' as never)?.contributedBy).toBe('p2')
+    })
+
+    it('throws ConflictError when two plugins declare the same skill id', () => {
+      registry.register(fakePluginWithSkills('p1', ['shared-skill']))
+      expect(() => registry.register(fakePluginWithSkills('p2', ['shared-skill']))).toThrow(ConflictError)
+    })
+
+    it('returns an empty array when no plugin contributes skills', () => {
+      registry.register(fakePlugin('a', 'validator'))
+      expect(registry.pluginSkills()).toEqual([])
+    })
+  })
+
   describe('ontology', () => {
     it('findOntology / requireOntology', () => {
       registry.register(fakeOntology('p-ddd', 'ddd'))

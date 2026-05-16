@@ -1,8 +1,9 @@
-import type { AbsolutePath, SkillFrontmatter, SkillId } from '@telos/schema'
+import type { AbsolutePath, SkillFrontmatter, SkillId, SkillOrigin } from '@telos/schema'
 import { Buffer } from 'node:buffer'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { NotFoundError, SkillManifest, type SkillRegistry, type Workspace } from '@telos/core'
+import { fileURLToPath } from 'node:url'
+import { NotFoundError, type PluginRegistry, SkillManifest, type SkillRegistry, type Workspace } from '@telos/core'
 import { AbsolutePath as AbsolutePathSchema, SkillFrontmatter as SkillFrontmatterSchema, SkillId as SkillIdSchema } from '@telos/schema'
 import { parseMarkdownFrontmatter } from './frontmatter.js'
 import { workspaceSkillExtensionsDir, workspaceSkillsDir } from './paths.js'
@@ -14,6 +15,14 @@ interface DirentLike {
 
 export interface FsSkillRegistryOptions {
   readonly builtinSkillsRoot: AbsolutePath
+  /**
+   * Optional plugin registry. When provided, skills declared by
+   * registered plugins are mounted under the `plugin` origin between
+   * builtins and workspace skills. Without it (e.g. in unit tests
+   * that don't compose a registry) only builtin / workspace /
+   * extension origins are discovered.
+   */
+  readonly pluginRegistry?: PluginRegistry
 }
 
 export class FsSkillRegistry implements SkillRegistry {
@@ -21,6 +30,7 @@ export class FsSkillRegistry implements SkillRegistry {
 
   async list(workspace: Workspace): Promise<readonly SkillManifest[]> {
     const builtins = await this.scanSkillsRoot(this.options.builtinSkillsRoot, 'builtin')
+    const pluginSkills = await this.scanPluginSkills()
     const workspaceSkills = await this.scanSkillsRoot(
       AbsolutePathSchema.parse(workspaceSkillsDir(workspace.rootPath)),
       'workspace',
@@ -29,8 +39,13 @@ export class FsSkillRegistry implements SkillRegistry {
       AbsolutePathSchema.parse(workspaceSkillExtensionsDir(workspace.rootPath)),
     )
 
+    // Precedence (later wins): builtin < plugin < workspace.
+    // Extensions don't override; they attach an EXTEND.md path to the
+    // resolved skill so SubprocessSkillRunner appends it at run time.
     const manifests = new Map<SkillId, SkillManifest>()
     for (const manifest of builtins) manifests.set(manifest.id, manifest)
+    for (const manifest of pluginSkills) manifests.set(manifest.id, manifest)
+    for (const manifest of workspaceSkills) manifests.set(manifest.id, manifest)
     for (const { id, path } of extensions) {
       const existing = manifests.get(id)
       if (existing) {
@@ -38,7 +53,6 @@ export class FsSkillRegistry implements SkillRegistry {
         manifests.set(id, new SkillManifest({ ...data, extensionPath: path }))
       }
     }
-    for (const manifest of workspaceSkills) manifests.set(manifest.id, manifest)
     return [...manifests.values()]
   }
 
@@ -67,6 +81,36 @@ export class FsSkillRegistry implements SkillRegistry {
       manifests.push(new SkillManifest({
         id: SkillIdSchema.parse(entry.name),
         origin,
+        path: skillFile,
+        frontmatter,
+      }))
+    }
+    return manifests
+  }
+
+  /**
+   * Resolve every PluginSkillRef in the registry to a parsed
+   * SkillManifest. Each ref's `directory` is converted to an absolute
+   * fs path (URL via fileURLToPath), then `SKILL.md` is read and
+   * parsed. Missing files at a plugin-declared path are an error,
+   * not a silent skip: a plugin that ships a broken ref deserves a
+   * loud startup failure, not a mysteriously-absent skill.
+   */
+  private async scanPluginSkills(): Promise<readonly SkillManifest[]> {
+    const registry = this.options.pluginRegistry
+    if (!registry)
+      return []
+    const refs = registry.pluginSkills()
+    const manifests: SkillManifest[] = []
+    for (const ref of refs) {
+      const dir = typeof ref.directory === 'string' ? ref.directory : fileURLToPath(ref.directory)
+      const skillFile = AbsolutePathSchema.parse(join(dir, 'SKILL.md'))
+      const frontmatter = await this.readSkillFrontmatter(skillFile)
+      if (!frontmatter)
+        throw new Error(`Plugin "${ref.contributedBy}" declared skill "${ref.id}" at ${dir} but SKILL.md is missing`)
+      manifests.push(new SkillManifest({
+        id: ref.id,
+        origin: 'plugin' as SkillOrigin,
         path: skillFile,
         frontmatter,
       }))

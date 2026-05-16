@@ -18,7 +18,7 @@ export const SkillRun = z.object({
 })
 export type SkillRun = z.infer<typeof SkillRun>
 
-export const SkillOrigin = z.enum(['builtin', 'workspace', 'extension'])
+export const SkillOrigin = z.enum(['builtin', 'plugin', 'workspace', 'extension'])
 export type SkillOrigin = z.infer<typeof SkillOrigin>
 
 /**

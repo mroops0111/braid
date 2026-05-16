@@ -1,30 +1,32 @@
-import type { Ontology, Validator } from '@telos/core'
 import type {
   ModelSnapshot,
   PluginId,
   ValidationCode,
   ValidationIssue,
 } from '@telos/schema'
+import type { Ontology } from '../../domain/plugin/Ontology.js'
+import type { Validator } from '../../domain/plugin/Validator.js'
 import { z } from 'zod'
 
 /**
- * Ontology validator that reads its allow-list from a live Ontology instance.
+ * Validator that reads its allow-list from a live Ontology instance.
  *
- * The point: there is exactly one place that lists the valid node / edge
- * types: the ontology plugin itself. The validator, the `GET /ontology`
- * endpoint, and the documentation served to skills all consume the same
- * arrays. Adding a new type cannot drift out of sync with what the
- * validator accepts.
+ * Generic across ontologies: there is exactly one place that lists
+ * the valid node and edge types — the ontology plugin itself — and
+ * this validator, the `GET /ontology` endpoint, and the docs served
+ * to skills all consume the same arrays. Adding a new type cannot
+ * drift out of sync with what the validator accepts.
  */
-export class DDDOntologyValidator implements Validator {
-  readonly id = 'ontology-ddd.types' as PluginId
+export class OntologyTypeValidator implements Validator {
   readonly type = 'validator' as const
+  readonly id: PluginId
   readonly configSchema = z.object({})
 
   private readonly knownNodeTypes: ReadonlySet<string>
   private readonly knownEdgeTypes: ReadonlySet<string>
 
   constructor(private readonly ontology: Ontology) {
+    this.id = `ontology-type-validator.${ontology.ontologyId}` as PluginId
     this.knownNodeTypes = new Set(ontology.nodeTypes.map(t => t.id))
     this.knownEdgeTypes = new Set(ontology.edgeTypes.map(t => t.id))
   }

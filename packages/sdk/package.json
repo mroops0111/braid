@@ -16,6 +16,7 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {
+    "@telos/core": "workspace:*",
     "@telos/schema": "workspace:*",
     "zod": "^3.24.0"
   },
