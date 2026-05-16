@@ -56,20 +56,24 @@ The full design doc with deployment tiers, plugin contracts, and the HITL invari
 
 ## Quick Start
 
-### 1. Local dev
+### 1. Set up
 
 ```bash
 git clone https://github.com/mroops0111/telos.git
-cd telos
-pnpm install
-pnpm dev
+cd telos && pnpm install
+pnpm exec telos dev    # server (:4321) + Studio (:5173)
 ```
 
-`pnpm dev` runs the server (Hono on `:4321`) and Studio (Vite on `:5173`) in parallel. Open Studio and the Graph view is empty until you register a workspace.
+The CLI lives at `@telos/cli`. `telos dev` runs server and Studio in parallel from inside the monorepo; `telos serve` runs the server alone. (Once published to npm, this will be `npx @telos/cli dev`.)
 
-### 2. Register a workspace
+### 2. Create a workspace
 
-In Studio's sidebar click **+ Register Workspace** and point it at a directory that has a `PRODUCT.md` manifest. The minimal manifest:
+```bash
+pnpm exec telos init ../my-product    # scaffolds PRODUCT.md + intent/
+pnpm exec telos workspace add "$(realpath ../my-product)"
+```
+
+`telos init` creates a directory with a minimal `PRODUCT.md` manifest. Edit `sources:` to point at your real intent (PRD / RFC) and code paths. The minimal manifest looks like:
 
 ```yaml
 name: my-product

@@ -6,7 +6,7 @@
   "license": "MIT",
   "main": "./src/main.ts",
   "bin": {
-    "telos": "./dist/main.js"
+    "telos": "./bin/telos.mjs"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -16,12 +16,15 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {
+    "@hono/node-server": "^1.13.0",
     "@telos/core": "workspace:*",
     "@telos/schema": "workspace:*",
+    "@telos/server": "workspace:*",
     "cac": "^6.7.14",
     "ink": "^5.1.0",
     "picocolors": "^1.1.0",
     "react": "^19.0.0",
+    "yaml": "^2.6.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
