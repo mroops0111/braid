@@ -10,6 +10,7 @@ import {
   NotFoundError,
   OrphanEdgeValidator,
   PluginRegistry,
+  StructuralValidator,
 } from '@telos/core'
 import { DDDOntology, DDDOntologyValidator } from '@telos/ontology-ddd'
 import { GoogleDriveLoader } from '@telos/source-loader-gdrive'
@@ -100,6 +101,7 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
   pluginRegistry.register(new EvidenceValidator())
   pluginRegistry.register(new OrphanEdgeValidator())
   pluginRegistry.register(new DDDOntologyValidator(dddOntology))
+  pluginRegistry.register(new StructuralValidator(dddOntology))
   pluginRegistry.register(new GitLoader())
 
   if (googleOAuth) {
