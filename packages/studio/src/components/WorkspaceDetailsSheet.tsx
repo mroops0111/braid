@@ -1,4 +1,4 @@
-import type { McpServerConfig, SourceDescriptor, Workspace } from '@telos/schema'
+import type { McpServerConfig, SourceDescriptor, Workspace } from '@braidhq/schema'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Database, GitBranch, HardDrive, Plug, RefreshCw, Trash2 } from 'lucide-react'
 import { useState } from 'react'
@@ -271,7 +271,7 @@ function UnregisterButton({ workspaceId, onUnregistered }: { workspaceId: string
   return (
     <div className="space-y-2">
       <p className="text-[11px] text-muted-foreground">
-        Removes from Telos. PRODUCT.md and all source files stay on disk; you can re-register later.
+        Removes from Braid. PRODUCT.md and all source files stay on disk; you can re-register later.
       </p>
       {remove.error && <p className="text-[11px] text-destructive">{humaniseApiError(remove.error)}</p>}
       <div className="flex gap-2">

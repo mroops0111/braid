@@ -1,4 +1,4 @@
-import type { AbsolutePath, AgentBindingDescriptor, AgentId, SkillId, SourceId } from '@telos/schema'
+import type { AbsolutePath, AgentBindingDescriptor, AgentId, SkillId, SourceId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { ClaudeCodeAgentBinding } from '../../../src/infrastructure/agent/ClaudeCodeAgentBinding.js'
 import { makeSkillManifest, makeWorkspace } from '../../helpers/fakes.js'
@@ -63,9 +63,9 @@ describe('ClaudeCodeAgentBinding', () => {
       apiUrl: 'http://localhost:4321',
     })
 
-    expect(result.env.TELOS_WORKSPACE).toBe('/abs/ws')
-    expect(result.env.TELOS_WORKSPACE_ID).toBe('ws-1')
-    expect(result.env.TELOS_API_URL).toBe('http://localhost:4321')
+    expect(result.env.BRAID_WORKSPACE).toBe('/abs/ws')
+    expect(result.env.BRAID_WORKSPACE_ID).toBe('ws-1')
+    expect(result.env.BRAID_API_URL).toBe('http://localhost:4321')
     expect(result.env.FOO).toBe('bar')
   })
 

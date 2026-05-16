@@ -1,4 +1,4 @@
-import type { ClarifyFilter, ClarifyTicketId } from '@telos/schema'
+import type { ClarifyFilter, ClarifyTicketId } from '@braidhq/schema'
 import type { ClarifyTicket } from '../../domain/hitl/ClarifyTicket.js'
 import type { ClarifyTicketRepository } from '../../domain/hitl/ClarifyTicketRepository.js'
 import { paginate } from '../../domain/paginate.js'

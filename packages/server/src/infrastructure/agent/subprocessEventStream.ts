@@ -1,6 +1,6 @@
-import type { SkillEvent } from '@telos/schema'
+import type { SkillEvent } from '@braidhq/schema'
 import type { ChildProcess } from 'node:child_process'
-import { SkillEvent as SkillEventSchema } from '@telos/schema'
+import { SkillEvent as SkillEventSchema } from '@braidhq/schema'
 import { LineBuffer, parseJsonLine } from './streamJsonParser.js'
 
 interface RawEvent { readonly type: string, readonly [key: string]: unknown }

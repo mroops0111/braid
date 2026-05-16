@@ -2,13 +2,13 @@ import type {
   EdgeTypeDescriptor,
   NodeTypeDescriptor,
   Ontology,
-} from '@telos/core'
+} from '@braidhq/core'
 import type {
   EdgeTypeId,
   NodeTypeId,
   OntologyId,
   PluginId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import type { PluginSkillRef } from './types.js'
 import { z } from 'zod'
 import {

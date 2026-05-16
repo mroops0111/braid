@@ -1,5 +1,5 @@
-import type { Clock, RunRepository, WorkspaceRepository } from '@telos/core'
-import type { SkillEvent } from '@telos/schema'
+import type { Clock, RunRepository, WorkspaceRepository } from '@braidhq/core'
+import type { SkillEvent } from '@braidhq/schema'
 
 /**
  * Run records survive across server restarts, but the subprocess that was

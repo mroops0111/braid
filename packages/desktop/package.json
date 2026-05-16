@@ -1,8 +1,8 @@
 {
-  "name": "@telos/desktop",
+  "name": "@braidhq/desktop",
   "type": "module",
-  "version": "0.0.0",
-  "description": "Telos Tauri desktop shell. Embeds @telos/server as sidecar; reuses @telos/studio for UI.",
+  "version": "0.0.1",
+  "description": "Braid Tauri desktop shell. Embeds @braidhq/server as sidecar; reuses @braidhq/studio for UI.",
   "license": "MIT",
   "scripts": {
     "build": "echo 'desktop build runs Tauri in Phase 6'",
@@ -12,9 +12,9 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {
-    "@telos/schema": "workspace:*",
-    "@telos/server": "workspace:*",
-    "@telos/studio": "workspace:*"
+    "@braidhq/schema": "workspace:*",
+    "@braidhq/server": "workspace:*",
+    "@braidhq/studio": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

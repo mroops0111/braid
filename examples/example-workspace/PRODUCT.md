@@ -1,7 +1,7 @@
 ---
 name: example
 version: 0.1.0
-description: Minimal Telos workspace template. Copy this directory, edit the source paths, and point Telos at it.
+description: Minimal Braid workspace template. Copy this directory, edit the source paths, and point Braid at it.
 ontologyId: ddd
 
 sources:
@@ -43,7 +43,7 @@ channels:
 
 # Example Workspace
 
-A minimal Telos workspace you can copy and adapt. Edit the `sources:` paths
+A minimal Braid workspace you can copy and adapt. Edit the `sources:` paths
 above to point at your own intent (PRD / RFC) directories and codebases.
 
 ## Usage
@@ -51,8 +51,8 @@ above to point at your own intent (PRD / RFC) directories and codebases.
 ```bash
 WORKSPACE_DIR="$(pwd)/examples/example-workspace"
 
-# Boot the server (uses embedded Kuzu storage; data lives at .telos/model.kuzu)
-pnpm --filter @telos/server dev
+# Boot the server (uses embedded Kuzu storage; data lives at .braid/model.kuzu)
+pnpm --filter @braidhq/server dev
 ```
 
 In another terminal:
@@ -67,7 +67,7 @@ curl -X POST http://localhost:4321/workspaces \
 curl http://localhost:4321/workspaces/example-workspace/skills
 
 # Run extract (requires `claude` CLI on PATH)
-curl -X POST http://localhost:4321/workspaces/example-workspace/skills/telos-extract/run \
+curl -X POST http://localhost:4321/workspaces/example-workspace/skills/braid-extract/run \
   -H 'Content-Type: application/json' \
   -d '{"args":"signup"}'
 ```

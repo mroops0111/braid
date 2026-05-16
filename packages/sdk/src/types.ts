@@ -1,4 +1,4 @@
-import type { SkillId } from '@telos/schema'
+import type { SkillId } from '@braidhq/schema'
 
 /**
  * Reference to a SKILL.md file shipped alongside a plugin. The plugin's

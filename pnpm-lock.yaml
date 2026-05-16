@@ -41,13 +41,13 @@ importers:
 
   examples/redoc-extending-ddd:
     dependencies:
-      '@telos/ontology-ddd':
+      '@braidhq/ontology-ddd':
         specifier: workspace:*
         version: link:../../plugins/ontology-ddd
-      '@telos/schema':
+      '@braidhq/schema':
         specifier: workspace:*
         version: link:../../packages/schema
-      '@telos/sdk':
+      '@braidhq/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
     devDependencies:
@@ -57,18 +57,18 @@ importers:
 
   packages/cli:
     dependencies:
+      '@braidhq/core':
+        specifier: workspace:*
+        version: link:../core
+      '@braidhq/schema':
+        specifier: workspace:*
+        version: link:../schema
+      '@braidhq/server':
+        specifier: workspace:*
+        version: link:../server
       '@hono/node-server':
         specifier: ^1.13.0
         version: 1.19.14(hono@4.12.18)
-      '@telos/core':
-        specifier: workspace:*
-        version: link:../core
-      '@telos/schema':
-        specifier: workspace:*
-        version: link:../schema
-      '@telos/server':
-        specifier: workspace:*
-        version: link:../server
       cac:
         specifier: ^6.7.14
         version: 6.7.14
@@ -103,7 +103,7 @@ importers:
 
   packages/core:
     dependencies:
-      '@telos/schema':
+      '@braidhq/schema':
         specifier: workspace:*
         version: link:../schema
       neo4j-driver:
@@ -128,13 +128,13 @@ importers:
 
   packages/desktop:
     dependencies:
-      '@telos/schema':
+      '@braidhq/schema':
         specifier: workspace:*
         version: link:../schema
-      '@telos/server':
+      '@braidhq/server':
         specifier: workspace:*
         version: link:../server
-      '@telos/studio':
+      '@braidhq/studio':
         specifier: workspace:*
         version: link:../studio
     devDependencies:
@@ -160,10 +160,10 @@ importers:
 
   packages/sdk:
     dependencies:
-      '@telos/core':
+      '@braidhq/core':
         specifier: workspace:*
         version: link:../core
-      '@telos/schema':
+      '@braidhq/schema':
         specifier: workspace:*
         version: link:../schema
       zod:
@@ -179,30 +179,30 @@ importers:
 
   packages/server:
     dependencies:
+      '@braidhq/core':
+        specifier: workspace:*
+        version: link:../core
+      '@braidhq/ontology-ddd':
+        specifier: workspace:*
+        version: link:../../plugins/ontology-ddd
+      '@braidhq/schema':
+        specifier: workspace:*
+        version: link:../schema
+      '@braidhq/source-loader-gdrive':
+        specifier: workspace:*
+        version: link:../source-loader-gdrive
+      '@braidhq/source-loader-git':
+        specifier: workspace:*
+        version: link:../source-loader-git
+      '@braidhq/storage-kuzu':
+        specifier: workspace:*
+        version: link:../storage-kuzu
       '@hono/node-server':
         specifier: ^1.13.0
         version: 1.19.14(hono@4.12.18)
       '@hono/zod-validator':
         specifier: ^0.4.0
         version: 0.4.3(hono@4.12.18)(zod@3.25.76)
-      '@telos/core':
-        specifier: workspace:*
-        version: link:../core
-      '@telos/ontology-ddd':
-        specifier: workspace:*
-        version: link:../../plugins/ontology-ddd
-      '@telos/schema':
-        specifier: workspace:*
-        version: link:../schema
-      '@telos/source-loader-gdrive':
-        specifier: workspace:*
-        version: link:../source-loader-gdrive
-      '@telos/source-loader-git':
-        specifier: workspace:*
-        version: link:../source-loader-git
-      '@telos/storage-kuzu':
-        specifier: workspace:*
-        version: link:../storage-kuzu
       hono:
         specifier: ^4.6.0
         version: 4.12.18
@@ -228,10 +228,10 @@ importers:
 
   packages/source-loader-gdrive:
     dependencies:
-      '@telos/core':
+      '@braidhq/core':
         specifier: workspace:*
         version: link:../core
-      '@telos/schema':
+      '@braidhq/schema':
         specifier: workspace:*
         version: link:../schema
       zod:
@@ -247,10 +247,10 @@ importers:
 
   packages/source-loader-git:
     dependencies:
-      '@telos/core':
+      '@braidhq/core':
         specifier: workspace:*
         version: link:../core
-      '@telos/schema':
+      '@braidhq/schema':
         specifier: workspace:*
         version: link:../schema
       simple-git:
@@ -269,10 +269,10 @@ importers:
 
   packages/storage-kuzu:
     dependencies:
-      '@telos/core':
+      '@braidhq/core':
         specifier: workspace:*
         version: link:../core
-      '@telos/schema':
+      '@braidhq/schema':
         specifier: workspace:*
         version: link:../schema
       kuzu:
@@ -288,6 +288,9 @@ importers:
 
   packages/studio:
     dependencies:
+      '@braidhq/schema':
+        specifier: workspace:*
+        version: link:../schema
       '@dagrejs/dagre':
         specifier: ^3.0.0
         version: 3.0.0
@@ -312,9 +315,6 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.62.0
         version: 5.100.10(react@19.2.6)
-      '@telos/schema':
-        specifier: workspace:*
-        version: link:../schema
       '@xyflow/react':
         specifier: ^12.10.2
         version: 12.10.2(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -382,13 +382,13 @@ importers:
 
   plugins/ontology-ddd:
     dependencies:
-      '@telos/core':
+      '@braidhq/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@telos/schema':
+      '@braidhq/schema':
         specifier: workspace:*
         version: link:../../packages/schema
-      '@telos/sdk':
+      '@braidhq/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
       zod:

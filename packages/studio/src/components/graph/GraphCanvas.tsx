@@ -1,4 +1,4 @@
-import type { GraphEdge, GraphNode, NodeId } from '@telos/schema'
+import type { GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
 import type { NodeCardNode } from './useGraphLayout'
 import { Background, BackgroundVariant, Controls, MarkerType, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react'
 import { GitBranch, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
@@ -182,7 +182,7 @@ function CanvasInner({ workspaceId, viewToggle }: GraphCanvasProps) {
       <EmptyState
         icon={GitBranch}
         title="Graph Is Empty"
-        description="Run /telos-extract to populate it from your codebase and intent docs."
+        description="Run /braid-extract to populate it from your codebase and intent docs."
       />
     )
   }

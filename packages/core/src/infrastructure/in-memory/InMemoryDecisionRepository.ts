@@ -1,4 +1,4 @@
-import type { Decision, DecisionFilter, DecisionId } from '@telos/schema'
+import type { Decision, DecisionFilter, DecisionId } from '@braidhq/schema'
 import type { DecisionRepository } from '../../domain/hitl/DecisionRepository.js'
 import { NotFoundError } from '../../domain/errors.js'
 

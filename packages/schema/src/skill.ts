@@ -40,20 +40,20 @@ export const ClaudeCodeSkillFrontmatter = z.object({
 export type ClaudeCodeSkillFrontmatter = z.infer<typeof ClaudeCodeSkillFrontmatter>
 
 /**
- * Telos-specific extension fields. Live under the `telos:` key of the YAML
+ * Braid-specific extension fields. Live under the `braid:` key of the YAML
  * frontmatter so they never collide with Claude Code's own fields, present
  * or future. Read by `SubprocessSkillRunner` for preflight validation
  * (env / path / MCP availability) before spawning.
  */
-export const TelosSkillExtension = z.object({
+export const BraidSkillExtension = z.object({
   requiredEnv: z.array(z.string()).default([]),
   requiredPaths: z.array(z.string()).default([]),
   requiredMcpServers: z.array(McpServerId).default([]),
 })
-export type TelosSkillExtension = z.infer<typeof TelosSkillExtension>
+export type BraidSkillExtension = z.infer<typeof BraidSkillExtension>
 
 export const SkillFrontmatter = ClaudeCodeSkillFrontmatter.extend({
-  telos: TelosSkillExtension.default({
+  braid: BraidSkillExtension.default({
     requiredEnv: [],
     requiredPaths: [],
     requiredMcpServers: [],

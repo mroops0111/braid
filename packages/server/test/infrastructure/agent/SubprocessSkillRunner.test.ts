@@ -1,4 +1,4 @@
-import type { AbsolutePath, SkillEvent, SkillId } from '@telos/schema'
+import type { AbsolutePath, SkillEvent, SkillId } from '@braidhq/schema'
 import { mkdir, mkdtemp, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -9,7 +9,7 @@ import {
   type Workspace,
   type WorkspaceEvent,
   type WorkspaceEventBus,
-} from '@telos/core'
+} from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { ClaudeCodeAgentBinding } from '../../../src/infrastructure/agent/ClaudeCodeAgentBinding.js'
 import { SubprocessSkillRunner } from '../../../src/infrastructure/agent/SubprocessSkillRunner.js'
@@ -17,7 +17,7 @@ import { FsRunRepository } from '../../../src/infrastructure/fs/FsRunRepository.
 import { DEFAULT_AGENT_BINDING, makeWorkspace } from '../../helpers/fakes.js'
 import { createMockSpawn, type MockSpawnRecord, type MockSpawnScript } from '../../helpers/mockSpawn.js'
 
-const SKILL_ID = 'telos-ask' as SkillId
+const SKILL_ID = 'braid-ask' as SkillId
 
 interface BuildRunnerInput {
   readonly rootPath: AbsolutePath
@@ -58,25 +58,25 @@ async function buildRunner(input: BuildRunnerInput): Promise<BuiltRunner> {
 }
 
 async function makeWorkspaceRoot(): Promise<AbsolutePath> {
-  return (await mkdtemp(join(tmpdir(), 'telos-runner-'))) as AbsolutePath
+  return (await mkdtemp(join(tmpdir(), 'braid-runner-'))) as AbsolutePath
 }
 
 async function makeSkillRegistry(skillSourceParent: AbsolutePath): Promise<SkillRegistry> {
   // Materialise a real SKILL.md under skillSourceParent/<id>/ so the runner's
   // session-dir builder can symlink it; tests that don't care about the
   // session-dir layout still get a valid manifest.
-  const skillDir = join(skillSourceParent, 'telos-ask')
+  const skillDir = join(skillSourceParent, 'braid-ask')
   await mkdir(skillDir, { recursive: true })
-  await writeFile(join(skillDir, 'SKILL.md'), '---\nname: telos-ask\ndescription: a\n---\n', 'utf-8')
+  await writeFile(join(skillDir, 'SKILL.md'), '---\nname: braid-ask\ndescription: a\n---\n', 'utf-8')
   const manifest = new SkillManifest({
     id: SKILL_ID,
     origin: 'builtin',
     path: join(skillDir, 'SKILL.md') as AbsolutePath,
     frontmatter: {
-      name: 'telos-ask',
+      name: 'braid-ask',
       description: 'a',
       disableModelInvocation: false,
-      telos: {
+      braid: {
         requiredEnv: [],
         requiredPaths: [],
         requiredMcpServers: [],
@@ -147,11 +147,11 @@ describe('SubprocessSkillRunner', () => {
     await collectRunEvents(runner, workspace, '')
 
     const sessionCwd = invocations[0]?.options.cwd as string
-    expect(sessionCwd).toContain('.telos-sessions/')
+    expect(sessionCwd).toContain('.braid-sessions/')
     expect(sessionCwd.startsWith(rootPath)).toBe(true)
 
     const skillNames = await readdir(join(sessionCwd, '.claude', 'skills'))
-    expect(skillNames).toContain('telos-ask')
+    expect(skillNames).toContain('braid-ask')
     expect(skillNames).toContain('shared')
   })
 
@@ -233,7 +233,7 @@ describe('SubprocessSkillRunner', () => {
 
     const firstCwd = invocations[0]!.options.cwd as string
     const secondCwd = invocations[1]!.options.cwd as string
-    expect(firstCwd).toContain('.telos-sessions/')
+    expect(firstCwd).toContain('.braid-sessions/')
     expect(secondCwd).toBe(firstCwd)
   })
 
@@ -293,7 +293,7 @@ describe('SubprocessSkillRunner', () => {
       rootPath,
       sequence: [{
         stdoutLines: [
-          JSON.stringify({ type: 'result', subtype: 'error', is_error: true, result: 'Unknown command: /telos-ask' }),
+          JSON.stringify({ type: 'result', subtype: 'error', is_error: true, result: 'Unknown command: /braid-ask' }),
         ],
         exitCode: 0,
       }],
@@ -305,7 +305,7 @@ describe('SubprocessSkillRunner', () => {
     // collectRunEvents stops once an error arrives — completed may not yet be observed.
     expect(events.map(event => event.type).slice(0, 2)).toEqual(['started', 'error'])
     const errorEvent = events.find(event => event.type === 'error')
-    expect(errorEvent && 'message' in errorEvent ? errorEvent.message : undefined).toBe('Unknown command: /telos-ask')
+    expect(errorEvent && 'message' in errorEvent ? errorEvent.message : undefined).toBe('Unknown command: /braid-ask')
   })
 
   it('reports positionAtSubscribe matching the events already persisted when a late subscriber arrives', async () => {

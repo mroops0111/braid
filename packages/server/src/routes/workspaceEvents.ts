@@ -1,4 +1,4 @@
-import type { WorkspaceEvent, WorkspaceEventBus } from '@telos/core'
+import type { WorkspaceEvent, WorkspaceEventBus } from '@braidhq/core'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { createAsyncQueue } from '../infrastructure/agent/asyncQueue.js'

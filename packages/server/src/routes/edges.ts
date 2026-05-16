@@ -1,6 +1,6 @@
-import type { ModelService } from '@telos/core'
+import type { ModelService } from '@braidhq/core'
+import { EdgeTypeId, NodeId } from '@braidhq/schema'
 import { zValidator } from '@hono/zod-validator'
-import { EdgeTypeId, NodeId } from '@telos/schema'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { getWorkspaceId } from '../middleware/workspaceId.js'

@@ -154,7 +154,7 @@ function NoWorkspaceState({ onSelect }: { onSelect: (id: string) => void }) {
   return (
     <div className="flex h-full flex-col items-center justify-center px-6">
       <div className="max-w-2xl text-center">
-        <h1 className="text-base font-semibold">Welcome to Telos</h1>
+        <h1 className="text-base font-semibold">Welcome to Braid</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
           Pick how you want to start. You can switch later from the sidebar.
         </p>
@@ -163,13 +163,13 @@ function NoWorkspaceState({ onSelect }: { onSelect: (id: string) => void }) {
         <ActionCard
           icon={Sparkles}
           title="Create New Workspace"
-          description="Scaffold a fresh PRODUCT.md, pick intent + code sources, and let Telos ingest them."
+          description="Scaffold a fresh PRODUCT.md, pick intent + code sources, and let Braid ingest them."
           onClick={() => setWizardOpen(true)}
         />
         <ActionCard
           icon={FolderPlus}
           title="Register Existing"
-          description="You already have a PRODUCT.md on disk and just want Telos to track it."
+          description="You already have a PRODUCT.md on disk and just want Braid to track it."
           onClick={() => setRegisterOpen(true)}
         />
       </div>

@@ -1,4 +1,4 @@
-import type { SkillEvent, SkillId, SkillRunId } from '@telos/schema'
+import type { SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
 import type { Workspace } from '../workspace/Workspace.js'
 
 export interface SkillRunOptions {

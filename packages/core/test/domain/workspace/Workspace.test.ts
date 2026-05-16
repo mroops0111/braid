@@ -6,7 +6,7 @@ import type {
   SourceId,
   StorageDescriptor,
   StorageKind,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { NotFoundError, type Workspace } from '../../../src/index.js'
 import { makeWorkspace } from '../../helpers/fakes.js'

@@ -1,4 +1,4 @@
-import type { GraphNode } from '@telos/schema'
+import type { GraphNode } from '@braidhq/schema'
 import { GitBranch, X } from 'lucide-react'
 import { useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
@@ -22,7 +22,7 @@ export function GraphTablePage({ workspaceId }: GraphTablePageProps) {
       <EmptyState
         icon={GitBranch}
         title="Graph Is Empty"
-        description="Run /telos-extract to populate it from your codebase and intent docs."
+        description="Run /braid-extract to populate it from your codebase and intent docs."
       />
     )
   }

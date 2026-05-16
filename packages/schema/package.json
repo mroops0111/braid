@@ -1,8 +1,8 @@
 {
-  "name": "@telos/schema",
+  "name": "@braidhq/schema",
   "type": "module",
-  "version": "0.0.0",
-  "description": "Zod schemas + TS types for the Telos domain model. Shared by core / server / studio / cli / sdk / plugins.",
+  "version": "0.0.1",
+  "description": "Zod schemas + TS types for the Braid domain model. Shared by core / server / studio / cli / sdk / plugins.",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"

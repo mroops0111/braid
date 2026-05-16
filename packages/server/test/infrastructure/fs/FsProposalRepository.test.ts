@@ -1,15 +1,15 @@
-import type { AbsolutePath, ProposalId, WorkspaceId } from '@telos/schema'
+import type { AbsolutePath, ProposalId, WorkspaceId } from '@braidhq/schema'
 import { mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { NotFoundError, Proposal } from '@telos/core'
+import { NotFoundError, Proposal } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { FsProposalRepository } from '../../../src/infrastructure/fs/FsProposalRepository.js'
 
 const isoTimestamp = '2026-05-12T12:00:00+08:00'
 
 async function makeWorkspaceRoot(): Promise<AbsolutePath> {
-  return await mkdtemp(join(tmpdir(), 'telos-fs-prop-')) as AbsolutePath
+  return await mkdtemp(join(tmpdir(), 'braid-fs-prop-')) as AbsolutePath
 }
 
 function makeProposal(id: string, workspaceId: WorkspaceId, status: 'pending' | 'applied' | 'rejected' = 'pending'): Proposal {

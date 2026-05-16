@@ -1,6 +1,6 @@
-import type { Workspace, WorkspaceRepository } from '@telos/core'
-import type { WorkspaceId } from '@telos/schema'
-import { NotFoundError } from '@telos/core'
+import type { Workspace, WorkspaceRepository } from '@braidhq/core'
+import type { WorkspaceId } from '@braidhq/schema'
+import { NotFoundError } from '@braidhq/core'
 
 export function assertEntityInWorkspace(
   expected: WorkspaceId,

@@ -4,19 +4,19 @@ import { parseMarkdownFrontmatter } from '../../../src/infrastructure/fs/frontma
 describe('parseMarkdownFrontmatter', () => {
   it('parses YAML frontmatter and body', () => {
     const source = `---
-name: telos-ask
+name: braid-ask
 description: ask
 ---
 body line 1
 body line 2`
     const result = parseMarkdownFrontmatter<{ name: string, description: string }>(source)
-    expect(result.frontmatter.name).toBe('telos-ask')
+    expect(result.frontmatter.name).toBe('braid-ask')
     expect(result.body).toContain('body line 1')
   })
 
   it('normalises kebab-case keys to camelCase', () => {
     const source = `---
-name: telos-ask
+name: braid-ask
 argument-hint: "[question]"
 disable-model-invocation: true
 allowed-tools: [Read, Grep]
@@ -34,16 +34,16 @@ body`
 
   it('normalises nested keys recursively', () => {
     const source = `---
-telos:
-  required-env: [TELOS_API_URL]
+braid:
+  required-env: [BRAID_API_URL]
   required-mcp-servers: [redmine]
 ---
 body`
     const result = parseMarkdownFrontmatter<{
-      telos: { requiredEnv: string[], requiredMcpServers: string[] }
+      braid: { requiredEnv: string[], requiredMcpServers: string[] }
     }>(source)
-    expect(result.frontmatter.telos.requiredEnv).toEqual(['TELOS_API_URL'])
-    expect(result.frontmatter.telos.requiredMcpServers).toEqual(['redmine'])
+    expect(result.frontmatter.braid.requiredEnv).toEqual(['BRAID_API_URL'])
+    expect(result.frontmatter.braid.requiredMcpServers).toEqual(['redmine'])
   })
 
   it('throws when frontmatter is missing opening delimiter', () => {

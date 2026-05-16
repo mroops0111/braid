@@ -1,4 +1,4 @@
-import type { SkillId } from '@telos/schema'
+import type { SkillId } from '@braidhq/schema'
 import type { Workspace } from '../workspace/Workspace.js'
 import type { SkillManifest } from './SkillManifest.js'
 

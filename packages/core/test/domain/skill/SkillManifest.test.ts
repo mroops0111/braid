@@ -1,4 +1,4 @@
-import type { AbsolutePath, McpServerId } from '@telos/schema'
+import type { AbsolutePath, McpServerId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { SkillManifest } from '../../../src/index.js'
 import { makeSkillManifest, makeSkillManifestData, makeWorkspace } from '../../helpers/fakes.js'
@@ -35,7 +35,7 @@ describe('SkillManifest origin checks', () => {
 })
 
 describe('SkillManifest.requiresMcpServer', () => {
-  it('returns true only for ids listed in telos.requiredMcpServers', () => {
+  it('returns true only for ids listed in braid.requiredMcpServers', () => {
     const manifest = makeSkillManifest({ requiredMcpServers: ['redmine' as McpServerId] })
 
     expect(manifest.requiresMcpServer('redmine' as McpServerId)).toBe(true)
@@ -43,36 +43,36 @@ describe('SkillManifest.requiresMcpServer', () => {
   })
 })
 
-describe('SkillManifest claude / telos field projections', () => {
-  it('claudeCodeFields drops the telos namespace', () => {
-    const manifest = makeSkillManifest({ id: 'ask', name: 'telos-ask', description: 'answer questions' })
+describe('SkillManifest claude / braid field projections', () => {
+  it('claudeCodeFields drops the braid namespace', () => {
+    const manifest = makeSkillManifest({ id: 'ask', name: 'braid-ask', description: 'answer questions' })
 
     expect(manifest.claudeCodeFields).toEqual({
-      name: 'telos-ask',
+      name: 'braid-ask',
       description: 'answer questions',
       disableModelInvocation: false,
     })
   })
 
-  it('telosFields exposes the telos extension block', () => {
+  it('braidFields exposes the braid extension block', () => {
     const manifest = new SkillManifest(makeSkillManifestData({
       requiredEnv: ['JIRA_TOKEN'],
       requiredPaths: ['intent'],
       requiredMcpServers: ['redmine' as McpServerId],
     }))
 
-    expect(manifest.telosFields.requiredEnv).toEqual(['JIRA_TOKEN'])
+    expect(manifest.braidFields.requiredEnv).toEqual(['JIRA_TOKEN'])
   })
 })
 
 describe('SkillManifest.readinessIssuesFor', () => {
   it('reports no issues when env and MCP requirements are satisfied', () => {
     const manifest = makeSkillManifest({
-      requiredEnv: ['TELOS_API_URL'],
+      requiredEnv: ['BRAID_API_URL'],
       requiredMcpServers: ['redmine' as McpServerId],
     })
 
-    const issues = manifest.readinessIssuesFor(workspaceWith(), { TELOS_API_URL: 'http://localhost' })
+    const issues = manifest.readinessIssuesFor(workspaceWith(), { BRAID_API_URL: 'http://localhost' })
     expect(issues).toEqual([])
   })
 

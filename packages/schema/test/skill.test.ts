@@ -63,41 +63,41 @@ describe('skillOrigin', () => {
 })
 
 describe('skillFrontmatter', () => {
-  it('parses minimal frontmatter with defaults (no telos extension)', () => {
+  it('parses minimal frontmatter with defaults (no braid extension)', () => {
     const fm = SkillFrontmatter.parse({
-      name: 'telos-ask',
+      name: 'braid-ask',
       description: 'answer questions',
     })
     expect(fm.disableModelInvocation).toBe(false)
-    expect(fm.telos.requiredEnv).toEqual([])
-    expect(fm.telos.requiredMcpServers).toEqual([])
+    expect(fm.braid.requiredEnv).toEqual([])
+    expect(fm.braid.requiredMcpServers).toEqual([])
   })
 
-  it('parses full frontmatter with telos extension', () => {
+  it('parses full frontmatter with braid extension', () => {
     const fm = SkillFrontmatter.parse({
-      name: 'telos-import-jira',
+      name: 'braid-import-jira',
       description: 'sync Jira tickets',
       argumentHint: '[project-key]',
       disableModelInvocation: true,
       allowedTools: ['Read', 'Grep', 'Bash'],
-      telos: {
+      braid: {
         requiredEnv: ['JIRA_TOKEN'],
         requiredPaths: ['intent/jira'],
         requiredMcpServers: ['jira'],
       },
     })
     expect(fm.allowedTools).toEqual(['Read', 'Grep', 'Bash'])
-    expect(fm.telos.requiredMcpServers).toEqual(['jira'])
+    expect(fm.braid.requiredMcpServers).toEqual(['jira'])
   })
 
-  it('does not mix Claude Code fields with telos extension fields', () => {
+  it('does not mix Claude Code fields with braid extension fields', () => {
     const fm = SkillFrontmatter.parse({
-      name: 'telos-ask',
+      name: 'braid-ask',
       description: 'a',
-      telos: { requiredEnv: ['X'] },
+      braid: { requiredEnv: ['X'] },
     })
     expect('requiredEnv' in fm).toBe(false)
-    expect(fm.telos.requiredEnv).toEqual(['X'])
+    expect(fm.braid.requiredEnv).toEqual(['X'])
   })
 
   it('rejects empty name', () => {
@@ -114,7 +114,7 @@ describe('skillManifest', () => {
       origin: 'builtin',
       path: '/abs/path/to/SKILL.md',
       frontmatter: {
-        name: 'telos-ask',
+        name: 'braid-ask',
         description: 'answer questions',
       },
     })
@@ -127,8 +127,8 @@ describe('skillManifest', () => {
       id: 'extract',
       origin: 'builtin',
       path: '/abs/SKILL.md',
-      frontmatter: { name: 'telos-extract', description: 'extract' },
-      extensionPath: '/abs/skill-extensions/telos-extract/EXTEND.md',
+      frontmatter: { name: 'braid-extract', description: 'extract' },
+      extensionPath: '/abs/skill-extensions/braid-extract/EXTEND.md',
     })
     expect(manifest.extensionPath).toBeTruthy()
   })
@@ -256,7 +256,7 @@ describe('runRecord', () => {
     const record = RunRecord.parse({
       runId: 'sr-1',
       workspaceId: 'demo',
-      skillId: 'telos-ask',
+      skillId: 'braid-ask',
       args: 'hi',
       startedAt: isoTimestamp,
     })
@@ -270,7 +270,7 @@ describe('runRecord', () => {
     const record = RunRecord.parse({
       runId: 'sr-2',
       workspaceId: 'demo',
-      skillId: 'telos-ask',
+      skillId: 'braid-ask',
       args: 'hi',
       resumed: true,
       sessionId: 'sess-abc',

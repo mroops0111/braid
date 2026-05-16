@@ -1,4 +1,4 @@
-import type { ProposalFilter, ProposalId } from '@telos/schema'
+import type { ProposalFilter, ProposalId } from '@braidhq/schema'
 import type { Proposal } from './Proposal.js'
 
 export interface ProposalRepository {

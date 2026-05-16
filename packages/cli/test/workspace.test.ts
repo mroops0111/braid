@@ -32,7 +32,7 @@ describe('workspaceAddCommand', () => {
 
   it('surfaces problem+json detail on non-2xx response', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
-      JSON.stringify({ code: 'TELOS-CONFLICT', title: 'ConflictError', detail: 'workspace already registered' }),
+      JSON.stringify({ code: 'BRAID-CONFLICT', title: 'ConflictError', detail: 'workspace already registered' }),
       { status: 409, headers: { 'content-type': 'application/problem+json' } },
     ))
     await expect(workspaceAddCommand({ rootPath: '/abs/already', apiUrl: 'http://localhost:4321' }))
@@ -40,11 +40,11 @@ describe('workspaceAddCommand', () => {
       .toThrow(/already registered/)
   })
 
-  it('wraps a network failure into a hint about telos serve', async () => {
+  it('wraps a network failure into a hint about braid serve', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('ECONNREFUSED'))
     await expect(workspaceAddCommand({ rootPath: '/abs/x', apiUrl: 'http://localhost:4321' }))
       .rejects
-      .toThrow(/telos serve/)
+      .toThrow(/braid serve/)
   })
 })
 

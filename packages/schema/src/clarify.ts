@@ -32,7 +32,7 @@ export const ClarifyTicket = z.object({
   resolution: z.array(GraphOperation).optional(),
   /**
    * Set on `pending → answered → applied` transitions when the
-   * telos-clarify skill wraps the resolution into a Proposal. Lets the
+   * braid-clarify skill wraps the resolution into a Proposal. Lets the
    * UI link back from a ticket to the Proposal that materialised it.
    */
   proposalId: ProposalId.optional(),

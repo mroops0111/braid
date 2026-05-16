@@ -1,4 +1,4 @@
-import type { McpServerConfig, ProductManifestDraft } from '@telos/schema'
+import type { McpServerConfig, ProductManifestDraft } from '@braidhq/schema'
 import type { IngestSummary } from '@/lib/api'
 import type { SourceDraft as SourceDraftBase } from '@/lib/sourceDraft'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -116,7 +116,7 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
         <DialogHeader>
           <DialogTitle>Create Workspace</DialogTitle>
           <DialogDescription>
-            Telos will write a fresh PRODUCT.md and ingest any loader-backed sources.
+            Braid will write a fresh PRODUCT.md and ingest any loader-backed sources.
           </DialogDescription>
         </DialogHeader>
 

@@ -1,4 +1,4 @@
-import type { GraphNode, NodeId, NodeTypeId, OntologyResponse } from '@telos/schema'
+import type { GraphNode, NodeId, NodeTypeId, OntologyResponse } from '@braidhq/schema'
 import { Check, ChevronDown, ChevronRight, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useOntology } from '@/lib/queries'

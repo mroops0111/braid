@@ -12,13 +12,13 @@ export interface DevCommandInput {
 }
 
 /**
- * Boot Telos for interactive development.
+ * Boot Braid for interactive development.
  *
  * Two modes, chosen automatically:
  *
  *   - **Monorepo mode** (a `pnpm-workspace.yaml` exists at CWD or any
- *     ancestor): spawn `pnpm --filter @telos/server dev` and
- *     `pnpm --filter @telos/studio dev` as child processes so changes
+ *     ancestor): spawn `pnpm --filter @braidhq/server dev` and
+ *     `pnpm --filter @braidhq/studio dev` as child processes so changes
  *     to either reload live. Logs are prefixed `[server]` / `[studio]`
  *     and routed to this CLI's stdout. Ctrl+C kills both.
  *
@@ -31,7 +31,7 @@ export async function devCommand(input: DevCommandInput): Promise<void> {
   if (!monorepoRoot) {
     process.stdout.write(
       `${pc.yellow('!')} No pnpm workspace detected; running server only.\n`
-      + `  To run Studio too, clone https://github.com/mroops0111/telos and "pnpm dev" from there.\n\n`,
+      + `  To run Studio too, clone https://github.com/mroops0111/braid and "pnpm dev" from there.\n\n`,
     )
     await serveCommand({ port: input.port })
     return
@@ -69,14 +69,14 @@ interface ChildSpec {
 
 async function runMonorepoDev(cwd: string, port: number): Promise<void> {
   const specs: readonly ChildSpec[] = [
-    { tag: 'server', color: pc.cyan, args: ['--filter', '@telos/server', 'dev'] },
-    { tag: 'studio', color: pc.magenta, args: ['--filter', '@telos/studio', 'dev'] },
+    { tag: 'server', color: pc.cyan, args: ['--filter', '@braidhq/server', 'dev'] },
+    { tag: 'studio', color: pc.magenta, args: ['--filter', '@braidhq/studio', 'dev'] },
   ]
   const children: ChildProcess[] = []
   for (const spec of specs) {
     const child = spawn('pnpm', [...spec.args], {
       cwd,
-      env: { ...process.env, TELOS_SERVER_PORT: String(port) },
+      env: { ...process.env, BRAID_SERVER_PORT: String(port) },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     pipeWithPrefix(child, spec.tag, spec.color)

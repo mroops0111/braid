@@ -1,7 +1,7 @@
 {
-  "name": "@telos/ontology-ddd",
+  "name": "@braidhq/ontology-ddd",
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Default DDD-flavored ontology plugin. Provides core DDD node and edge type sets.",
   "license": "MIT",
   "exports": {
@@ -17,9 +17,9 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@telos/core": "workspace:*",
-    "@telos/schema": "workspace:*",
-    "@telos/sdk": "workspace:*",
+    "@braidhq/core": "workspace:*",
+    "@braidhq/schema": "workspace:*",
+    "@braidhq/sdk": "workspace:*",
     "zod": "^3.24.0"
   },
   "devDependencies": {

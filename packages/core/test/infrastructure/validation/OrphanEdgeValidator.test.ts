@@ -1,4 +1,4 @@
-import type { EdgeId, EdgeTypeId, ModelSnapshot, NodeId, NodeStatus, NodeTypeId } from '@telos/schema'
+import type { EdgeId, EdgeTypeId, ModelSnapshot, NodeId, NodeStatus, NodeTypeId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { OrphanEdgeValidator } from '../../../src/infrastructure/validation/OrphanEdgeValidator.js'
 

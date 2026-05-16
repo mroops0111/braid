@@ -9,7 +9,7 @@ import type {
   StorageDescriptor,
   StorageKind,
   ViewKind,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   type AgentBinding,

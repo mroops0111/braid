@@ -1,4 +1,4 @@
-import type { AbsolutePath, RunRecord, SkillRunId, WorkspaceId } from '@telos/schema'
+import type { AbsolutePath, RunRecord, SkillRunId, WorkspaceId } from '@braidhq/schema'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -9,14 +9,14 @@ import { makeWorkspace } from '../../helpers/fakes.js'
 const isoTimestamp = '2026-05-12T12:00:00+08:00'
 
 async function makeRoot(): Promise<AbsolutePath> {
-  return (await mkdtemp(join(tmpdir(), 'telos-fs-run-'))) as AbsolutePath
+  return (await mkdtemp(join(tmpdir(), 'braid-fs-run-'))) as AbsolutePath
 }
 
 function makeRecord(runId: string, overrides: Partial<RunRecord> = {}): RunRecord {
   return {
     runId: runId as SkillRunId,
     workspaceId: 'ws-1' as WorkspaceId,
-    skillId: 'telos-ask' as never,
+    skillId: 'braid-ask' as never,
     args: 'hi',
     resumed: false,
     startedAt: isoTimestamp as never,

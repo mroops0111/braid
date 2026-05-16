@@ -1,8 +1,8 @@
 {
-  "name": "@telos/core",
+  "name": "@braidhq/core",
   "type": "module",
-  "version": "0.0.0",
-  "description": "Telos core: domain entities (workspace / model / proposal / qa / ...) + application services + infrastructure ports.",
+  "version": "0.0.1",
+  "description": "Braid core: domain entities (workspace / model / proposal / qa / ...) + application services + infrastructure ports.",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"
@@ -18,7 +18,7 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {
-    "@telos/schema": "workspace:*",
+    "@braidhq/schema": "workspace:*",
     "neo4j-driver": "^6.0.1",
     "pino": "^9.5.0",
     "simple-git": "^3.27.0",

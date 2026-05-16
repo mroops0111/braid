@@ -6,7 +6,7 @@ import type {
   ModelSnapshot,
   NodeId,
   WorkspaceId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import type { ModelRepository } from '../domain/model/ModelRepository.js'
 
 export interface ModelServiceDeps {

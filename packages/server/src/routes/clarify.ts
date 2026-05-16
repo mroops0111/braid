@@ -1,6 +1,6 @@
-import type { ClarifyTicketRepository, HITLService } from '@telos/core'
+import type { ClarifyTicketRepository, HITLService } from '@braidhq/core'
+import { ClarifyCandidateId, ClarifyDraft, ClarifyStatus, ClarifyTicketId, ProposalId, UserId } from '@braidhq/schema'
 import { zValidator } from '@hono/zod-validator'
-import { ClarifyCandidateId, ClarifyDraft, ClarifyStatus, ClarifyTicketId, ProposalId, UserId } from '@telos/schema'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
@@ -77,7 +77,7 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): Hono {
     },
   )
 
-  // Skill-facing: the telos-clarify skill calls this once it has wrapped
+  // Skill-facing: the braid-clarify skill calls this once it has wrapped
   // an `answered` ticket's resolution into a Proposal. Transitions the
   // ticket `answered → applied` and stamps the linking proposalId so the
   // UI can navigate from a ticket back to its Proposal. No graph

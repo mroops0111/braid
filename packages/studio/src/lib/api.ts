@@ -13,9 +13,9 @@ import type {
   SourceDescriptor,
   ValidationResult,
   Workspace,
-} from '@telos/schema'
+} from '@braidhq/schema'
 
-const baseUrl = import.meta.env.VITE_TELOS_API_URL ?? 'http://localhost:4321'
+const baseUrl = import.meta.env.VITE_BRAID_API_URL ?? 'http://localhost:4321'
 
 export function workspaceEventsUrl(workspaceId: string): string {
   return `${baseUrl}/workspaces/${workspaceId}/events`

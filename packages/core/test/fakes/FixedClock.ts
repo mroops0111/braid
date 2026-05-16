@@ -1,4 +1,4 @@
-import type { Timestamp } from '@telos/schema'
+import type { Timestamp } from '@braidhq/schema'
 import type { Clock } from '../../src/index.js'
 
 export class FixedClock implements Clock {

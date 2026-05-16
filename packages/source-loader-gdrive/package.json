@@ -1,7 +1,7 @@
 {
-  "name": "@telos/source-loader-gdrive",
+  "name": "@braidhq/source-loader-gdrive",
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Google Drive source-loader plugin: download text + images from a Drive folder into a workspace source path.",
   "license": "MIT",
   "exports": {
@@ -16,8 +16,8 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@telos/core": "workspace:*",
-    "@telos/schema": "workspace:*",
+    "@braidhq/core": "workspace:*",
+    "@braidhq/schema": "workspace:*",
     "zod": "^3.24.0"
   },
   "devDependencies": {

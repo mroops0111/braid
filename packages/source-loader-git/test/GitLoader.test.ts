@@ -1,4 +1,4 @@
-import type { AbsolutePath } from '@telos/schema'
+import type { AbsolutePath } from '@braidhq/schema'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -16,7 +16,7 @@ describe('GitLoader', () => {
   let remoteUrl: string
 
   beforeEach(async () => {
-    scratch = await mkdtemp(join(tmpdir(), 'telos-git-loader-'))
+    scratch = await mkdtemp(join(tmpdir(), 'braid-git-loader-'))
     remoteDir = join(scratch, 'remote')
     // Build a tiny git repo we can clone from.
     const seedDir = join(scratch, 'seed')
@@ -74,9 +74,9 @@ describe('GitLoader', () => {
   it('throws on unset env var when URL contains ${VAR}', async () => {
     const loader = new GitLoader()
     const dest = join(scratch, 'should-not-be-created') as AbsolutePath
-    delete process.env.TELOS_GITLOADER_TEST_TOKEN
+    delete process.env.BRAID_GITLOADER_TEST_TOKEN
     // eslint-disable-next-line no-template-curly-in-string -- literal placeholder
-    const url = 'https://x:${TELOS_GITLOADER_TEST_TOKEN}@example.invalid/repo.git'
-    await expect(loader.ingest({ url }, dest)).rejects.toThrow(/TELOS_GITLOADER_TEST_TOKEN/)
+    const url = 'https://x:${BRAID_GITLOADER_TEST_TOKEN}@example.invalid/repo.git'
+    await expect(loader.ingest({ url }, dest)).rejects.toThrow(/BRAID_GITLOADER_TEST_TOKEN/)
   })
 })

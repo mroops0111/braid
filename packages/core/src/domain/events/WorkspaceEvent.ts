@@ -4,7 +4,7 @@ import type {
   SkillRunId,
   SourceId,
   WorkspaceId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 
 /**
  * Workspace-scoped runtime notifications. Pure transport for the Studio's

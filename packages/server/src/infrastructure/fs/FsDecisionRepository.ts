@@ -1,7 +1,7 @@
-import type { AbsolutePath, Decision, DecisionFilter, DecisionId, WorkspaceId } from '@telos/schema'
+import type { AbsolutePath, Decision, DecisionFilter, DecisionId, WorkspaceId } from '@braidhq/schema'
 import { join } from 'node:path'
-import { type DecisionRepository, NotFoundError } from '@telos/core'
-import { Decision as DecisionSchema } from '@telos/schema'
+import { type DecisionRepository, NotFoundError } from '@braidhq/core'
+import { Decision as DecisionSchema } from '@braidhq/schema'
 import { listJsonFiles, readJsonFile, writeJsonFile } from './jsonFileStore.js'
 import { decisionsDir } from './paths.js'
 

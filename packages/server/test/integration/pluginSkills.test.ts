@@ -1,8 +1,8 @@
-import type { AbsolutePath, AgentId, PluginId, ProductManifest, SkillId, SkillRunId, SourceId, StorageKind, WorkspaceId } from '@telos/schema'
+import type { AbsolutePath, AgentId, PluginId, ProductManifest, SkillId, SkillRunId, SourceId, StorageKind, WorkspaceId } from '@braidhq/schema'
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { type Plugin, PluginRegistry, type SkillRunner, Workspace } from '@telos/core'
+import { type Plugin, PluginRegistry, type SkillRunner, Workspace } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { createApp } from '../../src/app.js'
@@ -81,14 +81,14 @@ const noopSkillRunner: SkillRunner = {
 
 describe('plugin-shipped skills (integration)', () => {
   it('surfaces a plugin-declared SKILL.md through GET /workspaces/:ws/skills with origin=plugin', async () => {
-    const pluginSkillsRoot = (await mkdtemp(join(tmpdir(), 'telos-plugin-skills-'))) as AbsolutePath
+    const pluginSkillsRoot = (await mkdtemp(join(tmpdir(), 'braid-plugin-skills-'))) as AbsolutePath
     const skillDir = await writePluginSkill(pluginSkillsRoot, 'redoc-design', 'redoc-design')
 
     const pluginRegistry = new PluginRegistry()
     pluginRegistry.register(fakeOntologyWithSkill('plugin.redoc', 'redoc-design', skillDir))
 
-    const builtinSkillsRoot = (await mkdtemp(join(tmpdir(), 'telos-builtin-'))) as AbsolutePath
-    const wsRoot = (await mkdtemp(join(tmpdir(), 'telos-ws-'))) as AbsolutePath
+    const builtinSkillsRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
+    const wsRoot = (await mkdtemp(join(tmpdir(), 'braid-ws-'))) as AbsolutePath
 
     const skillRegistry = new FsSkillRegistry({ builtinSkillsRoot, pluginRegistry })
 
@@ -108,14 +108,14 @@ describe('plugin-shipped skills (integration)', () => {
   })
 
   it('lets a workspace-local SKILL.md override a plugin-shipped one of the same id', async () => {
-    const pluginSkillsRoot = (await mkdtemp(join(tmpdir(), 'telos-plugin-skills-'))) as AbsolutePath
+    const pluginSkillsRoot = (await mkdtemp(join(tmpdir(), 'braid-plugin-skills-'))) as AbsolutePath
     const skillDir = await writePluginSkill(pluginSkillsRoot, 'redoc-design', 'redoc-design-plugin')
 
     const pluginRegistry = new PluginRegistry()
     pluginRegistry.register(fakeOntologyWithSkill('plugin.redoc', 'redoc-design', skillDir))
 
-    const builtinSkillsRoot = (await mkdtemp(join(tmpdir(), 'telos-builtin-'))) as AbsolutePath
-    const wsRoot = (await mkdtemp(join(tmpdir(), 'telos-ws-'))) as AbsolutePath
+    const builtinSkillsRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
+    const wsRoot = (await mkdtemp(join(tmpdir(), 'braid-ws-'))) as AbsolutePath
     await writePluginSkill(join(wsRoot, 'skills'), 'redoc-design', 'redoc-design-local')
 
     const skillRegistry = new FsSkillRegistry({ builtinSkillsRoot, pluginRegistry })

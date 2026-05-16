@@ -1,8 +1,8 @@
 /**
  * Kùzu graph schema. One generic `Node` and one generic `Edge` table covers
- * every ontology because the Telos ontology lives in `type` / `metadata`
+ * every ontology because the Braid ontology lives in `type` / `metadata`
  * properties, not in Kùzu's table catalogue. This keeps schema migrations
- * tied to *Telos schema* changes rather than to user-defined ontology edits.
+ * tied to *Braid schema* changes rather than to user-defined ontology edits.
  */
 export const DDL_CREATE_NODE_TABLE = `
   CREATE NODE TABLE IF NOT EXISTS Node(

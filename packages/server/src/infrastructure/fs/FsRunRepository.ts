@@ -1,9 +1,9 @@
-import type { RunRepository, Workspace } from '@telos/core'
-import type { AbsolutePath, RunRecord, SkillEvent, SkillRunId } from '@telos/schema'
+import type { RunRepository, Workspace } from '@braidhq/core'
+import type { AbsolutePath, RunRecord, SkillEvent, SkillRunId } from '@braidhq/schema'
 import { createReadStream } from 'node:fs'
 import { appendFile, mkdir, readFile } from 'node:fs/promises'
 import { createInterface } from 'node:readline/promises'
-import { RunRecord as RunRecordSchema, SkillEvent as SkillEventSchema } from '@telos/schema'
+import { RunRecord as RunRecordSchema, SkillEvent as SkillEventSchema } from '@braidhq/schema'
 import { runEventsPath, runIndexPath, runsDir } from './paths.js'
 
 /**

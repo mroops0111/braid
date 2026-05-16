@@ -1,10 +1,10 @@
-import type { AbsolutePath, SkillFrontmatter, SkillId, SkillOrigin } from '@telos/schema'
+import type { AbsolutePath, SkillFrontmatter, SkillId, SkillOrigin } from '@braidhq/schema'
 import { Buffer } from 'node:buffer'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { NotFoundError, type PluginRegistry, SkillManifest, type SkillRegistry, type Workspace } from '@telos/core'
-import { AbsolutePath as AbsolutePathSchema, SkillFrontmatter as SkillFrontmatterSchema, SkillId as SkillIdSchema } from '@telos/schema'
+import { NotFoundError, type PluginRegistry, SkillManifest, type SkillRegistry, type Workspace } from '@braidhq/core'
+import { AbsolutePath as AbsolutePathSchema, SkillFrontmatter as SkillFrontmatterSchema, SkillId as SkillIdSchema } from '@braidhq/schema'
 import { parseMarkdownFrontmatter } from './frontmatter.js'
 import { workspaceSkillExtensionsDir, workspaceSkillsDir } from './paths.js'
 
@@ -127,7 +127,7 @@ export class FsSkillRegistry implements SkillRegistry {
       const extendPath = AbsolutePathSchema.parse(join(root, entry.name, 'EXTEND.md'))
       try {
         await stat(extendPath)
-        const skillId = SkillIdSchema.parse(entry.name.replace(/^telos-/, ''))
+        const skillId = SkillIdSchema.parse(entry.name.replace(/^braid-/, ''))
         results.push({ id: skillId, path: extendPath })
       }
       catch (error) {

@@ -9,7 +9,7 @@ describe('FsSecretStore', () => {
   let store: FsSecretStore
 
   beforeEach(async () => {
-    root = await mkdtemp(join(tmpdir(), 'telos-secret-store-'))
+    root = await mkdtemp(join(tmpdir(), 'braid-secret-store-'))
     store = new FsSecretStore(root)
   })
 

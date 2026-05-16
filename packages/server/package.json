@@ -1,8 +1,8 @@
 {
-  "name": "@telos/server",
+  "name": "@braidhq/server",
   "type": "module",
-  "version": "0.0.0",
-  "description": "Telos REST + (later) MCP server. Hono on Node 20.",
+  "version": "0.0.1",
+  "description": "Braid REST + (later) MCP server. Hono on Node 20.",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"
@@ -18,14 +18,14 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo coverage"
   },
   "dependencies": {
+    "@braidhq/core": "workspace:*",
+    "@braidhq/ontology-ddd": "workspace:*",
+    "@braidhq/schema": "workspace:*",
+    "@braidhq/source-loader-gdrive": "workspace:*",
+    "@braidhq/source-loader-git": "workspace:*",
+    "@braidhq/storage-kuzu": "workspace:*",
     "@hono/node-server": "^1.13.0",
     "@hono/zod-validator": "^0.4.0",
-    "@telos/core": "workspace:*",
-    "@telos/ontology-ddd": "workspace:*",
-    "@telos/schema": "workspace:*",
-    "@telos/source-loader-gdrive": "workspace:*",
-    "@telos/source-loader-git": "workspace:*",
-    "@telos/storage-kuzu": "workspace:*",
     "hono": "^4.6.0",
     "pino": "^9.5.0",
     "yaml": "^2.9.0",

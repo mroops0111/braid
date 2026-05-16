@@ -1,4 +1,4 @@
-import type { SkillManifest, Workspace } from '@telos/schema'
+import type { SkillManifest, Workspace } from '@braidhq/schema'
 import { Boxes, FolderGit2, GitBranch, History, Inbox, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {

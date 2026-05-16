@@ -1,6 +1,6 @@
-import type { DecisionRepository } from '@telos/core'
+import type { DecisionRepository } from '@braidhq/core'
+import { DecisionAction, DecisionId } from '@braidhq/schema'
 import { zValidator } from '@hono/zod-validator'
-import { DecisionAction, DecisionId } from '@telos/schema'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { getWorkspaceId } from '../middleware/workspaceId.js'

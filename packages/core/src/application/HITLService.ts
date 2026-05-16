@@ -11,7 +11,7 @@ import type {
   UserId,
   ValidationIssue,
   WorkspaceId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import type { Clock } from '../domain/Clock.js'
 import type { ClarifyTicketRepository } from '../domain/hitl/ClarifyTicketRepository.js'
 import type { DecisionRepository } from '../domain/hitl/DecisionRepository.js'
@@ -137,7 +137,7 @@ export class HITLService {
   /**
    * Record the user's chosen candidate. Validates the resolution
    * operations against the current graph so we fail loudly here rather
-   * than later when the telos-clarify skill tries to build a Proposal,
+   * than later when the braid-clarify skill tries to build a Proposal,
    * but does **not** apply them — that's the Proposal review's job.
    * Ticket moves `pending → answered`; resolution + selectedCandidateId
    * are stamped onto it.
@@ -169,7 +169,7 @@ export class HITLService {
   }
 
   /**
-   * Close the loop after the telos-clarify skill has materialised an
+   * Close the loop after the braid-clarify skill has materialised an
    * `answered` ticket's resolution into a Proposal. Ticket moves
    * `answered → applied` and stamps the linking proposalId. No graph
    * mutation here — the Proposal apply path already handled that.

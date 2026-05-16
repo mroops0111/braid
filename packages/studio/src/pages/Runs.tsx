@@ -1,4 +1,4 @@
-import type { RunRecord, SkillEvent } from '@telos/schema'
+import type { RunRecord, SkillEvent } from '@braidhq/schema'
 import { ArrowRight, History, MessagesSquare } from 'lucide-react'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { EmptyState } from '@/components/EmptyState'

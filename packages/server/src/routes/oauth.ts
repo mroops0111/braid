@@ -42,7 +42,7 @@ export function createOAuthRouter(deps: OAuthRouterDeps): Hono {
   router.post('/google/start', zValidator('json', StartBodySchema), async (context) => {
     if (!deps.google) {
       return context.json({
-        error: 'Google OAuth is not configured on this server. Set TELOS_GOOGLE_CLIENT_ID + TELOS_GOOGLE_CLIENT_SECRET (and TELOS_GOOGLE_REDIRECT_URI if not the default) and restart.',
+        error: 'Google OAuth is not configured on this server. Set BRAID_GOOGLE_CLIENT_ID + BRAID_GOOGLE_CLIENT_SECRET (and BRAID_GOOGLE_REDIRECT_URI if not the default) and restart.',
       }, 503)
     }
     const { workspaceId, sourceId } = context.req.valid('json')
@@ -113,7 +113,7 @@ function renderCallbackPage(input: { ok: boolean, message: string }): string {
   const colour = input.ok ? '#16a34a' : '#dc2626'
   const status = input.ok ? 'success' : 'error'
   return `<!doctype html>
-<html><head><meta charset="utf-8"><title>Telos OAuth</title>
+<html><head><meta charset="utf-8"><title>Braid OAuth</title>
 <style>
   body { font: 14px -apple-system, system-ui, sans-serif; background: #fafafa; color: #1a1a1a; margin: 0; padding: 3rem; }
   .card { max-width: 28rem; margin: 0 auto; background: white; border-radius: 8px; padding: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
@@ -126,7 +126,7 @@ function renderCallbackPage(input: { ok: boolean, message: string }): string {
   <p>${escapeHtml(input.message)}</p>
 </div>
 <script>
-  try { window.opener?.postMessage({ source: 'telos-oauth', provider: 'google', status: ${JSON.stringify(status)} }, '*'); } catch (_e) {}
+  try { window.opener?.postMessage({ source: 'braid-oauth', provider: 'google', status: ${JSON.stringify(status)} }, '*'); } catch (_e) {}
   setTimeout(() => { try { window.close(); } catch (_e) {} }, 1500);
 </script>
 </body></html>`

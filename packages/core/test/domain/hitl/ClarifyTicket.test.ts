@@ -8,7 +8,7 @@ import type {
   ProposalId,
   UserId,
   WorkspaceId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { ClarifyTicket, ConflictError, NotFoundError } from '../../../src/index.js'
 

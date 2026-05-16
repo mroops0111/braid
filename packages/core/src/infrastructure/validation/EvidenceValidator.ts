@@ -4,7 +4,7 @@ import type {
   PluginId,
   ValidationCode,
   ValidationIssue,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import type { Validator } from '../../domain/plugin/Validator.js'
 import { z } from 'zod'
 
@@ -16,7 +16,7 @@ import { z } from 'zod'
  *   - `metadata.intentMissing: true` (code-only, intent not written yet).
  *
  * Without that, the graph silently accepts wishful thinking (which is what
- * happened the first time we ran telos-extract on intent without code).
+ * happened the first time we ran braid-extract on intent without code).
  *
  * Also catches the contradiction `status: 'completed'` + zero source references
  * (completion is a claim of fact, which needs at least one source citation).

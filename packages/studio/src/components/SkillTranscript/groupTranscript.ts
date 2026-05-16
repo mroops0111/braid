@@ -1,4 +1,4 @@
-import type { SkillEvent } from '@telos/schema'
+import type { SkillEvent } from '@braidhq/schema'
 
 export type ToolCallEvent = Extract<SkillEvent, { type: 'tool-call' }>
 export type ToolResultEvent = Extract<SkillEvent, { type: 'tool-result' }>

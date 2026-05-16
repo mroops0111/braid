@@ -8,7 +8,7 @@ import type {
   Timestamp,
   UserId,
   WorkspaceId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import { ConflictError } from '../errors.js'
 
 export class Proposal {

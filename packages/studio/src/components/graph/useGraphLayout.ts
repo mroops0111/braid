@@ -1,4 +1,4 @@
-import type { GraphEdge, GraphNode } from '@telos/schema'
+import type { GraphEdge, GraphNode } from '@braidhq/schema'
 import type { Edge, Node } from '@xyflow/react'
 import dagre from '@dagrejs/dagre'
 import { useMemo } from 'react'

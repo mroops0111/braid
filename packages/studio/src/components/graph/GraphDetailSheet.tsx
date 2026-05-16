@@ -1,4 +1,4 @@
-import type { GraphEdge, GraphNode, NodeId } from '@telos/schema'
+import type { GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
 import { ArrowDownToDot, ArrowUpFromDot, FileText, X } from 'lucide-react'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'

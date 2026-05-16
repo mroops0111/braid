@@ -1,4 +1,4 @@
-import type { AbsolutePath, LoaderKind, SourceId, Timestamp, WorkspaceId } from '@telos/schema'
+import type { AbsolutePath, LoaderKind, SourceId, Timestamp, WorkspaceId } from '@braidhq/schema'
 import type { Plugin } from './Plugin.js'
 
 /**

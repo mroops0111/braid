@@ -1,4 +1,4 @@
-import type { StorageDescriptor, StorageKind } from '@telos/schema'
+import type { StorageDescriptor, StorageKind } from '@braidhq/schema'
 import type { ClarifyTicketRepository } from '../hitl/ClarifyTicketRepository.js'
 import type { DecisionRepository } from '../hitl/DecisionRepository.js'
 import type { ProposalRepository } from '../hitl/ProposalRepository.js'

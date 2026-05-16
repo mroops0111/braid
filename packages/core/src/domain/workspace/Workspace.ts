@@ -14,7 +14,7 @@ import type {
   StorageDescriptor,
   Workspace as WorkspaceData,
   WorkspaceId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import { NotFoundError } from '../errors.js'
 
 export class Workspace {

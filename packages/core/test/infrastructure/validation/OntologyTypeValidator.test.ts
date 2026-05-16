@@ -1,4 +1,4 @@
-import type { EdgeId, EdgeTypeId, ModelSnapshot, NodeId, NodeStatus, NodeTypeId, OntologyId, PluginId } from '@telos/schema'
+import type { EdgeId, EdgeTypeId, ModelSnapshot, NodeId, NodeStatus, NodeTypeId, OntologyId, PluginId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { OntologyTypeValidator } from '../../../src/infrastructure/validation/OntologyTypeValidator.js'

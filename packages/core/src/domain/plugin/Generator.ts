@@ -1,4 +1,4 @@
-import type { ModelSnapshot, ViewArtifact, ViewKind } from '@telos/schema'
+import type { ModelSnapshot, ViewArtifact, ViewKind } from '@braidhq/schema'
 import type { Plugin } from './Plugin.js'
 
 export interface RenderInput {

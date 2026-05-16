@@ -1,4 +1,4 @@
-import type { ModelSnapshot, ValidationIssue } from '@telos/schema'
+import type { ModelSnapshot, ValidationIssue } from '@braidhq/schema'
 import type { Plugin } from './Plugin.js'
 
 export interface Validator extends Plugin {

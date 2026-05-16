@@ -1,4 +1,4 @@
-import type { RunRecord, SkillEvent, SkillRunId } from '@telos/schema'
+import type { RunRecord, SkillEvent, SkillRunId } from '@braidhq/schema'
 import type { Workspace } from '../workspace/Workspace.js'
 
 export interface RunRepository {

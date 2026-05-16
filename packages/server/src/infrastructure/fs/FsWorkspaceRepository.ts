@@ -1,9 +1,9 @@
-import type { Workspace as WorkspaceData } from '@telos/schema'
+import type { Workspace as WorkspaceData } from '@braidhq/schema'
 import type { WorkspaceRegistryFile } from './WorkspaceRegistryFile.js'
 import { readFile, stat } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { NotFoundError, ValidationError, Workspace, type WorkspaceRepository } from '@telos/core'
-import { AbsolutePath, ProductManifest, WorkspaceId } from '@telos/schema'
+import { NotFoundError, ValidationError, Workspace, type WorkspaceRepository } from '@braidhq/core'
+import { AbsolutePath, ProductManifest, WorkspaceId } from '@braidhq/schema'
 import { parseMarkdownFrontmatter } from './frontmatter.js'
 import { workspaceProductManifestPath } from './paths.js'
 

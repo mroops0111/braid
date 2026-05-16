@@ -1,8 +1,8 @@
-import type { AbsolutePath } from '@telos/schema'
+import type { AbsolutePath } from '@braidhq/schema'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import { ValidationError } from '@telos/core'
-import { AbsolutePath as AbsolutePathSchema } from '@telos/schema'
+import { ValidationError } from '@braidhq/core'
+import { AbsolutePath as AbsolutePathSchema } from '@braidhq/schema'
 import { z } from 'zod'
 
 const RegistryContent = z.object({
@@ -13,7 +13,7 @@ type RegistryContent = z.infer<typeof RegistryContent>
 
 /**
  * Persists the list of registered workspace rootPaths to a JSON file.
- * Default location is `${TELOS_HOME}/workspaces.json` (set by the caller).
+ * Default location is `${BRAID_HOME}/workspaces.json` (set by the caller).
  * Acts as the source of truth across server restarts — the in-memory
  * `FsWorkspaceRepository` cache is rebuilt from this file on cold start.
  */

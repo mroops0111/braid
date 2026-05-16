@@ -1,8 +1,8 @@
-import type { AbsolutePath, Decision, DecisionId, WorkspaceId } from '@telos/schema'
+import type { AbsolutePath, Decision, DecisionId, WorkspaceId } from '@braidhq/schema'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { NotFoundError } from '@telos/core'
+import { NotFoundError } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { FsDecisionRepository } from '../../../src/infrastructure/fs/FsDecisionRepository.js'
 
@@ -21,7 +21,7 @@ function makeDecision(id: string, workspaceId: WorkspaceId): Decision {
 
 describe('FsDecisionRepository', () => {
   it('append + list + load round-trip', async () => {
-    const root = (await mkdtemp(join(tmpdir(), 'telos-fs-dec-'))) as AbsolutePath
+    const root = (await mkdtemp(join(tmpdir(), 'braid-fs-dec-'))) as AbsolutePath
     const workspaceId = 'ws-1' as WorkspaceId
     const repository = new FsDecisionRepository({
       workspaceRoots: async () => new Map([[workspaceId, root]]),
@@ -36,7 +36,7 @@ describe('FsDecisionRepository', () => {
   })
 
   it('load throws NotFoundError for unknown decision', async () => {
-    const root = (await mkdtemp(join(tmpdir(), 'telos-fs-dec-'))) as AbsolutePath
+    const root = (await mkdtemp(join(tmpdir(), 'braid-fs-dec-'))) as AbsolutePath
     const workspaceId = 'ws-1' as WorkspaceId
     const repository = new FsDecisionRepository({
       workspaceRoots: async () => new Map([[workspaceId, root]]),

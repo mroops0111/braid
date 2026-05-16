@@ -3,9 +3,9 @@ import type {
   ClarifyFilter,
   ClarifyTicketId,
   WorkspaceId,
-} from '@telos/schema'
-import { ClarifyTicket, type ClarifyTicketRepository, paginate } from '@telos/core'
-import { ClarifyTicket as ClarifyTicketSchema } from '@telos/schema'
+} from '@braidhq/schema'
+import { ClarifyTicket, type ClarifyTicketRepository, paginate } from '@braidhq/core'
+import { ClarifyTicket as ClarifyTicketSchema } from '@braidhq/schema'
 import { FsStatusedJsonRepository } from './FsStatusedJsonRepository.js'
 import { CLARIFY_STATUSES, clarifyDir } from './paths.js'
 

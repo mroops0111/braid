@@ -1,5 +1,5 @@
-import type { AgentBinding, AgentSpawnInput, SpawnInvocation } from '@telos/core'
-import type { AgentBindingDescriptor } from '@telos/schema'
+import type { AgentBinding, AgentSpawnInput, SpawnInvocation } from '@braidhq/core'
+import type { AgentBindingDescriptor } from '@braidhq/schema'
 import process from 'node:process'
 
 export class ClaudeCodeAgentBinding implements AgentBinding {
@@ -44,9 +44,9 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
     const env: Record<string, string> = {
       ...filterEnv(process.env),
       ...this.descriptor.env,
-      TELOS_WORKSPACE: input.workspace.rootPath,
-      TELOS_WORKSPACE_ID: input.workspace.id,
-      TELOS_API_URL: input.apiUrl,
+      BRAID_WORKSPACE: input.workspace.rootPath,
+      BRAID_WORKSPACE_ID: input.workspace.id,
+      BRAID_API_URL: input.apiUrl,
     }
 
     const invocation: SpawnInvocation = input.mcpConfigFile

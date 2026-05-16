@@ -1,5 +1,5 @@
-import type { ClarifyTicketId, NodeId, ProposalId, SkillId, WorkspaceId } from '@telos/schema'
-import { ClarifyTicket, Proposal } from '@telos/core'
+import type { ClarifyTicketId, NodeId, ProposalId, SkillId, WorkspaceId } from '@braidhq/schema'
+import { ClarifyTicket, Proposal } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { buildTestApp } from './helpers/buildApp.js'
 

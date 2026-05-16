@@ -5,7 +5,7 @@ export const healthRouter = new Hono()
 healthRouter.get('/', (context) => {
   return context.json({
     status: 'ok',
-    service: 'telos-server',
+    service: 'braid-server',
     timestamp: new Date().toISOString(),
   })
 })

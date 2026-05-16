@@ -8,7 +8,7 @@ import type {
   Timestamp,
   UserId,
   WorkspaceId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { ConflictError, Proposal } from '../../../src/index.js'
 

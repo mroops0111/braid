@@ -1,4 +1,4 @@
-import { ConflictError, ValidationError } from '@telos/core'
+import { ConflictError, ValidationError } from '@braidhq/core'
 
 /**
  * SDK-internal builder-time assertions. They run when a plugin author

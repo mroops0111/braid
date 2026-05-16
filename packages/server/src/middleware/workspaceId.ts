@@ -1,6 +1,6 @@
-import type { WorkspaceId as WorkspaceIdType } from '@telos/schema'
+import type { WorkspaceId as WorkspaceIdType } from '@braidhq/schema'
 import type { Context, MiddlewareHandler } from 'hono'
-import { WorkspaceId } from '@telos/schema'
+import { WorkspaceId } from '@braidhq/schema'
 
 declare module 'hono' {
   interface ContextVariableMap {

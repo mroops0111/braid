@@ -1,14 +1,14 @@
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { NotFoundError, ValidationError } from '@telos/core'
-import { AbsolutePath } from '@telos/schema'
+import { NotFoundError, ValidationError } from '@braidhq/core'
+import { AbsolutePath } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { FsWorkspaceRepository } from '../../../src/infrastructure/fs/FsWorkspaceRepository.js'
 import { WorkspaceRegistryFile } from '../../../src/infrastructure/fs/WorkspaceRegistryFile.js'
 
 async function createWorkspaceDir(layout: { name?: string, withManifest?: boolean }): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'telos-ws-'))
+  const dir = await mkdtemp(join(tmpdir(), 'braid-ws-'))
   await mkdir(dir, { recursive: true })
   if (layout.withManifest !== false) {
     const manifest = `---
@@ -26,7 +26,7 @@ storage:
 }
 
 async function makeRegistry(): Promise<WorkspaceRegistryFile> {
-  const dir = await mkdtemp(join(tmpdir(), 'telos-registry-'))
+  const dir = await mkdtemp(join(tmpdir(), 'braid-registry-'))
   return new WorkspaceRegistryFile(join(dir, 'workspaces.json'))
 }
 
@@ -79,7 +79,7 @@ describe('FsWorkspaceRepository', () => {
   })
 
   it('throws ValidationError when frontmatter invalid', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'telos-ws-'))
+    const dir = await mkdtemp(join(tmpdir(), 'braid-ws-'))
     await writeFile(join(dir, 'PRODUCT.md'), '---\nname: ""\n---\n', 'utf-8')
     const repository = new FsWorkspaceRepository({ registry: await makeRegistry() })
     await expect(

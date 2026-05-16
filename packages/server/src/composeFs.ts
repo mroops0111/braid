@@ -1,4 +1,4 @@
-import type { AbsolutePath, AgentEffort, AgentId, AgentKind, WorkspaceId } from '@telos/schema'
+import type { AbsolutePath, AgentEffort, AgentId, AgentKind, WorkspaceId } from '@braidhq/schema'
 import type { AppDependencies } from './composition.js'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -12,11 +12,11 @@ import {
   OrphanEdgeValidator,
   PluginRegistry,
   StructuralValidator,
-} from '@telos/core'
-import { dddOntology } from '@telos/ontology-ddd'
-import { GoogleDriveLoader } from '@telos/source-loader-gdrive'
-import { GitLoader } from '@telos/source-loader-git'
-import { KuzuModelRepository } from '@telos/storage-kuzu'
+} from '@braidhq/core'
+import { dddOntology } from '@braidhq/ontology-ddd'
+import { GoogleDriveLoader } from '@braidhq/source-loader-gdrive'
+import { GitLoader } from '@braidhq/source-loader-git'
+import { KuzuModelRepository } from '@braidhq/storage-kuzu'
 import { composeApp } from './composition.js'
 import { ClaudeCodeAgentBinding } from './infrastructure/agent/ClaudeCodeAgentBinding.js'
 import { SubprocessSkillRunner } from './infrastructure/agent/SubprocessSkillRunner.js'
@@ -31,8 +31,8 @@ import { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
 import { FsSecretStore } from './infrastructure/secrets/SecretStore.js'
 
 export interface ComposeFsOptions {
-  /** Where to persist registered workspace paths. Default `$TELOS_HOME` or `~/.telos`. */
-  readonly telosHome?: string
+  /** Where to persist registered workspace paths. Default `$BRAID_HOME` or `~/.braid`. */
+  readonly braidHome?: string
   /** URL the server reports to spawned subprocesses for REST callbacks. */
   readonly apiUrl?: string
   /** Coding-agent model selection (default `opus`). */
@@ -43,24 +43,24 @@ export interface ComposeFsOptions {
 
 /**
  * Production composition root: real filesystem persistence for workspaces /
- * proposals / clarify / decisions, built-in skills loaded from `@telos/core`,
+ * proposals / clarify / decisions, built-in skills loaded from `@braidhq/core`,
  * Claude Code subprocess agent. Model storage uses Kuzu (embedded, zero-infra)
- * per workspace at `<workspace>/.telos/model.kuzu`.
+ * per workspace at `<workspace>/.braid/model.kuzu`.
  */
 export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
-  const telosHome = options.telosHome ?? process.env.TELOS_HOME ?? join(homedir(), '.telos')
+  const braidHome = options.braidHome ?? process.env.BRAID_HOME ?? join(homedir(), '.braid')
   const apiUrl = options.apiUrl ?? 'http://localhost:4321'
 
-  const secretStore = new FsSecretStore(join(telosHome, 'secrets'))
+  const secretStore = new FsSecretStore(join(braidHome, 'secrets'))
 
-  const googleClientId = process.env.TELOS_GOOGLE_CLIENT_ID
-  const googleClientSecret = process.env.TELOS_GOOGLE_CLIENT_SECRET
-  const googleRedirect = process.env.TELOS_GOOGLE_REDIRECT_URI ?? `${apiUrl}/oauth/google/callback`
+  const googleClientId = process.env.BRAID_GOOGLE_CLIENT_ID
+  const googleClientSecret = process.env.BRAID_GOOGLE_CLIENT_SECRET
+  const googleRedirect = process.env.BRAID_GOOGLE_REDIRECT_URI ?? `${apiUrl}/oauth/google/callback`
   const googleOAuth = googleClientId && googleClientSecret
     ? new GoogleOAuth({ clientId: googleClientId, clientSecret: googleClientSecret, redirectUri: googleRedirect })
     : undefined
 
-  const registry = new WorkspaceRegistryFile(join(telosHome, 'workspaces.json'))
+  const registry = new WorkspaceRegistryFile(join(braidHome, 'workspaces.json'))
   const workspaceRepository = new FsWorkspaceRepository({ registry })
   const workspaceRoots = async (): Promise<ReadonlyMap<WorkspaceId, AbsolutePath>> => {
     const workspaces = await workspaceRepository.list()
@@ -77,7 +77,7 @@ export function composeFsApp(options: ComposeFsOptions = {}): AppDependencies {
       const root = roots.get(workspaceId)
       if (!root)
         throw new NotFoundError(`Workspace "${workspaceId}" not registered`)
-      return join(root, '.telos', 'model.kuzu')
+      return join(root, '.braid', 'model.kuzu')
     },
   })
 

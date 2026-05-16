@@ -1,8 +1,8 @@
 {
-  "name": "@telos/sdk",
+  "name": "@braidhq/sdk",
   "type": "module",
-  "version": "0.0.0",
-  "description": "Telos plugin SDK. Functional defineSource / defineGenerator / defineAgent / etc.",
+  "version": "0.0.1",
+  "description": "Braid plugin SDK. Functional defineSource / defineGenerator / defineAgent / etc.",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"
@@ -16,8 +16,8 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {
-    "@telos/core": "workspace:*",
-    "@telos/schema": "workspace:*",
+    "@braidhq/core": "workspace:*",
+    "@braidhq/schema": "workspace:*",
     "zod": "^3.24.0"
   },
   "devDependencies": {

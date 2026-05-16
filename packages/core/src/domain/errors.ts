@@ -1,6 +1,6 @@
-import type { ValidationIssue } from '@telos/schema'
+import type { ValidationIssue } from '@braidhq/schema'
 
-export class TelosError extends Error {
+export class BraidError extends Error {
   readonly code: string
 
   constructor(code: string, message: string, options?: { cause?: unknown }) {
@@ -10,24 +10,24 @@ export class TelosError extends Error {
   }
 }
 
-export class ValidationError extends TelosError {
+export class ValidationError extends BraidError {
   readonly issues?: readonly ValidationIssue[]
 
   constructor(message: string, issues?: readonly ValidationIssue[], options?: { cause?: unknown }) {
-    super('TELOS-VAL', message, options)
+    super('BRAID-VAL', message, options)
     if (issues)
       this.issues = issues
   }
 }
 
-export class NotFoundError extends TelosError {
+export class NotFoundError extends BraidError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super('TELOS-NOT-FOUND', message, options)
+    super('BRAID-NOT-FOUND', message, options)
   }
 }
 
-export class ConflictError extends TelosError {
+export class ConflictError extends BraidError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super('TELOS-CONFLICT', message, options)
+    super('BRAID-CONFLICT', message, options)
   }
 }

@@ -7,7 +7,7 @@ import type {
   ProposalId,
   QuestionId,
   SkillRunId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 
 export function newNodeId(): NodeId {
   return crypto.randomUUID() as NodeId

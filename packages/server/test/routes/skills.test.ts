@@ -1,5 +1,5 @@
-import type { SkillRegistry } from '@telos/core'
-import type { AbsolutePath } from '@telos/schema'
+import type { SkillRegistry } from '@braidhq/core'
+import type { AbsolutePath } from '@braidhq/schema'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -22,7 +22,7 @@ function makeSkillRegistry(): SkillRegistry {
 }
 
 async function buildApp(stdoutLines: string[] = []) {
-  const rootPath = (await mkdtemp(join(tmpdir(), 'telos-skill-route-'))) as AbsolutePath
+  const rootPath = (await mkdtemp(join(tmpdir(), 'braid-skill-route-'))) as AbsolutePath
   const workspace = makeWorkspace({ rootPath })
   const { spawn } = createMockSpawn(stdoutLines.length > 0
     ? [{ stdoutLines, exitCode: 0 }]

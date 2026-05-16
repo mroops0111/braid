@@ -14,7 +14,7 @@ describe('validationSeverity', () => {
 
 describe('validationCode (branded)', () => {
   it('accepts non-empty string', () => {
-    expect(ValidationCode.parse('TELOS-CTX-MISSING-DESC')).toBe('TELOS-CTX-MISSING-DESC')
+    expect(ValidationCode.parse('BRAID-CTX-MISSING-DESC')).toBe('BRAID-CTX-MISSING-DESC')
   })
   it('rejects empty', () => {
     expect(ValidationCode.safeParse('').success).toBe(false)
@@ -24,7 +24,7 @@ describe('validationCode (branded)', () => {
 describe('validationIssue', () => {
   it('parses minimal issue', () => {
     const issue = ValidationIssue.parse({
-      code: 'TELOS-NODE-NO-EDGE',
+      code: 'BRAID-NODE-NO-EDGE',
       severity: 'warning',
       message: 'orphan node',
     })
@@ -33,7 +33,7 @@ describe('validationIssue', () => {
 
   it('parses with nodeId / edgeId / path', () => {
     const issue = ValidationIssue.parse({
-      code: 'TELOS-DUP-EDGE',
+      code: 'BRAID-DUP-EDGE',
       severity: 'error',
       message: 'duplicate edge',
       nodeId: 'n-1',

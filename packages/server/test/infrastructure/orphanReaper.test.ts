@@ -1,4 +1,4 @@
-import type { Clock } from '@telos/core'
+import type { Clock } from '@braidhq/core'
 import type {
   AbsolutePath,
   AgentBindingDescriptor,
@@ -10,11 +10,11 @@ import type {
   StorageKind,
   Timestamp,
   WorkspaceId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { InMemoryWorkspaceRepository, Workspace } from '@telos/core'
+import { InMemoryWorkspaceRepository, Workspace } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { FsRunRepository } from '../../src/infrastructure/fs/FsRunRepository.js'
 import { reapOrphanRuns } from '../../src/infrastructure/orphanReaper.js'
@@ -56,7 +56,7 @@ function makeWorkspace(rootPath: AbsolutePath, id = 'ws-1' as WorkspaceId): Work
 
 describe('reapOrphanRuns', () => {
   it('marks runs without completedAt as aborted; leaves completed runs alone', async () => {
-    const rootPath = (await mkdtemp(join(tmpdir(), 'telos-reaper-'))) as AbsolutePath
+    const rootPath = (await mkdtemp(join(tmpdir(), 'braid-reaper-'))) as AbsolutePath
     const workspaceRepository = new InMemoryWorkspaceRepository()
     const workspace = makeWorkspace(rootPath)
     await workspaceRepository.save(workspace)
@@ -65,7 +65,7 @@ describe('reapOrphanRuns', () => {
     const orphan: RunRecord = {
       runId: 'run-orphan' as never,
       workspaceId: workspace.id,
-      skillId: 'telos-ask' as SkillId,
+      skillId: 'braid-ask' as SkillId,
       args: '',
       resumed: false,
       startedAt: '2026-05-13T00:00:00+00:00',
@@ -73,7 +73,7 @@ describe('reapOrphanRuns', () => {
     const completed: RunRecord = {
       runId: 'run-done' as never,
       workspaceId: workspace.id,
-      skillId: 'telos-ask' as SkillId,
+      skillId: 'braid-ask' as SkillId,
       args: '',
       resumed: false,
       startedAt: '2026-05-13T00:00:00+00:00',
@@ -96,7 +96,7 @@ describe('reapOrphanRuns', () => {
   })
 
   it('idempotent: a second call reaps nothing', async () => {
-    const rootPath = (await mkdtemp(join(tmpdir(), 'telos-reaper-'))) as AbsolutePath
+    const rootPath = (await mkdtemp(join(tmpdir(), 'braid-reaper-'))) as AbsolutePath
     const workspaceRepository = new InMemoryWorkspaceRepository()
     const workspace = makeWorkspace(rootPath)
     await workspaceRepository.save(workspace)
@@ -105,7 +105,7 @@ describe('reapOrphanRuns', () => {
     await runRepository.saveRecord(workspace, {
       runId: 'run-orphan' as never,
       workspaceId: workspace.id,
-      skillId: 'telos-ask' as SkillId,
+      skillId: 'braid-ask' as SkillId,
       args: '',
       resumed: false,
       startedAt: '2026-05-13T00:00:00+00:00',

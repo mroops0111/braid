@@ -12,8 +12,8 @@ import type {
   StorageDescriptor,
   StorageKind,
   WorkspaceId,
-} from '@telos/schema'
-import { SkillManifest, Workspace } from '@telos/core'
+} from '@braidhq/schema'
+import { SkillManifest, Workspace } from '@braidhq/core'
 
 export const DEFAULT_AGENT_BINDING: AgentBindingDescriptor = {
   id: 'claude-default' as AgentId,
@@ -80,7 +80,7 @@ export interface MakeSkillManifestOptions {
 }
 
 export function makeSkillManifest(opts: MakeSkillManifestOptions = {}): SkillManifest {
-  const id = opts.id ?? 'telos-ask'
+  const id = opts.id ?? 'braid-ask'
   const data: SkillManifestData = {
     id: id as SkillId,
     origin: 'builtin',
@@ -89,7 +89,7 @@ export function makeSkillManifest(opts: MakeSkillManifestOptions = {}): SkillMan
       name: opts.name ?? id,
       description: opts.description ?? 'test skill',
       disableModelInvocation: false,
-      telos: {
+      braid: {
         requiredEnv: [...(opts.requiredEnv ?? [])],
         requiredPaths: [...(opts.requiredPaths ?? [])],
         requiredMcpServers: [...(opts.requiredMcpServers ?? [])],

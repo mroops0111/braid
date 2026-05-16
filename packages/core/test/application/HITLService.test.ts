@@ -9,7 +9,7 @@ import type {
   UserId,
   ValidationCode,
   WorkspaceId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   ClarifyTicket,
@@ -120,7 +120,7 @@ describe('HITLService', () => {
         type: 'validator',
         configSchema: { parse: (value: unknown) => value } as never,
         validate: async () => [
-          { code: 'TELOS-BLOCK' as ValidationCode, severity: 'error', message: 'nope' },
+          { code: 'BRAID-BLOCK' as ValidationCode, severity: 'error', message: 'nope' },
         ],
       }
       const registry = new PluginRegistry()
@@ -187,7 +187,7 @@ describe('HITLService', () => {
   describe('answerClarifyTicket', () => {
     it('records the chosen candidate as answered without mutating the graph', async () => {
       // The user's answer is just a selection signal: graph writes go
-      // through the telos-clarify skill's Proposal path, not here.
+      // through the braid-clarify skill's Proposal path, not here.
       await modelRepository.applyOperations(workspaceId, [
         { operation: 'addNode', payload: { type: 'command', name: 'x', id: 'n-x' as NodeId } as never },
       ])

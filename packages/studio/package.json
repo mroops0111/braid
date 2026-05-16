@@ -1,8 +1,8 @@
 {
-  "name": "@telos/studio",
+  "name": "@braidhq/studio",
   "type": "module",
-  "version": "0.0.0",
-  "description": "Telos web viewer (Vite + React + TanStack). Browser-first UI for the whole product team.",
+  "version": "0.0.1",
+  "description": "Braid web viewer (Vite + React + TanStack). Browser-first UI for the whole product team.",
   "license": "MIT",
   "scripts": {
     "dev": "vite",
@@ -13,6 +13,7 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {
+    "@braidhq/schema": "workspace:*",
     "@dagrejs/dagre": "^3.0.0",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
@@ -21,7 +22,6 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.0",
     "@tanstack/react-query": "^5.62.0",
-    "@telos/schema": "workspace:*",
     "@xyflow/react": "^12.10.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",

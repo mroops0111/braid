@@ -1,4 +1,4 @@
-import type { Decision, DecisionFilter, DecisionId } from '@telos/schema'
+import type { Decision, DecisionFilter, DecisionId } from '@braidhq/schema'
 
 export interface DecisionRepository {
   list: (filter?: DecisionFilter) => Promise<Decision[]>

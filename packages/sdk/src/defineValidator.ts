@@ -1,5 +1,5 @@
-import type { Validator } from '@telos/core'
-import type { ModelSnapshot, PluginId, ValidationIssue } from '@telos/schema'
+import type { Validator } from '@braidhq/core'
+import type { ModelSnapshot, PluginId, ValidationIssue } from '@braidhq/schema'
 import type { PluginSkillRef } from './types.js'
 import { z } from 'zod'
 import { assertNonEmpty } from './validation.js'

@@ -1,4 +1,4 @@
-import type { EdgeTypeId, NodeStatus, NodeTypeId, OntologyId } from '@telos/schema'
+import type { EdgeTypeId, NodeStatus, NodeTypeId, OntologyId } from '@braidhq/schema'
 import type { Plugin } from './Plugin.js'
 
 export interface NodeTypeDescriptor {

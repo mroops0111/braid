@@ -1,6 +1,6 @@
-import type { AbsolutePath, ProposalFilter, ProposalId, WorkspaceId } from '@telos/schema'
-import { paginate, Proposal, type ProposalRepository } from '@telos/core'
-import { Proposal as ProposalSchema } from '@telos/schema'
+import type { AbsolutePath, ProposalFilter, ProposalId, WorkspaceId } from '@braidhq/schema'
+import { paginate, Proposal, type ProposalRepository } from '@braidhq/core'
+import { Proposal as ProposalSchema } from '@braidhq/schema'
 import { FsStatusedJsonRepository } from './FsStatusedJsonRepository.js'
 import { PROPOSAL_STATUSES, proposalsDir } from './paths.js'
 

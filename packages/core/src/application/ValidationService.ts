@@ -1,4 +1,4 @@
-import type { GraphOperation, ModelSnapshot, ValidationCode, ValidationIssue, ValidationResult } from '@telos/schema'
+import type { GraphOperation, ModelSnapshot, ValidationCode, ValidationIssue, ValidationResult } from '@braidhq/schema'
 import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
 import { Model } from '../domain/model/Model.js'
 

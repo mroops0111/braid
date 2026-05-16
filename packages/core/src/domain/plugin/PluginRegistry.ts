@@ -8,7 +8,7 @@ import type {
   SkillId,
   StorageKind,
   ViewKind,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import type { AgentPlugin } from './AgentPlugin.js'
 import type { ChannelPlugin } from './ChannelPlugin.js'
 import type { Generator } from './Generator.js'

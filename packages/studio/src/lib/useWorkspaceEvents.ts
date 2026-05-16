@@ -81,7 +81,7 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
     source.addEventListener('proposal.rejected', invalidateProposals)
     source.addEventListener('clarify.created', invalidateClarify)
     // `clarify.answered` is just a status update — graph stays untouched
-    // until the telos-clarify skill wraps it into a Proposal and the
+    // until the braid-clarify skill wraps it into a Proposal and the
     // user reviews + applies. Don't refresh the graph here.
     source.addEventListener('clarify.answered', invalidateClarify)
     source.addEventListener('clarify.applied', () => {

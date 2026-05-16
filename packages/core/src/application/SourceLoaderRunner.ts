@@ -3,7 +3,7 @@ import type {
   FilesystemSourceDescriptor,
   SourceId,
   SourceLoaderDescriptor,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import type { Clock } from '../domain/Clock.js'
 import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
 import type { IngestReport, SyncReport } from '../domain/plugin/SourceLoader.js'
@@ -11,7 +11,7 @@ import type { Workspace } from '../domain/workspace/Workspace.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import { stat } from 'node:fs/promises'
 import { isAbsolute, resolve } from 'node:path'
-import { AbsolutePath as AbsolutePathSchema } from '@telos/schema'
+import { AbsolutePath as AbsolutePathSchema } from '@braidhq/schema'
 import { NotFoundError, ValidationError } from '../domain/errors.js'
 
 export interface SourceLoaderRunnerDeps {

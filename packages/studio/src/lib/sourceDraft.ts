@@ -1,4 +1,4 @@
-import type { SourceDescriptor } from '@telos/schema'
+import type { SourceDescriptor } from '@braidhq/schema'
 import { asAbsolutePath, asLoaderKind, asMcpServerId, asSourceId } from './brands'
 
 export interface SourceDraft {

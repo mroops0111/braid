@@ -1,4 +1,4 @@
-import type { AgentBindingDescriptor, AgentKind } from '@telos/schema'
+import type { AgentBindingDescriptor, AgentKind } from '@braidhq/schema'
 import type { AgentBinding } from '../agent/AgentBinding.js'
 import type { Plugin } from './Plugin.js'
 

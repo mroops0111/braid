@@ -8,7 +8,7 @@ describe('initCommand', () => {
   let workDir: string
 
   beforeEach(async () => {
-    workDir = await mkdtemp(join(tmpdir(), 'telos-cli-init-'))
+    workDir = await mkdtemp(join(tmpdir(), 'braid-cli-init-'))
     // initCommand writes stdout; silence it so test output stays clean.
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
   })
@@ -27,7 +27,7 @@ describe('initCommand', () => {
     expect(product).toContain('# my-product')
 
     const gitignore = await readFile(join(target, '.gitignore'), 'utf-8')
-    expect(gitignore).toContain('.telos/')
+    expect(gitignore).toContain('.braid/')
     expect(gitignore).toContain('artifacts/')
 
     const gitkeep = await readFile(join(target, 'intent', '.gitkeep'), 'utf-8')

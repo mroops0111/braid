@@ -37,7 +37,7 @@ describe('viewArtifact', () => {
       kind: 'docs',
       format: 'markdown',
       files: [
-        { path: 'README.md', text: '# Telos' },
+        { path: 'README.md', text: '# Braid' },
         { path: 'OVERVIEW.md', text: '# Overview' },
       ],
     })

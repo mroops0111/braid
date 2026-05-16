@@ -7,7 +7,7 @@ import type {
   PluginId,
   ValidationCode,
   ValidationIssue,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import type { EdgeTypeDescriptor, Ontology } from '../../domain/plugin/Ontology.js'
 import type { Validator } from '../../domain/plugin/Validator.js'
 import { z } from 'zod'

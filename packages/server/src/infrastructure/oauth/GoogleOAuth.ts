@@ -13,7 +13,7 @@ export interface GoogleOAuthConfig {
 }
 
 export interface AuthorizationUrlInput {
-  /** OAuth scope(s) requested. Telos passes Drive read-only. */
+  /** OAuth scope(s) requested. Braid passes Drive read-only. */
   readonly scopes: readonly string[]
   /** State token (CSRF + flow-restore). */
   readonly state: string

@@ -1,4 +1,4 @@
-import { AbsolutePath, LoaderKind, McpServerId, OntologyId, SourceId, StorageKind } from '@telos/schema'
+import { AbsolutePath, LoaderKind, McpServerId, OntologyId, SourceId, StorageKind } from '@braidhq/schema'
 
 export const asSourceId = (s: string): SourceId => SourceId.parse(s)
 export const asMcpServerId = (s: string): McpServerId => McpServerId.parse(s)

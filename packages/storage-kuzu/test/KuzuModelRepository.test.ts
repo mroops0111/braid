@@ -5,7 +5,7 @@ import type {
   NodeStatus,
   NodeTypeId,
   WorkspaceId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -24,7 +24,7 @@ describe('KuzuModelRepository', () => {
   let repo: KuzuModelRepository
 
   beforeEach(async () => {
-    tmp = await mkdtemp(join(tmpdir(), 'telos-kuzu-test-'))
+    tmp = await mkdtemp(join(tmpdir(), 'braid-kuzu-test-'))
     repo = new KuzuModelRepository({
       resolveDbPath: id => join(tmp, id, 'model.kuzu'),
     })

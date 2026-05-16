@@ -9,7 +9,7 @@ import type {
   SkillRunner,
   WorkspaceEventBus,
   WorkspaceRepository,
-} from '@telos/core'
+} from '@braidhq/core'
 import type { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
 import type { SecretStore } from './infrastructure/secrets/SecretStore.js'
 import {
@@ -27,7 +27,7 @@ import {
   SystemClock,
   ValidationService,
   WorkspaceService,
-} from '@telos/core'
+} from '@braidhq/core'
 
 export interface AppDependencies {
   workspaceService: WorkspaceService

@@ -1,5 +1,5 @@
-import type { PluginRegistry, WorkspaceRepository } from '@telos/core'
-import { NotFoundError } from '@telos/core'
+import type { PluginRegistry, WorkspaceRepository } from '@braidhq/core'
+import { NotFoundError } from '@braidhq/core'
 import { Hono } from 'hono'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 

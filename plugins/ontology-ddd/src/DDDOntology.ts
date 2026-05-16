@@ -1,5 +1,5 @@
-import type { EdgeTypeId, NodeTypeId } from '@telos/schema'
-import { defineOntology } from '@telos/sdk'
+import type { EdgeTypeId, NodeTypeId } from '@braidhq/schema'
+import { defineOntology } from '@braidhq/sdk'
 
 /**
  * Default DDD ontology. Edits to the arrays here flow automatically to

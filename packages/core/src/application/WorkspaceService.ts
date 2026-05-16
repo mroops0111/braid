@@ -1,4 +1,4 @@
-import type { AbsolutePath, WorkspaceId } from '@telos/schema'
+import type { AbsolutePath, WorkspaceId } from '@braidhq/schema'
 import type { Workspace } from '../domain/workspace/Workspace.js'
 import type { WorkspaceRepository } from '../domain/workspace/WorkspaceRepository.js'
 import { NotFoundError } from '../domain/errors.js'

@@ -7,7 +7,7 @@ import type {
   ModelSnapshot,
   NodeId,
   WorkspaceId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import type { ModelRepository } from '../../domain/model/ModelRepository.js'
 import { NotFoundError } from '../../domain/errors.js'
 import { Model } from '../../domain/model/Model.js'

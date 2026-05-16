@@ -1,4 +1,4 @@
-import type { SkillEvent } from '@telos/schema'
+import type { SkillEvent } from '@braidhq/schema'
 import { api } from './api'
 
 export type RunPhase = 'streaming' | 'done' | 'error'

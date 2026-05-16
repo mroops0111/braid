@@ -1,5 +1,5 @@
-import type { EdgeTypeId, NodeTypeId } from '@telos/schema'
-import { ConflictError, ValidationError } from '@telos/core'
+import type { EdgeTypeId, NodeTypeId } from '@braidhq/schema'
+import { ConflictError, ValidationError } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { defineOntology } from '../src/defineOntology.js'
 

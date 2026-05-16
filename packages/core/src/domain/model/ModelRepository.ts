@@ -7,7 +7,7 @@ import type {
   ModelSnapshot,
   NodeId,
   WorkspaceId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 
 export interface ModelRepository {
   load: (workspaceId: WorkspaceId) => Promise<ModelSnapshot>

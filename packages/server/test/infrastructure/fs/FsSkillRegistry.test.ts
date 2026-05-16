@@ -1,14 +1,14 @@
-import type { AbsolutePath, AgentId, PluginId, ProductManifest, SkillId, SourceId, StorageKind, WorkspaceId } from '@telos/schema'
+import type { AbsolutePath, AgentId, PluginId, ProductManifest, SkillId, SourceId, StorageKind, WorkspaceId } from '@braidhq/schema'
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { NotFoundError, type Plugin, PluginRegistry, Workspace } from '@telos/core'
+import { NotFoundError, type Plugin, PluginRegistry, Workspace } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { FsSkillRegistry } from '../../../src/infrastructure/fs/FsSkillRegistry.js'
 
 async function makeWorkspace(): Promise<{ workspace: Workspace, root: AbsolutePath }> {
-  const rootPath = (await mkdtemp(join(tmpdir(), 'telos-skill-ws-'))) as AbsolutePath
+  const rootPath = (await mkdtemp(join(tmpdir(), 'braid-skill-ws-'))) as AbsolutePath
   const manifest: ProductManifest = {
     name: 'demo',
     version: '0.0.0',
@@ -55,9 +55,9 @@ async function writeSkillFile(dir: string, skillId: string, name: string): Promi
 
 describe('FsSkillRegistry', () => {
   it('lists builtin skills', async () => {
-    const builtinRoot = (await mkdtemp(join(tmpdir(), 'telos-builtin-'))) as AbsolutePath
-    await writeSkillFile(builtinRoot, 'ask', 'telos-ask')
-    await writeSkillFile(builtinRoot, 'extract', 'telos-extract')
+    const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
+    await writeSkillFile(builtinRoot, 'ask', 'braid-ask')
+    await writeSkillFile(builtinRoot, 'extract', 'braid-extract')
 
     const { workspace } = await makeWorkspace()
     const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
@@ -68,24 +68,24 @@ describe('FsSkillRegistry', () => {
   })
 
   it('workspace skills override builtins', async () => {
-    const builtinRoot = (await mkdtemp(join(tmpdir(), 'telos-builtin-'))) as AbsolutePath
-    await writeSkillFile(builtinRoot, 'ask', 'telos-ask')
+    const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
+    await writeSkillFile(builtinRoot, 'ask', 'braid-ask')
 
     const { workspace, root } = await makeWorkspace()
-    await writeSkillFile(join(root, 'skills'), 'ask', 'telos-ask-custom')
+    await writeSkillFile(join(root, 'skills'), 'ask', 'braid-ask-custom')
 
     const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
     const manifest = await registry.get(workspace, 'ask' as never)
     expect(manifest.origin).toBe('workspace')
-    expect(manifest.frontmatter.name).toBe('telos-ask-custom')
+    expect(manifest.frontmatter.name).toBe('braid-ask-custom')
   })
 
   it('extension annotates builtin skill with extensionPath', async () => {
-    const builtinRoot = (await mkdtemp(join(tmpdir(), 'telos-builtin-'))) as AbsolutePath
-    await writeSkillFile(builtinRoot, 'extract', 'telos-extract')
+    const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
+    await writeSkillFile(builtinRoot, 'extract', 'braid-extract')
 
     const { workspace, root } = await makeWorkspace()
-    const extensionDir = join(root, 'skill-extensions', 'telos-extract')
+    const extensionDir = join(root, 'skill-extensions', 'braid-extract')
     await mkdir(extensionDir, { recursive: true })
     await writeFile(join(extensionDir, 'EXTEND.md'), '# extra context', 'utf-8')
 
@@ -97,7 +97,7 @@ describe('FsSkillRegistry', () => {
   })
 
   it('get throws NotFoundError when skill missing', async () => {
-    const builtinRoot = (await mkdtemp(join(tmpdir(), 'telos-builtin-'))) as AbsolutePath
+    const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
     const { workspace } = await makeWorkspace()
     const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
     await expect(registry.get(workspace, 'missing' as never)).rejects.toThrow(NotFoundError)
@@ -114,8 +114,8 @@ describe('FsSkillRegistry', () => {
     }
 
     it('lists plugin skills under the plugin origin', async () => {
-      const builtinRoot = (await mkdtemp(join(tmpdir(), 'telos-builtin-'))) as AbsolutePath
-      const pluginRoot = (await mkdtemp(join(tmpdir(), 'telos-plugin-'))) as AbsolutePath
+      const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
+      const pluginRoot = (await mkdtemp(join(tmpdir(), 'braid-plugin-'))) as AbsolutePath
       await writeSkillFile(pluginRoot, 'redoc-design', 'redoc-design')
 
       const pluginRegistry = new PluginRegistry()
@@ -133,8 +133,8 @@ describe('FsSkillRegistry', () => {
     })
 
     it('workspace skills override plugin skills with the same id', async () => {
-      const builtinRoot = (await mkdtemp(join(tmpdir(), 'telos-builtin-'))) as AbsolutePath
-      const pluginRoot = (await mkdtemp(join(tmpdir(), 'telos-plugin-'))) as AbsolutePath
+      const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
+      const pluginRoot = (await mkdtemp(join(tmpdir(), 'braid-plugin-'))) as AbsolutePath
       await writeSkillFile(pluginRoot, 'redoc-design', 'redoc-design-plugin')
 
       const pluginRegistry = new PluginRegistry()
@@ -154,7 +154,7 @@ describe('FsSkillRegistry', () => {
     })
 
     it('throws when plugin declares a skill but SKILL.md is missing', async () => {
-      const builtinRoot = (await mkdtemp(join(tmpdir(), 'telos-builtin-'))) as AbsolutePath
+      const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
       const pluginRegistry = new PluginRegistry()
       pluginRegistry.register(fakeOntologyWithSkill(
         'plugin.broken',

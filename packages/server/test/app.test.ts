@@ -1,4 +1,4 @@
-import { ConflictError, NotFoundError, ValidationError } from '@telos/core'
+import { ConflictError, NotFoundError, ValidationError } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { buildTestApp } from './helpers/buildApp.js'
 
@@ -8,7 +8,7 @@ describe('GET /health', () => {
     expect(response.status).toBe(200)
     const body = await response.json()
     expect(body.status).toBe('ok')
-    expect(body.service).toBe('telos-server')
+    expect(body.service).toBe('braid-server')
     expect(typeof body.timestamp).toBe('string')
   })
 })
@@ -23,7 +23,7 @@ describe('error middleware', () => {
     expect(response.status).toBe(400)
     expect(response.headers.get('Content-Type')).toContain('application/problem+json')
     const body = await response.json()
-    expect(body.code).toBe('TELOS-VAL')
+    expect(body.code).toBe('BRAID-VAL')
     expect(body.title).toBe('ValidationError')
   })
 
@@ -34,7 +34,7 @@ describe('error middleware', () => {
     })
     const response = await app.request('/boom-nf')
     expect(response.status).toBe(404)
-    expect((await response.json()).code).toBe('TELOS-NOT-FOUND')
+    expect((await response.json()).code).toBe('BRAID-NOT-FOUND')
   })
 
   it('maps ConflictError to 409', async () => {
@@ -44,7 +44,7 @@ describe('error middleware', () => {
     })
     const response = await app.request('/boom-cf')
     expect(response.status).toBe(409)
-    expect((await response.json()).code).toBe('TELOS-CONFLICT')
+    expect((await response.json()).code).toBe('BRAID-CONFLICT')
   })
 
   it('maps unknown error to 500 internal problem', async () => {
@@ -55,7 +55,7 @@ describe('error middleware', () => {
     const response = await app.request('/boom')
     expect(response.status).toBe(500)
     const body = await response.json()
-    expect(body.code).toBe('TELOS-INTERNAL')
+    expect(body.code).toBe('BRAID-INTERNAL')
     expect(body.detail).toBe('something else')
   })
 })

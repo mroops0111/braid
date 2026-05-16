@@ -1,4 +1,4 @@
-import type { ChannelDescriptor, ChannelKind } from '@telos/schema'
+import type { ChannelDescriptor, ChannelKind } from '@braidhq/schema'
 import type { Plugin, PluginContext } from './Plugin.js'
 
 export interface ChannelStartContext extends PluginContext {

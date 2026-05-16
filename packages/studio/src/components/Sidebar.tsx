@@ -1,4 +1,4 @@
-import type { Workspace } from '@telos/schema'
+import type { Workspace } from '@braidhq/schema'
 import { FolderGit2, FolderPlus, Loader2, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { usePendingProposals, useRuns } from '@/lib/queries'
@@ -23,7 +23,7 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect, onOpenDetails
       <div className="flex h-11 items-center px-4">
         <div className="flex items-center gap-2">
           <div className="size-2.5 rounded-full bg-primary" />
-          <span className="text-sm font-semibold tracking-tight">Telos</span>
+          <span className="text-sm font-semibold tracking-tight">Braid</span>
         </div>
       </div>
 

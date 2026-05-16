@@ -1,4 +1,4 @@
-import type { SkillEvent } from '@telos/schema'
+import type { SkillEvent } from '@braidhq/schema'
 
 export interface SseRunOptions {
   readonly url: string

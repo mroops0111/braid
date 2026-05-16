@@ -1,7 +1,7 @@
-import type { AbsolutePath, WorkspaceId } from '@telos/schema'
+import type { AbsolutePath, WorkspaceId } from '@braidhq/schema'
 import { rm } from 'node:fs/promises'
 import { join } from 'node:path'
-import { NotFoundError } from '@telos/core'
+import { NotFoundError } from '@braidhq/core'
 import { listJsonFiles, moveFile, readJsonFile, writeJsonFile } from './jsonFileStore.js'
 
 export interface FsStatusedJsonRepositoryConfig<TEntity, TStatus extends string, TId extends string> {

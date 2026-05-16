@@ -2,10 +2,10 @@ import type {
   RunRepository,
   SkillRunner,
   WorkspaceRepository,
-} from '@telos/core'
-import type { SkillEvent } from '@telos/schema'
-import { NotFoundError } from '@telos/core'
-import { SkillRunId } from '@telos/schema'
+} from '@braidhq/core'
+import type { SkillEvent } from '@braidhq/schema'
+import { NotFoundError } from '@braidhq/core'
+import { SkillRunId } from '@braidhq/schema'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { createAsyncQueue } from '../infrastructure/agent/asyncQueue.js'

@@ -3,8 +3,8 @@ import type {
   SourceLoader,
   SourceLoaderContext,
   SyncReport,
-} from '@telos/core'
-import type { AbsolutePath, LoaderKind, PluginId } from '@telos/schema'
+} from '@braidhq/core'
+import type { AbsolutePath, LoaderKind, PluginId } from '@braidhq/schema'
 import type { z } from 'zod'
 import type { PluginSkillRef } from './types.js'
 import { assertNonEmpty } from './validation.js'

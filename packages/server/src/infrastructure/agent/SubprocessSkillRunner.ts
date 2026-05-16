@@ -8,17 +8,17 @@ import type {
   SkillRunSubscription,
   Workspace,
   WorkspaceEventBus,
-} from '@telos/core'
-import type { AbsolutePath, RunRecord, SkillEvent, SkillId, SkillRunId } from '@telos/schema'
+} from '@braidhq/core'
+import type { AbsolutePath, RunRecord, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import { mkdir, rm, symlink } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { newSkillRunId, NotFoundError } from '@telos/core'
+import { newSkillRunId, NotFoundError } from '@braidhq/core'
 import {
   AbsolutePath as AbsolutePathSchema,
   SkillEvent as SkillEventSchema,
   SkillRunId as SkillRunIdSchema,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import { sessionDirPath } from '../fs/paths.js'
 import { createAsyncQueue } from './asyncQueue.js'
 import { writeMcpConfigFile } from './mcpConfig.js'
@@ -92,12 +92,12 @@ export class SubprocessSkillRunner implements SkillRunner {
     })
 
     const spawnFn = this.deps.spawn ?? (await defaultSpawn())
-    // TELOS_SESSION_DIR resolves ambiguity in SKILL.md paths: claude sees
-    // both `TELOS_WORKSPACE` and a cwd that lives inside it, and would
+    // BRAID_SESSION_DIR resolves ambiguity in SKILL.md paths: claude sees
+    // both `BRAID_WORKSPACE` and a cwd that lives inside it, and would
     // otherwise guess wrong about which one `.claude/skills/...` is rooted in.
     const child = spawnFn(invocation.bin, [...invocation.args], {
       cwd: sessionDir,
-      env: { ...invocation.env, TELOS_SESSION_DIR: sessionDir },
+      env: { ...invocation.env, BRAID_SESSION_DIR: sessionDir },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     this.running.set(runId, { workspace, child })

@@ -6,12 +6,12 @@ import type {
   GraphNode,
   GraphNodeMetadata,
   NodeId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import {
   Embedding as EmbeddingSchema,
   GraphEdgeMetadata as GraphEdgeMetadataSchema,
   GraphNodeMetadata as GraphNodeMetadataSchema,
-} from '@telos/schema'
+} from '@braidhq/schema'
 
 export interface NodeRow extends Record<string, string> {
   id: string

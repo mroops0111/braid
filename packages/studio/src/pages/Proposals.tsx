@@ -1,4 +1,4 @@
-import type { Proposal, ValidationIssue, ValidationSeverity } from '@telos/schema'
+import type { Proposal, ValidationIssue, ValidationSeverity } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, AlertTriangle, Check, Inbox, Info, X } from 'lucide-react'
 import { useState } from 'react'
@@ -26,7 +26,7 @@ export function ProposalsPage({ workspaceId }: ProposalsPageProps) {
       <EmptyState
         icon={Inbox}
         title="No Pending Proposals"
-        description="Run /telos-extract or /telos-clarify to produce graph mutations awaiting HITL review."
+        description="Run /braid-extract or /braid-clarify to produce graph mutations awaiting HITL review."
       />
     )
   }

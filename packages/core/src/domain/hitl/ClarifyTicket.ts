@@ -9,7 +9,7 @@ import type {
   ProposalId,
   UserId,
   WorkspaceId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import { ConflictError, NotFoundError } from '../errors.js'
 
 /**
@@ -19,7 +19,7 @@ import { ConflictError, NotFoundError } from '../errors.js'
  *
  * `markAnswered` records the user's choice but does NOT mutate the
  * graph; the resolution is snapshotted onto the ticket and the
- * telos-clarify skill is expected to wrap it into a Proposal. Once
+ * braid-clarify skill is expected to wrap it into a Proposal. Once
  * that Proposal lands the ticket transitions to `applied` via
  * `markAppliedWithProposal`, which only stamps the proposalId — the
  * actual graph mutation happens inside `HITLService.applyProposal`.

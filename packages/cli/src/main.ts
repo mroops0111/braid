@@ -8,10 +8,10 @@ import { workspaceAddCommand, workspaceListCommand } from './commands/workspace.
 
 const VERSION = '0.0.0'
 
-const cli = cac('telos')
+const cli = cac('braid')
 
 cli
-  .command('init <dir>', 'Scaffold a new Telos workspace')
+  .command('init <dir>', 'Scaffold a new Braid workspace')
   .option('--ontology <id>', 'Ontology id for the workspace (defaults to ddd)', { default: 'ddd' })
   .option('--name <name>', 'Workspace name (defaults to the directory basename)')
   .option('--force', 'Overwrite if the directory already has a PRODUCT.md')
@@ -25,7 +25,7 @@ cli
   })
 
 cli
-  .command('serve', 'Run the Telos server')
+  .command('serve', 'Run the Braid server')
   .option('--port <port>', 'TCP port to bind (default 4321)', { default: 4321 })
   .action(async (flags: { port: number }) => {
     await serveCommand({ port: Number(flags.port) })

@@ -21,7 +21,7 @@ export type LoaderKind = z.infer<typeof LoaderKind>
  * opaque here and validated by the loader's own `configSchema` at runtime.
  *
  * Omitting `loader` on a `FilesystemSourceDescriptor` means "manual": the
- * user manages the directory themselves; Telos performs no ingestion or
+ * user manages the directory themselves; Braid performs no ingestion or
  * sync. That's the default and preserves backwards compatibility with
  * existing workspaces.
  */

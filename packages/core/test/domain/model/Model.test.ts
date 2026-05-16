@@ -1,4 +1,4 @@
-import type { GraphOperation, NewGraphNode, NodeId } from '@telos/schema'
+import type { GraphOperation, NewGraphNode, NodeId } from '@braidhq/schema'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { ConflictError, Model, NotFoundError } from '../../../src/index.js'
 

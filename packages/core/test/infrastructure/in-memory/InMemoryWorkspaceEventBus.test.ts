@@ -1,4 +1,4 @@
-import type { ProposalId, WorkspaceId } from '@telos/schema'
+import type { ProposalId, WorkspaceId } from '@braidhq/schema'
 import type { WorkspaceEvent } from '../../../src/domain/events/WorkspaceEvent.js'
 import { describe, expect, it, vi } from 'vitest'
 import { InMemoryWorkspaceEventBus } from '../../../src/infrastructure/in-memory/InMemoryWorkspaceEventBus.js'

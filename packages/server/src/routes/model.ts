@@ -1,4 +1,4 @@
-import type { ModelService } from '@telos/core'
+import type { ModelService } from '@braidhq/core'
 import { Hono } from 'hono'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 

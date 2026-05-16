@@ -7,7 +7,7 @@ import type {
   NewGraphEdge,
   NewGraphNode,
   NodeId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import { ConflictError, NotFoundError } from '../errors.js'
 import { newEdgeId, newNodeId } from '../ids.js'
 

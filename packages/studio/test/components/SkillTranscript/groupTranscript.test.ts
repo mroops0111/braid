@@ -1,4 +1,4 @@
-import type { SkillEvent, SkillRunId } from '@telos/schema'
+import type { SkillEvent, SkillRunId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { groupTranscript } from '@/components/SkillTranscript/groupTranscript'
 
@@ -14,7 +14,7 @@ function message(text: string): SkillEvent {
   return { type: 'message', text }
 }
 function started(): SkillEvent {
-  return { type: 'started', runId: 'sr-1' as SkillRunId, skillId: 'telos-ask' as never, at: now }
+  return { type: 'started', runId: 'sr-1' as SkillRunId, skillId: 'braid-ask' as never, at: now }
 }
 
 describe('groupTranscript', () => {

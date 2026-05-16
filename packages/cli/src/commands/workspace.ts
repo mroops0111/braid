@@ -26,7 +26,7 @@ export async function workspaceAddCommand(input: WorkspaceAddInput): Promise<voi
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ rootPath: absolute }),
   }).catch((error: unknown) => {
-    throw new Error(`could not reach ${input.apiUrl} (is "telos serve" running?): ${(error as Error).message}`)
+    throw new Error(`could not reach ${input.apiUrl} (is "braid serve" running?): ${(error as Error).message}`)
   })
   if (!response.ok) {
     const detail = await extractProblemDetail(response)
@@ -45,7 +45,7 @@ export interface WorkspaceListInput {
 
 export async function workspaceListCommand(input: WorkspaceListInput): Promise<void> {
   const response = await fetch(`${input.apiUrl}/workspaces`).catch((error: unknown) => {
-    throw new Error(`could not reach ${input.apiUrl} (is "telos serve" running?): ${(error as Error).message}`)
+    throw new Error(`could not reach ${input.apiUrl} (is "braid serve" running?): ${(error as Error).message}`)
   })
   if (!response.ok) {
     const detail = await extractProblemDetail(response)
@@ -53,7 +53,7 @@ export async function workspaceListCommand(input: WorkspaceListInput): Promise<v
   }
   const body = await response.json() as { items: readonly WorkspaceData[] }
   if (body.items.length === 0) {
-    process.stdout.write(`${pc.dim('No workspaces registered. Try:')} telos workspace add "$(pwd)"\n`)
+    process.stdout.write(`${pc.dim('No workspaces registered. Try:')} braid workspace add "$(pwd)"\n`)
     return
   }
   for (const workspace of body.items) {

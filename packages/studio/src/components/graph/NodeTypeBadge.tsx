@@ -1,4 +1,4 @@
-import type { NodeTypeId } from '@telos/schema'
+import type { NodeTypeId } from '@braidhq/schema'
 import { cn } from '@/lib/utils'
 import { usePaletteContext } from './usePalette'
 

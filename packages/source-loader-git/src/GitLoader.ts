@@ -1,5 +1,5 @@
-import type { IngestReport, SourceLoader, SyncReport } from '@telos/core'
-import type { AbsolutePath, LoaderKind, PluginId } from '@telos/schema'
+import type { IngestReport, SourceLoader, SyncReport } from '@braidhq/core'
+import type { AbsolutePath, LoaderKind, PluginId } from '@braidhq/schema'
 import { mkdir, rm } from 'node:fs/promises'
 import process from 'node:process'
 import { simpleGit } from 'simple-git'

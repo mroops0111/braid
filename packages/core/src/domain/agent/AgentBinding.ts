@@ -1,4 +1,4 @@
-import type { AbsolutePath, AgentBindingDescriptor, SkillId } from '@telos/schema'
+import type { AbsolutePath, AgentBindingDescriptor, SkillId } from '@braidhq/schema'
 import type { SkillManifest } from '../skill/SkillManifest.js'
 import type { Workspace } from '../workspace/Workspace.js'
 

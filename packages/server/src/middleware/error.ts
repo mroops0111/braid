@@ -1,17 +1,17 @@
-import type { TelosProblemJson } from '@telos/schema'
+import type { TelosProblemJson } from '@braidhq/schema'
 import type { ErrorHandler } from 'hono'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import {
+  BraidError,
   ConflictError,
   NotFoundError,
-  TelosError,
   ValidationError,
-} from '@telos/core'
+} from '@braidhq/core'
 import { ZodError } from 'zod'
 
-const PROBLEM_BASE_URL = 'https://telos.dev/errors'
+const PROBLEM_BASE_URL = 'https://braid.dev/errors'
 
-function statusFor(error: TelosError): number {
+function statusFor(error: BraidError): number {
   if (error instanceof ValidationError)
     return 400
   if (error instanceof NotFoundError)
@@ -21,7 +21,7 @@ function statusFor(error: TelosError): number {
   return 500
 }
 
-function problemFromTelosError(error: TelosError): TelosProblemJson {
+function problemFromBraidError(error: BraidError): TelosProblemJson {
   const problem: TelosProblemJson = {
     type: `${PROBLEM_BASE_URL}/${error.code.toLowerCase()}` as TelosProblemJson['type'],
     title: error.name,
@@ -36,10 +36,10 @@ function problemFromTelosError(error: TelosError): TelosProblemJson {
 
 function problemFromZodError(error: ZodError): TelosProblemJson {
   return {
-    type: `${PROBLEM_BASE_URL}/telos-val` as TelosProblemJson['type'],
+    type: `${PROBLEM_BASE_URL}/braid-val` as TelosProblemJson['type'],
     title: 'ValidationError',
     status: 400,
-    code: 'TELOS-VAL',
+    code: 'BRAID-VAL',
     detail: error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join('; '),
   }
 }
@@ -47,8 +47,8 @@ function problemFromZodError(error: ZodError): TelosProblemJson {
 const PROBLEM_JSON_HEADERS = { 'Content-Type': 'application/problem+json' } as const
 
 export const errorHandler: ErrorHandler = (error, context) => {
-  if (error instanceof TelosError) {
-    const problem = problemFromTelosError(error)
+  if (error instanceof BraidError) {
+    const problem = problemFromBraidError(error)
     return context.json(problem, problem.status as ContentfulStatusCode, PROBLEM_JSON_HEADERS)
   }
 
@@ -61,7 +61,7 @@ export const errorHandler: ErrorHandler = (error, context) => {
     type: `${PROBLEM_BASE_URL}/internal`,
     title: 'InternalError',
     status: 500,
-    code: 'TELOS-INTERNAL',
+    code: 'BRAID-INTERNAL',
     detail: error instanceof Error ? error.message : 'unknown error',
   }, 500, PROBLEM_JSON_HEADERS)
 }

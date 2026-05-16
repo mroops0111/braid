@@ -1,8 +1,8 @@
-import type { AbsolutePath, WorkspaceId } from '@telos/schema'
+import type { AbsolutePath, WorkspaceId } from '@braidhq/schema'
 import { mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { NotFoundError } from '@telos/core'
+import { NotFoundError } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { FsStatusedJsonRepository } from '../../../src/infrastructure/fs/FsStatusedJsonRepository.js'
 
@@ -16,7 +16,7 @@ interface Item {
 }
 
 async function makeRoot(): Promise<AbsolutePath> {
-  return await mkdtemp(join(tmpdir(), 'telos-fs-statused-')) as AbsolutePath
+  return await mkdtemp(join(tmpdir(), 'braid-fs-statused-')) as AbsolutePath
 }
 
 function makeItem(overrides: Partial<Item> = {}): Item {

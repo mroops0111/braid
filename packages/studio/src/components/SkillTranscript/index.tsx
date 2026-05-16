@@ -1,4 +1,4 @@
-import type { SkillEvent } from '@telos/schema'
+import type { SkillEvent } from '@braidhq/schema'
 import { useEffect, useRef } from 'react'
 import { groupTranscript } from './groupTranscript'
 import { Markdown } from './Markdown'

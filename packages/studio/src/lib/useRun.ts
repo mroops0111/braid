@@ -1,4 +1,4 @@
-import type { SkillEvent } from '@telos/schema'
+import type { SkillEvent } from '@braidhq/schema'
 import { useSyncExternalStore } from 'react'
 import { type RunPhase, type RunState, runStore } from './runStore'
 

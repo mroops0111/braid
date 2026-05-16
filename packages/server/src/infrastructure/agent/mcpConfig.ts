@@ -1,5 +1,5 @@
-import type { Workspace } from '@telos/core'
-import type { McpServerConfig } from '@telos/schema'
+import type { Workspace } from '@braidhq/core'
+import type { McpServerConfig } from '@braidhq/schema'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import process from 'node:process'
@@ -30,7 +30,7 @@ export function buildMcpConfig(workspace: Workspace): McpConfigFile {
 
 export async function writeMcpConfigFile(workspace: Workspace, targetDir: string): Promise<string> {
   const config = buildMcpConfig(workspace)
-  const targetPath = join(targetDir, `.telos-mcp-${workspace.id}.json`)
+  const targetPath = join(targetDir, `.braid-mcp-${workspace.id}.json`)
   await mkdir(dirname(targetPath), { recursive: true })
   await writeFile(targetPath, `${JSON.stringify(config, null, 2)}\n`, 'utf-8')
   return targetPath

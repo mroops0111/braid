@@ -2,10 +2,10 @@ import type {
   SkillRegistry,
   SkillRunner,
   WorkspaceRepository,
-} from '@telos/core'
-import type { SkillId } from '@telos/schema'
+} from '@braidhq/core'
+import type { SkillId } from '@braidhq/schema'
+import { SkillId as SkillIdSchema } from '@braidhq/schema'
 import { zValidator } from '@hono/zod-validator'
-import { SkillId as SkillIdSchema } from '@telos/schema'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { getWorkspaceId } from '../middleware/workspaceId.js'

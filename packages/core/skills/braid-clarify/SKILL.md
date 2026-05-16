@@ -1,10 +1,10 @@
 ---
-name: telos-clarify
+name: braid-clarify
 description: Process answered ClarifyTickets by turning the chosen candidate into a Proposal for HITL apply. Optionally raise a new ClarifyTicket if the resolution breaks graph invariants.
 argument-hint: "[clarifyTicketId | all]"
 disable-model-invocation: true
-telos:
-  required-env: [TELOS_API_URL, TELOS_WORKSPACE, TELOS_WORKSPACE_ID]
+braid:
+  required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
 ---
 
 # Role
@@ -29,18 +29,18 @@ materialise their choice into a reviewable Proposal.
 
 | File | When to read |
 |------|--------------|
-| `$TELOS_SESSION_DIR/.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
-| `$TELOS_SESSION_DIR/.claude/skills/shared/artifact-formats.md` | before writing. Exact Proposal JSON shape |
+| `$BRAID_SESSION_DIR/.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
+| `$BRAID_SESSION_DIR/.claude/skills/shared/artifact-formats.md` | before writing. Exact Proposal JSON shape |
 
 # Initialization
 
-1. Read `$TELOS_WORKSPACE/PRODUCT.md` for workspace context (mainly to know which workspace id to write under).
+1. Read `$BRAID_WORKSPACE/PRODUCT.md` for workspace context (mainly to know which workspace id to write under).
 2. Parse argument:
    - Specific ticket id → process that one
    - `all` or empty → list all `status: answered` tickets, iterate
 3. Fetch ticket list when applicable:
    ```bash
-   curl -sf "$TELOS_API_URL/workspaces/$TELOS_WORKSPACE_ID/clarify?status=answered" \
+   curl -sf "$BRAID_API_URL/workspaces/$BRAID_WORKSPACE_ID/clarify?status=answered" \
      | jq -r '.items[].id'
    ```
 
@@ -49,7 +49,7 @@ materialise their choice into a reviewable Proposal.
 ## Step 1: load the ticket
 
 ```bash
-TICKET=$(curl -sf "$TELOS_API_URL/workspaces/$TELOS_WORKSPACE_ID/clarify/$TICKET_ID")
+TICKET=$(curl -sf "$BRAID_API_URL/workspaces/$BRAID_WORKSPACE_ID/clarify/$TICKET_ID")
 STATUS=$(echo "$TICKET" | jq -r '.status')
 SELECTED=$(echo "$TICKET" | jq -r '.selectedCandidateId')
 RESOLUTION=$(echo "$TICKET" | jq -c '.resolution // empty')
@@ -80,9 +80,9 @@ JSON file yourself.
 BODY=$(jq -n \
   --argjson ops "$RESOLUTION" \
   --arg rat "Materialised from ClarifyTicket $TICKET_ID, candidate $SELECTED." \
-  '{ operations: $ops, generatedBy: "telos-clarify", rationale: $rat }')
+  '{ operations: $ops, generatedBy: "braid-clarify", rationale: $rat }')
 
-RESPONSE=$(curl -sS -X POST "$TELOS_API_URL/workspaces/$TELOS_WORKSPACE_ID/proposals" \
+RESPONSE=$(curl -sS -X POST "$BRAID_API_URL/workspaces/$BRAID_WORKSPACE_ID/proposals" \
   -H 'Content-Type: application/json' \
   -d "$BODY" \
   -w '\n__HTTP_STATUS__:%{http_code}')
@@ -91,7 +91,7 @@ BODY_JSON=$(echo "$RESPONSE" | sed 's/__HTTP_STATUS__:[0-9]*//')
 PROPOSAL_ID=$(echo "$BODY_JSON" | jq -r '.id')
 ```
 
-If `STATUS=400` with `code: "TELOS-VAL"`, look at `BODY_JSON.issues` and decide:
+If `STATUS=400` with `code: "BRAID-VAL"`, look at `BODY_JSON.issues` and decide:
 
 - The candidate's ops violate an invariant the user couldn't have foreseen
   (e.g. removes a node still referenced) → write a **new** ClarifyTicket
@@ -103,9 +103,9 @@ If `STATUS=400` with `code: "TELOS-VAL"`, look at `BODY_JSON.issues` and decide:
 
 ```bash
 curl -sf -X PATCH \
-  "$TELOS_API_URL/workspaces/$TELOS_WORKSPACE_ID/clarify/$TICKET_ID" \
+  "$BRAID_API_URL/workspaces/$BRAID_WORKSPACE_ID/clarify/$TICKET_ID" \
   -H 'Content-Type: application/json' \
-  -d "$(jq -n --arg pid "$PROPOSAL_ID" --arg uid "${TELOS_USER_ID:-telos-clarify}" \
+  -d "$(jq -n --arg pid "$PROPOSAL_ID" --arg uid "${BRAID_USER_ID:-braid-clarify}" \
         '{ proposalId: $pid, userId: $uid }')"
 ```
 
@@ -139,6 +139,6 @@ Processed N tickets: M proposals produced, K new clarify tickets raised, L skipp
 - **Never use em-dashes (`—`) or en-dashes (`–`) in output text** (proposal rationale, new clarify candidate descriptions, etc.). Use periods, colons, commas, or parentheses instead
 - If a candidate's `resolution` is an empty array (user picked an option that has no graph impact) → do **not** produce a Proposal; move ticket to `applied/` as a record only
 - Don't reprocess already-applied tickets: check `clarify/applied/` and `clarify/skipped/` first
-- If `$TELOS_WORKSPACE/skill-extensions/telos-clarify/EXTEND.md` exists,
+- If `$BRAID_WORKSPACE/skill-extensions/braid-clarify/EXTEND.md` exists,
   follow its rules **after** the steps above. Workspace-specific
   supplementary-op rules go there

@@ -9,7 +9,7 @@ Server response (and on-disk shape):
 ```json
 {
   "id": "p-2026-05-12-abc123",
-  "workspaceId": "${TELOS_WORKSPACE_ID}",
+  "workspaceId": "${BRAID_WORKSPACE_ID}",
   "status": "pending",
   "operations": [ /* GraphOperation[] */ ],
   "generatedBy": "extract",
@@ -60,7 +60,7 @@ back to Redmine / Jira / XWiki source tickets.
 ```json
 {
   "id": "ct-2026-05-12-xyz",
-  "workspaceId": "${TELOS_WORKSPACE_ID}",
+  "workspaceId": "${BRAID_WORKSPACE_ID}",
   "question": "voidTask and cancelTask: same command or distinct?",
   "candidates": [
     {

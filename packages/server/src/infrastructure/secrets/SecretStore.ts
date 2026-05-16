@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path'
  * containing directory is mode 0700.
  *
  * This is NOT an encrypted-at-rest store. It's appropriate for local /
- * single-user Telos installs (the OSS target). A hosted SaaS deployment
+ * single-user Braid installs (the OSS target). A hosted SaaS deployment
  * would swap this for a vault adapter (AWS Secrets Manager, Vault, …)
  * by implementing the same interface.
  *

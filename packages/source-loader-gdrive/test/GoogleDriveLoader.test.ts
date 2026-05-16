@@ -1,4 +1,4 @@
-import type { AbsolutePath } from '@telos/schema'
+import type { AbsolutePath } from '@braidhq/schema'
 import { Buffer } from 'node:buffer'
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -64,7 +64,7 @@ describe('GoogleDriveLoader', () => {
   let dest: AbsolutePath
 
   beforeEach(async () => {
-    dest = await mkdtemp(join(tmpdir(), 'telos-gdrive-loader-')) as AbsolutePath
+    dest = await mkdtemp(join(tmpdir(), 'braid-gdrive-loader-')) as AbsolutePath
   })
 
   afterEach(async () => {

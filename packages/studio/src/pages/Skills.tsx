@@ -1,4 +1,4 @@
-import type { SkillManifest } from '@telos/schema'
+import type { SkillManifest } from '@braidhq/schema'
 import { Play, Plus, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'

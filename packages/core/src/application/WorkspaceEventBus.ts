@@ -1,4 +1,4 @@
-import type { WorkspaceId } from '@telos/schema'
+import type { WorkspaceId } from '@braidhq/schema'
 import type { WorkspaceEvent } from '../domain/events/WorkspaceEvent.js'
 
 export type WorkspaceEventListener = (event: WorkspaceEvent) => void

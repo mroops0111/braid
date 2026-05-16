@@ -1,7 +1,7 @@
 {
-  "name": "@telos/source-loader-git",
+  "name": "@braidhq/source-loader-git",
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Git source-loader plugin: clone a remote repo into a workspace source path; sync via fetch + reset.",
   "license": "MIT",
   "exports": {
@@ -16,8 +16,8 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@telos/core": "workspace:*",
-    "@telos/schema": "workspace:*",
+    "@braidhq/core": "workspace:*",
+    "@braidhq/schema": "workspace:*",
     "simple-git": "^3.36.0",
     "zod": "^3.24.0"
   },

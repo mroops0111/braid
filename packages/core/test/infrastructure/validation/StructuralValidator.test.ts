@@ -7,7 +7,7 @@ import type {
   NodeTypeId,
   OntologyId,
   PluginId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import type { EdgeTypeDescriptor, Ontology } from '../../../src/domain/plugin/Ontology.js'
 import { describe, expect, it } from 'vitest'
 import { StructuralValidator } from '../../../src/infrastructure/validation/StructuralValidator.js'

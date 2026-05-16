@@ -1,13 +1,13 @@
-import type { AbsolutePath } from '@telos/schema'
+import type { AbsolutePath } from '@braidhq/schema'
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ValidationError } from '@telos/core'
+import { ValidationError } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { WorkspaceRegistryFile } from '../../../src/infrastructure/fs/WorkspaceRegistryFile.js'
 
 async function makeRegistryFile(): Promise<{ filePath: string, registry: WorkspaceRegistryFile }> {
-  const dir = await mkdtemp(join(tmpdir(), 'telos-registry-'))
+  const dir = await mkdtemp(join(tmpdir(), 'braid-registry-'))
   const filePath = join(dir, 'workspaces.json')
   return { filePath, registry: new WorkspaceRegistryFile(filePath) }
 }
@@ -55,7 +55,7 @@ describe('WorkspaceRegistryFile', () => {
   })
 
   it('writes a parent directory that does not exist', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'telos-registry-'))
+    const dir = await mkdtemp(join(tmpdir(), 'braid-registry-'))
     const filePath = join(dir, 'nested', 'sub', 'workspaces.json')
     const registry = new WorkspaceRegistryFile(filePath)
     await registry.add('/abs/ws-1' as AbsolutePath)
@@ -64,7 +64,7 @@ describe('WorkspaceRegistryFile', () => {
   })
 
   it('throws ValidationError when file content is malformed', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'telos-registry-'))
+    const dir = await mkdtemp(join(tmpdir(), 'braid-registry-'))
     const filePath = join(dir, 'workspaces.json')
     await writeFile(filePath, JSON.stringify({ workspaces: [{ wrongShape: true }] }), 'utf-8')
     const registry = new WorkspaceRegistryFile(filePath)

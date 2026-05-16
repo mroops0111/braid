@@ -1,4 +1,4 @@
-import type { EdgeTypeId, NodeTypeId, OntologyResponse } from '@telos/schema'
+import type { EdgeTypeId, NodeTypeId, OntologyResponse } from '@braidhq/schema'
 import type { CSSProperties } from 'react'
 
 export interface OntologyPalette {
@@ -92,7 +92,7 @@ export function buildPalette(ontology: OntologyResponse | undefined): OntologyPa
 /**
  * Stable colour for a type id when the ontology descriptor didn't
  * author one. Hue derived from a string hash; chroma + lightness
- * pinned so the palette stays within Telos's dark-mode contrast
+ * pinned so the palette stays within Braid's dark-mode contrast
  * envelope.
  */
 function hashColor(id: string): string {

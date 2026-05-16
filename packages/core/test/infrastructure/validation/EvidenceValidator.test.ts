@@ -1,4 +1,4 @@
-import type { ModelSnapshot, NodeId, NodeStatus, NodeTypeId, SkillId } from '@telos/schema'
+import type { ModelSnapshot, NodeId, NodeStatus, NodeTypeId, SkillId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { EvidenceValidator } from '../../../src/infrastructure/validation/EvidenceValidator.js'
 
@@ -55,7 +55,7 @@ describe('EvidenceValidator', () => {
           sourceReferences: [{
             sourceId: 'code-a' as never,
             location: { uri: 'apps/api/cart.ts' as never },
-            lastTouchedBy: 'telos-extract' as SkillId,
+            lastTouchedBy: 'braid-extract' as SkillId,
           }],
           intentMissing: true,
         },

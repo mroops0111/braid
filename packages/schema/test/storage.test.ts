@@ -45,8 +45,8 @@ describe('neo4jStorageConfig', () => {
     const config = Neo4jStorageConfig.parse({
       uri: 'bolt://localhost:7687',
       user: 'neo4j',
-      database: 'telos',
+      database: 'braid',
     })
-    expect(config.database).toBe('telos')
+    expect(config.database).toBe('braid')
   })
 })

@@ -1,12 +1,12 @@
 {
-  "name": "@telos/cli",
+  "name": "@braidhq/cli",
   "type": "module",
-  "version": "0.0.0",
-  "description": "Telos command-line interface. cac + ink.",
+  "version": "0.0.1",
+  "description": "Braid command-line interface. cac + ink.",
   "license": "MIT",
   "main": "./src/main.ts",
   "bin": {
-    "telos": "./bin/telos.mjs"
+    "braid": "./bin/braid.mjs"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -16,10 +16,10 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {
+    "@braidhq/core": "workspace:*",
+    "@braidhq/schema": "workspace:*",
+    "@braidhq/server": "workspace:*",
     "@hono/node-server": "^1.13.0",
-    "@telos/core": "workspace:*",
-    "@telos/schema": "workspace:*",
-    "@telos/server": "workspace:*",
     "cac": "^6.7.14",
     "ink": "^5.1.0",
     "picocolors": "^1.1.0",

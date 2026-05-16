@@ -8,10 +8,10 @@ import type {
   ProductManifestDraft,
   StorageDescriptor,
   StorageKind,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { OntologyId, ProductManifest as ProductManifestSchema } from '@telos/schema'
+import { OntologyId, ProductManifest as ProductManifestSchema } from '@braidhq/schema'
 import { stringify as stringifyYaml } from 'yaml'
 import { parseMarkdownFrontmatter } from './frontmatter.js'
 

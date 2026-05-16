@@ -1,13 +1,13 @@
 import type {
   AbsolutePath,
+  BraidSkillExtension,
   ClaudeCodeSkillFrontmatter,
   McpServerId,
   SkillFrontmatter,
   SkillId,
   SkillManifest as SkillManifestData,
   SkillOrigin,
-  TelosSkillExtension,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import type { Workspace } from '../workspace/Workspace.js'
 
 export interface SkillReadinessIssue {
@@ -36,13 +36,13 @@ export class SkillManifest {
 
   /** Claude Code-recognised frontmatter fields (name, description, argument-hint, …). */
   get claudeCodeFields(): ClaudeCodeSkillFrontmatter {
-    const { telos: _telos, ...claudeFields } = this.data.frontmatter
+    const { braid: _braid, ...claudeFields } = this.data.frontmatter
     return claudeFields
   }
 
-  /** Telos-only extension fields under the `telos:` namespace. */
-  get telosFields(): TelosSkillExtension {
-    return this.data.frontmatter.telos
+  /** Braid-only extension fields under the `braid:` namespace. */
+  get braidFields(): BraidSkillExtension {
+    return this.data.frontmatter.braid
   }
 
   get extensionPath(): AbsolutePath | undefined {
@@ -58,17 +58,17 @@ export class SkillManifest {
   }
 
   requiresMcpServer(serverId: McpServerId): boolean {
-    return this.telosFields.requiredMcpServers.includes(serverId)
+    return this.braidFields.requiredMcpServers.includes(serverId)
   }
 
   readinessIssuesFor(workspace: Workspace, env: Readonly<Record<string, string | undefined>>): readonly SkillReadinessIssue[] {
     const issues: SkillReadinessIssue[] = []
-    for (const name of this.telosFields.requiredEnv) {
+    for (const name of this.braidFields.requiredEnv) {
       if (!env[name]) {
         issues.push({ kind: 'missing-env', target: name })
       }
     }
-    for (const serverId of this.telosFields.requiredMcpServers) {
+    for (const serverId of this.braidFields.requiredMcpServers) {
       if (!workspace.findMcpServer(serverId)) {
         issues.push({ kind: 'missing-mcp-server', target: serverId })
       }

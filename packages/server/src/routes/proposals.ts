@@ -1,6 +1,6 @@
-import type { HITLService, ModelRepository, ProposalRepository, ValidationService } from '@telos/core'
+import type { HITLService, ModelRepository, ProposalRepository, ValidationService } from '@braidhq/core'
+import { ProposalDraft, ProposalId, ProposalStatus, UserId } from '@braidhq/schema'
 import { zValidator } from '@hono/zod-validator'
-import { ProposalDraft, ProposalId, ProposalStatus, UserId } from '@telos/schema'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { getWorkspaceId } from '../middleware/workspaceId.js'

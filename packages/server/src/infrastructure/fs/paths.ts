@@ -1,4 +1,4 @@
-import type { AbsolutePath, ClarifyStatus, ProposalStatus, WorkspaceId } from '@telos/schema'
+import type { AbsolutePath, ClarifyStatus, ProposalStatus, WorkspaceId } from '@braidhq/schema'
 import { join } from 'node:path'
 
 export const PROPOSAL_STATUSES: readonly ProposalStatus[] = ['pending', 'applied', 'rejected']
@@ -40,7 +40,7 @@ export function runEventsPath(workspaceRoot: AbsolutePath, runId: string): strin
 // the same dir as the first turn. Putting it inside the workspace (not /tmp)
 // keeps the path derivable from runId and lets it survive a server restart.
 export function sessionsDir(workspaceRoot: AbsolutePath): string {
-  return join(workspaceRoot, '.telos-sessions')
+  return join(workspaceRoot, '.braid-sessions')
 }
 
 export function sessionDirPath(workspaceRoot: AbsolutePath, runId: string): string {

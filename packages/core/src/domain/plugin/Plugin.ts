@@ -1,4 +1,4 @@
-import type { PluginId, PluginType, SkillId } from '@telos/schema'
+import type { PluginId, PluginType, SkillId } from '@braidhq/schema'
 import type { z } from 'zod'
 
 export interface PluginLogger {

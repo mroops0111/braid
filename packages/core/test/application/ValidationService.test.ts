@@ -3,7 +3,7 @@ import type {
   PluginId,
   ValidationCode,
   ValidationIssue,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { PluginRegistry, ValidationService, type Validator } from '../../src/index.js'
 

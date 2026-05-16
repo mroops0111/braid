@@ -1,9 +1,8 @@
-import type { SourceLoaderRunner, Workspace, WorkspaceService } from '@telos/core'
-import type { ProductManifest, SourceDescriptor } from '@telos/schema'
+import type { SourceLoaderRunner, Workspace, WorkspaceService } from '@braidhq/core'
+import type { ProductManifest, SourceDescriptor } from '@braidhq/schema'
 import { rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { zValidator } from '@hono/zod-validator'
-import { NotFoundError, ValidationError } from '@telos/core'
+import { NotFoundError, ValidationError } from '@braidhq/core'
 import {
   AbsolutePath,
   AgentRoutingConfig,
@@ -14,7 +13,8 @@ import {
   SourceDescriptor as SourceDescriptorSchema,
   SourceId,
   StorageDescriptor,
-} from '@telos/schema'
+} from '@braidhq/schema'
+import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { fillManifestDefaults, updateProductManifest, writeProductManifest } from '../infrastructure/fs/productManifestWriter.js'
@@ -168,7 +168,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     })
   })
 
-  // Unregister a workspace. Files (PRODUCT.md, .telos/, ingested sources)
+  // Unregister a workspace. Files (PRODUCT.md, .braid/, ingested sources)
   // are left on disk — the user can re-register via POST /workspaces or
   // delete the directory manually.
   router.delete('/:workspaceId', workspaceIdMiddleware, async (context) => {

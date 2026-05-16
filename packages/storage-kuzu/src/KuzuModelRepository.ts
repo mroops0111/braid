@@ -1,4 +1,4 @@
-import type { ModelRepository } from '@telos/core'
+import type { ModelRepository } from '@braidhq/core'
 import type {
   GraphEdge,
   GraphEdgeFilter,
@@ -8,11 +8,11 @@ import type {
   ModelSnapshot,
   NodeId,
   WorkspaceId,
-} from '@telos/schema'
+} from '@braidhq/schema'
 import type { Connection, Database, PreparedStatement, QueryResult } from 'kuzu'
 import { mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import { Model, NotFoundError, paginate } from '@telos/core'
+import { Model, NotFoundError, paginate } from '@braidhq/core'
 import * as kuzu from 'kuzu'
 import { type EdgeRow, edgeToParams, type NodeRow, nodeToParams, rowToEdge, rowToNode } from './codec.js'
 import { DDL_CREATE_EDGE_TABLE, DDL_CREATE_NODE_TABLE } from './schema.js'
@@ -43,9 +43,9 @@ interface PreparedStatementCache {
 }
 
 /**
- * Embedded graph storage for Telos. Each workspace gets its own Kuzu DB
+ * Embedded graph storage for Braid. Each workspace gets its own Kuzu DB
  * directory; the schema is shared (one generic `Node` / `Edge` table since
- * Telos ontology is dynamic and lives in the `type` property).
+ * Braid ontology is dynamic and lives in the `type` property).
  *
  * Writes use diff-against-snapshot semantics: load → preview ops via the
  * domain `Model` (which validates and mints ids) → translate the diff into

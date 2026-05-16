@@ -46,12 +46,12 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
   const startOauth = useMutation({
     mutationFn: () => api.startGoogleOAuth(workspaceId, sourceId),
     onSuccess: (result) => {
-      const popup = window.open(result.authorizationUrl, 'telos-oauth-google', 'width=520,height=720')
+      const popup = window.open(result.authorizationUrl, 'braid-oauth-google', 'width=520,height=720')
       if (!popup)
         return
       const onMessage = (event: MessageEvent) => {
         const data = event.data as { source?: string, provider?: string, status?: string } | null
-        if (!data || data.source !== 'telos-oauth' || data.provider !== 'google')
+        if (!data || data.source !== 'braid-oauth' || data.provider !== 'google')
           return
         window.removeEventListener('message', onMessage)
         if (data.status === 'success')

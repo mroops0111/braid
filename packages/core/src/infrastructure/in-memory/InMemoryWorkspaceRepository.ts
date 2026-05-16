@@ -1,4 +1,4 @@
-import type { AbsolutePath } from '@telos/schema'
+import type { AbsolutePath } from '@braidhq/schema'
 import type { Workspace } from '../../domain/workspace/Workspace.js'
 import type { WorkspaceRepository } from '../../domain/workspace/WorkspaceRepository.js'
 import { InMemoryKeyedStore } from './InMemoryKeyedStore.js'

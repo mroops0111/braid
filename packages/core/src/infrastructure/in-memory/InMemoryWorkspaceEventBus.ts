@@ -1,4 +1,4 @@
-import type { WorkspaceId } from '@telos/schema'
+import type { WorkspaceId } from '@braidhq/schema'
 import type { WorkspaceEventBus, WorkspaceEventListener } from '../../application/WorkspaceEventBus.js'
 import type { WorkspaceEvent } from '../../domain/events/WorkspaceEvent.js'
 

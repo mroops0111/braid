@@ -1,5 +1,5 @@
-import type { IngestReport, SourceLoader, SourceLoaderContext, SyncReport } from '@telos/core'
-import type { AbsolutePath, LoaderKind, PluginId } from '@telos/schema'
+import type { IngestReport, SourceLoader, SourceLoaderContext, SyncReport } from '@braidhq/core'
+import type { AbsolutePath, LoaderKind, PluginId } from '@braidhq/schema'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
