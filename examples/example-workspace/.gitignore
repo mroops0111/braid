@@ -1,5 +1,5 @@
 artifacts/
 code/
 .env
-.telos/
-.telos-sessions/
+.braid/
+.braid-sessions/

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { ValidationIssues } from './validation.js'
 
-export const TelosProblemJson = z.object({
+export const BraidProblemJson = z.object({
   type: z.string().url(),
   title: z.string(),
   status: z.number().int().min(400).max(599),
@@ -11,4 +11,4 @@ export const TelosProblemJson = z.object({
   // clients can read failures programmatically (instead of parsing `detail`).
   issues: ValidationIssues.optional(),
 })
-export type TelosProblemJson = z.infer<typeof TelosProblemJson>
+export type BraidProblemJson = z.infer<typeof BraidProblemJson>

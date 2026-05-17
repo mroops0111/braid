@@ -9,7 +9,7 @@ Intent ↔ Code alignment framework. Treat **code** as the source of truth for *
 
 ```bash
 git clone https://github.com/mroops0111/braid.git
-cd telos && pnpm install
+cd braid && pnpm install
 pnpm dev    # Studio at http://localhost:5173, server at :4321
 ```
 
@@ -60,7 +60,7 @@ The full design doc with deployment tiers, plugin contracts, and the HITL invari
 
 ```bash
 git clone https://github.com/mroops0111/braid.git
-cd telos && pnpm install
+cd braid && pnpm install
 pnpm exec braid dev    # server (:4321) + Studio (:5173)
 ```
 

@@ -1,4 +1,4 @@
-import type { TelosProblemJson } from '@braidhq/schema'
+import type { BraidProblemJson } from '@braidhq/schema'
 import type { ErrorHandler } from 'hono'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import {
@@ -21,9 +21,9 @@ function statusFor(error: BraidError): number {
   return 500
 }
 
-function problemFromBraidError(error: BraidError): TelosProblemJson {
-  const problem: TelosProblemJson = {
-    type: `${PROBLEM_BASE_URL}/${error.code.toLowerCase()}` as TelosProblemJson['type'],
+function problemFromBraidError(error: BraidError): BraidProblemJson {
+  const problem: BraidProblemJson = {
+    type: `${PROBLEM_BASE_URL}/${error.code.toLowerCase()}` as BraidProblemJson['type'],
     title: error.name,
     status: statusFor(error),
     code: error.code,
@@ -34,9 +34,9 @@ function problemFromBraidError(error: BraidError): TelosProblemJson {
   return problem
 }
 
-function problemFromZodError(error: ZodError): TelosProblemJson {
+function problemFromZodError(error: ZodError): BraidProblemJson {
   return {
-    type: `${PROBLEM_BASE_URL}/braid-val` as TelosProblemJson['type'],
+    type: `${PROBLEM_BASE_URL}/braid-val` as BraidProblemJson['type'],
     title: 'ValidationError',
     status: 400,
     code: 'BRAID-VAL',

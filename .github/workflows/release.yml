@@ -1,0 +1,124 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+
+jobs:
+  # Re-run the full CI matrix on the tagged commit before we publish.
+  # Catches the case where master was green but the tag was cut off a
+  # different commit, or where a release-only change snuck in.
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [ci]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify tag matches root package.json version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          VERSION=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "::error::Tag v$TAG does not match package.json version $VERSION"
+            exit 1
+          fi
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      # Persist dist/ across jobs so publish-npm doesn't rebuild.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: |
+            packages/*/dist
+            plugins/*/dist
+          retention-days: 7
+
+  publish-npm:
+    name: Publish to npm
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: npm
+      url: https://www.npmjs.com/org/braidhq
+    permissions:
+      # Required for `actions/attest-build-provenance`.
+      id-token: write
+      attestations: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: .
+
+      # Attest provenance for every publishable tarball. Consumers can
+      # verify via `npm audit signatures` that the package was built from
+      # this commit in this repo.
+      - name: Pack tarballs
+        run: |
+          mkdir -p .release
+          pnpm -r --filter="./packages/*" --filter="./plugins/*" --filter="!@braidhq/studio" --filter="!@braidhq/desktop" exec npm pack --pack-destination "$GITHUB_WORKSPACE/.release"
+
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: '.release/*.tgz'
+
+      # `pnpm publish -r` walks workspace packages in topological order,
+      # skips private ones, and applies the per-package publishConfig
+      # (main / types / exports / files override). --no-git-checks because
+      # the worktree has the freshly-built dist/ files which are not
+      # committed.
+      - name: Publish
+        run: pnpm -r publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Trusted publishing (OIDC) is the more secure alternative;
+          # configure on https://www.npmjs.com/package/<pkg>/access once
+          # the package exists, then drop NPM_TOKEN.
+
+  github-release:
+    name: GitHub Release
+    needs: publish-npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes

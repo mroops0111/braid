@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { createApp } from '../src/app.js'
 import { composeFsApp } from '../src/composeFs.js'
 
-async function makeTelosHome(): Promise<string> {
+async function makeBraidHome(): Promise<string> {
   return mkdtemp(join(tmpdir(), 'braid-home-'))
 }
 
@@ -27,7 +27,7 @@ storage:
 
 describe('composeFsApp', () => {
   it('createApp with composeFsApp serves health endpoint', async () => {
-    const braidHome = await makeTelosHome()
+    const braidHome = await makeBraidHome()
     const app = createApp(composeFsApp({ braidHome }))
 
     const response = await app.request('/health')
@@ -35,7 +35,7 @@ describe('composeFsApp', () => {
   })
 
   it('persists workspace registration across compose calls (same BRAID_HOME)', async () => {
-    const braidHome = await makeTelosHome()
+    const braidHome = await makeBraidHome()
     const wsDir = await seedWorkspaceDir('persist-demo')
 
     const firstApp = createApp(composeFsApp({ braidHome }))
@@ -55,7 +55,7 @@ describe('composeFsApp', () => {
   })
 
   it('exposes skill route once skill runner is wired', async () => {
-    const braidHome = await makeTelosHome()
+    const braidHome = await makeBraidHome()
     const wsDir = await seedWorkspaceDir('skills-demo')
 
     const app = createApp(composeFsApp({ braidHome }))
@@ -77,7 +77,7 @@ describe('composeFsApp', () => {
     // SourceLoaderRunner.ingestAll throw. Verify the route catches it,
     // removes the just-written PRODUCT.md, and leaves the registry empty
     // so a retry doesn't trip on "PRODUCT.md already exists".
-    const braidHome = await makeTelosHome()
+    const braidHome = await makeBraidHome()
     const wsDir = await mkdtemp(join(tmpdir(), 'braid-scaffold-rollback-'))
     const app = createApp(composeFsApp({ braidHome }))
 
