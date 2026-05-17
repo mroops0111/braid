@@ -1,12 +1,12 @@
-import type { AbsolutePath, ProposalId, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, ProposalId, SkillId, WorkspaceId } from '@braidhq/schema'
 import { mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { NotFoundError, Proposal } from '@braidhq/core'
+import { T0 as isoTimestamp } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
-import { FsProposalRepository } from '../../../src/infrastructure/fs/FsProposalRepository.js'
 
-const isoTimestamp = '2026-05-12T12:00:00+08:00'
+import { FsProposalRepository } from '../../../src/infrastructure/fs/FsProposalRepository.js'
 
 async function makeWorkspaceRoot(): Promise<AbsolutePath> {
   return await mkdtemp(join(tmpdir(), 'braid-fs-prop-')) as AbsolutePath
@@ -18,8 +18,8 @@ function makeProposal(id: string, workspaceId: WorkspaceId, status: 'pending' | 
     workspaceId,
     status,
     operations: [],
-    generatedBy: 'extract' as never,
-    generatedAt: isoTimestamp as never,
+    generatedBy: 'extract' as SkillId,
+    generatedAt: isoTimestamp,
     rationale: 'r',
   })
 }

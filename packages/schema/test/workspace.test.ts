@@ -4,7 +4,7 @@ import { ProductManifest, Workspace } from '../src/index.js'
 const baseStorage = { kind: 'neo4j', config: { uri: 'bolt://localhost:7687', user: 'neo4j' } }
 const baseAgents = { default: 'claude-default' }
 
-describe('productManifest', () => {
+describe('ProductManifest', () => {
   it('parses minimal manifest with defaults', () => {
     const manifest = ProductManifest.parse({
       name: 'demo',
@@ -71,7 +71,7 @@ describe('productManifest', () => {
   })
 })
 
-describe('workspace', () => {
+describe('Workspace', () => {
   it('parses a complete workspace', () => {
     const workspace = Workspace.parse({
       id: 'w-1',

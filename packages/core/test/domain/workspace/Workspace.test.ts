@@ -1,5 +1,6 @@
 import type {
   AbsolutePath,
+  AgentId,
   McpServerConfig,
   McpServerId,
   SourceDescriptor,
@@ -60,7 +61,7 @@ function buildWorkspace(overrides: { mcpServers?: readonly McpServerConfig[] } =
 describe('Workspace.resolveAgentForTask', () => {
   it('returns the task-specific binding when one is configured', () => {
     const workspace = makeWorkspace({
-      agents: { default: 'claude-default' as never, tasks: { ask: 'claude-fast' as never } },
+      agents: { default: 'claude-default' as AgentId, tasks: { ask: 'claude-fast' as AgentId } },
     })
     expect(workspace.resolveAgentForTask('ask')).toBe('claude-fast')
   })

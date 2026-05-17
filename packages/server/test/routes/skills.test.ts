@@ -47,9 +47,9 @@ describe('skill routes', () => {
     const response = await app.request(`/workspaces/${workspace.id}/skills`)
 
     expect(response.status).toBe(200)
-    const body = await response.json()
+    const body = await response.json() as { items: Array<{ id: string }> }
     expect(body.items).toHaveLength(1)
-    expect(body.items[0].id).toBe('ask')
+    expect(body.items[0]?.id).toBe('ask')
   })
 
   it('POST /workspaces/:ws/skills/:id/run accepts the request and returns a fresh run id', async () => {

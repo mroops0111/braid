@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PluginType } from '../src/index.js'
 
-describe('pluginType', () => {
+describe('PluginType', () => {
   it('lists the registered plugin types (5 axes: agent / ontology / source-loader / storage / view-generator)', () => {
     expect(PluginType.options).toEqual([
       'agent',

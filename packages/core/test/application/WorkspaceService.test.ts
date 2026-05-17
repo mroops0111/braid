@@ -1,4 +1,4 @@
-import type { AbsolutePath, AgentId, ProductManifest, StorageKind, Workspace as WorkspaceData, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, AgentId, OntologyId, ProductManifest, StorageKind, Workspace as WorkspaceData, WorkspaceId } from '@braidhq/schema'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { InMemoryWorkspaceRepository, NotFoundError, Workspace, WorkspaceService } from '../../src/index.js'
 
@@ -7,7 +7,7 @@ const rootPath = '/abs/path' as AbsolutePath
 const productManifest: ProductManifest = {
   name: 'demo',
   version: '0.0.0',
-  ontologyId: 'ddd' as never,
+  ontologyId: 'ddd' as OntologyId,
   agents: { default: 'claudeCode' as AgentId, tasks: {} },
   agentBindings: [],
   sources: [],

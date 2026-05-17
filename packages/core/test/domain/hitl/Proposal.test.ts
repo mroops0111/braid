@@ -2,36 +2,40 @@ import type {
   GraphOperation,
   NewGraphNode,
   NodeId,
+  NodeStatus,
+  NodeTypeId,
   Proposal as ProposalData,
   ProposalId,
   SkillId,
-  Timestamp,
   UserId,
   WorkspaceId,
 } from '@braidhq/schema'
+import { T0 } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { ConflictError, Proposal } from '../../../src/index.js'
 
-const isoTimestamp = '2026-05-09T12:00:00+08:00' as Timestamp
 const userId = 'u-1' as UserId
 
-function operations(overrides: GraphOperation[] = []): GraphOperation[] {
-  return overrides.length > 0
-    ? overrides
-    : [{
-        operation: 'addNode',
-        payload: { type: 'command', name: 'voidTask', id: 'n-1' as NodeId } as NewGraphNode,
-      }]
+function defaultOperations(): GraphOperation[] {
+  return [{
+    operation: 'addNode',
+    payload: {
+      type: 'command' as NodeTypeId,
+      name: 'voidTask',
+      id: 'n-1' as NodeId,
+      status: 'draft' as NodeStatus,
+    } satisfies NewGraphNode,
+  }]
 }
 
-function data(overrides: Partial<ProposalData> = {}): ProposalData {
+function proposalData(overrides: Partial<ProposalData> = {}): ProposalData {
   return {
     id: 'p-1' as ProposalId,
     workspaceId: 'w-1' as WorkspaceId,
     status: 'pending',
-    operations: operations(),
+    operations: defaultOperations(),
     generatedBy: 'extract' as SkillId,
-    generatedAt: isoTimestamp,
+    generatedAt: T0,
     rationale: 'add voidTask',
     ...overrides,
   }
@@ -40,26 +44,26 @@ function data(overrides: Partial<ProposalData> = {}): ProposalData {
 describe('Proposal', () => {
   describe('markApplied', () => {
     it('returns a new Proposal in applied status with reviewer + timestamp', () => {
-      const applied = new Proposal(data()).markApplied(userId, isoTimestamp)
+      const applied = new Proposal(proposalData()).markApplied(userId, T0)
       expect(applied.status).toBe('applied')
       expect(applied.reviewedBy).toBe(userId)
     })
 
     it('throws ConflictError when proposal is not pending', () => {
-      const proposal = new Proposal(data({ status: 'applied' }))
-      expect(() => proposal.markApplied(userId, isoTimestamp)).toThrow(ConflictError)
+      const proposal = new Proposal(proposalData({ status: 'applied' }))
+      expect(() => proposal.markApplied(userId, T0)).toThrow(ConflictError)
     })
   })
 
   describe('markRejected', () => {
     it('returns a new Proposal in rejected status', () => {
-      const rejected = new Proposal(data()).markRejected(userId, isoTimestamp)
+      const rejected = new Proposal(proposalData()).markRejected(userId, T0)
       expect(rejected.status).toBe('rejected')
     })
 
     it('throws ConflictError when proposal is not pending', () => {
-      const proposal = new Proposal(data({ status: 'rejected' }))
-      expect(() => proposal.markRejected(userId, isoTimestamp)).toThrow(ConflictError)
+      const proposal = new Proposal(proposalData({ status: 'rejected' }))
+      expect(() => proposal.markRejected(userId, T0)).toThrow(ConflictError)
     })
   })
 })

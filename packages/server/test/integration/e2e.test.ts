@@ -6,36 +6,62 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app.js'
 import { composeFsApp } from '../../src/composeFs.js'
+import { readJson } from '../helpers/readJson.js'
 
 /**
  * End-to-end integration test for the post-refactor architecture.
  *
  * Exercises the full data flow through the running server:
  *
- *   1. **Workspace scaffold** — POST /workspaces/scaffold writes PRODUCT.md,
- *      registers the workspace; the active OntologyPlugin (`ddd`) gets
- *      looked up from PluginRegistry, its bundled validators get bound.
- *   2. **Proposal submission with valid evidence** — POST /workspaces/:ws/proposals
- *      runs through HITLService.assertOperationsValid → ValidationService:
- *        - Framework invariants (EvidenceValidator, OrphanEdgeValidator) inline
- *        - Active ontology's validators (OntologyTypeValidator, StructuralValidator
- *          auto-bound by defineOntology) via OntologyPlugin.validators[]
- *      → returns 201 + saved proposal.
- *   3. **Framework invariant rejection** — node without sourceReferences nor
- *      "missing" flag fails EvidenceValidator → 400.
- *   4. **Ontology rule rejection** — unknown node type fails the ontology's
- *      OntologyTypeValidator → 400.
- *   5. **Apply proposal** — POST /proposals/:id/apply → Kuzu writes via
- *      `pluginRegistry.requireStoragePlugin(kind).createModelRepository()`,
+ *   1. Workspace scaffold — writes PRODUCT.md, registers workspace,
+ *      binds the active OntologyPlugin's validators.
+ *   2. Proposal submission — HITLService.assertOperationsValid runs
+ *      framework invariants (Evidence/OrphanEdge) inline + active
+ *      OntologyPlugin's validators (OntologyType + Structural,
+ *      auto-bound by `defineOntology`).
+ *   3. Apply proposal — StoragePlugin → ModelRepository write,
  *      Decision recorded, status transitions to `applied`.
- *   6. **Verify read paths** — GET /nodes returns the applied node;
- *      GET /ontology returns the active ontology's schema; GET /decisions
- *      shows the apply record.
  *
- * Does NOT spawn the `claude` subprocess; agent path is tested separately
- * with mockSpawn. This test pins the registry-routed wiring + the
- * validator orchestration.
+ * Does NOT spawn the `claude` subprocess; agent path is tested
+ * separately with mockSpawn. This test pins the registry-routed
+ * wiring + the validator orchestration.
  */
+
+/** Minimal valid node payload satisfying EvidenceValidator. */
+function validNode(opts: { type: string, name: string, id: string }): unknown {
+  return {
+    type: opts.type,
+    name: opts.name,
+    id: opts.id,
+    // implementationMissing satisfies EvidenceValidator: the node is intent
+    // for code that hasn't shipped yet, so no sourceReferences are required.
+    metadata: { sourceReferences: [], implementationMissing: true },
+  }
+}
+
+/** Build a proposal POST body for /workspaces/:ws/proposals. */
+function proposalBody(opts: {
+  operations: unknown[]
+  rationale: string
+  generatedBy?: string
+}): string {
+  return JSON.stringify({
+    operations: opts.operations,
+    generatedBy: opts.generatedBy ?? 'extract',
+    rationale: opts.rationale,
+  })
+}
+
+interface ProposalRef { id: string }
+interface ProblemBody { code: string, issues?: Array<{ code: string }> }
+interface DecisionBody { action: string, references: { proposalId: string } }
+interface NodesBody { items: Array<{ id: string, name: string, type: string }> }
+interface OntologyBody {
+  ontologyId: string
+  nodeTypes: Array<{ id: string }>
+  edgeTypes: Array<{ id: string }>
+}
+
 describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor)', () => {
   let braidHome: string
   let workspaceRoot: string
@@ -58,73 +84,49 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
   })
 
   async function scaffold(name: string): Promise<string> {
-    // intent/ has to exist so the filesystem source path resolves;
-    // no source loader is used so we drop the marker file manually.
     await writeFile(join(workspaceRoot, 'NOTES.md'), '# notes\n')
     const response = await app.request('/workspaces/scaffold', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         rootPath: workspaceRoot,
-        manifest: {
-          name,
-          sources: [],
-        },
+        manifest: { name, sources: [] },
       }),
     })
     expect(response.status).toBe(201)
-    const body = await response.json() as { workspace: { id: string } }
+    const body = await readJson<{ workspace: { id: string } }>(response)
     return body.workspace.id
+  }
+
+  async function submitProposal(wsId: string, body: string): Promise<Response> {
+    return app.request(`/workspaces/${wsId}/proposals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    })
   }
 
   it('routes a valid proposal through both framework and ontology validators', async () => {
     const wsId = await scaffold('e2e-valid')
 
-    // Submit a boundedContext + an aggregate inside it.
-    // EvidenceValidator: `implementationMissing` satisfies the evidence rule.
-    // OntologyTypeValidator (from ddd ontology.validators[]): both types are valid.
-    // StructuralValidator (from ddd ontology.validators[]): contains edge is
-    //   `boundedContext → aggregate`, which matches DDDOntology.edgeTypes[0].fromTypes/toTypes.
-    const response = await app.request(`/workspaces/${wsId}/proposals`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        operations: [
-          {
-            operation: 'addNode',
-            payload: {
-              type: 'boundedContext',
-              name: 'Billing',
-              id: 'ctx-billing',
-              metadata: { sourceReferences: [], implementationMissing: true },
-            },
-          },
-          {
-            operation: 'addNode',
-            payload: {
-              type: 'aggregate',
-              name: 'Invoice',
-              id: 'agg-invoice',
-              metadata: { sourceReferences: [], implementationMissing: true },
-            },
-          },
-          {
-            operation: 'addEdge',
-            payload: {
-              type: 'contains',
-              fromNodeId: 'ctx-billing',
-              toNodeId: 'agg-invoice',
-              id: 'e-1',
-            },
-          },
-        ],
-        generatedBy: 'extract',
-        rationale: 'e2e: valid graph',
-      }),
-    })
+    // boundedContext → aggregate via `contains`. Three validators must pass:
+    //   - EvidenceValidator (framework): implementationMissing satisfies it
+    //   - OntologyTypeValidator (ontology): both types declared in ddd
+    //   - StructuralValidator (ontology): contains direction matches descriptor
+    const response = await submitProposal(wsId, proposalBody({
+      operations: [
+        { operation: 'addNode', payload: validNode({ type: 'boundedContext', name: 'Billing', id: 'ctx-billing' }) },
+        { operation: 'addNode', payload: validNode({ type: 'aggregate', name: 'Invoice', id: 'agg-invoice' }) },
+        {
+          operation: 'addEdge',
+          payload: { type: 'contains', fromNodeId: 'ctx-billing', toNodeId: 'agg-invoice', id: 'e-1' },
+        },
+      ],
+      rationale: 'e2e: valid graph',
+    }))
 
     expect(response.status).toBe(201)
-    const proposal = await response.json() as { id: string, status: string }
+    const proposal = await readJson<ProposalRef & { status: string }>(response)
     expect(proposal.status).toBe('pending')
     expect(proposal.id.length).toBeGreaterThan(0)
   })
@@ -132,155 +134,92 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
   it('rejects a proposal that violates the framework EvidenceValidator (no sourceReferences, no missing flag)', async () => {
     const wsId = await scaffold('e2e-no-evidence')
 
-    const response = await app.request(`/workspaces/${wsId}/proposals`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        operations: [
-          {
-            operation: 'addNode',
-            payload: { type: 'command', name: 'placeOrder', id: 'cmd-1' },
-          },
-        ],
-        generatedBy: 'extract',
-        rationale: 'e2e: missing evidence',
-      }),
-    })
+    const response = await submitProposal(wsId, proposalBody({
+      operations: [{
+        operation: 'addNode',
+        // No metadata at all → EvidenceValidator fires.
+        payload: { type: 'command', name: 'placeOrder', id: 'cmd-1' },
+      }],
+      rationale: 'e2e: missing evidence',
+    }))
 
     expect(response.status).toBe(400)
-    const problem = await response.json() as { code: string, issues?: Array<{ code: string }> }
+    const problem = await readJson<ProblemBody>(response)
     expect(problem.issues?.some(issue => issue.code === 'evidence.no-source-or-flag')).toBe(true)
   })
 
   it('rejects a proposal whose node type is not in the active ontology', async () => {
     const wsId = await scaffold('e2e-bad-type')
 
-    const response = await app.request(`/workspaces/${wsId}/proposals`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        operations: [
-          {
-            operation: 'addNode',
-            payload: {
-              type: 'screen',
-              name: 'CheckoutPage',
-              id: 'ui-1',
-              metadata: { sourceReferences: [], implementationMissing: true },
-            },
-          },
-        ],
-        generatedBy: 'extract',
-        rationale: 'e2e: screen is not in ddd ontology',
-      }),
-    })
+    const response = await submitProposal(wsId, proposalBody({
+      operations: [
+        { operation: 'addNode', payload: validNode({ type: 'screen', name: 'CheckoutPage', id: 'ui-1' }) },
+      ],
+      rationale: 'e2e: screen is not in ddd ontology',
+    }))
 
     expect(response.status).toBe(400)
-    const problem = await response.json() as { issues?: Array<{ code: string }> }
+    const problem = await readJson<ProblemBody>(response)
     expect(problem.issues?.some(issue => issue.code === 'ontology.unknown-node-type')).toBe(true)
   })
 
   it('rejects a proposal that violates the ontology StructuralValidator (edge endpoints reversed)', async () => {
     const wsId = await scaffold('e2e-structural')
 
-    // contains: boundedContext → aggregate. Here we point the edge the
-    // wrong way (aggregate as source). StructuralValidator should flag it.
-    const response = await app.request(`/workspaces/${wsId}/proposals`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        operations: [
-          {
-            operation: 'addNode',
-            payload: {
-              type: 'boundedContext',
-              name: 'X',
-              id: 'ctx-x',
-              metadata: { sourceReferences: [], implementationMissing: true },
-            },
-          },
-          {
-            operation: 'addNode',
-            payload: {
-              type: 'aggregate',
-              name: 'Y',
-              id: 'agg-y',
-              metadata: { sourceReferences: [], implementationMissing: true },
-            },
-          },
-          {
-            operation: 'addEdge',
-            payload: {
-              type: 'contains',
-              fromNodeId: 'agg-y',
-              toNodeId: 'ctx-x',
-              id: 'e-bad',
-            },
-          },
-        ],
-        generatedBy: 'extract',
-        rationale: 'e2e: reversed contains direction',
-      }),
-    })
+    // Contains is boundedContext → aggregate. Reversing endpoints trips StructuralValidator.
+    const response = await submitProposal(wsId, proposalBody({
+      operations: [
+        { operation: 'addNode', payload: validNode({ type: 'boundedContext', name: 'X', id: 'ctx-x' }) },
+        { operation: 'addNode', payload: validNode({ type: 'aggregate', name: 'Y', id: 'agg-y' }) },
+        {
+          operation: 'addEdge',
+          payload: { type: 'contains', fromNodeId: 'agg-y', toNodeId: 'ctx-x', id: 'e-bad' },
+        },
+      ],
+      rationale: 'e2e: reversed contains direction',
+    }))
 
     expect(response.status).toBe(400)
-    const problem = await response.json() as { issues?: Array<{ code: string }> }
+    const problem = await readJson<ProblemBody>(response)
     expect(problem.issues?.some(issue => issue.code.startsWith('structural.'))).toBe(true)
   })
 
   it('apply path: writes nodes through StoragePlugin and surfaces them via REST', async () => {
     const wsId = await scaffold('e2e-apply')
 
-    // Create
-    const createResponse = await app.request(`/workspaces/${wsId}/proposals`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        operations: [
-          {
-            operation: 'addNode',
-            payload: {
-              type: 'command',
-              name: 'placeOrder',
-              id: 'cmd-place',
-              metadata: { sourceReferences: [], implementationMissing: true },
-            },
-          },
-        ],
-        generatedBy: 'extract',
-        rationale: 'e2e: apply path',
-      }),
-    })
+    const createResponse = await submitProposal(wsId, proposalBody({
+      operations: [
+        { operation: 'addNode', payload: validNode({ type: 'command', name: 'placeOrder', id: 'cmd-place' }) },
+      ],
+      rationale: 'e2e: apply path',
+    }))
     expect(createResponse.status).toBe(201)
-    const proposal = await createResponse.json() as { id: string }
+    const proposal = await readJson<ProposalRef>(createResponse)
 
-    // Apply
     const applyResponse = await app.request(`/workspaces/${wsId}/proposals/${proposal.id}/apply`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: 'tester' }),
     })
     expect(applyResponse.status).toBe(200)
-    const decision = await applyResponse.json() as { action: string, references: { proposalId: string } }
+    const decision = await readJson<DecisionBody>(applyResponse)
     expect(decision.action).toBe('applyProposal')
     expect(decision.references.proposalId).toBe(proposal.id)
 
-    // Read the node back through the StoragePlugin-routed ModelRepository
+    // StoragePlugin-routed ModelRepository should now expose the node.
     const nodesResponse = await app.request(`/workspaces/${wsId}/nodes`)
     expect(nodesResponse.status).toBe(200)
-    const nodesBody = await nodesResponse.json() as { items: Array<{ id: string, name: string, type: string }> }
+    const nodesBody = await readJson<NodesBody>(nodesResponse)
     const placed = nodesBody.items.find(n => n.id === 'cmd-place')
     expect(placed?.name).toBe('placeOrder')
     expect(placed?.type).toBe('command')
 
-    // The decision is in `decisions` list
     const decisionsResponse = await app.request(`/workspaces/${wsId}/decisions`)
-    const decisionsBody = await decisionsResponse.json() as { items: Array<{ action: string }> }
+    const decisionsBody = await readJson<{ items: Array<{ action: string }> }>(decisionsResponse)
     expect(decisionsBody.items.some(d => d.action === 'applyProposal')).toBe(true)
 
-    // Proposal status moved to `applied`
     const proposalRead = await app.request(`/workspaces/${wsId}/proposals/${proposal.id}`)
-    const reread = await proposalRead.json() as { status: string }
+    const reread = await readJson<{ status: string }>(proposalRead)
     expect(reread.status).toBe('applied')
   })
 
@@ -289,41 +228,24 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
 
     const response = await app.request(`/workspaces/${wsId}/ontology`)
     expect(response.status).toBe(200)
-    const body = await response.json() as {
-      ontologyId: string
-      nodeTypes: Array<{ id: string }>
-      edgeTypes: Array<{ id: string }>
-    }
+    const body = await readJson<OntologyBody>(response)
     expect(body.ontologyId).toBe('ddd')
     expect(body.nodeTypes.some(t => t.id === 'boundedContext')).toBe(true)
-    expect(body.nodeTypes.some(t => t.id === 'actor')).toBe(true) // P0 addition
-    expect(body.edgeTypes.some(t => t.id === 'performedBy')).toBe(true) // P0 addition
+    // P0 additions: actor node + performedBy edge.
+    expect(body.nodeTypes.some(t => t.id === 'actor')).toBe(true)
+    expect(body.edgeTypes.some(t => t.id === 'performedBy')).toBe(true)
   })
 
   it('artifacts: proposal persistence lands in workspace `artifacts/proposals/` (filesystem path)', async () => {
     const wsId = await scaffold('e2e-fs')
 
-    await app.request(`/workspaces/${wsId}/proposals`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        operations: [
-          {
-            operation: 'addNode',
-            payload: {
-              type: 'event',
-              name: 'OrderPlaced',
-              id: 'evt-1',
-              metadata: { sourceReferences: [], implementationMissing: true },
-            },
-          },
-        ],
-        generatedBy: 'extract',
-        rationale: 'e2e: fs persistence',
-      }),
-    })
+    await submitProposal(wsId, proposalBody({
+      operations: [
+        { operation: 'addNode', payload: validNode({ type: 'event', name: 'OrderPlaced', id: 'evt-1' }) },
+      ],
+      rationale: 'e2e: fs persistence',
+    }))
 
-    // Expect a JSON file inside artifacts/proposals/pending/
     const pendingDir = join(workspaceRoot, 'artifacts', 'proposals', 'pending')
     const files = await readdir(pendingDir)
     expect(files.length).toBe(1)

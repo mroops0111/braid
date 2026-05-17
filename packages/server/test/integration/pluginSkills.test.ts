@@ -1,13 +1,15 @@
-import type { AbsolutePath, AgentId, PluginId, ProductManifest, SkillId, SkillRunId, SourceId, StorageKind, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, PluginId, SkillId, SkillRunId, SourceId, WorkspaceId } from '@braidhq/schema'
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { type Plugin, PluginRegistry, type SkillRunner, Workspace } from '@braidhq/core'
+import { type Plugin, PluginRegistry, type SkillRunner, type Workspace } from '@braidhq/core'
+import { makeWorkspace as makeBaseWorkspace } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { createApp } from '../../src/app.js'
 import { composeApp } from '../../src/composition.js'
 import { FsSkillRegistry } from '../../src/infrastructure/fs/FsSkillRegistry.js'
+import { readJson } from '../helpers/readJson.js'
 
 /**
  * End-to-end check that a plugin-shipped SKILL.md surfaces through the
@@ -23,6 +25,8 @@ import { FsSkillRegistry } from '../../src/infrastructure/fs/FsSkillRegistry.js'
  *   - Hono /workspaces/:ws/skills route + SkillManifest serialization
  */
 
+const WORKSPACE_ID = 'demo' as WorkspaceId
+
 async function writePluginSkill(parent: string, skillName: string, displayName: string): Promise<string> {
   const dir = join(parent, skillName)
   await mkdir(dir, { recursive: true })
@@ -35,18 +39,11 @@ async function writePluginSkill(parent: string, skillName: string, displayName: 
 }
 
 function makeWorkspace(rootPath: AbsolutePath): Workspace {
-  const manifest: ProductManifest = {
-    name: 'demo',
-    version: '0.0.0',
-    ontologyId: 'tiny' as never,
-    agents: { default: 'claude-default', tasks: {} },
-    agentBindings: [{
-      id: 'claude-default' as AgentId,
-      kind: 'claude-code' as never,
-      model: 'opus',
-      extraArgs: [],
-      env: {},
-    }],
+  // Production derives WorkspaceId from manifest.name, so keep them aligned.
+  return makeBaseWorkspace({
+    id: WORKSPACE_ID,
+    ontologyId: 'tiny',
+    rootPath,
     sources: [{
       kind: 'filesystem',
       id: 'src-a' as SourceId,
@@ -54,13 +51,6 @@ function makeWorkspace(rootPath: AbsolutePath): Workspace {
       name: 'a',
       path: '/abs/code' as AbsolutePath,
     }],
-    mcpServers: [],
-    storage: { kind: 'in-memory' as StorageKind, config: {} },
-  }
-  return new Workspace({
-    id: 'ws-1' as WorkspaceId,
-    rootPath,
-    productManifest: manifest,
   })
 }
 
@@ -75,6 +65,14 @@ function fakeOntologyWithSkill(pluginId: string, skillId: string, directory: str
 
 const noopSkillRunner: SkillRunner = {
   start: async () => 'fake-run-id' as SkillRunId,
+  subscribe: () => ({ unsubscribe: () => {}, positionAtSubscribe: 0 }),
+  isActive: () => false,
+  cancel: async () => {},
+  forgetSession: async () => {},
+}
+
+interface SkillsResponseBody {
+  items: Array<{ id: string, origin: string, frontmatter: { name: string } }>
 }
 
 describe('plugin-shipped skills (integration)', () => {
@@ -98,9 +96,9 @@ describe('plugin-shipped skills (integration)', () => {
     await deps.workspaceRepository.save(makeWorkspace(wsRoot))
     const app = createApp(deps)
 
-    const response = await app.request('/workspaces/ws-1/skills')
+    const response = await app.request(`/workspaces/${WORKSPACE_ID}/skills`)
     expect(response.status).toBe(200)
-    const body = await response.json() as { items: Array<{ id: string, origin: string }> }
+    const body = await readJson<SkillsResponseBody>(response)
     const plugin = body.items.find(item => item.id === 'redoc-design')
     expect(plugin?.origin).toBe('plugin')
   })
@@ -121,8 +119,8 @@ describe('plugin-shipped skills (integration)', () => {
     await deps.workspaceRepository.save(makeWorkspace(wsRoot))
     const app = createApp(deps)
 
-    const response = await app.request('/workspaces/ws-1/skills')
-    const body = await response.json() as { items: Array<{ id: string, origin: string, frontmatter: { name: string } }> }
+    const response = await app.request(`/workspaces/${WORKSPACE_ID}/skills`)
+    const body = await readJson<SkillsResponseBody>(response)
     const skill = body.items.find(item => item.id === 'redoc-design')
     expect(skill?.origin).toBe('workspace')
     expect(skill?.frontmatter.name).toBe('redoc-design-local')

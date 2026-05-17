@@ -1,4 +1,4 @@
-import type { AbsolutePath, SkillEvent, SkillId } from '@braidhq/schema'
+import type { AbsolutePath, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
 import { mkdir, mkdtemp, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -11,6 +11,7 @@ import {
   type WorkspaceEvent,
   type WorkspaceEventBus,
 } from '@braidhq/core'
+import { T0 } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { SubprocessSkillRunner } from '../../../src/infrastructure/agent/SubprocessSkillRunner.js'
 import { FsRunRepository } from '../../../src/infrastructure/fs/FsRunRepository.js'
@@ -95,7 +96,7 @@ async function collectRunEvents(
   workspace: Workspace,
   args: string,
   options?: { resumeSessionId?: string },
-): Promise<{ runId: string, events: SkillEvent[] }> {
+): Promise<{ runId: SkillRunId, events: SkillEvent[] }> {
   const runId = await runner.start(workspace, SKILL_ID, args, options)
   const events: SkillEvent[] = []
   await new Promise<void>((resolve) => {
@@ -122,7 +123,7 @@ describe('SubprocessSkillRunner', () => {
         ],
         exitCode: 0,
       }],
-      clock: () => '2026-05-12T00:00:00+00:00',
+      clock: () => T0,
     })
 
     const { events } = await collectRunEvents(runner, workspace, '')
@@ -192,7 +193,7 @@ describe('SubprocessSkillRunner', () => {
         ],
         exitCode: 0,
       }],
-      clock: () => '2026-05-12T00:00:00+00:00',
+      clock: () => T0,
     })
 
     const { events } = await collectRunEvents(runner, workspace, '')
@@ -297,7 +298,7 @@ describe('SubprocessSkillRunner', () => {
         ],
         exitCode: 0,
       }],
-      clock: () => '2026-05-12T00:00:00+00:00',
+      clock: () => T0,
     })
 
     const { events } = await collectRunEvents(runner, workspace, '')

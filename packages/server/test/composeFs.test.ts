@@ -4,6 +4,15 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createApp } from '../src/app.js'
 import { composeFsApp } from '../src/composeFs.js'
+import { readJson } from './helpers/readJson.js'
+
+interface WorkspaceListBody {
+  items: Array<{ id: string, productManifest: { name: string } }>
+}
+
+interface SkillsListBody {
+  items: Array<{ id: string }>
+}
 
 async function makeBraidHome(): Promise<string> {
   return mkdtemp(join(tmpdir(), 'braid-home-'))
@@ -49,9 +58,9 @@ describe('composeFsApp', () => {
     // Fresh compose with same BRAID_HOME — workspace should still be visible
     const secondApp = createApp(await composeFsApp({ braidHome }))
     const listResponse = await secondApp.request('/workspaces')
-    const body = await listResponse.json()
+    const body = await readJson<WorkspaceListBody>(listResponse)
     expect(body.items).toHaveLength(1)
-    expect(body.items[0].productManifest.name).toBe('persist-demo')
+    expect(body.items[0]?.productManifest.name).toBe('persist-demo')
   })
 
   it('exposes skill route once skill runner is wired', async () => {
@@ -67,8 +76,8 @@ describe('composeFsApp', () => {
 
     const response = await app.request('/workspaces/skills-demo/skills')
     expect(response.status).toBe(200)
-    const body = await response.json()
-    const ids = (body.items as Array<{ id: string }>).map(item => item.id).sort()
+    const body = await readJson<SkillsListBody>(response)
+    const ids = body.items.map(item => item.id).sort()
     expect(ids).toEqual(['braid-ask', 'braid-clarify', 'braid-extract', 'braid-generate-doc'])
   })
 
@@ -105,7 +114,7 @@ describe('composeFsApp', () => {
     await expect(stat(join(wsDir, 'PRODUCT.md'))).rejects.toThrow(/ENOENT/)
 
     const listResponse = await app.request('/workspaces')
-    const list = await listResponse.json() as { items: unknown[] }
+    const list = await readJson<{ items: unknown[] }>(listResponse)
     expect(list.items).toEqual([])
   })
 })

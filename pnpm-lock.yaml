@@ -67,6 +67,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -107,6 +110,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.14
@@ -138,6 +144,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -170,6 +179,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -189,6 +201,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -238,6 +253,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       tsx:
         specifier: ^4.19.0
         version: 4.21.0
@@ -260,6 +278,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -282,6 +303,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -304,6 +328,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -377,6 +404,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       '@tailwindcss/vite':
         specifier: ^4.0.0
         version: 4.3.0(vite@6.4.2(@types/node@22.19.18)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.9.0))
@@ -401,6 +431,25 @@ importers:
       vite:
         specifier: ^6.0.0
         version: 6.4.2(@types/node@22.19.18)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.9.0)
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@22.19.18)(lightningcss@1.32.0)
+
+  packages/test-utils:
+    dependencies:
+      '@braidhq/core':
+        specifier: workspace:*
+        version: link:../core
+      '@braidhq/schema':
+        specifier: workspace:*
+        version: link:../schema
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
       vitest:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.19.18)(lightningcss@1.32.0)

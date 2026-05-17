@@ -1,13 +1,29 @@
-import type { GraphOperation, NewGraphNode, NodeId } from '@braidhq/schema'
+import type { EdgeId, EdgeTypeId, GraphOperation, NewGraphEdge, NewGraphNode, NodeId, NodeStatus, NodeTypeId } from '@braidhq/schema'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { ConflictError, Model, NotFoundError } from '../../../src/index.js'
 
+const COMMAND = 'command' as NodeTypeId
+const CONTAINS = 'contains' as EdgeTypeId
+const EMITS = 'emits' as EdgeTypeId
+const TRIGGERS = 'triggers' as EdgeTypeId
+const DRAFT = 'draft' as NodeStatus
+
 function newNode(overrides: Partial<NewGraphNode> = {}): NewGraphNode {
   return {
-    type: 'command',
+    type: COMMAND,
     name: 'voidTask',
+    status: DRAFT,
     ...overrides,
-  } as NewGraphNode
+  }
+}
+
+function newEdge(from: NodeId, to: NodeId, overrides: Partial<NewGraphEdge> = {}): NewGraphEdge {
+  return {
+    type: CONTAINS,
+    fromNodeId: from,
+    toNodeId: to,
+    ...overrides,
+  }
 }
 
 describe('Model', () => {
@@ -28,9 +44,9 @@ describe('Model', () => {
       const seeded = new Model({
         nodes: [{
           id: 'n-1' as NodeId,
-          type: 'command',
+          type: COMMAND,
           name: 'voidTask',
-          status: 'draft',
+          status: DRAFT,
           metadata: { sourceReferences: [] },
         }],
         edges: [],
@@ -83,7 +99,7 @@ describe('Model', () => {
     it('cascades to connected edges', () => {
       const a = model.addNode(newNode({ id: 'a' as NodeId }))
       const b = model.addNode(newNode({ id: 'b' as NodeId }))
-      model.addEdge({ type: 'contains', fromNodeId: a, toNodeId: b })
+      model.addEdge(newEdge(a, b))
       model.removeNode(a)
       expect(model.toSnapshot().edges).toEqual([])
     })
@@ -124,22 +140,18 @@ describe('Model', () => {
     it('adds an edge between existing nodes', () => {
       const a = model.addNode(newNode({ id: 'a' as NodeId }))
       const b = model.addNode(newNode({ id: 'b' as NodeId }))
-      model.addEdge({ type: 'contains', fromNodeId: a, toNodeId: b })
+      model.addEdge(newEdge(a, b))
       expect(model.toSnapshot().edges).toHaveLength(1)
     })
 
     it('rejects edge to missing source node', () => {
       const a = model.addNode(newNode({ id: 'a' as NodeId }))
-      expect(() =>
-        model.addEdge({ type: 'contains', fromNodeId: 'missing' as NodeId, toNodeId: a }),
-      ).toThrow(NotFoundError)
+      expect(() => model.addEdge(newEdge('missing' as NodeId, a))).toThrow(NotFoundError)
     })
 
     it('rejects edge to missing target node', () => {
       const a = model.addNode(newNode({ id: 'a' as NodeId }))
-      expect(() =>
-        model.addEdge({ type: 'contains', fromNodeId: a, toNodeId: 'missing' as NodeId }),
-      ).toThrow(NotFoundError)
+      expect(() => model.addEdge(newEdge(a, 'missing' as NodeId))).toThrow(NotFoundError)
     })
   })
 
@@ -148,7 +160,7 @@ describe('Model', () => {
       const ops: GraphOperation[] = [
         { operation: 'addNode', payload: newNode({ id: 'a' as NodeId }) },
         { operation: 'addNode', payload: newNode({ id: 'b' as NodeId }) },
-        { operation: 'addEdge', payload: { type: 'contains', fromNodeId: 'a' as NodeId, toNodeId: 'b' as NodeId } },
+        { operation: 'addEdge', payload: newEdge('a' as NodeId, 'b' as NodeId) },
       ]
       model.applyOperations(ops)
       const snapshot = model.toSnapshot()
@@ -182,21 +194,21 @@ describe('Model', () => {
     it('updateEdge applies patch', () => {
       const a = model.addNode(newNode({ id: 'a' as NodeId }))
       const b = model.addNode(newNode({ id: 'b' as NodeId }))
-      const edgeId = model.addEdge({ type: 'contains', fromNodeId: a, toNodeId: b })
-      model.applyOperations([{ operation: 'updateEdge', edgeId, patch: { type: 'triggers' } }])
+      const edgeId = model.addEdge(newEdge(a, b))
+      model.applyOperations([{ operation: 'updateEdge', edgeId, patch: { type: TRIGGERS } }])
       expect(model.toSnapshot().edges[0]?.type).toBe('triggers')
     })
 
     it('updateEdge throws NotFoundError if edge missing', () => {
       expect(() => model.applyOperations([
-        { operation: 'updateEdge', edgeId: 'missing' as never, patch: { type: 'contains' } },
+        { operation: 'updateEdge', edgeId: 'missing' as EdgeId, patch: { type: CONTAINS } },
       ])).toThrow()
     })
 
     it('removeEdge removes a single edge', () => {
       const a = model.addNode(newNode({ id: 'a' as NodeId }))
       const b = model.addNode(newNode({ id: 'b' as NodeId }))
-      const edgeId = model.addEdge({ type: 'contains', fromNodeId: a, toNodeId: b })
+      const edgeId = model.addEdge(newEdge(a, b))
       model.applyOperations([{ operation: 'removeEdge', edgeId }])
       expect(model.toSnapshot().edges).toEqual([])
     })
@@ -220,13 +232,13 @@ describe('Model', () => {
       const a = model.addNode(newNode({ id: 'a' as NodeId }))
       const b = model.addNode(newNode({ id: 'b' as NodeId }))
       const c = model.addNode(newNode({ id: 'c' as NodeId }))
-      const e1 = model.addEdge({ type: 'contains', fromNodeId: a, toNodeId: b })
-      const e2 = model.addEdge({ type: 'contains', fromNodeId: a, toNodeId: c })
+      const e1 = model.addEdge(newEdge(a, b))
+      const e2 = model.addEdge(newEdge(a, c))
       model.applyOperations([{
         operation: 'updateEdges',
         updates: [
-          { edgeId: e1, patch: { type: 'triggers' } },
-          { edgeId: e2, patch: { type: 'emits' } },
+          { edgeId: e1, patch: { type: TRIGGERS } },
+          { edgeId: e2, patch: { type: EMITS } },
         ],
       }])
       const snapshot = model.toSnapshot()
@@ -241,12 +253,12 @@ describe('Model', () => {
       model.applyOperations([{
         operation: 'addEdges',
         payloads: [
-          { type: 'contains', fromNodeId: a, toNodeId: b, id: 'e1' as never },
-          { type: 'contains', fromNodeId: a, toNodeId: c, id: 'e2' as never },
+          { ...newEdge(a, b), id: 'e1' as EdgeId },
+          { ...newEdge(a, c), id: 'e2' as EdgeId },
         ],
       }])
       expect(model.toSnapshot().edges).toHaveLength(2)
-      model.applyOperations([{ operation: 'removeEdges', edgeIds: ['e1' as never, 'e2' as never] }])
+      model.applyOperations([{ operation: 'removeEdges', edgeIds: ['e1' as EdgeId, 'e2' as EdgeId] }])
       expect(model.toSnapshot().edges).toEqual([])
     })
   })
@@ -262,8 +274,8 @@ describe('Model', () => {
       const a = model.addNode(newNode({ id: 'a' as NodeId }))
       const b = model.addNode(newNode({ id: 'b' as NodeId }))
       const c = model.addNode(newNode({ id: 'c' as NodeId }))
-      model.addEdge({ type: 'contains', fromNodeId: a, toNodeId: b })
-      model.addEdge({ type: 'emits', fromNodeId: a, toNodeId: c })
+      model.addEdge(newEdge(a, b))
+      model.addEdge(newEdge(a, c, { type: EMITS }))
       expect(model.findEdgesFromNode(a)).toHaveLength(2)
     })
   })
@@ -272,7 +284,7 @@ describe('Model', () => {
     it('returns a new snapshot without mutating the input', () => {
       const original = { nodes: [], edges: [] }
       const ops: GraphOperation[] = [
-        { operation: 'addNode', payload: { type: 'command', name: 'x', id: 'n-1' as NodeId } as never },
+        { operation: 'addNode', payload: newNode({ id: 'n-1' as NodeId }) },
       ]
       const next = Model.preview(original, ops)
       expect(next.nodes).toHaveLength(1)

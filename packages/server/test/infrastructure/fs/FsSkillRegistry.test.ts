@@ -1,26 +1,19 @@
-import type { AbsolutePath, AgentId, PluginId, ProductManifest, SkillId, SourceId, StorageKind, WorkspaceId } from '@braidhq/schema'
+import type { Plugin, Workspace } from '@braidhq/core'
+import type { AbsolutePath, PluginId, SkillId, SourceId } from '@braidhq/schema'
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { NotFoundError, type Plugin, PluginRegistry, Workspace } from '@braidhq/core'
+import { NotFoundError, PluginRegistry } from '@braidhq/core'
+import { makeWorkspace as makeBaseWorkspace } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { FsSkillRegistry } from '../../../src/infrastructure/fs/FsSkillRegistry.js'
 
 async function makeWorkspace(): Promise<{ workspace: Workspace, root: AbsolutePath }> {
   const rootPath = (await mkdtemp(join(tmpdir(), 'braid-skill-ws-'))) as AbsolutePath
-  const manifest: ProductManifest = {
-    name: 'demo',
-    version: '0.0.0',
-    ontologyId: 'ddd' as never,
-    agents: { default: 'claude-default', tasks: {} },
-    agentBindings: [{
-      id: 'claude-default' as AgentId,
-      kind: 'claude-code' as never,
-      model: 'opus',
-      extraArgs: [],
-      env: {},
-    }],
+  const workspace = makeBaseWorkspace({
+    id: 'ws-1',
+    rootPath,
     sources: [{
       kind: 'filesystem',
       id: 'src-a' as SourceId,
@@ -28,19 +21,8 @@ async function makeWorkspace(): Promise<{ workspace: Workspace, root: AbsolutePa
       name: 'a',
       path: '/abs/code' as AbsolutePath,
     }],
-    mcpServers: [],
-    storage: { kind: 'in-memory' as StorageKind, config: {} },
-    channels: [],
-  }
-  return {
-    root: rootPath,
-    workspace: new Workspace({
-      id: 'ws-1' as WorkspaceId,
-      rootPath,
-      productManifest: manifest,
-      pluginConfig: { plugins: [] },
-    }),
-  }
+  })
+  return { workspace, root: rootPath }
 }
 
 async function writeSkillFile(dir: string, skillId: string, name: string): Promise<void> {
@@ -75,7 +57,7 @@ describe('FsSkillRegistry', () => {
     await writeSkillFile(join(root, 'skills'), 'ask', 'braid-ask-custom')
 
     const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
-    const manifest = await registry.get(workspace, 'ask' as never)
+    const manifest = await registry.get(workspace, 'ask' as SkillId)
     expect(manifest.origin).toBe('workspace')
     expect(manifest.frontmatter.name).toBe('braid-ask-custom')
   })
@@ -90,7 +72,7 @@ describe('FsSkillRegistry', () => {
     await writeFile(join(extensionDir, 'EXTEND.md'), '# extra context', 'utf-8')
 
     const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
-    const manifest = await registry.get(workspace, 'extract' as never)
+    const manifest = await registry.get(workspace, 'extract' as SkillId)
     expect(manifest.origin).toBe('builtin')
     expect(manifest.isExtended()).toBe(true)
     expect(manifest.extensionPath).toBeTruthy()
@@ -100,7 +82,7 @@ describe('FsSkillRegistry', () => {
     const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
     const { workspace } = await makeWorkspace()
     const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
-    await expect(registry.get(workspace, 'missing' as never)).rejects.toThrow(NotFoundError)
+    await expect(registry.get(workspace, 'missing' as SkillId)).rejects.toThrow(NotFoundError)
   })
 
   describe('plugin-shipped skills', () => {
@@ -127,7 +109,7 @@ describe('FsSkillRegistry', () => {
 
       const { workspace } = await makeWorkspace()
       const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot, pluginRegistry })
-      const manifest = await registry.get(workspace, 'redoc-design' as never)
+      const manifest = await registry.get(workspace, 'redoc-design' as SkillId)
       expect(manifest.origin).toBe('plugin')
       expect(manifest.frontmatter.name).toBe('redoc-design')
     })
@@ -148,7 +130,7 @@ describe('FsSkillRegistry', () => {
       await writeSkillFile(join(root, 'skills'), 'redoc-design', 'redoc-design-local')
 
       const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot, pluginRegistry })
-      const manifest = await registry.get(workspace, 'redoc-design' as never)
+      const manifest = await registry.get(workspace, 'redoc-design' as SkillId)
       expect(manifest.origin).toBe('workspace')
       expect(manifest.frontmatter.name).toBe('redoc-design-local')
     })

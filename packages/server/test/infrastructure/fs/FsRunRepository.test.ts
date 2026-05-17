@@ -1,12 +1,11 @@
-import type { AbsolutePath, RunRecord, SkillRunId, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, RunRecord, SkillId, SkillRunId, WorkspaceId } from '@braidhq/schema'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { at, T0 as isoTimestamp } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { FsRunRepository } from '../../../src/infrastructure/fs/FsRunRepository.js'
 import { makeWorkspace } from '../../helpers/fakes.js'
-
-const isoTimestamp = '2026-05-12T12:00:00+08:00'
 
 async function makeRoot(): Promise<AbsolutePath> {
   return (await mkdtemp(join(tmpdir(), 'braid-fs-run-'))) as AbsolutePath
@@ -16,10 +15,10 @@ function makeRecord(runId: string, overrides: Partial<RunRecord> = {}): RunRecor
   return {
     runId: runId as SkillRunId,
     workspaceId: 'ws-1' as WorkspaceId,
-    skillId: 'braid-ask' as never,
+    skillId: 'braid-ask' as SkillId,
     args: 'hi',
     resumed: false,
-    startedAt: isoTimestamp as never,
+    startedAt: isoTimestamp,
     ...overrides,
   }
 }
@@ -37,8 +36,8 @@ describe('FsRunRepository', () => {
     const workspace = makeWorkspace({ rootPath: root })
     const repo = new FsRunRepository()
 
-    await repo.saveRecord(workspace, makeRecord('sr-old', { startedAt: '2026-01-01T00:00:00+08:00' as never }))
-    await repo.saveRecord(workspace, makeRecord('sr-new', { startedAt: '2026-06-01T00:00:00+08:00' as never }))
+    await repo.saveRecord(workspace, makeRecord('sr-old', { startedAt: at(0) }))
+    await repo.saveRecord(workspace, makeRecord('sr-new', { startedAt: at(60) }))
 
     const records = await repo.listRecords(workspace)
     expect(records.map(record => record.runId)).toEqual(['sr-new', 'sr-old'])
@@ -52,7 +51,7 @@ describe('FsRunRepository', () => {
     await repo.saveRecord(workspace, makeRecord('sr-1'))
     await repo.saveRecord(workspace, makeRecord('sr-1', {
       sessionId: 'sess-abc',
-      completedAt: isoTimestamp as never,
+      completedAt: isoTimestamp,
       exitCode: 0,
     }))
 

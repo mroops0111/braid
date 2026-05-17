@@ -2,6 +2,8 @@ import type {
   AbsolutePath,
   AgentBindingDescriptor,
   AgentId,
+  AgentKind,
+  OntologyId,
   ProductManifest,
   SkillId,
   SkillManifest as SkillManifestData,
@@ -15,7 +17,7 @@ import { ClaudeCodeAgentBinding } from '../src/ClaudeCodeAgentBinding.js'
 
 const descriptor: AgentBindingDescriptor = {
   id: 'claude-opus' as AgentId,
-  kind: 'claude-code' as never,
+  kind: 'claude-code' as AgentKind,
   model: 'opus',
   effort: 'high',
   extraArgs: ['--verbose-stream'],
@@ -26,7 +28,7 @@ function buildWorkspace(): Workspace {
   const manifest: ProductManifest = {
     name: 'ws-1',
     version: '0.0.0',
-    ontologyId: 'ddd' as never,
+    ontologyId: 'ddd' as OntologyId,
     agents: { default: 'claude-opus' as AgentId, tasks: {} },
     agentBindings: [descriptor],
     sources: [{
@@ -107,7 +109,7 @@ describe('ClaudeCodeAgentBinding', () => {
   it('throws when the binding descriptor is not claude-code', () => {
     expect(() => new ClaudeCodeAgentBinding({
       ...descriptor,
-      kind: 'anthropic-api' as never,
+      kind: 'anthropic-api' as AgentKind,
     })).toThrow(/claude-code/)
   })
 })

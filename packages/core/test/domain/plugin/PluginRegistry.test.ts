@@ -7,6 +7,7 @@ import type {
   PluginType,
   StorageDescriptor,
   StorageKind,
+  ViewArtifactFormat,
   ViewKind,
 } from '@braidhq/schema'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -36,7 +37,7 @@ function fakeViewGenerator(id: string, viewKind: string): ViewGeneratorPlugin {
     ...fakePlugin(id, 'view-generator'),
     type: 'view-generator',
     viewKind: viewKind as ViewKind,
-    render: async () => ({ kind: viewKind as ViewKind, format: 'markdown' as never, files: [] }),
+    render: async () => ({ kind: viewKind as ViewKind, format: 'markdown' as ViewArtifactFormat, files: [] }),
   }
 }
 
