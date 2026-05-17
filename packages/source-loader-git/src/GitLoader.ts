@@ -1,4 +1,4 @@
-import type { IngestReport, SourceLoader, SyncReport } from '@braidhq/core'
+import type { IngestReport, SourceLoaderPlugin, SyncReport } from '@braidhq/core'
 import type { AbsolutePath, LoaderKind, PluginId } from '@braidhq/schema'
 import { mkdir, rm } from 'node:fs/promises'
 import process from 'node:process'
@@ -29,7 +29,7 @@ export type GitLoaderConfig = z.infer<typeof GitLoaderConfig>
  * `${VAR}` interpolation against the server's process env. Tokens never
  * land in PRODUCT.md.
  */
-export class GitLoader implements SourceLoader {
+export class GitLoader implements SourceLoaderPlugin {
   readonly id = 'source-loader-git' as PluginId
   readonly type = 'source-loader' as const
   readonly kind = 'git' as LoaderKind

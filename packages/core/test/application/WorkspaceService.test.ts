@@ -1,4 +1,4 @@
-import type { AbsolutePath, ProductManifest, Workspace as WorkspaceData, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, AgentId, ProductManifest, StorageKind, Workspace as WorkspaceData, WorkspaceId } from '@braidhq/schema'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { InMemoryWorkspaceRepository, NotFoundError, Workspace, WorkspaceService } from '../../src/index.js'
 
@@ -8,17 +8,17 @@ const productManifest: ProductManifest = {
   name: 'demo',
   version: '0.0.0',
   ontologyId: 'ddd' as never,
-  agents: { default: 'claudeCode', tasks: {} },
+  agents: { default: 'claudeCode' as AgentId, tasks: {} },
+  agentBindings: [],
   sources: [],
+  mcpServers: [],
+  storage: { kind: 'in-memory' as StorageKind, config: {} },
 }
 
 const workspaceData: WorkspaceData = {
   id: 'w-1' as WorkspaceId,
   rootPath,
   productManifest,
-  pluginConfig: { plugins: [] },
-  codeRefs: [],
-  intentRefs: [],
 }
 
 describe('WorkspaceService', () => {

@@ -56,13 +56,11 @@ function makeWorkspace(rootPath: AbsolutePath): Workspace {
     }],
     mcpServers: [],
     storage: { kind: 'in-memory' as StorageKind, config: {} },
-    channels: [],
   }
   return new Workspace({
     id: 'ws-1' as WorkspaceId,
     rootPath,
     productManifest: manifest,
-    pluginConfig: { plugins: [] },
   })
 }
 

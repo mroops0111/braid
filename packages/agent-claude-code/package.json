@@ -1,8 +1,8 @@
 {
-  "name": "@braidhq/server",
+  "name": "@braidhq/agent-claude-code",
   "type": "module",
   "version": "0.0.1",
-  "description": "Braid REST + (later) MCP server. Hono on Node 20.",
+  "description": "Claude Code subprocess agent plugin for Braid. Spawns the `claude` CLI to run SKILL.md prompts; default agent shipped with @braidhq/server.",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"
@@ -17,27 +17,14 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "dev": "tsx watch src/server.ts",
     "clean": "rm -rf dist .turbo *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@braidhq/agent-claude-code": "workspace:*",
     "@braidhq/core": "workspace:*",
-    "@braidhq/ontology-ddd": "workspace:*",
     "@braidhq/schema": "workspace:*",
-    "@braidhq/source-loader-gdrive": "workspace:*",
-    "@braidhq/source-loader-git": "workspace:*",
-    "@braidhq/storage-kuzu": "workspace:*",
-    "@hono/node-server": "^1.13.0",
-    "@hono/zod-validator": "^0.4.0",
-    "hono": "^4.6.0",
-    "pino": "^9.5.0",
-    "yaml": "^2.9.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
   },

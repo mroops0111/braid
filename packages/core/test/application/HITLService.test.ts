@@ -2,6 +2,7 @@ import type {
   ClarifyCandidateId,
   ClarifyTicketId,
   NodeId,
+  OntologyId,
   PluginId,
   ProposalId,
   SkillId,
@@ -10,7 +11,11 @@ import type {
   ValidationCode,
   WorkspaceId,
 } from '@braidhq/schema'
+import type {
+  Workspace,
+} from '../../src/index.js'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { z } from 'zod'
 import {
   ClarifyTicket,
   ConflictError,
@@ -19,33 +24,44 @@ import {
   InMemoryDecisionRepository,
   InMemoryModelRepository,
   InMemoryProposalRepository,
+  InMemoryWorkspaceRepository,
   NotFoundError,
   PluginRegistry,
   Proposal,
   ValidationError,
   ValidationService,
-  type Validator,
+  WorkspaceService,
 } from '../../src/index.js'
 import { FixedClock } from '../fakes/FixedClock.js'
+import { makeWorkspace } from '../helpers/fakes.js'
 
 const isoTimestamp = '2026-05-09T12:00:00+08:00' as Timestamp
-const workspaceId = 'w-1' as WorkspaceId
+const workspaceId = 'ws-1' as WorkspaceId
 const userId = 'u-1' as UserId
+
+async function setupWorkspaceService(): Promise<WorkspaceService> {
+  const repo = new InMemoryWorkspaceRepository()
+  const ws = makeWorkspace({ id: workspaceId })
+  await repo.save(ws as Workspace)
+  return new WorkspaceService({ workspaceRepository: repo })
+}
 
 describe('HITLService', () => {
   let proposalRepository: InMemoryProposalRepository
   let clarifyRepository: InMemoryClarifyTicketRepository
   let decisionRepository: InMemoryDecisionRepository
   let modelRepository: InMemoryModelRepository
+  let workspaceService: WorkspaceService
   let clock: FixedClock
   let service: HITLService
 
-  beforeEach(() => {
+  beforeEach(async () => {
     proposalRepository = new InMemoryProposalRepository()
     clarifyRepository = new InMemoryClarifyTicketRepository()
     decisionRepository = new InMemoryDecisionRepository()
     modelRepository = new InMemoryModelRepository()
     clock = new FixedClock(isoTimestamp)
+    workspaceService = await setupWorkspaceService()
     const validationService = new ValidationService({ pluginRegistry: new PluginRegistry() })
     service = new HITLService({
       proposalRepository,
@@ -53,6 +69,7 @@ describe('HITLService', () => {
       decisionRepository,
       modelRepository,
       validationService,
+      workspaceService,
       clock,
     })
   })
@@ -63,7 +80,17 @@ describe('HITLService', () => {
       workspaceId,
       status: 'pending',
       operations: [
-        { operation: 'addNode', payload: { type: 'command', name: 'voidTask', id: 'n-1' as NodeId } as never },
+        {
+          operation: 'addNode',
+          payload: {
+            type: 'command',
+            name: 'voidTask',
+            id: 'n-1' as NodeId,
+            // implementationMissing satisfies EvidenceValidator (framework invariant):
+            // intent-side proposal where code hasn't shipped yet.
+            metadata: { sourceReferences: [], implementationMissing: true },
+          } as never,
+        },
       ],
       generatedBy: 'extract' as SkillId,
       generatedAt: isoTimestamp,
@@ -114,23 +141,31 @@ describe('HITLService', () => {
       expect(decision.timestamp).toBe(fixed)
     })
 
-    it('throws ValidationError when a validator reports an error and leaves proposal pending', async () => {
-      const blockingValidator: Validator = {
-        id: 'block' as PluginId,
-        type: 'validator',
-        configSchema: { parse: (value: unknown) => value } as never,
-        validate: async () => [
-          { code: 'BRAID-BLOCK' as ValidationCode, severity: 'error', message: 'nope' },
-        ],
-      }
+    it('throws ValidationError when the active ontology blocks and leaves proposal pending', async () => {
+      // Active ontology ships a validator that always reports an error.
+      // HITLService looks up workspace.ontologyId at validate-time and
+      // runs `ontology.validators[]`, so the proposal gets rejected.
       const registry = new PluginRegistry()
-      registry.register(blockingValidator)
+      registry.register({
+        id: 'ontology.ddd' as PluginId,
+        type: 'ontology',
+        configSchema: z.object({}),
+        ontologyId: 'ddd' as OntologyId,
+        nodeTypes: [],
+        edgeTypes: [],
+        validators: [{
+          validate: async () => [
+            { code: 'BRAID-BLOCK' as ValidationCode, severity: 'error', message: 'nope' },
+          ],
+        }],
+      })
       const blockingService = new HITLService({
         proposalRepository,
         clarifyRepository,
         decisionRepository,
         modelRepository,
         validationService: new ValidationService({ pluginRegistry: registry }),
+        workspaceService,
         clock,
       })
 

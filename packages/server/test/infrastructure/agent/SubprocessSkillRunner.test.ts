@@ -2,6 +2,7 @@ import type { AbsolutePath, SkillEvent, SkillId } from '@braidhq/schema'
 import { mkdir, mkdtemp, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { ClaudeCodeAgentBinding } from '@braidhq/agent-claude-code'
 import {
   SkillManifest,
   type SkillRegistry,
@@ -11,7 +12,6 @@ import {
   type WorkspaceEventBus,
 } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
-import { ClaudeCodeAgentBinding } from '../../../src/infrastructure/agent/ClaudeCodeAgentBinding.js'
 import { SubprocessSkillRunner } from '../../../src/infrastructure/agent/SubprocessSkillRunner.js'
 import { FsRunRepository } from '../../../src/infrastructure/fs/FsRunRepository.js'
 import { DEFAULT_AGENT_BINDING, makeWorkspace } from '../../helpers/fakes.js'

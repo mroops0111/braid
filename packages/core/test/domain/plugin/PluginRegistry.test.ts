@@ -1,8 +1,7 @@
 import type {
   AgentBindingDescriptor,
   AgentKind,
-  ChannelDescriptor,
-  ChannelKind,
+  ModelSnapshot,
   OntologyId,
   PluginId,
   PluginType,
@@ -14,16 +13,14 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   type AgentBinding,
   type AgentPlugin,
-  type ChannelHandle,
-  type ChannelPlugin,
   ConflictError,
-  type Generator,
+  type ModelRepository,
   NotFoundError,
-  type Ontology,
+  type OntologyPlugin,
   type Plugin,
   PluginRegistry,
-  type StorageBackend,
   type StoragePlugin,
+  type ViewGeneratorPlugin,
 } from '../../../src/index.js'
 
 function fakePlugin(id: string, type: PluginType): Plugin {
@@ -34,22 +31,23 @@ function fakePlugin(id: string, type: PluginType): Plugin {
   }
 }
 
-function fakeGenerator(id: string, viewKind: string): Generator {
+function fakeViewGenerator(id: string, viewKind: string): ViewGeneratorPlugin {
   return {
-    ...fakePlugin(id, 'generator'),
-    type: 'generator',
+    ...fakePlugin(id, 'view-generator'),
+    type: 'view-generator',
     viewKind: viewKind as ViewKind,
     render: async () => ({ kind: viewKind as ViewKind, format: 'markdown' as never, files: [] }),
   }
 }
 
-function fakeOntology(id: string, ontologyId: string): Ontology {
+function fakeOntology(id: string, ontologyId: string): OntologyPlugin {
   return {
     ...fakePlugin(id, 'ontology'),
     type: 'ontology',
     ontologyId: ontologyId as OntologyId,
     nodeTypes: [],
     edgeTypes: [],
+    validators: [],
   }
 }
 
@@ -66,23 +64,20 @@ function fakeAgentPlugin(id: string, kind: string): AgentPlugin {
 }
 
 function fakeStoragePlugin(id: string, kind: string): StoragePlugin {
+  const emptyRepository: ModelRepository = {
+    load: async (): Promise<ModelSnapshot> => ({ nodes: [], edges: [] }),
+    applyOperations: async () => {},
+    findNodes: async () => [],
+    getNode: async () => { throw new NotFoundError('not found') },
+    scopeOf: async (): Promise<ModelSnapshot> => ({ nodes: [], edges: [] }),
+    listEdges: async () => [],
+  }
   return {
     ...fakePlugin(id, 'storage'),
     type: 'storage',
     kind: kind as StorageKind,
-    createBackend: async (_descriptor: StorageDescriptor): Promise<StorageBackend> =>
-      ({} as StorageBackend),
-  }
-}
-
-function fakeChannelPlugin(id: string, kind: string): ChannelPlugin {
-  return {
-    ...fakePlugin(id, 'channel'),
-    type: 'channel',
-    kind: kind as ChannelKind,
-    start: async (_descriptor: ChannelDescriptor): Promise<ChannelHandle> => ({
-      stop: async () => {},
-    }),
+    createModelRepository: async (_descriptor: StorageDescriptor): Promise<ModelRepository> =>
+      emptyRepository,
   }
 }
 
@@ -94,29 +89,29 @@ describe('PluginRegistry', () => {
   })
 
   it('register throws ConflictError on duplicate id', () => {
-    registry.register(fakePlugin('a', 'validator'))
-    expect(() => registry.register(fakePlugin('a', 'validator'))).toThrow(ConflictError)
+    registry.register(fakePlugin('a', 'ontology'))
+    expect(() => registry.register(fakePlugin('a', 'ontology'))).toThrow(ConflictError)
   })
 
   it('has reflects registration state', () => {
     expect(registry.has('a' as PluginId)).toBe(false)
-    registry.register(fakePlugin('a', 'validator'))
+    registry.register(fakePlugin('a', 'ontology'))
     expect(registry.has('a' as PluginId)).toBe(true)
   })
 
   it('list / listByType', () => {
-    registry.register(fakePlugin('a', 'validator'))
-    registry.register(fakePlugin('b', 'validator'))
-    registry.register(fakePlugin('c', 'generator'))
+    registry.register(fakeOntology('a', 'a'))
+    registry.register(fakeOntology('b', 'b'))
+    registry.register(fakeViewGenerator('c', 'docs'))
     expect(registry.list()).toHaveLength(3)
-    expect(registry.listByType('validator')).toHaveLength(2)
+    expect(registry.listByType('ontology')).toHaveLength(2)
     expect(registry.listByType('storage')).toHaveLength(0)
   })
 
   describe('pluginSkills', () => {
     function fakePluginWithSkills(id: string, skillIds: readonly string[]): Plugin {
       return {
-        ...fakePlugin(id, 'validator'),
+        ...fakePlugin(id, 'ontology'),
         skills: skillIds.map(s => ({ id: s as never, directory: `/abs/${s}` })),
       }
     }
@@ -135,7 +130,7 @@ describe('PluginRegistry', () => {
     })
 
     it('returns an empty array when no plugin contributes skills', () => {
-      registry.register(fakePlugin('a', 'validator'))
+      registry.register(fakePlugin('a', 'ontology'))
       expect(registry.pluginSkills()).toEqual([])
     })
   })
@@ -152,18 +147,18 @@ describe('PluginRegistry', () => {
     })
   })
 
-  describe('generator', () => {
-    it('findGenerator returns generator when viewKind matches', () => {
-      registry.register(fakeGenerator('gen-docs', 'docs'))
-      expect(registry.findGenerator('docs' as ViewKind)?.id).toBe('gen-docs')
+  describe('view-generator', () => {
+    it('findViewGenerator returns generator when viewKind matches', () => {
+      registry.register(fakeViewGenerator('gen-docs', 'docs'))
+      expect(registry.findViewGenerator('docs' as ViewKind)?.id).toBe('gen-docs')
     })
 
-    it('findGenerator returns undefined when no match', () => {
-      expect(registry.findGenerator('docs' as ViewKind)).toBeUndefined()
+    it('findViewGenerator returns undefined when no match', () => {
+      expect(registry.findViewGenerator('docs' as ViewKind)).toBeUndefined()
     })
 
-    it('requireGenerator throws NotFoundError when no match', () => {
-      expect(() => registry.requireGenerator('docs' as ViewKind)).toThrow(NotFoundError)
+    it('requireViewGenerator throws NotFoundError when no match', () => {
+      expect(() => registry.requireViewGenerator('docs' as ViewKind)).toThrow(NotFoundError)
     })
   })
 
@@ -188,18 +183,6 @@ describe('PluginRegistry', () => {
 
     it('requireStoragePlugin throws when missing', () => {
       expect(() => registry.requireStoragePlugin('memgraph' as StorageKind)).toThrow(NotFoundError)
-    })
-  })
-
-  describe('channel', () => {
-    it('findChannelPlugin / requireChannelPlugin', () => {
-      registry.register(fakeChannelPlugin('c-http', 'http'))
-      expect(registry.findChannelPlugin('http' as ChannelKind)?.id).toBe('c-http')
-      expect(registry.requireChannelPlugin('http' as ChannelKind).id).toBe('c-http')
-    })
-
-    it('requireChannelPlugin throws when missing', () => {
-      expect(() => registry.requireChannelPlugin('mcp' as ChannelKind)).toThrow(NotFoundError)
     })
   })
 })

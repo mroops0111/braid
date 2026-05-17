@@ -33,7 +33,15 @@ describe('POST /workspaces/:ws/proposals', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         operations: [
-          { operation: 'addNode', payload: { type: 'command', name: 'x', id: 'n-1' } },
+          {
+            operation: 'addNode',
+            payload: {
+              type: 'command',
+              name: 'x',
+              id: 'n-1',
+              metadata: { sourceReferences: [], implementationMissing: true },
+            },
+          },
         ],
         generatedBy: 'extract',
         rationale: 'creating via POST',
@@ -90,7 +98,15 @@ describe('POST /workspaces/:ws/proposals/:id/apply', () => {
     const { app, deps } = buildTestApp()
     await deps.proposalRepository.save(makeProposal({
       operations: [
-        { operation: 'addNode', payload: { type: 'command', name: 'x', id: 'n-1' as NodeId } as never },
+        {
+          operation: 'addNode',
+          payload: {
+            type: 'command',
+            name: 'x',
+            id: 'n-1' as NodeId,
+            metadata: { sourceReferences: [], implementationMissing: true },
+          } as never,
+        },
       ],
     }))
 
@@ -259,7 +275,6 @@ describe('list endpoints return their empty shape for a fresh workspace', () => 
     { path: `/workspaces/${workspaceId}/nodes`, empty: { items: [] } },
     { path: `/workspaces/${workspaceId}/edges`, empty: { items: [] } },
     { path: `/workspaces/${workspaceId}/decisions`, empty: { items: [] } },
-    { path: '/workspaces', empty: { items: [] } },
   ] as const
 
   it.each(cases)('GET $path returns 200 + $empty', async ({ path, empty }) => {
@@ -269,6 +284,15 @@ describe('list endpoints return their empty shape for a fresh workspace', () => 
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual(empty)
+  })
+
+  it('GET /workspaces returns 200 + items=[] when none registered', async () => {
+    const { app } = buildTestApp({ workspaceIds: [] })
+
+    const response = await app.request('/workspaces')
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ items: [] })
   })
 })
 
@@ -309,7 +333,7 @@ describe('GET /workspaces/:ws/decisions/:id', () => {
 
 describe('GET /workspaces/:id', () => {
   it('returns 404 when the workspace is not registered', async () => {
-    const { app } = buildTestApp()
+    const { app } = buildTestApp({ workspaceIds: [] })
 
     const response = await app.request(`/workspaces/${workspaceId}`)
 

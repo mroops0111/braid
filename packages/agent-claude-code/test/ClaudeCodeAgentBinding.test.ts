@@ -1,7 +1,17 @@
-import type { AbsolutePath, AgentBindingDescriptor, AgentId, SkillId, SourceId } from '@braidhq/schema'
+import type {
+  AbsolutePath,
+  AgentBindingDescriptor,
+  AgentId,
+  ProductManifest,
+  SkillId,
+  SkillManifest as SkillManifestData,
+  SourceId,
+  StorageKind,
+  WorkspaceId,
+} from '@braidhq/schema'
+import { SkillManifest, Workspace } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
-import { ClaudeCodeAgentBinding } from '../../../src/infrastructure/agent/ClaudeCodeAgentBinding.js'
-import { makeSkillManifest, makeWorkspace } from '../../helpers/fakes.js'
+import { ClaudeCodeAgentBinding } from '../src/ClaudeCodeAgentBinding.js'
 
 const descriptor: AgentBindingDescriptor = {
   id: 'claude-opus' as AgentId,
@@ -12,9 +22,12 @@ const descriptor: AgentBindingDescriptor = {
   env: { FOO: 'bar' },
 }
 
-function buildWorkspace() {
-  return makeWorkspace({
-    rootPath: '/abs/ws' as AbsolutePath,
+function buildWorkspace(): Workspace {
+  const manifest: ProductManifest = {
+    name: 'ws-1',
+    version: '0.0.0',
+    ontologyId: 'ddd' as never,
+    agents: { default: 'claude-opus' as AgentId, tasks: {} },
     agentBindings: [descriptor],
     sources: [{
       kind: 'filesystem',
@@ -23,7 +36,29 @@ function buildWorkspace() {
       name: 'api',
       path: '/abs/code/api' as AbsolutePath,
     }],
+    mcpServers: [],
+    storage: { kind: 'in-memory' as StorageKind, config: {} },
+  }
+  return new Workspace({
+    id: 'ws-1' as WorkspaceId,
+    rootPath: '/abs/ws' as AbsolutePath,
+    productManifest: manifest,
   })
+}
+
+function buildSkillManifest(): SkillManifest {
+  const data: SkillManifestData = {
+    id: 'ask' as SkillId,
+    origin: 'builtin',
+    path: '/abs/skills/ask/SKILL.md' as AbsolutePath,
+    frontmatter: {
+      name: 'ask',
+      description: 'test skill',
+      disableModelInvocation: false,
+      braid: { requiredEnv: [], requiredPaths: [], requiredMcpServers: [] },
+    },
+  }
+  return new SkillManifest(data)
 }
 
 describe('ClaudeCodeAgentBinding', () => {
@@ -34,7 +69,7 @@ describe('ClaudeCodeAgentBinding', () => {
       skillId: 'ask' as SkillId,
       args: 'what is voidTask',
       workspace: buildWorkspace(),
-      manifest: makeSkillManifest({ id: 'ask' }),
+      manifest: buildSkillManifest(),
       apiUrl: 'http://localhost:4321',
       mcpConfigFile: '/tmp/.mcp.json' as AbsolutePath,
     })
@@ -59,7 +94,7 @@ describe('ClaudeCodeAgentBinding', () => {
       skillId: 'ask' as SkillId,
       args: '',
       workspace: buildWorkspace(),
-      manifest: makeSkillManifest({ id: 'ask' }),
+      manifest: buildSkillManifest(),
       apiUrl: 'http://localhost:4321',
     })
 

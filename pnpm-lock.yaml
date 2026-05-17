@@ -55,6 +55,25 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
+  packages/agent-claude-code:
+    dependencies:
+      '@braidhq/core':
+        specifier: workspace:*
+        version: link:../core
+      '@braidhq/schema':
+        specifier: workspace:*
+        version: link:../schema
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@22.19.18)(lightningcss@1.32.0)
+
   packages/cli:
     dependencies:
       '@braidhq/core':
@@ -179,6 +198,9 @@ importers:
 
   packages/server:
     dependencies:
+      '@braidhq/agent-claude-code':
+        specifier: workspace:*
+        version: link:../agent-claude-code
       '@braidhq/core':
         specifier: workspace:*
         version: link:../core
@@ -278,6 +300,9 @@ importers:
       kuzu:
         specifier: ^0.11.0
         version: 0.11.3
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
     devDependencies:
       typescript:
         specifier: ^5.7.0

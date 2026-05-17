@@ -48,13 +48,11 @@ export function makeWorkspace(opts: MakeWorkspaceOptions = {}): Workspace {
     sources: [...(opts.sources ?? [defaultCodeSource(rootPath)])],
     mcpServers: [...(opts.mcpServers ?? [])],
     storage: opts.storage ?? DEFAULT_STORAGE,
-    channels: [],
   }
   return new Workspace({
     id: id as WorkspaceId,
     rootPath,
     productManifest: manifest,
-    pluginConfig: { plugins: [] },
   })
 }
 

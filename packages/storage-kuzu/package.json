@@ -22,7 +22,8 @@
   "dependencies": {
     "@braidhq/core": "workspace:*",
     "@braidhq/schema": "workspace:*",
-    "kuzu": "^0.11.0"
+    "kuzu": "^0.11.0",
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
