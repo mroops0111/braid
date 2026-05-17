@@ -25,7 +25,7 @@
 
 > **Package** = 一個 npm 發布單位（一個 `package.json`，一個 version、release lifecycle、install footprint）。
 
-Braid monorepo 把所有 first-party package 放在 `packages/` 跟 `plugins/` 兩個目錄，**目錄分類純粹是視覺習慣，跟 architectural 意義無關**。
+Braid monorepo 所有 first-party package 都放在 `packages/`。**角色（host / client / plugin）靠套件名稱辨識**（`@braidhq/ontology-*`、`@braidhq/storage-*`、`@braidhq/source-loader-*`、`@braidhq/agent-*`），目錄一律一個 — Backstage / Vite / TipTap / Turborepo 都是這個慣例。
 
 ### 1.2 Plugin
 

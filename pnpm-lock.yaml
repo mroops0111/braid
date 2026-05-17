@@ -39,22 +39,6 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.19.18)(lightningcss@1.32.0)
 
-  examples/redoc-extending-ddd:
-    dependencies:
-      '@braidhq/ontology-ddd':
-        specifier: workspace:*
-        version: link:../../plugins/ontology-ddd
-      '@braidhq/schema':
-        specifier: workspace:*
-        version: link:../../packages/schema
-      '@braidhq/sdk':
-        specifier: workspace:*
-        version: link:../../packages/sdk
-    devDependencies:
-      typescript:
-        specifier: ^5.7.0
-        version: 5.9.3
-
   packages/agent-claude-code:
     dependencies:
       '@braidhq/core':
@@ -173,6 +157,31 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.19.18)(lightningcss@1.32.0)
 
+  packages/ontology-ddd:
+    dependencies:
+      '@braidhq/core':
+        specifier: workspace:*
+        version: link:../core
+      '@braidhq/schema':
+        specifier: workspace:*
+        version: link:../schema
+      '@braidhq/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      '@vitest/coverage-v8':
+        specifier: ^2.1.0
+        version: 2.1.9(vitest@2.1.9(@types/node@22.19.18)(lightningcss@1.32.0))
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@22.19.18)(lightningcss@1.32.0)
+
   packages/schema:
     dependencies:
       zod:
@@ -221,7 +230,7 @@ importers:
         version: link:../core
       '@braidhq/ontology-ddd':
         specifier: workspace:*
-        version: link:../../plugins/ontology-ddd
+        version: link:../ontology-ddd
       '@braidhq/schema':
         specifier: workspace:*
         version: link:../schema
@@ -447,31 +456,6 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
-      typescript:
-        specifier: ^5.7.0
-        version: 5.9.3
-      vitest:
-        specifier: ^2.1.0
-        version: 2.1.9(@types/node@22.19.18)(lightningcss@1.32.0)
-
-  plugins/ontology-ddd:
-    dependencies:
-      '@braidhq/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@braidhq/schema':
-        specifier: workspace:*
-        version: link:../../packages/schema
-      '@braidhq/sdk':
-        specifier: workspace:*
-        version: link:../../packages/sdk
-      zod:
-        specifier: ^3.24.0
-        version: 3.25.76
-    devDependencies:
-      '@vitest/coverage-v8':
-        specifier: ^2.1.0
-        version: 2.1.9(vitest@2.1.9(@types/node@22.19.18)(lightningcss@1.32.0))
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
