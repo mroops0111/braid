@@ -2,7 +2,7 @@
   "name": "@braidhq/source-loader-git",
   "type": "module",
   "version": "0.0.1",
-  "description": "Git source-loader plugin: clone a remote repo into a workspace source path; sync via fetch + reset.",
+  "description": "Git source-loader plugin for Braid. Clone a repo and sync automatically.",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"

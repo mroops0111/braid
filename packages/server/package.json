@@ -2,7 +2,7 @@
   "name": "@braidhq/server",
   "type": "module",
   "version": "0.0.1",
-  "description": "Braid REST + (later) MCP server. Hono on Node 20.",
+  "description": "REST + SSE server for Braid.",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"

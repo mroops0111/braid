@@ -2,7 +2,7 @@
   "name": "@braidhq/core",
   "type": "module",
   "version": "0.0.1",
-  "description": "Braid core: domain entities (workspace / model / proposal / qa / ...) + application services + infrastructure ports.",
+  "description": "Domain entities, application services, and plugin port interfaces for Braid. The framework engine; no concrete adapters.",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"

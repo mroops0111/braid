@@ -2,7 +2,7 @@
   "name": "@braidhq/ontology-ddd",
   "type": "module",
   "version": "0.0.1",
-  "description": "Default DDD-flavored ontology plugin. Provides core DDD node and edge type sets.",
+  "description": "Default DDD ontology plugin for Braid, including boundedContext, aggregate, command, query, event, rule, and actor.",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"

@@ -2,7 +2,7 @@
   "name": "@braidhq/cli",
   "type": "module",
   "version": "0.0.1",
-  "description": "Braid command-line interface. cac + ink.",
+  "description": "Command-line entry point for Braid.",
   "license": "MIT",
   "main": "./src/main.ts",
   "bin": {

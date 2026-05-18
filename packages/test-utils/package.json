@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.0",
   "private": true,
-  "description": "Shared test fixtures for the Braid monorepo. Never published.",
+  "description": "Shared test fixtures for the Braid monorepo.",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"

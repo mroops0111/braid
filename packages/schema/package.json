@@ -2,7 +2,7 @@
   "name": "@braidhq/schema",
   "type": "module",
   "version": "0.0.1",
-  "description": "Zod schemas + TS types for the Braid domain model. Shared by core / server / studio / cli / sdk / plugins.",
+  "description": "Zod schemas and branded TypeScript types for the Braid domain. The wire-format contract for all Braid packages.",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"

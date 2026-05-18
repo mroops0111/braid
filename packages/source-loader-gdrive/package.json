@@ -2,7 +2,7 @@
   "name": "@braidhq/source-loader-gdrive",
   "type": "module",
   "version": "0.0.1",
-  "description": "Google Drive source-loader plugin: download text + images from a Drive folder into a workspace source path.",
+  "description": "Google Drive source-loader plugin for Braid. Export docs from Google Drive, requires OAuth on first use.",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"
