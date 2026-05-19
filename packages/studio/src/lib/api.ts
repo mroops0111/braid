@@ -14,11 +14,10 @@ import type {
   ValidationResult,
   Workspace,
 } from '@braidhq/schema'
-
-const baseUrl = import.meta.env.VITE_BRAID_API_URL ?? 'http://localhost:4321'
+import { getServerUrl } from './serverUrl.js'
 
 export function workspaceEventsUrl(workspaceId: string): string {
-  return `${baseUrl}/workspaces/${workspaceId}/events`
+  return `${getServerUrl()}/workspaces/${workspaceId}/events`
 }
 
 export interface ItemList<T> { items: T[] }
@@ -66,7 +65,7 @@ export class ApiError extends Error {
 }
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await fetch(`${getServerUrl()}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -169,7 +168,7 @@ export const api = {
     fetchJson<ItemList<Decision>>(`/workspaces/${workspaceId}/decisions`),
 
   skillRunUrl: (workspaceId: string, skillId: string) =>
-    `${baseUrl}/workspaces/${workspaceId}/skills/${skillId}/run`,
+    `${getServerUrl()}/workspaces/${workspaceId}/skills/${skillId}/run`,
   startSkillRun: (workspaceId: string, skillId: string, args: string, resumeSessionId?: string) =>
     fetchJson<{ runId: string }>(
       `/workspaces/${workspaceId}/skills/${skillId}/run`,
@@ -185,11 +184,11 @@ export const api = {
   listRuns: (workspaceId: string) =>
     fetchJson<ItemList<RunRecord>>(`/workspaces/${workspaceId}/runs`),
   runEventsUrl: (workspaceId: string, runId: string) =>
-    `${baseUrl}/workspaces/${workspaceId}/runs/${runId}/events`,
+    `${getServerUrl()}/workspaces/${workspaceId}/runs/${runId}/events`,
   cancelRun: (workspaceId: string, runId: string) =>
     fetchJson<void>(`/workspaces/${workspaceId}/runs/${runId}/cancel`, { method: 'POST' }),
   forgetSession: (workspaceId: string, sessionId: string) =>
-    fetch(`${baseUrl}/workspaces/${workspaceId}/runs/sessions/${sessionId}`, { method: 'DELETE' })
+    fetch(`${getServerUrl()}/workspaces/${workspaceId}/runs/sessions/${sessionId}`, { method: 'DELETE' })
       .then((r) => {
         if (!r.ok && r.status !== 404)
           throw new Error(`forgetSession failed: ${r.status} ${r.statusText}`)

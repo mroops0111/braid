@@ -9,6 +9,10 @@ coverage
 # Tooling cache
 .turbo
 
+# Rust / Tauri build artifacts
+target/
+src-tauri/gen/schemas/
+
 # OS
 .DS_Store
 

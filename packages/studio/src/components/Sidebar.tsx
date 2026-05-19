@@ -1,6 +1,7 @@
 import type { Workspace } from '@braidhq/schema'
 import { FolderGit2, FolderPlus, Loader2, Sparkles } from 'lucide-react'
 import { useState } from 'react'
+import braidLogo from '@/assets/braid-logo.svg'
 import { usePendingProposals, useRuns } from '@/lib/queries'
 import { CreateWorkspaceWizard } from './CreateWorkspaceWizard'
 import { ListRow } from './ListRow'
@@ -22,7 +23,7 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect, onOpenDetails
     <aside className="flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="flex h-11 items-center px-4">
         <div className="flex items-center gap-2">
-          <div className="size-2.5 rounded-full bg-primary" />
+          <img src={braidLogo} alt="" className="size-4 shrink-0" />
           <span className="text-sm font-semibold tracking-tight">Braid</span>
         </div>
       </div>
