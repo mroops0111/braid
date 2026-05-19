@@ -7,6 +7,7 @@ import type {
   GraphNodeMetadata,
   NodeId,
 } from '@braidhq/schema'
+import type { KuzuValue } from 'kuzu'
 import {
   Embedding as EmbeddingSchema,
   GraphEdgeMetadata as GraphEdgeMetadataSchema,
@@ -53,29 +54,37 @@ export function edgeToParams(edge: GraphEdge): EdgeRow {
   }
 }
 
-export function rowToNode(row: NodeRow): GraphNode {
+export function rowToNode(row: Record<string, KuzuValue>): GraphNode {
+  const description = asString(row.description, 'description')
+  const embedding = asString(row.embedding, 'embedding')
   const node: GraphNode = {
-    id: row.id as NodeId,
-    type: row.type as GraphNode['type'],
-    name: row.name,
-    status: row.status as GraphNode['status'],
-    metadata: parseMetadata(row.metadata),
+    id: asString(row.id, 'id') as NodeId,
+    type: asString(row.type, 'type') as GraphNode['type'],
+    name: asString(row.name, 'name'),
+    status: asString(row.status, 'status') as GraphNode['status'],
+    metadata: parseMetadata(asString(row.metadata, 'metadata')),
   }
-  if (row.description !== '')
-    node.description = row.description
-  if (row.embedding !== '')
-    node.embedding = parseEmbedding(row.embedding)
+  if (description !== '')
+    node.description = description
+  if (embedding !== '')
+    node.embedding = parseEmbedding(embedding)
   return node
 }
 
-export function rowToEdge(row: EdgeRow): GraphEdge {
+export function rowToEdge(row: Record<string, KuzuValue>): GraphEdge {
   return {
-    id: row.id as EdgeId,
-    type: row.type as GraphEdge['type'],
-    fromNodeId: row.fromId as NodeId,
-    toNodeId: row.toId as NodeId,
-    metadata: parseEdgeMetadata(row.metadata),
+    id: asString(row.id, 'id') as EdgeId,
+    type: asString(row.type, 'type') as GraphEdge['type'],
+    fromNodeId: asString(row.fromId, 'fromId') as NodeId,
+    toNodeId: asString(row.toId, 'toId') as NodeId,
+    metadata: parseEdgeMetadata(asString(row.metadata, 'metadata')),
   }
+}
+
+function asString(value: KuzuValue | undefined, field: string): string {
+  if (typeof value !== 'string')
+    throw new TypeError(`Expected string for column "${field}", got ${typeof value}`)
+  return value
 }
 
 function parseMetadata(raw: string): GraphNodeMetadata {

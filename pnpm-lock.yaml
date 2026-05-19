@@ -39,6 +39,22 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.19.18)(lightningcss@1.32.0)
 
+  examples/redoc-extending-ddd:
+    dependencies:
+      '@braidhq/ontology-ddd':
+        specifier: workspace:*
+        version: link:../../packages/ontology-ddd
+      '@braidhq/schema':
+        specifier: workspace:*
+        version: link:../../packages/schema
+      '@braidhq/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   packages/agent-claude-code:
     dependencies:
       '@braidhq/core':
