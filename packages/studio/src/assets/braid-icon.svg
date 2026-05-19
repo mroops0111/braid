@@ -1,0 +1,28 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    macOS HIG icon grid: visible card sits inside 824×824 centred on a
+    1024×1024 transparent canvas with a 185px corner radius, so the
+    Dock renders our icon at the same optical size as other apps.
+  -->
+  <rect x="100" y="100" width="824" height="824" rx="185" ry="185" fill="white"/>
+  <defs>
+    <mask id="braidCut1">
+      <rect width="1024" height="1024" fill="white"/>
+      <circle cx="512" cy="408" r="48" fill="black"/>
+      <circle cx="512" cy="616" r="48" fill="black"/>
+    </mask>
+    <mask id="braidCut2">
+      <rect width="1024" height="1024" fill="white"/>
+      <circle cx="512" cy="304" r="48" fill="black"/>
+      <circle cx="512" cy="512" r="48" fill="black"/>
+      <circle cx="512" cy="720" r="48" fill="black"/>
+    </mask>
+  </defs>
+  <g fill="none" stroke-width="64" stroke-linecap="round">
+    <path d="M 416 296 C 416 376, 608 440, 608 512 C 608 584, 416 648, 416 728"
+          stroke="#f59e0b" mask="url(#braidCut1)"/>
+    <path d="M 608 296 C 608 376, 416 440, 416 512 C 416 584, 608 648, 608 728"
+          stroke="#06b6d4" mask="url(#braidCut2)"/>
+    <path d="M 512 296 L 512 728" stroke="#5b67e8"/>
+  </g>
+</svg>

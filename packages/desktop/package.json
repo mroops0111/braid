@@ -6,11 +6,13 @@
   "description": "Tauri desktop shell for Braid.",
   "license": "MIT",
   "scripts": {
-    "build": "echo 'desktop build runs Tauri in Phase 6'",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tauri dev",
+    "build": "echo 'desktop#build is a no-op in CI; run `pnpm --filter @braidhq/desktop bundle` to produce a Tauri installer.'",
+    "bundle": "tauri build",
+    "tauri": "tauri",
+    "typecheck": "echo 'desktop has no TypeScript sources; frontend lives in @braidhq/studio.'",
     "test": "vitest run --passWithNoTests",
-    "dev": "echo 'tauri dev'",
-    "clean": "rm -rf dist .turbo *.tsbuildinfo"
+    "clean": "rm -rf .turbo src-tauri/target"
   },
   "dependencies": {
     "@braidhq/schema": "workspace:*",
@@ -18,7 +20,6 @@
     "@braidhq/studio": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
-    "vitest": "^2.1.0"
+    "@tauri-apps/cli": "^2.11.0"
   }
 }
