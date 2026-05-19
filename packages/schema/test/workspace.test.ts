@@ -1,24 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { PluginConfig, ProductManifest, Workspace } from '../src/index.js'
+import { ProductManifest, Workspace } from '../src/index.js'
 
 const baseStorage = { kind: 'neo4j', config: { uri: 'bolt://localhost:7687', user: 'neo4j' } }
 const baseAgents = { default: 'claude-default' }
 
-describe('pluginConfig', () => {
-  it('defaults plugins to empty array', () => {
-    expect(PluginConfig.parse({})).toEqual({ plugins: [] })
-  })
-  it('parses with plugin descriptors', () => {
-    const config = PluginConfig.parse({
-      plugins: [
-        { pluginId: 'generator-mermaid', type: 'generator', config: {} },
-      ],
-    })
-    expect(config.plugins).toHaveLength(1)
-  })
-})
-
-describe('productManifest', () => {
+describe('ProductManifest', () => {
   it('parses minimal manifest with defaults', () => {
     const manifest = ProductManifest.parse({
       name: 'demo',
@@ -30,7 +16,6 @@ describe('productManifest', () => {
     expect(manifest.sources).toEqual([])
     expect(manifest.mcpServers).toEqual([])
     expect(manifest.agentBindings).toEqual([])
-    expect(manifest.channels).toEqual([])
   })
 
   it('parses with full source + mcp config', () => {
@@ -67,7 +52,6 @@ describe('productManifest', () => {
         { id: 'redmine', transport: 'streamable-http', url: 'https://redmine.example.com/mcp' },
       ],
       storage: baseStorage,
-      channels: [{ kind: 'http', config: { port: 4321 } }],
     })
     expect(manifest.agents.tasks.extract).toBe('claude-default')
     expect(manifest.sources).toHaveLength(2)
@@ -87,7 +71,7 @@ describe('productManifest', () => {
   })
 })
 
-describe('workspace', () => {
+describe('Workspace', () => {
   it('parses a complete workspace', () => {
     const workspace = Workspace.parse({
       id: 'w-1',
@@ -97,7 +81,6 @@ describe('workspace', () => {
         agents: baseAgents,
         storage: baseStorage,
       },
-      pluginConfig: { plugins: [] },
     })
     expect(workspace.id).toBe('w-1')
     expect(workspace.productManifest.sources).toEqual([])

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ValidationCode, ValidationIssue, ValidationResult, ValidationSeverity } from '../src/index.js'
 
-describe('validationSeverity', () => {
+describe('ValidationSeverity', () => {
   it('accepts error / warning / info', () => {
     expect(ValidationSeverity.parse('error')).toBe('error')
     expect(ValidationSeverity.parse('warning')).toBe('warning')
@@ -12,7 +12,7 @@ describe('validationSeverity', () => {
   })
 })
 
-describe('validationCode (branded)', () => {
+describe('ValidationCode (branded)', () => {
   it('accepts non-empty string', () => {
     expect(ValidationCode.parse('BRAID-CTX-MISSING-DESC')).toBe('BRAID-CTX-MISSING-DESC')
   })
@@ -21,7 +21,7 @@ describe('validationCode (branded)', () => {
   })
 })
 
-describe('validationIssue', () => {
+describe('ValidationIssue', () => {
   it('parses minimal issue', () => {
     const issue = ValidationIssue.parse({
       code: 'BRAID-NODE-NO-EDGE',
@@ -44,7 +44,7 @@ describe('validationIssue', () => {
   })
 })
 
-describe('validationResult', () => {
+describe('ValidationResult', () => {
   it('parses an ok result with no issues', () => {
     const result = ValidationResult.parse({ ok: true })
     expect(result.issues).toEqual([])

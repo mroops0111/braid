@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Neo4jStorageConfig, StorageDescriptor, StorageKind } from '../src/index.js'
 
-describe('storageKind (open brand)', () => {
+describe('StorageKind (open brand)', () => {
   it('accepts neo4j', () => {
     expect(StorageKind.parse('neo4j')).toBe('neo4j')
   })
@@ -13,7 +13,7 @@ describe('storageKind (open brand)', () => {
   })
 })
 
-describe('storageDescriptor', () => {
+describe('StorageDescriptor', () => {
   it('parses a Neo4j descriptor', () => {
     const desc = StorageDescriptor.parse({
       kind: 'neo4j',
@@ -32,7 +32,7 @@ describe('storageDescriptor', () => {
   })
 })
 
-describe('neo4jStorageConfig', () => {
+describe('Neo4jStorageConfig', () => {
   it('parses with sensible defaults', () => {
     const config = Neo4jStorageConfig.parse({
       uri: 'bolt://localhost:7687',

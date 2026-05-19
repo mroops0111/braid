@@ -1,4 +1,4 @@
-import type { HITLService, ModelRepository, ProposalRepository, ValidationService } from '@braidhq/core'
+import type { HITLService, ModelRepository, ProposalRepository, ValidationService, WorkspaceService } from '@braidhq/core'
 import { ProposalDraft, ProposalId, ProposalStatus, UserId } from '@braidhq/schema'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
@@ -31,6 +31,7 @@ export interface ProposalsRouterDeps {
   proposalRepository: ProposalRepository
   modelRepository: ModelRepository
   validationService: ValidationService
+  workspaceService: WorkspaceService
 }
 
 export function createProposalsRouter(deps: ProposalsRouterDeps): Hono {
@@ -70,8 +71,9 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): Hono {
     const proposalId = ProposalId.parse(context.req.param('proposalId'))
     const proposal = await deps.proposalRepository.load(proposalId)
     assertEntityInWorkspace(workspaceId, proposal.workspaceId, 'Proposal', proposalId)
+    const workspace = await deps.workspaceService.findById(workspaceId)
     const snapshot = await deps.modelRepository.load(workspaceId)
-    const result = await deps.validationService.validateOperations(snapshot, proposal.operations)
+    const result = await deps.validationService.validateOperations(snapshot, proposal.operations, workspace)
     return context.json(result)
   })
 

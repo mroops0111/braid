@@ -52,6 +52,12 @@ export const dddOntology = defineOntology({
       description: 'Invariant that must hold (MaxItemsRule, PositiveQuantityRule).',
       color: 'oklch(0.65 0.2 20)',
     },
+    {
+      id: 'actor' as NodeTypeId,
+      label: 'Actor',
+      description: 'External role that interacts with the system (Customer, Admin, BillingService).',
+      color: 'oklch(0.72 0.13 310)',
+    },
   ],
 
   edgeTypes: [
@@ -102,6 +108,14 @@ export const dddOntology = defineOntology({
       toTypes: ['boundedContext', 'aggregate', 'command', 'query'] as NodeTypeId[],
       cardinality: 'N:N',
       color: 'oklch(0.7 0.13 220)',
+    },
+    {
+      id: 'performedBy' as EdgeTypeId,
+      label: 'performed by',
+      fromTypes: ['command', 'query'] as NodeTypeId[],
+      toTypes: ['actor' as NodeTypeId],
+      cardinality: 'N:N',
+      color: 'oklch(0.72 0.13 310)',
     },
   ],
 })

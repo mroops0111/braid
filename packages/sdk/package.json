@@ -2,7 +2,7 @@
   "name": "@braidhq/sdk",
   "type": "module",
   "version": "0.0.1",
-  "description": "Braid plugin SDK. Functional defineSource / defineGenerator / defineAgent / etc.",
+  "description": "Plugin author SDK for Braid, used to define ontology, source loader, and view generator plugins.",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"
@@ -15,7 +15,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
     "test": "vitest run --passWithNoTests",
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
@@ -25,6 +25,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@braidhq/test-utils": "workspace:*",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
   },

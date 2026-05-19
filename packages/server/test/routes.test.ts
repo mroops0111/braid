@@ -1,47 +1,104 @@
-import type { ClarifyTicketId, NodeId, ProposalId, SkillId, WorkspaceId } from '@braidhq/schema'
+import type {
+  ClarifyCandidate,
+  ClarifyTicketId,
+  NodeId,
+  NodeStatus,
+  NodeTypeId,
+  ProposalId,
+  SkillId,
+  UserId,
+  WorkspaceId,
+} from '@braidhq/schema'
 import { ClarifyTicket, Proposal } from '@braidhq/core'
+import { T0 } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { buildTestApp } from './helpers/buildApp.js'
+import { readJson } from './helpers/readJson.js'
 
-const isoTimestamp = '2026-05-09T12:00:00+08:00'
 const workspaceId = 'w-1' as WorkspaceId
-const userId = 'u-1'
+const userId = 'u-1' as UserId
+
+const DRAFT = 'draft' as NodeStatus
+const COMMAND = 'command' as NodeTypeId
+const EVENT = 'event' as NodeTypeId
+
+function validNodePayload(overrides: { type?: NodeTypeId, name?: string, id?: string } = {}): unknown {
+  return {
+    type: overrides.type ?? COMMAND,
+    name: overrides.name ?? 'x',
+    id: overrides.id ?? 'n-1',
+    metadata: { sourceReferences: [], implementationMissing: true },
+  }
+}
 
 function makeProposal(overrides: {
   id?: string
   workspaceId?: WorkspaceId
   status?: 'pending' | 'applied' | 'rejected'
   operations?: ConstructorParameters<typeof Proposal>[0]['operations']
-}): Proposal {
+} = {}): Proposal {
   return new Proposal({
     id: (overrides.id ?? 'p-1') as ProposalId,
     workspaceId: overrides.workspaceId ?? workspaceId,
     status: overrides.status ?? 'pending',
     operations: overrides.operations ?? [],
     generatedBy: 'extract' as SkillId,
-    generatedAt: isoTimestamp,
+    generatedAt: T0,
     rationale: 'r',
   })
 }
 
+function makeClarifyTicket(overrides: {
+  id: string
+  status?: 'pending' | 'answered'
+  candidates?: readonly ClarifyCandidate[]
+}): ClarifyTicket {
+  return new ClarifyTicket({
+    id: overrides.id as ClarifyTicketId,
+    workspaceId,
+    question: 'q?',
+    candidates: [...(overrides.candidates ?? [])],
+    status: overrides.status ?? 'pending',
+  })
+}
+
+interface ProposalBody {
+  id: string
+  status: string
+  generatedAt: string
+}
+
+interface DecisionBody {
+  action: string
+  references: { proposalId?: string }
+}
+
+interface ListBody<T> {
+  items: T[]
+}
+
+interface NodeBody {
+  id: string
+  name: string
+  type: string
+}
+
 describe('POST /workspaces/:ws/proposals', () => {
   it('creates a pending proposal with a server-minted id and generatedAt', async () => {
-    const { app } = buildTestApp()
+    const { app } = await buildTestApp()
 
     const response = await app.request(`/workspaces/${workspaceId}/proposals`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        operations: [
-          { operation: 'addNode', payload: { type: 'command', name: 'x', id: 'n-1' } },
-        ],
+        operations: [{ operation: 'addNode', payload: validNodePayload() }],
         generatedBy: 'extract',
         rationale: 'creating via POST',
       }),
     })
 
     expect(response.status).toBe(201)
-    const body = await response.json()
+    const body = await readJson<ProposalBody>(response)
     expect(body.status).toBe('pending')
     expect(typeof body.id).toBe('string')
     expect(body.id.length).toBeGreaterThan(0)
@@ -49,7 +106,7 @@ describe('POST /workspaces/:ws/proposals', () => {
   })
 
   it('returns 400 when the body is missing required fields', async () => {
-    const { app } = buildTestApp()
+    const { app } = await buildTestApp()
 
     const response = await app.request(`/workspaces/${workspaceId}/proposals`, {
       method: 'POST',
@@ -63,7 +120,7 @@ describe('POST /workspaces/:ws/proposals', () => {
 
 describe('POST /workspaces/:ws/clarify', () => {
   it('creates a pending clarify ticket with a server-minted id', async () => {
-    const { app } = buildTestApp()
+    const { app } = await buildTestApp()
 
     const response = await app.request(`/workspaces/${workspaceId}/clarify`, {
       method: 'POST',
@@ -78,7 +135,7 @@ describe('POST /workspaces/:ws/clarify', () => {
     })
 
     expect(response.status).toBe(201)
-    const body = await response.json()
+    const body = await readJson<{ id: string, status: string, candidates: unknown[] }>(response)
     expect(body.status).toBe('pending')
     expect(body.candidates).toHaveLength(2)
     expect(typeof body.id).toBe('string')
@@ -87,11 +144,18 @@ describe('POST /workspaces/:ws/clarify', () => {
 
 describe('POST /workspaces/:ws/proposals/:id/apply', () => {
   it('applies a seeded proposal and returns a decision', async () => {
-    const { app, deps } = buildTestApp()
+    const { app, deps } = await buildTestApp()
     await deps.proposalRepository.save(makeProposal({
-      operations: [
-        { operation: 'addNode', payload: { type: 'command', name: 'x', id: 'n-1' as NodeId } as never },
-      ],
+      operations: [{
+        operation: 'addNode',
+        payload: {
+          type: COMMAND,
+          name: 'x',
+          id: 'n-1' as NodeId,
+          status: DRAFT,
+          metadata: { sourceReferences: [], implementationMissing: true },
+        },
+      }],
     }))
 
     const response = await app.request(`/workspaces/${workspaceId}/proposals/p-1/apply`, {
@@ -101,12 +165,12 @@ describe('POST /workspaces/:ws/proposals/:id/apply', () => {
     })
 
     expect(response.status).toBe(200)
-    const body = await response.json()
+    const body = await readJson<DecisionBody>(response)
     expect(body.action).toBe('applyProposal')
   })
 
   it('returns 404 when the proposal does not exist', async () => {
-    const { app } = buildTestApp()
+    const { app } = await buildTestApp()
 
     const response = await app.request(`/workspaces/${workspaceId}/proposals/missing/apply`, {
       method: 'POST',
@@ -118,7 +182,7 @@ describe('POST /workspaces/:ws/proposals/:id/apply', () => {
   })
 
   it('returns 404 when the proposal belongs to a different workspace', async () => {
-    const { app, deps } = buildTestApp()
+    const { app, deps } = await buildTestApp()
     await deps.proposalRepository.save(makeProposal({ workspaceId: 'other-ws' as WorkspaceId }))
 
     const response = await app.request(`/workspaces/${workspaceId}/proposals/p-1/apply`, {
@@ -131,7 +195,7 @@ describe('POST /workspaces/:ws/proposals/:id/apply', () => {
   })
 
   it('returns 400 when the body is missing required fields', async () => {
-    const { app } = buildTestApp()
+    const { app } = await buildTestApp()
 
     const response = await app.request(`/workspaces/${workspaceId}/proposals/p-1/apply`, {
       method: 'POST',
@@ -145,7 +209,7 @@ describe('POST /workspaces/:ws/proposals/:id/apply', () => {
 
 describe('GET /workspaces/:ws/proposals', () => {
   it('lists proposals scoped to the workspace, filtered by status', async () => {
-    const { app, deps } = buildTestApp()
+    const { app, deps } = await buildTestApp()
     await deps.proposalRepository.save(makeProposal({ id: 'p-1', status: 'pending' }))
     await deps.proposalRepository.save(makeProposal({ id: 'p-2', status: 'applied' }))
     await deps.proposalRepository.save(makeProposal({ id: 'p-3', status: 'pending', workspaceId: 'other-ws' as WorkspaceId }))
@@ -153,15 +217,15 @@ describe('GET /workspaces/:ws/proposals', () => {
     const response = await app.request(`/workspaces/${workspaceId}/proposals?status=pending`)
 
     expect(response.status).toBe(200)
-    const body = await response.json()
+    const body = await readJson<ListBody<{ id: string }>>(response)
     expect(body.items).toHaveLength(1)
-    expect(body.items[0].id).toBe('p-1')
+    expect(body.items[0]?.id).toBe('p-1')
   })
 })
 
 describe('POST /workspaces/:ws/clarify/:id/answer', () => {
   it('returns 404 when the ticket does not exist', async () => {
-    const { app } = buildTestApp()
+    const { app } = await buildTestApp()
 
     const response = await app.request(`/workspaces/${workspaceId}/clarify/missing/answer`, {
       method: 'POST',
@@ -173,7 +237,7 @@ describe('POST /workspaces/:ws/clarify/:id/answer', () => {
   })
 
   it('returns 400 when the body is missing candidateId', async () => {
-    const { app } = buildTestApp()
+    const { app } = await buildTestApp()
 
     const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-1/answer`, {
       method: 'POST',
@@ -187,14 +251,8 @@ describe('POST /workspaces/:ws/clarify/:id/answer', () => {
 
 describe('PATCH /workspaces/:ws/clarify/:id', () => {
   it('moves an answered ticket to applied and stamps proposalId', async () => {
-    const { app, deps } = buildTestApp()
-    await deps.clarifyRepository.save(new ClarifyTicket({
-      id: 'ct-link' as ClarifyTicketId,
-      workspaceId,
-      question: 'q?',
-      candidates: [],
-      status: 'answered',
-    }))
+    const { app, deps } = await buildTestApp()
+    await deps.clarifyRepository.save(makeClarifyTicket({ id: 'ct-link', status: 'answered' }))
 
     const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-link`, {
       method: 'PATCH',
@@ -203,7 +261,7 @@ describe('PATCH /workspaces/:ws/clarify/:id', () => {
     })
 
     expect(response.status).toBe(200)
-    const decision = await response.json() as { action: string, references: { proposalId?: string } }
+    const decision = await readJson<DecisionBody>(response)
     expect(decision.action).toBe('applyClarifyTicket')
     expect(decision.references.proposalId).toBe('p-99')
 
@@ -213,14 +271,8 @@ describe('PATCH /workspaces/:ws/clarify/:id', () => {
   })
 
   it('returns 409 when ticket has not been answered yet', async () => {
-    const { app, deps } = buildTestApp()
-    await deps.clarifyRepository.save(new ClarifyTicket({
-      id: 'ct-pending' as ClarifyTicketId,
-      workspaceId,
-      question: 'q?',
-      candidates: [],
-      status: 'pending',
-    }))
+    const { app, deps } = await buildTestApp()
+    await deps.clarifyRepository.save(makeClarifyTicket({ id: 'ct-pending', status: 'pending' }))
 
     const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-pending`, {
       method: 'PATCH',
@@ -234,14 +286,8 @@ describe('PATCH /workspaces/:ws/clarify/:id', () => {
 
 describe('POST /workspaces/:ws/clarify/:id/skip', () => {
   it('marks the ticket as skipped', async () => {
-    const { app, deps } = buildTestApp()
-    await deps.clarifyRepository.save(new ClarifyTicket({
-      id: 'ct-1' as ClarifyTicketId,
-      workspaceId,
-      question: 'irrelevant?',
-      candidates: [],
-      status: 'pending',
-    }))
+    const { app, deps } = await buildTestApp()
+    await deps.clarifyRepository.save(makeClarifyTicket({ id: 'ct-1', status: 'pending' }))
 
     const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-1/skip`, {
       method: 'POST',
@@ -259,37 +305,45 @@ describe('list endpoints return their empty shape for a fresh workspace', () => 
     { path: `/workspaces/${workspaceId}/nodes`, empty: { items: [] } },
     { path: `/workspaces/${workspaceId}/edges`, empty: { items: [] } },
     { path: `/workspaces/${workspaceId}/decisions`, empty: { items: [] } },
-    { path: '/workspaces', empty: { items: [] } },
   ] as const
 
   it.each(cases)('GET $path returns 200 + $empty', async ({ path, empty }) => {
-    const { app } = buildTestApp()
+    const { app } = await buildTestApp()
 
     const response = await app.request(path)
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual(empty)
   })
+
+  it('GET /workspaces returns 200 + items=[] when none registered', async () => {
+    const { app } = await buildTestApp({ workspaceIds: [] })
+
+    const response = await app.request('/workspaces')
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ items: [] })
+  })
 })
 
 describe('GET /workspaces/:ws/nodes filters and lookup', () => {
   it('filters nodes by type, status, and nameContains', async () => {
-    const { app, deps } = buildTestApp()
+    const { app, deps } = await buildTestApp()
     await deps.modelRepository.applyOperations(workspaceId, [
-      { operation: 'addNode', payload: { type: 'command', name: 'voidTask', id: 'n-1' as NodeId } as never },
-      { operation: 'addNode', payload: { type: 'command', name: 'cancelTask', id: 'n-2' as NodeId } as never },
-      { operation: 'addNode', payload: { type: 'event', name: 'taskVoided', id: 'n-3' as NodeId } as never },
+      { operation: 'addNode', payload: { type: COMMAND, name: 'voidTask', id: 'n-1' as NodeId, status: DRAFT } },
+      { operation: 'addNode', payload: { type: COMMAND, name: 'cancelTask', id: 'n-2' as NodeId, status: DRAFT } },
+      { operation: 'addNode', payload: { type: EVENT, name: 'taskVoided', id: 'n-3' as NodeId, status: DRAFT } },
     ])
 
     const filtered = await app.request(`/workspaces/${workspaceId}/nodes?type=command&q=void`)
 
-    const body = await filtered.json()
+    const body = await readJson<ListBody<NodeBody>>(filtered)
     expect(body.items).toHaveLength(1)
-    expect(body.items[0].name).toBe('voidTask')
+    expect(body.items[0]?.name).toBe('voidTask')
   })
 
   it('returns 404 when a single node id is missing', async () => {
-    const { app } = buildTestApp()
+    const { app } = await buildTestApp()
 
     const response = await app.request(`/workspaces/${workspaceId}/nodes/missing`)
 
@@ -299,7 +353,7 @@ describe('GET /workspaces/:ws/nodes filters and lookup', () => {
 
 describe('GET /workspaces/:ws/decisions/:id', () => {
   it('returns 404 when the decision id is missing', async () => {
-    const { app } = buildTestApp()
+    const { app } = await buildTestApp()
 
     const response = await app.request(`/workspaces/${workspaceId}/decisions/missing`)
 
@@ -309,7 +363,7 @@ describe('GET /workspaces/:ws/decisions/:id', () => {
 
 describe('GET /workspaces/:id', () => {
   it('returns 404 when the workspace is not registered', async () => {
-    const { app } = buildTestApp()
+    const { app } = await buildTestApp({ workspaceIds: [] })
 
     const response = await app.request(`/workspaces/${workspaceId}`)
 

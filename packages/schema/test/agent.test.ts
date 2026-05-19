@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { AgentBindingDescriptor, AgentEffort, AgentKind, AgentRoutingConfig, TaskName } from '../src/index.js'
 
-describe('taskName', () => {
+describe('TaskName', () => {
   it('accepts non-empty string', () => {
     expect(TaskName.parse('extract')).toBe('extract')
   })
@@ -10,7 +10,7 @@ describe('taskName', () => {
   })
 })
 
-describe('agentKind (open brand)', () => {
+describe('AgentKind (open brand)', () => {
   it('accepts claude-code', () => {
     expect(AgentKind.parse('claude-code')).toBe('claude-code')
   })
@@ -20,7 +20,7 @@ describe('agentKind (open brand)', () => {
   })
 })
 
-describe('agentEffort', () => {
+describe('AgentEffort', () => {
   it('accepts low / medium / high', () => {
     expect(AgentEffort.parse('high')).toBe('high')
     expect(AgentEffort.parse('medium')).toBe('medium')
@@ -31,7 +31,7 @@ describe('agentEffort', () => {
   })
 })
 
-describe('agentBindingDescriptor', () => {
+describe('AgentBindingDescriptor', () => {
   it('parses minimal binding', () => {
     const binding = AgentBindingDescriptor.parse({
       id: 'claude-default',
@@ -62,7 +62,7 @@ describe('agentBindingDescriptor', () => {
   })
 })
 
-describe('agentRoutingConfig', () => {
+describe('AgentRoutingConfig', () => {
   it('parses default + tasks map', () => {
     const config = AgentRoutingConfig.parse({
       default: 'claude-default',

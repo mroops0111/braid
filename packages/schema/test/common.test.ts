@@ -24,7 +24,7 @@ import {
   WorkspaceId,
 } from '../src/index.js'
 
-describe('timestamp', () => {
+describe('Timestamp', () => {
   it('accepts ISO 8601 with offset', () => {
     expect(Timestamp.parse('2026-05-09T12:34:56+08:00')).toBe('2026-05-09T12:34:56+08:00')
   })
@@ -36,7 +36,7 @@ describe('timestamp', () => {
   })
 })
 
-describe('branded IDs share the z.string().min(1).brand() contract', () => {
+describe('Branded IDs share the z.string().min(1).brand() contract', () => {
   // One representative case per schema — they all delegate to the same zod
   // primitive, so picking one (NodeId) plus a parameterised name table is
   // enough to catch a regression that swaps the brand for a looser type.
@@ -66,7 +66,7 @@ describe('branded IDs share the z.string().min(1).brand() contract', () => {
   })
 })
 
-describe('sourceLocation', () => {
+describe('SourceLocation', () => {
   it('accepts uri-only payload', () => {
     expect(SourceLocation.parse({ uri: 'file:///x.ts' })).toEqual({ uri: 'file:///x.ts' })
   })
@@ -87,7 +87,7 @@ describe('sourceLocation', () => {
   })
 })
 
-describe('sourceReference', () => {
+describe('SourceReference', () => {
   it('parses with sourceId + location', () => {
     const reference = SourceReference.parse({
       sourceId: 's-1',
@@ -105,7 +105,7 @@ describe('sourceReference', () => {
   })
 })
 
-describe('externalReferenceKind (open brand — concrete kinds live in plugins)', () => {
+describe('ExternalReferenceKind (open brand — concrete kinds live in plugins)', () => {
   it('accepts any non-empty string', () => {
     expect(ExternalReferenceKind.parse('github')).toBe('github')
     expect(ExternalReferenceKind.parse('linear')).toBe('linear')
@@ -115,7 +115,7 @@ describe('externalReferenceKind (open brand — concrete kinds live in plugins)'
   })
 })
 
-describe('externalReference', () => {
+describe('ExternalReference', () => {
   it('parses with arbitrary kind + url', () => {
     const reference = ExternalReference.parse({
       kind: 'github',

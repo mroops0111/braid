@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { EdgeTypeId, NodeStatus, NodeTypeId } from '../src/index.js'
 
-describe('node status', () => {
+describe('Node status', () => {
   it('has 4 states matching ReDoc', () => {
     expect(NodeStatus.options).toEqual(['draft', 'completed', 'unclear', 'deprecated'])
   })

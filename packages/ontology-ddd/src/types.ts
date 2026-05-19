@@ -7,6 +7,7 @@ export const DDD_NODE_TYPES = [
   'query',
   'event',
   'rule',
+  'actor',
 ] as const
 
 export const DDDNodeType = z.enum(DDD_NODE_TYPES)
@@ -19,6 +20,7 @@ export const DDD_EDGE_TYPES = [
   'triggers',
   'constrainedBy',
   'dependsOn',
+  'performedBy',
 ] as const
 
 export const DDDEdgeType = z.enum(DDD_EDGE_TYPES)

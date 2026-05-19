@@ -2,7 +2,7 @@
   "name": "@braidhq/schema",
   "type": "module",
   "version": "0.0.1",
-  "description": "Zod schemas + TS types for the Braid domain model. Shared by core / server / studio / cli / sdk / plugins.",
+  "description": "Zod schemas and branded TypeScript types for the Braid domain. The wire-format contract for all Braid packages.",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"
@@ -26,7 +26,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "clean": "rm -rf dist .turbo *.tsbuildinfo coverage"
@@ -35,6 +35,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@braidhq/test-utils": "workspace:*",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
   }

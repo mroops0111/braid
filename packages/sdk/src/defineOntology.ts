@@ -1,7 +1,8 @@
 import type {
   EdgeTypeDescriptor,
   NodeTypeDescriptor,
-  Ontology,
+  OntologyPlugin,
+  OntologyValidator,
 } from '@braidhq/core'
 import type {
   EdgeTypeId,
@@ -10,6 +11,7 @@ import type {
   PluginId,
 } from '@braidhq/schema'
 import type { PluginSkillRef } from './types.js'
+import { OntologyTypeValidator, StructuralValidator } from '@braidhq/core'
 import { z } from 'zod'
 import {
   assertColorString,
@@ -21,11 +23,19 @@ import {
 export interface DefineOntologyInput {
   readonly ontologyId: string
   /** Optional base ontology to extend. Node and edge types compose by concatenation; duplicates throw. */
-  readonly extends?: Ontology
+  readonly extends?: OntologyPlugin
   /** Node types this ontology contributes. Required `id`, `label`, `description`. */
   readonly nodeTypes: readonly NodeTypeDescriptor[]
   /** Edge types this ontology contributes. Endpoints must resolve in the combined node-type set. */
   readonly edgeTypes: readonly EdgeTypeDescriptor[]
+  /**
+   * Extra validators bundled with this ontology, on top of the framework's
+   * `OntologyTypeValidator` + `StructuralValidator` which are auto-attached
+   * (you don't need to list them here). Use this for ontology-specific
+   * invariants that can't be expressed via the declarative `nodeTypes` /
+   * `edgeTypes` / `cardinality` (e.g. "every aggregate has ≥1 command").
+   */
+  readonly extraValidators?: readonly OntologyValidator[]
   /** Skills this plugin ships alongside the ontology (see PluginSkillRef). */
   readonly skills?: readonly PluginSkillRef[]
   /** Optional config-schema override; defaults to an empty object schema. */
@@ -35,18 +45,21 @@ export interface DefineOntologyInput {
 }
 
 /**
- * Build a fully-validated Ontology plugin from a declarative spec.
+ * Build a fully-validated OntologyPlugin from a declarative spec.
  *
  * Composes with another ontology via `extends`: node and edge types
  * concatenate, duplicates are an error so an extension can't silently
- * mask a base type. The result is a frozen `Ontology` instance that
- * works anywhere the Plugin interface is consumed.
+ * mask a base type.
+ *
+ * Auto-attaches the framework's two generic validation engines
+ * (`OntologyTypeValidator` for type allow-list, `StructuralValidator` for
+ * topology + cardinality). Plugin authors don't need to wire them.
  *
  * Validation is builder-time, not runtime: bad input throws before the
  * plugin ever reaches the PluginRegistry, so the offending line in the
  * plugin's own source code is in the stack trace.
  */
-export function defineOntology(input: DefineOntologyInput): Ontology {
+export function defineOntology(input: DefineOntologyInput): OntologyPlugin {
   assertNonEmpty('ontologyId', input.ontologyId)
 
   const baseNodes = input.extends?.nodeTypes ?? []
@@ -73,15 +86,32 @@ export function defineOntology(input: DefineOntologyInput): Ontology {
       assertColorString(`${label} color`, edge.color)
   }
 
-  return Object.freeze({
+  // We assemble the plugin in two passes: build the base shape so the
+  // type+structural validators have something to bind to, then attach the
+  // validators array referencing that same instance. This keeps validators
+  // looking up live `nodeTypes/edgeTypes` even if someone mutates the
+  // returned ontology before freeze (the freeze below makes that impossible
+  // in practice, but the late-binding pattern is the standard one for
+  // ontology + bundled-validator setups).
+  const ontology: OntologyPlugin = {
     id: (input.pluginId ?? `ontology.${input.ontologyId}`) as PluginId,
     type: 'ontology' as const,
     configSchema: input.configSchema ?? z.object({}),
     ontologyId: input.ontologyId as OntologyId,
-    nodeTypes: nodeTypes as readonly NodeTypeDescriptor[] & { readonly [Symbol.iterator]: () => Iterator<NodeTypeDescriptor> },
-    edgeTypes: edgeTypes as readonly EdgeTypeDescriptor[] & { readonly [Symbol.iterator]: () => Iterator<EdgeTypeDescriptor> },
+    nodeTypes,
+    edgeTypes,
     skills: input.skills ?? [],
-  }) as Ontology & { readonly skills: readonly PluginSkillRef[] }
+    validators: [],
+  }
+
+  const validators: OntologyValidator[] = [
+    new OntologyTypeValidator(ontology),
+    new StructuralValidator(ontology),
+    ...(input.extraValidators ?? []),
+  ]
+  ;(ontology as { validators: readonly OntologyValidator[] }).validators = validators
+
+  return Object.freeze(ontology)
 }
 
 // Re-export branded id helpers so plugin authors can cast without importing schema directly.

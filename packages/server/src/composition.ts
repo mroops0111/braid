@@ -94,6 +94,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     decisionRepository,
     modelRepository,
     validationService,
+    workspaceService,
     clock,
     eventBus,
   })

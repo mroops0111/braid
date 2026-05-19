@@ -43,7 +43,7 @@ importers:
     dependencies:
       '@braidhq/ontology-ddd':
         specifier: workspace:*
-        version: link:../../plugins/ontology-ddd
+        version: link:../../packages/ontology-ddd
       '@braidhq/schema':
         specifier: workspace:*
         version: link:../../packages/schema
@@ -54,6 +54,28 @@ importers:
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
+
+  packages/agent-claude-code:
+    dependencies:
+      '@braidhq/core':
+        specifier: workspace:*
+        version: link:../core
+      '@braidhq/schema':
+        specifier: workspace:*
+        version: link:../schema
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@22.19.18)(lightningcss@1.32.0)
 
   packages/cli:
     dependencies:
@@ -88,6 +110,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.14
@@ -119,6 +144,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -145,12 +173,40 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.19.18)(lightningcss@1.32.0)
 
+  packages/ontology-ddd:
+    dependencies:
+      '@braidhq/core':
+        specifier: workspace:*
+        version: link:../core
+      '@braidhq/schema':
+        specifier: workspace:*
+        version: link:../schema
+      '@braidhq/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      '@vitest/coverage-v8':
+        specifier: ^2.1.0
+        version: 2.1.9(vitest@2.1.9(@types/node@22.19.18)(lightningcss@1.32.0))
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@22.19.18)(lightningcss@1.32.0)
+
   packages/schema:
     dependencies:
       zod:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -170,6 +226,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -179,12 +238,15 @@ importers:
 
   packages/server:
     dependencies:
+      '@braidhq/agent-claude-code':
+        specifier: workspace:*
+        version: link:../agent-claude-code
       '@braidhq/core':
         specifier: workspace:*
         version: link:../core
       '@braidhq/ontology-ddd':
         specifier: workspace:*
-        version: link:../../plugins/ontology-ddd
+        version: link:../ontology-ddd
       '@braidhq/schema':
         specifier: workspace:*
         version: link:../schema
@@ -216,6 +278,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       tsx:
         specifier: ^4.19.0
         version: 4.21.0
@@ -238,6 +303,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -260,6 +328,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -278,7 +349,13 @@ importers:
       kuzu:
         specifier: ^0.11.0
         version: 0.11.3
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -352,6 +429,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       '@tailwindcss/vite':
         specifier: ^4.0.0
         version: 4.3.0(vite@6.4.2(@types/node@22.19.18)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.9.0))
@@ -380,24 +460,18 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.19.18)(lightningcss@1.32.0)
 
-  plugins/ontology-ddd:
+  packages/test-utils:
     dependencies:
       '@braidhq/core':
         specifier: workspace:*
-        version: link:../../packages/core
+        version: link:../core
       '@braidhq/schema':
         specifier: workspace:*
-        version: link:../../packages/schema
-      '@braidhq/sdk':
-        specifier: workspace:*
-        version: link:../../packages/sdk
+        version: link:../schema
       zod:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
-      '@vitest/coverage-v8':
-        specifier: ^2.1.0
-        version: 2.1.9(vitest@2.1.9(@types/node@22.19.18)(lightningcss@1.32.0))
       typescript:
         specifier: ^5.7.0
         version: 5.9.3

@@ -3,13 +3,13 @@
   "type": "module",
   "version": "0.0.1",
   "private": true,
-  "description": "Braid Tauri desktop shell. Embeds @braidhq/server as sidecar; reuses @braidhq/studio for UI.",
+  "description": "Tauri desktop shell for Braid.",
   "license": "MIT",
   "scripts": {
     "build": "echo 'desktop build runs Tauri in Phase 6'",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
-    "dev": "echo 'tauri dev (Phase 6)'",
+    "dev": "echo 'tauri dev'",
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {

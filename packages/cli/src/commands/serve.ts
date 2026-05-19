@@ -15,7 +15,7 @@ export interface ServeCommandInput {
  */
 export async function serveCommand(input: ServeCommandInput): Promise<void> {
   const port = input.port
-  const deps = composeFsApp({
+  const deps = await composeFsApp({
     apiUrl: `http://localhost:${port}`,
     ...(process.env.BRAID_HOME ? { braidHome: process.env.BRAID_HOME } : {}),
     ...(process.env.BRAID_AGENT_MODEL ? { agentModel: process.env.BRAID_AGENT_MODEL } : {}),

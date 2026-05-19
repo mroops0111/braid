@@ -4,37 +4,33 @@ import type {
   ModelSnapshot,
   NodeId,
   NodeTypeId,
-  PluginId,
   ValidationCode,
   ValidationIssue,
 } from '@braidhq/schema'
-import type { EdgeTypeDescriptor, Ontology } from '../../domain/plugin/Ontology.js'
-import type { Validator } from '../../domain/plugin/Validator.js'
-import { z } from 'zod'
+import type { EdgeTypeDescriptor, OntologyPlugin, OntologyValidator } from '../../domain/plugin/Ontology.js'
 
 /**
- * Reads `EdgeTypeDescriptor.fromTypes / toTypes / cardinality` from a live
- * Ontology instance and rejects edges whose endpoints violate the
- * declared topology or whose count violates the declared cardinality.
+ * Generic engine: reads `EdgeTypeDescriptor.fromTypes / toTypes /
+ * cardinality` from an `OntologyPlugin` instance and rejects edges
+ * whose endpoints violate the declared topology or whose count
+ * violates the declared cardinality.
  *
- * Complements `DDDOntologyValidator` (which only checks "is this node /
- * edge type in the ontology") and `OrphanEdgeValidator` (which only
- * checks "do the endpoints exist"). Without this, the extract skill
- * could land an `aggregate contains boundedContext` reversal — every
- * downstream consumer reading the graph would assume the ontology's
- * `contains` direction and produce wrong results.
+ * Complements `OntologyTypeValidator` (type allow-list) and
+ * `OrphanEdgeValidator` (endpoints exist). Without this, the extract
+ * skill could land an `aggregate contains boundedContext` reversal —
+ * every downstream consumer reading the graph would assume the
+ * ontology's `contains` direction and produce wrong results.
  *
  * Edge types not declared by the ontology are skipped here; the
- * ontology-types validator already flags them as unknown.
+ * type validator already flags them as unknown.
+ *
+ * Not a plugin: each ontology constructs its own instance and exposes
+ * it via `OntologyPlugin.validators[]`.
  */
-export class StructuralValidator implements Validator {
-  readonly id = 'core.structural' as PluginId
-  readonly type = 'validator' as const
-  readonly configSchema = z.object({})
-
+export class StructuralValidator implements OntologyValidator {
   private readonly edgeTypeById: ReadonlyMap<EdgeTypeId, EdgeTypeDescriptor>
 
-  constructor(ontology: Ontology) {
+  constructor(ontology: OntologyPlugin) {
     this.edgeTypeById = new Map(ontology.edgeTypes.map(descriptor => [descriptor.id, descriptor]))
   }
 

@@ -58,7 +58,6 @@ export class FsWorkspaceRepository implements WorkspaceRepository {
       id: WorkspaceId.parse(productManifest.name),
       rootPath: AbsolutePath.parse(resolve(rootPath)),
       productManifest,
-      pluginConfig: { plugins: [] },
     }
     return new Workspace(data)
   }
