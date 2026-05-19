@@ -1,12 +1,11 @@
 import type { Workspace } from '@braidhq/schema'
-import { FolderGit2, FolderPlus, Loader2, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import { FolderGit2, FolderPlus, Loader2, Plus, Sparkles } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import braidLogo from '@/assets/braid-logo.svg'
 import { usePendingProposals, useRuns } from '@/lib/queries'
 import { CreateWorkspaceWizard } from './CreateWorkspaceWizard'
 import { ListRow } from './ListRow'
 import { RegisterWorkspaceDialog } from './RegisterWorkspaceDialog'
-import { Button } from './ui/button'
 
 interface SidebarProps {
   workspaces: Workspace[]
@@ -29,8 +28,14 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect, onOpenDetails
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin px-2 pb-2">
-        <div className="px-2 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
-          Workspaces
+        <div className="flex items-center justify-between px-2 pt-1 pb-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+            Workspaces
+          </span>
+          <AddWorkspaceMenu
+            onCreate={() => setWizardOpen(true)}
+            onRegister={() => setRegisterOpen(true)}
+          />
         </div>
         <ul className="space-y-px">
           {workspaces.length === 0 && (
@@ -62,20 +67,92 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect, onOpenDetails
         </ul>
       </div>
 
-      <div className="space-y-0.5 border-t border-sidebar-border p-2">
-        <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => setWizardOpen(true)}>
-          <Sparkles />
-          Create Workspace
-        </Button>
-        <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => setRegisterOpen(true)}>
-          <FolderPlus />
-          Register Existing
-        </Button>
-      </div>
-
       <CreateWorkspaceWizard open={wizardOpen} onOpenChange={setWizardOpen} onCreated={onSelect} />
       <RegisterWorkspaceDialog open={registerOpen} onOpenChange={setRegisterOpen} onRegistered={onSelect} />
     </aside>
+  )
+}
+
+function AddWorkspaceMenu({ onCreate, onRegister }: {
+  onCreate: () => void
+  onRegister: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open)
+      return
+    function handlePointer(event: PointerEvent) {
+      if (!containerRef.current?.contains(event.target as Node))
+        setOpen(false)
+    }
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === 'Escape')
+        setOpen(false)
+    }
+    document.addEventListener('pointerdown', handlePointer)
+    document.addEventListener('keydown', handleKey)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointer)
+      document.removeEventListener('keydown', handleKey)
+    }
+  }, [open])
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        title="Add workspace"
+        className="flex size-5 items-center justify-center rounded text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+      >
+        <Plus className="size-3.5" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-20 mt-1 w-52 overflow-hidden rounded-md border border-sidebar-border bg-popover text-popover-foreground shadow-md">
+          <MenuItem
+            icon={Sparkles}
+            label="Create New Workspace"
+            description="Scaffold a fresh PRODUCT.md"
+            onClick={() => {
+              setOpen(false)
+              onCreate()
+            }}
+          />
+          <MenuItem
+            icon={FolderPlus}
+            label="Register Existing"
+            description="Track an existing PRODUCT.md"
+            onClick={() => {
+              setOpen(false)
+              onRegister()
+            }}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MenuItem({ icon: Icon, label, description, onClick }: {
+  icon: typeof Sparkles
+  label: string
+  description: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-start gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-accent"
+    >
+      <Icon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+      <span className="flex-1">
+        <span className="block font-medium">{label}</span>
+        <span className="mt-0.5 block text-[10px] text-muted-foreground">{description}</span>
+      </span>
+    </button>
   )
 }
 
