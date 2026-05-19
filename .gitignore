@@ -3,6 +3,7 @@ node_modules
 
 # Build output
 dist
+bundle
 coverage
 *.tsbuildinfo
 
@@ -10,8 +11,10 @@ coverage
 .turbo
 
 # Rust / Tauri build artifacts
-target/
-src-tauri/gen/schemas/
+**/target/
+**/src-tauri/gen/schemas/
+**/src-tauri/binaries/
+**/src-tauri/resources/
 
 # OS
 .DS_Store

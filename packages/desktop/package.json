@@ -10,9 +10,10 @@
     "build": "echo 'desktop#build is a no-op in CI; run `pnpm --filter @braidhq/desktop bundle` to produce a Tauri installer.'",
     "bundle": "tauri build",
     "tauri": "tauri",
+    "prepare-sidecar": "node scripts/prepare-sidecar.mjs",
     "typecheck": "echo 'desktop has no TypeScript sources; frontend lives in @braidhq/studio.'",
     "test": "vitest run --passWithNoTests",
-    "clean": "rm -rf .turbo src-tauri/target"
+    "clean": "rm -rf .turbo src-tauri/target src-tauri/binaries src-tauri/resources"
   },
   "dependencies": {
     "@braidhq/schema": "workspace:*",
