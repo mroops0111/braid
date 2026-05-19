@@ -19,6 +19,8 @@ export default antfu(
       'docs/**',
       '**/skills/**/*.md',
       '**/*.tsbuildinfo',
+      '**/src-tauri/gen/**',
+      '**/src-tauri/target/**',
     ],
   },
   {

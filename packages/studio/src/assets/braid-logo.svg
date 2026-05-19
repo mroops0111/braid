@@ -1,0 +1,22 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <mask id="braidCut1">
+      <rect width="512" height="512" fill="white"/>
+      <circle cx="256" cy="200" r="30" fill="black"/>
+      <circle cx="256" cy="312" r="30" fill="black"/>
+    </mask>
+    <mask id="braidCut2">
+      <rect width="512" height="512" fill="white"/>
+      <circle cx="256" cy="144" r="30" fill="black"/>
+      <circle cx="256" cy="256" r="30" fill="black"/>
+      <circle cx="256" cy="368" r="30" fill="black"/>
+    </mask>
+  </defs>
+  <g fill="none" stroke-width="40" stroke-linecap="round">
+    <path d="M 196 140 C 196 184, 316 224, 316 256 C 316 288, 196 328, 196 372"
+          stroke="#f59e0b" mask="url(#braidCut1)"/>
+    <path d="M 316 140 C 316 184, 196 224, 196 256 C 196 288, 316 328, 316 372"
+          stroke="#06b6d4" mask="url(#braidCut2)"/>
+    <path d="M 256 140 L 256 372" stroke="#5b67e8"/>
+  </g>
+</svg>

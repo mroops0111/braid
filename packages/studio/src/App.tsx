@@ -1,9 +1,10 @@
-import { Command, FolderPlus, Settings2, Sparkles } from 'lucide-react'
+import { Command, FolderPlus, Server, Settings2, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { CommandPalette, type TabKey } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
 import { InFlightRunBanner } from './components/InFlightRunBanner'
 import { RegisterWorkspaceDialog } from './components/RegisterWorkspaceDialog'
+import { ServerUrlDialog } from './components/ServerUrlDialog'
 import { Sidebar } from './components/Sidebar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
@@ -21,6 +22,7 @@ export function App() {
   const [continuation, setContinuation] = useState<SkillsContinuation | null>(null)
   const [detailsId, setDetailsId] = useState<string | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [serverUrlOpen, setServerUrlOpen] = useState(false)
 
   useEffect(() => {
     if (!activeId && workspaces?.items.length) {
@@ -46,7 +48,11 @@ export function App() {
         onOpenDetails={openDetails}
       />
       <main className="flex flex-1 flex-col overflow-hidden">
-        <Header workspaceId={activeId} onOpenDetails={() => activeId && openDetails(activeId)} />
+        <Header
+          workspaceId={activeId}
+          onOpenDetails={() => activeId && openDetails(activeId)}
+          onOpenServerUrl={() => setServerUrlOpen(true)}
+        />
         <InFlightRunBanner workspaceId={activeId} />
         {activeId
           ? (
@@ -98,6 +104,7 @@ export function App() {
         onSelectWorkspace={setActiveId}
         onSelectTab={setActiveTab}
       />
+      <ServerUrlDialog open={serverUrlOpen} onOpenChange={setServerUrlOpen} />
       <WorkspaceDetailsSheet
         workspaceId={detailsId}
         open={detailsOpen}
@@ -118,7 +125,11 @@ export function App() {
   )
 }
 
-function Header({ workspaceId, onOpenDetails }: { workspaceId: string | null, onOpenDetails: () => void }) {
+function Header({ workspaceId, onOpenDetails, onOpenServerUrl }: {
+  workspaceId: string | null
+  onOpenDetails: () => void
+  onOpenServerUrl: () => void
+}) {
   return (
     <header className="flex h-11 items-center justify-between border-b border-border px-4">
       <div className="flex items-center gap-2 text-sm">
@@ -139,10 +150,20 @@ function Header({ workspaceId, onOpenDetails }: { workspaceId: string | null, on
               <span className="text-muted-foreground/60">(none registered)</span>
             )}
       </div>
-      <kbd className="hidden items-center gap-1 rounded border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline-flex">
-        <Command className="size-3" />
-        K
-      </kbd>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onOpenServerUrl}
+          title="Configure server URL"
+          className="group flex h-7 items-center gap-1.5 rounded-md border border-transparent px-2 text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground"
+        >
+          <Server className="size-3" />
+        </button>
+        <kbd className="hidden items-center gap-1 rounded border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline-flex">
+          <Command className="size-3" />
+          K
+        </kbd>
+      </div>
     </header>
   )
 }
