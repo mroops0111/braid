@@ -7,14 +7,19 @@ use tauri::{AppHandle, Manager, RunEvent, State};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
-/// Holds the embedded server's listening URL and the child process so the
-/// frontend can ask for the URL and the app can clean up on exit.
-#[derive(Default)]
-struct EmbeddedServer {
-    url: Mutex<Option<String>>,
-    child: Mutex<Option<CommandChild>>,
-    log_task: Mutex<Option<JoinHandle<()>>>,
+const SERVER_SCRIPT_RESOURCE: &str = "resources/server/server.mjs";
+const SERVER_LOG_TARGET: &str = "braid-server";
+
+/// All state that has to outlive a single sidecar start. Kept in a single
+/// option so url, child, and log task can never disagree.
+struct ServerHandle {
+    url: String,
+    child: CommandChild,
+    log_task: JoinHandle<()>,
 }
+
+#[derive(Default)]
+struct EmbeddedServer(Mutex<Option<ServerHandle>>);
 
 #[derive(Serialize)]
 struct ServerInfo {
@@ -23,19 +28,16 @@ struct ServerInfo {
 
 #[tauri::command]
 fn get_server_info(state: State<'_, EmbeddedServer>) -> Result<ServerInfo, String> {
-    let url = state
-        .url
-        .lock()
-        .map_err(|e| e.to_string())?
-        .clone()
+    let guard = state.0.lock().map_err(|e| e.to_string())?;
+    let handle = guard
+        .as_ref()
         .ok_or_else(|| "embedded server has not started yet".to_string())?;
-    Ok(ServerInfo { url })
+    Ok(ServerInfo { url: handle.url.clone() })
 }
 
 /// Bind to port 0, ask the kernel which port we got, drop the listener.
 /// There is an inherent race between releasing the port and the Node
-/// sidecar binding it; in practice the window is sub-millisecond and we
-/// accept it for simplicity.
+/// sidecar binding it. The window is sub-millisecond, accepted for now.
 fn pick_free_port() -> std::io::Result<u16> {
     let listener = TcpListener::bind("127.0.0.1:0")?;
     let port = listener.local_addr()?.port();
@@ -45,49 +47,49 @@ fn pick_free_port() -> std::io::Result<u16> {
 
 fn start_embedded_server(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let port = pick_free_port()?;
-    let braid_home = app
-        .path()
-        .app_data_dir()?
-        .join("workspaces");
+    let braid_home = app.path().app_data_dir()?.join("workspaces");
     std::fs::create_dir_all(&braid_home)?;
 
-    // Server bundle lives at <resource_dir>/resources/server/server.mjs.
     let server_script = app
         .path()
-        .resolve("resources/server/server.mjs", tauri::path::BaseDirectory::Resource)?;
+        .resolve(SERVER_SCRIPT_RESOURCE, tauri::path::BaseDirectory::Resource)?;
 
-    let sidecar = app
+    let (mut rx, child) = app
         .shell()
         .sidecar("node")?
         .arg(server_script)
         .env("BRAID_SERVER_PORT", port.to_string())
-        .env("BRAID_HOME", braid_home);
+        .env("BRAID_HOME", braid_home)
+        .spawn()?;
 
-    let (mut rx, child) = sidecar.spawn()?;
-
-    let url = format!("http://localhost:{port}");
-    let state: State<'_, EmbeddedServer> = app.state();
-    *state.url.lock().unwrap() = Some(url.clone());
-    *state.child.lock().unwrap() = Some(child);
-
-    // Drain stdout/stderr so the OS pipe buffer doesn't fill and stall
-    // the server. Lines are forwarded to the Tauri log plugin so they
-    // surface in `tauri dev` output and in the debug menu.
-    let handle = tauri::async_runtime::spawn(async move {
+    // Drain stdout/stderr so the OS pipe buffer never fills and stalls the
+    // sidecar. Lines are forwarded to the Tauri log plugin so they show up
+    // in `tauri dev` output and the future debug panel.
+    let log_task = tauri::async_runtime::spawn(async move {
         while let Some(event) = rx.recv().await {
             match event {
-                CommandEvent::Stdout(line) => log::info!(target: "braid-server", "{}", String::from_utf8_lossy(&line).trim_end()),
-                CommandEvent::Stderr(line) => log::warn!(target: "braid-server", "{}", String::from_utf8_lossy(&line).trim_end()),
-                CommandEvent::Error(err) => log::error!(target: "braid-server", "{err}"),
+                CommandEvent::Stdout(line) => {
+                    log::info!(target: SERVER_LOG_TARGET, "{}", String::from_utf8_lossy(&line).trim_end())
+                }
+                CommandEvent::Stderr(line) => {
+                    log::warn!(target: SERVER_LOG_TARGET, "{}", String::from_utf8_lossy(&line).trim_end())
+                }
+                CommandEvent::Error(err) => {
+                    log::error!(target: SERVER_LOG_TARGET, "{err}")
+                }
                 CommandEvent::Terminated(payload) => {
-                    log::warn!(target: "braid-server", "exited (code={:?})", payload.code);
+                    log::warn!(target: SERVER_LOG_TARGET, "exited (code={:?})", payload.code);
                     break;
                 }
                 _ => {}
             }
         }
     });
-    *state.log_task.lock().unwrap() = Some(handle);
+
+    let url = format!("http://localhost:{port}");
+    let state: State<'_, EmbeddedServer> = app.state();
+    let mut guard = state.0.lock().map_err(|e| format!("lock poisoned: {e}"))?;
+    *guard = Some(ServerHandle { url: url.clone(), child, log_task });
 
     log::info!("embedded server starting on {url}");
     Ok(())
@@ -95,22 +97,24 @@ fn start_embedded_server(app: &AppHandle) -> Result<(), Box<dyn std::error::Erro
 
 fn stop_embedded_server(app: &AppHandle) {
     let state = app.state::<EmbeddedServer>();
-    let mut guard = match state.child.lock() {
+    let mut guard = match state.0.lock() {
         Ok(g) => g,
-        Err(_) => return,
+        Err(poisoned) => poisoned.into_inner(),
     };
-    if let Some(child) = guard.take() {
-        // kill() returns the process's exit status; we don't care.
-        let _ = child.kill();
+    if let Some(handle) = guard.take() {
+        let _ = handle.child.kill();
+        handle.log_task.abort();
     }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::default()
-            .level(log::LevelFilter::Info)
-            .build())
+        .plugin(
+            tauri_plugin_log::Builder::default()
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .plugin(tauri_plugin_shell::init())
         .manage(EmbeddedServer::default())
         .invoke_handler(tauri::generate_handler![get_server_info])

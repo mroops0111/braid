@@ -7,12 +7,12 @@
   "license": "MIT",
   "scripts": {
     "dev": "tauri dev",
-    "build": "echo 'desktop#build is a no-op in CI; run `pnpm --filter @braidhq/desktop bundle` to produce a Tauri installer.'",
+    "build": "echo 'skipped (run `pnpm --filter @braidhq/desktop bundle` for an installer)'",
     "bundle": "tauri build",
     "tauri": "tauri",
     "prepare-sidecar": "node scripts/prepare-sidecar.mjs",
-    "typecheck": "echo 'desktop has no TypeScript sources; frontend lives in @braidhq/studio.'",
-    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run",
     "clean": "rm -rf .turbo src-tauri/target src-tauri/binaries src-tauri/resources"
   },
   "dependencies": {
