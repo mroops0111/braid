@@ -1,4 +1,4 @@
-import type { IngestReport, SourceLoader, SourceLoaderContext, SyncReport } from '@braidhq/core'
+import type { IngestReport, SourceLoaderContext, SourceLoaderPlugin, SyncReport } from '@braidhq/core'
 import type { AbsolutePath, LoaderKind, PluginId } from '@braidhq/schema'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -62,7 +62,7 @@ export interface GoogleDriveLoaderDeps {
  * compares modifiedTime per file; reports `changed = true` if any file
  * was added / updated / removed.
  */
-export class GoogleDriveLoader implements SourceLoader {
+export class GoogleDriveLoader implements SourceLoaderPlugin {
   readonly id = 'source-loader-gdrive' as PluginId
   readonly type = 'source-loader' as const
   readonly kind = 'gdrive' as LoaderKind

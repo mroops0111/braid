@@ -26,10 +26,6 @@ coverage
 # Docs
 docs/
 
-# Example workspaces — only tracked manifests / source seeds should ever
-# be committed. Runtime state (Kuzu graph, run logs, session dirs, MCP
-# config) is regenerated on every fresh boot and must not be in git.
-examples/*/.braid/
-examples/*/.braid-sessions/
-examples/*/artifacts/
-examples/*/.braid-mcp-*.json
+# Example
+examples/
+!examples/example-workspace/

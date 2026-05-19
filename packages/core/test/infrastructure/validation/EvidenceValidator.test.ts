@@ -1,4 +1,4 @@
-import type { ModelSnapshot, NodeId, NodeStatus, NodeTypeId, SkillId } from '@braidhq/schema'
+import type { ModelSnapshot, NodeId, NodeStatus, NodeTypeId, SourceId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { EvidenceValidator } from '../../../src/infrastructure/validation/EvidenceValidator.js'
 
@@ -53,9 +53,8 @@ describe('EvidenceValidator', () => {
         status: completed,
         metadata: {
           sourceReferences: [{
-            sourceId: 'code-a' as never,
-            location: { uri: 'apps/api/cart.ts' as never },
-            lastTouchedBy: 'braid-extract' as SkillId,
+            sourceId: 'code-a' as SourceId,
+            location: { uri: 'apps/api/cart.ts' },
           }],
           intentMissing: true,
         },

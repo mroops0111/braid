@@ -1,4 +1,6 @@
+import { T0 as isoTimestamp } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
+
 import {
   RunRecord,
   SkillArtifactKind,
@@ -9,9 +11,7 @@ import {
   SkillRun,
 } from '../src/index.js'
 
-const isoTimestamp = '2026-05-12T12:00:00+08:00'
-
-describe('skillRun (audit record)', () => {
+describe('SkillRun (audit record)', () => {
   it('parses a running skill', () => {
     const run = SkillRun.parse({
       id: 'sr-1',
@@ -51,7 +51,7 @@ describe('skillRun (audit record)', () => {
   })
 })
 
-describe('skillOrigin', () => {
+describe('SkillOrigin', () => {
   it('accepts builtin / workspace / extension', () => {
     expect(SkillOrigin.parse('builtin')).toBe('builtin')
     expect(SkillOrigin.parse('workspace')).toBe('workspace')
@@ -62,7 +62,7 @@ describe('skillOrigin', () => {
   })
 })
 
-describe('skillFrontmatter', () => {
+describe('SkillFrontmatter', () => {
   it('parses minimal frontmatter with defaults (no braid extension)', () => {
     const fm = SkillFrontmatter.parse({
       name: 'braid-ask',
@@ -107,7 +107,7 @@ describe('skillFrontmatter', () => {
   })
 })
 
-describe('skillManifest', () => {
+describe('SkillManifest', () => {
   it('parses a builtin manifest', () => {
     const manifest = SkillManifest.parse({
       id: 'ask',
@@ -134,7 +134,7 @@ describe('skillManifest', () => {
   })
 })
 
-describe('skillArtifactKind', () => {
+describe('SkillArtifactKind', () => {
   it('accepts proposal / clarify / decision / view', () => {
     expect(SkillArtifactKind.parse('proposal')).toBe('proposal')
     expect(SkillArtifactKind.parse('clarify')).toBe('clarify')
@@ -143,7 +143,7 @@ describe('skillArtifactKind', () => {
   })
 })
 
-describe('skillEvent (discriminated union)', () => {
+describe('SkillEvent (discriminated union)', () => {
   it('parses started', () => {
     const evt = SkillEvent.parse({
       type: 'started',
@@ -251,7 +251,7 @@ describe('skillEvent (discriminated union)', () => {
   })
 })
 
-describe('runRecord', () => {
+describe('RunRecord', () => {
   it('parses a minimal in-progress record (resumed defaults to false)', () => {
     const record = RunRecord.parse({
       runId: 'sr-1',

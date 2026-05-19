@@ -7,7 +7,7 @@ import {
   SourceRole,
 } from '../src/index.js'
 
-describe('sourceRole', () => {
+describe('SourceRole', () => {
   it('accepts code / intent', () => {
     expect(SourceRole.parse('code')).toBe('code')
     expect(SourceRole.parse('intent')).toBe('intent')
@@ -17,14 +17,14 @@ describe('sourceRole', () => {
   })
 })
 
-describe('sourceKind', () => {
+describe('SourceKind', () => {
   it('accepts filesystem / mcp', () => {
     expect(SourceKind.parse('filesystem')).toBe('filesystem')
     expect(SourceKind.parse('mcp')).toBe('mcp')
   })
 })
 
-describe('filesystemSourceDescriptor', () => {
+describe('FilesystemSourceDescriptor', () => {
   it('parses minimal filesystem source', () => {
     const source = FilesystemSourceDescriptor.parse({
       kind: 'filesystem',
@@ -50,7 +50,7 @@ describe('filesystemSourceDescriptor', () => {
   })
 })
 
-describe('mcpSourceDescriptor', () => {
+describe('McpSourceDescriptor', () => {
   it('parses minimal mcp source', () => {
     const source = McpSourceDescriptor.parse({
       kind: 'mcp',
@@ -76,7 +76,7 @@ describe('mcpSourceDescriptor', () => {
   })
 })
 
-describe('sourceDescriptor (discriminated union)', () => {
+describe('SourceDescriptor (discriminated union)', () => {
   it('discriminates by kind', () => {
     const fs = SourceDescriptor.parse({
       kind: 'filesystem',

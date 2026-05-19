@@ -6,8 +6,8 @@ export interface RenderInput {
   readonly config: unknown
 }
 
-export interface Generator extends Plugin {
-  readonly type: 'generator'
+export interface ViewGeneratorPlugin extends Plugin {
+  readonly type: 'view-generator'
   readonly viewKind: ViewKind
   render: (input: RenderInput) => Promise<ViewArtifact>
 }

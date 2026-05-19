@@ -1,7 +1,7 @@
 import type {
   IngestReport,
-  SourceLoader,
   SourceLoaderContext,
+  SourceLoaderPlugin,
   SyncReport,
 } from '@braidhq/core'
 import type { AbsolutePath, LoaderKind, PluginId } from '@braidhq/schema'
@@ -32,12 +32,12 @@ export interface DefineSourceLoaderInput<TConfig> {
  * Loaders are responsible for honouring the destination boundary:
  * write only inside the path you were handed.
  */
-export function defineSourceLoader<TConfig>(input: DefineSourceLoaderInput<TConfig>): SourceLoader {
+export function defineSourceLoader<TConfig>(input: DefineSourceLoaderInput<TConfig>): SourceLoaderPlugin {
   assertNonEmpty('source-loader kind', input.kind)
 
   const parse = (raw: unknown): TConfig => input.configSchema.parse(raw)
 
-  const loader: SourceLoader & { readonly skills: readonly PluginSkillRef[] } = {
+  const loader: SourceLoaderPlugin & { readonly skills: readonly PluginSkillRef[] } = {
     id: (input.pluginId ?? `source-loader.${input.kind}`) as PluginId,
     type: 'source-loader' as const,
     kind: input.kind as LoaderKind,

@@ -31,15 +31,15 @@ export function createMockSpawn(scripts: readonly MockSpawnScript[]): {
 }
 
 function createFakeProcess(script: MockSpawnScript): ChildProcess {
-  const emitter = new EventEmitter() as ChildProcess
   const stdout = new Readable({ read() {} })
   const stderr = new Readable({ read() {} })
+  const fake = Object.assign(new EventEmitter(), {
+    stdout,
+    stderr,
+    kill: () => true,
+  })
 
-  ;(emitter as unknown as { stdout: Readable }).stdout = stdout
-  ;(emitter as unknown as { stderr: Readable }).stderr = stderr
-  ;(emitter as unknown as { kill: () => boolean }).kill = () => true
-
-  stdout.on('end', () => emitter.emit('close', script.exitCode ?? 0))
+  stdout.on('end', () => fake.emit('close', script.exitCode ?? 0))
 
   setImmediate(() => {
     for (const line of script.stdoutLines) {
@@ -49,5 +49,5 @@ function createFakeProcess(script: MockSpawnScript): ChildProcess {
     stderr.push(null)
   })
 
-  return emitter
+  return fake as unknown as ChildProcess
 }

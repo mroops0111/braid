@@ -47,7 +47,7 @@ export interface SyncReport {
  *  - The plugin MUST NOT write outside `destination`.
  *  - Errors thrown propagate as `ValidationError` to the user.
  */
-export interface SourceLoader extends Plugin {
+export interface SourceLoaderPlugin extends Plugin {
   readonly type: 'source-loader'
   readonly kind: LoaderKind
 

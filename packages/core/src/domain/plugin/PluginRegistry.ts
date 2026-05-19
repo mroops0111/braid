@@ -1,6 +1,5 @@
 import type {
   AgentKind,
-  ChannelKind,
   LoaderKind,
   OntologyId,
   PluginId,
@@ -10,13 +9,11 @@ import type {
   ViewKind,
 } from '@braidhq/schema'
 import type { AgentPlugin } from './AgentPlugin.js'
-import type { ChannelPlugin } from './ChannelPlugin.js'
-import type { Generator } from './Generator.js'
-import type { Ontology } from './Ontology.js'
+import type { ViewGeneratorPlugin } from './Generator.js'
+import type { OntologyPlugin } from './Ontology.js'
 import type { Plugin, PluginSkillRef } from './Plugin.js'
-import type { SourceLoader } from './SourceLoader.js'
+import type { SourceLoaderPlugin } from './SourceLoader.js'
 import type { StoragePlugin } from './StoragePlugin.js'
-import type { Validator } from './Validator.js'
 import { ConflictError, NotFoundError } from '../errors.js'
 
 /** PluginSkillRef enriched with the id of the plugin that contributed it. */
@@ -70,37 +67,33 @@ export class PluginRegistry {
     return this.list().filter(plugin => plugin.type === pluginType)
   }
 
-  ontologies(): readonly Ontology[] {
-    return this.listByType('ontology') as readonly Ontology[]
+  ontologies(): readonly OntologyPlugin[] {
+    return this.listByType('ontology') as readonly OntologyPlugin[]
   }
 
-  findOntology(ontologyId: OntologyId): Ontology | undefined {
+  findOntology(ontologyId: OntologyId): OntologyPlugin | undefined {
     return this.ontologies().find(ontology => ontology.ontologyId === ontologyId)
   }
 
-  requireOntology(ontologyId: OntologyId): Ontology {
+  requireOntology(ontologyId: OntologyId): OntologyPlugin {
     const ontology = this.findOntology(ontologyId)
     if (!ontology)
       throw new NotFoundError(`Ontology "${ontologyId}" not registered`)
     return ontology
   }
 
-  validators(): readonly Validator[] {
-    return this.listByType('validator') as readonly Validator[]
+  viewGenerators(): readonly ViewGeneratorPlugin[] {
+    return this.listByType('view-generator') as readonly ViewGeneratorPlugin[]
   }
 
-  generators(): readonly Generator[] {
-    return this.listByType('generator') as readonly Generator[]
+  findViewGenerator(viewKind: ViewKind): ViewGeneratorPlugin | undefined {
+    return this.viewGenerators().find(generator => generator.viewKind === viewKind)
   }
 
-  findGenerator(viewKind: ViewKind): Generator | undefined {
-    return this.generators().find(generator => generator.viewKind === viewKind)
-  }
-
-  requireGenerator(viewKind: ViewKind): Generator {
-    const generator = this.findGenerator(viewKind)
+  requireViewGenerator(viewKind: ViewKind): ViewGeneratorPlugin {
+    const generator = this.findViewGenerator(viewKind)
     if (!generator)
-      throw new NotFoundError(`No generator registered for viewKind "${viewKind}"`)
+      throw new NotFoundError(`No view generator registered for viewKind "${viewKind}"`)
     return generator
   }
 
@@ -134,33 +127,18 @@ export class PluginRegistry {
     return plugin
   }
 
-  sourceLoaders(): readonly SourceLoader[] {
-    return this.listByType('source-loader') as readonly SourceLoader[]
+  sourceLoaders(): readonly SourceLoaderPlugin[] {
+    return this.listByType('source-loader') as readonly SourceLoaderPlugin[]
   }
 
-  findSourceLoader(kind: LoaderKind): SourceLoader | undefined {
+  findSourceLoader(kind: LoaderKind): SourceLoaderPlugin | undefined {
     return this.sourceLoaders().find(loader => loader.kind === kind)
   }
 
-  requireSourceLoader(kind: LoaderKind): SourceLoader {
+  requireSourceLoader(kind: LoaderKind): SourceLoaderPlugin {
     const loader = this.findSourceLoader(kind)
     if (!loader)
       throw new NotFoundError(`No source loader registered for kind "${kind}"`)
     return loader
-  }
-
-  channelPlugins(): readonly ChannelPlugin[] {
-    return this.listByType('channel') as readonly ChannelPlugin[]
-  }
-
-  findChannelPlugin(kind: ChannelKind): ChannelPlugin | undefined {
-    return this.channelPlugins().find(plugin => plugin.kind === kind)
-  }
-
-  requireChannelPlugin(kind: ChannelKind): ChannelPlugin {
-    const plugin = this.findChannelPlugin(kind)
-    if (!plugin)
-      throw new NotFoundError(`No channel plugin registered for kind "${kind}"`)
-    return plugin
   }
 }

@@ -1,15 +1,12 @@
 import type {
   GraphNode,
   ModelSnapshot,
-  PluginId,
   ValidationCode,
   ValidationIssue,
 } from '@braidhq/schema'
-import type { Validator } from '../../domain/plugin/Validator.js'
-import { z } from 'zod'
 
 /**
- * Core invariant: every node must declare *some* evidence trail.
+ * Framework invariant: every node must declare *some* evidence trail.
  *
  *   - At least one `metadata.sourceReferences[]` entry, OR
  *   - `metadata.implementationMissing: true` (intent-only, code not built yet), OR
@@ -20,12 +17,11 @@ import { z } from 'zod'
  *
  * Also catches the contradiction `status: 'completed'` + zero source references
  * (completion is a claim of fact, which needs at least one source citation).
+ *
+ * Not a plugin: this rule is structural to Braid's HITL trust model. Hosts
+ * always run it via `ValidationService`.
  */
-export class EvidenceValidator implements Validator {
-  readonly id = 'core.evidence' as PluginId
-  readonly type = 'validator' as const
-  readonly configSchema = z.object({})
-
+export class EvidenceValidator {
   async validate(snapshot: ModelSnapshot): Promise<readonly ValidationIssue[]> {
     const issues: ValidationIssue[] = []
     for (const node of snapshot.nodes) {

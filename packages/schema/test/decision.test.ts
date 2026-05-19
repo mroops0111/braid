@@ -1,9 +1,9 @@
+import { T0 as isoTimestamp } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
+
 import { Decision, DecisionAction, DecisionActor, DecisionFilter } from '../src/index.js'
 
-const isoTimestamp = '2026-05-09T12:00:00+08:00'
-
-describe('decisionAction', () => {
+describe('DecisionAction', () => {
   it('enumerates every HITL transition we record', () => {
     expect(DecisionAction.options).toEqual([
       'applyProposal',
@@ -16,7 +16,7 @@ describe('decisionAction', () => {
   })
 })
 
-describe('decisionActor', () => {
+describe('DecisionActor', () => {
   it('accepts user id', () => {
     expect(DecisionActor.parse('u-1')).toBe('u-1')
   })
@@ -25,7 +25,7 @@ describe('decisionActor', () => {
   })
 })
 
-describe('decision', () => {
+describe('Decision', () => {
   it('parses applyProposal decision', () => {
     const decision = Decision.parse({
       id: 'd-1',
@@ -89,7 +89,7 @@ describe('decision', () => {
   })
 })
 
-describe('decisionFilter', () => {
+describe('DecisionFilter', () => {
   it('all fields optional', () => {
     expect(DecisionFilter.parse({})).toEqual({})
   })

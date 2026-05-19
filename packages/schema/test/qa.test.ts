@@ -1,4 +1,6 @@
+import { T0 as isoTimestamp } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
+
 import {
   Answer,
   Citation,
@@ -8,14 +10,13 @@ import {
   SourceCitation,
 } from '../src/index.js'
 
-const isoTimestamp = '2026-05-09T12:00:00+08:00'
 const validEmbedding = {
   vector: [0.1, 0.2],
   modelId: 'voyage-3',
   createdAt: isoTimestamp,
 }
 
-describe('questionChannel (open brand — channels are plugin-extensible)', () => {
+describe('QuestionChannel (open brand — channels are plugin-extensible)', () => {
   it('accepts any non-empty string', () => {
     expect(QuestionChannel.parse('studio')).toBe('studio')
     expect(QuestionChannel.parse('mcp')).toBe('mcp')
@@ -25,7 +26,7 @@ describe('questionChannel (open brand — channels are plugin-extensible)', () =
   })
 })
 
-describe('question', () => {
+describe('Question', () => {
   it('parses a complete question', () => {
     const question = Question.parse({
       id: 'q-1',
@@ -51,7 +52,7 @@ describe('question', () => {
   })
 })
 
-describe('citation', () => {
+describe('Citation', () => {
   it('parses NodeCitation', () => {
     const citation = NodeCitation.parse({
       kind: 'node',
@@ -89,7 +90,7 @@ describe('citation', () => {
   })
 })
 
-describe('answer', () => {
+describe('Answer', () => {
   it('parses with both citation kinds', () => {
     const answer = Answer.parse({
       id: 'a-1',

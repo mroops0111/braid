@@ -1,0 +1,38 @@
+import type {
+  EdgeTypeDescriptor,
+  NodeTypeDescriptor,
+  OntologyPlugin,
+  OntologyValidator,
+} from '@braidhq/core'
+import type { OntologyId, PluginId } from '@braidhq/schema'
+import { z } from 'zod'
+
+export interface MakeOntologyOptions {
+  readonly ontologyId?: string
+  readonly pluginId?: string
+  readonly nodeTypes?: readonly NodeTypeDescriptor[]
+  readonly edgeTypes?: readonly EdgeTypeDescriptor[]
+  readonly validators?: readonly OntologyValidator[]
+}
+
+/**
+ * Construct a bare `OntologyPlugin` for tests. Defaults to an empty
+ * ontology (no nodes / edges / validators); pass per-test overrides
+ * to exercise a specific path.
+ *
+ * Use this instead of inlining a Plugin-typed object literal — `register()`
+ * expects `Plugin` so excess-property checks on inline `OntologyPlugin`
+ * literals would fail typecheck.
+ */
+export function makeOntology(opts: MakeOntologyOptions = {}): OntologyPlugin {
+  const ontologyId = (opts.ontologyId ?? 'ddd') as OntologyId
+  return {
+    id: (opts.pluginId ?? `ontology.${ontologyId}`) as PluginId,
+    type: 'ontology',
+    configSchema: z.object({}),
+    ontologyId,
+    nodeTypes: opts.nodeTypes ?? [],
+    edgeTypes: opts.edgeTypes ?? [],
+    validators: opts.validators ?? [],
+  }
+}

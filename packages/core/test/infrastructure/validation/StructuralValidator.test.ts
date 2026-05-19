@@ -5,10 +5,9 @@ import type {
   NodeId,
   NodeStatus,
   NodeTypeId,
-  OntologyId,
-  PluginId,
 } from '@braidhq/schema'
-import type { EdgeTypeDescriptor, Ontology } from '../../../src/domain/plugin/Ontology.js'
+import type { EdgeTypeDescriptor } from '../../../src/domain/plugin/Ontology.js'
+import { makeOntology } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { StructuralValidator } from '../../../src/infrastructure/validation/StructuralValidator.js'
 
@@ -19,14 +18,8 @@ const draft = 'draft' as NodeStatus
 const contains = 'contains' as EdgeTypeId
 const handles = 'handles' as EdgeTypeId
 
-function fakeOntology(edgeTypes: readonly EdgeTypeDescriptor[]): Ontology {
-  return {
-    id: 'test.ontology' as PluginId,
-    type: 'ontology' as const,
-    ontologyId: 'test' as OntologyId,
-    nodeTypes: [],
-    edgeTypes,
-  }
+function ontologyWithEdges(edgeTypes: readonly EdgeTypeDescriptor[]) {
+  return makeOntology({ ontologyId: 'test', edgeTypes })
 }
 
 function node(id: string, type: NodeTypeId): ModelSnapshot['nodes'][number] {
@@ -45,7 +38,7 @@ function edge(id: string, type: EdgeTypeId, from: string, to: string): ModelSnap
 
 describe('StructuralValidator', () => {
   describe('endpoint types', () => {
-    const ontology = fakeOntology([
+    const ontology = ontologyWithEdges([
       { id: contains, fromTypes: [boundedContext], toTypes: [aggregate, command] },
     ])
     const validator = new StructuralValidator(ontology)
@@ -93,7 +86,7 @@ describe('StructuralValidator', () => {
 
   describe('cardinality', () => {
     it('1:1 — rejects a second outgoing AND a second incoming on the same node', async () => {
-      const validator = new StructuralValidator(fakeOntology([
+      const validator = new StructuralValidator(ontologyWithEdges([
         { id: handles, fromTypes: [aggregate], toTypes: [command], cardinality: '1:1' },
       ]))
 
@@ -113,7 +106,7 @@ describe('StructuralValidator', () => {
     })
 
     it('1:N — rejects duplicate incoming on a target but allows many outgoing per source', async () => {
-      const validator = new StructuralValidator(fakeOntology([
+      const validator = new StructuralValidator(ontologyWithEdges([
         { id: contains, fromTypes: [boundedContext], toTypes: [aggregate], cardinality: '1:N' },
       ]))
 
@@ -133,7 +126,7 @@ describe('StructuralValidator', () => {
     })
 
     it('N:N — never reports a cardinality issue', async () => {
-      const validator = new StructuralValidator(fakeOntology([
+      const validator = new StructuralValidator(ontologyWithEdges([
         { id: 'depends-on' as EdgeTypeId, fromTypes: [boundedContext], toTypes: [boundedContext], cardinality: 'N:N' },
       ]))
 
@@ -151,7 +144,7 @@ describe('StructuralValidator', () => {
     })
 
     it('descriptors without cardinality are unconstrained', async () => {
-      const validator = new StructuralValidator(fakeOntology([
+      const validator = new StructuralValidator(ontologyWithEdges([
         { id: contains, fromTypes: [boundedContext], toTypes: [aggregate] },
       ]))
 

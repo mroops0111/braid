@@ -5,148 +5,141 @@
 [![Node](https://img.shields.io/badge/node-%3E%3D20-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 
-Intent ↔ Code alignment framework. Treat **code** as the source of truth for *what* your system does, **intent** (PRDs, RFCs, tickets) as the source of truth for *why*, and let Braid extract, merge, and HITL-validate both into a single canonical knowledge graph the whole product team can query.
+**A shared model of your business, not another code graph.** Code is what shipped. Intent is what we meant. They drift apart every sprint and the team ends up arguing about which one is right.
+
+Braid _braids_ them back into a single **domain model that engineers and PMs can both read**. The default ontology is Domain-Driven Design, so the team and the AI both talk in the language of the domain instead of class names and package paths.
 
 ```bash
-git clone https://github.com/mroops0111/braid.git
-cd braid && pnpm install
-pnpm dev    # Studio at http://localhost:5173, server at :4321
+pnpm dlx @braidhq/cli init my-product
+cd my-product && pnpm dlx @braidhq/cli dev
+# Studio at http://localhost:5173, server at :4321
 ```
 
-- **HITL-validated graph.** AI extracts proposals from code and intent; humans review them in Studio and decide what lands. Nothing writes to the graph without an explicit Apply.
-- **Multi-source workspaces.** One workspace can stitch a git repo, a Google Drive folder of PRDs, and local filesystem paths into one merged model. Source loaders are plugins.
-- **Skills are markdown prompts.** Each AI capability lives in a `SKILL.md` file that runs as a Claude Code subprocess. Add a new capability by writing a prompt, not by extending a class.
-- **Pluggable ontology.** Bring your own domain vocabulary. The default DDD ontology (`@braidhq/ontology-ddd`) ships boundedContext / aggregate / command / event / rule; swap or extend for a different domain.
-
-Storage is embedded Kuzu (zero infra). API is Hono on Node 20. Studio is Vite + React; the same code targets Tauri 2 desktop later. Designed to scale from a solo developer running it locally to a self-hosted team server.
+- **Retrofit, don't rewrite.** Braid runs on the legacy you already have. It extracts a model from what's actually shipped, not from a green-field spec the team has to commit to first. No prerequisite refactor, no spec-driven migration.
+- **Iterates with your codebase.** The model is not a one-shot snapshot. Each time code or intent changes, AI re-extracts the diff as a new Proposal for review. The loop is built to ride along with PRs.
+- **Humans gate every write.** AI proposes, a person reviews the diff and approves, then it lands. Nothing reaches the model otherwise. No silent writes, no AI-on-AI feedback loops.
+- **One model, many views.** The graph is the intermediate, not the product. Docs, Q&A, and BDD specs are all projections off the same canonical model, so they can't drift from each other.
+- **Reaches the whole team, not just engineers.** PMs, designers, QA, and support ask the model from a browser or Slack with no install. Engineers reach it via CLI or any MCP client (Cursor, Claude Code, Codex).
 
 ---
 
-## Status
+## Why this exists
 
-**Pre-1.0, building in public.** APIs, schemas, and the CLI surface will break between minor versions until 1.0. No `@braidhq/*` packages are on npm yet; clone the repo and run it locally. File issues, follow the milestone board, expect rough edges.
+Two failure modes Braid is built against.
 
-If you want the design rationale before the code, read [`docs/OSS-PROPOSAL.md`](docs/OSS-PROPOSAL.md) (Chinese). The thesis: code is the source of truth for fact, intent is the source of truth for why, Model is the canonical merge.
+1. **Code-only graphs.** Tools like Graphify and GitNexus pull a graph straight from source. The graph is honest about what runs, but it is a class-and-call-site graph. It can't tell you *why* a feature exists, who asked for it, or what trade-off shaped its rules. PMs can't read it.
+2. **Doc-only knowledge.** PRDs, design docs, Notion, Confluence speak the domain, but nobody keeps them in sync after the code lands. Six months later, no one trusts them.
+
+Braid is a framework, not a managed service. Bring your own ontology, LLM backend, storage, and source connectors. The HITL gate, evidence requirement, and branded type discipline are framework invariants enforced by the type system.
 
 ## How It Works
 
-```
-        [Intent]              [Code]
-         (why)               (what / how)
-            ↓ extract            ↓ extract
-       intent fragment       fact fragment
-              ↓                  ↓
-              └────[ Merge + HITL ]────┐
-                       ↓
-                    [ Model ]
-                  (knowledge graph)
-                       ↓
-              ┌────────┼────────┐
-              ↓        ↓        ↓
-            View      View      View
-            (docs)   (Q&A)   (BDD / codegen)
-```
+```mermaid
+flowchart LR
+  Intent[Intent<br/><i>PRDs, design docs, tickets</i>]
+  Code[Code<br/><i>source, configs, IaC</i>]
+  Model[(Domain Model)]
+  Views[Views<br/><i>docs · Q&amp;A · BDD</i>]
 
-1. **Extract.** Skills walk each source (git tree, drive folder, etc.) and produce proposals: "add node X", "link Y to Z". They never touch the graph directly.
-2. **Validate.** Proposals queue up in Studio. A `StructuralValidator` checks them against the active ontology's edge topology and cardinality. Conflicts surface as Clarify tickets.
-3. **Apply.** A human reviews each proposal and clicks Apply. Only then does Kuzu get a transaction. The Model is the consensus snapshot, not the AI's first guess.
-4. **Project.** Views (docs, Q&A answers, BDD `.feature` files, future codegen) read from the Model on demand.
-
-The full design doc with deployment tiers, plugin contracts, and the HITL invariant is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+  Intent -- AI extracts --> Proposals{{Proposals}}
+  Code   -- AI extracts --> Proposals
+  Proposals -- Human reviews + applies --> Model
+  Model --> Views
+```
 
 ## Quick Start
 
-### 1. Set up
+Once `braid dev` is running, work the loop in Studio (`http://localhost:5173`):
 
-```bash
-git clone https://github.com/mroops0111/braid.git
-cd braid && pnpm install
-pnpm exec braid dev    # server (:4321) + Studio (:5173)
-```
+1. **Skills** tab. Run `braid-extract`.
+2. **Proposals** tab. Inspect each diff, click pre-validate.
+3. **Apply** when green, or **Reject** with a reason.
 
-The CLI lives at `@braidhq/cli`. `braid dev` runs server and Studio in parallel from inside the monorepo; `braid serve` runs the server alone. (Once published to npm, this will be `npx @braidhq/cli dev`.)
-
-### 2. Create a workspace
-
-```bash
-pnpm exec braid init ../my-product    # scaffolds PRODUCT.md + intent/
-pnpm exec braid workspace add "$(realpath ../my-product)"
-```
-
-`braid init` creates a directory with a minimal `PRODUCT.md` manifest. Edit `sources:` to point at your real intent (PRD / RFC) and code paths. The minimal manifest looks like:
+Workspace shape lives in one `PRODUCT.md` manifest. The minimum is just sources:
 
 ```yaml
+---
 name: my-product
-version: 0.1.0
-ontologyId: ddd
 sources:
-  - kind: filesystem
-    id: src-prd
-    role: intent
-    name: prd
-    path: ./intent
-  - kind: filesystem
-    id: src-app
-    role: code
-    name: app
-    path: ./code/app
-    language: typescript
-mcpServers: []
+  - {kind: filesystem, role: intent, path: ./intent}
+  - {kind: filesystem, role: code, path: ./code/app, language: typescript}
+---
 ```
 
-A runnable copy lives at [`examples/example-workspace/`](examples/example-workspace/). For a real git source use `kind: git` with a `url:`; for Google Drive use `kind: gdrive` with a `folderId:` (see the source-loader package READMEs).
-
-### 3. Extract intent and code
-
-In the workspace's **Skills** tab pick `braid-extract` and click Run. The skill spawns a Claude Code subprocess against your source paths and streams events back to Studio. Output is a stack of Proposals in the **Proposals** tab.
-
-### 4. Review and apply
-
-Each Proposal shows the diff against the current Model plus structural validation results. Pre-validate on click, Apply when green, Reject with a reason when not. The Apply call is the only path that writes to Kuzu.
-
-### 5. Query the graph
-
-The **Graph** tab visualizes the Model. Filter by node type, search by name or description, drill into a node to see its incoming and outgoing edges. The visualization is ontology-adaptive: the colors and default-visible types come from the active ontology descriptor, so a custom ontology renders correctly with no code changes in Studio.
-
-## Architecture
-
-Three deployment tiers, same code:
-
-| Tier | Server runs in | Storage | Audience |
-|---|---|---|---|
-| **Personal** | Tauri 2 desktop (planned) | Local Kuzu | Solo developer |
-| **Team** | Self-hosted VPS / serverless | Local Kuzu or remote | Product teams, git as SSoT |
-| **Enterprise** | Managed cloud (planned) | Cloud Kuzu + RBAC + SSO | Large orgs |
-
-Per-tier details (which packages run where, how `@braidhq/server` embeds vs. runs standalone, how sources sync) live in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+Defaults fill in the rest: DDD ontology, Claude Code agent (opus), embedded Kuzu storage. Declare `ontologyId`, `agents` + `agentBindings`, or `storage` blocks only when you want to override. Swap `kind: filesystem` for `git` or `gdrive` to load remote sources.
 
 ## Packages
 
-Monorepo: 10 packages + 1 plugin. Workspaces under `packages/*` and `plugins/*`.
+| Package | Description |
+|---|---|
+| [`@braidhq/schema`](packages/schema/) | Zod schemas and branded TypeScript types for the domain. The wire-format contract for all packages. |
+| [`@braidhq/core`](packages/core/) | Domain entities, application services, and plugin port interfaces. The framework engine; no concrete adapters. |
+| [`@braidhq/sdk`](packages/sdk/) | Plugin author SDK, used to define ontology, source loader, and view generator plugins. |
+| [`@braidhq/server`](packages/server/) | REST + SSE server. |
+| [`@braidhq/cli`](packages/cli/) | Command-line entry point. |
+| [`@braidhq/studio`](packages/studio/) | Web UI. |
+| [`@braidhq/ontology-ddd`](packages/ontology-ddd/) | Default DDD ontology plugin, including boundedContext, aggregate, command, query, event, rule, and actor. |
+| [`@braidhq/storage-kuzu`](packages/storage-kuzu/) | Embedded Kuzu graph-storage plugin. Zero-infra single-binary alternative to Neo4j. |
+| [`@braidhq/source-loader-git`](packages/source-loader-git/) | Git source-loader plugin. Clone a repo and sync automatically. |
+| [`@braidhq/source-loader-gdrive`](packages/source-loader-gdrive/) | Google Drive source-loader plugin. Export docs from Google Drive, requires OAuth on first use. |
+| [`@braidhq/agent-claude-code`](packages/agent-claude-code/) | Claude Code agent plugin. Spawns the `claude` CLI to run SKILL.md prompts; the default LLM backend. |
+| [`@braidhq/desktop`](packages/desktop/) | Tauri desktop shell. |
 
-| Package | Role | Status |
-|---|---|---|
-| `@braidhq/schema` | Zod schemas and TS types for the domain model. Wire format shared by core, server, studio, sdk, cli, plugins. | Stable shape, pre-1.0 |
-| `@braidhq/core` | Domain entities (Workspace / Model / Proposal / ClarifyTicket / Run) + application services + infrastructure ports. | Pre-1.0 |
-| `@braidhq/sdk` | Plugin SDK. `defineSource` / `defineOntology` / `defineAgent`, etc. | Pre-1.0 |
-| `@braidhq/server` | REST API on Hono. Mounts routes for workspaces / proposals / runs / clarify / ontology / events (SSE). | Pre-1.0 |
-| `@braidhq/storage-kuzu` | Embedded graph storage adapter. Zero-infra alternative to Neo4j. | Pre-1.0 |
-| `@braidhq/source-loader-git` | Source loader plugin: clone a remote repo, sync via fetch + reset. | Pre-1.0 |
-| `@braidhq/source-loader-gdrive` | Source loader plugin: pull text and image files from a Drive folder. | Pre-1.0 |
-| `@braidhq/studio` | Vite + React web UI. Workspaces, Skills, Proposals, Graph. Tauri-ready. | Pre-1.0 |
-| `@braidhq/cli` | Command-line entry. | Stub, not usable yet |
-| `@braidhq/desktop` | Tauri 2 shell that bundles `@braidhq/server` as a sidecar and serves `@braidhq/studio`. | Planned |
-| `@braidhq/ontology-ddd` | Default ontology plugin: boundedContext / aggregate / command / query / event / rule. | Pre-1.0 |
+Adding a plugin (e.g., `@braidhq/my-coding-agent`) means one new package implementing the relevant port. No core changes.
 
-## Writing Plugins
+## Extending Braid
 
-Three plugin contracts, all behind `@braidhq/sdk`:
+Two extension surfaces: a TypeScript plugin for the five swappable axes (ontology, source loader, storage, agent, view generator) and a markdown skill for new AI capabilities.
 
-**Ontology.** Define the node and edge types of your domain. Set `defaultVisible` on the types Studio should show by default; set `color` on each descriptor to control the palette. See [`plugins/ontology-ddd/`](plugins/ontology-ddd/) for the full example.
+### Writing a plugin
 
-**Source loader.** Pull intent or code into a workspace's source directory. The loader is just an async function returning a list of relative file paths; Braid handles dedup, diff, and propagation. See [`packages/source-loader-git/`](packages/source-loader-git/) and [`packages/source-loader-gdrive/`](packages/source-loader-gdrive/).
+Storage, agent, and view-generator implement their port interface directly. Ontology and source-loader get a more declarative SDK builder.
 
-**Skill.** A `SKILL.md` markdown file describing how Claude Code should walk your sources and emit proposals. No TypeScript required. See [`packages/core/skills/`](packages/core/skills/) for the built-in skills (`braid-extract`, `braid-clarify`, …).
+```ts
+// @somecorp/braid-storage-mygraph
+import type { StoragePlugin } from '@braidhq/core'
+import { z } from 'zod'
+
+export const myStoragePlugin: StoragePlugin = {
+  id: 'storage.mygraph',
+  type: 'storage',
+  kind: 'mygraph',
+  configSchema: z.object({ uri: z.string() }),
+  createModelRepository: async (descriptor, ctx) =>
+    new MyGraphRepository(descriptor.config, ctx.resolveWorkspaceRoot),
+}
+```
+
+Register it at server start-up and flip the workspace's `storage.kind`.
+
+```ts
+import { composeFsApp, createApp } from '@braidhq/server'
+import { myStoragePlugin } from '@somecorp/braid-storage-mygraph'
+
+createApp(await composeFsApp({
+  extraStoragePlugins: [myStoragePlugin],
+  storageKind: 'mygraph',
+}))
+```
+
+### Writing a custom skill
+
+A skill is a `SKILL.md` file at `<workspace>/skills/<id>/SKILL.md`. The framework picks it up on the next request and it shows up in Studio's Skills tab alongside the built-ins.
+
+```markdown
+---
+name: braid-extract
+description: Extract DDD entities from intent + code
+argumentHint: <ctx-name>
+model: opus
+braid:
+  requiredEnv: [GITHUB_TOKEN]
+  requiredPaths: [./intent, ./code]
+---
+Walk `intent/` and `code/`. Emit proposals that add boundedContext, aggregate, and command nodes. Cite the source file or doc each claim came from.
+```
+
+Top-level keys follow the Claude Code skill frontmatter format (`name`, `description`, `argumentHint`, `model`). The Braid-specific `braid:` block is preflighted before the agent spawns, so a missing env var, path, or MCP server fails fast with a clear error instead of derailing the conversation halfway through.
 
 ## License
 

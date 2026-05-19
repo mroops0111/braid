@@ -1,7 +1,6 @@
+import { T0 as now } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { mapSubprocessEvents } from '../../../src/infrastructure/agent/subprocessEventStream.js'
-
-const now = '2026-05-12T00:00:00+00:00'
 
 describe('mapSubprocessEvents', () => {
   it('drops envelopes that carry no public-facing signal (system w/o session_id, rate_limit, user-success)', () => {

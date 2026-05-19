@@ -1,91 +1,106 @@
 import type {
   ModelSnapshot,
-  PluginId,
+  NodeStatus,
+  NodeTypeId,
   ValidationCode,
   ValidationIssue,
 } from '@braidhq/schema'
+import type { OntologyValidator } from '../../src/index.js'
+import { makeOntology, makeWorkspace } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
-import { PluginRegistry, ValidationService, type Validator } from '../../src/index.js'
+import { PluginRegistry, ValidationService } from '../../src/index.js'
 
-function emptySnapshot(): ModelSnapshot {
-  return { nodes: [], edges: [] }
-}
+const emptySnapshot: ModelSnapshot = { nodes: [], edges: [] }
 
-function makeValidator(id: string, issues: readonly ValidationIssue[]): Validator {
-  return {
-    id: id as PluginId,
-    type: 'validator',
-    configSchema: { parse: (value: unknown) => value } as never,
-    validate: async () => issues,
-  }
+function staticValidator(issues: readonly ValidationIssue[]): OntologyValidator {
+  return { validate: async () => issues }
 }
 
 describe('ValidationService', () => {
-  it('returns ok=true when no validators are registered', async () => {
+  it('returns ok=true when no ontology is registered and no framework issues fire', async () => {
     const registry = new PluginRegistry()
     const service = new ValidationService({ pluginRegistry: registry })
-    const result = await service.validate(emptySnapshot())
+
+    const result = await service.validate(emptySnapshot, makeWorkspace())
+
     expect(result.ok).toBe(true)
     expect(result.issues).toEqual([])
   })
 
-  it('aggregates issues across multiple validators', async () => {
+  it('aggregates issues from the active ontology validators', async () => {
     const registry = new PluginRegistry()
-    registry.register(makeValidator('a', [
-      { code: 'A1' as ValidationCode, severity: 'warning', message: 'soft' },
-    ]))
-    registry.register(makeValidator('b', [
-      { code: 'B1' as ValidationCode, severity: 'error', message: 'hard' },
-    ]))
-
+    registry.register(makeOntology({
+      ontologyId: 'ddd',
+      validators: [
+        staticValidator([{ code: 'A1' as ValidationCode, severity: 'warning', message: 'soft' }]),
+        staticValidator([{ code: 'B1' as ValidationCode, severity: 'error', message: 'hard' }]),
+      ],
+    }))
     const service = new ValidationService({ pluginRegistry: registry })
-    const result = await service.validate(emptySnapshot())
-    expect(result.issues).toHaveLength(2)
+
+    const result = await service.validate(emptySnapshot, makeWorkspace())
+
+    expect(result.issues.some(issue => issue.code === ('A1' as ValidationCode))).toBe(true)
+    expect(result.issues.some(issue => issue.code === ('B1' as ValidationCode))).toBe(true)
   })
 
-  it('ok=true when only warnings / info', async () => {
+  it('ok=true when ontology returns only warnings / info', async () => {
     const registry = new PluginRegistry()
-    registry.register(makeValidator('a', [
-      { code: 'A1' as ValidationCode, severity: 'warning', message: 'soft' },
-      { code: 'A2' as ValidationCode, severity: 'info', message: 'fyi' },
-    ]))
+    registry.register(makeOntology({
+      ontologyId: 'ddd',
+      validators: [staticValidator([
+        { code: 'A1' as ValidationCode, severity: 'warning', message: 'soft' },
+        { code: 'A2' as ValidationCode, severity: 'info', message: 'fyi' },
+      ])],
+    }))
     const service = new ValidationService({ pluginRegistry: registry })
-    const result = await service.validate(emptySnapshot())
+
+    const result = await service.validate(emptySnapshot, makeWorkspace())
+
     expect(result.ok).toBe(true)
   })
 
   it('ok=false when at least one error', async () => {
     const registry = new PluginRegistry()
-    registry.register(makeValidator('a', [
-      { code: 'A1' as ValidationCode, severity: 'warning', message: 'soft' },
-      { code: 'A2' as ValidationCode, severity: 'error', message: 'fail' },
-    ]))
+    registry.register(makeOntology({
+      ontologyId: 'ddd',
+      validators: [staticValidator([
+        { code: 'A1' as ValidationCode, severity: 'warning', message: 'soft' },
+        { code: 'A2' as ValidationCode, severity: 'error', message: 'fail' },
+      ])],
+    }))
     const service = new ValidationService({ pluginRegistry: registry })
-    const result = await service.validate(emptySnapshot())
+
+    const result = await service.validate(emptySnapshot, makeWorkspace())
+
     expect(result.ok).toBe(false)
   })
 
   describe('validateOperations', () => {
-    it('previews operations and runs validators on next state', async () => {
+    it('previews operations and runs ontology validators on next state', async () => {
       const registry = new PluginRegistry()
       let observedNodeCount = -1
-      registry.register({
-        id: 'count' as PluginId,
-        type: 'validator',
-        configSchema: { parse: (value: unknown) => value } as never,
-        validate: async (snapshot) => {
-          observedNodeCount = snapshot.nodes.length
-          return []
-        },
-      })
-
+      registry.register(makeOntology({
+        ontologyId: 'ddd',
+        nodeTypes: [{ id: 'command' as NodeTypeId, label: 'Command', description: 'cmd' }],
+        validators: [{
+          validate: async (snapshot) => {
+            observedNodeCount = snapshot.nodes.length
+            return []
+          },
+        }],
+      }))
       const service = new ValidationService({ pluginRegistry: registry })
+      const draft = 'draft' as NodeStatus
       const ops = [
-        { operation: 'addNode' as const, payload: { type: 'command', name: 'x' } as never },
-        { operation: 'addNode' as const, payload: { type: 'command', name: 'y' } as never },
+        { operation: 'addNode' as const, payload: { type: 'command' as NodeTypeId, name: 'x', status: draft } },
+        { operation: 'addNode' as const, payload: { type: 'command' as NodeTypeId, name: 'y', status: draft } },
       ]
-      const result = await service.validateOperations(emptySnapshot(), ops)
-      expect(result.ok).toBe(true)
+
+      const result = await service.validateOperations(emptySnapshot, ops, makeWorkspace())
+
+      // Two new nodes without sourceReferences trip the EvidenceValidator (framework invariant).
+      expect(result.ok).toBe(false)
       expect(observedNodeCount).toBe(2)
     })
   })

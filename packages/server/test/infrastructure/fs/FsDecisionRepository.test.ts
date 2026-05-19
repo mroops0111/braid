@@ -1,21 +1,21 @@
-import type { AbsolutePath, Decision, DecisionId, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, Decision, DecisionId, ProposalId, UserId, WorkspaceId } from '@braidhq/schema'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { NotFoundError } from '@braidhq/core'
+import { T0 as isoTimestamp } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
-import { FsDecisionRepository } from '../../../src/infrastructure/fs/FsDecisionRepository.js'
 
-const isoTimestamp = '2026-05-12T12:00:00+08:00'
+import { FsDecisionRepository } from '../../../src/infrastructure/fs/FsDecisionRepository.js'
 
 function makeDecision(id: string, workspaceId: WorkspaceId): Decision {
   return {
     id: id as DecisionId,
     workspaceId,
-    timestamp: isoTimestamp as never,
+    timestamp: isoTimestamp,
     action: 'applyProposal',
-    by: 'u-1' as never,
-    references: { proposalId: 'p-1' as never },
+    by: 'u-1' as UserId,
+    references: { proposalId: 'p-1' as ProposalId },
   }
 }
 

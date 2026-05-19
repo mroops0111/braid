@@ -1,22 +1,29 @@
-import type { StorageDescriptor, StorageKind } from '@braidhq/schema'
-import type { ClarifyTicketRepository } from '../hitl/ClarifyTicketRepository.js'
-import type { DecisionRepository } from '../hitl/DecisionRepository.js'
-import type { ProposalRepository } from '../hitl/ProposalRepository.js'
+import type { StorageDescriptor, StorageKind, WorkspaceId } from '@braidhq/schema'
 import type { ModelRepository } from '../model/ModelRepository.js'
-import type { WorkspaceRepository } from '../workspace/WorkspaceRepository.js'
 import type { Plugin, PluginContext } from './Plugin.js'
 
-export interface StorageBackend {
-  readonly modelRepository: ModelRepository
-  readonly workspaceRepository: WorkspaceRepository
-  readonly proposalRepository: ProposalRepository
-  readonly clarifyTicketRepository: ClarifyTicketRepository
-  readonly decisionRepository: DecisionRepository
-  close?: () => Promise<void>
+/**
+ * Per-storage context handed to a plugin when the composition root asks it
+ * to materialise its `ModelRepository`. The plugin uses `resolveWorkspaceRoot`
+ * to locate per-workspace state (e.g. a Kuzu db directory under
+ * `<workspace>/.braid/`) without owning the workspace registry itself.
+ */
+export interface StoragePluginContext extends PluginContext {
+  readonly resolveWorkspaceRoot: (workspaceId: WorkspaceId) => Promise<string>
 }
 
+/**
+ * Graph-storage backend port. Storage here is strictly the graph (nodes /
+ * edges / future vector index) — filesystem-backed concerns like Proposal /
+ * Clarify / Decision are *not* part of this contract because they live in
+ * `<workspace>/artifacts/` and are not swappable on a graph-backend axis.
+ *
+ * A plugin returns one `ModelRepository` per process; that repository is
+ * responsible for routing per-workspace via the context's resolver. This
+ * mirrors how `KuzuModelRepository` already takes a `resolveDbPath`.
+ */
 export interface StoragePlugin extends Plugin {
   readonly type: 'storage'
   readonly kind: StorageKind
-  createBackend: (descriptor: StorageDescriptor, context: PluginContext) => Promise<StorageBackend>
+  createModelRepository: (descriptor: StorageDescriptor, context: StoragePluginContext) => Promise<ModelRepository>
 }

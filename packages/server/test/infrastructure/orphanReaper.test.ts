@@ -1,40 +1,35 @@
-import type { Clock } from '@braidhq/core'
+import type { Clock, Workspace } from '@braidhq/core'
 import type {
   AbsolutePath,
-  AgentBindingDescriptor,
-  AgentId,
-  ProductManifest,
   RunRecord,
   SkillId,
+  SkillRunId,
   SourceId,
-  StorageKind,
-  Timestamp,
   WorkspaceId,
 } from '@braidhq/schema'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { InMemoryWorkspaceRepository, Workspace } from '@braidhq/core'
+import { InMemoryWorkspaceRepository } from '@braidhq/core'
+import { at, makeWorkspace, T0 } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { FsRunRepository } from '../../src/infrastructure/fs/FsRunRepository.js'
 import { reapOrphanRuns } from '../../src/infrastructure/orphanReaper.js'
 
-const descriptor: AgentBindingDescriptor = {
-  id: 'claude-default' as AgentId,
-  kind: 'claude-code' as never,
-  model: 'opus',
-  effort: 'high',
-  extraArgs: [],
-  env: {},
+async function makeRoot(): Promise<AbsolutePath> {
+  return (await mkdtemp(join(tmpdir(), 'braid-reaper-'))) as AbsolutePath
 }
 
-function makeWorkspace(rootPath: AbsolutePath, id = 'ws-1' as WorkspaceId): Workspace {
-  const manifest: ProductManifest = {
-    name: 'demo',
-    version: '0.0.0',
-    ontologyId: 'ddd' as never,
-    agents: { default: 'claude-default', tasks: {} },
-    agentBindings: [descriptor],
+async function setupWorkspace(): Promise<{
+  workspaceRepository: InMemoryWorkspaceRepository
+  runRepository: FsRunRepository
+  workspace: Workspace
+}> {
+  const rootPath = await makeRoot()
+  const workspaceRepository = new InMemoryWorkspaceRepository()
+  const workspace = makeWorkspace({
+    id: 'ws-1',
+    rootPath,
     sources: [{
       kind: 'filesystem',
       id: 'code' as SourceId,
@@ -42,78 +37,59 @@ function makeWorkspace(rootPath: AbsolutePath, id = 'ws-1' as WorkspaceId): Work
       name: 'a',
       path: rootPath,
     }],
-    mcpServers: [],
-    storage: { kind: 'in-memory' as StorageKind, config: {} },
-    channels: [],
-  }
-  return new Workspace({
-    id,
-    rootPath,
-    productManifest: manifest,
-    pluginConfig: { plugins: [] },
   })
+  await workspaceRepository.save(workspace)
+  return { workspaceRepository, runRepository: new FsRunRepository(), workspace }
 }
+
+function makeRunRecord(
+  workspace: Workspace,
+  overrides: Partial<RunRecord> & Pick<RunRecord, 'runId'>,
+): RunRecord {
+  return {
+    workspaceId: workspace.id as WorkspaceId,
+    skillId: 'braid-ask' as SkillId,
+    args: '',
+    resumed: false,
+    startedAt: T0,
+    ...overrides,
+  } as RunRecord
+}
+
+// 5 minutes after the test-time anchor — reaper marks orphan runs at "now".
+const REAPER_NOW = at(300)
+const clock: Clock = { now: () => REAPER_NOW }
 
 describe('reapOrphanRuns', () => {
   it('marks runs without completedAt as aborted; leaves completed runs alone', async () => {
-    const rootPath = (await mkdtemp(join(tmpdir(), 'braid-reaper-'))) as AbsolutePath
-    const workspaceRepository = new InMemoryWorkspaceRepository()
-    const workspace = makeWorkspace(rootPath)
-    await workspaceRepository.save(workspace)
-
-    const runRepository = new FsRunRepository()
-    const orphan: RunRecord = {
-      runId: 'run-orphan' as never,
-      workspaceId: workspace.id,
-      skillId: 'braid-ask' as SkillId,
-      args: '',
-      resumed: false,
-      startedAt: '2026-05-13T00:00:00+00:00',
-    }
-    const completed: RunRecord = {
-      runId: 'run-done' as never,
-      workspaceId: workspace.id,
-      skillId: 'braid-ask' as SkillId,
-      args: '',
-      resumed: false,
-      startedAt: '2026-05-13T00:00:00+00:00',
-      completedAt: '2026-05-13T00:01:00+00:00',
+    const { workspaceRepository, runRepository, workspace } = await setupWorkspace()
+    const orphan = makeRunRecord(workspace, { runId: 'run-orphan' as SkillRunId })
+    const completed = makeRunRecord(workspace, {
+      runId: 'run-done' as SkillRunId,
+      completedAt: at(60),
       exitCode: 0,
-    }
+    })
     await runRepository.saveRecord(workspace, orphan)
     await runRepository.saveRecord(workspace, completed)
 
-    const clock: Clock = { now: () => '2026-05-13T00:05:00+00:00' as Timestamp }
     const { reaped } = await reapOrphanRuns({ workspaceRepository, runRepository, clock })
 
     expect(reaped).toBe(1)
     const after = await runRepository.listRecords(workspace)
-    const reapedRecord = after.find(r => r.runId === orphan.runId)!
-    expect(reapedRecord.completedAt).toBe('2026-05-13T00:05:00+00:00')
+    const reapedRecord = after.find(record => record.runId === orphan.runId)!
+    expect(reapedRecord.completedAt).toBe(REAPER_NOW)
     expect(reapedRecord.exitCode).toBe(-1)
-    const stillDone = after.find(r => r.runId === completed.runId)!
-    expect(stillDone.completedAt).toBe('2026-05-13T00:01:00+00:00')
+    const stillDone = after.find(record => record.runId === completed.runId)!
+    expect(stillDone.completedAt).toBe(at(60))
   })
 
   it('idempotent: a second call reaps nothing', async () => {
-    const rootPath = (await mkdtemp(join(tmpdir(), 'braid-reaper-'))) as AbsolutePath
-    const workspaceRepository = new InMemoryWorkspaceRepository()
-    const workspace = makeWorkspace(rootPath)
-    await workspaceRepository.save(workspace)
+    const { workspaceRepository, runRepository, workspace } = await setupWorkspace()
+    await runRepository.saveRecord(workspace, makeRunRecord(workspace, { runId: 'run-orphan' as SkillRunId }))
 
-    const runRepository = new FsRunRepository()
-    await runRepository.saveRecord(workspace, {
-      runId: 'run-orphan' as never,
-      workspaceId: workspace.id,
-      skillId: 'braid-ask' as SkillId,
-      args: '',
-      resumed: false,
-      startedAt: '2026-05-13T00:00:00+00:00',
-    })
-
-    const clock: Clock = { now: () => '2026-05-13T00:05:00+00:00' as Timestamp }
     await reapOrphanRuns({ workspaceRepository, runRepository, clock })
     const { reaped } = await reapOrphanRuns({ workspaceRepository, runRepository, clock })
+
     expect(reaped).toBe(0)
   })
 })
