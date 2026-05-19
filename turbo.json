@@ -6,6 +6,9 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "@braidhq/test-utils#build": {
+      "dependsOn": []
+    },
     "typecheck": {
       "dependsOn": []
     },
