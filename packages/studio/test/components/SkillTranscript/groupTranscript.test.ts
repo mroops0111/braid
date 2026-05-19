@@ -1,8 +1,7 @@
-import type { SkillEvent, SkillRunId } from '@braidhq/schema'
+import type { SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
+import { T0 as now } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { groupTranscript } from '@/components/SkillTranscript/groupTranscript'
-
-const now = '2026-05-13T00:00:00+00:00'
 
 function call(id: string, tool = 'Bash'): SkillEvent {
   return { type: 'tool-call', tool, args: { command: 'ls' }, toolCallId: id }
@@ -14,7 +13,14 @@ function message(text: string): SkillEvent {
   return { type: 'message', text }
 }
 function started(): SkillEvent {
-  return { type: 'started', runId: 'sr-1' as SkillRunId, skillId: 'braid-ask' as never, at: now }
+  return {
+    type: 'started',
+    runId: 'sr-1' as SkillRunId,
+    skillId: 'braid-ask' as SkillId,
+    args: '',
+    resumed: false,
+    at: now,
+  }
 }
 
 describe('groupTranscript', () => {

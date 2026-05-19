@@ -3,7 +3,6 @@ import type {
   AgentId,
   AgentKind,
   AgentRoutingConfig,
-  ChannelDescriptor,
   ProductManifest,
   ProductManifestDraft,
   StorageDescriptor,
@@ -36,11 +35,9 @@ const DEFAULT_STORAGE: StorageDescriptor = {
   config: {},
 }
 
-const DEFAULT_CHANNELS: readonly ChannelDescriptor[] = []
-
 /**
  * Take a user-provided `ProductManifestDraft` and fill in the structural
- * blocks (agent / storage / channels) so the result is a valid, complete
+ * blocks (agent / storage) so the result is a valid, complete
  * `ProductManifest` Zod will accept. Throws if the user's input itself is
  * inconsistent.
  */
@@ -55,7 +52,6 @@ export function fillManifestDefaults(draft: ProductManifestDraft): ProductManife
     agents: draft.agents ?? DEFAULT_AGENTS,
     agentBindings: draft.agentBindings ?? [DEFAULT_AGENT_BINDING],
     storage: draft.storage ?? DEFAULT_STORAGE,
-    channels: draft.channels ?? [...DEFAULT_CHANNELS],
   }
   return ProductManifestSchema.parse(manifest)
 }

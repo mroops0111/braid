@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { ClarifyCandidate, ClarifyFilter, ClarifyStatus, ClarifyTicket } from '../src/index.js'
 
-describe('clarifyStatus', () => {
+describe('ClarifyStatus', () => {
   it('has 4 states', () => {
     expect(ClarifyStatus.options).toEqual(['pending', 'answered', 'applied', 'skipped'])
   })
 })
 
-describe('clarifyCandidate', () => {
+describe('ClarifyCandidate', () => {
   it('parses with empty references and operations', () => {
     const candidate = ClarifyCandidate.parse({
       id: 'cc-1',
@@ -27,7 +27,7 @@ describe('clarifyCandidate', () => {
   })
 })
 
-describe('clarifyTicket', () => {
+describe('ClarifyTicket', () => {
   it('parses pending ticket with candidates', () => {
     const ticket = ClarifyTicket.parse({
       id: 'ct-1',
@@ -81,7 +81,7 @@ describe('clarifyTicket', () => {
   })
 })
 
-describe('clarifyFilter', () => {
+describe('ClarifyFilter', () => {
   it('all fields optional', () => {
     expect(ClarifyFilter.parse({})).toEqual({})
   })

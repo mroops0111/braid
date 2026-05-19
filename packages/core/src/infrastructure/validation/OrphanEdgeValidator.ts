@@ -1,23 +1,19 @@
 import type {
   ModelSnapshot,
-  PluginId,
   ValidationCode,
   ValidationIssue,
 } from '@braidhq/schema'
-import type { Validator } from '../../domain/plugin/Validator.js'
-import { z } from 'zod'
 
 /**
- * Defense in depth: `Model.preview` already rejects edges whose endpoints do
- * not exist in the snapshot, but a corrupt JSONL stream or a buggy storage
- * adapter could still land us in a state with dangling edges. We surface that
- * loud rather than letting downstream queries return inconsistent neighbours.
+ * Framework invariant: defense in depth on edge integrity. `Model.preview`
+ * already rejects edges whose endpoints do not exist in the snapshot, but a
+ * corrupt JSONL stream or a buggy storage adapter could still land us in a
+ * state with dangling edges. Surface that loud rather than letting
+ * downstream queries return inconsistent neighbours.
+ *
+ * Not a plugin: hosts always run this via `ValidationService`.
  */
-export class OrphanEdgeValidator implements Validator {
-  readonly id = 'core.orphan-edge' as PluginId
-  readonly type = 'validator' as const
-  readonly configSchema = z.object({})
-
+export class OrphanEdgeValidator {
   async validate(snapshot: ModelSnapshot): Promise<readonly ValidationIssue[]> {
     const nodeIds = new Set(snapshot.nodes.map(n => n.id))
     const issues: ValidationIssue[] = []

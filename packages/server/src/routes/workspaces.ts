@@ -6,7 +6,6 @@ import { NotFoundError, ValidationError } from '@braidhq/core'
 import {
   AbsolutePath,
   AgentRoutingConfig,
-  ChannelDescriptor,
   McpServerConfig,
   OntologyId,
   ProductManifestDraft,
@@ -35,7 +34,6 @@ const PatchWorkspaceBodySchema = z.object({
   ontologyId: OntologyId.optional(),
   storage: StorageDescriptor.optional(),
   agents: AgentRoutingConfig.optional(),
-  channels: z.array(ChannelDescriptor).optional(),
   mcpServers: z.array(McpServerConfig).optional(),
 }).refine(body => Object.keys(body).length > 0, { message: 'PATCH body must contain at least one field' })
 
@@ -156,7 +154,6 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
       ...(patch.ontologyId !== undefined ? { ontologyId: patch.ontologyId } : {}),
       ...(patch.storage !== undefined ? { storage: patch.storage } : {}),
       ...(patch.agents !== undefined ? { agents: patch.agents } : {}),
-      ...(patch.channels !== undefined ? { channels: patch.channels } : {}),
       ...(patch.mcpServers !== undefined ? { mcpServers: patch.mcpServers } : {}),
     }
     await updateProductManifest(workspace.rootPath, nextManifest)

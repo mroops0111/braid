@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { DDD_EDGE_TYPES, DDD_NODE_TYPES, DDDEdgeType, DDDNodeType } from '../src/index.js'
 
-describe('DDD node types (core DDD only — no actor / screen / metric)', () => {
-  it('lists 6 nodes: boundedContext / aggregate / command / query / event / rule', () => {
+describe('DDD node types', () => {
+  it('lists 7 nodes: boundedContext / aggregate / command / query / event / rule / actor', () => {
     expect(DDD_NODE_TYPES).toEqual([
       'boundedContext',
       'aggregate',
@@ -10,12 +10,12 @@ describe('DDD node types (core DDD only — no actor / screen / metric)', () => 
       'query',
       'event',
       'rule',
+      'actor',
     ])
-    expect(DDDNodeType.options).toHaveLength(6)
+    expect(DDDNodeType.options).toHaveLength(7)
   })
 
-  it('rejects non-DDD types', () => {
-    expect(DDDNodeType.safeParse('actor').success).toBe(false)
+  it('rejects types outside the declared set', () => {
     expect(DDDNodeType.safeParse('screen').success).toBe(false)
     expect(DDDNodeType.safeParse('metric').success).toBe(false)
   })
@@ -28,7 +28,7 @@ describe('DDD node types (core DDD only — no actor / screen / metric)', () => 
 })
 
 describe('DDD edge types', () => {
-  it('lists 6 edges aligned with the 6 node types', () => {
+  it('lists 7 edges including performedBy for actor links', () => {
     expect(DDD_EDGE_TYPES).toEqual([
       'contains',
       'accepts',
@@ -36,12 +36,12 @@ describe('DDD edge types', () => {
       'triggers',
       'constrainedBy',
       'dependsOn',
+      'performedBy',
     ])
-    expect(DDDEdgeType.options).toHaveLength(6)
+    expect(DDDEdgeType.options).toHaveLength(7)
   })
 
-  it('rejects edges tied to dropped node types', () => {
-    expect(DDDEdgeType.safeParse('performedBy').success).toBe(false)
+  it('rejects edges tied to node types not yet shipped', () => {
     expect(DDDEdgeType.safeParse('usesScreen').success).toBe(false)
     expect(DDDEdgeType.safeParse('measures').success).toBe(false)
   })

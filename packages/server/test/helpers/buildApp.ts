@@ -1,8 +1,25 @@
+import type { WorkspaceId } from '@braidhq/schema'
 import type { AppDependencies } from '../../src/composition.js'
+import { makeWorkspace } from '@braidhq/test-utils'
 import { createApp } from '../../src/app.js'
 import { composeApp } from '../../src/composition.js'
 
-export function buildTestApp(): { app: ReturnType<typeof createApp>, deps: AppDependencies } {
+const DEFAULT_WORKSPACE_ID = 'w-1' as WorkspaceId
+
+/**
+ * Build an app for route tests. Pre-registers a default workspace
+ * (`w-1`) on the in-memory repository so handlers that resolve
+ * `workspace.ontologyId` (e.g. validation in HITLService) don't 404.
+ * Pass `workspaceIds: []` to start without any registered workspace.
+ */
+export async function buildTestApp(options: { workspaceIds?: readonly WorkspaceId[] } = {}): Promise<{
+  app: ReturnType<typeof createApp>
+  deps: AppDependencies
+}> {
   const deps = composeApp()
+  const ids = options.workspaceIds ?? [DEFAULT_WORKSPACE_ID]
+  for (const id of ids) {
+    await deps.workspaceRepository.save(makeWorkspace({ id }))
+  }
   return { app: createApp(deps), deps }
 }

@@ -1,6 +1,6 @@
-import type { EdgeId, EdgeTypeId, ModelSnapshot, NodeId, NodeStatus, NodeTypeId, OntologyId, PluginId } from '@braidhq/schema'
+import type { EdgeId, EdgeTypeId, ModelSnapshot, NodeId, NodeStatus, NodeTypeId } from '@braidhq/schema'
+import { makeOntology } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
-import { z } from 'zod'
 import { OntologyTypeValidator } from '../../../src/infrastructure/validation/OntologyTypeValidator.js'
 
 const draft = 'draft' as NodeStatus
@@ -14,11 +14,8 @@ function snapshot(nodes: ModelSnapshot['nodes'], edges: ModelSnapshot['edges'] =
  * works against any ontology, not just DDD. (The DDD plugin uses the
  * SDK builder, which is tested separately.)
  */
-const tinyOntology = {
-  id: 'ontology.tiny' as PluginId,
-  type: 'ontology' as const,
-  configSchema: z.object({}),
-  ontologyId: 'tiny' as OntologyId,
+const tinyOntology = makeOntology({
+  ontologyId: 'tiny',
   nodeTypes: [
     { id: 'page' as NodeTypeId, label: 'Page', description: 'A page.' },
     { id: 'widget' as NodeTypeId, label: 'Widget', description: 'A widget.' },
@@ -26,7 +23,7 @@ const tinyOntology = {
   edgeTypes: [
     { id: 'mounts' as EdgeTypeId, fromTypes: ['page'] as NodeTypeId[], toTypes: ['widget'] as NodeTypeId[] },
   ],
-}
+})
 
 describe('OntologyTypeValidator', () => {
   const validator = new OntologyTypeValidator(tinyOntology)

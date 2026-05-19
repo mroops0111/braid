@@ -1,4 +1,6 @@
+import { T0 as isoTimestamp } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
+
 import {
   Embedding,
   GraphEdge,
@@ -11,9 +13,7 @@ import {
   NewGraphNode,
 } from '../src/index.js'
 
-const isoTimestamp = '2026-05-09T12:00:00+08:00'
-
-describe('embedding', () => {
+describe('Embedding', () => {
   it('parses a vector + model id + timestamp', () => {
     const embedding = Embedding.parse({
       vector: [0.1, 0.2, 0.3],
@@ -29,7 +29,7 @@ describe('embedding', () => {
   })
 })
 
-describe('newGraphNode', () => {
+describe('NewGraphNode', () => {
   it('defaults status to draft', () => {
     const node = NewGraphNode.parse({ type: 'command', name: 'voidTask' })
     expect(node.status).toBe('draft')
@@ -47,7 +47,7 @@ describe('newGraphNode', () => {
   })
 })
 
-describe('graphNode', () => {
+describe('GraphNode', () => {
   it('requires id and metadata', () => {
     const node = GraphNode.parse({
       id: 'n-1',
@@ -70,7 +70,7 @@ describe('graphNode', () => {
   })
 })
 
-describe('graphEdge', () => {
+describe('GraphEdge', () => {
   it('parses a complete edge', () => {
     const edge = GraphEdge.parse({
       id: 'e-1',
@@ -91,7 +91,7 @@ describe('graphEdge', () => {
   })
 })
 
-describe('updates', () => {
+describe('Updates', () => {
   it('GraphNodeUpdate carries patch', () => {
     const update = GraphNodeUpdate.parse({ nodeId: 'n-1', patch: { name: 'newName' } })
     expect(update.patch.name).toBe('newName')
@@ -102,13 +102,13 @@ describe('updates', () => {
   })
 })
 
-describe('modelSnapshot', () => {
+describe('ModelSnapshot', () => {
   it('round-trips empty graph', () => {
     expect(ModelSnapshot.parse({ nodes: [], edges: [] })).toEqual({ nodes: [], edges: [] })
   })
 })
 
-describe('graphNodeFilter', () => {
+describe('GraphNodeFilter', () => {
   it('accepts type + status filters', () => {
     const filter = GraphNodeFilter.parse({
       types: ['command', 'aggregate'],

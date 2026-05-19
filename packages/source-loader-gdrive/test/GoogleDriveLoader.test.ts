@@ -1,4 +1,5 @@
-import type { AbsolutePath } from '@braidhq/schema'
+import type { SourceLoaderContext } from '@braidhq/core'
+import type { AbsolutePath, SourceId, WorkspaceId } from '@braidhq/schema'
 import { Buffer } from 'node:buffer'
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -8,6 +9,10 @@ import { GoogleDriveLoader } from '../src/GoogleDriveLoader.js'
 
 const FOLDER_MIME = 'application/vnd.google-apps.folder'
 const DOC_MIME = 'application/vnd.google-apps.document'
+const CONTEXT: SourceLoaderContext = {
+  workspaceId: 'test-ws' as WorkspaceId,
+  sourceId: 'test-source' as SourceId,
+}
 
 interface MockFile {
   id: string
@@ -112,7 +117,7 @@ describe('GoogleDriveLoader', () => {
       fetchFn,
     })
 
-    const report = await loader.ingest({ folderId: 'demo-folder' }, dest)
+    const report = await loader.ingest({ folderId: 'demo-folder' }, dest, CONTEXT)
     expect(report.localPath).toBe(dest)
     expect((report.metadata as { fileCount?: number }).fileCount).toBe(3)
 
@@ -149,7 +154,7 @@ describe('GoogleDriveLoader', () => {
       resolveAccessToken: async () => 'fake',
       fetchFn,
     })
-    const report = await loader.ingest({ folderId: 'demo-folder' }, dest)
+    const report = await loader.ingest({ folderId: 'demo-folder' }, dest, CONTEXT)
     expect((report.metadata as { fileCount?: number }).fileCount).toBe(1)
     expect(await readdir(dest)).toEqual(['Note.md'])
   })
@@ -159,7 +164,7 @@ describe('GoogleDriveLoader', () => {
       resolveAccessToken: async () => 'fake',
       fetchFn: buildMockFetch([]),
     })
-    await expect(loader.ingest({ folderId: 'root' }, dest)).rejects.toThrow(/root/i)
+    await expect(loader.ingest({ folderId: 'root' }, dest, CONTEXT)).rejects.toThrow(/root/i)
   })
 
   it('recursive=false ignores subfolders', async () => {
@@ -173,7 +178,7 @@ describe('GoogleDriveLoader', () => {
       resolveAccessToken: async () => 'fake',
       fetchFn,
     })
-    await loader.ingest({ folderId: 'demo-folder', recursive: false }, dest)
+    await loader.ingest({ folderId: 'demo-folder', recursive: false }, dest, CONTEXT)
     expect(await readdir(dest)).toEqual(['A.md'])
   })
 })

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { McpServerConfig, McpServerId, McpTransport } from '../src/index.js'
 
-describe('mcpServerId (branded)', () => {
+describe('McpServerId (branded)', () => {
   it('accepts any non-empty string', () => {
     expect(McpServerId.parse('redmine')).toBe('redmine')
   })
@@ -10,7 +10,7 @@ describe('mcpServerId (branded)', () => {
   })
 })
 
-describe('mcpTransport', () => {
+describe('McpTransport', () => {
   it('accepts streamable-http (the only supported transport for v0.1)', () => {
     expect(McpTransport.parse('streamable-http')).toBe('streamable-http')
   })
@@ -22,7 +22,7 @@ describe('mcpTransport', () => {
   })
 })
 
-describe('mcpServerConfig (discriminated union)', () => {
+describe('McpServerConfig (discriminated union)', () => {
   it('parses a streamable-http server with headers', () => {
     const config = McpServerConfig.parse({
       id: 'redmine-prod',

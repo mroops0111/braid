@@ -1,5 +1,4 @@
 export * from './agent.js'
-export * from './channel.js'
 export * from './clarify.js'
 export * from './common.js'
 export * from './decision.js'

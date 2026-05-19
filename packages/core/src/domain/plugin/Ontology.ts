@@ -1,4 +1,4 @@
-import type { EdgeTypeId, NodeStatus, NodeTypeId, OntologyId } from '@braidhq/schema'
+import type { EdgeTypeId, ModelSnapshot, NodeStatus, NodeTypeId, OntologyId, ValidationIssue } from '@braidhq/schema'
 import type { Plugin } from './Plugin.js'
 
 export interface NodeTypeDescriptor {
@@ -34,9 +34,28 @@ export interface EdgeTypeDescriptor {
   readonly color?: string
 }
 
-export interface Ontology extends Plugin {
+/**
+ * Validator bundled with an ontology. The ontology brings its own
+ * enforcement (type check, structural rules, future ontology-specific
+ * invariants) instead of those being separate plugins that have to
+ * cross-reference the ontology at runtime.
+ *
+ * `defineOntology()` auto-binds the framework's two generic engines
+ * (`OntologyTypeValidator` + `StructuralValidator`); ontology authors
+ * pass `extraValidators` for anything beyond declarative checks.
+ */
+export interface OntologyValidator {
+  validate: (snapshot: ModelSnapshot) => Promise<readonly ValidationIssue[]>
+}
+
+export interface OntologyPlugin extends Plugin {
   readonly type: 'ontology'
   readonly ontologyId: OntologyId
   readonly nodeTypes: readonly NodeTypeDescriptor[]
   readonly edgeTypes: readonly EdgeTypeDescriptor[]
+  /**
+   * Validators that run against the model whenever the workspace is
+   * configured to use this ontology. Populated by `defineOntology()`.
+   */
+  readonly validators: readonly OntologyValidator[]
 }

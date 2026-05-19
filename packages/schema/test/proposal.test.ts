@@ -1,3 +1,4 @@
+import { T0 as isoTimestamp } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import {
   GraphOperation,
@@ -7,17 +8,16 @@ import {
   ProposalStatus,
 } from '../src/index.js'
 
-const isoTimestamp = '2026-05-09T12:00:00+08:00'
 const validNewGraphNode = { type: 'command', name: 'voidTask' }
 
-describe('proposalStatus', () => {
+describe('ProposalStatus', () => {
   it('has 3 states', () => {
     expect(ProposalStatus.options).toEqual(['pending', 'applied', 'rejected'])
   })
 })
 
-describe('graphOperation', () => {
-  const cases: { name: string, payload: unknown }[] = [
+describe('GraphOperation', () => {
+  const cases = [
     { name: 'addNode', payload: { operation: 'addNode', payload: validNewGraphNode } },
     { name: 'addNodes', payload: { operation: 'addNodes', payloads: [validNewGraphNode] } },
     { name: 'removeNode', payload: { operation: 'removeNode', nodeId: 'n-1' } },
@@ -28,10 +28,7 @@ describe('graphOperation', () => {
     },
     {
       name: 'updateNodes',
-      payload: {
-        operation: 'updateNodes',
-        updates: [{ nodeId: 'n-1', patch: { name: 'x' } }],
-      },
+      payload: { operation: 'updateNodes', updates: [{ nodeId: 'n-1', patch: { name: 'x' } }] },
     },
     {
       name: 'addEdge',
@@ -60,20 +57,18 @@ describe('graphOperation', () => {
         updates: [{ edgeId: 'e-1', patch: { type: 'triggers' } }],
       },
     },
-  ]
+  ] as const
 
-  for (const { name, payload } of cases) {
-    it(`accepts ${name}`, () => {
-      expect(GraphOperation.parse(payload).operation).toBe(name)
-    })
-  }
+  it.each(cases)('accepts $name', ({ name, payload }) => {
+    expect(GraphOperation.parse(payload).operation).toBe(name)
+  })
 
   it('rejects unknown operation discriminator', () => {
     expect(GraphOperation.safeParse({ operation: 'mystery' }).success).toBe(false)
   })
 })
 
-describe('proposal', () => {
+describe('Proposal', () => {
   it('parses a complete pending proposal with mixed batch ops', () => {
     const proposal = Proposal.parse({
       id: 'p-1',
@@ -133,7 +128,7 @@ describe('proposal', () => {
   })
 })
 
-describe('proposalDraft', () => {
+describe('ProposalDraft', () => {
   it('does not require id / status / generatedAt', () => {
     const draft = ProposalDraft.parse({
       workspaceId: 'w-1',
@@ -145,7 +140,7 @@ describe('proposalDraft', () => {
   })
 })
 
-describe('proposalFilter', () => {
+describe('ProposalFilter', () => {
   it('all fields optional', () => {
     expect(ProposalFilter.parse({})).toEqual({})
   })

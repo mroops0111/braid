@@ -19,6 +19,7 @@ import type { ProposalRepository } from '../domain/hitl/ProposalRepository.js'
 import type { ModelRepository } from '../domain/model/ModelRepository.js'
 import type { ValidationService } from './ValidationService.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
+import type { WorkspaceService } from './WorkspaceService.js'
 import { ValidationError } from '../domain/errors.js'
 import { ClarifyTicket } from '../domain/hitl/ClarifyTicket.js'
 import { Proposal } from '../domain/hitl/Proposal.js'
@@ -30,6 +31,7 @@ export interface HITLServiceDeps {
   decisionRepository: DecisionRepository
   modelRepository: ModelRepository
   validationService: ValidationService
+  workspaceService: WorkspaceService
   clock: Clock
   /**
    * Optional pub/sub. Injected at the composition root so Studio's
@@ -226,8 +228,9 @@ export class HITLService {
     workspaceId: WorkspaceId,
     operations: readonly GraphOperation[],
   ): Promise<void> {
+    const workspace = await this.deps.workspaceService.findById(workspaceId)
     const snapshot = await this.deps.modelRepository.load(workspaceId)
-    const result = await this.deps.validationService.validateOperations(snapshot, operations)
+    const result = await this.deps.validationService.validateOperations(snapshot, operations, workspace)
     if (!result.ok) {
       throw new ValidationError(this.formatValidationErrors(result.issues), result.issues)
     }

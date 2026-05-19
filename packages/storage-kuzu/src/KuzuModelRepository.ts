@@ -14,7 +14,7 @@ import { mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { Model, NotFoundError, paginate } from '@braidhq/core'
 import * as kuzu from 'kuzu'
-import { type EdgeRow, edgeToParams, type NodeRow, nodeToParams, rowToEdge, rowToNode } from './codec.js'
+import { edgeToParams, nodeToParams, rowToEdge, rowToNode } from './codec.js'
 import { DDL_CREATE_EDGE_TABLE, DDL_CREATE_NODE_TABLE } from './schema.js'
 
 export interface KuzuModelRepositoryOptions {
@@ -157,14 +157,14 @@ async function readSnapshot(conn: Connection): Promise<ModelSnapshot> {
     RETURN n.id AS id, n.type AS type, n.name AS name, n.description AS description,
            n.status AS status, n.metadata AS metadata, n.embedding AS embedding;
   `)
-  const nodes = (await firstResult(nodesResult).getAll() as unknown as NodeRow[]).map(rowToNode)
+  const nodes = (await firstResult(nodesResult).getAll()).map(rowToNode)
 
   const edgesResult = await conn.query(`
     MATCH (a:Node)-[r:Edge]->(b:Node)
     RETURN r.id AS id, r.type AS type, r.metadata AS metadata,
            a.id AS fromId, b.id AS toId;
   `)
-  const edges = (await firstResult(edgesResult).getAll() as unknown as EdgeRow[]).map(rowToEdge)
+  const edges = (await firstResult(edgesResult).getAll()).map(rowToEdge)
 
   return { nodes, edges }
 }

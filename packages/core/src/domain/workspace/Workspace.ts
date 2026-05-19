@@ -2,13 +2,10 @@ import type {
   AbsolutePath,
   AgentBindingDescriptor,
   AgentRoutingConfig,
-  ChannelDescriptor,
   FilesystemSourceDescriptor,
   McpServerConfig,
   McpServerId,
   McpSourceDescriptor,
-  PluginConfig,
-  PluginDescriptor,
   ProductManifest,
   SourceDescriptor,
   StorageDescriptor,
@@ -32,10 +29,6 @@ export class Workspace {
     return this.data.productManifest
   }
 
-  get pluginConfig(): PluginConfig {
-    return this.data.pluginConfig
-  }
-
   get sources(): readonly SourceDescriptor[] {
     return this.data.productManifest.sources
   }
@@ -54,14 +47,6 @@ export class Workspace {
 
   get storage(): StorageDescriptor {
     return this.data.productManifest.storage
-  }
-
-  get channels(): readonly ChannelDescriptor[] {
-    return this.data.productManifest.channels
-  }
-
-  get plugins(): readonly PluginDescriptor[] {
-    return this.data.pluginConfig.plugins
   }
 
   codeSources(): readonly SourceDescriptor[] {

@@ -1,8 +1,8 @@
 {
-  "name": "@braidhq/ontology-ddd",
+  "name": "@braidhq/agent-claude-code",
   "type": "module",
   "version": "0.0.1",
-  "description": "Default DDD-flavored ontology plugin. Provides core DDD node and edge type sets.",
+  "description": "Claude Code agent plugin for Braid. Spawns the `claude` CLI to run SKILL.md prompts; the default LLM backend.",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"
@@ -15,19 +15,17 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "test:coverage": "vitest run --coverage --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+    "test": "vitest run",
     "clean": "rm -rf dist .turbo *.tsbuildinfo coverage"
   },
   "dependencies": {
     "@braidhq/core": "workspace:*",
     "@braidhq/schema": "workspace:*",
-    "@braidhq/sdk": "workspace:*",
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^2.1.0",
+    "@braidhq/test-utils": "workspace:*",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
   },

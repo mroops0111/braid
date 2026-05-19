@@ -48,6 +48,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Hono
     proposalRepository: deps.proposalRepository,
     modelRepository: deps.modelRepository,
     validationService: deps.validationService,
+    workspaceService: deps.workspaceService,
   }))
   workspaceScoped.route('/clarify', createClarifyRouter({
     hitlService: deps.hitlService,

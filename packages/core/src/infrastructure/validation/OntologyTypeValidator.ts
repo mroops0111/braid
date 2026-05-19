@@ -1,32 +1,24 @@
 import type {
   ModelSnapshot,
-  PluginId,
   ValidationCode,
   ValidationIssue,
 } from '@braidhq/schema'
-import type { Ontology } from '../../domain/plugin/Ontology.js'
-import type { Validator } from '../../domain/plugin/Validator.js'
-import { z } from 'zod'
+import type { OntologyPlugin, OntologyValidator } from '../../domain/plugin/Ontology.js'
 
 /**
- * Validator that reads its allow-list from a live Ontology instance.
+ * Generic engine: reads `nodeTypes` / `edgeTypes` from an `OntologyPlugin`
+ * and rejects graph nodes/edges whose `type` field isn't in the allow-list.
  *
- * Generic across ontologies: there is exactly one place that lists
- * the valid node and edge types — the ontology plugin itself — and
- * this validator, the `GET /ontology` endpoint, and the docs served
- * to skills all consume the same arrays. Adding a new type cannot
- * drift out of sync with what the validator accepts.
+ * Not a plugin: callers (typically `defineOntology()` in the SDK) `new` an
+ * instance bound to their ontology and expose it via `OntologyPlugin.validators[]`.
+ * Other ontologies (c4, event-modeling, ...) reuse the same engine without
+ * importing the ddd package.
  */
-export class OntologyTypeValidator implements Validator {
-  readonly type = 'validator' as const
-  readonly id: PluginId
-  readonly configSchema = z.object({})
-
+export class OntologyTypeValidator implements OntologyValidator {
   private readonly knownNodeTypes: ReadonlySet<string>
   private readonly knownEdgeTypes: ReadonlySet<string>
 
-  constructor(private readonly ontology: Ontology) {
-    this.id = `ontology-type-validator.${ontology.ontologyId}` as PluginId
+  constructor(private readonly ontology: OntologyPlugin) {
     this.knownNodeTypes = new Set(ontology.nodeTypes.map(t => t.id))
     this.knownEdgeTypes = new Set(ontology.edgeTypes.map(t => t.id))
   }

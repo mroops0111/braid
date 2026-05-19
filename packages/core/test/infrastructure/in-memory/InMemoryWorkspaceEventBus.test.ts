@@ -1,5 +1,6 @@
 import type { ProposalId, WorkspaceId } from '@braidhq/schema'
 import type { WorkspaceEvent } from '../../../src/domain/events/WorkspaceEvent.js'
+import { T0 } from '@braidhq/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { InMemoryWorkspaceEventBus } from '../../../src/infrastructure/in-memory/InMemoryWorkspaceEventBus.js'
 
@@ -11,7 +12,7 @@ function proposalCreated(workspaceId: WorkspaceId, idSuffix = '1'): WorkspaceEve
     type: 'proposal.created',
     workspaceId,
     proposalId: `prop-${idSuffix}` as ProposalId,
-    at: '2026-05-15T00:00:00Z',
+    at: T0,
   }
 }
 
