@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.test.base.json",
+  "include": ["test/**/*"],
+  "exclude": ["node_modules", "src-tauri"]
+}

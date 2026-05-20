@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../studio/dist",
     "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "pnpm --filter @braidhq/studio dev",
-    "beforeBuildCommand": "pnpm --filter @braidhq/studio build"
+    "beforeDevCommand": "pnpm --filter @braidhq/desktop prepare-sidecar && pnpm --filter @braidhq/studio dev",
+    "beforeBuildCommand": "pnpm --filter @braidhq/desktop prepare-sidecar && pnpm --filter @braidhq/studio build"
   },
   "app": {
     "windows": [
@@ -34,6 +34,12 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/node"
+    ],
+    "resources": [
+      "resources/server/**/*"
     ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
