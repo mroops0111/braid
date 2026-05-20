@@ -21,6 +21,9 @@ export default antfu(
       '**/*.tsbuildinfo',
       '**/src-tauri/gen/**',
       '**/src-tauri/target/**',
+      '**/src-tauri/binaries/**',
+      '**/src-tauri/resources/**',
+      '**/packages/server/bundle/**',
     ],
   },
   {
