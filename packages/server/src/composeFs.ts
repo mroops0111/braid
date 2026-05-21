@@ -10,6 +10,7 @@ import {
   InMemoryWorkspaceEventBus,
   NotFoundError,
   PluginRegistry,
+  ValidationError,
 } from '@braidhq/core'
 import { dddOntology } from '@braidhq/ontology-ddd'
 import { StorageKind as StorageKindSchema } from '@braidhq/schema'
@@ -24,6 +25,7 @@ import { FsProposalRepository } from './infrastructure/fs/FsProposalRepository.j
 import { FsRunRepository } from './infrastructure/fs/FsRunRepository.js'
 import { FsSkillRegistry } from './infrastructure/fs/FsSkillRegistry.js'
 import { FsWorkspaceRepository } from './infrastructure/fs/FsWorkspaceRepository.js'
+import { discoverCanonicalWorkspaces } from './infrastructure/fs/WorkspaceDiscovery.js'
 import { WorkspaceRegistryFile } from './infrastructure/fs/WorkspaceRegistryFile.js'
 import { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
 import { FsSecretStore } from './infrastructure/secrets/SecretStore.js'
@@ -102,7 +104,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
 
   // Plugin registration. Defaults bundle first, then extras, so a caller
   // that passes (e.g.) `extraOntologyPlugins: [c4]` ends up with both ddd
-  // and c4 registered — the active one is chosen per-workspace via
+  // and c4 registered; the active one is chosen per-workspace via
   // PRODUCT.md.ontologyId.
   const pluginRegistry = new PluginRegistry()
   pluginRegistry.register(kuzuStoragePlugin)
@@ -121,40 +123,43 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   for (const plugin of options.extraAgentPlugins ?? [])
     pluginRegistry.register(plugin)
 
-  if (googleOAuth) {
-    // GoogleDriveLoader requires OAuth to be configured. We resolve the
-    // access token per (workspaceId, sourceId): read stored tokens from
-    // the secret store, refresh if expired, persist the rotated access
-    // token, hand the bearer to the loader.
-    const oauth = googleOAuth
-    pluginRegistry.register(new GoogleDriveLoader({
-      resolveAccessToken: async ({ workspaceId, sourceId }) => {
-        const key = `${workspaceId}--${sourceId}`
-        const stored = await secretStore.read<{
-          accessToken: string
-          refreshToken: string
-          expiresAt: string
-        }>('oauth-google', key)
-        if (!stored) {
-          throw new NotFoundError(
-            `Google Drive source "${sourceId}" on workspace "${workspaceId}" is not connected. `
-            + `Authorise via POST /oauth/google/start.`,
-          )
-        }
-        // 60-second skew so we don't hand out a token about to expire mid-request.
-        const stillValidUntil = new Date(stored.expiresAt).getTime() - 60_000
-        if (Date.now() < stillValidUntil)
-          return stored.accessToken
-        const refreshed = await oauth.refreshAccessToken(stored.refreshToken)
-        await secretStore.write('oauth-google', key, {
-          ...stored,
-          accessToken: refreshed.accessToken,
-          expiresAt: refreshed.expiresAt,
-        })
-        return refreshed.accessToken
-      },
-    }))
-  }
+  // GoogleDriveLoader is always registered so a workspace declaring a
+  // `kind: gdrive` source doesn't crash at plugin lookup. If OAuth env
+  // vars aren't configured, the token resolver throws an actionable
+  // error at ingest time so the user knows exactly what to set.
+  const oauth = googleOAuth
+  pluginRegistry.register(new GoogleDriveLoader({
+    resolveAccessToken: async ({ workspaceId, sourceId }) => {
+      if (!oauth) {
+        throw new ValidationError(
+          `Google Drive source "${sourceId}" cannot be loaded: set BRAID_GOOGLE_CLIENT_ID and BRAID_GOOGLE_CLIENT_SECRET on the server, restart, then re-sync.`,
+        )
+      }
+      const key = `${workspaceId}--${sourceId}`
+      const stored = await secretStore.read<{
+        accessToken: string
+        refreshToken: string
+        expiresAt: string
+      }>('oauth-google', key)
+      if (!stored) {
+        throw new NotFoundError(
+          `Google Drive source "${sourceId}" on workspace "${workspaceId}" is not connected. `
+          + `Authorise via POST /oauth/google/start.`,
+        )
+      }
+      // 60-second skew so we don't hand out a token about to expire mid-request.
+      const stillValidUntil = new Date(stored.expiresAt).getTime() - 60_000
+      if (Date.now() < stillValidUntil)
+        return stored.accessToken
+      const refreshed = await oauth.refreshAccessToken(stored.refreshToken)
+      await secretStore.write('oauth-google', key, {
+        ...stored,
+        accessToken: refreshed.accessToken,
+        expiresAt: refreshed.expiresAt,
+      })
+      return refreshed.accessToken
+    },
+  }))
 
   // Resolve the active storage plugin and ask it for a ModelRepository.
   const storageKind = StorageKindSchema.parse(
@@ -207,6 +212,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     ],
   })
 
+  const workspacesRoot = join(braidHome, 'workspaces') as AbsolutePath
   const deps = composeApp({
     workspaceRepository,
     proposalRepository,
@@ -218,7 +224,14 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     runRepository,
     pluginRegistry,
     eventBus,
+    workspacesRoot,
   })
+
+  // Pick up workspaces that exist on disk but aren't in the registry:
+  // CLI-created ones, scaffold-orphans, copies-from-another-machine.
+  // Registry add is idempotent so this is safe to run on every boot.
+  await discoverCanonicalWorkspaces(workspacesRoot, deps.workspaceService)
+
   return {
     ...deps,
     secretStore,

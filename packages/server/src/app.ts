@@ -35,6 +35,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Hono
   app.route('/workspaces', createWorkspacesRouter({
     workspaceService: deps.workspaceService,
     sourceLoaderRunner: deps.sourceLoaderRunner,
+    workspacesRoot: deps.workspacesRoot,
   }))
   app.route('/workspaces', createWorkspaceEventsRouter({ eventBus: deps.eventBus }))
 

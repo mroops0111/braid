@@ -1,9 +1,8 @@
-import { Command, FolderPlus, Server, Settings2, Sparkles } from 'lucide-react'
+import { Command, Server, Settings2, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { CommandPalette, type TabKey } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
 import { InFlightRunBanner } from './components/InFlightRunBanner'
-import { RegisterWorkspaceDialog } from './components/RegisterWorkspaceDialog'
 import { ServerUrlDialog } from './components/ServerUrlDialog'
 import { Sidebar } from './components/Sidebar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
@@ -170,32 +169,27 @@ function Header({ workspaceId, onOpenDetails, onOpenServerUrl }: {
 
 function NoWorkspaceState({ onSelect }: { onSelect: (id: string) => void }) {
   const [wizardOpen, setWizardOpen] = useState(false)
-  const [registerOpen, setRegisterOpen] = useState(false)
 
   return (
     <div className="flex h-full flex-col items-center justify-center px-6">
       <div className="max-w-2xl text-center">
         <h1 className="text-base font-semibold">Welcome to Braid</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Pick how you want to start. You can switch later from the sidebar.
+          Open a workspace to begin. Workspaces live under
+          {' '}
+          <code className="rounded bg-muted px-1">~/.braid/workspaces/</code>
+          .
         </p>
       </div>
-      <div className="mt-6 grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="mt-6 grid w-full max-w-md grid-cols-1 gap-3">
         <ActionCard
           icon={Sparkles}
-          title="Create New Workspace"
-          description="Scaffold a fresh PRODUCT.md, pick intent + code sources, and let Braid ingest them."
+          title="Open Workspace"
+          description="Type a name to create a new one or open an existing workspace under the canonical root."
           onClick={() => setWizardOpen(true)}
-        />
-        <ActionCard
-          icon={FolderPlus}
-          title="Register Existing"
-          description="You already have a PRODUCT.md on disk and just want Braid to track it."
-          onClick={() => setRegisterOpen(true)}
         />
       </div>
       <CreateWorkspaceWizard open={wizardOpen} onOpenChange={setWizardOpen} onCreated={onSelect} />
-      <RegisterWorkspaceDialog open={registerOpen} onOpenChange={setRegisterOpen} onRegistered={onSelect} />
     </div>
   )
 }

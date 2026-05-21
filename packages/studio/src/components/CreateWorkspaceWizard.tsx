@@ -3,12 +3,13 @@ import type { IngestSummary } from '@/lib/api'
 import type { SourceDraft as SourceDraftBase } from '@/lib/sourceDraft'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
-import { useState } from 'react'
-import { api } from '@/lib/api'
+import { useEffect, useState } from 'react'
+import { api, workspaceEventsUrl } from '@/lib/api'
 import { asMcpServerId, asOntologyId, asStorageKind } from '@/lib/brands'
 import { type ErrorCase, humaniseApiError } from '@/lib/errors'
 import { queryKeys } from '@/lib/queries'
-import { toSourceDescriptor } from '@/lib/sourceDraft'
+import { nameToId, rolePathSegment, toSourceDescriptor } from '@/lib/sourceDraft'
+import { useGoogleOAuth } from '@/lib/useGoogleOAuth'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
@@ -34,8 +35,8 @@ interface CreateWorkspaceWizardProps {
 
 const WIZARD_ERROR_CASES: readonly ErrorCase[] = [
   {
-    match: e => e.status === 400 && e.message.includes('PRODUCT.md already exists'),
-    message: 'A PRODUCT.md already exists at that path. Either pick a different path, or close this dialog and use "Register existing workspace" instead.',
+    match: e => e.status === 400 && e.message.includes('already exists'),
+    message: 'A workspace with that name already exists. Open it from the sidebar, or delete it first to recreate.',
   },
 ]
 
@@ -43,7 +44,7 @@ const STEP_ORDER: StepKey[] = ['basics', 'sources', 'mcp', 'advanced', 'confirm'
 const STEP_LABELS: Record<StepKey, string> = {
   basics: 'Basics',
   sources: 'Sources',
-  mcp: 'MCP Servers',
+  mcp: 'MCP',
   advanced: 'Advanced',
   confirm: 'Review',
   progress: 'Creating',
@@ -53,18 +54,22 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
   const queryClient = useQueryClient()
   const [step, setStep] = useState<StepKey>('basics')
   const [name, setName] = useState('')
-  const [rootPath, setRootPath] = useState('')
   const [description, setDescription] = useState('')
   const [sources, setSources] = useState<SourceDraft[]>([])
   const [mcpServers, setMcpServers] = useState<McpDraft[]>([])
   const [ontologyId, setOntologyId] = useState('ddd')
   const [storageKind, setStorageKind] = useState('kuzu')
   const [ingestResults, setIngestResults] = useState<IngestSummary[]>([])
+  // sourceIds whose Google OAuth flow completed in this wizard session.
+  // The server stores tokens keyed by `${workspaceId}--${sourceId}` and
+  // since `workspaceId === name` (PRODUCT.md name == folder name) we can
+  // run OAuth before the workspace actually exists.
+  const [oauthConnectedFor, setOauthConnectedFor] = useState<Set<string>>(new Set())
 
   const scaffold = useMutation({
     mutationFn: () => {
       const draft = buildDraft({ name, description, sources, mcpServers, ontologyId, storageKind })
-      return api.scaffoldWorkspace(rootPath, draft)
+      return api.scaffoldWorkspace(name, draft)
     },
     onSuccess: (result) => {
       setIngestResults(result.ingest)
@@ -76,13 +81,13 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
   function reset() {
     setStep('basics')
     setName('')
-    setRootPath('')
     setDescription('')
     setSources([])
     setMcpServers([])
     setOntologyId('ddd')
     setStorageKind('kuzu')
     setIngestResults([])
+    setOauthConnectedFor(new Set())
     scaffold.reset()
   }
 
@@ -102,21 +107,30 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
       setStep(STEP_ORDER[index - 1]!)
   }
 
-  const canAdvance = canAdvanceFrom(step, { name, rootPath, sources, mcpServers })
+  const canAdvance = canAdvanceFrom(step, { name, sources, mcpServers, oauthConnectedFor })
 
   return (
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (!o)
+        if (!o) {
+          // Don't let outside-click / Escape kill the wizard mid-flight.
+          // Scaffold + ingest can take minutes for gdrive sources; closing
+          // would orphan the request and lose the progress we're showing.
+          if (scaffold.isPending)
+            return
           close()
+        }
       }}
     >
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Create Workspace</DialogTitle>
           <DialogDescription>
-            Braid will write a fresh PRODUCT.md and ingest any loader-backed sources.
+            Scaffolds a fresh workspace under
+            {' '}
+            <code className="rounded bg-muted px-1">~/.braid/workspaces/</code>
+            . To open an existing one, pick it from the sidebar.
           </DialogDescription>
         </DialogHeader>
 
@@ -126,15 +140,25 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
           {step === 'basics' && (
             <BasicsStep
               name={name}
-              rootPath={rootPath}
               description={description}
               onName={setName}
-              onRootPath={setRootPath}
               onDescription={setDescription}
             />
           )}
           {step === 'sources' && (
-            <SourcesStep sources={sources} onChange={setSources} />
+            <SourcesStep
+              workspaceName={name}
+              sources={sources}
+              oauthConnectedFor={oauthConnectedFor}
+              onChange={setSources}
+              onOauthConnected={(sourceId) => {
+                setOauthConnectedFor((prev) => {
+                  const next = new Set(prev)
+                  next.add(sourceId)
+                  return next
+                })
+              }}
+            />
           )}
           {step === 'mcp' && (
             <McpStep servers={mcpServers} onChange={setMcpServers} />
@@ -150,7 +174,6 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
           {step === 'confirm' && (
             <ConfirmStep
               name={name}
-              rootPath={rootPath}
               description={description}
               sources={sources}
               mcpServers={mcpServers}
@@ -160,9 +183,13 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
           )}
           {step === 'progress' && (
             <ProgressStep
+              workspaceName={name}
               status={scaffold.status}
               error={scaffold.error}
               ingest={ingestResults}
+              expectedSources={sources
+                .filter(s => s.loaderKind !== '')
+                .map(s => ({ id: nameToId(s.name), name: s.name, loaderKind: s.loaderKind }))}
               onClose={close}
             />
           )}
@@ -216,7 +243,7 @@ function StepIndicator({ step }: { step: StepKey }) {
         const active = index === current
         const done = index < current
         return (
-          <li key={key} className="flex items-center gap-1.5">
+          <li key={key} className="flex items-center gap-1.5 whitespace-nowrap">
             <span
               className={`flex size-5 items-center justify-center rounded-full border text-[10px] ${
                 done ? 'border-primary bg-primary text-primary-foreground' : active ? 'border-primary text-primary' : 'border-border text-muted-foreground'
@@ -233,14 +260,15 @@ function StepIndicator({ step }: { step: StepKey }) {
   )
 }
 
-function BasicsStep({ name, rootPath, description, onName, onRootPath, onDescription }: {
+const WORKSPACE_NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/
+
+function BasicsStep({ name, description, onName, onDescription }: {
   name: string
-  rootPath: string
   description: string
   onName: (v: string) => void
-  onRootPath: (v: string) => void
   onDescription: (v: string) => void
 }) {
+  const invalid = name.length > 0 && !WORKSPACE_NAME_PATTERN.test(name)
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
@@ -252,17 +280,14 @@ function BasicsStep({ name, rootPath, description, onName, onRootPath, onDescrip
           value={name}
           onChange={e => onName(e.target.value)}
         />
-        <p className="text-[11px] text-muted-foreground">Lowercase, no spaces. Used as the workspace ID.</p>
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="ws-path">Root path</Label>
-        <Input
-          id="ws-path"
-          placeholder="/abs/path/to/new/workspace"
-          value={rootPath}
-          onChange={e => onRootPath(e.target.value)}
-        />
-        <p className="text-[11px] text-muted-foreground">Absolute path. Directory is created if missing; PRODUCT.md must not already exist.</p>
+        <p className="text-[11px] text-muted-foreground">Lowercase letters, digits, and dashes. Name conflicts are rejected; delete the existing workspace first to reuse a name.</p>
+        <code className="block truncate rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+          ~/.braid/workspaces/
+          {name || '<name>'}
+        </code>
+        {invalid && (
+          <p className="text-[11px] text-destructive">Name must start with a letter or digit and use only lowercase letters, digits, or dashes.</p>
+        )}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="ws-desc">Description (optional)</Label>
@@ -277,9 +302,12 @@ function BasicsStep({ name, rootPath, description, onName, onRootPath, onDescrip
   )
 }
 
-function SourcesStep({ sources, onChange }: {
+function SourcesStep({ workspaceName, sources, oauthConnectedFor, onChange, onOauthConnected }: {
+  workspaceName: string
   sources: SourceDraft[]
+  oauthConnectedFor: ReadonlySet<string>
   onChange: (sources: SourceDraft[]) => void
+  onOauthConnected: (sourceId: string) => void
 }) {
   function add(role: 'intent' | 'code') {
     onChange([...sources, defaultSourceDraft(role)])
@@ -294,11 +322,29 @@ function SourcesStep({ sources, onChange }: {
   return (
     <div className="space-y-3">
       <p className="text-[11px] text-muted-foreground">
-        Intent sources hold the rules / specs / docs. Code sources are the implementation. You can also leave this empty and add sources later.
+        Intent sources hold the rules / specs / docs (default loader:
+        {' '}
+        <code className="rounded bg-muted px-1">gdrive</code>
+        ). Code sources are the implementation (default:
+        {' '}
+        <code className="rounded bg-muted px-1">git</code>
+        ). Loaders place files under the workspace folder; pick
+        {' '}
+        <code className="rounded bg-muted px-1">manual</code>
+        {' '}
+        to manage that path yourself. You can also skip this step and add sources later.
       </p>
       <div className="space-y-2">
         {sources.map(source => (
-          <SourceRow key={source.uiId} draft={source} onUpdate={patch => update(source.uiId, patch)} onRemove={() => remove(source.uiId)} />
+          <SourceRow
+            key={source.uiId}
+            workspaceName={workspaceName}
+            draft={source}
+            oauthConnected={oauthConnectedFor.has(nameToId(source.name))}
+            onUpdate={patch => update(source.uiId, patch)}
+            onRemove={() => remove(source.uiId)}
+            onOauthConnected={onOauthConnected}
+          />
         ))}
       </div>
       <div className="flex gap-2">
@@ -315,84 +361,132 @@ function SourcesStep({ sources, onChange }: {
   )
 }
 
-function SourceRow({ draft, onUpdate, onRemove }: {
+function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, onOauthConnected }: {
+  workspaceName: string
   draft: SourceDraft
+  oauthConnected: boolean
   onUpdate: (patch: Partial<SourceDraft>) => void
   onRemove: () => void
+  onOauthConnected: (sourceId: string) => void
 }) {
+  const id = nameToId(draft.name)
+  const targetPath = `./${rolePathSegment(draft.role)}/${id || '<name>'}`
   return (
     <div className="space-y-2 rounded-md border border-border p-3">
       <div className="flex items-center gap-2">
         <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider">{draft.role}</span>
         <Input
-          placeholder="source name (e.g. intent, src)"
+          placeholder={draft.role === 'intent' ? 'intent-name' : 'repo-name'}
           value={draft.name}
           onChange={e => onUpdate({ name: e.target.value })}
           className="flex-1"
         />
         <select
-          value={draft.kind}
-          onChange={e => onUpdate({ kind: e.target.value as SourceDraft['kind'] })}
+          value={draft.loaderKind}
+          onChange={e => onUpdate({ loaderKind: e.target.value as SourceDraft['loaderKind'] })}
           className="rounded-md border border-border bg-background px-2 py-1 text-xs"
         >
-          <option value="filesystem">filesystem</option>
-          <option value="mcp">mcp</option>
+          <option value="">manual</option>
+          <option value="git">git</option>
+          <option value="gdrive">gdrive</option>
         </select>
         <Button variant="ghost" size="icon" onClick={onRemove}>
           <Trash2 />
         </Button>
       </div>
 
-      {draft.kind === 'filesystem'
-        ? (
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="path (relative to workspace, e.g. ./intent)"
-                  value={draft.path}
-                  onChange={e => onUpdate({ path: e.target.value })}
-                  className="flex-1"
-                />
-                <select
-                  value={draft.loaderKind}
-                  onChange={e => onUpdate({ loaderKind: e.target.value as SourceDraft['loaderKind'] })}
-                  className="rounded-md border border-border bg-background px-2 py-1 text-xs"
-                >
-                  <option value="">manual</option>
-                  <option value="git">git</option>
-                  <option value="gdrive">gdrive</option>
-                </select>
-              </div>
-              {draft.loaderKind === 'git' && (
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    placeholder="git URL (https or local path)"
-                    value={draft.gitUrl}
-                    onChange={e => onUpdate({ gitUrl: e.target.value })}
-                  />
-                  <Input
-                    placeholder="branch (default: main)"
-                    value={draft.gitBranch}
-                    onChange={e => onUpdate({ gitBranch: e.target.value })}
-                  />
-                </div>
-              )}
-              {draft.loaderKind === 'gdrive' && (
-                <Input
-                  placeholder="Google Drive folder ID"
-                  value={draft.gdriveFolderId}
-                  onChange={e => onUpdate({ gdriveFolderId: e.target.value })}
-                />
-              )}
-            </div>
-          )
-        : (
+      <p className="font-mono text-[10px] text-muted-foreground">{targetPath}</p>
+
+      <div className="space-y-2">
+        {draft.loaderKind === 'git' && (
+          <div className="flex gap-2">
             <Input
-              placeholder="MCP server ID (must match one declared in MCP servers step)"
-              value={draft.mcpServerId}
-              onChange={e => onUpdate({ mcpServerId: e.target.value })}
+              placeholder="https://github.com/org/repo.git"
+              value={draft.gitUrl}
+              onChange={e => onUpdate({ gitUrl: e.target.value })}
+              className="flex-1"
             />
-          )}
+            <Input
+              placeholder="branch"
+              value={draft.gitBranch}
+              onChange={e => onUpdate({ gitBranch: e.target.value })}
+              className="w-28"
+            />
+          </div>
+        )}
+        {draft.loaderKind === 'gdrive' && (
+          <>
+            <Input
+              placeholder="Google Drive folder ID"
+              value={draft.gdriveFolderId}
+              onChange={e => onUpdate({ gdriveFolderId: e.target.value })}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                placeholder="include regex (optional, e.g. ^docs/)"
+                value={draft.gdriveInclude}
+                onChange={e => onUpdate({ gdriveInclude: e.target.value })}
+              />
+              <Input
+                placeholder="exclude regex (optional)"
+                value={draft.gdriveExclude}
+                onChange={e => onUpdate({ gdriveExclude: e.target.value })}
+              />
+            </div>
+            <GdriveOauthBlock
+              workspaceName={workspaceName}
+              sourceName={draft.name}
+              connected={oauthConnected}
+              onConnected={onOauthConnected}
+            />
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function GdriveOauthBlock({ workspaceName, sourceName, connected, onConnected }: {
+  workspaceName: string
+  sourceName: string
+  connected: boolean
+  onConnected: (sourceId: string) => void
+}) {
+  // Token storage key is `${workspaceId}--${sourceId}`. Workspace id is
+  // the typed workspace name (PRODUCT.md name); source id is derived from
+  // source name. Both come from the wizard's current state so we can
+  // authorise *before* scaffold runs.
+  const workspaceId = workspaceName.trim()
+  const sourceId = nameToId(sourceName)
+  const canStart = workspaceId.length > 0 && sourceId.length > 0
+
+  const startOauth = useGoogleOAuth(workspaceId, sourceId, { onConnected })
+
+  return (
+    <div className="rounded-md border border-border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-medium">Google Account</p>
+          <p className="text-[11px] text-muted-foreground">
+            {!canStart
+              ? 'Set workspace name and source name first.'
+              : connected
+                ? `Connected for "${workspaceId}/${sourceId}".`
+                : 'Authorise read access to the folder above. Required before the workspace is created.'}
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant={connected ? 'ghost' : 'default'}
+          disabled={!canStart || startOauth.isPending}
+          onClick={() => startOauth.mutate()}
+        >
+          {startOauth.isPending ? 'Opening…' : connected ? 'Reconnect' : 'Connect Google'}
+        </Button>
+      </div>
+      {startOauth.error && (
+        <p className="mt-2 text-[11px] text-destructive">{humaniseApiError(startOauth.error)}</p>
+      )}
     </div>
   )
 }
@@ -414,7 +508,7 @@ function McpStep({ servers, onChange }: {
   return (
     <div className="space-y-3">
       <p className="text-[11px] text-muted-foreground">
-        Optional. Only Streamable HTTP transport is supported. Use
+        Optional. MCP endpoints the agent can call during extract / validate (e.g. Linear, Redmine, Jira) to fill gaps in your intent / code sources; they are not ingested as content sources themselves. Only Streamable HTTP transport is supported. Use
         {' '}
         <code className="rounded bg-muted px-1">
           $
@@ -483,9 +577,8 @@ function AdvancedStep({ ontologyId, storageKind, onOntologyId, onStorageKind }: 
   )
 }
 
-function ConfirmStep({ name, rootPath, description, sources, mcpServers, ontologyId, storageKind }: {
+function ConfirmStep({ name, description, sources, mcpServers, ontologyId, storageKind }: {
   name: string
-  rootPath: string
   description: string
   sources: SourceDraft[]
   mcpServers: McpDraft[]
@@ -495,7 +588,7 @@ function ConfirmStep({ name, rootPath, description, sources, mcpServers, ontolog
   return (
     <div className="space-y-3 text-xs">
       <Field label="Name" value={name} />
-      <Field label="Root path" value={rootPath} mono />
+      <Field label="Folder" value={`~/.braid/workspaces/${name}`} mono />
       {description && <Field label="Description" value={description} />}
       <Field label="Ontology" value={ontologyId} />
       <Field label="Storage" value={storageKind} />
@@ -515,7 +608,9 @@ function ConfirmStep({ name, rootPath, description, sources, mcpServers, ontolog
                     {' '}
                     {source.name}
                     {' '}
-                    <span className="text-muted-foreground">{source.kind === 'filesystem' ? `→ ${source.path}${source.loaderKind ? ` (${source.loaderKind})` : ''}` : `→ mcp:${source.mcpServerId}`}</span>
+                    <span className="text-muted-foreground">
+                      {source.loaderKind ? `(${source.loaderKind})` : '(manual)'}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -557,17 +652,71 @@ function Field({ label, value, mono }: { label: string, value: string, mono?: bo
   )
 }
 
-function ProgressStep({ status, error, ingest, onClose }: {
+interface ExpectedSource {
+  id: string
+  name: string
+  loaderKind: SourceDraft['loaderKind']
+}
+
+function ProgressStep({ workspaceName, status, error, ingest, expectedSources, onClose }: {
+  workspaceName: string
   status: 'idle' | 'pending' | 'success' | 'error'
   error: unknown
   ingest: IngestSummary[]
+  expectedSources: readonly ExpectedSource[]
   onClose: () => void
 }) {
+  // Live per-source progress via SSE. The workspace doesn't exist in the
+  // registry when we open this stream. `source.synced` events flow
+  // straight off the event bus by string key, so subscribing on the
+  // wizard's typed name catches every event ingestAll publishes during
+  // scaffold.
+  const [syncedIds, setSyncedIds] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    if (status !== 'pending' || !workspaceName)
+      return
+    const source = new EventSource(workspaceEventsUrl(workspaceName))
+    const onSynced = (event: MessageEvent): void => {
+      try {
+        const data = JSON.parse(event.data) as { sourceId?: string }
+        if (data.sourceId)
+          setSyncedIds(prev => new Set(prev).add(data.sourceId!))
+      }
+      catch {}
+    }
+    source.addEventListener('source.synced', onSynced as EventListener)
+    return () => source.close()
+  }, [status, workspaceName])
+
   if (status === 'pending') {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
-        <div className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        Writing PRODUCT.md and running source ingest…
+      <div className="space-y-3 py-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="size-4 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          Creating workspace
+          {expectedSources.length > 0 && ` (ingesting ${expectedSources.length} source${expectedSources.length === 1 ? '' : 's'})`}
+          …
+        </div>
+        {expectedSources.length > 0 && (
+          <ul className="space-y-1 rounded-md border border-border p-2 text-[11px]">
+            {expectedSources.map(s => (
+              <li key={s.id} className="flex items-center gap-2 font-mono">
+                {syncedIds.has(s.id)
+                  ? <span className="text-primary">✓</span>
+                  : <span className="size-2.5 animate-pulse rounded-full bg-muted-foreground/40" />}
+                <span className={syncedIds.has(s.id) ? 'text-foreground' : 'text-muted-foreground'}>{s.name}</span>
+                <span className="text-muted-foreground">
+                  (
+                  {s.loaderKind || 'manual'}
+                  )
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-[11px] text-muted-foreground">
+          Don't close this window. Gdrive sources can take a few minutes for the first ingest.
+        </p>
       </div>
     )
   }
@@ -575,7 +724,7 @@ function ProgressStep({ status, error, ingest, onClose }: {
     return (
       <div className="space-y-3 py-2">
         <p className="text-sm text-destructive">Workspace creation failed.</p>
-        <pre className="max-h-40 overflow-auto rounded-md bg-muted p-2 text-[11px]">{humaniseApiError(error, WIZARD_ERROR_CASES)}</pre>
+        <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-muted p-2 text-[11px]">{humaniseApiError(error, WIZARD_ERROR_CASES)}</pre>
         <div className="flex justify-end">
           <Button size="sm" onClick={onClose}>Close</Button>
         </div>
@@ -606,11 +755,30 @@ function ProgressStep({ status, error, ingest, onClose }: {
   return null
 }
 
-function canAdvanceFrom(step: StepKey, state: { name: string, rootPath: string, sources: SourceDraft[], mcpServers: McpDraft[] }): boolean {
+function canAdvanceFrom(
+  step: StepKey,
+  state: { name: string, sources: SourceDraft[], mcpServers: McpDraft[], oauthConnectedFor: ReadonlySet<string> },
+): boolean {
   if (step === 'basics')
-    return state.name.trim().length > 0 && state.rootPath.startsWith('/')
-  if (step === 'sources')
-    return state.sources.every(source => source.name.trim().length > 0 && (source.kind === 'mcp' ? source.mcpServerId.trim().length > 0 : source.path.trim().length > 0))
+    return WORKSPACE_NAME_PATTERN.test(state.name)
+  if (step === 'sources') {
+    return state.sources.every((source) => {
+      if (source.name.trim().length === 0)
+        return false
+      if (source.loaderKind === 'gdrive') {
+        if (source.gdriveFolderId.trim().length === 0)
+          return false
+        // OAuth is mandatory for gdrive; otherwise scaffold's ingestAll
+        // will fail server-side with "not connected" and the user gets
+        // an opaque error after walking through all remaining steps.
+        if (!state.oauthConnectedFor.has(nameToId(source.name)))
+          return false
+      }
+      if (source.loaderKind === 'git' && source.gitUrl.trim().length === 0)
+        return false
+      return true
+    })
+  }
   if (step === 'mcp')
     return state.mcpServers.every(server => server.id.trim().length > 0 && /^https?:\/\//.test(server.url))
   return true
@@ -619,15 +787,14 @@ function canAdvanceFrom(step: StepKey, state: { name: string, rootPath: string, 
 function defaultSourceDraft(role: 'intent' | 'code'): SourceDraft {
   return {
     uiId: crypto.randomUUID(),
-    kind: 'filesystem',
     role,
-    name: role === 'intent' ? 'intent' : 'src',
-    path: role === 'intent' ? './intent' : './src',
-    loaderKind: '',
+    name: '',
+    loaderKind: role === 'intent' ? 'gdrive' : 'git',
     gitUrl: '',
-    gitBranch: 'main',
+    gitBranch: 'master',
     gdriveFolderId: '',
-    mcpServerId: '',
+    gdriveInclude: '',
+    gdriveExclude: '',
   }
 }
 
