@@ -1,9 +1,10 @@
 ---
 name: braid-ask
-description: Answer a question about the product by searching the Knowledge Graph, intent docs, and codebase. Read-only. Does NOT produce proposals or graph mutations.
+description: Answer a question about the product by searching the Knowledge Graph, intent docs, and codebases. Read-only. Does NOT produce proposals or graph mutations.
 argument-hint: "[question]"
 disable-model-invocation: true
 braid:
+  category: ask
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
 ---
 
@@ -95,7 +96,7 @@ Only cover dimensions that matter for the question.
 
 Always produce two sections separated by `---`.
 
-## Upper section (business audience)
+## Upper Section (Business Audience)
 
 ```
 ## Answer
@@ -121,7 +122,7 @@ Always produce two sections separated by `---`.
 {If graph empty: "Knowledge Graph not yet built. Run /braid-extract."}
 ```
 
-## Lower section (engineering audience)
+## Lower Section (Engineering Audience)
 
 ```
 ---

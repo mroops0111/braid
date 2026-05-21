@@ -4,6 +4,8 @@ description: Process answered ClarifyTickets by turning the chosen candidate int
 argument-hint: "[clarifyTicketId | all]"
 disable-model-invocation: true
 braid:
+  category: build
+  order: 200
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
 ---
 

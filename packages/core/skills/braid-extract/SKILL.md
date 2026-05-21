@@ -4,6 +4,8 @@ description: Extract Domain Model nodes / edges from intent (PRD/RFC) and codeba
 argument-hint: "[scope-hint]"
 disable-model-invocation: true
 braid:
+  category: build
+  order: 100
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
 ---
 

@@ -4,6 +4,7 @@ description: Render markdown documentation from the current Knowledge Graph. Wri
 argument-hint: "[scope-hint]"
 disable-model-invocation: true
 braid:
+  category: generate
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
 ---
 

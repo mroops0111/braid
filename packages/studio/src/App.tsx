@@ -9,16 +9,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
 import { useWorkspaces } from './lib/queries'
 import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
+import { ActionsPage } from './pages/Actions'
 import { GraphPage } from './pages/Graph'
 import { ProposalsPage } from './pages/Proposals'
-import { RunsPage } from './pages/Runs'
-import { type SkillsContinuation, SkillsPage } from './pages/Skills'
 
 export function App() {
   const { data: workspaces } = useWorkspaces()
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<TabKey>('skills')
-  const [continuation, setContinuation] = useState<SkillsContinuation | null>(null)
+  const [activeTab, setActiveTab] = useState<TabKey>('actions')
   const [detailsId, setDetailsId] = useState<string | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [serverUrlOpen, setServerUrlOpen] = useState(false)
@@ -62,33 +60,19 @@ export function App() {
               >
                 <div className="border-b border-border px-4">
                   <TabsList variant="line" className="h-10">
-                    <TabsTrigger value="skills">Skills</TabsTrigger>
+                    <TabsTrigger value="actions">Actions</TabsTrigger>
                     <TabsTrigger value="graph">Graph</TabsTrigger>
                     <TabsTrigger value="proposals">Proposals</TabsTrigger>
-                    <TabsTrigger value="runs">Runs</TabsTrigger>
                   </TabsList>
                 </div>
-                <TabsContent value="skills" className="overflow-hidden">
-                  <SkillsPage
-                    workspaceId={activeId}
-                    continuation={continuation}
-                    onContinuationConsumed={() => setContinuation(null)}
-                  />
+                <TabsContent value="actions" className="overflow-hidden">
+                  <ActionsPage workspaceId={activeId} />
                 </TabsContent>
                 <TabsContent value="graph" className="overflow-hidden">
                   <GraphPage workspaceId={activeId} />
                 </TabsContent>
                 <TabsContent value="proposals" className="overflow-hidden">
                   <ProposalsPage workspaceId={activeId} />
-                </TabsContent>
-                <TabsContent value="runs" className="overflow-hidden">
-                  <RunsPage
-                    workspaceId={activeId}
-                    onContinue={(c) => {
-                      setContinuation(c)
-                      setActiveTab('skills')
-                    }}
-                  />
                 </TabsContent>
               </Tabs>
             )

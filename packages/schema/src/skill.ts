@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { AbsolutePath, SkillId, SkillRunId, Timestamp, UserId, WorkspaceId } from './common.js'
+import { AbsolutePath, PluginId, SkillId, SkillRunId, Timestamp, UserId, WorkspaceId } from './common.js'
 import { McpServerId } from './mcp.js'
 
 export const SkillRunStatus = z.enum(['running', 'succeeded', 'failed', 'cancelled'])
@@ -40,6 +40,21 @@ export const ClaudeCodeSkillFrontmatter = z.object({
 export type ClaudeCodeSkillFrontmatter = z.infer<typeof ClaudeCodeSkillFrontmatter>
 
 /**
+ * Which sidebar group a skill belongs to. Maps 1:1 onto a Studio UI
+ * section; no derivation layer in between.
+ *
+ *   ask      -> read-only Q&A / analysis (valid at any point)
+ *   build    -> mutate the graph via proposals (extract / clarify / model)
+ *   generate -> produce artifacts from the graph (docs, .feature, designs)
+ *
+ * Optional. Skills without a category land in the "Custom" bucket at the
+ * end of the sidebar, which is a fine spot for one-off workspace skills
+ * that don't fit the canonical workflow.
+ */
+export const SkillCategory = z.enum(['ask', 'build', 'generate'])
+export type SkillCategory = z.infer<typeof SkillCategory>
+
+/**
  * Braid-specific extension fields. Live under the `braid:` key of the YAML
  * frontmatter so they never collide with Claude Code's own fields, present
  * or future. Read by `SubprocessSkillRunner` for preflight validation
@@ -49,6 +64,13 @@ export const BraidSkillExtension = z.object({
   requiredEnv: z.array(z.string()).default([]),
   requiredPaths: z.array(z.string()).default([]),
   requiredMcpServers: z.array(McpServerId).default([]),
+  category: SkillCategory.optional(),
+  /**
+   * Within the `build` category, the canonical step number (1, 2, 3, …).
+   * Studio sorts build skills by this. Ignored for ask / generate where
+   * inter-skill order is not semantically meaningful.
+   */
+  order: z.number().int().positive().optional(),
 })
 export type BraidSkillExtension = z.infer<typeof BraidSkillExtension>
 
@@ -67,6 +89,8 @@ export const SkillManifest = z.object({
   path: AbsolutePath,
   frontmatter: SkillFrontmatter,
   extensionPath: AbsolutePath.optional(),
+  /** Set when `origin === 'plugin'`: which plugin contributed this skill. */
+  pluginId: PluginId.optional(),
 })
 export type SkillManifest = z.infer<typeof SkillManifest>
 
