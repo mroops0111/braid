@@ -138,7 +138,6 @@ Processed N tickets: M proposals produced, K new clarify tickets raised, L skipp
 
 - Proposals are created via `POST /proposals` (server mints id + validates). **Do not** write proposal JSON directly to disk.
 - **Do not modify** `operations` except to preserve invariants (don't change user intent)
-- **Never use em-dashes (`—`) or en-dashes (`–`) in output text** (proposal rationale, new clarify candidate descriptions, etc.). Use periods, colons, commas, or parentheses instead
 - If a candidate's `resolution` is an empty array (user picked an option that has no graph impact) → do **not** produce a Proposal; move ticket to `applied/` as a record only
 - Don't reprocess already-applied tickets: check `clarify/applied/` and `clarify/skipped/` first
 - If `$BRAID_WORKSPACE/skill-extensions/braid-clarify/EXTEND.md` exists,

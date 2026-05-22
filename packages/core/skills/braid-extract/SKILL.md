@@ -192,7 +192,6 @@ Produced N proposals + M clarify tickets:
 
 - Skill creates artifacts via `POST /proposals` and `POST /clarify`. **Do not** write JSON files to `artifacts/` directly. The server handles atomic persistence + validation in one shot.
 - **Do not** POST to `apply` / `reject` / `answer` / `skip` endpoints. Those are human-triggered through the UI.
-- **Never use em-dashes (`—`) or en-dashes (`–`) in output text** (proposal rationale, clarify question / candidate descriptions, etc.). Use periods, colons, commas, or parentheses instead
 - Span multiple bounded contexts → split into multiple proposals, each < 30 ops
 - Found pre-existing bad nodes (wrong type, missing description) but no
   source mentions them → produce ClarifyTicket, do not silently fix

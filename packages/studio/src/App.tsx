@@ -1,4 +1,4 @@
-import { Command, Moon, Server, Settings2, Sparkles, Sun } from 'lucide-react'
+import { Command, Settings2, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { CommandPalette, type TabKey } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
@@ -8,7 +8,6 @@ import { Sidebar } from './components/Sidebar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
 import { useWorkspaces } from './lib/queries'
-import { useTheme } from './lib/theme'
 import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
 import { ActionsPage } from './pages/Actions'
 import { GraphPage } from './pages/Graph'
@@ -44,12 +43,12 @@ export function App() {
         activeWorkspaceId={activeId}
         onSelect={setActiveId}
         onOpenDetails={openDetails}
+        onOpenServerUrl={() => setServerUrlOpen(true)}
       />
       <main className="flex flex-1 flex-col overflow-hidden">
         <Header
           workspaceId={activeId}
           onOpenDetails={() => activeId && openDetails(activeId)}
-          onOpenServerUrl={() => setServerUrlOpen(true)}
         />
         <InFlightRunBanner workspaceId={activeId} />
         {activeId
@@ -109,10 +108,9 @@ export function App() {
   )
 }
 
-function Header({ workspaceId, onOpenDetails, onOpenServerUrl }: {
+function Header({ workspaceId, onOpenDetails }: {
   workspaceId: string | null
   onOpenDetails: () => void
-  onOpenServerUrl: () => void
 }) {
   return (
     <header className="flex h-11 items-center justify-between border-b border-border px-4">
@@ -134,40 +132,11 @@ function Header({ workspaceId, onOpenDetails, onOpenServerUrl }: {
               <span className="text-muted-foreground/60">(none registered)</span>
             )}
       </div>
-      <div className="flex items-center gap-2">
-        <ThemeToggle />
-        <button
-          type="button"
-          onClick={onOpenServerUrl}
-          title="Configure server URL"
-          className="group flex h-7 items-center gap-1.5 rounded-md border border-transparent px-2 text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground"
-        >
-          <Server className="size-3" />
-        </button>
-        <kbd className="hidden items-center gap-1 rounded border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline-flex">
-          <Command className="size-3" />
-          K
-        </kbd>
-      </div>
+      <kbd className="hidden items-center gap-1 rounded border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline-flex">
+        <Command className="size-3" />
+        K
+      </kbd>
     </header>
-  )
-}
-
-function ThemeToggle() {
-  // The icon shows the current theme (not the next one); the tooltip
-  // describes the click action. That way users know what they're on at
-  // a glance and what flipping does.
-  const { theme, setTheme } = useTheme()
-  const Icon = theme === 'dark' ? Moon : Sun
-  return (
-    <button
-      type="button"
-      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-      className="group flex h-7 items-center gap-1.5 rounded-md border border-transparent px-2 text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground"
-    >
-      <Icon className="size-3" />
-    </button>
   )
 }
 
