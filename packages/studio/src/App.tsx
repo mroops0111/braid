@@ -1,4 +1,4 @@
-import { Command, Server, Settings2, Sparkles } from 'lucide-react'
+import { Command, Moon, Server, Settings2, Sparkles, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { CommandPalette, type TabKey } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
@@ -8,6 +8,7 @@ import { Sidebar } from './components/Sidebar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
 import { useWorkspaces } from './lib/queries'
+import { useTheme } from './lib/theme'
 import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
 import { ActionsPage } from './pages/Actions'
 import { GraphPage } from './pages/Graph'
@@ -134,6 +135,7 @@ function Header({ workspaceId, onOpenDetails, onOpenServerUrl }: {
             )}
       </div>
       <div className="flex items-center gap-2">
+        <ThemeToggle />
         <button
           type="button"
           onClick={onOpenServerUrl}
@@ -148,6 +150,24 @@ function Header({ workspaceId, onOpenDetails, onOpenServerUrl }: {
         </kbd>
       </div>
     </header>
+  )
+}
+
+function ThemeToggle() {
+  // The icon shows the current theme (not the next one); the tooltip
+  // describes the click action. That way users know what they're on at
+  // a glance and what flipping does.
+  const { theme, setTheme } = useTheme()
+  const Icon = theme === 'dark' ? Moon : Sun
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+      title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+      className="group flex h-7 items-center gap-1.5 rounded-md border border-transparent px-2 text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground"
+    >
+      <Icon className="size-3" />
+    </button>
   )
 }
 

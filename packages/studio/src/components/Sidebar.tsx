@@ -20,8 +20,11 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect, onOpenDetails
     <aside className="flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="flex h-11 items-center px-4">
         <div className="flex items-center gap-2">
-          <img src={braidLogo} alt="" className="size-4 shrink-0" />
-          <span className="text-sm font-semibold tracking-tight">Braid</span>
+          <img src={braidLogo} alt="" className="size-5 shrink-0" />
+          <div className="flex flex-col leading-tight">
+            <span className="text-sm font-semibold tracking-tight">Braid</span>
+            <span className="text-[10px] italic text-sidebar-foreground/60">braiding intent &amp; code</span>
+          </div>
         </div>
       </div>
 
