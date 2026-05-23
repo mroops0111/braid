@@ -24,7 +24,18 @@ export interface IngestReport {
 export interface SyncReport {
   /** Whether the local content actually changed. */
   readonly changed: boolean
-  /** Loader-specific provenance metadata after the sync. */
+  /**
+   * Per-file counts. Optional because some loaders can't compute them
+   * cheaply (e.g. a future S3 loader that only checks an ETag). When
+   * present, the UI shows a `+a ~u -r` style summary uniformly across
+   * loaders. `changed` MUST equal `added + updated + removed > 0`
+   * whenever any of these are set.
+   */
+  readonly added?: number
+  readonly updated?: number
+  readonly removed?: number
+  readonly unchanged?: number
+  /** Loader-specific provenance metadata after the sync (commit sha, Drive revision, …). */
   readonly metadata?: Readonly<Record<string, unknown>>
   readonly fetchedAt: Timestamp
 }

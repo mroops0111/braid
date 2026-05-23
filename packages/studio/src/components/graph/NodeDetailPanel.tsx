@@ -2,70 +2,52 @@ import type { GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
 import { ArrowDownToDot, ArrowUpFromDot, FileText, X } from 'lucide-react'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { NodeTypeBadge } from './NodeTypeBadge'
 
-interface GraphDetailSheetProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  node: GraphNode | null
-  nodesById: ReadonlyMap<NodeId, GraphNode>
-  incoming: readonly GraphEdge[]
-  outgoing: readonly GraphEdge[]
-  onSelectNode: (nodeId: NodeId) => void
-  onCenterInGraph: () => void
-}
-
-export function GraphDetailSheet({
-  open,
-  onOpenChange,
-  node,
-  nodesById,
-  incoming,
-  outgoing,
-  onSelectNode,
-  onCenterInGraph,
-}: GraphDetailSheetProps) {
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
-      <SheetContent
-        side="right"
-        className="w-[440px] !max-w-none p-0"
-        // Without this, every click outside the sheet bubbles to
-        // onPointerDownOutside and dismisses it — including clicks on
-        // the navigator that we explicitly want to keep the sheet
-        // open for (switching the focused node).
-        onInteractOutside={event => event.preventDefault()}
-      >
-        {node
-          ? (
-              <Body
-                node={node}
-                nodesById={nodesById}
-                incoming={incoming}
-                outgoing={outgoing}
-                onSelectNode={onSelectNode}
-                onCenterInGraph={onCenterInGraph}
-              />
-            )
-          : <p className="p-6 text-sm text-muted-foreground">Click a node to inspect it.</p>}
-      </SheetContent>
-    </Sheet>
-  )
-}
-
-function Body({ node, nodesById, incoming, outgoing, onSelectNode, onCenterInGraph }: {
+interface NodeDetailPanelProps {
   node: GraphNode
   nodesById: ReadonlyMap<NodeId, GraphNode>
   incoming: readonly GraphEdge[]
   outgoing: readonly GraphEdge[]
+  onClose: () => void
   onSelectNode: (nodeId: NodeId) => void
-  onCenterInGraph: () => void
-}) {
+  /**
+   * Canvas-only affordance. When present, a "Center in graph" footer
+   * button calls it. The table view omits this prop since centering
+   * has no meaning there.
+   */
+  onCenterInGraph?: () => void
+}
+
+/**
+ * Shared right-side detail panel for both Canvas and Table views.
+ *
+ * Lives in-flow as a flex sibling (not a modal Sheet) so the height
+ * matches the surrounding page chrome — the previous Sheet-based
+ * canvas detail was viewport-fixed and ran past the page's top/bottom,
+ * which made it visually inconsistent with the table's in-flow aside.
+ */
+export function NodeDetailPanel({
+  node,
+  nodesById,
+  incoming,
+  outgoing,
+  onClose,
+  onSelectNode,
+  onCenterInGraph,
+}: NodeDetailPanelProps) {
   const sources = node.metadata.sourceReferences ?? []
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="space-y-1.5 border-b border-border p-4">
+      <header className="relative space-y-1.5 border-b border-border p-4">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close detail"
+          className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <X className="size-3.5" />
+        </button>
         <div className="flex items-center gap-1.5">
           <NodeTypeBadge type={node.type} />
           <StatusBadge status={node.status} />
@@ -129,11 +111,13 @@ function Body({ node, nodesById, incoming, outgoing, onSelectNode, onCenterInGra
         </section>
       </div>
 
-      <div className="border-t border-border p-4">
-        <Button variant="ghost" size="sm" className="w-full justify-center" onClick={onCenterInGraph}>
-          Center in graph
-        </Button>
-      </div>
+      {onCenterInGraph && (
+        <div className="border-t border-border p-4">
+          <Button variant="ghost" size="sm" className="w-full justify-center" onClick={onCenterInGraph}>
+            Center in graph
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
@@ -218,7 +202,3 @@ function formatLocation(uri: string, startLine?: number, endLine?: number): stri
     return `${uri}:${startLine}`
   return `${uri}:${startLine}-${endLine}`
 }
-
-// Re-exported for parity with the sidebar close pattern; not used internally
-// since shadcn's Sheet wires its own close button.
-export const CloseIcon = X

@@ -7,6 +7,7 @@ import type {
   ProposalId,
   QuestionId,
   SkillRunId,
+  Timestamp,
 } from '@braidhq/schema'
 
 export function newNodeId(): NodeId {
@@ -17,12 +18,29 @@ export function newEdgeId(): EdgeId {
   return crypto.randomUUID() as EdgeId
 }
 
-export function newProposalId(): ProposalId {
-  return crypto.randomUUID() as ProposalId
+/**
+ * HITL artifact ids are date-prefixed (`p-YYYY-MM-DD-{short}`,
+ * `ct-YYYY-MM-DD-{short}`) so they sort chronologically, fit in narrow
+ * UI surfaces without truncation, and match the documented format in
+ * `skills/shared/artifact-formats.md`. The `now` argument is the Clock
+ * reading at creation time. Random suffix is 8 hex chars of a UUID,
+ * which is enough to avoid same-day collisions for any plausible
+ * proposal volume.
+ */
+export function newProposalId(now: Timestamp): ProposalId {
+  return `p-${dateOf(now)}-${shortRandom()}` as ProposalId
 }
 
-export function newClarifyTicketId(): ClarifyTicketId {
-  return crypto.randomUUID() as ClarifyTicketId
+export function newClarifyTicketId(now: Timestamp): ClarifyTicketId {
+  return `ct-${dateOf(now)}-${shortRandom()}` as ClarifyTicketId
+}
+
+function dateOf(iso: Timestamp): string {
+  return iso.slice(0, 10)
+}
+
+function shortRandom(): string {
+  return crypto.randomUUID().slice(0, 8)
 }
 
 export function newDecisionId(): DecisionId {

@@ -25,6 +25,11 @@ export interface ItemList<T> { items: T[] }
 export interface IngestSummary {
   sourceId: string
   changed: boolean
+  /** Per-file counts populated by loaders that can compute them cheaply (gdrive, git). */
+  added?: number
+  updated?: number
+  removed?: number
+  unchanged?: number
   metadata?: Record<string, unknown>
   fetchedAt?: string
   notes?: readonly string[]
@@ -93,10 +98,10 @@ export const api = {
     fetchJson<Workspace>(`/workspaces/${workspaceId}`),
   registerWorkspace: (rootPath: string) =>
     fetchJson<Workspace>('/workspaces', { method: 'POST', body: JSON.stringify({ rootPath }) }),
-  scaffoldWorkspace: (rootPath: string, manifest: ProductManifestDraft) =>
+  scaffoldWorkspace: (name: string, manifest: ProductManifestDraft) =>
     fetchJson<ScaffoldResult>('/workspaces/scaffold', {
       method: 'POST',
-      body: JSON.stringify({ rootPath, manifest }),
+      body: JSON.stringify({ name, manifest }),
     }),
   patchWorkspace: (workspaceId: string, patch: {
     name?: string
@@ -108,8 +113,9 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(patch),
     }),
-  unregisterWorkspace: (workspaceId: string) =>
-    fetchJson<void>(`/workspaces/${workspaceId}`, { method: 'DELETE' }),
+  /** Unregister AND `rm -rf` the workspace folder. Server only accepts purge for canonical-root workspaces. */
+  deleteWorkspace: (workspaceId: string) =>
+    fetchJson<void>(`/workspaces/${workspaceId}?purge=true`, { method: 'DELETE' }),
 
   addSource: (workspaceId: string, source: SourceDescriptor) =>
     fetchJson<AddSourceResult>(`/workspaces/${workspaceId}/sources`, {

@@ -1,6 +1,6 @@
 import type { Hono } from 'hono'
 import type { AppDependencies } from '../../src/composition.js'
-import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -64,13 +64,11 @@ interface OntologyBody {
 
 describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor)', () => {
   let braidHome: string
-  let workspaceRoot: string
   let deps: AppDependencies
   let app: Hono
 
   beforeEach(async () => {
     braidHome = await mkdtemp(join(tmpdir(), 'braid-e2e-home-'))
-    workspaceRoot = await mkdtemp(join(tmpdir(), 'braid-e2e-ws-'))
     deps = await composeFsApp({ braidHome })
     app = createApp(deps)
   })
@@ -80,16 +78,20 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
     // to avoid lock errors. The KuzuModelRepository owns the cache; in
     // production composeFsApp doesn't dispose at process exit either.
     await rm(braidHome, { recursive: true, force: true }).catch(() => {})
-    await rm(workspaceRoot, { recursive: true, force: true }).catch(() => {})
   })
 
   async function scaffold(name: string): Promise<string> {
+    // Seed a stray file so we exercise the "scaffold writes into a dir
+    // that may already exist" path. Server's writeProductManifest does
+    // `mkdir -p` so this is just defensive realism, not a precondition.
+    const workspaceRoot = join(braidHome, 'workspaces', name)
+    await mkdir(workspaceRoot, { recursive: true })
     await writeFile(join(workspaceRoot, 'NOTES.md'), '# notes\n')
     const response = await app.request('/workspaces/scaffold', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        rootPath: workspaceRoot,
+        name,
         manifest: { name, sources: [] },
       }),
     })
@@ -246,7 +248,7 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
       rationale: 'e2e: fs persistence',
     }))
 
-    const pendingDir = join(workspaceRoot, 'artifacts', 'proposals', 'pending')
+    const pendingDir = join(braidHome, 'workspaces', 'e2e-fs', 'artifacts', 'proposals', 'pending')
     const files = await readdir(pendingDir)
     expect(files.length).toBe(1)
     expect(files[0]).toMatch(/\.json$/)

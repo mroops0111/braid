@@ -113,6 +113,7 @@ export class FsSkillRegistry implements SkillRegistry {
         origin: 'plugin' as SkillOrigin,
         path: skillFile,
         frontmatter,
+        pluginId: ref.contributedBy,
       }))
     }
     return manifests

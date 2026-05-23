@@ -4,6 +4,8 @@ description: Render markdown documentation from the current Knowledge Graph. Wri
 argument-hint: "[scope-hint]"
 disable-model-invocation: true
 braid:
+  category: generate
+  summary: Render Markdown docs from the current graph
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
 ---
 
@@ -156,7 +158,6 @@ Wrote 2 documents.
 # Notes
 
 - **Do not** invent or fill in missing descriptions. That is `braid-extract` / `braid-clarify`'s job. Render what the graph says, faithfully
-- **Never use em-dashes (`—`) or en-dashes (`–`) in rendered documentation.** Use periods, colons, commas, or parentheses instead
 - Nodes with `status: completed` appear in the main body; `draft` / `unclear` only in the consistency footer
 - Do not reference filesystem paths or code symbols in the prose. Engineers
   can cross-reference via node ids in the footer if needed

@@ -1,25 +1,23 @@
-import { Command, FolderPlus, Server, Settings2, Sparkles } from 'lucide-react'
+import { Command, Settings2, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { CommandPalette, type TabKey } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
 import { InFlightRunBanner } from './components/InFlightRunBanner'
-import { RegisterWorkspaceDialog } from './components/RegisterWorkspaceDialog'
+import { PageActionsHost, PageActionsProvider } from './components/PageActions'
 import { ServerUrlDialog } from './components/ServerUrlDialog'
 import { Sidebar } from './components/Sidebar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
 import { useWorkspaces } from './lib/queries'
 import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
+import { ActionsPage } from './pages/Actions'
 import { GraphPage } from './pages/Graph'
 import { ProposalsPage } from './pages/Proposals'
-import { RunsPage } from './pages/Runs'
-import { type SkillsContinuation, SkillsPage } from './pages/Skills'
 
 export function App() {
   const { data: workspaces } = useWorkspaces()
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<TabKey>('skills')
-  const [continuation, setContinuation] = useState<SkillsContinuation | null>(null)
+  const [activeTab, setActiveTab] = useState<TabKey>('actions')
   const [detailsId, setDetailsId] = useState<string | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [serverUrlOpen, setServerUrlOpen] = useState(false)
@@ -40,95 +38,83 @@ export function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background text-foreground">
-      <Sidebar
-        workspaces={items}
-        activeWorkspaceId={activeId}
-        onSelect={setActiveId}
-        onOpenDetails={openDetails}
-      />
-      <main className="flex flex-1 flex-col overflow-hidden">
-        <Header
-          workspaceId={activeId}
-          onOpenDetails={() => activeId && openDetails(activeId)}
+    <PageActionsProvider>
+      <div className="flex h-screen overflow-hidden bg-background text-foreground">
+        <Sidebar
+          workspaces={items}
+          activeWorkspaceId={activeId}
+          onSelect={setActiveId}
+          onOpenDetails={openDetails}
           onOpenServerUrl={() => setServerUrlOpen(true)}
         />
-        <InFlightRunBanner workspaceId={activeId} />
-        {activeId
-          ? (
-              <Tabs
-                value={activeTab}
-                onValueChange={value => setActiveTab(value as TabKey)}
-                className="flex flex-1 flex-col overflow-hidden gap-0"
-              >
-                <div className="border-b border-border px-4">
-                  <TabsList variant="line" className="h-10">
-                    <TabsTrigger value="skills">Skills</TabsTrigger>
-                    <TabsTrigger value="graph">Graph</TabsTrigger>
-                    <TabsTrigger value="proposals">Proposals</TabsTrigger>
-                    <TabsTrigger value="runs">Runs</TabsTrigger>
-                  </TabsList>
-                </div>
-                <TabsContent value="skills" className="overflow-hidden">
-                  <SkillsPage
-                    workspaceId={activeId}
-                    continuation={continuation}
-                    onContinuationConsumed={() => setContinuation(null)}
-                  />
-                </TabsContent>
-                <TabsContent value="graph" className="overflow-hidden">
-                  <GraphPage workspaceId={activeId} />
-                </TabsContent>
-                <TabsContent value="proposals" className="overflow-hidden">
-                  <ProposalsPage workspaceId={activeId} />
-                </TabsContent>
-                <TabsContent value="runs" className="overflow-hidden">
-                  <RunsPage
-                    workspaceId={activeId}
-                    onContinue={(c) => {
-                      setContinuation(c)
-                      setActiveTab('skills')
-                    }}
-                  />
-                </TabsContent>
-              </Tabs>
-            )
-          : (
-              <NoWorkspaceState onSelect={setActiveId} />
-            )}
-      </main>
-      <CommandPalette
-        workspaces={items}
-        activeWorkspaceId={activeId}
-        activeTab={activeTab}
-        onSelectWorkspace={setActiveId}
-        onSelectTab={setActiveTab}
-      />
-      <ServerUrlDialog open={serverUrlOpen} onOpenChange={setServerUrlOpen} />
-      <WorkspaceDetailsSheet
-        workspaceId={detailsId}
-        open={detailsOpen}
-        onOpenChange={setDetailsOpen}
-        onUnregistered={() => {
-          setDetailsOpen(false)
-          if (activeId === detailsId)
-            setActiveId(null)
-          setDetailsId(null)
-        }}
-        onRenamed={(newId) => {
-          if (activeId === detailsId)
-            setActiveId(newId)
-          setDetailsId(newId)
-        }}
-      />
-    </div>
+        <main className="flex flex-1 flex-col overflow-hidden">
+          <Header
+            workspaceId={activeId}
+            onOpenDetails={() => activeId && openDetails(activeId)}
+          />
+          <InFlightRunBanner workspaceId={activeId} />
+          {activeId
+            ? (
+                <Tabs
+                  value={activeTab}
+                  onValueChange={value => setActiveTab(value as TabKey)}
+                  className="flex flex-1 flex-col overflow-hidden gap-0"
+                >
+                  <div className="flex items-center justify-between border-b border-border px-4">
+                    <TabsList variant="line" className="h-10">
+                      <TabsTrigger value="actions">Actions</TabsTrigger>
+                      <TabsTrigger value="graph">Graph</TabsTrigger>
+                      <TabsTrigger value="proposals">Proposals</TabsTrigger>
+                    </TabsList>
+                    <PageActionsHost className="flex items-center gap-2" />
+                  </div>
+                  <TabsContent value="actions" className="overflow-hidden">
+                    <ActionsPage workspaceId={activeId} />
+                  </TabsContent>
+                  <TabsContent value="graph" className="overflow-hidden">
+                    <GraphPage workspaceId={activeId} />
+                  </TabsContent>
+                  <TabsContent value="proposals" className="overflow-hidden">
+                    <ProposalsPage workspaceId={activeId} />
+                  </TabsContent>
+                </Tabs>
+              )
+            : (
+                <NoWorkspaceState onSelect={setActiveId} />
+              )}
+        </main>
+        <CommandPalette
+          workspaces={items}
+          activeWorkspaceId={activeId}
+          activeTab={activeTab}
+          onSelectWorkspace={setActiveId}
+          onSelectTab={setActiveTab}
+        />
+        <ServerUrlDialog open={serverUrlOpen} onOpenChange={setServerUrlOpen} />
+        <WorkspaceDetailsSheet
+          workspaceId={detailsId}
+          open={detailsOpen}
+          onOpenChange={setDetailsOpen}
+          onUnregistered={() => {
+            setDetailsOpen(false)
+            if (activeId === detailsId)
+              setActiveId(null)
+            setDetailsId(null)
+          }}
+          onRenamed={(newId) => {
+            if (activeId === detailsId)
+              setActiveId(newId)
+            setDetailsId(newId)
+          }}
+        />
+      </div>
+    </PageActionsProvider>
   )
 }
 
-function Header({ workspaceId, onOpenDetails, onOpenServerUrl }: {
+function Header({ workspaceId, onOpenDetails }: {
   workspaceId: string | null
   onOpenDetails: () => void
-  onOpenServerUrl: () => void
 }) {
   return (
     <header className="flex h-11 items-center justify-between border-b border-border px-4">
@@ -150,52 +136,37 @@ function Header({ workspaceId, onOpenDetails, onOpenServerUrl }: {
               <span className="text-muted-foreground/60">(none registered)</span>
             )}
       </div>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onOpenServerUrl}
-          title="Configure server URL"
-          className="group flex h-7 items-center gap-1.5 rounded-md border border-transparent px-2 text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground"
-        >
-          <Server className="size-3" />
-        </button>
-        <kbd className="hidden items-center gap-1 rounded border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline-flex">
-          <Command className="size-3" />
-          K
-        </kbd>
-      </div>
+      <kbd className="hidden items-center gap-1 rounded border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline-flex">
+        <Command className="size-3" />
+        K
+      </kbd>
     </header>
   )
 }
 
 function NoWorkspaceState({ onSelect }: { onSelect: (id: string) => void }) {
   const [wizardOpen, setWizardOpen] = useState(false)
-  const [registerOpen, setRegisterOpen] = useState(false)
 
   return (
     <div className="flex h-full flex-col items-center justify-center px-6">
       <div className="max-w-2xl text-center">
         <h1 className="text-base font-semibold">Welcome to Braid</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Pick how you want to start. You can switch later from the sidebar.
+          Open a workspace to begin. Workspaces live under
+          {' '}
+          <code className="rounded bg-muted px-1">~/.braid/workspaces/</code>
+          .
         </p>
       </div>
-      <div className="mt-6 grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="mt-6 grid w-full max-w-md grid-cols-1 gap-3">
         <ActionCard
           icon={Sparkles}
-          title="Create New Workspace"
-          description="Scaffold a fresh PRODUCT.md, pick intent + code sources, and let Braid ingest them."
+          title="Open Workspace"
+          description="Type a name to create a new one or open an existing workspace under the canonical root."
           onClick={() => setWizardOpen(true)}
-        />
-        <ActionCard
-          icon={FolderPlus}
-          title="Register Existing"
-          description="You already have a PRODUCT.md on disk and just want Braid to track it."
-          onClick={() => setRegisterOpen(true)}
         />
       </div>
       <CreateWorkspaceWizard open={wizardOpen} onOpenChange={setWizardOpen} onCreated={onSelect} />
-      <RegisterWorkspaceDialog open={registerOpen} onOpenChange={setRegisterOpen} onRegistered={onSelect} />
     </div>
   )
 }

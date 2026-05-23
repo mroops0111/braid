@@ -1,8 +1,30 @@
 import type { AbsolutePath, ClarifyStatus, ProposalStatus, WorkspaceId } from '@braidhq/schema'
+import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
 export const PROPOSAL_STATUSES: readonly ProposalStatus[] = ['pending', 'applied', 'rejected']
 export const CLARIFY_STATUSES: readonly ClarifyStatus[] = ['pending', 'answered', 'applied', 'skipped']
+
+/**
+ * Path-prefix containment check. Both inputs must be absolute. Handles
+ * the `/foo/bar-evil` vs `/foo/bar/` aliasing gotcha by normalising the
+ * parent with a trailing slash before `startsWith`.
+ */
+export function isUnder(candidate: string, parent: string): boolean {
+  const normalisedParent = parent.endsWith('/') ? parent : `${parent}/`
+  return candidate === parent || candidate.startsWith(normalisedParent)
+}
+
+/** `true` when `path` resolves to anything (file, dir, symlink). */
+export async function pathExists(path: string): Promise<boolean> {
+  try {
+    await stat(path)
+    return true
+  }
+  catch {
+    return false
+  }
+}
 
 export function workspaceArtifactsDir(workspaceRoot: AbsolutePath): string {
   return join(workspaceRoot, 'artifacts')

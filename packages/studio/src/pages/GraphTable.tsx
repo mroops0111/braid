@@ -1,23 +1,66 @@
-import type { GraphNode } from '@braidhq/schema'
-import { GitBranch, X } from 'lucide-react'
-import { useState } from 'react'
+import type { ChangeKind, EdgeId, GraphEdge, GraphNode, NodeId, ProposalDiff } from '@braidhq/schema'
+import { GitBranch } from 'lucide-react'
+import { useMemo } from 'react'
 import { EmptyState } from '@/components/EmptyState'
+import { type GraphDataSource, useLiveGraphDataSource } from '@/components/graph/GraphDataSource'
+import { computeNeighborhood } from '@/components/graph/neighborhood'
+import { NodeDetailPanel } from '@/components/graph/NodeDetailPanel'
+import { NodeTypeBadge } from '@/components/graph/NodeTypeBadge'
+import { NODE_DETAIL_ASIDE_WIDTH } from '@/components/graph/styleTokens'
+import { useNodeNeighbors } from '@/components/graph/useNodeNeighbors'
+import { PaletteProvider, usePalette, usePaletteContext } from '@/components/graph/usePalette'
 import { StatusBadge } from '@/components/StatusBadge'
-import { useModelSnapshot } from '@/lib/queries'
+import { optional } from '@/lib/optional'
+import { useControllableState } from '@/lib/useControllableState'
+import { cn } from '@/lib/utils'
 
 interface GraphTablePageProps {
   workspaceId: string
+  /**
+   * Optional data source. Defaults to the live workspace snapshot.
+   * Proposal previews pass a derived source carrying a `diff` map so
+   * the Change column lights up.
+   */
+  source?: GraphDataSource
+  /**
+   * Controlled selection. When both `selectedNodeId` and
+   * `onSelectNode` are provided the table defers ownership to the
+   * parent so the sibling canvas shares the highlight.
+   */
+  selectedNodeId?: NodeId | null
+  onSelectNode?: (id: NodeId | null) => void
+  /**
+   * Controlled focus mode. When provided, the parent owns on/off so
+   * the same toggle drives both canvas and table from a page-level
+   * toolbar.
+   */
+  focusMode?: boolean
 }
 
-export function GraphTablePage({ workspaceId }: GraphTablePageProps) {
-  const { data, isLoading } = useModelSnapshot(workspaceId)
-  const [selected, setSelected] = useState<GraphNode | null>(null)
+export function GraphTablePage(props: GraphTablePageProps) {
+  // Type colours come from the workspace's ontology via PaletteProvider,
+  // so the table's badges read the same hues as the canvas's node cards.
+  const palette = usePalette(props.workspaceId)
+  return (
+    <PaletteProvider value={palette}>
+      <GraphTableInner {...props} />
+    </PaletteProvider>
+  )
+}
 
-  if (isLoading)
+function GraphTableInner({ workspaceId, source, selectedNodeId: controlledSelected, onSelectNode, focusMode = false }: GraphTablePageProps) {
+  const liveSource = useLiveGraphDataSource(workspaceId)
+  const effective = source ?? liveSource
+  const [selectedId, setSelectedId] = useControllableState<NodeId | null>(controlledSelected, onSelectNode, null)
+
+  const neighborhood = useMemo(
+    () => computeNeighborhood(selectedId, effective.edges),
+    [selectedId, effective.edges],
+  )
+
+  if (effective.isLoading)
     return <div className="p-4 text-sm text-muted-foreground">Loading graph…</div>
-  if (!data)
-    return <div className="p-4 text-sm text-muted-foreground">No data.</div>
-  if (data.nodes.length === 0) {
+  if (effective.nodes.length === 0) {
     return (
       <EmptyState
         icon={GitBranch}
@@ -27,15 +70,48 @@ export function GraphTablePage({ workspaceId }: GraphTablePageProps) {
     )
   }
 
+  const { nodes, edges, diff } = effective
+  const selectedNode = selectedId ? nodes.find(n => n.id === selectedId) ?? null : null
+  // Visible set: in focus mode we hide non-neighbours entirely (table
+  // shrinks); otherwise everything stays in the list and non-neighbours
+  // are muted in-place.
+  const showAll = !focusMode || !selectedId
+  const visibleNodes = showAll ? nodes : nodes.filter(n => neighborhood.neighbors.has(n.id))
+  const visibleEdges = showAll ? edges : edges.filter(e => neighborhood.incidentEdges.has(e.id))
+  const { nodesById, incoming, outgoing } = useNodeNeighbors(nodes, edges, selectedId)
   return (
     <div className="flex h-full">
-      <div className="flex-1 overflow-y-auto scrollbar-thin">
-        <NodeTable nodes={data.nodes} selectedId={selected?.id ?? null} onSelect={setSelected} />
-        <EdgeTable edges={data.edges} />
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full overflow-y-auto scrollbar-thin">
+          <NodeTable
+            nodes={visibleNodes}
+            selectedId={selectedId}
+            onSelect={node => setSelectedId(node.id)}
+            neighbors={neighborhood.neighbors}
+            dim={!showAll ? false : selectedId !== null}
+            {...optional({ diff })}
+          />
+          <EdgeTable
+            edges={visibleEdges}
+            incidentEdges={neighborhood.incidentEdges}
+            dim={!showAll ? false : selectedId !== null}
+            {...optional({ diff })}
+          />
+        </div>
       </div>
-      {selected && (
-        <aside className="w-96 shrink-0 overflow-y-auto scrollbar-thin border-l border-border bg-card">
-          <NodeDetail node={selected} onClose={() => setSelected(null)} />
+      {selectedNode && (
+        <aside
+          className="flex shrink-0 flex-col border-l border-border bg-card"
+          style={{ width: NODE_DETAIL_ASIDE_WIDTH }}
+        >
+          <NodeDetailPanel
+            node={selectedNode}
+            nodesById={nodesById}
+            incoming={incoming}
+            outgoing={outgoing}
+            onClose={() => setSelectedId(null)}
+            onSelectNode={id => setSelectedId(id)}
+          />
         </aside>
       )}
     </div>
@@ -44,13 +120,22 @@ export function GraphTablePage({ workspaceId }: GraphTablePageProps) {
 
 function NodeTable({
   nodes,
+  diff,
   selectedId,
   onSelect,
+  neighbors,
+  dim,
 }: {
   nodes: readonly GraphNode[]
+  diff?: ProposalDiff
   selectedId: string | null
   onSelect: (node: GraphNode) => void
+  /** Used to mute rows outside the selection's neighbourhood when `dim` is on. */
+  neighbors: ReadonlySet<NodeId>
+  /** When true, rows not in `neighbors` render at reduced opacity. */
+  dim: boolean
 }) {
+  const showChange = diff !== undefined
   return (
     <section>
       <h3 className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -61,38 +146,57 @@ function NodeTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-y border-border text-[10px] uppercase tracking-wider text-muted-foreground">
+            {showChange && <th className="w-24 px-4 py-2 text-left font-semibold">Change</th>}
+            <th className="w-32 px-4 py-2 text-left font-semibold">Type</th>
             <th className="px-4 py-2 text-left font-semibold">ID</th>
-            <th className="px-4 py-2 text-left font-semibold">Type</th>
             <th className="px-4 py-2 text-left font-semibold">Name</th>
             <th className="px-4 py-2 text-left font-semibold">Status</th>
           </tr>
         </thead>
         <tbody>
-          {nodes.map(node => (
-            <tr
-              key={node.id}
-              onClick={() => onSelect(node)}
-              className={`cursor-pointer border-b border-border/50 transition-colors duration-150 hover:bg-accent ${
-                node.id === selectedId ? 'bg-accent' : ''
-              }`}
-            >
-              <td className="px-4 py-1.5 font-mono text-xs text-foreground">{node.id}</td>
-              <td className="px-4 py-1.5 font-mono text-xs text-muted-foreground">{node.type}</td>
-              <td className="px-4 py-1.5 text-foreground">{node.name}</td>
-              <td className="px-4 py-1.5">
-                <StatusBadge status={node.status} />
-              </td>
-            </tr>
-          ))}
+          {nodes.map((node) => {
+            const muted = dim && !neighbors.has(node.id as NodeId)
+            return (
+              <tr
+                key={node.id}
+                onClick={() => onSelect(node)}
+                className={cn(
+                  'cursor-pointer border-b border-border/50 transition-[opacity,background-color] duration-150 hover:bg-accent',
+                  node.id === selectedId && 'bg-accent',
+                  muted && 'opacity-30',
+                )}
+              >
+                {showChange && (
+                  <td className="px-4 py-1.5">
+                    <ChangeBadge change={diff!.nodes.get(node.id as NodeId)} />
+                  </td>
+                )}
+                <td className="px-4 py-1.5">
+                  <NodeTypeBadge type={node.type} />
+                </td>
+                <td className="px-4 py-1.5 font-mono text-xs text-foreground">{node.id}</td>
+                <td className="px-4 py-1.5 text-foreground">{node.name}</td>
+                <td className="px-4 py-1.5">
+                  <StatusBadge status={node.status} />
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </section>
   )
 }
 
-function EdgeTable({ edges }: { edges: readonly { id: string, type: string, fromNodeId: string, toNodeId: string }[] }) {
+function EdgeTable({ edges, diff, incidentEdges, dim }: {
+  edges: readonly GraphEdge[]
+  diff?: ProposalDiff
+  incidentEdges: ReadonlySet<EdgeId>
+  dim: boolean
+}) {
   if (edges.length === 0)
     return null
+  const showChange = diff !== undefined
   return (
     <section>
       <h3 className="px-4 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -103,48 +207,64 @@ function EdgeTable({ edges }: { edges: readonly { id: string, type: string, from
       <table className="w-full text-sm">
         <thead>
           <tr className="border-y border-border text-[10px] uppercase tracking-wider text-muted-foreground">
+            {showChange && <th className="w-24 px-4 py-2 text-left font-semibold">Change</th>}
             <th className="px-4 py-2 text-left font-semibold">Type</th>
             <th className="px-4 py-2 text-left font-semibold">From</th>
             <th className="px-4 py-2 text-left font-semibold">To</th>
           </tr>
         </thead>
         <tbody>
-          {edges.map(edge => (
-            <tr key={edge.id} className="border-b border-border/50">
-              <td className="px-4 py-1.5 font-mono text-xs text-muted-foreground">{edge.type}</td>
-              <td className="px-4 py-1.5 font-mono text-xs text-foreground">{edge.fromNodeId}</td>
-              <td className="px-4 py-1.5 font-mono text-xs text-foreground">{edge.toNodeId}</td>
-            </tr>
-          ))}
+          {edges.map((edge) => {
+            const muted = dim && !incidentEdges.has(edge.id as EdgeId)
+            return (
+              <tr key={edge.id} className={cn('border-b border-border/50 transition-opacity duration-150', muted && 'opacity-30')}>
+                {showChange && (
+                  <td className="px-4 py-1.5">
+                    <ChangeBadge change={diff!.edges.get(edge.id as EdgeId)} />
+                  </td>
+                )}
+                <td className="px-4 py-1.5">
+                  <EdgeTypePill type={edge.type} />
+                </td>
+                <td className="px-4 py-1.5 font-mono text-xs text-foreground">{edge.fromNodeId}</td>
+                <td className="px-4 py-1.5 font-mono text-xs text-foreground">{edge.toNodeId}</td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </section>
   )
 }
 
-function NodeDetail({ node, onClose }: { node: GraphNode, onClose: () => void }) {
+const CHANGE_BADGE_CLASS: Record<ChangeKind, string> = {
+  added: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  updated: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  removed: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+}
+
+function EdgeTypePill({ type }: { type: GraphEdge['type'] }) {
+  // Edge palette uses CSS colour functions; we apply alpha at consume
+  // sites to match the canvas's edge stroke treatment (dim + tinted).
+  const palette = usePaletteContext()
+  const color = palette.edgeColor(type)
   return (
-    <div className="p-4">
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div>
-          <div className="font-mono text-xs text-muted-foreground">{node.type}</div>
-          <h2 className="text-sm font-semibold text-foreground">{node.name}</h2>
-        </div>
-        <button
-          onClick={onClose}
-          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          aria-label="Close"
-        >
-          <X className="size-3.5" />
-        </button>
-      </div>
-      <StatusBadge status={node.status} />
-      {node.description && (
-        <p className="mt-3 whitespace-pre-wrap text-sm text-foreground/90">{node.description}</p>
-      )}
-      <pre className="mt-4 overflow-x-auto rounded-md border border-border bg-background p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
-        {JSON.stringify(node, null, 2)}
-      </pre>
-    </div>
+    <span
+      className="inline-flex items-center gap-1.5 font-mono text-xs"
+      style={{ color }}
+    >
+      <span className="inline-block size-1.5 rounded-full" style={{ backgroundColor: color }} />
+      {type}
+    </span>
+  )
+}
+
+function ChangeBadge({ change }: { change: ChangeKind | undefined }) {
+  if (!change)
+    return <span className="text-[11px] text-muted-foreground/50">—</span>
+  return (
+    <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider ${CHANGE_BADGE_CLASS[change]}`}>
+      {change}
+    </span>
   )
 }

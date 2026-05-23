@@ -1,24 +1,35 @@
 import type { IngestReport, SourceLoaderContext, SourceLoaderPlugin, SyncReport } from '@braidhq/core'
 import type { AbsolutePath, LoaderKind, PluginId } from '@braidhq/schema'
+import { Buffer } from 'node:buffer'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
 import { DriveClient, type DriveFileMetadata, type FetchFn } from './driveClient.js'
+import { type Manifest, type ManifestEntry, readManifest, writeManifest } from './Manifest.js'
 
 const FOLDER_MIME = 'application/vnd.google-apps.folder'
+const DOC_MIME = 'application/vnd.google-apps.document'
 
 /**
- * Map of Google-native mime types to (Drive export format, filename
- * extension we write to disk). Skip everything else: only Drive
- * "applications" need exporting. Regular binaries (images, PDFs, etc.)
- * go through `downloadFile`.
+ * Drive auto-creates duplicates named "Copy of …" (English) or "…的副本"
+ * (Chinese) when users use the Make a Copy menu. They almost always carry
+ * stale content that would conflict with the canonical doc, so we skip
+ * them silently. Same rule as redoc.
  */
-const GOOGLE_NATIVE_EXPORT: Record<string, { mimeType: string, extension: string }> = {
-  'application/vnd.google-apps.document': { mimeType: 'text/markdown', extension: '.md' },
-  'application/vnd.google-apps.spreadsheet': { mimeType: 'text/csv', extension: '.csv' },
-  'application/vnd.google-apps.presentation': { mimeType: 'application/pdf', extension: '.pdf' },
-  'application/vnd.google-apps.drawing': { mimeType: 'image/png', extension: '.png' },
-}
+const COPY_PATTERNS = [/^Copy of /, /的副本$/]
+
+/**
+ * Drive's `text/markdown` export inlines images as base64 data URIs in
+ * reference-style link form:
+ *
+ *   [image0]: <data:image/png;base64,iVBORw0KG…>
+ *
+ * Leaving those base64 blobs in the markdown bloats the file by ~33 % per
+ * image and is unreadable for both humans and LLMs. This regex matches one
+ * such reference line so we can extract the image to its own file and
+ * rewrite the link to a relative path. Same approach as redoc.
+ */
+const INLINE_IMAGE_RE = /^\[([^\]]+)\]:\s*<data:image\/([\w+]+);base64,([^>]+)>$/gm
 
 export const GoogleDriveLoaderConfig = z.object({
   /**
@@ -34,10 +45,22 @@ export const GoogleDriveLoaderConfig = z.object({
       message: 'folderId "root" refers to the entire My Drive and is rejected. Create a dedicated subfolder and use its id instead.',
     }),
   /**
-   * Whether to follow subfolders recursively. Default true. Disable for
-   * flat folder mirrors where nested folders should be skipped.
+   * Whether to traverse subfolders. Default true. Subfolder hierarchy
+   * is NOT preserved on disk; every matching doc lives in its own dir
+   * directly under `destination/`. Disable to limit to immediate
+   * children of `folderId`.
    */
   recursive: z.boolean().default(true),
+  /**
+   * Optional regex (string). When set, only docs whose *Drive title*
+   * matches this pattern are downloaded. Subfolders are still traversed.
+   */
+  include: z.string().optional(),
+  /**
+   * Optional regex (string). When set, docs whose title matches are
+   * skipped. Evaluated after `include`, so exclude takes priority.
+   */
+  exclude: z.string().optional(),
 })
 export type GoogleDriveLoaderConfig = z.infer<typeof GoogleDriveLoaderConfig>
 
@@ -52,15 +75,39 @@ export interface GoogleDriveLoaderDeps {
   fetchFn?: FetchFn
 }
 
+/** Walked + filtered Drive doc, ready to download. */
+interface CandidateDoc {
+  /** Drive file id. */
+  id: string
+  /** Drive title, untouched. */
+  title: string
+  modifiedTime: string
+  /** Sanitised directory name where the doc + its images will land. */
+  localDir: string
+}
+
 /**
- * Google Drive source loader. Walks a Drive folder, exports Google-native
- * docs to text/markdown/csv/pdf depending on type, downloads binaries
- * (images, PDFs) as-is, and mirrors the folder layout under `destination/`.
+ * Google Drive source loader. Walks a Drive folder, exports every
+ * Google Doc inside as markdown, extracts inlined base64 images into
+ * sibling files, and lays everything out as:
  *
- * Loader owns destination contents: it `rm -rf`'s `destination` on each
- * `ingest` so previously-fetched files don't linger. `sync` re-walks and
- * compares modifiedTime per file; reports `changed = true` if any file
- * was added / updated / removed.
+ *   <destination>/
+ *     <sanitised-doc-title>/
+ *       index.md
+ *       <image-label>.png       (one per inlined image)
+ *     <sanitised-doc-title-2>/
+ *       index.md
+ *     .braid-manifest.json      (sync state)
+ *
+ * Drive folder hierarchy is NOT preserved on disk; every matched doc
+ * is flattened into a sibling directory under `destination/`. Two docs
+ * with the same sanitised title will collide; rename one in Drive to
+ * disambiguate.
+ *
+ * Out of scope (intentional): Google Sheets, Slides, Drawings, Forms,
+ * and standalone binaries. Mirrors redoc's PRD-focused workflow. If you
+ * need spreadsheets / slide decks, ingest them through a different
+ * source-loader plugin.
  */
 export class GoogleDriveLoader implements SourceLoaderPlugin {
   readonly id = 'source-loader-gdrive' as PluginId
@@ -75,23 +122,94 @@ export class GoogleDriveLoader implements SourceLoaderPlugin {
     await rm(destination, { recursive: true, force: true })
     await mkdir(destination, { recursive: true })
     const client = await this.client(context)
-    const result = await this.walk(client, config.folderId, destination, { recursive: config.recursive })
+    const candidates = await this.walk(client, config)
+    const manifest: Manifest = {
+      folderId: config.folderId,
+      include: config.include,
+      exclude: config.exclude,
+      files: {},
+    }
+    for (const doc of candidates) {
+      await this.downloadOne(client, doc, destination)
+      manifest.files[doc.id] = entryOf(doc)
+    }
+    await writeManifest(destination, manifest)
     return {
       localPath: destination,
-      metadata: { folderId: config.folderId, fileCount: result.fileCount },
+      metadata: { folderId: config.folderId, fileCount: candidates.length },
       fetchedAt: new Date().toISOString() as never,
     }
   }
 
   async sync(rawConfig: unknown, destination: AbsolutePath, context: SourceLoaderContext): Promise<SyncReport> {
-    // v0.1: incremental sync needs per-file mtime cache. Until we add
-    // that, sync is "blow away + re-ingest". Always safe, just slow.
     const config = GoogleDriveLoaderConfig.parse(rawConfig)
-    const before = Date.now()
-    await this.ingest(config, destination, context)
+    const cached = await readManifest(destination)
+    if (!cached) {
+      // No manifest yet (first sync after upgrade / cache wiped). Fall
+      // back to a clean ingest so we end up in a known-good state.
+      const report = await this.ingest(config, destination, context)
+      return {
+        changed: true,
+        added: report.metadata && typeof report.metadata.fileCount === 'number' ? report.metadata.fileCount : 0,
+        updated: 0,
+        removed: 0,
+        unchanged: 0,
+        ...(report.metadata ? { metadata: report.metadata } : {}),
+        fetchedAt: report.fetchedAt,
+      }
+    }
+
+    const client = await this.client(context)
+    const candidates = await this.walk(client, config)
+    const seen = new Set<string>()
+    let added = 0
+    let updated = 0
+    let unchanged = 0
+    const next: Manifest = {
+      folderId: config.folderId,
+      include: config.include,
+      exclude: config.exclude,
+      files: {},
+    }
+
+    for (const doc of candidates) {
+      seen.add(doc.id)
+      const prior = cached.files[doc.id]
+      if (!prior) {
+        await this.downloadOne(client, doc, destination)
+        added++
+      }
+      else if (prior.localDir !== doc.localDir || prior.modifiedTime !== doc.modifiedTime) {
+        // Either content updated or the doc was renamed in Drive. Both
+        // cases: re-download to the new dir, then rm the old dir.
+        if (prior.localDir !== doc.localDir)
+          await rm(join(destination, prior.localDir), { recursive: true, force: true })
+        await this.downloadOne(client, doc, destination)
+        updated++
+      }
+      else {
+        unchanged++
+      }
+      next.files[doc.id] = entryOf(doc)
+    }
+
+    let removed = 0
+    for (const [id, entry] of Object.entries(cached.files)) {
+      if (seen.has(id))
+        continue
+      await rm(join(destination, entry.localDir), { recursive: true, force: true })
+      removed++
+    }
+
+    await writeManifest(destination, next)
+
     return {
-      changed: true,
-      metadata: { folderId: config.folderId, syncedAt: new Date(before).toISOString() },
+      changed: added + updated + removed > 0,
+      added,
+      updated,
+      removed,
+      unchanged,
+      metadata: { folderId: config.folderId },
       fetchedAt: new Date().toISOString() as never,
     }
   }
@@ -103,53 +221,107 @@ export class GoogleDriveLoader implements SourceLoaderPlugin {
 
   private async walk(
     client: DriveClient,
-    folderId: string,
-    destination: string,
-    options: { recursive: boolean },
-  ): Promise<{ fileCount: number }> {
-    let fileCount = 0
-    const children = await client.listChildren(folderId)
-    for (const child of children) {
-      if (child.mimeType === FOLDER_MIME) {
-        if (!options.recursive)
+    config: GoogleDriveLoaderConfig,
+  ): Promise<readonly CandidateDoc[]> {
+    const includeRe = compileRegex(config.include, 'include')
+    const excludeRe = compileRegex(config.exclude, 'exclude')
+    const out: CandidateDoc[] = []
+    const seenDirs = new Map<string, string>() // localDir -> first doc id, to detect collisions
+    const visit = async (folderId: string): Promise<void> => {
+      const children = await client.listChildren(folderId)
+      for (const child of children) {
+        if (child.mimeType === FOLDER_MIME) {
+          if (config.recursive)
+            await visit(child.id)
           continue
-        const subDest = join(destination, sanitiseName(child.name))
-        await mkdir(subDest, { recursive: true })
-        const nested = await this.walk(client, child.id, subDest, options)
-        fileCount += nested.fileCount
-        continue
+        }
+        if (child.mimeType !== DOC_MIME)
+          continue
+        if (COPY_PATTERNS.some(re => re.test(child.name)))
+          continue
+        if (includeRe && !includeRe.test(child.name))
+          continue
+        if (excludeRe && excludeRe.test(child.name))
+          continue
+        const localDir = sanitiseName(child.name)
+        const collides = seenDirs.get(localDir)
+        if (collides && collides !== child.id) {
+          // Two distinct Drive docs sanitise to the same dir name. Keep
+          // the first one we walked into; skipping the second is safer
+          // than silently overwriting. User can rename in Drive.
+          continue
+        }
+        seenDirs.set(localDir, child.id)
+        out.push({
+          id: child.id,
+          title: child.name,
+          modifiedTime: child.modifiedTime,
+          localDir,
+        })
       }
-      const written = await this.writeOneFile(client, child, destination)
-      if (written)
-        fileCount++
     }
-    return { fileCount }
+    await visit(config.folderId)
+    return out
   }
 
-  private async writeOneFile(
+  private async downloadOne(
     client: DriveClient,
-    file: DriveFileMetadata,
+    doc: CandidateDoc,
     destination: string,
-  ): Promise<boolean> {
-    const exportSpec = GOOGLE_NATIVE_EXPORT[file.mimeType]
-    if (exportSpec) {
-      const bytes = await client.exportDoc(file.id, exportSpec.mimeType)
-      const filename = `${sanitiseName(file.name)}${exportSpec.extension}`
-      await writeFile(join(destination, filename), bytes)
-      return true
-    }
-    // Skip native Drive types we don't have an export for (e.g. forms).
-    if (file.mimeType.startsWith('application/vnd.google-apps.'))
-      return false
-    // Regular binary: download as-is, preserve the name.
-    const bytes = await client.downloadFile(file.id)
-    await writeFile(join(destination, sanitiseName(file.name)), bytes)
-    return true
+  ): Promise<void> {
+    const docDir = join(destination, doc.localDir)
+    // Clean any prior content for this doc so removed images don't linger.
+    await rm(docDir, { recursive: true, force: true })
+    await mkdir(docDir, { recursive: true })
+    const bytes = await client.exportDoc(doc.id, 'text/markdown')
+    const markdown = bytes.toString('utf-8')
+    const rewritten = await extractInlineImages(markdown, docDir)
+    await writeFile(join(docDir, 'index.md'), rewritten, 'utf-8')
+  }
+}
+
+/**
+ * Pull every `[label]: <data:image/ext;base64,...>` reference out of the
+ * markdown, write the decoded bytes as `<label>.<ext>` in `docDir`, and
+ * rewrite the reference to point at the new local file. Returns the
+ * cleaned markdown. Matches redoc's behaviour.
+ */
+async function extractInlineImages(markdown: string, docDir: string): Promise<string> {
+  const writes: Promise<void>[] = []
+  const rewritten = markdown.replace(INLINE_IMAGE_RE, (_match, label: string, ext: string, data: string) => {
+    const filename = `${sanitiseName(label)}.${ext}`
+    writes.push(writeFile(join(docDir, filename), Buffer.from(data, 'base64')))
+    return `[${label}]: <${filename}>`
+  })
+  await Promise.all(writes)
+  return rewritten
+}
+
+function compileRegex(pattern: string | undefined, field: 'include' | 'exclude'): RegExp | undefined {
+  if (!pattern)
+    return undefined
+  try {
+    return new RegExp(pattern)
+  }
+  catch (err) {
+    throw new Error(`GoogleDriveLoader: ${field} is not a valid regex (${(err as Error).message})`)
+  }
+}
+
+function entryOf(doc: CandidateDoc): ManifestEntry {
+  return {
+    localDir: doc.localDir,
+    modifiedTime: doc.modifiedTime,
+    title: doc.title,
   }
 }
 
 function sanitiseName(name: string): string {
-  // Replace path separators and control chars; leave the rest alone so
-  // human-readable filenames survive ('My Doc — v3.md').
-  return name.replace(/[/\\]/g, '_')
+  // Replace path separators, control chars, and common shell-hostile
+  // characters with `_`. Spaces stay so human-readable titles survive
+  // ("Roadmap Q3 2026" → "Roadmap Q3 2026").
+  return name.replace(/[/\\:*?"<>|]/g, '_')
 }
+
+/** Note: the helper used by DriveClient.exportDoc returns Buffer. */
+export type { DriveFileMetadata, FetchFn }
