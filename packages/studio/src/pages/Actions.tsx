@@ -135,7 +135,7 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
                       {group.records.length === 1 ? '' : 's'}
                     </Badge>
                   </div>
-                  <div className="line-clamp-2 text-xs text-foreground/90">{group.firstPrompt}</div>
+                  <div className="break-words text-xs text-foreground/90">{group.firstPrompt}</div>
                   <div className="text-[10px] text-muted-foreground">{formatTimestamp(group.lastStartedAt)}</div>
                 </ListRow>
               ))}
@@ -197,8 +197,8 @@ function SkillRow({ skill, active, onClick, step }: {
           </span>
           <Badge variant="outline" className="text-[10px] uppercase">{originLabel(skill)}</Badge>
         </div>
-        <div className="mt-1 text-xs text-muted-foreground line-clamp-2">
-          {skill.frontmatter.description}
+        <div className="mt-1 break-words text-xs text-muted-foreground">
+          {skill.frontmatter.braid.summary ?? skill.frontmatter.description}
         </div>
       </div>
     </ListRow>
@@ -304,7 +304,12 @@ function Conversation({ workspaceId, skill }: ConversationProps) {
           value={prompt}
           onChange={e => setPrompt(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey && !running) {
+            // While the user is composing CJK / accented input through an
+            // IME, Enter confirms the candidate character and must not
+            // submit the message. `nativeEvent.isComposing` is the only
+            // reliable signal across browsers; `e.keyCode === 229` is the
+            // legacy fallback for older Safari that we no longer support.
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !running) {
               e.preventDefault()
               void send()
             }

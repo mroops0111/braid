@@ -50,13 +50,14 @@ export class HITLService {
   // caller (HTTP route) can hand the id back to the skill.
   async submitProposal(draft: ProposalDraft): Promise<Proposal> {
     await this.assertOperationsValid(draft.workspaceId, draft.operations)
+    const generatedAt = this.deps.clock.now()
     const proposal = new Proposal({
-      id: newProposalId(),
+      id: newProposalId(generatedAt),
       workspaceId: draft.workspaceId,
       status: 'pending',
       operations: draft.operations,
       generatedBy: draft.generatedBy,
-      generatedAt: this.deps.clock.now(),
+      generatedAt,
       rationale: draft.rationale,
       ...(draft.externalReferences ? { externalReferences: draft.externalReferences } : {}),
     })
@@ -75,7 +76,7 @@ export class HITLService {
   // selects one via answerClarifyTicket.
   async submitClarifyTicket(draft: ClarifyDraft): Promise<ClarifyTicket> {
     const ticket = new ClarifyTicket({
-      id: newClarifyTicketId(),
+      id: newClarifyTicketId(this.deps.clock.now()),
       workspaceId: draft.workspaceId,
       question: draft.question,
       candidates: draft.candidates,

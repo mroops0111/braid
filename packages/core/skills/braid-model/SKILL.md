@@ -6,6 +6,7 @@ disable-model-invocation: true
 braid:
   category: build
   order: 300
+  summary: Cross-link sources and validate the graph globally
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
 ---
 

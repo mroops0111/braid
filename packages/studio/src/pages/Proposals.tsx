@@ -1,13 +1,16 @@
-import type { Proposal, ValidationIssue, ValidationSeverity } from '@braidhq/schema'
+import type { GraphOperation, NewGraphEdge, NewGraphNode, NodeId, Proposal, ValidationIssue, ValidationSeverity } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, AlertTriangle, Check, Inbox, Info, X } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Check, ChevronDown, ChevronRight, Inbox, Info, MinusCircle, PencilLine, PlusCircle, X } from 'lucide-react'
 import { useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
+import { useProposalGraphDataSource } from '@/components/graph/GraphDataSource'
+import { FocusToggle } from '@/components/graph/GraphToolbar'
 import { ListRow } from '@/components/ListRow'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { queryKeys, usePendingProposals, useProposalValidation } from '@/lib/queries'
+import { GraphSurface } from './GraphSurface'
 
 interface ProposalsPageProps {
   workspaceId: string
@@ -33,7 +36,7 @@ export function ProposalsPage({ workspaceId }: ProposalsPageProps) {
 
   return (
     <div className="flex h-full">
-      <ul className="w-96 shrink-0 overflow-y-auto scrollbar-thin border-r border-border">
+      <ul className="w-72 shrink-0 overflow-y-auto scrollbar-thin border-r border-border">
         {data.items.map(proposal => (
           <ListRow
             key={proposal.id}
@@ -41,18 +44,17 @@ export function ProposalsPage({ workspaceId }: ProposalsPageProps) {
             onClick={() => setSelected(proposal)}
             className="flex-col gap-1"
           >
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-xs text-foreground">{proposal.id}</span>
+            <div className="flex w-full items-center justify-between gap-2">
+              <span className="break-all font-mono text-xs text-foreground">{proposal.id}</span>
               <StatusBadge status={proposal.status} />
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-[10px] text-muted-foreground">
               {proposal.operations.length}
               {' '}
               ops · by
               {' '}
               {proposal.generatedBy}
             </div>
-            <div className="line-clamp-2 text-xs text-foreground/80">{proposal.rationale}</div>
           </ListRow>
         ))}
       </ul>
@@ -116,14 +118,19 @@ function ProposalDetail({
     ? `Cannot apply: ${errorCount} validation error${errorCount === 1 ? '' : 's'} must be resolved first.`
     : undefined
 
+  const title = firstSentence(proposal.rationale)
+  const hasMoreRationale = title !== proposal.rationale.trim()
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <header className="flex items-start justify-between gap-2 border-b border-border px-4 py-3">
-        <div className="flex-1">
-          <div className="font-mono text-xs text-muted-foreground">{proposal.id}</div>
-          <div className="text-sm font-medium text-foreground">{proposal.rationale}</div>
+        <div className="min-w-0 flex-1">
+          <div className="font-mono text-[10px] text-muted-foreground">{proposal.id}</div>
+          <div className="truncate text-sm font-medium text-foreground" title={proposal.rationale}>
+            {title}
+          </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex shrink-0 gap-2">
           <Button
             size="sm"
             disabled={apply.isPending || blockedByErrors || validation.isLoading}
@@ -144,7 +151,7 @@ function ProposalDetail({
           </Button>
         </div>
       </header>
-      <div className="flex-1 overflow-y-auto scrollbar-thin">
+      <div className="shrink-0">
         <ValidationPanel
           isLoading={validation.isLoading}
           error={validation.error}
@@ -165,20 +172,49 @@ function ProposalDetail({
           />
         )}
 
-        <h3 className="px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Operations (
-          {proposal.operations.length}
-          )
-        </h3>
-        <pre className="mx-4 mb-4 overflow-x-auto rounded-md border border-border bg-card p-3 font-mono text-[11px] leading-relaxed text-foreground/90">
-          {JSON.stringify(proposal.operations, null, 2)}
-        </pre>
+        {hasMoreRationale && (
+          <RationaleSection text={proposal.rationale} firstSentence={title} />
+        )}
+
         {(apply.error || reject.error) && (
-          <div className="mx-4 mb-3 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <div className="mx-4 mt-3 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
             {((apply.error ?? reject.error) as Error).message}
           </div>
         )}
       </div>
+
+      <ProposalPreview workspaceId={workspaceId} operations={proposal.operations} />
+    </div>
+  )
+}
+
+function firstSentence(text: string): string {
+  // Cut at the first period followed by space or newline. Keeps the
+  // header compact when an LLM writes a multi-sentence rationale.
+  const match = text.trim().match(/^.+?[.。!?](?:\s|$)/s)
+  return (match ? match[0] : text.trim()).trim()
+}
+
+function RationaleSection({ text, firstSentence: shown }: { text: string, firstSentence: string }) {
+  const [open, setOpen] = useState(false)
+  const rest = text.trim().slice(shown.length).trim()
+  if (!rest)
+    return null
+  return (
+    <div className="px-4 pt-3 pb-3">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+      >
+        {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+        Rationale
+      </button>
+      {open && (
+        <p className="mt-1.5 whitespace-pre-wrap rounded-md border border-border bg-card px-3 py-2 text-xs text-foreground/90">
+          {text.trim()}
+        </p>
+      )}
     </div>
   )
 }
@@ -203,9 +239,14 @@ function ValidationPanel({ isLoading, error, issues, ok }: {
   }
   if (ok && issues.length === 0) {
     return (
-      <p className="mx-4 mt-3 rounded-md border border-border bg-card px-3 py-2 text-[11px] text-muted-foreground">
-        No validation issues. Safe to apply.
-      </p>
+      <div className="mx-4 mt-3 flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400">
+        <Check className="size-4 shrink-0" />
+        <span>
+          <strong className="font-semibold">No validation issues.</strong>
+          {' '}
+          Safe to apply.
+        </span>
+      </div>
     )
   }
   const grouped = groupBySeverity(issues)
@@ -301,6 +342,245 @@ function RejectForm({ value, onChange, onCancel, onSubmit, isPending }: {
           {isPending ? 'Rejecting…' : 'Submit Rejection'}
         </Button>
       </div>
+    </div>
+  )
+}
+
+type PreviewView = 'graph' | 'table' | 'list'
+
+/**
+ * Tri-view preview for the proposal's effect on the graph:
+ * - **List**: grouped add / update / remove rows (default; densest summary).
+ * - **Graph**: reuses the workspace `GraphCanvas` fed with a derived
+ *   data source that applies the proposal's operations and annotates
+ *   nodes/edges with their change kind.
+ * - **Table**: same data source piped through `GraphTablePage`, gaining a
+ *   `Change` column for diff readout in tabular form.
+ *
+ * The proposal source is computed once via `useProposalGraphDataSource`
+ * and shared across views so toggling is cheap.
+ */
+function ProposalPreview({ workspaceId, operations }: { workspaceId: string, operations: readonly GraphOperation[] }) {
+  // Proposal-preview adds a `list` view to the surface's normal
+  // graph/table pair, so we manage `view` here and only delegate to
+  // GraphSurface for the two graph-derived views.
+  const [view, setView] = useState<PreviewView>('graph')
+  const [selectedNodeId, setSelectedNodeId] = useState<NodeId | null>(null)
+  const [focusMode, setFocusMode] = useState(false)
+  const source = useProposalGraphDataSource(workspaceId, operations)
+  const flat = flattenOperations(operations)
+
+  return (
+    <section className="flex min-h-0 flex-1 flex-col border-t border-border">
+      <div className="flex shrink-0 items-center justify-between px-4 pt-3 pb-2">
+        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Preview (
+          {flat.length}
+          {' '}
+          ops)
+        </h3>
+        <div className="flex items-center gap-2">
+          {selectedNodeId && view !== 'list' && (
+            <FocusToggle active={focusMode} onChange={setFocusMode} />
+          )}
+          <div role="tablist" aria-label="Preview view" className="inline-flex items-center gap-0.5 rounded border border-border bg-card p-0.5">
+            <ViewTab active={view === 'graph'} onClick={() => setView('graph')}>Graph</ViewTab>
+            <ViewTab active={view === 'table'} onClick={() => setView('table')}>Table</ViewTab>
+            <ViewTab active={view === 'list'} onClick={() => setView('list')}>List</ViewTab>
+          </div>
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {view === 'list'
+          ? <OperationList flat={flat} />
+          : (
+              <GraphSurface
+                workspaceId={workspaceId}
+                source={source}
+                view={view === 'graph' ? 'visualization' : 'table'}
+                selectedNodeId={selectedNodeId}
+                onSelectNode={setSelectedNodeId}
+                focusMode={focusMode}
+              />
+            )}
+      </div>
+    </section>
+  )
+}
+
+function OperationList({ flat }: { flat: readonly FlatOp[] }) {
+  const adds = flat.filter(op => op.kind === 'add')
+  const updates = flat.filter(op => op.kind === 'update')
+  const removes = flat.filter(op => op.kind === 'remove')
+  if (flat.length === 0) {
+    return (
+      <p className="mx-4 mt-2 rounded-md border border-border bg-card px-3 py-2 text-[11px] text-muted-foreground">
+        No operations in this proposal.
+      </p>
+    )
+  }
+  return (
+    <div className="h-full space-y-2 overflow-y-auto scrollbar-thin px-4 pb-4">
+      {adds.length > 0 && <OperationGroup kind="add" ops={adds} />}
+      {updates.length > 0 && <OperationGroup kind="update" ops={updates} />}
+      {removes.length > 0 && <OperationGroup kind="remove" ops={removes} />}
+    </div>
+  )
+}
+
+function ViewTab({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={`rounded-sm px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider transition-colors ${
+        active ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+interface FlatOp {
+  kind: 'add' | 'update' | 'remove'
+  target: 'node' | 'edge'
+  id: string
+  /** Type id when known (node type or edge type). */
+  type?: string
+  /** Short human label, e.g. node name or edge from→to. */
+  label: string
+  /** Optional detail, e.g. "status: draft → completed". */
+  detail?: string
+}
+
+function flattenOperations(operations: readonly GraphOperation[]): FlatOp[] {
+  // Each schema operation collapses to one FlatOp; batch operations
+  // (addNodes / removeEdges / updateNodes / ...) fan out into one
+  // FlatOp per item. Keeps the list view scannable: one row per change.
+  const out: FlatOp[] = []
+  for (const op of operations) {
+    switch (op.operation) {
+      case 'addNode':
+        out.push(flatAddNode(op.payload))
+        break
+      case 'addNodes':
+        for (const n of op.payloads) out.push(flatAddNode(n))
+        break
+      case 'removeNode':
+        out.push({ kind: 'remove', target: 'node', id: op.nodeId, label: op.nodeId })
+        break
+      case 'removeNodes':
+        for (const id of op.nodeIds) out.push({ kind: 'remove', target: 'node', id, label: id })
+        break
+      case 'updateNode':
+        out.push(flatUpdateNode(op.nodeId, op.patch))
+        break
+      case 'updateNodes':
+        for (const u of op.updates) out.push(flatUpdateNode(u.nodeId, u.patch))
+        break
+      case 'addEdge':
+        out.push(flatAddEdge(op.payload))
+        break
+      case 'addEdges':
+        for (const e of op.payloads) out.push(flatAddEdge(e))
+        break
+      case 'removeEdge':
+        out.push({ kind: 'remove', target: 'edge', id: op.edgeId, label: op.edgeId })
+        break
+      case 'removeEdges':
+        for (const id of op.edgeIds) out.push({ kind: 'remove', target: 'edge', id, label: id })
+        break
+      case 'updateEdge':
+        out.push(flatUpdateEdge(op.edgeId, op.patch))
+        break
+      case 'updateEdges':
+        for (const u of op.updates) out.push(flatUpdateEdge(u.edgeId, u.patch))
+        break
+    }
+  }
+  return out
+}
+
+function flatAddNode(payload: NewGraphNode): FlatOp {
+  const id = payload.id ?? '(server-minted)'
+  return {
+    kind: 'add',
+    target: 'node',
+    id,
+    type: payload.type,
+    label: payload.name,
+    ...(payload.status ? { detail: `status=${payload.status}` } : {}),
+  }
+}
+
+function flatUpdateNode(id: string, patch: Record<string, unknown>): FlatOp {
+  const fields = Object.keys(patch).filter(k => k !== 'id')
+  return {
+    kind: 'update',
+    target: 'node',
+    id,
+    label: id,
+    ...(fields.length > 0 ? { detail: `patch: ${fields.join(', ')}` } : {}),
+  }
+}
+
+function flatAddEdge(payload: NewGraphEdge): FlatOp {
+  const id = payload.id ?? '(server-minted)'
+  return {
+    kind: 'add',
+    target: 'edge',
+    id,
+    type: payload.type,
+    label: `${payload.fromNodeId} → ${payload.toNodeId}`,
+  }
+}
+
+function flatUpdateEdge(id: string, patch: Record<string, unknown>): FlatOp {
+  const fields = Object.keys(patch).filter(k => k !== 'id')
+  return {
+    kind: 'update',
+    target: 'edge',
+    id,
+    label: id,
+    ...(fields.length > 0 ? { detail: `patch: ${fields.join(', ')}` } : {}),
+  }
+}
+
+const OPERATION_PALETTE: Record<FlatOp['kind'], { icon: typeof PlusCircle, label: string, ring: string, text: string }> = {
+  add: { icon: PlusCircle, label: 'Added', ring: 'border-emerald-500/40 bg-emerald-500/5', text: 'text-emerald-600 dark:text-emerald-400' },
+  update: { icon: PencilLine, label: 'Updated', ring: 'border-amber-500/40 bg-amber-500/5', text: 'text-amber-600 dark:text-amber-400' },
+  remove: { icon: MinusCircle, label: 'Removed', ring: 'border-destructive/40 bg-destructive/5', text: 'text-destructive' },
+}
+
+function OperationGroup({ kind, ops }: { kind: FlatOp['kind'], ops: readonly FlatOp[] }) {
+  const palette = OPERATION_PALETTE[kind]
+  const Icon = palette.icon
+  return (
+    <div className={`rounded-md border ${palette.ring}`}>
+      <div className={`flex items-center gap-1.5 border-b border-border/50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider ${palette.text}`}>
+        <Icon className="size-3" />
+        {palette.label}
+        {' '}
+        (
+        {ops.length}
+        )
+      </div>
+      <ul className="divide-y divide-border/50">
+        {ops.map((op, idx) => (
+          <li key={`${op.id}-${idx}`} className="flex items-baseline gap-2 px-3 py-1.5 text-[11px]">
+            <span className="rounded bg-muted/40 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
+              {op.target}
+              {op.type ? `:${op.type}` : ''}
+            </span>
+            <span className="truncate font-mono text-foreground">{op.label}</span>
+            {op.detail && <span className="truncate text-muted-foreground">{op.detail}</span>}
+            <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground/70">{op.id}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

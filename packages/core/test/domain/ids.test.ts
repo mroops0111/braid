@@ -1,5 +1,8 @@
+import type { Timestamp } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
-import { newEdgeId, newNodeId, newProposalId, newQuestionId } from '../../src/index.js'
+import { newClarifyTicketId, newEdgeId, newNodeId, newProposalId, newQuestionId } from '../../src/index.js'
+
+const NOW = '2026-05-22T14:30:00.000Z' as Timestamp
 
 describe('id minters', () => {
   it('newNodeId returns a non-empty unique string', () => {
@@ -10,8 +13,22 @@ describe('id minters', () => {
     expect(a.length).toBeGreaterThan(0)
   })
 
-  it('newEdgeId, newProposalId, newQuestionId all return distinct uuids', () => {
-    const ids = [newEdgeId(), newProposalId(), newQuestionId()]
-    expect(new Set(ids).size).toBe(3)
+  it('newEdgeId / newQuestionId return distinct uuids', () => {
+    const ids = [newEdgeId(), newQuestionId()]
+    expect(new Set(ids).size).toBe(2)
+  })
+
+  it('newProposalId embeds the date prefix and a short random suffix', () => {
+    const id = newProposalId(NOW)
+    expect(id).toMatch(/^p-2026-05-22-[0-9a-f]{8}$/)
+  })
+
+  it('newClarifyTicketId embeds the date prefix and a short random suffix', () => {
+    const id = newClarifyTicketId(NOW)
+    expect(id).toMatch(/^ct-2026-05-22-[0-9a-f]{8}$/)
+  })
+
+  it('two same-day proposal ids do not collide', () => {
+    expect(newProposalId(NOW)).not.toBe(newProposalId(NOW))
   })
 })

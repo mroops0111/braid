@@ -1,4 +1,4 @@
-import type { GraphEdge, GraphNode } from '@braidhq/schema'
+import type { ChangeKind, GraphEdge, GraphNode } from '@braidhq/schema'
 import type { Edge, Node } from '@xyflow/react'
 import dagre from '@dagrejs/dagre'
 import { useMemo } from 'react'
@@ -12,10 +12,16 @@ const NODE_HEIGHT = 92
 
 export interface NodeCardData extends Record<string, unknown> {
   node: GraphNode
+  /**
+   * Optional diff annotation populated when the source carries a
+   * proposal preview. Drives the ring color around the card.
+   */
+  change?: ChangeKind
 }
 
 export interface EdgeCardData extends Record<string, unknown> {
   edge: GraphEdge
+  change?: ChangeKind
 }
 
 export type NodeCardNode = Node<NodeCardData, 'card'>
@@ -71,6 +77,13 @@ function layout(nodes: readonly GraphNode[], edges: readonly GraphEdge[]): LaidO
         x: positioned.x - NODE_WIDTH / 2,
         y: positioned.y - NODE_HEIGHT / 2,
       },
+      // Explicit width/height let ReactFlow's MiniMap draw a
+      // rectangle for each node — without them it falls back to
+      // measuring the rendered DOM, which only happens for nodes
+      // currently inside the viewport, and the minimap ends up
+      // empty for off-screen / freshly-mounted nodes.
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT,
       data: { node },
     }
   })

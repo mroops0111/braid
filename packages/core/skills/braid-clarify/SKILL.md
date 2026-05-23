@@ -6,6 +6,7 @@ disable-model-invocation: true
 braid:
   category: build
   order: 200
+  summary: Resolve answered clarify tickets into proposals
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
 ---
 

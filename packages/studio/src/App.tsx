@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { CommandPalette, type TabKey } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
 import { InFlightRunBanner } from './components/InFlightRunBanner'
+import { PageActionsHost, PageActionsProvider } from './components/PageActions'
 import { ServerUrlDialog } from './components/ServerUrlDialog'
 import { Sidebar } from './components/Sidebar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
@@ -37,74 +38,77 @@ export function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background text-foreground">
-      <Sidebar
-        workspaces={items}
-        activeWorkspaceId={activeId}
-        onSelect={setActiveId}
-        onOpenDetails={openDetails}
-        onOpenServerUrl={() => setServerUrlOpen(true)}
-      />
-      <main className="flex flex-1 flex-col overflow-hidden">
-        <Header
-          workspaceId={activeId}
-          onOpenDetails={() => activeId && openDetails(activeId)}
+    <PageActionsProvider>
+      <div className="flex h-screen overflow-hidden bg-background text-foreground">
+        <Sidebar
+          workspaces={items}
+          activeWorkspaceId={activeId}
+          onSelect={setActiveId}
+          onOpenDetails={openDetails}
+          onOpenServerUrl={() => setServerUrlOpen(true)}
         />
-        <InFlightRunBanner workspaceId={activeId} />
-        {activeId
-          ? (
-              <Tabs
-                value={activeTab}
-                onValueChange={value => setActiveTab(value as TabKey)}
-                className="flex flex-1 flex-col overflow-hidden gap-0"
-              >
-                <div className="border-b border-border px-4">
-                  <TabsList variant="line" className="h-10">
-                    <TabsTrigger value="actions">Actions</TabsTrigger>
-                    <TabsTrigger value="graph">Graph</TabsTrigger>
-                    <TabsTrigger value="proposals">Proposals</TabsTrigger>
-                  </TabsList>
-                </div>
-                <TabsContent value="actions" className="overflow-hidden">
-                  <ActionsPage workspaceId={activeId} />
-                </TabsContent>
-                <TabsContent value="graph" className="overflow-hidden">
-                  <GraphPage workspaceId={activeId} />
-                </TabsContent>
-                <TabsContent value="proposals" className="overflow-hidden">
-                  <ProposalsPage workspaceId={activeId} />
-                </TabsContent>
-              </Tabs>
-            )
-          : (
-              <NoWorkspaceState onSelect={setActiveId} />
-            )}
-      </main>
-      <CommandPalette
-        workspaces={items}
-        activeWorkspaceId={activeId}
-        activeTab={activeTab}
-        onSelectWorkspace={setActiveId}
-        onSelectTab={setActiveTab}
-      />
-      <ServerUrlDialog open={serverUrlOpen} onOpenChange={setServerUrlOpen} />
-      <WorkspaceDetailsSheet
-        workspaceId={detailsId}
-        open={detailsOpen}
-        onOpenChange={setDetailsOpen}
-        onUnregistered={() => {
-          setDetailsOpen(false)
-          if (activeId === detailsId)
-            setActiveId(null)
-          setDetailsId(null)
-        }}
-        onRenamed={(newId) => {
-          if (activeId === detailsId)
-            setActiveId(newId)
-          setDetailsId(newId)
-        }}
-      />
-    </div>
+        <main className="flex flex-1 flex-col overflow-hidden">
+          <Header
+            workspaceId={activeId}
+            onOpenDetails={() => activeId && openDetails(activeId)}
+          />
+          <InFlightRunBanner workspaceId={activeId} />
+          {activeId
+            ? (
+                <Tabs
+                  value={activeTab}
+                  onValueChange={value => setActiveTab(value as TabKey)}
+                  className="flex flex-1 flex-col overflow-hidden gap-0"
+                >
+                  <div className="flex items-center justify-between border-b border-border px-4">
+                    <TabsList variant="line" className="h-10">
+                      <TabsTrigger value="actions">Actions</TabsTrigger>
+                      <TabsTrigger value="graph">Graph</TabsTrigger>
+                      <TabsTrigger value="proposals">Proposals</TabsTrigger>
+                    </TabsList>
+                    <PageActionsHost className="flex items-center gap-2" />
+                  </div>
+                  <TabsContent value="actions" className="overflow-hidden">
+                    <ActionsPage workspaceId={activeId} />
+                  </TabsContent>
+                  <TabsContent value="graph" className="overflow-hidden">
+                    <GraphPage workspaceId={activeId} />
+                  </TabsContent>
+                  <TabsContent value="proposals" className="overflow-hidden">
+                    <ProposalsPage workspaceId={activeId} />
+                  </TabsContent>
+                </Tabs>
+              )
+            : (
+                <NoWorkspaceState onSelect={setActiveId} />
+              )}
+        </main>
+        <CommandPalette
+          workspaces={items}
+          activeWorkspaceId={activeId}
+          activeTab={activeTab}
+          onSelectWorkspace={setActiveId}
+          onSelectTab={setActiveTab}
+        />
+        <ServerUrlDialog open={serverUrlOpen} onOpenChange={setServerUrlOpen} />
+        <WorkspaceDetailsSheet
+          workspaceId={detailsId}
+          open={detailsOpen}
+          onOpenChange={setDetailsOpen}
+          onUnregistered={() => {
+            setDetailsOpen(false)
+            if (activeId === detailsId)
+              setActiveId(null)
+            setDetailsId(null)
+          }}
+          onRenamed={(newId) => {
+            if (activeId === detailsId)
+              setActiveId(newId)
+            setDetailsId(newId)
+          }}
+        />
+      </div>
+    </PageActionsProvider>
   )
 }
 

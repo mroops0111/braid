@@ -8,7 +8,7 @@ import { usePaletteContext } from './usePalette'
 export interface GraphFilters {
   /** Free-text query against node `name` + `description`. */
   search: string
-  /** Whitelist of node types to keep. Empty = show all. */
+  /** Whitelist of node types to keep. Empty = none shown. */
   types: NodeTypeId[]
   orphansOnly: boolean
 }
@@ -28,7 +28,9 @@ export function GraphNavigator({ workspaceId, nodes, orphanIds, filters, onFilte
     () => countByType(nodes, palette.sortNodeTypes.bind(palette)),
     [nodes, palette],
   )
-  const hasFilters = filters.types.length > 0 || filters.orphansOnly
+  const allTypes = useMemo(() => typeCounts.map(t => t.type), [typeCounts])
+  const everyTypeSelected = filters.types.length > 0 && filters.types.length === allTypes.length
+  const noTypeSelected = filters.types.length === 0
 
   function toggleType(type: NodeTypeId): void {
     const next = filters.types.includes(type)
@@ -46,15 +48,24 @@ export function GraphNavigator({ workspaceId, nodes, orphanIds, filters, onFilte
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         <div className="flex items-center justify-between px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
           <span>Filter By Type</span>
-          {hasFilters && (
+          <div className="flex gap-2 text-[10px] normal-case tracking-normal">
             <button
               type="button"
-              onClick={() => onFiltersChange({ ...filters, types: [], orphansOnly: false })}
-              className="text-[10px] normal-case tracking-normal text-sidebar-foreground/60 hover:text-sidebar-foreground"
+              disabled={everyTypeSelected}
+              onClick={() => onFiltersChange({ ...filters, types: allTypes })}
+              className="text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground disabled:opacity-30"
             >
-              clear
+              All
             </button>
-          )}
+            <button
+              type="button"
+              disabled={noTypeSelected}
+              onClick={() => onFiltersChange({ ...filters, types: [] })}
+              className="text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground disabled:opacity-30"
+            >
+              Clear
+            </button>
+          </div>
         </div>
         <ul className="space-y-px px-1">
           {typeCounts.map(({ type, count }) => (
@@ -76,7 +87,7 @@ export function GraphNavigator({ workspaceId, nodes, orphanIds, filters, onFilte
               onChange={e => onFiltersChange({ ...filters, orphansOnly: e.target.checked })}
               className="size-3 accent-primary"
             />
-            <span>{`Orphans only (${orphanIds.size})`}</span>
+            <span>{`Orphans Only (${orphanIds.size})`}</span>
           </label>
         )}
       </div>

@@ -5,6 +5,7 @@ argument-hint: "[scope-hint]"
 disable-model-invocation: true
 braid:
   category: generate
+  summary: Render Markdown docs from the current graph
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
 ---
 

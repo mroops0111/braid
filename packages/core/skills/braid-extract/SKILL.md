@@ -6,6 +6,7 @@ disable-model-invocation: true
 braid:
   category: build
   order: 100
+  summary: Extract domain nodes/edges from PRDs and code
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
 ---
 

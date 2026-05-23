@@ -71,6 +71,16 @@ export const BraidSkillExtension = z.object({
    * inter-skill order is not semantically meaningful.
    */
   order: z.number().int().positive().optional(),
+  /**
+   * One-line tagline (≤ 80 chars) for narrow Studio surfaces (sidebars,
+   * cards) where `description` is too long. When absent, Studio falls
+   * back to the first sentence of `description`.
+   *
+   * Lives under `braid:` because Claude Code itself doesn't recognise
+   * the field; keeping it out of the top-level frontmatter avoids
+   * polluting the CLI's namespace.
+   */
+  summary: z.string().min(1).max(80).optional(),
 })
 export type BraidSkillExtension = z.infer<typeof BraidSkillExtension>
 

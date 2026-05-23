@@ -1,22 +1,53 @@
 import type { GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
+import type { GraphDataSource } from './GraphDataSource'
 import type { NodeCardNode } from './useGraphLayout'
 import { Background, BackgroundVariant, Controls, MarkerType, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react'
 import { GitBranch, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
 import { Button } from '@/components/ui/button'
-import { useModelSnapshot, useOntology } from '@/lib/queries'
-import { GraphDetailSheet } from './GraphDetailSheet'
+import { optional } from '@/lib/optional'
+import { useOntology } from '@/lib/queries'
+import { useTheme } from '@/lib/theme'
+import { useControllableState } from '@/lib/useControllableState'
+import { useLiveGraphDataSource } from './GraphDataSource'
 import { type GraphFilters, GraphNavigator } from './GraphNavigator'
 import { GraphNodeCard } from './GraphNodeCard'
+import { computeNeighborhood } from './neighborhood'
+import { NodeDetailPanel } from './NodeDetailPanel'
+import { withAlpha } from './ontologyPalette'
+import { DIMMED_EDGE_OPACITY, DIMMED_NODE_OPACITY, EDGE_DASH, EDGE_DIM_DEFAULT, EDGE_DIM_REMOVED, EDGE_STROKE, NODE_DETAIL_ASIDE_WIDTH } from './styleTokens'
+import { useFilterSeed } from './useFilterSeed'
+import { useFitOnLayoutChange } from './useFitOnLayoutChange'
 import { useGraphLayout } from './useGraphLayout'
+import { useGraphShortcuts } from './useGraphShortcuts'
+import { useNodeNeighbors } from './useNodeNeighbors'
 import { PaletteProvider, usePalette } from './usePalette'
 import '@xyflow/react/dist/style.css'
 
 interface GraphCanvasProps {
   workspaceId: string
-  /** Visualization/Table toggle rendered top-right of the canvas. */
-  viewToggle?: React.ReactNode
+  /**
+   * Optional data source override. Defaults to the live workspace
+   * snapshot. Proposal previews pass a derived source carrying a `diff`
+   * overlay so the renderer can tint added / updated / removed elements
+   * without knowing anything about proposals.
+   */
+  source?: GraphDataSource
+  /**
+   * Controlled selection. When both `selectedNodeId` and
+   * `onSelectNode` are provided the canvas defers ownership to the
+   * parent so a sibling view (e.g. table) can share the highlight. When
+   * omitted the canvas falls back to internal state.
+   */
+  selectedNodeId?: NodeId | null
+  onSelectNode?: (id: NodeId | null) => void
+  /**
+   * Controlled focus mode. When provided, the parent owns the on/off
+   * state — pages set this from a page-level toolbar so the same
+   * toggle drives both canvas and table.
+   */
+  focusMode?: boolean
 }
 
 const NODE_TYPES = { card: GraphNodeCard }
@@ -27,44 +58,41 @@ const INITIAL_FILTERS: GraphFilters = {
   orphansOnly: false,
 }
 
-export function GraphCanvas({ workspaceId, viewToggle }: GraphCanvasProps) {
-  // PaletteProvider exposes the workspace's resolved ontology colours
-  // to every descendant (node cards, navigator rows, detail sheet).
-  // ReactFlowProvider does the same for `useReactFlow`.
+export function GraphCanvas({ workspaceId, source, selectedNodeId, onSelectNode, focusMode }: GraphCanvasProps) {
   const palette = usePalette(workspaceId)
   return (
     <PaletteProvider value={palette}>
       <ReactFlowProvider>
-        <CanvasInner workspaceId={workspaceId} viewToggle={viewToggle} />
+        <CanvasInner
+          workspaceId={workspaceId}
+          {...optional({ source, selectedNodeId, onSelectNode, focusMode })}
+        />
       </ReactFlowProvider>
     </PaletteProvider>
   )
 }
 
-function CanvasInner({ workspaceId, viewToggle }: GraphCanvasProps) {
-  const { data, isLoading } = useModelSnapshot(workspaceId)
+function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, onSelectNode, focusMode = false }: GraphCanvasProps) {
+  // React Query dedupes the live snapshot fetch by queryKey, so it's
+  // effectively free when `source` is supplied.
+  const liveSource = useLiveGraphDataSource(workspaceId)
+  const effective = source ?? liveSource
   const { data: ontology } = useOntology(workspaceId)
   const palette = usePalette(workspaceId)
-  const allNodes = data?.nodes ?? []
-  const allEdges = data?.edges ?? []
+  const { theme } = useTheme()
+  const allNodes = effective.nodes
+  const allEdges = effective.edges
+  const isLoading = effective.isLoading
+  const diff = effective.diff
   const [filters, setFilters] = useState<GraphFilters>(INITIAL_FILTERS)
-  const [selectedNodeId, setSelectedNodeId] = useState<NodeId | null>(null)
+  const [selectedNodeId, setSelectedNodeId] = useControllableState<NodeId | null>(controlledSelected, onSelectNode, null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
-  const [navigatorOpen, setNavigatorOpen] = useState(true)
+  // Proposal-preview mode (diff present) collapses the navigator so
+  // reviewers see the full diff without the filter/orphan/search panel
+  // they don't need here.
+  const [navigatorOpen, setNavigatorOpen] = useState(diff === undefined)
 
-  // Apply the ontology's `defaultVisible` types as the initial filter
-  // once per workspace, when the ontology query first resolves. The
-  // ref tracks which workspace we've already seeded so a refetch
-  // doesn't clobber the user's later edits, and switching workspace
-  // re-seeds for the new ontology.
-  const seededWorkspaceRef = useRef<string | null>(null)
-  useEffect(() => {
-    if (!ontology || seededWorkspaceRef.current === workspaceId)
-      return
-    const defaults = ontology.nodeTypes.filter(d => d.defaultVisible).map(d => d.id)
-    setFilters(f => ({ ...f, types: defaults }))
-    seededWorkspaceRef.current = workspaceId
-  }, [ontology, workspaceId])
+  useFilterSeed(ontology, workspaceId, setFilters)
 
   const orphanIds = useMemo(() => orphanNodeIds(allNodes, allEdges), [allNodes, allEdges])
   const filtered = useMemo(
@@ -72,46 +100,75 @@ function CanvasInner({ workspaceId, viewToggle }: GraphCanvasProps) {
     [allNodes, allEdges, filters, orphanIds],
   )
 
-  const laidOut = useGraphLayout(filtered.nodes, filtered.edges)
+  const neighborhood = useMemo(
+    () => computeNeighborhood(selectedNodeId, filtered.edges),
+    [selectedNodeId, filtered.edges],
+  )
+  // Focus mode shrinks the layout input so dagre doesn't lay out
+  // off-screen cards that would just get filtered post-layout.
+  const visible = useMemo(() => {
+    if (!focusMode || !selectedNodeId)
+      return filtered
+    return {
+      nodes: filtered.nodes.filter(n => neighborhood.neighbors.has(n.id)),
+      edges: filtered.edges.filter(e => neighborhood.incidentEdges.has(e.id)),
+    }
+  }, [filtered, focusMode, selectedNodeId, neighborhood])
+
+  const laidOut = useGraphLayout(visible.nodes, visible.edges)
   const reactFlow = useReactFlow()
 
-  const nodesById = useMemo(
-    () => new Map<NodeId, GraphNode>(allNodes.map(n => [n.id, n])),
-    [allNodes],
-  )
-
-  const incoming = useMemo(
-    () => selectedNodeId ? allEdges.filter(e => e.toNodeId === selectedNodeId) : [],
-    [allEdges, selectedNodeId],
-  )
-  const outgoing = useMemo(
-    () => selectedNodeId ? allEdges.filter(e => e.fromNodeId === selectedNodeId) : [],
-    [allEdges, selectedNodeId],
-  )
+  const { nodesById, incoming, outgoing } = useNodeNeighbors(allNodes, allEdges, selectedNodeId)
 
   const reactFlowNodes = useMemo(
-    () => laidOut.nodes.map(n => ({ ...n, selected: n.id === selectedNodeId })),
-    [laidOut.nodes, selectedNodeId],
+    () => laidOut.nodes.map((n) => {
+      const dimmed = selectedNodeId !== null && !focusMode && !neighborhood.neighbors.has(n.data.node.id)
+      return {
+        ...n,
+        selected: n.id === selectedNodeId,
+        data: { ...n.data, change: diff?.nodes.get(n.data.node.id) },
+        ...(dimmed ? { style: { opacity: DIMMED_NODE_OPACITY } } : {}),
+      }
+    }),
+    [laidOut.nodes, selectedNodeId, diff, focusMode, neighborhood],
   )
 
-  // Each edge is coloured by its type (contains=purple, accepts=emerald,
-  // emits=amber, …) so the user can read the topology without clicking.
-  // Labels stay hidden until the edge is selected — long-jump edges
-  // crossing intermediate rows would otherwise put a pill over every
-  // card they pass. The selected label uses a fully-opaque background
-  // (NOT a tint) so it actually masks any line routed underneath it.
+  // Edges keep their type colour so topology is readable; diff state
+  // is signalled via stroke shape (dashed for removed, thicker for
+  // added). Labels are hidden until selected — long-jump edges would
+  // otherwise drop pills over every card they cross.
   const reactFlowEdges = useMemo(
     () => laidOut.edges.map((edge) => {
       const selected = edge.id === selectedEdgeId
+      const change = diff?.edges.get(edge.data!.edge.id)
+      const incident = neighborhood.incidentEdges.has(edge.data!.edge.id)
+      const dimmed = selectedNodeId !== null && !focusMode && !incident
       const baseColor = palette.edgeColor(edge.data!.edge.type)
-      const stroke = selected ? baseColor : dim(baseColor, 0.5)
-      const strokeWidth = selected ? 2 : 1.25
+      const stroke = selected || incident
+        ? baseColor
+        : withAlpha(baseColor, change === 'removed' ? EDGE_DIM_REMOVED : EDGE_DIM_DEFAULT)
+      const strokeWidth = selected
+        ? EDGE_STROKE.selected
+        : incident
+          ? EDGE_STROKE.incident
+          : change === 'added' ? EDGE_STROKE.added : EDGE_STROKE.default
+      const strokeDasharray = change === 'removed'
+        ? EDGE_DASH.removed
+        : change === 'updated'
+          ? EDGE_DASH.updated
+          : undefined
       return {
         ...edge,
         selected,
         label: selected ? edge.label : undefined,
-        animated: selected,
-        style: { stroke, strokeWidth },
+        animated: selected && change !== 'removed',
+        style: {
+          stroke,
+          strokeWidth,
+          ...(strokeDasharray ? { strokeDasharray } : {}),
+          ...(dimmed ? { opacity: DIMMED_EDGE_OPACITY } : {}),
+        },
+        data: { ...edge.data!, change },
         markerEnd: {
           type: MarkerType.ArrowClosed,
           color: stroke,
@@ -125,8 +182,10 @@ function CanvasInner({ workspaceId, viewToggle }: GraphCanvasProps) {
         labelShowBg: true,
       }
     }),
-    [laidOut.edges, selectedEdgeId, palette],
+    [laidOut.edges, selectedEdgeId, palette, diff, selectedNodeId, focusMode, neighborhood],
   )
+
+  useFitOnLayoutChange(reactFlow, laidOut.nodes)
 
   const centerOnNode = useCallback((nodeId: NodeId) => {
     const positioned = laidOut.nodes.find(n => n.id === nodeId)
@@ -135,49 +194,38 @@ function CanvasInner({ workspaceId, viewToggle }: GraphCanvasProps) {
     reactFlow.setCenter(positioned.position.x + 100, positioned.position.y + 32, { zoom: 1, duration: 250 })
   }, [laidOut.nodes, reactFlow])
 
+  // Node + edge selections are mutually exclusive — these helpers
+  // encapsulate the "set one, clear the other" invariant so callers
+  // can't accidentally leave both set.
+  const selectNode = useCallback((nodeId: NodeId | null) => {
+    setSelectedNodeId(nodeId)
+    setSelectedEdgeId(null)
+  }, [setSelectedNodeId])
+
+  const selectEdge = useCallback((edgeId: string) => {
+    setSelectedEdgeId(edgeId)
+    setSelectedNodeId(null)
+  }, [setSelectedNodeId])
+
+  const clearSelection = useCallback(() => {
+    setSelectedNodeId(null)
+    setSelectedEdgeId(null)
+  }, [setSelectedNodeId])
+
   const selectAndCenter = useCallback((nodeId: NodeId) => {
-    setSelectedNodeId(nodeId)
-    setSelectedEdgeId(null)
+    selectNode(nodeId)
     centerOnNode(nodeId)
-  }, [centerOnNode])
+  }, [centerOnNode, selectNode])
 
-  const selectOnly = useCallback((nodeId: NodeId) => {
-    setSelectedNodeId(nodeId)
-    setSelectedEdgeId(null)
-  }, [])
+  // Direct canvas clicks use `selectNode` (no centering) — auto-pan
+  // every click felt twitchy. Only navigator + detail-sheet entry
+  // points go through `selectAndCenter`.
 
-  // Centering on every selection felt twitchy: clicking a node already in
-  // view should just highlight it, not pan the canvas around. Only the
-  // navigator and detail-sheet "click an edge endpoint" paths center
-  // (they go through `selectAndCenter`); canvas / direct clicks call
-  // `selectOnly` and leave the viewport alone.
-
-  // Cmd+F focuses the navigator search; Cmd+0 fits the canvas to
-  // viewport. Both are scoped to the Graph tab via mount/unmount.
-  useEffect(() => {
-    const handler = (event: KeyboardEvent): void => {
-      if (!(event.metaKey || event.ctrlKey))
-        return
-      if (event.key === 'f') {
-        const input = document.querySelector<HTMLInputElement>('input[placeholder="Search nodes…"]')
-        if (input) {
-          event.preventDefault()
-          input.focus()
-          input.select()
-        }
-      }
-      else if (event.key === '0') {
-        event.preventDefault()
-        reactFlow.fitView({ duration: 250 })
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [reactFlow])
+  useGraphShortcuts(reactFlow)
 
   if (isLoading)
     return <div className="p-4 text-sm text-muted-foreground">Loading graph…</div>
-  if (!data || allNodes.length === 0) {
+  if (allNodes.length === 0) {
     return (
       <EmptyState
         icon={GitBranch}
@@ -188,7 +236,10 @@ function CanvasInner({ workspaceId, viewToggle }: GraphCanvasProps) {
   }
 
   const selectedNode = selectedNodeId ? nodesById.get(selectedNodeId) ?? null : null
-  const filterActive = filters.search !== '' || filters.orphansOnly || filters.types.length > 0
+  // When we reach the `FilteredEmpty` branch below, `allNodes` is
+  // non-empty (early return covers the zero case) and `filtered` is
+  // empty — the filter is, by elimination, the cause. The previous
+  // `filterActive` derived flag is now redundant.
 
   return (
     <div className="flex h-full">
@@ -203,41 +254,36 @@ function CanvasInner({ workspaceId, viewToggle }: GraphCanvasProps) {
       )}
 
       <div className="relative flex-1 bg-background">
-        {/* Top-left: navigator collapse toggle (desktop + mobile-ready). */}
-        <div className="pointer-events-none absolute left-3 top-3 z-10">
+        <div className="absolute left-3 top-3 z-10">
           <button
             type="button"
             onClick={() => setNavigatorOpen(open => !open)}
             aria-label={navigatorOpen ? 'Collapse navigator' : 'Show navigator'}
-            className="pointer-events-auto flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
           >
             {navigatorOpen ? <PanelLeftClose className="size-3.5" /> : <PanelLeftOpen className="size-3.5" />}
           </button>
         </div>
-        {/* Top-right: Visualization / Table view toggle. */}
-        {viewToggle && (
-          <div className="pointer-events-none absolute right-3 top-3 z-10">
-            <div className="pointer-events-auto">{viewToggle}</div>
-          </div>
-        )}
         {filtered.nodes.length === 0
           ? (
-              <FilteredEmpty onClear={() => setFilters(INITIAL_FILTERS)} active={filterActive} />
+              <FilteredEmpty
+                onClear={() => setFilters({
+                  ...INITIAL_FILTERS,
+                  // Reset must enable every type currently present in
+                  // the workspace; under the strict-whitelist convention
+                  // an empty list would just stay empty.
+                  types: Array.from(new Set(allNodes.map(n => n.type))),
+                })}
+              />
             )
           : (
               <ReactFlow
                 nodes={reactFlowNodes}
                 edges={reactFlowEdges}
                 nodeTypes={NODE_TYPES}
-                onNodeClick={(_event, n) => selectOnly((n as NodeCardNode).data.node.id)}
-                onEdgeClick={(_event, e) => {
-                  setSelectedEdgeId(e.id)
-                  setSelectedNodeId(null)
-                }}
-                onPaneClick={() => {
-                  setSelectedNodeId(null)
-                  setSelectedEdgeId(null)
-                }}
+                onNodeClick={(_event, n) => selectNode((n as NodeCardNode).data.node.id)}
+                onEdgeClick={(_event, e) => selectEdge(e.id)}
+                onPaneClick={clearSelection}
                 fitView
                 proOptions={{ hideAttribution: true }}
                 minZoom={0.2}
@@ -250,9 +296,17 @@ function CanvasInner({ workspaceId, viewToggle }: GraphCanvasProps) {
                 <MiniMap
                   pannable
                   zoomable
-                  maskColor="oklch(0.145 0 0 / 0.8)"
-                  nodeColor="oklch(0.175 0 0)"
-                  nodeStrokeColor="oklch(0.26 0 0)"
+                  // Mask alpha kept low (0.25) so type-coloured nodes
+                  // remain legible — a higher alpha washes the minimap
+                  // into a single block.
+                  maskColor={theme === 'dark' ? 'oklch(0.17 0 0 / 0.25)' : 'oklch(0.97 0 0 / 0.25)'}
+                  nodeColor={(n) => {
+                    const data = n.data as { node?: { type?: string } } | undefined
+                    const type = data?.node?.type
+                    return type ? palette.nodeColor(type as never) : 'oklch(0.55 0 0)'
+                  }}
+                  nodeStrokeColor={theme === 'dark' ? 'oklch(0.85 0 0)' : 'oklch(0.3 0 0)'}
+                  nodeStrokeWidth={1.5}
                   className="!bg-card !border !border-border"
                 />
                 <Controls
@@ -263,36 +317,33 @@ function CanvasInner({ workspaceId, viewToggle }: GraphCanvasProps) {
             )}
       </div>
 
-      <GraphDetailSheet
-        open={selectedNodeId !== null}
-        onOpenChange={(open) => {
-          if (!open)
-            setSelectedNodeId(null)
-        }}
-        node={selectedNode}
-        nodesById={nodesById}
-        incoming={incoming}
-        outgoing={outgoing}
-        onSelectNode={selectAndCenter}
-        onCenterInGraph={() => selectedNodeId && centerOnNode(selectedNodeId)}
-      />
+      {selectedNode && (
+        <aside
+          className="flex shrink-0 flex-col border-l border-border bg-card"
+          style={{ width: NODE_DETAIL_ASIDE_WIDTH }}
+        >
+          <NodeDetailPanel
+            node={selectedNode}
+            nodesById={nodesById}
+            incoming={incoming}
+            outgoing={outgoing}
+            onClose={clearSelection}
+            onSelectNode={selectAndCenter}
+            onCenterInGraph={() => selectedNodeId && centerOnNode(selectedNodeId)}
+          />
+        </aside>
+      )}
     </div>
   )
 }
 
-function FilteredEmpty({ onClear, active }: { onClear: () => void, active: boolean }) {
+function FilteredEmpty({ onClear }: { onClear: () => void }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-      <p className="text-sm text-muted-foreground">
-        {active
-          ? 'No nodes match the current filter.'
-          : 'No nodes to show.'}
-      </p>
-      {active && (
-        <Button variant="ghost" size="sm" onClick={onClear}>
-          Clear filters
-        </Button>
-      )}
+      <p className="text-sm text-muted-foreground">No nodes match the current filter.</p>
+      <Button variant="ghost" size="sm" onClick={onClear}>
+        Reset Filters
+      </Button>
     </div>
   )
 }
@@ -309,7 +360,12 @@ function applyFilters(
   orphanIds: ReadonlySet<NodeId>,
 ): FilteredGraph {
   const nodeMatches = nodes.filter((node) => {
-    if (filters.types.length > 0 && !filters.types.includes(node.type))
+    // Type filter is a strict whitelist: an empty list means *nothing*
+    // matches (the user explicitly cleared all chips). The previous
+    // "empty = show all" convention surprised users — clicking `clear`
+    // looked like a no-op. Initial state is seeded from the ontology's
+    // `defaultVisible` types so first render still has content.
+    if (!filters.types.includes(node.type))
       return false
     if (filters.orphansOnly && !orphanIds.has(node.id))
       return false
@@ -329,20 +385,6 @@ function applyFilters(
   const finalNodes = nodes.filter(n => includedIds.has(n.id))
   const finalEdges = edges.filter(e => includedIds.has(e.fromNodeId) && includedIds.has(e.toNodeId))
   return { nodes: finalNodes, edges: finalEdges }
-}
-
-/**
- * Dim a CSS colour to a translucent version for unselected edge
- * strokes. Mirrors the `withAlpha` helper in ontologyPalette but
- * inlined here so GraphCanvas doesn't reach into palette internals.
- */
-function dim(color: string, alpha: number): string {
-  const trimmed = color.trim()
-  if (/\/\s*[\d.]+\s*\)$/.test(trimmed))
-    return trimmed
-  if (trimmed.endsWith(')'))
-    return `${trimmed.slice(0, -1)} / ${alpha})`
-  return trimmed
 }
 
 function orphanNodeIds(nodes: readonly GraphNode[], edges: readonly GraphEdge[]): Set<NodeId> {

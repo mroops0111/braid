@@ -5,6 +5,7 @@ argument-hint: "[question]"
 disable-model-invocation: true
 braid:
   category: ask
+  summary: Answer questions from the graph, intent docs, and code
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
 ---
 
