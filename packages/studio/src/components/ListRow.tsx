@@ -11,6 +11,8 @@ interface ListRowProps {
    */
   variant?: 'sidebar' | 'content'
   className?: string
+  /** Forwarded to the native `title` attribute; useful for tooltip text when the row is icon-only. */
+  title?: string | undefined
   children: ReactNode
 }
 
@@ -19,7 +21,7 @@ interface ListRowProps {
  * left edge. Used by every selectable list in Studio so the visual language
  * (hover transition, active bg, bar position) stays consistent.
  */
-export function ListRow({ active, onClick, variant = 'content', className, children }: ListRowProps) {
+export function ListRow({ active, onClick, variant = 'content', className, title, children }: ListRowProps) {
   const tokens = variant === 'sidebar'
     ? {
         bar: 'inset-y-1',
@@ -41,7 +43,7 @@ export function ListRow({ active, onClick, variant = 'content', className, child
       {active && (
         <span className={cn('absolute left-0 w-[3px] rounded-r-full bg-primary', tokens.bar)} />
       )}
-      <button type="button" onClick={onClick} className={cn(tokens.button, className)}>
+      <button type="button" onClick={onClick} title={title} className={cn(tokens.button, className)}>
         {children}
       </button>
     </li>

@@ -217,9 +217,8 @@ function SourceRow({ workspaceId, source, onChange }: {
       <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">{detail}</p>
       {sync.data && (
         <p className="mt-1 text-[10px] text-muted-foreground">
-          {sync.data.changed ? 'updated' : 'no change'}
-          {' '}
-          ·
+          <SyncSummary report={sync.data} />
+          {' · '}
           {new Date(sync.data.fetchedAt ?? Date.now()).toLocaleTimeString()}
         </p>
       )}
@@ -228,6 +227,22 @@ function SourceRow({ workspaceId, source, onChange }: {
       )}
     </li>
   )
+}
+
+function SyncSummary({ report }: { report: { changed: boolean, added?: number, updated?: number, removed?: number } }) {
+  // When the loader reports structured counts use the unified `+a ~u -r`
+  // format; otherwise fall back to a plain changed/unchanged label.
+  const hasCounts = report.added !== undefined || report.updated !== undefined || report.removed !== undefined
+  if (!hasCounts)
+    return <span>{report.changed ? 'updated' : 'no change'}</span>
+  const parts: string[] = []
+  if ((report.added ?? 0) > 0)
+    parts.push(`+${report.added}`)
+  if ((report.updated ?? 0) > 0)
+    parts.push(`~${report.updated}`)
+  if ((report.removed ?? 0) > 0)
+    parts.push(`-${report.removed}`)
+  return <span className="font-mono">{parts.length === 0 ? 'no change' : parts.join(' ')}</span>
 }
 
 function McpRow({ server }: { server: McpServerConfig }) {
@@ -256,28 +271,28 @@ function MetaField({ icon: Icon, label, value }: { icon: typeof Database, label:
 
 function UnregisterButton({ workspaceId, onUnregistered }: { workspaceId: string, onUnregistered: () => void }) {
   const [armed, setArmed] = useState(false)
-  const remove = useMutation({
-    mutationFn: () => api.unregisterWorkspace(workspaceId),
+  const action = useMutation({
+    mutationFn: () => api.deleteWorkspace(workspaceId),
     onSuccess: onUnregistered,
   })
 
   if (!armed) {
     return (
       <Button variant="ghost" size="sm" onClick={() => setArmed(true)} className="w-full text-destructive">
-        Unregister Workspace
+        Delete Workspace
       </Button>
     )
   }
   return (
     <div className="space-y-2">
       <p className="text-[11px] text-muted-foreground">
-        Removes from Braid. PRODUCT.md and all source files stay on disk; you can re-register later.
+        Removes PRODUCT.md, all ingested files, and the workspace folder. You can re-create with the same name afterwards.
       </p>
-      {remove.error && <p className="text-[11px] text-destructive">{humaniseApiError(remove.error)}</p>}
+      {action.error && <p className="text-[11px] text-destructive">{humaniseApiError(action.error)}</p>}
       <div className="flex gap-2">
         <Button variant="ghost" size="sm" className="flex-1" onClick={() => setArmed(false)}>Cancel</Button>
-        <Button size="sm" className="flex-1" onClick={() => remove.mutate()} disabled={remove.isPending}>
-          {remove.isPending ? 'Removing…' : 'Confirm'}
+        <Button size="sm" className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => action.mutate()} disabled={action.isPending}>
+          {action.isPending ? 'Deleting…' : 'Delete permanently'}
         </Button>
       </div>
     </div>

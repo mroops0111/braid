@@ -98,3 +98,28 @@ cat > "$tmp" <<EOF
 EOF
 mv "$tmp" "$final"
 ```
+
+## Scratch files
+
+If you need a local file to draft a JSON body before POSTing (for
+validation, multi-step composition, or because a tool requires reading a
+file), write to `$BRAID_SESSION_DIR` (the per-run session directory the
+skill runner sets as your working directory and exports as an env var).
+**Do not** write scratch JSON to `/tmp`:
+
+- `$BRAID_SESSION_DIR` is sandboxed per run, lives under
+  `<workspace>/artifacts/sessions/<runId>/`, and is preserved alongside
+  the run record. Reviewers can inspect drafts after the fact.
+- `/tmp` is a global, multi-user scratch space that the OS wipes
+  unpredictably and is visible to other processes on the same machine.
+
+Example:
+
+```bash
+draft="$BRAID_SESSION_DIR/proposal.draft.json"
+jq -n '{ operations: [...], rationale: "...", generatedBy: "braid-extract" }' > "$draft"
+# inspect / validate the draft, then:
+curl -sS -X POST "$BRAID_API_URL/workspaces/$BRAID_WORKSPACE_ID/proposals" \
+  -H 'Content-Type: application/json' \
+  --data @"$draft"
+```

@@ -132,6 +132,43 @@ describe('SkillManifest', () => {
     })
     expect(manifest.extensionPath).toBeTruthy()
   })
+
+  it('parses a plugin manifest carrying pluginId for sidebar provenance', () => {
+    const manifest = SkillManifest.parse({
+      id: 'redoc-design',
+      origin: 'plugin',
+      path: '/abs/SKILL.md',
+      frontmatter: { name: 'redoc-design', description: 'design' },
+      pluginId: 'redoc-ddd',
+    })
+    expect(manifest.pluginId).toBe('redoc-ddd')
+  })
+
+  it('parses braid extension with category + order for sidebar grouping', () => {
+    const manifest = SkillManifest.parse({
+      id: 'extract',
+      origin: 'builtin',
+      path: '/abs/SKILL.md',
+      frontmatter: {
+        name: 'braid-extract',
+        description: 'extract',
+        braid: { category: 'build', order: 100 },
+      },
+    })
+    expect(manifest.frontmatter.braid.category).toBe('build')
+    expect(manifest.frontmatter.braid.order).toBe(100)
+  })
+
+  it('leaves category and order undefined when omitted (skill lands in Custom group)', () => {
+    const manifest = SkillManifest.parse({
+      id: 'misc',
+      origin: 'workspace',
+      path: '/abs/SKILL.md',
+      frontmatter: { name: 'misc', description: 'a workspace one-off' },
+    })
+    expect(manifest.frontmatter.braid.category).toBeUndefined()
+    expect(manifest.frontmatter.braid.order).toBeUndefined()
+  })
 })
 
 describe('SkillArtifactKind', () => {

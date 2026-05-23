@@ -1,12 +1,27 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='6' fill='%2318181b' stroke='%23a1a1aa' stroke-width='1.5'/></svg>" />
+    <link rel="icon" type="image/svg+xml" href="/src/assets/braid-logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Braid Studio</title>
+    <script>
+      // Apply the persisted theme synchronously so the first paint matches
+      // the user's choice (no flash of wrong theme). Mirrors the resolution
+      // logic in src/lib/theme.ts; keep them in sync.
+      (function () {
+        try {
+          var stored = localStorage.getItem('braid-theme')
+          var pref = (stored === 'light' || stored === 'dark') ? stored : null
+          var resolved = pref || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          if (resolved === 'dark') document.documentElement.classList.add('dark')
+        } catch (_) {
+          // localStorage / matchMedia may not be available; fall back to light.
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

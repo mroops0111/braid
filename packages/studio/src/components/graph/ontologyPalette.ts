@@ -111,7 +111,7 @@ function hashColor(id: string): string {
  * closing paren (oklch / lch / hsl / rgb); for hex / named colours
  * we fall back to opacity at the consumer.
  */
-function withAlpha(color: string, alpha: number): string {
+export function withAlpha(color: string, alpha: number): string {
   const trimmed = color.trim()
   // Already has alpha set (e.g. `oklch(0.6 0.18 274 / 0.3)`) — leave it.
   if (/\/\s*[\d.]+\s*\)$/.test(trimmed))

@@ -3,14 +3,13 @@ import { nameToId, type SourceDraft, toSourceDescriptor } from '../../src/lib/so
 
 const blank: SourceDraft = {
   role: 'intent',
-  kind: 'filesystem',
   name: '',
-  path: '',
   loaderKind: '',
   gitUrl: '',
   gitBranch: '',
   gdriveFolderId: '',
-  mcpServerId: '',
+  gdriveInclude: '',
+  gdriveExclude: '',
 }
 
 describe('nameToId', () => {
@@ -30,20 +29,25 @@ describe('nameToId', () => {
 })
 
 describe('toSourceDescriptor — filesystem', () => {
-  it('builds a manual filesystem source when no loader is selected', () => {
-    const descriptor = toSourceDescriptor({
-      ...blank,
-      name: 'intent',
-      path: './intent',
-    })
-
+  it('groups intent sources under `intents/<id>` and derives path automatically', () => {
+    const descriptor = toSourceDescriptor({ ...blank, role: 'intent', name: 'prd' })
     expect(descriptor).toEqual({
       kind: 'filesystem',
-      id: 'intent',
+      id: 'prd',
       role: 'intent',
-      name: 'intent',
-      path: './intent',
+      name: 'prd',
+      path: './intents/prd',
     })
+  })
+
+  it('groups code sources under `codebases/<id>`', () => {
+    const descriptor = toSourceDescriptor({ ...blank, role: 'code', name: 'frontend' })
+    expect(descriptor).toMatchObject({ id: 'frontend', role: 'code', path: './codebases/frontend' })
+  })
+
+  it('derives path from the slugified id, not the raw display name', () => {
+    const descriptor = toSourceDescriptor({ ...blank, role: 'intent', name: 'My Source' })
+    expect(descriptor).toMatchObject({ id: 'my-source', name: 'My Source', path: './intents/my-source' })
   })
 
   it('attaches a git loader when loaderKind=git, keeping both url and branch', () => {
@@ -51,7 +55,6 @@ describe('toSourceDescriptor — filesystem', () => {
       ...blank,
       role: 'code',
       name: 'src',
-      path: './src',
       loaderKind: 'git',
       gitUrl: 'https://example.com/repo.git',
       gitBranch: 'develop',
@@ -67,7 +70,6 @@ describe('toSourceDescriptor — filesystem', () => {
     const descriptor = toSourceDescriptor({
       ...blank,
       name: 'src',
-      path: './src',
       loaderKind: 'git',
       gitUrl: 'https://example.com/repo.git',
     })
@@ -82,7 +84,6 @@ describe('toSourceDescriptor — filesystem', () => {
     const descriptor = toSourceDescriptor({
       ...blank,
       name: 'drive',
-      path: './drive',
       loaderKind: 'gdrive',
       gdriveFolderId: '1abc',
     })
@@ -92,40 +93,38 @@ describe('toSourceDescriptor — filesystem', () => {
     })
   })
 
-  it('throws when the name is empty (zod brand rejects empty SourceId)', () => {
-    expect(() => toSourceDescriptor({ ...blank, name: '', path: './x' })).toThrow()
-  })
-
-  it('throws when the path is empty (zod brand rejects empty AbsolutePath)', () => {
-    expect(() => toSourceDescriptor({ ...blank, name: 'intent', path: '' })).toThrow()
-  })
-})
-
-describe('toSourceDescriptor — mcp', () => {
-  it('builds an mcp source pointing at the chosen server', () => {
+  it('includes optional gdrive include / exclude regex on the loader config when set', () => {
     const descriptor = toSourceDescriptor({
       ...blank,
-      kind: 'mcp',
-      role: 'code',
-      name: 'linear',
-      mcpServerId: 'linear',
+      name: 'drive',
+      loaderKind: 'gdrive',
+      gdriveFolderId: '1abc',
+      gdriveInclude: '^docs/',
+      gdriveExclude: '\\.tmp$',
     })
 
-    expect(descriptor).toEqual({
-      kind: 'mcp',
-      id: 'linear',
-      role: 'code',
-      name: 'linear',
-      mcpServerId: 'linear',
+    expect(descriptor).toMatchObject({
+      loader: {
+        kind: 'gdrive',
+        config: { folderId: '1abc', include: '^docs/', exclude: '\\.tmp$' },
+      },
     })
   })
 
-  it('throws when mcpServerId is empty', () => {
-    expect(() => toSourceDescriptor({
+  it('omits include / exclude when blank (avoids passing empty regex to the loader)', () => {
+    const descriptor = toSourceDescriptor({
       ...blank,
-      kind: 'mcp',
-      name: 'linear',
-      mcpServerId: '',
-    })).toThrow()
+      name: 'drive',
+      loaderKind: 'gdrive',
+      gdriveFolderId: '1abc',
+    })
+
+    const config = (descriptor as { loader: { config: Record<string, unknown> } }).loader.config
+    expect(config.include).toBeUndefined()
+    expect(config.exclude).toBeUndefined()
+  })
+
+  it('throws when the name is empty (zod brand rejects empty SourceId)', () => {
+    expect(() => toSourceDescriptor({ ...blank, name: '' })).toThrow()
   })
 })

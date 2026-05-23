@@ -63,11 +63,34 @@ describe('GitLoader', () => {
 
     const first = await loader.sync({ url: remoteUrl, branch: 'main' }, dest)
     expect(first.changed).toBe(true)
+    // README modified, no adds/removes → updated=1, added=0, removed=0.
+    expect(first).toMatchObject({ added: 0, updated: 1, removed: 0 })
     const readme = await readFile(join(dest, 'README.md'), 'utf-8')
     expect(readme).toBe('# v2\n')
 
     const second = await loader.sync({ url: remoteUrl, branch: 'main' }, dest)
     expect(second.changed).toBe(false)
+    expect(second).toMatchObject({ added: 0, updated: 0, removed: 0 })
+  })
+
+  it('sync counts added / removed files (not just modified) for the unified per-file report', async () => {
+    const loader = new GitLoader()
+    const dest = join(scratch, 'workspace-source') as AbsolutePath
+    await loader.ingest({ url: remoteUrl, branch: 'main' }, dest)
+
+    // Add one file + delete the existing README via an upstream clone.
+    const upstream = join(scratch, 'upstream')
+    await simpleGit().clone(remoteUrl, upstream)
+    const up = simpleGit({ baseDir: upstream })
+    await up.addConfig('user.name', 'tester')
+    await up.addConfig('user.email', 't@example.com')
+    await up.rm(['README.md'])
+    await writeFile(join(upstream, 'NEW.md'), 'fresh\n', 'utf-8')
+    await up.add('.').commit('add NEW.md, drop README', ['--no-gpg-sign'])
+    await up.push('origin', 'HEAD')
+
+    const report = await loader.sync({ url: remoteUrl, branch: 'main' }, dest)
+    expect(report).toMatchObject({ added: 1, updated: 0, removed: 1, changed: true })
   })
 
   // eslint-disable-next-line no-template-curly-in-string -- intentional: testing literal ${VAR} interpolation

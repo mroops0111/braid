@@ -12,7 +12,7 @@ export const GitLoaderConfig = z.object({
   branch: z.string().min(1).optional(),
   /** Subdirectory inside the cloned repo to use as the source content root. The loader still clones the full repo; you choose what claude sees by pointing the source `path` deeper. */
   subdir: z.string().optional(),
-  /** Shallow clone depth. Defaults to 1 — we only need the working tree. */
+  /** Shallow clone depth. Defaults to 1; we only need the working tree. */
   depth: z.number().int().positive().default(1),
 })
 export type GitLoaderConfig = z.infer<typeof GitLoaderConfig>
@@ -63,12 +63,48 @@ export class GitLoader implements SourceLoaderPlugin {
     await git.fetch('origin', config.branch ?? 'HEAD', ['--depth', String(config.depth)])
     await git.reset(['--hard', `origin/${config.branch ?? 'HEAD'}`])
     const after = (await git.revparse(['HEAD'])).trim()
+    const counts = before === after
+      ? { added: 0, updated: 0, removed: 0 }
+      : await countChangedFiles(git, before, after)
     return {
       changed: before !== after,
+      added: counts.added,
+      updated: counts.updated,
+      removed: counts.removed,
       metadata: { url: config.url, branch: config.branch ?? null, sha: after, previousSha: before },
       fetchedAt: new Date().toISOString() as never,
     }
   }
+}
+
+/**
+ * Parse `git diff --name-status <before>..<after>` into add / update /
+ * remove counts. Status letters: A=added, M=modified, D=deleted,
+ * R=renamed (treated as 1 update), C=copied (treated as 1 add). Anything
+ * else we conservatively classify as updated.
+ */
+async function countChangedFiles(
+  git: ReturnType<typeof simpleGit>,
+  before: string,
+  after: string,
+): Promise<{ added: number, updated: number, removed: number }> {
+  const raw = await git.raw(['diff', '--name-status', `${before}..${after}`])
+  let added = 0
+  let updated = 0
+  let removed = 0
+  for (const line of raw.split('\n')) {
+    const status = line.trim().split(/\s+/)[0]
+    if (!status)
+      continue
+    const code = status[0]
+    if (code === 'A' || code === 'C')
+      added++
+    else if (code === 'D')
+      removed++
+    else
+      updated++
+  }
+  return { added, updated, removed }
 }
 
 function interpolateEnv(input: string): string {

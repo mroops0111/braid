@@ -10,8 +10,11 @@ import type {
   WorkspaceEventBus,
   WorkspaceRepository,
 } from '@braidhq/core'
+import type { AbsolutePath } from '@braidhq/schema'
 import type { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
 import type { SecretStore } from './infrastructure/secrets/SecretStore.js'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import {
   HITLService,
   InMemoryClarifyTicketRepository,
@@ -45,6 +48,11 @@ export interface AppDependencies {
   skillRegistry: SkillRegistry | undefined
   skillRunner: SkillRunner | undefined
   runRepository: RunRepository
+  /**
+   * Parent directory under which name-based workspaces are scaffolded.
+   * `POST /workspaces/scaffold { name }` resolves to `<workspacesRoot>/<name>`.
+   */
+  workspacesRoot: AbsolutePath
   /** OAuth secret storage (file-based; pluggable for hosted deployments). */
   secretStore?: SecretStore
   /**
@@ -66,6 +74,12 @@ export interface ComposeOptions {
   skillRegistry?: SkillRegistry
   skillRunner?: SkillRunner
   runRepository?: RunRepository
+  /**
+   * Parent dir for name-based scaffold. composeFsApp sets this to
+   * `<braidHome>/workspaces`; tests using composeApp directly can leave
+   * it at the default unless they exercise the scaffold endpoint.
+   */
+  workspacesRoot?: AbsolutePath
   /**
    * Pre-created event bus. Pass the same instance you wired into
    * `SubprocessSkillRunner` so subscribers see runner events. Defaults
@@ -115,6 +129,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     skillRegistry: options.skillRegistry,
     skillRunner: options.skillRunner,
     runRepository: options.runRepository ?? noopRunRepository,
+    workspacesRoot: options.workspacesRoot ?? (join(tmpdir(), 'braid-workspaces') as AbsolutePath),
     clock,
   }
 }

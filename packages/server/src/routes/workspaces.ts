@@ -1,7 +1,7 @@
 import type { SourceLoaderRunner, Workspace, WorkspaceService } from '@braidhq/core'
 import type { ProductManifest, SourceDescriptor } from '@braidhq/schema'
-import { rm, stat } from 'node:fs/promises'
-import { join } from 'node:path'
+import { rm } from 'node:fs/promises'
+import { isAbsolute, join, resolve } from 'node:path'
 import { NotFoundError, ValidationError } from '@braidhq/core'
 import {
   AbsolutePath,
@@ -16,6 +16,7 @@ import {
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { isUnder, pathExists } from '../infrastructure/fs/paths.js'
 import { fillManifestDefaults, updateProductManifest, writeProductManifest } from '../infrastructure/fs/productManifestWriter.js'
 import { getWorkspaceId, workspaceIdMiddleware } from '../middleware/workspaceId.js'
 
@@ -23,8 +24,16 @@ const RegisterBodySchema = z.object({
   rootPath: AbsolutePath,
 })
 
+// Folder name resolved under the server-managed `workspacesRoot` (default
+// `~/.braid/workspaces/`). Slug-only so name == folder == workspace id;
+// rejects `/`, `..` and other path-traversal cases.
+const WorkspaceFolderName = z.string().min(1).regex(
+  /^[a-z0-9][a-z0-9-]*$/,
+  'Workspace name must be lowercase letters, digits, or dashes; must start with a letter or digit.',
+)
+
 const ScaffoldBodySchema = z.object({
-  rootPath: AbsolutePath,
+  name: WorkspaceFolderName,
   manifest: ProductManifestDraft,
 })
 
@@ -40,6 +49,7 @@ const PatchWorkspaceBodySchema = z.object({
 export interface WorkspacesRouterDeps {
   workspaceService: WorkspaceService
   sourceLoaderRunner: SourceLoaderRunner
+  workspacesRoot: AbsolutePath
 }
 
 export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
@@ -63,17 +73,28 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     return context.json(workspace.toData(), 201)
   })
 
-  // Create a workspace from scratch: write PRODUCT.md with server-filled
-  // defaults, run every loader-backed source's `ingest`, then register.
-  // If ingest fails (wrong git branch, missing OAuth scope, etc.) we
-  // delete the PRODUCT.md we just wrote and drop the parse cache, so
-  // the user's retry sees a clean slate instead of "PRODUCT.md already
-  // exists" or a stale cached config.
+  // Create-only entrypoint. Existing canonical workspaces are surfaced
+  // via the sidebar (auto-discovered on boot), so the wizard never has
+  // to double-purpose as "open". Conflict on submit means "pick a
+  // different name or delete the existing one first". The response is
+  // a 400 the UI can humanise.
+  //
+  // Writes PRODUCT.md with server-filled defaults, runs every
+  // loader-backed source's `ingest`, then registers. If ingest fails
+  // (wrong git branch, missing OAuth scope, etc.) we delete the
+  // PRODUCT.md we just wrote and drop the parse cache, so the user's
+  // retry sees a clean slate instead of a stale half-created workspace.
   router.post('/scaffold', zValidator('json', ScaffoldBodySchema), async (context) => {
-    const { rootPath, manifest: draft } = context.req.valid('json')
+    const { name, manifest: draft } = context.req.valid('json')
+    const rootPath = join(deps.workspacesRoot, name) as AbsolutePath
     const productPath = join(rootPath, 'PRODUCT.md')
-    if (await pathExists(productPath))
-      throw new ValidationError(`A PRODUCT.md already exists at "${rootPath}". Use POST /workspaces to register it instead.`)
+
+    if (await pathExists(productPath)) {
+      throw new ValidationError(
+        `A workspace named "${name}" already exists. Open it from the sidebar, or delete it first to recreate with the same name.`,
+      )
+    }
+
     const manifest = fillManifestDefaults(draft)
     await writeProductManifest(rootPath, manifest, manifest.description)
     try {
@@ -114,8 +135,12 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     return context.json({ workspace: updated.toData(), ...(ingest ? { ingest } : {}) }, 201)
   })
 
-  // Remove a source from the manifest. Local files (e.g. cloned git repos)
-  // are left on disk; the user can `rm -rf` them manually if they want.
+  // Remove a source from the manifest AND rm its local files when the
+  // resolved path is inside the workspace folder (typical case: relative
+  // `./intent` etc.: safe to wipe, the loader was their author). If the
+  // source's path is absolute and points outside the workspace, files
+  // are kept and an explanatory note returned; we won't nuke a
+  // directory the user could plausibly own outside Braid's scope.
   router.delete('/:workspaceId/sources/:sourceId', workspaceIdMiddleware, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const sourceId = SourceId.parse(context.req.param('sourceId'))
@@ -126,8 +151,18 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
 
     const nextManifest = withSources(workspace.productManifest, workspace.sources.filter(entry => entry.id !== sourceId))
     await updateProductManifest(workspace.rootPath, nextManifest)
+
+    let filesRemoved = false
+    if (source.kind === 'filesystem') {
+      const resolved = isAbsolute(source.path) ? source.path : resolve(workspace.rootPath, source.path)
+      if (isUnder(resolved, workspace.rootPath) && resolved !== workspace.rootPath) {
+        await rm(resolved, { recursive: true, force: true })
+        filesRemoved = true
+      }
+    }
+
     const updated = await reload(deps.workspaceService, workspace.rootPath)
-    return context.json({ workspace: updated.toData() })
+    return context.json({ workspace: updated.toData(), filesRemoved })
   })
 
   // Per-source sync. Looks up the source's loader and invokes `sync` (or
@@ -165,13 +200,31 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     })
   })
 
-  // Unregister a workspace. Files (PRODUCT.md, .braid/, ingested sources)
-  // are left on disk — the user can re-register via POST /workspaces or
-  // delete the directory manually.
+  // Unregister a workspace (default) or fully delete it (`?purge=true`).
+  //
+  // Without `purge`, files (PRODUCT.md, .braid/, ingested sources) stay
+  // on disk. But canonical-root workspaces under `<workspacesRoot>/` get
+  // re-registered by `discoverCanonicalWorkspaces` on the next server
+  // boot, so plain unregister is effectively a no-op for them. That's
+  // why purge exists.
+  //
+  // `purge=true` also `rm -rf`'s the workspace folder. Refused for
+  // arbitrary-path workspaces (registered via `POST /workspaces` with a
+  // custom rootPath) since we shouldn't nuke directories Braid didn't
+  // create. The user can rm those manually if they want.
   router.delete('/:workspaceId', workspaceIdMiddleware, async (context) => {
     const workspaceId = getWorkspaceId(context)
+    const purge = context.req.query('purge') === 'true'
     const workspace = await deps.workspaceService.findById(workspaceId)
+    if (purge && !isUnder(workspace.rootPath, deps.workspacesRoot)) {
+      throw new ValidationError(
+        `Refusing to purge workspace "${workspaceId}": its rootPath "${workspace.rootPath}" `
+        + `lives outside the canonical workspaces root. Unregister without purge and remove the directory manually.`,
+      )
+    }
     await deps.workspaceService.remove(workspace.rootPath)
+    if (purge)
+      await rm(workspace.rootPath, { recursive: true, force: true })
     return context.body(null, 204)
   })
 
@@ -196,14 +249,4 @@ async function reload(workspaceService: WorkspaceService, rootPath: AbsolutePath
   const reloaded = await workspaceService.load(rootPath)
   await workspaceService.save(reloaded)
   return reloaded
-}
-
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await stat(path)
-    return true
-  }
-  catch {
-    return false
-  }
 }

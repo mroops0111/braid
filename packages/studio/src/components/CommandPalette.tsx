@@ -1,5 +1,5 @@
 import type { SkillManifest, Workspace } from '@braidhq/schema'
-import { Boxes, FolderGit2, GitBranch, History, Inbox, Sparkles } from 'lucide-react'
+import { Boxes, FolderGit2, GitBranch, Inbox, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {
   CommandDialog,
@@ -20,13 +20,12 @@ interface CommandPaletteProps {
   onSelectTab: (tab: TabKey) => void
 }
 
-export type TabKey = 'skills' | 'graph' | 'proposals' | 'runs'
+export type TabKey = 'actions' | 'graph' | 'proposals'
 
 const TAB_ITEMS: { id: TabKey, label: string, Icon: typeof Sparkles }[] = [
-  { id: 'skills', label: 'Skills', Icon: Sparkles },
+  { id: 'actions', label: 'Actions', Icon: Sparkles },
   { id: 'graph', label: 'Graph', Icon: GitBranch },
   { id: 'proposals', label: 'Proposals', Icon: Inbox },
-  { id: 'runs', label: 'Runs', Icon: History },
 ]
 
 export function CommandPalette({
@@ -94,12 +93,12 @@ export function CommandPalette({
         )}
 
         {skills.length > 0 && (
-          <CommandGroup heading="Skills">
+          <CommandGroup heading="Actions">
             {skills.map((skill: SkillManifest) => (
               <CommandItem
                 key={skill.id}
                 onSelect={() => {
-                  onSelectTab('skills')
+                  onSelectTab('actions')
                   setOpen(false)
                 }}
               >
@@ -122,9 +121,8 @@ export function CommandPalette({
 
 function shortcutFor(tab: TabKey): string {
   switch (tab) {
-    case 'skills': return 'g s'
+    case 'actions': return 'g a'
     case 'graph': return 'g g'
     case 'proposals': return 'g p'
-    case 'runs': return 'g r'
   }
 }

@@ -112,6 +112,10 @@ describe('FsSkillRegistry', () => {
       const manifest = await registry.get(workspace, 'redoc-design' as SkillId)
       expect(manifest.origin).toBe('plugin')
       expect(manifest.frontmatter.name).toBe('redoc-design')
+      // pluginId travels with the manifest so Studio can label the
+      // sidebar badge with the contributing plugin instead of a generic
+      // "plugin" string.
+      expect(manifest.toData().pluginId).toBe('plugin.redoc')
     })
 
     it('workspace skills override plugin skills with the same id', async () => {
