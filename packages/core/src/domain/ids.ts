@@ -2,6 +2,7 @@ import type {
   AnswerId,
   ClarifyTicketId,
   DecisionId,
+  DriftIssueId,
   EdgeId,
   NodeId,
   ProposalId,
@@ -57,4 +58,8 @@ export function newAnswerId(): AnswerId {
 
 export function newSkillRunId(): SkillRunId {
   return crypto.randomUUID() as SkillRunId
+}
+
+export function newDriftIssueId(): DriftIssueId {
+  return crypto.randomUUID() as DriftIssueId
 }
