@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { useProposalGraphDataSource } from '@/components/graph/GraphDataSource'
 import { FocusToggle } from '@/components/graph/GraphToolbar'
 import { ListRow } from '@/components/ListRow'
+import { PageActions } from '@/components/PageActions'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -53,7 +54,9 @@ export function ProposalsPage({ workspaceId }: ProposalsPageProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <ProposalsStatusFilter workspaceId={workspaceId} status={status} onChange={changeStatus} />
+      <PageActions>
+        <ProposalsStatusFilter workspaceId={workspaceId} status={status} onChange={changeStatus} />
+      </PageActions>
       <div className="flex flex-1 overflow-hidden">
         <div className="flex w-72 shrink-0 flex-col border-r border-border">
           {isLoading
@@ -120,9 +123,10 @@ export function ProposalsPage({ workspaceId }: ProposalsPageProps) {
   )
 }
 
-// Pending / Applied / Rejected segment. Pending wears a live count
-// badge — the only one worth surfacing, since applied/rejected lists
-// grow monotonically and a count there is noise.
+// Pending / Applied / Rejected segment. Rendered via PageActions into
+// the top tab row so it doesn't take a row of its own. Pending wears
+// a live count badge — the only one worth surfacing, since applied /
+// rejected lists grow monotonically and a count there is noise.
 function ProposalsStatusFilter({
   workspaceId,
   status,
@@ -135,22 +139,20 @@ function ProposalsStatusFilter({
   const { data: pending } = useProposalsByStatus(workspaceId, 'pending')
   const pendingCount = pending?.items.length ?? 0
   return (
-    <div className="flex shrink-0 items-center border-b border-border px-4 py-2">
-      <Tabs value={status} onValueChange={value => onChange(value as StatusFilter)}>
-        <TabsList className="h-7">
-          <TabsTrigger value="pending" className="px-3 text-xs">
-            Pending
-            {pendingCount > 0 && (
-              <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-medium leading-none text-primary">
-                {pendingCount}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="applied" className="px-3 text-xs">Applied</TabsTrigger>
-          <TabsTrigger value="rejected" className="px-3 text-xs">Rejected</TabsTrigger>
-        </TabsList>
-      </Tabs>
-    </div>
+    <Tabs value={status} onValueChange={value => onChange(value as StatusFilter)}>
+      <TabsList className="h-7">
+        <TabsTrigger value="pending" className="px-3 text-xs">
+          Pending
+          {pendingCount > 0 && (
+            <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-medium leading-none text-primary">
+              {pendingCount}
+            </span>
+          )}
+        </TabsTrigger>
+        <TabsTrigger value="applied" className="px-3 text-xs">Applied</TabsTrigger>
+        <TabsTrigger value="rejected" className="px-3 text-xs">Rejected</TabsTrigger>
+      </TabsList>
+    </Tabs>
   )
 }
 
