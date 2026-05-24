@@ -102,19 +102,28 @@ If `STATUS=400` with `code: "BRAID-VAL"`, look at `BODY_JSON.issues` and decide:
 - The candidate's ops are valid but a sibling op also in `$RESOLUTION` is
   bad → only happens if you injected supplementary ops in Step 2; revisit.
 
-## Step 4: link the ticket to the proposal
+## Step 4: mark the ticket applied
+
+Transition the ticket `answered → applied` via the server. Include
+`proposalId` when Step 3 produced one; omit it when the chosen
+candidate had no graph impact (no Proposal was submitted). The server
+holds the state machine; never write to `artifacts/clarify/` directly.
 
 ```bash
+# With a linking proposal:
 curl -sf -X PATCH \
   "$BRAID_API_URL/workspaces/$BRAID_WORKSPACE_ID/clarify/$TICKET_ID" \
   -H 'Content-Type: application/json' \
   -d "$(jq -n --arg pid "$PROPOSAL_ID" --arg uid "${BRAID_USER_ID:-braid-clarify}" \
-        '{ proposalId: $pid, userId: $uid }')"
-```
+        '{ status: "applied", proposalId: $pid, userId: $uid }')"
 
-This transitions the ticket `answered → applied` and stamps `proposalId`
-so the UI can navigate from a ticket back to its Proposal. The server
-holds the state machine; never write to `artifacts/clarify/` directly.
+# Without (no-impact resolution):
+curl -sf -X PATCH \
+  "$BRAID_API_URL/workspaces/$BRAID_WORKSPACE_ID/clarify/$TICKET_ID" \
+  -H 'Content-Type: application/json' \
+  -d "$(jq -n --arg uid "${BRAID_USER_ID:-braid-clarify}" \
+        '{ status: "applied", userId: $uid }')"
+```
 
 # Output
 
@@ -132,14 +141,14 @@ Processed N tickets: M proposals produced, K new clarify tickets raised, L skipp
 
 - [ ] Every `answered` ticket has an outcome (proposal submitted, new clarify raised, or skipped with reason)
 - [ ] Each produced Proposal's `rationale` cites the source ticket id + candidate id
-- [ ] Each processed ticket moved from `answered/` to `applied/` with `proposalId` stamped (Step 4)
+- [ ] Each processed ticket transitioned to `applied` via Step 4 (with `proposalId` when a Proposal was produced)
 - [ ] Final stdout lists each ticket's outcome
 
 # Notes
 
 - Proposals are created via `POST /proposals` (server mints id + validates). **Do not** write proposal JSON directly to disk.
 - **Do not modify** `operations` except to preserve invariants (don't change user intent)
-- If a candidate's `resolution` is an empty array (user picked an option that has no graph impact) → do **not** produce a Proposal; move ticket to `applied/` as a record only
+- If a candidate's `resolution` is an empty array (user picked an option that has no graph impact) → do **not** produce a Proposal; still call Step 4's PATCH with `status: 'applied'` and no `proposalId` so the server records the ticket as applied (do not touch `artifacts/clarify/` yourself)
 - Don't reprocess already-applied tickets: check `clarify/applied/` and `clarify/skipped/` first
 - If `$BRAID_WORKSPACE/skill-extensions/braid-clarify/EXTEND.md` exists,
   follow its rules **after** the steps above. Workspace-specific

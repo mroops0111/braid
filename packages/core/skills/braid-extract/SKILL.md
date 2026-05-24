@@ -34,7 +34,8 @@ and let the human pick.
 | File | When to read |
 |------|--------------|
 | `$BRAID_SESSION_DIR/.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
-| `$BRAID_SESSION_DIR/.claude/skills/shared/artifact-formats.md` | before writing. Exact Proposal / ClarifyTicket JSON shape |
+| `$BRAID_SESSION_DIR/.claude/skills/shared/artifact-formats.md` | before writing. Exact Proposal / ClarifyTicket / DriftIssue JSON shape |
+| `$BRAID_SESSION_DIR/.claude/skills/shared/drift-detection.md` | Step 3. When sources disagree on a field, attach a structured DriftIssue to the node instead of guessing or silently picking one side |
 
 # Initialization
 
@@ -96,16 +97,26 @@ For each candidate node you intend to emit, set `metadata` according to where th
 - **Intent source only** (no code yet, e.g. a fresh PRD): `metadata.sourceReferences = [intent ref]` + `metadata.implementationMissing = true`. Status stays `draft`.
 - **Code source only** (running code with no spec): `metadata.sourceReferences = [code ref]` + `metadata.intentMissing = true`. Status `draft`.
 - **Both sources agree**: `metadata.sourceReferences = [intent ref, code ref]`. Status `draft` (only the human applies → `completed`).
-- **Both sources disagree**: drop the candidate into a ClarifyTicket. Do not write a guess.
+- **Both sources disagree**: distinguish identity-level disagreement from field-level drift before deciding what to emit (see below).
 
 Every node you emit MUST have `metadata` set. A node with `metadata.sourceReferences: []` AND no `implementationMissing` AND no `intentMissing` will be rejected by the server validator.
+
+### Identity-level disagreement → ClarifyTicket
+
+You can't tell whether two sources are even describing the *same* concept (`voidTask` and `cancelTask`: alias or distinct? Two unrelated `Task` definitions in different PRDs?). Don't pick. Emit a `ClarifyTicket` per Step 5 and stop.
+
+### Field-level drift → DriftIssue attached to the node
+
+The sources agree on *what* this is, but disagree on *specifics*: a limit, a state set, a parameter list, a sequence of steps. **Don't** drop into a ClarifyTicket — emit the node anyway and attach one structured `DriftIssue` per dimension to its `metadata.driftIssues[]`. Set `status: 'unclear'` instead of `draft` when at least one DriftIssue is `severity: 'error'`. Read `drift-detection.md` for the dimension checklist, the description pattern, and severity rules; the JSON shape is in `artifact-formats.md`.
+
+This split is load-bearing: ClarifyTickets are "the human must decide what this is", DriftIssues are "the human can see two sources disagree and act on the proposal review pane". Conflating them buries field-level drift in ticket prose where the validator can't gate Apply.
 
 Also ask:
 
 1. Would applying it break other parts of the graph? (orphaning references?)
-2. Are there contradictions between two intent docs?
+2. Are there contradictions between two intent docs about the same concept? Those are field-level drift on a node, not identity disagreement.
 
-If **any** answer is "uncertain" → ClarifyTicket, not Proposal.
+If **any** answer is "uncertain" about node identity → ClarifyTicket, not Proposal.
 
 ## Step 4: submit the Proposal via POST
 
@@ -183,6 +194,7 @@ Produced N proposals + M clarify tickets:
 
 - [ ] Ontology fetched from `/ontology` before any operation was drafted
 - [ ] Every node has `metadata.sourceReferences` AND/OR an `implementationMissing` / `intentMissing` flag
+- [ ] When two sources for the same node disagreed on a specific field, a structured `DriftIssue` is attached (not a ClarifyTicket); see `drift-detection.md`
 - [ ] Every `node.type` matches a `nodeTypes[].id` from `/ontology`; every `edge.type` matches an `edgeTypes[].id`
 - [ ] Each proposal was submitted via `POST /proposals` and the final response was 201 (not 4xx)
 - [ ] No `removeNode` of a node still referenced elsewhere (deprecate instead)

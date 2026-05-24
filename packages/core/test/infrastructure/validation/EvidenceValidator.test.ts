@@ -1,10 +1,14 @@
-import type { ModelSnapshot, NodeId, NodeStatus, NodeTypeId, SourceId } from '@braidhq/schema'
+import type { DriftIssueId, ModelSnapshot, NodeId, NodeStatus, NodeTypeId, SourceId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { EvidenceValidator } from '../../../src/infrastructure/validation/EvidenceValidator.js'
 
 const draft = 'draft' as NodeStatus
 const completed = 'completed' as NodeStatus
 const aggregate = 'aggregate' as NodeTypeId
+
+function sourceRef(uri: string, sourceId = 'src') {
+  return { sourceId: sourceId as SourceId, location: { uri } }
+}
 
 function snapshot(nodes: ModelSnapshot['nodes'], edges: ModelSnapshot['edges'] = []): ModelSnapshot {
   return { nodes, edges }
@@ -85,5 +89,84 @@ describe('EvidenceValidator', () => {
     ]))
     expect(issues).toHaveLength(2)
     expect(issues.map(i => i.nodeId).sort()).toEqual(['a', 'b'])
+  })
+
+  describe('drift surfacing', () => {
+    it('emits one ValidationIssue per DriftIssue with severity preserved', async () => {
+      const issues = await validator.validate(snapshot([
+        {
+          id: 'n1' as NodeId,
+          type: aggregate,
+          name: 'Cart',
+          status: draft,
+          metadata: {
+            sourceReferences: [sourceRef('intent/cart.md'), sourceRef('apps/api/cart.ts')],
+            driftIssues: [
+              {
+                id: 'd1' as DriftIssueId,
+                description: 'Intent says cap 50, code allows 99',
+                severity: 'error',
+                sourceReferences: [sourceRef('intent/cart.md'), sourceRef('apps/api/cart.ts')],
+                raisedAt: '2026-05-23T00:00:00.000Z',
+              },
+              {
+                id: 'd2' as DriftIssueId,
+                description: 'Intent uses "shopper", code uses "customer"',
+                severity: 'warning',
+                sourceReferences: [sourceRef('intent/cart.md'), sourceRef('apps/api/cart.ts')],
+                raisedAt: '2026-05-23T00:00:00.000Z',
+              },
+            ],
+          },
+        },
+      ]))
+      const drift = issues.filter(i => i.code === 'evidence.drift')
+      expect(drift).toHaveLength(2)
+      expect(drift.map(i => i.severity).sort()).toEqual(['error', 'warning'])
+      expect(drift.every(i => i.nodeId === 'n1')).toBe(true)
+      expect(drift[0]!.message).toContain('Cart')
+    })
+
+    it('suppresses drift whose description appears in acknowledgedDrifts', async () => {
+      const description = 'Intent uses "shopper", code uses "customer"'
+      const issues = await validator.validate(snapshot([
+        {
+          id: 'n1' as NodeId,
+          type: aggregate,
+          name: 'Cart',
+          status: draft,
+          metadata: {
+            sourceReferences: [sourceRef('intent/cart.md'), sourceRef('apps/api/cart.ts')],
+            driftIssues: [
+              {
+                id: 'd1' as DriftIssueId,
+                description,
+                severity: 'warning',
+                sourceReferences: [sourceRef('intent/cart.md'), sourceRef('apps/api/cart.ts')],
+                raisedAt: '2026-05-23T00:00:00.000Z',
+              },
+            ],
+            acknowledgedDrifts: [description],
+          },
+        },
+      ]))
+      expect(issues.filter(i => i.code === 'evidence.drift')).toEqual([])
+    })
+
+    it('emits nothing when driftIssues is undefined or empty', async () => {
+      const issues = await validator.validate(snapshot([
+        {
+          id: 'n1' as NodeId,
+          type: aggregate,
+          name: 'Cart',
+          status: draft,
+          metadata: {
+            sourceReferences: [sourceRef('intent/cart.md')],
+            driftIssues: [],
+          },
+        },
+      ]))
+      expect(issues.filter(i => i.code === 'evidence.drift')).toEqual([])
+    })
   })
 })
