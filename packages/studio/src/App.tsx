@@ -9,7 +9,7 @@ import { ServerUrlDialog } from './components/ServerUrlDialog'
 import { Sidebar } from './components/Sidebar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
-import { useWorkspaces } from './lib/queries'
+import { usePendingProposals, useWorkspaces } from './lib/queries'
 import { GraphNavigationContext } from './lib/useGraphNavigation'
 import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
 import { ActionsPage } from './pages/Actions'
@@ -86,7 +86,10 @@ export function App() {
                       <TabsList variant="line" className="h-10">
                         <TabsTrigger value="actions">Actions</TabsTrigger>
                         <TabsTrigger value="graph">Graph</TabsTrigger>
-                        <TabsTrigger value="proposals">Proposals</TabsTrigger>
+                        <TabsTrigger value="proposals">
+                          Proposals
+                          <ProposalsPendingBadge workspaceId={activeId} />
+                        </TabsTrigger>
                       </TabsList>
                       <PageActionsHost className="flex items-center gap-2" />
                     </div>
@@ -132,6 +135,25 @@ export function App() {
         </div>
       </PageActionsProvider>
     </GraphNavigationContext.Provider>
+  )
+}
+
+// Pending-proposal count shown next to the Proposals tab label so the
+// reviewer notices queued work without checking the sidebar. Hidden
+// when the count is zero to keep the tab strip quiet during normal
+// flow.
+function ProposalsPendingBadge({ workspaceId }: { workspaceId: string }) {
+  const { data } = usePendingProposals(workspaceId)
+  const count = data?.items.length ?? 0
+  if (count === 0)
+    return null
+  return (
+    <span
+      className="ml-0.5 rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-medium leading-none text-primary"
+      title={`${count} pending proposal${count === 1 ? '' : 's'}`}
+    >
+      {count}
+    </span>
   )
 }
 

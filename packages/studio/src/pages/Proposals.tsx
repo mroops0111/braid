@@ -1,4 +1,4 @@
-import type { EdgeId, GraphOperation, NewGraphEdge, NewGraphNode, NodeId, Proposal, ValidationIssue, ValidationSeverity } from '@braidhq/schema'
+import type { EdgeId, GraphOperation, NewGraphEdge, NewGraphNode, NodeId, Proposal, ProposalStatus, ValidationIssue, ValidationSeverity } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, AlertTriangle, Check, ChevronDown, ChevronRight, Inbox, Info, MinusCircle, PencilLine, PlusCircle, X } from 'lucide-react'
 import { useState } from 'react'
@@ -8,8 +8,9 @@ import { FocusToggle } from '@/components/graph/GraphToolbar'
 import { ListRow } from '@/components/ListRow'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
-import { queryKeys, usePendingProposals, useProposalValidation } from '@/lib/queries'
+import { queryKeys, useProposalsByStatus, useProposalValidation } from '@/lib/queries'
 import { useGraphNavigation } from '@/lib/useGraphNavigation'
 import { GraphSurface } from './GraphSurface'
 
@@ -19,64 +20,136 @@ interface ProposalsPageProps {
 
 const DEFAULT_USER_ID = 'studio-user'
 
+type StatusFilter = Extract<ProposalStatus, 'pending' | 'applied' | 'rejected'>
+
+const EMPTY_COPY: Record<StatusFilter, { title: string, description: string }> = {
+  pending: {
+    title: 'No Pending Proposals',
+    description: 'Run /braid-extract or /braid-clarify to produce graph mutations awaiting HITL review.',
+  },
+  applied: {
+    title: 'No Applied Proposals',
+    description: 'Proposals you accept will land here as a permanent record.',
+  },
+  rejected: {
+    title: 'No Rejected Proposals',
+    description: 'Proposals you reject will land here so you can re-read the reason later.',
+  },
+}
+
 export function ProposalsPage({ workspaceId }: ProposalsPageProps) {
-  const { data, isLoading } = usePendingProposals(workspaceId)
+  // Status filter doubles as both the list query and the "is this
+  // read-only?" signal for the detail pane. Switching status clears the
+  // selected proposal so the right pane doesn't show an item that no
+  // longer matches the active filter.
+  const [status, setStatus] = useState<StatusFilter>('pending')
+  const { data, isLoading } = useProposalsByStatus(workspaceId, status)
   const [selected, setSelected] = useState<Proposal | null>(null)
 
-  if (isLoading)
-    return <div className="p-4 text-sm text-muted-foreground">Loading proposals…</div>
-  if (!data || data.items.length === 0) {
-    return (
-      <EmptyState
-        icon={Inbox}
-        title="No Pending Proposals"
-        description="Run /braid-extract or /braid-clarify to produce graph mutations awaiting HITL review."
-      />
-    )
+  function changeStatus(next: StatusFilter): void {
+    setStatus(next)
+    setSelected(null)
   }
 
   return (
-    <div className="flex h-full">
-      <ul className="w-72 shrink-0 overflow-y-auto scrollbar-thin border-r border-border">
-        {data.items.map(proposal => (
-          <ListRow
-            key={proposal.id}
-            active={selected?.id === proposal.id}
-            onClick={() => setSelected(proposal)}
-            className="flex-col gap-1"
-          >
-            <div className="flex w-full items-center justify-between gap-2">
-              <span className="break-all font-mono text-xs text-foreground">{proposal.id}</span>
-              <StatusBadge status={proposal.status} />
-            </div>
-            <div className="text-[10px] text-muted-foreground">
-              {proposal.operations.length}
-              {' '}
-              ops · by
-              {' '}
-              {proposal.generatedBy}
-            </div>
-          </ListRow>
-        ))}
-      </ul>
-      <div className="flex-1 overflow-hidden">
-        {selected
-          ? (
-              <ProposalDetail
-                workspaceId={workspaceId}
-                proposal={selected}
-                onComplete={() => setSelected(null)}
-                key={selected.id}
-              />
-            )
-          : (
-              <EmptyState
-                icon={Inbox}
-                title="Pick a Proposal"
-                description="Select a proposal on the left to review the operations and apply or reject it."
-              />
-            )}
+    <div className="flex h-full flex-col">
+      <ProposalsStatusFilter workspaceId={workspaceId} status={status} onChange={changeStatus} />
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex w-72 shrink-0 flex-col border-r border-border">
+          {isLoading
+            ? (
+                <div className="p-4 text-sm text-muted-foreground">Loading…</div>
+              )
+            : !data || data.items.length === 0
+                ? (
+                    <div className="flex flex-1 items-center justify-center p-4 text-center text-xs text-muted-foreground">
+                      {EMPTY_COPY[status].title}
+                    </div>
+                  )
+                : (
+                    <ul className="flex-1 overflow-y-auto scrollbar-thin">
+                      {data.items.map(proposal => (
+                        <ListRow
+                          key={proposal.id}
+                          active={selected?.id === proposal.id}
+                          onClick={() => setSelected(proposal)}
+                          className="flex-col gap-1"
+                        >
+                          <div className="flex w-full items-center justify-between gap-2">
+                            <span className="break-all font-mono text-xs text-foreground">{proposal.id}</span>
+                            <StatusBadge status={proposal.status} />
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {proposal.operations.length}
+                            {' '}
+                            ops · by
+                            {' '}
+                            {proposal.generatedBy}
+                          </div>
+                        </ListRow>
+                      ))}
+                    </ul>
+                  )}
+        </div>
+        <div className="flex-1 overflow-hidden">
+          {selected
+            ? (
+                <ProposalDetail
+                  workspaceId={workspaceId}
+                  proposal={selected}
+                  onComplete={() => setSelected(null)}
+                  key={selected.id}
+                />
+              )
+            : (
+                <EmptyState
+                  icon={Inbox}
+                  title={data?.items.length ? 'Pick a Proposal' : EMPTY_COPY[status].title}
+                  description={
+                    data?.items.length
+                      ? status === 'pending'
+                        ? 'Select a proposal on the left to review the operations and apply or reject it.'
+                        : 'Select a proposal on the left to review the operations and rationale.'
+                      : EMPTY_COPY[status].description
+                  }
+                />
+              )}
+        </div>
       </div>
+    </div>
+  )
+}
+
+// Pending / Applied / Rejected segment. Pending wears a live count
+// badge — the only one worth surfacing, since applied/rejected lists
+// grow monotonically and a count there is noise.
+function ProposalsStatusFilter({
+  workspaceId,
+  status,
+  onChange,
+}: {
+  workspaceId: string
+  status: StatusFilter
+  onChange: (next: StatusFilter) => void
+}) {
+  const { data: pending } = useProposalsByStatus(workspaceId, 'pending')
+  const pendingCount = pending?.items.length ?? 0
+  return (
+    <div className="flex shrink-0 items-center border-b border-border px-4 py-2">
+      <Tabs value={status} onValueChange={value => onChange(value as StatusFilter)}>
+        <TabsList className="h-7">
+          <TabsTrigger value="pending" className="px-3 text-xs">
+            Pending
+            {pendingCount > 0 && (
+              <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-medium leading-none text-primary">
+                {pendingCount}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="applied" className="px-3 text-xs">Applied</TabsTrigger>
+          <TabsTrigger value="rejected" className="px-3 text-xs">Rejected</TabsTrigger>
+        </TabsList>
+      </Tabs>
     </div>
   )
 }
@@ -94,14 +167,25 @@ function ProposalDetail({
   const [rejectReason, setRejectReason] = useState('')
   const [rejectOpen, setRejectOpen] = useState(false)
 
-  const validation = useProposalValidation(workspaceId, proposal.id)
+  // Apply / Reject are only meaningful while the proposal is still
+  // pending. Applied / rejected entries are read-only history.
+  const isPending = proposal.status === 'pending'
+
+  const validation = useProposalValidation(workspaceId, isPending ? proposal.id : null)
   const errorCount = validation.data?.issues.filter(issue => issue.severity === 'error').length ?? 0
   const blockedByErrors = errorCount > 0
+
+  // Invalidate the whole proposals namespace for this workspace so the
+  // entry moves from the Pending list into Applied / Rejected without
+  // a manual refresh.
+  function invalidateProposals(): void {
+    queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId, 'proposals'] })
+  }
 
   const apply = useMutation({
     mutationFn: () => api.applyProposal(workspaceId, proposal.id, DEFAULT_USER_ID),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.proposals(workspaceId, 'pending') })
+      invalidateProposals()
       queryClient.invalidateQueries({ queryKey: queryKeys.modelSnapshot(workspaceId) })
       onComplete()
     },
@@ -110,7 +194,7 @@ function ProposalDetail({
   const reject = useMutation({
     mutationFn: (reason: string) => api.rejectProposal(workspaceId, proposal.id, reason, DEFAULT_USER_ID),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.proposals(workspaceId, 'pending') })
+      invalidateProposals()
       onComplete()
     },
   })
@@ -131,36 +215,46 @@ function ProposalDetail({
             {title}
           </div>
         </div>
-        <div className="flex shrink-0 gap-2">
-          <Button
-            size="sm"
-            disabled={apply.isPending || blockedByErrors || validation.isLoading}
-            onClick={() => apply.mutate()}
-            title={applyTitle}
-          >
-            <Check />
-            Apply
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            disabled={reject.isPending}
-            onClick={() => setRejectOpen(open => !open)}
-          >
-            <X />
-            Reject
-          </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          {isPending
+            ? (
+                <>
+                  <Button
+                    size="sm"
+                    disabled={apply.isPending || blockedByErrors || validation.isLoading}
+                    onClick={() => apply.mutate()}
+                    title={applyTitle}
+                  >
+                    <Check />
+                    Apply
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={reject.isPending}
+                    onClick={() => setRejectOpen(open => !open)}
+                  >
+                    <X />
+                    Reject
+                  </Button>
+                </>
+              )
+            : (
+                <StatusBadge status={proposal.status} />
+              )}
         </div>
       </header>
       <div className="shrink-0">
-        <ValidationPanel
-          isLoading={validation.isLoading}
-          error={validation.error}
-          issues={validation.data?.issues ?? []}
-          ok={validation.data?.ok ?? null}
-        />
+        {isPending && (
+          <ValidationPanel
+            isLoading={validation.isLoading}
+            error={validation.error}
+            issues={validation.data?.issues ?? []}
+            ok={validation.data?.ok ?? null}
+          />
+        )}
 
-        {rejectOpen && (
+        {rejectOpen && isPending && (
           <RejectForm
             value={rejectReason}
             onChange={setRejectReason}
