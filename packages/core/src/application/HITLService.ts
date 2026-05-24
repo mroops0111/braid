@@ -172,24 +172,26 @@ export class HITLService {
   }
 
   /**
-   * Close the loop after the braid-clarify skill has materialised an
-   * `answered` ticket's resolution into a Proposal. Ticket moves
-   * `answered → applied` and stamps the linking proposalId. No graph
-   * mutation here — the Proposal apply path already handled that.
+   * Close the loop after the braid-clarify skill has finished a ticket.
+   * Ticket moves `answered → applied`. If the resolution produced a
+   * Proposal, its id is stamped so the UI can link back; if the chosen
+   * candidate had no graph impact, proposalId is omitted. No graph
+   * mutation here — the Proposal apply path (when there is one) already
+   * handled that.
    */
-  async linkClarifyTicketToProposal(
+  async markClarifyTicketApplied(
     clarifyTicketId: ClarifyTicketId,
-    proposalId: ProposalId,
     userId: UserId,
+    proposalId?: ProposalId,
   ): Promise<Decision> {
     const ticket = await this.deps.clarifyRepository.load(clarifyTicketId)
-    const applied = ticket.markAppliedWithProposal(proposalId)
+    const applied = ticket.markApplied(proposalId)
     await this.deps.clarifyRepository.save(applied)
     this.deps.eventBus?.publish({
       type: 'clarify.applied',
       workspaceId: ticket.workspaceId,
       ticketId: ticket.id,
-      proposalId,
+      ...(proposalId ? { proposalId } : {}),
       at: this.deps.clock.now(),
     })
 
@@ -197,7 +199,7 @@ export class HITLService {
       workspaceId: ticket.workspaceId,
       action: 'applyClarifyTicket',
       by: userId,
-      references: { clarifyTicketId, proposalId },
+      references: { clarifyTicketId, ...(proposalId ? { proposalId } : {}) },
     })
   }
 

@@ -22,8 +22,14 @@ const SkipBodySchema = z.object({
   userId: UserId,
 })
 
-const LinkProposalBodySchema = z.object({
-  proposalId: ProposalId,
+// PATCH body for clarify state transitions. Currently the only legal
+// transition the skill drives is `answered → applied`. proposalId is
+// optional: present when a Proposal was produced, absent when the
+// chosen candidate had no graph impact (skill records the ticket as
+// applied without a linking proposal).
+const ApplyBodySchema = z.object({
+  status: z.literal('applied'),
+  proposalId: ProposalId.optional(),
   userId: UserId,
 })
 
@@ -77,21 +83,22 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): Hono {
     },
   )
 
-  // Skill-facing: the braid-clarify skill calls this once it has wrapped
-  // an `answered` ticket's resolution into a Proposal. Transitions the
-  // ticket `answered → applied` and stamps the linking proposalId so the
-  // UI can navigate from a ticket back to its Proposal. No graph
-  // mutation happens here; the Proposal apply already covered that.
+  // Skill-facing: the braid-clarify skill calls this once it has
+  // finished processing an `answered` ticket. Transitions the ticket
+  // `answered → applied`. proposalId is optional: present when the
+  // resolution was wrapped into a Proposal, absent for no-impact
+  // candidates. No graph mutation happens here; the Proposal apply
+  // (when there is one) already covered that.
   router.patch(
     '/:clarifyTicketId',
-    zValidator('json', LinkProposalBodySchema),
+    zValidator('json', ApplyBodySchema),
     async (context) => {
       const workspaceId = getWorkspaceId(context)
       const ticketId = ClarifyTicketId.parse(context.req.param('clarifyTicketId'))
       const { proposalId, userId } = context.req.valid('json')
       const ticket = await deps.clarifyRepository.load(ticketId)
       assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'ClarifyTicket', ticketId)
-      const decision = await deps.hitlService.linkClarifyTicketToProposal(ticketId, proposalId, userId)
+      const decision = await deps.hitlService.markClarifyTicketApplied(ticketId, userId, proposalId)
       return context.json(decision)
     },
   )

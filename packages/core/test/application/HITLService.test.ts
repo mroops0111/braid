@@ -320,7 +320,7 @@ describe('HITLService', () => {
     })
   })
 
-  describe('linkClarifyTicketToProposal', () => {
+  describe('markClarifyTicketApplied', () => {
     it('moves an answered ticket to applied and stamps proposalId', async () => {
       const fixture = await setupFixture()
       const candidateId = mintTestId('cc') as ClarifyCandidateId
@@ -337,7 +337,7 @@ describe('HITLService', () => {
       await fixture.clarifyRepository.save(ticket)
       const proposalId = mintTestId('p') as ProposalId
 
-      const decision = await fixture.service.linkClarifyTicketToProposal(ticket.id, proposalId, userId)
+      const decision = await fixture.service.markClarifyTicketApplied(ticket.id, userId, proposalId)
 
       expect(decision.action).toBe('applyClarifyTicket')
       expect(decision.references.proposalId).toBe(proposalId)
@@ -347,7 +347,32 @@ describe('HITLService', () => {
       expect(reloaded.proposalId).toBe(proposalId)
     })
 
-    it('refuses to link a ticket that has not been answered yet', async () => {
+    it('moves an answered ticket to applied with no proposalId when resolution had no graph impact', async () => {
+      const fixture = await setupFixture()
+      const candidateId = mintTestId('cc') as ClarifyCandidateId
+      const ticket = makeClarifyTicket(fixture.workspaceId, {
+        status: 'answered',
+        selectedCandidateId: candidateId,
+        candidates: [{
+          id: candidateId,
+          description: 'a',
+          sourceReferences: [],
+          proposedOperations: [],
+        }],
+      })
+      await fixture.clarifyRepository.save(ticket)
+
+      const decision = await fixture.service.markClarifyTicketApplied(ticket.id, userId)
+
+      expect(decision.action).toBe('applyClarifyTicket')
+      expect(decision.references.proposalId).toBeUndefined()
+
+      const reloaded = await fixture.clarifyRepository.load(ticket.id)
+      expect(reloaded.status).toBe('applied')
+      expect(reloaded.proposalId).toBeUndefined()
+    })
+
+    it('refuses to apply a ticket that has not been answered yet', async () => {
       const fixture = await setupFixture()
       const candidateId = mintTestId('cc') as ClarifyCandidateId
       const ticket = makeClarifyTicket(fixture.workspaceId, {
@@ -362,7 +387,7 @@ describe('HITLService', () => {
       const proposalId = mintTestId('p') as ProposalId
 
       await expect(
-        fixture.service.linkClarifyTicketToProposal(ticket.id, proposalId, userId),
+        fixture.service.markClarifyTicketApplied(ticket.id, userId, proposalId),
       ).rejects.toThrow(ConflictError)
     })
   })
