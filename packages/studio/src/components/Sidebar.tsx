@@ -64,7 +64,7 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect, onOpenDetails
         collapsed ? 'w-12' : 'w-60',
       )}
     >
-      <div className={cn('flex h-11 shrink-0 items-center', collapsed ? 'justify-center px-2' : 'justify-between px-4')}>
+      <div className={cn('flex h-11 shrink-0 items-center', collapsed ? 'justify-center px-2' : 'px-4')}>
         <div className="flex items-center gap-2">
           <img src={braidLogo} alt="" className="size-5 shrink-0" />
           {!collapsed && (
@@ -74,14 +74,6 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect, onOpenDetails
             </div>
           )}
         </div>
-        {!collapsed && (
-          <SidebarIconButton
-            onClick={() => setCollapsed(true)}
-            title="Collapse sidebar (⌘\\)"
-          >
-            <PanelLeftClose className="size-3.5" />
-          </SidebarIconButton>
-        )}
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin px-2 pb-2">
@@ -149,7 +141,10 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect, onOpenDetails
                   <Server className="size-3.5" />
                 </SidebarIconButton>
                 <ThemeToggle />
-                <SidebarIconButton onClick={() => setCollapsed(false)} title="Expand sidebar (⌘\\)">
+                <SidebarIconButton
+                  onClick={() => setCollapsed(false)}
+                  title="Expand sidebar (⌘\\)"
+                >
                   <PanelLeftOpen className="size-3.5" />
                 </SidebarIconButton>
               </>
@@ -165,6 +160,12 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect, onOpenDetails
                     <Server className="size-3.5" />
                   </SidebarIconButton>
                   <ThemeToggle />
+                  <SidebarIconButton
+                    onClick={() => setCollapsed(true)}
+                    title="Collapse sidebar (⌘\\)"
+                  >
+                    <PanelLeftClose className="size-3.5" />
+                  </SidebarIconButton>
                 </div>
               </>
             )}

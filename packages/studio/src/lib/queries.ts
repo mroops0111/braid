@@ -56,12 +56,16 @@ export function useOntology(workspaceId: string | undefined) {
   })
 }
 
-export function usePendingProposals(workspaceId: string | undefined) {
+export function useProposalsByStatus(workspaceId: string | undefined, status: string) {
   return useQuery({
-    queryKey: workspaceId ? queryKeys.proposals(workspaceId, 'pending') : ['proposals', 'none'],
-    queryFn: () => api.listProposals(workspaceId!, 'pending'),
+    queryKey: workspaceId ? queryKeys.proposals(workspaceId, status) : ['proposals', 'none'],
+    queryFn: () => api.listProposals(workspaceId!, status),
     enabled: !!workspaceId,
   })
+}
+
+export function usePendingProposals(workspaceId: string | undefined) {
+  return useProposalsByStatus(workspaceId, 'pending')
 }
 
 export function useProposalValidation(workspaceId: string, proposalId: string | null) {

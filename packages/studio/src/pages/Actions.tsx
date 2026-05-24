@@ -1,5 +1,6 @@
 import type { RunRecord, SkillCategory, SkillManifest } from '@braidhq/schema'
-import { BookOpen, FileQuestion, History, Plus, Send, Sparkles, Wrench } from 'lucide-react'
+import { useMutation } from '@tanstack/react-query'
+import { BookOpen, FileQuestion, History, Plus, Send, Sparkles, Wrench, X } from 'lucide-react'
 import { useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
@@ -238,6 +239,17 @@ function Conversation({ workspaceId, skill }: ConversationProps) {
   const running = conversation.phase === 'streaming' || submitting
   const isFollowUp = conversation.sessionId !== null
   const turnCount = conversation.events.filter(e => e.type === 'started').length
+  // Cancel targets the in-flight turn (the last runId), only meaningful
+  // while the runner is actively streaming. During `submitting` we don't
+  // have a runId yet, so the button is hidden in that window.
+  const activeRunId = conversation.phase === 'streaming' ? conversation.turnIds.at(-1) ?? null : null
+  const cancel = useMutation({
+    mutationFn: () => {
+      if (!activeRunId)
+        return Promise.resolve()
+      return api.cancelRun(workspaceId, activeRunId)
+    },
+  })
 
   function reset(): void {
     const sessionToForget = conversation.sessionId
@@ -286,12 +298,25 @@ function Conversation({ workspaceId, skill }: ConversationProps) {
           </span>
           <span className="truncate text-xs text-muted-foreground">{skill.frontmatter.description}</span>
         </div>
-        {turnCount > 0 && (
-          <Button variant="ghost" size="sm" onClick={reset} disabled={running}>
-            <Plus />
-            New conversation
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {activeRunId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={cancel.isPending}
+              onClick={() => cancel.mutate()}
+            >
+              <X />
+              {cancel.isPending ? 'Cancelling…' : 'Cancel'}
+            </Button>
+          )}
+          {turnCount > 0 && (
+            <Button variant="ghost" size="sm" onClick={reset} disabled={running}>
+              <Plus />
+              New conversation
+            </Button>
+          )}
+        </div>
       </div>
       <SkillTranscript events={[...conversation.events]} error={transcriptError} running={running} />
       <div className="flex items-end gap-2 border-t border-border px-4 py-2.5">

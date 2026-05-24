@@ -52,7 +52,8 @@ work to nodes inside that context and their immediate neighbours.
 | File | When to read |
 |------|--------------|
 | `$BRAID_SESSION_DIR/.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
-| `$BRAID_SESSION_DIR/.claude/skills/shared/artifact-formats.md` | before writing. Exact Proposal / ClarifyTicket JSON shape |
+| `$BRAID_SESSION_DIR/.claude/skills/shared/artifact-formats.md` | before writing. Exact Proposal / ClarifyTicket / DriftIssue JSON shape |
+| `$BRAID_SESSION_DIR/.claude/skills/shared/drift-detection.md` | Build Step 3a. Global view lets you spot cross-source drift extract couldn't (intent-vs-intent across PRDs, cross-layer code-vs-code) |
 
 # Initialization
 
@@ -105,6 +106,28 @@ These can only be inferred globally:
 The actual edge type ids come from the ontology; use whichever the active
 ontology defines for these relationships.
 
+## Step 3a: Cross-source drift detection
+
+`braid-extract` checks intent-vs-code drift on a single slice at a time
+(see `drift-detection.md`). You see the whole graph, so you can catch
+drift the slice-level pass couldn't:
+
+| Drift shape | What to look for |
+|---|---|
+| **intent vs intent** | Same concept described in two different intent files with different limits / states / rules (PRD A says cap 50, PRD B for the same feature says cap 99) |
+| **code vs code** | Multi-layer codebases: a node's `code` source includes both backend and frontend refs that disagree (backend allows -1, frontend hardcodes 99); or controller vs service layers differ |
+| **intent vs code: cross-aggregate** | An intent file describes a flow that crosses two aggregates; the code implements only one side. Extract may have flagged neither node because each looked fine in isolation |
+
+For each finding, emit one `DriftIssue` per dimension and attach to the
+relevant node's `metadata.driftIssues[]` via an `updateNode` operation
+in your proposal. Use `severity: 'error'` for contradictions, `warning`
+for gaps. Set `status: 'unclear'` on the patch when raising an `error`
+drift on a `draft` node.
+
+If a candidate finding is actually identity-level ("are these even the
+same node?"), raise a ClarifyTicket per Step 8 instead — the same
+contract as `braid-extract` Step 3.
+
 # Part 2: Validate (both modes)
 
 ## Step 4: Structural validation
@@ -139,6 +162,13 @@ ontology cares about (e.g. error paths in commands, UI coverage of
 commands users interact with). Mark each as `clear` / `partial` /
 `missing` in the proposal analysis. Don't try to fix coverage gaps;
 that's the next extract cycle's job. The goal here is to surface them.
+
+In `validate` mode, also re-walk existing `metadata.driftIssues[]` on
+each node and prune entries that no longer reproduce against the
+current sources — emit `updateNode` operations that replace the array.
+Drift is a derived observation; stale entries from a prior build that
+the human already fixed must not survive. (Entries listed in
+`metadata.acknowledgedDrifts` are human-set; never clear those.)
 
 # Part 3: Output
 
@@ -175,9 +205,11 @@ pick informedly.
 
 - [ ] Ontology loaded; every emitted type id matches the ontology
 - [ ] (build mode) Bridge / containment edges added to the proposal
+- [ ] (build mode) Cross-source drift (intent-vs-intent, code-vs-code, cross-aggregate) attached as `DriftIssue` entries on affected nodes
 - [ ] Structural errors fixed or raised as ClarifyTickets
 - [ ] Node-content fixes for `draft` / `unclear` nodes folded into the proposal
 - [ ] Coverage gaps reported in the proposal `analysis` block
+- [ ] (validate mode) Stale `driftIssues` entries that no longer reproduce are cleared from affected nodes
 
 > If `$BRAID_WORKSPACE/skill-extensions/braid-model/EXTEND.md` exists, its
 > contents are appended automatically. Workspace-specific overrides

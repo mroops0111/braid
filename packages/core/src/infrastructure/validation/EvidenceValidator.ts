@@ -55,6 +55,31 @@ export class EvidenceValidator {
       })
     }
 
+    issues.push(...this.surfaceDriftIssues(node))
+
     return issues
+  }
+
+  /**
+   * Drift detection itself happens upstream in build-cycle skills
+   * (braid-extract / braid-model), which write structured DriftIssue
+   * entries onto the node's metadata. This validator's job is to
+   * surface those entries as `ValidationIssue`s so the proposal review
+   * pane shows them and the apply-gate respects severity. Drift entries
+   * whose description appears in `acknowledgedDrifts` are silenced.
+   */
+  private surfaceDriftIssues(node: GraphNode): ValidationIssue[] {
+    const drifts = node.metadata.driftIssues
+    if (!drifts || drifts.length === 0)
+      return []
+    const acknowledged = new Set(node.metadata.acknowledgedDrifts ?? [])
+    return drifts
+      .filter(drift => !acknowledged.has(drift.description))
+      .map(drift => ({
+        code: 'evidence.drift' as ValidationCode,
+        severity: drift.severity,
+        message: `Drift on "${node.name}": ${drift.description}`,
+        nodeId: node.id,
+      }))
   }
 }

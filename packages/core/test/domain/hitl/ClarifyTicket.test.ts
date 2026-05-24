@@ -71,18 +71,26 @@ describe('ClarifyTicket', () => {
     })
   })
 
-  describe('markAppliedWithProposal', () => {
-    it('moves answered → applied and stamps proposalId', () => {
+  describe('markApplied', () => {
+    it('moves answered → applied and stamps proposalId when provided', () => {
       const answered = new ClarifyTicket(data({ status: 'answered', selectedCandidateId: 'cc-1' as ClarifyCandidateId }))
-      const applied = answered.markAppliedWithProposal('p-1' as ProposalId)
+      const applied = answered.markApplied('p-1' as ProposalId)
 
       expect(applied.status).toBe('applied')
       expect(applied.proposalId).toBe('p-1')
     })
 
+    it('moves answered → applied without proposalId for no-impact resolutions', () => {
+      const answered = new ClarifyTicket(data({ status: 'answered', selectedCandidateId: 'cc-1' as ClarifyCandidateId }))
+      const applied = answered.markApplied()
+
+      expect(applied.status).toBe('applied')
+      expect(applied.proposalId).toBeUndefined()
+    })
+
     it('throws ConflictError when ticket is not answered (must answer first)', () => {
       const ticket = new ClarifyTicket(data())
-      expect(() => ticket.markAppliedWithProposal('p-1' as ProposalId)).toThrow(ConflictError)
+      expect(() => ticket.markApplied('p-1' as ProposalId)).toThrow(ConflictError)
     })
   })
 

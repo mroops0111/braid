@@ -21,8 +21,10 @@ import { ConflictError, NotFoundError } from '../errors.js'
  * graph; the resolution is snapshotted onto the ticket and the
  * braid-clarify skill is expected to wrap it into a Proposal. Once
  * that Proposal lands the ticket transitions to `applied` via
- * `markAppliedWithProposal`, which only stamps the proposalId — the
+ * `markApplied`, which only stamps the (optional) proposalId — the
  * actual graph mutation happens inside `HITLService.applyProposal`.
+ * proposalId is omitted when the chosen candidate's resolution had no
+ * graph impact, so no Proposal was produced.
  *
  * Keeping these two transitions distinct preserves the invariant
  * "only HITLService.applyProposal writes Kùzu": clarify answers go
@@ -61,12 +63,12 @@ export class ClarifyTicket {
     })
   }
 
-  markAppliedWithProposal(proposalId: ProposalId): ClarifyTicket {
+  markApplied(proposalId?: ProposalId): ClarifyTicket {
     this.requireStatus('apply', 'answered')
     return new ClarifyTicket({
       ...this.data,
       status: 'applied',
-      proposalId,
+      ...(proposalId ? { proposalId } : {}),
     })
   }
 

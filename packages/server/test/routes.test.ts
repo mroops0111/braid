@@ -257,7 +257,7 @@ describe('PATCH /workspaces/:ws/clarify/:id', () => {
     const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-link`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ proposalId: 'p-99', userId }),
+      body: JSON.stringify({ status: 'applied', proposalId: 'p-99', userId }),
     })
 
     expect(response.status).toBe(200)
@@ -270,6 +270,39 @@ describe('PATCH /workspaces/:ws/clarify/:id', () => {
     expect(reloaded.proposalId).toBe('p-99')
   })
 
+  it('moves an answered ticket to applied without proposalId for no-impact resolutions', async () => {
+    const { app, deps } = await buildTestApp()
+    await deps.clarifyRepository.save(makeClarifyTicket({ id: 'ct-noop', status: 'answered' }))
+
+    const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-noop`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'applied', userId }),
+    })
+
+    expect(response.status).toBe(200)
+    const decision = await readJson<DecisionBody>(response)
+    expect(decision.action).toBe('applyClarifyTicket')
+    expect(decision.references.proposalId).toBeUndefined()
+
+    const reloaded = await deps.clarifyRepository.load('ct-noop' as ClarifyTicketId)
+    expect(reloaded.status).toBe('applied')
+    expect(reloaded.proposalId).toBeUndefined()
+  })
+
+  it('returns 400 when status is missing', async () => {
+    const { app, deps } = await buildTestApp()
+    await deps.clarifyRepository.save(makeClarifyTicket({ id: 'ct-link', status: 'answered' }))
+
+    const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-link`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ proposalId: 'p-99', userId }),
+    })
+
+    expect(response.status).toBe(400)
+  })
+
   it('returns 409 when ticket has not been answered yet', async () => {
     const { app, deps } = await buildTestApp()
     await deps.clarifyRepository.save(makeClarifyTicket({ id: 'ct-pending', status: 'pending' }))
@@ -277,7 +310,7 @@ describe('PATCH /workspaces/:ws/clarify/:id', () => {
     const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-pending`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ proposalId: 'p-99', userId }),
+      body: JSON.stringify({ status: 'applied', proposalId: 'p-99', userId }),
     })
 
     expect(response.status).toBe(409)
