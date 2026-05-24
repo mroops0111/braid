@@ -85,7 +85,7 @@ export interface ClarifyAppliedEvent {
   readonly type: 'clarify.applied'
   readonly workspaceId: WorkspaceId
   readonly ticketId: ClarifyTicketId
-  readonly proposalId: ProposalId
+  readonly proposalId?: ProposalId
   readonly at: string
 }
 

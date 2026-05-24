@@ -55,6 +55,37 @@ back to Redmine / Jira / XWiki source tickets.
 
 `type` and `status` valid values are defined by the active **Ontology** plugin (default `ontology-ddd`). Pull the current ontology types from `GET /workspaces/:ws/ontology`. The server validator rejects any type not in that list.
 
+## DriftIssue (attached to a node's metadata)
+
+When two sources for the same node disagree on a specific field
+(intent vs code, code vs code, intent vs intent), attach a `DriftIssue`
+to the node's `metadata.driftIssues[]` rather than dropping the work
+into a ClarifyTicket. See `drift-detection.md` for when to use this vs
+ClarifyTicket and how to write the description.
+
+```json
+{
+  "id": "drift-{shortRandom}",
+  "description": "Intent (intent/task.md §Quota) caps signers at 50; code at apps/api/task/validator.ts:14 allows up to 99. Extra signers fail a downstream DB unique check silently.",
+  "severity": "error",
+  "sourceReferences": [
+    { "sourceId": "src-intent", "location": { "uri": "intent/task.md", "anchor": "Quota" } },
+    { "sourceId": "src-code",   "location": { "uri": "apps/api/task/validator.ts", "startLine": 14 } }
+  ],
+  "raisedAt": "2026-05-24T10:15:00+08:00"
+}
+```
+
+Required: `id`, `description` (non-empty), `severity`
+(`error` / `warning` / `info`), `sourceReferences` (**≥ 2** entries),
+`raisedAt` (ISO 8601 with offset). `EvidenceValidator` surfaces each
+entry as a `ValidationIssue` with `code: "evidence.drift"`. Errors
+block proposal apply.
+
+`metadata.acknowledgedDrifts: string[]` is a sibling field that
+suppresses any DriftIssue whose `description` matches exactly. It's
+a **human acknowledgement** field; skills do not write it.
+
 ## ClarifyTicket (when extract / model finds ambiguity)
 
 ```json

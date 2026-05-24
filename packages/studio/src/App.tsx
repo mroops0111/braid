@@ -1,5 +1,6 @@
+import type { EdgeId, NodeId } from '@braidhq/schema'
 import { Command, Settings2, Sparkles } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CommandPalette, type TabKey } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
 import { InFlightRunBanner } from './components/InFlightRunBanner'
@@ -8,10 +9,12 @@ import { ServerUrlDialog } from './components/ServerUrlDialog'
 import { Sidebar } from './components/Sidebar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
-import { useWorkspaces } from './lib/queries'
+import { usePendingProposals, useWorkspaces } from './lib/queries'
+import { GraphNavigationContext } from './lib/useGraphNavigation'
 import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
 import { ActionsPage } from './pages/Actions'
 import { GraphPage } from './pages/Graph'
+import { useGraphSurfaceState } from './pages/GraphSurface'
 import { ProposalsPage } from './pages/Proposals'
 
 export function App() {
@@ -21,6 +24,10 @@ export function App() {
   const [detailsId, setDetailsId] = useState<string | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [serverUrlOpen, setServerUrlOpen] = useState(false)
+  // Hoist graph surface state so cross-tab navigation (e.g. clicking
+  // a node id in a proposal validation issue) can drive it.
+  const graphSurfaceState = useGraphSurfaceState()
+  const { setSelectedNodeId } = graphSurfaceState
 
   useEffect(() => {
     if (!activeId && workspaces?.items.length) {
@@ -37,78 +44,116 @@ export function App() {
     setDetailsOpen(true)
   }
 
+  const focusNode = useCallback((id: NodeId) => {
+    setSelectedNodeId(id)
+    setActiveTab('graph')
+  }, [setSelectedNodeId])
+
+  // Edge focus has no graph-side state yet; switch tabs so the user
+  // at least lands on the graph. Once edge selection is wired up,
+  // augment here instead of touching the call-sites.
+  const focusEdge = useCallback((_id: EdgeId) => {
+    setActiveTab('graph')
+  }, [])
+
+  const graphNavigation = useMemo(() => ({ focusNode, focusEdge }), [focusNode, focusEdge])
+
   return (
-    <PageActionsProvider>
-      <div className="flex h-screen overflow-hidden bg-background text-foreground">
-        <Sidebar
-          workspaces={items}
-          activeWorkspaceId={activeId}
-          onSelect={setActiveId}
-          onOpenDetails={openDetails}
-          onOpenServerUrl={() => setServerUrlOpen(true)}
-        />
-        <main className="flex flex-1 flex-col overflow-hidden">
-          <Header
-            workspaceId={activeId}
-            onOpenDetails={() => activeId && openDetails(activeId)}
+    <GraphNavigationContext.Provider value={graphNavigation}>
+      <PageActionsProvider>
+        <div className="flex h-screen overflow-hidden bg-background text-foreground">
+          <Sidebar
+            workspaces={items}
+            activeWorkspaceId={activeId}
+            onSelect={setActiveId}
+            onOpenDetails={openDetails}
+            onOpenServerUrl={() => setServerUrlOpen(true)}
           />
-          <InFlightRunBanner workspaceId={activeId} />
-          {activeId
-            ? (
-                <Tabs
-                  value={activeTab}
-                  onValueChange={value => setActiveTab(value as TabKey)}
-                  className="flex flex-1 flex-col overflow-hidden gap-0"
-                >
-                  <div className="flex items-center justify-between border-b border-border px-4">
-                    <TabsList variant="line" className="h-10">
-                      <TabsTrigger value="actions">Actions</TabsTrigger>
-                      <TabsTrigger value="graph">Graph</TabsTrigger>
-                      <TabsTrigger value="proposals">Proposals</TabsTrigger>
-                    </TabsList>
-                    <PageActionsHost className="flex items-center gap-2" />
-                  </div>
-                  <TabsContent value="actions" className="overflow-hidden">
-                    <ActionsPage workspaceId={activeId} />
-                  </TabsContent>
-                  <TabsContent value="graph" className="overflow-hidden">
-                    <GraphPage workspaceId={activeId} />
-                  </TabsContent>
-                  <TabsContent value="proposals" className="overflow-hidden">
-                    <ProposalsPage workspaceId={activeId} />
-                  </TabsContent>
-                </Tabs>
-              )
-            : (
-                <NoWorkspaceState onSelect={setActiveId} />
-              )}
-        </main>
-        <CommandPalette
-          workspaces={items}
-          activeWorkspaceId={activeId}
-          activeTab={activeTab}
-          onSelectWorkspace={setActiveId}
-          onSelectTab={setActiveTab}
-        />
-        <ServerUrlDialog open={serverUrlOpen} onOpenChange={setServerUrlOpen} />
-        <WorkspaceDetailsSheet
-          workspaceId={detailsId}
-          open={detailsOpen}
-          onOpenChange={setDetailsOpen}
-          onUnregistered={() => {
-            setDetailsOpen(false)
-            if (activeId === detailsId)
-              setActiveId(null)
-            setDetailsId(null)
-          }}
-          onRenamed={(newId) => {
-            if (activeId === detailsId)
-              setActiveId(newId)
-            setDetailsId(newId)
-          }}
-        />
-      </div>
-    </PageActionsProvider>
+          <main className="flex flex-1 flex-col overflow-hidden">
+            <Header
+              workspaceId={activeId}
+              onOpenDetails={() => activeId && openDetails(activeId)}
+            />
+            <InFlightRunBanner workspaceId={activeId} />
+            {activeId
+              ? (
+                  <Tabs
+                    value={activeTab}
+                    onValueChange={value => setActiveTab(value as TabKey)}
+                    className="flex flex-1 flex-col overflow-hidden gap-0"
+                  >
+                    <div className="flex items-center justify-between border-b border-border px-4">
+                      <TabsList variant="line" className="h-10">
+                        <TabsTrigger value="actions">Actions</TabsTrigger>
+                        <TabsTrigger value="graph">Graph</TabsTrigger>
+                        <TabsTrigger value="proposals">
+                          Proposals
+                          <ProposalsPendingBadge workspaceId={activeId} />
+                        </TabsTrigger>
+                      </TabsList>
+                      <PageActionsHost className="flex items-center gap-2" />
+                    </div>
+                    <TabsContent value="actions" className="overflow-hidden">
+                      <ActionsPage workspaceId={activeId} />
+                    </TabsContent>
+                    <TabsContent value="graph" className="overflow-hidden">
+                      <GraphPage workspaceId={activeId} state={graphSurfaceState} />
+                    </TabsContent>
+                    <TabsContent value="proposals" className="overflow-hidden">
+                      <ProposalsPage workspaceId={activeId} />
+                    </TabsContent>
+                  </Tabs>
+                )
+              : (
+                  <NoWorkspaceState onSelect={setActiveId} />
+                )}
+          </main>
+          <CommandPalette
+            workspaces={items}
+            activeWorkspaceId={activeId}
+            activeTab={activeTab}
+            onSelectWorkspace={setActiveId}
+            onSelectTab={setActiveTab}
+          />
+          <ServerUrlDialog open={serverUrlOpen} onOpenChange={setServerUrlOpen} />
+          <WorkspaceDetailsSheet
+            workspaceId={detailsId}
+            open={detailsOpen}
+            onOpenChange={setDetailsOpen}
+            onUnregistered={() => {
+              setDetailsOpen(false)
+              if (activeId === detailsId)
+                setActiveId(null)
+              setDetailsId(null)
+            }}
+            onRenamed={(newId) => {
+              if (activeId === detailsId)
+                setActiveId(newId)
+              setDetailsId(newId)
+            }}
+          />
+        </div>
+      </PageActionsProvider>
+    </GraphNavigationContext.Provider>
+  )
+}
+
+// Pending-proposal count shown next to the Proposals tab label so the
+// reviewer notices queued work without checking the sidebar. Hidden
+// when the count is zero to keep the tab strip quiet during normal
+// flow.
+function ProposalsPendingBadge({ workspaceId }: { workspaceId: string }) {
+  const { data } = usePendingProposals(workspaceId)
+  const count = data?.items.length ?? 0
+  if (count === 0)
+    return null
+  return (
+    <span
+      className="ml-0.5 rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-medium leading-none text-primary"
+      title={`${count} pending proposal${count === 1 ? '' : 's'}`}
+    >
+      {count}
+    </span>
   )
 }
 

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { EdgeId, ExternalReference, NodeId, SkillId, SourceReference, Timestamp } from './common.js'
+import { DriftIssue } from './drift.js'
 import { EdgeTypeId, NodeStatus, NodeTypeId } from './ontology.js'
 
 export const Embedding = z.object({
@@ -17,6 +18,19 @@ export const GraphNodeMetadata = z.object({
   sourceReferences: z.array(SourceReference).default([]),
   lastTouchedBy: SkillId.optional(),
   externalReferences: z.array(ExternalReference).optional(),
+  /**
+   * Structured drift observations produced by build-cycle skills.
+   * `EvidenceValidator` surfaces each entry as a `ValidationIssue`.
+   * See `DriftIssue` for the lifecycle (re-derived each build, no
+   * resolved state).
+   */
+  driftIssues: z.array(DriftIssue).optional(),
+  /**
+   * Descriptions matching this list suppress matching drift issues —
+   * the human has acknowledged the inconsistency and chosen to keep it.
+   * Match is exact string equality on `DriftIssue.description`.
+   */
+  acknowledgedDrifts: z.array(z.string().min(1)).optional(),
 })
 export type GraphNodeMetadata = z.infer<typeof GraphNodeMetadata>
 
