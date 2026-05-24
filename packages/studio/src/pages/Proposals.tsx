@@ -1,4 +1,4 @@
-import type { GraphOperation, NewGraphEdge, NewGraphNode, NodeId, Proposal, ValidationIssue, ValidationSeverity } from '@braidhq/schema'
+import type { EdgeId, GraphOperation, NewGraphEdge, NewGraphNode, NodeId, Proposal, ValidationIssue, ValidationSeverity } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, AlertTriangle, Check, ChevronDown, ChevronRight, Inbox, Info, MinusCircle, PencilLine, PlusCircle, X } from 'lucide-react'
 import { useState } from 'react'
@@ -10,6 +10,7 @@ import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { queryKeys, usePendingProposals, useProposalValidation } from '@/lib/queries'
+import { useGraphNavigation } from '@/lib/useGraphNavigation'
 import { GraphSurface } from './GraphSurface'
 
 interface ProposalsPageProps {
@@ -296,17 +297,58 @@ function IssueGroup({ severity, issues }: { severity: ValidationSeverity, issues
             </span>
             {' '}
             {issue.message}
-            {(issue.nodeId || issue.edgeId || issue.path) && (
-              <span className="ml-1 font-mono text-[10px] text-muted-foreground">
-                →
-                {' '}
-                {issue.nodeId ?? issue.edgeId ?? issue.path}
-              </span>
-            )}
+            <IssueTarget issue={issue} />
           </li>
         ))}
       </ul>
     </div>
+  )
+}
+
+// Renders the trailing "→ nodeId" pointer on a validation issue.
+// When a GraphNavigation context is in scope, nodeId / edgeId become
+// buttons that switch to the Graph tab focused on the target.
+function IssueTarget({ issue }: { issue: ValidationIssue }) {
+  const nav = useGraphNavigation()
+  if (!issue.nodeId && !issue.edgeId && !issue.path)
+    return null
+  const linkClass = 'rounded font-mono text-[10px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline'
+  if (issue.nodeId && nav) {
+    return (
+      <span className="ml-1 inline-flex items-center gap-1 text-muted-foreground">
+        →
+        <button
+          type="button"
+          onClick={() => nav.focusNode(issue.nodeId as NodeId)}
+          className={linkClass}
+          title="Open in Graph"
+        >
+          {issue.nodeId}
+        </button>
+      </span>
+    )
+  }
+  if (issue.edgeId && nav) {
+    return (
+      <span className="ml-1 inline-flex items-center gap-1 text-muted-foreground">
+        →
+        <button
+          type="button"
+          onClick={() => nav.focusEdge(issue.edgeId as EdgeId)}
+          className={linkClass}
+          title="Open in Graph"
+        >
+          {issue.edgeId}
+        </button>
+      </span>
+    )
+  }
+  return (
+    <span className="ml-1 font-mono text-[10px] text-muted-foreground">
+      →
+      {' '}
+      {issue.nodeId ?? issue.edgeId ?? issue.path}
+    </span>
   )
 }
 

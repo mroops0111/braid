@@ -1,13 +1,17 @@
+import type { useGraphSurfaceState } from './GraphSurface'
 import { useEffect } from 'react'
 import { PageActions } from '@/components/PageActions'
-import { GraphSurface, GraphSurfaceActions, useGraphSurfaceState } from './GraphSurface'
+import { GraphSurface, GraphSurfaceActions } from './GraphSurface'
 
 interface GraphPageProps {
   workspaceId: string
+  // State is hoisted to App so cross-tab nav (e.g. clicking a node id
+  // in a proposal validation issue) can drive selection.
+  state: ReturnType<typeof useGraphSurfaceState>
 }
 
-export function GraphPage({ workspaceId }: GraphPageProps) {
-  const { view, setView, selectedNodeId, setSelectedNodeId, focusMode, setFocusMode } = useGraphSurfaceState()
+export function GraphPage({ workspaceId, state }: GraphPageProps) {
+  const { view, setView, selectedNodeId, setSelectedNodeId, focusMode, setFocusMode } = state
 
   // Cmd+1 / Cmd+2 swap visualization ↔ table while Graph is mounted.
   useEffect(() => {
