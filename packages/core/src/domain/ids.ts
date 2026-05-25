@@ -1,5 +1,6 @@
 import type {
   AnswerId,
+  ClarifyCandidateId,
   ClarifyTicketId,
   DecisionId,
   DriftIssueId,
@@ -34,6 +35,16 @@ export function newProposalId(now: Timestamp): ProposalId {
 
 export function newClarifyTicketId(now: Timestamp): ClarifyTicketId {
   return `ct-${dateOf(now)}-${shortRandom()}` as ClarifyTicketId
+}
+
+/**
+ * Candidate id for user-authored candidates appended via the answer
+ * flow. Skill-emitted candidates use their own deterministic naming
+ * (`cc-1`, `cc-merge`, …) since the skill mints them at extract time;
+ * this minter is only for the "+ Add my own answer" path.
+ */
+export function newClarifyCandidateId(): ClarifyCandidateId {
+  return `cc-${shortRandom()}` as ClarifyCandidateId
 }
 
 function dateOf(iso: Timestamp): string {

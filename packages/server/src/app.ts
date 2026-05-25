@@ -54,6 +54,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Hono
   workspaceScoped.route('/clarify', createClarifyRouter({
     hitlService: deps.hitlService,
     clarifyRepository: deps.clarifyRepository,
+    decisionRepository: deps.decisionRepository,
   }))
   workspaceScoped.route('/decisions', createDecisionsRouter({ decisionRepository: deps.decisionRepository }))
   workspaceScoped.route('/ontology', createOntologyRouter({

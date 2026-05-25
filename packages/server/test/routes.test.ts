@@ -140,6 +140,29 @@ describe('POST /workspaces/:ws/clarify', () => {
     expect(body.candidates).toHaveLength(2)
     expect(typeof body.id).toBe('string')
   })
+
+  it('mints candidate ids server-side when the human-authored body omits them', async () => {
+    const { app } = await buildTestApp()
+
+    const response = await app.request(`/workspaces/${workspaceId}/clarify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: 'org-scoped or user-scoped?',
+        candidates: [
+          { description: 'org', sourceReferences: [], proposedOperations: [] },
+          { description: 'user', sourceReferences: [], proposedOperations: [] },
+        ],
+      }),
+    })
+
+    expect(response.status).toBe(201)
+    const body = await readJson<{ candidates: { id: string }[] }>(response)
+    expect(body.candidates).toHaveLength(2)
+    expect(body.candidates[0]!.id).toMatch(/^cc-/)
+    expect(body.candidates[1]!.id).toMatch(/^cc-/)
+    expect(body.candidates[0]!.id).not.toBe(body.candidates[1]!.id)
+  })
 })
 
 describe('POST /workspaces/:ws/proposals/:id/apply', () => {
@@ -236,7 +259,7 @@ describe('POST /workspaces/:ws/clarify/:id/answer', () => {
     expect(response.status).toBe(404)
   })
 
-  it('returns 400 when the body is missing candidateId', async () => {
+  it('returns 400 when the body has neither candidateId nor customCandidate', async () => {
     const { app } = await buildTestApp()
 
     const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-1/answer`, {
@@ -246,6 +269,65 @@ describe('POST /workspaces/:ws/clarify/:id/answer', () => {
     })
 
     expect(response.status).toBe(400)
+  })
+
+  it('returns 400 when the body has both candidateId and customCandidate', async () => {
+    const { app } = await buildTestApp()
+
+    const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-1/answer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ candidateId: 'cc-1', customCandidate: { description: 'x' }, userId }),
+    })
+
+    expect(response.status).toBe(400)
+  })
+
+  it('appends a custom candidate to the ticket and answers with it in one round-trip', async () => {
+    const { app, deps } = await buildTestApp()
+    await deps.clarifyRepository.save(makeClarifyTicket({
+      id: 'ct-custom',
+      candidates: [{ id: 'cc-1' as ClarifyCandidate['id'], description: 'pre', sourceReferences: [], proposedOperations: [] }],
+    }))
+
+    const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-custom/answer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customCandidate: { description: 'actually it should be hybrid' },
+        userId,
+        note: 'security review override',
+      }),
+    })
+
+    expect(response.status).toBe(200)
+    const reloaded = await deps.clarifyRepository.load('ct-custom' as ClarifyTicketId)
+    expect(reloaded.status).toBe('answered')
+    expect(reloaded.candidates).toHaveLength(2)
+    expect(reloaded.candidates[1]!.description).toBe('actually it should be hybrid')
+    expect(reloaded.selectedCandidateId).toBe(reloaded.candidates[1]!.id)
+  })
+})
+
+describe('GET /workspaces/:ws/clarify/:id', () => {
+  it('projects answerNote from the latest answer decision for answered tickets', async () => {
+    const { app, deps } = await buildTestApp()
+    await deps.clarifyRepository.save(makeClarifyTicket({
+      id: 'ct-note',
+      candidates: [{ id: 'cc-1' as ClarifyCandidate['id'], description: 'opt', sourceReferences: [], proposedOperations: [] }],
+    }))
+
+    await app.request(`/workspaces/${workspaceId}/clarify/ct-note/answer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ candidateId: 'cc-1', userId, note: 'this is the note' }),
+    })
+
+    const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-note`)
+    expect(response.status).toBe(200)
+    const body = await readJson<{ answerNote?: string, skipReason?: string }>(response)
+    expect(body.answerNote).toBe('this is the note')
+    expect(body.skipReason).toBeUndefined()
   })
 })
 

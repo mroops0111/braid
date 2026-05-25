@@ -1,7 +1,7 @@
-import type { EdgeId, GraphOperation, NewGraphEdge, NewGraphNode, NodeId, Proposal, ProposalStatus, ValidationIssue, ValidationSeverity } from '@braidhq/schema'
+import type { EdgeId, GraphOperation, NewGraphEdge, NewGraphNode, NodeId, Proposal, ProposalId, ProposalStatus, ValidationIssue, ValidationSeverity } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, AlertTriangle, Check, ChevronDown, ChevronRight, Inbox, Info, MinusCircle, PencilLine, PlusCircle, X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
 import { useProposalGraphDataSource } from '@/components/graph/GraphDataSource'
 import { FocusToggle } from '@/components/graph/GraphToolbar'
@@ -17,6 +17,15 @@ import { GraphSurface } from './GraphSurface'
 
 interface ProposalsPageProps {
   workspaceId: string
+  /**
+   * One-shot deep-link target. When set (e.g. clicking "→ Proposal #abc"
+   * on an applied ClarifyTicket), the page scans its current list for
+   * the matching proposal. If found in the current status filter, it's
+   * selected; otherwise the page sweeps the other statuses and switches
+   * the filter to wherever the proposal actually lives.
+   */
+  focusedProposalId?: ProposalId | null
+  onFocusConsumed?: () => void
 }
 
 const DEFAULT_USER_ID = 'studio-user'
@@ -38,7 +47,7 @@ const EMPTY_COPY: Record<StatusFilter, { title: string, description: string }> =
   },
 }
 
-export function ProposalsPage({ workspaceId }: ProposalsPageProps) {
+export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed }: ProposalsPageProps) {
   // Status filter doubles as both the list query and the "is this
   // read-only?" signal for the detail pane. Switching status clears the
   // selected proposal so the right pane doesn't show an item that no
@@ -46,11 +55,48 @@ export function ProposalsPage({ workspaceId }: ProposalsPageProps) {
   const [status, setStatus] = useState<StatusFilter>('pending')
   const { data, isLoading } = useProposalsByStatus(workspaceId, status)
   const [selected, setSelected] = useState<Proposal | null>(null)
+  // Tracks an in-progress sweep across statuses for a deep-link focus.
+  // Each entry remembers which status filters we've already checked
+  // so we don't loop on an id that doesn't exist in any list.
+  const [focusSweep, setFocusSweep] = useState<{ proposalId: ProposalId, attempted: Set<StatusFilter> } | null>(null)
 
   function changeStatus(next: StatusFilter): void {
     setStatus(next)
     setSelected(null)
   }
+
+  // Seed the sweep when a new focusedProposalId arrives. Status is
+  // intentionally excluded from deps — this effect must fire only on
+  // the externally driven id change, not when the user is mid-sweep
+  // switching filters.
+  useEffect(() => {
+    if (focusedProposalId)
+      setFocusSweep(prev => prev?.proposalId === focusedProposalId ? prev : { proposalId: focusedProposalId, attempted: new Set([status]) })
+  }, [focusedProposalId, status])
+
+  // Drive the sweep: try the current list; if no match, advance to the
+  // next unchecked status. Consumes the focus once we either select
+  // the proposal or exhaust the status set.
+  useEffect(() => {
+    if (!focusSweep || isLoading || !data)
+      return
+    const match = data.items.find(p => p.id === focusSweep.proposalId)
+    if (match) {
+      setSelected(match)
+      setFocusSweep(null)
+      onFocusConsumed?.()
+      return
+    }
+    const candidates: StatusFilter[] = ['pending', 'applied', 'rejected']
+    const next = candidates.find(s => !focusSweep.attempted.has(s))
+    if (!next) {
+      setFocusSweep(null)
+      onFocusConsumed?.()
+      return
+    }
+    setStatus(next)
+    setFocusSweep({ proposalId: focusSweep.proposalId, attempted: new Set([...focusSweep.attempted, next]) })
+  }, [focusSweep, data, isLoading, onFocusConsumed])
 
   return (
     <div className="flex h-full flex-col">

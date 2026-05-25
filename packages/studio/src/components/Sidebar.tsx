@@ -2,7 +2,7 @@ import type { Workspace } from '@braidhq/schema'
 import { FolderGit2, Loader2, Moon, PanelLeftClose, PanelLeftOpen, Plus, Server, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import braidLogo from '@/assets/braid-logo.svg'
-import { usePendingProposals, useRuns } from '@/lib/queries'
+import { usePendingClarify, usePendingProposals, useRuns } from '@/lib/queries'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { CreateWorkspaceWizard } from './CreateWorkspaceWizard'
@@ -211,10 +211,12 @@ function WorkspaceBadges({ workspaceId }: { workspaceId: string }) {
   // live. For inactive workspaces the counts are slightly stale until
   // the user opens it; acceptable cost to avoid N concurrent SSEs.
   const { data: proposals } = usePendingProposals(workspaceId)
+  const { data: clarify } = usePendingClarify(workspaceId)
   const { data: runs } = useRuns(workspaceId)
   const pending = proposals?.items.length ?? 0
+  const pendingClarify = clarify?.items.length ?? 0
   const running = runs?.items.filter(r => !r.completedAt).length ?? 0
-  if (pending === 0 && running === 0)
+  if (pending === 0 && pendingClarify === 0 && running === 0)
     return null
   return (
     <span className="ml-auto flex items-center gap-1.5 text-[10px] text-sidebar-foreground/60">
@@ -222,6 +224,15 @@ function WorkspaceBadges({ workspaceId }: { workspaceId: string }) {
         <span className="flex items-center gap-0.5" title={`${running} run${running === 1 ? '' : 's'} in flight`}>
           <Loader2 className="size-2.5 animate-spin text-primary" />
           {running}
+        </span>
+      )}
+      {pendingClarify > 0 && (
+        <span
+          className="rounded bg-sidebar-accent px-1 py-0.5 text-sidebar-foreground/70"
+          title={`${pendingClarify} pending clarification${pendingClarify === 1 ? '' : 's'}`}
+        >
+          ?
+          {pendingClarify}
         </span>
       )}
       {pending > 0 && (
