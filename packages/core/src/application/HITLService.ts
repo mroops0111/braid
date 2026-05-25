@@ -1,4 +1,5 @@
 import type {
+  ClarifyCandidate,
   ClarifyCandidateId,
   ClarifyDraft,
   ClarifyTicketId,
@@ -23,7 +24,7 @@ import type { WorkspaceService } from './WorkspaceService.js'
 import { ValidationError } from '../domain/errors.js'
 import { ClarifyTicket } from '../domain/hitl/ClarifyTicket.js'
 import { Proposal } from '../domain/hitl/Proposal.js'
-import { newClarifyTicketId, newDecisionId, newProposalId } from '../domain/ids.js'
+import { newClarifyCandidateId, newClarifyTicketId, newDecisionId, newProposalId } from '../domain/ids.js'
 
 export interface HITLServiceDeps {
   proposalRepository: ProposalRepository
@@ -144,13 +145,41 @@ export class HITLService {
    * but does **not** apply them — that's the Proposal review's job.
    * Ticket moves `pending → answered`; resolution + selectedCandidateId
    * are stamped onto it.
+   *
+   * Selection is either an existing candidate (`candidateId`) or a
+   * freshly-authored one (`customCandidate`). For the custom path we
+   * mint an id, append the candidate to the ticket, then mark it
+   * answered atomically — the reviewer's own option shows up in the
+   * candidates list afterwards alongside the skill-supplied ones.
+   *
+   * `note` is the reviewer's free-form rationale, stored on the
+   * Decision (no schema change to the ticket). Surfaced in the GET
+   * /clarify/:id projection as `answerNote` for the detail pane.
    */
-  async answerClarifyTicket(
-    clarifyTicketId: ClarifyTicketId,
-    candidateId: ClarifyCandidateId,
-    userId: UserId,
-  ): Promise<Decision> {
-    const ticket = await this.deps.clarifyRepository.load(clarifyTicketId)
+  async answerClarifyTicket(options: {
+    clarifyTicketId: ClarifyTicketId
+    selection:
+      | { kind: 'existing', candidateId: ClarifyCandidateId }
+      | { kind: 'custom', description: string }
+    userId: UserId
+    note?: string
+  }): Promise<Decision> {
+    const { clarifyTicketId, selection, userId, note } = options
+    let ticket = await this.deps.clarifyRepository.load(clarifyTicketId)
+    let candidateId: ClarifyCandidateId
+    if (selection.kind === 'existing') {
+      candidateId = selection.candidateId
+    }
+    else {
+      const newCandidate: ClarifyCandidate = {
+        id: newClarifyCandidateId(),
+        description: selection.description,
+        sourceReferences: [],
+        proposedOperations: [],
+      }
+      ticket = ticket.appendCandidate(newCandidate)
+      candidateId = newCandidate.id
+    }
     const operations = [...ticket.resolveCandidate(candidateId)]
     await this.assertOperationsValid(ticket.workspaceId, operations)
 
@@ -167,6 +196,7 @@ export class HITLService {
       workspaceId: ticket.workspaceId,
       action: 'answerClarifyTicket',
       by: userId,
+      ...(note ? { rationale: note } : {}),
       references: { clarifyTicketId },
     })
   }

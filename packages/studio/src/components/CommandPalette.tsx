@@ -1,5 +1,5 @@
 import type { SkillManifest, Workspace } from '@braidhq/schema'
-import { Boxes, FolderGit2, GitBranch, Inbox, Sparkles } from 'lucide-react'
+import { Boxes, FolderGit2, GitBranch, HelpCircle, Inbox, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {
   CommandDialog,
@@ -20,12 +20,13 @@ interface CommandPaletteProps {
   onSelectTab: (tab: TabKey) => void
 }
 
-export type TabKey = 'actions' | 'graph' | 'proposals'
+export type TabKey = 'actions' | 'clarify' | 'graph' | 'proposals'
 
 const TAB_ITEMS: { id: TabKey, label: string, Icon: typeof Sparkles }[] = [
   { id: 'actions', label: 'Actions', Icon: Sparkles },
-  { id: 'graph', label: 'Graph', Icon: GitBranch },
+  { id: 'clarify', label: 'Clarify', Icon: HelpCircle },
   { id: 'proposals', label: 'Proposals', Icon: Inbox },
+  { id: 'graph', label: 'Graph', Icon: GitBranch },
 ]
 
 export function CommandPalette({
@@ -122,6 +123,7 @@ export function CommandPalette({
 function shortcutFor(tab: TabKey): string {
   switch (tab) {
     case 'actions': return 'g a'
+    case 'clarify': return 'g c'
     case 'graph': return 'g g'
     case 'proposals': return 'g p'
   }

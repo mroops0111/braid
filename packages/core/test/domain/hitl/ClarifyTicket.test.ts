@@ -105,4 +105,23 @@ describe('ClarifyTicket', () => {
       expect(() => ticket.markSkipped(userId)).toThrow(ConflictError)
     })
   })
+
+  describe('appendCandidate', () => {
+    it('appends a new candidate while the ticket is pending', () => {
+      const ticket = new ClarifyTicket(data())
+      const extended = ticket.appendCandidate(candidate('cc-custom'))
+      expect(extended.candidates.map(c => c.id)).toEqual(['cc-1', 'cc-2', 'cc-custom'])
+      expect(extended.status).toBe('pending')
+    })
+
+    it('throws ConflictError on duplicate candidate id', () => {
+      const ticket = new ClarifyTicket(data())
+      expect(() => ticket.appendCandidate(candidate('cc-1'))).toThrow(ConflictError)
+    })
+
+    it('throws ConflictError when ticket is not pending', () => {
+      const ticket = new ClarifyTicket(data({ status: 'answered' }))
+      expect(() => ticket.appendCandidate(candidate('cc-custom'))).toThrow(ConflictError)
+    })
+  })
 })
