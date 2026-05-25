@@ -1,6 +1,7 @@
 import type { ClarifyTicketRepository, DecisionRepository, HITLService } from '@braidhq/core'
 import type { ClarifyTicketId as ClarifyTicketIdType, DecisionAction, WorkspaceId } from '@braidhq/schema'
-import { ClarifyCandidateId, ClarifyDraft, ClarifyStatus, ClarifyTicketId, ProposalId, UserId } from '@braidhq/schema'
+import { newClarifyCandidateId } from '@braidhq/core'
+import { ClarifyCandidate, ClarifyCandidateId, ClarifyDraft, ClarifyStatus, ClarifyTicketId, ProposalId, UserId } from '@braidhq/schema'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
@@ -61,7 +62,13 @@ const ApplyBodySchema = z.object({
   userId: UserId,
 })
 
-const CreateBodySchema = ClarifyDraft.omit({ workspaceId: true })
+// Skill-emitted candidates ship their own ids (`cc-1`, `cc-merge`, …);
+// human-authored ones via Studio's "New question" form omit them and
+// let the server mint via `newClarifyCandidateId`. Keeps the ID
+// minting rule (no `crypto.randomUUID() as XxxId` in clients) intact.
+const CreateBodySchema = ClarifyDraft
+  .omit({ workspaceId: true })
+  .extend({ candidates: z.array(ClarifyCandidate.partial({ id: true })) })
 
 export interface ClarifyRouterDeps {
   hitlService: HITLService
@@ -78,7 +85,11 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): Hono {
   router.post('/', zValidator('json', CreateBodySchema), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const body = context.req.valid('json')
-    const ticket = await deps.hitlService.submitClarifyTicket({ workspaceId, ...body })
+    const candidates = body.candidates.map(c => ({
+      ...c,
+      id: c.id ?? newClarifyCandidateId(),
+    }))
+    const ticket = await deps.hitlService.submitClarifyTicket({ ...body, workspaceId, candidates })
     return context.json(ticket.toData(), 201)
   })
 

@@ -140,6 +140,29 @@ describe('POST /workspaces/:ws/clarify', () => {
     expect(body.candidates).toHaveLength(2)
     expect(typeof body.id).toBe('string')
   })
+
+  it('mints candidate ids server-side when the human-authored body omits them', async () => {
+    const { app } = await buildTestApp()
+
+    const response = await app.request(`/workspaces/${workspaceId}/clarify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: 'org-scoped or user-scoped?',
+        candidates: [
+          { description: 'org', sourceReferences: [], proposedOperations: [] },
+          { description: 'user', sourceReferences: [], proposedOperations: [] },
+        ],
+      }),
+    })
+
+    expect(response.status).toBe(201)
+    const body = await readJson<{ candidates: { id: string }[] }>(response)
+    expect(body.candidates).toHaveLength(2)
+    expect(body.candidates[0]!.id).toMatch(/^cc-/)
+    expect(body.candidates[1]!.id).toMatch(/^cc-/)
+    expect(body.candidates[0]!.id).not.toBe(body.candidates[1]!.id)
+  })
 })
 
 describe('POST /workspaces/:ws/proposals/:id/apply', () => {

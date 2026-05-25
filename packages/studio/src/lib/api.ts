@@ -1,7 +1,8 @@
 import type {
-  ClarifyDraft,
+  ClarifyCandidate,
   ClarifyTicket,
   Decision,
+  ExternalReference,
   GraphEdge,
   GraphNode,
   McpServerConfig,
@@ -31,6 +32,17 @@ export interface ItemList<T> { items: T[] }
  * `answered` / `applied` tickets.
  */
 export type ClarifyTicketDetail = ClarifyTicket & { skipReason?: string, answerNote?: string }
+
+/**
+ * POST /workspaces/:ws/clarify body shape — mirrors the server's
+ * `CreateBodySchema`. Candidate `id` is optional so the server can
+ * mint via `newClarifyCandidateId` for human-authored questions.
+ */
+export interface ClarifySubmitBody {
+  question: string
+  candidates: ReadonlyArray<Omit<ClarifyCandidate, 'id'> & { id?: ClarifyCandidate['id'] }>
+  externalReferences?: ReadonlyArray<ExternalReference>
+}
 
 export interface IngestSummary {
   sourceId: string
@@ -186,7 +198,12 @@ export const api = {
    */
   getClarify: (workspaceId: string, ticketId: string) =>
     fetchJson<ClarifyTicketDetail>(`/workspaces/${workspaceId}/clarify/${ticketId}`),
-  submitClarify: (workspaceId: string, draft: Omit<ClarifyDraft, 'workspaceId'>) =>
+  /**
+   * Server mints any omitted candidate ids — skills supply them
+   * deterministically (cc-1 etc.), human-authored "New question"
+   * candidates leave them out and let `newClarifyCandidateId` fill in.
+   */
+  submitClarify: (workspaceId: string, draft: ClarifySubmitBody) =>
     fetchJson<ClarifyTicket>(`/workspaces/${workspaceId}/clarify`, {
       method: 'POST',
       body: JSON.stringify(draft),

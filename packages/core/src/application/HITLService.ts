@@ -139,22 +139,11 @@ export class HITLService {
   }
 
   /**
-   * Record the user's chosen candidate. Validates the resolution
-   * operations against the current graph so we fail loudly here rather
-   * than later when the braid-clarify skill tries to build a Proposal,
-   * but does **not** apply them — that's the Proposal review's job.
-   * Ticket moves `pending → answered`; resolution + selectedCandidateId
-   * are stamped onto it.
-   *
-   * Selection is either an existing candidate (`candidateId`) or a
-   * freshly-authored one (`customCandidate`). For the custom path we
-   * mint an id, append the candidate to the ticket, then mark it
-   * answered atomically — the reviewer's own option shows up in the
-   * candidates list afterwards alongside the skill-supplied ones.
-   *
-   * `note` is the reviewer's free-form rationale, stored on the
-   * Decision (no schema change to the ticket). Surfaced in the GET
-   * /clarify/:id projection as `answerNote` for the detail pane.
+   * Validates ops against the current graph (fail loud here, not later
+   * inside the skill); custom selection appends a minted candidate to
+   * the ticket first so the reviewer's own option lives alongside the
+   * skill-supplied ones; `note` lives only on the Decision (no ticket
+   * schema growth) and is projected back via GET /clarify/:id.
    */
   async answerClarifyTicket(options: {
     clarifyTicketId: ClarifyTicketId

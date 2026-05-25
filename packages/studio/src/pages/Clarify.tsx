@@ -58,6 +58,10 @@ export function summarizeOps(operations: readonly GraphOperation[]): OpsSummary 
       case 'updateEdges':
         updates += op.updates.length
         break
+      default: {
+        const exhaustive: never = op
+        throw new Error(`Unhandled GraphOperation: ${JSON.stringify(exhaustive)}`)
+      }
     }
   }
   return { adds, updates, removes, total: adds + updates + removes }
@@ -853,8 +857,20 @@ function collectNodeIds(candidate: ClarifyCandidate): NodeId[] {
         for (const u of op.updates)
           ids.add(u.nodeId)
         break
-      // Edge ops carry only edgeIds; intentionally not surfaced here
-      // because GraphNavigation doesn't have edge-side selection yet.
+      // Edge ops are intentionally no-ops here — GraphNavigation has
+      // no edge-side selection yet. Enumerating them keeps the switch
+      // exhaustive so adding a 13th discriminant compile-errors.
+      case 'addEdge':
+      case 'addEdges':
+      case 'removeEdge':
+      case 'removeEdges':
+      case 'updateEdge':
+      case 'updateEdges':
+        break
+      default: {
+        const exhaustive: never = op
+        throw new Error(`Unhandled GraphOperation: ${JSON.stringify(exhaustive)}`)
+      }
     }
   }
   return [...ids]

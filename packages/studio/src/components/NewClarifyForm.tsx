@@ -1,4 +1,4 @@
-import type { ClarifyCandidateId, ClarifyTicket } from '@braidhq/schema'
+import type { ClarifyTicket } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -60,10 +60,10 @@ export function NewClarifyForm({ workspaceId, open, onOpenChange, onCreated }: N
 
   const submit = useMutation({
     mutationFn: () => {
-      // Mint candidate ids client-side; the brand is just a runtime
-      // Zod parse on the server. Drop empty rows.
+      // Candidate ids are server-minted for the human-authored path
+      // (the `id?` shape in the wire schema reflects this); the client
+      // sends descriptions only.
       const candidates = filled.map(row => ({
-        id: crypto.randomUUID() as ClarifyCandidateId,
         description: row.description.trim(),
         sourceReferences: [],
         proposedOperations: [],
