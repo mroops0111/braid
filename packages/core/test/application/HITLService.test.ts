@@ -282,7 +282,11 @@ describe('HITLService', () => {
       })
       await fixture.clarifyRepository.save(ticket)
 
-      const decision = await fixture.service.answerClarifyTicket(ticket.id, candidateId, userId)
+      const decision = await fixture.service.answerClarifyTicket({
+        clarifyTicketId: ticket.id,
+        selection: { kind: 'existing', candidateId },
+        userId,
+      })
 
       expect(decision.action).toBe('answerClarifyTicket')
       expect(decision.workspaceId).toBe(fixture.workspaceId)
@@ -293,6 +297,62 @@ describe('HITLService', () => {
       expect(reloaded.status).toBe('answered')
       expect(reloaded.selectedCandidateId).toBe(candidateId)
       expect(reloaded.resolution).toEqual([{ operation: 'removeNode', nodeId }])
+    })
+
+    it('captures the reviewer note on the decision rationale', async () => {
+      const fixture = await setupFixture()
+      const candidateId = mintTestId('cc') as ClarifyCandidateId
+      const ticket = makeClarifyTicket(fixture.workspaceId, {
+        candidates: [{
+          id: candidateId,
+          description: 'yes',
+          sourceReferences: [],
+          proposedOperations: [],
+        }],
+      })
+      await fixture.clarifyRepository.save(ticket)
+
+      const decision = await fixture.service.answerClarifyTicket({
+        clarifyTicketId: ticket.id,
+        selection: { kind: 'existing', candidateId },
+        userId,
+        note: 'org-scoped per the security review',
+      })
+
+      expect(decision.rationale).toBe('org-scoped per the security review')
+    })
+
+    it('appends a custom candidate, marks it answered, and stamps the resolution', async () => {
+      // The reviewer's own answer flows through the same lifecycle as
+      // a skill-emitted candidate: the new one shows up in the
+      // ticket's candidates list with zero ops, and selectedCandidateId
+      // points at it.
+      const fixture = await setupFixture()
+      const ticket = makeClarifyTicket(fixture.workspaceId, {
+        candidates: [{
+          id: mintTestId('cc') as ClarifyCandidateId,
+          description: 'pre-existing',
+          sourceReferences: [],
+          proposedOperations: [],
+        }],
+      })
+      await fixture.clarifyRepository.save(ticket)
+
+      const decision = await fixture.service.answerClarifyTicket({
+        clarifyTicketId: ticket.id,
+        selection: { kind: 'custom', description: 'actually it should be hybrid' },
+        userId,
+      })
+
+      expect(decision.action).toBe('answerClarifyTicket')
+      const reloaded = await fixture.clarifyRepository.load(ticket.id)
+      expect(reloaded.status).toBe('answered')
+      expect(reloaded.candidates).toHaveLength(2)
+      const appended = reloaded.candidates[1]
+      expect(appended!.description).toBe('actually it should be hybrid')
+      expect(appended!.proposedOperations).toEqual([])
+      expect(reloaded.selectedCandidateId).toBe(appended!.id)
+      expect(reloaded.resolution).toEqual([])
     })
 
     it('rejects answers whose resolution ops fail validation', async () => {
@@ -312,7 +372,11 @@ describe('HITLService', () => {
       await fixture.clarifyRepository.save(ticket)
 
       await expect(
-        fixture.service.answerClarifyTicket(ticket.id, candidateId, userId),
+        fixture.service.answerClarifyTicket({
+          clarifyTicketId: ticket.id,
+          selection: { kind: 'existing', candidateId },
+          userId,
+        }),
       ).rejects.toThrow()
 
       const reloaded = await fixture.clarifyRepository.load(ticket.id)

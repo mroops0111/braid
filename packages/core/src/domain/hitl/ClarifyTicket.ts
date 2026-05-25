@@ -51,6 +51,26 @@ export class ClarifyTicket {
     return candidate.proposedOperations
   }
 
+  /**
+   * Append a candidate to a pending ticket. Used when the reviewer's
+   * actual answer doesn't match any of the skill-supplied options and
+   * they author one inline. Refuses on non-pending tickets so an
+   * already-answered ticket can't grow new options retroactively, and
+   * rejects duplicate ids to keep `resolveCandidate` deterministic.
+   */
+  appendCandidate(candidate: ClarifyCandidate): ClarifyTicket {
+    this.requireStatus('append candidate', 'pending')
+    if (this.data.candidates.some(existing => existing.id === candidate.id)) {
+      throw new ConflictError(
+        `Candidate "${candidate.id}" already exists on ticket "${this.data.id}"`,
+      )
+    }
+    return new ClarifyTicket({
+      ...this.data,
+      candidates: [...this.data.candidates, candidate],
+    })
+  }
+
   markAnswered(candidateId: ClarifyCandidateId, userId: UserId): ClarifyTicket {
     this.requireStatus('answer', 'pending')
     const operations = this.resolveCandidate(candidateId)

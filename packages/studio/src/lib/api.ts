@@ -1,6 +1,8 @@
 import type {
+  ClarifyCandidate,
   ClarifyTicket,
   Decision,
+  ExternalReference,
   GraphEdge,
   GraphNode,
   McpServerConfig,
@@ -21,6 +23,26 @@ export function workspaceEventsUrl(workspaceId: string): string {
 }
 
 export interface ItemList<T> { items: T[] }
+
+/**
+ * GET /workspaces/:ws/clarify/:id response — the canonical ticket plus
+ * server-side projections derived from the Decision log so the detail
+ * pane can render the reviewer's rationale without a second fetch.
+ * `skipReason` is set on `skipped` tickets, `answerNote` on
+ * `answered` / `applied` tickets.
+ */
+export type ClarifyTicketDetail = ClarifyTicket & { skipReason?: string, answerNote?: string }
+
+/**
+ * POST /workspaces/:ws/clarify body shape — mirrors the server's
+ * `CreateBodySchema`. Candidate `id` is optional so the server can
+ * mint via `newClarifyCandidateId` for human-authored questions.
+ */
+export interface ClarifySubmitBody {
+  question: string
+  candidates: ReadonlyArray<Omit<ClarifyCandidate, 'id'> & { id?: ClarifyCandidate['id'] }>
+  externalReferences?: ReadonlyArray<ExternalReference>
+}
 
 export interface IngestSummary {
   sourceId: string
@@ -169,6 +191,51 @@ export const api = {
     const query = status ? `?status=${status}` : ''
     return fetchJson<ItemList<ClarifyTicket>>(`/workspaces/${workspaceId}/clarify${query}`)
   },
+  /**
+   * Returns the ticket plus a `skipReason` projection when the ticket
+   * is in `skipped` status — derived server-side from the most recent
+   * skipClarifyTicket Decision so the UI doesn't need a second call.
+   */
+  getClarify: (workspaceId: string, ticketId: string) =>
+    fetchJson<ClarifyTicketDetail>(`/workspaces/${workspaceId}/clarify/${ticketId}`),
+  /**
+   * Server mints any omitted candidate ids — skills supply them
+   * deterministically (cc-1 etc.), human-authored "New question"
+   * candidates leave them out and let `newClarifyCandidateId` fill in.
+   */
+  submitClarify: (workspaceId: string, draft: ClarifySubmitBody) =>
+    fetchJson<ClarifyTicket>(`/workspaces/${workspaceId}/clarify`, {
+      method: 'POST',
+      body: JSON.stringify(draft),
+    }),
+  /**
+   * Answer a clarify ticket. `selection` is either picking an existing
+   * candidate or supplying a freshly-written description that the
+   * server appends to the ticket and answers in one transaction.
+   * `note` is the reviewer's free-form rationale; the server stores
+   * it on the Decision and projects it back as `answerNote` on the
+   * GET /clarify/:id response.
+   */
+  answerClarify: (
+    workspaceId: string,
+    ticketId: string,
+    selection: { candidateId: string } | { customCandidate: { description: string } },
+    userId: string,
+    note?: string,
+  ) =>
+    fetchJson<Decision>(`/workspaces/${workspaceId}/clarify/${ticketId}/answer`, {
+      method: 'POST',
+      body: JSON.stringify({
+        ...selection,
+        userId,
+        ...(note ? { note } : {}),
+      }),
+    }),
+  skipClarify: (workspaceId: string, ticketId: string, reason: string, userId: string) =>
+    fetchJson<Decision>(`/workspaces/${workspaceId}/clarify/${ticketId}/skip`, {
+      method: 'POST',
+      body: JSON.stringify({ reason, userId }),
+    }),
 
   listDecisions: (workspaceId: string) =>
     fetchJson<ItemList<Decision>>(`/workspaces/${workspaceId}/decisions`),
