@@ -26,6 +26,7 @@ export type EdgeCardinality = z.infer<typeof EdgeCardinality>
 export const EdgeTypeDescriptor = z.object({
   id: EdgeTypeId,
   label: z.string().optional(),
+  description: z.string().optional(),
   fromTypes: z.array(NodeTypeId),
   toTypes: z.array(NodeTypeId),
   cardinality: EdgeCardinality.optional(),

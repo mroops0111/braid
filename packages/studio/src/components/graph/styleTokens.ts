@@ -20,7 +20,11 @@ export const DIMMED_ROW_OPACITY = 0.3
 export const EDGE_STROKE = {
   selected: 2.5,
   incident: 2,
-  added: 2,
+  /**
+   * Added edges in a proposal preview.
+   * Pumped above `incident` so an incremental fix stands out instead of blending into the existing topology (e.g. a model audit adding a handful of edges to an otherwise unchanged graph).
+   */
+  added: 3,
   default: 1.25,
 } as const
 

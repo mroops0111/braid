@@ -84,6 +84,45 @@ The shape of the ID is a hint for humans; the `type` field is the contract. Use 
 
 The literal `type` strings differ between ontologies. **Always read them off the `/ontology` response**, do not memorise them. Same applies to edges: use exact `edgeTypes[].id` strings (e.g. `contains`, not `CONTAINS`).
 
+### Canonical edges to add when emitting a new node
+
+Read the `description` field of every node type and every edge type from the `/ontology` response before deciding. The descriptions are the source of truth for what each element means and where it fits. They carry the canonical reading (Evans / Vernon DDD + EventStorming supplements) and call out anything that is not strict canon.
+
+A BoundedContext contains aggregates only. Commands, queries, events, and rules belong to an aggregate and are reached via the aggregate's edges. When you create one of those nodes also emit the wiring edge into its owning aggregate.
+
+| New node | Required parent / wiring edge |
+|---|---|
+| `aggregate` | `boundedContext --contains--> aggregate` |
+| `command` / `query` | `aggregate --accepts--> command` or `aggregate --accepts--> query` |
+| `event` | `command --emits--> event` (CQRS / EventStorming reading; preferred when extracting from PRD / spec language) or `aggregate --emits--> event` (Vernon IDDD structural reading; preferred when describing state ownership). Both shapes are valid in this ontology |
+| `rule` (per-operation) | `command --constrainedBy--> rule` or `query --constrainedBy--> rule` |
+| `rule` (aggregate-wide invariant) | `aggregate --constrainedBy--> rule` |
+| `actor` | `command --performedBy--> actor` or `query --performedBy--> actor` |
+| `policy` | `event --triggers--> policy --enacts--> command` (see "Policy emission" below) |
+
+A command, query, event, or rule with no edge into its owning aggregate is an orphan. If the source material doesn't make the owning aggregate obvious, surface it as a ClarifyTicket per Step 5 rather than attaching it directly to a BoundedContext.
+
+Cross-aggregate references go through `aggregate --dependsOn--> aggregate` (by id only, per DDD). Event-driven cross-aggregate flow goes through `event --triggers--> command` or via a policy when the reaction has a name worth keeping.
+
+### Policy emission
+
+A policy materialises Vernon's Process Manager / EventStorming's purple Policy sticky. The pattern is **"when event X happens, do Y"**. Emit a policy when the source material describes an automatic reaction with a name worth keeping in the graph, especially when:
+- the reaction crosses aggregates (event in aggregate A triggers a command in aggregate B);
+- the reaction is delayed or scheduled (e.g. "after N days");
+- the reaction has its own configuration or conditions.
+
+Shape: `event --triggers--> policy --enacts--> command`. A policy without both edges is incomplete.
+
+Skip the policy when the reaction is a single synchronous command on the same aggregate that emitted the event; that's just `event --triggers--> command` directly. Policy is for reactions that deserve a name.
+
+Distinguish from `rule`: a rule is "this must always be true" (a constraint); a policy is "when this happens, do that" (a reaction).
+
+### Context Mapping (strategic edges)
+
+The seven Context Mapping edges (`partnership`, `customerSupplier`, `conformist`, `sharedKernel`, `anticorruptionLayer`, `openHostService`, `publishedLanguage`) describe strategic BoundedContext-to-BoundedContext relationships from Evans Blue Book Part IV. Each `description` on the `/ontology` response defines its direction and meaning; read them before emitting.
+
+These are not derivable from a single feature slice; they reflect team structure, organisational politics, and integration architecture. **Do not auto-emit them from per-slice extract.** If the source material strongly signals one (e.g. mentions a third-party system the workspace depends on, or two contexts described as coupled in release planning), raise a ClarifyTicket per Step 5 asking the architect to confirm the mapping type. Let the human pick.
+
 For each candidate:
 - Graph **has same id** with different content → `updateNode`
 - Graph **has identical content** → skip
@@ -196,6 +235,13 @@ Produced N proposals + M clarify tickets:
 - [ ] Every node has `metadata.sourceReferences` AND/OR an `implementationMissing` / `intentMissing` flag
 - [ ] When two sources for the same node disagreed on a specific field, a structured `DriftIssue` is attached (not a ClarifyTicket); see `drift-detection.md`
 - [ ] Every `node.type` matches a `nodeTypes[].id` from `/ontology`; every `edge.type` matches an `edgeTypes[].id`
+- [ ] No `contains` edge points from BoundedContext to a non-aggregate.
+- [ ] Every cmd and qry has at least one `accepts` in-edge from an aggregate.
+- [ ] Every evt has at least one `emits` in-edge from a command or aggregate.
+- [ ] Every rule has at least one `constrainedBy` in-edge from a cmd, qry, or aggregate.
+- [ ] Every policy has both a `triggers` in-edge from an event and an `enacts` out-edge to a command.
+- [ ] Every `dependsOn` edge runs `aggregate --dependsOn--> aggregate`. Cross-aggregate cmd/qry coupling goes through `triggers` (optionally via a policy) instead.
+- [ ] No Context Mapping edge was auto-emitted. Those land via ClarifyTicket only.
 - [ ] Each proposal was submitted via `POST /proposals` and the final response was 201 (not 4xx)
 - [ ] No `removeNode` of a node still referenced elsewhere (deprecate instead)
 - [ ] Each ClarifyTicket candidate carries `proposedOperations`
