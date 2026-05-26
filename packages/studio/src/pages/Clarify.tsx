@@ -1,7 +1,7 @@
 import type { ClarifyCandidate, ClarifyStatus, ClarifyTicket, ExternalReference, GraphOperation, NodeId, ProposalId } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, ExternalLink, Inbox, Pencil, Plus, SkipForward, X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
 import { NewClarifyForm } from '@/components/NewClarifyForm'
@@ -133,6 +133,14 @@ export function ClarifyPage({ workspaceId }: ClarifyPageProps) {
   const [selected, setSelected] = useState<ClarifyTicket | null>(null)
   const [newOpen, setNewOpen] = useState(false)
   const { data, isLoading } = useClarifyByStatus(workspaceId, status)
+
+  // Auto-select the first ticket when entering a list with no current selection (initial mount, after status switch, or after answer/skip clears the detail pane).
+  // Saves the reviewer one click per ticket when working through a queue.
+  useEffect(() => {
+    if (selected || isLoading || !data?.items.length)
+      return
+    setSelected(data.items[0]!)
+  }, [data, selected, isLoading])
 
   function changeStatus(next: StatusFilter): void {
     setStatus(next)

@@ -87,12 +87,11 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   const [filters, setFilters] = useState<GraphFilters>(INITIAL_FILTERS)
   const [selectedNodeId, setSelectedNodeId] = useControllableState<NodeId | null>(controlledSelected, onSelectNode, null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
-  // Proposal-preview mode (diff present) collapses the navigator so
-  // reviewers see the full diff without the filter/orphan/search panel
-  // they don't need here.
-  const [navigatorOpen, setNavigatorOpen] = useState(diff === undefined)
+  // Navigator stays open across both tab and preview modes so the filter chips are visible from the start.
+  // Reviewers were getting stuck in preview mode wondering how to surface the relevant types.
+  const [navigatorOpen, setNavigatorOpen] = useState(true)
 
-  useFilterSeed(ontology, workspaceId, setFilters)
+  useFilterSeed(ontology, workspaceId, setFilters, diff !== undefined ? 'all' : 'defaultVisible')
 
   const orphanIds = useMemo(() => orphanNodeIds(allNodes, allEdges), [allNodes, allEdges])
   const filtered = useMemo(
