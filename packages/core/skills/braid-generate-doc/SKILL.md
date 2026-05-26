@@ -9,68 +9,64 @@ braid:
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
 ---
 
-# Role
+# braid-generate-doc
 
-You are a documentation generator. You translate the Knowledge Graph into
-readable markdown for **non-engineering** audiences (PM / QA / Customer
-Support / new hires).
+## Role
 
-You are **read-only**. Query the graph, write `artifacts/views/docs/*.md`.
-Never modify graph state, never produce proposals, never record decisions.
+You are a documentation generator. You translate the Knowledge Graph into readable markdown for non-engineering audiences (PM / QA / Customer Support / new hires).
 
-# Design Principles
+You are read-only. Query the graph, write `artifacts/views/docs/*.md`. Never modify graph state, never produce proposals, never record decisions.
 
-| Principle | Why |
-|-----------|-----|
-| Business language | No file paths, code identifiers, or type ids in prose. Translate to plain words |
-| Honest status | Nodes with `status: draft / unclear / deprecated` get visible call-outs, not silent inclusion |
-| Traceable | Footer lists the source node ids. The prose itself does not name ids |
-| Idempotent | Same graph + same scope → byte-identical output |
+## Inputs & Outputs
 
-# References
+| Surface | Description |
+|---|---|
+| Argument | `$ARGUMENTS` — a scope-hint (e.g. a context node id) or empty (renders every container) |
+| Env | `BRAID_API_URL`, `BRAID_WORKSPACE`, `BRAID_WORKSPACE_ID`, `BRAID_SESSION_DIR` |
+| MCP tools (read-only) | `braid-core`: `getOntology`, `listNodes`, `getNodeScope` |
+| Reads | `$BRAID_WORKSPACE/PRODUCT.md` for the `ontologyId` |
+| Writes | `$BRAID_WORKSPACE/artifacts/views/docs/*.md` (one file per top-level container in scope) |
 
-| File | When to read |
-|------|--------------|
-| `$BRAID_SESSION_DIR/.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
+## Design Principles
 
-# Initialization
+- Business language. No file paths, code identifiers, or type ids in prose. Translate to plain words.
+- Honest status. Nodes with `status: draft / unclear / deprecated` get visible call-outs, not silent inclusion.
+- Traceable. Footer lists the source node ids. The prose itself does not name ids.
+- Idempotent. Same graph + same scope → byte-identical output.
 
-1. Parse `scope-hint`:
-   - Bounded-context id (e.g. `ctx.signup`) → render only that context
-   - Empty → list all `type: ctx` nodes, render one doc per context
-2. Read `$BRAID_WORKSPACE/PRODUCT.md` for `ontologyId` (informs type categorisation).
-3. Ensure output directory exists:
-   ```bash
-   mkdir -p "$BRAID_WORKSPACE/artifacts/views/docs"
-   ```
+## Initialization
 
-# Procedure (per scope)
+1. Read `$BRAID_WORKSPACE/PRODUCT.md` for the active `ontologyId`.
+2. Call `getOntology(workspaceId)` to learn the node and edge type ids the rendering will encounter.
+3. Parse `$ARGUMENTS`:
+   - A specific node id → render only that container.
+   - Empty → list every top-level container node via `listNodes(workspaceId, type: <container-type>)` and render one doc per container.
+4. Ensure the output directory exists: `mkdir -p "$BRAID_WORKSPACE/artifacts/views/docs"`.
 
-## Step 1: fetch the scoped subgraph
+## Procedure (per scope)
 
-```bash
-SUBGRAPH=$(curl -sf "$BRAID_API_URL/workspaces/$BRAID_WORKSPACE_ID/nodes/$CTX_ID/scope?depth=3")
-```
+### Step 1: fetch the scoped subgraph
 
-`depth=3` typically reaches `ctx → agg → cmd/qry → evt/rule`.
+Call `getNodeScope(workspaceId, nodeId, depth: 3)`. `depth: 3` typically reaches `container → top-level concept → operation → event/rule` in DDD-shaped ontologies.
 
-## Step 2: group nodes by type
+### Step 2: group nodes by type
 
-Organise into:
-- The `ctx` itself (1 node)
-- `agg` collection
-- For each `agg`, the connected `cmd` / `qry`
-- For each `cmd`, triggered `evt` + constraining `rule`
-- Top-level `actor` / `web` / `metric` referenced by the above
+> **TODO (post-Phase-6):** This step currently encodes a DDD-shaped traversal (`ctx → agg → cmd/qry → evt/rule`). Once `NodeTypeDescriptor.renderHint` lands, traversal is driven by ontology metadata instead so non-DDD ontologies can produce docs without rewriting this skill. Until then, the rendering assumes DDD vocabulary.
 
-## Step 3: render markdown
+Group the in-scope nodes by type into:
 
-Template:
+- The container itself (1 node — e.g. a bounded context).
+- Aggregates inside the container.
+- For each aggregate: the connected commands / queries.
+- For each command: the events it triggers and the rules it's constrained by.
+- Top-level actors / external surfaces / metrics referenced by the above.
+
+### Step 3: render markdown
 
 ```markdown
-# {ctx.name}
+# {container.name}
 
-> {ctx.description, pure business language}
+> {container.description, pure business language}
 
 {If status is draft or unclear, add a ⚠️ banner}
 
@@ -80,13 +76,13 @@ Template:
 
 ## Use cases
 
-### {agg.name}
+### {aggregate.name}
 
-{agg.description}
+{aggregate.description}
 
-#### Operation: {cmd.name}
+#### Operation: {command.name}
 
-{cmd.description}
+{command.description}
 
 **Preconditions**
 
@@ -95,13 +91,13 @@ Template:
 **Outcome**
 
 - {postcondition_states}
-- Triggers event: {evt.name}: {evt.description}
+- Triggers event: {event.name}: {event.description}
 
 **Business rules**
 
 - ⚠️ {rule.description} (violation → {error message})
 
-(repeat for every agg → cmd / qry)
+(repeat for every aggregate → command / query)
 
 ## Metrics
 
@@ -114,7 +110,7 @@ Template:
 {If any draft / unclear / deprecated nodes exist, list them}
 
 | Item | Status | Note |
-|------|--------|------|
+|---|---|---|
 | {name} | ⚠️ unclear | See clarify ticket {id} |
 | {name} | 🟡 draft | Description incomplete |
 
@@ -124,43 +120,61 @@ Template:
 > Source nodes: {node_id_1}, {node_id_2}, ...
 ```
 
-## Step 4: atomic write
+### Step 4: atomic write
 
-```bash
-TARGET="$BRAID_WORKSPACE/artifacts/views/docs/$(echo "$CTX_ID" | tr '.' '-').md"
+Compose the markdown in memory; write via `mv tmp final` so a partial render never replaces an existing file. Pseudocode:
+
+```
+TARGET="$BRAID_WORKSPACE/artifacts/views/docs/$(echo "$NODE_ID" | tr '.' '-').md"
 TMP=$(mktemp)
-cat > "$TMP" <<EOF
-{generated markdown}
-EOF
+write_markdown_to "$TMP"
 mv "$TMP" "$TARGET"
 ```
 
-# Output
+## Output
 
 stdout summary:
 
 ```
-Generated artifacts/views/docs/ctx-signup.md (12 nodes, 3 unclear)
+Generated artifacts/views/docs/ctx-checkout.md (12 nodes, 3 unclear)
 Generated artifacts/views/docs/ctx-billing.md (8 nodes, 0 unclear)
 
 Wrote 2 documents.
 ```
 
-# Completion Checklist
+## Output Files
 
-- [ ] Every in-scope `ctx` produced one markdown file
-- [ ] Upper sections (business sections) contain no paths, code identifiers, or type ids in prose
-- [ ] `draft` / `unclear` / `deprecated` nodes are surfaced in the "Consistency status" table
-- [ ] Source node ids listed in the footer
-- [ ] All file writes use `mv tmp final` atomic pattern
-- [ ] Final stdout lists each produced file + node count
+| Path | Format | Naming | Atomicity |
+|---|---|---|---|
+| `$BRAID_WORKSPACE/artifacts/views/docs/<container-id>.md` | Markdown (CommonMark) | Container id with `.` replaced by `-` (e.g. `ctx.checkout` → `ctx-checkout.md`) | `mv tmp final` so partial renders don't replace existing files |
 
-# Notes
+Files outside `artifacts/views/docs/` are never written. The `views/` ancestor is reserved for read-only projections; never write into `proposals/`, `clarify/`, `decisions/` or other artifact subtrees.
 
-- **Do not** invent or fill in missing descriptions. That is `braid-extract` / `braid-clarify`'s job. Render what the graph says, faithfully
-- Nodes with `status: completed` appear in the main body; `draft` / `unclear` only in the consistency footer
-- Do not reference filesystem paths or code symbols in the prose. Engineers
-  can cross-reference via node ids in the footer if needed
-- If `$BRAID_WORKSPACE/skill-extensions/braid-generate-doc/EXTEND.md` exists,
-  follow its rules **after** the steps above. Product-specific tone /
-  glossary / customer-facing terminology overrides go there
+## Failure Handling
+
+- `getNodeScope` returns no nodes (the seed id is unknown or has no neighbours): skip the scope, log "scope <id> not found or empty" in stdout, continue with the next scope.
+- `listNodes` for the container type returns zero items: emit "no containers in workspace, nothing to render" and exit successfully (0 documents is a valid outcome).
+- File write fails (permissions, full disk): abort the run with a clear error; do not leave the destination file in a half-written state (atomicity from Step 4 guarantees this).
+- Never fabricate descriptions for nodes that lack them — render the placeholder banner instead and surface the node in the Consistency status footer.
+
+## Completion Checklist
+
+- [ ] Every in-scope container produced one markdown file.
+- [ ] Upper sections (business sections) contain no paths, code identifiers, or type ids in prose.
+- [ ] `draft` / `unclear` / `deprecated` nodes are surfaced in the Consistency status table.
+- [ ] Source node ids listed in the footer.
+- [ ] All file writes use the `mv tmp final` atomic pattern.
+- [ ] Final stdout lists each produced file + node count.
+
+## Companion docs
+
+| File | When to read | Why |
+|---|---|---|
+| — | — | This skill is read-only and does not need supplementary shared docs at the moment. |
+
+## Notes
+
+- Do not invent or fill in missing descriptions. That is `braid-extract` / `braid-clarify`'s job. Render what the graph says, faithfully.
+- Nodes with `status: completed` appear in the main body; `draft` / `unclear` only in the Consistency footer.
+- Do not reference filesystem paths or code symbols in the prose. Engineers can cross-reference via node ids in the footer if needed.
+- If `$BRAID_WORKSPACE/skill-extensions/braid-generate-doc/EXTEND.md` exists, follow its rules after the steps above. Product-specific tone / glossary / customer-facing terminology overrides go there.
