@@ -36,17 +36,17 @@ Don't force every node into every dimension.
 
 | Dimension | Look for | Example finding |
 |---|---|---|
-| `existence` | One source describes a concept the other doesn't mention | "Intent describes `voidTask` command, no implementation found in `apps/api/task/`" |
-| `terminology` | Same concept, different name; or same name, different concept | "Intent calls them `signers`, code uses `participant` (which also covers approvers)" |
-| `sequence` | Order of steps in a flow | "Intent: validate quota then debit. Code: debit then validate quota at `task.service.ts:88`" |
-| `params` | Input / output field set | "Intent lists 8 field types for forms, code accepts 10 (extras: `currency`, `regex`)" |
-| `states` | Enumerated states / status machine | "Intent: 5 task states. Code enum has 6 (extra: `archived`)" |
-| `rules` | Business rules / validation thresholds | "Intent: max 50 signers per task. Code: `<= 99` at `validator.ts:14`" |
-| `permissions` | Role / actor / authorisation checks | "Intent: only `sender` can void. Code also requires `group.admin` at `policy.ts:31`" |
-| `limits` | Numeric caps that differ across layers (code-vs-code) | "Backend `sign_stage` no cap (-1). Frontend hardcodes `max=99`" |
-| `api-contract` | Wire format between layers | "Frontend POSTs `{ forwardEmail }`, backend factory doesn't read it" |
-| `errors` | Error code coverage | "Backend returns `over_task_usage`, frontend has no matching message" |
-| `feature-coverage` | One layer ships a feature the other lacks | "Frontend has 'forward task' UI, backend has no endpoint" |
+| `existence` | One source describes a concept the other doesn't mention | "Intent describes `cancelOrder` command; no implementation found in `apps/api/order/`" |
+| `terminology` | Same concept, different name; or same name, different concept | "Intent calls them `buyers`, code uses `customer` (which also covers anonymous guests)" |
+| `sequence` | Order of steps in a flow | "Intent: validate quota then debit. Code: debits first, then validates quota at `order.service.ts:88`" |
+| `params` | Input / output field set | "Intent lists 8 field types for line items; code accepts 10 (extras: `currency`, `regex`)" |
+| `states` | Enumerated states / status machine | "Intent: 5 order states. Code enum has 6 (extra: `archived`)" |
+| `rules` | Business rules / validation thresholds | "Intent: max 50 line items per order. Code: `<= 99` at `validator.ts:14`" |
+| `permissions` | Role / actor / authorisation checks | "Intent: only `buyer` can cancel. Code also requires `org.admin` at `policy.ts:31`" |
+| `limits` | Numeric caps that differ across layers (code-vs-code) | "Backend `approval_step` has no cap (-1); frontend hardcodes `max=99`" |
+| `api-contract` | Wire format between layers | "Frontend POSTs `{ couponCode }`; backend handler doesn't read it" |
+| `errors` | Error code coverage | "Backend returns `quota_exceeded`; frontend has no matching message" |
+| `feature-coverage` | One layer ships a feature the other lacks | "Frontend has 'share order' UI; backend has no endpoint" |
 
 These are guidance, not enum values — the schema doesn't enforce them.
 Pick whichever fits the finding; if none fits, write the finding anyway
@@ -72,8 +72,8 @@ Don't raise a `DriftIssue` for:
   evidence, not impressions.
 
 If the disagreement makes you unsure which concept these even *are*
-(two different `voidTask` candidates? same? distinct?), you don't have
-field-level drift — you have an identity question. Emit a
+(two different `cancelOrder` candidates? same? distinct?), you don't
+have field-level drift — you have an identity question. Emit a
 `ClarifyTicket`, not a `DriftIssue`.
 
 ---
@@ -91,13 +91,14 @@ The description goes straight to a human reviewer. It must:
 
 **Good examples:**
 
-> Intent (`intent/task.md` §"Quota") caps signers at 50; code at
-> `apps/api/task/validator.ts:14` allows up to 99. Extra signers
+> Intent (`intent/order.md` §"Quota") caps line items at 50; code at
+> `apps/api/order/validator.ts:14` allows up to 99. Extra line items
 > currently silently fail a downstream DB unique check.
 
-> Backend `apps/api/sign/stage.ts` accepts unlimited `sign_stage`;
-> frontend `apps/web/src/sign/StageEditor.tsx:42` hardcodes `max=99`.
-> Tasks created via the API can render as a broken form in the UI.
+> Backend `apps/api/checkout/step.ts` accepts unlimited
+> `approval_step`; frontend `apps/web/src/checkout/StepEditor.tsx:42`
+> hardcodes `max=99`. Orders created via the API can render as a
+> broken form in the UI.
 
 > PRD `intent/auth/login.md` describes a "remember me" cookie; no
 > implementation found under `apps/api/auth/`. Users can ask for the
@@ -142,11 +143,11 @@ mints no fields here — you provide everything:
 ```json
 {
   "id": "drift-{shortRandom}",
-  "description": "Intent (intent/task.md §Quota) caps signers at 50; code at apps/api/task/validator.ts:14 allows up to 99.",
+  "description": "Intent (intent/order.md §Quota) caps line items at 50; code at apps/api/order/validator.ts:14 allows up to 99.",
   "severity": "error",
   "sourceReferences": [
-    { "sourceId": "src-intent", "location": { "uri": "intent/task.md", "anchor": "Quota" } },
-    { "sourceId": "src-code", "location": { "uri": "apps/api/task/validator.ts", "startLine": 14 } }
+    { "sourceId": "src-intent", "location": { "uri": "intent/order.md", "anchor": "Quota" } },
+    { "sourceId": "src-code", "location": { "uri": "apps/api/order/validator.ts", "startLine": 14 } }
   ],
   "raisedAt": "2026-05-24T10:15:00+08:00"
 }
@@ -169,9 +170,9 @@ Attach to a node payload like this:
 {
   "operation": "addNode",
   "payload": {
-    "id": "cmd.voidTask",
+    "id": "cmd.cancelOrder",
     "type": "command",
-    "name": "voidTask",
+    "name": "cancelOrder",
     "metadata": {
       "sourceReferences": [/* the two refs the node itself cites */],
       "driftIssues": [

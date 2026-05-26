@@ -39,7 +39,7 @@ back to Redmine / Jira / XWiki source tickets.
 ## GraphOperation (discriminated union on `operation`)
 
 ```json
-{ "operation": "addNode", "payload": { "type": "command", "name": "voidTask", "id": "cmd.voidTask" } }
+{ "operation": "addNode", "payload": { "type": "command", "name": "cancelOrder", "id": "cmd.cancelOrder" } }
 { "operation": "addNodes", "payloads": [ ...NewGraphNode ] }
 { "operation": "removeNode", "nodeId": "..." }
 { "operation": "removeNodes", "nodeIds": [ "...", "..." ] }
@@ -66,11 +66,11 @@ ClarifyTicket and how to write the description.
 ```json
 {
   "id": "drift-{shortRandom}",
-  "description": "Intent (intent/task.md §Quota) caps signers at 50; code at apps/api/task/validator.ts:14 allows up to 99. Extra signers fail a downstream DB unique check silently.",
+  "description": "Intent (intent/order.md §Quota) caps line items at 50; code at apps/api/order/validator.ts:14 allows up to 99. Extra line items fail a downstream DB unique check silently.",
   "severity": "error",
   "sourceReferences": [
-    { "sourceId": "src-intent", "location": { "uri": "intent/task.md", "anchor": "Quota" } },
-    { "sourceId": "src-code",   "location": { "uri": "apps/api/task/validator.ts", "startLine": 14 } }
+    { "sourceId": "src-intent", "location": { "uri": "intent/order.md", "anchor": "Quota" } },
+    { "sourceId": "src-code",   "location": { "uri": "apps/api/order/validator.ts", "startLine": 14 } }
   ],
   "raisedAt": "2026-05-24T10:15:00+08:00"
 }
@@ -92,13 +92,13 @@ a **human acknowledgement** field; skills do not write it.
 {
   "id": "ct-2026-05-12-xyz",
   "workspaceId": "${BRAID_WORKSPACE_ID}",
-  "question": "voidTask and cancelTask: same command or distinct?",
+  "question": "cancelOrder and revokeOrder: same command or distinct?",
   "candidates": [
     {
       "id": "cc-1",
       "description": "Merge: they are aliases",
       "sourceReferences": [{ "sourceId": "src-api", "location": { "uri": "...", "startLine": 12 } }],
-      "proposedOperations": [{ "operation": "removeNode", "nodeId": "cmd.cancelTask" }]
+      "proposedOperations": [{ "operation": "removeNode", "nodeId": "cmd.revokeOrder" }]
     },
     {
       "id": "cc-2",
@@ -115,7 +115,7 @@ Submit via `POST /workspaces/:ws/clarify` when the skill cannot decide. Don't gu
 
 ## ID generation
 
-Node and edge IDs are minted by the skill (ontology-style: `cmd.voidTask`, `ctx.signup`, `evt.OrderPlaced`, …). Proposal and clarify ticket IDs are minted by the server when you POST; **do not pre-mint them in the skill**.
+Node and edge IDs are minted by the skill (ontology-style: `cmd.cancelOrder`, `ctx.checkout`, `evt.OrderPlaced`, …). Proposal and clarify ticket IDs are minted by the server when you POST; **do not pre-mint them in the skill**.
 
 ## Atomic writes
 
