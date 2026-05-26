@@ -22,6 +22,22 @@ export interface NodeTypeDescriptor {
    * to reveal the rest. If no descriptor sets it, all types show.
    */
   readonly defaultVisible?: boolean
+  /**
+   * Hints for ontology-agnostic renderers (e.g. `braid-generate-doc`)
+   * to lay nodes out in a document tree without hard-coding ontology
+   * vocabulary. `container: true` marks a type as a top-level
+   * grouping (one rendered file per node). `expandedUnder` names
+   * the type whose nodes act as parents in the rendered tree —
+   * children of nodes of that type appear nested under them.
+   * `section` is the human-facing heading text the renderer uses
+   * when grouping flat lists of this type. All fields are optional;
+   * a descriptor with no hint is rendered as a footnote / leaf.
+   */
+  readonly renderHint?: {
+    readonly container?: boolean
+    readonly expandedUnder?: NodeTypeId
+    readonly section?: string
+  }
 }
 
 export interface EdgeTypeDescriptor {
