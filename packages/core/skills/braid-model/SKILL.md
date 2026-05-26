@@ -85,6 +85,10 @@ the wrong target. Walk the graph and flag:
 | Command attached to the wrong aggregate (a more specific aggregate exists) | delete the old edge + create the new one in the proposal |
 | Duplicate edges across slices (same `from`/`to`/`type`) | delete the duplicate |
 | Inconsistent attachments (same node, different parent in two slices) | ClarifyTicket: which parent is canonical? |
+| `contains` edge from BoundedContext to a non-aggregate (cmd / qry / evt / rule) | Delete the edge. If the dangling node has no `accepts` / `emits` / `constrainedBy` to its owning aggregate, raise a ClarifyTicket asking which aggregate owns it. Do not re-attach to the BC. |
+| `dependsOn` edge that is not `aggregate --dependsOn--> aggregate` | Delete and re-express. Use `triggers` for event-driven cross-aggregate flow; for direct read access, the calling aggregate should reference the target aggregate's id and use `dependsOn` between the two aggregates. |
+| Command or query with no `performedBy` edge to any actor | For each command and query, check sibling commands on the same aggregate: if the aggregate's other operations have `performedBy` edges to a consistent actor set, propose the same wiring for the gap and add a one-line rationale. If sibling coverage is inconsistent or absent, raise a ClarifyTicket asking which actor performs the operation. Single-aggregate orphans without sibling coverage are the most common gap from per-slice extracts. |
+| Aggregate with commands but no events, or events with no source command/aggregate | Cross-check the PRD and code references on the aggregate. If sibling commands emit events of a consistent shape (e.g. `*Created`, `*Updated`, `*Deleted`) but one command is missing its event, raise a ClarifyTicket asking whether the missing event was intentionally omitted (intermediate state change with no domain significance) or simply not extracted. |
 
 ## Step 2: Add missing containment
 
@@ -93,6 +97,8 @@ its owning bounded context based on naming + cross-edges to peers. Create
 the missing edge in the proposal. If two contexts are plausible, raise a
 ClarifyTicket instead.
 
+**Only aggregates carry `contains` from a BoundedContext.** Commands / queries / events / rules already have their parent aggregate via `accepts` / `emits` / `constrainedBy`; never add a `contains` edge from BC to them. The ontology will reject it, and the duplication hub-and-spokes the graph view.
+
 ## Step 3: Add bridge edges (cross-slice)
 
 These can only be inferred globally:
@@ -100,8 +106,11 @@ These can only be inferred globally:
 | Edge kind | When to create |
 |-----------|---------------|
 | `triggers` | Event in slice A is referenced as a precondition by a command in slice B |
-| `dependsOn` | Command's constraints reference data owned by another aggregate |
-| `crossCuts` | Same rule node is constrained-by from commands in multiple aggregates |
+| `triggers` → `policy` → `enacts` | Same as above but the reaction has a name worth keeping (delayed, scheduled, cross-aggregate orchestration). Materialise a `policy` node sitting between the event and the command. See the policy section of `braid-extract` for when to name it |
+| `dependsOn` | Aggregate A references state owned by aggregate B (by id; aggregates never share instances per DDD) |
+| `constrainedBy` (aggregate-wide) | Same rule applies across every operation of an aggregate. Emit `aggregate --constrainedBy--> rule` rather than repeating `command --constrainedBy--> rule` against every command in the aggregate |
+
+For BoundedContext-to-BoundedContext strategic relationships (the seven Context Mapping edges defined in the ontology), do not infer them automatically. Raise a ClarifyTicket so the architect picks the mapping type explicitly.
 
 The actual edge type ids come from the ontology; use whichever the active
 ontology defines for these relationships.
