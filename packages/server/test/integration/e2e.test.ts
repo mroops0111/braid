@@ -1,4 +1,4 @@
-import type { Hono } from 'hono'
+import type { OpenAPIHono } from '@hono/zod-openapi'
 import type { AppDependencies } from '../../src/composition.js'
 import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -65,7 +65,7 @@ interface OntologyBody {
 describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor)', () => {
   let braidHome: string
   let deps: AppDependencies
-  let app: Hono
+  let app: OpenAPIHono
 
   beforeEach(async () => {
     braidHome = await mkdtemp(join(tmpdir(), 'braid-e2e-home-'))
