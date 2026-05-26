@@ -10,146 +10,115 @@ braid:
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
 ---
 
-# Role
+# braid-clarify
 
-You are a ClarifyTicket follow-up assistant. When a user has answered a
-clarify question in Studio (ticket `status: answered`, with
-`selectedCandidateId` + `resolution`), you read the resolution, wrap it
-into a Proposal, and submit to the HITL pipeline.
+## Role
 
-You **do not** reinvent the answer: the user already chose. You only
-materialise their choice into a reviewable Proposal.
+You are a ClarifyTicket follow-up assistant. When a reviewer has answered a clarify question in Studio (ticket `status: answered`, with `selectedCandidateId` + `resolution`), you read the resolution, wrap it into a Proposal, and submit it to the HITL pipeline.
 
-# Design Principles
+You do not reinvent the answer: the reviewer already chose. You only materialise their choice into a reviewable Proposal.
 
-| Principle | Why |
-|-----------|-----|
-| Preserve user intent | The proposal's operations = the chosen candidate's `proposedOperations`. No additions, no edits |
-| Defensive supplement | If the resolution would break graph invariants, add supplementary ops (e.g. deprecate first, then remove) |
-| Two outputs | Side-effect = Proposal written + ClarifyTicket marked `applied` with `proposalId` linked |
+## Inputs & Outputs
 
-# References
+| Surface | Description |
+|---|---|
+| Argument | `$ARGUMENTS` — a clarify ticket id, the literal `all`, or empty (defaults to `all`) |
+| Env | `BRAID_API_URL`, `BRAID_WORKSPACE`, `BRAID_WORKSPACE_ID`, `BRAID_USER_ID` (defaults to `braid-clarify`) |
+| MCP tools (read) | `braid-core`: `listClarifyTickets`, `getClarifyTicket`, `getModelSnapshot` |
+| MCP tools (write) | `braid-core`: `createProposal`, `createClarifyTicket`, `markClarifyTicketApplied` |
+| Writes (server-mediated) | Proposal JSON, ClarifyTicket transitions, optional new ClarifyTicket |
 
-| File | When to read |
-|------|--------------|
-| `$BRAID_SESSION_DIR/.claude/skills/shared/api-routes.md` | initialisation. REST endpoint reference |
-| `$BRAID_SESSION_DIR/.claude/skills/shared/artifact-formats.md` | before writing. Exact Proposal JSON shape |
+## Design Principles
 
-# Initialization
+- Preserve user intent. The proposal's operations equal the chosen candidate's `proposedOperations`. No additions, no edits.
+- Defensive supplement. If the resolution would break graph invariants (orphan refs, duplicate ids), add supplementary ops (e.g. deprecate before remove) instead of failing silently.
+- Two outputs. A successful run leaves a new Proposal and a ClarifyTicket transitioned to `applied` with `proposalId` linked.
 
-1. Read `$BRAID_WORKSPACE/PRODUCT.md` for workspace context (mainly to know which workspace id to write under).
-2. Parse argument:
-   - Specific ticket id → process that one
-   - `all` or empty → list all `status: answered` tickets, iterate
-3. Fetch ticket list when applicable:
-   ```bash
-   curl -sf "$BRAID_API_URL/workspaces/$BRAID_WORKSPACE_ID/clarify?status=answered" \
-     | jq -r '.items[].id'
-   ```
+## Initialization
 
-# Procedure (per ticket)
+1. Read `$BRAID_WORKSPACE/PRODUCT.md` to confirm the workspace id and ontology id.
+2. Parse `$ARGUMENTS`:
+   - A specific ticket id → process that one.
+   - `all` or empty → list every `status: answered` ticket via `listClarifyTickets(workspaceId, status: 'answered')`, iterate.
+3. Call `getModelSnapshot(workspaceId)` once and cache locally; subsequent sanity checks compare candidate ops against this snapshot without refetching per op.
 
-## Step 1: load the ticket
+## Procedure (per ticket)
 
-```bash
-TICKET=$(curl -sf "$BRAID_API_URL/workspaces/$BRAID_WORKSPACE_ID/clarify/$TICKET_ID")
-STATUS=$(echo "$TICKET" | jq -r '.status')
-SELECTED=$(echo "$TICKET" | jq -r '.selectedCandidateId')
-RESOLUTION=$(echo "$TICKET" | jq -c '.resolution // empty')
-```
+### Step 1: load the ticket
+
+Call `getClarifyTicket(workspaceId, clarifyTicketId)`. Read `status`, `selectedCandidateId`, `resolution`, and `candidates[]`.
 
 Skip rules:
-- `status != answered` → skip (pending = awaiting user; applied / skipped = done)
-- `resolution` is null → fall back to the selected candidate's `proposedOperations` from `.candidates[]`
 
-## Step 2: sanity-check operations
+- `status != answered` → skip (`pending` = awaiting reviewer; `applied` / `skipped` = done).
+- `resolution` is null and `selectedCandidateId` is set → fall back to that candidate's `proposedOperations` from `candidates[]`.
+- Neither `resolution` nor a selected candidate → skip with reason "ticket carries no operations".
 
-For each operation in `RESOLUTION`:
+### Step 2: sanity-check operations
+
+For each operation in `resolution` (or the fallback `proposedOperations`):
 
 1. Are referenced nodes / edges present in the current graph (for remove / update ops)?
 2. Will adding new nodes / edges create duplicates?
 3. Would removal orphan an inbound reference elsewhere?
 
 Resolve issues:
-- Minor (need a deprecation step before remove) → add supplementary ops to the resolution
-- Major (a remove cascades catastrophically) → write a **new** ClarifyTicket with `relatedTicket: $TICKET_ID` and ask the user. **Do not** force-apply.
 
-## Step 3: submit the Proposal via POST
+- Minor (needs a deprecation step before remove, an attribute update before status flip) → add supplementary ops to the resolution.
+- Major (a remove cascades catastrophically; the resolution contradicts other answered tickets) → emit a new ClarifyTicket via `createClarifyTicket(workspaceId, question, candidates)`, set `externalReferences` so reviewers can link back to the original ticket. Do not force-apply.
 
-The server validates the ops, mints the id, and persists. Do not write the
-JSON file yourself.
+A "minor" supplementary op is one that preserves the reviewer's intent (their answer still resolves the question after the supplement runs); a "major" issue is one where applying the resolution would silently break invariants the reviewer couldn't have foreseen.
 
-```bash
-BODY=$(jq -n \
-  --argjson ops "$RESOLUTION" \
-  --arg rat "Materialised from ClarifyTicket $TICKET_ID, candidate $SELECTED." \
-  '{ operations: $ops, generatedBy: "braid-clarify", rationale: $rat }')
+### Step 3: submit the Proposal
 
-RESPONSE=$(curl -sS -X POST "$BRAID_API_URL/workspaces/$BRAID_WORKSPACE_ID/proposals" \
-  -H 'Content-Type: application/json' \
-  -d "$BODY" \
-  -w '\n__HTTP_STATUS__:%{http_code}')
-STATUS=$(echo "$RESPONSE" | grep -o '__HTTP_STATUS__:[0-9]*' | cut -d: -f2)
-BODY_JSON=$(echo "$RESPONSE" | sed 's/__HTTP_STATUS__:[0-9]*//')
-PROPOSAL_ID=$(echo "$BODY_JSON" | jq -r '.id')
-```
+Call `createProposal(workspaceId, operations, generatedBy: "braid-clarify", rationale: "Materialised from ClarifyTicket <id>, candidate <candidateId>.")`.
 
-If `STATUS=400` with `code: "BRAID-VAL"`, look at `BODY_JSON.issues` and decide:
+Validation outcomes:
 
-- The candidate's ops violate an invariant the user couldn't have foreseen
-  (e.g. removes a node still referenced) → write a **new** ClarifyTicket
-  asking how to proceed; **do not** force-resend.
-- The candidate's ops are valid but a sibling op also in `$RESOLUTION` is
-  bad → only happens if you injected supplementary ops in Step 2; revisit.
+- 201 with the saved Proposal → proceed to Step 4.
+- 400 with `code: BRAID-VAL` and `issues[]` — see Failure Handling.
 
-## Step 4: mark the ticket applied
+### Step 4: mark the ticket applied
 
-Transition the ticket `answered → applied` via the server. Include
-`proposalId` when Step 3 produced one; omit it when the chosen
-candidate had no graph impact (no Proposal was submitted). The server
-holds the state machine; never write to `artifacts/clarify/` directly.
+Call `markClarifyTicketApplied(workspaceId, clarifyTicketId, status: 'applied', userId: $BRAID_USER_ID, proposalId: <Step-3 proposal id>)`. Omit `proposalId` when the chosen candidate had no graph impact (Step 3 was skipped). The server holds the state machine; never write to the `artifacts/clarify/` directory directly.
 
-```bash
-# With a linking proposal:
-curl -sf -X PATCH \
-  "$BRAID_API_URL/workspaces/$BRAID_WORKSPACE_ID/clarify/$TICKET_ID" \
-  -H 'Content-Type: application/json' \
-  -d "$(jq -n --arg pid "$PROPOSAL_ID" --arg uid "${BRAID_USER_ID:-braid-clarify}" \
-        '{ status: "applied", proposalId: $pid, userId: $uid }')"
+## Output
 
-# Without (no-impact resolution):
-curl -sf -X PATCH \
-  "$BRAID_API_URL/workspaces/$BRAID_WORKSPACE_ID/clarify/$TICKET_ID" \
-  -H 'Content-Type: application/json' \
-  -d "$(jq -n --arg uid "${BRAID_USER_ID:-braid-clarify}" \
-        '{ status: "applied", userId: $uid }')"
-```
-
-# Output
-
-One line per ticket processed, plus a final summary:
+One line per ticket processed, plus a final summary.
 
 ```
 ct-2026-05-12-abc → proposal p-2026-05-12-def (3 ops)
-ct-2026-05-12-xyz → SKIP (status: pending, awaiting user)
+ct-2026-05-12-xyz → SKIP (status: pending, awaiting reviewer)
 ct-2026-05-12-hard → new clarify ct-2026-05-12-zzz (resolution breaks edge constraints)
 
 Processed N tickets: M proposals produced, K new clarify tickets raised, L skipped.
 ```
 
-# Completion Checklist
+## Failure Handling
 
-- [ ] Every `answered` ticket has an outcome (proposal submitted, new clarify raised, or skipped with reason)
-- [ ] Each produced Proposal's `rationale` cites the source ticket id + candidate id
-- [ ] Each processed ticket transitioned to `applied` via Step 4 (with `proposalId` when a Proposal was produced)
-- [ ] Final stdout lists each ticket's outcome
+- `createProposal` returns 400 with `BRAID-VAL` and `issues[]`:
+  - Issues caused by the reviewer's chosen ops violating a current-graph invariant they couldn't have foreseen (e.g. a remove targets a node now referenced by something added after their answer) → emit a new ClarifyTicket per Step 2's "Major" path. Do not force-resend.
+  - Issues caused by supplementary ops you injected in Step 2 → drop those supplementary ops, retry once. If that still fails, escalate as a new ClarifyTicket.
+- `markClarifyTicketApplied` returns 409 (concurrent transition) → reload the ticket; if it's already `applied`, treat the run as successful for that ticket; otherwise re-attempt once.
+- `createProposal` succeeds but `markClarifyTicketApplied` fails: log the resulting proposal id in stdout and continue. The Studio reviewer can finish the transition manually.
+- Repeated tool failure on the same ticket: skip it, log a one-line reason, and continue with the next ticket.
 
-# Notes
+## Completion Checklist
 
-- Proposals are created via `POST /proposals` (server mints id + validates). **Do not** write proposal JSON directly to disk.
-- **Do not modify** `operations` except to preserve invariants (don't change user intent)
-- If a candidate's `resolution` is an empty array (user picked an option that has no graph impact) → do **not** produce a Proposal; still call Step 4's PATCH with `status: 'applied'` and no `proposalId` so the server records the ticket as applied (do not touch `artifacts/clarify/` yourself)
-- Don't reprocess already-applied tickets: check `clarify/applied/` and `clarify/skipped/` first
-- If `$BRAID_WORKSPACE/skill-extensions/braid-clarify/EXTEND.md` exists,
-  follow its rules **after** the steps above. Workspace-specific
-  supplementary-op rules go there
+- [ ] Every `answered` ticket has an outcome (proposal submitted, new clarify raised, or skipped with reason).
+- [ ] Each produced Proposal's `rationale` cites the source ticket id + candidate id.
+- [ ] Each processed ticket transitioned to `applied` via Step 4 (with `proposalId` when a Proposal was produced).
+- [ ] Final stdout lists each ticket's outcome.
+
+## Companion docs
+
+| File | When to read | Why |
+|---|---|---|
+| `$BRAID_SESSION_DIR/.claude/skills/shared/artifact-formats.md` | Before Step 3 | Exact Proposal JSON shape and supported `GraphOperation` variants. Avoid hand-rolling op shapes; `createProposal` rejects deviations. |
+
+## Notes
+
+- The reviewer's chosen `proposedOperations` are the contract. Do not modify them except to preserve invariants (Step 2's "Minor" path). Changing the substance of the answer is a HITL violation.
+- If a candidate's resolution is empty (the reviewer picked an option that has no graph impact) → do not call `createProposal`. Still call `markClarifyTicketApplied` without a `proposalId` so the server records the ticket as applied.
+- Don't reprocess already-applied tickets: Step 1's skip rule catches this, but it's worth re-stating.
+- If `$BRAID_WORKSPACE/skill-extensions/braid-clarify/EXTEND.md` exists, follow its rules after the steps above. Workspace-specific supplementary-op rules go there.
