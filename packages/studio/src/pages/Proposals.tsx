@@ -98,6 +98,14 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
     setFocusSweep({ proposalId: focusSweep.proposalId, attempted: new Set([...focusSweep.attempted, next]) })
   }, [focusSweep, data, isLoading, onFocusConsumed])
 
+  // Auto-select the first item when entering a list with no current selection (initial mount, after status switch, or after a complete-and-clear from the detail pane).
+  // Skip while a deep-link focus sweep is in flight so we do not race the sweep's setSelected call.
+  useEffect(() => {
+    if (focusSweep || selected || isLoading || !data?.items.length)
+      return
+    setSelected(data.items[0]!)
+  }, [data, selected, isLoading, focusSweep])
+
   return (
     <div className="flex h-full flex-col">
       <PageActions>
@@ -554,15 +562,22 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
   const source = useProposalGraphDataSource(workspaceId, operations)
   const flat = flattenOperations(operations)
 
+  const addCount = flat.filter(op => op.kind === 'add').length
+  const updateCount = flat.filter(op => op.kind === 'update').length
+  const removeCount = flat.filter(op => op.kind === 'remove').length
+
   return (
     <section className="flex min-h-0 flex-1 flex-col border-t border-border">
       <div className="flex shrink-0 items-center justify-between px-4 pt-3 pb-2">
-        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Preview (
-          {flat.length}
-          {' '}
-          ops)
-        </h3>
+        <div className="flex items-baseline gap-2">
+          <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Preview (
+            {flat.length}
+            {' '}
+            ops)
+          </h3>
+          <ProposalImpactSummary adds={addCount} updates={updateCount} removes={removeCount} />
+        </div>
         <div className="flex items-center gap-2">
           {selectedNodeId && view !== 'list' && (
             <FocusToggle active={focusMode} onChange={setFocusMode} />
@@ -589,6 +604,39 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
             )}
       </div>
     </section>
+  )
+}
+
+/**
+ * Compact `+N / ~M / -K` chip set rendered next to the preview title.
+ * Makes the impact of small incremental proposals visible without forcing the reviewer to scan the canvas for thin stroke differences (e.g. a model audit fix that adds 4 edges and changes nothing else).
+ */
+function ProposalImpactSummary({ adds, updates, removes }: { adds: number, updates: number, removes: number }) {
+  const total = adds + updates + removes
+  if (total === 0) {
+    return <span className="text-[10px] text-muted-foreground/70">empty</span>
+  }
+  return (
+    <span className="flex items-baseline gap-1.5 text-[11px] font-mono">
+      {adds > 0 && (
+        <span className="text-emerald-600 dark:text-emerald-400" title={`${adds} added`}>
+          +
+          {adds}
+        </span>
+      )}
+      {updates > 0 && (
+        <span className="text-amber-600 dark:text-amber-400" title={`${updates} updated`}>
+          ~
+          {updates}
+        </span>
+      )}
+      {removes > 0 && (
+        <span className="text-destructive" title={`${removes} removed`}>
+          −
+          {removes}
+        </span>
+      )}
+    </span>
   )
 }
 
