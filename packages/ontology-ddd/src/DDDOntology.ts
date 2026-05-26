@@ -21,6 +21,10 @@ export const dddOntology = defineOntology({
       id: 'braid-extract' as SkillId,
       directory: new URL('../skills/braid-extract', import.meta.url),
     },
+    {
+      id: 'braid-model' as SkillId,
+      directory: new URL('../skills/braid-model', import.meta.url),
+    },
   ],
 
   nodeTypes: [
