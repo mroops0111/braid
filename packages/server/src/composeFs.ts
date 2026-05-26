@@ -201,12 +201,18 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   })
 
   const eventBus = new InMemoryWorkspaceEventBus()
+  // When BRAID_MCP_GATEWAY_URL is set, every spawned skill gets a
+  // `braid-core` MCP server pointing at the running openapi-mcp-gateway.
+  // The gateway itself is run separately (Python package; see
+  // SubprocessSkillRunnerDeps.coreGatewayUrl for the launch command).
+  const coreGatewayUrl = process.env.BRAID_MCP_GATEWAY_URL
   const skillRunner = new SubprocessSkillRunner({
     skillRegistry,
     agentBinding,
     apiUrl,
     runRepository,
     eventBus,
+    ...(coreGatewayUrl ? { coreGatewayUrl } : {}),
     referenceDirs: [
       { name: 'shared', path: join(builtinSkillsRoot, 'shared') as AbsolutePath },
     ],

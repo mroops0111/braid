@@ -9,7 +9,7 @@ import type {
   Workspace,
   WorkspaceEventBus,
 } from '@braidhq/core'
-import type { AbsolutePath, RunRecord, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
+import type { AbsolutePath, McpServerId, RunRecord, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import { mkdir, rm, symlink } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -49,6 +49,20 @@ export interface SubprocessSkillRunnerDeps {
   /** Delete the per-run session directory after the run. Default `true`. */
   readonly cleanupSession?: boolean
   /**
+   * Streamable HTTP endpoint of a running openapi-mcp-gateway that
+   * mirrors the Braid REST API as MCP tools. When set, every spawned
+   * skill receives a `braid-core` MCP server entry pointing here in
+   * addition to any workspace-declared MCP servers. Skills then call
+   * `braid_search_nodes`, `braid_submit_proposal`, etc. as MCP tools
+   * instead of writing curl pipelines.
+   *
+   * Run the gateway yourself with:
+   *   uvx openapi-mcp-gateway --spec http://<braid-host>/openapi.json --name braid-core
+   * Leave undefined when the gateway is not running; skills then have
+   * to fall back to curl (legacy path).
+   */
+  readonly coreGatewayUrl?: string
+  /**
    * Optional pub/sub for workspace-scoped notifications. Used by Studio
    * to invalidate run / proposal lists in real time without polling.
    * Tests can leave this undefined.
@@ -80,7 +94,15 @@ export class SubprocessSkillRunner implements SkillRunner {
     const manifest = await this.deps.skillRegistry.get(workspace, skillId)
     const runId = newSkillRunId()
     const sessionDir = await this.resolveSessionDir(workspace, runId, options?.resumeSessionId)
-    const mcpConfigFile = await writeMcpConfigFile(workspace, sessionDir)
+    const mcpConfigFile = await writeMcpConfigFile(workspace, sessionDir, {
+      extraServers: this.deps.coreGatewayUrl
+        ? [{
+            id: 'braid-core' as McpServerId,
+            transport: 'streamable-http',
+            url: this.deps.coreGatewayUrl,
+          }]
+        : [],
+    })
     const invocation = this.deps.agentBinding.resolveSpawn({
       skillId,
       args,

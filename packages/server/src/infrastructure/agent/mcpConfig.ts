@@ -20,16 +20,33 @@ interface McpStreamableHttpEntry {
 
 type McpServerEntry = McpStreamableHttpEntry
 
-export function buildMcpConfig(workspace: Workspace): McpConfigFile {
+export interface BuildMcpConfigOptions {
+  /**
+   * Extra MCP server entries injected on top of the workspace's own
+   * `mcpServers`. Used to wire the built-in `braid-core` openapi-mcp-gateway
+   * — see `SubprocessSkillRunner.coreGatewayUrl`. Workspace entries with
+   * the same id take precedence (so a workspace can override a built-in).
+   */
+  extraServers?: readonly McpServerConfig[]
+}
+
+export function buildMcpConfig(workspace: Workspace, options: BuildMcpConfigOptions = {}): McpConfigFile {
   const entries: Record<string, McpServerEntry> = {}
+  for (const server of options.extraServers ?? []) {
+    entries[server.id] = toEntry(server)
+  }
   for (const server of workspace.mcpServers) {
     entries[server.id] = toEntry(server)
   }
   return { mcpServers: entries }
 }
 
-export async function writeMcpConfigFile(workspace: Workspace, targetDir: string): Promise<string> {
-  const config = buildMcpConfig(workspace)
+export async function writeMcpConfigFile(
+  workspace: Workspace,
+  targetDir: string,
+  options: BuildMcpConfigOptions = {},
+): Promise<string> {
+  const config = buildMcpConfig(workspace, options)
   const targetPath = join(targetDir, `.braid-mcp-${workspace.id}.json`)
   await mkdir(dirname(targetPath), { recursive: true })
   await writeFile(targetPath, `${JSON.stringify(config, null, 2)}\n`, 'utf-8')
