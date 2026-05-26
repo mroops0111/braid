@@ -1,4 +1,4 @@
-import type { EdgeTypeId, NodeTypeId } from '@braidhq/schema'
+import type { EdgeTypeId, NodeTypeId, SkillId } from '@braidhq/schema'
 import { defineOntology } from '@braidhq/sdk'
 
 /**
@@ -10,6 +10,18 @@ import { defineOntology } from '@braidhq/sdk'
  */
 export const dddOntology = defineOntology({
   ontologyId: 'ddd',
+
+  // SKILL.md prompts shipped alongside this ontology. They encode
+  // DDD-specific reasoning (BoundedContext-contains-aggregate, the
+  // seven Context Mapping edges, Vernon Process Manager, etc.) that
+  // would be wrong for a non-DDD ontology to inherit, so they live
+  // here rather than in @braidhq/core.
+  skills: [
+    {
+      id: 'braid-extract' as SkillId,
+      directory: new URL('../skills/braid-extract', import.meta.url),
+    },
+  ],
 
   nodeTypes: [
     {
