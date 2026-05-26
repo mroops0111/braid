@@ -26,7 +26,7 @@ export interface DefineOntologyInput {
   readonly extends?: OntologyPlugin
   /** Node types this ontology contributes. Required `id`, `label`, `description`. */
   readonly nodeTypes: readonly NodeTypeDescriptor[]
-  /** Edge types this ontology contributes. Endpoints must resolve in the combined node-type set. */
+  /** Edge types this ontology contributes. Endpoints must resolve in the combined node-type set; `description` is required so LLMs and reviewers can tell the edges apart. */
   readonly edgeTypes: readonly EdgeTypeDescriptor[]
   /**
    * Extra validators bundled with this ontology, on top of the framework's
@@ -80,6 +80,7 @@ export function defineOntology(input: DefineOntologyInput): OntologyPlugin {
   const knownNodeIds = new Set(nodeTypes.map(n => n.id))
   for (const edge of input.edgeTypes) {
     const label = `edge type "${edge.id}"`
+    assertNonEmpty(`${label} description`, edge.description)
     assertEndpointsResolve(`${label}.fromTypes`, edge.fromTypes, knownNodeIds)
     assertEndpointsResolve(`${label}.toTypes`, edge.toTypes, knownNodeIds)
     if (edge.color)

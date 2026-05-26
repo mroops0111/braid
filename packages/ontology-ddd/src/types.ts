@@ -8,6 +8,7 @@ export const DDD_NODE_TYPES = [
   'event',
   'rule',
   'actor',
+  'policy',
 ] as const
 
 export const DDDNodeType = z.enum(DDD_NODE_TYPES)
@@ -18,9 +19,17 @@ export const DDD_EDGE_TYPES = [
   'accepts',
   'emits',
   'triggers',
+  'enacts',
   'constrainedBy',
   'dependsOn',
   'performedBy',
+  'partnership',
+  'customerSupplier',
+  'conformist',
+  'sharedKernel',
+  'anticorruptionLayer',
+  'openHostService',
+  'publishedLanguage',
 ] as const
 
 export const DDDEdgeType = z.enum(DDD_EDGE_TYPES)

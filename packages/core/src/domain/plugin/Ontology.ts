@@ -27,6 +27,13 @@ export interface NodeTypeDescriptor {
 export interface EdgeTypeDescriptor {
   readonly id: EdgeTypeId
   readonly label?: string
+  /**
+   * Short prose explaining what this edge means and when to emit it.
+   * Surfaced to LLMs through the `/ontology` API and to reviewers
+   * through the Studio palette / legend tooltip. Same role as
+   * `NodeTypeDescriptor.description`.
+   */
+  readonly description?: string
   readonly fromTypes: readonly NodeTypeId[]
   readonly toTypes: readonly NodeTypeId[]
   readonly cardinality?: '1:1' | '1:N' | 'N:1' | 'N:N'

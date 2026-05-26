@@ -12,11 +12,12 @@ function minimalNode(id: string, description = `${id} description`): { id: NodeT
   }
 }
 
-function minimalEdge(id: string, from: string[], to: string[]): { id: EdgeTypeId, fromTypes: NodeTypeId[], toTypes: NodeTypeId[] } {
+function minimalEdge(id: string, from: string[], to: string[]): { id: EdgeTypeId, fromTypes: NodeTypeId[], toTypes: NodeTypeId[], description: string } {
   return {
     id: id as EdgeTypeId,
     fromTypes: from as NodeTypeId[],
     toTypes: to as NodeTypeId[],
+    description: `${id} edge description`,
   }
 }
 

@@ -45,7 +45,7 @@ back to Redmine / Jira / XWiki source tickets.
 { "operation": "removeNodes", "nodeIds": [ "...", "..." ] }
 { "operation": "updateNode", "nodeId": "...", "patch": { "status": "completed" } }
 { "operation": "updateNodes", "updates": [{ "nodeId": "...", "patch": {...} }] }
-{ "operation": "addEdge", "payload": { "type": "CONTAINS", "fromNodeId": "ctx.x", "toNodeId": "agg.y" } }
+{ "operation": "addEdge", "payload": { "type": "contains", "fromNodeId": "ctx.x", "toNodeId": "agg.y" } }
 { "operation": "addEdges", "payloads": [ ...NewGraphEdge ] }
 { "operation": "removeEdge", "edgeId": "..." }
 { "operation": "removeEdges", "edgeIds": [ "...", "..." ] }
