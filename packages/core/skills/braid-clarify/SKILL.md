@@ -42,7 +42,9 @@ You do not reinvent the answer: the reviewer already chose. You only materialise
    - `all` or empty → list every `status: answered` ticket via `listClarifyTickets(workspaceId, status: 'answered')`, iterate.
 3. Call `getModelSnapshot(workspaceId)` once and cache locally; subsequent sanity checks compare candidate ops against this snapshot without refetching per op.
 
-## Procedure (per ticket)
+## Procedure
+
+Repeat the four steps below per ticket selected by Initialization.
 
 ### Step 1: load the ticket
 

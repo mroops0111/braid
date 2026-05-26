@@ -3,7 +3,7 @@ import { Buffer } from 'node:buffer'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { NotFoundError, type PluginRegistry, SkillManifest, type SkillRegistry, type Workspace } from '@braidhq/core'
+import { NotFoundError, type PluginRegistry, SkillManifest, type SkillRegistry, validateSkillStructure, type Workspace } from '@braidhq/core'
 import { AbsolutePath as AbsolutePathSchema, SkillFrontmatter as SkillFrontmatterSchema, SkillId as SkillIdSchema } from '@braidhq/schema'
 import { parseMarkdownFrontmatter } from './frontmatter.js'
 import { workspaceSkillExtensionsDir, workspaceSkillsDir } from './paths.js'
@@ -149,8 +149,21 @@ export class FsSkillRegistry implements SkillRegistry {
         return undefined
       throw error
     }
-    const { frontmatter } = parseMarkdownFrontmatter<unknown>(content)
-    return SkillFrontmatterSchema.parse(frontmatter)
+    const { frontmatter: raw, body } = parseMarkdownFrontmatter<unknown>(content)
+    const frontmatter = SkillFrontmatterSchema.parse(raw)
+
+    // Structural contract: SKILL.md must declare the required H2 sections
+    // per its `braid.category`. The validator is hard-fail so a broken
+    // skill never silently appears in the workspace's skill list — a
+    // skill missing `## Procedure` would burn an entire run before the
+    // agent notices the gap.
+    const validation = validateSkillStructure({ body, frontmatter })
+    if (!validation.ok) {
+      const issues = validation.issues.map(issue => `- ${issue.message}`).join('\n')
+      throw new Error(`SKILL.md at ${skillFile} fails the structure contract:\n${issues}`)
+    }
+
+    return frontmatter
   }
 
   private async readDirSafe(directory: string): Promise<DirentLike[]> {

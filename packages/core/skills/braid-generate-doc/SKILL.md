@@ -43,7 +43,9 @@ You are read-only. Query the graph, write `artifacts/views/docs/*.md`. Never mod
    - Empty → list every top-level container node via `listNodes(workspaceId, type: <container-type>)` and render one doc per container.
 4. Ensure the output directory exists: `mkdir -p "$BRAID_WORKSPACE/artifacts/views/docs"`.
 
-## Procedure (per scope)
+## Procedure
+
+Repeat the four steps below per scope selected by Initialization (one scope = one output file).
 
 ### Step 1: fetch the scoped subgraph
 

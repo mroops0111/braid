@@ -17,6 +17,7 @@ import { SubprocessSkillRunner } from '../../../src/infrastructure/agent/Subproc
 import { FsRunRepository } from '../../../src/infrastructure/fs/FsRunRepository.js'
 import { DEFAULT_AGENT_BINDING, makeWorkspace } from '../../helpers/fakes.js'
 import { createMockSpawn, type MockSpawnRecord, type MockSpawnScript } from '../../helpers/mockSpawn.js'
+import { makeSkillFileContents } from '../../helpers/skillFixtures.js'
 
 const SKILL_ID = 'braid-ask' as SkillId
 
@@ -68,7 +69,7 @@ async function makeSkillRegistry(skillSourceParent: AbsolutePath): Promise<Skill
   // session-dir layout still get a valid manifest.
   const skillDir = join(skillSourceParent, 'braid-ask')
   await mkdir(skillDir, { recursive: true })
-  await writeFile(join(skillDir, 'SKILL.md'), '---\nname: braid-ask\ndescription: a\n---\n', 'utf-8')
+  await writeFile(join(skillDir, 'SKILL.md'), makeSkillFileContents({ name: 'braid-ask' }), 'utf-8')
   const manifest = new SkillManifest({
     id: SKILL_ID,
     origin: 'builtin',
