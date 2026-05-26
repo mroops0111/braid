@@ -37,11 +37,16 @@ You are read-only. Query the graph, write `artifacts/views/docs/*.md`. Never mod
 ## Initialization
 
 1. Read `$BRAID_WORKSPACE/PRODUCT.md` for the active `ontologyId`.
-2. Call `getOntology(workspaceId)` to learn the node and edge type ids the rendering will encounter.
-3. Parse `$ARGUMENTS`:
-   - A specific node id → render only that container.
-   - Empty → list every top-level container node via `listNodes(workspaceId, type: <container-type>)` and render one doc per container.
-4. Ensure the output directory exists: `mkdir -p "$BRAID_WORKSPACE/artifacts/views/docs"`.
+2. Call `getOntology(workspaceId)` to learn the node and edge type ids the rendering will encounter. Each `NodeTypeDescriptor` may carry a `renderHint`; the renderer is driven by those hints, not by ontology-specific vocabulary.
+3. From the ontology response, derive the rendering taxonomy:
+   - **Container types**: every `nodeTypes[]` entry whose `renderHint.container === true`. One output file per node of these types.
+   - **Nesting chains**: for every type with `renderHint.expandedUnder`, the chain it joins (e.g. `aggregate → boundedContext`, `command → aggregate`). Recurse to compute the depth.
+   - **Top-level sections**: types with `renderHint.section` but no `expandedUnder` are flat lists rendered as their own H2 inside each container.
+   - **Leaves**: types with no `renderHint` are rendered as footnotes in the source-id list rather than promoted into the body.
+4. Parse `$ARGUMENTS`:
+   - A specific node id → render only that container (must be a container-typed node; otherwise abort with a clear error).
+   - Empty → list every top-level container node via `listNodes(workspaceId, type: <each container type>)` and render one doc per container.
+5. Ensure the output directory exists: `mkdir -p "$BRAID_WORKSPACE/artifacts/views/docs"`.
 
 ## Procedure
 
@@ -49,21 +54,22 @@ Repeat the four steps below per scope selected by Initialization (one scope = on
 
 ### Step 1: fetch the scoped subgraph
 
-Call `getNodeScope(workspaceId, nodeId, depth: 3)`. `depth: 3` typically reaches `container → top-level concept → operation → event/rule` in DDD-shaped ontologies.
+Call `getNodeScope(workspaceId, nodeId, depth: D)` where D is the depth of the longest `expandedUnder` chain rooted at this container type plus one (so leaf nodes are included). For DDD-shaped ontologies that's typically 3.
 
-### Step 2: group nodes by type
+### Step 2: group nodes by renderHint
 
-> **TODO (post-Phase-6):** This step currently encodes a DDD-shaped traversal (`ctx → agg → cmd/qry → evt/rule`). Once `NodeTypeDescriptor.renderHint` lands, traversal is driven by ontology metadata instead so non-DDD ontologies can produce docs without rewriting this skill. Until then, the rendering assumes DDD vocabulary.
+Walk the in-scope nodes using the taxonomy derived in Initialization:
 
-Group the in-scope nodes by type into:
+- The container node itself sits at the root.
+- For each type whose `renderHint.expandedUnder` resolves (transitively) to the container type, group its nodes as direct children of the appropriate parent and recurse.
+- Types with `renderHint.section` go into a top-level section per `section` value, regardless of nesting (e.g. an `Actors` list at the container level).
+- Types with no `renderHint` are recorded for the Source-nodes footer but not surfaced in the body.
 
-- The container itself (1 node — e.g. a bounded context).
-- Aggregates inside the container.
-- For each aggregate: the connected commands / queries.
-- For each command: the events it triggers and the rules it's constrained by.
-- Top-level actors / external surfaces / metrics referenced by the above.
+The traversal is intentionally ontology-agnostic: it never mentions `aggregate`, `command`, `event`, etc. by name. If a non-DDD ontology declares its own container / expandedUnder chains, this skill renders it without modification.
 
 ### Step 3: render markdown
+
+The structure mirrors the renderHint taxonomy: one H1 for the container, one H2 per top-level `renderHint.section`, then nested H3 / H4 for each level of the `expandedUnder` chain.
 
 ```markdown
 # {container.name}
@@ -72,38 +78,22 @@ Group the in-scope nodes by type into:
 
 {If status is draft or unclear, add a ⚠️ banner}
 
-## Actors
+## {top-level-section-A.label, e.g. "Actors"}
 
-- **{actor.name}**: {actor.description}
+- **{node.name}**: {node.description}
 
-## Use cases
+## {section-B.label, e.g. "Use cases"}
 
-### {aggregate.name}
+### {first-level-child.name}
 
-{aggregate.description}
+{first-level-child.description}
 
-#### Operation: {command.name}
+#### {second-level-child.name}
 
-{command.description}
+{second-level-child.description}
 
-**Preconditions**
-
-- {precondition_states}
-
-**Outcome**
-
-- {postcondition_states}
-- Triggers event: {event.name}: {event.description}
-
-**Business rules**
-
-- ⚠️ {rule.description} (violation → {error message})
-
-(repeat for every aggregate → command / query)
-
-## Metrics
-
-- **{metric.name}**: {metric.description}
+(repeat one bullet / sub-section per node, descending the
+expandedUnder chain)
 
 ---
 
