@@ -82,7 +82,6 @@ describe('SkillFrontmatter', () => {
       allowedTools: ['Read', 'Grep', 'Bash'],
       braid: {
         requiredEnv: ['JIRA_TOKEN'],
-        requiredPaths: ['intent/jira'],
         requiredMcpServers: ['jira'],
       },
     })

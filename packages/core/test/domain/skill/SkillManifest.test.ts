@@ -57,7 +57,6 @@ describe('SkillManifest claude / braid field projections', () => {
   it('braidFields exposes the braid extension block', () => {
     const manifest = new SkillManifest(makeSkillManifestData({
       requiredEnv: ['JIRA_TOKEN'],
-      requiredPaths: ['intent'],
       requiredMcpServers: ['redmine' as McpServerId],
     }))
 

@@ -62,7 +62,6 @@ export type SkillCategory = z.infer<typeof SkillCategory>
  */
 export const BraidSkillExtension = z.object({
   requiredEnv: z.array(z.string()).default([]),
-  requiredPaths: z.array(z.string()).default([]),
   requiredMcpServers: z.array(McpServerId).default([]),
   category: SkillCategory.optional(),
   /**
@@ -87,7 +86,6 @@ export type BraidSkillExtension = z.infer<typeof BraidSkillExtension>
 export const SkillFrontmatter = ClaudeCodeSkillFrontmatter.extend({
   braid: BraidSkillExtension.default({
     requiredEnv: [],
-    requiredPaths: [],
     requiredMcpServers: [],
   }),
 })

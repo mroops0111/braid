@@ -79,7 +79,6 @@ async function makeSkillRegistry(skillSourceParent: AbsolutePath): Promise<Skill
       disableModelInvocation: false,
       braid: {
         requiredEnv: [],
-        requiredPaths: [],
         requiredMcpServers: [],
       },
     },

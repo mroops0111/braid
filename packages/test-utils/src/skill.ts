@@ -14,7 +14,6 @@ export interface MakeSkillManifestOptions {
   readonly name?: string
   readonly description?: string
   readonly requiredEnv?: readonly string[]
-  readonly requiredPaths?: readonly string[]
   readonly requiredMcpServers?: readonly McpServerId[]
 }
 
@@ -35,7 +34,6 @@ export function makeSkillManifestData(opts: MakeSkillManifestOptions = {}): Skil
       disableModelInvocation: false,
       braid: {
         requiredEnv: [...(opts.requiredEnv ?? [])],
-        requiredPaths: [...(opts.requiredPaths ?? [])],
         requiredMcpServers: [...(opts.requiredMcpServers ?? [])],
       },
     },
