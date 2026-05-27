@@ -19,6 +19,16 @@ import { createWorkspacesRouter } from './routes/workspaces.js'
 
 export interface AppOptions {
   readonly corsOrigins?: readonly string[]
+  /**
+   * Base URL the OpenAPI spec advertises in its `servers[]` block. This
+   * is what downstream consumers (openapi-mcp-gateway, Swagger UI, code
+   * generators, …) use to dispatch REST calls. When unset, the spec is
+   * emitted without `servers[]`, which leaves the consumer to guess.
+   * composeFsApp threads its `apiUrl` through here so the gateway can
+   * route REST calls back to this server without an explicit
+   * `--base-url` flag.
+   */
+  readonly apiUrl?: string
 }
 
 export function createApp(deps: AppDependencies, options: AppOptions = {}): OpenAPIHono {
@@ -88,7 +98,8 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   // operations as MCP tools. SSE routes and the OAuth HTML callback
   // are intentionally absent — they're mounted via app.route() with
   // plain Hono sub-routers so they don't register with the OpenAPI
-  // registry.
+  // registry. The `servers[]` block lets the gateway resolve the
+  // upstream API base URL without an explicit --base-url flag.
   app.doc('/openapi.json', {
     openapi: '3.0.0',
     info: {
@@ -96,6 +107,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       version: '0.0.1',
       description: 'REST surface exposed by @braidhq/server. Each operation also becomes an MCP tool via openapi-mcp-gateway.',
     },
+    ...(options.apiUrl ? { servers: [{ url: options.apiUrl }] } : {}),
   })
 
   return app

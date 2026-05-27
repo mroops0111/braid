@@ -28,14 +28,15 @@ const log = createLogger('server')
 
 async function main(): Promise<void> {
   const port = Number(process.env.BRAID_SERVER_PORT ?? 4321)
+  const apiUrl = `http://localhost:${port}`
   const deps = await composeFsApp({
-    apiUrl: `http://localhost:${port}`,
+    apiUrl,
     ...(process.env.BRAID_HOME ? { braidHome: process.env.BRAID_HOME } : {}),
     ...(process.env.BRAID_AGENT_MODEL ? { agentModel: process.env.BRAID_AGENT_MODEL } : {}),
     ...(process.env.BRAID_AGENT_EFFORT ? { agentEffort: process.env.BRAID_AGENT_EFFORT as AgentEffort } : {}),
   })
 
-  const app = createApp(deps)
+  const app = createApp(deps, { apiUrl })
 
   serve({ fetch: app.fetch, port }, ({ port: boundPort }) => {
     log.info({ port: boundPort }, `listening on http://localhost:${boundPort}`)
