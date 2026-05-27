@@ -127,7 +127,7 @@ You can't tell whether two sources are describing the *same* concept (alias or d
 
 #### Field-level drift → DriftIssue attached to the node
 
-The sources agree on *what* this is, but disagree on *specifics*: a limit, a state set, a parameter list, a sequence of steps. Don't drop into a ClarifyTicket — emit the node anyway and attach one structured `DriftIssue` per dimension to its `metadata.driftIssues[]`. Set `status: 'unclear'` instead of `draft` when at least one DriftIssue is `severity: 'error'`. Read `drift-detection.md` for the dimension checklist, description pattern, and severity rules; the JSON shape is in `artifact-formats.md`.
+The sources agree on *what* this is, but disagree on *specifics*: a limit, a state set, a parameter list, a sequence of steps. Don't drop into a ClarifyTicket — emit the node anyway and attach one structured `DriftIssue` per dimension to its `metadata.driftIssues[]`. Set `status: 'unclear'` instead of `draft` when at least one DriftIssue is `severity: 'error'`. Read `drift-detection.md` for the dimension checklist, description pattern, severity rules, and the JSON shape.
 
 This split is load-bearing: ClarifyTickets are "the human must decide what this is", DriftIssues are "the human can see two sources disagree and act on the proposal review pane". Conflating them buries field-level drift in ticket prose where the validator can't gate Apply.
 

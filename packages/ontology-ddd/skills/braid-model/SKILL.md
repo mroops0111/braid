@@ -124,7 +124,7 @@ In `validate` mode, also re-walk existing `metadata.driftIssues[]` on each node 
 
 Call `createProposal(workspaceId, operations, generatedBy: 'braid-model', rationale: "global structure pass + validation: <one-line summary of bridges added, drift attached, content fills>")`.
 
-Operation names and payload shapes are listed in `$BRAID_SESSION_DIR/.claude/skills/shared/artifact-formats.md`. Follow that file rather than freelancing JSON.
+Operation names and payload shapes are listed in `$BRAID_SESSION_DIR/.claude/skills/shared/proposal-format.md`. Follow that file rather than freelancing JSON.
 
 #### Step 8: emit ClarifyTickets
 
