@@ -25,6 +25,10 @@ export interface GraphSurfaceProps {
   selectedNodeId: NodeId | null
   onSelectNode: (id: NodeId | null) => void
   focusMode: boolean
+  /** Proposal-preview only: see GraphCanvas for semantics. */
+  dimUnchanged?: boolean
+  /** Proposal-preview only: see GraphCanvas for semantics. */
+  emphasizeAdded?: boolean
 }
 
 /**
@@ -34,12 +38,12 @@ export interface GraphSurfaceProps {
  * placement is left to the consumer; see {@link GraphSurfaceActions}
  * for the canonical Focus + ViewToggle pair when defaults suffice.
  */
-export function GraphSurface({ workspaceId, source, view, selectedNodeId, onSelectNode, focusMode }: GraphSurfaceProps) {
+export function GraphSurface({ workspaceId, source, view, selectedNodeId, onSelectNode, focusMode, dimUnchanged, emphasizeAdded }: GraphSurfaceProps) {
   if (view === 'visualization') {
     return (
       <GraphCanvas
         workspaceId={workspaceId}
-        {...optional({ source })}
+        {...optional({ source, dimUnchanged, emphasizeAdded })}
         selectedNodeId={selectedNodeId}
         onSelectNode={onSelectNode}
         focusMode={focusMode}

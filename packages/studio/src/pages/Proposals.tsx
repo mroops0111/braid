@@ -4,7 +4,7 @@ import { AlertCircle, AlertTriangle, Check, ChevronDown, ChevronRight, Inbox, In
 import { useEffect, useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
 import { useProposalGraphDataSource } from '@/components/graph/GraphDataSource'
-import { FocusToggle } from '@/components/graph/GraphToolbar'
+import { FocusToggle, OnlyChangesToggle } from '@/components/graph/GraphToolbar'
 import { ListRow } from '@/components/ListRow'
 import { PageActions } from '@/components/PageActions'
 import { StatusBadge } from '@/components/StatusBadge'
@@ -552,6 +552,14 @@ type PreviewView = 'graph' | 'table' | 'list'
  * The proposal source is computed once via `useProposalGraphDataSource`
  * and shared across views so toggling is cheap.
  */
+/**
+ * Threshold for auto-flipping `emphasizeAdded`. A proposal that touches
+ * less than this fraction of the live graph counts as "incremental" —
+ * the diff would otherwise be a handful of small green dots in a sea
+ * of unmarked context, which user feedback showed is easy to miss.
+ */
+const INCREMENTAL_RATIO_THRESHOLD = 0.3
+
 function ProposalPreview({ workspaceId, operations }: { workspaceId: string, operations: readonly GraphOperation[] }) {
   // Proposal-preview adds a `list` view to the surface's normal
   // graph/table pair, so we manage `view` here and only delegate to
@@ -559,12 +567,24 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
   const [view, setView] = useState<PreviewView>('graph')
   const [selectedNodeId, setSelectedNodeId] = useState<NodeId | null>(null)
   const [focusMode, setFocusMode] = useState(false)
+  const [onlyChanges, setOnlyChanges] = useState(false)
   const source = useProposalGraphDataSource(workspaceId, operations)
   const flat = flattenOperations(operations)
 
   const addCount = flat.filter(op => op.kind === 'add').length
   const updateCount = flat.filter(op => op.kind === 'update').length
   const removeCount = flat.filter(op => op.kind === 'remove').length
+
+  // Incremental proposals dilute their own visual: a few green dots in
+  // a sea of unmarked context. When the diff touches <30% of the
+  // preview snapshot, automatically beef up the `added` treatment
+  // (green ring + shadow instead of just a corner dot). The
+  // fresh-extract case (close to 100% touched) keeps the subtle
+  // markers so the type colour isn't drowned in green.
+  const changedCount = (source.diff?.nodes.size ?? 0) + (source.diff?.edges.size ?? 0)
+  const totalCount = source.nodes.length + source.edges.length
+  const incrementalRatio = totalCount > 0 ? changedCount / totalCount : 1
+  const emphasizeAdded = incrementalRatio < INCREMENTAL_RATIO_THRESHOLD
 
   return (
     <section className="flex min-h-0 flex-1 flex-col border-t border-border">
@@ -579,6 +599,9 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
           <ProposalImpactSummary adds={addCount} updates={updateCount} removes={removeCount} />
         </div>
         <div className="flex items-center gap-2">
+          {view !== 'list' && changedCount > 0 && (
+            <OnlyChangesToggle active={onlyChanges} onChange={setOnlyChanges} />
+          )}
           {selectedNodeId && view !== 'list' && (
             <FocusToggle active={focusMode} onChange={setFocusMode} />
           )}
@@ -600,6 +623,8 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
                 selectedNodeId={selectedNodeId}
                 onSelectNode={setSelectedNodeId}
                 focusMode={focusMode}
+                dimUnchanged={onlyChanges}
+                emphasizeAdded={emphasizeAdded}
               />
             )}
       </div>

@@ -13,7 +13,9 @@ braid:
 
 You are a documentation generator. You translate the Knowledge Graph into readable markdown for non-engineering audiences (PM / QA / Customer Support / new hires).
 
-The skill uses the `braid-core` MCP server's read-only tools (`getOntology`, `listNodes`, `getNodeScope`). You read the graph, write `artifacts/views/docs/*.md`. You never modify graph state, never produce proposals, never record decisions.
+The skill talks to the workspace through the `braid-core` MCP server (read-only operations: ontology fetch, node list, node-scope expansion). Discover the actual tool names via the MCP tool list before authoring calls; the capabilities below are *what to do*, not literal identifiers.
+
+You read the graph, write `artifacts/views/docs/*.md`. You never modify graph state, never produce proposals, never record decisions.
 
 ## Design Principles
 
@@ -25,7 +27,7 @@ The skill uses the `braid-core` MCP server's read-only tools (`getOntology`, `li
 ## Initialization
 
 1. Read `$BRAID_WORKSPACE/PRODUCT.md` for the active `ontologyId`.
-2. Call `getOntology(workspaceId)` to learn the node and edge type ids the rendering will encounter. Each `NodeTypeDescriptor` may carry a `renderHint`; the renderer is driven by those hints, not by ontology-specific vocabulary.
+2. Fetch the active ontology via `braid-core` to learn the node and edge type ids the rendering will encounter. Each `NodeTypeDescriptor` may carry a `renderHint`; the renderer is driven by those hints, not by ontology-specific vocabulary.
 3. From the ontology response, derive the rendering taxonomy:
    - **Container types**: every `nodeTypes[]` entry whose `renderHint.container === true`. One output file per node of these types.
    - **Nesting chains**: for every type with `renderHint.expandedUnder`, the chain it joins (e.g. `aggregate → boundedContext`, `command → aggregate`). Recurse to compute the depth.
@@ -33,7 +35,7 @@ The skill uses the `braid-core` MCP server's read-only tools (`getOntology`, `li
    - **Leaves**: types with no `renderHint` are rendered as footnotes in the source-id list rather than promoted into the body.
 4. Parse `$ARGUMENTS`:
    - A specific node id → render only that container (must be a container-typed node; otherwise abort with a clear error).
-   - Empty → list every top-level container node via `listNodes(workspaceId, type: <each container type>)` and render one doc per container.
+   - Empty → list every top-level container node via the `braid-core` node-search capability, filtering by each container type, and render one doc per container.
 5. Ensure the output directory exists: `mkdir -p "$BRAID_WORKSPACE/artifacts/views/docs"`.
 
 ## Procedure
@@ -42,7 +44,7 @@ Repeat the four steps below per scope selected by Initialization (one scope = on
 
 ### Step 1: Fetch the Scoped Subgraph
 
-Call `getNodeScope(workspaceId, nodeId, depth: D)` where D is the depth of the longest `expandedUnder` chain rooted at this container type plus one (so leaf nodes are included). For DDD-shaped ontologies that's typically 3.
+Use the `braid-core` node-scope capability with the container node id and depth D, where D is the depth of the longest `expandedUnder` chain rooted at this container type plus one (so leaf nodes are included). For DDD-shaped ontologies that's typically 3.
 
 ### Step 2: Group Nodes by renderHint
 
@@ -124,11 +126,9 @@ Wrote 2 documents.
 
 ## Output Files
 
-| Path | Format | Naming | Atomicity |
-|---|---|---|---|
-| `$BRAID_WORKSPACE/artifacts/views/docs/<container-id>.md` | Markdown (CommonMark) | Container id with `.` replaced by `-` (e.g. `ctx.checkout` → `ctx-checkout.md`) | `mv tmp final` so partial renders don't replace existing files |
-
-Files outside `artifacts/views/docs/` are never written. The `views/` ancestor is reserved for read-only projections; never write into `proposals/`, `clarify/`, `decisions/` or other artifact subtrees.
+- **Path**: `$BRAID_WORKSPACE/artifacts/views/docs/<container-id>.md` (id `.` → `-`, e.g. `ctx.checkout` → `ctx-checkout.md`).
+- **Format**: CommonMark Markdown. Atomic via `mv tmp final`.
+- **Scope**: never write outside `artifacts/views/docs/`. `views/` is reserved for read-only projections.
 
 ## Completion Checklist
 
@@ -145,10 +145,5 @@ This skill is read-only and currently does not need supplementary shared docs. (
 
 ## Notes
 
-- `getNodeScope` returns no nodes (the seed id is unknown or has no neighbours): skip the scope, log "scope <id> not found or empty" in stdout, continue with the next scope.
-- `listNodes` for the container type returns zero items: emit "no containers in workspace, nothing to render" and exit successfully (0 documents is a valid outcome).
-- File write fails (permissions, full disk): abort the run with a clear error; do not leave the destination file in a half-written state (atomicity from Step 4 guarantees this).
 - Do not invent or fill in missing descriptions. That is `braid-extract` / `braid-clarify`'s job. Render what the graph says, faithfully.
-- Nodes with `status: completed` appear in the main body; `draft` / `unclear` only in the Consistency footer.
-- Do not reference filesystem paths or code symbols in the prose. Engineers can cross-reference via node ids in the footer if needed.
 - If `$BRAID_WORKSPACE/skill-extensions/braid-generate-doc/EXTEND.md` exists, follow its rules after the steps above. Product-specific tone / glossary / customer-facing terminology overrides go there.

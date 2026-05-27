@@ -44,7 +44,7 @@ export const Proposal = z.object({
   operations: z.array(GraphOperation),
   generatedBy: SkillId,
   generatedAt: Timestamp,
-  rationale: z.string(),
+  rationale: z.string().min(1).max(1500).describe('One paragraph: what changed, why, from which sources. Plain text. ≤ 500 chars typical. See content-conventions.md.'),
   reviewedBy: UserId.optional(),
   reviewedAt: Timestamp.optional(),
   externalReferences: z.array(ExternalReference).optional(),
@@ -55,7 +55,7 @@ export const ProposalDraft = z.object({
   workspaceId: WorkspaceId,
   operations: z.array(GraphOperation),
   generatedBy: SkillId,
-  rationale: z.string(),
+  rationale: z.string().min(1).max(1500).describe('One paragraph: what changed, why, from which sources. Plain text. ≤ 500 chars typical. See content-conventions.md.'),
   externalReferences: z.array(ExternalReference).optional(),
 })
 export type ProposalDraft = z.infer<typeof ProposalDraft>

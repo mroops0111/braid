@@ -17,7 +17,9 @@ You are the graph's global structurer and validator. Where `braid-extract` sees 
 1. **Build**: create structural relationships extract can't infer because they require a cross-source view (containment, bridge edges between aggregates / contexts, cross-PRD triggers).
 2. **Validate**: cross-check the assembled graph against the active ontology's structural rules and the per-node completeness rules.
 
-The skill uses the `braid-core` MCP server: `getOntology` / `getModelSnapshot` / `listNodes` to read, `createProposal` / `createClarifyTicket` to write. You never write to the graph directly. You produce a Proposal the human applies via Studio. When the right answer is ambiguous, you produce a ClarifyTicket instead.
+The skill talks to the workspace through the `braid-core` MCP server (read capabilities: ontology fetch, model snapshot, node search; write capabilities: proposal submission, clarify-ticket submission). Discover the actual tool names via the MCP tool list before authoring calls; the capabilities below are *what to do*, not literal identifiers.
+
+You never write to the graph directly. You produce a Proposal the human applies via Studio. When the right answer is ambiguous, you produce a ClarifyTicket instead.
 
 This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its build phase encodes DDD-specific structural rules; workspaces using a different ontology should not load this skill.
 
@@ -40,15 +42,16 @@ This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its 
 ## Initialization
 
 1. Read `$BRAID_WORKSPACE/PRODUCT.md` to learn the active `ontologyId`.
-2. Call `getOntology(workspaceId)` so every type id you reference is canonical. Every `node.type` / `edge.type` you emit MUST equal one of the ids the ontology declares. Case-sensitive.
-3. Call `getModelSnapshot(workspaceId)`, then `listNodes(workspaceId, status: 'draft')` and `listNodes(workspaceId, status: 'unclear')` to enumerate work-in-progress nodes for validation.
-4. Parse `$ARGUMENTS` (scope-hint / `validate` / empty) and pick the mode.
+2. Run `pwd` to capture your working directory. Companion docs (§ Companion Docs) live at `<cwd>/.claude/skills/shared/`; concatenate when you Read them.
+3. Fetch the active ontology via `braid-core` so every type id you reference is canonical. Every `node.type` / `edge.type` you emit MUST equal one of the ids the ontology declares. Case-sensitive.
+4. Fetch the model snapshot via `braid-core`, then run two node-search calls filtering by `status: 'draft'` and `status: 'unclear'` to enumerate work-in-progress nodes for validation.
+5. Parse `$ARGUMENTS` (scope-hint / `validate` / empty) and pick the mode.
 
 ## Procedure
 
-### Part 1: Build (Skipped in `validate` Mode)
+Build mode runs Steps 1-3 (graph mutations + cross-source drift), then Steps 4-6 (validation). `validate` mode skips to Step 4. Step 7 always emits the proposal; Step 8 emits any clarify tickets.
 
-#### Step 1: Fix Wrong Edges Extract Emitted
+### Step 1: Fix Wrong Edges Extract Emitted (build)
 
 Each extract run sees one slice. From the global view, some edges land on the wrong target. Walk the graph and flag:
 
@@ -62,73 +65,51 @@ Each extract run sees one slice. From the global view, some edges land on the wr
 | Command or query with no `performedBy` edge to any actor | For each command and query, check sibling commands on the same aggregate: if the aggregate's other operations have `performedBy` edges to a consistent actor set, propose the same wiring for the gap and add a one-line rationale. If sibling coverage is inconsistent or absent, raise a ClarifyTicket asking which actor performs the operation. Single-aggregate orphans without sibling coverage are the most common gap from per-slice extracts. |
 | Aggregate with commands but no events, or events with no source command / aggregate | Cross-check the source references on the aggregate. If sibling commands emit events of a consistent shape (e.g. `*Created`, `*Updated`, `*Deleted`) but one command is missing its event, raise a ClarifyTicket asking whether the missing event was intentionally omitted (intermediate state change with no domain significance) or simply not extracted. |
 
-#### Step 2: Add Missing Containment
+### Step 2: Add Missing Containment (build)
 
 For every aggregate without a `contains`-style edge from a context, decide its owning bounded context based on naming + cross-edges to peers. Create the missing edge in the proposal. If two contexts are plausible, raise a ClarifyTicket instead.
 
-Only aggregates carry `contains` from a BoundedContext. Commands / queries / events / rules already have their parent aggregate via `accepts` / `emits` / `constrainedBy`; never add a `contains` edge from BC to them. The ontology will reject it, and the duplication hub-and-spokes the graph view.
+Only aggregates carry `contains` from a BoundedContext. Commands / queries / events / rules already have their parent aggregate via `accepts` / `emits` / `constrainedBy`; never add a `contains` edge from BC to them.
 
-#### Step 3: Add Bridge Edges (Cross-Slice)
+### Step 3: Add Bridge Edges + Cross-Source Drift (build)
 
-These can only be inferred globally:
+Add `triggers`, `dependsOn`, `policy` chains, and aggregate-wide `constrainedBy` edges per concept.md's wiring rules. Context Mapping edges (the 7 strategic relationships) are never auto-emitted; raise a ClarifyTicket.
 
-| Edge kind | When to create |
-|---|---|
-| `triggers` | Event in slice A is referenced as a precondition by a command in slice B |
-| `triggers` → `policy` → `enacts` | Same as above but the reaction has a name worth keeping (delayed, scheduled, cross-aggregate orchestration). Materialise a `policy` node sitting between the event and the command. See the policy section of `braid-extract` for when to name it |
-| `dependsOn` | Aggregate A references state owned by aggregate B (by id; aggregates never share instances per DDD) |
-| `constrainedBy` (aggregate-wide) | Same rule applies across every operation of an aggregate. Emit `aggregate --constrainedBy--> rule` rather than repeating `command --constrainedBy--> rule` against every command in the aggregate |
-
-For BoundedContext-to-BoundedContext strategic relationships (the seven Context Mapping edges defined in the ontology), do not infer them automatically. Raise a ClarifyTicket so the architect picks the mapping type explicitly.
-
-The actual edge type ids come from the ontology; use whichever the active ontology defines for these relationships.
-
-#### Step 3a: Cross-Source Drift Detection
-
-`braid-extract` checks intent-vs-code drift on a single slice at a time (see `drift-detection.md`). You see the whole graph, so you can catch drift the slice-level pass couldn't:
+`braid-extract` checks drift on a single slice at a time. From the global view, also catch:
 
 | Drift shape | What to look for |
 |---|---|
-| **intent vs intent** | Same concept described in two different intent files with different limits / states / rules (PRD A says cap 50, PRD B for the same feature says cap 99) |
-| **code vs code** | Multi-layer codebases: a node's `code` source includes both backend and frontend refs that disagree (backend allows -1, frontend hardcodes 99); or controller vs service layers differ |
-| **intent vs code: cross-aggregate** | An intent file describes a flow that crosses two aggregates; the code implements only one side. Extract may have flagged neither node because each looked fine in isolation |
+| **intent vs intent** | Same concept described in two intent files with different limits / states / rules |
+| **code vs code** | A node's code refs include layers that disagree (backend vs frontend; controller vs service) |
+| **intent vs code: cross-aggregate** | Intent describes a flow crossing two aggregates; code implements only one side |
 
-For each finding, emit one `DriftIssue` per dimension and attach to the relevant node's `metadata.driftIssues[]` via an `updateNode` operation in your proposal. Use `severity: 'error'` for contradictions, `warning` for gaps. Set `status: 'unclear'` on the patch when raising an `error` drift on a `draft` node.
+For each finding, emit one `DriftIssue` per dimension and attach to the node's `metadata.driftIssues[]` via `updateNode`. `severity: 'error'` for contradictions, `warning` for gaps. Set `status: 'unclear'` on the patch when raising an `error` drift on a `draft` node.
 
-If a candidate finding is actually identity-level ("are these even the same node?"), raise a ClarifyTicket per Step 8 instead — the same contract as `braid-extract` Step 3.
+### Step 4: Structural Validation
 
-### Part 2: Validate (Both Modes)
+Structural violations show up in the `issues[]` array of Step 7's proposal-create response. Fix `error`-severity ones (or raise a ClarifyTicket if the right fix is ambiguous); report `warning`-severity in the proposal `rationale`. If a scope-hint is set, filter to nodes in or adjacent to that scope.
 
-#### Step 4: Structural Validation
+### Step 5: Node-Content Validation
 
-The server runs structural validators automatically when you call `createProposal`. The same engine is available for read-only inspection via the spec's `validateProposal` operation; in this skill the inline 400 response from Step 7's `createProposal` carries the same `issues[]` array, which is the only authoritative source. For each violation:
+For each `draft` or `unclear` node, check the per-type rules the ontology declares (required attributes, description shape). Promote `draft` → `completed` only when every required field is filled. Schema constraints are enforced server-side on apply; a status flip without filled fields fails with `BRAID-VAL`.
 
-- **Errors** must be fixed in the proposal (or raised as ClarifyTicket if the right fix is ambiguous).
-- **Warnings** are reported in the proposal `rationale` block but don't block apply.
+### Step 6: Coverage Scan + Stale Drift Cleanup
 
-If a scope-hint is set, filter findings to ones involving nodes in or adjacent to that scope.
+For each node with a source `ref`, scan for known coverage gaps the ontology cares about (e.g. error paths in commands, UI coverage of user-facing commands). Mark each `clear` / `partial` / `missing` in the proposal `rationale`. Don't try to fix coverage gaps; surface them for the next extract cycle. In `validate` mode also re-walk existing `metadata.driftIssues[]` and prune entries that no longer reproduce (replace the array via `updateNode`); never touch `metadata.acknowledgedDrifts`, which is human-set.
 
-#### Step 5: Node-Content Validation
+### Step 7: Emit the Proposal
 
-For each `draft` or `unclear` node, check the per-type rules the ontology declares (required attributes, description shape). Promote a node from `draft` to `completed` only when every required field is filled. Schema constraints are enforced server-side on apply; if you propose a status flip without filling required fields, the proposal will fail with `BRAID-VAL`.
+Submit the Proposal via the `braid-core` proposal-create capability:
 
-#### Step 6: Coverage Scan + Stale Drift Cleanup
+- `operations`: the bridge / containment / DriftIssue / status-flip ops you derived in Steps 1–6.
+- `generatedBy`: `"braid-model"`.
+- `rationale`: `"global structure pass + validation: <one-line summary of bridges added, drift attached, content fills>"`.
 
-For each node with a source `ref`, scan for known coverage gaps the ontology cares about (e.g. error paths in commands, UI coverage of commands users interact with). Mark each as `clear` / `partial` / `missing` in the proposal's `rationale`. Don't try to fix coverage gaps; that's the next extract cycle's job. The goal here is to surface them.
-
-In `validate` mode, also re-walk existing `metadata.driftIssues[]` on each node and prune entries that no longer reproduce against the current sources — emit `updateNode` operations that replace the array. Drift is a derived observation; stale entries from a prior build that the human already fixed must not survive. (Entries listed in `metadata.acknowledgedDrifts` are human-set; never clear those.)
-
-### Part 3: Output
-
-#### Step 7: Emit the Proposal
-
-Call `createProposal(workspaceId, operations, generatedBy: 'braid-model', rationale: "global structure pass + validation: <one-line summary of bridges added, drift attached, content fills>")`.
-
-Operation names and payload shapes are listed in `$BRAID_SESSION_DIR/.claude/skills/shared/proposal-format.md`. Follow that file rather than freelancing JSON.
+Operation names and payload shapes are in `.claude/skills/shared/proposal-format.md` (see § Companion Docs). Follow that file rather than freelancing JSON.
 
 #### Step 8: Emit ClarifyTickets
 
-For ambiguous attachments / splits / merges, call `createClarifyTicket(workspaceId, question, candidates)` per unresolved question. Include each candidate resolution with the evidence behind it so the human can pick informedly.
+For ambiguous attachments / splits / merges, submit a ClarifyTicket via the `braid-core` clarify-create capability per unresolved question. Include each candidate resolution with the evidence behind it so the human can pick informedly.
 
 ## Output
 
@@ -153,19 +134,17 @@ In `validate` mode, omit the `bridges` figure and prefix with `(validate-only)`.
 
 ## Companion Docs
 
+Companion docs sit at `<cwd>/.claude/skills/shared/` (core) and `<cwd>/.claude/skills/ontology-ddd/` (this plugin), where `<cwd>` is the value captured in Initialization step 2.
+
 | File | When to read | Why |
 |---|---|---|
-| `$BRAID_SESSION_DIR/.claude/skills/shared/proposal-format.md` | Before Step 7 | Full `GraphOperation` discriminated union and `DriftIssue` shape. |
-| `$BRAID_SESSION_DIR/.claude/skills/shared/clarify-format.md` | Before Step 8 | `ClarifyTicket` request body and candidate shape. |
-| `$BRAID_SESSION_DIR/.claude/skills/shared/validators.md` | Before Step 7 | The three server-side validators; self-check ops here so they don't hit a 400 unnecessarily. |
-| `$BRAID_SESSION_DIR/.claude/skills/shared/drift-detection.md` | Step 3a | Dimension checklist + description pattern for `DriftIssue` entries; severity rules. Global view lets you spot drift the slice-level pass couldn't. |
+| `.claude/skills/ontology-ddd/concept.md` | **Before Steps 1-3 and any time you author a bridge edge** | The DDD vocabulary, wiring rules, policy pattern, Context Mapping rules. Anchors every structural decision Part 1 makes. |
+| `.claude/skills/shared/proposal-format.md` | Before Step 7 | `GraphOperation` discriminated union, `DriftIssue` shape, status semantics. |
+| `.claude/skills/shared/clarify-format.md` | Before Step 8 | `ClarifyTicket` request body and candidate shape. |
+| `.claude/skills/shared/content-conventions.md` | Whenever writing a `name`, `description`, `rationale`, or `question` | Plain-text rule, length caps, structural conventions for every user-facing string field. |
+| `.claude/skills/shared/validators.md` | Before Step 7 | The four server-side validators; self-check ops here so they don't hit a 400 unnecessarily. |
+| `.claude/skills/shared/drift-detection.md` | Step 3 | Dimension checklist + description pattern for `DriftIssue` entries; severity rules. |
 
 ## Notes
 
-- Skill creates artifacts via `createProposal` and `createClarifyTicket`. Do not write JSON files to `artifacts/` directly. The server handles atomic persistence + validation in one shot.
-- Do not call `applyProposal` / `rejectProposal` / `answerClarifyTicket` / `skipClarifyTicket` / `markClarifyTicketApplied`. Those are human-triggered through the UI (or a different skill).
-- `createProposal` returns 400 with `BRAID-VAL` → fix cited issues and call again, cap at 3 rounds.
-- `getOntology` or `getModelSnapshot` errors → abort the run. Without ontology + current graph, you can't reason globally.
-- Detected structural violation whose fix is ambiguous (e.g. competing parent candidates for an orphan): raise a ClarifyTicket; do not pick blindly.
-- Drift detected but you can't tell whether the two refs describe the same node: raise a ClarifyTicket (identity question); do not attach a DriftIssue (drift assumes shared identity).
 - If `$BRAID_WORKSPACE/skill-extensions/braid-model/EXTEND.md` exists, follow its rules after the steps above. Workspace-specific overrides (custom rules, ontology hints) belong there.

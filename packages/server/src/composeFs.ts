@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 import { claudeCodeAgentPlugin } from '@braidhq/agent-claude-code'
 import {
   builtinSkillsRoot,
@@ -216,6 +217,15 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
       + 'Install via `brew install uv` or https://docs.astral.sh/uv/ to enable.',
     )
   }
+  // Build the list of reference dirs symlinked into every skill session:
+  //   - builtin `shared/` from @braidhq/core (Proposal / Clarify / Validator
+  //     format docs, content conventions, drift-detection guidance)
+  //   - whatever each registered plugin contributes (e.g. ontology-ddd's
+  //     concept doc). Plugin contributions resolve `URL` -> absolute path.
+  const pluginReferenceDirs = pluginRegistry.pluginReferenceDirs().map((ref) => {
+    const dir = typeof ref.directory === 'string' ? ref.directory : fileURLToPath(ref.directory)
+    return { name: ref.name, path: dir as AbsolutePath }
+  })
   const skillRunner = new SubprocessSkillRunner({
     skillRegistry,
     agentBinding,
@@ -227,6 +237,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
       : {}),
     referenceDirs: [
       { name: 'shared', path: join(builtinSkillsRoot, 'shared') as AbsolutePath },
+      ...pluginReferenceDirs,
     ],
   })
 

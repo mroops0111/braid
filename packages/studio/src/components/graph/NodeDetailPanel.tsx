@@ -1,5 +1,6 @@
 import type { GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
 import { ArrowDownToDot, ArrowUpFromDot, FileText, X } from 'lucide-react'
+import { Markdown } from '@/components/SkillTranscript/Markdown'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { NodeTypeBadge } from './NodeTypeBadge'
@@ -60,7 +61,9 @@ export function NodeDetailPanel({
         {node.description && (
           <section>
             <SectionTitle>Description</SectionTitle>
-            <p className="mt-1 whitespace-pre-wrap text-xs text-foreground/90">{node.description}</p>
+            <div className="mt-1 text-xs text-foreground/90">
+              <Markdown text={node.description} />
+            </div>
           </section>
         )}
 

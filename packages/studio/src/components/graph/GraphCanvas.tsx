@@ -48,6 +48,22 @@ interface GraphCanvasProps {
    * toggle drives both canvas and table.
    */
   focusMode?: boolean
+  /**
+   * When `true`, nodes and edges the proposal does not touch render at
+   * a dimmed opacity, so the changed minority is what a reviewer's
+   * eyes land on first. Set by `Proposals` when the user activates the
+   * "Only changes" toggle. Has no effect outside proposal preview.
+   */
+  dimUnchanged?: boolean
+  /**
+   * When `true`, `added` nodes wear a green ring + accent dot instead
+   * of just the small corner dot. Studio normally keeps `added` subtle
+   * so a fresh-extract proposal (where 100% of nodes are added) is not
+   * overwhelmed by green; for incremental proposals (small fraction of
+   * the graph changed) the subtler treatment hides the diff. Caller
+   * (Proposals) flips this on when the diff ratio is low.
+   */
+  emphasizeAdded?: boolean
 }
 
 const NODE_TYPES = { card: GraphNodeCard }
@@ -58,21 +74,21 @@ const INITIAL_FILTERS: GraphFilters = {
   orphansOnly: false,
 }
 
-export function GraphCanvas({ workspaceId, source, selectedNodeId, onSelectNode, focusMode }: GraphCanvasProps) {
+export function GraphCanvas({ workspaceId, source, selectedNodeId, onSelectNode, focusMode, dimUnchanged, emphasizeAdded }: GraphCanvasProps) {
   const palette = usePalette(workspaceId)
   return (
     <PaletteProvider value={palette}>
       <ReactFlowProvider>
         <CanvasInner
           workspaceId={workspaceId}
-          {...optional({ source, selectedNodeId, onSelectNode, focusMode })}
+          {...optional({ source, selectedNodeId, onSelectNode, focusMode, dimUnchanged, emphasizeAdded })}
         />
       </ReactFlowProvider>
     </PaletteProvider>
   )
 }
 
-function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, onSelectNode, focusMode = false }: GraphCanvasProps) {
+function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, onSelectNode, focusMode = false, dimUnchanged = false, emphasizeAdded = false }: GraphCanvasProps) {
   // React Query dedupes the live snapshot fetch by queryKey, so it's
   // effectively free when `source` is supplied.
   const liveSource = useLiveGraphDataSource(workspaceId)
@@ -121,15 +137,22 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
 
   const reactFlowNodes = useMemo(
     () => laidOut.nodes.map((n) => {
-      const dimmed = selectedNodeId !== null && !focusMode && !neighborhood.neighbors.has(n.data.node.id)
+      const change = diff?.nodes.get(n.data.node.id)
+      // Two independent dim conditions:
+      //   - focus-style: a node is selected and this one isn't in its neighbourhood
+      //   - only-changes: the proposal didn't touch this node
+      // Either reason dims; both together still just dim once.
+      const dimmedByFocus = selectedNodeId !== null && !focusMode && !neighborhood.neighbors.has(n.data.node.id)
+      const dimmedByDiff = dimUnchanged && !change
+      const dimmed = dimmedByFocus || dimmedByDiff
       return {
         ...n,
         selected: n.id === selectedNodeId,
-        data: { ...n.data, change: diff?.nodes.get(n.data.node.id) },
+        data: { ...n.data, change, emphasizeAdded },
         ...(dimmed ? { style: { opacity: DIMMED_NODE_OPACITY } } : {}),
       }
     }),
-    [laidOut.nodes, selectedNodeId, diff, focusMode, neighborhood],
+    [laidOut.nodes, selectedNodeId, diff, focusMode, neighborhood, dimUnchanged, emphasizeAdded],
   )
 
   // Edges keep their type colour so topology is readable; diff state
@@ -141,7 +164,9 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
       const selected = edge.id === selectedEdgeId
       const change = diff?.edges.get(edge.data!.edge.id)
       const incident = neighborhood.incidentEdges.has(edge.data!.edge.id)
-      const dimmed = selectedNodeId !== null && !focusMode && !incident
+      const dimmedByFocus = selectedNodeId !== null && !focusMode && !incident
+      const dimmedByDiff = dimUnchanged && !change
+      const dimmed = dimmedByFocus || dimmedByDiff
       const baseColor = palette.edgeColor(edge.data!.edge.type)
       const stroke = selected || incident
         ? baseColor
@@ -181,7 +206,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
         labelShowBg: true,
       }
     }),
-    [laidOut.edges, selectedEdgeId, palette, diff, selectedNodeId, focusMode, neighborhood],
+    [laidOut.edges, selectedEdgeId, palette, diff, selectedNodeId, focusMode, neighborhood, dimUnchanged],
   )
 
   useFitOnLayoutChange(reactFlow, laidOut.nodes)

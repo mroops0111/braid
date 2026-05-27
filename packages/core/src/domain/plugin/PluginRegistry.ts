@@ -11,13 +11,18 @@ import type {
 import type { AgentPlugin } from './AgentPlugin.js'
 import type { ViewGeneratorPlugin } from './Generator.js'
 import type { OntologyPlugin } from './Ontology.js'
-import type { Plugin, PluginSkillRef } from './Plugin.js'
+import type { Plugin, PluginReferenceDirRef, PluginSkillRef } from './Plugin.js'
 import type { SourceLoaderPlugin } from './SourceLoader.js'
 import type { StoragePlugin } from './StoragePlugin.js'
 import { ConflictError, NotFoundError } from '../errors.js'
 
 /** PluginSkillRef enriched with the id of the plugin that contributed it. */
 export interface PluginSourcedSkill extends PluginSkillRef {
+  readonly contributedBy: PluginId
+}
+
+/** PluginReferenceDirRef enriched with the id of the plugin that contributed it. */
+export interface PluginSourcedReferenceDir extends PluginReferenceDirRef {
   readonly contributedBy: PluginId
 }
 
@@ -51,6 +56,22 @@ export class PluginRegistry {
     for (const plugin of this.plugins.values()) {
       for (const skill of plugin.skills ?? [])
         result.push({ ...skill, contributedBy: plugin.id })
+    }
+    return result
+  }
+
+  /**
+   * All reference directories declared by registered plugins, tagged
+   * with the plugin id that contributed each. Consumers
+   * (SubprocessSkillRunner) symlink these into every spawned skill
+   * session so SKILL.md authors can reference plugin-owned concept
+   * docs via a stable cwd-relative path.
+   */
+  pluginReferenceDirs(): readonly PluginSourcedReferenceDir[] {
+    const result: PluginSourcedReferenceDir[] = []
+    for (const plugin of this.plugins.values()) {
+      for (const dir of plugin.referenceDirs ?? [])
+        result.push({ ...dir, contributedBy: plugin.id })
     }
     return result
   }

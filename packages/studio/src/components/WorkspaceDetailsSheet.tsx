@@ -252,7 +252,9 @@ function McpRow({ server }: { server: McpServerConfig }) {
         <Plug className="size-3 text-muted-foreground" />
         <span className="font-mono text-xs">{server.id}</span>
       </div>
-      <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">{server.url}</p>
+      <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+        {server.transport === 'stdio' ? `${server.command}${server.args ? ` ${server.args.join(' ')}` : ''}` : server.url}
+      </p>
     </li>
   )
 }

@@ -22,8 +22,21 @@ export const dddOntology = defineOntology({
       directory: new URL('../skills/braid-extract', import.meta.url),
     },
     {
+      id: 'braid-clarify' as SkillId,
+      directory: new URL('../skills/braid-clarify', import.meta.url),
+    },
+    {
       id: 'braid-model' as SkillId,
       directory: new URL('../skills/braid-model', import.meta.url),
+    },
+  ],
+  // Shared reference docs the SKILL.md files above all consult so the
+  // DDD vocabulary / wiring rules / ID conventions live in one place
+  // instead of being duplicated in each Procedure.
+  referenceDirs: [
+    {
+      name: 'ontology-ddd',
+      directory: new URL('../skills/shared', import.meta.url),
     },
   ],
 

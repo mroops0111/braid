@@ -1,6 +1,7 @@
 import type { NodeProps } from '@xyflow/react'
 import type { NodeCardNode } from './useGraphLayout'
 import { Handle, Position } from '@xyflow/react'
+import { Markdown } from '@/components/SkillTranscript/Markdown'
 import { cn } from '@/lib/utils'
 import { NodeTypeBadge } from './NodeTypeBadge'
 import { usePaletteContext } from './usePalette'
@@ -17,21 +18,24 @@ import { usePaletteContext } from './usePalette'
  * from the canvas — graph mutations stay HITL-gated via Proposals.
  */
 export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
-  const { node, change } = data
+  const { node, change, emphasizeAdded } = data
   const palette = usePaletteContext()
-  const subtitle = node.description?.trim() ?? ''
+  const firstParagraph = node.description?.split(/\n\s*\n/, 1)[0]?.trim() ?? ''
   // Diff signals layer without fighting the type / topology layer:
   //   - Always-on left bar carries node type colour.
   //   - Top-right corner dot signals diff state (green / amber / rose). One dot per change kind, including `added`, so every variant has a visible marker.
   //   - Border ring is added on top of the dot for `updated` and `removed` because those need extra weight (removed is destructive; updated changed semantics).
-  //   - `added` keeps just the dot. In a fresh extraction every node would otherwise wear a green border and the type colour would drown.
+  //   - `added` keeps just the dot by default. In a fresh extraction every node would otherwise wear a green border and the type colour would drown.
+  //   - Incremental proposals flip `emphasizeAdded` on so `added` also gets a green ring + shadow — the green minority in a sea of unchanged context needs that extra weight to be noticed.
   //   - Selected border-primary trumps the diff border on click.
   // Removed cards also fade so they read as "will disappear" rather than "still here".
   const changeBorder = change === 'updated'
     ? 'border-amber-500/70 shadow-[0_0_0_1px] shadow-amber-500/30'
     : change === 'removed'
       ? 'border-rose-500/70 shadow-[0_0_0_1px] shadow-rose-500/30 opacity-60'
-      : null
+      : change === 'added' && emphasizeAdded
+        ? 'border-emerald-500/70 shadow-[0_0_0_1px] shadow-emerald-500/30'
+        : null
   const changeDotColor = change === 'added'
     ? 'bg-emerald-500'
     : change === 'updated'
@@ -74,9 +78,9 @@ export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
         <span className="text-[10px] text-muted-foreground">{node.status}</span>
       </div>
       <div className="mt-1 truncate text-sm font-medium text-foreground">{node.name}</div>
-      {subtitle && (
-        <div className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
-          {subtitle}
+      {firstParagraph && (
+        <div className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground [&_p]:!my-0 [&_p]:!text-[11px] [&_p]:!leading-snug">
+          <Markdown text={firstParagraph} />
         </div>
       )}
     </div>

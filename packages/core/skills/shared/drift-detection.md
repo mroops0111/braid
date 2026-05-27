@@ -1,21 +1,14 @@
 # Drift Detection
 
-When you read more than one source for the same concept (intent file +
-code, two intent files, two code layers), the sources can disagree.
-That disagreement is **drift**. This file tells you when to emit a
-structured `DriftIssue` so the graph carries that signal forward; the
-proposal review pane and the apply-gate consume it automatically.
+When you read more than one source for the same concept (intent file + code, two intent files, two code layers), the sources can disagree. That disagreement is **drift**. This file tells you when to emit a structured `DriftIssue` so the graph carries that signal forward; the proposal review pane and the apply-gate consume it automatically.
 
-Drift is observed, not invented. If you can't point at two specific
-sources that disagree, you don't have drift — you have a question, and
-that belongs in a `ClarifyTicket`.
+Drift is observed, not invented. If you can't point at two specific sources that disagree, you don't have drift. You have a question, and that belongs in a `ClarifyTicket`.
 
 ---
 
 ## When to Look
 
-You compare two sources whenever a node has evidence from both. Three
-comparison shapes:
+You compare two sources whenever a node has evidence from both. Three comparison shapes:
 
 | Comparison | Typical setup |
 |---|---|
@@ -23,16 +16,13 @@ comparison shapes:
 | **code vs code** | Multi-layer codebases: backend handler vs frontend client, controller vs service, etc. |
 | **intent vs intent** | Multiple intent files describe the same concept (e.g. two PRDs that overlap). |
 
-Drift is local to one node — every `DriftIssue` belongs in that node's
-`metadata.driftIssues`.
+Drift is local to one node. Every `DriftIssue` belongs in that node's `metadata.driftIssues`.
 
 ---
 
 ## What to Compare (Dimensions)
 
-Use this taxonomy as a checklist when reading the two sources. Cover
-the dimensions that the sources actually have content on; skip the rest.
-Don't force every node into every dimension.
+Use this taxonomy as a checklist when reading the two sources. Cover the dimensions that the sources actually have content on; skip the rest. Don't force every node into every dimension.
 
 | Dimension | Look for | Example finding |
 |---|---|---|
@@ -48,9 +38,7 @@ Don't force every node into every dimension.
 | `errors` | Error code coverage | "Backend returns `quota_exceeded`; frontend has no matching message" |
 | `feature-coverage` | One layer ships a feature the other lacks | "Frontend has 'share order' UI; backend has no endpoint" |
 
-These are guidance, not enum values — the schema doesn't enforce them.
-Pick whichever fits the finding; if none fits, write the finding anyway
-with the best fit.
+These are guidance, not enum values; the schema doesn't enforce them. Pick whichever fits the finding; if none fits, write the finding anyway with the best fit.
 
 ---
 
@@ -58,23 +46,12 @@ with the best fit.
 
 Don't raise a `DriftIssue` for:
 
-- Style differences (camelCase vs snake_case, English vs Chinese
-  phrasing). Names mean the same thing.
-- High-level intent vs low-level implementation detail (intent says
-  "compute total price", code has 12 lines of arithmetic — that's
-  expected, not drift).
-- Code-only or intent-only existence at the *whole-node* level — that's
-  already covered by `metadata.intentMissing` / `metadata.implementationMissing`
-  flags on the node. Use `DriftIssue` for field-level drift on a
-  shared concept.
-- Vague suspicions ("I think these might differ but couldn't verify").
-  Either confirm with a specific cite or skip. Drift is structured
-  evidence, not impressions.
+- Style differences (camelCase vs snake_case, English vs Chinese phrasing). Names mean the same thing.
+- High-level intent vs low-level implementation detail (intent says "compute total price", code has 12 lines of arithmetic; that's expected, not drift).
+- Code-only or intent-only existence at the *whole-node* level: that's already covered by `metadata.intentMissing` / `metadata.implementationMissing` flags on the node. Use `DriftIssue` for field-level drift on a shared concept.
+- Vague suspicions ("I think these might differ but couldn't verify"). Either confirm with a specific cite or skip. Drift is structured evidence, not impressions.
 
-If the disagreement makes you unsure which concept these even *are*
-(two different `cancelOrder` candidates? same? distinct?), you don't
-have field-level drift — you have an identity question. Emit a
-`ClarifyTicket`, not a `DriftIssue`.
+If the disagreement makes you unsure which concept these even *are* (two different `cancelOrder` candidates? same? distinct?), you don't have field-level drift; you have an identity question. Emit a `ClarifyTicket`, not a `DriftIssue`.
 
 ---
 
@@ -89,20 +66,9 @@ The description goes straight to a human reviewer. It must:
 **Pattern:**
 > `{source A} {says X}, {source B} {does Y}. {one-line consequence}.`
 
-**Good examples:**
+**Good example:**
 
-> Intent (`intent/order.md` §"Quota") caps line items at 50; code at
-> `apps/api/order/validator.ts:14` allows up to 99. Extra line items
-> currently silently fail a downstream DB unique check.
-
-> Backend `apps/api/checkout/step.ts` accepts unlimited
-> `approval_step`; frontend `apps/web/src/checkout/StepEditor.tsx:42`
-> hardcodes `max=99`. Orders created via the API can render as a
-> broken form in the UI.
-
-> PRD `intent/auth/login.md` describes a "remember me" cookie; no
-> implementation found under `apps/api/auth/`. Users can ask for the
-> feature that isn't there.
+> Intent (`intent/order.md` §"Quota") caps line items at 50; code at `apps/api/order/validator.ts:14` allows up to 99. Extra line items currently silently fail a downstream DB unique check.
 
 **Avoid:**
 
@@ -122,23 +88,15 @@ Three values. Default rule of thumb:
 | One side has a detail the other lacks (no contradiction, just incomplete) | `warning` |
 | Cosmetic / informational divergence worth recording but not actionable | `info` |
 
-`error` blocks proposal apply via `EvidenceValidator`. Use it for
-contradictions that will cause a defect if left alone (limit
-mismatches, permission gaps, contract breaks). Use `warning` for "fix
-this when convenient" cases (terminology drift, missing-but-implied
-behaviour).
+`error` blocks proposal apply via `EvidenceValidator`. Use it for contradictions that will cause a defect if left alone (limit mismatches, permission gaps, contract breaks). Use `warning` for "fix this when convenient" cases (terminology drift, missing-but-implied behaviour).
 
-If you find drift across multiple dimensions for one node, emit one
-`DriftIssue` per dimension — don't bundle them into a single
-description. The reviewer triages each independently.
+If you find drift across multiple dimensions for one node, emit one `DriftIssue` per dimension. Don't bundle them into a single description. The reviewer triages each independently.
 
 ---
 
 ## JSON Shape
 
-`DriftIssue` lives on a node's `metadata.driftIssues[]`. You attach it
-when emitting an `addNode` or `updateNode` GraphOperation. The server
-mints no fields here — you provide everything:
+`DriftIssue` lives on a node's `metadata.driftIssues[]`. You attach it when emitting an `addNode` or `updateNode` GraphOperation. The server mints no fields here; you provide everything:
 
 ```json
 {
@@ -155,55 +113,22 @@ mints no fields here — you provide everything:
 
 Schema rules:
 
-- `sourceReferences` MUST have at least 2 entries (drift by definition
-  compares two sources). The order is `left, right` — but in the
-  description you name them by file, so order is informational.
+- `sourceReferences` MUST have at least 2 entries (drift by definition compares two sources). The order is `left, right`, but the description names the sources by file, so order is informational.
 - `description` is plain text, no markdown.
 - `severity` is one of `error` / `warning` / `info`.
-- `id` is yours to mint — any non-empty string works; the server doesn't
-  reuse it across builds. A short random suffix is fine.
+- `id` is yours to mint. Any non-empty string works; the server doesn't reuse it across builds. A short random suffix is fine.
 - `raisedAt` is an ISO timestamp with offset.
 
-Attach to a node payload like this:
-
-```jsonc
-{
-  "operation": "addNode",
-  "payload": {
-    "id": "cmd.cancelOrder",
-    "type": "command",
-    "name": "cancelOrder",
-    "metadata": {
-      "sourceReferences": [/* the two refs the node itself cites */],
-      "driftIssues": [
-        { /* DriftIssue */ },
-        { /* another DriftIssue */ }
-      ]
-    }
-  }
-}
-```
-
-When updating an existing node that already has `driftIssues`, the
-patch fully replaces the array (drift is re-derived each build, not
-appended). If you don't observe a previously-recorded drift any more,
-leaving it out of your `updateNode` patch lets the next apply clear it.
+Attach via `metadata.driftIssues[]` on an `addNode` or `updateNode` payload (see `proposal-format.md` for the surrounding shape). On `updateNode`, the patch fully replaces the array — drift is re-derived each build, not appended. Leave a previously-recorded drift out of the next patch to let apply clear it.
 
 ---
 
 ## What Happens After You Write One
 
-- `EvidenceValidator` surfaces each entry as a `ValidationIssue` (code
-  `evidence.drift`) on the proposal review pane; severity is preserved.
-- `error`-severity entries block Apply until resolved (raised, fixed,
-  or acknowledged).
-- The human can suppress a specific drift by adding its `description`
-  string to `node.metadata.acknowledgedDrifts[]`. You **do not** set
-  this field yourself — it's a human acknowledgement, not a skill
-  observation.
-- Status `unclear` on the node is the conventional signal that the node
-  has unresolved drift. Set it on `updateNode` patches when you raise
-  an `error` drift on a previously `draft` node.
+- `EvidenceValidator` surfaces each entry as a `ValidationIssue` (code `evidence.drift`) on the proposal review pane; severity is preserved.
+- `error`-severity entries block Apply until resolved (raised, fixed, or acknowledged).
+- The human can suppress a specific drift by adding its `description` string to `node.metadata.acknowledgedDrifts[]`. You **do not** set this field yourself. It's a human acknowledgement, not a skill observation.
+- Status `unclear` on the node is the conventional signal that the node has unresolved drift. Set it on `updateNode` patches when you raise an `error` drift on a previously `draft` node.
 
 ---
 
@@ -214,6 +139,5 @@ Before attaching a `DriftIssue`:
 - [ ] Two specific source citations (file + line / anchor)
 - [ ] Description names both sides and the impact in one sentence
 - [ ] Severity matches the contradiction-vs-gap distinction above
-- [ ] Not duplicating an `intentMissing` / `implementationMissing` flag
-  at the whole-node level
+- [ ] Not duplicating an `intentMissing` / `implementationMissing` flag at the whole-node level
 - [ ] If multiple dimensions disagree, one `DriftIssue` per dimension
