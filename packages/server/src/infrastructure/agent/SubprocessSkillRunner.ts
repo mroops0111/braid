@@ -49,19 +49,26 @@ export interface SubprocessSkillRunnerDeps {
   /** Delete the per-run session directory after the run. Default `true`. */
   readonly cleanupSession?: boolean
   /**
-   * Streamable HTTP endpoint of a running openapi-mcp-gateway that
-   * mirrors the Braid REST API as MCP tools. When set, every spawned
-   * skill receives a `braid-core` MCP server entry pointing here in
-   * addition to any workspace-declared MCP servers. Skills then call
-   * `braid_search_nodes`, `braid_submit_proposal`, etc. as MCP tools
-   * instead of writing curl pipelines.
+   * Enables the built-in `braid-core` MCP gateway. When set, every
+   * spawned skill receives a stdio MCP server entry that runs
+   * `<uvxBin> openapi-mcp-gateway --spec <specUrl> --transport stdio`
+   * — claude spawns the gateway as a per-session child, the gateway
+   * fetches the OpenAPI spec from `specUrl`, and the REST surface is
+   * exposed as MCP tools (`braid_search_nodes`,
+   * `braid_submit_proposal`, …).
    *
-   * Run the gateway yourself with:
-   *   uvx openapi-mcp-gateway --spec http://<braid-host>/openapi.json --name braid-core
-   * Leave undefined when the gateway is not running; skills then have
-   * to fall back to curl (legacy path).
+   * `specUrl` is typically `${apiUrl}/openapi.json`. `uvxBin` defaults
+   * to `'uvx'` (resolved against PATH); composeFs preflight-checks for
+   * its presence at boot.
+   *
+   * Leave undefined to skip the entry entirely (skills with
+   * `requiredMcpServers: ['braid-core']` will then surface as
+   * not-ready via SkillManifest.readinessIssuesFor).
    */
-  readonly coreGatewayUrl?: string
+  readonly coreGateway?: {
+    readonly specUrl: string
+    readonly uvxBin?: string
+  }
   /**
    * Optional pub/sub for workspace-scoped notifications. Used by Studio
    * to invalidate run / proposal lists in real time without polling.
@@ -95,11 +102,20 @@ export class SubprocessSkillRunner implements SkillRunner {
     const runId = newSkillRunId()
     const sessionDir = await this.resolveSessionDir(workspace, runId, options?.resumeSessionId)
     const mcpConfigFile = await writeMcpConfigFile(workspace, sessionDir, {
-      extraServers: this.deps.coreGatewayUrl
+      extraServers: this.deps.coreGateway
         ? [{
             id: 'braid-core' as McpServerId,
-            transport: 'streamable-http',
-            url: this.deps.coreGatewayUrl,
+            transport: 'stdio',
+            command: this.deps.coreGateway.uvxBin ?? 'uvx',
+            args: [
+              'openapi-mcp-gateway',
+              '--spec',
+              this.deps.coreGateway.specUrl,
+              '--transport',
+              'stdio',
+              '--name',
+              'braid-core',
+            ],
           }]
         : [],
     })
