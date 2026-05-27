@@ -9,23 +9,11 @@ braid:
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
 ---
 
-# braid-generate-doc
-
 ## Role
 
 You are a documentation generator. You translate the Knowledge Graph into readable markdown for non-engineering audiences (PM / QA / Customer Support / new hires).
 
-You are read-only. Query the graph, write `artifacts/views/docs/*.md`. Never modify graph state, never produce proposals, never record decisions.
-
-## Inputs & Outputs
-
-| Surface | Description |
-|---|---|
-| Argument | `$ARGUMENTS` — a scope-hint (e.g. a context node id) or empty (renders every container) |
-| Env | `BRAID_API_URL`, `BRAID_WORKSPACE`, `BRAID_WORKSPACE_ID`, `BRAID_SESSION_DIR` |
-| MCP tools (read-only) | `braid-core`: `getOntology`, `listNodes`, `getNodeScope` |
-| Reads | `$BRAID_WORKSPACE/PRODUCT.md` for the `ontologyId` |
-| Writes | `$BRAID_WORKSPACE/artifacts/views/docs/*.md` (one file per top-level container in scope) |
+The skill uses the `braid-core` MCP server's read-only tools (`getOntology`, `listNodes`, `getNodeScope`). You read the graph, write `artifacts/views/docs/*.md`. You never modify graph state, never produce proposals, never record decisions.
 
 ## Design Principles
 
@@ -142,13 +130,6 @@ Wrote 2 documents.
 
 Files outside `artifacts/views/docs/` are never written. The `views/` ancestor is reserved for read-only projections; never write into `proposals/`, `clarify/`, `decisions/` or other artifact subtrees.
 
-## Failure Handling
-
-- `getNodeScope` returns no nodes (the seed id is unknown or has no neighbours): skip the scope, log "scope <id> not found or empty" in stdout, continue with the next scope.
-- `listNodes` for the container type returns zero items: emit "no containers in workspace, nothing to render" and exit successfully (0 documents is a valid outcome).
-- File write fails (permissions, full disk): abort the run with a clear error; do not leave the destination file in a half-written state (atomicity from Step 4 guarantees this).
-- Never fabricate descriptions for nodes that lack them — render the placeholder banner instead and surface the node in the Consistency status footer.
-
 ## Completion Checklist
 
 - [ ] Every in-scope container produced one markdown file.
@@ -158,14 +139,15 @@ Files outside `artifacts/views/docs/` are never written. The `views/` ancestor i
 - [ ] All file writes use the `mv tmp final` atomic pattern.
 - [ ] Final stdout lists each produced file + node count.
 
-## Companion docs
+## Companion Docs
 
-| File | When to read | Why |
-|---|---|---|
-| — | — | This skill is read-only and does not need supplementary shared docs at the moment. |
+This skill is read-only and currently does not need supplementary shared docs. (The Companion Docs section is required by the style guide and stays in place for symmetry; entries will appear when needed.)
 
 ## Notes
 
+- `getNodeScope` returns no nodes (the seed id is unknown or has no neighbours): skip the scope, log "scope <id> not found or empty" in stdout, continue with the next scope.
+- `listNodes` for the container type returns zero items: emit "no containers in workspace, nothing to render" and exit successfully (0 documents is a valid outcome).
+- File write fails (permissions, full disk): abort the run with a clear error; do not leave the destination file in a half-written state (atomicity from Step 4 guarantees this).
 - Do not invent or fill in missing descriptions. That is `braid-extract` / `braid-clarify`'s job. Render what the graph says, faithfully.
 - Nodes with `status: completed` appear in the main body; `draft` / `unclear` only in the Consistency footer.
 - Do not reference filesystem paths or code symbols in the prose. Engineers can cross-reference via node ids in the footer if needed.

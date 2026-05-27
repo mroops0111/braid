@@ -80,27 +80,26 @@ validator rejects load if a section is missing.
 
 | Order | Section | Purpose |
 |---|---|---|
-| 1 | `## Role` | One paragraph: the skill's place in the HITL flow. State read-only vs mutating. State what it never does. |
-| 2 | `## Inputs & Outputs` | A table of: arguments, env vars, read endpoints, write endpoints, files produced. The contract surface at a glance. |
-| 3 | `## Design Principles` | Bullet list, 3–5 entries. Each entry: a principle + why it matters. |
-| 4 | `## Initialization` | Pre-flight steps: env validation, ontology fetch, scope parsing. |
-| 5 | `## Procedure` | The main flow. Sub-sections start with `### Step N: <imperative>`. |
-| 6 | `## Output` | What the skill writes to stdout / files. Include a literal example. |
-| 7 | `## Failure Handling` | What to do on 4xx / 5xx / validation rejections / partial failures. Loop limits. |
-| 8 | `## Completion Checklist` | Bulleted checklist the agent runs through before exiting. |
-| 9 | `## Companion docs` | See §5. List the *referenced supplementary* docs, not endpoint references. |
+| 1 | `## Role` | One paragraph: the skill's place in the HITL flow. State read-only vs mutating. State what the skill never does. Name the key MCP tools the skill calls (if any). |
+| 2 | `## Design Principles` | Bullet list, 3–5 entries. Each entry: a principle + why it matters. |
+| 3 | `## Initialization` | Pre-flight steps: env validation, ontology fetch, scope parsing. |
+| 4 | `## Procedure` | The main flow. Sub-sections start with `### Step N: <imperative>`. Edge-case / failure handling lives inline in the relevant step, not as a separate section. |
+| 5 | `## Output` | What the skill writes to stdout / files. Include a literal example. |
+| 6 | `## Completion Checklist` | Bulleted checklist the agent runs through before exiting. |
+| 7 | `## Companion Docs` | See §5. List the *referenced supplementary* docs, not endpoint references. |
+
+Headings are written in Title Case — every word's first letter capitalised, e.g. `Completion Checklist`, `Companion Docs`, `Output Files`. Mixed casing (`Companion docs`, `output files`) trips the structural validator.
+
+The contract is **what's already in the original SKILL.md set** — not a new list. Earlier drafts of this guide added `## Inputs & Outputs` and `## Failure Handling`, but `Inputs & Outputs` duplicated the YAML frontmatter, and `Failure Handling` rarely had enough substance to merit its own section (failure paths live inside the Procedure steps that produce them). Both were dropped.
 
 ### Additional sections by category
 
-- `category: build` — may add `## Modes` between Inputs & Outputs and
-  Initialization when the skill supports multiple invocation modes
-  (e.g. `build` vs `validate`).
-- `category: generate` — must add `## Output Files` after Output,
-  declaring the file path / naming convention / atomicity model.
+- `category: build` — may add `## Modes` between Initialization and Procedure when the skill supports multiple invocation modes (e.g. `build` vs `validate`).
+- `category: generate` — must add `## Output Files` after Output, declaring the file path / naming convention / atomicity model.
 
-`## Notes` is allowed as the last section for caveats that don't fit
-elsewhere, but every Notes entry should justify why it isn't promoted
-into one of the canonical sections.
+### Optional trailing section
+
+`## Notes` is allowed at the very end for caveats that don't fit elsewhere (workspace-extension hint, "do not ever do X" reminders). Every Notes bullet should justify why it isn't promoted into one of the canonical sections.
 
 ---
 
@@ -144,7 +143,7 @@ Never paste a code block inside a table cell.
 
 ---
 
-## 5. Companion docs (the old "References")
+## 5. Companion Docs (the old "References")
 
 Earlier versions of Braid's skills placed a `## References` table
 between Design Principles and Initialization. That table mixed two
@@ -152,9 +151,9 @@ different things: lazy-loaded supplementary reading, and endpoint
 references that the Procedure steps then duplicated. The duplication
 became the source of drift.
 
-The replacement is `## Companion docs`, with one strict rule:
+The replacement is `## Companion Docs`, with one strict rule:
 
-> The Companion docs section lists supplementary documents that explain
+> The Companion Docs section lists supplementary documents that explain
 > *concepts the agent needs to understand* before or during the
 > Procedure — not API surface, not call patterns. API surface is the
 > MCP tool contract, owned by the gateway.
@@ -165,8 +164,8 @@ the agent should load it.
 
 If a Procedure step needs to read a companion doc to act, the step
 references the doc inline (`Read $BRAID_SESSION_DIR/.claude/skills/shared/drift-detection.md`)
-rather than relying on the agent to remember the Companion docs
-section. The Companion docs section exists to index those documents,
+rather than relying on the agent to remember the Companion Docs
+section. The Companion Docs section exists to index those documents,
 not to defer them.
 
 ---
@@ -204,7 +203,7 @@ runs at skill load time. It checks:
 
 - Frontmatter parses against `SkillFrontmatter` (zod).
 - All H2 sections from §3 are present, in order.
-- Every `Companion docs` entry resolves to a real file.
+- Every `Companion Docs` entry resolves to a real file.
 - No reserved section names are used for off-label content.
 
 Failures are **hard**: the skill refuses to load and the workspace's

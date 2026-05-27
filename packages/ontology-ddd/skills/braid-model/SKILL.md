@@ -10,8 +10,6 @@ braid:
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
 ---
 
-# braid-model
-
 ## Role
 
 You are the graph's global structurer and validator. Where `braid-extract` sees a single intent / code slice at a time, you see the whole graph. Two jobs:
@@ -19,20 +17,9 @@ You are the graph's global structurer and validator. Where `braid-extract` sees 
 1. **Build**: create structural relationships extract can't infer because they require a cross-source view (containment, bridge edges between aggregates / contexts, cross-PRD triggers).
 2. **Validate**: cross-check the assembled graph against the active ontology's structural rules and the per-node completeness rules.
 
-You never write to the graph directly. You produce a Proposal the human applies via Studio. When the right answer is ambiguous, you produce a ClarifyTicket instead.
+The skill uses the `braid-core` MCP server: `getOntology` / `getModelSnapshot` / `listNodes` to read, `createProposal` / `createClarifyTicket` to write. You never write to the graph directly. You produce a Proposal the human applies via Studio. When the right answer is ambiguous, you produce a ClarifyTicket instead.
 
 This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its build phase encodes DDD-specific structural rules; workspaces using a different ontology should not load this skill.
-
-## Inputs & Outputs
-
-| Surface | Description |
-|---|---|
-| Argument | `$ARGUMENTS` — a scope-hint (bounded-context id), the literal `validate`, or empty |
-| Env | `BRAID_API_URL`, `BRAID_WORKSPACE`, `BRAID_WORKSPACE_ID`, `BRAID_SESSION_DIR` |
-| MCP tools (read) | `braid-core`: `getOntology`, `getModelSnapshot`, `listNodes`, `validateProposal` (used indirectly via createProposal) |
-| MCP tools (write) | `braid-core`: `createProposal`, `createClarifyTicket` |
-| Reads | `$BRAID_WORKSPACE/PRODUCT.md` |
-| Writes (server-mediated) | Proposal JSON (via `createProposal`), ClarifyTicket JSON (via `createClarifyTicket`) |
 
 ## Design Principles
 
@@ -154,13 +141,6 @@ braid-model raised 2 clarify tickets (ct-..., ct-...)
 
 In `validate` mode, omit the `bridges` figure and prefix with `(validate-only)`.
 
-## Failure Handling
-
-- `createProposal` returns 400 with `BRAID-VAL` and `issues[]`: fix the cited issues and call `createProposal` again. Cap at **3 rounds**. After that, list the remaining issues in stdout and stop — do not loop indefinitely.
-- `getOntology` or `getModelSnapshot` errors: abort the run with a stdout message. Without ontology + current graph, you can't reason globally.
-- Detected structural violation whose fix is ambiguous (e.g. competing parent candidates for an orphan): raise a ClarifyTicket; do not pick blindly.
-- Drift detected but you can't tell whether the two refs describe the same node: raise a ClarifyTicket (identity question); do not attach a DriftIssue (drift assumes shared identity).
-
 ## Completion Checklist
 
 - [ ] Ontology loaded; every emitted type id matches the ontology.
@@ -171,15 +151,21 @@ In `validate` mode, omit the `bridges` figure and prefix with `(validate-only)`.
 - [ ] Coverage gaps reported in the proposal `rationale`.
 - [ ] (validate mode) Stale `driftIssues` entries that no longer reproduce are cleared from affected nodes.
 
-## Companion docs
+## Companion Docs
 
 | File | When to read | Why |
 |---|---|---|
-| `$BRAID_SESSION_DIR/.claude/skills/shared/artifact-formats.md` | Before Step 7 | Full `GraphOperation` shapes and Proposal / ClarifyTicket request bodies. |
+| `$BRAID_SESSION_DIR/.claude/skills/shared/proposal-format.md` | Before Step 7 | Full `GraphOperation` discriminated union and `DriftIssue` shape. |
+| `$BRAID_SESSION_DIR/.claude/skills/shared/clarify-format.md` | Before Step 8 | `ClarifyTicket` request body and candidate shape. |
+| `$BRAID_SESSION_DIR/.claude/skills/shared/validators.md` | Before Step 7 | The three server-side validators; self-check ops here so they don't hit a 400 unnecessarily. |
 | `$BRAID_SESSION_DIR/.claude/skills/shared/drift-detection.md` | Step 3a | Dimension checklist + description pattern for `DriftIssue` entries; severity rules. Global view lets you spot drift the slice-level pass couldn't. |
 
 ## Notes
 
 - Skill creates artifacts via `createProposal` and `createClarifyTicket`. Do not write JSON files to `artifacts/` directly. The server handles atomic persistence + validation in one shot.
 - Do not call `applyProposal` / `rejectProposal` / `answerClarifyTicket` / `skipClarifyTicket` / `markClarifyTicketApplied`. Those are human-triggered through the UI (or a different skill).
+- `createProposal` returns 400 with `BRAID-VAL` → fix cited issues and call again, cap at 3 rounds.
+- `getOntology` or `getModelSnapshot` errors → abort the run. Without ontology + current graph, you can't reason globally.
+- Detected structural violation whose fix is ambiguous (e.g. competing parent candidates for an orphan): raise a ClarifyTicket; do not pick blindly.
+- Drift detected but you can't tell whether the two refs describe the same node: raise a ClarifyTicket (identity question); do not attach a DriftIssue (drift assumes shared identity).
 - If `$BRAID_WORKSPACE/skill-extensions/braid-model/EXTEND.md` exists, follow its rules after the steps above. Workspace-specific overrides (custom rules, ontology hints) belong there.

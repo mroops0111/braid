@@ -36,14 +36,12 @@ export function makeSkillFileContents(opts: MakeSkillFileOptions): string {
 
   const commonSections = [
     'Role',
-    'Inputs & Outputs',
     'Design Principles',
     'Initialization',
     'Procedure',
     'Output',
-    'Failure Handling',
     'Completion Checklist',
-    'Companion docs',
+    'Companion Docs',
   ]
   const categorySections = opts.category === 'generate' ? ['Output Files'] : []
   const sections = [...commonSections, ...categorySections]

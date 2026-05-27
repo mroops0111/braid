@@ -4,14 +4,12 @@ import { validateSkillStructure } from '../../../src/infrastructure/skill/SkillS
 
 const ALL_SECTIONS = [
   'Role',
-  'Inputs & Outputs',
   'Design Principles',
   'Initialization',
   'Procedure',
   'Output',
-  'Failure Handling',
   'Completion Checklist',
-  'Companion docs',
+  'Companion Docs',
 ]
 
 function body(sections: readonly string[]): string {
@@ -42,14 +40,14 @@ describe('validateSkillStructure', () => {
   })
 
   it('flags a missing common section', () => {
-    const without = ALL_SECTIONS.filter(s => s !== 'Companion docs')
+    const without = ALL_SECTIONS.filter(s => s !== 'Companion Docs')
     const result = validateSkillStructure({
       body: body(without),
       frontmatter: frontmatter('ask'),
     })
     expect(result.ok).toBe(false)
     expect(result.issues).toEqual([
-      expect.objectContaining({ kind: 'missing-section', section: 'Companion docs' }),
+      expect.objectContaining({ kind: 'missing-section', section: 'Companion Docs' }),
     ])
   })
 

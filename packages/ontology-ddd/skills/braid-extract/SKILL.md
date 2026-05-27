@@ -10,26 +10,15 @@ braid:
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
 ---
 
-# braid-extract
-
 ## Role
 
 You are a knowledge-extraction assistant. You read intent + code, figure out what the graph should look like for the given scope, and produce a Proposal that a human reviews and applies via the Studio UI.
 
+The skill uses the `braid-core` MCP server: `getOntology` / `getModelSnapshot` / `listNodes` to read, `createProposal` / `createClarifyTicket` to write.
+
 You never write to the graph directly. Braid is HITL: you propose, the human applies. When you cannot decide between candidate interpretations, you produce a ClarifyTicket and let the human pick.
 
 This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its procedure encodes DDD-specific structural rules (BoundedContext contains aggregates only, the seven Context Mapping edges, Vernon's Process Manager). Workspaces using a different ontology should not load this skill.
-
-## Inputs & Outputs
-
-| Surface | Description |
-|---|---|
-| Argument | `$ARGUMENTS` — a scope hint: bounded-context name, file path, sub-dir, or empty |
-| Env | `BRAID_API_URL`, `BRAID_WORKSPACE`, `BRAID_WORKSPACE_ID`, `BRAID_SESSION_DIR` |
-| MCP tools (read) | `braid-core`: `getOntology`, `getModelSnapshot`, `listNodes` |
-| MCP tools (write) | `braid-core`: `createProposal`, `createClarifyTicket` |
-| Reads | `$BRAID_WORKSPACE/PRODUCT.md`, `$BRAID_WORKSPACE/intent/**`, `$BRAID_WORKSPACE/code/**` |
-| Writes (server-mediated) | Proposal JSON (via `createProposal`), ClarifyTicket JSON (via `createClarifyTicket`) |
 
 ## Design Principles
 
@@ -153,7 +142,16 @@ If any answer is "uncertain" about node identity → ClarifyTicket, not Proposal
 
 Call `createProposal(workspaceId, operations, generatedBy: 'braid-extract', rationale: "<one paragraph; what was extracted, from which sources, why this scope split>")`.
 
-Full `GraphOperation` shapes are in `$BRAID_SESSION_DIR/.claude/skills/shared/artifact-formats.md`.
+Outcomes:
+
+- 201 → done. Move on to Step 5 only if you have low-confidence candidates left.
+- 400 with `code: BRAID-VAL` and `issues[]` → fix the cited issues (wrong `type`, missing `metadata`, duplicate id, structural endpoint violation, …) and call `createProposal` again with the corrected body. Cap at **3 rounds**. After 3 failures, list the remaining issues in stdout and stop.
+- 409 (id collision) → supply a fresh id (or drop the colliding operation) and resend.
+- 5xx → bail out and report to stdout. Do not retry on server errors.
+
+`severity: 'warning'` issues do not block apply; mention them in the proposal `rationale` if intentional, otherwise treat them like errors.
+
+Full `GraphOperation` shapes and the three server-side validators are in the companion docs.
 
 ### Step 5: submit ClarifyTicket (low-confidence candidates)
 
@@ -169,15 +167,6 @@ Produced N proposals + M clarify tickets:
   - p-2026-05-12-def (scope: ctx.billing, 8 ops)
   - ct-2026-05-12-xyz (question: cancelOrder vs revokeOrder)
 ```
-
-## Failure Handling
-
-- `createProposal` returns 400 with `code: BRAID-VAL` and `issues[]`: fix the cited issues (wrong `type`, missing `metadata`, duplicate id, …) and call `createProposal` again with the corrected body. Loop up to **3 times**. After 3 rounds of failures, list the remaining issues in stdout — do not keep retrying.
-- `createProposal` returns 409 (id collision): supply a fresh id (or drop the colliding operation) and resend.
-- `createProposal` returns 5xx: bail out and report to stdout. Do not retry on server errors.
-- `severity: 'warning'` issues do not block apply; mention them in the proposal `rationale` if intentional, otherwise treat them like errors.
-- `getOntology` or `getModelSnapshot` returns an error: abort the run with a clear stdout message. Without the ontology and current graph, every emitted op is a guess.
-- Source material strongly signals a Context Mapping relationship but no individual feature slice settled it: emit a ClarifyTicket; do not auto-emit the edge.
 
 ## Completion Checklist
 
@@ -197,17 +186,21 @@ Produced N proposals + M clarify tickets:
 - [ ] Each ClarifyTicket candidate carries `proposedOperations`.
 - [ ] Final stdout lists outcomes (or, if `createProposal` kept returning 400 after 3 rounds, lists the remaining issues).
 
-## Companion docs
+## Companion Docs
 
 | File | When to read | Why |
 |---|---|---|
-| `$BRAID_SESSION_DIR/.claude/skills/shared/artifact-formats.md` | Before Step 4 | Full `GraphOperation` shapes and Proposal / ClarifyTicket request bodies. Avoid hand-rolling. |
+| `$BRAID_SESSION_DIR/.claude/skills/shared/proposal-format.md` | Before Step 4 | Full `GraphOperation` discriminated union and `DriftIssue` shape; ID generation conventions. |
+| `$BRAID_SESSION_DIR/.claude/skills/shared/clarify-format.md` | Before Step 5 | `ClarifyTicket` request body and candidate shape. |
+| `$BRAID_SESSION_DIR/.claude/skills/shared/validators.md` | Before Step 4 | The three server-side validators (`OntologyTypeValidator` / `StructuralValidator` / `EvidenceValidator`); self-check ops here so they don't hit a 400 unnecessarily. |
 | `$BRAID_SESSION_DIR/.claude/skills/shared/drift-detection.md` | Step 3, when two sources disagree on a field | Dimension checklist + description pattern for `DriftIssue` entries; severity rules. |
 
 ## Notes
 
 - Skill creates artifacts via `createProposal` and `createClarifyTicket`. Do not write JSON files to `artifacts/` directly. The server handles atomic persistence + validation in one shot.
 - Do not call `applyProposal` / `rejectProposal` / `answerClarifyTicket` / `skipClarifyTicket` / `markClarifyTicketApplied`. Those are human-triggered through the UI (or a different skill).
+- `getOntology` or `getModelSnapshot` returns an error: abort the run with a clear stdout message. Without ontology + current graph, every emitted op is a guess.
+- Source material strongly signals a Context Mapping relationship but no individual feature slice settled it: emit a ClarifyTicket; do not auto-emit the edge.
 - Span multiple bounded contexts → split into multiple proposals, each < 30 ops.
 - Found pre-existing bad nodes (wrong type, missing description) but no source mentions them → produce a ClarifyTicket asking what to do; do not silently fix.
 - If `$BRAID_WORKSPACE/skill-extensions/braid-extract/EXTEND.md` exists, follow its rules after the steps above. Workspace-specific ID conventions / status enums / source patterns go there.

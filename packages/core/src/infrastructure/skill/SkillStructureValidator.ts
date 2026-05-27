@@ -8,14 +8,12 @@ import type { SkillCategory, SkillFrontmatter } from '@braidhq/schema'
  */
 const COMMON_REQUIRED_SECTIONS = [
   'Role',
-  'Inputs & Outputs',
   'Design Principles',
   'Initialization',
   'Procedure',
   'Output',
-  'Failure Handling',
   'Completion Checklist',
-  'Companion docs',
+  'Companion Docs',
 ] as const
 
 /**

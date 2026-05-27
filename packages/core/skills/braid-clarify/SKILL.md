@@ -10,23 +10,13 @@ braid:
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
 ---
 
-# braid-clarify
-
 ## Role
 
 You are a ClarifyTicket follow-up assistant. When a reviewer has answered a clarify question in Studio (ticket `status: answered`, with `selectedCandidateId` + `resolution`), you read the resolution, wrap it into a Proposal, and submit it to the HITL pipeline.
 
+The skill uses the `braid-core` MCP server: `listClarifyTickets` / `getClarifyTicket` / `getModelSnapshot` to read, `createProposal` / `createClarifyTicket` / `markClarifyTicketApplied` to write.
+
 You do not reinvent the answer: the reviewer already chose. You only materialise their choice into a reviewable Proposal.
-
-## Inputs & Outputs
-
-| Surface | Description |
-|---|---|
-| Argument | `$ARGUMENTS` — a clarify ticket id, the literal `all`, or empty (defaults to `all`) |
-| Env | `BRAID_API_URL`, `BRAID_WORKSPACE`, `BRAID_WORKSPACE_ID`, `BRAID_USER_ID` (defaults to `braid-clarify`) |
-| MCP tools (read) | `braid-core`: `listClarifyTickets`, `getClarifyTicket`, `getModelSnapshot` |
-| MCP tools (write) | `braid-core`: `createProposal`, `createClarifyTicket`, `markClarifyTicketApplied` |
-| Writes (server-mediated) | Proposal JSON, ClarifyTicket transitions, optional new ClarifyTicket |
 
 ## Design Principles
 
@@ -75,14 +65,22 @@ A "minor" supplementary op is one that preserves the reviewer's intent (their an
 
 Call `createProposal(workspaceId, operations, generatedBy: "braid-clarify", rationale: "Materialised from ClarifyTicket <id>, candidate <candidateId>.")`.
 
-Validation outcomes:
+Outcomes:
 
 - 201 with the saved Proposal → proceed to Step 4.
-- 400 with `code: BRAID-VAL` and `issues[]` — see Failure Handling.
+- 400 with `code: BRAID-VAL` and `issues[]`:
+  - If the issues are caused by the reviewer's chosen ops violating a current-graph invariant they couldn't have foreseen (e.g. a remove targets a node now referenced by something added after their answer) → emit a new ClarifyTicket per Step 2's "Major" path. Do not force-resend.
+  - If the issues are caused by supplementary ops you added in Step 2 → drop those supplementary ops and call `createProposal` again. If it still fails, escalate as a new ClarifyTicket.
 
 ### Step 4: mark the ticket applied
 
 Call `markClarifyTicketApplied(workspaceId, clarifyTicketId, status: 'applied', userId: $BRAID_USER_ID, proposalId: <Step-3 proposal id>)`. Omit `proposalId` when the chosen candidate had no graph impact (Step 3 was skipped). The server holds the state machine; never write to the `artifacts/clarify/` directory directly.
+
+Outcomes:
+
+- 200 → done for this ticket.
+- 409 (concurrent transition) → reload the ticket; if it's already `applied`, treat the run as successful for that ticket; otherwise re-attempt once.
+- Step 3 succeeded but this step fails: log the resulting proposal id in stdout and continue. The Studio reviewer can finish the transition manually.
 
 ## Output
 
@@ -96,15 +94,6 @@ ct-2026-05-12-hard → new clarify ct-2026-05-12-zzz (resolution breaks edge con
 Processed N tickets: M proposals produced, K new clarify tickets raised, L skipped.
 ```
 
-## Failure Handling
-
-- `createProposal` returns 400 with `BRAID-VAL` and `issues[]`:
-  - Issues caused by the reviewer's chosen ops violating a current-graph invariant they couldn't have foreseen (e.g. a remove targets a node now referenced by something added after their answer) → emit a new ClarifyTicket per Step 2's "Major" path. Do not force-resend.
-  - Issues caused by supplementary ops you injected in Step 2 → drop those supplementary ops, retry once. If that still fails, escalate as a new ClarifyTicket.
-- `markClarifyTicketApplied` returns 409 (concurrent transition) → reload the ticket; if it's already `applied`, treat the run as successful for that ticket; otherwise re-attempt once.
-- `createProposal` succeeds but `markClarifyTicketApplied` fails: log the resulting proposal id in stdout and continue. The Studio reviewer can finish the transition manually.
-- Repeated tool failure on the same ticket: skip it, log a one-line reason, and continue with the next ticket.
-
 ## Completion Checklist
 
 - [ ] Every `answered` ticket has an outcome (proposal submitted, new clarify raised, or skipped with reason).
@@ -112,15 +101,17 @@ Processed N tickets: M proposals produced, K new clarify tickets raised, L skipp
 - [ ] Each processed ticket transitioned to `applied` via Step 4 (with `proposalId` when a Proposal was produced).
 - [ ] Final stdout lists each ticket's outcome.
 
-## Companion docs
+## Companion Docs
 
 | File | When to read | Why |
 |---|---|---|
-| `$BRAID_SESSION_DIR/.claude/skills/shared/artifact-formats.md` | Before Step 3 | Exact Proposal JSON shape and supported `GraphOperation` variants. Avoid hand-rolling op shapes; `createProposal` rejects deviations. |
+| `$BRAID_SESSION_DIR/.claude/skills/shared/proposal-format.md` | Before Step 3 | Proposal JSON shape and supported `GraphOperation` variants. |
+| `$BRAID_SESSION_DIR/.claude/skills/shared/validators.md` | Before Step 3 | The three server-side validators (`OntologyTypeValidator` / `StructuralValidator` / `EvidenceValidator`); self-check supplementary ops here so they don't hit a 400 unnecessarily. |
 
 ## Notes
 
 - The reviewer's chosen `proposedOperations` are the contract. Do not modify them except to preserve invariants (Step 2's "Minor" path). Changing the substance of the answer is a HITL violation.
 - If a candidate's resolution is empty (the reviewer picked an option that has no graph impact) → do not call `createProposal`. Still call `markClarifyTicketApplied` without a `proposalId` so the server records the ticket as applied.
+- Repeated tool failure on the same ticket: skip it, log a one-line reason, and continue with the next ticket.
 - Don't reprocess already-applied tickets: Step 1's skip rule catches this, but it's worth re-stating.
 - If `$BRAID_WORKSPACE/skill-extensions/braid-clarify/EXTEND.md` exists, follow its rules after the steps above. Workspace-specific supplementary-op rules go there.
