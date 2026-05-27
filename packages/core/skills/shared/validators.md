@@ -1,4 +1,4 @@
-# Server-side validators
+# Server-Side Validators
 
 The server runs four validators on every `createProposal` call (and
 on Apply). If any reports a `severity: 'error'` issue, the call
@@ -107,7 +107,7 @@ in the same `operations[]` array. Removing a node (`removeNode`)
 without first removing edges that touch it leaves orphans — prefer
 `updateNode { status: 'deprecated' }` instead.
 
-## Reading the 400 response
+## Reading the 400 Response
 
 ```json
 {
@@ -130,7 +130,7 @@ Each issue carries an `nodeId` or `edgeId` pinning the offending
 artifact. Fix the cited issues and resend. Cap retries at **3
 rounds**; after that, list remaining issues in stdout and stop.
 
-## What's not enforced server-side
+## What's Not Enforced Server-Side
 
 A few rules the SKILL.md files mention (e.g. "≤ 30 ops per
 proposal", "no Context Mapping edge auto-emitted") are skill-level

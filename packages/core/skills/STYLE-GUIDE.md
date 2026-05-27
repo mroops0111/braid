@@ -1,4 +1,4 @@
-# Skill style guide
+# Skill Style Guide
 
 > v1, 2026-05-26. The contract that `SkillStructureValidator` enforces.
 > When this guide and the validator disagree, the validator wins; file a
@@ -37,7 +37,7 @@ the Claude Code CLI itself reads, and a `braid:` block for Braid's own
 metadata. `SkillFrontmatter` (`packages/schema/src/skill.ts`) is the
 zod source of truth; this section describes intent.
 
-### Top-level (Claude Code CLI)
+### Top-Level (Claude Code CLI)
 
 ```yaml
 name: braid-ask                              # required; the slash command id
@@ -51,7 +51,7 @@ model: claude-opus-4-7                       # optional; pin a model
 `disable-model-invocation: true` is the default for Braid-shipped
 skills — they're explicit slash commands, not auto-invoked tools.
 
-### `braid:` namespace
+### `braid:` Namespace
 
 ```yaml
 braid:
@@ -76,7 +76,7 @@ schema and the consumers move together.
 Every SKILL.md must declare these `## ` sections, in this order. The
 validator rejects load if a section is missing.
 
-### Common to all categories
+### Common to All Categories
 
 | Order | Section | Purpose |
 |---|---|---|
@@ -88,16 +88,23 @@ validator rejects load if a section is missing.
 | 6 | `## Completion Checklist` | Bulleted checklist the agent runs through before exiting. |
 | 7 | `## Companion Docs` | See §5. List the *referenced supplementary* docs, not endpoint references. |
 
-Headings are written in Title Case — every word's first letter capitalised, e.g. `Completion Checklist`, `Companion Docs`, `Output Files`. Mixed casing (`Companion docs`, `output files`) trips the structural validator.
+**Title Case at every heading level.** H1 / H2 / H3 / H4 alike: content words capitalised, short articles / prepositions / conjunctions (a / an / the / of / on / in / for / by / and / but / or) lowercase unless they're the first or last word. Examples:
+
+- `## Companion Docs`, `## Output Files`, `## Completion Checklist`
+- `### Step 1: Fetch the Scoped Subgraph`
+- `### Step 3: Submit the Proposal`
+- `#### Identity-Level Disagreement → ClarifyTicket`
+
+Code identifiers stay in their canonical casing inside headings (e.g. `### Step 2: Group Nodes by renderHint` — `renderHint` keeps its camelCase). Sentence-case headings (`### Step 1: fetch the scoped subgraph`) are wrong; the H2-level validator catches them at boot, H3 / H4 violations are caught by review.
 
 The contract is **what's already in the original SKILL.md set** — not a new list. Earlier drafts of this guide added `## Inputs & Outputs` and `## Failure Handling`, but `Inputs & Outputs` duplicated the YAML frontmatter, and `Failure Handling` rarely had enough substance to merit its own section (failure paths live inside the Procedure steps that produce them). Both were dropped.
 
-### Additional sections by category
+### Additional Sections by Category
 
 - `category: build` — may add `## Modes` between Initialization and Procedure when the skill supports multiple invocation modes (e.g. `build` vs `validate`).
 - `category: generate` — must add `## Output Files` after Output, declaring the file path / naming convention / atomicity model.
 
-### Optional trailing section
+### Optional Trailing Section
 
 `## Notes` is allowed at the very end for caveats that don't fit elsewhere (workspace-extension hint, "do not ever do X" reminders). Every Notes bullet should justify why it isn't promoted into one of the canonical sections.
 
@@ -132,7 +139,7 @@ checklists, exits from a step, outcomes worth enumerating.
 Bullets are also the right shape for "do X, do Y, do Z" instructions
 that aren't ordered (use a numbered list when order matters).
 
-### Code blocks
+### Code Blocks
 
 Use a fenced code block for **executable command flow**: an MCP tool
 invocation, a multi-line CLI pipeline, a JSON payload sketch. Set the

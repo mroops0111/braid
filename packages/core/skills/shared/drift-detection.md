@@ -12,7 +12,7 @@ that belongs in a `ClarifyTicket`.
 
 ---
 
-## When to look
+## When to Look
 
 You compare two sources whenever a node has evidence from both. Three
 comparison shapes:
@@ -28,7 +28,7 @@ Drift is local to one node — every `DriftIssue` belongs in that node's
 
 ---
 
-## What to compare (dimensions)
+## What to Compare (Dimensions)
 
 Use this taxonomy as a checklist when reading the two sources. Cover
 the dimensions that the sources actually have content on; skip the rest.
@@ -54,7 +54,7 @@ with the best fit.
 
 ---
 
-## What is NOT drift
+## What Is NOT Drift
 
 Don't raise a `DriftIssue` for:
 
@@ -78,7 +78,7 @@ have field-level drift — you have an identity question. Emit a
 
 ---
 
-## How to write `description`
+## How to Write `description`
 
 The description goes straight to a human reviewer. It must:
 
@@ -134,7 +134,7 @@ description. The reviewer triages each independently.
 
 ---
 
-## JSON shape
+## JSON Shape
 
 `DriftIssue` lives on a node's `metadata.driftIssues[]`. You attach it
 when emitting an `addNode` or `updateNode` GraphOperation. The server
@@ -191,7 +191,7 @@ leaving it out of your `updateNode` patch lets the next apply clear it.
 
 ---
 
-## What happens after you write one
+## What Happens After You Write One
 
 - `EvidenceValidator` surfaces each entry as a `ValidationIssue` (code
   `evidence.drift`) on the proposal review pane; severity is preserved.
@@ -207,7 +207,7 @@ leaving it out of your `updateNode` patch lets the next apply clear it.
 
 ---
 
-## Quick checklist
+## Quick Checklist
 
 Before attaching a `DriftIssue`:
 

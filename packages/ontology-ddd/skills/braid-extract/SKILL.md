@@ -36,7 +36,7 @@ This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its 
 
 ## Procedure
 
-### Step 1: bound the scope
+### Step 1: Bound the Scope
 
 Derive which sources to read from the scope hint:
 
@@ -48,7 +48,7 @@ Derive which sources to read from the scope hint:
 
 Cap each proposal at < 30 operations. Split into multiple proposals if needed.
 
-### Step 2: derive candidate operations
+### Step 2: Derive Candidate Operations
 
 The shape of an id is a hint for humans; the `type` field is the contract. Use the type ids the `getOntology` response returned. Common id conventions:
 
@@ -63,7 +63,7 @@ The shape of an id is a hint for humans; the `type` field is the contract. Use t
 
 The literal `type` strings differ between ontologies. Always read them off the `getOntology` response; do not memorise them. Same applies to edges: use the exact `edgeTypes[].id` strings (e.g. `contains`, not `CONTAINS`).
 
-#### Canonical edges to add when emitting a new node
+#### Canonical Edges to Add When Emitting a New Node
 
 Read the `description` field of every node type and every edge type from the `getOntology` response before deciding. The descriptions are the source of truth for what each element means and where it fits. They carry the canonical reading (Evans / Vernon DDD + EventStorming supplements) and call out anything that is not strict canon.
 
@@ -83,7 +83,7 @@ A command, query, event, or rule with no edge into its owning aggregate is an or
 
 Cross-aggregate references go through `aggregate --dependsOn--> aggregate` (by id only, per DDD). Event-driven cross-aggregate flow goes through `event --triggers--> command` or via a policy when the reaction has a name worth keeping.
 
-#### Policy emission
+#### Policy Emission
 
 A policy materialises Vernon's Process Manager / EventStorming's purple Policy sticky. The pattern is "when event X happens, do Y". Emit a policy when the source material describes an automatic reaction with a name worth keeping in the graph, especially when:
 
@@ -97,7 +97,7 @@ Skip the policy when the reaction is a single synchronous command on the same ag
 
 Distinguish from `rule`: a rule is "this must always be true" (a constraint); a policy is "when this happens, do that" (a reaction).
 
-#### Context Mapping (strategic edges)
+#### Context Mapping (Strategic Edges)
 
 The seven Context Mapping edges (`partnership`, `customerSupplier`, `conformist`, `sharedKernel`, `anticorruptionLayer`, `openHostService`, `publishedLanguage`) describe strategic BoundedContext-to-BoundedContext relationships from Evans Blue Book Part IV. Each `description` on the `getOntology` response defines its direction and meaning; read them before emitting.
 
@@ -110,7 +110,7 @@ For each candidate node compared to the current graph:
 - Graph lacks the id → `addNode`.
 - Graph has id but source deleted → `updateNode` setting `status: deprecated`. Do not `removeNode`. Preserve history.
 
-### Step 3: assess confidence + evidence per candidate
+### Step 3: Assess Confidence + Evidence per Candidate
 
 For each candidate node, set `metadata` according to where the evidence lives:
 
@@ -121,11 +121,11 @@ For each candidate node, set `metadata` according to where the evidence lives:
 
 Every node you emit MUST have `metadata` set. A node with `metadata.sourceReferences: []` AND no `implementationMissing` AND no `intentMissing` will be rejected by the server validator.
 
-#### Identity-level disagreement → ClarifyTicket
+#### Identity-Level Disagreement → ClarifyTicket
 
 You can't tell whether two sources are describing the *same* concept (alias or distinct? two unrelated `Order` definitions in different PRDs?). Don't pick. Emit a ClarifyTicket per Step 5 and stop.
 
-#### Field-level drift → DriftIssue attached to the node
+#### Field-Level Drift → DriftIssue Attached to the Node
 
 The sources agree on *what* this is, but disagree on *specifics*: a limit, a state set, a parameter list, a sequence of steps. Don't drop into a ClarifyTicket — emit the node anyway and attach one structured `DriftIssue` per dimension to its `metadata.driftIssues[]`. Set `status: 'unclear'` instead of `draft` when at least one DriftIssue is `severity: 'error'`. Read `drift-detection.md` for the dimension checklist, description pattern, severity rules, and the JSON shape.
 
@@ -138,7 +138,7 @@ Also ask:
 
 If any answer is "uncertain" about node identity → ClarifyTicket, not Proposal.
 
-### Step 4: submit the Proposal
+### Step 4: Submit the Proposal
 
 Call `createProposal(workspaceId, operations, generatedBy: 'braid-extract', rationale: "<one paragraph; what was extracted, from which sources, why this scope split>")`.
 
@@ -153,7 +153,7 @@ Outcomes:
 
 Full `GraphOperation` shapes and the three server-side validators are in the companion docs.
 
-### Step 5: submit ClarifyTicket (low-confidence candidates)
+### Step 5: Submit ClarifyTicket (Low-Confidence Candidates)
 
 Call `createClarifyTicket(workspaceId, question, candidates)`. Each candidate must carry its own `proposedOperations`; the human's pick determines which ops run on Apply.
 

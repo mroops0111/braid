@@ -46,9 +46,9 @@ This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its 
 
 ## Procedure
 
-### Part 1: Build (skipped in `validate` mode)
+### Part 1: Build (Skipped in `validate` Mode)
 
-#### Step 1: fix wrong edges extract emitted
+#### Step 1: Fix Wrong Edges Extract Emitted
 
 Each extract run sees one slice. From the global view, some edges land on the wrong target. Walk the graph and flag:
 
@@ -62,13 +62,13 @@ Each extract run sees one slice. From the global view, some edges land on the wr
 | Command or query with no `performedBy` edge to any actor | For each command and query, check sibling commands on the same aggregate: if the aggregate's other operations have `performedBy` edges to a consistent actor set, propose the same wiring for the gap and add a one-line rationale. If sibling coverage is inconsistent or absent, raise a ClarifyTicket asking which actor performs the operation. Single-aggregate orphans without sibling coverage are the most common gap from per-slice extracts. |
 | Aggregate with commands but no events, or events with no source command / aggregate | Cross-check the source references on the aggregate. If sibling commands emit events of a consistent shape (e.g. `*Created`, `*Updated`, `*Deleted`) but one command is missing its event, raise a ClarifyTicket asking whether the missing event was intentionally omitted (intermediate state change with no domain significance) or simply not extracted. |
 
-#### Step 2: add missing containment
+#### Step 2: Add Missing Containment
 
 For every aggregate without a `contains`-style edge from a context, decide its owning bounded context based on naming + cross-edges to peers. Create the missing edge in the proposal. If two contexts are plausible, raise a ClarifyTicket instead.
 
 Only aggregates carry `contains` from a BoundedContext. Commands / queries / events / rules already have their parent aggregate via `accepts` / `emits` / `constrainedBy`; never add a `contains` edge from BC to them. The ontology will reject it, and the duplication hub-and-spokes the graph view.
 
-#### Step 3: add bridge edges (cross-slice)
+#### Step 3: Add Bridge Edges (Cross-Slice)
 
 These can only be inferred globally:
 
@@ -83,7 +83,7 @@ For BoundedContext-to-BoundedContext strategic relationships (the seven Context 
 
 The actual edge type ids come from the ontology; use whichever the active ontology defines for these relationships.
 
-#### Step 3a: cross-source drift detection
+#### Step 3a: Cross-Source Drift Detection
 
 `braid-extract` checks intent-vs-code drift on a single slice at a time (see `drift-detection.md`). You see the whole graph, so you can catch drift the slice-level pass couldn't:
 
@@ -97,9 +97,9 @@ For each finding, emit one `DriftIssue` per dimension and attach to the relevant
 
 If a candidate finding is actually identity-level ("are these even the same node?"), raise a ClarifyTicket per Step 8 instead — the same contract as `braid-extract` Step 3.
 
-### Part 2: Validate (both modes)
+### Part 2: Validate (Both Modes)
 
-#### Step 4: structural validation
+#### Step 4: Structural Validation
 
 The server runs structural validators automatically when you call `createProposal`. The same engine is available for read-only inspection via the spec's `validateProposal` operation; in this skill the inline 400 response from Step 7's `createProposal` carries the same `issues[]` array, which is the only authoritative source. For each violation:
 
@@ -108,11 +108,11 @@ The server runs structural validators automatically when you call `createProposa
 
 If a scope-hint is set, filter findings to ones involving nodes in or adjacent to that scope.
 
-#### Step 5: node-content validation
+#### Step 5: Node-Content Validation
 
 For each `draft` or `unclear` node, check the per-type rules the ontology declares (required attributes, description shape). Promote a node from `draft` to `completed` only when every required field is filled. Schema constraints are enforced server-side on apply; if you propose a status flip without filling required fields, the proposal will fail with `BRAID-VAL`.
 
-#### Step 6: coverage scan + stale drift cleanup
+#### Step 6: Coverage Scan + Stale Drift Cleanup
 
 For each node with a source `ref`, scan for known coverage gaps the ontology cares about (e.g. error paths in commands, UI coverage of commands users interact with). Mark each as `clear` / `partial` / `missing` in the proposal's `rationale`. Don't try to fix coverage gaps; that's the next extract cycle's job. The goal here is to surface them.
 
@@ -120,13 +120,13 @@ In `validate` mode, also re-walk existing `metadata.driftIssues[]` on each node 
 
 ### Part 3: Output
 
-#### Step 7: emit the proposal
+#### Step 7: Emit the Proposal
 
 Call `createProposal(workspaceId, operations, generatedBy: 'braid-model', rationale: "global structure pass + validation: <one-line summary of bridges added, drift attached, content fills>")`.
 
 Operation names and payload shapes are listed in `$BRAID_SESSION_DIR/.claude/skills/shared/proposal-format.md`. Follow that file rather than freelancing JSON.
 
-#### Step 8: emit ClarifyTickets
+#### Step 8: Emit ClarifyTickets
 
 For ambiguous attachments / splits / merges, call `createClarifyTicket(workspaceId, question, candidates)` per unresolved question. Include each candidate resolution with the evidence behind it so the human can pick informedly.
 

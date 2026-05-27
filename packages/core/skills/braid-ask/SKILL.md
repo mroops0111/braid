@@ -30,23 +30,23 @@ You answer the question and surface intent ↔ code discrepancies. You never mut
 
 ## Procedure
 
-### Step 1: search the graph (when populated)
+### Step 1: Search the Graph (When Populated)
 
 Call `listNodes(workspaceId, q: <keyword>, limit: 10)`. For each relevant hit, expand the local subgraph with `getNodeScope(workspaceId, nodeId, depth: 2)`.
 
-### Step 2: supplement with intent (always)
+### Step 2: Supplement With Intent (Always)
 
 Grep / Read inside `$BRAID_WORKSPACE/intent/` for the same keywords, or for files referenced by `node.metadata.sourceReferences` entries pointing at intent files.
 
-### Step 3: cross-check with code (when relevant)
+### Step 3: Cross-Check With Code (When Relevant)
 
 For nodes whose `metadata.sourceReferences` includes a code ref, Read the file/symbol it points at. Confirm the actual behaviour matches the description.
 
-### Step 4: query external MCP sources (optional)
+### Step 4: Query External MCP Sources (Optional)
 
 If `PRODUCT.md` declares additional MCP sources (Redmine / XWiki / Notion / Linear / Jira / …), their tools are wired automatically. Call them when intent and code alone can't answer.
 
-### Step 5: check consistency dimensions
+### Step 5: Check Consistency Dimensions
 
 Compare intent vs code on the dimensions relevant to the question:
 
@@ -72,7 +72,7 @@ Produce two sections separated by `---`.
 
 {2-5 sentences directly answering, plain business language, no paths / line numbers}
 
-### Related context
+### Related Context
 
 {Bullets or table; still business-facing}
 
@@ -97,7 +97,7 @@ Produce two sections separated by `---`.
 ---
 > Engineering detail below.
 
-### Source detail
+### Source Detail
 
 | # | Kind | Location | Summary |
 |---|------|----------|---------|
@@ -105,13 +105,13 @@ Produce two sections separated by `---`.
 | 2 | Code | {path}:{line} | ... |
 | 3 | Graph | {node_id} | ... |
 
-### Consistency technical detail
+### Consistency Technical Detail
 
 | Dimension | PRD wording | Code behaviour | Status |
 |---|---|---|---|
 | ... | ... | ... | ✅/⚠️ |
 
-### Search scope
+### Search Scope
 
 - Graph: {keywords / depth tried} (or "unavailable")
 - Docs: {intent/ subdirs searched}

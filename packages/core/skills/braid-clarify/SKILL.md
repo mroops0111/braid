@@ -36,7 +36,7 @@ You do not reinvent the answer: the reviewer already chose. You only materialise
 
 Repeat the four steps below per ticket selected by Initialization.
 
-### Step 1: load the ticket
+### Step 1: Load the Ticket
 
 Call `getClarifyTicket(workspaceId, clarifyTicketId)`. Read `status`, `selectedCandidateId`, `resolution`, and `candidates[]`.
 
@@ -46,7 +46,7 @@ Skip rules:
 - `resolution` is null and `selectedCandidateId` is set → fall back to that candidate's `proposedOperations` from `candidates[]`.
 - Neither `resolution` nor a selected candidate → skip with reason "ticket carries no operations".
 
-### Step 2: sanity-check operations
+### Step 2: Sanity-Check Operations
 
 For each operation in `resolution` (or the fallback `proposedOperations`):
 
@@ -61,7 +61,7 @@ Resolve issues:
 
 A "minor" supplementary op is one that preserves the reviewer's intent (their answer still resolves the question after the supplement runs); a "major" issue is one where applying the resolution would silently break invariants the reviewer couldn't have foreseen.
 
-### Step 3: submit the Proposal
+### Step 3: Submit the Proposal
 
 Call `createProposal(workspaceId, operations, generatedBy: "braid-clarify", rationale: "Materialised from ClarifyTicket <id>, candidate <candidateId>.")`.
 
@@ -72,7 +72,7 @@ Outcomes:
   - If the issues are caused by the reviewer's chosen ops violating a current-graph invariant they couldn't have foreseen (e.g. a remove targets a node now referenced by something added after their answer) → emit a new ClarifyTicket per Step 2's "Major" path. Do not force-resend.
   - If the issues are caused by supplementary ops you added in Step 2 → drop those supplementary ops and call `createProposal` again. If it still fails, escalate as a new ClarifyTicket.
 
-### Step 4: mark the ticket applied
+### Step 4: Mark the Ticket Applied
 
 Call `markClarifyTicketApplied(workspaceId, clarifyTicketId, status: 'applied', userId: $BRAID_USER_ID, proposalId: <Step-3 proposal id>)`. Omit `proposalId` when the chosen candidate had no graph impact (Step 3 was skipped). The server holds the state machine; never write to the `artifacts/clarify/` directory directly.
 

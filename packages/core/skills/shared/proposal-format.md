@@ -1,4 +1,4 @@
-# Proposal format
+# Proposal Format
 
 The shape of the JSON the skill produces (server-mediated via the
 `createProposal` MCP tool) and the `GraphOperation` discriminated
@@ -39,7 +39,7 @@ Required on the request: `operations`, `generatedBy` (the skill id),
 (`[{kind, url, label?}]`) for linking back to Redmine / Jira / XWiki
 source tickets.
 
-## GraphOperation (discriminated union on `operation`)
+## GraphOperation (Discriminated Union on `operation`)
 
 Each operation is one of:
 
@@ -63,7 +63,7 @@ plugin. Pull the current set from `getOntology(workspaceId)`. The
 server's `OntologyTypeValidator` rejects any type not in that list
 (see `validators.md`).
 
-## NewGraphNode payload shape
+## NewGraphNode Payload Shape
 
 ```jsonc
 {
@@ -87,7 +87,7 @@ server's `OntologyTypeValidator` rejects any type not in that list
 least one `sourceReferences` entry, or `intentMissing: true`, or
 `implementationMissing: true`.
 
-## NewGraphEdge payload shape
+## NewGraphEdge Payload Shape
 
 ```jsonc
 {
@@ -105,7 +105,7 @@ least one `sourceReferences` entry, or `intentMissing: true`, or
 points at a node whose `type` is listed in `edgeTypes[<type>].fromTypes`
 and `toNodeId` likewise for `toTypes`.
 
-## ID generation
+## ID Generation
 
 Node and edge IDs are minted **by the skill** following the
 ontology-style dotted convention: `cmd.cancelOrder`, `ctx.checkout`,
@@ -128,7 +128,7 @@ Conventions worth following so reviewers can scan the operations list:
 
 The shape of the id is a hint for humans; the contract is `type`.
 
-## Status semantics
+## Status Semantics
 
 - `draft`: extracted, not yet reviewed.
 - `unclear`: at least one `error`-severity `DriftIssue` is attached.

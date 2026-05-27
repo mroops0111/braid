@@ -4,7 +4,7 @@ REST + SSE server for Braid. Hono-based, with an OpenAPI 3 spec
 exposed at `GET /openapi.json` for any consumer that wants typed
 access to the graph operations.
 
-## openapi-mcp-gateway integration
+## openapi-mcp-gateway Integration
 
 Skills shipped with `@braidhq/core` and `@braidhq/ontology-ddd` invoke
 the server through MCP tools, not curl. The wiring is:
@@ -82,7 +82,7 @@ If `BRAID_MCP_GATEWAY_URL` is unset, skills don't see the
 REST endpoints directly. This works but loses the typed tool
 contract; reserve it for "just trying things out" scenarios.
 
-## Routes that are not in the spec
+## Routes That Are Not in the Spec
 
 - SSE streams (`/workspaces/{ws}/runs/{runId}/events`,
   `/workspaces/{ws}/events`) — they're not invocable as one-shot

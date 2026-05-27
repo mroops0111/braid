@@ -1,9 +1,9 @@
-# ClarifyTicket format
+# ClarifyTicket Format
 
 The shape of the JSON a skill produces via the `createClarifyTicket`
 MCP tool when it cannot pick between candidate interpretations.
 
-## When to emit
+## When to Emit
 
 Emit a ClarifyTicket when the disagreement is about **identity** —
 "are these even the same concept? should they merge or stay distinct?
@@ -16,7 +16,7 @@ each with its own `proposedOperations`. The human picks one in
 Studio; that selection is forwarded into a Proposal by the
 `braid-clarify` skill.
 
-## Request body (passed to `createClarifyTicket`)
+## Request Body (Passed to `createClarifyTicket`)
 
 ```json
 {
@@ -45,7 +45,7 @@ Studio; that selection is forwarded into a Proposal by the
 }
 ```
 
-## Server response (and on-disk shape)
+## Server Response (and On-Disk Shape)
 
 ```json
 {
@@ -62,7 +62,7 @@ Studio; that selection is forwarded into a Proposal by the
 }
 ```
 
-## Candidate shape
+## Candidate Shape
 
 ```jsonc
 {
@@ -83,7 +83,7 @@ time** — they're only validated when a human selects the candidate via
 include exploratory candidates with risky ops; the human's selection
 is what gets committed.
 
-## Status transitions
+## Status Transitions
 
 - `pending`: created by a skill; waiting for human selection.
 - `answered`: human picked a candidate via Studio; `selectedCandidateId` + `resolution` are set, but no Proposal has been materialised yet.
@@ -94,7 +94,7 @@ Only `pending → answered → applied` and `pending → skipped` are legal.
 Skills do not write to the `artifacts/clarify/` tree directly; the
 server holds the state machine.
 
-## Don't guess
+## Don't Guess
 
 When the skill is unsure, the right move is a ClarifyTicket — not a
 "least bad" Proposal. Reviewers can resolve a question, but they

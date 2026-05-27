@@ -40,11 +40,11 @@ The skill uses the `braid-core` MCP server's read-only tools (`getOntology`, `li
 
 Repeat the four steps below per scope selected by Initialization (one scope = one output file).
 
-### Step 1: fetch the scoped subgraph
+### Step 1: Fetch the Scoped Subgraph
 
 Call `getNodeScope(workspaceId, nodeId, depth: D)` where D is the depth of the longest `expandedUnder` chain rooted at this container type plus one (so leaf nodes are included). For DDD-shaped ontologies that's typically 3.
 
-### Step 2: group nodes by renderHint
+### Step 2: Group Nodes by renderHint
 
 Walk the in-scope nodes using the taxonomy derived in Initialization:
 
@@ -55,7 +55,7 @@ Walk the in-scope nodes using the taxonomy derived in Initialization:
 
 The traversal is intentionally ontology-agnostic: it never mentions `aggregate`, `command`, `event`, etc. by name. If a non-DDD ontology declares its own container / expandedUnder chains, this skill renders it without modification.
 
-### Step 3: render markdown
+### Step 3: Render Markdown
 
 The structure mirrors the renderHint taxonomy: one H1 for the container, one H2 per top-level `renderHint.section`, then nested H3 / H4 for each level of the `expandedUnder` chain.
 
@@ -100,7 +100,7 @@ expandedUnder chain)
 > Source nodes: {node_id_1}, {node_id_2}, ...
 ```
 
-### Step 4: atomic write
+### Step 4: Atomic Write
 
 Compose the markdown in memory; write via `mv tmp final` so a partial render never replaces an existing file. Pseudocode:
 
