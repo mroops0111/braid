@@ -44,8 +44,8 @@ export type GraphEdgeMetadata = z.infer<typeof GraphEdgeMetadata>
 export const GraphNode = z.object({
   id: NodeId,
   type: NodeTypeId,
-  name: z.string().min(1),
-  description: z.string().optional(),
+  name: z.string().min(1).max(200).describe('Human-facing display name; distinct from `id`. Free-form, ≤ 200 chars. Primary language follows the source intent; optional bilingual translation in parentheses, e.g. `建立訂單 (CreateOrder)`. See content-conventions.md.'),
+  description: z.string().max(4000).optional().describe('Markdown allowed; encourage multiple short paragraphs that convey causality (why this exists, when it triggers, downstream effects). ≤ 4000 chars; aim for the minimum that lets a reader without the source understand this node. Per-type aspects in the active ontology\'s concept.md. See content-conventions.md.'),
   status: NodeStatus,
   metadata: GraphNodeMetadata,
   embedding: Embedding.optional(),
@@ -55,8 +55,8 @@ export type GraphNode = z.infer<typeof GraphNode>
 export const NewGraphNode = z.object({
   id: NodeId.optional(),
   type: NodeTypeId,
-  name: z.string().min(1),
-  description: z.string().optional(),
+  name: z.string().min(1).max(200).describe('Human-facing display name; distinct from `id`. Free-form, ≤ 200 chars. Primary language follows the source intent; optional bilingual translation in parentheses, e.g. `建立訂單 (CreateOrder)`. See content-conventions.md.'),
+  description: z.string().max(4000).optional().describe('Markdown allowed; encourage multiple short paragraphs that convey causality (why this exists, when it triggers, downstream effects). ≤ 4000 chars; aim for the minimum that lets a reader without the source understand this node. Per-type aspects in the active ontology\'s concept.md. See content-conventions.md.'),
   status: NodeStatus.default('draft'),
   metadata: GraphNodeMetadata.optional(),
   embedding: Embedding.optional(),

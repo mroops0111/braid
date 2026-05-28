@@ -10,6 +10,7 @@ import { createApp } from '../../src/app.js'
 import { composeApp } from '../../src/composition.js'
 import { FsSkillRegistry } from '../../src/infrastructure/fs/FsSkillRegistry.js'
 import { readJson } from '../helpers/readJson.js'
+import { makeSkillFileContents } from '../helpers/skillFixtures.js'
 
 /**
  * End-to-end check that a plugin-shipped SKILL.md surfaces through the
@@ -32,7 +33,10 @@ async function writePluginSkill(parent: string, skillName: string, displayName: 
   await mkdir(dir, { recursive: true })
   await writeFile(
     join(dir, 'SKILL.md'),
-    `---\nname: ${displayName}\ndescription: a plugin-shipped skill for integration testing\n---\nbody`,
+    makeSkillFileContents({
+      name: displayName,
+      description: 'a plugin-shipped skill for integration testing',
+    }),
     'utf-8',
   )
   return dir

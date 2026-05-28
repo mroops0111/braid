@@ -1,4 +1,4 @@
-import type { GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
+import type { EdgeId, GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
 import type { GraphDataSource } from './GraphDataSource'
 import type { NodeCardNode } from './useGraphLayout'
 import { Background, BackgroundVariant, Controls, MarkerType, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react'
@@ -10,6 +10,7 @@ import { optional } from '@/lib/optional'
 import { useOntology } from '@/lib/queries'
 import { useTheme } from '@/lib/theme'
 import { useControllableState } from '@/lib/useControllableState'
+import { EdgeDetailPanel } from './EdgeDetailPanel'
 import { useLiveGraphDataSource } from './GraphDataSource'
 import { type GraphFilters, GraphNavigator } from './GraphNavigator'
 import { GraphNodeCard } from './GraphNodeCard'
@@ -43,11 +44,35 @@ interface GraphCanvasProps {
   selectedNodeId?: NodeId | null
   onSelectNode?: (id: NodeId | null) => void
   /**
+   * Controlled edge selection. Mirrors node selection; mutual
+   * exclusion is the parent's responsibility (see GraphSurface's
+   * setter pair). When omitted the canvas falls back to internal
+   * state and still maintains its own mutual-exclusion invariant.
+   */
+  selectedEdgeId?: EdgeId | null
+  onSelectEdge?: (id: EdgeId | null) => void
+  /**
    * Controlled focus mode. When provided, the parent owns the on/off
    * state — pages set this from a page-level toolbar so the same
    * toggle drives both canvas and table.
    */
   focusMode?: boolean
+  /**
+   * When `true`, nodes and edges the proposal does not touch render at
+   * a dimmed opacity, so the changed minority is what a reviewer's
+   * eyes land on first. Set by `Proposals` when the user activates the
+   * "Only changes" toggle. Has no effect outside proposal preview.
+   */
+  dimUnchanged?: boolean
+  /**
+   * When `true`, `added` nodes wear a green ring + accent dot instead
+   * of just the small corner dot. Studio normally keeps `added` subtle
+   * so a fresh-extract proposal (where 100% of nodes are added) is not
+   * overwhelmed by green; for incremental proposals (small fraction of
+   * the graph changed) the subtler treatment hides the diff. Caller
+   * (Proposals) flips this on when the diff ratio is low.
+   */
+  emphasizeAdded?: boolean
 }
 
 const NODE_TYPES = { card: GraphNodeCard }
@@ -58,21 +83,21 @@ const INITIAL_FILTERS: GraphFilters = {
   orphansOnly: false,
 }
 
-export function GraphCanvas({ workspaceId, source, selectedNodeId, onSelectNode, focusMode }: GraphCanvasProps) {
+export function GraphCanvas({ workspaceId, source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, dimUnchanged, emphasizeAdded }: GraphCanvasProps) {
   const palette = usePalette(workspaceId)
   return (
     <PaletteProvider value={palette}>
       <ReactFlowProvider>
         <CanvasInner
           workspaceId={workspaceId}
-          {...optional({ source, selectedNodeId, onSelectNode, focusMode })}
+          {...optional({ source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, dimUnchanged, emphasizeAdded })}
         />
       </ReactFlowProvider>
     </PaletteProvider>
   )
 }
 
-function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, onSelectNode, focusMode = false }: GraphCanvasProps) {
+function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, onSelectNode, selectedEdgeId: controlledEdgeSelected, onSelectEdge, focusMode = false, dimUnchanged = false, emphasizeAdded = false }: GraphCanvasProps) {
   // React Query dedupes the live snapshot fetch by queryKey, so it's
   // effectively free when `source` is supplied.
   const liveSource = useLiveGraphDataSource(workspaceId)
@@ -86,7 +111,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   const diff = effective.diff
   const [filters, setFilters] = useState<GraphFilters>(INITIAL_FILTERS)
   const [selectedNodeId, setSelectedNodeId] = useControllableState<NodeId | null>(controlledSelected, onSelectNode, null)
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
+  const [selectedEdgeId, setSelectedEdgeId] = useControllableState<EdgeId | null>(controlledEdgeSelected, onSelectEdge, null)
   // Navigator stays open across both tab and preview modes so the filter chips are visible from the start.
   // Reviewers were getting stuck in preview mode wondering how to surface the relevant types.
   const [navigatorOpen, setNavigatorOpen] = useState(true)
@@ -121,15 +146,22 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
 
   const reactFlowNodes = useMemo(
     () => laidOut.nodes.map((n) => {
-      const dimmed = selectedNodeId !== null && !focusMode && !neighborhood.neighbors.has(n.data.node.id)
+      const change = diff?.nodes.get(n.data.node.id)
+      // Two independent dim conditions:
+      //   - focus-style: a node is selected and this one isn't in its neighbourhood
+      //   - only-changes: the proposal didn't touch this node
+      // Either reason dims; both together still just dim once.
+      const dimmedByFocus = selectedNodeId !== null && !focusMode && !neighborhood.neighbors.has(n.data.node.id)
+      const dimmedByDiff = dimUnchanged && !change
+      const dimmed = dimmedByFocus || dimmedByDiff
       return {
         ...n,
         selected: n.id === selectedNodeId,
-        data: { ...n.data, change: diff?.nodes.get(n.data.node.id) },
+        data: { ...n.data, change, emphasizeAdded },
         ...(dimmed ? { style: { opacity: DIMMED_NODE_OPACITY } } : {}),
       }
     }),
-    [laidOut.nodes, selectedNodeId, diff, focusMode, neighborhood],
+    [laidOut.nodes, selectedNodeId, diff, focusMode, neighborhood, dimUnchanged, emphasizeAdded],
   )
 
   // Edges keep their type colour so topology is readable; diff state
@@ -141,7 +173,9 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
       const selected = edge.id === selectedEdgeId
       const change = diff?.edges.get(edge.data!.edge.id)
       const incident = neighborhood.incidentEdges.has(edge.data!.edge.id)
-      const dimmed = selectedNodeId !== null && !focusMode && !incident
+      const dimmedByFocus = selectedNodeId !== null && !focusMode && !incident
+      const dimmedByDiff = dimUnchanged && !change
+      const dimmed = dimmedByFocus || dimmedByDiff
       const baseColor = palette.edgeColor(edge.data!.edge.type)
       const stroke = selected || incident
         ? baseColor
@@ -181,7 +215,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
         labelShowBg: true,
       }
     }),
-    [laidOut.edges, selectedEdgeId, palette, diff, selectedNodeId, focusMode, neighborhood],
+    [laidOut.edges, selectedEdgeId, palette, diff, selectedNodeId, focusMode, neighborhood, dimUnchanged],
   )
 
   useFitOnLayoutChange(reactFlow, laidOut.nodes)
@@ -199,17 +233,17 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   const selectNode = useCallback((nodeId: NodeId | null) => {
     setSelectedNodeId(nodeId)
     setSelectedEdgeId(null)
-  }, [setSelectedNodeId])
+  }, [setSelectedNodeId, setSelectedEdgeId])
 
-  const selectEdge = useCallback((edgeId: string) => {
+  const selectEdge = useCallback((edgeId: EdgeId) => {
     setSelectedEdgeId(edgeId)
     setSelectedNodeId(null)
-  }, [setSelectedNodeId])
+  }, [setSelectedEdgeId, setSelectedNodeId])
 
   const clearSelection = useCallback(() => {
     setSelectedNodeId(null)
     setSelectedEdgeId(null)
-  }, [setSelectedNodeId])
+  }, [setSelectedNodeId, setSelectedEdgeId])
 
   const selectAndCenter = useCallback((nodeId: NodeId) => {
     selectNode(nodeId)
@@ -219,6 +253,18 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   // Direct canvas clicks use `selectNode` (no centering) — auto-pan
   // every click felt twitchy. Only navigator + detail-sheet entry
   // points go through `selectAndCenter`.
+
+  // Edge-centring helper. Declared before any early return so the hook
+  // call order is identical across renders (Rules of Hooks).
+  const centerOnEdge = useCallback((edge: GraphEdge) => {
+    const fromPos = laidOut.nodes.find(n => n.id === edge.fromNodeId)?.position
+    const toPos = laidOut.nodes.find(n => n.id === edge.toNodeId)?.position
+    if (!fromPos || !toPos)
+      return
+    const mx = (fromPos.x + toPos.x) / 2 + 100
+    const my = (fromPos.y + toPos.y) / 2 + 32
+    reactFlow.setCenter(mx, my, { zoom: 1, duration: 250 })
+  }, [laidOut.nodes, reactFlow])
 
   useGraphShortcuts(reactFlow)
 
@@ -235,6 +281,11 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   }
 
   const selectedNode = selectedNodeId ? nodesById.get(selectedNodeId) ?? null : null
+  const selectedEdge = selectedEdgeId
+    ? allEdges.find(e => e.id === selectedEdgeId) ?? null
+    : null
+  const selectedEdgeFromNode = selectedEdge ? nodesById.get(selectedEdge.fromNodeId) : undefined
+  const selectedEdgeToNode = selectedEdge ? nodesById.get(selectedEdge.toNodeId) : undefined
   // When we reach the `FilteredEmpty` branch below, `allNodes` is
   // non-empty (early return covers the zero case) and `filtered` is
   // empty — the filter is, by elimination, the cause. The previous
@@ -281,7 +332,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
                 edges={reactFlowEdges}
                 nodeTypes={NODE_TYPES}
                 onNodeClick={(_event, n) => selectNode((n as NodeCardNode).data.node.id)}
-                onEdgeClick={(_event, e) => selectEdge(e.id)}
+                onEdgeClick={(_event, e) => selectEdge(e.id as EdgeId)}
                 onPaneClick={clearSelection}
                 fitView
                 proOptions={{ hideAttribution: true }}
@@ -329,6 +380,21 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
             onClose={clearSelection}
             onSelectNode={selectAndCenter}
             onCenterInGraph={() => selectedNodeId && centerOnNode(selectedNodeId)}
+          />
+        </aside>
+      )}
+      {!selectedNode && selectedEdge && (
+        <aside
+          className="flex shrink-0 flex-col border-l border-border bg-card"
+          style={{ width: NODE_DETAIL_ASIDE_WIDTH }}
+        >
+          <EdgeDetailPanel
+            edge={selectedEdge}
+            fromNode={selectedEdgeFromNode}
+            toNode={selectedEdgeToNode}
+            onClose={clearSelection}
+            onSelectNode={selectAndCenter}
+            onCenterInGraph={() => centerOnEdge(selectedEdge)}
           />
         </aside>
       )}

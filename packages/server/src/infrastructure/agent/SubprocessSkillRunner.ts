@@ -9,7 +9,7 @@ import type {
   Workspace,
   WorkspaceEventBus,
 } from '@braidhq/core'
-import type { AbsolutePath, RunRecord, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
+import type { AbsolutePath, McpServerId, RunRecord, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import { mkdir, rm, symlink } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -49,6 +49,27 @@ export interface SubprocessSkillRunnerDeps {
   /** Delete the per-run session directory after the run. Default `true`. */
   readonly cleanupSession?: boolean
   /**
+   * Enables the built-in `braid-core` MCP gateway. When set, every
+   * spawned skill receives a stdio MCP server entry that runs
+   * `<uvxBin> openapi-mcp-gateway --spec <specUrl> --transport stdio`
+   * — claude spawns the gateway as a per-session child, the gateway
+   * fetches the OpenAPI spec from `specUrl`, and the REST surface is
+   * exposed as MCP tools (`braid_search_nodes`,
+   * `braid_submit_proposal`, …).
+   *
+   * `specUrl` is typically `${apiUrl}/openapi.json`. `uvxBin` defaults
+   * to `'uvx'` (resolved against PATH); composeFs preflight-checks for
+   * its presence at boot.
+   *
+   * Leave undefined to skip the entry entirely (skills with
+   * `requiredMcpServers: ['braid-core']` will then surface as
+   * not-ready via SkillManifest.readinessIssuesFor).
+   */
+  readonly coreGateway?: {
+    readonly specUrl: string
+    readonly uvxBin?: string
+  }
+  /**
    * Optional pub/sub for workspace-scoped notifications. Used by Studio
    * to invalidate run / proposal lists in real time without polling.
    * Tests can leave this undefined.
@@ -80,7 +101,24 @@ export class SubprocessSkillRunner implements SkillRunner {
     const manifest = await this.deps.skillRegistry.get(workspace, skillId)
     const runId = newSkillRunId()
     const sessionDir = await this.resolveSessionDir(workspace, runId, options?.resumeSessionId)
-    const mcpConfigFile = await writeMcpConfigFile(workspace, sessionDir)
+    const mcpConfigFile = await writeMcpConfigFile(workspace, sessionDir, {
+      extraServers: this.deps.coreGateway
+        ? [{
+            id: 'braid-core' as McpServerId,
+            transport: 'stdio',
+            command: this.deps.coreGateway.uvxBin ?? 'uvx',
+            args: [
+              'openapi-mcp-gateway',
+              '--spec',
+              this.deps.coreGateway.specUrl,
+              '--transport',
+              'stdio',
+              '--name',
+              'braid-core',
+            ],
+          }]
+        : [],
+    })
     const invocation = this.deps.agentBinding.resolveSpawn({
       skillId,
       args,

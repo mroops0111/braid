@@ -1,18 +1,35 @@
 import type { ModelService } from '@braidhq/core'
-import { Hono } from 'hono'
+import { ModelSnapshot } from '@braidhq/schema'
+import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
+import { WorkspaceIdParam } from './_shared.js'
 
 export interface ModelRouterDeps {
   modelService: ModelService
 }
 
-export function createModelRouter(deps: ModelRouterDeps): Hono {
-  const router = new Hono()
+const getSnapshotRoute = createRoute({
+  method: 'get',
+  path: '/snapshot',
+  operationId: 'getModelSnapshot',
+  summary: 'Return the full graph snapshot (nodes + edges) for a workspace.',
+  tags: ['model'],
+  request: { params: WorkspaceIdParam },
+  responses: {
+    200: {
+      description: 'The full graph snapshot.',
+      content: { 'application/json': { schema: ModelSnapshot } },
+    },
+  },
+})
 
-  router.get('/snapshot', async (context) => {
+export function createModelRouter(deps: ModelRouterDeps): OpenAPIHono {
+  const router = new OpenAPIHono()
+
+  router.openapi(getSnapshotRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const snapshot = await deps.modelService.getSnapshot(workspaceId)
-    return context.json(snapshot)
+    return context.json(snapshot, 200)
   })
 
   return router

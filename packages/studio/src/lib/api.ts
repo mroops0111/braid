@@ -11,6 +11,7 @@ import type {
   ProductManifestDraft,
   Proposal,
   RunRecord,
+  SkillInputOptionsResponse,
   SkillManifest,
   SourceDescriptor,
   ValidationResult,
@@ -266,4 +267,11 @@ export const api = {
         if (!r.ok && r.status !== 404)
           throw new Error(`forgetSession failed: ${r.status} ${r.statusText}`)
       }),
+
+  listSkillInputOptions: (workspaceId: string, type: string, filter?: unknown) => {
+    const params = new URLSearchParams({ type })
+    if (filter !== undefined)
+      params.set('filter', JSON.stringify(filter))
+    return fetchJson<SkillInputOptionsResponse>(`/workspaces/${workspaceId}/skill-input-options?${params.toString()}`)
+  },
 }

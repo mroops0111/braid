@@ -8,6 +8,7 @@ import { makeWorkspace as makeBaseWorkspace } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { FsSkillRegistry } from '../../../src/infrastructure/fs/FsSkillRegistry.js'
+import { makeSkillFileContents } from '../../helpers/skillFixtures.js'
 
 async function makeWorkspace(): Promise<{ workspace: Workspace, root: AbsolutePath }> {
   const rootPath = (await mkdtemp(join(tmpdir(), 'braid-skill-ws-'))) as AbsolutePath
@@ -28,11 +29,7 @@ async function makeWorkspace(): Promise<{ workspace: Workspace, root: AbsolutePa
 async function writeSkillFile(dir: string, skillId: string, name: string): Promise<void> {
   const skillDir = join(dir, skillId)
   await mkdir(skillDir, { recursive: true })
-  await writeFile(
-    join(skillDir, 'SKILL.md'),
-    `---\nname: ${name}\ndescription: a test skill\n---\nbody`,
-    'utf-8',
-  )
+  await writeFile(join(skillDir, 'SKILL.md'), makeSkillFileContents({ name }), 'utf-8')
 }
 
 describe('FsSkillRegistry', () => {
@@ -151,6 +148,26 @@ describe('FsSkillRegistry', () => {
       const { workspace } = await makeWorkspace()
       const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot, pluginRegistry })
       await expect(registry.list(workspace)).rejects.toThrow(/broken-skill/)
+    })
+  })
+
+  describe('SkillStructureValidator integration', () => {
+    it('rejects a SKILL.md that is missing a required H2 section', async () => {
+      const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
+      const skillDir = join(builtinRoot, 'malformed')
+      await mkdir(skillDir, { recursive: true })
+      // Has frontmatter and a Role section, but is missing Procedure (and the
+      // other common required sections). The validator's hard-fail should
+      // surface as a thrown error citing the offending path.
+      await writeFile(
+        join(skillDir, 'SKILL.md'),
+        `---\nname: malformed\ndescription: missing required sections\n---\n\n## Role\n\nbody.\n`,
+        'utf-8',
+      )
+
+      const { workspace } = await makeWorkspace()
+      const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
+      await expect(registry.list(workspace)).rejects.toThrow(/Procedure/)
     })
   })
 })

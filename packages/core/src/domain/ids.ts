@@ -24,7 +24,7 @@ export function newEdgeId(): EdgeId {
  * HITL artifact ids are date-prefixed (`p-YYYY-MM-DD-{short}`,
  * `ct-YYYY-MM-DD-{short}`) so they sort chronologically, fit in narrow
  * UI surfaces without truncation, and match the documented format in
- * `skills/shared/artifact-formats.md`. The `now` argument is the Clock
+ * `skills/shared/{proposal,clarify}-format.md`. The `now` argument is the Clock
  * reading at creation time. Random suffix is 8 hex chars of a UUID,
  * which is enough to avoid same-day collisions for any plausible
  * proposal volume.
