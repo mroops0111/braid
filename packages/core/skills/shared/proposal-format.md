@@ -52,6 +52,20 @@ Each entry in `operations[]` is one of:
 
 `EvidenceValidator` (in `validators.md`) requires *some* evidence: at least one `sourceReferences` entry, or `intentMissing: true`, or `implementationMissing: true`.
 
+### Picking sourceReferences
+
+A node usually has more than one place it could cite: an intent doc plus one or more code files (backend definition, frontend binding, ORM model, UI page, test fixture, etc.). All of them are valid evidence, but order matters.
+
+**Lead with the most representative entry for this node's type** — the file that most directly *defines* or *invokes* the thing the node names. Then list supporting refs in decreasing specificity. For example:
+
+- A node naming a **definition** (a type, a model, a schema, an invariant): lead with the file holding the canonical declaration; UI bindings, consumers, and prose mentions follow.
+- A node naming an **action** or **moment** (a request that changes state, an event emitted, a reaction): lead with the entry point that handles or emits it; supporting layers (validators, UI dispatchers, downstream subscribers) follow.
+- A node naming a **role**: lead with where the role's identity / scope is defined; the places it's consumed follow.
+
+Intent vs code is **not** a fixed order. Lead with whichever genuinely defines the node today — a fresh PRD with no implementation leads with intent; long-running code with no spec leads with code; both-aligned cases lead with whichever is more concrete for that type. Apply the same principle inside one source kind too (e.g. backend handler before its tests; ORM model before its migrations).
+
+The order is consumed by Studio's detail panel and `braid-generate-doc` as "the link a reader should click first." Drift detection treats every entry equally regardless of order.
+
 ## NewGraphEdge Payload
 
 ```jsonc

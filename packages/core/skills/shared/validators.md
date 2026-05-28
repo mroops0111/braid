@@ -60,7 +60,7 @@ And: every `DriftIssue` attached to a node's `metadata.driftIssues[]` is surface
 | `evidence.completed-no-source` | Node is `status: completed` but `sourceReferences[]` is empty |
 | `evidence.drift` | A DriftIssue on the node's metadata (severity passed through; `error` blocks apply) |
 
-**How to self-check.** Treat `metadata` as required on every node you emit. If you have nothing, decide which flag applies (extract from code only → `intentMissing`; extract from PRD only → `implementationMissing`). Never emit empty `metadata`.
+**How to self-check.** Treat `metadata` as required on every node you emit. If you have nothing, decide which flag applies (extract from code only means `intentMissing`; extract from PRD only means `implementationMissing`). Never emit empty `metadata`.
 
 ## 4. OrphanEdgeValidator
 

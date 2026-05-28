@@ -1,6 +1,8 @@
+import { isValidElement } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
+import { Mermaid } from './Mermaid'
 
 interface MarkdownProps {
   text: string
@@ -41,11 +43,25 @@ const components: NonNullable<Parameters<typeof ReactMarkdown>[0]['components']>
       </code>
     )
   },
-  pre: ({ children }) => (
-    <pre className="my-2 overflow-x-auto rounded-md border border-border bg-card p-2 font-mono text-[11px] leading-relaxed text-foreground/90">
-      {children}
-    </pre>
-  ),
+  pre: ({ children }) => {
+    // react-markdown passes the single `<code>` child here. We sniff its
+    // className to peel mermaid blocks out of the normal <pre> rendering
+    // and route them to the Mermaid component, which lazy-loads the
+    // mermaid library and renders to SVG.
+    const child = Array.isArray(children) ? children[0] : children
+    if (isValidElement(child)) {
+      const props = child.props as { className?: string, children?: unknown }
+      if (props.className === 'language-mermaid') {
+        const definition = String(props.children ?? '').trim()
+        return <Mermaid definition={definition} />
+      }
+    }
+    return (
+      <pre className="my-2 overflow-x-auto rounded-md border border-border bg-card p-2 font-mono text-[11px] leading-relaxed text-foreground/90">
+        {children}
+      </pre>
+    )
+  },
   table: ({ children }) => (
     <div className="my-2 overflow-x-auto">
       <table className="w-full border-collapse text-xs">{children}</table>

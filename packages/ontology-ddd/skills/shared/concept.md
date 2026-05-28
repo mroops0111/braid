@@ -44,7 +44,7 @@ Aggregates reference other aggregates **by id only**, never by holding a direct 
 Event-driven cross-aggregate flow takes one of two shapes:
 
 - **Direct**: `event (in agg A) --triggers--> command (in agg B)` when the reaction is a single synchronous command with no name worth keeping.
-- **Via policy**: when the reaction deserves a name (delayed, scheduled, cross-aggregate orchestration), materialise a `policy` node — see below.
+- **Via policy**: when the reaction deserves a name (delayed, scheduled, cross-aggregate orchestration), materialise a `policy` node (see below).
 
 ### `contains` is for aggregates only
 
@@ -70,7 +70,7 @@ Shape: `event --triggers--> policy --enacts--> command`. A policy without both e
 
 Seven strategic edges describe BoundedContext-to-BoundedContext relationships (Evans Blue Book Part IV): `partnership`, `customerSupplier`, `conformist`, `sharedKernel`, `anticorruptionLayer`, `openHostService`, `publishedLanguage`. Direction, symmetry, and semantics are in each `EdgeTypeDescriptor.description` from the ontology fetch capability.
 
-They reflect team structure, organisational politics, and integration architecture — **not** derivable from a single feature slice. **Do not auto-emit them from per-slice extraction.** If the source signals one (a third-party dependency, two contexts described as coupled in release planning, …), raise a `ClarifyTicket` asking the architect to confirm the mapping type. Let the human pick.
+They reflect team structure, organisational politics, and integration architecture, and are **not** derivable from a single feature slice. **Do not auto-emit them from per-slice extraction.** If the source signals one (a third-party dependency, two contexts described as coupled in release planning, etc.), raise a `ClarifyTicket` asking the architect to confirm the mapping type. Let the human pick.
 
 ## ID Conventions
 
@@ -90,25 +90,27 @@ Node and edge ids are minted by the skill following the ontology-style dotted co
 
 ## Description Authoring (Per Type)
 
-`description` is markdown (see `content-conventions.md`); aim for several short paragraphs that convey causality, not just identity. The table below lists *topics* each type should address — pick the ones the source grounds, skip the rest, never invent.
+`description` is markdown (see `content-conventions.md`); aim for several short paragraphs that convey causality, not just identity. The table below lists *topics* each type should address; pick the ones the source grounds, skip the rest, never invent.
 
 | Type | Topics the description should address |
 |---|---|
-| `boundedContext` | The subsystem's purpose; its ubiquitous language (a few key terms); the consistency boundary (what's in, what's out); contexts it integrates with and how. |
-| `aggregate` | The root entity; the key invariants it enforces; the external way to reference instances (by id only); typical lifecycle (creation → terminal states). |
-| `command` | What state change it requests; who typically issues it (actor); preconditions; expected event(s); failure modes worth knowing about. |
-| `query` | What state it returns; the consumer (UI / API / report); whether it's a strict CQRS read-model or a read-through-aggregate; freshness expectations. |
-| `event` | The fact it records; *when* in the lifecycle it's emitted; downstream reactions worth knowing about; whether it's a domain event or integration event. |
-| `rule` | What must hold; *why* (the business reason, not just the constraint); how violation surfaces (error code, message); whether per-operation or aggregate-wide. |
-| `actor` | The role's responsibility; the commands / queries the actor typically issues; whether human or system; any permission / scope it implies. |
-| `policy` | The reaction's trigger; what it does; conditions or delays; whether the reaction is best-effort or guaranteed. |
+| `boundedContext` | What part of the business this subsystem owns; the few key terms the domain team uses (in their own words); what falls outside it; the neighbouring subsystems it talks to and how. |
+| `aggregate` | The main thing being managed (e.g. an order, a contract, a user account); the rules that always hold about it; how the rest of the system refers to it; its lifecycle from creation to terminal state. |
+| `command` | What change the user / system is asking for; who issues it; what must be true before it runs; what happens as a result; how it can fail. |
+| `query` | What the caller wants to see; who calls it (UI screen, report, API client); whether the answer is real-time or can be slightly stale. |
+| `event` | What just happened (past tense fact); when in the flow it fires; who reacts to it; whether it stays inside the subsystem or crosses to others. |
+| `rule` | What must be true; **why the business cares** (the consequence of violating it, not just the constraint); how violation is surfaced to the user; whether it applies to one operation or the whole entity. |
+| `actor` | The role's job in the product; what the role typically does in this area; whether it's a person or a system; any scope / permission the role implies. |
+| `policy` | What happens automatically and what triggers it; conditions or delays; whether the reaction is guaranteed or best-effort. |
 
-Recommended skeleton (not a template — adapt freely):
+**Translate, don't transliterate.** The description is read by domain experts and PMs, not DDD practitioners. Don't paste DDD terms ("aggregate root", "consistency boundary", "ubiquitous language", "value object", "anticorruption layer", "process manager") into the rendered text. Describe the *concept* in the domain's own words. The DDD framing belongs in the graph topology (edges, types) and in this concept doc; the user-facing string is product language.
 
-1. **What it is** — one paragraph identifying the node in its own terms.
-2. **Why it exists** — the business / domain reason, not just "the spec says so".
-3. **How it connects** — preconditions, triggers, downstream effects, neighbouring nodes a reader should look at.
-4. **Caveats** — failure modes, edge cases, things the source explicitly excluded.
+Recommended skeleton (not a template; adapt freely):
+
+1. **What it is**: one paragraph identifying the node in domain terms.
+2. **Why it exists**: the business reason, not "the spec says so".
+3. **How it connects**: what triggers it, what it triggers, what neighbours matter. Use a bullet list, table, or mermaid diagram for multi-item or flow content; see `content-conventions.md` § `node.description`.
+4. **Caveats**: failure modes, edge cases, things the source explicitly excluded.
 
 Skip any of these the source doesn't ground. A trivial event might be one line; a strategically-critical aggregate might use all four sections.
 

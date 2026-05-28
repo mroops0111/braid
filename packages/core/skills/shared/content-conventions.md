@@ -2,7 +2,7 @@
 
 How to write the human-facing string fields a skill produces. These rules apply across every ontology; ontology-specific aspects (what to address in a `boundedContext` description, etc.) live in the active ontology's `concept.md`.
 
-Hard caps (min / max lengths, single-line regex) live in the MCP tool `inputSchema` each capability exposes — the agent sees them at call time and the server rejects violations. This document is the **soft recipe** schema can't express: target lengths, tone, structure, language policy, and rules like "first paragraph is prose" that need prose to describe.
+Hard caps (min / max lengths, single-line regex) live in the MCP tool `inputSchema` each capability exposes; the agent sees them at call time and the server rejects violations. This document is the **soft recipe** schema can't express: target lengths, tone, structure, language policy, and rules like "first paragraph is prose" that need prose to describe.
 
 ## Common Rules (All Fields)
 
@@ -32,11 +32,17 @@ Every string field follows the language of its **source intent** (the PRD / spec
 
 ### `node.description`
 
-- **Format**: **markdown allowed**. Multiple short paragraphs encouraged. Inline `code`, bold for emphasis, and lists are fine. Headings (`#`, `##`) are discouraged since the field already lives under a section header in the UI.
-- **First paragraph is always prose**. The very first block must be a plain paragraph — no heading, no list, no blockquote, no fenced code. The Graph view card uses the first paragraph as its preview; non-prose openings render badly in the 200px card. Subsequent blocks can be any markdown.
-- **Length**: aim for the **shortest text that lets a reader without the source understand this node** — typically 2-5 short paragraphs for non-trivial nodes; a single line is fine for terminal commands / events.
+- **Format**: **markdown allowed**. Multiple short paragraphs encouraged. Inline `code`, bold for emphasis, lists, tables, and fenced code (including ```` ```mermaid ```` diagrams) are all fine. Headings (`#`, `##`) are discouraged since the field already lives under a section header in the UI.
+- **First paragraph is always prose**. The very first block must be a plain paragraph (no heading, no list, no blockquote, no fenced code). The Graph view card uses the first paragraph as its preview; non-prose openings render badly in the 200px card. Subsequent blocks can be any markdown.
+- **Prefer structure over run-on prose** when the content has structure:
+  - **Enumerations** (preconditions, side effects, allowed values, related nodes): use a bullet list or table. Don't pack 5 items into a comma-separated sentence.
+  - **State transitions** (e.g. the chain `draft`, `submitted`, `approved`, `archived`): use a mermaid `stateDiagram-v2` or a 3-column table (`from | event | to`).
+  - **Flows / orchestration** (event-driven sagas, multi-step processes): use a mermaid `sequenceDiagram` or `flowchart`.
+  - **Comparisons** (this concept vs that concept): use a 2-column table.
+  - Prose only when the point genuinely flows as one thought.
+- **Length**: aim for the **shortest text that lets a reader without the source understand this node**. Typically 2-5 short paragraphs (or a list / table / diagram plus a sentence) for non-trivial nodes; a single line is fine for terminal commands / events.
 - **Content goal**: convey *causality*, not just identity. A reader should be able to answer "what is this, why does it exist, what does it interact with, what would break if I remove it" from the description alone. The type's `NodeTypeDescriptor.description` already names the *kind*; this field describes the *instance*.
-- **Per-type aspects**: each ontology's `concept.md` lists the *topics* to cover per type (e.g. `boundedContext` should describe its purpose, ubiquitous language, integration boundaries). Treat the list as **topics to address**, not a template — pick the topics the source actually grounds; don't invent.
+- **Per-type aspects**: each ontology's `concept.md` lists the *topics* to cover per type (e.g. `boundedContext` should describe its purpose, ubiquitous language, integration boundaries). Treat the list as **topics to address**, not a template; pick the topics the source actually grounds; don't invent.
 - **Don't repeat the type**. Don't open with "This is a bounded context that…"; open with the subject.
 - **No newline-padding tricks**. Two newlines for paragraph break, one for line break inside a list item. Don't add blank lines just to inflate the description.
 

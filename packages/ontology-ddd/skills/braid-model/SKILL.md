@@ -27,7 +27,7 @@ This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its 
 
 - Global view. `braid-extract` sees one slice; you see the whole graph. Use that to spot wrong attachments and missing bridges.
 - Validate before propose. Surface problems with sufficient context (which nodes, which rule). Don't dump raw API output.
-- Conservative on semantics. Format fixes (casing, whitespace) → auto. Semantic decisions (which aggregate owns this command) → ClarifyTicket.
+- Conservative on semantics. Format fixes (casing, whitespace) are auto. Semantic decisions (which aggregate owns this command) become a ClarifyTicket.
 - Idempotent. A `validate` run with no graph changes since last time must produce a no-op proposal (or none at all).
 
 ## Modes
@@ -61,7 +61,7 @@ Each extract run sees one slice. From the global view, some edges land on the wr
 | Duplicate edges across slices (same `from` / `to` / `type`) | Delete the duplicate |
 | Inconsistent attachments (same node, different parent in two slices) | ClarifyTicket: which parent is canonical? |
 | `contains` edge from BoundedContext to a non-aggregate (cmd / qry / evt / rule) | Delete the edge. If the dangling node has no `accepts` / `emits` / `constrainedBy` to its owning aggregate, raise a ClarifyTicket asking which aggregate owns it. Do not re-attach to the BC. |
-| `dependsOn` edge that is not aggregate → aggregate | Delete and re-express. Use `triggers` for event-driven cross-aggregate flow; for direct read access, the calling aggregate should reference the target aggregate's id and use `dependsOn` between the two aggregates. |
+| `dependsOn` edge whose endpoints are not both aggregates | Delete and re-express. Use `triggers` for event-driven cross-aggregate flow; for direct read access, the calling aggregate should reference the target aggregate's id and use `dependsOn` between the two aggregates. |
 | Command or query with no `performedBy` edge to any actor | For each command and query, check sibling commands on the same aggregate: if the aggregate's other operations have `performedBy` edges to a consistent actor set, propose the same wiring for the gap and add a one-line rationale. If sibling coverage is inconsistent or absent, raise a ClarifyTicket asking which actor performs the operation. Single-aggregate orphans without sibling coverage are the most common gap from per-slice extracts. |
 | Aggregate with commands but no events, or events with no source command / aggregate | Cross-check the source references on the aggregate. If sibling commands emit events of a consistent shape (e.g. `*Created`, `*Updated`, `*Deleted`) but one command is missing its event, raise a ClarifyTicket asking whether the missing event was intentionally omitted (intermediate state change with no domain significance) or simply not extracted. |
 
@@ -91,7 +91,7 @@ Structural violations show up in the `issues[]` array of Step 7's proposal-creat
 
 ### Step 5: Node-Content Validation
 
-For each `draft` or `unclear` node, check the per-type rules the ontology declares (required attributes, description shape). Promote `draft` → `completed` only when every required field is filled. Schema constraints are enforced server-side on apply; a status flip without filled fields fails with `BRAID-VAL`.
+For each `draft` or `unclear` node, check the per-type rules the ontology declares (required attributes, description shape). Promote `draft` to `completed` only when every required field is filled. Schema constraints are enforced server-side on apply; a status flip without filled fields fails with `BRAID-VAL`.
 
 ### Step 6: Coverage Scan + Stale Drift Cleanup
 
@@ -116,7 +116,7 @@ For ambiguous attachments / splits / merges, submit a ClarifyTicket via the `bra
 stdout summary at the end:
 
 ```
-braid-model (build + validate) → proposal p-2026-05-12-abc (18 ops; 4 bridges, 5 driftIssues, 9 content fills)
+braid-model (build + validate): proposal p-2026-05-12-abc (18 ops; 4 bridges, 5 driftIssues, 9 content fills)
 braid-model raised 2 clarify tickets (ct-..., ct-...)
 ```
 

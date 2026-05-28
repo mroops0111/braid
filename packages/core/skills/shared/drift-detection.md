@@ -119,7 +119,7 @@ Schema rules:
 - `id` is yours to mint. Any non-empty string works; the server doesn't reuse it across builds. A short random suffix is fine.
 - `raisedAt` is an ISO timestamp with offset.
 
-Attach via `metadata.driftIssues[]` on an `addNode` or `updateNode` payload (see `proposal-format.md` for the surrounding shape). On `updateNode`, the patch fully replaces the array — drift is re-derived each build, not appended. Leave a previously-recorded drift out of the next patch to let apply clear it.
+Attach via `metadata.driftIssues[]` on an `addNode` or `updateNode` payload (see `proposal-format.md` for the surrounding shape). On `updateNode`, the patch fully replaces the array; drift is re-derived each build, not appended. Leave a previously-recorded drift out of the next patch to let apply clear it.
 
 ---
 

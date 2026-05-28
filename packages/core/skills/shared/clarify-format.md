@@ -32,9 +32,9 @@ The `proposedOperations` of a candidate are **not validated at create time**. Th
 - `applied`: `braid-clarify` wrapped the resolution into a Proposal (or determined the chosen candidate has no graph impact) and called the `braid-core` clarify-apply capability.
 - `skipped`: human dismissed the ticket via Studio.
 
-Only `pending → answered → applied` and `pending → skipped` are legal. Skills do not write to the `artifacts/clarify/` tree directly; the server holds the state machine.
+Only the chains `pending` to `answered` to `applied`, and `pending` to `skipped`, are legal. Skills do not write to the `artifacts/clarify/` tree directly; the server holds the state machine.
 
-The `pending → answered` transition is human-driven (Studio UI). The `answered → applied` transition is what `braid-clarify` calls via the clarify-apply capability after materialising the resolution.
+The `pending` to `answered` transition is human-driven (Studio UI). The `answered` to `applied` transition is what `braid-clarify` calls via the clarify-apply capability after materialising the resolution.
 
 ## Don't Guess
 
@@ -42,7 +42,7 @@ When the skill is unsure which of two readings the source intends, the right mov
 
 The threshold for emitting one:
 
-- **Identity question** (are these the same node? alias or distinct? which of multiple readings is right?) → ClarifyTicket.
-- **Field-level disagreement on a shared identity** (sources agree what this node is, disagree on a limit / state / sequence) → `DriftIssue` on the node's metadata. See `drift-detection.md`.
+- **Identity question** (are these the same node? alias or distinct? which of multiple readings is right?): emit a ClarifyTicket.
+- **Field-level disagreement on a shared identity** (sources agree what this node is, disagree on a limit / state / sequence): emit a `DriftIssue` on the node's metadata. See `drift-detection.md`.
 
 Conflating these buries field drift in ticket prose where the validator can't gate Apply.

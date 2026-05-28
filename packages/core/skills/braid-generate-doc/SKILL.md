@@ -22,7 +22,7 @@ You read the graph, write `artifacts/views/docs/*.md`. You never modify graph st
 - Business language. No file paths, code identifiers, or type ids in prose. Translate to plain words.
 - Honest status. Nodes with `status: draft / unclear / deprecated` get visible call-outs, not silent inclusion.
 - Traceable. Footer lists the source node ids. The prose itself does not name ids.
-- Idempotent. Same graph + same scope → byte-identical output.
+- Idempotent. Same graph plus same scope yields byte-identical output.
 
 ## Initialization
 
@@ -30,12 +30,12 @@ You read the graph, write `artifacts/views/docs/*.md`. You never modify graph st
 2. Fetch the active ontology via `braid-core` to learn the node and edge type ids the rendering will encounter. Each `NodeTypeDescriptor` may carry a `renderHint`; the renderer is driven by those hints, not by ontology-specific vocabulary.
 3. From the ontology response, derive the rendering taxonomy:
    - **Container types**: every `nodeTypes[]` entry whose `renderHint.container === true`. One output file per node of these types.
-   - **Nesting chains**: for every type with `renderHint.expandedUnder`, the chain it joins (e.g. `aggregate → boundedContext`, `command → aggregate`). Recurse to compute the depth.
+   - **Nesting chains**: for every type with `renderHint.expandedUnder`, the chain it joins (e.g. `aggregate` under `boundedContext`, `command` under `aggregate`). Recurse to compute the depth.
    - **Top-level sections**: types with `renderHint.section` but no `expandedUnder` are flat lists rendered as their own H2 inside each container.
    - **Leaves**: types with no `renderHint` are rendered as footnotes in the source-id list rather than promoted into the body.
 4. Parse `$ARGUMENTS`:
-   - A specific node id → render only that container (must be a container-typed node; otherwise abort with a clear error).
-   - Empty → list every top-level container node via the `braid-core` node-search capability, filtering by each container type, and render one doc per container.
+   - A specific node id: render only that container (must be a container-typed node; otherwise abort with a clear error).
+   - Empty: list every top-level container node via the `braid-core` node-search capability, filtering by each container type, and render one doc per container.
 5. Ensure the output directory exists: `mkdir -p "$BRAID_WORKSPACE/artifacts/views/docs"`.
 
 ## Procedure
@@ -126,7 +126,7 @@ Wrote 2 documents.
 
 ## Output Files
 
-- **Path**: `$BRAID_WORKSPACE/artifacts/views/docs/<container-id>.md` (id `.` → `-`, e.g. `ctx.checkout` → `ctx-checkout.md`).
+- **Path**: `$BRAID_WORKSPACE/artifacts/views/docs/<container-id>.md` (replace `.` in id with `-`, e.g. `ctx.checkout` becomes `ctx-checkout.md`).
 - **Format**: CommonMark Markdown. Atomic via `mv tmp final`.
 - **Scope**: never write outside `artifacts/views/docs/`. `views/` is reserved for read-only projections.
 

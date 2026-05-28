@@ -23,7 +23,7 @@ This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its 
 ## Design Principles
 
 - Small scope > big. If `$ARGUMENTS` is given, stay within that bounded context. < 30 ops per proposal.
-- Conservative > eager. Insufficient evidence → ClarifyTicket, never a guess.
+- Conservative > eager. Insufficient evidence means a ClarifyTicket, never a guess.
 - Rationale required. The proposal's `rationale` must explain why these ops and what triggered them.
 - Idempotent. Two runs with identical input produce equivalent proposals.
 
@@ -51,31 +51,33 @@ Cap each proposal at < 30 operations. Split into multiple proposals if needed.
 
 ### Step 2: Derive Candidate Operations
 
-Map the signals in intent / code to ontology types. The shape of an id is a hint for humans; the `type` field is the contract. **All vocabulary, wiring rules, policy pattern, Context Mapping rules, ID prefixes, and per-type description aspects are in `<cwd>/.claude/skills/ontology-ddd/concept.md`** — consult it before authoring any operation.
+Map the signals in intent / code to ontology types. The shape of an id is a hint for humans; the `type` field is the contract. **All vocabulary, wiring rules, policy pattern, Context Mapping rules, ID prefixes, and per-type description aspects are in `<cwd>/.claude/skills/ontology-ddd/concept.md`.** Consult it before authoring any operation.
 
 For each candidate node compared to the current graph:
 
-- Graph has same id with different content → `updateNode`.
-- Graph has identical content → skip.
-- Graph lacks the id → `addNode`.
-- Graph has id but source deleted → `updateNode` setting `status: deprecated`. Do not `removeNode`. Preserve history.
+- Graph has same id with different content: emit `updateNode`.
+- Graph has identical content: skip.
+- Graph lacks the id: emit `addNode`.
+- Graph has id but source deleted: emit `updateNode` setting `status: deprecated`. Do not `removeNode`. Preserve history.
 
 ### Step 3: Assess Confidence + Evidence per Candidate
 
 For each candidate node, set `metadata` according to where the evidence lives:
 
-- Intent source only (no code yet, e.g. a fresh PRD) → `metadata.sourceReferences = [intent ref]` + `metadata.implementationMissing = true`. Status stays `draft`.
-- Code source only (running code with no spec) → `metadata.sourceReferences = [code ref]` + `metadata.intentMissing = true`. Status `draft`.
-- Both sources agree → `metadata.sourceReferences = [intent ref, code ref]`. Status `draft` (only the human applies → `completed`).
-- Both sources disagree → distinguish identity-level disagreement from field-level drift (see below).
+- Intent source only (no code yet, e.g. a fresh PRD): set `metadata.sourceReferences = [intent ref]` plus `metadata.implementationMissing = true`. Status stays `draft`.
+- Code source only (running code with no spec): set `metadata.sourceReferences = [code ref]` plus `metadata.intentMissing = true`. Status `draft`.
+- Both sources agree: set `metadata.sourceReferences = [intent ref, code ref]`. Status `draft` (only the human can promote to `completed` on apply).
+- Both sources disagree: distinguish identity-level disagreement from field-level drift (see below).
 
 Every node you emit MUST have `metadata` set. A node with `metadata.sourceReferences: []` AND no `implementationMissing` AND no `intentMissing` will be rejected by the server validator.
 
-#### Identity-Level Disagreement → ClarifyTicket
+When a node has multiple sources to cite (intent plus one or more code files, or several layers of code), order them by representativeness: see `proposal-format.md` § Picking sourceReferences.
+
+#### Identity-Level Disagreement: ClarifyTicket
 
 You can't tell whether two sources are describing the *same* concept (alias or distinct? two unrelated `Order` definitions in different PRDs?). Don't pick. Emit a ClarifyTicket per Step 5 and stop.
 
-#### Field-Level Drift → DriftIssue Attached to the Node
+#### Field-Level Drift: DriftIssue Attached to the Node
 
 The sources agree on *what* this is, but disagree on *specifics*: a limit, a state set, a parameter list, a sequence of steps. Don't drop into a ClarifyTicket. Emit the node anyway and attach one structured `DriftIssue` per dimension to its `metadata.driftIssues[]`. Set `status: 'unclear'` instead of `draft` when at least one DriftIssue is `severity: 'error'`. Read `drift-detection.md` for the dimension checklist, description pattern, severity rules, and the JSON shape.
 
@@ -89,7 +91,7 @@ Submit the Proposal via the `braid-core` proposal-create capability:
 - `generatedBy`: `"braid-extract"`.
 - `rationale`: one paragraph stating what was extracted, from which sources, and why this scope split.
 
-Outcomes: 201 → move on. 400 (`code: BRAID-VAL`) → fix the cited `issues[]` and resubmit, max 3 rounds; after that list remaining issues and stop. 409 (id collision) → mint a fresh id. 5xx → bail and report. `warning` issues don't block apply; mention them in `rationale` if intentional.
+Outcomes: 201 means move on. 400 (`code: BRAID-VAL`) means fix the cited `issues[]` and resubmit, max 3 rounds; after that list remaining issues and stop. 409 (id collision) means mint a fresh id. 5xx means bail and report. `warning` issues don't block apply; mention them in `rationale` if intentional.
 
 ### Step 5: Submit ClarifyTicket (Low-Confidence Candidates)
 
@@ -113,7 +115,7 @@ Produced N proposals + M clarify tickets:
 - [ ] Every node has `metadata.sourceReferences` and / or an `implementationMissing` / `intentMissing` flag.
 - [ ] Field-level disagreement between sources surfaces as a `DriftIssue` on the node (see `drift-detection.md`), not a ClarifyTicket.
 - [ ] Each proposal was submitted via `braid-core` proposal-create and the final response was 201 (not 4xx).
-- [ ] No `removeNode` of a node still referenced elsewhere — deprecate instead.
+- [ ] No `removeNode` of a node still referenced elsewhere; deprecate instead.
 - [ ] Each ClarifyTicket candidate carries `proposedOperations`.
 - [ ] Final stdout lists outcomes (or, if proposal-create kept returning 400 after 3 rounds, lists the remaining issues).
 
