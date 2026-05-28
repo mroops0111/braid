@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
 import { queryKeys, useProposalsByStatus, useProposalValidation } from '@/lib/queries'
 import { useGraphNavigation } from '@/lib/useGraphNavigation'
+import { useMutualExclusionPair } from '@/lib/useMutualExclusionPair'
 import { GraphSurface } from './GraphSurface'
 
 interface ProposalsPageProps {
@@ -565,23 +566,10 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
   // graph/table pair, so we manage `view` here and only delegate to
   // GraphSurface for the two graph-derived views.
   const [view, setView] = useState<PreviewView>('graph')
-  const [selectedNodeId, setSelectedNodeIdRaw] = useState<NodeId | null>(null)
-  const [selectedEdgeId, setSelectedEdgeIdRaw] = useState<EdgeId | null>(null)
+  const [selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId]
+    = useMutualExclusionPair<NodeId, EdgeId>()
   const [focusMode, setFocusMode] = useState(false)
   const [onlyChanges, setOnlyChanges] = useState(false)
-  // Mutual-exclusion setter pair: matches the GraphSurface invariant
-  // (one of node / edge selected, never both) without leaking the rule
-  // to GraphSurface's callers.
-  const setSelectedNodeId = (id: NodeId | null): void => {
-    setSelectedNodeIdRaw(id)
-    if (id !== null)
-      setSelectedEdgeIdRaw(null)
-  }
-  const setSelectedEdgeId = (id: EdgeId | null): void => {
-    setSelectedEdgeIdRaw(id)
-    if (id !== null)
-      setSelectedNodeIdRaw(null)
-  }
   const source = useProposalGraphDataSource(workspaceId, operations)
   const flat = flattenOperations(operations)
 

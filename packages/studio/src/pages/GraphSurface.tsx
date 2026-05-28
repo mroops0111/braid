@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { GraphCanvas } from '@/components/graph/GraphCanvas'
 import { FocusToggle, ViewToggle } from '@/components/graph/GraphToolbar'
 import { optional } from '@/lib/optional'
+import { useMutualExclusionPair } from '@/lib/useMutualExclusionPair'
 import { GraphTablePage } from './GraphTable'
 
 export type { GraphView } from '@/components/graph/GraphToolbar'
@@ -84,22 +85,9 @@ export function GraphSurface({
 /** Hook bundling the shared state pages typically hoist for the surface. */
 export function useGraphSurfaceState(initialView: GraphView = 'visualization') {
   const [view, setView] = useState<GraphView>(initialView)
-  const [selectedNodeId, setSelectedNodeIdRaw] = useState<NodeId | null>(null)
-  const [selectedEdgeId, setSelectedEdgeIdRaw] = useState<EdgeId | null>(null)
+  const [selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId]
+    = useMutualExclusionPair<NodeId, EdgeId>()
   const [focusMode, setFocusMode] = useState(false)
-  // Node and edge selections are mutually exclusive; setting one
-  // clears the other so callers can pass these setters straight
-  // through without remembering the rule themselves.
-  const setSelectedNodeId = (id: NodeId | null): void => {
-    setSelectedNodeIdRaw(id)
-    if (id !== null)
-      setSelectedEdgeIdRaw(null)
-  }
-  const setSelectedEdgeId = (id: EdgeId | null): void => {
-    setSelectedEdgeIdRaw(id)
-    if (id !== null)
-      setSelectedNodeIdRaw(null)
-  }
   return {
     view,
     setView,
