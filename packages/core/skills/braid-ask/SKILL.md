@@ -7,6 +7,13 @@ braid:
   category: ask
   summary: Answer questions from the graph, intent docs, and code
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
+  inputs:
+    - name: question
+      label: Question
+      description: What you want to know about the product. Can be multi-sentence.
+      kind: text
+      multiline: true
+      placeholder: e.g. How does order cancellation handle partial refunds?
 ---
 
 ## Role

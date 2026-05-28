@@ -2,6 +2,7 @@ import type { RunRecord, SkillCategory, SkillManifest } from '@braidhq/schema'
 import { useMutation } from '@tanstack/react-query'
 import { BookOpen, FileQuestion, History, Plus, Send, Sparkles, Wrench, X } from 'lucide-react'
 import { useState } from 'react'
+import { ActionInputForm } from '@/components/ActionInputForm'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
 import { SkillTranscript } from '@/components/SkillTranscript'
@@ -262,11 +263,9 @@ function Conversation({ workspaceId, skill }: ConversationProps) {
     }
   }
 
-  async function send(): Promise<void> {
-    if (!prompt.trim() || running)
+  async function sendWith(promptToSend: string): Promise<void> {
+    if (running)
       return
-    const promptToSend = prompt
-    setPrompt('')
     setSubmitting(true)
     setLocalError(null)
     try {
@@ -284,6 +283,14 @@ function Conversation({ workspaceId, skill }: ConversationProps) {
     finally {
       setSubmitting(false)
     }
+  }
+
+  async function send(): Promise<void> {
+    if (!prompt.trim() || running)
+      return
+    const promptToSend = prompt
+    setPrompt('')
+    await sendWith(promptToSend)
   }
 
   const transcriptError = localError ?? conversation.error ?? null
@@ -319,36 +326,52 @@ function Conversation({ workspaceId, skill }: ConversationProps) {
         </div>
       </div>
       <SkillTranscript events={[...conversation.events]} error={transcriptError} running={running} />
-      <div className="flex items-end gap-2 border-t border-border px-4 py-2.5">
-        <Textarea
-          placeholder={
-            isFollowUp
-              ? 'Ask a follow-up… (Enter to send, Shift+Enter for newline)'
-              : (skill.frontmatter.argumentHint ?? 'Describe what you want… (Enter to send, Shift+Enter for newline)')
-          }
-          value={prompt}
-          onChange={e => setPrompt(e.target.value)}
-          onKeyDown={(e) => {
-            // While the user is composing CJK / accented input through an
-            // IME, Enter confirms the candidate character and must not
-            // submit the message. `nativeEvent.isComposing` is the only
-            // reliable signal across browsers; `e.keyCode === 229` is the
-            // legacy fallback for older Safari that we no longer support.
-            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !running) {
-              e.preventDefault()
-              void send()
-            }
-          }}
-          disabled={running}
-          rows={2}
-          className="flex-1 font-mono"
-          autoFocus
-        />
-        <Button size="sm" onClick={send} disabled={running || !prompt.trim()}>
-          <Send />
-          {running ? 'Sending…' : isFollowUp ? 'Send' : 'Start'}
-        </Button>
-      </div>
+      {!isFollowUp && skill.frontmatter.braid.inputs && skill.frontmatter.braid.inputs.length > 0
+        ? (
+            <ActionInputForm
+              workspaceId={workspaceId}
+              inputs={skill.frontmatter.braid.inputs}
+              disabled={running}
+              onSubmit={(prompts) => {
+                // Fire all batch prompts in parallel; each becomes its
+                // own runId / turn under the same conversation key. The
+                // transcript will interleave them.
+                for (const p of prompts) void sendWith(p)
+              }}
+            />
+          )
+        : (
+            <div className="flex items-end gap-2 border-t border-border px-4 py-2.5">
+              <Textarea
+                placeholder={
+                  isFollowUp
+                    ? 'Ask a follow-up… (Enter to send, Shift+Enter for newline)'
+                    : (skill.frontmatter.argumentHint ?? 'Describe what you want… (Enter to send, Shift+Enter for newline)')
+                }
+                value={prompt}
+                onChange={e => setPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  // While the user is composing CJK / accented input through an
+                  // IME, Enter confirms the candidate character and must not
+                  // submit the message. `nativeEvent.isComposing` is the only
+                  // reliable signal across browsers; `e.keyCode === 229` is the
+                  // legacy fallback for older Safari that we no longer support.
+                  if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !running) {
+                    e.preventDefault()
+                    void send()
+                  }
+                }}
+                disabled={running}
+                rows={2}
+                className="flex-1 font-mono"
+                autoFocus
+              />
+              <Button size="sm" onClick={send} disabled={running || !prompt.trim()}>
+                <Send />
+                {running ? 'Sending…' : isFollowUp ? 'Send' : 'Start'}
+              </Button>
+            </div>
+          )}
     </div>
   )
 }

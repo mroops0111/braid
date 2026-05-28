@@ -102,6 +102,47 @@ describe('validateSkillStructure', () => {
     ])
   })
 
+  it('flags duplicate input names', () => {
+    const result = validateSkillStructure({
+      body: body(ALL_SECTIONS),
+      frontmatter: {
+        ...frontmatter('build'),
+        braid: {
+          requiredEnv: [],
+          requiredMcpServers: [],
+          category: 'build',
+          inputs: [
+            { name: 'mode', label: 'Mode', kind: 'text', multiline: false, optional: false },
+            { name: 'mode', label: 'Mode 2', kind: 'text', multiline: false, optional: false },
+          ],
+        },
+      },
+    })
+    expect(result.ok).toBe(false)
+    expect(result.issues).toEqual([
+      expect.objectContaining({ kind: 'duplicate-input-name', inputName: 'mode' }),
+    ])
+  })
+
+  it('accepts well-formed inputs[] with unique names', () => {
+    const result = validateSkillStructure({
+      body: body(ALL_SECTIONS),
+      frontmatter: {
+        ...frontmatter('build'),
+        braid: {
+          requiredEnv: [],
+          requiredMcpServers: [],
+          category: 'build',
+          inputs: [
+            { name: 'mode', label: 'Mode', kind: 'text', multiline: false, optional: false },
+            { name: 'scope', label: 'Scope', kind: 'text', multiline: false, optional: true },
+          ],
+        },
+      },
+    })
+    expect(result.ok).toBe(true)
+  })
+
   it('ignores H3 headings, anchors, and trailing whitespace', () => {
     const allSectionsWithAnchor = ALL_SECTIONS.map((s, i) => i === 0 ? `Role {#role}  ` : s)
     const text = `${allSectionsWithAnchor.map(s => `## ${s}\n`).join('\n')}\n### Sub-section\nBody.\n`

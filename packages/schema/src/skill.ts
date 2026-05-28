@@ -55,6 +55,157 @@ export const SkillCategory = z.enum(['ask', 'build', 'generate'])
 export type SkillCategory = z.infer<typeof SkillCategory>
 
 /**
+ * Skill input descriptor — declarative form schema rendered by Studio's
+ * Actions page. Phase 1 supports `text` and `pick` with the `static`
+ * provider only; dynamic providers (graph-node / source-intent / clarify
+ * / proposal) come in phase 2; `multi-pick` (for batch runs) in phase 3.
+ *
+ * Naming follows `docs/domain-vocabulary.md`: provider type ids are
+ * `<domain>` or `<domain>-<sub>`, lowercase hyphen-separated, singular.
+ *
+ * Skills without an `inputs` block fall back to the legacy single
+ * textarea driven by `argumentHint` on the parent frontmatter.
+ */
+export const SkillInputStaticOption = z.object({
+  value: z.string(),
+  label: z.string().min(1),
+  description: z.string().optional(),
+})
+export type SkillInputStaticOption = z.infer<typeof SkillInputStaticOption>
+
+export const SkillInputStaticProvider = z.object({
+  type: z.literal('static'),
+  options: z.array(SkillInputStaticOption).min(1),
+})
+export type SkillInputStaticProvider = z.infer<typeof SkillInputStaticProvider>
+
+/**
+ * Dynamic provider: pulls graph nodes from the workspace, optionally
+ * filtered by type / status / renderHint. Returns one option per node
+ * with `value = node.id`. See `docs/domain-vocabulary.md` § Provider
+ * Catalog for the naming rule (`<domain>-<sub>`).
+ */
+export const SkillInputGraphNodeProvider = z.object({
+  type: z.literal('graph-node'),
+  filter: z.object({
+    types: z.array(z.string()).optional(),
+    statuses: z.array(z.string()).optional(),
+    /**
+     * Filters by `NodeTypeDescriptor.renderHint`. `container: true`
+     * picks node types whose ontology metadata flags them as a
+     * top-level container (e.g. boundedContext in the DDD ontology).
+     */
+    renderHint: z.object({ container: z.boolean().optional() }).optional(),
+  }).optional(),
+})
+export type SkillInputGraphNodeProvider = z.infer<typeof SkillInputGraphNodeProvider>
+
+/**
+ * Dynamic provider: enumerates items from every `role: 'intent'`
+ * source declared in the workspace's PRODUCT.md. Items are individual
+ * documents the loader has synced onto disk; the value is the
+ * loader-relative path so the skill can quote it directly.
+ */
+export const SkillInputSourceIntentProvider = z.object({
+  type: z.literal('source-intent'),
+  filter: z.object({
+    /** Restrict to sources whose loader.kind matches (e.g. `gdrive`). Omit to include all. */
+    loaderKind: z.string().optional(),
+  }).optional(),
+})
+export type SkillInputSourceIntentProvider = z.infer<typeof SkillInputSourceIntentProvider>
+
+/**
+ * Dynamic provider: clarify tickets in the workspace, filtered by
+ * status. Defaults to all statuses if no filter is given.
+ */
+export const SkillInputClarifyProvider = z.object({
+  type: z.literal('clarify'),
+  filter: z.object({
+    status: z.enum(['pending', 'answered', 'applied', 'skipped']).optional(),
+  }).optional(),
+})
+export type SkillInputClarifyProvider = z.infer<typeof SkillInputClarifyProvider>
+
+export const SkillInputProvider = z.discriminatedUnion('type', [
+  SkillInputStaticProvider,
+  SkillInputGraphNodeProvider,
+  SkillInputSourceIntentProvider,
+  SkillInputClarifyProvider,
+])
+export type SkillInputProvider = z.infer<typeof SkillInputProvider>
+
+/**
+ * What the form does when a dynamic provider returns zero options.
+ *   text     - swap the picker for a free-text input
+ *   disabled - render the picker disabled with a "no options" message
+ *
+ * Defaults to `text`. Skills that strictly need a server-side
+ * selection (e.g. clarify ticket id) should set `disabled`.
+ */
+export const SkillInputFallback = z.enum(['text', 'disabled']).default('text')
+export type SkillInputFallback = z.infer<typeof SkillInputFallback>
+
+const SkillInputBaseShape = {
+  /** Identifier the form binds to. Composed into the skill's $ARGUMENTS at run-time. */
+  name: z.string().regex(/^[a-z][a-zA-Z0-9]*$/, 'Input name must be a lowerCamelCase identifier'),
+  /** UI label shown above the control. */
+  label: z.string().min(1),
+  /** Optional helper text shown under the control. */
+  description: z.string().optional(),
+  /** When true, the input may be left empty and is not required to submit. Defaults to false (i.e. required). */
+  optional: z.boolean().default(false),
+  /** Optional default value pre-filled into the control. */
+  default: z.string().optional(),
+  /** Placeholder shown when empty. */
+  placeholder: z.string().optional(),
+}
+
+export const SkillInputText = z.object({
+  ...SkillInputBaseShape,
+  kind: z.literal('text'),
+  /** When true, renders as a multi-line textarea instead of single-line input. */
+  multiline: z.boolean().default(false),
+})
+export type SkillInputText = z.infer<typeof SkillInputText>
+
+export const SkillInputPick = z.object({
+  ...SkillInputBaseShape,
+  kind: z.literal('pick'),
+  provider: SkillInputProvider,
+  fallback: SkillInputFallback,
+})
+export type SkillInputPick = z.infer<typeof SkillInputPick>
+
+export const SkillInputMultiPick = z.object({
+  ...SkillInputBaseShape,
+  kind: z.literal('multi-pick'),
+  provider: SkillInputProvider,
+  fallback: SkillInputFallback,
+})
+export type SkillInputMultiPick = z.infer<typeof SkillInputMultiPick>
+
+export const SkillInputDescriptor = z.discriminatedUnion('kind', [SkillInputText, SkillInputPick, SkillInputMultiPick])
+export type SkillInputDescriptor = z.infer<typeof SkillInputDescriptor>
+
+/**
+ * One option returned by the skill-input-options endpoint. Same shape
+ * for all providers; the `value` field is what the form submits and
+ * `label` / `description` are display only.
+ */
+export const SkillInputDynamicOption = z.object({
+  value: z.string(),
+  label: z.string().min(1),
+  description: z.string().optional(),
+})
+export type SkillInputDynamicOption = z.infer<typeof SkillInputDynamicOption>
+
+export const SkillInputOptionsResponse = z.object({
+  items: z.array(SkillInputDynamicOption),
+})
+export type SkillInputOptionsResponse = z.infer<typeof SkillInputOptionsResponse>
+
+/**
  * Braid-specific extension fields. Live under the `braid:` key of the YAML
  * frontmatter so they never collide with Claude Code's own fields, present
  * or future. Read by `SubprocessSkillRunner` for preflight validation
@@ -80,6 +231,13 @@ export const BraidSkillExtension = z.object({
    * polluting the CLI's namespace.
    */
   summary: z.string().min(1).max(80).optional(),
+  /**
+   * Declarative form schema for the Studio Actions page. When omitted,
+   * Studio falls back to the legacy single textarea driven by
+   * `argumentHint`. See SkillInputDescriptor for the per-field shape and
+   * `docs/domain-vocabulary.md` for the provider naming taxonomy.
+   */
+  inputs: z.array(SkillInputDescriptor).optional(),
 })
 export type BraidSkillExtension = z.infer<typeof BraidSkillExtension>
 

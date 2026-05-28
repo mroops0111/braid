@@ -28,10 +28,12 @@ const CATEGORY_SPECIFIC_REQUIRED_SECTIONS: Record<SkillCategory, readonly string
 }
 
 export interface SkillStructureIssue {
-  readonly kind: 'missing-section' | 'unknown-category' | 'invalid-h2'
+  readonly kind: 'missing-section' | 'unknown-category' | 'invalid-h2' | 'duplicate-input-name'
   readonly message: string
   /** When kind is `missing-section`, the section heading that was expected. */
   readonly section?: string
+  /** When kind is `duplicate-input-name`, the offending input name. */
+  readonly inputName?: string
 }
 
 export interface ValidateSkillStructureInput {
@@ -87,6 +89,24 @@ export function validateSkillStructure(input: ValidateSkillStructureInput): Skil
           section,
         })
       }
+    }
+  }
+
+  // Duplicate `inputs[].name` detection. zod enforces each entry's
+  // own shape (and the kind discriminator), but uniqueness across
+  // the list is a cross-cutting rule that has to live here.
+  const inputs = input.frontmatter.braid.inputs
+  if (inputs && inputs.length > 0) {
+    const seen = new Set<string>()
+    for (const declaration of inputs) {
+      if (seen.has(declaration.name)) {
+        issues.push({
+          kind: 'duplicate-input-name',
+          message: `SKILL.md declares input name "${declaration.name}" more than once. Each input must have a unique name.`,
+          inputName: declaration.name,
+        })
+      }
+      seen.add(declaration.name)
     }
   }
 

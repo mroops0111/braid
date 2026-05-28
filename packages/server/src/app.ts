@@ -13,6 +13,7 @@ import { createOAuthRouter } from './routes/oauth.js'
 import { createOntologyRouter } from './routes/ontology.js'
 import { createProposalsRouter } from './routes/proposals.js'
 import { createRunsRouter } from './routes/runs.js'
+import { createSkillInputOptionsRouter } from './routes/skillInputOptions.js'
 import { createSkillsRouter } from './routes/skills.js'
 import { createWorkspaceEventsRouter } from './routes/workspaceEvents.js'
 import { createWorkspacesRouter } from './routes/workspaces.js'
@@ -84,6 +85,12 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       workspaceRepository: deps.workspaceRepository,
     }))
   }
+  workspaceScoped.route('/skill-input-options', createSkillInputOptionsRouter({
+    modelRepository: deps.modelRepository,
+    clarifyRepository: deps.clarifyRepository,
+    workspaceRepository: deps.workspaceRepository,
+    pluginRegistry: deps.pluginRegistry,
+  }))
 
   app.route('/workspaces/:workspaceId', workspaceScoped)
 

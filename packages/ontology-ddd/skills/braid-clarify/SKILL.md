@@ -8,6 +8,16 @@ braid:
   order: 200
   summary: Resolve answered clarify tickets into proposals
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
+  inputs:
+    - name: ticket
+      label: Ticket
+      description: An answered clarify ticket to materialise. Leave empty to process every answered ticket in the workspace.
+      kind: pick
+      optional: true
+      provider:
+        type: clarify
+        filter: { status: answered }
+      fallback: disabled
 ---
 
 ## Role

@@ -7,6 +7,17 @@ braid:
   category: generate
   summary: Render Markdown docs from the current graph
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
+  inputs:
+    - name: container
+      label: Container
+      description: One or more containers (e.g. bounded contexts) to render. Multi-select runs the skill in parallel for each pick. Leave empty to render one doc per container in the workspace.
+      kind: multi-pick
+      optional: true
+      provider:
+        type: graph-node
+        filter:
+          renderHint: { container: true }
+      fallback: text
 ---
 
 ## Role

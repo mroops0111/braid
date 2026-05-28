@@ -8,6 +8,30 @@ braid:
   order: 300
   summary: Cross-link sources and validate the graph globally
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
+  inputs:
+    - name: mode
+      label: Mode
+      kind: pick
+      provider:
+        type: static
+        options:
+          - value: ""
+            label: Build + Validate
+            description: Add missing edges and run all validators.
+          - value: validate
+            label: Validate Only
+            description: Skip the build pass; report on the graph as-is.
+      default: ""
+    - name: scope
+      label: Scope
+      description: Bounded context to focus on. Leave empty for a full-graph pass.
+      kind: pick
+      optional: true
+      provider:
+        type: graph-node
+        filter:
+          types: [boundedContext]
+      fallback: text
 ---
 
 ## Role

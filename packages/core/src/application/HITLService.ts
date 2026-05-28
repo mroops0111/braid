@@ -25,6 +25,7 @@ import { ValidationError } from '../domain/errors.js'
 import { ClarifyTicket } from '../domain/hitl/ClarifyTicket.js'
 import { Proposal } from '../domain/hitl/Proposal.js'
 import { newClarifyCandidateId, newClarifyTicketId, newDecisionId, newProposalId } from '../domain/ids.js'
+import { PerWorkspaceLock } from './PerWorkspaceLock.js'
 
 export interface HITLServiceDeps {
   proposalRepository: ProposalRepository
@@ -44,6 +45,11 @@ export interface HITLServiceDeps {
 }
 
 export class HITLService {
+  // Per-workspace lock serialises the load → validate → write → save
+  // chain so two concurrent applyProposal calls on the same workspace
+  // can't both pass validation against the same pre-write snapshot.
+  private readonly workspaceLock = new PerWorkspaceLock()
+
   constructor(private readonly deps: HITLServiceDeps) {}
 
   // Server-side proposal creation. Validates ops against the current graph,
@@ -95,26 +101,31 @@ export class HITLService {
   }
 
   async applyProposal(proposalId: ProposalId, userId: UserId): Promise<Decision> {
-    const proposal = await this.deps.proposalRepository.load(proposalId)
-    // Check the status transition first so a re-apply of an already-applied
-    // proposal raises ConflictError instead of whatever validation issue its
-    // ops would now produce against the post-first-apply graph.
-    const applied = proposal.markApplied(userId, this.deps.clock.now())
-    await this.assertOperationsValid(proposal.workspaceId, [...proposal.operations])
-    await this.deps.modelRepository.applyOperations(proposal.workspaceId, [...proposal.operations])
-    await this.deps.proposalRepository.save(applied)
-    this.deps.eventBus?.publish({
-      type: 'proposal.applied',
-      workspaceId: proposal.workspaceId,
-      proposalId: proposal.id,
-      at: this.deps.clock.now(),
-    })
-
-    return this.recordDecision({
-      workspaceId: proposal.workspaceId,
-      action: 'applyProposal',
-      by: userId,
-      references: { proposalId },
+    // Outer load discovers the workspace so the lock can key on it.
+    // The post-lock load is the authoritative read — the proposal may
+    // have been applied by another caller while we were queued, in
+    // which case markApplied raises ConflictError (status already
+    // applied) and the second caller gets a clean 409 instead of a
+    // misleading "node already exists" from preview.
+    const initial = await this.deps.proposalRepository.load(proposalId)
+    return this.workspaceLock.run(initial.workspaceId, async () => {
+      const proposal = await this.deps.proposalRepository.load(proposalId)
+      const applied = proposal.markApplied(userId, this.deps.clock.now())
+      await this.assertOperationsValid(proposal.workspaceId, [...proposal.operations])
+      await this.deps.modelRepository.applyOperations(proposal.workspaceId, [...proposal.operations])
+      await this.deps.proposalRepository.save(applied)
+      this.deps.eventBus?.publish({
+        type: 'proposal.applied',
+        workspaceId: proposal.workspaceId,
+        proposalId: proposal.id,
+        at: this.deps.clock.now(),
+      })
+      return this.recordDecision({
+        workspaceId: proposal.workspaceId,
+        action: 'applyProposal',
+        by: userId,
+        references: { proposalId },
+      })
     })
   }
 

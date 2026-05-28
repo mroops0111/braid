@@ -1,5 +1,6 @@
 export * from './application/HITLService.js'
 export * from './application/ModelService.js'
+export * from './application/PerWorkspaceLock.js'
 export * from './application/SourceLoaderRunner.js'
 export * from './application/ValidationService.js'
 export * from './application/WorkspaceEventBus.js'

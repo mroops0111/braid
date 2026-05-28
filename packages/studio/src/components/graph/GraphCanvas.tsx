@@ -254,6 +254,18 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   // every click felt twitchy. Only navigator + detail-sheet entry
   // points go through `selectAndCenter`.
 
+  // Edge-centring helper. Declared before any early return so the hook
+  // call order is identical across renders (Rules of Hooks).
+  const centerOnEdge = useCallback((edge: GraphEdge) => {
+    const fromPos = laidOut.nodes.find(n => n.id === edge.fromNodeId)?.position
+    const toPos = laidOut.nodes.find(n => n.id === edge.toNodeId)?.position
+    if (!fromPos || !toPos)
+      return
+    const mx = (fromPos.x + toPos.x) / 2 + 100
+    const my = (fromPos.y + toPos.y) / 2 + 32
+    reactFlow.setCenter(mx, my, { zoom: 1, duration: 250 })
+  }, [laidOut.nodes, reactFlow])
+
   useGraphShortcuts(reactFlow)
 
   if (isLoading)
@@ -274,18 +286,6 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
     : null
   const selectedEdgeFromNode = selectedEdge ? nodesById.get(selectedEdge.fromNodeId) : undefined
   const selectedEdgeToNode = selectedEdge ? nodesById.get(selectedEdge.toNodeId) : undefined
-  const centerOnEdge = useCallback((edge: GraphEdge) => {
-    // Centring on an edge means centring on its midpoint: average the
-    // two endpoint nodes' positions. Falls back silently if either
-    // endpoint isn't laid out yet (filter could hide it).
-    const fromPos = laidOut.nodes.find(n => n.id === edge.fromNodeId)?.position
-    const toPos = laidOut.nodes.find(n => n.id === edge.toNodeId)?.position
-    if (!fromPos || !toPos)
-      return
-    const mx = (fromPos.x + toPos.x) / 2 + 100
-    const my = (fromPos.y + toPos.y) / 2 + 32
-    reactFlow.setCenter(mx, my, { zoom: 1, duration: 250 })
-  }, [laidOut.nodes, reactFlow])
   // When we reach the `FilteredEmpty` branch below, `allNodes` is
   // non-empty (early return covers the zero case) and `filtered` is
   // empty — the filter is, by elimination, the cause. The previous

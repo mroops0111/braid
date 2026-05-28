@@ -38,9 +38,31 @@ async function main(): Promise<void> {
 
   const app = createApp(deps, { apiUrl })
 
-  serve({ fetch: app.fetch, port }, ({ port: boundPort }) => {
+  const server = serve({ fetch: app.fetch, port }, ({ port: boundPort }) => {
     log.info({ port: boundPort }, `listening on http://localhost:${boundPort}`)
   })
+
+  // Close the model repository on shutdown so Kuzu flushes its WAL.
+  // Second signal force-quits in case close hangs.
+  let shuttingDown = false
+  async function shutdown(signal: string): Promise<void> {
+    if (shuttingDown) {
+      log.warn({ signal }, 'received second shutdown signal, exiting now')
+      process.exit(1)
+    }
+    shuttingDown = true
+    log.info({ signal }, 'shutting down')
+    server.close()
+    try {
+      await deps.modelRepository.close?.()
+    }
+    catch (err) {
+      log.error({ err }, 'modelRepository.close failed')
+    }
+    process.exit(0)
+  }
+  process.on('SIGINT', () => void shutdown('SIGINT'))
+  process.on('SIGTERM', () => void shutdown('SIGTERM'))
 
   // Any run without a `completedAt` is from a previous server process that was
   // killed mid-run. Tag those as aborted so they don't appear "active forever"

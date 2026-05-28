@@ -8,6 +8,15 @@ braid:
   order: 100
   summary: Extract domain nodes/edges from PRDs and code
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
+  inputs:
+    - name: scope
+      label: Intent
+      description: Pick one or more intent documents to extract from. Multi-select runs the skill in parallel for each pick. Leave empty to diff against discovered sources and pick the largest gap.
+      kind: multi-pick
+      optional: true
+      provider:
+        type: source-intent
+      fallback: text
 ---
 
 ## Role
