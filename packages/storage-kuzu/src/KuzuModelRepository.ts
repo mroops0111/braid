@@ -67,6 +67,10 @@ export class KuzuModelRepository implements ModelRepository {
     const previous = await readSnapshot(cached.conn)
     const next = Model.preview(previous, operations)
     await writeDiff(cached, previous, next)
+    // Kuzu auto-checkpoint is lazy; force it so the WAL is merged
+    // into model.kuzu before we return. A dirty shutdown (SIGKILL,
+    // tsx-watch reload) otherwise drops an unmerged WAL on the floor.
+    await cached.conn.query('CHECKPOINT;')
   }
 
   async findNodes(workspaceId: WorkspaceId, filter?: GraphNodeFilter): Promise<GraphNode[]> {

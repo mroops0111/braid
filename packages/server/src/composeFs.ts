@@ -1,9 +1,11 @@
 import type { AgentPlugin, OntologyPlugin, SourceLoaderPlugin, StoragePlugin } from '@braidhq/core'
 import type { AbsolutePath, AgentEffort, AgentId, AgentKind, StorageKind, WorkspaceId } from '@braidhq/schema'
 import type { AppDependencies } from './composition.js'
+import { spawn } from 'node:child_process'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 import { claudeCodeAgentPlugin } from '@braidhq/agent-claude-code'
 import {
   builtinSkillsRoot,
@@ -201,14 +203,41 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   })
 
   const eventBus = new InMemoryWorkspaceEventBus()
+  // Built-in braid-core MCP gateway: each spawned skill gets a stdio
+  // entry that runs `uvx openapi-mcp-gateway` with --transport stdio.
+  // The gateway lifecycle tracks the claude subprocess; no separate
+  // long-running server. Requires `uv` to be installed on PATH; if it
+  // isn't, skip the entry silently — skills with
+  // `requiredMcpServers: ['braid-core']` will surface as not-ready
+  // via SkillManifest.readinessIssuesFor, with a clear pointer.
+  const uvxBin = await detectUvx()
+  if (!uvxBin) {
+    console.warn(
+      '[braid] `uv` not found on PATH; the built-in braid-core MCP gateway will not be available. '
+      + 'Install via `brew install uv` or https://docs.astral.sh/uv/ to enable.',
+    )
+  }
+  // Build the list of reference dirs symlinked into every skill session:
+  //   - builtin `shared/` from @braidhq/core (Proposal / Clarify / Validator
+  //     format docs, content conventions, drift-detection guidance)
+  //   - whatever each registered plugin contributes (e.g. ontology-ddd's
+  //     concept doc). Plugin contributions resolve `URL` -> absolute path.
+  const pluginReferenceDirs = pluginRegistry.pluginReferenceDirs().map((ref) => {
+    const dir = typeof ref.directory === 'string' ? ref.directory : fileURLToPath(ref.directory)
+    return { name: ref.name, path: dir as AbsolutePath }
+  })
   const skillRunner = new SubprocessSkillRunner({
     skillRegistry,
     agentBinding,
     apiUrl,
     runRepository,
     eventBus,
+    ...(uvxBin
+      ? { coreGateway: { specUrl: `${apiUrl}/openapi.json`, uvxBin } }
+      : {}),
     referenceDirs: [
       { name: 'shared', path: join(builtinSkillsRoot, 'shared') as AbsolutePath },
+      ...pluginReferenceDirs,
     ],
   })
 
@@ -237,4 +266,22 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     secretStore,
     ...(googleOAuth ? { googleOAuth } : {}),
   }
+}
+
+/**
+ * Resolve the `uvx` binary path by running `uvx --version`. Returns
+ * `'uvx'` when the call succeeds (we let `PATH` resolve it at spawn
+ * time so we don't bake an absolute path into mcp-config), or
+ * `undefined` when `uv` isn't installed. Honours `BRAID_UVX_BIN` for
+ * pinning a specific binary (uv in a non-PATH location, or tests
+ * that want to inject a stub).
+ */
+async function detectUvx(): Promise<string | undefined> {
+  const pinned = process.env.BRAID_UVX_BIN
+  const command = pinned && pinned.length > 0 ? pinned : 'uvx'
+  return await new Promise((resolve) => {
+    const child = spawn(command, ['--version'], { stdio: 'ignore' })
+    child.once('error', () => resolve(undefined))
+    child.once('exit', code => resolve(code === 0 ? command : undefined))
+  })
 }

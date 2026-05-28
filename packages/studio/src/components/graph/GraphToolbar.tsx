@@ -1,4 +1,4 @@
-import { Focus as FocusIcon, LayoutGrid, Network } from 'lucide-react'
+import { Focus as FocusIcon, LayoutGrid, Network, SquareDashed } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export type GraphView = 'visualization' | 'table'
@@ -29,6 +29,34 @@ export function FocusToggle({ active, onChange }: { active: boolean, onChange: (
     >
       <FocusIcon className="size-3.5" />
       Focus
+    </button>
+  )
+}
+
+/**
+ * Toggle for proposal preview: dim every node / edge that this proposal
+ * does not touch. Restores the "I only want to see what changed"
+ * experience for incremental proposals where adds / updates / removes
+ * make up a small fraction of the total snapshot. Unaffected nodes
+ * stay visible (faded) so reviewers retain topology context — see
+ * `DIMMED_NODE_OPACITY` in `styleTokens.ts`.
+ */
+export function OnlyChangesToggle({ active, onChange }: { active: boolean, onChange: (next: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!active)}
+      aria-pressed={active}
+      title={active ? 'Show full graph' : 'Dim unchanged nodes & edges'}
+      className={cn(
+        'flex h-7 items-center gap-1 rounded-md border border-border px-2 text-[11px] shadow-sm transition-colors',
+        active
+          ? 'bg-accent text-foreground'
+          : 'bg-card text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+      )}
+    >
+      <SquareDashed className="size-3.5" />
+      Only changes
     </button>
   )
 }

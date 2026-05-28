@@ -16,4 +16,6 @@ export interface ModelRepository {
   getNode: (workspaceId: WorkspaceId, nodeId: NodeId) => Promise<GraphNode>
   scopeOf: (workspaceId: WorkspaceId, nodeId: NodeId, depth: number) => Promise<ModelSnapshot>
   listEdges: (workspaceId: WorkspaceId, filter?: GraphEdgeFilter) => Promise<GraphEdge[]>
+  /** Optional graceful-shutdown hook for implementations holding native resources (file locks, native handles). Idempotent. */
+  close?: () => Promise<void>
 }

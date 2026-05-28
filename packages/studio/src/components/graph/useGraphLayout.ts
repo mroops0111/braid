@@ -17,6 +17,13 @@ export interface NodeCardData extends Record<string, unknown> {
    * proposal preview. Drives the ring color around the card.
    */
   change?: ChangeKind
+  /**
+   * Set by `GraphCanvas` when the parent passes `emphasizeAdded`. When
+   * paired with `change === 'added'` the card adds a green ring + shadow
+   * so incremental proposals (where only a small fraction of the graph
+   * changes) don't bury the diff in a sea of unmarked context.
+   */
+  emphasizeAdded?: boolean
 }
 
 export interface EdgeCardData extends Record<string, unknown> {

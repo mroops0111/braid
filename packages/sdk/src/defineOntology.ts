@@ -10,7 +10,7 @@ import type {
   OntologyId,
   PluginId,
 } from '@braidhq/schema'
-import type { PluginSkillRef } from './types.js'
+import type { PluginReferenceDirRef, PluginSkillRef } from './types.js'
 import { OntologyTypeValidator, StructuralValidator } from '@braidhq/core'
 import { z } from 'zod'
 import {
@@ -38,6 +38,8 @@ export interface DefineOntologyInput {
   readonly extraValidators?: readonly OntologyValidator[]
   /** Skills this plugin ships alongside the ontology (see PluginSkillRef). */
   readonly skills?: readonly PluginSkillRef[]
+  /** Reference directories (concept docs, shared rules) this plugin ships for its skills to Read at run time (see PluginReferenceDirRef). */
+  readonly referenceDirs?: readonly PluginReferenceDirRef[]
   /** Optional config-schema override; defaults to an empty object schema. */
   readonly configSchema?: z.ZodTypeAny
   /** Optional explicit plugin id; defaults to `ontology.<ontologyId>`. */
@@ -102,6 +104,7 @@ export function defineOntology(input: DefineOntologyInput): OntologyPlugin {
     nodeTypes,
     edgeTypes,
     skills: input.skills ?? [],
+    referenceDirs: input.referenceDirs ?? [],
     validators: [],
   }
 

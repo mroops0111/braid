@@ -10,6 +10,19 @@ export type EdgeTypeId = z.infer<typeof EdgeTypeId>
 export const NodeStatus = z.enum(['draft', 'completed', 'unclear', 'deprecated'])
 export type NodeStatus = z.infer<typeof NodeStatus>
 
+/**
+ * Hints for ontology-agnostic renderers (e.g. `braid-generate-doc`)
+ * to lay nodes out in a document tree without hard-coding ontology
+ * vocabulary. See `NodeTypeDescriptor.renderHint` in
+ * `packages/core/src/domain/plugin/Ontology.ts` for the contract.
+ */
+export const NodeTypeRenderHint = z.object({
+  container: z.boolean().optional(),
+  expandedUnder: NodeTypeId.optional(),
+  section: z.string().min(1).optional(),
+})
+export type NodeTypeRenderHint = z.infer<typeof NodeTypeRenderHint>
+
 export const NodeTypeDescriptor = z.object({
   id: NodeTypeId,
   label: z.string().min(1),
@@ -17,6 +30,7 @@ export const NodeTypeDescriptor = z.object({
   allowedStatuses: z.array(NodeStatus).optional(),
   color: z.string().optional(),
   defaultVisible: z.boolean().optional(),
+  renderHint: NodeTypeRenderHint.optional(),
 })
 export type NodeTypeDescriptor = z.infer<typeof NodeTypeDescriptor>
 

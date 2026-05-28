@@ -26,6 +26,61 @@ describe('GET /health', () => {
   })
 })
 
+describe('GET /openapi.json', () => {
+  it('exposes the OpenAPI document with the routes skills consume as MCP tools', async () => {
+    const response = await (await buildTestApp()).app.request('/openapi.json')
+    expect(response.status).toBe(200)
+    const doc = await readJson<{
+      openapi: string
+      info: { title: string }
+      paths: Record<string, Record<string, { operationId?: string }>>
+    }>(response)
+
+    expect(doc.openapi.startsWith('3.')).toBe(true)
+    expect(doc.info.title).toBe('Braid REST API')
+
+    // Collect every operationId in the spec.
+    const operationIds = Object.values(doc.paths).flatMap(pathItem =>
+      Object.values(pathItem).map(op => op.operationId).filter((id): id is string => typeof id === 'string'),
+    )
+
+    // Skill-facing operations the openapi-mcp-gateway will surface as MCP tools.
+    for (const expected of [
+      'health',
+      'getOntology',
+      'getModelSnapshot',
+      'listNodes',
+      'getNode',
+      'getNodeScope',
+      'listEdges',
+      'listProposals',
+      'getProposal',
+      'createProposal',
+      'validateProposal',
+      'listClarifyTickets',
+      'getClarifyTicket',
+      'createClarifyTicket',
+      'markClarifyTicketApplied',
+      'listDecisions',
+      'getDecision',
+    ]) {
+      expect(operationIds, `missing operationId: ${expected}`).toContain(expected)
+    }
+
+    // SSE streams, the OAuth HTML callback, and workspace-management
+    // routes (CLI / Studio admin surface) are intentionally NOT in the
+    // spec — they aren't invocable as MCP tools.
+    const allPaths = Object.keys(doc.paths)
+    for (const excluded of [
+      '/workspaces/{workspaceId}/runs/{runId}/events',
+      '/workspaces/{workspaceId}/events',
+      '/oauth/google/callback',
+    ]) {
+      expect(allPaths, `unexpected path in spec: ${excluded}`).not.toContain(excluded)
+    }
+  })
+})
+
 describe('error middleware', () => {
   it('maps ValidationError to 400 problem+json', async () => {
     const { app } = await buildTestApp()

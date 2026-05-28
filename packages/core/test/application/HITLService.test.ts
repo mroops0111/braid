@@ -218,6 +218,31 @@ describe('HITLService', () => {
       expect(reloaded.status).toBe('pending')
       expect((await fixture.modelRepository.load(fixture.workspaceId)).nodes).toEqual([])
     })
+
+    it('serialises concurrent applyProposal calls per workspace', async () => {
+      // Without per-workspace locking both calls read the same empty
+      // snapshot, both pass validation, both try to write, and one
+      // surfaces a misleading "node already exists" from the underlying
+      // store. With the lock the second caller sees the proposal already
+      // applied and gets a clean ConflictError.
+      const fixture = await setupFixture()
+      const proposal = makeProposal(fixture.workspaceId)
+      await fixture.proposalRepository.save(proposal)
+
+      const results = await Promise.allSettled([
+        fixture.service.applyProposal(proposal.id, userId),
+        fixture.service.applyProposal(proposal.id, userId),
+      ])
+
+      const fulfilled = results.filter(r => r.status === 'fulfilled')
+      const rejected = results.filter(r => r.status === 'rejected')
+      expect(fulfilled).toHaveLength(1)
+      expect(rejected).toHaveLength(1)
+      expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(ConflictError)
+
+      const snapshot = await fixture.modelRepository.load(fixture.workspaceId)
+      expect(snapshot.nodes).toHaveLength(1)
+    })
   })
 
   describe('rejectProposal', () => {

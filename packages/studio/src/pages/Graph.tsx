@@ -11,7 +11,7 @@ interface GraphPageProps {
 }
 
 export function GraphPage({ workspaceId, state }: GraphPageProps) {
-  const { view, setView, selectedNodeId, setSelectedNodeId, focusMode, setFocusMode } = state
+  const { view, setView, selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode } = state
 
   // Cmd+1 / Cmd+2 swap visualization ↔ table while Graph is mounted.
   useEffect(() => {
@@ -47,6 +47,8 @@ export function GraphPage({ workspaceId, state }: GraphPageProps) {
         view={view}
         selectedNodeId={selectedNodeId}
         onSelectNode={setSelectedNodeId}
+        selectedEdgeId={selectedEdgeId}
+        onSelectEdge={setSelectedEdgeId}
         focusMode={focusMode}
       />
     </div>

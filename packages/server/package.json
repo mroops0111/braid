@@ -31,6 +31,7 @@
     "@braidhq/source-loader-git": "workspace:*",
     "@braidhq/storage-kuzu": "workspace:*",
     "@hono/node-server": "^1.13.0",
+    "@hono/zod-openapi": "^0.19.10",
     "@hono/zod-validator": "^0.4.0",
     "hono": "^4.6.0",
     "pino": "^9.5.0",

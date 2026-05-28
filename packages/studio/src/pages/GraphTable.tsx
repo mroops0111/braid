@@ -2,6 +2,7 @@ import type { ChangeKind, EdgeId, GraphEdge, GraphNode, NodeId, ProposalDiff } f
 import { GitBranch } from 'lucide-react'
 import { useMemo } from 'react'
 import { EmptyState } from '@/components/EmptyState'
+import { EdgeDetailPanel } from '@/components/graph/EdgeDetailPanel'
 import { type GraphDataSource, useLiveGraphDataSource } from '@/components/graph/GraphDataSource'
 import { computeNeighborhood } from '@/components/graph/neighborhood'
 import { NodeDetailPanel } from '@/components/graph/NodeDetailPanel'
@@ -30,11 +31,25 @@ interface GraphTablePageProps {
   selectedNodeId?: NodeId | null
   onSelectNode?: (id: NodeId | null) => void
   /**
+   * Controlled edge selection. Mirrors `selectedNodeId`. Mutual
+   * exclusion is the parent's responsibility; when uncontrolled the
+   * table maintains the invariant internally.
+   */
+  selectedEdgeId?: EdgeId | null
+  onSelectEdge?: (id: EdgeId | null) => void
+  /**
    * Controlled focus mode. When provided, the parent owns on/off so
    * the same toggle drives both canvas and table from a page-level
    * toolbar.
    */
   focusMode?: boolean
+  /**
+   * Mirrors Canvas's `emphasizeAdded`. When `true`, `added` rows
+   * carry a green ring (in addition to the Change badge) so a small
+   * diff against a large graph still draws the eye in the Table
+   * view. Has no effect outside proposal preview.
+   */
+  emphasizeAdded?: boolean
 }
 
 export function GraphTablePage(props: GraphTablePageProps) {
@@ -48,10 +63,32 @@ export function GraphTablePage(props: GraphTablePageProps) {
   )
 }
 
-function GraphTableInner({ workspaceId, source, selectedNodeId: controlledSelected, onSelectNode, focusMode = false }: GraphTablePageProps) {
+function GraphTableInner({
+  workspaceId,
+  source,
+  selectedNodeId: controlledSelected,
+  onSelectNode,
+  selectedEdgeId: controlledEdgeSelected,
+  onSelectEdge,
+  focusMode = false,
+  emphasizeAdded = false,
+}: GraphTablePageProps) {
   const liveSource = useLiveGraphDataSource(workspaceId)
   const effective = source ?? liveSource
   const [selectedId, setSelectedId] = useControllableState<NodeId | null>(controlledSelected, onSelectNode, null)
+  const [selectedEdgeId, setSelectedEdgeId] = useControllableState<EdgeId | null>(controlledEdgeSelected, onSelectEdge, null)
+
+  // Mutual-exclusion helpers — match the Canvas's invariant so a user
+  // bouncing between the two views never lands on a state where both
+  // a node and an edge are highlighted at once.
+  const selectNode = (id: NodeId | null): void => {
+    setSelectedId(id)
+    setSelectedEdgeId(null)
+  }
+  const selectEdge = (id: EdgeId | null): void => {
+    setSelectedEdgeId(id)
+    setSelectedId(null)
+  }
 
   const neighborhood = useMemo(
     () => computeNeighborhood(selectedId, effective.edges),
@@ -72,6 +109,9 @@ function GraphTableInner({ workspaceId, source, selectedNodeId: controlledSelect
 
   const { nodes, edges, diff } = effective
   const selectedNode = selectedId ? nodes.find(n => n.id === selectedId) ?? null : null
+  const selectedEdge = selectedEdgeId ? edges.find(e => e.id === selectedEdgeId) ?? null : null
+  const selectedEdgeFromNode = selectedEdge ? nodes.find(n => n.id === selectedEdge.fromNodeId) : undefined
+  const selectedEdgeToNode = selectedEdge ? nodes.find(n => n.id === selectedEdge.toNodeId) : undefined
   // Visible set: in focus mode we hide non-neighbours entirely (table
   // shrinks); otherwise everything stays in the list and non-neighbours
   // are muted in-place.
@@ -86,15 +126,19 @@ function GraphTableInner({ workspaceId, source, selectedNodeId: controlledSelect
           <NodeTable
             nodes={visibleNodes}
             selectedId={selectedId}
-            onSelect={node => setSelectedId(node.id)}
+            onSelect={node => selectNode(node.id)}
             neighbors={neighborhood.neighbors}
             dim={!showAll ? false : selectedId !== null}
+            emphasizeAdded={emphasizeAdded}
             {...optional({ diff })}
           />
           <EdgeTable
             edges={visibleEdges}
             incidentEdges={neighborhood.incidentEdges}
+            selectedId={selectedEdgeId}
+            onSelect={edge => selectEdge(edge.id)}
             dim={!showAll ? false : selectedId !== null}
+            emphasizeAdded={emphasizeAdded}
             {...optional({ diff })}
           />
         </div>
@@ -109,8 +153,22 @@ function GraphTableInner({ workspaceId, source, selectedNodeId: controlledSelect
             nodesById={nodesById}
             incoming={incoming}
             outgoing={outgoing}
-            onClose={() => setSelectedId(null)}
-            onSelectNode={id => setSelectedId(id)}
+            onClose={() => selectNode(null)}
+            onSelectNode={id => selectNode(id)}
+          />
+        </aside>
+      )}
+      {!selectedNode && selectedEdge && (
+        <aside
+          className="flex shrink-0 flex-col border-l border-border bg-card"
+          style={{ width: NODE_DETAIL_ASIDE_WIDTH }}
+        >
+          <EdgeDetailPanel
+            edge={selectedEdge}
+            fromNode={selectedEdgeFromNode}
+            toNode={selectedEdgeToNode}
+            onClose={() => selectEdge(null)}
+            onSelectNode={id => selectNode(id)}
           />
         </aside>
       )}
@@ -125,6 +183,7 @@ function NodeTable({
   onSelect,
   neighbors,
   dim,
+  emphasizeAdded,
 }: {
   nodes: readonly GraphNode[]
   diff?: ProposalDiff
@@ -134,6 +193,8 @@ function NodeTable({
   neighbors: ReadonlySet<NodeId>
   /** When true, rows not in `neighbors` render at reduced opacity. */
   dim: boolean
+  /** When true, `added` rows pick up the same emerald ring that the Canvas applies on incremental proposals. */
+  emphasizeAdded: boolean
 }) {
   const showChange = diff !== undefined
   return (
@@ -156,6 +217,8 @@ function NodeTable({
         <tbody>
           {nodes.map((node) => {
             const muted = dim && !neighbors.has(node.id as NodeId)
+            const change = diff?.nodes.get(node.id as NodeId)
+            const added = change === 'added' && emphasizeAdded
             return (
               <tr
                 key={node.id}
@@ -163,12 +226,13 @@ function NodeTable({
                 className={cn(
                   'cursor-pointer border-b border-border/50 transition-[opacity,background-color] duration-150 hover:bg-accent',
                   node.id === selectedId && 'bg-accent',
+                  added && 'shadow-[inset_3px_0_0_0] shadow-emerald-500/70',
                   muted && 'opacity-30',
                 )}
               >
                 {showChange && (
                   <td className="px-4 py-1.5">
-                    <ChangeBadge change={diff!.nodes.get(node.id as NodeId)} />
+                    <ChangeBadge change={change} />
                   </td>
                 )}
                 <td className="px-4 py-1.5">
@@ -188,11 +252,22 @@ function NodeTable({
   )
 }
 
-function EdgeTable({ edges, diff, incidentEdges, dim }: {
+function EdgeTable({
+  edges,
+  diff,
+  incidentEdges,
+  selectedId,
+  onSelect,
+  dim,
+  emphasizeAdded,
+}: {
   edges: readonly GraphEdge[]
   diff?: ProposalDiff
   incidentEdges: ReadonlySet<EdgeId>
+  selectedId: EdgeId | null
+  onSelect: (edge: GraphEdge) => void
   dim: boolean
+  emphasizeAdded: boolean
 }) {
   if (edges.length === 0)
     return null
@@ -216,11 +291,22 @@ function EdgeTable({ edges, diff, incidentEdges, dim }: {
         <tbody>
           {edges.map((edge) => {
             const muted = dim && !incidentEdges.has(edge.id as EdgeId)
+            const change = diff?.edges.get(edge.id as EdgeId)
+            const added = change === 'added' && emphasizeAdded
             return (
-              <tr key={edge.id} className={cn('border-b border-border/50 transition-opacity duration-150', muted && 'opacity-30')}>
+              <tr
+                key={edge.id}
+                onClick={() => onSelect(edge)}
+                className={cn(
+                  'cursor-pointer border-b border-border/50 transition-[opacity,background-color] duration-150 hover:bg-accent',
+                  edge.id === selectedId && 'bg-accent',
+                  added && 'shadow-[inset_3px_0_0_0] shadow-emerald-500/70',
+                  muted && 'opacity-30',
+                )}
+              >
                 {showChange && (
                   <td className="px-4 py-1.5">
-                    <ChangeBadge change={diff!.edges.get(edge.id as EdgeId)} />
+                    <ChangeBadge change={change} />
                   </td>
                 )}
                 <td className="px-4 py-1.5">
@@ -261,7 +347,7 @@ function EdgeTypePill({ type }: { type: GraphEdge['type'] }) {
 
 function ChangeBadge({ change }: { change: ChangeKind | undefined }) {
   if (!change)
-    return <span className="text-[11px] text-muted-foreground/50">—</span>
+    return <span className="text-[11px] text-muted-foreground/50">·</span>
   return (
     <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider ${CHANGE_BADGE_CLASS[change]}`}>
       {change}

@@ -15,7 +15,7 @@ export type ClarifyStatus = z.infer<typeof ClarifyStatus>
 
 export const ClarifyCandidate = z.object({
   id: ClarifyCandidateId,
-  description: z.string(),
+  description: z.string().min(1).max(200).regex(/^[^\n]+$/, 'Candidate description must be a single line').describe('One-line summary of this candidate resolution. Imperative or declarative. See content-conventions.md.'),
   sourceReferences: z.array(SourceReference).default([]),
   proposedOperations: z.array(GraphOperation).default([]),
 })
@@ -24,7 +24,7 @@ export type ClarifyCandidate = z.infer<typeof ClarifyCandidate>
 export const ClarifyTicket = z.object({
   id: ClarifyTicketId,
   workspaceId: WorkspaceId,
-  question: z.string().min(1),
+  question: z.string().min(1).max(400).describe('Single question for the reviewer, ending with `?`. Names both candidate readings. See content-conventions.md.'),
   candidates: z.array(ClarifyCandidate),
   status: ClarifyStatus,
   answeredBy: UserId.optional(),
@@ -42,7 +42,7 @@ export type ClarifyTicket = z.infer<typeof ClarifyTicket>
 
 export const ClarifyDraft = z.object({
   workspaceId: WorkspaceId,
-  question: z.string().min(1),
+  question: z.string().min(1).max(400).describe('Single question for the reviewer, ending with `?`. Names both candidate readings. See content-conventions.md.'),
   candidates: z.array(ClarifyCandidate),
   externalReferences: z.array(ExternalReference).optional(),
 })

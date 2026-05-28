@@ -19,3 +19,23 @@ export interface PluginSkillRef {
    */
   readonly directory: URL | string
 }
+
+/**
+ * Reference to a *shared reference* directory the plugin contributes
+ * to every spawned skill session. The skill runner symlinks the
+ * directory under `<session>/.claude/skills/<name>/` so SKILL.md files
+ * can `Read <cwd>/.claude/skills/<name>/<file>.md` from any skill,
+ * regardless of which one spawned the session.
+ *
+ * The intended use is ontology- or domain-level concept docs: content
+ * that defines the *vocabulary and rules* the plugin's skills assume,
+ * which would otherwise be duplicated across each SKILL.md.
+ *
+ * `name` becomes a subdirectory under `.claude/skills/`, so pick
+ * something stable and namespaced (e.g. `ontology-ddd`, not just
+ * `shared`).
+ */
+export interface PluginReferenceDirRef {
+  readonly name: string
+  readonly directory: URL | string
+}

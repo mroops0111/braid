@@ -1,10 +1,11 @@
-import type { NodeId } from '@braidhq/schema'
+import type { EdgeId, NodeId } from '@braidhq/schema'
 import type { GraphDataSource } from '@/components/graph/GraphDataSource'
 import type { GraphView } from '@/components/graph/GraphToolbar'
 import { useState } from 'react'
 import { GraphCanvas } from '@/components/graph/GraphCanvas'
 import { FocusToggle, ViewToggle } from '@/components/graph/GraphToolbar'
 import { optional } from '@/lib/optional'
+import { useMutualExclusionPair } from '@/lib/useMutualExclusionPair'
 import { GraphTablePage } from './GraphTable'
 
 export type { GraphView } from '@/components/graph/GraphToolbar'
@@ -18,30 +19,52 @@ export interface GraphSurfaceProps {
   source?: GraphDataSource
   /**
    * The surface is fully controlled — the parent owns `view`,
-   * `selectedNodeId`, and `focusMode` so a page-level toolbar (or
-   * section header) can drive them.
+   * `selectedNodeId`, `selectedEdgeId`, and `focusMode` so a
+   * page-level toolbar (or section header) can drive them.
+   * Node and edge selection are mutually exclusive; setting one
+   * should clear the other in the parent's setter pair.
    */
   view: GraphView
   selectedNodeId: NodeId | null
   onSelectNode: (id: NodeId | null) => void
+  selectedEdgeId: EdgeId | null
+  onSelectEdge: (id: EdgeId | null) => void
   focusMode: boolean
+  /** Proposal-preview only: see GraphCanvas for semantics. */
+  dimUnchanged?: boolean
+  /** Proposal-preview only: see GraphCanvas for semantics. */
+  emphasizeAdded?: boolean
 }
 
 /**
  * Renders either the Canvas or the Table for the same shared
- * (selection + focus) state. Consumed by the Graph page (live
- * snapshot) and the Proposals preview (diff source). Toolbar
- * placement is left to the consumer; see {@link GraphSurfaceActions}
- * for the canonical Focus + ViewToggle pair when defaults suffice.
+ * (node selection, edge selection, focus, diff overlay) state.
+ * Consumed by the Graph page (live snapshot) and the Proposals
+ * preview (diff source). Toolbar placement is left to the consumer;
+ * see {@link GraphSurfaceActions} for the canonical Focus +
+ * ViewToggle pair when defaults suffice.
  */
-export function GraphSurface({ workspaceId, source, view, selectedNodeId, onSelectNode, focusMode }: GraphSurfaceProps) {
+export function GraphSurface({
+  workspaceId,
+  source,
+  view,
+  selectedNodeId,
+  onSelectNode,
+  selectedEdgeId,
+  onSelectEdge,
+  focusMode,
+  dimUnchanged,
+  emphasizeAdded,
+}: GraphSurfaceProps) {
   if (view === 'visualization') {
     return (
       <GraphCanvas
         workspaceId={workspaceId}
-        {...optional({ source })}
+        {...optional({ source, dimUnchanged, emphasizeAdded })}
         selectedNodeId={selectedNodeId}
         onSelectNode={onSelectNode}
+        selectedEdgeId={selectedEdgeId}
+        onSelectEdge={onSelectEdge}
         focusMode={focusMode}
       />
     )
@@ -49,9 +72,11 @@ export function GraphSurface({ workspaceId, source, view, selectedNodeId, onSele
   return (
     <GraphTablePage
       workspaceId={workspaceId}
-      {...(source ? { source } : {})}
+      {...optional({ source, emphasizeAdded })}
       selectedNodeId={selectedNodeId}
       onSelectNode={onSelectNode}
+      selectedEdgeId={selectedEdgeId}
+      onSelectEdge={onSelectEdge}
       focusMode={focusMode}
     />
   )
@@ -60,9 +85,19 @@ export function GraphSurface({ workspaceId, source, view, selectedNodeId, onSele
 /** Hook bundling the shared state pages typically hoist for the surface. */
 export function useGraphSurfaceState(initialView: GraphView = 'visualization') {
   const [view, setView] = useState<GraphView>(initialView)
-  const [selectedNodeId, setSelectedNodeId] = useState<NodeId | null>(null)
+  const [selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId]
+    = useMutualExclusionPair<NodeId, EdgeId>()
   const [focusMode, setFocusMode] = useState(false)
-  return { view, setView, selectedNodeId, setSelectedNodeId, focusMode, setFocusMode }
+  return {
+    view,
+    setView,
+    selectedNodeId,
+    setSelectedNodeId,
+    selectedEdgeId,
+    setSelectedEdgeId,
+    focusMode,
+    setFocusMode,
+  }
 }
 
 /**

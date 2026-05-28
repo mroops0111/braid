@@ -82,7 +82,6 @@ describe('SkillFrontmatter', () => {
       allowedTools: ['Read', 'Grep', 'Bash'],
       braid: {
         requiredEnv: ['JIRA_TOKEN'],
-        requiredPaths: ['intent/jira'],
         requiredMcpServers: ['jira'],
       },
     })
@@ -98,6 +97,58 @@ describe('SkillFrontmatter', () => {
     })
     expect('requiredEnv' in fm).toBe(false)
     expect(fm.braid.requiredEnv).toEqual(['X'])
+  })
+
+  it('parses inputs[] with text and pick + static provider', () => {
+    const fm = SkillFrontmatter.parse({
+      name: 'braid-ask',
+      description: 'answer questions',
+      braid: {
+        inputs: [
+          { name: 'question', label: 'Question', kind: 'text', multiline: true },
+          {
+            name: 'mode',
+            label: 'Mode',
+            kind: 'pick',
+            provider: {
+              type: 'static',
+              options: [
+                { value: '', label: 'Detailed' },
+                { value: 'concise', label: 'Concise' },
+              ],
+            },
+            default: '',
+          },
+        ],
+      },
+    })
+    expect(fm.braid.inputs?.length).toBe(2)
+    const inputs = fm.braid.inputs ?? []
+    expect(inputs[0]?.kind).toBe('text')
+    const picked = inputs[1]
+    expect(picked?.kind).toBe('pick')
+    if (picked && picked.kind === 'pick')
+      expect(picked.provider.type).toBe('static')
+  })
+
+  it('rejects pick input without provider', () => {
+    expect(
+      SkillFrontmatter.safeParse({
+        name: 'x',
+        description: 'y',
+        braid: { inputs: [{ name: 'mode', label: 'Mode', kind: 'pick' }] },
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects input name that is not lowerCamelCase identifier', () => {
+    expect(
+      SkillFrontmatter.safeParse({
+        name: 'x',
+        description: 'y',
+        braid: { inputs: [{ name: 'Bad-Name', label: 'X', kind: 'text' }] },
+      }).success,
+    ).toBe(false)
   })
 
   it('rejects empty name', () => {

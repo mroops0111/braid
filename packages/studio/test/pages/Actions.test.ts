@@ -19,7 +19,6 @@ function skill(opts: {
       disableModelInvocation: true,
       braid: {
         requiredEnv: [],
-        requiredPaths: [],
         requiredMcpServers: [],
         ...(opts.category ? { category: opts.category } : {}),
         ...(opts.order !== undefined ? { order: opts.order } : {}),

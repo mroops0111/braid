@@ -1,4 +1,4 @@
-import type { EdgeTypeId, NodeTypeId } from '@braidhq/schema'
+import type { EdgeTypeId, NodeTypeId, SkillId } from '@braidhq/schema'
 import { defineOntology } from '@braidhq/sdk'
 
 /**
@@ -11,6 +11,35 @@ import { defineOntology } from '@braidhq/sdk'
 export const dddOntology = defineOntology({
   ontologyId: 'ddd',
 
+  // SKILL.md prompts shipped alongside this ontology. They encode
+  // DDD-specific reasoning (BoundedContext-contains-aggregate, the
+  // seven Context Mapping edges, Vernon Process Manager, etc.) that
+  // would be wrong for a non-DDD ontology to inherit, so they live
+  // here rather than in @braidhq/core.
+  skills: [
+    {
+      id: 'braid-extract' as SkillId,
+      directory: new URL('../skills/braid-extract', import.meta.url),
+    },
+    {
+      id: 'braid-clarify' as SkillId,
+      directory: new URL('../skills/braid-clarify', import.meta.url),
+    },
+    {
+      id: 'braid-model' as SkillId,
+      directory: new URL('../skills/braid-model', import.meta.url),
+    },
+  ],
+  // Shared reference docs the SKILL.md files above all consult so the
+  // DDD vocabulary / wiring rules / ID conventions live in one place
+  // instead of being duplicated in each Procedure.
+  referenceDirs: [
+    {
+      name: 'ontology-ddd',
+      directory: new URL('../skills/shared', import.meta.url),
+    },
+  ],
+
   nodeTypes: [
     {
       id: 'boundedContext' as NodeTypeId,
@@ -18,6 +47,7 @@ export const dddOntology = defineOntology({
       description: 'A subsystem with its own ubiquitous language; everything inside is one consistency boundary. Strategic DDD primitive (Evans Blue Book Part IV; Khononov 2021 ch. 3).',
       color: 'oklch(0.62 0.18 274)',
       defaultVisible: true,
+      renderHint: { container: true, section: 'Use cases' },
     },
     {
       id: 'aggregate' as NodeTypeId,
@@ -25,42 +55,49 @@ export const dddOntology = defineOntology({
       description: 'Cluster of domain objects treated as a unit for data changes; has a single root entity that controls access. Tactical DDD primitive (Evans Blue Book Part II; Vernon IDDD ch. 10; Khononov 2021 ch. 6).',
       color: 'oklch(0.7 0.15 155)',
       defaultVisible: true,
+      renderHint: { expandedUnder: 'boundedContext' as NodeTypeId },
     },
     {
       id: 'command' as NodeTypeId,
       label: 'Command',
-      description: 'Imperative request that asks the system to change state; names use verbs (placeOrder, voidTask). CQRS primitive (Young 2010; Khononov 2021 ch. 11). The blue sticky in EventStorming.',
+      description: 'Imperative request that asks the system to change state; names use verbs (placeOrder, cancelOrder). CQRS primitive (Young 2010; Khononov 2021 ch. 11). The blue sticky in EventStorming.',
       color: 'oklch(0.65 0.18 250)',
+      renderHint: { expandedUnder: 'aggregate' as NodeTypeId },
     },
     {
       id: 'query' as NodeTypeId,
       label: 'Query',
       description: 'Read-only request that returns state without modifying it. CQRS primitive (Young 2010; Khononov 2021 ch. 11). Strict CQRS routes queries to a dedicated read-model node; in the absence of that node type, queries attach to the aggregate.',
       color: 'oklch(0.7 0.13 220)',
+      renderHint: { expandedUnder: 'aggregate' as NodeTypeId },
     },
     {
       id: 'event' as NodeTypeId,
       label: 'Domain Event',
       description: 'Past-tense fact about something that has already happened (OrderPlaced, ItemAdded). Tactical DDD primitive (Vernon IDDD ch. 8) and the orange sticky in EventStorming.',
       color: 'oklch(0.78 0.16 80)',
+      renderHint: { expandedUnder: 'command' as NodeTypeId },
     },
     {
       id: 'rule' as NodeTypeId,
       label: 'Business Rule',
       description: 'Invariant that must hold (MaxItemsRule, PositiveQuantityRule). Tactical DDD (Evans Specification pattern; Vernon IDDD invariants). Per-operation rules attach to a command or query; aggregate-wide invariants attach to the aggregate itself.',
       color: 'oklch(0.65 0.2 20)',
+      renderHint: { expandedUnder: 'command' as NodeTypeId },
     },
     {
       id: 'actor' as NodeTypeId,
       label: 'Actor',
       description: 'External role that triggers a command or query (Customer, Admin, BillingService). EventStorming primitive (Brandolini; the yellow stick-figure sticky) and Khononov 2021. Not in strict Evans / Vernon canon, where the issuer lives on the command\'s metadata.',
       color: 'oklch(0.72 0.13 310)',
+      renderHint: { section: 'Actors' },
     },
     {
       id: 'policy' as NodeTypeId,
       label: 'Policy',
       description: 'Automatic reaction: "when event X happens, do Y". EventStorming primitive (Brandolini; the purple sticky) and Khononov 2021. Materialises Vernon\'s Process Manager / Saga pattern when the reaction crosses aggregates or has its own naming.',
       color: 'oklch(0.62 0.2 310)',
+      renderHint: { section: 'Reactions' },
     },
   ],
 
