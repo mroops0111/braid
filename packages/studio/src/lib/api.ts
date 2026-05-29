@@ -1,5 +1,7 @@
 import type {
+  ClarifyAmbiguityType,
   ClarifyCandidate,
+  ClarifyOrigin,
   ClarifyTicket,
   Decision,
   ExternalReference,
@@ -7,6 +9,7 @@ import type {
   GraphNode,
   McpServerConfig,
   ModelSnapshot,
+  NodeId,
   OntologyResponse,
   ProductManifestDraft,
   Proposal,
@@ -44,6 +47,10 @@ export interface ClarifySubmitBody {
   question: string
   candidates: ReadonlyArray<Omit<ClarifyCandidate, 'id'> & { id?: ClarifyCandidate['id'] }>
   externalReferences?: ReadonlyArray<ExternalReference>
+  origin?: ClarifyOrigin
+  context?: string
+  relatedNode?: NodeId
+  ambiguityType?: ClarifyAmbiguityType
 }
 
 export interface IngestSummary {
