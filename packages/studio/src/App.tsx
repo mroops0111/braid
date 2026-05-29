@@ -1,36 +1,36 @@
 import type { EdgeId, NodeId, ProposalId } from '@braidhq/schema'
-import { Command, Settings2, Sparkles } from 'lucide-react'
+import type { Surface } from './components/CommandPalette'
+import { HelpCircle, Home, Inbox, Settings2, Sparkles } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CommandPalette, type TabKey } from './components/CommandPalette'
+import { CommandPalette } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
 import { InFlightRunBanner } from './components/InFlightRunBanner'
-import { PageActionsHost, PageActionsProvider } from './components/PageActions'
+import { PageActions, PageActionsHost, PageActionsProvider } from './components/PageActions'
 import { ServerUrlDialog } from './components/ServerUrlDialog'
 import { Sidebar } from './components/Sidebar'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
 import { usePendingClarify, usePendingProposals, useWorkspaces } from './lib/queries'
 import { GraphNavigationContext } from './lib/useGraphNavigation'
 import { TabNavigationContext } from './lib/useTabNavigation'
 import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
+import { cn } from './lib/utils'
 import { ActionsPage } from './pages/Actions'
 import { ClarifyPage } from './pages/Clarify'
-import { GraphPage } from './pages/Graph'
-import { useGraphSurfaceState } from './pages/GraphSurface'
+import { GraphSurface, GraphSurfaceActions, useGraphSurfaceState } from './pages/GraphSurface'
 import { ProposalsPage } from './pages/Proposals'
 
 export function App() {
   const { data: workspaces } = useWorkspaces()
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<TabKey>('actions')
+  // Graph is the workspace's home view; secondary surfaces (Actions /
+  // Clarify / Proposals) overlay it when active. `null` = home.
+  const [activeSurface, setActiveSurface] = useState<Surface | null>(null)
   const [detailsId, setDetailsId] = useState<string | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [serverUrlOpen, setServerUrlOpen] = useState(false)
-  // Hoist graph surface state so cross-tab navigation (e.g. clicking
-  // a node id in a proposal validation issue) can drive it.
   const graphSurfaceState = useGraphSurfaceState()
-  const { setSelectedNodeId } = graphSurfaceState
-  // One-shot deep-link target for the Proposals tab. ProposalsPage
+  const { setSelectedNodeId, setSelectedEdgeId } = graphSurfaceState
+  // One-shot deep-link target for the Proposals surface. ProposalsPage
   // consumes and clears it once it has selected the matching item.
   const [focusedProposalId, setFocusedProposalId] = useState<ProposalId | null>(null)
 
@@ -49,26 +49,35 @@ export function App() {
     setDetailsOpen(true)
   }
 
+  // Deep-link from a Proposal / Clarify validation issue: drop the
+  // overlaying surface so the user lands on the graph with their
+  // chosen node selected. The surface is one click away in the dock
+  // if they want to come back.
   const focusNode = useCallback((id: NodeId) => {
     setSelectedNodeId(id)
-    setActiveTab('graph')
-  }, [setSelectedNodeId])
+    setSelectedEdgeId(null)
+    setActiveSurface(null)
+  }, [setSelectedNodeId, setSelectedEdgeId])
 
-  // Edge focus has no graph-side state yet; switch tabs so the user
-  // at least lands on the graph. Once edge selection is wired up,
-  // augment here instead of touching the call-sites.
   const focusEdge = useCallback((_id: EdgeId) => {
-    setActiveTab('graph')
+    setActiveSurface(null)
   }, [])
 
   const graphNavigation = useMemo(() => ({ focusNode, focusEdge }), [focusNode, focusEdge])
 
   const focusProposal = useCallback((id: ProposalId) => {
     setFocusedProposalId(id)
-    setActiveTab('proposals')
+    setActiveSurface('proposals')
   }, [])
 
   const tabNavigation = useMemo(() => ({ focusProposal }), [focusProposal])
+
+  // Pressing the active surface dock button toggles back to home;
+  // shared with the CommandPalette so keyboard and pointer behave the
+  // same way.
+  const toggleSurface = useCallback((next: Surface) => {
+    setActiveSurface(current => (current === next ? null : next))
+  }, [])
 
   return (
     <GraphNavigationContext.Provider value={graphNavigation}>
@@ -83,50 +92,34 @@ export function App() {
               onOpenServerUrl={() => setServerUrlOpen(true)}
             />
             <main className="flex flex-1 flex-col overflow-hidden">
-              <Header
+              <WorkspaceHeader
                 workspaceId={activeId}
+                activeSurface={activeSurface}
+                onGoHome={() => setActiveSurface(null)}
                 onOpenDetails={() => activeId && openDetails(activeId)}
+                onToggleSurface={toggleSurface}
               />
               <InFlightRunBanner workspaceId={activeId} />
               {activeId
                 ? (
-                    <Tabs
-                      value={activeTab}
-                      onValueChange={value => setActiveTab(value as TabKey)}
-                      className="flex flex-1 flex-col overflow-hidden gap-0"
-                    >
-                      <div className="flex items-center justify-between border-b border-border px-4">
-                        <TabsList variant="line" className="h-10">
-                          <TabsTrigger value="actions">Actions</TabsTrigger>
-                          <TabsTrigger value="clarify">
-                            Clarify
-                            <ClarifyPendingBadge workspaceId={activeId} />
-                          </TabsTrigger>
-                          <TabsTrigger value="proposals">
-                            Proposals
-                            <ProposalsPendingBadge workspaceId={activeId} />
-                          </TabsTrigger>
-                          <TabsTrigger value="graph">Graph</TabsTrigger>
-                        </TabsList>
-                        <PageActionsHost className="flex items-center gap-2" />
-                      </div>
-                      <TabsContent value="actions" className="overflow-hidden">
+                    <div className="relative flex-1 overflow-hidden">
+                      {activeSurface === null && (
+                        <GraphHomeView workspaceId={activeId} state={graphSurfaceState} />
+                      )}
+                      {activeSurface === 'actions' && (
                         <ActionsPage workspaceId={activeId} />
-                      </TabsContent>
-                      <TabsContent value="clarify" className="overflow-hidden">
+                      )}
+                      {activeSurface === 'clarify' && (
                         <ClarifyPage workspaceId={activeId} />
-                      </TabsContent>
-                      <TabsContent value="proposals" className="overflow-hidden">
+                      )}
+                      {activeSurface === 'proposals' && (
                         <ProposalsPage
                           workspaceId={activeId}
                           focusedProposalId={focusedProposalId}
                           onFocusConsumed={() => setFocusedProposalId(null)}
                         />
-                      </TabsContent>
-                      <TabsContent value="graph" className="overflow-hidden">
-                        <GraphPage workspaceId={activeId} state={graphSurfaceState} />
-                      </TabsContent>
-                    </Tabs>
+                      )}
+                    </div>
                   )
                 : (
                     <NoWorkspaceState onSelect={setActiveId} />
@@ -135,9 +128,9 @@ export function App() {
             <CommandPalette
               workspaces={items}
               activeWorkspaceId={activeId}
-              activeTab={activeTab}
+              activeSurface={activeSurface}
               onSelectWorkspace={setActiveId}
-              onSelectTab={setActiveTab}
+              onSelectSurface={setActiveSurface}
             />
             <ServerUrlDialog open={serverUrlOpen} onOpenChange={setServerUrlOpen} />
             <WorkspaceDetailsSheet
@@ -163,10 +156,166 @@ export function App() {
   )
 }
 
-// Pending-proposal count shown next to the Proposals tab label so the
-// reviewer notices queued work without checking the sidebar. Hidden
-// when the count is zero to keep the tab strip quiet during normal
-// flow.
+/**
+ * Inlined Graph home view. Mounts the GraphSurface and routes its
+ * toolbar through the shared PageActions portal so view / focus
+ * controls sit in the contextual sub-bar alongside any future
+ * graph-only actions.
+ */
+function GraphHomeView({ workspaceId, state }: {
+  workspaceId: string
+  state: ReturnType<typeof useGraphSurfaceState>
+}) {
+  const { view, setView, selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode } = state
+
+  useEffect(() => {
+    function handler(event: KeyboardEvent): void {
+      if (!(event.metaKey || event.ctrlKey))
+        return
+      if (event.key === '1') {
+        event.preventDefault()
+        setView('visualization')
+      }
+      else if (event.key === '2') {
+        event.preventDefault()
+        setView('table')
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [setView])
+
+  return (
+    <div className="relative flex h-full flex-col overflow-hidden">
+      <PageActions>
+        <GraphSurfaceActions
+          view={view}
+          onViewChange={setView}
+          selectedNodeId={selectedNodeId}
+          focusMode={focusMode}
+          onFocusChange={setFocusMode}
+        />
+      </PageActions>
+      <GraphSurface
+        workspaceId={workspaceId}
+        view={view}
+        selectedNodeId={selectedNodeId}
+        onSelectNode={setSelectedNodeId}
+        selectedEdgeId={selectedEdgeId}
+        onSelectEdge={setSelectedEdgeId}
+        focusMode={focusMode}
+      />
+    </div>
+  )
+}
+
+function WorkspaceHeader({ workspaceId, activeSurface, onGoHome, onOpenDetails, onToggleSurface }: {
+  workspaceId: string | null
+  activeSurface: Surface | null
+  onGoHome: () => void
+  onOpenDetails: () => void
+  onToggleSurface: (next: Surface) => void
+}) {
+  return (
+    <header className="flex h-11 items-center justify-between gap-3 border-b border-border px-4">
+      <div className="flex items-center gap-1.5 text-sm">
+        {workspaceId
+          ? (
+              <>
+                <button
+                  type="button"
+                  onClick={onGoHome}
+                  title={activeSurface ? 'Back to graph' : 'Graph (home)'}
+                  className={cn(
+                    'group flex h-7 items-center gap-1.5 rounded-md border border-transparent px-2 font-mono text-foreground transition-colors hover:border-border hover:bg-accent',
+                    activeSurface === null && 'border-border bg-accent/40',
+                  )}
+                >
+                  <Home className="size-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
+                  <span>{workspaceId}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onOpenDetails}
+                  title="Workspace settings"
+                  className="flex size-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground"
+                >
+                  <Settings2 className="size-3.5" />
+                </button>
+              </>
+            )
+          : (
+              <>
+                <span className="text-muted-foreground">Workspace</span>
+                <span className="text-muted-foreground/60">(none registered)</span>
+              </>
+            )}
+      </div>
+      {workspaceId && (
+        <div className="flex items-center gap-3">
+          <PageActionsHost className="flex items-center gap-2 empty:hidden" />
+          <div className="flex items-center gap-1">
+            <SurfaceDockButton
+              surface="actions"
+              label="Actions"
+              Icon={Sparkles}
+              shortcut="⌘1"
+              active={activeSurface === 'actions'}
+              onClick={() => onToggleSurface('actions')}
+            />
+            <SurfaceDockButton
+              surface="clarify"
+              label="Clarify"
+              Icon={HelpCircle}
+              shortcut="⌘2"
+              active={activeSurface === 'clarify'}
+              onClick={() => onToggleSurface('clarify')}
+              badge={<ClarifyPendingBadge workspaceId={workspaceId} />}
+            />
+            <SurfaceDockButton
+              surface="proposals"
+              label="Proposals"
+              Icon={Inbox}
+              shortcut="⌘3"
+              active={activeSurface === 'proposals'}
+              onClick={() => onToggleSurface('proposals')}
+              badge={<ProposalsPendingBadge workspaceId={workspaceId} />}
+            />
+          </div>
+        </div>
+      )}
+    </header>
+  )
+}
+
+function SurfaceDockButton({ label, Icon, shortcut, active, onClick, badge }: {
+  surface: Surface
+  label: string
+  Icon: typeof Sparkles
+  shortcut: string
+  active: boolean
+  onClick: () => void
+  badge?: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={`${label} (${shortcut})`}
+      className={cn(
+        'flex h-7 items-center gap-1.5 rounded-md border border-transparent px-2 text-sm transition-colors',
+        active
+          ? 'border-border bg-accent text-foreground'
+          : 'text-muted-foreground hover:border-border hover:bg-accent hover:text-foreground',
+      )}
+    >
+      <Icon className="size-3.5" />
+      <span className="hidden sm:inline">{label}</span>
+      {badge}
+    </button>
+  )
+}
+
 function ProposalsPendingBadge({ workspaceId }: { workspaceId: string }) {
   const { data } = usePendingProposals(workspaceId)
   const count = data?.items.length ?? 0
@@ -194,38 +343,6 @@ function ClarifyPendingBadge({ workspaceId }: { workspaceId: string }) {
     >
       {count}
     </span>
-  )
-}
-
-function Header({ workspaceId, onOpenDetails }: {
-  workspaceId: string | null
-  onOpenDetails: () => void
-}) {
-  return (
-    <header className="flex h-11 items-center justify-between border-b border-border px-4">
-      <div className="flex items-center gap-2 text-sm">
-        <span className="text-muted-foreground">Workspace</span>
-        {workspaceId
-          ? (
-              <button
-                type="button"
-                onClick={onOpenDetails}
-                title="Open workspace settings"
-                className="group flex h-7 items-center gap-1.5 rounded-md border border-transparent px-2 text-foreground transition-colors hover:border-border hover:bg-accent"
-              >
-                <span className="font-mono">{workspaceId}</span>
-                <Settings2 className="size-3 text-muted-foreground transition-colors group-hover:text-foreground" />
-              </button>
-            )
-          : (
-              <span className="text-muted-foreground/60">(none registered)</span>
-            )}
-      </div>
-      <kbd className="hidden items-center gap-1 rounded border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline-flex">
-        <Command className="size-3" />
-        K
-      </kbd>
-    </header>
   )
 }
 

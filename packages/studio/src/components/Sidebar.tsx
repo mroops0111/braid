@@ -1,5 +1,5 @@
 import type { Workspace } from '@braidhq/schema'
-import { FolderGit2, Loader2, Moon, PanelLeftClose, PanelLeftOpen, Plus, Server, Sun } from 'lucide-react'
+import { Loader2, Moon, PanelLeftClose, PanelLeftOpen, Plus, Server, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import braidLogo from '@/assets/braid-logo.svg'
 import { usePendingClarify, usePendingProposals, useRuns } from '@/lib/queries'
@@ -7,6 +7,7 @@ import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { CreateWorkspaceWizard } from './CreateWorkspaceWizard'
 import { ListRow } from './ListRow'
+import { WorkspaceSwatch, WorkspaceSwatchWithPending } from './WorkspaceSwatch'
 
 const COLLAPSED_KEY = 'braid-sidebar-collapsed'
 
@@ -102,26 +103,33 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect, onOpenDetails
               variant="sidebar"
               active={ws.id === activeWorkspaceId}
               onClick={() => onSelect(ws.id)}
-              {...(collapsed ? { title: ws.id, className: 'justify-center px-0' } : {})}
+              {...(collapsed ? { title: ws.id, className: 'justify-center px-0 py-1' } : {})}
             >
-              <FolderGit2 className="size-3.5 shrink-0 text-sidebar-foreground/50" />
-              {!collapsed && (
-                <>
-                  <span className="truncate font-medium">{ws.id}</span>
-                  <WorkspaceBadges workspaceId={ws.id} />
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onOpenDetails(ws.id)
-                    }}
-                    className="ml-1 rounded p-0.5 text-sidebar-foreground/40 opacity-0 hover:bg-sidebar-accent hover:text-sidebar-foreground group-hover:opacity-100"
-                    title="Details"
-                  >
-                    ⋯
-                  </button>
-                </>
-              )}
+              {collapsed
+                ? (
+                    <WorkspaceSwatchWithPending
+                      workspaceId={ws.id}
+                      active={ws.id === activeWorkspaceId}
+                    />
+                  )
+                : (
+                    <>
+                      <WorkspaceSwatch workspaceId={ws.id} size="sm" />
+                      <span className="truncate font-medium">{ws.id}</span>
+                      <WorkspaceBadges workspaceId={ws.id} />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onOpenDetails(ws.id)
+                        }}
+                        className="ml-1 rounded p-0.5 text-sidebar-foreground/40 opacity-0 hover:bg-sidebar-accent hover:text-sidebar-foreground group-hover:opacity-100"
+                        title="Details"
+                      >
+                        ⋯
+                      </button>
+                    </>
+                  )}
             </ListRow>
           ))}
         </ul>
