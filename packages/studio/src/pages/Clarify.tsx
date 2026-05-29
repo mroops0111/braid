@@ -8,6 +8,7 @@ import { NewClarifyForm } from '@/components/NewClarifyForm'
 import { PageActions } from '@/components/PageActions'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
+import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
 import { queryKeys, useClarifyByStatus, useClarifyTicketDetail, usePendingClarify } from '@/lib/queries'
@@ -248,8 +249,8 @@ function ClarifyHeaderActions({
   return (
     <>
       <Tabs value={status} onValueChange={value => onChange(value as StatusFilter)}>
-        <TabsList className="h-7">
-          <TabsTrigger value="pending" className="px-3 text-xs">
+        <TabsList className={FILTER_TABS_LIST}>
+          <TabsTrigger value="pending" className={FILTER_TAB_TRIGGER}>
             Pending
             {pendingCount > 0 && (
               <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-medium leading-none text-primary">
@@ -257,9 +258,9 @@ function ClarifyHeaderActions({
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="answered" className="px-3 text-xs">Answered</TabsTrigger>
-          <TabsTrigger value="applied" className="px-3 text-xs">Applied</TabsTrigger>
-          <TabsTrigger value="skipped" className="px-3 text-xs">Skipped</TabsTrigger>
+          <TabsTrigger value="answered" className={FILTER_TAB_TRIGGER}>Answered</TabsTrigger>
+          <TabsTrigger value="applied" className={FILTER_TAB_TRIGGER}>Applied</TabsTrigger>
+          <TabsTrigger value="skipped" className={FILTER_TAB_TRIGGER}>Skipped</TabsTrigger>
         </TabsList>
       </Tabs>
       <Button size="sm" variant="outline" onClick={onNew} className="h-7 gap-1 px-2 text-xs">

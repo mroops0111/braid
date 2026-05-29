@@ -1,16 +1,17 @@
-import type { RunRecord, SkillCategory, SkillManifest } from '@braidhq/schema'
-import { useMutation } from '@tanstack/react-query'
-import { BookOpen, FileQuestion, History, Plus, Send, Sparkles, Wrench, X } from 'lucide-react'
-import { useState } from 'react'
+import type { RunRecord, SessionMetadata, SkillCategory, SkillManifest } from '@braidhq/schema'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { BookOpen, Check, FileQuestion, MessageSquare, Pencil, Plus, Send, Sparkles, Trash2, Wrench, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { ActionInputForm } from '@/components/ActionInputForm'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
 import { SkillTranscript } from '@/components/SkillTranscript'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
-import { useRuns, useSkills } from '@/lib/queries'
+import { queryKeys, useRuns, useSessionMetadata, useSkills } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
 import { useConversation } from '@/lib/useRun'
 
@@ -42,15 +43,19 @@ export interface SessionGroup {
   firstPrompt: string
   skillId: string
   lastStartedAt: string
+  /** Reviewer-set title via SessionMetadata; null falls back to firstPrompt. */
+  title: string | null
 }
 
 /**
- * The single tab for everything skill-related. Sidebar shows:
- *   - "Actions" section: the available skill manifests (start a new
- *     conversation by clicking one).
- *   - "Recent" section: past conversations grouped by session (resume
- *     by clicking one; the runner picks up sessionId so the next prompt
- *     continues the same agent session).
+ * The single tab for everything skill-related. The left panel is split
+ * into two independent scroll areas:
+ *
+ *   - "Skills": the available skill manifests (start a new conversation
+ *     by clicking one). Caps at ~45vh; scrolls internally.
+ *   - "Conversations": past conversations grouped by session, with
+ *     per-row rename (pencil) and delete (trash). Fills remaining
+ *     height; scrolls independently of the Skills section.
  *
  * The right pane always renders the conversation runner. The internal
  * `runStore` decides whether it's an empty new chat or a hydrated past
@@ -59,10 +64,11 @@ export interface SessionGroup {
 export function ActionsPage({ workspaceId }: ActionsPageProps) {
   const { data: skillsData } = useSkills(workspaceId)
   const { data: runsData } = useRuns(workspaceId)
+  const { data: titleData } = useSessionMetadata(workspaceId)
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null)
 
   const skills = skillsData?.items ?? []
-  const groups = groupBySession(runsData?.items ?? [])
+  const groups = groupBySession(runsData?.items ?? [], titleData?.items ?? [])
   const selected = skills.find(s => s.id === selectedSkillId) ?? null
 
   function startFresh(skill: SkillManifest): void {
@@ -85,63 +91,56 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
 
   return (
     <div className="flex h-full">
-      <div className="w-72 shrink-0 overflow-y-auto scrollbar-thin border-r border-border">
-        {skills.length === 0
-          ? (
-              <SidebarSection icon={Sparkles} title="Actions">
-                <SidebarEmpty>No actions available.</SidebarEmpty>
-              </SidebarSection>
-            )
-          : GROUP_ORDER.map((group) => {
-              const bucket = buckets[group]
-              if (!bucket || bucket.length === 0)
-                return null
-              const meta = GROUP_META[group]
-              return (
-                <SidebarSection key={group} icon={meta.icon} title={meta.title}>
-                  {bucket.map((skill, index) => (
-                    <SkillRow
-                      key={skill.id}
-                      skill={skill}
-                      // Only the Build group gets explicit step numbers,
-                      // because it's the only group where the order between
-                      // skills is semantically meaningful (extract -> clarify -> model).
-                      step={group === 'build' ? index + 1 : undefined}
-                      active={selectedSkillId === skill.id}
-                      onClick={() => startFresh(skill)}
-                    />
-                  ))}
+      <div className="flex w-72 shrink-0 flex-col border-r border-border">
+        {/* Skills: auto-height up to ~45% of the viewport with its own
+            scroll. Caps so a long Conversations list always stays
+            visible without the user scrolling past every skill first. */}
+        <div className="max-h-[45vh] shrink-0 overflow-y-auto scrollbar-thin">
+          {skills.length === 0
+            ? (
+                <SidebarSection icon={Sparkles} title="Actions">
+                  <SidebarEmpty>No actions available.</SidebarEmpty>
                 </SidebarSection>
               )
-            })}
-        <div className="my-2 border-t border-border" aria-hidden />
-        <SidebarSection icon={History} title="Recent">
-          {groups.length === 0
-            ? <SidebarEmpty>Past conversations will appear here.</SidebarEmpty>
-            : groups.map(group => (
-                <ListRow
-                  key={group.groupId}
-                  active={false}
-                  onClick={() => resume(group)}
-                  className="flex-col gap-1"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-xs text-foreground">
-                      /
-                      {group.skillId}
-                    </span>
-                    <Badge variant="outline" className="text-[10px] uppercase">
-                      {group.records.length}
-                      {' '}
-                      turn
-                      {group.records.length === 1 ? '' : 's'}
-                    </Badge>
-                  </div>
-                  <div className="break-words text-xs text-foreground/90">{group.firstPrompt}</div>
-                  <div className="text-[10px] text-muted-foreground">{formatTimestamp(group.lastStartedAt)}</div>
-                </ListRow>
-              ))}
-        </SidebarSection>
+            : GROUP_ORDER.map((group) => {
+                const bucket = buckets[group]
+                if (!bucket || bucket.length === 0)
+                  return null
+                const meta = GROUP_META[group]
+                return (
+                  <SidebarSection key={group} icon={meta.icon} title={meta.title}>
+                    {bucket.map((skill, index) => (
+                      <SkillRow
+                        key={skill.id}
+                        skill={skill}
+                        // Only the Build group gets explicit step numbers,
+                        // because it's the only group where the order between
+                        // skills is semantically meaningful (extract -> clarify -> model).
+                        step={group === 'build' ? index + 1 : undefined}
+                        active={selectedSkillId === skill.id}
+                        onClick={() => startFresh(skill)}
+                      />
+                    ))}
+                  </SidebarSection>
+                )
+              })}
+        </div>
+        <div className="border-t border-border" aria-hidden />
+        {/* Conversations: fills remaining vertical space, scrolls independently. */}
+        <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+          <SidebarSection icon={MessageSquare} title="Conversations">
+            {groups.length === 0
+              ? <SidebarEmpty>Past conversations will appear here.</SidebarEmpty>
+              : groups.map(group => (
+                  <ConversationRow
+                    key={group.groupId}
+                    workspaceId={workspaceId}
+                    group={group}
+                    onResume={() => resume(group)}
+                  />
+                ))}
+          </SidebarSection>
+        </div>
       </div>
       {selected
         ? <Conversation workspaceId={workspaceId} skill={selected} key={selected.id} />
@@ -155,6 +154,175 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
             </div>
           )}
     </div>
+  )
+}
+
+function ConversationRow({ workspaceId, group, onResume }: {
+  workspaceId: string
+  group: SessionGroup
+  onResume: () => void
+}) {
+  const queryClient = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(group.title ?? group.firstPrompt)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
+  // Whenever the underlying title changes (server invalidation,
+  // optimistic update) and we're not actively editing, sync the draft.
+  useEffect(() => {
+    if (!editing)
+      setDraft(group.title ?? group.firstPrompt)
+  }, [editing, group.title, group.firstPrompt])
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    }
+  }, [editing])
+
+  const rename = useMutation({
+    mutationFn: ({ title }: { title: string | null }) => {
+      if (!group.sessionId)
+        throw new Error('Orphan runs cannot be renamed (no sessionId).')
+      return api.renameSession(workspaceId, group.sessionId, title)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.sessionMetadata(workspaceId) })
+    },
+  })
+
+  const deleteSession = useMutation({
+    mutationFn: () => {
+      if (group.sessionId)
+        return api.deleteSession(workspaceId, group.sessionId)
+      // Orphan run: groupId is the runId for these rows.
+      return api.deleteRun(workspaceId, group.groupId)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.runs(workspaceId) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.sessionMetadata(workspaceId) })
+    },
+  })
+
+  const canRename = group.sessionId !== null
+
+  function commitRename(): void {
+    const next = draft.trim()
+    setEditing(false)
+    if (!next || next === (group.title ?? group.firstPrompt))
+      return
+    rename.mutate({ title: next })
+  }
+
+  if (editing) {
+    return (
+      <li className="px-2 py-1.5">
+        <input
+          ref={inputRef}
+          type="text"
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={commitRename}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              commitRename()
+            }
+            else if (e.key === 'Escape') {
+              e.preventDefault()
+              setDraft(group.title ?? group.firstPrompt)
+              setEditing(false)
+            }
+          }}
+          className="w-full rounded border border-input bg-background px-2 py-1 text-xs focus:border-ring focus:outline-none"
+          maxLength={200}
+        />
+      </li>
+    )
+  }
+
+  return (
+    <>
+      <ListRow
+        active={false}
+        onClick={onResume}
+        className="group/row flex-col items-start gap-1"
+      >
+        <div className="flex w-full items-center justify-between gap-2">
+          <span className="truncate font-mono text-[11px] text-muted-foreground">
+            /
+            {group.skillId}
+          </span>
+          <div className="flex items-center gap-1">
+            <Badge variant="outline" className="text-[10px] uppercase">
+              {group.records.length}
+              {' '}
+              turn
+              {group.records.length === 1 ? '' : 's'}
+            </Badge>
+            {canRename && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setEditing(true)
+                }}
+                title="Rename"
+                className="hidden rounded p-0.5 text-muted-foreground/60 hover:bg-accent hover:text-foreground group-hover/row:inline-flex"
+              >
+                <Pencil className="size-3" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setConfirmOpen(true)
+              }}
+              title="Delete conversation"
+              className="hidden rounded p-0.5 text-muted-foreground/60 hover:bg-destructive/15 hover:text-destructive group-hover/row:inline-flex"
+            >
+              <Trash2 className="size-3" />
+            </button>
+          </div>
+        </div>
+        <div className="break-words text-xs text-foreground/90">
+          {group.title ?? group.firstPrompt}
+        </div>
+        <div className="text-[10px] text-muted-foreground">{formatTimestamp(group.lastStartedAt)}</div>
+      </ListRow>
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete this conversation?</DialogTitle>
+            <DialogDescription>
+              {group.records.length === 1
+                ? 'One run will be permanently removed, including its transcript.'
+                : `${group.records.length} turns will be permanently removed, including transcripts. This cannot be undone.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={deleteSession.isPending}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                deleteSession.mutate(undefined, {
+                  onSettled: () => setConfirmOpen(false),
+                })
+              }}
+              disabled={deleteSession.isPending}
+            >
+              <Check />
+              {deleteSession.isPending ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
@@ -376,7 +544,11 @@ function Conversation({ workspaceId, skill }: ConversationProps) {
   )
 }
 
-export function groupBySession(records: readonly RunRecord[]): SessionGroup[] {
+export function groupBySession(
+  records: readonly RunRecord[],
+  sessionTitles: readonly SessionMetadata[] = [],
+): SessionGroup[] {
+  const titleMap = new Map<string, string | null>(sessionTitles.map(m => [m.sessionId, m.title]))
   const groups = new Map<string, SessionGroup>()
   const orphans: SessionGroup[] = []
   // records arrive newest-first from the API; we want oldest-first inside a
@@ -390,6 +562,7 @@ export function groupBySession(records: readonly RunRecord[]): SessionGroup[] {
         firstPrompt: rec.args,
         skillId: rec.skillId,
         lastStartedAt: rec.startedAt,
+        title: null,
       })
       continue
     }
@@ -406,6 +579,7 @@ export function groupBySession(records: readonly RunRecord[]): SessionGroup[] {
         firstPrompt: rec.args,
         skillId: rec.skillId,
         lastStartedAt: rec.startedAt,
+        title: titleMap.get(rec.sessionId) ?? null,
       })
     }
   }

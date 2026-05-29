@@ -7,4 +7,9 @@ export const noopRunRepository: RunRepository = {
     return []
   },
   async * readEvents() {},
+  async deleteRecords() {},
+  async saveSessionMetadata() {},
+  async listSessionMetadata() {
+    return []
+  },
 }
