@@ -89,6 +89,10 @@ export class HITLService {
       candidates: draft.candidates,
       status: 'pending',
       ...(draft.externalReferences ? { externalReferences: draft.externalReferences } : {}),
+      ...(draft.origin ? { origin: draft.origin } : {}),
+      ...(draft.context ? { context: draft.context } : {}),
+      ...(draft.relatedNode ? { relatedNode: draft.relatedNode } : {}),
+      ...(draft.ambiguityType ? { ambiguityType: draft.ambiguityType } : {}),
     })
     await this.deps.clarifyRepository.save(ticket)
     this.deps.eventBus?.publish({

@@ -1,10 +1,11 @@
 import type { RunRepository, Workspace } from '@braidhq/core'
-import type { AbsolutePath, RunRecord, SkillEvent, SkillRunId } from '@braidhq/schema'
+import type { AbsolutePath, RunRecord, SessionMetadata, SkillEvent, SkillRunId } from '@braidhq/schema'
 import { createReadStream } from 'node:fs'
-import { appendFile, mkdir, readFile } from 'node:fs/promises'
+import { appendFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import process from 'node:process'
 import { createInterface } from 'node:readline/promises'
-import { RunRecord as RunRecordSchema, SkillEvent as SkillEventSchema } from '@braidhq/schema'
-import { runEventsPath, runIndexPath, runsDir } from './paths.js'
+import { RunRecord as RunRecordSchema, SessionMetadata as SessionMetadataSchema, SkillEvent as SkillEventSchema } from '@braidhq/schema'
+import { runEventsPath, runIndexPath, runsDir, runSessionsMetadataPath } from './paths.js'
 
 /**
  * File-system adapter for skill-run recording.
@@ -74,6 +75,72 @@ export class FsRunRepository implements RunRepository {
       stream.destroy()
     }
   }
+
+  async deleteRecords(workspace: Workspace, runIds: readonly SkillRunId[]): Promise<void> {
+    if (runIds.length === 0)
+      return
+    const root = workspace.rootPath
+    const indexPath = runIndexPath(root)
+    const targets = new Set<string>(runIds)
+    let raw: string
+    try {
+      raw = await readFile(indexPath, 'utf-8')
+    }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+        return
+      throw error
+    }
+    // Rewrite the index excluding every line that names a target run.
+    // Last-wins reader semantics mean we must drop ALL occurrences, not
+    // just the latest one, otherwise an earlier entry would resurrect
+    // the run in `listRecords()`.
+    const kept: string[] = []
+    for (const line of raw.split('\n')) {
+      if (line.length === 0)
+        continue
+      const parsed = safeParseRecord(line)
+      if (parsed && targets.has(parsed.runId))
+        continue
+      kept.push(line)
+    }
+    const tmp = `${indexPath}.tmp-${process.pid}-${Date.now()}`
+    await writeFile(tmp, kept.length === 0 ? '' : `${kept.join('\n')}\n`, 'utf-8')
+    await rename(tmp, indexPath)
+    // Per-runId event files: best-effort removal. A missing file is
+    // fine (the run errored before any event was appended).
+    await Promise.all(runIds.map(id => rm(runEventsPath(root, id), { force: true })))
+  }
+
+  async saveSessionMetadata(workspace: Workspace, metadata: SessionMetadata): Promise<void> {
+    const root = workspace.rootPath
+    await mkdir(runsDir(root), { recursive: true })
+    const line = `${JSON.stringify(metadata)}\n`
+    await appendFile(runSessionsMetadataPath(root), line, 'utf-8')
+  }
+
+  async listSessionMetadata(workspace: Workspace): Promise<readonly SessionMetadata[]> {
+    const root = workspace.rootPath
+    let raw: string
+    try {
+      raw = await readFile(runSessionsMetadataPath(root), 'utf-8')
+    }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+        return []
+      throw error
+    }
+    // Last-write-wins per sessionId, matching the index semantics.
+    const byId = new Map<string, SessionMetadata>()
+    for (const line of raw.split('\n')) {
+      if (line.length === 0)
+        continue
+      const parsed = safeParseSessionMetadata(line)
+      if (parsed)
+        byId.set(parsed.sessionId, parsed)
+    }
+    return Array.from(byId.values())
+  }
 }
 
 function safeParseRecord(line: string): RunRecord | undefined {
@@ -88,6 +155,15 @@ function safeParseRecord(line: string): RunRecord | undefined {
 function safeParseEvent(line: string): SkillEvent | undefined {
   try {
     return SkillEventSchema.parse(JSON.parse(line))
+  }
+  catch {
+    return undefined
+  }
+}
+
+function safeParseSessionMetadata(line: string): SessionMetadata | undefined {
+  try {
+    return SessionMetadataSchema.parse(JSON.parse(line))
   }
   catch {
     return undefined

@@ -9,6 +9,7 @@ import { ListRow } from '@/components/ListRow'
 import { PageActions } from '@/components/PageActions'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
+import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
 import { queryKeys, useProposalsByStatus, useProposalValidation } from '@/lib/queries'
@@ -195,8 +196,8 @@ function ProposalsStatusFilter({
   const pendingCount = pending?.items.length ?? 0
   return (
     <Tabs value={status} onValueChange={value => onChange(value as StatusFilter)}>
-      <TabsList className="h-7">
-        <TabsTrigger value="pending" className="px-3 text-xs">
+      <TabsList className={FILTER_TABS_LIST}>
+        <TabsTrigger value="pending" className={FILTER_TAB_TRIGGER}>
           Pending
           {pendingCount > 0 && (
             <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-medium leading-none text-primary">
@@ -204,8 +205,8 @@ function ProposalsStatusFilter({
             </span>
           )}
         </TabsTrigger>
-        <TabsTrigger value="applied" className="px-3 text-xs">Applied</TabsTrigger>
-        <TabsTrigger value="rejected" className="px-3 text-xs">Rejected</TabsTrigger>
+        <TabsTrigger value="applied" className={FILTER_TAB_TRIGGER}>Applied</TabsTrigger>
+        <TabsTrigger value="rejected" className={FILTER_TAB_TRIGGER}>Rejected</TabsTrigger>
       </TabsList>
     </Tabs>
   )
