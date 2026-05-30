@@ -1,6 +1,6 @@
 import type { Workspace } from '@braidhq/schema'
 import type { Surface } from './CommandPalette'
-import { HelpCircle, Home, Inbox, Loader2, Moon, PanelLeftClose, PanelLeftOpen, Plus, Server, Sparkles, Sun } from 'lucide-react'
+import { HelpCircle, Home, Inbox, Moon, PanelLeftClose, PanelLeftOpen, Plus, Server, Sparkles, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import braidLogo from '@/assets/braid-logo.svg'
 import { usePendingClarify, usePendingProposals, useRuns } from '@/lib/queries'
@@ -8,6 +8,7 @@ import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { CreateWorkspaceWizard } from './CreateWorkspaceWizard'
 import { ListRow } from './ListRow'
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
 import { WorkspaceSwatch, WorkspaceSwatchWithPending } from './WorkspaceSwatch'
 
 const COLLAPSED_KEY = 'braid-sidebar-collapsed'
@@ -136,7 +137,7 @@ export function Sidebar({
                           e.stopPropagation()
                           onOpenDetails(ws.id)
                         }}
-                        className="ml-1 rounded p-0.5 text-sidebar-foreground/40 opacity-0 hover:bg-sidebar-accent hover:text-sidebar-foreground group-hover:opacity-100"
+                        className="ml-1 hidden rounded p-0.5 text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-foreground group-hover:inline-flex"
                         title="Details"
                       >
                         ⋯
@@ -337,8 +338,13 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, onClick }: {
           )
         : (
             <>
-              <Icon className="size-3.5 shrink-0 text-sidebar-foreground/70" />
-              <span className="flex-1 truncate font-medium">{label}</span>
+              {/* size-5 wrapper so the icon column matches the workspace
+                  swatch column above (both 20px wide), keeping label
+                  x-positions aligned across both sections. */}
+              <div className="flex size-5 shrink-0 items-center justify-center text-sidebar-foreground/70">
+                <Icon className="size-3.5" />
+              </div>
+              <span className="flex-1 truncate text-left font-medium">{label}</span>
               {count > 0 && (
                 <span
                   className="rounded bg-sidebar-accent px-1.5 py-0.5 text-[10px] font-medium text-sidebar-foreground/80"
@@ -357,36 +363,40 @@ function WorkspaceBadges({ workspaceId }: { workspaceId: string }) {
   // For the active workspace, useWorkspaceEvents keeps these query keys
   // live. For inactive workspaces the counts are slightly stale until
   // the user opens it; acceptable cost to avoid N concurrent SSEs.
+  // Three kinds (in-flight runs, pending clarifies, pending proposals)
+  // aggregate into a single number; the active workspace's HERE
+  // section is where the per-surface breakdown lives. A tooltip keeps
+  // the breakdown a hover away for the inactive-workspace case.
   const { data: proposals } = usePendingProposals(workspaceId)
   const { data: clarify } = usePendingClarify(workspaceId)
   const { data: runs } = useRuns(workspaceId)
-  const pending = proposals?.items.length ?? 0
+  const pendingProposals = proposals?.items.length ?? 0
   const pendingClarify = clarify?.items.length ?? 0
   const running = runs?.items.filter(r => !r.completedAt).length ?? 0
-  if (pending === 0 && pendingClarify === 0 && running === 0)
+  const total = pendingProposals + pendingClarify + running
+  if (total === 0)
     return null
+  const breakdown = [
+    running > 0 ? `${running} run${running === 1 ? '' : 's'} in flight` : null,
+    pendingClarify > 0 ? `${pendingClarify} pending clarification${pendingClarify === 1 ? '' : 's'}` : null,
+    pendingProposals > 0 ? `${pendingProposals} pending proposal${pendingProposals === 1 ? '' : 's'}` : null,
+  ].filter(Boolean)
   return (
-    <span className="ml-auto flex items-center gap-1.5 text-[10px] text-sidebar-foreground/60">
-      {running > 0 && (
-        <span className="flex items-center gap-0.5" title={`${running} run${running === 1 ? '' : 's'} in flight`}>
-          <Loader2 className="size-2.5 animate-spin text-primary" />
-          {running}
-        </span>
-      )}
-      {pendingClarify > 0 && (
+    <Tooltip>
+      <TooltipTrigger asChild>
         <span
-          className="rounded bg-sidebar-accent px-1 py-0.5 text-sidebar-foreground/70"
-          title={`${pendingClarify} pending clarification${pendingClarify === 1 ? '' : 's'}`}
+          className="ml-auto rounded bg-sidebar-accent px-1.5 py-0.5 text-[10px] font-medium text-sidebar-foreground/80"
         >
-          ?
-          {pendingClarify}
+          {total}
         </span>
-      )}
-      {pending > 0 && (
-        <span className="rounded bg-sidebar-accent px-1 py-0.5 text-sidebar-foreground/70" title={`${pending} pending proposal${pending === 1 ? '' : 's'}`}>
-          {pending}
-        </span>
-      )}
-    </span>
+      </TooltipTrigger>
+      <TooltipContent side="right">
+        <ul className="space-y-0.5">
+          {breakdown.map(line => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      </TooltipContent>
+    </Tooltip>
   )
 }

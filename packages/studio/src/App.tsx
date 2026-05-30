@@ -8,6 +8,7 @@ import { InFlightRunBanner } from './components/InFlightRunBanner'
 import { PageActions, PageActionsHost, PageActionsProvider } from './components/PageActions'
 import { ServerUrlDialog } from './components/ServerUrlDialog'
 import { Sidebar } from './components/Sidebar'
+import { TooltipProvider } from './components/ui/tooltip'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
 import { useWorkspaces } from './lib/queries'
 import { GraphNavigationContext } from './lib/useGraphNavigation'
@@ -75,74 +76,76 @@ export function App() {
     <GraphNavigationContext.Provider value={graphNavigation}>
       <TabNavigationContext.Provider value={tabNavigation}>
         <PageActionsProvider>
-          <div className="flex h-screen overflow-hidden bg-background text-foreground">
-            <Sidebar
-              workspaces={items}
-              activeWorkspaceId={activeId}
-              activeSurface={activeSurface}
-              onSelect={setActiveId}
-              onOpenDetails={openDetails}
-              onOpenServerUrl={() => setServerUrlOpen(true)}
-              onGoHome={() => setActiveSurface(null)}
-              onSelectSurface={setActiveSurface}
-            />
-            <main className="flex flex-1 flex-col overflow-hidden">
-              <WorkspaceHeader
-                workspaceId={activeId}
+          <TooltipProvider>
+            <div className="flex h-screen overflow-hidden bg-background text-foreground">
+              <Sidebar
+                workspaces={items}
+                activeWorkspaceId={activeId}
                 activeSurface={activeSurface}
-                onOpenDetails={() => activeId && openDetails(activeId)}
+                onSelect={setActiveId}
+                onOpenDetails={openDetails}
+                onOpenServerUrl={() => setServerUrlOpen(true)}
+                onGoHome={() => setActiveSurface(null)}
+                onSelectSurface={setActiveSurface}
               />
-              <InFlightRunBanner workspaceId={activeId} />
-              {activeId
-                ? (
-                    <div className="relative flex-1 overflow-hidden">
-                      {activeSurface === null && (
-                        <GraphHomeView workspaceId={activeId} state={graphSurfaceState} />
-                      )}
-                      {activeSurface === 'actions' && (
-                        <ActionsPage workspaceId={activeId} />
-                      )}
-                      {activeSurface === 'clarify' && (
-                        <ClarifyPage workspaceId={activeId} />
-                      )}
-                      {activeSurface === 'proposals' && (
-                        <ProposalsPage
-                          workspaceId={activeId}
-                          focusedProposalId={focusedProposalId}
-                          onFocusConsumed={() => setFocusedProposalId(null)}
-                        />
-                      )}
-                    </div>
-                  )
-                : (
-                    <NoWorkspaceState onSelect={setActiveId} />
-                  )}
-            </main>
-            <CommandPalette
-              workspaces={items}
-              activeWorkspaceId={activeId}
-              activeSurface={activeSurface}
-              onSelectWorkspace={setActiveId}
-              onSelectSurface={setActiveSurface}
-            />
-            <ServerUrlDialog open={serverUrlOpen} onOpenChange={setServerUrlOpen} />
-            <WorkspaceDetailsSheet
-              workspaceId={detailsId}
-              open={detailsOpen}
-              onOpenChange={setDetailsOpen}
-              onUnregistered={() => {
-                setDetailsOpen(false)
-                if (activeId === detailsId)
-                  setActiveId(null)
-                setDetailsId(null)
-              }}
-              onRenamed={(newId) => {
-                if (activeId === detailsId)
-                  setActiveId(newId)
-                setDetailsId(newId)
-              }}
-            />
-          </div>
+              <main className="flex flex-1 flex-col overflow-hidden">
+                <WorkspaceHeader
+                  workspaceId={activeId}
+                  activeSurface={activeSurface}
+                  onOpenDetails={() => activeId && openDetails(activeId)}
+                />
+                <InFlightRunBanner workspaceId={activeId} />
+                {activeId
+                  ? (
+                      <div className="relative flex-1 overflow-hidden">
+                        {activeSurface === null && (
+                          <GraphHomeView workspaceId={activeId} state={graphSurfaceState} />
+                        )}
+                        {activeSurface === 'actions' && (
+                          <ActionsPage workspaceId={activeId} />
+                        )}
+                        {activeSurface === 'clarify' && (
+                          <ClarifyPage workspaceId={activeId} />
+                        )}
+                        {activeSurface === 'proposals' && (
+                          <ProposalsPage
+                            workspaceId={activeId}
+                            focusedProposalId={focusedProposalId}
+                            onFocusConsumed={() => setFocusedProposalId(null)}
+                          />
+                        )}
+                      </div>
+                    )
+                  : (
+                      <NoWorkspaceState onSelect={setActiveId} />
+                    )}
+              </main>
+              <CommandPalette
+                workspaces={items}
+                activeWorkspaceId={activeId}
+                activeSurface={activeSurface}
+                onSelectWorkspace={setActiveId}
+                onSelectSurface={setActiveSurface}
+              />
+              <ServerUrlDialog open={serverUrlOpen} onOpenChange={setServerUrlOpen} />
+              <WorkspaceDetailsSheet
+                workspaceId={detailsId}
+                open={detailsOpen}
+                onOpenChange={setDetailsOpen}
+                onUnregistered={() => {
+                  setDetailsOpen(false)
+                  if (activeId === detailsId)
+                    setActiveId(null)
+                  setDetailsId(null)
+                }}
+                onRenamed={(newId) => {
+                  if (activeId === detailsId)
+                    setActiveId(newId)
+                  setDetailsId(newId)
+                }}
+              />
+            </div>
+          </TooltipProvider>
         </PageActionsProvider>
       </TabNavigationContext.Provider>
     </GraphNavigationContext.Provider>

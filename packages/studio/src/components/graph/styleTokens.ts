@@ -8,8 +8,13 @@
  * that need to be referenced from multiple files get a const here.
  */
 
-/** Fixed width of the right-side node detail aside, in px. */
-export const NODE_DETAIL_ASIDE_WIDTH = 440
+/**
+ * Fixed width of the right-side node detail aside, in px. Matches the
+ * studio's "Inspector" panel-width tier (`w-96` = 24rem = 384px), so it
+ * stays on the same 12-divisible grid as Rail (48) / Nav (240) / List
+ * (288). See `panel-widths` notes if more tiers are added.
+ */
+export const NODE_DETAIL_ASIDE_WIDTH = 384
 
 /** Reduced opacity used to dim non-neighbour nodes / edges when a selection is active. */
 export const DIMMED_NODE_OPACITY = 0.25

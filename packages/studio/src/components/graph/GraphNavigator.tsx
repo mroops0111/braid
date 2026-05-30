@@ -40,7 +40,7 @@ export function GraphNavigator({ workspaceId, nodes, orphanIds, filters, onFilte
   }
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground">
+    <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground">
       <div className="border-b border-sidebar-border p-2">
         <SearchInput value={filters.search} onChange={search => onFiltersChange({ ...filters, search })} />
       </div>
