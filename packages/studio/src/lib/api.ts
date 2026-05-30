@@ -1,5 +1,7 @@
 import type {
+  ClarifyAmbiguityType,
   ClarifyCandidate,
+  ClarifyOrigin,
   ClarifyTicket,
   Decision,
   ExternalReference,
@@ -7,10 +9,12 @@ import type {
   GraphNode,
   McpServerConfig,
   ModelSnapshot,
+  NodeId,
   OntologyResponse,
   ProductManifestDraft,
   Proposal,
   RunRecord,
+  SessionMetadata,
   SkillInputOptionsResponse,
   SkillManifest,
   SourceDescriptor,
@@ -43,6 +47,10 @@ export interface ClarifySubmitBody {
   question: string
   candidates: ReadonlyArray<Omit<ClarifyCandidate, 'id'> & { id?: ClarifyCandidate['id'] }>
   externalReferences?: ReadonlyArray<ExternalReference>
+  origin?: ClarifyOrigin
+  context?: string
+  relatedNode?: NodeId
+  ambiguityType?: ClarifyAmbiguityType
 }
 
 export interface IngestSummary {
@@ -267,6 +275,21 @@ export const api = {
         if (!r.ok && r.status !== 404)
           throw new Error(`forgetSession failed: ${r.status} ${r.statusText}`)
       }),
+
+  listSessionMetadata: (workspaceId: string) =>
+    fetchJson<ItemList<SessionMetadata>>(`/workspaces/${workspaceId}/runs/sessions`),
+  /** `title = null` clears the custom title and falls back to the first prompt. */
+  renameSession: (workspaceId: string, sessionId: string, title: string | null) =>
+    fetchJson<SessionMetadata>(`/workspaces/${workspaceId}/runs/sessions/${sessionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title }),
+    }),
+  /** Deletes the cwd AND drops every RunRecord + event log for the session. */
+  deleteSession: (workspaceId: string, sessionId: string) =>
+    fetchJson<void>(`/workspaces/${workspaceId}/runs/sessions/${sessionId}?purge=true`, { method: 'DELETE' }),
+  /** Orphan-row delete: single RunRecord by runId. */
+  deleteRun: (workspaceId: string, runId: string) =>
+    fetchJson<void>(`/workspaces/${workspaceId}/runs/${runId}`, { method: 'DELETE' }),
 
   listSkillInputOptions: (workspaceId: string, type: string, filter?: unknown) => {
     const params = new URLSearchParams({ type })

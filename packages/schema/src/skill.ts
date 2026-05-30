@@ -358,3 +358,17 @@ export const RunRecord = z.object({
   exitCode: z.number().int().optional(),
 })
 export type RunRecord = z.infer<typeof RunRecord>
+
+/**
+ * Per-session user-facing metadata. Stored separately from `RunRecord`
+ * because the lifecycle is owned by the reviewer (rename / future
+ * pin / colour) rather than the run itself. Persists at
+ * `artifacts/runs/sessions.jsonl` (append-only, last-wins per
+ * `sessionId`).
+ */
+export const SessionMetadata = z.object({
+  sessionId: z.string().min(1),
+  title: z.string().min(1).nullable(),
+  updatedAt: Timestamp,
+})
+export type SessionMetadata = z.infer<typeof SessionMetadata>

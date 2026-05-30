@@ -16,6 +16,7 @@ export const queryKeys = {
   clarifyDetail: (workspaceId: string, ticketId: string) => ['workspaces', workspaceId, 'clarify', 'detail', ticketId] as const,
   decisions: (workspaceId: string) => ['workspaces', workspaceId, 'decisions'] as const,
   runs: (workspaceId: string) => ['workspaces', workspaceId, 'runs'] as const,
+  sessionMetadata: (workspaceId: string) => ['workspaces', workspaceId, 'runs', 'sessions'] as const,
 }
 
 export function useWorkspaces() {
@@ -42,6 +43,14 @@ export function useRuns(workspaceId: string | undefined) {
   return useQuery({
     queryKey: workspaceId ? queryKeys.runs(workspaceId) : ['runs', 'none'],
     queryFn: () => api.listRuns(workspaceId!),
+    enabled: !!workspaceId,
+  })
+}
+
+export function useSessionMetadata(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: workspaceId ? queryKeys.sessionMetadata(workspaceId) : ['session-metadata', 'none'],
+    queryFn: () => api.listSessionMetadata(workspaceId!),
     enabled: !!workspaceId,
   })
 }

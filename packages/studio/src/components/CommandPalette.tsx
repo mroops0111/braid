@@ -1,5 +1,5 @@
 import type { SkillManifest, Workspace } from '@braidhq/schema'
-import { Boxes, FolderGit2, GitBranch, HelpCircle, Inbox, Sparkles } from 'lucide-react'
+import { Boxes, HelpCircle, Home, Inbox, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {
   CommandDialog,
@@ -11,30 +11,48 @@ import {
   CommandShortcut,
 } from '@/components/ui/command'
 import { useSkills } from '@/lib/queries'
+import { WorkspaceSwatch } from './WorkspaceSwatch'
 
 interface CommandPaletteProps {
   workspaces: Workspace[]
   activeWorkspaceId: string | null
-  activeTab: TabKey
+  activeSurface: Surface | null
   onSelectWorkspace: (id: string) => void
-  onSelectTab: (tab: TabKey) => void
+  onSelectSurface: (surface: Surface | null) => void
 }
 
-export type TabKey = 'actions' | 'clarify' | 'graph' | 'proposals'
+export type Surface = 'actions' | 'clarify' | 'proposals'
 
-const TAB_ITEMS: { id: TabKey, label: string, Icon: typeof Sparkles }[] = [
-  { id: 'actions', label: 'Actions', Icon: Sparkles },
-  { id: 'clarify', label: 'Clarify', Icon: HelpCircle },
-  { id: 'proposals', label: 'Proposals', Icon: Inbox },
-  { id: 'graph', label: 'Graph', Icon: GitBranch },
+interface SurfaceItem {
+  id: Surface | null
+  label: string
+  Icon: typeof Sparkles
+  shortcut: string
+}
+
+function chordToSurface(key: string): Surface | null | undefined {
+  switch (key) {
+    case '0': return null
+    case '1': return 'actions'
+    case '2': return 'clarify'
+    case '3': return 'proposals'
+    default: return undefined
+  }
+}
+
+const SURFACE_ITEMS: SurfaceItem[] = [
+  { id: null, label: 'Graph (home)', Icon: Home, shortcut: '⌘0' },
+  { id: 'actions', label: 'Actions', Icon: Sparkles, shortcut: '⌘1' },
+  { id: 'clarify', label: 'Clarify', Icon: HelpCircle, shortcut: '⌘2' },
+  { id: 'proposals', label: 'Proposals', Icon: Inbox, shortcut: '⌘3' },
 ]
 
 export function CommandPalette({
   workspaces,
   activeWorkspaceId,
-  activeTab,
+  activeSurface,
   onSelectWorkspace,
-  onSelectTab,
+  onSelectSurface,
 }: CommandPaletteProps) {
   const [open, setOpen] = useState(false)
   const { data: skillData } = useSkills(activeWorkspaceId ?? undefined)
@@ -50,6 +68,26 @@ export function CommandPalette({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // Numeric chords switch surfaces from anywhere. ⌘0 returns to the
+  // graph home; ⌘1/2/3 jump straight to a secondary surface. Only
+  // claims the chord when a workspace is active so the palette /
+  // browser defaults stay available on the welcome screen.
+  useEffect(() => {
+    if (!activeWorkspaceId)
+      return
+    function onKey(event: KeyboardEvent) {
+      if (!(event.metaKey || event.ctrlKey))
+        return
+      const next = chordToSurface(event.key)
+      if (next === undefined)
+        return
+      event.preventDefault()
+      onSelectSurface(next)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [activeWorkspaceId, onSelectSurface])
+
   const skills = skillData?.items ?? []
 
   return (
@@ -59,18 +97,18 @@ export function CommandPalette({
         <CommandEmpty>No results.</CommandEmpty>
 
         <CommandGroup heading="Go To">
-          {TAB_ITEMS.map(({ id, label, Icon }) => (
+          {SURFACE_ITEMS.map(({ id, label, Icon, shortcut }) => (
             <CommandItem
-              key={id}
+              key={id ?? 'home'}
               onSelect={() => {
-                onSelectTab(id)
+                onSelectSurface(id)
                 setOpen(false)
               }}
-              disabled={!activeWorkspaceId || activeTab === id}
+              disabled={!activeWorkspaceId || activeSurface === id}
             >
               <Icon />
               <span>{label}</span>
-              <CommandShortcut>{shortcutFor(id)}</CommandShortcut>
+              <CommandShortcut>{shortcut}</CommandShortcut>
             </CommandItem>
           ))}
         </CommandGroup>
@@ -86,7 +124,7 @@ export function CommandPalette({
                 }}
                 disabled={ws.id === activeWorkspaceId}
               >
-                <FolderGit2 />
+                <WorkspaceSwatch workspaceId={ws.id} size="sm" />
                 <span className="font-mono">{ws.id}</span>
               </CommandItem>
             ))}
@@ -99,7 +137,7 @@ export function CommandPalette({
               <CommandItem
                 key={skill.id}
                 onSelect={() => {
-                  onSelectTab('actions')
+                  onSelectSurface('actions')
                   setOpen(false)
                 }}
               >
@@ -118,13 +156,4 @@ export function CommandPalette({
       </CommandList>
     </CommandDialog>
   )
-}
-
-function shortcutFor(tab: TabKey): string {
-  switch (tab) {
-    case 'actions': return 'g a'
-    case 'clarify': return 'g c'
-    case 'graph': return 'g g'
-    case 'proposals': return 'g p'
-  }
 }

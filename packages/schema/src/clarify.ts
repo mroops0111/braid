@@ -3,6 +3,7 @@ import {
   ClarifyCandidateId,
   ClarifyTicketId,
   ExternalReference,
+  NodeId,
   ProposalId,
   SourceReference,
   UserId,
@@ -12,6 +13,26 @@ import { GraphOperation } from './proposal.js'
 
 export const ClarifyStatus = z.enum(['pending', 'answered', 'applied', 'skipped'])
 export type ClarifyStatus = z.infer<typeof ClarifyStatus>
+
+/**
+ * Who authored the ticket. `'skill'` = emitted by braid-extract /
+ * braid-model when AI hits ambiguity; AI ships pre-authored candidates.
+ * `'human'` = filed via the Studio Submit-issue affordance; candidates
+ * are typically empty at submit time and AI fills them on its next
+ * clarify pass. Optional for backward compat with tickets persisted
+ * before this field existed (treat absent as `'skill'`).
+ */
+export const ClarifyOrigin = z.enum(['skill', 'human'])
+export type ClarifyOrigin = z.infer<typeof ClarifyOrigin>
+
+/**
+ * Classification a human picks when filing an issue. Matches the
+ * taxonomy used in ReDoc's SubmitIssueForm. Helps AI's next clarify
+ * run pick the right resolution strategy when it processes a
+ * human-authored ticket. Skill-emitted tickets do not set this.
+ */
+export const ClarifyAmbiguityType = z.enum(['gap', 'contradiction', 'ambiguous', 'assumption'])
+export type ClarifyAmbiguityType = z.infer<typeof ClarifyAmbiguityType>
 
 export const ClarifyCandidate = z.object({
   id: ClarifyCandidateId,
@@ -37,6 +58,14 @@ export const ClarifyTicket = z.object({
    */
   proposalId: ProposalId.optional(),
   externalReferences: z.array(ExternalReference).optional(),
+  /** See ClarifyOrigin. Absent on tickets predating the field. */
+  origin: ClarifyOrigin.optional(),
+  /** Free-form background on a human-filed issue. Skill tickets leave this empty. */
+  context: z.string().max(2000).optional(),
+  /** Node the human believes the issue concerns; helps AI scope its resolution. */
+  relatedNode: NodeId.optional(),
+  /** Classification picked by the human filer; see ClarifyAmbiguityType. */
+  ambiguityType: ClarifyAmbiguityType.optional(),
 })
 export type ClarifyTicket = z.infer<typeof ClarifyTicket>
 
@@ -45,6 +74,10 @@ export const ClarifyDraft = z.object({
   question: z.string().min(1).max(400).describe('Single question for the reviewer, ending with `?`. Names both candidate readings. See content-conventions.md.'),
   candidates: z.array(ClarifyCandidate),
   externalReferences: z.array(ExternalReference).optional(),
+  origin: ClarifyOrigin.optional(),
+  context: z.string().max(2000).optional(),
+  relatedNode: NodeId.optional(),
+  ambiguityType: ClarifyAmbiguityType.optional(),
 })
 export type ClarifyDraft = z.infer<typeof ClarifyDraft>
 

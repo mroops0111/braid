@@ -22,7 +22,7 @@ interface WorkspaceDetailsSheetProps {
 export function WorkspaceDetailsSheet({ workspaceId, open, onOpenChange, onUnregistered, onRenamed }: WorkspaceDetailsSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[440px] !max-w-none">
+      <SheetContent side="right" className="w-96 !max-w-none">
         {workspaceId
           ? <Body workspaceId={workspaceId} onUnregistered={onUnregistered} onRenamed={onRenamed} />
           : <p className="p-6 text-sm text-muted-foreground">No workspace selected.</p>}

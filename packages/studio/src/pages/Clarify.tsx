@@ -4,10 +4,11 @@ import { Check, ExternalLink, Inbox, Pencil, Plus, SkipForward, X } from 'lucide
 import { useEffect, useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
-import { NewClarifyForm } from '@/components/NewClarifyForm'
 import { PageActions } from '@/components/PageActions'
 import { StatusBadge } from '@/components/StatusBadge'
+import { SubmitIssueForm } from '@/components/SubmitIssueForm'
 import { Button } from '@/components/ui/button'
+import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
 import { queryKeys, useClarifyByStatus, useClarifyTicketDetail, usePendingClarify } from '@/lib/queries'
@@ -131,25 +132,37 @@ export function ClarifyPage({ workspaceId }: ClarifyPageProps) {
   // an item that no longer matches the active filter.
   const [status, setStatus] = useState<StatusFilter>('pending')
   const [selected, setSelected] = useState<ClarifyTicket | null>(null)
-  const [newOpen, setNewOpen] = useState(false)
+  // When `true`, the detail pane renders the inline SubmitIssueForm
+  // instead of the selected ticket. Mutually exclusive with `selected`
+  // — the compose surface fills the same area so the reviewer is
+  // never doing two things at once.
+  const [composing, setComposing] = useState(false)
   const { data, isLoading } = useClarifyByStatus(workspaceId, status)
 
   // Auto-select the first ticket when entering a list with no current selection (initial mount, after status switch, or after answer/skip clears the detail pane).
   // Saves the reviewer one click per ticket when working through a queue.
   useEffect(() => {
-    if (selected || isLoading || !data?.items.length)
+    if (composing || selected || isLoading || !data?.items.length)
       return
     setSelected(data.items[0]!)
-  }, [data, selected, isLoading])
+  }, [data, selected, isLoading, composing])
 
   function changeStatus(next: StatusFilter): void {
     setStatus(next)
     setSelected(null)
+    setComposing(false)
   }
 
-  function openNew(): void {
-    setNewOpen(true)
+  function startComposing(): void {
+    setSelected(null)
+    setComposing(true)
   }
+
+  // The "submit an issue" affordance is meaningful only on the Pending
+  // tab — the other statuses are post-resolution archives. Keeping it
+  // pending-only also reduces user surprise (you'd never expect to
+  // file a new issue while browsing rejected ones).
+  const canSubmitIssue = status === 'pending'
 
   return (
     <div className="flex h-full flex-col">
@@ -158,7 +171,6 @@ export function ClarifyPage({ workspaceId }: ClarifyPageProps) {
           workspaceId={workspaceId}
           status={status}
           onChange={changeStatus}
-          onNew={openNew}
         />
       </PageActions>
       <div className="flex flex-1 overflow-hidden">
@@ -167,106 +179,119 @@ export function ClarifyPage({ workspaceId }: ClarifyPageProps) {
             ? (
                 <div className="p-4 text-sm text-muted-foreground">Loading…</div>
               )
-            : !data || data.items.length === 0
-                ? (
-                    <div className="flex flex-1 items-center justify-center p-4 text-center text-xs text-muted-foreground">
-                      {EMPTY_COPY[status].title}
-                    </div>
-                  )
-                : (
+            : (
+                <>
+                  {data && data.items.length > 0 && (
                     <ul className="flex-1 overflow-y-auto scrollbar-thin">
                       {data.items.map(ticket => (
                         <ClarifyListItem
                           key={ticket.id}
                           ticket={ticket}
                           active={selected?.id === ticket.id}
-                          onSelect={() => setSelected(ticket)}
+                          onSelect={() => {
+                            setComposing(false)
+                            setSelected(ticket)
+                          }}
                         />
                       ))}
                     </ul>
                   )}
-        </div>
-        <div className="flex-1 overflow-hidden">
-          {selected
-            ? (
-                <ClarifyDetail
-                  workspaceId={workspaceId}
-                  ticket={selected}
-                  onComplete={() => setSelected(null)}
-                  key={selected.id}
-                />
-              )
-            : (
-                <EmptyState
-                  icon={Inbox}
-                  title={data?.items.length ? 'Pick a Clarification' : EMPTY_COPY[status].title}
-                  description={
-                    data?.items.length
-                      ? status === 'pending'
-                        ? 'Select a ticket on the left to review candidates and answer or skip it.'
-                        : 'Select a ticket on the left to inspect its resolution.'
-                      : EMPTY_COPY[status].description
-                  }
-                />
+                  {(!data || data.items.length === 0) && (
+                    <div className="flex flex-1 items-center justify-center p-4 text-center text-xs text-muted-foreground">
+                      {EMPTY_COPY[status].title}
+                    </div>
+                  )}
+                  {canSubmitIssue && (
+                    <button
+                      type="button"
+                      onClick={startComposing}
+                      className="m-2 flex items-center justify-center gap-1.5 rounded-md border border-dashed border-border/60 py-2 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                    >
+                      <Plus className="size-3.5" />
+                      Submit a question for AI
+                    </button>
+                  )}
+                </>
               )}
         </div>
+        <div className="flex-1 overflow-hidden">
+          {composing
+            ? (
+                <SubmitIssueForm
+                  workspaceId={workspaceId}
+                  onCancel={() => setComposing(false)}
+                  onSubmitted={(ticket) => {
+                    // SSE clarify.created already invalidates the list;
+                    // selecting the new ticket also dismisses compose
+                    // mode so the reviewer lands on the freshly filed
+                    // issue.
+                    setComposing(false)
+                    setStatus('pending')
+                    setSelected(ticket)
+                  }}
+                />
+              )
+            : selected
+              ? (
+                  <ClarifyDetail
+                    workspaceId={workspaceId}
+                    ticket={selected}
+                    onComplete={() => setSelected(null)}
+                    key={selected.id}
+                  />
+                )
+              : (
+                  <EmptyState
+                    icon={Inbox}
+                    title={data?.items.length ? 'Pick a Clarification' : EMPTY_COPY[status].title}
+                    description={
+                      data?.items.length
+                        ? status === 'pending'
+                          ? 'Select a ticket on the left to review candidates and answer or skip it.'
+                          : 'Select a ticket on the left to inspect its resolution.'
+                        : EMPTY_COPY[status].description
+                    }
+                  />
+                )}
+        </div>
       </div>
-      <NewClarifyForm
-        workspaceId={workspaceId}
-        open={newOpen}
-        onOpenChange={setNewOpen}
-        onCreated={(ticket) => {
-          // Switching back to pending makes the freshly-created ticket
-          // visible immediately; the SSE clarify.created event also
-          // invalidates the list so we don't need to merge manually.
-          setStatus('pending')
-          setSelected(ticket)
-        }}
-      />
     </div>
   )
 }
 
 /**
- * Header strip: status filter (with a live badge on pending) and a
- * trailing "+ New question" button. Mounted via PageActions so it
- * sits inline with the tab bar.
+ * Header strip: status filter with a live badge on pending. The
+ * "submit a question" affordance lives inline at the bottom of the
+ * list panel rather than here, so the header stays focused on
+ * navigation.
  */
 function ClarifyHeaderActions({
   workspaceId,
   status,
   onChange,
-  onNew,
 }: {
   workspaceId: string
   status: StatusFilter
   onChange: (next: StatusFilter) => void
-  onNew: () => void
 }) {
   const { data: pending } = usePendingClarify(workspaceId)
   const pendingCount = pending?.items.length ?? 0
   return (
-    <>
-      <Tabs value={status} onValueChange={value => onChange(value as StatusFilter)}>
-        <TabsList className="h-7">
-          <TabsTrigger value="pending" className="px-3 text-xs">
-            Pending
-            {pendingCount > 0 && (
-              <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-medium leading-none text-primary">
-                {pendingCount}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="answered" className="px-3 text-xs">Answered</TabsTrigger>
-          <TabsTrigger value="applied" className="px-3 text-xs">Applied</TabsTrigger>
-          <TabsTrigger value="skipped" className="px-3 text-xs">Skipped</TabsTrigger>
-        </TabsList>
-      </Tabs>
-      <Button size="sm" variant="outline" onClick={onNew} className="h-7 gap-1 px-2 text-xs">
-        <Plus className="size-3" />
-        New question
-      </Button>
-    </>
+    <Tabs value={status} onValueChange={value => onChange(value as StatusFilter)}>
+      <TabsList className={FILTER_TABS_LIST}>
+        <TabsTrigger value="pending" className={FILTER_TAB_TRIGGER}>
+          Pending
+          {pendingCount > 0 && (
+            <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-medium leading-none text-primary">
+              {pendingCount}
+            </span>
+          )}
+        </TabsTrigger>
+        <TabsTrigger value="answered" className={FILTER_TAB_TRIGGER}>Answered</TabsTrigger>
+        <TabsTrigger value="applied" className={FILTER_TAB_TRIGGER}>Applied</TabsTrigger>
+        <TabsTrigger value="skipped" className={FILTER_TAB_TRIGGER}>Skipped</TabsTrigger>
+      </TabsList>
+    </Tabs>
   )
 }
 
