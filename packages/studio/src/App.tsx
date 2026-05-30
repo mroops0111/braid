@@ -1,6 +1,6 @@
 import type { EdgeId, NodeId, ProposalId } from '@braidhq/schema'
 import type { Surface } from './components/CommandPalette'
-import { HelpCircle, Home, Inbox, Settings2, Sparkles } from 'lucide-react'
+import { Settings2, Sparkles } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CommandPalette } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
@@ -9,11 +9,10 @@ import { PageActions, PageActionsHost, PageActionsProvider } from './components/
 import { ServerUrlDialog } from './components/ServerUrlDialog'
 import { Sidebar } from './components/Sidebar'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
-import { usePendingClarify, usePendingProposals, useWorkspaces } from './lib/queries'
+import { useWorkspaces } from './lib/queries'
 import { GraphNavigationContext } from './lib/useGraphNavigation'
 import { TabNavigationContext } from './lib/useTabNavigation'
 import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
-import { cn } from './lib/utils'
 import { ActionsPage } from './pages/Actions'
 import { ClarifyPage } from './pages/Clarify'
 import { GraphSurface, GraphSurfaceActions, useGraphSurfaceState } from './pages/GraphSurface'
@@ -72,13 +71,6 @@ export function App() {
 
   const tabNavigation = useMemo(() => ({ focusProposal }), [focusProposal])
 
-  // Pressing the active surface dock button toggles back to home;
-  // shared with the CommandPalette so keyboard and pointer behave the
-  // same way.
-  const toggleSurface = useCallback((next: Surface) => {
-    setActiveSurface(current => (current === next ? null : next))
-  }, [])
-
   return (
     <GraphNavigationContext.Provider value={graphNavigation}>
       <TabNavigationContext.Provider value={tabNavigation}>
@@ -87,17 +79,18 @@ export function App() {
             <Sidebar
               workspaces={items}
               activeWorkspaceId={activeId}
+              activeSurface={activeSurface}
               onSelect={setActiveId}
               onOpenDetails={openDetails}
               onOpenServerUrl={() => setServerUrlOpen(true)}
+              onGoHome={() => setActiveSurface(null)}
+              onSelectSurface={setActiveSurface}
             />
             <main className="flex flex-1 flex-col overflow-hidden">
               <WorkspaceHeader
                 workspaceId={activeId}
                 activeSurface={activeSurface}
-                onGoHome={() => setActiveSurface(null)}
                 onOpenDetails={() => activeId && openDetails(activeId)}
-                onToggleSurface={toggleSurface}
               />
               <InFlightRunBanner workspaceId={activeId} />
               {activeId
@@ -209,13 +202,23 @@ function GraphHomeView({ workspaceId, state }: {
   )
 }
 
-function WorkspaceHeader({ workspaceId, activeSurface, onGoHome, onOpenDetails, onToggleSurface }: {
+function WorkspaceHeader({ workspaceId, activeSurface, onOpenDetails }: {
   workspaceId: string | null
   activeSurface: Surface | null
-  onGoHome: () => void
   onOpenDetails: () => void
-  onToggleSurface: (next: Surface) => void
 }) {
+  // Surface nav lives in the Sidebar's HERE section now; the header
+  // just reports where you are (workspace name, optional surface
+  // suffix) and hosts page-specific tools on the right.
+  const surfaceLabel
+    = activeSurface === 'actions'
+      ? 'Actions'
+      : activeSurface === 'clarify'
+        ? 'Clarify'
+        : activeSurface === 'proposals'
+          ? 'Proposals'
+          : null
+
   return (
     <header className="flex h-11 items-center justify-between gap-3 border-b border-border px-4">
       <div className="flex items-center gap-1.5 text-sm">
@@ -224,24 +227,19 @@ function WorkspaceHeader({ workspaceId, activeSurface, onGoHome, onOpenDetails, 
               <>
                 <button
                   type="button"
-                  onClick={onGoHome}
-                  title={activeSurface ? 'Back to graph' : 'Graph (home)'}
-                  className={cn(
-                    'group flex h-7 items-center gap-1.5 rounded-md border border-transparent px-2 font-mono text-foreground transition-colors hover:border-border hover:bg-accent',
-                    activeSurface === null && 'border-border bg-accent/40',
-                  )}
-                >
-                  <Home className="size-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
-                  <span>{workspaceId}</span>
-                </button>
-                <button
-                  type="button"
                   onClick={onOpenDetails}
                   title="Workspace settings"
-                  className="flex size-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground"
+                  className="group flex h-7 items-center gap-1.5 rounded-md border border-transparent px-2 font-mono text-foreground transition-colors hover:border-border hover:bg-accent"
                 >
-                  <Settings2 className="size-3.5" />
+                  <span>{workspaceId}</span>
+                  <Settings2 className="size-3 text-muted-foreground transition-colors group-hover:text-foreground" />
                 </button>
+                {surfaceLabel && (
+                  <>
+                    <span className="text-muted-foreground/40">/</span>
+                    <span className="text-foreground/80">{surfaceLabel}</span>
+                  </>
+                )}
               </>
             )
           : (
@@ -252,97 +250,9 @@ function WorkspaceHeader({ workspaceId, activeSurface, onGoHome, onOpenDetails, 
             )}
       </div>
       {workspaceId && (
-        <div className="flex items-center gap-3">
-          <PageActionsHost className="flex items-center gap-2 empty:hidden" />
-          <div className="flex items-center gap-1">
-            <SurfaceDockButton
-              surface="actions"
-              label="Actions"
-              Icon={Sparkles}
-              shortcut="⌘1"
-              active={activeSurface === 'actions'}
-              onClick={() => onToggleSurface('actions')}
-            />
-            <SurfaceDockButton
-              surface="clarify"
-              label="Clarify"
-              Icon={HelpCircle}
-              shortcut="⌘2"
-              active={activeSurface === 'clarify'}
-              onClick={() => onToggleSurface('clarify')}
-              badge={<ClarifyPendingBadge workspaceId={workspaceId} />}
-            />
-            <SurfaceDockButton
-              surface="proposals"
-              label="Proposals"
-              Icon={Inbox}
-              shortcut="⌘3"
-              active={activeSurface === 'proposals'}
-              onClick={() => onToggleSurface('proposals')}
-              badge={<ProposalsPendingBadge workspaceId={workspaceId} />}
-            />
-          </div>
-        </div>
+        <PageActionsHost className="flex items-center gap-2 empty:hidden" />
       )}
     </header>
-  )
-}
-
-function SurfaceDockButton({ label, Icon, shortcut, active, onClick, badge }: {
-  surface: Surface
-  label: string
-  Icon: typeof Sparkles
-  shortcut: string
-  active: boolean
-  onClick: () => void
-  badge?: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={`${label} (${shortcut})`}
-      className={cn(
-        'flex h-7 items-center gap-1.5 rounded-md border border-transparent px-2 text-sm transition-colors',
-        active
-          ? 'border-border bg-accent text-foreground'
-          : 'text-muted-foreground hover:border-border hover:bg-accent hover:text-foreground',
-      )}
-    >
-      <Icon className="size-3.5" />
-      <span className="hidden sm:inline">{label}</span>
-      {badge}
-    </button>
-  )
-}
-
-function ProposalsPendingBadge({ workspaceId }: { workspaceId: string }) {
-  const { data } = usePendingProposals(workspaceId)
-  const count = data?.items.length ?? 0
-  if (count === 0)
-    return null
-  return (
-    <span
-      className="ml-0.5 rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-medium leading-none text-primary"
-      title={`${count} pending proposal${count === 1 ? '' : 's'}`}
-    >
-      {count}
-    </span>
-  )
-}
-
-function ClarifyPendingBadge({ workspaceId }: { workspaceId: string }) {
-  const { data } = usePendingClarify(workspaceId)
-  const count = data?.items.length ?? 0
-  if (count === 0)
-    return null
-  return (
-    <span
-      className="ml-0.5 rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-medium leading-none text-primary"
-      title={`${count} pending clarification${count === 1 ? '' : 's'}`}
-    >
-      {count}
-    </span>
   )
 }
 

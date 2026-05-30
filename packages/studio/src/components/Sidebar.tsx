@@ -1,5 +1,6 @@
 import type { Workspace } from '@braidhq/schema'
-import { Loader2, Moon, PanelLeftClose, PanelLeftOpen, Plus, Server, Sun } from 'lucide-react'
+import type { Surface } from './CommandPalette'
+import { HelpCircle, Home, Inbox, Loader2, Moon, PanelLeftClose, PanelLeftOpen, Plus, Server, Sparkles, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import braidLogo from '@/assets/braid-logo.svg'
 import { usePendingClarify, usePendingProposals, useRuns } from '@/lib/queries'
@@ -30,12 +31,24 @@ function writeStoredCollapsed(collapsed: boolean): void {
 interface SidebarProps {
   workspaces: Workspace[]
   activeWorkspaceId: string | null
+  activeSurface: Surface | null
   onSelect: (id: string) => void
   onOpenDetails: (id: string) => void
   onOpenServerUrl: () => void
+  onGoHome: () => void
+  onSelectSurface: (next: Surface) => void
 }
 
-export function Sidebar({ workspaces, activeWorkspaceId, onSelect, onOpenDetails, onOpenServerUrl }: SidebarProps) {
+export function Sidebar({
+  workspaces,
+  activeWorkspaceId,
+  activeSurface,
+  onSelect,
+  onOpenDetails,
+  onOpenServerUrl,
+  onGoHome,
+  onSelectSurface,
+}: SidebarProps) {
   const [wizardOpen, setWizardOpen] = useState(false)
   const [collapsed, setCollapsedState] = useState<boolean>(readStoredCollapsed)
 
@@ -135,6 +148,16 @@ export function Sidebar({ workspaces, activeWorkspaceId, onSelect, onOpenDetails
         </ul>
       </div>
 
+      {activeWorkspaceId && (
+        <HereSection
+          workspaceId={activeWorkspaceId}
+          activeSurface={activeSurface}
+          collapsed={collapsed}
+          onGoHome={onGoHome}
+          onSelectSurface={onSelectSurface}
+        />
+      )}
+
       <div className={cn(
         'flex shrink-0 border-t border-sidebar-border',
         collapsed
@@ -211,6 +234,122 @@ function ThemeToggle() {
     >
       <Icon className="size-3.5" />
     </SidebarIconButton>
+  )
+}
+
+/**
+ * "HERE" — surface nav scoped to the active workspace. Sits between
+ * the workspaces list (top) and the app-level utility row (bottom),
+ * so the sidebar reads top-to-bottom as `where → what → settings`.
+ * Lives in the sidebar (not the header) so on mobile it transposes
+ * cleanly into a bottom tab bar without restructuring nav.
+ */
+function HereSection({
+  workspaceId,
+  activeSurface,
+  collapsed,
+  onGoHome,
+  onSelectSurface,
+}: {
+  workspaceId: string
+  activeSurface: Surface | null
+  collapsed: boolean
+  onGoHome: () => void
+  onSelectSurface: (next: Surface) => void
+}) {
+  const { data: proposals } = usePendingProposals(workspaceId)
+  const { data: clarify } = usePendingClarify(workspaceId)
+  const pendingProposals = proposals?.items.length ?? 0
+  const pendingClarify = clarify?.items.length ?? 0
+
+  return (
+    <div className={cn('shrink-0 border-t border-sidebar-border px-2 pb-2', collapsed ? 'pt-1.5' : 'pt-2')}>
+      {!collapsed && (
+        <div className="px-2 pb-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">Here</span>
+        </div>
+      )}
+      <ul className="space-y-px">
+        <HereRow
+          collapsed={collapsed}
+          icon={Home}
+          label="Graph"
+          active={activeSurface === null}
+          onClick={onGoHome}
+        />
+        <HereRow
+          collapsed={collapsed}
+          icon={Sparkles}
+          label="Actions"
+          active={activeSurface === 'actions'}
+          onClick={() => onSelectSurface('actions')}
+        />
+        <HereRow
+          collapsed={collapsed}
+          icon={HelpCircle}
+          label="Clarify"
+          active={activeSurface === 'clarify'}
+          count={pendingClarify}
+          onClick={() => onSelectSurface('clarify')}
+        />
+        <HereRow
+          collapsed={collapsed}
+          icon={Inbox}
+          label="Proposals"
+          active={activeSurface === 'proposals'}
+          count={pendingProposals}
+          onClick={() => onSelectSurface('proposals')}
+        />
+      </ul>
+    </div>
+  )
+}
+
+function HereRow({ collapsed, icon: Icon, label, active, count = 0, onClick }: {
+  collapsed: boolean
+  icon: typeof Sparkles
+  label: string
+  active: boolean
+  count?: number
+  onClick: () => void
+}) {
+  return (
+    <ListRow
+      variant="sidebar"
+      active={active}
+      onClick={onClick}
+      {...(collapsed ? { title: count > 0 ? `${label} (${count})` : label, className: 'justify-center px-0 py-1' } : {})}
+    >
+      {collapsed
+        ? (
+            <div className="relative">
+              <div className={cn(
+                'flex size-7 items-center justify-center rounded-md transition-colors',
+                active ? 'text-sidebar-foreground' : 'text-sidebar-foreground/70',
+              )}
+              >
+                <Icon className="size-3.5" />
+              </div>
+              {count > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-primary ring-2 ring-sidebar" />
+              )}
+            </div>
+          )
+        : (
+            <>
+              <Icon className="size-3.5 shrink-0 text-sidebar-foreground/70" />
+              <span className="flex-1 truncate font-medium">{label}</span>
+              {count > 0 && (
+                <span
+                  className="rounded bg-sidebar-accent px-1.5 py-0.5 text-[10px] font-medium text-sidebar-foreground/80"
+                  title={`${count} pending`}
+                >
+                  {count}
+                </span>
+              )}
+            </>
+          )}
+    </ListRow>
   )
 }
 
