@@ -187,7 +187,21 @@ export class GitWorkspaceHistory implements WorkspaceHistory {
   ): Promise<TagMeta> {
     const git = openGit(workspace.rootPath)
     if (note) {
-      await git.raw(['tag', '-a', name, sha, '-m', note])
+      // Annotated tags create a tag object that needs a committer
+      // identity; pin it inline so CI runners without global git
+      // config don't fail.
+      await git.raw([
+        '-c',
+        `user.name=${BOOTSTRAP_USER_ID}`,
+        '-c',
+        `user.email=${BOOTSTRAP_USER_ID}@braid.local`,
+        'tag',
+        '-a',
+        name,
+        sha,
+        '-m',
+        note,
+      ])
     }
     else {
       await git.raw(['tag', name, sha])

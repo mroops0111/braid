@@ -19,6 +19,7 @@ import type { SecretStore } from './infrastructure/secrets/SecretStore.js'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
+  HistoryService,
   HITLService,
   InMemoryClarifyTicketRepository,
   InMemoryDecisionRepository,
@@ -28,6 +29,7 @@ import {
   InMemoryWorkspaceRepository,
   ModelService,
   noopRunRepository,
+  PerWorkspaceLock,
   PluginRegistry,
   SourceLoaderRunner,
   SystemClock,
@@ -38,6 +40,7 @@ import {
 export interface AppDependencies {
   workspaceService: WorkspaceService
   hitlService: HITLService
+  historyService?: HistoryService
   modelService: ModelService
   validationService: ValidationService
   sourceLoaderRunner: SourceLoaderRunner
@@ -56,13 +59,6 @@ export interface AppDependencies {
    * `POST /workspaces/scaffold { name }` resolves to `<workspacesRoot>/<name>`.
    */
   workspacesRoot: AbsolutePath
-  /**
-   * Reconciles a workspace's on-disk state on demand: git init,
-   * graph.json <-> storage backend sync. Composed by `composeFs`
-   * and called at boot for every registered workspace; the
-   * scaffold / register routes invoke it as well so freshly-created
-   * workspaces start with a committed initial state.
-   */
   bootstrap?: WorkspaceBootstrap
   /** OAuth secret storage (file-based; pluggable for hosted deployments). */
   secretStore?: SecretStore
@@ -97,14 +93,10 @@ export interface ComposeOptions {
    * to a fresh `InMemoryWorkspaceEventBus` for tests / in-memory boot.
    */
   eventBus?: WorkspaceEventBus
-  /**
-   * Git-backed workspace history. Wired through HITLService so every
-   * apply / reject / clarify mutation lands a structured commit. Tests
-   * that don't care about history can leave both fields undefined.
-   */
+  // Both required together; HITLService skips git hooks when absent.
   history?: WorkspaceHistory
-  /** Companion of `history`; required to dump graph state before commit. */
   graphSerializer?: GraphSerializer
+  bootstrap?: WorkspaceBootstrap
 }
 
 export function composeApp(options: ComposeOptions = {}): AppDependencies {
@@ -121,6 +113,8 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const modelService = new ModelService({ modelRepository })
   const validationService = new ValidationService({ pluginRegistry })
   const sourceLoaderRunner = new SourceLoaderRunner({ pluginRegistry, clock, eventBus })
+  // Shared lock domain so HITL mutations and history restore exclude each other.
+  const workspaceLock = new PerWorkspaceLock()
   const hitlService = new HITLService({
     proposalRepository,
     clarifyRepository,
@@ -130,13 +124,29 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     workspaceService,
     clock,
     eventBus,
+    workspaceLock,
     ...(options.history ? { history: options.history } : {}),
     ...(options.graphSerializer ? { graphSerializer: options.graphSerializer } : {}),
   })
 
+  const historyService = options.history && options.bootstrap
+    ? new HistoryService({
+      history: options.history,
+      workspaceService,
+      workspaceLock,
+      bootstrap: options.bootstrap,
+      runRepository: options.runRepository ?? noopRunRepository,
+      ...(options.skillRunner ? { skillRunner: options.skillRunner } : {}),
+      eventBus,
+      clock,
+    })
+    : undefined
+
   return {
     workspaceService,
     hitlService,
+    ...(historyService ? { historyService } : {}),
+    ...(options.bootstrap ? { bootstrap: options.bootstrap } : {}),
     modelService,
     validationService,
     sourceLoaderRunner,

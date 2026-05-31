@@ -8,24 +8,10 @@ import {
   UserId,
 } from '@braidhq/schema'
 
-/**
- * Render a structured `CommitMessage` as the raw text that goes into
- * `git commit -m`. Layout:
- *
- *     <kind>: <subject>
- *
- *     Kind: <kind>
- *     Author: <userId>
- *     Proposal-Id: <id>?
- *     Clarify-Ticket-Id: <id>?
- *     Source-Id: <id>?
- *     Reverted-From: <sha>?
- *     Reverted-To: <sha>?
- *
- * The blank line + trailer block is the git-native convention
- * `git interpret-trailers` understands, so future tooling can lean on
- * it without re-parsing.
- */
+// Trailer keys recognised by `git interpret-trailers` so future
+// tooling can lean on the same parser.
+const TRAILER_KEY_PATTERN = /^[a-z][a-z-]*$/i
+
 export function serializeCommitMessage(message: CommitMessage): string {
   const trailers: string[] = [
     `Kind: ${message.kind}`,
@@ -41,27 +27,19 @@ export function serializeCommitMessage(message: CommitMessage): string {
     trailers.push(`Reverted-From: ${message.revertedFrom}`)
   if (message.revertedTo)
     trailers.push(`Reverted-To: ${message.revertedTo}`)
-
   return `${message.kind}: ${message.subject}\n\n${trailers.join('\n')}\n`
 }
 
-/**
- * Parse a git commit message body back into a `CommitMessage`. Falls
- * back to a synthetic `snapshot` kind when the body is missing the
- * `Kind:` trailer — covers manual `git commit` use from the CLI
- * outside the Studio path, so the timeline still renders without
- * crashing.
- */
 export function parseCommitMessage(raw: string): CommitMessage {
   const lines = raw.split('\n')
   const subjectLine = lines[0] ?? ''
   const colonIdx = subjectLine.indexOf(':')
-  const subject = colonIdx >= 0
-    ? subjectLine.slice(colonIdx + 1).trim()
-    : subjectLine.trim()
+  const subject = colonIdx >= 0 ? subjectLine.slice(colonIdx + 1).trim() : subjectLine.trim()
 
   const trailers = extractTrailers(lines)
   const kindRaw = trailers.Kind ?? subjectLine.slice(0, colonIdx).trim()
+  // Fall back to `snapshot` on unknown kinds so a manual `git commit`
+  // from the CLI still renders in the timeline.
   const kind = CommitKind.safeParse(kindRaw).data ?? 'snapshot'
   const userId = UserId.parse(trailers.Author ?? 'unknown')
 
@@ -83,24 +61,10 @@ export function parseCommitMessage(raw: string): CommitMessage {
   return out
 }
 
-/**
- * Extract `Key: Value` trailers from the LAST contiguous block of
- * `Key: Value` lines in the message. Mirrors git's own trailer
- * parsing rules: only the trailing block counts, intermediate
- * `Key: Value` text in the body is ignored.
- */
-/**
- * Key syntax for a trailer line. Walked over with two indexOf-based
- * checks instead of a single regex with overlapping quantifiers so
- * the parser is immune to polynomial backtracking on adversarial
- * commit bodies.
- */
-const TRAILER_KEY_PATTERN = /^[a-z][a-z-]*$/i
-
+// indexOf-based scan instead of a single regex: avoids polynomial
+// backtracking risk against adversarial commit bodies.
 function extractTrailers(lines: readonly string[]): Record<string, string> {
   const out: Record<string, string> = {}
-  // Walk backwards: collect contiguous `Key: Value` lines until we
-  // hit a blank line or a non-trailer line.
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i]!
     if (line.trim().length === 0) {
@@ -109,14 +73,11 @@ function extractTrailers(lines: readonly string[]): Record<string, string> {
       continue
     }
     const colon = line.indexOf(':')
-    if (colon < 1) {
-      // Non-trailer line ends the block.
+    if (colon < 1)
       return out
-    }
     const key = line.slice(0, colon)
-    if (!TRAILER_KEY_PATTERN.test(key)) {
+    if (!TRAILER_KEY_PATTERN.test(key))
       return out
-    }
     out[key] = line.slice(colon + 1).trim()
   }
   return out

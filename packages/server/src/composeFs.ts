@@ -245,12 +245,14 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     ],
   })
 
-  // History + graph.json serialisation are shared between two
-  // consumers — `WorkspaceBootstrap` (boot-time reconciliation) and
-  // `HITLService` (per-mutation commits). Construct once so both
-  // sides use the same simple-git client and atomic-write helper.
+  // Shared by WorkspaceBootstrap (boot reconciliation) and HITLService (per-mutation commits).
   const history = new GitWorkspaceHistory()
   const graphSerializer = new FsGraphSerializer()
+  const bootstrap = new WorkspaceBootstrap({
+    history,
+    serializer: graphSerializer,
+    modelRepository,
+  })
 
   const workspacesRoot = join(braidHome, 'workspaces') as AbsolutePath
   const deps = composeApp({
@@ -267,6 +269,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     workspacesRoot,
     history,
     graphSerializer,
+    bootstrap,
   })
 
   // Pick up workspaces that exist on disk but aren't in the registry:
@@ -274,16 +277,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   // Registry add is idempotent so this is safe to run on every boot.
   await discoverCanonicalWorkspaces(workspacesRoot, deps.workspaceService)
 
-  // Bring every registered workspace's on-disk state into a known-good
-  // shape before the server starts taking requests: ensure each is a
-  // git repo, reconcile graph.json with the Kùzu cache. Per-workspace
-  // failures are logged and tolerated so one corrupt directory can't
-  // block the rest from coming up.
-  const bootstrap = new WorkspaceBootstrap({
-    history,
-    serializer: graphSerializer,
-    modelRepository,
-  })
+  // Per-workspace failures are logged and tolerated so one bad dir doesn't block boot.
   const bootstrapLog = createLogger('server').child({ mod: 'workspace-bootstrap' })
   for (const workspace of await deps.workspaceService.list()) {
     try {

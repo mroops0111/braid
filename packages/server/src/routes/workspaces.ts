@@ -50,11 +50,6 @@ export interface WorkspacesRouterDeps {
   workspaceService: WorkspaceService
   sourceLoaderRunner: SourceLoaderRunner
   workspacesRoot: AbsolutePath
-  /**
-   * Optional in tests; production composition always supplies one so
-   * freshly-registered / scaffolded workspaces land on disk already
-   * git-initialised with a synced `graph.json`.
-   */
   bootstrap?: WorkspaceBootstrap
 }
 

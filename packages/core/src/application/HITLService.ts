@@ -46,30 +46,20 @@ export interface HITLServiceDeps {
    * undefined and skip the notifications.
    */
   eventBus?: WorkspaceEventBus
-  /**
-   * Workspace-scoped git history. When both `history` and
-   * `graphSerializer` are present, every mutation (apply / reject /
-   * clarify-*) lands a structured commit on the workspace's repo so
-   * Phase 3+ can render an audit timeline and Phase 4 can restore.
-   * Optional so tests that don't care about history can omit it.
-   */
+  // Both required together; absence makes the commit hook a no-op.
   history?: WorkspaceHistory
-  /**
-   * Disk source of truth for graph state. Required alongside `history`
-   * for graph-mutating commits (currently just `applyProposal`); the
-   * serialiser re-dumps the Kùzu snapshot into `graph.json` before
-   * the commit picks the diff up.
-   */
   graphSerializer?: GraphSerializer
+  // Inject so HistoryService.restore can share the same exclusion domain.
+  workspaceLock?: PerWorkspaceLock
 }
 
 export class HITLService {
-  // Per-workspace lock serialises the load → validate → write → save
-  // chain so two concurrent applyProposal calls on the same workspace
-  // can't both pass validation against the same pre-write snapshot.
-  private readonly workspaceLock = new PerWorkspaceLock()
+  // Serialises mutation + commit on the same workspace.
+  private readonly workspaceLock: PerWorkspaceLock
 
-  constructor(private readonly deps: HITLServiceDeps) {}
+  constructor(private readonly deps: HITLServiceDeps) {
+    this.workspaceLock = deps.workspaceLock ?? new PerWorkspaceLock()
+  }
 
   // Server-side proposal creation. Validates ops against the current graph,
   // mints id + generatedAt, persists. Returns the saved Proposal so the
@@ -354,19 +344,7 @@ export class HITLService {
     return decision
   }
 
-  /**
-   * Optional hook that lands a structured commit on the workspace's
-   * git repo after a state-changing mutation. When `syncGraph` is set,
-   * the current Kùzu snapshot is dumped to `graph.json` first so the
-   * commit's tree reflects the post-mutation graph (used by
-   * `applyProposal` — other mutations only touch artifact JSON files
-   * which the commit picks up directly).
-   *
-   * No-op when either dep is missing, so tests that don't care about
-   * history pass `history: undefined` and skip the git layer entirely.
-   * Caller is expected to be inside the per-workspace lock; running
-   * outside it would race a concurrent commit.
-   */
+  // No-op when deps are missing. Caller must hold the per-workspace lock.
   private async commitWorkspaceChange(
     workspace: Workspace,
     message: CommitMessage,
@@ -378,6 +356,12 @@ export class HITLService {
       const snapshot = await this.deps.modelRepository.load(workspace.id)
       await this.deps.graphSerializer.write(workspace, snapshot)
     }
-    await this.deps.history.commit(workspace, message)
+    const sha = await this.deps.history.commit(workspace, message)
+    this.deps.eventBus?.publish({
+      type: 'history.committed',
+      workspaceId: workspace.id,
+      sha,
+      at: this.deps.clock.now(),
+    })
   }
 }

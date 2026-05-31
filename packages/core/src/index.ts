@@ -1,3 +1,4 @@
+export * from './application/HistoryService.js'
 export * from './application/HITLService.js'
 export * from './application/ModelService.js'
 export * from './application/PerWorkspaceLock.js'

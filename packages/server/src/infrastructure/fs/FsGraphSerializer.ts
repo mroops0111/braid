@@ -6,12 +6,6 @@ import { GraphEdge, GraphNode } from '@braidhq/schema'
 import { z } from 'zod'
 import { graphJsonPath, workspaceArtifactsDir } from './paths.js'
 
-/**
- * Current `graph.json` schema version. Bumped only when the on-disk
- * shape changes in a way that needs a migration helper (e.g.
- * normalising legacy fields); the reader rejects unknown versions so
- * an older binary can't silently corrupt a newer file.
- */
 const GRAPH_JSON_VERSION = 1
 
 const GraphJsonFile = z.object({
@@ -19,28 +13,18 @@ const GraphJsonFile = z.object({
   nodes: z.array(GraphNode),
   edges: z.array(GraphEdge),
 })
-type GraphJsonFile = z.infer<typeof GraphJsonFile>
 
-/**
- * Filesystem `GraphSerializer` writing `<workspaceRoot>/artifacts/graph.json`.
- * Writes are atomic via the `mv tmp final` rename trick so a crashed
- * server can't leave a half-written graph that would later mis-hydrate
- * Kùzu on restart.
- *
- * Nodes and edges are sorted by id before serialising so two runs over
- * the same logical state produce byte-identical files. That keeps
- * `git log -p` noise-free and lets `git status` mean what it says
- * during workspace bootstrap.
- */
 export class FsGraphSerializer implements GraphSerializer {
   async write(workspace: Workspace, snapshot: ModelSnapshot): Promise<void> {
     const path = graphJsonPath(workspace.rootPath)
     await mkdir(workspaceArtifactsDir(workspace.rootPath), { recursive: true })
-    const payload: GraphJsonFile = {
+    const payload = {
       version: GRAPH_JSON_VERSION,
       nodes: [...snapshot.nodes].sort(byId),
       edges: [...snapshot.edges].sort(byId),
     }
+    // Atomic write so a crashed server can't leave a half-file that
+    // mis-hydrates Kùzu on restart.
     const tmp = `${path}.tmp-${process.pid}-${Date.now()}`
     await writeFile(tmp, `${JSON.stringify(payload, null, 2)}\n`, 'utf-8')
     await rename(tmp, path)
