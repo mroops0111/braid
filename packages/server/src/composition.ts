@@ -2,6 +2,7 @@ import type {
   ClarifyTicketRepository,
   Clock,
   DecisionRepository,
+  GraphSerializer,
   ModelRepository,
   ProposalRepository,
   RunRepository,
@@ -9,6 +10,7 @@ import type {
   SkillRunner,
   WorkspaceBootstrap,
   WorkspaceEventBus,
+  WorkspaceHistory,
   WorkspaceRepository,
 } from '@braidhq/core'
 import type { AbsolutePath } from '@braidhq/schema'
@@ -95,6 +97,14 @@ export interface ComposeOptions {
    * to a fresh `InMemoryWorkspaceEventBus` for tests / in-memory boot.
    */
   eventBus?: WorkspaceEventBus
+  /**
+   * Git-backed workspace history. Wired through HITLService so every
+   * apply / reject / clarify mutation lands a structured commit. Tests
+   * that don't care about history can leave both fields undefined.
+   */
+  history?: WorkspaceHistory
+  /** Companion of `history`; required to dump graph state before commit. */
+  graphSerializer?: GraphSerializer
 }
 
 export function composeApp(options: ComposeOptions = {}): AppDependencies {
@@ -120,6 +130,8 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     workspaceService,
     clock,
     eventBus,
+    ...(options.history ? { history: options.history } : {}),
+    ...(options.graphSerializer ? { graphSerializer: options.graphSerializer } : {}),
   })
 
   return {

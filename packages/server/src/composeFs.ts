@@ -245,6 +245,13 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     ],
   })
 
+  // History + graph.json serialisation are shared between two
+  // consumers — `WorkspaceBootstrap` (boot-time reconciliation) and
+  // `HITLService` (per-mutation commits). Construct once so both
+  // sides use the same simple-git client and atomic-write helper.
+  const history = new GitWorkspaceHistory()
+  const graphSerializer = new FsGraphSerializer()
+
   const workspacesRoot = join(braidHome, 'workspaces') as AbsolutePath
   const deps = composeApp({
     workspaceRepository,
@@ -258,6 +265,8 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     pluginRegistry,
     eventBus,
     workspacesRoot,
+    history,
+    graphSerializer,
   })
 
   // Pick up workspaces that exist on disk but aren't in the registry:
@@ -271,8 +280,8 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   // failures are logged and tolerated so one corrupt directory can't
   // block the rest from coming up.
   const bootstrap = new WorkspaceBootstrap({
-    history: new GitWorkspaceHistory(),
-    serializer: new FsGraphSerializer(),
+    history,
+    serializer: graphSerializer,
     modelRepository,
   })
   const bootstrapLog = createLogger('server').child({ mod: 'workspace-bootstrap' })

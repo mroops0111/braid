@@ -22,6 +22,7 @@ export const CommitKind = z.enum([
   'apply',
   'reject',
   'clarify-answer',
+  'clarify-applied',
   'clarify-skip',
   'source-sync',
   'bootstrap',

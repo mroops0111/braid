@@ -3,6 +3,7 @@ import type {
   ClarifyCandidateId,
   ClarifyDraft,
   ClarifyTicketId,
+  CommitMessage,
   Decision,
   DecisionAction,
   DecisionReferences,
@@ -14,10 +15,13 @@ import type {
   WorkspaceId,
 } from '@braidhq/schema'
 import type { Clock } from '../domain/Clock.js'
+import type { WorkspaceHistory } from '../domain/history/WorkspaceHistory.js'
 import type { ClarifyTicketRepository } from '../domain/hitl/ClarifyTicketRepository.js'
 import type { DecisionRepository } from '../domain/hitl/DecisionRepository.js'
 import type { ProposalRepository } from '../domain/hitl/ProposalRepository.js'
+import type { GraphSerializer } from '../domain/model/GraphSerializer.js'
 import type { ModelRepository } from '../domain/model/ModelRepository.js'
+import type { Workspace } from '../domain/workspace/Workspace.js'
 import type { ValidationService } from './ValidationService.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import type { WorkspaceService } from './WorkspaceService.js'
@@ -42,6 +46,21 @@ export interface HITLServiceDeps {
    * undefined and skip the notifications.
    */
   eventBus?: WorkspaceEventBus
+  /**
+   * Workspace-scoped git history. When both `history` and
+   * `graphSerializer` are present, every mutation (apply / reject /
+   * clarify-*) lands a structured commit on the workspace's repo so
+   * Phase 3+ can render an audit timeline and Phase 4 can restore.
+   * Optional so tests that don't care about history can omit it.
+   */
+  history?: WorkspaceHistory
+  /**
+   * Disk source of truth for graph state. Required alongside `history`
+   * for graph-mutating commits (currently just `applyProposal`); the
+   * serialiser re-dumps the Kùzu snapshot into `graph.json` before
+   * the commit picks the diff up.
+   */
+  graphSerializer?: GraphSerializer
 }
 
 export class HITLService {
@@ -114,10 +133,16 @@ export class HITLService {
     const initial = await this.deps.proposalRepository.load(proposalId)
     return this.workspaceLock.run(initial.workspaceId, async () => {
       const proposal = await this.deps.proposalRepository.load(proposalId)
+      const workspace = await this.deps.workspaceService.findById(proposal.workspaceId)
       const applied = proposal.markApplied(userId, this.deps.clock.now())
       await this.assertOperationsValid(proposal.workspaceId, [...proposal.operations])
       await this.deps.modelRepository.applyOperations(proposal.workspaceId, [...proposal.operations])
       await this.deps.proposalRepository.save(applied)
+      await this.commitWorkspaceChange(
+        workspace,
+        { kind: 'apply', subject: `applied ${proposalId}`, userId, proposalId },
+        { syncGraph: true },
+      )
       this.deps.eventBus?.publish({
         type: 'proposal.applied',
         workspaceId: proposal.workspaceId,
@@ -135,21 +160,29 @@ export class HITLService {
 
   async rejectProposal(proposalId: ProposalId, reason: string, userId: UserId): Promise<Decision> {
     const proposal = await this.deps.proposalRepository.load(proposalId)
-    const rejected = proposal.markRejected(userId, this.deps.clock.now())
-    await this.deps.proposalRepository.save(rejected)
-    this.deps.eventBus?.publish({
-      type: 'proposal.rejected',
-      workspaceId: proposal.workspaceId,
-      proposalId: proposal.id,
-      at: this.deps.clock.now(),
-    })
-
-    return this.recordDecision({
-      workspaceId: proposal.workspaceId,
-      action: 'rejectProposal',
-      by: userId,
-      rationale: reason,
-      references: { proposalId },
+    return this.workspaceLock.run(proposal.workspaceId, async () => {
+      const workspace = await this.deps.workspaceService.findById(proposal.workspaceId)
+      const rejected = proposal.markRejected(userId, this.deps.clock.now())
+      await this.deps.proposalRepository.save(rejected)
+      await this.commitWorkspaceChange(workspace, {
+        kind: 'reject',
+        subject: `rejected ${proposalId}`,
+        userId,
+        proposalId,
+      })
+      this.deps.eventBus?.publish({
+        type: 'proposal.rejected',
+        workspaceId: proposal.workspaceId,
+        proposalId: proposal.id,
+        at: this.deps.clock.now(),
+      })
+      return this.recordDecision({
+        workspaceId: proposal.workspaceId,
+        action: 'rejectProposal',
+        by: userId,
+        rationale: reason,
+        references: { proposalId },
+      })
     })
   }
 
@@ -187,21 +220,29 @@ export class HITLService {
     const operations = [...ticket.resolveCandidate(candidateId)]
     await this.assertOperationsValid(ticket.workspaceId, operations)
 
-    const answered = ticket.markAnswered(candidateId, userId)
-    await this.deps.clarifyRepository.save(answered)
-    this.deps.eventBus?.publish({
-      type: 'clarify.answered',
-      workspaceId: ticket.workspaceId,
-      ticketId: ticket.id,
-      at: this.deps.clock.now(),
-    })
-
-    return this.recordDecision({
-      workspaceId: ticket.workspaceId,
-      action: 'answerClarifyTicket',
-      by: userId,
-      ...(note ? { rationale: note } : {}),
-      references: { clarifyTicketId },
+    return this.workspaceLock.run(ticket.workspaceId, async () => {
+      const workspace = await this.deps.workspaceService.findById(ticket.workspaceId)
+      const answered = ticket.markAnswered(candidateId, userId)
+      await this.deps.clarifyRepository.save(answered)
+      await this.commitWorkspaceChange(workspace, {
+        kind: 'clarify-answer',
+        subject: `answered ${clarifyTicketId}`,
+        userId,
+        clarifyTicketId,
+      })
+      this.deps.eventBus?.publish({
+        type: 'clarify.answered',
+        workspaceId: ticket.workspaceId,
+        ticketId: ticket.id,
+        at: this.deps.clock.now(),
+      })
+      return this.recordDecision({
+        workspaceId: ticket.workspaceId,
+        action: 'answerClarifyTicket',
+        by: userId,
+        ...(note ? { rationale: note } : {}),
+        references: { clarifyTicketId },
+      })
     })
   }
 
@@ -219,21 +260,30 @@ export class HITLService {
     proposalId?: ProposalId,
   ): Promise<Decision> {
     const ticket = await this.deps.clarifyRepository.load(clarifyTicketId)
-    const applied = ticket.markApplied(proposalId)
-    await this.deps.clarifyRepository.save(applied)
-    this.deps.eventBus?.publish({
-      type: 'clarify.applied',
-      workspaceId: ticket.workspaceId,
-      ticketId: ticket.id,
-      ...(proposalId ? { proposalId } : {}),
-      at: this.deps.clock.now(),
-    })
-
-    return this.recordDecision({
-      workspaceId: ticket.workspaceId,
-      action: 'applyClarifyTicket',
-      by: userId,
-      references: { clarifyTicketId, ...(proposalId ? { proposalId } : {}) },
+    return this.workspaceLock.run(ticket.workspaceId, async () => {
+      const workspace = await this.deps.workspaceService.findById(ticket.workspaceId)
+      const applied = ticket.markApplied(proposalId)
+      await this.deps.clarifyRepository.save(applied)
+      await this.commitWorkspaceChange(workspace, {
+        kind: 'clarify-applied',
+        subject: `closed ${clarifyTicketId}`,
+        userId,
+        clarifyTicketId,
+        ...(proposalId ? { proposalId } : {}),
+      })
+      this.deps.eventBus?.publish({
+        type: 'clarify.applied',
+        workspaceId: ticket.workspaceId,
+        ticketId: ticket.id,
+        ...(proposalId ? { proposalId } : {}),
+        at: this.deps.clock.now(),
+      })
+      return this.recordDecision({
+        workspaceId: ticket.workspaceId,
+        action: 'applyClarifyTicket',
+        by: userId,
+        references: { clarifyTicketId, ...(proposalId ? { proposalId } : {}) },
+      })
     })
   }
 
@@ -243,21 +293,29 @@ export class HITLService {
     userId: UserId,
   ): Promise<Decision> {
     const ticket = await this.deps.clarifyRepository.load(clarifyTicketId)
-    const skipped = ticket.markSkipped(userId)
-    await this.deps.clarifyRepository.save(skipped)
-    this.deps.eventBus?.publish({
-      type: 'clarify.skipped',
-      workspaceId: ticket.workspaceId,
-      ticketId: ticket.id,
-      at: this.deps.clock.now(),
-    })
-
-    return this.recordDecision({
-      workspaceId: ticket.workspaceId,
-      action: 'skipClarifyTicket',
-      by: userId,
-      rationale: reason,
-      references: { clarifyTicketId },
+    return this.workspaceLock.run(ticket.workspaceId, async () => {
+      const workspace = await this.deps.workspaceService.findById(ticket.workspaceId)
+      const skipped = ticket.markSkipped(userId)
+      await this.deps.clarifyRepository.save(skipped)
+      await this.commitWorkspaceChange(workspace, {
+        kind: 'clarify-skip',
+        subject: `skipped ${clarifyTicketId}`,
+        userId,
+        clarifyTicketId,
+      })
+      this.deps.eventBus?.publish({
+        type: 'clarify.skipped',
+        workspaceId: ticket.workspaceId,
+        ticketId: ticket.id,
+        at: this.deps.clock.now(),
+      })
+      return this.recordDecision({
+        workspaceId: ticket.workspaceId,
+        action: 'skipClarifyTicket',
+        by: userId,
+        rationale: reason,
+        references: { clarifyTicketId },
+      })
     })
   }
 
@@ -294,5 +352,32 @@ export class HITLService {
     }
     await this.deps.decisionRepository.append(decision)
     return decision
+  }
+
+  /**
+   * Optional hook that lands a structured commit on the workspace's
+   * git repo after a state-changing mutation. When `syncGraph` is set,
+   * the current Kùzu snapshot is dumped to `graph.json` first so the
+   * commit's tree reflects the post-mutation graph (used by
+   * `applyProposal` — other mutations only touch artifact JSON files
+   * which the commit picks up directly).
+   *
+   * No-op when either dep is missing, so tests that don't care about
+   * history pass `history: undefined` and skip the git layer entirely.
+   * Caller is expected to be inside the per-workspace lock; running
+   * outside it would race a concurrent commit.
+   */
+  private async commitWorkspaceChange(
+    workspace: Workspace,
+    message: CommitMessage,
+    options: { syncGraph: boolean } = { syncGraph: false },
+  ): Promise<void> {
+    if (!this.deps.history || !this.deps.graphSerializer)
+      return
+    if (options.syncGraph) {
+      const snapshot = await this.deps.modelRepository.load(workspace.id)
+      await this.deps.graphSerializer.write(workspace, snapshot)
+    }
+    await this.deps.history.commit(workspace, message)
   }
 }
