@@ -47,6 +47,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     workspaceService: deps.workspaceService,
     sourceLoaderRunner: deps.sourceLoaderRunner,
     workspacesRoot: deps.workspacesRoot,
+    ...(deps.bootstrap ? { bootstrap: deps.bootstrap } : {}),
   }))
   app.route('/workspaces', createWorkspaceEventsRouter({ eventBus: deps.eventBus }))
 

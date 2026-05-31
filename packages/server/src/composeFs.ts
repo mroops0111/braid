@@ -9,10 +9,12 @@ import { fileURLToPath } from 'node:url'
 import { claudeCodeAgentPlugin } from '@braidhq/agent-claude-code'
 import {
   builtinSkillsRoot,
+  createLogger,
   InMemoryWorkspaceEventBus,
   NotFoundError,
   PluginRegistry,
   ValidationError,
+  WorkspaceBootstrap,
 } from '@braidhq/core'
 import { dddOntology } from '@braidhq/ontology-ddd'
 import { StorageKind as StorageKindSchema } from '@braidhq/schema'
@@ -23,12 +25,14 @@ import { composeApp } from './composition.js'
 import { SubprocessSkillRunner } from './infrastructure/agent/SubprocessSkillRunner.js'
 import { FsClarifyTicketRepository } from './infrastructure/fs/FsClarifyTicketRepository.js'
 import { FsDecisionRepository } from './infrastructure/fs/FsDecisionRepository.js'
+import { FsGraphSerializer } from './infrastructure/fs/FsGraphSerializer.js'
 import { FsProposalRepository } from './infrastructure/fs/FsProposalRepository.js'
 import { FsRunRepository } from './infrastructure/fs/FsRunRepository.js'
 import { FsSkillRegistry } from './infrastructure/fs/FsSkillRegistry.js'
 import { FsWorkspaceRepository } from './infrastructure/fs/FsWorkspaceRepository.js'
 import { discoverCanonicalWorkspaces } from './infrastructure/fs/WorkspaceDiscovery.js'
 import { WorkspaceRegistryFile } from './infrastructure/fs/WorkspaceRegistryFile.js'
+import { GitWorkspaceHistory } from './infrastructure/git/GitWorkspaceHistory.js'
 import { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
 import { FsSecretStore } from './infrastructure/secrets/SecretStore.js'
 
@@ -261,8 +265,29 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   // Registry add is idempotent so this is safe to run on every boot.
   await discoverCanonicalWorkspaces(workspacesRoot, deps.workspaceService)
 
+  // Bring every registered workspace's on-disk state into a known-good
+  // shape before the server starts taking requests: ensure each is a
+  // git repo, reconcile graph.json with the Kùzu cache. Per-workspace
+  // failures are logged and tolerated so one corrupt directory can't
+  // block the rest from coming up.
+  const bootstrap = new WorkspaceBootstrap({
+    history: new GitWorkspaceHistory(),
+    serializer: new FsGraphSerializer(),
+    modelRepository,
+  })
+  const bootstrapLog = createLogger('server').child({ mod: 'workspace-bootstrap' })
+  for (const workspace of await deps.workspaceService.list()) {
+    try {
+      await bootstrap.ensure(workspace)
+    }
+    catch (err) {
+      bootstrapLog.warn({ err, workspaceId: workspace.id }, 'workspace bootstrap failed; skipping')
+    }
+  }
+
   return {
     ...deps,
+    bootstrap,
     secretStore,
     ...(googleOAuth ? { googleOAuth } : {}),
   }

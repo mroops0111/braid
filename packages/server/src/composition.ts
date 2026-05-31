@@ -7,6 +7,7 @@ import type {
   RunRepository,
   SkillRegistry,
   SkillRunner,
+  WorkspaceBootstrap,
   WorkspaceEventBus,
   WorkspaceRepository,
 } from '@braidhq/core'
@@ -53,6 +54,14 @@ export interface AppDependencies {
    * `POST /workspaces/scaffold { name }` resolves to `<workspacesRoot>/<name>`.
    */
   workspacesRoot: AbsolutePath
+  /**
+   * Reconciles a workspace's on-disk state on demand: git init,
+   * graph.json <-> storage backend sync. Composed by `composeFs`
+   * and called at boot for every registered workspace; the
+   * scaffold / register routes invoke it as well so freshly-created
+   * workspaces start with a committed initial state.
+   */
+  bootstrap?: WorkspaceBootstrap
   /** OAuth secret storage (file-based; pluggable for hosted deployments). */
   secretStore?: SecretStore
   /**

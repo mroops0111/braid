@@ -1,4 +1,4 @@
-import type { SourceLoaderRunner, Workspace, WorkspaceService } from '@braidhq/core'
+import type { SourceLoaderRunner, Workspace, WorkspaceBootstrap, WorkspaceService } from '@braidhq/core'
 import type { ProductManifest, SourceDescriptor } from '@braidhq/schema'
 import { rm } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
@@ -50,6 +50,12 @@ export interface WorkspacesRouterDeps {
   workspaceService: WorkspaceService
   sourceLoaderRunner: SourceLoaderRunner
   workspacesRoot: AbsolutePath
+  /**
+   * Optional in tests; production composition always supplies one so
+   * freshly-registered / scaffolded workspaces land on disk already
+   * git-initialised with a synced `graph.json`.
+   */
+  bootstrap?: WorkspaceBootstrap
 }
 
 export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
@@ -70,6 +76,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     const { rootPath } = context.req.valid('json')
     const workspace = await deps.workspaceService.load(rootPath)
     await deps.workspaceService.save(workspace)
+    await deps.bootstrap?.ensure(workspace)
     return context.json(workspace.toData(), 201)
   })
 
@@ -101,6 +108,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
       const workspace = await deps.workspaceService.load(rootPath)
       const ingestOutcomes = await deps.sourceLoaderRunner.ingestAll(workspace)
       await deps.workspaceService.save(workspace)
+      await deps.bootstrap?.ensure(workspace)
       return context.json({
         workspace: workspace.toData(),
         ingest: ingestOutcomes.map(o => ({ sourceId: o.sourceId, ...o.report })),
