@@ -1,6 +1,6 @@
 import type { Workspace } from '@braidhq/schema'
 import type { Surface } from './CommandPalette'
-import { HelpCircle, Home, Inbox, Moon, PanelLeftClose, PanelLeftOpen, Plus, Server, Sparkles, Sun } from 'lucide-react'
+import { GitCommit, HelpCircle, Home, Inbox, Moon, PanelLeftClose, PanelLeftOpen, Plus, Server, Sparkles, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import braidLogo from '@/assets/braid-logo.svg'
 import { usePendingClarify, usePendingProposals, useRuns } from '@/lib/queries'
@@ -300,6 +300,13 @@ function HereSection({
           active={activeSurface === 'proposals'}
           count={pendingProposals}
           onClick={() => onSelectSurface('proposals')}
+        />
+        <HereRow
+          collapsed={collapsed}
+          icon={GitCommit}
+          label="History"
+          active={activeSurface === 'history'}
+          onClick={() => onSelectSurface('history')}
         />
       </ul>
     </div>

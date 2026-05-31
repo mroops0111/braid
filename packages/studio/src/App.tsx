@@ -17,6 +17,7 @@ import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
 import { ActionsPage } from './pages/Actions'
 import { ClarifyPage } from './pages/Clarify'
 import { GraphSurface, GraphSurfaceActions, useGraphSurfaceState } from './pages/GraphSurface'
+import { HistoryPage } from './pages/History'
 import { ProposalsPage } from './pages/Proposals'
 
 export function App() {
@@ -113,6 +114,9 @@ export function App() {
                             focusedProposalId={focusedProposalId}
                             onFocusConsumed={() => setFocusedProposalId(null)}
                           />
+                        )}
+                        {activeSurface === 'history' && (
+                          <HistoryPage workspaceId={activeId} />
                         )}
                       </div>
                     )
@@ -220,7 +224,9 @@ function WorkspaceHeader({ workspaceId, activeSurface, onOpenDetails }: {
         ? 'Clarify'
         : activeSurface === 'proposals'
           ? 'Proposals'
-          : null
+          : activeSurface === 'history'
+            ? 'History'
+            : null
 
   return (
     <header className="flex h-11 items-center justify-between gap-3 border-b border-border px-4">

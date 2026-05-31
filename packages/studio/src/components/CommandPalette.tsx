@@ -1,5 +1,5 @@
 import type { SkillManifest, Workspace } from '@braidhq/schema'
-import { Boxes, HelpCircle, Home, Inbox, Sparkles } from 'lucide-react'
+import { Boxes, GitCommit, HelpCircle, Home, Inbox, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {
   CommandDialog,
@@ -21,7 +21,7 @@ interface CommandPaletteProps {
   onSelectSurface: (surface: Surface | null) => void
 }
 
-export type Surface = 'actions' | 'clarify' | 'proposals'
+export type Surface = 'actions' | 'clarify' | 'history' | 'proposals'
 
 interface SurfaceItem {
   id: Surface | null
@@ -36,6 +36,7 @@ function chordToSurface(key: string): Surface | null | undefined {
     case '1': return 'actions'
     case '2': return 'clarify'
     case '3': return 'proposals'
+    case '4': return 'history'
     default: return undefined
   }
 }
@@ -45,6 +46,7 @@ const SURFACE_ITEMS: SurfaceItem[] = [
   { id: 'actions', label: 'Actions', Icon: Sparkles, shortcut: '⌘1' },
   { id: 'clarify', label: 'Clarify', Icon: HelpCircle, shortcut: '⌘2' },
   { id: 'proposals', label: 'Proposals', Icon: Inbox, shortcut: '⌘3' },
+  { id: 'history', label: 'History', Icon: GitCommit, shortcut: '⌘4' },
 ]
 
 export function CommandPalette({

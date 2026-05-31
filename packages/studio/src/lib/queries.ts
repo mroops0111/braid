@@ -17,6 +17,9 @@ export const queryKeys = {
   decisions: (workspaceId: string) => ['workspaces', workspaceId, 'decisions'] as const,
   runs: (workspaceId: string) => ['workspaces', workspaceId, 'runs'] as const,
   sessionMetadata: (workspaceId: string) => ['workspaces', workspaceId, 'runs', 'sessions'] as const,
+  history: (workspaceId: string) => ['workspaces', workspaceId, 'history'] as const,
+  historyCommit: (workspaceId: string, sha: string) => ['workspaces', workspaceId, 'history', sha] as const,
+  historyTags: (workspaceId: string) => ['workspaces', workspaceId, 'history', 'tags'] as const,
 }
 
 export function useWorkspaces() {
@@ -104,5 +107,29 @@ export function useClarifyTicketDetail(workspaceId: string, ticketId: string | n
     queryKey: ticketId ? queryKeys.clarifyDetail(workspaceId, ticketId) : ['clarify-detail', 'none'],
     queryFn: () => api.getClarify(workspaceId, ticketId!),
     enabled: !!ticketId,
+  })
+}
+
+export function useHistory(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: workspaceId ? queryKeys.history(workspaceId) : ['history', 'none'],
+    queryFn: () => api.listHistory(workspaceId!),
+    enabled: !!workspaceId,
+  })
+}
+
+export function useHistoryCommit(workspaceId: string, sha: string | null) {
+  return useQuery({
+    queryKey: sha ? queryKeys.historyCommit(workspaceId, sha) : ['history-commit', 'none'],
+    queryFn: () => api.getCommit(workspaceId, sha as never),
+    enabled: !!sha,
+  })
+}
+
+export function useHistoryTags(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: workspaceId ? queryKeys.historyTags(workspaceId) : ['history-tags', 'none'],
+    queryFn: () => api.listHistoryTags(workspaceId!),
+    enabled: !!workspaceId,
   })
 }

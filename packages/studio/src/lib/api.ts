@@ -3,8 +3,11 @@ import type {
   ClarifyCandidate,
   ClarifyOrigin,
   ClarifyTicket,
+  CommitMeta,
+  CommitSha,
   Decision,
   ExternalReference,
+  FileDiff,
   GraphEdge,
   GraphNode,
   McpServerConfig,
@@ -18,6 +21,7 @@ import type {
   SkillInputOptionsResponse,
   SkillManifest,
   SourceDescriptor,
+  TagMeta,
   ValidationResult,
   Workspace,
 } from '@braidhq/schema'
@@ -290,6 +294,32 @@ export const api = {
   /** Orphan-row delete: single RunRecord by runId. */
   deleteRun: (workspaceId: string, runId: string) =>
     fetchJson<void>(`/workspaces/${workspaceId}/runs/${runId}`, { method: 'DELETE' }),
+
+  listHistory: (workspaceId: string, options?: { since?: CommitSha, limit?: number }) => {
+    const params = new URLSearchParams()
+    if (options?.since)
+      params.set('since', options.since)
+    if (options?.limit)
+      params.set('limit', String(options.limit))
+    const query = params.toString()
+    return fetchJson<ItemList<CommitMeta>>(`/workspaces/${workspaceId}/history${query ? `?${query}` : ''}`)
+  },
+  getCommit: (workspaceId: string, sha: CommitSha) =>
+    fetchJson<CommitMeta & { diff: FileDiff[] }>(`/workspaces/${workspaceId}/history/${sha}`),
+  restoreCommit: (workspaceId: string, sha: CommitSha, userId: string) =>
+    fetchJson<{ newCommit: CommitSha, restoredTo: CommitSha }>(
+      `/workspaces/${workspaceId}/history/${sha}/restore`,
+      { method: 'POST', body: JSON.stringify({ userId }) },
+    ),
+  listHistoryTags: (workspaceId: string) =>
+    fetchJson<ItemList<TagMeta>>(`/workspaces/${workspaceId}/history/tags`),
+  createHistoryTag: (workspaceId: string, body: { sha: CommitSha, name: string, note?: string }) =>
+    fetchJson<TagMeta>(`/workspaces/${workspaceId}/history/tags`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  deleteHistoryTag: (workspaceId: string, name: string) =>
+    fetchJson<void>(`/workspaces/${workspaceId}/history/tags/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 
   listSkillInputOptions: (workspaceId: string, type: string, filter?: unknown) => {
     const params = new URLSearchParams({ type })
