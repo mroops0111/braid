@@ -130,7 +130,7 @@ export class HITLService {
       await this.deps.proposalRepository.save(applied)
       await this.commitWorkspaceChange(
         workspace,
-        { kind: 'apply', subject: `applied ${proposalId}`, userId, proposalId },
+        { kind: 'proposal-apply', subject: `applied ${proposalId}`, userId, proposalId },
         { syncGraph: true },
       )
       this.deps.eventBus?.publish({
@@ -155,7 +155,7 @@ export class HITLService {
       const rejected = proposal.markRejected(userId, this.deps.clock.now())
       await this.deps.proposalRepository.save(rejected)
       await this.commitWorkspaceChange(workspace, {
-        kind: 'reject',
+        kind: 'proposal-reject',
         subject: `rejected ${proposalId}`,
         userId,
         proposalId,
@@ -255,7 +255,7 @@ export class HITLService {
       const applied = ticket.markApplied(proposalId)
       await this.deps.clarifyRepository.save(applied)
       await this.commitWorkspaceChange(workspace, {
-        kind: 'clarify-applied',
+        kind: 'clarify-apply',
         subject: `closed ${clarifyTicketId}`,
         userId,
         clarifyTicketId,

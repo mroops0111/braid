@@ -144,7 +144,7 @@ describe('HITLService — workspace history hooks', () => {
     expect(serializer.write).toHaveBeenCalledTimes(1)
     expect(history.commit).toHaveBeenCalledTimes(1)
     const [, message] = history.commit.mock.calls[0]!
-    expect(message.kind).toBe('apply')
+    expect(message.kind).toBe('proposal-apply')
     expect(message.proposalId).toBe(proposal.id)
     expect(message.userId).toBe(userId)
     // Write must precede commit so the commit's tree captures the new
@@ -162,7 +162,7 @@ describe('HITLService — workspace history hooks', () => {
 
     expect(serializer.write).not.toHaveBeenCalled()
     expect(history.commit).toHaveBeenCalledTimes(1)
-    expect(history.commit.mock.calls[0]![1].kind).toBe('reject')
+    expect(history.commit.mock.calls[0]![1].kind).toBe('proposal-reject')
     expect(history.commit.mock.calls[0]![1].proposalId).toBe(proposal.id)
   })
 
@@ -193,7 +193,7 @@ describe('HITLService — workspace history hooks', () => {
 
     expect(history.commit).toHaveBeenCalledTimes(1)
     const message = history.commit.mock.calls[0]![1]
-    expect(message.kind).toBe('clarify-applied')
+    expect(message.kind).toBe('clarify-apply')
     expect(message.clarifyTicketId).toBe(ticket.id)
     expect(message.proposalId).toBe(proposalId)
   })

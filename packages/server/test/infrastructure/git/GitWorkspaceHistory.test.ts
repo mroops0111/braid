@@ -13,7 +13,7 @@ async function makeRoot(): Promise<AbsolutePath> {
 
 function applyMessage(overrides: Partial<CommitMessage> = {}): CommitMessage {
   return {
-    kind: 'apply',
+    kind: 'proposal-apply',
     subject: 'Add Order aggregate',
     userId: 'studio-user' as UserId,
     proposalId: 'prop-2026-05-30-aaaa' as ProposalId,
@@ -86,7 +86,7 @@ describe('GitWorkspaceHistory', () => {
 
       const commit = await history.getCommit(workspace, sha)
       expect(commit).not.toBeNull()
-      expect(commit!.message.kind).toBe('apply')
+      expect(commit!.message.kind).toBe('proposal-apply')
       expect(commit!.message.subject).toBe('Add Order aggregate')
       expect(commit!.message.proposalId).toBe('prop-2026-05-30-aaaa')
       expect(commit!.message.userId).toBe('studio-user')

@@ -89,9 +89,9 @@ describe('e2e history hooks: applying a proposal writes a commit', () => {
     const log = await git.log({ maxCount: 5 })
     expect(log.all.length).toBeGreaterThanOrEqual(2)
     const head = log.latest!
-    expect(head.message.startsWith('apply:')).toBe(true)
+    expect(head.message.startsWith('proposal-apply:')).toBe(true)
     const body = await git.raw(['show', '--no-patch', '--format=%B', head.hash])
-    expect(body).toContain(`Kind: apply`)
+    expect(body).toContain('Kind: proposal-apply')
     expect(body).toContain(`Proposal-Id: ${proposalId}`)
     expect(body).toContain(`Author: tester`)
 
@@ -130,9 +130,9 @@ describe('e2e history hooks: applying a proposal writes a commit', () => {
 
     const git = simpleGit({ baseDir: workspaceRoot })
     const head = (await git.log({ maxCount: 1 })).latest!
-    expect(head.message.startsWith('reject:')).toBe(true)
+    expect(head.message.startsWith('proposal-reject:')).toBe(true)
     const body = await git.raw(['show', '--no-patch', '--format=%B', head.hash])
-    expect(body).toContain('Kind: reject')
+    expect(body).toContain('Kind: proposal-reject')
     expect(body).toContain(`Proposal-Id: ${proposalId}`)
     // graph.json shouldn't appear in the diff because reject doesn't
     // mutate Kùzu nor call the graph serialiser.

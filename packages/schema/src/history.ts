@@ -2,10 +2,10 @@ import { z } from 'zod'
 import { ClarifyTicketId, CommitSha, ProposalId, SourceId, Timestamp, UserId, WorkspaceId } from './common.js'
 
 export const CommitKind = z.enum([
-  'apply',
-  'reject',
+  'proposal-apply',
+  'proposal-reject',
   'clarify-answer',
-  'clarify-applied',
+  'clarify-apply',
   'clarify-skip',
   'source-sync',
   'bootstrap',

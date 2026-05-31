@@ -61,7 +61,7 @@ describe('history REST routes', () => {
     const response = await app.request(`/workspaces/${workspaceId}/history`)
     const { items } = await readJson<{ items: CommitItem[] }>(response)
     expect(items.length).toBeGreaterThanOrEqual(3) // initial + 2 applies
-    expect(items[0]!.message.kind).toBe('apply')
+    expect(items[0]!.message.kind).toBe('proposal-apply')
   })
 
   it('GET /history/:sha returns commit detail plus diff', async () => {

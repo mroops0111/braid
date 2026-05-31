@@ -18,10 +18,10 @@ interface HistoryPageProps {
 }
 
 const KIND_LABEL: Record<CommitKind, string> = {
-  'apply': 'Apply',
-  'reject': 'Reject',
+  'proposal-apply': 'Apply',
+  'proposal-reject': 'Reject',
   'clarify-answer': 'Answer',
-  'clarify-applied': 'Closed',
+  'clarify-apply': 'Closed',
   'clarify-skip': 'Skip',
   'source-sync': 'Sync',
   'bootstrap': 'Bootstrap',
@@ -31,10 +31,10 @@ const KIND_LABEL: Record<CommitKind, string> = {
 }
 
 const KIND_TONE: Record<CommitKind, string> = {
-  'apply': 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-  'reject': 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300',
+  'proposal-apply': 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+  'proposal-reject': 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300',
   'clarify-answer': 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300',
-  'clarify-applied': 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300',
+  'clarify-apply': 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300',
   'clarify-skip': 'border-zinc-400/40 bg-zinc-400/10 text-zinc-600 dark:text-zinc-400',
   'source-sync': 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300',
   'bootstrap': 'border-violet-500/40 bg-violet-500/10 text-violet-700 dark:text-violet-300',
