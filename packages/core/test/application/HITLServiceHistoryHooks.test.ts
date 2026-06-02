@@ -40,6 +40,7 @@ class SpyHistory implements WorkspaceHistory {
   readonly listCommits = vi.fn(async (_ws: Workspace, _opts?: ListCommitsOptions): Promise<readonly CommitMeta[]> => [])
   readonly getCommit = vi.fn(async (): Promise<CommitMeta | null> => null)
   readonly getCommitDiff = vi.fn(async (): Promise<readonly FileDiff[]> => [])
+  readonly readGraphAtCommit = vi.fn(async (): Promise<ModelSnapshot> => ({ nodes: [], edges: [] }))
   readonly restore = vi.fn(async (): Promise<CommitSha> => '0'.repeat(40) as CommitSha)
   readonly tag = vi.fn(async (): Promise<TagMeta> => ({ name: '', sha: '0'.repeat(40) as CommitSha, createdAt: T0 }))
   readonly listTags = vi.fn(async (): Promise<readonly TagMeta[]> => [])

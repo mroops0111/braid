@@ -6,9 +6,9 @@ import { GraphEdge, GraphNode } from '@braidhq/schema'
 import { z } from 'zod'
 import { graphJsonPath, workspaceArtifactsDir } from './paths.js'
 
-const GRAPH_JSON_VERSION = 1
+export const GRAPH_JSON_VERSION = 1
 
-const GraphJsonFile = z.object({
+export const GraphJsonFile = z.object({
   version: z.number().int(),
   nodes: z.array(GraphNode),
   edges: z.array(GraphEdge),

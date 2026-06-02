@@ -8,6 +8,7 @@ import type {
   Decision,
   ExternalReference,
   FileDiff,
+  GraphDiffEnvelope,
   GraphEdge,
   GraphNode,
   McpServerConfig,
@@ -306,6 +307,8 @@ export const api = {
   },
   getCommit: (workspaceId: string, sha: CommitSha) =>
     fetchJson<CommitMeta & { diff: FileDiff[] }>(`/workspaces/${workspaceId}/history/${sha}`),
+  getCommitGraphDiff: (workspaceId: string, fromSha: CommitSha, toSha: CommitSha) =>
+    fetchJson<GraphDiffEnvelope>(`/workspaces/${workspaceId}/history/graph-diff?from=${fromSha}&to=${toSha}`),
   restoreCommit: (workspaceId: string, sha: CommitSha, userId: string) =>
     fetchJson<{ newCommit: CommitSha, restoredTo: CommitSha }>(
       `/workspaces/${workspaceId}/history/${sha}/restore`,

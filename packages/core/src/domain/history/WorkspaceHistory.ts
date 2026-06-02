@@ -3,6 +3,7 @@ import type {
   CommitMeta,
   CommitSha,
   FileDiff,
+  ModelSnapshot,
   TagMeta,
 } from '@braidhq/schema'
 import type { Workspace } from '../workspace/Workspace.js'
@@ -19,6 +20,8 @@ export interface WorkspaceHistory {
   listCommits: (workspace: Workspace, options?: ListCommitsOptions) => Promise<readonly CommitMeta[]>
   getCommit: (workspace: Workspace, sha: CommitSha) => Promise<CommitMeta | null>
   getCommitDiff: (workspace: Workspace, sha: CommitSha) => Promise<readonly FileDiff[]>
+  /** Hydrates `artifacts/graph.json` from the given commit; empty snapshot when missing (pre-bootstrap commits). */
+  readGraphAtCommit: (workspace: Workspace, sha: CommitSha) => Promise<ModelSnapshot>
   /** Forward-only: produces a new commit rather than rewriting history, so push/pull stays sane. */
   restore: (workspace: Workspace, targetSha: CommitSha, message: CommitMessage) => Promise<CommitSha>
   tag: (workspace: Workspace, sha: CommitSha, name: string, note?: string) => Promise<TagMeta>

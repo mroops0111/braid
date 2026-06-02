@@ -3,6 +3,7 @@ import type {
   CommitMeta,
   CommitSha,
   FileDiff,
+  GraphDiffEnvelope,
   TagMeta,
   UserId,
   WorkspaceId,
@@ -15,6 +16,7 @@ import type { PerWorkspaceLock } from './PerWorkspaceLock.js'
 import type { WorkspaceBootstrap } from './WorkspaceBootstrap.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import type { WorkspaceService } from './WorkspaceService.js'
+import { diffSnapshots } from '@braidhq/schema'
 import { ConflictError } from '../domain/errors.js'
 
 export interface HistoryServiceDeps {
@@ -44,6 +46,27 @@ export class HistoryService {
   async getCommitDiff(workspaceId: WorkspaceId, sha: CommitSha): Promise<readonly FileDiff[]> {
     const workspace = await this.deps.workspaceService.findById(workspaceId)
     return this.deps.history.getCommitDiff(workspace, sha)
+  }
+
+  async getGraphDiff(workspaceId: WorkspaceId, fromSha: CommitSha, toSha: CommitSha): Promise<GraphDiffEnvelope> {
+    const workspace = await this.deps.workspaceService.findById(workspaceId)
+    const [prev, next] = await Promise.all([
+      this.deps.history.readGraphAtCommit(workspace, fromSha),
+      this.deps.history.readGraphAtCommit(workspace, toSha),
+    ])
+    const diff = diffSnapshots(prev, next)
+    const removedNodes = prev.nodes.filter(n => diff.nodes.get(n.id) === 'removed')
+    const removedEdges = prev.edges.filter(e => diff.edges.get(e.id) === 'removed')
+    return {
+      from: fromSha,
+      to: toSha,
+      snapshot: next,
+      removed: { nodes: removedNodes, edges: removedEdges },
+      changes: {
+        nodes: Object.fromEntries(diff.nodes),
+        edges: Object.fromEntries(diff.edges),
+      },
+    }
   }
 
   async restore(workspaceId: WorkspaceId, targetSha: CommitSha, userId: UserId): Promise<CommitSha> {
@@ -83,9 +106,7 @@ export class HistoryService {
     await this.deps.history.deleteTag(workspace, name)
   }
 
-  // Refuse restore while anything skill-runner-tracked is still
-  // streaming; an in-flight subprocess would write artifacts after
-  // the restore commit, leaving the working tree out of sync.
+  // In-flight subprocesses would write artifacts after the restore commit, leaving the working tree out of sync.
   private async assertNoInFlightRuns(workspaceId: WorkspaceId): Promise<void> {
     if (!this.deps.skillRunner)
       return

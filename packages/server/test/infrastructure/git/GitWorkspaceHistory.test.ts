@@ -141,6 +141,39 @@ describe('GitWorkspaceHistory', () => {
     })
   })
 
+  describe('readGraphAtCommit', () => {
+    it('returns the graph.json contents committed at the given sha', async () => {
+      const root = await makeRoot()
+      const workspace = makeWorkspace({ rootPath: root })
+      const history = new GitWorkspaceHistory()
+      await history.ensureInitialised(workspace)
+
+      const { mkdir, writeFile: write } = await import('node:fs/promises')
+      await mkdir(join(root, 'artifacts'), { recursive: true })
+      const v1 = { version: 1, nodes: [{ id: 'n-1', type: 'aggregate', name: 'Order', status: 'draft', metadata: { sourceReferences: [] } }], edges: [] }
+      await write(join(root, 'artifacts', 'graph.json'), `${JSON.stringify(v1)}\n`, 'utf-8')
+      const sha = await history.commit(workspace, applyMessage({ subject: 'v1' }))
+
+      const snapshot = await history.readGraphAtCommit(workspace, sha)
+      expect(snapshot.nodes).toHaveLength(1)
+      expect(snapshot.nodes[0]!.id).toBe('n-1')
+      expect(snapshot.edges).toHaveLength(0)
+    })
+
+    it('returns an empty snapshot for commits that pre-date graph.json', async () => {
+      const root = await makeRoot()
+      const workspace = makeWorkspace({ rootPath: root })
+      const history = new GitWorkspaceHistory()
+      await history.ensureInitialised(workspace)
+
+      const initialSha = (await history.listCommits(workspace))[0]!.sha
+      const snapshot = await history.readGraphAtCommit(workspace, initialSha)
+
+      expect(snapshot.nodes).toHaveLength(0)
+      expect(snapshot.edges).toHaveLength(0)
+    })
+  })
+
   describe('restore', () => {
     it('produces a forward-only commit that brings the working tree back', async () => {
       const root = await makeRoot()

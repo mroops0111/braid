@@ -39,12 +39,6 @@ export interface HITLServiceDeps {
   validationService: ValidationService
   workspaceService: WorkspaceService
   clock: Clock
-  /**
-   * Optional pub/sub. Injected at the composition root so Studio's
-   * `useWorkspaceEvents` SSE invalidates its react-query caches the
-   * moment a proposal / clarify-ticket changes. Tests without a bus pass
-   * undefined and skip the notifications.
-   */
   eventBus?: WorkspaceEventBus
   // Both required together; absence makes the commit hook a no-op.
   history?: WorkspaceHistory
@@ -61,9 +55,6 @@ export class HITLService {
     this.workspaceLock = deps.workspaceLock ?? new PerWorkspaceLock()
   }
 
-  // Server-side proposal creation. Validates ops against the current graph,
-  // mints id + generatedAt, persists. Returns the saved Proposal so the
-  // caller (HTTP route) can hand the id back to the skill.
   async submitProposal(draft: ProposalDraft): Promise<Proposal> {
     await this.assertOperationsValid(draft.workspaceId, draft.operations)
     const generatedAt = this.deps.clock.now()
@@ -87,9 +78,7 @@ export class HITLService {
     return proposal
   }
 
-  // Server-side clarify ticket creation. No graph validation: clarify
-  // ticket candidates' proposedOperations are only validated when the user
-  // selects one via answerClarifyTicket.
+  // Candidates are only validated at answer time, since each picks a different op set.
   async submitClarifyTicket(draft: ClarifyDraft): Promise<ClarifyTicket> {
     const ticket = new ClarifyTicket({
       id: newClarifyTicketId(this.deps.clock.now()),
@@ -114,12 +103,7 @@ export class HITLService {
   }
 
   async applyProposal(proposalId: ProposalId, userId: UserId): Promise<Decision> {
-    // Outer load discovers the workspace so the lock can key on it.
-    // The post-lock load is the authoritative read — the proposal may
-    // have been applied by another caller while we were queued, in
-    // which case markApplied raises ConflictError (status already
-    // applied) and the second caller gets a clean 409 instead of a
-    // misleading "node already exists" from preview.
+    // Outer load discovers the workspace for the lock key; the inner load is the authoritative read post-lock.
     const initial = await this.deps.proposalRepository.load(proposalId)
     return this.workspaceLock.run(initial.workspaceId, async () => {
       const proposal = await this.deps.proposalRepository.load(proposalId)
@@ -176,13 +160,7 @@ export class HITLService {
     })
   }
 
-  /**
-   * Validates ops against the current graph (fail loud here, not later
-   * inside the skill); custom selection appends a minted candidate to
-   * the ticket first so the reviewer's own option lives alongside the
-   * skill-supplied ones; `note` lives only on the Decision (no ticket
-   * schema growth) and is projected back via GET /clarify/:id.
-   */
+  // `note` lives on the Decision (no ticket-schema growth) and is projected back via GET /clarify/:id.
   async answerClarifyTicket(options: {
     clarifyTicketId: ClarifyTicketId
     selection:
@@ -236,14 +214,7 @@ export class HITLService {
     })
   }
 
-  /**
-   * Close the loop after the braid-clarify skill has finished a ticket.
-   * Ticket moves `answered → applied`. If the resolution produced a
-   * Proposal, its id is stamped so the UI can link back; if the chosen
-   * candidate had no graph impact, proposalId is omitted. No graph
-   * mutation here — the Proposal apply path (when there is one) already
-   * handled that.
-   */
+  // No graph mutation here — the Proposal apply path (when there is one) handled that.
   async markClarifyTicketApplied(
     clarifyTicketId: ClarifyTicketId,
     userId: UserId,
@@ -344,7 +315,7 @@ export class HITLService {
     return decision
   }
 
-  // No-op when deps are missing. Caller must hold the per-workspace lock.
+  // Caller must hold the per-workspace lock. No-op when history/serializer deps weren't wired.
   private async commitWorkspaceChange(
     workspace: Workspace,
     message: CommitMessage,

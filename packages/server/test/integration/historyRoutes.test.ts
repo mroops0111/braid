@@ -99,6 +99,69 @@ describe('history REST routes', () => {
     expect(finalList.items[0]!.message.kind).toBe('restore')
   })
 
+  it('GET /history/graph-diff classifies node-level adds/removes between two commits', async () => {
+    await applyOne('placeOrder', 'cmd-a')
+    const v1List = await readJson<{ items: CommitItem[] }>(await app.request(`/workspaces/${workspaceId}/history`))
+    const v1 = v1List.items[0]!.sha
+    await applyOne('ackOrder', 'cmd-b')
+    const v2List = await readJson<{ items: CommitItem[] }>(await app.request(`/workspaces/${workspaceId}/history`))
+    const v2 = v2List.items[0]!.sha
+
+    const diffResponse = await app.request(
+      `/workspaces/${workspaceId}/history/graph-diff?from=${v1}&to=${v2}`,
+    )
+    expect(diffResponse.status).toBe(200)
+    const envelope = await readJson<{
+      from: string
+      to: string
+      snapshot: { nodes: Array<{ id: string }> }
+      removed: { nodes: Array<{ id: string, name: string }>, edges: Array<{ id: string }> }
+      changes: { nodes: Record<string, string>, edges: Record<string, string> }
+    }>(diffResponse)
+
+    expect(envelope.from).toBe(v1)
+    expect(envelope.to).toBe(v2)
+    expect(envelope.snapshot.nodes.some(n => n.id === 'cmd-b')).toBe(true)
+    expect(envelope.changes.nodes['cmd-b']).toBe('added')
+    expect(envelope.changes.nodes['cmd-a']).toBeUndefined()
+    expect(envelope.removed.nodes).toEqual([])
+    expect(envelope.removed.edges).toEqual([])
+  })
+
+  it('GET /history/graph-diff surfaces removed entities with their from-state details', async () => {
+    await applyOne('placeOrder', 'cmd-rm')
+    const beforeRemove = await readJson<{ items: CommitItem[] }>(await app.request(`/workspaces/${workspaceId}/history`))
+    const v1 = beforeRemove.items[0]!.sha
+
+    // Submit + apply a remove proposal to take cmd-rm out of the graph.
+    const removeSubmit = await app.request(`/workspaces/${workspaceId}/proposals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        operations: [{ operation: 'removeNode', nodeId: 'cmd-rm' }],
+        rationale: 'drop cmd-rm',
+        generatedBy: 'extract',
+      }),
+    })
+    const { id: removeId } = await readJson<{ id: string }>(removeSubmit)
+    await app.request(`/workspaces/${workspaceId}/proposals/${removeId}/apply`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: 'tester' }),
+    })
+    const afterRemove = await readJson<{ items: CommitItem[] }>(await app.request(`/workspaces/${workspaceId}/history`))
+    const v2 = afterRemove.items[0]!.sha
+
+    const envelope = await readJson<{
+      removed: { nodes: Array<{ id: string, name: string }> }
+      changes: { nodes: Record<string, string> }
+    }>(await app.request(`/workspaces/${workspaceId}/history/graph-diff?from=${v1}&to=${v2}`))
+
+    expect(envelope.changes.nodes['cmd-rm']).toBe('removed')
+    expect(envelope.removed.nodes.map(n => n.id)).toEqual(['cmd-rm'])
+    expect(envelope.removed.nodes[0]!.name).toBe('placeOrder')
+  })
+
   it('POST /history/tags creates an annotated tag, GET lists it, DELETE removes it', async () => {
     await applyOne('placeOrder', 'cmd-a')
     const list = await readJson<{ items: CommitItem[] }>(await app.request(`/workspaces/${workspaceId}/history`))

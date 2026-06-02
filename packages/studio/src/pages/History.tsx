@@ -1,8 +1,10 @@
-import type { CommitKind, CommitMeta, CommitSha, FileDiff, TagMeta } from '@braidhq/schema'
+import type { ChangeKind, CommitKind, CommitMeta, CommitSha, EdgeId, FileDiff, GraphDiffEnvelope, NodeId, TagMeta } from '@braidhq/schema'
+import type { GraphDataSource } from '@/components/graph/GraphDataSource'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, GitCommit, History, Plus, RotateCcw, Tag, Trash2, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ArrowLeftRight, Check, GitCommit, History, Plus, RotateCcw, Tag, Trash2, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
+import { GraphCanvas } from '@/components/graph/GraphCanvas'
 import { ListRow } from '@/components/ListRow'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -10,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
-import { queryKeys, useHistory, useHistoryCommit, useHistoryTags } from '@/lib/queries'
+import { queryKeys, useCommitGraphDiff, useHistory, useHistoryCommit, useHistoryTags } from '@/lib/queries'
 import { cn } from '@/lib/utils'
 
 interface HistoryPageProps {
@@ -47,21 +49,53 @@ export function HistoryPage({ workspaceId }: HistoryPageProps) {
   const { data, isLoading } = useHistory(workspaceId)
   const { data: tags } = useHistoryTags(workspaceId)
   const [selectedSha, setSelectedSha] = useState<CommitSha | null>(null)
+  const [compareSha, setCompareSha] = useState<CommitSha | null>(null)
+  const [pickingCompare, setPickingCompare] = useState(false)
 
   const commits = data?.items ?? []
   const tagsBySha = groupTagsBySha(tags?.items ?? [])
 
-  // Auto-select the latest commit on first load, mirroring Proposals
-  // and Clarify so the reviewer lands on the most relevant row.
+  // Mirror Proposals / Clarify: land the reviewer on the most recent row.
   useEffect(() => {
     if (selectedSha || isLoading || commits.length === 0)
       return
     setSelectedSha(commits[0]!.sha)
   }, [commits, isLoading, selectedSha])
 
+  const handleRowClick = (sha: CommitSha): void => {
+    if (pickingCompare && sha !== selectedSha) {
+      setCompareSha(sha)
+      setPickingCompare(false)
+      return
+    }
+    // Re-selecting the primary exits compare mode so the diff can't drift.
+    setSelectedSha(sha)
+    setCompareSha(null)
+    setPickingCompare(false)
+  }
+
+  const exitCompare = (): void => {
+    setCompareSha(null)
+    setPickingCompare(false)
+  }
+
   return (
     <div className="flex h-full">
       <div className="flex w-72 shrink-0 flex-col border-r border-border">
+        {pickingCompare && (
+          <div className="flex shrink-0 items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
+            <ArrowLeftRight className="size-3" />
+            <span>Pick a commit to compare against</span>
+            <button
+              type="button"
+              onClick={() => setPickingCompare(false)}
+              className="ml-auto rounded p-0.5 hover:bg-background/80"
+              title="Cancel"
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+        )}
         {isLoading
           ? <div className="p-4 text-sm text-muted-foreground">Loading…</div>
           : commits.length === 0
@@ -74,33 +108,69 @@ export function HistoryPage({ workspaceId }: HistoryPageProps) {
                       commit={commit}
                       tags={tagsBySha.get(commit.sha) ?? []}
                       active={selectedSha === commit.sha}
-                      onSelect={() => setSelectedSha(commit.sha)}
+                      compareActive={compareSha === commit.sha}
+                      dimmed={pickingCompare && commit.sha === selectedSha}
+                      onSelect={() => handleRowClick(commit.sha)}
                     />
                   ))}
                 </ul>
               )}
       </div>
       <div className="flex-1 overflow-hidden">
-        {selectedSha
-          ? <CommitDetail workspaceId={workspaceId} sha={selectedSha} tags={tagsBySha.get(selectedSha) ?? []} key={selectedSha} />
-          : <EmptyState icon={History} title="Pick a commit" description="Select a commit on the left to see its diff, tag it, or restore the workspace to that point." />}
+        {selectedSha && compareSha
+          ? (
+              <CompareDetail
+                workspaceId={workspaceId}
+                selectedSha={selectedSha}
+                compareSha={compareSha}
+                commits={commits}
+                onExit={exitCompare}
+                key={`${selectedSha}:${compareSha}`}
+              />
+            )
+          : selectedSha
+            ? (
+                <CommitDetail
+                  workspaceId={workspaceId}
+                  sha={selectedSha}
+                  tags={tagsBySha.get(selectedSha) ?? []}
+                  onStartCompare={() => setPickingCompare(true)}
+                  key={selectedSha}
+                />
+              )
+            : <EmptyState icon={History} title="Pick a commit" description="Select a commit on the left to see its diff, tag it, or restore the workspace to that point." />}
       </div>
     </div>
   )
 }
 
-function CommitRow({ commit, tags, active, onSelect }: {
+function CommitRow({ commit, tags, active, compareActive, dimmed, onSelect }: {
   commit: CommitMeta
   tags: readonly TagMeta[]
   active: boolean
+  compareActive?: boolean
+  dimmed?: boolean
   onSelect: () => void
 }) {
   return (
-    <ListRow active={active} onClick={onSelect} className="flex-col items-start gap-1">
+    <ListRow
+      active={active}
+      onClick={onSelect}
+      className={cn(
+        'flex-col items-start gap-1',
+        compareActive && 'ring-2 ring-amber-500/60',
+        dimmed && 'opacity-50',
+      )}
+    >
       <div className="flex w-full items-center gap-1.5">
         <span className={cn('rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider', KIND_TONE[commit.message.kind])}>
           {KIND_LABEL[commit.message.kind]}
         </span>
+        {compareActive && (
+          <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-700 dark:text-amber-300">
+            Compare
+          </span>
+        )}
         <span className="ml-auto truncate font-mono text-[10px] text-muted-foreground">
           {commit.sha.slice(0, 7)}
         </span>
@@ -125,10 +195,11 @@ function CommitRow({ commit, tags, active, onSelect }: {
   )
 }
 
-function CommitDetail({ workspaceId, sha, tags }: {
+function CommitDetail({ workspaceId, sha, tags, onStartCompare }: {
   workspaceId: string
   sha: CommitSha
   tags: readonly TagMeta[]
+  onStartCompare: () => void
 }) {
   const { data, isLoading } = useHistoryCommit(workspaceId, sha)
   const [restoreOpen, setRestoreOpen] = useState(false)
@@ -149,6 +220,10 @@ function CommitDetail({ workspaceId, sha, tags }: {
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={onStartCompare}>
+            <ArrowLeftRight className="size-3.5" />
+            Compare
+          </Button>
           <Button size="sm" variant="outline" onClick={() => setTagDialogOpen(true)}>
             <Tag className="size-3.5" />
             Tag
@@ -221,6 +296,301 @@ function CommitDetail({ workspaceId, sha, tags }: {
       />
     </div>
   )
+}
+
+function CompareDetail({ workspaceId, selectedSha, compareSha, commits, onExit }: {
+  workspaceId: string
+  selectedSha: CommitSha
+  compareSha: CommitSha
+  commits: readonly CommitMeta[]
+  onExit: () => void
+}) {
+  const { from, to } = useMemo(() => orderByAge(commits, selectedSha, compareSha), [selectedSha, compareSha, commits])
+  const { data, isLoading, error } = useCommitGraphDiff(workspaceId, from, to)
+
+  const groups = useMemo(() => buildDiffGroups(data ?? null), [data])
+  const source = useMemo(() => envelopeToSource(data ?? null, isLoading), [data, isLoading])
+
+  const fromCommit = commits.find(c => c.sha === from)
+  const toCommit = commits.find(c => c.sha === to)
+
+  return (
+    <div className="flex h-full flex-col overflow-hidden">
+      <CompareHeader from={from} to={to} groups={groups} onExit={onExit} />
+      <CompareSubjectBar fromCommit={fromCommit} toCommit={toCommit} />
+      <div className="flex flex-1 overflow-hidden">
+        {error
+          ? (
+              <div className="flex h-full flex-1 items-center justify-center p-6 text-center text-sm text-destructive">
+                {error instanceof Error ? error.message : 'Failed to load graph diff.'}
+              </div>
+            )
+          : (
+              <>
+                <div className="flex-1 overflow-hidden">
+                  <GraphCanvas
+                    workspaceId={workspaceId}
+                    source={source}
+                    dimUnchanged
+                    emphasizeAdded
+                  />
+                </div>
+                <DiffSummary groups={groups} hasEnvelope={data != null} isLoading={isLoading} />
+              </>
+            )}
+      </div>
+    </div>
+  )
+}
+
+function CompareHeader({ from, to, groups, onExit }: {
+  from: CommitSha
+  to: CommitSha
+  groups: readonly DiffGroupModel[]
+  onExit: () => void
+}) {
+  return (
+    <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
+      <div className="flex min-w-0 items-center gap-2 text-sm">
+        <ArrowLeftRight className="size-4 shrink-0 text-muted-foreground" />
+        <span className="font-mono text-xs text-muted-foreground">{from.slice(0, 7)}</span>
+        <span className="text-muted-foreground">→</span>
+        <span className="font-mono text-xs text-foreground">{to.slice(0, 7)}</span>
+        <DiffStatsInline groups={groups} />
+      </div>
+      <Button size="sm" variant="outline" onClick={onExit}>
+        <X className="size-3.5" />
+        Exit Compare
+      </Button>
+    </header>
+  )
+}
+
+function CompareSubjectBar({ fromCommit, toCommit }: {
+  fromCommit: CommitMeta | undefined
+  toCommit: CommitMeta | undefined
+}) {
+  return (
+    <div className="flex shrink-0 items-center gap-3 border-b border-border bg-muted/30 px-4 py-2 text-[11px] text-muted-foreground">
+      {fromCommit && toCommit
+        ? (
+            <>
+              <SubjectChip label="from" subject={fromCommit.message.subject} />
+              <span>·</span>
+              <SubjectChip label="to" subject={toCommit.message.subject} />
+            </>
+          )
+        : <span>Loading commit metadata…</span>}
+    </div>
+  )
+}
+
+function SubjectChip({ label, subject }: { label: string, subject: string }) {
+  return (
+    <span>
+      <span className="text-muted-foreground/70">
+        {label}
+        :
+      </span>
+      {' '}
+      <span className="text-foreground/90">{subject}</span>
+    </span>
+  )
+}
+
+function DiffStatsInline({ groups }: { groups: readonly DiffGroupModel[] }) {
+  const counts = countByKind(groups)
+  if (counts.total === 0)
+    return null
+  return (
+    <span className="ml-3 text-xs text-muted-foreground">
+      {counts.added > 0 && (
+        <span className="text-emerald-600 dark:text-emerald-400">
+          +
+          {counts.added}
+        </span>
+      )}
+      {counts.added > 0 && counts.removed > 0 && ' '}
+      {counts.removed > 0 && (
+        <span className="text-rose-600 dark:text-rose-400">
+          −
+          {counts.removed}
+        </span>
+      )}
+      {counts.updated > 0 && (
+        <>
+          {' '}
+          <span className="text-amber-600 dark:text-amber-400">
+            ~
+            {counts.updated}
+          </span>
+        </>
+      )}
+    </span>
+  )
+}
+
+function DiffSummary({ groups, hasEnvelope, isLoading }: {
+  groups: readonly DiffGroupModel[]
+  hasEnvelope: boolean
+  isLoading: boolean
+}) {
+  const empty = hasEnvelope && groups.every(g => g.entries.length === 0)
+  return (
+    <aside className="flex h-full w-96 shrink-0 flex-col border-l border-border bg-card/40">
+      <div className="flex h-9 shrink-0 items-center border-b border-border px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Changes
+      </div>
+      <div className="flex-1 space-y-3 overflow-y-auto p-3 scrollbar-thin">
+        {!hasEnvelope && isLoading && <p className="text-xs text-muted-foreground">Loading diff…</p>}
+        {empty && <p className="text-xs text-muted-foreground">No changes between these commits.</p>}
+        {hasEnvelope && !empty && groups.map(group => group.entries.length > 0 && (
+          <DiffGroup key={group.title} group={group} />
+        ))}
+      </div>
+    </aside>
+  )
+}
+
+interface DiffEntry {
+  id: string
+  label: string
+  type: string
+}
+
+interface DiffGroupModel {
+  title: string
+  kind: ChangeKind
+  category: 'node' | 'edge'
+  entries: readonly DiffEntry[]
+}
+
+const KIND_DOT: Record<ChangeKind, string> = {
+  added: 'bg-emerald-500',
+  updated: 'bg-amber-500',
+  removed: 'bg-rose-500',
+}
+
+const KIND_TEXT: Record<ChangeKind, string> = {
+  added: 'text-emerald-700 dark:text-emerald-300',
+  updated: 'text-amber-700 dark:text-amber-300',
+  removed: 'text-rose-700 dark:text-rose-300',
+}
+
+function DiffGroup({ group }: { group: DiffGroupModel }) {
+  return (
+    <section>
+      <div className="flex items-center gap-1.5">
+        <span className={cn('size-1.5 rounded-full', KIND_DOT[group.kind])} />
+        <h4 className={cn('text-[11px] font-semibold uppercase tracking-wider', KIND_TEXT[group.kind])}>
+          {group.title}
+          <span className="ml-1 text-muted-foreground/70">
+            (
+            {group.entries.length}
+            )
+          </span>
+        </h4>
+      </div>
+      <ul className="mt-1.5 space-y-0.5">
+        {group.entries.map(entry => (
+          <li key={entry.id} className="rounded-md px-1.5 py-1 text-xs hover:bg-muted/50">
+            <div className="flex items-center gap-1.5">
+              <span className="truncate text-foreground/90">{entry.label}</span>
+              <span className="ml-auto shrink-0 rounded border border-border/60 bg-background/60 px-1 py-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+                {entry.type}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+// Newest-first commits list means a higher index == older commit.
+function orderByAge(commits: readonly CommitMeta[], a: CommitSha, b: CommitSha): { from: CommitSha, to: CommitSha } {
+  const aIdx = commits.findIndex(c => c.sha === a)
+  const bIdx = commits.findIndex(c => c.sha === b)
+  return aIdx > bIdx ? { from: a, to: b } : { from: b, to: a }
+}
+
+function buildDiffGroups(envelope: GraphDiffEnvelope | null): DiffGroupModel[] {
+  if (!envelope)
+    return []
+  const nodesById = indexById([...envelope.snapshot.nodes, ...envelope.removed.nodes])
+  const edgesById = indexById([...envelope.snapshot.edges, ...envelope.removed.edges])
+
+  const nodeEntry = (id: string): DiffEntry => {
+    const node = nodesById.get(id as NodeId)
+    return { id, label: node?.name ?? id, type: node?.type ?? '?' }
+  }
+  const edgeEntry = (id: string): DiffEntry => {
+    const edge = edgesById.get(id as EdgeId)
+    if (!edge)
+      return { id, label: id, type: '?' }
+    const fromName = nodesById.get(edge.fromNodeId)?.name ?? edge.fromNodeId
+    const toName = nodesById.get(edge.toNodeId)?.name ?? edge.toNodeId
+    return { id, label: `${fromName} → ${toName}`, type: edge.type }
+  }
+
+  const collect = (changes: Record<string, ChangeKind>, kind: ChangeKind, project: (id: string) => DiffEntry): DiffEntry[] =>
+    Object.entries(changes)
+      .filter(([, k]) => k === kind)
+      .map(([id]) => project(id))
+      .sort((a, b) => a.label.localeCompare(b.label))
+
+  return [
+    { title: 'Nodes added', kind: 'added', category: 'node', entries: collect(envelope.changes.nodes, 'added', nodeEntry) },
+    { title: 'Nodes updated', kind: 'updated', category: 'node', entries: collect(envelope.changes.nodes, 'updated', nodeEntry) },
+    { title: 'Nodes removed', kind: 'removed', category: 'node', entries: collect(envelope.changes.nodes, 'removed', nodeEntry) },
+    { title: 'Edges added', kind: 'added', category: 'edge', entries: collect(envelope.changes.edges, 'added', edgeEntry) },
+    { title: 'Edges updated', kind: 'updated', category: 'edge', entries: collect(envelope.changes.edges, 'updated', edgeEntry) },
+    { title: 'Edges removed', kind: 'removed', category: 'edge', entries: collect(envelope.changes.edges, 'removed', edgeEntry) },
+  ]
+}
+
+function countByKind(groups: readonly DiffGroupModel[]): { added: number, updated: number, removed: number, total: number } {
+  let added = 0
+  let updated = 0
+  let removed = 0
+  for (const group of groups) {
+    if (group.kind === 'added')
+      added += group.entries.length
+    else if (group.kind === 'updated')
+      updated += group.entries.length
+    else if (group.kind === 'removed')
+      removed += group.entries.length
+  }
+  return { added, updated, removed, total: added + updated + removed }
+}
+
+function envelopeToSource(envelope: GraphDiffEnvelope | null, isLoading: boolean): GraphDataSource {
+  if (!envelope) {
+    return {
+      nodes: [],
+      edges: [],
+      isLoading,
+      isEmpty: !isLoading,
+      diff: { nodes: new Map(), edges: new Map() },
+    }
+  }
+  return {
+    nodes: envelope.snapshot.nodes,
+    edges: envelope.snapshot.edges,
+    isLoading: false,
+    isEmpty: envelope.snapshot.nodes.length === 0,
+    diff: {
+      nodes: new Map(Object.entries(envelope.changes.nodes) as [NodeId, ChangeKind][]),
+      edges: new Map(Object.entries(envelope.changes.edges) as [EdgeId, ChangeKind][]),
+    },
+  }
+}
+
+function indexById<T extends { id: K }, K extends string>(items: readonly T[]): Map<K, T> {
+  const out = new Map<K, T>()
+  for (const item of items)
+    out.set(item.id, item)
+  return out
 }
 
 function SectionHeader({ title }: { title: string }) {
