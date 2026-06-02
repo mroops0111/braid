@@ -1,8 +1,7 @@
 import type { EdgeId, ExternalReference, NodeId, SourceReference } from './common.js'
+import type { ChangeKind } from './history.js'
 import type { GraphEdge, GraphNode, ModelSnapshot, NewGraphEdge, NewGraphNode } from './model.js'
 import type { GraphOperation } from './proposal.js'
-
-export type ChangeKind = 'added' | 'updated' | 'removed'
 
 export interface ProposalDiff {
   readonly nodes: ReadonlyMap<NodeId, ChangeKind>
@@ -171,7 +170,7 @@ function materializeEdge(payload: NewGraphEdge): GraphEdge {
   }
 }
 
-function diffSnapshots(prev: ModelSnapshot, next: ModelSnapshot): ProposalDiff {
+export function diffSnapshots(prev: ModelSnapshot, next: ModelSnapshot): ProposalDiff {
   const prevNodes = new Map(prev.nodes.map(n => [n.id, n]))
   const nextNodes = new Map(next.nodes.map(n => [n.id, n]))
   const prevEdges = new Map(prev.edges.map(e => [e.id, e]))

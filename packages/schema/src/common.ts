@@ -48,6 +48,9 @@ export type PluginId = z.infer<typeof PluginId>
 export const AgentId = z.string().min(1).brand<'AgentId'>()
 export type AgentId = z.infer<typeof AgentId>
 
+export const CommitSha = z.string().regex(/^[0-9a-f]{40}$/, 'CommitSha must be 40 hex chars').brand<'CommitSha'>()
+export type CommitSha = z.infer<typeof CommitSha>
+
 export const OntologyId = z.string().min(1).brand<'OntologyId'>()
 export type OntologyId = z.infer<typeof OntologyId>
 

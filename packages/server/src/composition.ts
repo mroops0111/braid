@@ -2,12 +2,15 @@ import type {
   ClarifyTicketRepository,
   Clock,
   DecisionRepository,
+  GraphSerializer,
   ModelRepository,
   ProposalRepository,
   RunRepository,
   SkillRegistry,
   SkillRunner,
+  WorkspaceBootstrap,
   WorkspaceEventBus,
+  WorkspaceHistory,
   WorkspaceRepository,
 } from '@braidhq/core'
 import type { AbsolutePath } from '@braidhq/schema'
@@ -16,6 +19,7 @@ import type { SecretStore } from './infrastructure/secrets/SecretStore.js'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
+  HistoryService,
   HITLService,
   InMemoryClarifyTicketRepository,
   InMemoryDecisionRepository,
@@ -25,6 +29,7 @@ import {
   InMemoryWorkspaceRepository,
   ModelService,
   noopRunRepository,
+  PerWorkspaceLock,
   PluginRegistry,
   SourceLoaderRunner,
   SystemClock,
@@ -35,6 +40,7 @@ import {
 export interface AppDependencies {
   workspaceService: WorkspaceService
   hitlService: HITLService
+  historyService?: HistoryService
   modelService: ModelService
   validationService: ValidationService
   sourceLoaderRunner: SourceLoaderRunner
@@ -53,6 +59,7 @@ export interface AppDependencies {
    * `POST /workspaces/scaffold { name }` resolves to `<workspacesRoot>/<name>`.
    */
   workspacesRoot: AbsolutePath
+  bootstrap?: WorkspaceBootstrap
   /** OAuth secret storage (file-based; pluggable for hosted deployments). */
   secretStore?: SecretStore
   /**
@@ -86,6 +93,10 @@ export interface ComposeOptions {
    * to a fresh `InMemoryWorkspaceEventBus` for tests / in-memory boot.
    */
   eventBus?: WorkspaceEventBus
+  // Both required together; HITLService skips git hooks when absent.
+  history?: WorkspaceHistory
+  graphSerializer?: GraphSerializer
+  bootstrap?: WorkspaceBootstrap
 }
 
 export function composeApp(options: ComposeOptions = {}): AppDependencies {
@@ -102,6 +113,8 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const modelService = new ModelService({ modelRepository })
   const validationService = new ValidationService({ pluginRegistry })
   const sourceLoaderRunner = new SourceLoaderRunner({ pluginRegistry, clock, eventBus })
+  // Shared lock domain so HITL mutations and history restore exclude each other.
+  const workspaceLock = new PerWorkspaceLock()
   const hitlService = new HITLService({
     proposalRepository,
     clarifyRepository,
@@ -111,11 +124,29 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     workspaceService,
     clock,
     eventBus,
+    workspaceLock,
+    ...(options.history ? { history: options.history } : {}),
+    ...(options.graphSerializer ? { graphSerializer: options.graphSerializer } : {}),
   })
+
+  const historyService = options.history && options.bootstrap
+    ? new HistoryService({
+      history: options.history,
+      workspaceService,
+      workspaceLock,
+      bootstrap: options.bootstrap,
+      runRepository: options.runRepository ?? noopRunRepository,
+      ...(options.skillRunner ? { skillRunner: options.skillRunner } : {}),
+      eventBus,
+      clock,
+    })
+    : undefined
 
   return {
     workspaceService,
     hitlService,
+    ...(historyService ? { historyService } : {}),
+    ...(options.bootstrap ? { bootstrap: options.bootstrap } : {}),
     modelService,
     validationService,
     sourceLoaderRunner,
