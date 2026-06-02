@@ -21,6 +21,8 @@ interface WorkspaceEvent {
     | 'clarify.applied'
     | 'clarify.skipped'
     | 'source.synced'
+    | 'history.committed'
+    | 'workspace.restored'
 }
 
 /**
@@ -90,6 +92,14 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
     })
     source.addEventListener('clarify.skipped', invalidateClarify)
     source.addEventListener('source.synced', invalidateWorkspace)
+    source.addEventListener('history.committed', () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.history(workspaceId) })
+    })
+    // Restore moved the working tree AND the storage backend; every
+    // workspace-scoped query is potentially stale.
+    source.addEventListener('workspace.restored', () => {
+      queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId], exact: false })
+    })
 
     return () => {
       source.close()

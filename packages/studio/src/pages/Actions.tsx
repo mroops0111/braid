@@ -1,6 +1,6 @@
 import type { RunRecord, SessionMetadata, SkillCategory, SkillManifest } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, Check, FileQuestion, MessageSquare, Pencil, Plus, Send, Sparkles, Trash2, Wrench, X } from 'lucide-react'
+import { BookOpen, Check, MessageCircleQuestion, MessageSquare, Pencil, Plus, Send, Sparkles, Trash2, Wand2, Wrench, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { ActionInputForm } from '@/components/ActionInputForm'
 import { EmptyState } from '@/components/EmptyState'
@@ -25,9 +25,9 @@ type Group = SkillCategory | 'custom'
 const GROUP_ORDER: readonly Group[] = ['ask', 'build', 'generate', 'custom']
 
 const GROUP_META: Record<Group, { title: string, icon: typeof Sparkles }> = {
-  ask: { title: 'Ask anytime', icon: Sparkles },
+  ask: { title: 'Ask anytime', icon: MessageCircleQuestion },
   build: { title: 'Build the graph', icon: Wrench },
-  generate: { title: 'Generate', icon: FileQuestion },
+  generate: { title: 'Generate', icon: Wand2 },
   custom: { title: 'Custom', icon: BookOpen },
 }
 

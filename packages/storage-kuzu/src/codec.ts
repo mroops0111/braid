@@ -54,6 +54,17 @@ export function edgeToParams(edge: GraphEdge): EdgeRow {
   }
 }
 
+// updateEdge intentionally does not touch endpoints (changing fromId /
+// toId means a different edge). The prepared statement only binds id /
+// type / metadata, and Kùzu rejects extra params at execute time.
+export function edgeToUpdateParams(edge: GraphEdge): Pick<EdgeRow, 'id' | 'type' | 'metadata'> {
+  return {
+    id: edge.id,
+    type: edge.type,
+    metadata: JSON.stringify(edge.metadata),
+  }
+}
+
 export function rowToNode(row: Record<string, KuzuValue>): GraphNode {
   const description = asString(row.description, 'description')
   const embedding = asString(row.embedding, 'embedding')
