@@ -14,7 +14,7 @@ import { mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { Model, NotFoundError, paginate } from '@braidhq/core'
 import * as kuzu from 'kuzu'
-import { edgeToParams, nodeToParams, rowToEdge, rowToNode } from './codec.js'
+import { edgeToParams, edgeToUpdateParams, nodeToParams, rowToEdge, rowToNode } from './codec.js'
 import { DDL_CREATE_EDGE_TABLE, DDL_CREATE_NODE_TABLE } from './schema.js'
 
 export interface KuzuModelRepositoryOptions {
@@ -191,7 +191,7 @@ async function writeDiff(cached: CachedConnection, previous: ModelSnapshot, next
       await cached.conn.execute(cached.stmts.deleteEdge, { id })
     }
     else if (!shallowEqual(prev, after)) {
-      await cached.conn.execute(cached.stmts.updateEdge, edgeToParams(after))
+      await cached.conn.execute(cached.stmts.updateEdge, edgeToUpdateParams(after))
     }
   }
 

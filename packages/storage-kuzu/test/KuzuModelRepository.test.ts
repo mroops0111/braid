@@ -9,6 +9,7 @@ import type {
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { ExternalReferenceKind } from '@braidhq/schema'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { KuzuModelRepository } from '../src/KuzuModelRepository.js'
 
@@ -101,6 +102,44 @@ describe('KuzuModelRepository', () => {
     expect(n.status).toBe('final')
     expect(n.description).toBe('new desc')
     expect(n.name).toBe('Cart')
+  })
+
+  it('updateEdge changes metadata without re-binding endpoints', async () => {
+    await repo.applyOperations(wsId, [
+      { operation: 'addNodes', payloads: [
+        { id: 'n1' as NodeId, type: aggregateType, name: 'A', status: draft },
+        { id: 'n2' as NodeId, type: entityType, name: 'B', status: draft },
+      ] },
+      { operation: 'addEdge', payload: {
+        id: 'e1' as EdgeId,
+        type: containsType,
+        fromNodeId: 'n1' as NodeId,
+        toNodeId: 'n2' as NodeId,
+        metadata: { sourceReferences: [] },
+      } },
+    ])
+
+    await repo.applyOperations(wsId, [
+      {
+        operation: 'updateEdge',
+        edgeId: 'e1' as EdgeId,
+        patch: {
+          metadata: {
+            sourceReferences: [],
+            externalReferences: [{ kind: ExternalReferenceKind.parse('link'), url: 'https://example.com/e1', label: 'spec' }],
+          },
+        },
+      },
+    ])
+
+    const snapshot = await repo.load(wsId)
+    const edge = snapshot.edges.find(e => e.id === 'e1')
+    expect(edge).toBeDefined()
+    expect(edge!.metadata.externalReferences).toEqual([
+      { kind: ExternalReferenceKind.parse('link'), url: 'https://example.com/e1', label: 'spec' },
+    ])
+    expect(edge!.fromNodeId).toBe('n1')
+    expect(edge!.toNodeId).toBe('n2')
   })
 
   it('removeNode cascades to connected edges', async () => {
