@@ -1,5 +1,5 @@
 import type { SkillManifest, Workspace } from '@braidhq/schema'
-import { Boxes, HelpCircle, Home, Inbox, Sparkles } from 'lucide-react'
+import { Boxes, ClipboardCheck, GitGraph, HelpCircle, Network, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {
   CommandDialog,
@@ -21,7 +21,7 @@ interface CommandPaletteProps {
   onSelectSurface: (surface: Surface | null) => void
 }
 
-export type Surface = 'actions' | 'clarify' | 'proposals'
+export type Surface = 'actions' | 'clarify' | 'history' | 'proposals'
 
 interface SurfaceItem {
   id: Surface | null
@@ -32,19 +32,21 @@ interface SurfaceItem {
 
 function chordToSurface(key: string): Surface | null | undefined {
   switch (key) {
-    case '0': return null
-    case '1': return 'actions'
-    case '2': return 'clarify'
-    case '3': return 'proposals'
+    case '1': return null
+    case '2': return 'actions'
+    case '3': return 'clarify'
+    case '4': return 'proposals'
+    case '5': return 'history'
     default: return undefined
   }
 }
 
 const SURFACE_ITEMS: SurfaceItem[] = [
-  { id: null, label: 'Graph (home)', Icon: Home, shortcut: '⌘0' },
-  { id: 'actions', label: 'Actions', Icon: Sparkles, shortcut: '⌘1' },
-  { id: 'clarify', label: 'Clarify', Icon: HelpCircle, shortcut: '⌘2' },
-  { id: 'proposals', label: 'Proposals', Icon: Inbox, shortcut: '⌘3' },
+  { id: null, label: 'Graph (home)', Icon: Network, shortcut: '⌘1' },
+  { id: 'actions', label: 'Actions', Icon: Sparkles, shortcut: '⌘2' },
+  { id: 'clarify', label: 'Clarify', Icon: HelpCircle, shortcut: '⌘3' },
+  { id: 'proposals', label: 'Proposals', Icon: ClipboardCheck, shortcut: '⌘4' },
+  { id: 'history', label: 'History', Icon: GitGraph, shortcut: '⌘5' },
 ]
 
 export function CommandPalette({
@@ -68,10 +70,7 @@ export function CommandPalette({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Numeric chords switch surfaces from anywhere. ⌘0 returns to the
-  // graph home; ⌘1/2/3 jump straight to a secondary surface. Only
-  // claims the chord when a workspace is active so the palette /
-  // browser defaults stay available on the welcome screen.
+  // Numeric chords switch surfaces from anywhere; only claimed when a workspace is active so browser defaults survive on the welcome screen.
   useEffect(() => {
     if (!activeWorkspaceId)
       return

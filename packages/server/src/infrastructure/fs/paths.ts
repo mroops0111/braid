@@ -30,6 +30,10 @@ export function workspaceArtifactsDir(workspaceRoot: AbsolutePath): string {
   return join(workspaceRoot, 'artifacts')
 }
 
+export function graphJsonPath(workspaceRoot: AbsolutePath): string {
+  return join(workspaceArtifactsDir(workspaceRoot), 'graph.json')
+}
+
 export function proposalsDir(workspaceRoot: AbsolutePath, status: ProposalStatus): string {
   return join(workspaceArtifactsDir(workspaceRoot), 'proposals', status)
 }
