@@ -9,10 +9,12 @@ import { fileURLToPath } from 'node:url'
 import { claudeCodeAgentPlugin } from '@braidhq/agent-claude-code'
 import {
   builtinSkillsRoot,
+  createLogger,
   InMemoryWorkspaceEventBus,
   NotFoundError,
   PluginRegistry,
   ValidationError,
+  WorkspaceBootstrap,
 } from '@braidhq/core'
 import { dddOntology } from '@braidhq/ontology-ddd'
 import { StorageKind as StorageKindSchema } from '@braidhq/schema'
@@ -23,12 +25,14 @@ import { composeApp } from './composition.js'
 import { SubprocessSkillRunner } from './infrastructure/agent/SubprocessSkillRunner.js'
 import { FsClarifyTicketRepository } from './infrastructure/fs/FsClarifyTicketRepository.js'
 import { FsDecisionRepository } from './infrastructure/fs/FsDecisionRepository.js'
+import { FsGraphSerializer } from './infrastructure/fs/FsGraphSerializer.js'
 import { FsProposalRepository } from './infrastructure/fs/FsProposalRepository.js'
 import { FsRunRepository } from './infrastructure/fs/FsRunRepository.js'
 import { FsSkillRegistry } from './infrastructure/fs/FsSkillRegistry.js'
 import { FsWorkspaceRepository } from './infrastructure/fs/FsWorkspaceRepository.js'
 import { discoverCanonicalWorkspaces } from './infrastructure/fs/WorkspaceDiscovery.js'
 import { WorkspaceRegistryFile } from './infrastructure/fs/WorkspaceRegistryFile.js'
+import { GitWorkspaceHistory } from './infrastructure/git/GitWorkspaceHistory.js'
 import { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
 import { FsSecretStore } from './infrastructure/secrets/SecretStore.js'
 
@@ -241,6 +245,15 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     ],
   })
 
+  // Shared by WorkspaceBootstrap (boot reconciliation) and HITLService (per-mutation commits).
+  const history = new GitWorkspaceHistory()
+  const graphSerializer = new FsGraphSerializer()
+  const bootstrap = new WorkspaceBootstrap({
+    history,
+    serializer: graphSerializer,
+    modelRepository,
+  })
+
   const workspacesRoot = join(braidHome, 'workspaces') as AbsolutePath
   const deps = composeApp({
     workspaceRepository,
@@ -254,6 +267,9 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     pluginRegistry,
     eventBus,
     workspacesRoot,
+    history,
+    graphSerializer,
+    bootstrap,
   })
 
   // Pick up workspaces that exist on disk but aren't in the registry:
@@ -261,8 +277,20 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   // Registry add is idempotent so this is safe to run on every boot.
   await discoverCanonicalWorkspaces(workspacesRoot, deps.workspaceService)
 
+  // Per-workspace failures are logged and tolerated so one bad dir doesn't block boot.
+  const bootstrapLog = createLogger('server').child({ mod: 'workspace-bootstrap' })
+  for (const workspace of await deps.workspaceService.list()) {
+    try {
+      await bootstrap.ensure(workspace)
+    }
+    catch (err) {
+      bootstrapLog.warn({ err, workspaceId: workspace.id }, 'workspace bootstrap failed; skipping')
+    }
+  }
+
   return {
     ...deps,
+    bootstrap,
     secretStore,
     ...(googleOAuth ? { googleOAuth } : {}),
   }

@@ -7,6 +7,7 @@ import { createClarifyRouter } from './routes/clarify.js'
 import { createDecisionsRouter } from './routes/decisions.js'
 import { createEdgesRouter } from './routes/edges.js'
 import { healthRouter } from './routes/health.js'
+import { createHistoryRouter } from './routes/history.js'
 import { createModelRouter } from './routes/model.js'
 import { createNodesRouter } from './routes/nodes.js'
 import { createOAuthRouter } from './routes/oauth.js'
@@ -47,6 +48,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     workspaceService: deps.workspaceService,
     sourceLoaderRunner: deps.sourceLoaderRunner,
     workspacesRoot: deps.workspacesRoot,
+    ...(deps.bootstrap ? { bootstrap: deps.bootstrap } : {}),
   }))
   app.route('/workspaces', createWorkspaceEventsRouter({ eventBus: deps.eventBus }))
 
@@ -84,6 +86,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       skillRunner: deps.skillRunner,
       workspaceRepository: deps.workspaceRepository,
     }))
+  }
+  if (deps.historyService) {
+    workspaceScoped.route('/history', createHistoryRouter({ historyService: deps.historyService }))
   }
   workspaceScoped.route('/skill-input-options', createSkillInputOptionsRouter({
     modelRepository: deps.modelRepository,

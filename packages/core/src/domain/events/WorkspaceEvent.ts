@@ -1,5 +1,6 @@
 import type {
   ClarifyTicketId,
+  CommitSha,
   ProposalId,
   SkillRunId,
   SourceId,
@@ -28,6 +29,8 @@ export type WorkspaceEvent =
   | ClarifyAppliedEvent
   | ClarifySkippedEvent
   | SourceSyncedEvent
+  | HistoryCommittedEvent
+  | WorkspaceRestoredEvent
 
 export interface RunStartedEvent {
   readonly type: 'run.started'
@@ -101,6 +104,21 @@ export interface SourceSyncedEvent {
   readonly workspaceId: WorkspaceId
   readonly sourceId: SourceId
   readonly changed: boolean
+  readonly at: string
+}
+
+export interface HistoryCommittedEvent {
+  readonly type: 'history.committed'
+  readonly workspaceId: WorkspaceId
+  readonly sha: CommitSha
+  readonly at: string
+}
+
+export interface WorkspaceRestoredEvent {
+  readonly type: 'workspace.restored'
+  readonly workspaceId: WorkspaceId
+  readonly restoredTo: CommitSha
+  readonly newCommit: CommitSha
   readonly at: string
 }
 
