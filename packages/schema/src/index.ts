@@ -1,4 +1,5 @@
 export * from './agent.js'
+export * from './batch.js'
 export * from './clarify.js'
 export * from './common.js'
 export * from './decision.js'
