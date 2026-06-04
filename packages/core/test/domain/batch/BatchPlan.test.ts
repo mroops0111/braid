@@ -123,6 +123,27 @@ describe('BatchPlan', () => {
     })
   })
 
+  describe('archive', () => {
+    it('moves completed / failed / stopped to archived', () => {
+      expect(makePlan({ status: 'completed' }).archive(T2).status).toBe('archived')
+      expect(makePlan({ status: 'failed' }).archive(T2).status).toBe('archived')
+      expect(makePlan({ status: 'stopped' }).archive(T2).status).toBe('archived')
+    })
+
+    it('rejects archive on non-terminal status', () => {
+      expect(() => makePlan({ status: 'running' }).archive(T2)).toThrow(/Cannot archive/)
+      expect(() => makePlan({ status: 'scanning' }).archive(T2)).toThrow(/Cannot archive/)
+      expect(() => makePlan({ status: 'idle' }).archive(T2)).toThrow(/Cannot archive/)
+    })
+
+    it('clears the running pointer', () => {
+      const completed = makePlan({ status: 'running' })
+        .startUnit(T1, unitA, { unitId: unitA, skillRunId: 'r' as SkillRunId })
+        .markCompleted(T2)
+      expect(completed.archive(T2).running).toBeUndefined()
+    })
+  })
+
   describe('toData', () => {
     it('round-trips an independent copy', () => {
       const plan = makePlan({ status: 'running' })
