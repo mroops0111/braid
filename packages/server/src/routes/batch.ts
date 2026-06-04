@@ -43,5 +43,11 @@ export function createBatchRouter(deps: BatchRouterDeps): Hono {
     return context.json(plan.toData(), 202)
   })
 
+  router.post('/archive', async (context) => {
+    const workspaceId = getWorkspaceId(context)
+    const plan = await deps.batchService.archive(workspaceId)
+    return context.json(plan.toData())
+  })
+
   return router
 }

@@ -1,7 +1,7 @@
 import type { BatchPlan, BatchStatus, PlanUnit, SkillInputOptionsResponse, SkillRunId, UnitStatus } from '@braidhq/schema'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, CircleDot, FastForward, FileText, Loader2, Play, PlayCircle, Search, Sparkles, StopCircle, Terminal, XCircle } from 'lucide-react'
+import { Archive, CheckCircle2, CircleDot, FastForward, FileText, Loader2, Play, PlayCircle, Search, Sparkles, StopCircle, Terminal, XCircle } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { SkillTranscript } from '@/components/SkillTranscript'
 import { Button } from '@/components/ui/button'
@@ -24,6 +24,7 @@ const STATUS_TONE: Record<BatchStatus, string> = {
   completed: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
   failed: 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300',
   stopped: 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+  archived: 'border-zinc-400/40 bg-zinc-400/10 text-zinc-700 dark:text-zinc-300',
 }
 
 const UNIT_ICON: Record<UnitStatus, ReactNode> = {
@@ -40,7 +41,7 @@ export function BatchPage({ workspaceId }: BatchPageProps) {
   if (isLoading)
     return <div className="p-6 text-sm text-muted-foreground">Loading…</div>
 
-  if (!plan || plan.status === 'idle')
+  if (!plan || plan.status === 'idle' || plan.status === 'archived')
     return <PreStart workspaceId={workspaceId} previousPlan={plan ?? null} />
 
   return <ActiveBatch workspaceId={workspaceId} plan={plan} />
@@ -209,18 +210,15 @@ function BatchHeader({ workspaceId, plan, terminal }: {
   terminal: boolean
 }) {
   const queryClient = useQueryClient()
-  const stop = useMutation({
-    mutationFn: () => api.stopBatch(workspaceId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.batch(workspaceId) })
-    },
-  })
-  const resume = useMutation({
-    mutationFn: () => api.resumeBatch(workspaceId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.batch(workspaceId) })
-    },
-  })
+  // Every header action mutates the plan server-side, so they all need
+  // to refetch the same query. Sharing the callback keeps each mutation
+  // declaration to a single responsibility (its mutationFn).
+  const refreshBatch = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.batch(workspaceId) })
+  }
+  const stop = useMutation({ mutationFn: () => api.stopBatch(workspaceId), onSuccess: refreshBatch })
+  const resume = useMutation({ mutationFn: () => api.resumeBatch(workspaceId), onSuccess: refreshBatch })
+  const archive = useMutation({ mutationFn: () => api.archiveBatch(workspaceId), onSuccess: refreshBatch })
 
   const completed = plan.units.filter(u => u.status === 'completed').length
   const hasUnfinished = plan.units.some(u => u.status === 'failed' || u.status === 'pending')
@@ -251,12 +249,18 @@ function BatchHeader({ workspaceId, plan, terminal }: {
       <div className="flex items-center gap-2">
         {terminal
           ? (
-              hasUnfinished && (
-                <Button size="sm" disabled={resume.isPending} onClick={() => resume.mutate()}>
-                  <Play className="size-3.5" />
-                  {resume.isPending ? 'Resuming…' : 'Resume'}
+              <>
+                {hasUnfinished && (
+                  <Button size="sm" disabled={resume.isPending} onClick={() => resume.mutate()}>
+                    <Play className="size-3.5" />
+                    {resume.isPending ? 'Resuming…' : 'Resume'}
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" disabled={archive.isPending} onClick={() => archive.mutate()}>
+                  <Archive className="size-3.5" />
+                  {archive.isPending ? 'Archiving…' : 'Archive'}
                 </Button>
-              )
+              </>
             )
           : (
               <Button size="sm" variant="outline" disabled={stop.isPending} onClick={() => stop.mutate()}>

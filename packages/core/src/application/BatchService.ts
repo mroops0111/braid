@@ -186,6 +186,21 @@ export class BatchService {
     })
   }
 
+  // Move a terminal plan to `archived`. The Studio Batch page treats
+  // archived the same as "no active plan" but keeps the report
+  // browsable via the PreStart "previous batch" slot.
+  async archive(workspaceId: WorkspaceId): Promise<BatchPlan> {
+    return this.deps.workspaceLock.run(workspaceId, async () => {
+      const workspace = await this.deps.workspaceService.findById(workspaceId)
+      const existing = await this.deps.batchPlanRepository.load(workspace)
+      if (!existing)
+        throw new ValidationError(`No batch plan to archive on workspace "${workspaceId}"`)
+      const archived = existing.archive(this.deps.clock.now())
+      await this.deps.batchPlanRepository.save(workspace, archived)
+      return archived
+    })
+  }
+
   private async runLoop(workspace: Workspace, initial: BatchPlan): Promise<void> {
     let plan = initial
     if (plan.mode === 'scan') {
