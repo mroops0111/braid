@@ -22,6 +22,7 @@ export const queryKeys = {
   historyGraphDiff: (workspaceId: string, fromSha: string, toSha: string) =>
     ['workspaces', workspaceId, 'history', 'graph-diff', fromSha, toSha] as const,
   historyTags: (workspaceId: string) => ['workspaces', workspaceId, 'history', 'tags'] as const,
+  batch: (workspaceId: string) => ['workspaces', workspaceId, 'batch'] as const,
 }
 
 export function useWorkspaces() {
@@ -143,6 +144,14 @@ export function useHistoryTags(workspaceId: string | undefined) {
   return useQuery({
     queryKey: workspaceId ? queryKeys.historyTags(workspaceId) : ['history-tags', 'none'],
     queryFn: () => api.listHistoryTags(workspaceId!),
+    enabled: !!workspaceId,
+  })
+}
+
+export function useBatchStatus(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: workspaceId ? queryKeys.batch(workspaceId) : ['batch', 'none'],
+    queryFn: () => api.getBatchStatus(workspaceId!),
     enabled: !!workspaceId,
   })
 }

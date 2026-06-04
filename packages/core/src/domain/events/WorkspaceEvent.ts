@@ -1,6 +1,9 @@
 import type {
+  BatchInputMode,
+  BatchPlanId,
   ClarifyTicketId,
   CommitSha,
+  PlanUnitId,
   ProposalId,
   SkillRunId,
   SourceId,
@@ -31,6 +34,13 @@ export type WorkspaceEvent =
   | SourceSyncedEvent
   | HistoryCommittedEvent
   | WorkspaceRestoredEvent
+  | BatchStartedEvent
+  | BatchUnitStartedEvent
+  | BatchUnitCompletedEvent
+  | BatchUnitFailedEvent
+  | BatchCompletedEvent
+  | BatchStoppedEvent
+  | BatchFailedEvent
 
 export interface RunStartedEvent {
   readonly type: 'run.started'
@@ -119,6 +129,64 @@ export interface WorkspaceRestoredEvent {
   readonly workspaceId: WorkspaceId
   readonly restoredTo: CommitSha
   readonly newCommit: CommitSha
+  readonly at: string
+}
+
+export interface BatchStartedEvent {
+  readonly type: 'batch.started'
+  readonly workspaceId: WorkspaceId
+  readonly planId: BatchPlanId
+  readonly mode: BatchInputMode
+  readonly at: string
+}
+
+export interface BatchUnitStartedEvent {
+  readonly type: 'batch.unit.started'
+  readonly workspaceId: WorkspaceId
+  readonly planId: BatchPlanId
+  readonly unitId: PlanUnitId
+  readonly unitName: string
+  readonly at: string
+}
+
+export interface BatchUnitCompletedEvent {
+  readonly type: 'batch.unit.completed'
+  readonly workspaceId: WorkspaceId
+  readonly planId: BatchPlanId
+  readonly unitId: PlanUnitId
+  readonly applied: number
+  readonly queued: number
+  readonly at: string
+}
+
+export interface BatchUnitFailedEvent {
+  readonly type: 'batch.unit.failed'
+  readonly workspaceId: WorkspaceId
+  readonly planId: BatchPlanId
+  readonly unitId: PlanUnitId
+  readonly error: string
+  readonly at: string
+}
+
+export interface BatchCompletedEvent {
+  readonly type: 'batch.completed'
+  readonly workspaceId: WorkspaceId
+  readonly planId: BatchPlanId
+  readonly at: string
+}
+
+export interface BatchStoppedEvent {
+  readonly type: 'batch.stopped'
+  readonly workspaceId: WorkspaceId
+  readonly planId: BatchPlanId
+  readonly at: string
+}
+
+export interface BatchFailedEvent {
+  readonly type: 'batch.failed'
+  readonly workspaceId: WorkspaceId
+  readonly planId: BatchPlanId
+  readonly error: string
   readonly at: string
 }
 

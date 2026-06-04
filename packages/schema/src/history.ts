@@ -3,8 +3,10 @@ import { ClarifyTicketId, CommitSha, ProposalId, SourceId, Timestamp, UserId, Wo
 import { GraphEdge, GraphNode, ModelSnapshot } from './model.js'
 
 export const CommitKind = z.enum([
+  'proposal-submit',
   'proposal-apply',
   'proposal-reject',
+  'clarify-submit',
   'clarify-answer',
   'clarify-apply',
   'clarify-skip',

@@ -135,6 +135,42 @@ describe('HITLService — workspace history hooks', () => {
     resetTestIds()
   })
 
+  it('submitProposal commits with kind=proposal-submit so the artefact is visible to collaborators', async () => {
+    const { service, history, workspaceId } = await setupWithHistory()
+    const proposal = await service.submitProposal({
+      workspaceId,
+      operations: [{
+        operation: 'addNode',
+        payload: {
+          type: 'command' as NodeTypeId,
+          name: 'voidTask',
+          id: mintTestId('n') as NodeId,
+          status: 'draft' as NodeStatus,
+          metadata: { sourceReferences: [], implementationMissing: true },
+        },
+      }],
+      generatedBy: 'extract' as SkillId,
+      rationale: 'submit smoke',
+    })
+    expect(history.commit).toHaveBeenCalledTimes(1)
+    const message = history.commit.mock.calls[0]![1]
+    expect(message.kind).toBe('proposal-submit')
+    expect(message.proposalId).toBe(proposal.id)
+  })
+
+  it('submitClarifyTicket commits with kind=clarify-submit', async () => {
+    const { service, history, workspaceId } = await setupWithHistory()
+    const ticket = await service.submitClarifyTicket({
+      workspaceId,
+      question: 'agg or entity?',
+      candidates: [],
+    })
+    expect(history.commit).toHaveBeenCalledTimes(1)
+    const message = history.commit.mock.calls[0]![1]
+    expect(message.kind).toBe('clarify-submit')
+    expect(message.clarifyTicketId).toBe(ticket.id)
+  })
+
   it('applyProposal serialises the post-mutation graph then commits with kind=apply', async () => {
     const { service, history, serializer, workspaceId, proposalRepository } = await setupWithHistory()
     const proposal = makeProposal(workspaceId)

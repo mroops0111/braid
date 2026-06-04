@@ -3,6 +3,7 @@ import { OpenAPIHono } from '@hono/zod-openapi'
 import { corsMiddleware } from './middleware/cors.js'
 import { errorHandler } from './middleware/error.js'
 import { workspaceIdMiddleware } from './middleware/workspaceId.js'
+import { createBatchRouter } from './routes/batch.js'
 import { createClarifyRouter } from './routes/clarify.js'
 import { createDecisionsRouter } from './routes/decisions.js'
 import { createEdgesRouter } from './routes/edges.js'
@@ -89,6 +90,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   }
   if (deps.historyService) {
     workspaceScoped.route('/history', createHistoryRouter({ historyService: deps.historyService }))
+  }
+  if (deps.batchService) {
+    workspaceScoped.route('/batch', createBatchRouter({ batchService: deps.batchService }))
   }
   workspaceScoped.route('/skill-input-options', createSkillInputOptionsRouter({
     modelRepository: deps.modelRepository,

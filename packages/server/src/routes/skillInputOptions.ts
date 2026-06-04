@@ -1,9 +1,8 @@
 import type { ClarifyTicketRepository, ModelRepository, PluginRegistry, Workspace, WorkspaceRepository } from '@braidhq/core'
 import type { SkillInputDynamicOption } from '@braidhq/schema'
-import { readdir } from 'node:fs/promises'
-import { isAbsolute, join } from 'node:path'
 import { SkillInputOptionsResponse } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
+import { listIntentItems } from '../infrastructure/fs/intentScan.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
@@ -142,117 +141,24 @@ async function resolveGraphNode(
   }))
 }
 
-/**
- * Document-like file extensions we treat as "an intent". Binary assets
- * (images, fonts) and lockfile-style siblings are excluded.
- */
-const INTENT_FILE_EXTENSIONS = new Set(['.md', '.mdx', '.markdown', '.txt', '.rst'])
-
 async function resolveSourceIntent(
   filter: Record<string, unknown>,
   workspace: Workspace,
 ): Promise<SkillInputDynamicOption[]> {
   const loaderKindFilter = typeof filter.loaderKind === 'string' ? filter.loaderKind : undefined
-  const items: SkillInputDynamicOption[] = []
-  for (const source of workspace.sources) {
-    if (source.role !== 'intent')
-      continue
-    if (source.kind !== 'filesystem')
-      // MCP intent sources aren't directory-listable; future enhancement.
-      continue
-    if (loaderKindFilter && source.loader?.kind !== loaderKindFilter)
-      continue
-    // Resolve `source.path` against `workspace.rootPath` since the
-    // manifest typically stores it relative (e.g. "./intents/prd").
-    const absoluteRoot = isAbsolute(source.path) ? source.path : join(workspace.rootPath, source.path)
-    items.push(...await listIntentEntries(absoluteRoot, source.name))
-  }
+  const items = await listIntentItems(workspace)
   return items
-}
-
-/**
- * Each top-level entry under an intent source counts as one "intent":
- *
- *   intents/prd/
- *     feature-a/          ← entry: a folder of docs / assets
- *       index.md
- *       assets/foo.png
- *     standalone.md       ← entry: a flat markdown doc
- *     .DS_Store           ← skipped (hidden)
- *
- * Folders are included only when they contain at least one document-
- * like file (recursive); a folder of just images / lockfiles would not
- * be a useful pick. Loose top-level files are included only when their
- * extension is in `INTENT_FILE_EXTENSIONS`.
- */
-async function listIntentEntries(root: string, sourceName: string): Promise<SkillInputDynamicOption[]> {
-  const items: SkillInputDynamicOption[] = []
-  let topEntries
-  try {
-    topEntries = await readdir(root, { withFileTypes: true })
-  }
-  catch {
-    return items
-  }
-  for (const entry of topEntries) {
-    if (entry.name.startsWith('.'))
-      continue
-    if (entry.isDirectory()) {
-      const folder = join(root, entry.name)
-      if (await containsDocument(folder, 4)) {
-        items.push({
-          value: `${entry.name}/`,
-          label: entry.name,
-          description: sourceName,
-        })
-      }
-      continue
-    }
-    if (entry.isFile() && isIntentDocument(entry.name)) {
-      items.push({
-        value: entry.name,
-        label: stripExtension(entry.name),
-        description: sourceName,
-      })
-    }
-  }
-  // Stable order so the form doesn't reshuffle on every fetch.
-  return items.sort((a, b) => a.label.localeCompare(b.label))
-}
-
-async function containsDocument(dir: string, maxDepth: number): Promise<boolean> {
-  if (maxDepth < 0)
-    return false
-  let entries
-  try {
-    entries = await readdir(dir, { withFileTypes: true })
-  }
-  catch {
-    return false
-  }
-  for (const entry of entries) {
-    if (entry.name.startsWith('.'))
-      continue
-    if (entry.isFile() && isIntentDocument(entry.name))
-      return true
-    if (entry.isDirectory()) {
-      if (await containsDocument(join(dir, entry.name), maxDepth - 1))
+    .filter((item) => {
+      if (!loaderKindFilter)
         return true
-    }
-  }
-  return false
-}
-
-function isIntentDocument(filename: string): boolean {
-  const dot = filename.lastIndexOf('.')
-  if (dot < 0)
-    return false
-  return INTENT_FILE_EXTENSIONS.has(filename.slice(dot).toLowerCase())
-}
-
-function stripExtension(filename: string): string {
-  const dot = filename.lastIndexOf('.')
-  return dot < 0 ? filename : filename.slice(0, dot)
+      const source = workspace.sources.find(s => s.id === item.sourceId)
+      return source?.kind === 'filesystem' && source.loader?.kind === loaderKindFilter
+    })
+    .map(item => ({
+      value: item.value,
+      label: item.label,
+      description: item.sourceName,
+    }))
 }
 
 async function resolveClarify(

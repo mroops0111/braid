@@ -67,7 +67,7 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
   const { data: titleData } = useSessionMetadata(workspaceId)
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null)
 
-  const skills = skillsData?.items ?? []
+  const skills = (skillsData?.items ?? []).filter(s => !s.frontmatter.braid.hidden)
   const groups = groupBySession(runsData?.items ?? [], titleData?.items ?? [])
   const selected = skills.find(s => s.id === selectedSkillId) ?? null
 

@@ -20,8 +20,10 @@ interface HistoryPageProps {
 }
 
 const KIND_LABEL: Record<CommitKind, string> = {
+  'proposal-submit': 'Propose',
   'proposal-apply': 'Apply',
   'proposal-reject': 'Reject',
+  'clarify-submit': 'Ask',
   'clarify-answer': 'Answer',
   'clarify-apply': 'Closed',
   'clarify-skip': 'Skip',
@@ -33,8 +35,10 @@ const KIND_LABEL: Record<CommitKind, string> = {
 }
 
 const KIND_TONE: Record<CommitKind, string> = {
+  'proposal-submit': 'border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300',
   'proposal-apply': 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
   'proposal-reject': 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300',
+  'clarify-submit': 'border-sky-500/30 bg-sky-500/5 text-sky-700 dark:text-sky-300',
   'clarify-answer': 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300',
   'clarify-apply': 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300',
   'clarify-skip': 'border-zinc-400/40 bg-zinc-400/10 text-zinc-600 dark:text-zinc-400',
@@ -686,7 +690,7 @@ function RestoreDialog({ open, onOpenChange, workspaceId, sha, subject }: {
             {' '}
             <code className="rounded bg-muted px-1 font-mono text-[11px]">restore</code>
             {' '}
-            commit will be appended to history; nothing is lost, but everything after this point will no longer apply.
+            commit will be appended to history. Nothing is lost, but everything after this point will no longer apply.
           </DialogDescription>
         </DialogHeader>
         {restore.isError && (

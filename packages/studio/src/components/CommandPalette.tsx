@@ -21,7 +21,7 @@ interface CommandPaletteProps {
   onSelectSurface: (surface: Surface | null) => void
 }
 
-export type Surface = 'actions' | 'clarify' | 'history' | 'proposals'
+export type Surface = 'actions' | 'batch' | 'clarify' | 'history' | 'proposals'
 
 interface SurfaceItem {
   id: Surface | null
@@ -87,7 +87,7 @@ export function CommandPalette({
     return () => window.removeEventListener('keydown', onKey)
   }, [activeWorkspaceId, onSelectSurface])
 
-  const skills = skillData?.items ?? []
+  const skills = (skillData?.items ?? []).filter((s: SkillManifest) => !s.frontmatter.braid.hidden)
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
