@@ -8,6 +8,7 @@ braid:
   order: 50
   summary: Scan a codebase and produce extraction units
   required-env: [BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
+  hidden: true
 ---
 
 ## Role

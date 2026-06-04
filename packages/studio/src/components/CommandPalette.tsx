@@ -87,7 +87,7 @@ export function CommandPalette({
     return () => window.removeEventListener('keydown', onKey)
   }, [activeWorkspaceId, onSelectSurface])
 
-  const skills = skillData?.items ?? []
+  const skills = (skillData?.items ?? []).filter((s: SkillManifest) => !s.frontmatter.braid.hidden)
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
