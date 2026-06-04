@@ -238,6 +238,8 @@ export const BraidSkillExtension = z.object({
    * `docs/domain-vocabulary.md` for the provider naming taxonomy.
    */
   inputs: z.array(SkillInputDescriptor).optional(),
+  // Skill exists for server-side orchestration only; Studio surfaces hide it from the Actions list.
+  hidden: z.boolean().optional(),
 })
 export type BraidSkillExtension = z.infer<typeof BraidSkillExtension>
 

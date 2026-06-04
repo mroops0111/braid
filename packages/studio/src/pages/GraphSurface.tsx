@@ -34,6 +34,7 @@ export interface GraphSurfaceProps {
   dimUnchanged?: boolean
   /** Proposal-preview only: see GraphCanvas for semantics. */
   emphasizeAdded?: boolean
+  onStartBootstrap?: () => void
 }
 
 /**
@@ -55,12 +56,13 @@ export function GraphSurface({
   focusMode,
   dimUnchanged,
   emphasizeAdded,
+  onStartBootstrap,
 }: GraphSurfaceProps) {
   if (view === 'visualization') {
     return (
       <GraphCanvas
         workspaceId={workspaceId}
-        {...optional({ source, dimUnchanged, emphasizeAdded })}
+        {...optional({ source, dimUnchanged, emphasizeAdded, onStartBootstrap })}
         selectedNodeId={selectedNodeId}
         onSelectNode={onSelectNode}
         selectedEdgeId={selectedEdgeId}

@@ -31,6 +31,9 @@ import { Proposal } from '../domain/hitl/Proposal.js'
 import { newClarifyCandidateId, newClarifyTicketId, newDecisionId, newProposalId } from '../domain/ids.js'
 import { PerWorkspaceLock } from './PerWorkspaceLock.js'
 
+// Generic system author for submit commits until Theme 13 (account management) supplies real per-user attribution.
+const SUBMIT_USER_ID = 'braid-skill' as UserId
+
 export interface HITLServiceDeps {
   proposalRepository: ProposalRepository
   clarifyRepository: ClarifyTicketRepository
@@ -68,14 +71,24 @@ export class HITLService {
       rationale: draft.rationale,
       ...(draft.externalReferences ? { externalReferences: draft.externalReferences } : {}),
     })
-    await this.deps.proposalRepository.save(proposal)
-    this.deps.eventBus?.publish({
-      type: 'proposal.created',
-      workspaceId: proposal.workspaceId,
-      proposalId: proposal.id,
-      at: this.deps.clock.now(),
+    return this.workspaceLock.run(draft.workspaceId, async () => {
+      const workspace = await this.deps.workspaceService.findById(draft.workspaceId)
+      await this.deps.proposalRepository.save(proposal)
+      // Submit commits so collaborators see the artefact via `git pull`. Attribution stays generic until Theme 13.
+      await this.commitWorkspaceChange(workspace, {
+        kind: 'proposal-submit',
+        subject: `submitted ${proposal.id}`,
+        userId: SUBMIT_USER_ID,
+        proposalId: proposal.id,
+      })
+      this.deps.eventBus?.publish({
+        type: 'proposal.created',
+        workspaceId: proposal.workspaceId,
+        proposalId: proposal.id,
+        at: this.deps.clock.now(),
+      })
+      return proposal
     })
-    return proposal
   }
 
   // Candidates are only validated at answer time, since each picks a different op set.
@@ -92,14 +105,23 @@ export class HITLService {
       ...(draft.relatedNode ? { relatedNode: draft.relatedNode } : {}),
       ...(draft.ambiguityType ? { ambiguityType: draft.ambiguityType } : {}),
     })
-    await this.deps.clarifyRepository.save(ticket)
-    this.deps.eventBus?.publish({
-      type: 'clarify.created',
-      workspaceId: ticket.workspaceId,
-      ticketId: ticket.id,
-      at: this.deps.clock.now(),
+    return this.workspaceLock.run(draft.workspaceId, async () => {
+      const workspace = await this.deps.workspaceService.findById(draft.workspaceId)
+      await this.deps.clarifyRepository.save(ticket)
+      await this.commitWorkspaceChange(workspace, {
+        kind: 'clarify-submit',
+        subject: `submitted ${ticket.id}`,
+        userId: SUBMIT_USER_ID,
+        clarifyTicketId: ticket.id,
+      })
+      this.deps.eventBus?.publish({
+        type: 'clarify.created',
+        workspaceId: ticket.workspaceId,
+        ticketId: ticket.id,
+        at: this.deps.clock.now(),
+      })
+      return ticket
     })
-    return ticket
   }
 
   async applyProposal(proposalId: ProposalId, userId: UserId): Promise<Decision> {

@@ -1,8 +1,10 @@
 import type {
+  BatchPlanRepository,
   ClarifyTicketRepository,
   Clock,
   DecisionRepository,
   GraphSerializer,
+  IntentLister,
   ModelRepository,
   ProposalRepository,
   RunRepository,
@@ -19,6 +21,7 @@ import type { SecretStore } from './infrastructure/secrets/SecretStore.js'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
+  BatchService,
   HistoryService,
   HITLService,
   InMemoryClarifyTicketRepository,
@@ -41,6 +44,7 @@ export interface AppDependencies {
   workspaceService: WorkspaceService
   hitlService: HITLService
   historyService?: HistoryService
+  batchService?: BatchService
   modelService: ModelService
   validationService: ValidationService
   sourceLoaderRunner: SourceLoaderRunner
@@ -97,6 +101,8 @@ export interface ComposeOptions {
   history?: WorkspaceHistory
   graphSerializer?: GraphSerializer
   bootstrap?: WorkspaceBootstrap
+  batchPlanRepository?: BatchPlanRepository
+  intentLister?: IntentLister
 }
 
 export function composeApp(options: ComposeOptions = {}): AppDependencies {
@@ -142,10 +148,28 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     })
     : undefined
 
+  // Batch needs SkillRunner + HistoryService + BatchPlanRepository + intent lister; otherwise no batch surface.
+  const batchService = historyService && options.skillRunner && options.batchPlanRepository && options.intentLister
+    ? new BatchService({
+      workspaceService,
+      skillRunner: options.skillRunner,
+      proposalRepository,
+      clarifyRepository,
+      historyService,
+      hitlService,
+      batchPlanRepository: options.batchPlanRepository,
+      intentLister: options.intentLister,
+      eventBus,
+      workspaceLock,
+      clock,
+    })
+    : undefined
+
   return {
     workspaceService,
     hitlService,
     ...(historyService ? { historyService } : {}),
+    ...(batchService ? { batchService } : {}),
     ...(options.bootstrap ? { bootstrap: options.bootstrap } : {}),
     modelService,
     validationService,
