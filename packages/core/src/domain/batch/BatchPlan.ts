@@ -104,9 +104,19 @@ export class BatchPlan {
     return this.with({ status: 'stopped', running: undefined, updatedAt: now })
   }
 
+  // User-driven dismiss after reviewing the report. Allowed only from a
+  // terminal state so an in-flight batch can't be hidden by accident.
+  // Archived plans stay on disk; the UI treats them like "no active plan"
+  // and surfaces them via PreStart's "previous batch" slot.
+  archive(now: Timestamp): BatchPlan {
+    if (!this.isTerminal())
+      throw new ConflictError(`Cannot archive plan ${this.data.id} from status=${this.data.status}`)
+    return this.with({ status: 'archived', running: undefined, updatedAt: now })
+  }
+
   // Re-enter running from a terminal state; failed units reset to pending, completed units stay.
   resumeRun(now: Timestamp): BatchPlan {
-    if (this.data.status !== 'stopped' && this.data.status !== 'failed' && this.data.status !== 'completed')
+    if (!this.isTerminal())
       throw new ConflictError(`Cannot resume plan ${this.data.id} from status=${this.data.status}`)
     const units = this.data.units.map(unit => unit.status === 'failed' || unit.status === 'pending' ? resetUnit(unit) : unit)
     const patch: Partial<BatchPlanData> = {
@@ -121,6 +131,14 @@ export class BatchPlan {
 
   toData(): BatchPlanData {
     return structuredClone(this.data)
+  }
+
+  // Shared guard for transitions that only fire after the orchestrator
+  // is done with the plan (Resume, Archive). Add new terminal states here.
+  private isTerminal(): boolean {
+    return this.data.status === 'completed'
+      || this.data.status === 'failed'
+      || this.data.status === 'stopped'
   }
 
   private with(patch: Partial<BatchPlanData>): BatchPlan {

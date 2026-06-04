@@ -14,6 +14,7 @@ import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
 import { useBatchStatus, useWorkspaces } from './lib/queries'
 import { GraphNavigationContext } from './lib/useGraphNavigation'
 import { TabNavigationContext } from './lib/useTabNavigation'
+import { readUrl, useUrlSync } from './lib/useUrlState'
 import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
 import { ActionsPage } from './pages/Actions'
 import { BatchPage } from './pages/Batch'
@@ -24,10 +25,14 @@ import { ProposalsPage } from './pages/Proposals'
 
 export function App() {
   const { data: workspaces } = useWorkspaces()
-  const [activeId, setActiveId] = useState<string | null>(null)
+  // Initial state is hydrated from the URL so refresh / deep links land back
+  // on the same workspace + surface.
+  const initial = readUrl()
+  const [activeId, setActiveId] = useState<string | null>(initial.workspaceId)
   // Graph is the workspace's home view; secondary surfaces (Actions /
   // Clarify / Proposals) overlay it when active. `null` = home.
-  const [activeSurface, setActiveSurface] = useState<Surface | null>(null)
+  const [activeSurface, setActiveSurface] = useState<Surface | null>(initial.surface)
+  useUrlSync({ workspaceId: activeId, surface: activeSurface })
   const [detailsId, setDetailsId] = useState<string | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [serverUrlOpen, setServerUrlOpen] = useState(false)
@@ -38,9 +43,13 @@ export function App() {
   const [focusedProposalId, setFocusedProposalId] = useState<ProposalId | null>(null)
 
   useEffect(() => {
-    if (!activeId && workspaces?.items.length) {
+    if (!workspaces?.items.length)
+      return
+    // The URL might point at a workspace that no longer exists (deleted between
+    // sessions). Fall back to the first registered one in that case.
+    const exists = activeId && workspaces.items.some(w => w.id === activeId)
+    if (!exists)
       setActiveId(workspaces.items[0]!.id)
-    }
   }, [activeId, workspaces])
 
   useWorkspaceEvents(activeId)

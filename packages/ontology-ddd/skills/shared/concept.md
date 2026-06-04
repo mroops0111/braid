@@ -94,7 +94,7 @@ Node and edge ids are minted by the skill following the ontology-style dotted co
 
 | Type | Topics the description should address |
 |---|---|
-| `boundedContext` | What part of the business this subsystem owns; the few key terms the domain team uses (in their own words); what falls outside it; the neighbouring subsystems it talks to and how. |
+| `boundedContext` | **Lead with a `Problem` section: the slice of the domain reality this model addresses (Evans's problem space).** What part of the business this subsystem owns; the few key terms the domain team uses (in their own words), with the meaning each carries *here*; what falls outside it; the neighbouring subsystems it talks to and how. |
 | `aggregate` | The main thing being managed (e.g. an order, a contract, a user account); the rules that always hold about it; how the rest of the system refers to it; its lifecycle from creation to terminal state. |
 | `command` | What change the user / system is asking for; who issues it; what must be true before it runs; what happens as a result; how it can fail. |
 | `query` | What the caller wants to see; who calls it (UI screen, report, API client); whether the answer is real-time or can be slightly stale. |
@@ -104,6 +104,8 @@ Node and edge ids are minted by the skill following the ontology-style dotted co
 | `policy` | What happens automatically and what triggers it; conditions or delays; whether the reaction is guaranteed or best-effort. |
 
 **Translate, don't transliterate.** The description is read by domain experts and PMs, not DDD practitioners. Don't paste DDD terms ("aggregate root", "consistency boundary", "ubiquitous language", "value object", "anticorruption layer", "process manager") into the rendered text. Describe the *concept* in the domain's own words. The DDD framing belongs in the graph topology (edges, types) and in this concept doc; the user-facing string is product language.
+
+**Strip code jargon too.** The same rule extends to code-side vocabulary: class names, table names, function names, repository ids, route paths, decorators, framework concepts (`Entity`, `Repository`, `Service`, `Controller`, `DAO`, `DTO`, `Saga`). Use the business term the team would say in a meeting. When a code identifier is genuinely the clearest cross-team reference (a public command name a partner team also speaks, an event whose code name shows up in dashboards), put the business term first and the code identifier in parentheses, like `建立訂單 (CreateOrder)` or `Notify Shipping (NotifyShippingPolicy)`. Use the parenthetical sparingly: one or two per description, not every noun. If the description ends up reading like a class diagram in prose, rewrite it.
 
 Recommended skeleton (not a template; adapt freely):
 

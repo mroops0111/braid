@@ -344,6 +344,8 @@ export const api = {
     fetchJson<void>(`/workspaces/${workspaceId}/batch/stop`, { method: 'POST' }),
   resumeBatch: (workspaceId: string) =>
     fetchJson<BatchPlan>(`/workspaces/${workspaceId}/batch/resume`, { method: 'POST' }),
+  archiveBatch: (workspaceId: string) =>
+    fetchJson<BatchPlan>(`/workspaces/${workspaceId}/batch/archive`, { method: 'POST' }),
 
   listSkillInputOptions: (workspaceId: string, type: string, filter?: unknown) => {
     const params = new URLSearchParams({ type })

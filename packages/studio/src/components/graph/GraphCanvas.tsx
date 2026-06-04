@@ -1,4 +1,5 @@
 import type { EdgeId, GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
+import type { NodeChange } from '@xyflow/react'
 import type { GraphDataSource } from './GraphDataSource'
 import type { NodeCardNode } from './useGraphLayout'
 import { Background, BackgroundVariant, Controls, MarkerType, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react'
@@ -145,7 +146,24 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
     }
   }, [filtered, focusMode, selectedNodeId, neighborhood])
 
-  const laidOut = useGraphLayout(visible.nodes, visible.edges)
+  const dagreLaidOut = useGraphLayout(visible.nodes, visible.edges)
+  // Session-only drag overrides. Each drag updates this map; on refresh
+  // the graph re-lays out via dagre. Per-user persistence is deferred
+  // until accounts ship: a server-side layout would be shared across
+  // every collaborator on the workspace, which is worse than refresh
+  // resetting. See ADR/discussion: 2026-06-04 polish branch.
+  const [dragPositions, setDragPositions] = useState<Map<string, { x: number, y: number }>>(() => new Map())
+  const laidOut = useMemo(() => {
+    if (dragPositions.size === 0)
+      return dagreLaidOut
+    return {
+      ...dagreLaidOut,
+      nodes: dagreLaidOut.nodes.map((node) => {
+        const dragPos = dragPositions.get(node.id)
+        return dragPos ? { ...node, position: dragPos } : node
+      }),
+    }
+  }, [dagreLaidOut, dragPositions])
   const reactFlow = useReactFlow()
 
   const { nodesById, incoming, outgoing } = useNodeNeighbors(allNodes, allEdges, selectedNodeId)
@@ -274,6 +292,26 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
 
   useGraphShortcuts(reactFlow)
 
+  // xyflow v12 controlled mode requires `onNodesChange` to advance the
+  // visual during a drag. Mirroring position changes into
+  // `dragPositions` makes the override layer in `laidOut` track the
+  // cursor; the final position stays in the map after drag-end, so
+  // subsequent re-renders keep the node where the user left it (until
+  // refresh).
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    setDragPositions((prev) => {
+      let next = prev
+      for (const change of changes) {
+        if (change.type === 'position' && change.position) {
+          if (next === prev)
+            next = new Map(prev)
+          next.set(change.id, { x: change.position.x, y: change.position.y })
+        }
+      }
+      return next
+    })
+  }, [])
+
   if (isLoading)
     return <div className="p-4 text-sm text-muted-foreground">Loading graph…</div>
   if (allNodes.length === 0) {
@@ -348,6 +386,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
                 onNodeClick={(_event, n) => selectNode((n as NodeCardNode).data.node.id)}
                 onEdgeClick={(_event, e) => selectEdge(e.id as EdgeId)}
                 onPaneClick={clearSelection}
+                onNodesChange={handleNodesChange}
                 fitView
                 proOptions={{ hideAttribution: true }}
                 minZoom={0.2}
