@@ -1,4 +1,5 @@
 import type {
+  BatchPlan,
   ClarifyAmbiguityType,
   ClarifyCandidate,
   ClarifyOrigin,
@@ -323,6 +324,26 @@ export const api = {
     }),
   deleteHistoryTag: (workspaceId: string, name: string) =>
     fetchJson<void>(`/workspaces/${workspaceId}/history/tags/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+
+  startBatch: (workspaceId: string, autoApply: boolean) =>
+    fetchJson<BatchPlan>(`/workspaces/${workspaceId}/batch`, {
+      method: 'POST',
+      body: JSON.stringify({ autoApply }),
+    }),
+  getBatchStatus: async (workspaceId: string): Promise<BatchPlan | null> => {
+    try {
+      return await fetchJson<BatchPlan>(`/workspaces/${workspaceId}/batch`)
+    }
+    catch (err) {
+      if (err instanceof Error && /404/.test(err.message))
+        return null
+      throw err
+    }
+  },
+  stopBatch: (workspaceId: string) =>
+    fetchJson<void>(`/workspaces/${workspaceId}/batch/stop`, { method: 'POST' }),
+  resumeBatch: (workspaceId: string) =>
+    fetchJson<BatchPlan>(`/workspaces/${workspaceId}/batch/resume`, { method: 'POST' }),
 
   listSkillInputOptions: (workspaceId: string, type: string, filter?: unknown) => {
     const params = new URLSearchParams({ type })
