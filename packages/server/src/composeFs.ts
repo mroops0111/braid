@@ -23,6 +23,7 @@ import { GitLoader } from '@braidhq/source-loader-git'
 import { kuzuStoragePlugin } from '@braidhq/storage-kuzu'
 import { composeApp } from './composition.js'
 import { SubprocessSkillRunner } from './infrastructure/agent/SubprocessSkillRunner.js'
+import { FsBatchPlanRepository } from './infrastructure/fs/FsBatchPlanRepository.js'
 import { FsClarifyTicketRepository } from './infrastructure/fs/FsClarifyTicketRepository.js'
 import { FsDecisionRepository } from './infrastructure/fs/FsDecisionRepository.js'
 import { FsGraphSerializer } from './infrastructure/fs/FsGraphSerializer.js'
@@ -30,6 +31,7 @@ import { FsProposalRepository } from './infrastructure/fs/FsProposalRepository.j
 import { FsRunRepository } from './infrastructure/fs/FsRunRepository.js'
 import { FsSkillRegistry } from './infrastructure/fs/FsSkillRegistry.js'
 import { FsWorkspaceRepository } from './infrastructure/fs/FsWorkspaceRepository.js'
+import { listIntentItems } from './infrastructure/fs/intentScan.js'
 import { discoverCanonicalWorkspaces } from './infrastructure/fs/WorkspaceDiscovery.js'
 import { WorkspaceRegistryFile } from './infrastructure/fs/WorkspaceRegistryFile.js'
 import { GitWorkspaceHistory } from './infrastructure/git/GitWorkspaceHistory.js'
@@ -270,6 +272,8 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     history,
     graphSerializer,
     bootstrap,
+    batchPlanRepository: new FsBatchPlanRepository(),
+    intentLister: listIntentItems,
   })
 
   // Pick up workspaces that exist on disk but aren't in the registry:
@@ -282,6 +286,10 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   for (const workspace of await deps.workspaceService.list()) {
     try {
       await bootstrap.ensure(workspace)
+      // Mark any batch plan left running by a previous process as failed so
+      // the UI doesn't show a phantom spinner. Safe to call even when there
+      // is no plan or when the plan is already terminal.
+      await deps.batchService?.reconcileAfterBoot(workspace.id)
     }
     catch (err) {
       bootstrapLog.warn({ err, workspaceId: workspace.id }, 'workspace bootstrap failed; skipping')

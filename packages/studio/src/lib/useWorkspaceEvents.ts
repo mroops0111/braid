@@ -23,6 +23,13 @@ interface WorkspaceEvent {
     | 'source.synced'
     | 'history.committed'
     | 'workspace.restored'
+    | 'batch.started'
+    | 'batch.unit.started'
+    | 'batch.unit.completed'
+    | 'batch.unit.failed'
+    | 'batch.completed'
+    | 'batch.stopped'
+    | 'batch.failed'
 }
 
 /**
@@ -100,6 +107,21 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
     source.addEventListener('workspace.restored', () => {
       queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId], exact: false })
     })
+    const invalidateBatch = (): void => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.batch(workspaceId) })
+    }
+    source.addEventListener('batch.started', invalidateBatch)
+    source.addEventListener('batch.unit.started', invalidateBatch)
+    source.addEventListener('batch.unit.completed', () => {
+      invalidateBatch()
+      invalidateProposals()
+      invalidateClarify()
+      invalidateGraph()
+    })
+    source.addEventListener('batch.unit.failed', invalidateBatch)
+    source.addEventListener('batch.completed', invalidateBatch)
+    source.addEventListener('batch.stopped', invalidateBatch)
+    source.addEventListener('batch.failed', invalidateBatch)
 
     return () => {
       source.close()

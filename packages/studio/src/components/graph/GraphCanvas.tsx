@@ -2,7 +2,7 @@ import type { EdgeId, GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
 import type { GraphDataSource } from './GraphDataSource'
 import type { NodeCardNode } from './useGraphLayout'
 import { Background, BackgroundVariant, Controls, MarkerType, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react'
-import { GitBranch, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { GitBranch, PanelLeftClose, PanelLeftOpen, Sparkles } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
 import { Button } from '@/components/ui/button'
@@ -73,6 +73,12 @@ interface GraphCanvasProps {
    * (Proposals) flips this on when the diff ratio is low.
    */
   emphasizeAdded?: boolean
+  /**
+   * When provided, the empty-graph EmptyState shows an action button
+   * routing to the Batch surface. Lets a freshly-scaffolded workspace
+   * discover the bootstrap flow.
+   */
+  onStartBootstrap?: () => void
 }
 
 const NODE_TYPES = { card: GraphNodeCard }
@@ -83,21 +89,21 @@ const INITIAL_FILTERS: GraphFilters = {
   orphansOnly: false,
 }
 
-export function GraphCanvas({ workspaceId, source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, dimUnchanged, emphasizeAdded }: GraphCanvasProps) {
+export function GraphCanvas({ workspaceId, source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, dimUnchanged, emphasizeAdded, onStartBootstrap }: GraphCanvasProps) {
   const palette = usePalette(workspaceId)
   return (
     <PaletteProvider value={palette}>
       <ReactFlowProvider>
         <CanvasInner
           workspaceId={workspaceId}
-          {...optional({ source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, dimUnchanged, emphasizeAdded })}
+          {...optional({ source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, dimUnchanged, emphasizeAdded, onStartBootstrap })}
         />
       </ReactFlowProvider>
     </PaletteProvider>
   )
 }
 
-function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, onSelectNode, selectedEdgeId: controlledEdgeSelected, onSelectEdge, focusMode = false, dimUnchanged = false, emphasizeAdded = false }: GraphCanvasProps) {
+function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, onSelectNode, selectedEdgeId: controlledEdgeSelected, onSelectEdge, focusMode = false, dimUnchanged = false, emphasizeAdded = false, onStartBootstrap }: GraphCanvasProps) {
   // React Query dedupes the live snapshot fetch by queryKey, so it's
   // effectively free when `source` is supplied.
   const liveSource = useLiveGraphDataSource(workspaceId)
@@ -275,7 +281,15 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
       <EmptyState
         icon={GitBranch}
         title="Graph Is Empty"
-        description="Run /braid-extract to populate it from your codebase and intent docs."
+        description="Bootstrap from every registered intent. If none exist, AI scans your codebases instead."
+        action={onStartBootstrap
+          ? (
+              <Button size="sm" onClick={onStartBootstrap}>
+                <Sparkles className="size-3.5" />
+                Bootstrap From Sources
+              </Button>
+            )
+          : undefined}
       />
     )
   }

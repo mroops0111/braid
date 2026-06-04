@@ -7,24 +7,28 @@ import { Button } from './ui/button'
 
 interface InFlightRunBannerProps {
   workspaceId: string | null
+  /**
+   * Surfaces that render the run's log themselves (Actions / Batch).
+   * Pass `true` to suppress the banner there so the user isn't shown
+   * two competing "still running" indicators on the same screen.
+   */
+  suppress?: boolean
 }
 
 /**
- * Top-of-app banner that surfaces in-flight skill runs no matter which
- * tab the user is on. Reads the runs list (kept live by `useWorkspaceEvents`)
- * and shows the most recent run that has no `completedAt`. Hidden when
- * nothing is running.
+ * Top-of-app banner that surfaces in-flight skill runs when the active
+ * surface doesn't already show the log. Reads the runs list (kept live by
+ * `useWorkspaceEvents`) and shows the most recent run that has no `completedAt`.
  *
- * Includes a cancel button — POSTs `/runs/:id/cancel`, which SIGTERMs the
- * claude subprocess. The drain loop then emits `completed` with the actual
- * exit code and `run.completed` flows through the event bus as usual, so
- * the banner disappears via the normal invalidation path.
+ * Cancel POSTs `/runs/:id/cancel` (SIGTERMs the claude subprocess); the drain
+ * loop then emits `completed` with the actual exit code and `run.completed`
+ * flows through the event bus as usual.
  */
-export function InFlightRunBanner({ workspaceId }: InFlightRunBannerProps) {
+export function InFlightRunBanner({ workspaceId, suppress }: InFlightRunBannerProps) {
   const { data } = useRuns(workspaceId ?? undefined)
   const active = data?.items.find(r => !r.completedAt)
 
-  if (!workspaceId || !active)
+  if (!workspaceId || !active || suppress)
     return null
 
   return <ActiveBanner workspaceId={workspaceId} runId={active.runId} skillId={active.skillId} startedAt={active.startedAt} />

@@ -2,6 +2,7 @@ import type { EdgeId, NodeId, ProposalId } from '@braidhq/schema'
 import type { Surface } from './components/CommandPalette'
 import { Settings2, Sparkles } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { BatchInFlightBanner } from './components/BatchInFlightBanner'
 import { CommandPalette } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
 import { InFlightRunBanner } from './components/InFlightRunBanner'
@@ -10,11 +11,12 @@ import { ServerUrlDialog } from './components/ServerUrlDialog'
 import { Sidebar } from './components/Sidebar'
 import { TooltipProvider } from './components/ui/tooltip'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
-import { useWorkspaces } from './lib/queries'
+import { useBatchStatus, useWorkspaces } from './lib/queries'
 import { GraphNavigationContext } from './lib/useGraphNavigation'
 import { TabNavigationContext } from './lib/useTabNavigation'
 import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
 import { ActionsPage } from './pages/Actions'
+import { BatchPage } from './pages/Batch'
 import { ClarifyPage } from './pages/Clarify'
 import { GraphSurface, GraphSurfaceActions, useGraphSurfaceState } from './pages/GraphSurface'
 import { HistoryPage } from './pages/History'
@@ -42,6 +44,9 @@ export function App() {
   }, [activeId, workspaces])
 
   useWorkspaceEvents(activeId)
+
+  const { data: activeBatchPlan } = useBatchStatus(activeId ?? undefined)
+  const hasActiveBatch = activeBatchPlan?.status === 'running' || activeBatchPlan?.status === 'scanning'
 
   const items = workspaces?.items ?? []
 
@@ -95,12 +100,27 @@ export function App() {
                   activeSurface={activeSurface}
                   onOpenDetails={() => activeId && openDetails(activeId)}
                 />
-                <InFlightRunBanner workspaceId={activeId} />
+                <BatchInFlightBanner
+                  workspaceId={activeId}
+                  onOpenBatch={() => setActiveSurface('batch')}
+                  suppress={activeSurface === 'batch'}
+                />
+                <InFlightRunBanner
+                  workspaceId={activeId}
+                  // Suppress on surfaces that render the run themselves AND
+                  // when a batch banner is already showing — they'd both point
+                  // at the same in-flight extract subprocess.
+                  suppress={activeSurface === 'actions' || activeSurface === 'batch' || hasActiveBatch}
+                />
                 {activeId
                   ? (
                       <div className="relative flex-1 overflow-hidden">
                         {activeSurface === null && (
-                          <GraphHomeView workspaceId={activeId} state={graphSurfaceState} />
+                          <GraphHomeView
+                            workspaceId={activeId}
+                            state={graphSurfaceState}
+                            onStartBootstrap={() => setActiveSurface('batch')}
+                          />
                         )}
                         {activeSurface === 'actions' && (
                           <ActionsPage workspaceId={activeId} />
@@ -117,6 +137,9 @@ export function App() {
                         )}
                         {activeSurface === 'history' && (
                           <HistoryPage workspaceId={activeId} />
+                        )}
+                        {activeSurface === 'batch' && (
+                          <BatchPage workspaceId={activeId} />
                         )}
                       </div>
                     )
@@ -162,9 +185,10 @@ export function App() {
  * controls sit in the contextual sub-bar alongside any future
  * graph-only actions.
  */
-function GraphHomeView({ workspaceId, state }: {
+function GraphHomeView({ workspaceId, state, onStartBootstrap }: {
   workspaceId: string
   state: ReturnType<typeof useGraphSurfaceState>
+  onStartBootstrap: () => void
 }) {
   const { view, setView, selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode } = state
 
@@ -204,6 +228,7 @@ function GraphHomeView({ workspaceId, state }: {
         selectedEdgeId={selectedEdgeId}
         onSelectEdge={setSelectedEdgeId}
         focusMode={focusMode}
+        onStartBootstrap={onStartBootstrap}
       />
     </div>
   )

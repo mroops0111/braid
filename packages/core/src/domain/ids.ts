@@ -1,11 +1,13 @@
 import type {
   AnswerId,
+  BatchPlanId,
   ClarifyCandidateId,
   ClarifyTicketId,
   DecisionId,
   DriftIssueId,
   EdgeId,
   NodeId,
+  PlanUnitId,
   ProposalId,
   QuestionId,
   SkillRunId,
@@ -73,4 +75,12 @@ export function newSkillRunId(): SkillRunId {
 
 export function newDriftIssueId(): DriftIssueId {
   return crypto.randomUUID() as DriftIssueId
+}
+
+export function newBatchPlanId(now: Timestamp): BatchPlanId {
+  return `bp-${dateOf(now)}-${shortRandom()}` as BatchPlanId
+}
+
+export function newPlanUnitId(): PlanUnitId {
+  return `pu-${shortRandom()}` as PlanUnitId
 }
