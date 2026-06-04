@@ -10,7 +10,7 @@ export type BatchPlanId = z.infer<typeof BatchPlanId>
 export const UnitStatus = z.enum(['pending', 'running', 'completed', 'failed', 'skipped'])
 export type UnitStatus = z.infer<typeof UnitStatus>
 
-export const BatchStatus = z.enum(['idle', 'scanning', 'running', 'completed', 'failed', 'stopped'])
+export const BatchStatus = z.enum(['idle', 'scanning', 'running', 'completed', 'failed', 'stopped', 'archived'])
 export type BatchStatus = z.infer<typeof BatchStatus>
 
 // `intent` walks each intent source directly. `scan` runs braid-scan first to
