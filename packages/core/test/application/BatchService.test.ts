@@ -278,4 +278,20 @@ describe('BatchService', () => {
     expect(skillRunner.startCalls[0]?.skillId).toBe('braid-scan')
     expect((await planRepository.load())?.mode).toBe('scan')
   })
+
+  it('archive moves a completed plan to archived status', async () => {
+    const { service, workspace, proposalRepository, planRepository, skillRunner } = await setup()
+    skillRunner.onStart = async () => proposalRepository.save(freshProposal(workspace.id, 'p-1'))
+    await service.start(workspace.id, { autoApply: false })
+    await flushBatch(planRepository)
+
+    const archived = await service.archive(workspace.id)
+    expect(archived.status).toBe('archived')
+    expect((await planRepository.load())?.status).toBe('archived')
+  })
+
+  it('archive refuses when no plan exists', async () => {
+    const { service, workspace } = await setup()
+    await expect(service.archive(workspace.id)).rejects.toThrow(ValidationError)
+  })
 })

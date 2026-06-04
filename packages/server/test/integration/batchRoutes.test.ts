@@ -50,4 +50,11 @@ describe('batch REST routes', () => {
     const response = await app.request(`/workspaces/${workspaceId}/batch/stop`, { method: 'POST' })
     expect(response.status).toBe(204)
   })
+
+  it('POST /batch/archive returns 400 when no plan exists', async () => {
+    const response = await app.request(`/workspaces/${workspaceId}/batch/archive`, { method: 'POST' })
+    expect(response.status).toBe(400)
+    const body = await readJson<{ detail: string }>(response)
+    expect(body.detail).toMatch(/No batch plan/)
+  })
 })
