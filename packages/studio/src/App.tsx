@@ -7,7 +7,6 @@ import { CommandPalette } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
 import { InFlightRunBanner } from './components/InFlightRunBanner'
 import { PageActions, PageActionsHost, PageActionsProvider } from './components/PageActions'
-import { ServerUrlDialog } from './components/ServerUrlDialog'
 import { Sidebar } from './components/Sidebar'
 import { TooltipProvider } from './components/ui/tooltip'
 import { UserPicker } from './components/UserPicker'
@@ -25,6 +24,7 @@ import { GraphSurface, GraphSurfaceActions, useGraphSurfaceState } from './pages
 import { HistoryPage } from './pages/History'
 import { LoginPage } from './pages/Login'
 import { ProposalsPage } from './pages/Proposals'
+import { SettingsPage } from './pages/Settings'
 
 export function App() {
   const gate = useAuthGate()
@@ -55,7 +55,6 @@ function AppInner() {
   useUrlSync({ workspaceId: activeId, surface: activeSurface })
   const [detailsId, setDetailsId] = useState<string | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
-  const [serverUrlOpen, setServerUrlOpen] = useState(false)
   const graphSurfaceState = useGraphSurfaceState()
   const { setSelectedNodeId, setSelectedEdgeId } = graphSurfaceState
   // One-shot deep-link target for the Proposals surface. ProposalsPage
@@ -117,63 +116,72 @@ function AppInner() {
                 workspaces={items}
                 activeWorkspaceId={activeId}
                 activeSurface={activeSurface}
-                onSelect={setActiveId}
+                onSelect={(id) => {
+                  setActiveId(id)
+                  if (activeSurface === 'settings')
+                    setActiveSurface(null)
+                }}
                 onOpenDetails={openDetails}
-                onOpenServerUrl={() => setServerUrlOpen(true)}
                 onGoHome={() => setActiveSurface(null)}
                 onSelectSurface={setActiveSurface}
               />
               <main className="flex flex-1 flex-col overflow-hidden">
-                <WorkspaceHeader
-                  workspaceId={activeId}
-                  activeSurface={activeSurface}
-                  onOpenDetails={() => activeId && openDetails(activeId)}
-                />
-                <BatchInFlightBanner
-                  workspaceId={activeId}
-                  onOpenBatch={() => setActiveSurface('batch')}
-                  suppress={activeSurface === 'batch'}
-                />
-                <InFlightRunBanner
-                  workspaceId={activeId}
-                  // Suppress on surfaces that render the run themselves AND
-                  // when a batch banner is already showing — they'd both point
-                  // at the same in-flight extract subprocess.
-                  suppress={activeSurface === 'actions' || activeSurface === 'batch' || hasActiveBatch}
-                />
-                {activeId
-                  ? (
-                      <div className="relative flex-1 overflow-hidden">
-                        {activeSurface === null && (
-                          <GraphHomeView
-                            workspaceId={activeId}
-                            state={graphSurfaceState}
-                            onStartBootstrap={() => setActiveSurface('batch')}
-                          />
-                        )}
-                        {activeSurface === 'actions' && (
-                          <ActionsPage workspaceId={activeId} />
-                        )}
-                        {activeSurface === 'clarify' && (
-                          <ClarifyPage workspaceId={activeId} />
-                        )}
-                        {activeSurface === 'proposals' && (
-                          <ProposalsPage
-                            workspaceId={activeId}
-                            focusedProposalId={focusedProposalId}
-                            onFocusConsumed={() => setFocusedProposalId(null)}
-                          />
-                        )}
-                        {activeSurface === 'history' && (
-                          <HistoryPage workspaceId={activeId} />
-                        )}
-                        {activeSurface === 'batch' && (
-                          <BatchPage workspaceId={activeId} />
-                        )}
-                      </div>
-                    )
+                {activeSurface === 'settings'
+                  ? <SettingsPage />
                   : (
-                      <NoWorkspaceState onSelect={setActiveId} />
+                      <>
+                        <WorkspaceHeader
+                          workspaceId={activeId}
+                          activeSurface={activeSurface}
+                          onOpenDetails={() => activeId && openDetails(activeId)}
+                        />
+                        <BatchInFlightBanner
+                          workspaceId={activeId}
+                          onOpenBatch={() => setActiveSurface('batch')}
+                          suppress={activeSurface === 'batch'}
+                        />
+                        <InFlightRunBanner
+                          workspaceId={activeId}
+                          // Suppress on surfaces that render the run themselves AND
+                          // when a batch banner is already showing — they'd both point
+                          // at the same in-flight extract subprocess.
+                          suppress={activeSurface === 'actions' || activeSurface === 'batch' || hasActiveBatch}
+                        />
+                        {activeId
+                          ? (
+                              <div className="relative flex-1 overflow-hidden">
+                                {activeSurface === null && (
+                                  <GraphHomeView
+                                    workspaceId={activeId}
+                                    state={graphSurfaceState}
+                                    onStartBootstrap={() => setActiveSurface('batch')}
+                                  />
+                                )}
+                                {activeSurface === 'actions' && (
+                                  <ActionsPage workspaceId={activeId} />
+                                )}
+                                {activeSurface === 'clarify' && (
+                                  <ClarifyPage workspaceId={activeId} />
+                                )}
+                                {activeSurface === 'proposals' && (
+                                  <ProposalsPage
+                                    workspaceId={activeId}
+                                    focusedProposalId={focusedProposalId}
+                                    onFocusConsumed={() => setFocusedProposalId(null)}
+                                  />
+                                )}
+                                {activeSurface === 'history' && (
+                                  <HistoryPage workspaceId={activeId} />
+                                )}
+                                {activeSurface === 'batch' && (
+                                  <BatchPage workspaceId={activeId} />
+                                )}
+                              </div>
+                            )
+                          : (
+                              <NoWorkspaceState onSelect={setActiveId} />
+                            )}
+                      </>
                     )}
               </main>
               <CommandPalette
@@ -183,7 +191,6 @@ function AppInner() {
                 onSelectWorkspace={setActiveId}
                 onSelectSurface={setActiveSurface}
               />
-              <ServerUrlDialog open={serverUrlOpen} onOpenChange={setServerUrlOpen} />
               <WorkspaceDetailsSheet
                 workspaceId={detailsId}
                 open={detailsOpen}

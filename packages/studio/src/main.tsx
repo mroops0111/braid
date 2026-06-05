@@ -3,6 +3,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { consumeOAuthRedirect, setAuthToken } from './lib/authToken'
+import { setActiveRemoteId } from './lib/remotes'
 import { initServerUrl } from './lib/serverUrl'
 import '@fontsource-variable/inter'
 import '@fontsource-variable/jetbrains-mono'
@@ -22,13 +23,21 @@ if (!rootElement)
 // web / dev contexts this resolves immediately as a no-op.
 async function bootstrap() {
   await initServerUrl()
-  // OAuth callback redirects land here with `#token=…` or
-  // `#auth-error=…`. Consume the token before mounting so the first
-  // render of `App` already sees the new session, and pass any error
-  // through window.__braidAuthError so the LoginPage can surface it.
+  // OAuth callback redirects land here with `#token=…` or `#auth-error=…`.
+  // Consume the token before mounting so App's first render sees the new
+  // session. When the callback was started from a per-remote Sign In, the
+  // hash also carries `auth-remote=<remoteId>` so we both store under that
+  // remote and switch active to it.
   const redirect = consumeOAuthRedirect()
-  if (redirect.token)
-    setAuthToken(redirect.token)
+  if (redirect.token) {
+    if (redirect.remoteId) {
+      setAuthToken(redirect.token, redirect.remoteId)
+      setActiveRemoteId(redirect.remoteId)
+    }
+    else {
+      setAuthToken(redirect.token)
+    }
+  }
   if (redirect.error)
     (window as { __braidAuthError?: string }).__braidAuthError = redirect.error
 

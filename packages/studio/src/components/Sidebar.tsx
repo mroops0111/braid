@@ -1,9 +1,10 @@
 import type { Workspace } from '@braidhq/schema'
 import type { Surface } from './CommandPalette'
-import { ClipboardCheck, GitGraph, HelpCircle, Moon, Network, PanelLeftClose, PanelLeftOpen, Plus, Server, Sparkles, Sun } from 'lucide-react'
+import { ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, Moon, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import braidLogo from '@/assets/braid-logo.svg'
 import { useMyWorkspaceRole, usePendingClarify, usePendingProposals, useRuns } from '@/lib/queries'
+import { LOCAL_REMOTE_ID, useActiveRemoteId, useRemotes } from '@/lib/remotes'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { CreateWorkspaceWizard } from './CreateWorkspaceWizard'
@@ -35,7 +36,6 @@ interface SidebarProps {
   activeSurface: Surface | null
   onSelect: (id: string) => void
   onOpenDetails: (id: string) => void
-  onOpenServerUrl: () => void
   onGoHome: () => void
   onSelectSurface: (next: Surface) => void
 }
@@ -46,7 +46,6 @@ export function Sidebar({
   activeSurface,
   onSelect,
   onOpenDetails,
-  onOpenServerUrl,
   onGoHome,
   onSelectSurface,
 }: SidebarProps) {
@@ -58,9 +57,6 @@ export function Sidebar({
     setCollapsedState(next)
   }
 
-  // Cmd+\ / Ctrl+\ toggles the sidebar collapsed state. Linear / VS Code
-  // use the same chord; keeps the muscle memory consistent for users
-  // coming from those tools.
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
       if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
@@ -75,7 +71,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        'flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-150',
+        'flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground',
         collapsed ? 'w-12' : 'w-60',
       )}
     >
@@ -92,21 +88,22 @@ export function Sidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin px-2 pb-2">
-        <div className={cn('flex items-center pt-1 pb-1', collapsed ? 'justify-center' : 'justify-between px-2')}>
-          {!collapsed && (
+        <ActiveServerLabel collapsed={collapsed} />
+        {!collapsed && (
+          <div className="flex items-center justify-between pt-1 pb-1 px-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
               Workspaces
             </span>
-          )}
-          <button
-            type="button"
-            onClick={() => setWizardOpen(true)}
-            title="Open workspace"
-            className="flex size-5 items-center justify-center rounded text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-          >
-            <Plus className="size-3.5" />
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => setWizardOpen(true)}
+              title="Open workspace"
+              className="flex size-5 items-center justify-center rounded text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            >
+              <Plus className="size-3.5" />
+            </button>
+          </div>
+        )}
         <ul className="space-y-px">
           {workspaces.length === 0 && !collapsed && (
             <li className="px-2 py-1.5 text-xs text-sidebar-foreground/40">No workspace yet.</li>
@@ -147,6 +144,18 @@ export function Sidebar({
             </ListRow>
           ))}
         </ul>
+        {collapsed && (
+          <div className="flex justify-center pt-1">
+            <button
+              type="button"
+              onClick={() => setWizardOpen(true)}
+              title="Open workspace"
+              className="flex size-7 items-center justify-center rounded text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            >
+              <Plus className="size-3.5" />
+            </button>
+          </div>
+        )}
       </div>
 
       {activeWorkspaceId && (
@@ -159,6 +168,12 @@ export function Sidebar({
         />
       )}
 
+      <AccountSection
+        activeSurface={activeSurface}
+        collapsed={collapsed}
+        onSelectSurface={onSelectSurface}
+      />
+
       <div className={cn(
         'flex shrink-0 border-t border-sidebar-border',
         collapsed
@@ -169,9 +184,6 @@ export function Sidebar({
         {collapsed
           ? (
               <>
-                <SidebarIconButton onClick={onOpenServerUrl} title="Configure server URL">
-                  <Server className="size-3.5" />
-                </SidebarIconButton>
                 <ThemeToggle />
                 <SidebarIconButton
                   onClick={() => setCollapsed(false)}
@@ -188,9 +200,6 @@ export function Sidebar({
                     icons would drift to centre when account is absent. */}
                 <div className="flex-1" />
                 <div className="flex items-center gap-0.5">
-                  <SidebarIconButton onClick={onOpenServerUrl} title="Configure server URL">
-                    <Server className="size-3.5" />
-                  </SidebarIconButton>
                   <ThemeToggle />
                   <SidebarIconButton
                     onClick={() => setCollapsed(true)}
@@ -238,13 +247,25 @@ function ThemeToggle() {
   )
 }
 
-/**
- * "HERE" — surface nav scoped to the active workspace. Sits between
- * the workspaces list (top) and the app-level utility row (bottom),
- * so the sidebar reads top-to-bottom as `where → what → settings`.
- * Lives in the sidebar (not the header) so on mobile it transposes
- * cleanly into a bottom tab bar without restructuring nav.
- */
+function ActiveServerLabel({ collapsed }: { collapsed: boolean }) {
+  const remotes = useRemotes()
+  const activeId = useActiveRemoteId()
+  if (remotes.length === 0 || collapsed)
+    return null
+  const isLocal = activeId === LOCAL_REMOTE_ID
+  const activeName = isLocal
+    ? 'Local'
+    : remotes.find(r => r.id === activeId)?.name ?? 'Local'
+  const Icon = isLocal ? Laptop : Globe
+  return (
+    <div className="flex items-center gap-1.5 px-2 pt-1 pb-0.5">
+      <Icon className="size-3 text-sidebar-foreground/50" />
+      <span className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40">Server:</span>
+      <span className="font-mono text-[10px] text-sidebar-foreground/70">{activeName}</span>
+    </div>
+  )
+}
+
 function HereSection({
   workspaceId,
   activeSurface,
@@ -263,11 +284,8 @@ function HereSection({
   const myRole = useMyWorkspaceRole(workspaceId)
   const pendingProposals = proposals?.items.length ?? 0
   const pendingClarify = clarify?.items.length ?? 0
-  // Guests don't see Proposals / Clarify / Actions tabs — the HITL
-  // surface is hidden entirely so the role's read-only intent is
-  // reflected at the nav level, not just in disabled buttons. Server
-  // also 403s these endpoints, so unhiding them via devtools just
-  // surfaces the same gate one click later.
+  // Guests get a read-only nav: hidden HITL tabs are also 403-gated
+  // server-side, so devtools tampering changes nothing.
   const isGuest = myRole === 'guest'
 
   return (
@@ -320,6 +338,30 @@ function HereSection({
           label="History"
           active={activeSurface === 'history'}
           onClick={() => onSelectSurface('history')}
+        />
+      </ul>
+    </div>
+  )
+}
+
+function AccountSection({
+  activeSurface,
+  collapsed,
+  onSelectSurface,
+}: {
+  activeSurface: Surface | null
+  collapsed: boolean
+  onSelectSurface: (next: Surface) => void
+}) {
+  return (
+    <div className={cn('shrink-0 border-t border-sidebar-border px-2 pb-2', collapsed ? 'pt-1.5' : 'pt-2')}>
+      <ul className="space-y-px">
+        <HereRow
+          collapsed={collapsed}
+          icon={Settings}
+          label="Settings"
+          active={activeSurface === 'settings'}
+          onClick={() => onSelectSurface('settings')}
         />
       </ul>
     </div>

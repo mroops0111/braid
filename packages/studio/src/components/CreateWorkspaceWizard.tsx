@@ -123,7 +123,7 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
         }
       }}
     >
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Create Workspace</DialogTitle>
           <DialogDescription>
@@ -272,7 +272,7 @@ function BasicsStep({ name, description, onName, onDescription }: {
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <Label htmlFor="ws-name">Workspace name</Label>
+        <Label htmlFor="ws-name">Workspace Name</Label>
         <Input
           id="ws-name"
           autoFocus
@@ -570,7 +570,7 @@ function AdvancedStep({ ontologyId, storageKind, onOntologyId, onStorageKind }: 
         <Input id="ws-ontology" value={ontologyId} onChange={e => onOntologyId(e.target.value)} />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="ws-storage">Storage kind</Label>
+        <Label htmlFor="ws-storage">Storage Kind</Label>
         <Input id="ws-storage" value={storageKind} onChange={e => onStorageKind(e.target.value)} />
       </div>
     </div>

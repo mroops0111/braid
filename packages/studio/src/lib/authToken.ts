@@ -1,44 +1,39 @@
-/**
- * Bearer session token issued by the Braid server's `/auth/google/callback`.
- * Persisted in `localStorage` for v0.2; Tauri builds will move this to
- * the OS keyring in a later phase.
- *
- * Storage is per-origin: the same browser session can't authenticate
- * to two different Braid servers simultaneously today (Phase D adds
- * multi-server with keyring). For now the token corresponds to whatever
- * `serverUrl` is configured.
- */
-const STORAGE_KEY = 'braid:authToken'
+import { getActiveRemoteId, getTokenFor, setTokenFor } from './remotes'
+
 const EVENT_NAME = 'braid:authTokenChanged'
 
+/**
+ * Bearer for the active remote. Local can hold a token too: a
+ * `pnpm dev:web` server with `BRAID_LOCAL_TRUST=false` still requires
+ * one even though it's localhost.
+ */
 export function getAuthToken(): string | null {
-  if (typeof localStorage === 'undefined')
-    return null
-  return localStorage.getItem(STORAGE_KEY)
+  return getTokenFor(getActiveRemoteId())
 }
 
-export function setAuthToken(token: string | null): void {
-  if (typeof localStorage === 'undefined')
-    return
-  if (token && token.length > 0)
-    localStorage.setItem(STORAGE_KEY, token)
-  else
-    localStorage.removeItem(STORAGE_KEY)
+/**
+ * Pass `remoteId` when minting a token mid-OAuth callback, before the
+ * active remote has flipped to the new server.
+ */
+export function setAuthToken(token: string | null, remoteId?: string): void {
+  const id = remoteId ?? getActiveRemoteId()
+  setTokenFor(id, token)
   if (typeof window !== 'undefined')
     window.dispatchEvent(new CustomEvent(EVENT_NAME))
 }
 
-export function clearAuthToken(): void {
-  setAuthToken(null)
+export function clearAuthToken(remoteId?: string): void {
+  setAuthToken(null, remoteId)
 }
 
 /**
- * One-shot extractor for the post-OAuth redirect. The server sends
- * `<studioUrl>#token=<token>` (or `#auth-error=<msg>`) after a
- * successful login; the SPA reads, persists, and clears the fragment
- * so a refresh doesn't replay the token through the URL bar.
+ * Drains the post-OAuth redirect hash:
+ *   #token=<jwt>&auth-remote=<remoteId>   on success
+ *   #auth-error=<msg>                     on failure
+ * `auth-remote` is absent on legacy single-server flows; caller falls
+ * back to the active remote.
  */
-export function consumeOAuthRedirect(): { token?: string, error?: string } {
+export function consumeOAuthRedirect(): { token?: string, error?: string, remoteId?: string } {
   if (typeof window === 'undefined')
     return {}
   const hash = window.location.hash
@@ -47,21 +42,16 @@ export function consumeOAuthRedirect(): { token?: string, error?: string } {
   const params = new URLSearchParams(hash.slice(1))
   const token = params.get('token') ?? undefined
   const error = params.get('auth-error') ?? undefined
+  const remoteId = params.get('auth-remote') ?? undefined
   if (token || error) {
-    // Strip the fragment without triggering a navigation. `pushState`
-    // keeps the SPA router state intact (hash-based routes still work
-    // for the underlying app — we only had `#token=` / `#auth-error=`
-    // riding on the hash from the server's redirect).
     const cleaned = window.location.pathname + window.location.search
     window.history.replaceState(null, '', cleaned)
   }
-  return { ...(token ? { token } : {}), ...(error ? { error } : {}) }
+  return {
+    ...(token ? { token } : {}),
+    ...(error ? { error } : {}),
+    ...(remoteId ? { remoteId } : {}),
+  }
 }
 
-/**
- * Hook for components that want to re-render on token changes
- * (Login page redirects, logout button). Implementation lives in
- * `useAuthToken.ts` so non-React callers can import this file
- * cleanly without pulling in React.
- */
 export const AUTH_TOKEN_EVENT = EVENT_NAME

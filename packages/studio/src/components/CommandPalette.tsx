@@ -21,7 +21,7 @@ interface CommandPaletteProps {
   onSelectSurface: (surface: Surface | null) => void
 }
 
-export type Surface = 'actions' | 'batch' | 'clarify' | 'history' | 'proposals'
+export type Surface = 'actions' | 'batch' | 'clarify' | 'history' | 'proposals' | 'settings'
 
 interface SurfaceItem {
   id: Surface | null
