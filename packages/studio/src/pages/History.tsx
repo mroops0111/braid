@@ -672,7 +672,7 @@ function RestoreDialog({ open, onOpenChange, workspaceId, sha, subject }: {
 }) {
   const queryClient = useQueryClient()
   const restore = useMutation({
-    mutationFn: () => api.restoreCommit(workspaceId, sha, 'studio-user'),
+    mutationFn: () => api.restoreCommit(workspaceId, sha),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId] })
       onOpenChange(false)

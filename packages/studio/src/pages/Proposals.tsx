@@ -30,8 +30,6 @@ interface ProposalsPageProps {
   onFocusConsumed?: () => void
 }
 
-const DEFAULT_USER_ID = 'studio-user'
-
 type StatusFilter = Extract<ProposalStatus, 'pending' | 'applied' | 'rejected'>
 
 const EMPTY_COPY: Record<StatusFilter, { title: string, description: string }> = {
@@ -241,7 +239,7 @@ function ProposalDetail({
   }
 
   const apply = useMutation({
-    mutationFn: () => api.applyProposal(workspaceId, proposal.id, DEFAULT_USER_ID),
+    mutationFn: () => api.applyProposal(workspaceId, proposal.id),
     onSuccess: () => {
       invalidateProposals()
       queryClient.invalidateQueries({ queryKey: queryKeys.modelSnapshot(workspaceId) })
@@ -250,7 +248,7 @@ function ProposalDetail({
   })
 
   const reject = useMutation({
-    mutationFn: (reason: string) => api.rejectProposal(workspaceId, proposal.id, reason, DEFAULT_USER_ID),
+    mutationFn: (reason: string) => api.rejectProposal(workspaceId, proposal.id, reason),
     onSuccess: () => {
       invalidateProposals()
       onComplete()

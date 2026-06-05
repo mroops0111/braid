@@ -2,14 +2,38 @@ import { createHash, randomBytes } from 'node:crypto'
 
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
+const USERINFO_ENDPOINT = 'https://openidconnect.googleapis.com/v1/userinfo'
+
+/**
+ * Profile fields Braid needs after Google authn. `sub` is the stable
+ * Google account id — used as the join key into `users.json`.
+ */
+export interface GoogleProfile {
+  readonly sub: string
+  readonly email: string
+  readonly displayName: string
+  readonly emailVerified?: boolean
+}
 
 export interface GoogleOAuthConfig {
   /** OAuth client id from the user's GCP project. */
   readonly clientId: string
   /** OAuth client secret. */
   readonly clientSecret: string
-  /** Absolute redirect URI registered in the GCP OAuth client. */
+  /**
+   * Redirect URI used by the Drive ingestion flow (existing OAuth
+   * router). Both paths must be registered in the GCP OAuth client's
+   * authorised redirect URIs list.
+   */
   readonly redirectUri: string
+  /**
+   * Redirect URI used by the user-login flow. Optional — falls back
+   * to the Drive `redirectUri` if unset, which is what local dev
+   * wants (one path = one registered URI). Production usually points
+   * this at `${apiUrl}/auth/google/callback` so the two flows are
+   * mounted on different routes.
+   */
+  readonly loginRedirectUri?: string
 }
 
 export interface AuthorizationUrlInput {
@@ -91,6 +115,83 @@ export class GoogleOAuth {
       throw new Error('Google did not return a refresh_token. Add prompt=consent and ensure access_type=offline.')
     }
     return tokenSetFromPayload(payload)
+  }
+
+  /**
+   * Login flow URL. Same client + redirect as the Drive flow but with
+   * `openid email profile` scopes and no `prompt=consent` — Google
+   * suppresses the consent screen when the user has already approved
+   * those scopes, which is what you want for login (not Drive where
+   * a refresh_token is required and `prompt=consent` is forced).
+   */
+  buildLoginUrl(input: { state: string, codeVerifier: string }): string {
+    const params = new URLSearchParams({
+      client_id: this.config.clientId,
+      redirect_uri: this.loginRedirectUri(),
+      response_type: 'code',
+      scope: 'openid email profile',
+      access_type: 'online',
+      include_granted_scopes: 'true',
+      state: input.state,
+      code_challenge: pkceChallenge(input.codeVerifier),
+      code_challenge_method: 'S256',
+    })
+    return `${AUTH_ENDPOINT}?${params.toString()}`
+  }
+
+  /** Path Google sends the login callback to. Routed under `/auth/google/callback`. */
+  loginRedirectUri(): string {
+    return this.config.loginRedirectUri ?? this.config.redirectUri
+  }
+
+  /**
+   * Exchange an authorization code from the login flow for the user's
+   * profile. Does NOT require `refresh_token` (login is one-shot — the
+   * Braid server issues its own session afterwards, so Google's tokens
+   * are discarded after this call). Uses the userinfo endpoint instead
+   * of decoding the id_token, so we don't bring in a JWT verifier just
+   * to read 3 fields.
+   */
+  async loginWithCode(input: { code: string, codeVerifier: string }): Promise<GoogleProfile> {
+    const body = new URLSearchParams({
+      client_id: this.config.clientId,
+      client_secret: this.config.clientSecret,
+      redirect_uri: this.loginRedirectUri(),
+      grant_type: 'authorization_code',
+      code: input.code,
+      code_verifier: input.codeVerifier,
+    })
+    const tokenResponse = await fetch(TOKEN_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    })
+    if (!tokenResponse.ok) {
+      const text = await tokenResponse.text().catch(() => '')
+      throw new Error(`Google login token exchange failed: ${tokenResponse.status} ${tokenResponse.statusText} ${text}`)
+    }
+    const { access_token } = await tokenResponse.json() as { access_token: string }
+
+    const userinfoResponse = await fetch(USERINFO_ENDPOINT, {
+      headers: { Authorization: `Bearer ${access_token}` },
+    })
+    if (!userinfoResponse.ok) {
+      const text = await userinfoResponse.text().catch(() => '')
+      throw new Error(`Google userinfo fetch failed: ${userinfoResponse.status} ${userinfoResponse.statusText} ${text}`)
+    }
+    const userinfo = await userinfoResponse.json() as {
+      sub: string
+      email: string
+      email_verified?: boolean
+      name?: string
+      given_name?: string
+    }
+    return {
+      sub: userinfo.sub,
+      email: userinfo.email,
+      displayName: userinfo.name ?? userinfo.given_name ?? userinfo.email,
+      ...(userinfo.email_verified !== undefined ? { emailVerified: userinfo.email_verified } : {}),
+    }
   }
 
   async refreshAccessToken(refreshToken: string): Promise<RefreshedAccessToken> {

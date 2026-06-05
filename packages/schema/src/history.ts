@@ -22,6 +22,20 @@ export const CommitMessage = z.object({
   kind: CommitKind,
   subject: z.string().min(1).max(120),
   userId: UserId,
+  /**
+   * Human-readable author snapshot. When provided, becomes git's
+   * `user.name` for this commit; otherwise falls back to the opaque
+   * `userId`. Recorded at commit time so a future rename of the
+   * underlying user record doesn't retroactively rewrite git history.
+   */
+  authorName: z.string().min(1).optional(),
+  /**
+   * Author email snapshot. Real Google address when the user logged
+   * in via OAuth; synthesised `${userId}@braid.local` when absent,
+   * which is what `git log` historically saw for the single-tenant
+   * local install.
+   */
+  authorEmail: z.string().min(1).optional(),
   proposalId: ProposalId.optional(),
   clarifyTicketId: ClarifyTicketId.optional(),
   sourceId: SourceId.optional(),

@@ -103,8 +103,6 @@ interface ClarifyPageProps {
   workspaceId: string
 }
 
-const DEFAULT_USER_ID = 'studio-user'
-
 type StatusFilter = ClarifyStatus
 
 const EMPTY_COPY: Record<StatusFilter, { title: string, description: string }> = {
@@ -361,7 +359,7 @@ function ClarifyDetail({
 
   const answer = useMutation({
     mutationFn: (input: { selection: { candidateId: string } | { customCandidate: { description: string } }, note?: string }) =>
-      api.answerClarify(workspaceId, ticket.id, input.selection, DEFAULT_USER_ID, input.note),
+      api.answerClarify(workspaceId, ticket.id, input.selection, input.note),
     onSuccess: () => {
       invalidateClarify()
       onComplete()
@@ -370,7 +368,7 @@ function ClarifyDetail({
 
   const skip = useMutation({
     mutationFn: (reason: string) =>
-      api.skipClarify(workspaceId, ticket.id, reason, DEFAULT_USER_ID),
+      api.skipClarify(workspaceId, ticket.id, reason),
     onSuccess: () => {
       invalidateClarify()
       onComplete()

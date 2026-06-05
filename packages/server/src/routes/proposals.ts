@@ -1,6 +1,7 @@
 import type { HITLService, ModelRepository, ProposalRepository, ValidationService, WorkspaceService } from '@braidhq/core'
 import { Decision, Proposal, ProposalDraft, ProposalId, ProposalStatus, UserId, ValidationResult } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
+import { getUserId } from '../middleware/userId.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 import { assertEntityInWorkspace } from './helpers.js'
@@ -11,13 +12,18 @@ const ListQuery = z.object({
   offset: z.coerce.number().int().nonnegative().optional(),
 })
 
+// Body `userId` is a back-compat shim for API consumers that haven't
+// migrated to the `X-Braid-User` header / Bearer-token flow. When
+// present it overrides the middleware-derived id; when omitted the
+// handler falls back to `getUserId(c)`. Studio sends it via header
+// only; the path will be removed once the deprecation window closes.
 const ApplyBody = z.object({
-  userId: UserId,
+  userId: UserId.optional(),
 }).openapi('ProposalApplyBody')
 
 const RejectBody = z.object({
   reason: z.string().min(1),
-  userId: UserId,
+  userId: UserId.optional(),
 }).openapi('ProposalRejectBody')
 
 // Skill-facing create. Body must carry `workspaceId` matching the route
@@ -189,7 +195,8 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
   router.openapi(applyProposalRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const { proposalId } = context.req.valid('param')
-    const { userId } = context.req.valid('json')
+    const body = context.req.valid('json')
+    const userId = body.userId ?? getUserId(context)
     const proposal = await deps.proposalRepository.load(proposalId)
     assertEntityInWorkspace(workspaceId, proposal.workspaceId, 'Proposal', proposalId)
     const decision = await deps.hitlService.applyProposal(proposalId, userId)
@@ -199,7 +206,8 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
   router.openapi(rejectProposalRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const { proposalId } = context.req.valid('param')
-    const { reason, userId } = context.req.valid('json')
+    const { reason, userId: bodyUserId } = context.req.valid('json')
+    const userId = bodyUserId ?? getUserId(context)
     const proposal = await deps.proposalRepository.load(proposalId)
     assertEntityInWorkspace(workspaceId, proposal.workspaceId, 'Proposal', proposalId)
     const decision = await deps.hitlService.rejectProposal(proposalId, reason, userId)

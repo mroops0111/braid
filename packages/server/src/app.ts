@@ -1,8 +1,11 @@
 import type { AppDependencies } from './composition.js'
 import { OpenAPIHono } from '@hono/zod-openapi'
+import { authMiddleware } from './middleware/auth.js'
 import { corsMiddleware } from './middleware/cors.js'
 import { errorHandler } from './middleware/error.js'
+import { userIdMiddleware } from './middleware/userId.js'
 import { workspaceIdMiddleware } from './middleware/workspaceId.js'
+import { createAuthRouter } from './routes/auth.js'
 import { createBatchRouter } from './routes/batch.js'
 import { createClarifyRouter } from './routes/clarify.js'
 import { createDecisionsRouter } from './routes/decisions.js'
@@ -17,6 +20,7 @@ import { createProposalsRouter } from './routes/proposals.js'
 import { createRunsRouter } from './routes/runs.js'
 import { createSkillInputOptionsRouter } from './routes/skillInputOptions.js'
 import { createSkillsRouter } from './routes/skills.js'
+import { createUsersRouter } from './routes/users.js'
 import { createWorkspaceEventsRouter } from './routes/workspaceEvents.js'
 import { createWorkspacesRouter } from './routes/workspaces.js'
 
@@ -32,6 +36,13 @@ export interface AppOptions {
    * `--base-url` flag.
    */
   readonly apiUrl?: string
+  /**
+   * When true (or `BRAID_LOCAL_TRUST=true`), the auth middleware lets
+   * every request through and the embedded `userIdMiddleware` falls
+   * back to `local-user`. Set by `composeFs` for the Tauri sidecar;
+   * production remote servers leave it `false`.
+   */
+  readonly localTrust?: boolean
 }
 
 export function createApp(deps: AppDependencies, options: AppOptions = {}): OpenAPIHono {
@@ -42,9 +53,43 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       ? corsMiddleware({ allowedOrigins: options.corsOrigins })
       : corsMiddleware(),
   )
+  // Phase B auth gate. In local-trust mode it short-circuits and lets
+  // the unauthenticated request through; otherwise a Bearer token is
+  // required (Google OAuth-issued session). Public routes — `/auth/*`,
+  // `/health` — are excluded inside the middleware so the login flow
+  // itself isn't gated.
+  if (deps.sessionStore) {
+    const localTrust = options.localTrust ?? deps.localTrust
+    app.use('*', authMiddleware({
+      sessionStore: deps.sessionStore,
+      localTrust,
+    }))
+  }
+  // Phase A identity. Stamps `c.set('userId', ...)` from `X-Braid-User`
+  // when the auth layer left it empty — i.e. local-trust mode, or any
+  // public route. Bearer-authenticated requests already have a userId
+  // by the time this runs and pass through untouched.
+  app.use('*', userIdMiddleware)
   app.onError(errorHandler)
 
   app.route('/health', healthRouter)
+  if (deps.sessionStore && deps.accessPolicy && deps.userRegistry) {
+    app.route('/auth', createAuthRouter({
+      clock: deps.clock,
+      sessionStore: deps.sessionStore,
+      accessPolicy: deps.accessPolicy,
+      userRegistry: deps.userRegistry,
+      ...(deps.googleOAuth ? { googleOAuth: deps.googleOAuth } : {}),
+      studioUrl: deps.studioUrl ?? 'http://localhost:5173',
+      localTrust: options.localTrust ?? deps.localTrust,
+    }))
+  }
+  if (deps.userRegistry) {
+    app.route('/users', createUsersRouter({
+      userRegistry: deps.userRegistry,
+      clock: deps.clock,
+    }))
+  }
   app.route('/workspaces', createWorkspacesRouter({
     workspaceService: deps.workspaceService,
     sourceLoaderRunner: deps.sourceLoaderRunner,

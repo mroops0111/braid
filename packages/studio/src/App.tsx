@@ -10,8 +10,10 @@ import { PageActions, PageActionsHost, PageActionsProvider } from './components/
 import { ServerUrlDialog } from './components/ServerUrlDialog'
 import { Sidebar } from './components/Sidebar'
 import { TooltipProvider } from './components/ui/tooltip'
+import { UserPicker } from './components/UserPicker'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
 import { useBatchStatus, useWorkspaces } from './lib/queries'
+import { useAuthGate } from './lib/useAuthGate'
 import { GraphNavigationContext } from './lib/useGraphNavigation'
 import { TabNavigationContext } from './lib/useTabNavigation'
 import { readUrl, useUrlSync } from './lib/useUrlState'
@@ -21,9 +23,27 @@ import { BatchPage } from './pages/Batch'
 import { ClarifyPage } from './pages/Clarify'
 import { GraphSurface, GraphSurfaceActions, useGraphSurfaceState } from './pages/GraphSurface'
 import { HistoryPage } from './pages/History'
+import { LoginPage } from './pages/Login'
 import { ProposalsPage } from './pages/Proposals'
 
 export function App() {
+  const gate = useAuthGate()
+  if (gate.status === 'loading')
+    return <BootScreen />
+  if (gate.status === 'login')
+    return <LoginPage initialError={gate.error ?? null} />
+  return <AppInner />
+}
+
+function BootScreen() {
+  return (
+    <div className="flex h-screen items-center justify-center bg-background text-xs text-muted-foreground">
+      Loading…
+    </div>
+  )
+}
+
+function AppInner() {
   const { data: workspaces } = useWorkspaces()
   // Initial state is hydrated from the URL so refresh / deep links land back
   // on the same workspace + surface.
@@ -292,9 +312,12 @@ function WorkspaceHeader({ workspaceId, activeSurface, onOpenDetails }: {
               </>
             )}
       </div>
-      {workspaceId && (
-        <PageActionsHost className="flex items-center gap-2 empty:hidden" />
-      )}
+      <div className="flex items-center gap-2">
+        {workspaceId && (
+          <PageActionsHost className="flex items-center gap-2 empty:hidden" />
+        )}
+        <UserPicker />
+      </div>
     </header>
   )
 }

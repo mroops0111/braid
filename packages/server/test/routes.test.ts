@@ -217,17 +217,10 @@ describe('POST /workspaces/:ws/proposals/:id/apply', () => {
     expect(response.status).toBe(404)
   })
 
-  it('returns 400 when the body is missing required fields', async () => {
-    const { app } = await buildTestApp()
-
-    const response = await app.request(`/workspaces/${workspaceId}/proposals/p-1/apply`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    })
-
-    expect(response.status).toBe(400)
-  })
+  // Apply body has no required fields after Phase A — userId migrated
+  // to the `X-Braid-User` header (with body shim during the deprecation
+  // window). Body validation for reject still applies; see the
+  // /reject suite for the required-field path.
 })
 
 describe('GET /workspaces/:ws/proposals', () => {

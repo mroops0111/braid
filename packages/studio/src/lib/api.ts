@@ -24,9 +24,14 @@ import type {
   SkillManifest,
   SourceDescriptor,
   TagMeta,
+  User,
+  UserDraft,
+  UserPatch,
   ValidationResult,
   Workspace,
 } from '@braidhq/schema'
+import { getAuthToken } from './authToken.js'
+import { getCurrentUserId } from './currentUser.js'
 import { getServerUrl } from './serverUrl.js'
 
 export function workspaceEventsUrl(workspaceId: string): string {
@@ -107,10 +112,19 @@ export class ApiError extends Error {
 }
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getAuthToken()
   const response = await fetch(`${getServerUrl()}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      // Remote mode (Bearer) takes precedence over local mode (X-Braid-User).
+      // The server's `authMiddleware` resolves the Bearer token to a userId
+      // and stamps c.set('userId'); userIdMiddleware then falls through
+      // (already set). Local trust mode leaves c.get('userId') empty so
+      // `X-Braid-User` becomes authoritative.
+      ...(token
+        ? { Authorization: `Bearer ${token}` }
+        : { 'X-Braid-User': getCurrentUserId() }),
       ...(init?.headers ?? {}),
     },
   })
@@ -129,7 +143,33 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
+export interface AuthConfig {
+  googleEnabled: boolean
+  studioUrl: string
+  requiresAuth: boolean
+}
+
+export interface AuthWhoami {
+  user: User | null
+}
+
 export const api = {
+  authConfig: () => fetchJson<AuthConfig>('/auth/config'),
+  whoami: () => fetchJson<AuthWhoami>('/auth/whoami'),
+  startGoogleSignIn: (returnTo: string) =>
+    fetchJson<{ authorizationUrl: string }>(
+      `/auth/google/start?returnTo=${encodeURIComponent(returnTo)}`,
+    ),
+  logout: () =>
+    fetchJson<void>('/auth/logout', { method: 'POST' }),
+
+  listUsers: () => fetchJson<ItemList<User>>('/users'),
+  getMe: () => fetchJson<User>('/users/me'),
+  createUser: (draft: UserDraft) =>
+    fetchJson<User>('/users', { method: 'POST', body: JSON.stringify(draft) }),
+  updateUser: (userId: string, patch: UserPatch) =>
+    fetchJson<User>(`/users/${userId}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+
   listWorkspaces: () => fetchJson<ItemList<Workspace>>('/workspaces'),
   getWorkspace: (workspaceId: string) =>
     fetchJson<Workspace>(`/workspaces/${workspaceId}`),
@@ -189,15 +229,15 @@ export const api = {
     const query = status ? `?status=${status}` : ''
     return fetchJson<ItemList<Proposal>>(`/workspaces/${workspaceId}/proposals${query}`)
   },
-  applyProposal: (workspaceId: string, proposalId: string, userId: string) =>
+  applyProposal: (workspaceId: string, proposalId: string) =>
     fetchJson<Decision>(`/workspaces/${workspaceId}/proposals/${proposalId}/apply`, {
       method: 'POST',
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({}),
     }),
-  rejectProposal: (workspaceId: string, proposalId: string, reason: string, userId: string) =>
+  rejectProposal: (workspaceId: string, proposalId: string, reason: string) =>
     fetchJson<Decision>(`/workspaces/${workspaceId}/proposals/${proposalId}/reject`, {
       method: 'POST',
-      body: JSON.stringify({ reason, userId }),
+      body: JSON.stringify({ reason }),
     }),
   validateProposal: (workspaceId: string, proposalId: string) =>
     fetchJson<ValidationResult>(`/workspaces/${workspaceId}/proposals/${proposalId}/validate`),
@@ -235,21 +275,19 @@ export const api = {
     workspaceId: string,
     ticketId: string,
     selection: { candidateId: string } | { customCandidate: { description: string } },
-    userId: string,
     note?: string,
   ) =>
     fetchJson<Decision>(`/workspaces/${workspaceId}/clarify/${ticketId}/answer`, {
       method: 'POST',
       body: JSON.stringify({
         ...selection,
-        userId,
         ...(note ? { note } : {}),
       }),
     }),
-  skipClarify: (workspaceId: string, ticketId: string, reason: string, userId: string) =>
+  skipClarify: (workspaceId: string, ticketId: string, reason: string) =>
     fetchJson<Decision>(`/workspaces/${workspaceId}/clarify/${ticketId}/skip`, {
       method: 'POST',
-      body: JSON.stringify({ reason, userId }),
+      body: JSON.stringify({ reason }),
     }),
 
   listDecisions: (workspaceId: string) =>
@@ -310,10 +348,10 @@ export const api = {
     fetchJson<CommitMeta & { diff: FileDiff[] }>(`/workspaces/${workspaceId}/history/${sha}`),
   getCommitGraphDiff: (workspaceId: string, fromSha: CommitSha, toSha: CommitSha) =>
     fetchJson<GraphDiffEnvelope>(`/workspaces/${workspaceId}/history/graph-diff?from=${fromSha}&to=${toSha}`),
-  restoreCommit: (workspaceId: string, sha: CommitSha, userId: string) =>
+  restoreCommit: (workspaceId: string, sha: CommitSha) =>
     fetchJson<{ newCommit: CommitSha, restoredTo: CommitSha }>(
       `/workspaces/${workspaceId}/history/${sha}/restore`,
-      { method: 'POST', body: JSON.stringify({ userId }) },
+      { method: 'POST', body: JSON.stringify({}) },
     ),
   listHistoryTags: (workspaceId: string) =>
     fetchJson<ItemList<TagMeta>>(`/workspaces/${workspaceId}/history/tags`),

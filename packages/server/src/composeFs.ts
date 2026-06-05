@@ -23,6 +23,9 @@ import { GitLoader } from '@braidhq/source-loader-git'
 import { kuzuStoragePlugin } from '@braidhq/storage-kuzu'
 import { composeApp } from './composition.js'
 import { SubprocessSkillRunner } from './infrastructure/agent/SubprocessSkillRunner.js'
+import { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
+import { SessionStore } from './infrastructure/auth/SessionStore.js'
+import { parseBoolEnv } from './infrastructure/env.js'
 import { FsBatchPlanRepository } from './infrastructure/fs/FsBatchPlanRepository.js'
 import { FsClarifyTicketRepository } from './infrastructure/fs/FsClarifyTicketRepository.js'
 import { FsDecisionRepository } from './infrastructure/fs/FsDecisionRepository.js'
@@ -37,6 +40,9 @@ import { WorkspaceRegistryFile } from './infrastructure/fs/WorkspaceRegistryFile
 import { GitWorkspaceHistory } from './infrastructure/git/GitWorkspaceHistory.js'
 import { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
 import { FsSecretStore } from './infrastructure/secrets/SecretStore.js'
+import { ensureLocalUser } from './infrastructure/users/ensureLocalUser.js'
+import { UserDirectoryFromRegistry } from './infrastructure/users/UserDirectoryFromRegistry.js'
+import { UserRegistryFile } from './infrastructure/users/UserRegistryFile.js'
 
 export interface ComposeFsOptions {
   /** Where to persist registered workspace paths. Default `$BRAID_HOME` or `~/.braid`. */
@@ -95,12 +101,49 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   const googleClientId = process.env.BRAID_GOOGLE_CLIENT_ID
   const googleClientSecret = process.env.BRAID_GOOGLE_CLIENT_SECRET
   const googleRedirect = process.env.BRAID_GOOGLE_REDIRECT_URI ?? `${apiUrl}/oauth/google/callback`
+  const googleLoginRedirect = process.env.BRAID_GOOGLE_LOGIN_REDIRECT_URI ?? `${apiUrl}/auth/google/callback`
   const googleOAuth = googleClientId && googleClientSecret
-    ? new GoogleOAuth({ clientId: googleClientId, clientSecret: googleClientSecret, redirectUri: googleRedirect })
+    ? new GoogleOAuth({
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
+      redirectUri: googleRedirect,
+      loginRedirectUri: googleLoginRedirect,
+    })
     : undefined
 
   const registry = new WorkspaceRegistryFile(join(braidHome, 'workspaces.json'))
   const workspaceRepository = new FsWorkspaceRepository({ registry })
+
+  // Server-side user roster. Distinct from any workspace's git history:
+  // Auth and ACL belong to the host, not to the product knowledge a
+  // workspace records. Single-user local installs get a `local-user`
+  // bootstrapped here so `userIdMiddleware`'s default actually resolves.
+  const userRegistry = new UserRegistryFile(join(braidHome, 'users.json'))
+  await ensureLocalUser(userRegistry)
+
+  // Phase B auth. Both files live next to `users.json` under `${BRAID_HOME}`;
+  // never inside a workspace because access control is host state, not
+  // workspace artifact. AccessPolicy reads env at construct time so a
+  // running server doesn't need to be restarted when env changes mid-flight
+  // — but production deployments do restart on config changes, which is
+  // why this is fine to read once.
+  const sessionStore = new SessionStore(join(braidHome, 'sessions.json'))
+  const accessPolicyConfig: {
+    allowedDomains?: readonly string[]
+    allowedEmails?: readonly string[]
+    adminEmails?: readonly string[]
+  } = {}
+  const allowedDomains = parseCsv(process.env.BRAID_ALLOWED_DOMAINS)
+  if (allowedDomains)
+    accessPolicyConfig.allowedDomains = allowedDomains
+  const allowedEmails = parseCsv(process.env.BRAID_ALLOWED_EMAILS)
+  if (allowedEmails)
+    accessPolicyConfig.allowedEmails = allowedEmails
+  const adminEmails = parseCsv(process.env.BRAID_ADMIN_EMAILS)
+  if (adminEmails)
+    accessPolicyConfig.adminEmails = adminEmails
+  const accessPolicy = new AccessPolicy(join(braidHome, 'access.json'), accessPolicyConfig)
+  const studioUrl = process.env.BRAID_STUDIO_URL ?? 'http://localhost:5173'
   const workspaceRoots = async (): Promise<ReadonlyMap<WorkspaceId, AbsolutePath>> => {
     const workspaces = await workspaceRepository.list()
     return new Map(workspaces.map(ws => [ws.id, ws.rootPath]))
@@ -257,6 +300,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   })
 
   const workspacesRoot = join(braidHome, 'workspaces') as AbsolutePath
+  const userDirectory = new UserDirectoryFromRegistry(userRegistry)
   const deps = composeApp({
     workspaceRepository,
     proposalRepository,
@@ -274,6 +318,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     bootstrap,
     batchPlanRepository: new FsBatchPlanRepository(),
     intentLister: listIntentItems,
+    userDirectory,
   })
 
   // Pick up workspaces that exist on disk but aren't in the registry:
@@ -296,12 +341,32 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     }
   }
 
+  // Local trust is the default; production deployments opt into the
+  // Bearer-token gate by setting `BRAID_LOCAL_TRUST=false`. We deliberately
+  // DON'T flip the default just because Google OAuth env vars are
+  // present — those same creds are also used by the Drive source
+  // loader for ingest, so a local dev workspace pulling from Drive
+  // would otherwise get pushed into the Login flow on every reload.
+  const localTrust = parseBoolEnv(process.env.BRAID_LOCAL_TRUST, true)
+
   return {
     ...deps,
     bootstrap,
     secretStore,
+    userRegistry,
+    sessionStore,
+    accessPolicy,
+    studioUrl,
+    localTrust,
     ...(googleOAuth ? { googleOAuth } : {}),
   }
+}
+
+function parseCsv(input: string | undefined): readonly string[] | undefined {
+  if (!input)
+    return undefined
+  const parts = input.split(',').map(s => s.trim()).filter(s => s.length > 0)
+  return parts.length > 0 ? parts : undefined
 }
 
 /**

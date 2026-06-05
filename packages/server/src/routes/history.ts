@@ -4,10 +4,13 @@ import { CommitSha, UserId } from '@braidhq/schema'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { getUserId } from '../middleware/userId.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 
+// `userId` accepted for backwards compat; the authoritative value
+// comes from the request context (set by `userIdMiddleware`).
 const RestoreBody = z.object({
-  userId: UserId,
+  userId: UserId.optional(),
 })
 
 const TagBody = z.object({
@@ -76,7 +79,8 @@ export function createHistoryRouter(deps: HistoryRouterDeps): Hono {
   router.post('/:sha/restore', zValidator('json', RestoreBody), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const sha = CommitSha.parse(context.req.param('sha'))
-    const { userId } = context.req.valid('json')
+    const { userId: bodyUserId } = context.req.valid('json')
+    const userId = bodyUserId ?? getUserId(context)
     const newSha = await deps.historyService.restore(workspaceId, sha, userId)
     return context.json({ newCommit: newSha, restoredTo: sha })
   })

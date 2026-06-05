@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from './api'
 
 export const queryKeys = {
+  users: () => ['users'] as const,
+  me: () => ['users', 'me'] as const,
   workspaces: () => ['workspaces'] as const,
   workspaceDetail: (workspaceId: string) => ['workspaces', workspaceId, 'detail'] as const,
   skills: (workspaceId: string) => ['workspaces', workspaceId, 'skills'] as const,
@@ -23,6 +25,14 @@ export const queryKeys = {
     ['workspaces', workspaceId, 'history', 'graph-diff', fromSha, toSha] as const,
   historyTags: (workspaceId: string) => ['workspaces', workspaceId, 'history', 'tags'] as const,
   batch: (workspaceId: string) => ['workspaces', workspaceId, 'batch'] as const,
+}
+
+export function useUsers() {
+  return useQuery({ queryKey: queryKeys.users(), queryFn: () => api.listUsers() })
+}
+
+export function useMe() {
+  return useQuery({ queryKey: queryKeys.me(), queryFn: () => api.getMe() })
 }
 
 export function useWorkspaces() {
