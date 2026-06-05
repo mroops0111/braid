@@ -131,7 +131,6 @@ export function createUsersRouter(deps: UsersRouterDeps): OpenAPIHono {
       id: newUserId(),
       ...draft,
       serverRole: draft.serverRole ?? 'user',
-      canCreateWorkspace: draft.canCreateWorkspace ?? false,
       createdAt: deps.clock.now(),
     })
     return context.json(created, 201)

@@ -10,14 +10,12 @@ export const User = z.object({
   email: z.string().email().optional(),
   displayName: z.string().min(1),
   serverRole: ServerRole.default('user'),
-  canCreateWorkspace: z.boolean().default(false),
   createdAt: Timestamp,
 })
 export type User = z.infer<typeof User>
 
 export const UserDraft = User.omit({ id: true, createdAt: true }).partial({
   serverRole: true,
-  canCreateWorkspace: true,
 })
 export type UserDraft = z.infer<typeof UserDraft>
 

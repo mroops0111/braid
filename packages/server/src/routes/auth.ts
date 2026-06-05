@@ -136,14 +136,12 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
     let user = await deps.userRegistry.getByGoogleSub(profile.sub)
     if (!user) {
       const inviteRole = decision.viaInvite?.serverRole
-      const inviteCanCreate = decision.viaInvite?.canCreateWorkspace
       user = await deps.userRegistry.create({
         id: newUserId(),
         googleSub: profile.sub,
         email: profile.email,
         displayName: profile.displayName,
         serverRole: isAdmin ? 'admin' : inviteRole ?? 'user',
-        canCreateWorkspace: inviteCanCreate ?? false,
         createdAt: deps.clock.now() as Timestamp,
       })
       if (decision.viaInvite)

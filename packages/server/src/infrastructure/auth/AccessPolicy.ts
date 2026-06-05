@@ -12,12 +12,6 @@ const Invite = z.object({
    * choice when they pick `admin`.
    */
   serverRole: z.enum(['admin', 'user']).default('user'),
-  /**
-   * Per-user override of `canCreateWorkspace`. Defaults to `false` so
-   * default users can only join workspaces, not create them — this is
-   * the documented v0.2 stance for Gate 3.
-   */
-  canCreateWorkspace: z.boolean().default(false),
 })
 export type Invite = z.infer<typeof Invite>
 
@@ -121,7 +115,7 @@ export class AccessPolicy {
     return this.readInvites()
   }
 
-  async addInvite(input: { email: string, serverRole?: 'admin' | 'user', canCreateWorkspace?: boolean }): Promise<Invite> {
+  async addInvite(input: { email: string, serverRole?: 'admin' | 'user' }): Promise<Invite> {
     const lower = input.email.toLowerCase()
     const content = await this.readContent()
     if (content.invites.some(i => i.email === lower))
@@ -130,7 +124,6 @@ export class AccessPolicy {
       email: lower,
       invitedAt: new Date().toISOString(),
       serverRole: input.serverRole ?? 'user',
-      canCreateWorkspace: input.canCreateWorkspace ?? false,
     }
     content.invites.push(invite)
     await this.writeContent(content)

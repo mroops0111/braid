@@ -1,14 +1,17 @@
-import { Globe, Info, Settings as SettingsIcon } from 'lucide-react'
+import { Settings as SettingsIcon } from 'lucide-react'
 import { useState } from 'react'
 import { ListRow } from '@/components/ListRow'
-import { cn } from '@/lib/utils'
+import { useMe } from '@/lib/queries'
 import { AboutTab } from './settings/AboutTab'
 import { ServersTab } from './settings/ServersTab'
+import { UsersTab } from './settings/UsersTab'
 
-type SettingsTab = 'servers' | 'about'
+type SettingsTab = 'servers' | 'users' | 'about'
 
 export function SettingsPage() {
   const [tab, setTab] = useState<SettingsTab>('servers')
+  const { data: me } = useMe()
+  const isAdmin = me?.serverRole === 'admin'
   return (
     <div className="flex h-full flex-col">
       <header className="flex h-11 shrink-0 items-center gap-1.5 border-b border-border px-4 text-sm">
@@ -16,13 +19,17 @@ export function SettingsPage() {
         <span className="font-mono text-foreground">Settings</span>
       </header>
       <div className="flex flex-1 overflow-hidden">
-        <nav className="flex w-60 shrink-0 flex-col gap-px border-r border-border bg-card/40 p-2">
-          <SettingsNavRow icon={Globe} label="Servers" value="servers" active={tab === 'servers'} onClick={setTab} />
-          <SettingsNavRow icon={Info} label="About" value="about" active={tab === 'about'} onClick={setTab} />
-        </nav>
+        <ul className="flex w-60 shrink-0 flex-col border-r border-border">
+          <SettingsNavRow label="Servers" value="servers" active={tab === 'servers'} onClick={setTab} />
+          {isAdmin && (
+            <SettingsNavRow label="Users" value="users" active={tab === 'users'} onClick={setTab} />
+          )}
+          <SettingsNavRow label="About" value="about" active={tab === 'about'} onClick={setTab} />
+        </ul>
         <div className="flex-1 overflow-y-auto scrollbar-thin">
           <div className="max-w-2xl px-6 py-6">
             {tab === 'servers' && <ServersTab />}
+            {tab === 'users' && isAdmin && <UsersTab />}
             {tab === 'about' && <AboutTab />}
           </div>
         </div>
@@ -31,16 +38,14 @@ export function SettingsPage() {
   )
 }
 
-function SettingsNavRow({ icon: Icon, label, value, active, onClick }: {
-  icon: typeof Globe
+function SettingsNavRow({ label, value, active, onClick }: {
   label: string
   value: SettingsTab
   active: boolean
   onClick: (next: SettingsTab) => void
 }) {
   return (
-    <ListRow variant="sidebar" active={active} onClick={() => onClick(value)}>
-      <Icon className={cn('size-3.5 shrink-0', active ? 'text-foreground' : 'text-muted-foreground')} />
+    <ListRow active={active} onClick={() => onClick(value)}>
       <span className="text-sm">{label}</span>
     </ListRow>
   )

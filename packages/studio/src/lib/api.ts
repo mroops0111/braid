@@ -42,6 +42,19 @@ export function workspaceEventsUrl(workspaceId: string): string {
 
 export interface ItemList<T> { items: T[] }
 
+export interface Invite {
+  email: string
+  invitedAt: string
+  serverRole: 'admin' | 'user'
+}
+
+export interface AdminUserWorkspace {
+  workspaceId: string
+  role: WorkspaceRole
+}
+
+export type AdminUser = User & { workspaces: AdminUserWorkspace[] }
+
 /**
  * GET /workspaces/:ws/clarify/:id response — the canonical ticket plus
  * server-side projections derived from the Decision log so the detail
@@ -171,6 +184,18 @@ export const api = {
     fetchJson<User>('/users', { method: 'POST', body: JSON.stringify(draft) }),
   updateUser: (userId: string, patch: UserPatch) =>
     fetchJson<User>(`/users/${userId}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+
+  listInvites: () => fetchJson<ItemList<Invite>>('/admin/invites'),
+  addInvite: (draft: { email: string, serverRole?: 'admin' | 'user' }) =>
+    fetchJson<Invite>('/admin/invites', { method: 'POST', body: JSON.stringify(draft) }),
+  revokeInvite: (email: string) =>
+    fetchJson<void>(`/admin/invites/${encodeURIComponent(email)}`, { method: 'DELETE' }),
+  adminListUsers: () => fetchJson<ItemList<AdminUser>>('/admin/users'),
+  adminUpdateUserRole: (userId: string, serverRole: 'admin' | 'user') =>
+    fetchJson<User>(`/admin/users/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ serverRole }),
+    }),
 
   listWorkspaceMembers: (workspaceId: string) =>
     fetchJson<ItemList<WorkspaceMember>>(`/workspaces/${workspaceId}/members`),

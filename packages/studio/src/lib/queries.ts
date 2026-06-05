@@ -4,6 +4,8 @@ import { api } from './api'
 export const queryKeys = {
   users: () => ['users'] as const,
   me: () => ['users', 'me'] as const,
+  adminInvites: () => ['admin', 'invites'] as const,
+  adminUsers: () => ['admin', 'users'] as const,
   workspaces: () => ['workspaces'] as const,
   workspaceMembers: (workspaceId: string) => ['workspaces', workspaceId, 'members'] as const,
   workspaceDetail: (workspaceId: string) => ['workspaces', workspaceId, 'detail'] as const,
@@ -34,6 +36,22 @@ export function useUsers() {
 
 export function useMe() {
   return useQuery({ queryKey: queryKeys.me(), queryFn: () => api.getMe() })
+}
+
+export function useAdminInvites(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.adminInvites(),
+    queryFn: () => api.listInvites(),
+    enabled,
+  })
+}
+
+export function useAdminUsers(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.adminUsers(),
+    queryFn: () => api.adminListUsers(),
+    enabled,
+  })
 }
 
 export function useWorkspaceMembers(workspaceId: string | undefined) {

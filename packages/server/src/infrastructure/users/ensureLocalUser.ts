@@ -26,7 +26,6 @@ export async function ensureLocalUser(registry: UserRegistryFile): Promise<void>
     id: LOCAL_USER_ID,
     displayName: safeOsUsername(),
     serverRole: 'admin',
-    canCreateWorkspace: true,
     createdAt: new Date().toISOString() as Timestamp,
   })
 }

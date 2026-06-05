@@ -6,6 +6,7 @@ import { errorHandler } from './middleware/error.js'
 import { userIdMiddleware } from './middleware/userId.js'
 import { workspaceAccessMiddleware } from './middleware/workspaceAccess.js'
 import { workspaceIdMiddleware } from './middleware/workspaceId.js'
+import { createAdminRouter } from './routes/admin.js'
 import { createAuthRouter } from './routes/auth.js'
 import { createBatchRouter } from './routes/batch.js'
 import { createClarifyRouter } from './routes/clarify.js'
@@ -90,6 +91,14 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     app.route('/users', createUsersRouter({
       userRegistry: deps.userRegistry,
       clock: deps.clock,
+    }))
+  }
+  if (deps.userRegistry && deps.accessPolicy && deps.workspaceRegistry) {
+    app.route('/admin', createAdminRouter({
+      userRegistry: deps.userRegistry,
+      accessPolicy: deps.accessPolicy,
+      workspaceRegistry: deps.workspaceRegistry,
+      workspaceService: deps.workspaceService,
     }))
   }
   app.route('/workspaces', createWorkspacesRouter({

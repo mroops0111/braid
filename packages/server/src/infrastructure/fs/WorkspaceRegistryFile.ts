@@ -66,6 +66,15 @@ export class WorkspaceRegistryFile {
     return entry.members
   }
 
+  /**
+   * All entries with their members in one read. Lets admin views invert
+   * to user → workspaces without N+1 reads of workspaces.json.
+   */
+  async listAllWithMembers(): Promise<ReadonlyArray<{ rootPath: AbsolutePath, members: readonly WorkspaceMember[] }>> {
+    const content = await this.read()
+    return content.workspaces.map(e => ({ rootPath: e.rootPath, members: e.members }))
+  }
+
   async getMember(rootPath: AbsolutePath, userId: UserId): Promise<WorkspaceMember | undefined> {
     const entry = await this.requireEntry(rootPath)
     return entry.members.find(m => m.userId === userId)
