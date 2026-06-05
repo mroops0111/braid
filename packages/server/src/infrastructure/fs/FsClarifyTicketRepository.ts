@@ -33,10 +33,18 @@ export class FsClarifyTicketRepository implements ClarifyTicketRepository {
   }
 
   async list(filter?: ClarifyFilter): Promise<ClarifyTicket[]> {
-    const tickets = await this.base.list({
+    let tickets = await this.base.list({
       ...(filter?.workspaceId !== undefined ? { workspaceId: filter.workspaceId } : {}),
       ...(filter?.statuses !== undefined ? { statuses: filter.statuses } : {}),
     })
+    // Phase E personal/shared filter: pending tickets only owner sees;
+    // answered / applied / skipped stay workspace-shared.
+    if (filter?.viewerId !== undefined) {
+      const viewerId = filter.viewerId
+      tickets = tickets.filter(ticket =>
+        ticket.status !== 'pending' || ticket.ownerId === undefined || ticket.ownerId === viewerId,
+      )
+    }
     return paginate(tickets, filter?.limit, filter?.offset)
   }
 

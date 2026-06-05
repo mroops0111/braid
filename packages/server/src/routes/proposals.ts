@@ -11,6 +11,7 @@ const ListQuery = z.object({
   status: z.union([ProposalStatus, z.array(ProposalStatus)]).optional().openapi({ description: 'Filter by proposal status; pass one or many.' }),
   limit: z.coerce.number().int().positive().optional(),
   offset: z.coerce.number().int().nonnegative().optional(),
+  showAll: z.coerce.boolean().optional().openapi({ description: 'Owner-only: bypass the personal-pending filter so every member\'s drafts are visible.' }),
 })
 
 // Body `userId` is a back-compat shim for API consumers that haven't
@@ -167,15 +168,27 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
   router.openapi(createProposalRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const body = context.req.valid('json')
-    const proposal = await deps.hitlService.submitProposal({ workspaceId, ...body })
+    const submitterId = getUserId(context)
+    const proposal = await deps.hitlService.submitProposal({ workspaceId, ...body, submitterId })
     return context.json(proposal.toData(), 201)
   })
 
   router.openapi(listProposalsRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
-    const { status, limit, offset } = context.req.valid('query')
+    const { status, limit, offset, showAll } = context.req.valid('query')
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
-    const proposals = await deps.proposalRepository.list({ workspaceId, statuses, limit, offset })
+    // Show All bypass is gated to the workspace owner; everyone else
+    // is forced through the personal-pending filter regardless of
+    // what they send.
+    const role = context.get('workspaceRole') as 'owner' | 'maintainer' | 'guest' | undefined
+    const viewerId = (showAll && role === 'owner') ? undefined : getUserId(context)
+    const proposals = await deps.proposalRepository.list({
+      workspaceId,
+      statuses,
+      limit,
+      offset,
+      ...(viewerId ? { viewerId } : {}),
+    })
     return context.json({ items: proposals.map(proposal => proposal.toData()) }, 200)
   })
 

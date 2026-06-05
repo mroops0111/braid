@@ -251,8 +251,13 @@ export const api = {
   getOntology: (workspaceId: string) =>
     fetchJson<OntologyResponse>(`/workspaces/${workspaceId}/ontology`),
 
-  listProposals: (workspaceId: string, status?: string) => {
-    const query = status ? `?status=${status}` : ''
+  listProposals: (workspaceId: string, status?: string, showAll?: boolean) => {
+    const params = new URLSearchParams()
+    if (status)
+      params.set('status', status)
+    if (showAll)
+      params.set('showAll', 'true')
+    const query = params.toString() ? `?${params.toString()}` : ''
     return fetchJson<ItemList<Proposal>>(`/workspaces/${workspaceId}/proposals${query}`)
   },
   applyProposal: (workspaceId: string, proposalId: string) =>
@@ -268,8 +273,13 @@ export const api = {
   validateProposal: (workspaceId: string, proposalId: string) =>
     fetchJson<ValidationResult>(`/workspaces/${workspaceId}/proposals/${proposalId}/validate`),
 
-  listClarify: (workspaceId: string, status?: string) => {
-    const query = status ? `?status=${status}` : ''
+  listClarify: (workspaceId: string, status?: string, showAll?: boolean) => {
+    const params = new URLSearchParams()
+    if (status)
+      params.set('status', status)
+    if (showAll)
+      params.set('showAll', 'true')
+    const query = params.toString() ? `?${params.toString()}` : ''
     return fetchJson<ItemList<ClarifyTicket>>(`/workspaces/${workspaceId}/clarify${query}`)
   },
   /**

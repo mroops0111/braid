@@ -26,6 +26,7 @@ const ListQuery = z.object({
   status: z.union([ClarifyStatus, z.array(ClarifyStatus)]).optional().openapi({ description: 'Filter by ticket status; pass one or many.' }),
   limit: z.coerce.number().int().positive().optional(),
   offset: z.coerce.number().int().nonnegative().optional(),
+  showAll: z.coerce.boolean().optional().openapi({ description: 'Owner-only: bypass the personal-pending filter so every member\'s open questions are visible.' }),
 })
 
 // Reviewer-facing answer body. The selection is either an existing
@@ -217,19 +218,28 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): OpenAPIHono {
   router.openapi(createClarifyRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const body = context.req.valid('json')
+    const submitterId = getUserId(context)
     const candidates = body.candidates.map(c => ({
       ...c,
       id: c.id ?? newClarifyCandidateId(),
     }))
-    const ticket = await deps.hitlService.submitClarifyTicket({ ...body, workspaceId, candidates })
+    const ticket = await deps.hitlService.submitClarifyTicket({ ...body, workspaceId, candidates, submitterId })
     return context.json(ticket.toData(), 201)
   })
 
   router.openapi(listClarifyRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
-    const { status, limit, offset } = context.req.valid('query')
+    const { status, limit, offset, showAll } = context.req.valid('query')
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
-    const tickets = await deps.clarifyRepository.list({ workspaceId, statuses, limit, offset })
+    const role = context.get('workspaceRole') as 'owner' | 'maintainer' | 'guest' | undefined
+    const viewerId = (showAll && role === 'owner') ? undefined : getUserId(context)
+    const tickets = await deps.clarifyRepository.list({
+      workspaceId,
+      statuses,
+      limit,
+      offset,
+      ...(viewerId ? { viewerId } : {}),
+    })
     return context.json({ items: tickets.map(ticket => ticket.toData()) }, 200)
   })
 

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
-import { queryKeys, useClarifyByStatus, useClarifyTicketDetail, usePendingClarify } from '@/lib/queries'
+import { queryKeys, useClarifyByStatus, useClarifyTicketDetail, useMyWorkspaceRole, usePendingClarify } from '@/lib/queries'
 import { useGraphNavigation } from '@/lib/useGraphNavigation'
 import { useTabNavigation } from '@/lib/useTabNavigation'
 
@@ -129,13 +129,14 @@ export function ClarifyPage({ workspaceId }: ClarifyPageProps) {
   // detail pane reads only from the selected ticket so it can't show
   // an item that no longer matches the active filter.
   const [status, setStatus] = useState<StatusFilter>('pending')
+  const [showAll, setShowAll] = useState(false)
   const [selected, setSelected] = useState<ClarifyTicket | null>(null)
   // When `true`, the detail pane renders the inline SubmitIssueForm
   // instead of the selected ticket. Mutually exclusive with `selected`
   // — the compose surface fills the same area so the reviewer is
   // never doing two things at once.
   const [composing, setComposing] = useState(false)
-  const { data, isLoading } = useClarifyByStatus(workspaceId, status)
+  const { data, isLoading } = useClarifyByStatus(workspaceId, status, showAll)
 
   // Auto-select the first ticket when entering a list with no current selection (initial mount, after status switch, or after answer/skip clears the detail pane).
   // Saves the reviewer one click per ticket when working through a queue.
@@ -169,6 +170,12 @@ export function ClarifyPage({ workspaceId }: ClarifyPageProps) {
           workspaceId={workspaceId}
           status={status}
           onChange={changeStatus}
+        />
+        <ClarifyShowAllToggle
+          workspaceId={workspaceId}
+          status={status}
+          showAll={showAll}
+          onToggle={setShowAll}
         />
       </PageActions>
       <div className="flex flex-1 overflow-hidden">
@@ -263,6 +270,33 @@ export function ClarifyPage({ workspaceId }: ClarifyPageProps) {
  * list panel rather than here, so the header stays focused on
  * navigation.
  */
+function ClarifyShowAllToggle({
+  workspaceId,
+  status,
+  showAll,
+  onToggle,
+}: {
+  workspaceId: string
+  status: StatusFilter
+  showAll: boolean
+  onToggle: (next: boolean) => void
+}) {
+  const role = useMyWorkspaceRole(workspaceId)
+  if (role !== 'owner' || status !== 'pending')
+    return null
+  return (
+    <Button
+      variant={showAll ? 'default' : 'ghost'}
+      size="sm"
+      className="h-7 text-[11px]"
+      onClick={() => onToggle(!showAll)}
+      title={showAll ? 'Showing pending questions from every member' : 'Showing only your own pending questions'}
+    >
+      {showAll ? 'Showing All' : 'Mine Only'}
+    </Button>
+  )
+}
+
 function ClarifyHeaderActions({
   workspaceId,
   status,

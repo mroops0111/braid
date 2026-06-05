@@ -1,6 +1,6 @@
 import type { McpServerConfig, SourceDescriptor, User, Workspace, WorkspaceMember, WorkspaceRole } from '@braidhq/schema'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Database, GitBranch, HardDrive, RefreshCw, Trash2, UserRound, UserRoundCheck, UserRoundCog } from 'lucide-react'
+import { Database, GitBranch, HardDrive, Plug, RefreshCw, Trash2, UserRound, UserRoundCheck, UserRoundCog } from 'lucide-react'
 import { useState } from 'react'
 import { api } from '@/lib/api'
 import { humaniseApiError } from '@/lib/errors'

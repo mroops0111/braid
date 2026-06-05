@@ -68,9 +68,10 @@ export class HITLService {
     this.userDirectory = deps.userDirectory ?? noopUserDirectory
   }
 
-  async submitProposal(draft: ProposalDraft): Promise<Proposal> {
+  async submitProposal(draft: ProposalDraft & { submitterId?: UserId }): Promise<Proposal> {
     await this.assertOperationsValid(draft.workspaceId, draft.operations)
     const generatedAt = this.deps.clock.now()
+    const owner = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
     const proposal = new Proposal({
       id: newProposalId(generatedAt),
       workspaceId: draft.workspaceId,
@@ -80,6 +81,8 @@ export class HITLService {
       generatedAt,
       rationale: draft.rationale,
       ...(draft.externalReferences ? { externalReferences: draft.externalReferences } : {}),
+      ...(draft.submitterId ? { ownerId: draft.submitterId } : {}),
+      ...(owner?.displayName ? { ownerDisplayName: owner.displayName } : {}),
     })
     return this.workspaceLock.run(draft.workspaceId, async () => {
       const workspace = await this.deps.workspaceService.findById(draft.workspaceId)
@@ -102,7 +105,8 @@ export class HITLService {
   }
 
   // Candidates are only validated at answer time, since each picks a different op set.
-  async submitClarifyTicket(draft: ClarifyDraft): Promise<ClarifyTicket> {
+  async submitClarifyTicket(draft: ClarifyDraft & { submitterId?: UserId }): Promise<ClarifyTicket> {
+    const owner = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
     const ticket = new ClarifyTicket({
       id: newClarifyTicketId(this.deps.clock.now()),
       workspaceId: draft.workspaceId,
@@ -114,6 +118,8 @@ export class HITLService {
       ...(draft.context ? { context: draft.context } : {}),
       ...(draft.relatedNode ? { relatedNode: draft.relatedNode } : {}),
       ...(draft.ambiguityType ? { ambiguityType: draft.ambiguityType } : {}),
+      ...(draft.submitterId ? { ownerId: draft.submitterId } : {}),
+      ...(owner?.displayName ? { ownerDisplayName: owner.displayName } : {}),
     })
     return this.workspaceLock.run(draft.workspaceId, async () => {
       const workspace = await this.deps.workspaceService.findById(draft.workspaceId)

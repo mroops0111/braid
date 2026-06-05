@@ -36,6 +36,16 @@ export class FsProposalRepository implements ProposalRepository {
       const skills = filter.generatedBy
       proposals = proposals.filter(proposal => skills.includes(proposal.generatedBy))
     }
+    // Phase E personal/shared filter: pending proposals only the
+    // owner sees; applied / rejected stay workspace-shared audit
+    // history. Absent viewerId means "no filter" (Owner Show All,
+    // legacy callers, bootstrap).
+    if (filter?.viewerId !== undefined) {
+      const viewerId = filter.viewerId
+      proposals = proposals.filter(proposal =>
+        proposal.status !== 'pending' || proposal.ownerId === undefined || proposal.ownerId === viewerId,
+      )
+    }
     return paginate(proposals, filter?.limit, filter?.offset)
   }
 

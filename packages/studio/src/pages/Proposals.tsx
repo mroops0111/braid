@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
-import { queryKeys, useProposalsByStatus, useProposalValidation } from '@/lib/queries'
+import { queryKeys, useMyWorkspaceRole, useProposalsByStatus, useProposalValidation } from '@/lib/queries'
 import { useGraphNavigation } from '@/lib/useGraphNavigation'
 import { useMutualExclusionPair } from '@/lib/useMutualExclusionPair'
 import { GraphSurface } from './GraphSurface'
@@ -53,7 +53,8 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
   // selected proposal so the right pane doesn't show an item that no
   // longer matches the active filter.
   const [status, setStatus] = useState<StatusFilter>('pending')
-  const { data, isLoading } = useProposalsByStatus(workspaceId, status)
+  const [showAll, setShowAll] = useState(false)
+  const { data, isLoading } = useProposalsByStatus(workspaceId, status, showAll)
   const [selected, setSelected] = useState<Proposal | null>(null)
   // Tracks an in-progress sweep across statuses for a deep-link focus.
   // Each entry remembers which status filters we've already checked
@@ -110,6 +111,7 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
     <div className="flex h-full flex-col">
       <PageActions>
         <ProposalsStatusFilter workspaceId={workspaceId} status={status} onChange={changeStatus} />
+        <ShowAllToggle workspaceId={workspaceId} status={status} showAll={showAll} onToggle={setShowAll} />
       </PageActions>
       <div className="flex flex-1 overflow-hidden">
         <div className="flex w-72 shrink-0 flex-col border-r border-border">
@@ -174,6 +176,39 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Owner-only toggle that flips the personal-pending filter to "everyone's"
+ * mode. Only rendered on the pending tab — applied / rejected lists are
+ * shared by definition, so a toggle there would do nothing. Cmd-click
+ * suppression keeps it small + tucked next to the status tabs.
+ */
+function ShowAllToggle({
+  workspaceId,
+  status,
+  showAll,
+  onToggle,
+}: {
+  workspaceId: string
+  status: StatusFilter
+  showAll: boolean
+  onToggle: (next: boolean) => void
+}) {
+  const role = useMyWorkspaceRole(workspaceId)
+  if (role !== 'owner' || status !== 'pending')
+    return null
+  return (
+    <Button
+      variant={showAll ? 'default' : 'ghost'}
+      size="sm"
+      className="h-7 text-[11px]"
+      onClick={() => onToggle(!showAll)}
+      title={showAll ? 'Showing pending proposals from every member' : 'Showing only your own pending proposals'}
+    >
+      {showAll ? 'Showing All' : 'Mine Only'}
+    </Button>
   )
 }
 
