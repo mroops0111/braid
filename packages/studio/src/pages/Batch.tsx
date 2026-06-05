@@ -312,7 +312,7 @@ function UnitList({ units, selectedRunId, activeRunId, onSelect }: {
   onSelect: (runId: SkillRunId | null) => void
 }) {
   return (
-    <ul className="flex w-80 shrink-0 flex-col gap-1 overflow-y-auto border-r border-border bg-card/40 p-2 scrollbar-thin">
+    <ul className="flex w-72 shrink-0 flex-col gap-1 overflow-y-auto border-r border-border bg-card/40 p-2 scrollbar-thin">
       {units.map(unit => (
         <UnitRow
           key={unit.id}

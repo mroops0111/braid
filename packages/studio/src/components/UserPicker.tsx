@@ -36,7 +36,7 @@ export function UserPicker() {
         size="sm"
         onClick={() => setOpen(true)}
         className="h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground hover:text-foreground"
-        title="Rename account"
+        title="Rename Account"
       >
         <UserRound className="size-3.5" />
         <span className="max-w-[10rem] truncate">{displayName}</span>
@@ -108,7 +108,7 @@ function RenameDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Account name</DialogTitle>
+          <DialogTitle>Account Name</DialogTitle>
           <DialogDescription>
             Display name shown in audit trails and HITL decisions. Local
             install: this is the single account on this machine; defaults
@@ -141,7 +141,7 @@ function RenameDialog({
                   className="gap-1.5 text-muted-foreground"
                 >
                   <LogOut className="size-3.5" />
-                  Sign out
+                  Sign Out
                 </Button>
               )
             : <span />}

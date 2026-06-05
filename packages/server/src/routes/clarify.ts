@@ -4,6 +4,7 @@ import { newClarifyCandidateId } from '@braidhq/core'
 import { ClarifyCandidate, ClarifyCandidateId, ClarifyDraft, ClarifyStatus, ClarifyTicket, ClarifyTicketId, Decision, ProposalId, UserId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getUserId } from '../middleware/userId.js'
+import { requireWorkspaceRole } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 import { assertEntityInWorkspace } from './helpers.js'
@@ -207,6 +208,11 @@ const skipClarifyRoute = createRoute({
 
 export function createClarifyRouter(deps: ClarifyRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
+  // Answer / skip / mark-applied are HITL decisions — Owner + Maintainer
+  // only. Guests never see the tab but a direct curl still 403s here.
+  router.use('/:clarifyTicketId/answer', requireWorkspaceRole('owner', 'maintainer'))
+  router.use('/:clarifyTicketId/skip', requireWorkspaceRole('owner', 'maintainer'))
+  router.use('/:clarifyTicketId', requireWorkspaceRole('owner', 'maintainer'))
 
   router.openapi(createClarifyRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)

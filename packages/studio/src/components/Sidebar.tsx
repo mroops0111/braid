@@ -3,7 +3,7 @@ import type { Surface } from './CommandPalette'
 import { ClipboardCheck, GitGraph, HelpCircle, Moon, Network, PanelLeftClose, PanelLeftOpen, Plus, Server, Sparkles, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import braidLogo from '@/assets/braid-logo.svg'
-import { usePendingClarify, usePendingProposals, useRuns } from '@/lib/queries'
+import { useMyWorkspaceRole, usePendingClarify, usePendingProposals, useRuns } from '@/lib/queries'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { CreateWorkspaceWizard } from './CreateWorkspaceWizard'
@@ -260,8 +260,15 @@ function HereSection({
 }) {
   const { data: proposals } = usePendingProposals(workspaceId)
   const { data: clarify } = usePendingClarify(workspaceId)
+  const myRole = useMyWorkspaceRole(workspaceId)
   const pendingProposals = proposals?.items.length ?? 0
   const pendingClarify = clarify?.items.length ?? 0
+  // Guests don't see Proposals / Clarify / Actions tabs — the HITL
+  // surface is hidden entirely so the role's read-only intent is
+  // reflected at the nav level, not just in disabled buttons. Server
+  // also 403s these endpoints, so unhiding them via devtools just
+  // surfaces the same gate one click later.
+  const isGuest = myRole === 'guest'
 
   return (
     <div className={cn('shrink-0 border-t border-sidebar-border px-2 pb-2', collapsed ? 'pt-1.5' : 'pt-2')}>
@@ -278,29 +285,35 @@ function HereSection({
           active={activeSurface === null}
           onClick={onGoHome}
         />
-        <HereRow
-          collapsed={collapsed}
-          icon={Sparkles}
-          label="Actions"
-          active={activeSurface === 'actions'}
-          onClick={() => onSelectSurface('actions')}
-        />
-        <HereRow
-          collapsed={collapsed}
-          icon={HelpCircle}
-          label="Clarify"
-          active={activeSurface === 'clarify'}
-          count={pendingClarify}
-          onClick={() => onSelectSurface('clarify')}
-        />
-        <HereRow
-          collapsed={collapsed}
-          icon={ClipboardCheck}
-          label="Proposals"
-          active={activeSurface === 'proposals'}
-          count={pendingProposals}
-          onClick={() => onSelectSurface('proposals')}
-        />
+        {!isGuest && (
+          <HereRow
+            collapsed={collapsed}
+            icon={Sparkles}
+            label="Actions"
+            active={activeSurface === 'actions'}
+            onClick={() => onSelectSurface('actions')}
+          />
+        )}
+        {!isGuest && (
+          <HereRow
+            collapsed={collapsed}
+            icon={HelpCircle}
+            label="Clarify"
+            active={activeSurface === 'clarify'}
+            count={pendingClarify}
+            onClick={() => onSelectSurface('clarify')}
+          />
+        )}
+        {!isGuest && (
+          <HereRow
+            collapsed={collapsed}
+            icon={ClipboardCheck}
+            label="Proposals"
+            active={activeSurface === 'proposals'}
+            count={pendingProposals}
+            onClick={() => onSelectSurface('proposals')}
+          />
+        )}
         <HereRow
           collapsed={collapsed}
           icon={GitGraph}

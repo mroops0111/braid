@@ -2,6 +2,7 @@ import type { HITLService, ModelRepository, ProposalRepository, ValidationServic
 import { Decision, Proposal, ProposalDraft, ProposalId, ProposalStatus, UserId, ValidationResult } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getUserId } from '../middleware/userId.js'
+import { requireWorkspaceRole } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 import { assertEntityInWorkspace } from './helpers.js'
@@ -157,6 +158,11 @@ const rejectProposalRoute = createRoute({
 
 export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
+  // Apply / reject are HITL decisions — Owner + Maintainer only. Guests
+  // never see the buttons (UI hides the tab) but defence-in-depth here
+  // means a direct curl from a Guest token still 403s.
+  router.use('/:proposalId/apply', requireWorkspaceRole('owner', 'maintainer'))
+  router.use('/:proposalId/reject', requireWorkspaceRole('owner', 'maintainer'))
 
   router.openapi(createProposalRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)

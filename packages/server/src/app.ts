@@ -4,6 +4,7 @@ import { authMiddleware } from './middleware/auth.js'
 import { corsMiddleware } from './middleware/cors.js'
 import { errorHandler } from './middleware/error.js'
 import { userIdMiddleware } from './middleware/userId.js'
+import { workspaceAccessMiddleware } from './middleware/workspaceAccess.js'
 import { workspaceIdMiddleware } from './middleware/workspaceId.js'
 import { createAuthRouter } from './routes/auth.js'
 import { createBatchRouter } from './routes/batch.js'
@@ -22,6 +23,7 @@ import { createSkillInputOptionsRouter } from './routes/skillInputOptions.js'
 import { createSkillsRouter } from './routes/skills.js'
 import { createUsersRouter } from './routes/users.js'
 import { createWorkspaceEventsRouter } from './routes/workspaceEvents.js'
+import { createTransferOwnershipRouter, createWorkspaceMembersRouter } from './routes/workspaceMembers.js'
 import { createWorkspacesRouter } from './routes/workspaces.js'
 
 export interface AppOptions {
@@ -95,11 +97,23 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     sourceLoaderRunner: deps.sourceLoaderRunner,
     workspacesRoot: deps.workspacesRoot,
     ...(deps.bootstrap ? { bootstrap: deps.bootstrap } : {}),
+    ...(deps.workspaceRegistry ? { workspaceRegistry: deps.workspaceRegistry } : {}),
+    ...(deps.userRegistry ? { userRegistry: deps.userRegistry } : {}),
   }))
   app.route('/workspaces', createWorkspaceEventsRouter({ eventBus: deps.eventBus }))
 
   const workspaceScoped = new OpenAPIHono()
   workspaceScoped.use('*', workspaceIdMiddleware)
+  // Phase C membership gate. Mounted only when the workspaceRegistry is
+  // present (i.e. composeFsApp); in-memory tests that compose without
+  // a registry stay open so existing routes keep behaving.
+  if (deps.workspaceRegistry) {
+    workspaceScoped.use('*', workspaceAccessMiddleware({
+      registry: deps.workspaceRegistry,
+      workspaceService: deps.workspaceService,
+      ...(deps.userRegistry ? { userRegistry: deps.userRegistry } : {}),
+    }))
+  }
   workspaceScoped.route('/model', createModelRouter({ modelService: deps.modelService }))
   workspaceScoped.route('/nodes', createNodesRouter({ modelService: deps.modelService }))
   workspaceScoped.route('/edges', createEdgesRouter({ modelService: deps.modelService }))
@@ -145,6 +159,18 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     workspaceRepository: deps.workspaceRepository,
     pluginRegistry: deps.pluginRegistry,
   }))
+  if (deps.workspaceRegistry) {
+    workspaceScoped.route('/members', createWorkspaceMembersRouter({
+      workspaceService: deps.workspaceService,
+      registry: deps.workspaceRegistry,
+      clock: deps.clock,
+    }))
+    workspaceScoped.route('/transfer-ownership', createTransferOwnershipRouter({
+      workspaceService: deps.workspaceService,
+      registry: deps.workspaceRegistry,
+      clock: deps.clock,
+    }))
+  }
 
   app.route('/workspaces/:workspaceId', workspaceScoped)
 

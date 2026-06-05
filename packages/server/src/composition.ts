@@ -19,6 +19,7 @@ import type {
 import type { AbsolutePath } from '@braidhq/schema'
 import type { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
 import type { SessionStore } from './infrastructure/auth/SessionStore.js'
+import type { WorkspaceRegistryFile } from './infrastructure/fs/WorkspaceRegistryFile.js'
 import type { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
 import type { SecretStore } from './infrastructure/secrets/SecretStore.js'
 import type { UserRegistryFile } from './infrastructure/users/UserRegistryFile.js'
@@ -81,6 +82,13 @@ export interface AppDependencies {
    * still work because `userIdMiddleware` falls back to `local-user`.
    */
   userRegistry?: UserRegistryFile
+  /**
+   * Server-side workspace registry — backs the Phase C membership
+   * model. Required to mount `workspaceAccessMiddleware` and the
+   * `/workspaces/:id/members` routes; absent in pure in-memory tests
+   * that don't need member-gating.
+   */
+  workspaceRegistry?: WorkspaceRegistryFile
   /**
    * Phase B: Bearer-token session backing. Required to mount `/auth/*`
    * and the auth middleware. Absent in tests that want the pre-Phase-A

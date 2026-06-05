@@ -41,6 +41,7 @@ import { GitWorkspaceHistory } from './infrastructure/git/GitWorkspaceHistory.js
 import { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
 import { FsSecretStore } from './infrastructure/secrets/SecretStore.js'
 import { ensureLocalUser } from './infrastructure/users/ensureLocalUser.js'
+import { ensureWorkspaceOwners } from './infrastructure/users/ensureWorkspaceOwners.js'
 import { UserDirectoryFromRegistry } from './infrastructure/users/UserDirectoryFromRegistry.js'
 import { UserRegistryFile } from './infrastructure/users/UserRegistryFile.js'
 
@@ -326,6 +327,12 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   // Registry add is idempotent so this is safe to run on every boot.
   await discoverCanonicalWorkspaces(workspacesRoot, deps.workspaceService)
 
+  // Phase C migration: stamp `local-user` as owner of any workspace
+  // whose members[] is still empty (pre-Phase-C registry entries,
+  // freshly discovered workspaces). Owner promotion via `/members`
+  // routes can rewrite this later.
+  await ensureWorkspaceOwners(registry)
+
   // Per-workspace failures are logged and tolerated so one bad dir doesn't block boot.
   const bootstrapLog = createLogger('server').child({ mod: 'workspace-bootstrap' })
   for (const workspace of await deps.workspaceService.list()) {
@@ -354,6 +361,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     bootstrap,
     secretStore,
     userRegistry,
+    workspaceRegistry: registry,
     sessionStore,
     accessPolicy,
     studioUrl,

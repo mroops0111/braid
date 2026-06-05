@@ -5,6 +5,7 @@ export const queryKeys = {
   users: () => ['users'] as const,
   me: () => ['users', 'me'] as const,
   workspaces: () => ['workspaces'] as const,
+  workspaceMembers: (workspaceId: string) => ['workspaces', workspaceId, 'members'] as const,
   workspaceDetail: (workspaceId: string) => ['workspaces', workspaceId, 'detail'] as const,
   skills: (workspaceId: string) => ['workspaces', workspaceId, 'skills'] as const,
   modelSnapshot: (workspaceId: string) => ['workspaces', workspaceId, 'model', 'snapshot'] as const,
@@ -33,6 +34,29 @@ export function useUsers() {
 
 export function useMe() {
   return useQuery({ queryKey: queryKeys.me(), queryFn: () => api.getMe() })
+}
+
+export function useWorkspaceMembers(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: workspaceId ? queryKeys.workspaceMembers(workspaceId) : ['workspaceMembers', 'none'],
+    queryFn: () => api.listWorkspaceMembers(workspaceId!),
+    enabled: !!workspaceId,
+  })
+}
+
+/**
+ * Resolve the current user's role in a specific workspace by looking
+ * up their userId in the members list. Returns `undefined` while
+ * loading and when the user isn't a member (server admins bypass the
+ * gate elsewhere; this hook only reports the literal member entry).
+ */
+export function useMyWorkspaceRole(workspaceId: string | undefined) {
+  const { data: me } = useMe()
+  const { data: members } = useWorkspaceMembers(workspaceId)
+  if (!me || !members)
+    return undefined
+  const member = members.items.find(m => m.userId === me.id)
+  return member?.role
 }
 
 export function useWorkspaces() {

@@ -29,6 +29,8 @@ import type {
   UserPatch,
   ValidationResult,
   Workspace,
+  WorkspaceMember,
+  WorkspaceRole,
 } from '@braidhq/schema'
 import { getAuthToken } from './authToken.js'
 import { getCurrentUserId } from './currentUser.js'
@@ -169,6 +171,30 @@ export const api = {
     fetchJson<User>('/users', { method: 'POST', body: JSON.stringify(draft) }),
   updateUser: (userId: string, patch: UserPatch) =>
     fetchJson<User>(`/users/${userId}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+
+  listWorkspaceMembers: (workspaceId: string) =>
+    fetchJson<ItemList<WorkspaceMember>>(`/workspaces/${workspaceId}/members`),
+  addWorkspaceMember: (workspaceId: string, body: { userId: string, role?: WorkspaceRole }) =>
+    fetchJson<WorkspaceMember>(`/workspaces/${workspaceId}/members`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  patchWorkspaceMember: (
+    workspaceId: string,
+    memberUserId: string,
+    patch: { role?: WorkspaceRole, skillOverrides?: Record<string, 'allow' | 'deny'> },
+  ) =>
+    fetchJson<WorkspaceMember>(`/workspaces/${workspaceId}/members/${memberUserId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
+  removeWorkspaceMember: (workspaceId: string, memberUserId: string) =>
+    fetchJson<void>(`/workspaces/${workspaceId}/members/${memberUserId}`, { method: 'DELETE' }),
+  transferWorkspaceOwnership: (workspaceId: string, newOwnerId: string) =>
+    fetchJson<ItemList<WorkspaceMember>>(`/workspaces/${workspaceId}/transfer-ownership`, {
+      method: 'POST',
+      body: JSON.stringify({ newOwnerId }),
+    }),
 
   listWorkspaces: () => fetchJson<ItemList<Workspace>>('/workspaces'),
   getWorkspace: (workspaceId: string) =>

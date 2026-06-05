@@ -47,7 +47,7 @@ export function LoginPage({ initialError }: LoginPageProps) {
     <div className="flex h-screen flex-col items-center justify-center bg-background px-6 text-foreground">
       <div className="w-full max-w-sm space-y-6">
         <header className="space-y-2 text-center">
-          <h1 className="text-xl font-semibold">Sign in to Braid</h1>
+          <h1 className="text-xl font-semibold">Sign In to Braid</h1>
           <p className="text-sm text-muted-foreground">
             This server requires authentication. Sign in with a Google
             account whose email is on the allowlist or has an invite.
@@ -69,7 +69,7 @@ export function LoginPage({ initialError }: LoginPageProps) {
                   onClick={startSignIn}
                   disabled={starting}
                 >
-                  {starting ? 'Redirecting…' : 'Sign in with Google'}
+                  {starting ? 'Redirecting…' : 'Sign In with Google'}
                 </Button>
               )
             : (

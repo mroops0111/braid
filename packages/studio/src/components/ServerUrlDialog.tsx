@@ -63,7 +63,7 @@ export function ServerUrlDialog({ open, onOpenChange }: ServerUrlDialogProps) {
           </p>
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="ghost" size="sm" onClick={handleReset}>Reset to default</Button>
+          <Button variant="ghost" size="sm" onClick={handleReset}>Reset to Default</Button>
           <Button size="sm" onClick={handleSave} disabled={disabled}>Save</Button>
         </DialogFooter>
       </DialogContent>

@@ -132,11 +132,11 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
     // Resolve / create the user record. Google `sub` is stable across
     // email changes; prefer it as the join key, fall back to email
     // for invited users who haven't logged in before.
+    const isAdmin = deps.accessPolicy.isAdmin(profile.email)
     let user = await deps.userRegistry.getByGoogleSub(profile.sub)
     if (!user) {
       const inviteRole = decision.viaInvite?.serverRole
       const inviteCanCreate = decision.viaInvite?.canCreateWorkspace
-      const isAdmin = deps.accessPolicy.isAdmin(profile.email)
       user = await deps.userRegistry.create({
         id: newUserId(),
         googleSub: profile.sub,
@@ -148,6 +148,12 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
       })
       if (decision.viaInvite)
         await deps.accessPolicy.consumeInvite(profile.email)
+    }
+    else if (isAdmin && user.serverRole !== 'admin') {
+      // BRAID_ADMIN_EMAILS was edited after this user was created.
+      // Promote on next login so re-deploying with new admin emails
+      // doesn't require manual user-table surgery.
+      user = await deps.userRegistry.update(user.id, { serverRole: 'admin' })
     }
 
     const session = await deps.sessionStore.issue(user.id)
@@ -164,7 +170,23 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
   })
 
   router.get('/whoami', async (context) => {
-    const userId = context.get('userId') as UserId | undefined
+    // `/auth/*` is in the auth middleware's PUBLIC_PREFIXES, so the
+    // Bearer header isn't validated upstream. Whoami exists precisely
+    // to identify the caller, so resolve the Bearer token here
+    // directly rather than trusting `userIdMiddleware`'s local-user
+    // fallback. Absent / invalid token → `{ user: null }`.
+    const header = context.req.header('Authorization')
+    const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length).trim() : null
+    let userId: UserId | undefined
+    if (token) {
+      const session = await deps.sessionStore.resolve(token)
+      userId = session?.userId
+    }
+    // Local-trust deployments don't issue tokens — fall back to the
+    // context userId so /whoami still works there. authMiddleware
+    // wouldn't have rejected the request anyway.
+    if (!userId && deps.localTrust)
+      userId = context.get('userId') as UserId | undefined
     if (!userId)
       return context.json({ user: null })
     try {

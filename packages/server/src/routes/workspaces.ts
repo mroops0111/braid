@@ -1,5 +1,7 @@
 import type { SourceLoaderRunner, Workspace, WorkspaceBootstrap, WorkspaceService } from '@braidhq/core'
-import type { ProductManifest, SourceDescriptor } from '@braidhq/schema'
+import type { ProductManifest, SourceDescriptor, Timestamp } from '@braidhq/schema'
+import type { WorkspaceRegistryFile } from '../infrastructure/fs/WorkspaceRegistryFile.js'
+import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
 import { rm } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
 import { NotFoundError, ValidationError } from '@braidhq/core'
@@ -18,6 +20,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { isUnder, pathExists } from '../infrastructure/fs/paths.js'
 import { fillManifestDefaults, updateProductManifest, writeProductManifest } from '../infrastructure/fs/productManifestWriter.js'
+import { getUserId } from '../middleware/userId.js'
 import { getWorkspaceId, workspaceIdMiddleware } from '../middleware/workspaceId.js'
 
 const RegisterBodySchema = z.object({
@@ -51,14 +54,43 @@ export interface WorkspacesRouterDeps {
   sourceLoaderRunner: SourceLoaderRunner
   workspacesRoot: AbsolutePath
   bootstrap?: WorkspaceBootstrap
+  /**
+   * Optional: when present, `GET /workspaces` filters to ones the
+   * current user is a member of, and newly registered workspaces
+   * stamp the caller as owner. Absent in tests that don't exercise
+   * membership.
+   */
+  workspaceRegistry?: WorkspaceRegistryFile
+  /**
+   * Optional: when present, server admins see every workspace
+   * regardless of membership. Without this, only direct membership
+   * controls visibility.
+   */
+  userRegistry?: UserRegistryFile
 }
 
 export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   const router = new Hono()
 
   router.get('/', async (context) => {
-    const workspaces = await deps.workspaceService.list()
-    return context.json({ items: workspaces.map(workspace => workspace.toData()) })
+    const all = await deps.workspaceService.list()
+    if (!deps.workspaceRegistry)
+      return context.json({ items: all.map(workspace => workspace.toData()) })
+    // Server admins see every workspace for support / oversight. Other
+    // users get filtered to direct membership. Single-tenant local
+    // installs see everything because (a) local-user has serverRole
+    // 'admin' and (b) the migration seeded local-user as owner.
+    const userId = getUserId(context)
+    const me = await deps.userRegistry?.get(userId)
+    if (me?.serverRole === 'admin')
+      return context.json({ items: all.map(workspace => workspace.toData()) })
+    const visible: Workspace[] = []
+    for (const workspace of all) {
+      const member = await deps.workspaceRegistry.getMember(workspace.rootPath, userId)
+      if (member)
+        visible.push(workspace)
+    }
+    return context.json({ items: visible.map(workspace => workspace.toData()) })
   })
 
   router.get('/:workspaceId', workspaceIdMiddleware, async (context) => {
@@ -72,6 +104,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     const workspace = await deps.workspaceService.load(rootPath)
     await deps.workspaceService.save(workspace)
     await deps.bootstrap?.ensure(workspace)
+    await ensureCallerOwner(deps.workspaceRegistry, workspace.rootPath, getUserId(context))
     return context.json(workspace.toData(), 201)
   })
 
@@ -104,6 +137,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
       const ingestOutcomes = await deps.sourceLoaderRunner.ingestAll(workspace)
       await deps.workspaceService.save(workspace)
       await deps.bootstrap?.ensure(workspace)
+      await ensureCallerOwner(deps.workspaceRegistry, workspace.rootPath, getUserId(context))
       return context.json({
         workspace: workspace.toData(),
         ingest: ingestOutcomes.map(o => ({ sourceId: o.sourceId, ...o.report })),
@@ -252,4 +286,26 @@ async function reload(workspaceService: WorkspaceService, rootPath: AbsolutePath
   const reloaded = await workspaceService.load(rootPath)
   await workspaceService.save(reloaded)
   return reloaded
+}
+
+/**
+ * Idempotently stamp the caller as owner of a freshly registered
+ * workspace. If members[] already contains an owner (workspace was
+ * re-registered, or the migration already touched it) this is a no-op.
+ */
+async function ensureCallerOwner(
+  registry: WorkspaceRegistryFile | undefined,
+  rootPath: AbsolutePath,
+  userId: ReturnType<typeof getUserId>,
+): Promise<void> {
+  if (!registry)
+    return
+  const members = await registry.listMembers(rootPath)
+  if (members.length > 0)
+    return
+  await registry.addMember(rootPath, {
+    userId,
+    role: 'owner',
+    joinedAt: new Date().toISOString() as Timestamp,
+  })
 }
