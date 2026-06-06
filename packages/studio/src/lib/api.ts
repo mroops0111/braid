@@ -196,6 +196,8 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ serverRole }),
     }),
+  adminDeleteUser: (userId: string) =>
+    fetchJson<void>(`/admin/users/${userId}`, { method: 'DELETE' }),
 
   listWorkspaceMembers: (workspaceId: string) =>
     fetchJson<ItemList<WorkspaceMember>>(`/workspaces/${workspaceId}/members`),

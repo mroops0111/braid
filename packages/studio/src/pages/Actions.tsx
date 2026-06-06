@@ -1,6 +1,6 @@
 import type { RunRecord, SessionMetadata, SkillCategory, SkillManifest } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, Check, MessageCircleQuestion, MessageSquare, Pencil, Plus, Send, Sparkles, Trash2, Wand2, Wrench, X } from 'lucide-react'
+import { BookOpen, Check, ChevronDown, ChevronUp, Lock, MessageCircleQuestion, MessageSquare, Pencil, Plus, Send, Sparkles, Trash2, Wand2, Wrench, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { ActionInputForm } from '@/components/ActionInputForm'
 import { EmptyState } from '@/components/EmptyState'
@@ -11,8 +11,9 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
-import { queryKeys, useRuns, useSessionMetadata, useSkills } from '@/lib/queries'
+import { queryKeys, useMe, useRuns, useSessionMetadata, useSkills, useWorkspaceMembers } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
+import { canRunSkill, resolveMyMembership } from '@/lib/skillPermission'
 import { useConversation } from '@/lib/useRun'
 
 /**
@@ -65,11 +66,18 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
   const { data: skillsData } = useSkills(workspaceId)
   const { data: runsData } = useRuns(workspaceId)
   const { data: titleData } = useSessionMetadata(workspaceId)
+  const { data: me } = useMe()
+  const { data: members } = useWorkspaceMembers(workspaceId)
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null)
 
   const skills = (skillsData?.items ?? []).filter(s => !s.frontmatter.braid.hidden)
-  const groups = groupBySession(runsData?.items ?? [], titleData?.items ?? [])
+  // Cap visible conversations to keep the bottom drawer compact. groupBySession
+  // already orders by recency (newest first), so slicing keeps the most
+  // recent N — older ones live in History if anyone really needs them.
+  const groups = groupBySession(runsData?.items ?? [], titleData?.items ?? []).slice(0, 10)
   const selected = skills.find(s => s.id === selectedSkillId) ?? null
+  const { role: myRole, member: myMember } = resolveMyMembership(me, members?.items)
+  const [conversationsOpen, setConversationsOpen] = useState(false)
 
   function startFresh(skill: SkillManifest): void {
     runStore.clearTurns(workspaceId, skill.id)
@@ -92,10 +100,10 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
   return (
     <div className="flex h-full">
       <div className="flex w-72 shrink-0 flex-col border-r border-border">
-        {/* Skills: auto-height up to ~45% of the viewport with its own
-            scroll. Caps so a long Conversations list always stays
-            visible without the user scrolling past every skill first. */}
-        <div className="max-h-[45vh] shrink-0 overflow-y-auto scrollbar-thin">
+        {/* Skills take the full sidebar height; conversations live as a
+            collapsed-by-default drawer pinned to the bottom so the runner
+            list isn't competing for vertical space. */}
+        <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
           {skills.length === 0
             ? (
                 <SidebarSection icon={Sparkles} title="Actions">
@@ -118,6 +126,7 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
                         // skills is semantically meaningful (extract -> clarify -> model).
                         step={group === 'build' ? index + 1 : undefined}
                         active={selectedSkillId === skill.id}
+                        locked={!canRunSkill(skill, myRole, myMember)}
                         onClick={() => startFresh(skill)}
                       />
                     ))}
@@ -125,25 +134,41 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
                 )
               })}
         </div>
-        <div className="border-t border-border" aria-hidden />
-        {/* Conversations: fills remaining vertical space, scrolls independently. */}
-        <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
-          <SidebarSection icon={MessageSquare} title="Conversations">
-            {groups.length === 0
-              ? <SidebarEmpty>Past conversations will appear here.</SidebarEmpty>
-              : groups.map(group => (
-                  <ConversationRow
-                    key={group.groupId}
-                    workspaceId={workspaceId}
-                    group={group}
-                    onResume={() => resume(group)}
-                  />
-                ))}
-          </SidebarSection>
+        <div className="shrink-0 border-t border-border">
+          <button
+            type="button"
+            onClick={() => setConversationsOpen(o => !o)}
+            className="flex w-full items-center gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent/40"
+          >
+            <MessageSquare className="size-3" />
+            <span>Conversations</span>
+            {groups.length > 0 && (
+              <span className="rounded bg-muted px-1.5 py-0.5 font-mono normal-case text-[10px] text-muted-foreground">
+                {groups.length}
+              </span>
+            )}
+            {conversationsOpen
+              ? <ChevronDown className="ml-auto size-3" />
+              : <ChevronUp className="ml-auto size-3" />}
+          </button>
+          {conversationsOpen && (
+            <ul className="max-h-[30vh] overflow-y-auto scrollbar-thin border-t border-border">
+              {groups.length === 0
+                ? <SidebarEmpty>Past conversations will appear here.</SidebarEmpty>
+                : groups.map(group => (
+                    <ConversationRow
+                      key={group.groupId}
+                      workspaceId={workspaceId}
+                      group={group}
+                      onResume={() => resume(group)}
+                    />
+                  ))}
+            </ul>
+          )}
         </div>
       </div>
       {selected
-        ? <Conversation workspaceId={workspaceId} skill={selected} key={selected.id} />
+        ? <Conversation workspaceId={workspaceId} skill={selected} locked={!canRunSkill(selected, myRole, myMember)} key={selected.id} />
         : (
             <div className="flex-1">
               <EmptyState
@@ -346,11 +371,12 @@ function SidebarEmpty({ children }: { children: React.ReactNode }) {
   return <li className="px-3 py-1.5 text-[11px] text-muted-foreground/70">{children}</li>
 }
 
-function SkillRow({ skill, active, onClick, step }: {
+function SkillRow({ skill, active, onClick, step, locked }: {
   skill: SkillManifest
   active: boolean
   onClick: () => void
   step?: number | undefined
+  locked?: boolean
 }) {
   return (
     <ListRow active={active} onClick={onClick} className="items-start gap-2">
@@ -359,13 +385,22 @@ function SkillRow({ skill, active, onClick, step }: {
           {step}
         </span>
       )}
-      <div className="flex-1 min-w-0">
+      <div className={`flex-1 min-w-0 ${locked ? 'opacity-50' : ''}`}>
         <div className="flex items-center gap-1.5">
           <span className="font-mono text-xs text-foreground">
             /
             {skill.frontmatter.name}
           </span>
           <Badge variant="outline" className="text-[10px] uppercase">{originLabel(skill)}</Badge>
+          {locked && (
+            <span
+              className="inline-flex items-center gap-1 rounded bg-muted/60 px-1 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground"
+              title="Your role cannot run this skill. Ask an Owner to grant access."
+            >
+              <Lock className="size-2.5" />
+              Locked
+            </span>
+          )}
         </div>
         <div className="mt-1 break-words text-xs text-muted-foreground">
           {skill.frontmatter.braid.summary ?? skill.frontmatter.description}
@@ -397,9 +432,10 @@ export function bucketByGroup(skills: readonly SkillManifest[]): Record<Group, S
 interface ConversationProps {
   workspaceId: string
   skill: SkillManifest
+  locked?: boolean
 }
 
-function Conversation({ workspaceId, skill }: ConversationProps) {
+function Conversation({ workspaceId, skill, locked = false }: ConversationProps) {
   const conversation = useConversation(workspaceId, skill.id)
   const [prompt, setPrompt] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -494,12 +530,20 @@ function Conversation({ workspaceId, skill }: ConversationProps) {
         </div>
       </div>
       <SkillTranscript events={[...conversation.events]} error={transcriptError} running={running} />
+      {locked && (
+        <div className="flex items-start gap-2 border-t border-border bg-muted/40 px-4 py-2 text-[11px] text-muted-foreground">
+          <Lock className="mt-0.5 size-3 shrink-0" />
+          <span>
+            Your role cannot run this skill. Ask an Owner to grant access via Workspace Settings, Skill Permissions.
+          </span>
+        </div>
+      )}
       {!isFollowUp && skill.frontmatter.braid.inputs && skill.frontmatter.braid.inputs.length > 0
         ? (
             <ActionInputForm
               workspaceId={workspaceId}
               inputs={skill.frontmatter.braid.inputs}
-              disabled={running}
+              disabled={running || locked}
               onSubmit={(prompts) => {
                 // Fire all batch prompts in parallel; each becomes its
                 // own runId / turn under the same conversation key. The
@@ -512,9 +556,11 @@ function Conversation({ workspaceId, skill }: ConversationProps) {
             <div className="flex items-end gap-2 border-t border-border px-4 py-2.5">
               <Textarea
                 placeholder={
-                  isFollowUp
-                    ? 'Ask a follow-up… (Enter to send, Shift+Enter for newline)'
-                    : (skill.frontmatter.argumentHint ?? 'Describe what you want… (Enter to send, Shift+Enter for newline)')
+                  locked
+                    ? 'Locked for your role.'
+                    : isFollowUp
+                      ? 'Ask a follow-up… (Enter to send, Shift+Enter for newline)'
+                      : (skill.frontmatter.argumentHint ?? 'Describe what you want… (Enter to send, Shift+Enter for newline)')
                 }
                 value={prompt}
                 onChange={e => setPrompt(e.target.value)}
@@ -524,17 +570,17 @@ function Conversation({ workspaceId, skill }: ConversationProps) {
                   // submit the message. `nativeEvent.isComposing` is the only
                   // reliable signal across browsers; `e.keyCode === 229` is the
                   // legacy fallback for older Safari that we no longer support.
-                  if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !running) {
+                  if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !running && !locked) {
                     e.preventDefault()
                     void send()
                   }
                 }}
-                disabled={running}
+                disabled={running || locked}
                 rows={2}
                 className="flex-1 font-mono"
                 autoFocus
               />
-              <Button size="sm" onClick={send} disabled={running || !prompt.trim()}>
+              <Button size="sm" onClick={send} disabled={running || locked || !prompt.trim()}>
                 <Send />
                 {running ? 'Sending…' : isFollowUp ? 'Send' : 'Start'}
               </Button>

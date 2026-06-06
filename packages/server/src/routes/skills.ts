@@ -6,6 +6,7 @@ import type {
 import type { SkillId } from '@braidhq/schema'
 import { SkillId as SkillIdSchema, SkillManifest, SkillRunId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
+import { requireSkillPermission } from '../middleware/skillPermission.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
@@ -81,12 +82,21 @@ const runSkillRoute = createRoute({
       description: 'The accepted run id.',
       content: { 'application/json': { schema: RunCreatedResponse } },
     },
+    403: {
+      description: 'Caller is not permitted to run this skill in this workspace.',
+      content: { 'application/problem+json': { schema: z.object({}).passthrough() } },
+    },
     404: NotFoundResponse,
   },
 })
 
 export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
+
+  router.use('/:skillId/run', requireSkillPermission({
+    skillRegistry: deps.skillRegistry,
+    workspaceRepository: deps.workspaceRepository,
+  }))
 
   router.openapi(listSkillsRoute, async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)

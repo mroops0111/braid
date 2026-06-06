@@ -1,5 +1,5 @@
 import type { WorkspaceService } from '@braidhq/core'
-import type { WorkspaceRole as WorkspaceRoleType } from '@braidhq/schema'
+import type { WorkspaceMember, WorkspaceRole as WorkspaceRoleType } from '@braidhq/schema'
 import type { Context, MiddlewareHandler } from 'hono'
 import type { WorkspaceRegistryFile } from '../infrastructure/fs/WorkspaceRegistryFile.js'
 import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
@@ -9,6 +9,11 @@ import { getWorkspaceId } from './workspaceId.js'
 declare module 'hono' {
   interface ContextVariableMap {
     workspaceRole: WorkspaceRoleType
+    // Full member record when the caller is an explicit member.
+    // Absent for the admin-bypass path because there's no real member
+    // entry — downstream gates that need skillOverrides must accept
+    // `undefined` and fall back to the role-based default.
+    workspaceMember?: WorkspaceMember
   }
 }
 
@@ -42,6 +47,7 @@ export function workspaceAccessMiddleware(options: WorkspaceAccessOptions): Midd
     const member = await options.registry.getMember(workspace.rootPath, userId)
     if (member) {
       context.set('workspaceRole', member.role)
+      context.set('workspaceMember', member)
       await next()
       return undefined
     }
@@ -70,6 +76,10 @@ export function workspaceAccessMiddleware(options: WorkspaceAccessOptions): Midd
 
 export function getWorkspaceRole(context: Context): WorkspaceRoleType {
   return context.get('workspaceRole')
+}
+
+export function getWorkspaceMember(context: Context): WorkspaceMember | undefined {
+  return context.get('workspaceMember')
 }
 
 /**

@@ -1,4 +1,5 @@
 import type { McpServerConfig, SourceDescriptor, User, Workspace, WorkspaceMember, WorkspaceRole } from '@braidhq/schema'
+import type React from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Database, GitBranch, HardDrive, Plug, RefreshCw, Trash2, UserRound, UserRoundCheck, UserRoundCog } from 'lucide-react'
 import { useState } from 'react'
@@ -10,6 +11,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from './ui/sheet'
+import { WorkspaceSkillPermissions } from './WorkspaceSkillPermissions'
 
 interface WorkspaceDetailsSheetProps {
   workspaceId: string | null
@@ -101,6 +103,10 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
         </section>
 
         <MembersSection workspaceId={workspaceId} />
+
+        <OwnerOnly workspaceId={workspaceId}>
+          <WorkspaceSkillPermissions workspaceId={workspaceId} />
+        </OwnerOnly>
 
         <section className="grid grid-cols-2 gap-3 text-xs">
           <MetaField icon={Database} label="Ontology" value={workspace.productManifest.ontologyId} />
@@ -271,6 +277,13 @@ function MetaField({ icon: Icon, label, value }: { icon: typeof Database, label:
       <p className="mt-1 font-mono text-xs">{value}</p>
     </div>
   )
+}
+
+function OwnerOnly({ workspaceId, children }: { workspaceId: string, children: React.ReactNode }) {
+  const { data: me } = useMe()
+  const myRole = useMyWorkspaceRole(workspaceId)
+  const isOwner = myRole === 'owner' || me?.serverRole === 'admin'
+  return isOwner ? <>{children}</> : null
 }
 
 function MembersSection({ workspaceId }: { workspaceId: string }) {

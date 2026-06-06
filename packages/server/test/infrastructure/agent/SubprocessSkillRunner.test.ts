@@ -81,6 +81,7 @@ async function makeSkillRegistry(skillSourceParent: AbsolutePath): Promise<Skill
       braid: {
         requiredEnv: [],
         requiredMcpServers: [],
+        allowedRoles: ['owner', 'maintainer'],
       },
     },
   })

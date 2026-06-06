@@ -1,6 +1,7 @@
 import { Settings as SettingsIcon } from 'lucide-react'
 import { useState } from 'react'
 import { ListRow } from '@/components/ListRow'
+import { UserPicker } from '@/components/UserPicker'
 import { useMe } from '@/lib/queries'
 import { AboutTab } from './settings/AboutTab'
 import { ServersTab } from './settings/ServersTab'
@@ -14,9 +15,12 @@ export function SettingsPage() {
   const isAdmin = me?.serverRole === 'admin'
   return (
     <div className="flex h-full flex-col">
-      <header className="flex h-11 shrink-0 items-center gap-1.5 border-b border-border px-4 text-sm">
-        <SettingsIcon className="size-3.5 text-muted-foreground" />
-        <span className="font-mono text-foreground">Settings</span>
+      <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border px-4 text-sm">
+        <div className="flex items-center gap-1.5">
+          <SettingsIcon className="size-3.5 text-muted-foreground" />
+          <span className="font-mono text-foreground">Settings</span>
+        </div>
+        <UserPicker />
       </header>
       <div className="flex flex-1 overflow-hidden">
         <ul className="flex w-60 shrink-0 flex-col border-r border-border">

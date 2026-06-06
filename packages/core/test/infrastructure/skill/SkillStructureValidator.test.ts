@@ -24,6 +24,7 @@ function frontmatter(category?: SkillFrontmatter['braid']['category']): SkillFro
     braid: {
       requiredEnv: [],
       requiredMcpServers: [],
+      allowedRoles: ['owner', 'maintainer'],
       ...(category ? { category } : {}),
     },
   }
@@ -110,6 +111,7 @@ describe('validateSkillStructure', () => {
         braid: {
           requiredEnv: [],
           requiredMcpServers: [],
+          allowedRoles: ['owner', 'maintainer'],
           category: 'build',
           inputs: [
             { name: 'mode', label: 'Mode', kind: 'text', multiline: false, optional: false },
@@ -132,6 +134,7 @@ describe('validateSkillStructure', () => {
         braid: {
           requiredEnv: [],
           requiredMcpServers: [],
+          allowedRoles: ['owner', 'maintainer'],
           category: 'build',
           inputs: [
             { name: 'mode', label: 'Mode', kind: 'text', multiline: false, optional: false },

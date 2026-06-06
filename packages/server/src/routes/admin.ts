@@ -7,6 +7,7 @@ import { NotFoundError } from '@braidhq/core'
 import { ServerRole, User, UserId, WorkspaceId, WorkspaceRole } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { requireAdmin } from '../middleware/requireAdmin.js'
+import { getUserId } from '../middleware/userId.js'
 import { NotFoundResponse, ValidationFailureResponse } from './_shared.js'
 
 const Invite = z.object({
@@ -151,6 +152,26 @@ const updateUserRoute = createRoute({
   },
 })
 
+const deleteUserRoute = createRoute({
+  method: 'delete',
+  path: '/users/{userId}',
+  operationId: 'deleteUserAdmin',
+  summary: 'Delete a user record. Admin only. Idempotent. Does NOT clean up workspace memberships referencing this userId; those rows become orphans.',
+  tags: ['admin'],
+  request: { params: UserIdParam },
+  responses: {
+    204: { description: 'User removed (or never existed).' },
+    400: {
+      description: 'Caller attempted to delete themselves.',
+      content: { 'application/problem+json': { schema: z.object({}).passthrough() } },
+    },
+    403: {
+      description: 'Caller is not an admin.',
+      content: { 'application/problem+json': { schema: z.object({}).passthrough() } },
+    },
+  },
+})
+
 export function createAdminRouter(deps: AdminRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
   router.use('*', requireAdmin(deps.userRegistry))
@@ -210,6 +231,27 @@ export function createAdminRouter(deps: AdminRouterDeps): OpenAPIHono {
       throw new NotFoundError(`User "${userId}" not found`)
     const updated = await deps.userRegistry.update(userId, { serverRole: patch.serverRole })
     return context.json(updated, 200)
+  })
+
+  router.openapi(deleteUserRoute, async (context) => {
+    const { userId } = context.req.valid('param')
+    const callerId = getUserId(context)
+    // Don't let an admin delete themselves; a single-admin server
+    // would lock itself out otherwise.
+    if (userId === callerId) {
+      return context.json(
+        {
+          type: 'about:blank',
+          title: 'Bad Request',
+          status: 400,
+          detail: 'You cannot delete your own user record.',
+        },
+        400,
+        { 'Content-Type': 'application/problem+json' },
+      )
+    }
+    await deps.userRegistry.delete(userId)
+    return context.body(null, 204)
   })
 
   return router

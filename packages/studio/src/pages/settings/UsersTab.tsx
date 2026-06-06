@@ -1,7 +1,9 @@
 import type { AdminUser } from '@/lib/api'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Shield, Trash2 } from 'lucide-react'
+import { ChevronDown, MoreHorizontal, Shield, Trash2 } from 'lucide-react'
+import { DropdownMenu as DropdownPrimitive } from 'radix-ui'
 import { useState } from 'react'
+import { ArmedConfirmBar } from '@/components/ArmedConfirmBar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -255,57 +257,138 @@ function sortUsers(users: AdminUser[], myId: string | undefined): AdminUser[] {
 
 function UserRow({ user, isMe, isLast }: { user: AdminUser, isMe: boolean, isLast: boolean }) {
   const qc = useQueryClient()
+  const [armedAction, setArmedAction] = useState<'role' | 'delete' | null>(null)
   const flip = useMutation({
     mutationFn: (next: 'admin' | 'user') => api.adminUpdateUserRole(user.id, next),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.adminUsers() })
       qc.invalidateQueries({ queryKey: queryKeys.users() })
+      setArmedAction(null)
     },
   })
-  const next = user.serverRole === 'admin' ? 'user' : 'admin'
+  const remove = useMutation({
+    mutationFn: () => api.adminDeleteUser(user.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.adminUsers() })
+      qc.invalidateQueries({ queryKey: queryKeys.users() })
+      setArmedAction(null)
+    },
+  })
+  const nextRole = user.serverRole === 'admin' ? 'user' : 'admin'
+  const nextRoleLabel = nextRole === 'admin' ? 'Make Admin' : 'Make User'
   const secondary = user.email ?? user.id
+  const rowClass = isLast ? 'align-top' : 'border-b border-border align-top'
   return (
-    <tr className={isLast ? 'align-top' : 'border-b border-border align-top'}>
-      <td className="px-3 py-2">
-        <div className="flex items-center gap-1.5">
-          <span className="font-medium">{user.displayName}</span>
-          {isMe && (
-            <span className="rounded bg-primary/15 px-1 py-0.5 text-[10px] uppercase tracking-wider text-primary">
-              You
-            </span>
-          )}
-        </div>
-        <div className="truncate font-mono text-[10px] text-muted-foreground">{secondary}</div>
-      </td>
-      <td className="px-3 py-2">
-        <span className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider ${
-          user.serverRole === 'admin'
-            ? 'bg-primary/15 text-primary'
-            : 'bg-muted/60 text-muted-foreground'
-        }`}
-        >
-          {user.serverRole === 'admin' && <Shield className="size-2.5" />}
-          {user.serverRole}
-        </span>
-      </td>
-      <td className="px-3 py-2">
-        <WorkspaceList workspaces={user.workspaces} />
-      </td>
-      <td className="px-3 py-2 text-right">
-        {isMe
-          ? null
-          : (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-[11px]"
-                disabled={flip.isPending}
-                onClick={() => flip.mutate(next)}
-              >
-                {flip.isPending ? 'Saving…' : `Make ${next === 'admin' ? 'Admin' : 'User'}`}
-              </Button>
+    <>
+      <tr className={rowClass}>
+        <td className="px-3 py-2">
+          <div className="flex items-center gap-1.5">
+            <span className="font-medium">{user.displayName}</span>
+            {isMe && (
+              <span className="rounded bg-primary/15 px-1 py-0.5 text-[10px] uppercase tracking-wider text-primary">
+                You
+              </span>
             )}
-      </td>
-    </tr>
+          </div>
+          <div className="truncate font-mono text-[10px] text-muted-foreground">{secondary}</div>
+        </td>
+        <td className="px-3 py-2">
+          <span className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider ${
+            user.serverRole === 'admin'
+              ? 'bg-primary/15 text-primary'
+              : 'bg-muted/60 text-muted-foreground'
+          }`}
+          >
+            {user.serverRole === 'admin' && <Shield className="size-2.5" />}
+            {user.serverRole}
+          </span>
+        </td>
+        <td className="px-3 py-2">
+          <WorkspaceList workspaces={user.workspaces} />
+        </td>
+        <td className="px-3 py-2 text-right">
+          {isMe
+            ? null
+            : (
+                <DropdownPrimitive.Root>
+                  <DropdownPrimitive.Trigger asChild>
+                    <Button variant="ghost" size="icon" className="size-7" title="User actions">
+                      <MoreHorizontal className="size-3.5" />
+                    </Button>
+                  </DropdownPrimitive.Trigger>
+                  <DropdownPrimitive.Portal>
+                    <DropdownPrimitive.Content
+                      align="end"
+                      sideOffset={4}
+                      className="z-50 min-w-36 rounded-md border border-border bg-popover p-1 text-xs shadow-md data-[state=open]:animate-in data-[state=open]:fade-in-0"
+                    >
+                      <DropdownPrimitive.Item
+                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none hover:bg-accent focus:bg-accent"
+                        onSelect={() => setArmedAction('role')}
+                      >
+                        <ChevronDown className="size-3" />
+                        {nextRoleLabel}
+                      </DropdownPrimitive.Item>
+                      <DropdownPrimitive.Separator className="my-1 h-px bg-border" />
+                      <DropdownPrimitive.Item
+                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-destructive outline-none hover:bg-destructive/10 focus:bg-destructive/10"
+                        onSelect={() => setArmedAction('delete')}
+                      >
+                        <Trash2 className="size-3" />
+                        Delete User
+                      </DropdownPrimitive.Item>
+                    </DropdownPrimitive.Content>
+                  </DropdownPrimitive.Portal>
+                </DropdownPrimitive.Root>
+              )}
+        </td>
+      </tr>
+      {armedAction && !isMe && (
+        <tr className="border-b border-border bg-muted/30">
+          <td colSpan={4} className="px-3 py-2">
+            {armedAction === 'role'
+              ? (
+                  <ArmedConfirmBar
+                    message={(
+                      <>
+                        Set
+                        {' '}
+                        <span className="font-medium">{user.displayName}</span>
+                        's server role to
+                        {' '}
+                        <span className="font-mono">{nextRole}</span>
+                        ?
+                      </>
+                    )}
+                    confirmLabel={flip.isPending ? 'Saving…' : nextRoleLabel}
+                    confirmTone="primary"
+                    disabled={flip.isPending}
+                    onCancel={() => setArmedAction(null)}
+                    onConfirm={() => flip.mutate(nextRole)}
+                    errorMessage={flip.error ? humaniseApiError(flip.error) : null}
+                  />
+                )
+              : (
+                  <ArmedConfirmBar
+                    message={(
+                      <>
+                        Delete
+                        {' '}
+                        <span className="font-medium">{user.displayName}</span>
+                        ? Workspace memberships referencing this user are left in place as orphans.
+                      </>
+                    )}
+                    confirmLabel={remove.isPending ? 'Deleting…' : 'Delete Permanently'}
+                    confirmTone="destructive"
+                    disabled={remove.isPending}
+                    onCancel={() => setArmedAction(null)}
+                    onConfirm={() => remove.mutate()}
+                    errorMessage={remove.error ? humaniseApiError(remove.error) : null}
+                  />
+                )}
+          </td>
+        </tr>
+      )}
+    </>
   )
 }
