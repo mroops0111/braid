@@ -24,6 +24,7 @@ import { kuzuStoragePlugin } from '@braidhq/storage-kuzu'
 import { composeApp } from './composition.js'
 import { SubprocessSkillRunner } from './infrastructure/agent/SubprocessSkillRunner.js'
 import { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
+import { ensureApprovedEmails } from './infrastructure/auth/ensureApprovedEmails.js'
 import { SessionStore } from './infrastructure/auth/SessionStore.js'
 import { parseBoolEnv } from './infrastructure/env.js'
 import { FsBatchPlanRepository } from './infrastructure/fs/FsBatchPlanRepository.js'
@@ -144,6 +145,9 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   if (adminEmails)
     accessPolicyConfig.adminEmails = adminEmails
   const accessPolicy = new AccessPolicy(join(braidHome, 'access.json'), accessPolicyConfig)
+  // Back-fill approvedEmails for any pre-existing user accounts so the
+  // dynamic allowlist matches the user roster on boot.
+  await ensureApprovedEmails(userRegistry, accessPolicy)
   const studioUrl = process.env.BRAID_STUDIO_URL ?? 'http://localhost:5173'
   const workspaceRoots = async (): Promise<ReadonlyMap<WorkspaceId, AbsolutePath>> => {
     const workspaces = await workspaceRepository.list()

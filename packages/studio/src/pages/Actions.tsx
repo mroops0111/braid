@@ -11,10 +11,10 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
-import { queryKeys, useMe, useRuns, useSessionMetadata, useSkills, useWorkspaceMembers } from '@/lib/queries'
+import { queryKeys, useRuns, useSessionMetadata, useSkills } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
-import { canRunSkill, resolveMyMembership } from '@/lib/skillPermission'
 import { useConversation } from '@/lib/useRun'
+import { useWorkspacePolicy } from '@/policy'
 
 /**
  * Schema `SkillCategory` maps 1:1 to a sidebar group. Skills with no
@@ -66,8 +66,7 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
   const { data: skillsData } = useSkills(workspaceId)
   const { data: runsData } = useRuns(workspaceId)
   const { data: titleData } = useSessionMetadata(workspaceId)
-  const { data: me } = useMe()
-  const { data: members } = useWorkspaceMembers(workspaceId)
+  const policy = useWorkspacePolicy(workspaceId)
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null)
 
   const skills = (skillsData?.items ?? []).filter(s => !s.frontmatter.braid.hidden)
@@ -76,7 +75,6 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
   // recent N — older ones live in History if anyone really needs them.
   const groups = groupBySession(runsData?.items ?? [], titleData?.items ?? []).slice(0, 10)
   const selected = skills.find(s => s.id === selectedSkillId) ?? null
-  const { role: myRole, member: myMember } = resolveMyMembership(me, members?.items)
   const [conversationsOpen, setConversationsOpen] = useState(false)
 
   function startFresh(skill: SkillManifest): void {
@@ -126,7 +124,7 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
                         // skills is semantically meaningful (extract -> clarify -> model).
                         step={group === 'build' ? index + 1 : undefined}
                         active={selectedSkillId === skill.id}
-                        locked={!canRunSkill(skill, myRole, myMember)}
+                        locked={!policy.can('skill.run', { skill: skill.frontmatter, skillId: skill.id })}
                         onClick={() => startFresh(skill)}
                       />
                     ))}
@@ -168,7 +166,7 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
         </div>
       </div>
       {selected
-        ? <Conversation workspaceId={workspaceId} skill={selected} locked={!canRunSkill(selected, myRole, myMember)} key={selected.id} />
+        ? <Conversation workspaceId={workspaceId} skill={selected} locked={!policy.can('skill.run', { skill: selected.frontmatter, skillId: selected.id })} key={selected.id} />
         : (
             <div className="flex-1">
               <EmptyState

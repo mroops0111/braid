@@ -11,9 +11,10 @@ import { Button } from '@/components/ui/button'
 import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
-import { queryKeys, useClarifyByStatus, useClarifyTicketDetail, useMyWorkspaceRole, usePendingClarify } from '@/lib/queries'
+import { queryKeys, useClarifyByStatus, useClarifyTicketDetail, usePendingClarify } from '@/lib/queries'
 import { useGraphNavigation } from '@/lib/useGraphNavigation'
 import { useTabNavigation } from '@/lib/useTabNavigation'
+import { useWorkspacePolicy } from '@/policy'
 
 export interface OpsSummary {
   adds: number
@@ -281,8 +282,8 @@ function ClarifyShowAllToggle({
   showAll: boolean
   onToggle: (next: boolean) => void
 }) {
-  const role = useMyWorkspaceRole(workspaceId)
-  if (role !== 'owner' || status !== 'pending')
+  const { effectiveRole } = useWorkspacePolicy(workspaceId)
+  if (effectiveRole !== 'owner' || status !== 'pending')
     return null
   return (
     <Button
@@ -372,6 +373,7 @@ function ClarifyDetail({
   onComplete: () => void
 }) {
   const queryClient = useQueryClient()
+  const canWrite = useWorkspacePolicy(workspaceId).can('clarify.write')
   const isPending = ticket.status === 'pending'
   // The two answer paths are mutually exclusive: picking an existing
   // candidate closes the custom-answer form, and vice versa. Keeping
@@ -508,7 +510,7 @@ function ClarifyDetail({
         )}
       </div>
 
-      {isPending && (
+      {isPending && canWrite && (
         <div className="shrink-0 space-y-3 border-t border-border bg-background/80 px-4 py-3">
           {!skipOpen
             ? (

@@ -1,5 +1,6 @@
 import type { SourceLoaderRunner, Workspace, WorkspaceBootstrap, WorkspaceService } from '@braidhq/core'
 import type { ProductManifest, SourceDescriptor, Timestamp } from '@braidhq/schema'
+import type { Context, MiddlewareHandler } from 'hono'
 import type { WorkspaceRegistryFile } from '../infrastructure/fs/WorkspaceRegistryFile.js'
 import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
 import { rm } from 'node:fs/promises'
@@ -21,6 +22,7 @@ import { z } from 'zod'
 import { isUnder, pathExists } from '../infrastructure/fs/paths.js'
 import { fillManifestDefaults, updateProductManifest, writeProductManifest } from '../infrastructure/fs/productManifestWriter.js'
 import { getUserId } from '../middleware/userId.js'
+import { requirePermission, requireServerCapability, workspaceAccessMiddleware } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId, workspaceIdMiddleware } from '../middleware/workspaceId.js'
 
 const RegisterBodySchema = z.object({
@@ -72,6 +74,22 @@ export interface WorkspacesRouterDeps {
 export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   const router = new Hono()
 
+  // Server-scope gate (creation): admin-only. Skips when userRegistry
+  // isn't provided so in-memory test compositions stay open.
+  const serverCreate = requireServerCapability('workspace.create', deps.userRegistry)
+
+  // Workspace-scope gate composed inline per :workspaceId route below.
+  // `workspaceIdMiddleware` resolves the path param onto the context
+  // before `workspaceAccessMiddleware` reads it; skipping when the
+  // registries are absent keeps in-memory test compositions open.
+  const wsAccess = (deps.workspaceRegistry && deps.userRegistry)
+    ? workspaceAccessMiddleware({
+        registry: deps.workspaceRegistry,
+        workspaceService: deps.workspaceService,
+        userRegistry: deps.userRegistry,
+      })
+    : (async (_c: Context, next: () => Promise<void>) => { await next() }) as MiddlewareHandler
+
   router.get('/', async (context) => {
     const all = await deps.workspaceService.list()
     if (!deps.workspaceRegistry)
@@ -99,7 +117,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     return context.json(workspace.toData())
   })
 
-  router.post('/', zValidator('json', RegisterBodySchema), async (context) => {
+  router.post('/', serverCreate, zValidator('json', RegisterBodySchema), async (context) => {
     const { rootPath } = context.req.valid('json')
     const workspace = await deps.workspaceService.load(rootPath)
     await deps.workspaceService.save(workspace)
@@ -119,7 +137,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   // (wrong git branch, missing OAuth scope, etc.) we delete the
   // PRODUCT.md we just wrote and drop the parse cache, so the user's
   // retry sees a clean slate instead of a stale half-created workspace.
-  router.post('/scaffold', zValidator('json', ScaffoldBodySchema), async (context) => {
+  router.post('/scaffold', serverCreate, zValidator('json', ScaffoldBodySchema), async (context) => {
     const { name, manifest: draft } = context.req.valid('json')
     const rootPath = join(deps.workspacesRoot, name) as AbsolutePath
     const productPath = join(rootPath, 'PRODUCT.md')
@@ -153,7 +171,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   // Add a source to an existing workspace. Rewrites PRODUCT.md and runs
   // `ingest` if the source is loader-backed so the local filesystem is
   // populated before the user runs a skill against it.
-  router.post('/:workspaceId/sources', workspaceIdMiddleware, zValidator('json', SourceDescriptorSchema), async (context) => {
+  router.post('/:workspaceId/sources', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), zValidator('json', SourceDescriptorSchema), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const source = context.req.valid('json') as SourceDescriptor
     const workspace = await deps.workspaceService.findById(workspaceId)
@@ -178,7 +196,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   // source's path is absolute and points outside the workspace, files
   // are kept and an explanatory note returned; we won't nuke a
   // directory the user could plausibly own outside Braid's scope.
-  router.delete('/:workspaceId/sources/:sourceId', workspaceIdMiddleware, async (context) => {
+  router.delete('/:workspaceId/sources/:sourceId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const sourceId = SourceId.parse(context.req.param('sourceId'))
     const workspace = await deps.workspaceService.findById(workspaceId)
@@ -204,7 +222,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
 
   // Per-source sync. Looks up the source's loader and invokes `sync` (or
   // falls back to `ingest` if the destination doesn't exist yet).
-  router.post('/:workspaceId/sources/:sourceId/sync', workspaceIdMiddleware, async (context) => {
+  router.post('/:workspaceId/sources/:sourceId/sync', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const sourceId = SourceId.parse(context.req.param('sourceId'))
     const workspace = await deps.workspaceService.findById(workspaceId)
@@ -215,7 +233,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   // Update workspace-level manifest fields. Renaming changes the
   // WorkspaceId (derived from `manifest.name`) so callers should re-fetch
   // the workspace list after a successful rename.
-  router.patch('/:workspaceId', workspaceIdMiddleware, zValidator('json', PatchWorkspaceBodySchema), async (context) => {
+  router.patch('/:workspaceId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), zValidator('json', PatchWorkspaceBodySchema), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const patch = context.req.valid('json')
     const workspace = await deps.workspaceService.findById(workspaceId)
@@ -249,7 +267,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   // arbitrary-path workspaces (registered via `POST /workspaces` with a
   // custom rootPath) since we shouldn't nuke directories Braid didn't
   // create. The user can rm those manually if they want.
-  router.delete('/:workspaceId', workspaceIdMiddleware, async (context) => {
+  router.delete('/:workspaceId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const purge = context.req.query('purge') === 'true'
     const workspace = await deps.workspaceService.findById(workspaceId)

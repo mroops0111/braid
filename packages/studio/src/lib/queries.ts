@@ -62,27 +62,6 @@ export function useWorkspaceMembers(workspaceId: string | undefined) {
   })
 }
 
-/**
- * Resolve the current user's effective role in a specific workspace.
- * Returns `undefined` while loading. Server admins get a virtual
- * `owner` role mirroring the server-side bypass in
- * `workspaceAccessMiddleware`, so they see Owner-only affordances
- * (Members management, Show All toggle, etc.) without needing an
- * explicit member entry.
- */
-export function useMyWorkspaceRole(workspaceId: string | undefined) {
-  const { data: me } = useMe()
-  const { data: members } = useWorkspaceMembers(workspaceId)
-  if (!me || !members)
-    return undefined
-  const member = members.items.find(m => m.userId === me.id)
-  if (member)
-    return member.role
-  if (me.serverRole === 'admin')
-    return 'owner' as const
-  return undefined
-}
-
 export function useWorkspaces() {
   return useQuery({ queryKey: queryKeys.workspaces(), queryFn: () => api.listWorkspaces() })
 }

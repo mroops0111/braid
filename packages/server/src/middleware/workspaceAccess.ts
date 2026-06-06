@@ -1,119 +1,117 @@
 import type { WorkspaceService } from '@braidhq/core'
-import type { WorkspaceMember, WorkspaceRole as WorkspaceRoleType } from '@braidhq/schema'
 import type { Context, MiddlewareHandler } from 'hono'
 import type { WorkspaceRegistryFile } from '../infrastructure/fs/WorkspaceRegistryFile.js'
 import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
+import type { Capability, ViewerContext } from '../policy/index.js'
+import { defaultPermissionRegistry, resolveViewer } from '../policy/index.js'
 import { getUserId } from './userId.js'
 import { getWorkspaceId } from './workspaceId.js'
 
+/**
+ * Server-scope capability guard. Used for actions that happen without
+ * a workspace context (e.g. workspace creation). Builds a viewer with
+ * member=undefined; non-admin users resolve to effectiveRole=null and
+ * fail every check by construction.
+ *
+ * Skips the gate when userRegistry isn't provided so in-memory test
+ * compositions stay open. Production deployments always pass it.
+ */
+export function requireServerCapability(
+  capability: Capability,
+  userRegistry: UserRegistryFile | undefined,
+): MiddlewareHandler {
+  return async (context, next) => {
+    if (!userRegistry) {
+      await next()
+      return undefined
+    }
+    const userId = getUserId(context)
+    const user = await userRegistry.get(userId)
+    if (!user)
+      return forbid(context, `Unknown user "${userId}".`)
+    const viewer = resolveViewer(user, undefined)
+    if (!defaultPermissionRegistry.can(capability, viewer))
+      return forbid(context, `Your role cannot perform "${capability}".`)
+    await next()
+    return undefined
+  }
+}
+
 declare module 'hono' {
   interface ContextVariableMap {
-    workspaceRole: WorkspaceRoleType
-    // Full member record when the caller is an explicit member.
-    // Absent for the admin-bypass path because there's no real member
-    // entry — downstream gates that need skillOverrides must accept
-    // `undefined` and fall back to the role-based default.
-    workspaceMember?: WorkspaceMember
+    viewerContext: ViewerContext
   }
 }
 
 export interface WorkspaceAccessOptions {
   readonly registry: WorkspaceRegistryFile
   readonly workspaceService: WorkspaceService
-  /**
-   * Server-wide admins bypass the membership check (they see every
-   * workspace for support / oversight) and get a virtual `owner`
-   * role on the request context so role-gated mutations still work.
-   */
-  readonly userRegistry?: UserRegistryFile
+  readonly userRegistry: UserRegistryFile
 }
 
 /**
- * Enforce workspace membership and stash the caller's role on the
- * request context. Runs AFTER `workspaceIdMiddleware` (needs the
- * resolved id) and AFTER `userIdMiddleware` / `authMiddleware`
- * (needs the resolved userId).
+ * Resolves the caller's ViewerContext for this workspace and stashes
+ * it on the Hono context for every downstream layer to read. Composes
+ * after `workspaceIdMiddleware` + `userIdMiddleware`. Outsiders (no
+ * member row + not a server admin) get 403 here.
  *
- * Local-trust callers stamped as `local-user` still pass through
- * the membership check — by Phase C migration `local-user` is the
- * owner of every existing workspace, so this middleware is invisible
- * to the single-tenant install.
+ * The actual policy decisions live in `policy/`; this middleware just
+ * builds the viewer and rejects unauthenticated outsiders.
  */
 export function workspaceAccessMiddleware(options: WorkspaceAccessOptions): MiddlewareHandler {
   return async (context, next) => {
     const workspaceId = getWorkspaceId(context)
     const userId = getUserId(context)
+    const user = await options.userRegistry.get(userId)
+    if (!user)
+      return forbid(context, `Unknown user "${userId}".`)
     const workspace = await options.workspaceService.findById(workspaceId)
     const member = await options.registry.getMember(workspace.rootPath, userId)
-    if (member) {
-      context.set('workspaceRole', member.role)
-      context.set('workspaceMember', member)
-      await next()
-      return undefined
-    }
-    // Server admins bypass the membership check — they see every
-    // workspace and get a virtual `owner` role so role-gated routes
-    // still let them act. Useful for support / fix-it tasks; an
-    // explicit member entry stays the preferred persistent path.
-    const me = await options.userRegistry?.get(userId)
-    if (me?.serverRole === 'admin') {
-      context.set('workspaceRole', 'owner')
-      await next()
-      return undefined
-    }
-    return context.json(
-      {
-        type: 'about:blank',
-        title: 'Forbidden',
-        status: 403,
-        detail: `You are not a member of workspace "${workspaceId}".`,
-      },
-      403,
-      { 'Content-Type': 'application/problem+json' },
-    )
-  }
-}
-
-export function getWorkspaceRole(context: Context): WorkspaceRoleType {
-  return context.get('workspaceRole')
-}
-
-export function getWorkspaceMember(context: Context): WorkspaceMember | undefined {
-  return context.get('workspaceMember')
-}
-
-/**
- * Mutation guard: 403s unless the caller's workspace role is in the
- * allowed list. Composes after `workspaceAccessMiddleware` so the
- * role is already resolved. Read routes don't need this — being a
- * member at all is sufficient to read.
- */
-export function requireWorkspaceRole(...allowed: readonly WorkspaceRoleType[]): MiddlewareHandler {
-  const set = new Set(allowed)
-  return async (context, next) => {
-    const role = context.get('workspaceRole') as WorkspaceRoleType | undefined
-    // No role on the context means `workspaceAccessMiddleware` wasn't
-    // mounted (test composition without a workspaceRegistry, or a
-    // pre-Phase-C boot). Treat that as "RBAC disabled" and let the
-    // request through; production deployments always mount the
-    // access middleware so the gate is real there.
-    if (role === undefined) {
-      await next()
-      return undefined
-    }
-    if (!set.has(role)) {
-      return context.json(
-        {
-          type: 'about:blank',
-          title: 'Forbidden',
-          status: 403,
-          detail: `Your role ("${role}") cannot perform this action.`,
-        },
-        403,
-        { 'Content-Type': 'application/problem+json' },
-      )
-    }
+    const viewer = resolveViewer(user, member)
+    if (viewer.effectiveRole === null)
+      return forbid(context, `You are not a member of workspace "${workspaceId}".`)
+    context.set('viewerContext', viewer)
     await next()
     return undefined
   }
+}
+
+export function getViewerContext(context: Context): ViewerContext | undefined {
+  return context.get('viewerContext')
+}
+
+/**
+ * Mutation guard. Returns 403 if the viewer can't perform the given
+ * capability. Optional `buildResource` lets specific capabilities
+ * (e.g. `skill.run`) attach per-request data the check needs.
+ *
+ * Test compositions that don't mount `workspaceAccessMiddleware`
+ * (in-memory tests, headless server) skip the gate. Production
+ * deployments always mount the access middleware so the gate is real.
+ */
+export function requirePermission(
+  capability: Capability,
+  buildResource?: (context: Context) => Promise<ViewerContext['resource']>,
+): MiddlewareHandler {
+  return async (context, next) => {
+    const base = getViewerContext(context)
+    if (!base) {
+      await next()
+      return undefined
+    }
+    const resource = buildResource ? await buildResource(context) : undefined
+    const viewer: ViewerContext = resource ? { ...base, resource } : base
+    if (!defaultPermissionRegistry.can(capability, viewer))
+      return forbid(context, `Your role cannot perform "${capability}".`)
+    await next()
+    return undefined
+  }
+}
+
+function forbid(context: Context, detail: string): Response {
+  return context.json(
+    { type: 'about:blank', title: 'Forbidden', status: 403, detail },
+    403,
+    { 'Content-Type': 'application/problem+json' },
+  )
 }

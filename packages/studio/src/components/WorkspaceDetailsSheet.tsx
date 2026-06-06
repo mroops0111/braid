@@ -1,12 +1,14 @@
 import type { McpServerConfig, SourceDescriptor, User, Workspace, WorkspaceMember, WorkspaceRole } from '@braidhq/schema'
-import type React from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Database, GitBranch, HardDrive, Plug, RefreshCw, Trash2, UserRound, UserRoundCheck, UserRoundCog } from 'lucide-react'
+import { Crown, Database, GitBranch, HardDrive, MoreHorizontal, Plug, RefreshCw, Trash2, UserMinus, UserRound, UserRoundCheck, UserRoundCog } from 'lucide-react'
+import { DropdownMenu as DropdownPrimitive } from 'radix-ui'
 import { useState } from 'react'
 import { api } from '@/lib/api'
 import { humaniseApiError } from '@/lib/errors'
-import { queryKeys, useMe, useMyWorkspaceRole, useUsers, useWorkspaceMembers } from '@/lib/queries'
+import { queryKeys, useMe, useUsers, useWorkspaceMembers } from '@/lib/queries'
+import { useWorkspacePolicy } from '@/policy'
 import { AddSourceDialog } from './AddSourceDialog'
+import { ArmedConfirmBar } from './ArmedConfirmBar'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
@@ -104,9 +106,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
 
         <MembersSection workspaceId={workspaceId} />
 
-        <OwnerOnly workspaceId={workspaceId}>
-          <WorkspaceSkillPermissions workspaceId={workspaceId} />
-        </OwnerOnly>
+        <SkillPermissionsForOwners workspaceId={workspaceId} />
 
         <section className="grid grid-cols-2 gap-3 text-xs">
           <MetaField icon={Database} label="Ontology" value={workspace.productManifest.ontologyId} />
@@ -279,11 +279,11 @@ function MetaField({ icon: Icon, label, value }: { icon: typeof Database, label:
   )
 }
 
-function OwnerOnly({ workspaceId, children }: { workspaceId: string, children: React.ReactNode }) {
-  const { data: me } = useMe()
-  const myRole = useMyWorkspaceRole(workspaceId)
-  const isOwner = myRole === 'owner' || me?.serverRole === 'admin'
-  return isOwner ? <>{children}</> : null
+function SkillPermissionsForOwners({ workspaceId }: { workspaceId: string }) {
+  const policy = useWorkspacePolicy(workspaceId)
+  if (!policy.can('workspace.write'))
+    return null
+  return <WorkspaceSkillPermissions workspaceId={workspaceId} />
 }
 
 function MembersSection({ workspaceId }: { workspaceId: string }) {
@@ -291,9 +291,8 @@ function MembersSection({ workspaceId }: { workspaceId: string }) {
   const { data: members, isLoading, error } = useWorkspaceMembers(workspaceId)
   const { data: allUsers } = useUsers()
   const { data: me } = useMe()
-  const myRole = useMyWorkspaceRole(workspaceId)
-  const isOwner = myRole === 'owner' || (me?.serverRole === 'admin' && myRole === undefined)
-    || (me?.serverRole === 'admin')
+  const policy = useWorkspacePolicy(workspaceId)
+  const canManageMembers = policy.can('workspace.write')
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: queryKeys.workspaceMembers(workspaceId) })
@@ -332,19 +331,21 @@ function MembersSection({ workspaceId }: { workspaceId: string }) {
                   member={member}
                   user={allUsers?.items.find(u => u.id === member.userId)}
                   workspaceId={workspaceId}
-                  canManage={isOwner}
+                  canManage={canManageMembers}
                   isMe={member.userId === me?.id}
                   onChange={invalidate}
                 />
               ))}
             </ul>
           )}
-      {isOwner && candidates.length > 0 && (
+      {canManageMembers && candidates.length > 0 && (
         <AddMemberControl workspaceId={workspaceId} candidates={candidates} onAdded={invalidate} />
       )}
     </section>
   )
 }
+
+type ArmedKind = 'promote' | 'demote' | 'transfer' | 'remove'
 
 function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
   member: WorkspaceMember
@@ -354,18 +355,28 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
   isMe: boolean
   onChange: () => void
 }) {
+  const [armed, setArmed] = useState<ArmedKind | null>(null)
   const remove = useMutation({
     mutationFn: () => api.removeWorkspaceMember(workspaceId, member.userId),
-    onSuccess: onChange,
+    onSuccess: () => {
+      setArmed(null)
+      onChange()
+    },
   })
   const promote = useMutation({
     mutationFn: (role: WorkspaceRole) =>
       api.patchWorkspaceMember(workspaceId, member.userId, { role }),
-    onSuccess: onChange,
+    onSuccess: () => {
+      setArmed(null)
+      onChange()
+    },
   })
   const transfer = useMutation({
     mutationFn: () => api.transferWorkspaceOwnership(workspaceId, member.userId),
-    onSuccess: onChange,
+    onSuccess: () => {
+      setArmed(null)
+      onChange()
+    },
   })
 
   const RoleIcon = member.role === 'owner'
@@ -373,18 +384,19 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
     : member.role === 'maintainer'
       ? UserRoundCog
       : UserRound
-  // Action visibility rules:
-  // - Make owner: only when target is NOT already owner (self included; admin
-  //   can promote themselves after adding their own row).
-  // - Promote / Demote: only when target is NOT owner (server forbids
-  //   self-demoting the sole owner anyway).
-  // - Remove: not on the current owner (server enforces) and not on yourself
-  //   (would lock you out of the workspace from this UI; admins can still
-  //   intervene from another account).
-  const canTransfer = canManage && member.role !== 'owner'
-  const canChangeRole = canManage && member.role !== 'owner'
-  const canRemove = canManage && member.role !== 'owner' && !isMe
-  const anyAction = canTransfer || canChangeRole || canRemove
+  const displayName = user?.displayName ?? member.userId
+  // Owners can't be demoted directly (server forbids; use Transfer
+  // Ownership). Self can't be removed (would lock the UI out). Owners
+  // are excluded from every kebab action.
+  const targetIsOwner = member.role === 'owner'
+  const canTransfer = canManage && !targetIsOwner
+  const canChangeRole = canManage && !targetIsOwner
+  const canRemove = canManage && !targetIsOwner && !isMe
+  const showKebab = canTransfer || canChangeRole || canRemove
+
+  function startArmed(kind: ArmedKind) {
+    setArmed(kind)
+  }
 
   return (
     <li className="rounded-md border border-border p-2">
@@ -392,7 +404,7 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
         <RoleIcon className="size-3.5 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="truncate text-xs">{user?.displayName ?? member.userId}</span>
+            <span className="truncate text-xs">{displayName}</span>
             {isMe && <span className="text-[10px] text-muted-foreground">(you)</span>}
             <span className="ml-auto shrink-0 rounded bg-muted/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
               {member.role}
@@ -402,37 +414,137 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
             <p className="truncate font-mono text-[10px] text-muted-foreground">{user.email}</p>
           )}
         </div>
+        {showKebab && (
+          <DropdownPrimitive.Root>
+            <DropdownPrimitive.Trigger asChild>
+              <Button variant="ghost" size="icon" className="size-6 shrink-0" title="Member actions">
+                <MoreHorizontal className="size-3" />
+              </Button>
+            </DropdownPrimitive.Trigger>
+            <DropdownPrimitive.Portal>
+              <DropdownPrimitive.Content
+                align="end"
+                sideOffset={4}
+                className="z-50 min-w-44 rounded-md border border-border bg-popover p-1 text-xs shadow-md data-[state=open]:animate-in data-[state=open]:fade-in-0"
+              >
+                {canChangeRole && member.role === 'guest' && (
+                  <DropdownPrimitive.Item
+                    className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none hover:bg-accent focus:bg-accent"
+                    onSelect={() => startArmed('promote')}
+                  >
+                    <UserRoundCog className="size-3" />
+                    Promote to Maintainer
+                  </DropdownPrimitive.Item>
+                )}
+                {canChangeRole && member.role === 'maintainer' && (
+                  <DropdownPrimitive.Item
+                    className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none hover:bg-accent focus:bg-accent"
+                    onSelect={() => startArmed('demote')}
+                  >
+                    <UserRound className="size-3" />
+                    Demote to Guest
+                  </DropdownPrimitive.Item>
+                )}
+                {canTransfer && (
+                  <DropdownPrimitive.Item
+                    className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none hover:bg-accent focus:bg-accent"
+                    onSelect={() => startArmed('transfer')}
+                  >
+                    <Crown className="size-3" />
+                    Transfer Ownership
+                  </DropdownPrimitive.Item>
+                )}
+                {canRemove && (
+                  <>
+                    <DropdownPrimitive.Separator className="my-1 h-px bg-border" />
+                    <DropdownPrimitive.Item
+                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-destructive outline-none hover:bg-destructive/10 focus:bg-destructive/10"
+                      onSelect={() => startArmed('remove')}
+                    >
+                      <UserMinus className="size-3" />
+                      Remove from Workspace
+                    </DropdownPrimitive.Item>
+                  </>
+                )}
+              </DropdownPrimitive.Content>
+            </DropdownPrimitive.Portal>
+          </DropdownPrimitive.Root>
+        )}
       </div>
-      {anyAction && (
-        <div className="mt-1.5 flex flex-wrap items-center gap-1 border-t border-border/60 pt-1.5">
-          {canTransfer && (
-            <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => transfer.mutate()} disabled={transfer.isPending}>
-              {transfer.isPending ? '…' : 'Make Owner'}
-            </Button>
-          )}
-          {canChangeRole && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 text-[11px]"
-              onClick={() => promote.mutate(member.role === 'maintainer' ? 'guest' : 'maintainer')}
+      {armed && (
+        <div className="mt-2 border-t border-border/60 pt-2">
+          {armed === 'promote' && (
+            <ArmedConfirmBar
+              message={(
+                <>
+                  Promote
+                  <span className="font-medium">{displayName}</span>
+                  {' '}
+                  to Maintainer? They will be able to submit proposals and apply / reject pending ones.
+                </>
+              )}
+              confirmLabel={promote.isPending ? 'Saving…' : 'Promote to Maintainer'}
+              confirmTone="primary"
               disabled={promote.isPending}
-            >
-              {member.role === 'maintainer' ? '→ Guest' : '→ Maintainer'}
-            </Button>
+              onCancel={() => setArmed(null)}
+              onConfirm={() => promote.mutate('maintainer')}
+              errorMessage={promote.error ? humaniseApiError(promote.error) : null}
+            />
           )}
-          {canRemove && (
-            <Button size="sm" variant="ghost" className="ml-auto h-6 text-[11px] text-destructive hover:text-destructive" onClick={() => remove.mutate()} disabled={remove.isPending}>
-              <Trash2 className="mr-1 size-3" />
-              Remove
-            </Button>
+          {armed === 'demote' && (
+            <ArmedConfirmBar
+              message={(
+                <>
+                  Demote
+                  <span className="font-medium">{displayName}</span>
+                  {' '}
+                  to Guest? They will lose Proposals / Clarify access and can only run skills explicitly granted to them.
+                </>
+              )}
+              confirmLabel={promote.isPending ? 'Saving…' : 'Demote to Guest'}
+              confirmTone="primary"
+              disabled={promote.isPending}
+              onCancel={() => setArmed(null)}
+              onConfirm={() => promote.mutate('guest')}
+              errorMessage={promote.error ? humaniseApiError(promote.error) : null}
+            />
+          )}
+          {armed === 'transfer' && (
+            <ArmedConfirmBar
+              message={(
+                <>
+                  Transfer workspace ownership to
+                  <span className="font-medium">{displayName}</span>
+                  ? The current Owner becomes a Maintainer. This is irreversible by the previous Owner.
+                </>
+              )}
+              confirmLabel={transfer.isPending ? 'Saving…' : 'Transfer Ownership'}
+              confirmTone="destructive"
+              disabled={transfer.isPending}
+              onCancel={() => setArmed(null)}
+              onConfirm={() => transfer.mutate()}
+              errorMessage={transfer.error ? humaniseApiError(transfer.error) : null}
+            />
+          )}
+          {armed === 'remove' && (
+            <ArmedConfirmBar
+              message={(
+                <>
+                  Remove
+                  <span className="font-medium">{displayName}</span>
+                  {' '}
+                  from this workspace? Their stored member row is deleted; their server account is untouched.
+                </>
+              )}
+              confirmLabel={remove.isPending ? 'Removing…' : 'Remove from Workspace'}
+              confirmTone="destructive"
+              disabled={remove.isPending}
+              onCancel={() => setArmed(null)}
+              onConfirm={() => remove.mutate()}
+              errorMessage={remove.error ? humaniseApiError(remove.error) : null}
+            />
           )}
         </div>
-      )}
-      {(remove.error || promote.error || transfer.error) && (
-        <p className="mt-1 text-[10px] text-destructive">
-          {humaniseApiError(remove.error ?? promote.error ?? transfer.error)}
-        </p>
       )}
     </li>
   )

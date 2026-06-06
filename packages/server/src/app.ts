@@ -113,14 +113,15 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
 
   const workspaceScoped = new OpenAPIHono()
   workspaceScoped.use('*', workspaceIdMiddleware)
-  // Phase C membership gate. Mounted only when the workspaceRegistry is
-  // present (i.e. composeFsApp); in-memory tests that compose without
-  // a registry stay open so existing routes keep behaving.
-  if (deps.workspaceRegistry) {
+  // Workspace membership gate. Mounted only when both the workspace
+  // registry and user registry are present (i.e. composeFsApp);
+  // in-memory tests that compose without these stay open so existing
+  // routes keep behaving.
+  if (deps.workspaceRegistry && deps.userRegistry) {
     workspaceScoped.use('*', workspaceAccessMiddleware({
       registry: deps.workspaceRegistry,
       workspaceService: deps.workspaceService,
-      ...(deps.userRegistry ? { userRegistry: deps.userRegistry } : {}),
+      userRegistry: deps.userRegistry,
     }))
   }
   workspaceScoped.route('/model', createModelRouter({ modelService: deps.modelService }))

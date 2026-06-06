@@ -6,7 +6,7 @@ import { SkillPermission, UserId, WorkspaceRole } from '@braidhq/schema'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { requireWorkspaceRole } from '../middleware/workspaceAccess.js'
+import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 
 const AddMemberBody = z.object({
@@ -33,7 +33,7 @@ export interface WorkspaceMembersRouterDeps {
 
 export function createWorkspaceMembersRouter(deps: WorkspaceMembersRouterDeps): Hono {
   const router = new Hono()
-  const ownerOnly = requireWorkspaceRole('owner')
+  const ownerOnly = requirePermission('workspace.write')
 
   // List is open to every member of the workspace. The access
   // middleware upstream already enforced membership.
@@ -87,7 +87,7 @@ export function createWorkspaceMembersRouter(deps: WorkspaceMembersRouterDeps): 
 
 export function createTransferOwnershipRouter(deps: WorkspaceMembersRouterDeps): Hono {
   const router = new Hono()
-  router.post('/', requireWorkspaceRole('owner'), zValidator('json', TransferBody), async (context) => {
+  router.post('/', requirePermission('workspace.write'), zValidator('json', TransferBody), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const { newOwnerId } = context.req.valid('json')
     const workspace = await deps.workspaceService.findById(workspaceId)

@@ -2,7 +2,7 @@ import { Settings as SettingsIcon } from 'lucide-react'
 import { useState } from 'react'
 import { ListRow } from '@/components/ListRow'
 import { UserPicker } from '@/components/UserPicker'
-import { useMe } from '@/lib/queries'
+import { useWorkspacePolicy } from '@/policy'
 import { AboutTab } from './settings/AboutTab'
 import { ServersTab } from './settings/ServersTab'
 import { UsersTab } from './settings/UsersTab'
@@ -11,8 +11,7 @@ type SettingsTab = 'servers' | 'users' | 'about'
 
 export function SettingsPage() {
   const [tab, setTab] = useState<SettingsTab>('servers')
-  const { data: me } = useMe()
-  const isAdmin = me?.serverRole === 'admin'
+  const { isServerAdmin: isAdmin } = useWorkspacePolicy(null)
   return (
     <div className="flex h-full flex-col">
       <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border px-4 text-sm">

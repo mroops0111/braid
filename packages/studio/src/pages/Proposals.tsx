@@ -12,9 +12,10 @@ import { Button } from '@/components/ui/button'
 import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
-import { queryKeys, useMyWorkspaceRole, useProposalsByStatus, useProposalValidation } from '@/lib/queries'
+import { queryKeys, useProposalsByStatus, useProposalValidation } from '@/lib/queries'
 import { useGraphNavigation } from '@/lib/useGraphNavigation'
 import { useMutualExclusionPair } from '@/lib/useMutualExclusionPair'
+import { useWorkspacePolicy } from '@/policy'
 import { GraphSurface } from './GraphSurface'
 
 interface ProposalsPageProps {
@@ -196,8 +197,8 @@ function ShowAllToggle({
   showAll: boolean
   onToggle: (next: boolean) => void
 }) {
-  const role = useMyWorkspaceRole(workspaceId)
-  if (role !== 'owner' || status !== 'pending')
+  const { effectiveRole } = useWorkspacePolicy(workspaceId)
+  if (effectiveRole !== 'owner' || status !== 'pending')
     return null
   return (
     <Button
@@ -261,6 +262,7 @@ function ProposalDetail({
   // Apply / Reject are only meaningful while the proposal is still
   // pending. Applied / rejected entries are read-only history.
   const isPending = proposal.status === 'pending'
+  const canWrite = useWorkspacePolicy(workspaceId).can('proposal.write')
 
   const validation = useProposalValidation(workspaceId, isPending ? proposal.id : null)
   const errorCount = validation.data?.issues.filter(issue => issue.severity === 'error').length ?? 0
@@ -307,32 +309,29 @@ function ProposalDetail({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {isPending
-            ? (
-                <>
-                  <Button
-                    size="sm"
-                    disabled={apply.isPending || blockedByErrors || validation.isLoading}
-                    onClick={() => apply.mutate()}
-                    title={applyTitle}
-                  >
-                    <Check />
-                    Apply
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    disabled={reject.isPending}
-                    onClick={() => setRejectOpen(open => !open)}
-                  >
-                    <X />
-                    Reject
-                  </Button>
-                </>
-              )
-            : (
-                <StatusBadge status={proposal.status} />
-              )}
+          {isPending && canWrite && (
+            <>
+              <Button
+                size="sm"
+                disabled={apply.isPending || blockedByErrors || validation.isLoading}
+                onClick={() => apply.mutate()}
+                title={applyTitle}
+              >
+                <Check />
+                Apply
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={reject.isPending}
+                onClick={() => setRejectOpen(open => !open)}
+              >
+                <X />
+                Reject
+              </Button>
+            </>
+          )}
+          {(!isPending || !canWrite) && <StatusBadge status={proposal.status} />}
         </div>
       </header>
       <div className="shrink-0">

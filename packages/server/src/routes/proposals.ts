@@ -2,7 +2,7 @@ import type { HITLService, ModelRepository, ProposalRepository, ValidationServic
 import { Decision, Proposal, ProposalDraft, ProposalId, ProposalStatus, UserId, ValidationResult } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getUserId } from '../middleware/userId.js'
-import { requireWorkspaceRole } from '../middleware/workspaceAccess.js'
+import { getViewerContext, requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 import { assertEntityInWorkspace } from './helpers.js'
@@ -162,8 +162,8 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
   // Apply / reject are HITL decisions — Owner + Maintainer only. Guests
   // never see the buttons (UI hides the tab) but defence-in-depth here
   // means a direct curl from a Guest token still 403s.
-  router.use('/:proposalId/apply', requireWorkspaceRole('owner', 'maintainer'))
-  router.use('/:proposalId/reject', requireWorkspaceRole('owner', 'maintainer'))
+  router.use('/:proposalId/apply', requirePermission('proposal.write'))
+  router.use('/:proposalId/reject', requirePermission('proposal.write'))
 
   router.openapi(createProposalRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
@@ -180,8 +180,8 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     // Show All bypass is gated to the workspace owner; everyone else
     // is forced through the personal-pending filter regardless of
     // what they send.
-    const role = context.get('workspaceRole') as 'owner' | 'maintainer' | 'guest' | undefined
-    const viewerId = (showAll && role === 'owner') ? undefined : getUserId(context)
+    const viewer = getViewerContext(context)
+    const viewerId = (showAll && viewer?.effectiveRole === 'owner') ? undefined : getUserId(context)
     const proposals = await deps.proposalRepository.list({
       workspaceId,
       statuses,

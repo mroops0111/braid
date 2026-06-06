@@ -3,10 +3,11 @@ import type { Surface } from './CommandPalette'
 import { ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, Moon, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import braidLogo from '@/assets/braid-logo.svg'
-import { useMyWorkspaceRole, usePendingClarify, usePendingProposals, useRuns } from '@/lib/queries'
+import { usePendingClarify, usePendingProposals, useRuns, useSkills } from '@/lib/queries'
 import { LOCAL_REMOTE_ID, useActiveRemoteId, useRemotes } from '@/lib/remotes'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
+import { useWorkspacePolicy } from '@/policy'
 import { CreateWorkspaceWizard } from './CreateWorkspaceWizard'
 import { ListRow } from './ListRow'
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
@@ -281,12 +282,26 @@ function HereSection({
 }) {
   const { data: proposals } = usePendingProposals(workspaceId)
   const { data: clarify } = usePendingClarify(workspaceId)
-  const myRole = useMyWorkspaceRole(workspaceId)
+  const policy = useWorkspacePolicy(workspaceId)
+  const { data: skills } = useSkills(workspaceId)
   const pendingProposals = proposals?.items.length ?? 0
   const pendingClarify = clarify?.items.length ?? 0
-  // Guests get a read-only nav: hidden HITL tabs are also 403-gated
-  // server-side, so devtools tampering changes nothing.
-  const isGuest = myRole === 'guest'
+  // HITL tabs are hidden when the viewer can't act on them. The server
+  // 403-gates the same routes, so devtools tampering changes nothing.
+  const canSeeProposals = policy.can('proposal.read')
+  const canSeeClarify = policy.can('clarify.read')
+  // Actions tab is visible when the viewer can run at least one
+  // workspace skill. Owners/maintainers trivially can; guests get the
+  // tab only when a skill's allowedRoles or their per-member override
+  // gives them something runnable (e.g. braid-ask in the default
+  // catalog).
+  const canRunActions = (skills?.items ?? []).some(s =>
+    !s.frontmatter.braid.hidden && policy.can('skill.run', { skill: s.frontmatter, skillId: s.id }),
+  )
+  // History page exposes Tag / Restore actions which are owner-only.
+  // Even though the server 403s, showing the buttons to guests is
+  // misleading; hide the whole tab for them.
+  const canSeeHistory = policy.effectiveRole !== null && policy.effectiveRole !== 'guest'
 
   return (
     <div className={cn('shrink-0 border-t border-sidebar-border px-2 pb-2', collapsed ? 'pt-1.5' : 'pt-2')}>
@@ -303,7 +318,7 @@ function HereSection({
           active={activeSurface === null}
           onClick={onGoHome}
         />
-        {!isGuest && (
+        {canRunActions && (
           <HereRow
             collapsed={collapsed}
             icon={Sparkles}
@@ -312,7 +327,7 @@ function HereSection({
             onClick={() => onSelectSurface('actions')}
           />
         )}
-        {!isGuest && (
+        {canSeeClarify && (
           <HereRow
             collapsed={collapsed}
             icon={HelpCircle}
@@ -322,7 +337,7 @@ function HereSection({
             onClick={() => onSelectSurface('clarify')}
           />
         )}
-        {!isGuest && (
+        {canSeeProposals && (
           <HereRow
             collapsed={collapsed}
             icon={ClipboardCheck}
@@ -332,13 +347,15 @@ function HereSection({
             onClick={() => onSelectSurface('proposals')}
           />
         )}
-        <HereRow
-          collapsed={collapsed}
-          icon={GitGraph}
-          label="History"
-          active={activeSurface === 'history'}
-          onClick={() => onSelectSurface('history')}
-        />
+        {canSeeHistory && (
+          <HereRow
+            collapsed={collapsed}
+            icon={GitGraph}
+            label="History"
+            active={activeSurface === 'history'}
+            onClick={() => onSelectSurface('history')}
+          />
+        )}
       </ul>
     </div>
   )

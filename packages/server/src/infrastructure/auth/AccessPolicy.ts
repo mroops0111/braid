@@ -17,6 +17,15 @@ export type Invite = z.infer<typeof Invite>
 
 const Content = z.object({
   invites: z.array(Invite).default([]),
+  /**
+   * Emails that have already redeemed an invite (or been approved
+   * directly) and are persistently allowed to sign in. Without this,
+   * an invite would be a one-shot ticket: after the first login the
+   * invite is gone and the user gets locked out on the second login.
+   * Treat this as the "dynamic allowlist" that grows as invites get
+   * consumed; revoking a user removes their entry here.
+   */
+  approvedEmails: z.array(z.string().email().transform(s => s.toLowerCase())).default([]),
 })
 type Content = z.infer<typeof Content>
 
@@ -29,7 +38,7 @@ export interface AccessDecision {
    */
   readonly reason?: string
   /**
-   * For allowed access — whether this user's email matched an invite.
+   * For allowed access, whether this user's email matched an invite.
    * When true, the caller redeems the invite via `consumeInvite` after
    * creating the user record.
    */
@@ -49,13 +58,13 @@ export interface AccessPolicyConfig {
  * Gate 1: decides whether a Google account is allowed to log in to this
  * Braid server. Composed of two layers:
  *
- *   1. **Static allowlist** — `BRAID_ALLOWED_DOMAINS` / `BRAID_ALLOWED_EMAILS`
+ *   1. **Static allowlist**: `BRAID_ALLOWED_DOMAINS` / `BRAID_ALLOWED_EMAILS`
  *      env vars. Domain matches (`@kdanmobile.com`) auto-pass, email
  *      matches (`alice@example.com`) auto-pass. Free to leave both
  *      unset on a public instance; combined with an empty invite list
- *      this rejects everyone — fail closed.
+ *      this rejects everyone (fail closed).
  *
- *   2. **Invite list** — `${BRAID_HOME}/access.json` maintained by admin
+ *   2. **Invite list**: `${BRAID_HOME}/access.json` maintained by admin
  *      via `/admin/invites` (Phase B/C admin UI). One invite per email;
  *      consumed on first successful login.
  *
@@ -90,8 +99,11 @@ export class AccessPolicy {
     if (domain && this.allowedDomains.has(domain))
       return { allow: true }
 
-    const invites = await this.readInvites()
-    const invite = invites.find(i => i.email === lower)
+    const content = await this.readContent()
+    // Approved (post-redemption) allowlist persists across logins.
+    if (content.approvedEmails.includes(lower))
+      return { allow: true }
+    const invite = content.invites.find(i => i.email === lower)
     if (invite)
       return { allow: true, viaInvite: invite }
 
@@ -103,7 +115,7 @@ export class AccessPolicy {
 
   /**
    * Whether the email should be marked `serverRole='admin'` on the
-   * resulting user record. Independent of `decide` — invites carry
+   * resulting user record. Independent of `decide`: invites carry
    * their own role override, and an admin email might also be the
    * allowlist path with no invite.
    */
@@ -136,12 +148,59 @@ export class AccessPolicy {
     const filtered = content.invites.filter(i => i.email !== lower)
     if (filtered.length === content.invites.length)
       return
-    await this.writeContent({ invites: filtered })
+    await this.writeContent({ ...content, invites: filtered })
   }
 
-  /** Consume an invite once the user record exists. Idempotent. */
+  /**
+   * Consume an invite once the user record exists: remove from invites,
+   * add to approvedEmails so the user can sign in again without the
+   * admin re-inviting them. Idempotent.
+   */
   async consumeInvite(email: string): Promise<void> {
-    await this.removeInvite(email)
+    const lower = email.toLowerCase()
+    const content = await this.readContent()
+    const invites = content.invites.filter(i => i.email !== lower)
+    const approvedEmails = content.approvedEmails.includes(lower)
+      ? content.approvedEmails
+      : [...content.approvedEmails, lower]
+    if (invites.length === content.invites.length && approvedEmails === content.approvedEmails)
+      return
+    await this.writeContent({ invites, approvedEmails })
+  }
+
+  /**
+   * Add an email to the persistent allowlist directly (without going
+   * through the invite step). Used by the bootstrap migration that
+   * back-fills approvedEmails for users who registered before this
+   * field existed.
+   */
+  async approveEmail(email: string): Promise<void> {
+    const lower = email.toLowerCase()
+    const content = await this.readContent()
+    if (content.approvedEmails.includes(lower))
+      return
+    await this.writeContent({
+      ...content,
+      approvedEmails: [...content.approvedEmails, lower],
+    })
+  }
+
+  /**
+   * Drop an email from the persistent allowlist. Called when an admin
+   * deletes a user so the underlying email can't sneak back in without
+   * a fresh invite. Idempotent.
+   */
+  async revokeApproval(email: string): Promise<void> {
+    const lower = email.toLowerCase()
+    const content = await this.readContent()
+    const filtered = content.approvedEmails.filter(e => e !== lower)
+    if (filtered.length === content.approvedEmails.length)
+      return
+    await this.writeContent({ ...content, approvedEmails: filtered })
+  }
+
+  async listApprovedEmails(): Promise<string[]> {
+    return (await this.readContent()).approvedEmails
   }
 
   private async readInvites(): Promise<Invite[]> {
@@ -158,7 +217,7 @@ export class AccessPolicy {
     }
     catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT')
-        return { invites: [] }
+        return { invites: [], approvedEmails: [] }
       throw error
     }
   }

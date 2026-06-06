@@ -4,7 +4,7 @@ import { newClarifyCandidateId } from '@braidhq/core'
 import { ClarifyCandidate, ClarifyCandidateId, ClarifyDraft, ClarifyStatus, ClarifyTicket, ClarifyTicketId, Decision, ProposalId, UserId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getUserId } from '../middleware/userId.js'
-import { requireWorkspaceRole } from '../middleware/workspaceAccess.js'
+import { getViewerContext, requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 import { assertEntityInWorkspace } from './helpers.js'
@@ -211,9 +211,9 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
   // Answer / skip / mark-applied are HITL decisions — Owner + Maintainer
   // only. Guests never see the tab but a direct curl still 403s here.
-  router.use('/:clarifyTicketId/answer', requireWorkspaceRole('owner', 'maintainer'))
-  router.use('/:clarifyTicketId/skip', requireWorkspaceRole('owner', 'maintainer'))
-  router.use('/:clarifyTicketId', requireWorkspaceRole('owner', 'maintainer'))
+  router.use('/:clarifyTicketId/answer', requirePermission('clarify.write'))
+  router.use('/:clarifyTicketId/skip', requirePermission('clarify.write'))
+  router.use('/:clarifyTicketId', requirePermission('clarify.write'))
 
   router.openapi(createClarifyRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
@@ -231,8 +231,8 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): OpenAPIHono {
     const workspaceId = getWorkspaceId(context)
     const { status, limit, offset, showAll } = context.req.valid('query')
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
-    const role = context.get('workspaceRole') as 'owner' | 'maintainer' | 'guest' | undefined
-    const viewerId = (showAll && role === 'owner') ? undefined : getUserId(context)
+    const viewer = getViewerContext(context)
+    const viewerId = (showAll && viewer?.effectiveRole === 'owner') ? undefined : getUserId(context)
     const tickets = await deps.clarifyRepository.list({
       workspaceId,
       statuses,

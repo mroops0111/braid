@@ -5,7 +5,7 @@ import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { getUserId } from '../middleware/userId.js'
-import { requireWorkspaceRole } from '../middleware/workspaceAccess.js'
+import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 
 // `userId` accepted for backwards compat; the authoritative value
@@ -38,9 +38,9 @@ export function createHistoryRouter(deps: HistoryRouterDeps): Hono {
   const router = new Hono()
   // Restore is destructive — Owner only. Tag CRUD is workspace
   // metadata management; Owner only as well to keep ACL coherent.
-  router.use('/:sha/restore', requireWorkspaceRole('owner'))
-  router.use('/tags', requireWorkspaceRole('owner'))
-  router.use('/tags/*', requireWorkspaceRole('owner'))
+  router.use('/:sha/restore', requirePermission('history.write'))
+  router.use('/tags', requirePermission('history.write'))
+  router.use('/tags/*', requirePermission('history.write'))
 
   router.get('/', zValidator('query', ListQuery), async (context) => {
     const workspaceId = getWorkspaceId(context)

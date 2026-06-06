@@ -250,6 +250,13 @@ export function createAdminRouter(deps: AdminRouterDeps): OpenAPIHono {
         { 'Content-Type': 'application/problem+json' },
       )
     }
+    // Revoke persistent sign-in approval alongside the user record so
+    // the same email can't sneak back in next time they hit /auth/google.
+    // (They'd need a fresh invite from an admin.) Read the user first to
+    // grab their email; tolerated when missing for idempotency.
+    const existing = await deps.userRegistry.get(userId)
+    if (existing?.email)
+      await deps.accessPolicy.revokeApproval(existing.email)
     await deps.userRegistry.delete(userId)
     return context.body(null, 204)
   })
