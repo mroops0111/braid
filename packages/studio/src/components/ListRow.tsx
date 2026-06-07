@@ -13,6 +13,14 @@ interface ListRowProps {
   className?: string
   /** Forwarded to the native `title` attribute; useful for tooltip text when the row is icon-only. */
   title?: string | undefined
+  /**
+   * Optional left-edge identity stripe. Used by the multi-server sidebar
+   * to mark which remote a workspace belongs to. Sits inside the row's
+   * `<li>` alongside the active indicator so server identity stays
+   * visible even when the row isn't selected.
+   */
+  stripeClassName?: string
+  stripeDim?: boolean
   children: ReactNode
 }
 
@@ -21,7 +29,7 @@ interface ListRowProps {
  * left edge. Used by every selectable list in Studio so the visual language
  * (hover transition, active bg, bar position) stays consistent.
  */
-export function ListRow({ active, onClick, variant = 'content', className, title, children }: ListRowProps) {
+export function ListRow({ active, onClick, variant = 'content', className, title, stripeClassName, stripeDim, children }: ListRowProps) {
   const tokens = variant === 'sidebar'
     ? {
         bar: 'inset-y-1',
@@ -40,8 +48,19 @@ export function ListRow({ active, onClick, variant = 'content', className, title
       }
   return (
     <li className="relative">
+      {stripeClassName && (
+        <span
+          className={cn(
+            'absolute left-0 w-[2px] rounded-r-full',
+            tokens.bar,
+            stripeClassName,
+            stripeDim ? 'opacity-40' : 'opacity-90',
+          )}
+          aria-hidden
+        />
+      )}
       {active && (
-        <span className={cn('absolute left-0 w-[3px] rounded-r-full bg-primary', tokens.bar)} />
+        <span className={cn('absolute w-[3px] rounded-r-full bg-primary', stripeClassName ? 'left-[2px]' : 'left-0', tokens.bar)} />
       )}
       <button type="button" onClick={onClick} title={title} className={cn(tokens.button, className)}>
         {children}
