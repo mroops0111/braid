@@ -18,8 +18,9 @@ async function makeBraidHome(): Promise<string> {
   return mkdtemp(join(tmpdir(), 'braid-home-'))
 }
 
-async function seedWorkspaceDir(name: string): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), `braid-ws-${name}-`))
+async function seedWorkspaceDir(braidHome: string, name: string): Promise<string> {
+  const dir = join(braidHome, 'workspaces', name)
+  await mkdir(dir, { recursive: true })
   const manifest = `---
 name: ${name}
 agents:
@@ -108,55 +109,25 @@ storage:
     expect(list.items).toHaveLength(0)
   })
 
-  it('DELETE ?purge=true refuses workspaces outside the canonical root', async () => {
-    // Arbitrary-path workspaces register via POST /workspaces with a
-    // custom rootPath (e.g. PRODUCT.md committed inside the user's own
-    // repo). We must not rm those directories on the user's behalf.
-    const braidHome = await makeBraidHome()
-    const arbitraryDir = await seedWorkspaceDir('arbitrary')
-    const app = createApp(await composeFsApp({ braidHome }))
-    await app.request('/workspaces', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rootPath: arbitraryDir }),
-    })
-
-    const response = await app.request('/workspaces/arbitrary?purge=true', { method: 'DELETE' })
-    expect(response.status).toBe(400)
-    // Folder must still exist.
-    await expect(stat(arbitraryDir)).resolves.toBeTruthy()
-  })
-
   it('persists workspace registration across compose calls (same BRAID_HOME)', async () => {
     const braidHome = await makeBraidHome()
-    const wsDir = await seedWorkspaceDir('persist-demo')
+    await seedWorkspaceDir(braidHome, 'persist-demo')
 
     const firstApp = createApp(await composeFsApp({ braidHome }))
-    const registerResponse = await firstApp.request('/workspaces', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rootPath: wsDir }),
-    })
-    expect(registerResponse.status).toBe(201)
+    const firstList = await readJson<WorkspaceListBody>(await firstApp.request('/workspaces'))
+    expect(firstList.items).toHaveLength(1)
 
-    // Fresh compose with same BRAID_HOME — workspace should still be visible
     const secondApp = createApp(await composeFsApp({ braidHome }))
-    const listResponse = await secondApp.request('/workspaces')
-    const body = await readJson<WorkspaceListBody>(listResponse)
+    const body = await readJson<WorkspaceListBody>(await secondApp.request('/workspaces'))
     expect(body.items).toHaveLength(1)
     expect(body.items[0]?.productManifest.name).toBe('persist-demo')
   })
 
   it('exposes skill route once skill runner is wired', async () => {
     const braidHome = await makeBraidHome()
-    const wsDir = await seedWorkspaceDir('skills-demo')
+    await seedWorkspaceDir(braidHome, 'skills-demo')
 
     const app = createApp(await composeFsApp({ braidHome }))
-    await app.request('/workspaces', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rootPath: wsDir }),
-    })
 
     const response = await app.request('/workspaces/skills-demo/skills')
     expect(response.status).toBe(200)

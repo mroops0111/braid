@@ -1,5 +1,5 @@
 import type { SourceLoaderRunner, Workspace, WorkspaceBootstrap, WorkspaceService } from '@braidhq/core'
-import type { ProductManifest, SourceDescriptor, Timestamp } from '@braidhq/schema'
+import type { AbsolutePath, ProductManifest, SourceDescriptor, Timestamp } from '@braidhq/schema'
 import type { Context, MiddlewareHandler } from 'hono'
 import type { WorkspaceRegistryFile } from '../infrastructure/fs/WorkspaceRegistryFile.js'
 import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
@@ -7,7 +7,6 @@ import { rm } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
 import { NotFoundError, ValidationError } from '@braidhq/core'
 import {
-  AbsolutePath,
   AgentRoutingConfig,
   McpServerConfig,
   McpServerId,
@@ -25,10 +24,6 @@ import { fillManifestDefaults, updateProductManifest, writeProductManifest } fro
 import { getUserId } from '../middleware/userId.js'
 import { requirePermission, requireServerCapability, workspaceAccessMiddleware } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId, workspaceIdMiddleware } from '../middleware/workspaceId.js'
-
-const RegisterBodySchema = z.object({
-  rootPath: AbsolutePath,
-})
 
 // Folder name resolved under the server-managed `workspacesRoot` (default
 // `~/.braid/workspaces/`). Slug-only so name == folder == workspace id;
@@ -126,15 +121,6 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     const workspaceId = getWorkspaceId(context)
     const workspace = await deps.workspaceService.findById(workspaceId)
     return context.json(workspace.toData())
-  })
-
-  router.post('/', serverCreate, zValidator('json', RegisterBodySchema), async (context) => {
-    const { rootPath } = context.req.valid('json')
-    const workspace = await deps.workspaceService.load(rootPath)
-    await deps.workspaceService.save(workspace)
-    await deps.bootstrap?.ensure(workspace)
-    await ensureCallerOwner(deps.workspaceRegistry, workspace.rootPath, getUserId(context))
-    return context.json(workspace.toData(), 201)
   })
 
   // Create-only entrypoint. Existing canonical workspaces are surfaced
@@ -313,28 +299,11 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     })
   })
 
-  // Unregister a workspace (default) or fully delete it (`?purge=true`).
-  //
-  // Without `purge`, files (PRODUCT.md, .braid/, ingested sources) stay
-  // on disk. But canonical-root workspaces under `<workspacesRoot>/` get
-  // re-registered by `discoverCanonicalWorkspaces` on the next server
-  // boot, so plain unregister is effectively a no-op for them. That's
-  // why purge exists.
-  //
-  // `purge=true` also `rm -rf`'s the workspace folder. Refused for
-  // arbitrary-path workspaces (registered via `POST /workspaces` with a
-  // custom rootPath) since we shouldn't nuke directories Braid didn't
-  // create. The user can rm those manually if they want.
+  // `purge=true` rm -rf's the folder; without it discoverCanonicalWorkspaces re-registers on next boot.
   router.delete('/:workspaceId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const purge = context.req.query('purge') === 'true'
     const workspace = await deps.workspaceService.findById(workspaceId)
-    if (purge && !isUnder(workspace.rootPath, deps.workspacesRoot)) {
-      throw new ValidationError(
-        `Refusing to purge workspace "${workspaceId}": its rootPath "${workspace.rootPath}" `
-        + `lives outside the canonical workspaces root. Unregister without purge and remove the directory manually.`,
-      )
-    }
     await deps.workspaceService.remove(workspace.rootPath)
     if (purge)
       await rm(workspace.rootPath, { recursive: true, force: true })

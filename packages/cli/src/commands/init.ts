@@ -12,10 +12,9 @@ export interface InitCommandInput {
 
 /**
  * Scaffold a new workspace at `dir`. Writes PRODUCT.md, .gitignore, and
- * an empty `intent/` so the new directory is immediately registerable
- * via `braid workspace add`. Intentionally does not talk to a running
- * server: a workspace is just a directory with a PRODUCT.md, so init
- * should work offline. Registration is a separate step.
+ * an empty `intent/` so the directory has the shape of a Braid workspace.
+ * Does not register with a running server (registration is a Studio
+ * Wizard flow), so this is mostly useful for inspecting the template.
  */
 export async function initCommand(input: InitCommandInput): Promise<void> {
   const absoluteDir = resolve(process.cwd(), input.dir)
@@ -32,11 +31,7 @@ export async function initCommand(input: InitCommandInput): Promise<void> {
   await writeFile(productPath, renderProductManifest({ name: workspaceName, ontologyId: input.ontologyId }), 'utf-8')
   await writeFile(`${absoluteDir}/.gitignore`, renderGitignore(), 'utf-8')
 
-  process.stdout.write(`${pc.green('✓')} Created Braid workspace at ${pc.cyan(absoluteDir)}\n`)
-  process.stdout.write(`\nNext steps:\n`)
-  process.stdout.write(`  cd ${input.dir}\n`)
-  process.stdout.write(`  braid dev                          # start server + Studio\n`)
-  process.stdout.write(`  braid workspace add ${pc.dim('"$(pwd)"')}     # register this workspace\n`)
+  process.stdout.write(`${pc.green('✓')} Created Braid workspace template at ${pc.cyan(absoluteDir)}\n`)
 }
 
 async function fileExists(path: string): Promise<boolean> {
@@ -114,17 +109,7 @@ sources:
 
 ## Next
 
-Boot the server and Studio:
-
-\`\`\`bash
-braid dev
-\`\`\`
-
-Then in another terminal:
-
-\`\`\`bash
-braid workspace add "$(pwd)"
-\`\`\`
+Open Studio and create a workspace via the Wizard.
 `
 }
 
