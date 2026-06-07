@@ -14,6 +14,7 @@ import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
+import { WorkspaceDescriptionField } from './WorkspaceDescriptionField'
 
 type StepKey = 'basics' | 'sources' | 'mcp' | 'advanced' | 'confirm' | 'progress'
 
@@ -289,15 +290,7 @@ function BasicsStep({ name, description, onName, onDescription }: {
           <p className="text-[11px] text-destructive">Name must start with a letter or digit and use only lowercase letters, digits, or dashes.</p>
         )}
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="ws-desc">Description (optional)</Label>
-        <Input
-          id="ws-desc"
-          placeholder="One-line description"
-          value={description}
-          onChange={e => onDescription(e.target.value)}
-        />
-      </div>
+      <WorkspaceDescriptionField id="ws-desc" value={description} onChange={onDescription} />
     </div>
   )
 }

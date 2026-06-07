@@ -13,6 +13,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from './ui/sheet'
+import { WorkspaceDescriptionField } from './WorkspaceDescriptionField'
 import { WorkspaceSkillPermissions } from './WorkspaceSkillPermissions'
 
 interface WorkspaceDetailsSheetProps {
@@ -168,10 +169,7 @@ function RenameSection({ workspace, onRenamed }: { workspace: Workspace, onRenam
         <Label htmlFor="rename">Name</Label>
         <Input id="rename" value={name} onChange={e => setName(e.target.value)} />
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="desc">Description</Label>
-        <Input id="desc" value={description} onChange={e => setDescription(e.target.value)} placeholder="(optional)" />
-      </div>
+      <WorkspaceDescriptionField id="desc" value={description} onChange={setDescription} />
       {patch.error && <p className="text-[11px] text-destructive">{humaniseApiError(patch.error)}</p>}
       <div className="flex justify-end">
         <Button size="sm" disabled={!dirty || patch.isPending} onClick={() => patch.mutate()}>
