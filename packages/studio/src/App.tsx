@@ -316,7 +316,7 @@ function WorkspaceHeader({ workspaceId, activeSurface, onOpenDetails }: {
           : (
               <>
                 <span className="text-muted-foreground">Workspace</span>
-                <span className="text-muted-foreground/60">(none registered)</span>
+                <span className="text-muted-foreground/60">(None Registered)</span>
               </>
             )}
       </div>

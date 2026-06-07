@@ -262,7 +262,7 @@ function AddRemoteForm() {
         <Label htmlFor="add-remote-name" className="text-xs">Name (optional)</Label>
         <Input
           id="add-remote-name"
-          placeholder="defaults to the host"
+          placeholder="Defaults to the host"
           value={name}
           onChange={e => setName(e.target.value)}
         />

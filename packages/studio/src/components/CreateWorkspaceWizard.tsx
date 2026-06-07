@@ -428,18 +428,18 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
         {draft.loaderKind === 'gdrive' && (
           <>
             <Input
-              placeholder="Google Drive folder ID"
+              placeholder="Google Drive Folder ID"
               value={draft.gdriveFolderId}
               onChange={e => onUpdate({ gdriveFolderId: e.target.value })}
             />
             <div className="grid grid-cols-2 gap-2">
               <Input
-                placeholder="include regex (optional, e.g. ^docs/)"
+                placeholder="Include regex (optional, e.g. ^docs/)"
                 value={draft.gdriveInclude}
                 onChange={e => onUpdate({ gdriveInclude: e.target.value })}
               />
               <Input
-                placeholder="exclude regex (optional)"
+                placeholder="Exclude regex (optional)"
                 value={draft.gdriveExclude}
                 onChange={e => onUpdate({ gdriveExclude: e.target.value })}
               />
@@ -533,7 +533,7 @@ function McpStep({ servers, onChange }: {
           <div key={server.uiId} className="space-y-2 rounded-md border border-border p-3">
             <div className="flex gap-2">
               <Input
-                placeholder="server id (e.g. linear)"
+                placeholder="Server ID (e.g. linear)"
                 value={server.id}
                 onChange={e => update(server.uiId, { id: e.target.value })}
                 className="w-40"
