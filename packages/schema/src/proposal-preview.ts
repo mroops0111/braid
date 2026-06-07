@@ -3,6 +3,13 @@ import type { ChangeKind } from './history.js'
 import type { GraphEdge, GraphNode, ModelSnapshot, NewGraphEdge, NewGraphNode } from './model.js'
 import type { GraphOperation } from './proposal.js'
 
+// schema runs in both Node and browser, so reach for the Web Crypto
+// global rather than `node:crypto`. TS 6 dropped the implicit global,
+// so we narrow `globalThis` ourselves.
+function randomUUID(): string {
+  return (globalThis as unknown as { crypto: { randomUUID: () => string } }).crypto.randomUUID()
+}
+
 export interface ProposalDiff {
   readonly nodes: ReadonlyMap<NodeId, ChangeKind>
   readonly edges: ReadonlyMap<EdgeId, ChangeKind>
@@ -147,7 +154,7 @@ function applyPatch<T extends { id: unknown }>(existing: T, patch: Record<string
 
 function materializeNode(payload: NewGraphNode): GraphNode {
   const node: GraphNode = {
-    id: (payload.id ?? `preview:${crypto.randomUUID()}`) as NodeId,
+    id: (payload.id ?? `preview:${randomUUID()}`) as NodeId,
     type: payload.type,
     name: payload.name,
     status: payload.status,
@@ -162,7 +169,7 @@ function materializeNode(payload: NewGraphNode): GraphNode {
 
 function materializeEdge(payload: NewGraphEdge): GraphEdge {
   return {
-    id: (payload.id ?? `preview:${crypto.randomUUID()}`) as EdgeId,
+    id: (payload.id ?? `preview:${randomUUID()}`) as EdgeId,
     type: payload.type,
     fromNodeId: payload.fromNodeId,
     toNodeId: payload.toNodeId,

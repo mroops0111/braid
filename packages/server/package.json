@@ -43,7 +43,7 @@
     "@braidhq/test-utils": "workspace:*",
     "esbuild": "^0.28.0",
     "tsx": "^4.22.4",
-    "typescript": "^5.7.0",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.0"
   },
   "publishConfig": {
