@@ -256,6 +256,16 @@ export const api = {
     fetchJson<{ workspace: Workspace }>(`/workspaces/${workspaceId}/sources/${sourceId}`, { method: 'DELETE' }),
   syncSource: (workspaceId: string, sourceId: string) =>
     fetchJson<IngestSummary>(`/workspaces/${workspaceId}/sources/${sourceId}/sync`, { method: 'POST' }),
+  patchSource: (workspaceId: string, sourceId: string, patch: { description?: string }) =>
+    fetchJson<{ workspace: Workspace }>(`/workspaces/${workspaceId}/sources/${sourceId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
+  patchMcpServer: (workspaceId: string, mcpServerId: string, patch: { description?: string }) =>
+    fetchJson<{ workspace: Workspace }>(`/workspaces/${workspaceId}/mcpServers/${mcpServerId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
 
   startGoogleOAuth: (workspaceId: string, sourceId: string) =>
     fetchJson<{ authorizationUrl: string }>('/oauth/google/start', {

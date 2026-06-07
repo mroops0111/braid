@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 import { humaniseApiError } from '@/lib/errors'
 import { nameToId, rolePathSegment, toSourceDescriptor } from '@/lib/sourceDraft'
 import { useGoogleOAuth } from '@/lib/useGoogleOAuth'
+import { MarkdownDescriptionField } from './MarkdownDescriptionField'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
@@ -19,6 +20,7 @@ interface AddSourceDialogProps {
 export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: AddSourceDialogProps) {
   const [role, setRole] = useState<'intent' | 'code'>('intent')
   const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
   const [loaderKind, setLoaderKind] = useState<'' | 'git' | 'gdrive'>(role === 'intent' ? 'gdrive' : 'git')
   const [gitUrl, setGitUrl] = useState('')
   const [gitBranch, setGitBranch] = useState('master')
@@ -49,7 +51,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
 
   const add = useMutation({
     mutationFn: () => {
-      const source = toSourceDescriptor({ role, name, loaderKind, gitUrl, gitBranch, gdriveFolderId, gdriveInclude, gdriveExclude })
+      const source = toSourceDescriptor({ role, name, description, loaderKind, gitUrl, gitBranch, gdriveFolderId, gdriveInclude, gdriveExclude })
       return api.addSource(workspaceId, source)
     },
     onSuccess: () => {
@@ -61,6 +63,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
 
   function reset() {
     setName('')
+    setDescription('')
     setLoaderKind(role === 'intent' ? 'gdrive' : 'git')
     setGitUrl('')
     setGitBranch('master')
@@ -119,6 +122,17 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
               {nameToId(name) || '<name>'}
             </p>
           </Field>
+          <MarkdownDescriptionField
+            id="add-source-desc"
+            value={description}
+            onChange={setDescription}
+            label="What is this source?"
+            placeholder={role === 'intent'
+              ? 'e.g. Authoritative billing RFC; updated weekly by design team.'
+              : 'e.g. Legacy Java monolith; read-only reference.'}
+            helperText="Visible to skills via PRODUCT.md."
+            rows={2}
+          />
           {loaderKind === 'git' && (
             <div className="flex items-end gap-2">
               <Field label="Git URL" className="flex-1">

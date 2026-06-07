@@ -9,11 +9,11 @@ import { queryKeys, useMe, useUsers, useWorkspaceMembers } from '@/lib/queries'
 import { useWorkspacePolicy } from '@/policy'
 import { AddSourceDialog } from './AddSourceDialog'
 import { ArmedConfirmBar } from './ArmedConfirmBar'
+import { MarkdownDescriptionField } from './MarkdownDescriptionField'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from './ui/sheet'
-import { WorkspaceDescriptionField } from './WorkspaceDescriptionField'
 import { WorkspaceSkillPermissions } from './WorkspaceSkillPermissions'
 
 interface WorkspaceDetailsSheetProps {
@@ -99,7 +99,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
             : (
                 <ul className="mt-2 space-y-1.5">
                   {workspace.productManifest.mcpServers.map(server => (
-                    <McpRow key={server.id} server={server} />
+                    <McpRow key={server.id} workspaceId={workspaceId} server={server} onChange={invalidate} />
                   ))}
                 </ul>
               )}
@@ -169,7 +169,12 @@ function RenameSection({ workspace, onRenamed }: { workspace: Workspace, onRenam
         <Label htmlFor="rename">Name</Label>
         <Input id="rename" value={name} onChange={e => setName(e.target.value)} />
       </div>
-      <WorkspaceDescriptionField id="desc" value={description} onChange={setDescription} />
+      <MarkdownDescriptionField
+        id="desc"
+        value={description}
+        onChange={setDescription}
+        placeholder="What is this workspace about? Markdown supported."
+      />
       {patch.error && <p className="text-[11px] text-destructive">{humaniseApiError(patch.error)}</p>}
       <div className="flex justify-end">
         <Button size="sm" disabled={!dirty || patch.isPending} onClick={() => patch.mutate()}>
@@ -185,6 +190,8 @@ function SourceRow({ workspaceId, source, onChange }: {
   source: SourceDescriptor
   onChange: () => void
 }) {
+  const [editingDescription, setEditingDescription] = useState(false)
+  const [draftDescription, setDraftDescription] = useState(source.description ?? '')
   const sync = useMutation({
     mutationFn: () => api.syncSource(workspaceId, source.id),
     onSuccess: onChange,
@@ -192,6 +199,13 @@ function SourceRow({ workspaceId, source, onChange }: {
   const remove = useMutation({
     mutationFn: () => api.removeSource(workspaceId, source.id),
     onSuccess: onChange,
+  })
+  const patch = useMutation({
+    mutationFn: () => api.patchSource(workspaceId, source.id, { description: draftDescription }),
+    onSuccess: () => {
+      setEditingDescription(false)
+      onChange()
+    },
   })
 
   const loaderKind = source.kind === 'filesystem' ? (source.loader?.kind ?? 'manual') : null
@@ -221,6 +235,25 @@ function SourceRow({ workspaceId, source, onChange }: {
         </div>
       </div>
       <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">{detail}</p>
+      <InlineDescriptionEditor
+        idPrefix={`src-${source.id}`}
+        stored={source.description}
+        draft={draftDescription}
+        onDraftChange={setDraftDescription}
+        editing={editingDescription}
+        onEdit={() => {
+          setDraftDescription(source.description ?? '')
+          setEditingDescription(true)
+        }}
+        onCancel={() => {
+          setEditingDescription(false)
+          setDraftDescription(source.description ?? '')
+        }}
+        onSave={() => patch.mutate()}
+        saving={patch.isPending}
+        error={patch.error}
+        emptyHint="Add description"
+      />
       {sync.data && (
         <p className="mt-1 text-[10px] text-muted-foreground">
           <SyncSummary report={sync.data} />
@@ -251,7 +284,20 @@ function SyncSummary({ report }: { report: { changed: boolean, added?: number, u
   return <span className="font-mono">{parts.length === 0 ? 'no change' : parts.join(' ')}</span>
 }
 
-function McpRow({ server }: { server: McpServerConfig }) {
+function McpRow({ workspaceId, server, onChange }: {
+  workspaceId: string
+  server: McpServerConfig
+  onChange: () => void
+}) {
+  const [editingDescription, setEditingDescription] = useState(false)
+  const [draftDescription, setDraftDescription] = useState(server.description ?? '')
+  const patch = useMutation({
+    mutationFn: () => api.patchMcpServer(workspaceId, server.id, { description: draftDescription }),
+    onSuccess: () => {
+      setEditingDescription(false)
+      onChange()
+    },
+  })
   return (
     <li className="rounded-md border border-border p-2">
       <div className="flex items-center gap-2">
@@ -261,7 +307,91 @@ function McpRow({ server }: { server: McpServerConfig }) {
       <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
         {server.transport === 'stdio' ? `${server.command}${server.args ? ` ${server.args.join(' ')}` : ''}` : server.url}
       </p>
+      <InlineDescriptionEditor
+        idPrefix={`mcp-${server.id}`}
+        stored={server.description}
+        draft={draftDescription}
+        onDraftChange={setDraftDescription}
+        editing={editingDescription}
+        onEdit={() => {
+          setDraftDescription(server.description ?? '')
+          setEditingDescription(true)
+        }}
+        onCancel={() => {
+          setEditingDescription(false)
+          setDraftDescription(server.description ?? '')
+        }}
+        onSave={() => patch.mutate()}
+        saving={patch.isPending}
+        error={patch.error}
+        emptyHint="Add description"
+      />
     </li>
+  )
+}
+
+function InlineDescriptionEditor({
+  idPrefix,
+  stored,
+  draft,
+  onDraftChange,
+  editing,
+  onEdit,
+  onCancel,
+  onSave,
+  saving,
+  error,
+  emptyHint,
+}: {
+  idPrefix: string
+  stored: string | undefined
+  draft: string
+  onDraftChange: (next: string) => void
+  editing: boolean
+  onEdit: () => void
+  onCancel: () => void
+  onSave: () => void
+  saving: boolean
+  error: unknown
+  emptyHint: string
+}) {
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={onEdit}
+        className="mt-1 w-full rounded text-left text-[11px] text-muted-foreground/90 hover:bg-accent/40"
+      >
+        {stored
+          ? <span className="block whitespace-pre-wrap py-0.5">{stored}</span>
+          : <span className="block py-0.5 italic text-muted-foreground/60">{emptyHint}</span>}
+      </button>
+    )
+  }
+  const dirty = draft !== (stored ?? '')
+  return (
+    <div className="mt-1 space-y-1.5">
+      <MarkdownDescriptionField
+        id={`${idPrefix}-desc`}
+        value={draft}
+        onChange={onDraftChange}
+        label=""
+        helperText=""
+        placeholder="Markdown supported."
+        rows={2}
+      />
+      {error !== null && error !== undefined && (
+        <p className="text-[10px] text-destructive">{humaniseApiError(error)}</p>
+      )}
+      <div className="flex justify-end gap-1.5">
+        <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={onCancel} disabled={saving}>
+          Cancel
+        </Button>
+        <Button size="sm" className="h-7 text-[11px]" onClick={onSave} disabled={!dirty || saving}>
+          {saving ? 'Saving…' : 'Save'}
+        </Button>
+      </div>
+    </div>
   )
 }
 
@@ -282,6 +412,35 @@ function SkillPermissionsForOwners({ workspaceId }: { workspaceId: string }) {
   if (!policy.can('workspace.write'))
     return null
   return <WorkspaceSkillPermissions workspaceId={workspaceId} />
+}
+
+const MEMBER_ROLE_RANK: Record<WorkspaceRole, number> = {
+  owner: 0,
+  maintainer: 1,
+  guest: 2,
+}
+
+/**
+ * Same ordering as the Admin Console's user list: self pinned at the
+ * top, then by rank within scope (workspace role here, server role
+ * there), then by display name for a predictable scan.
+ */
+function sortMembers(
+  members: readonly WorkspaceMember[],
+  myId: string | undefined,
+  displayNameFor: (userId: string) => string,
+): WorkspaceMember[] {
+  return [...members].sort((a, b) => {
+    if (myId) {
+      if (a.userId === myId)
+        return -1
+      if (b.userId === myId)
+        return 1
+    }
+    if (a.role !== b.role)
+      return MEMBER_ROLE_RANK[a.role] - MEMBER_ROLE_RANK[b.role]
+    return displayNameFor(a.userId).localeCompare(displayNameFor(b.userId))
+  })
 }
 
 function MembersSection({ workspaceId }: { workspaceId: string }) {
@@ -315,15 +474,20 @@ function MembersSection({ workspaceId }: { workspaceId: string }) {
 
   const memberIds = new Set(members?.items.map(m => m.userId) ?? [])
   const candidates = (allUsers?.items ?? []).filter(u => !memberIds.has(u.id))
+  const sortedMembers = sortMembers(
+    members?.items ?? [],
+    me?.id,
+    userId => allUsers?.items.find(u => u.id === userId)?.displayName ?? userId,
+  )
 
   return (
     <section>
       <SectionHeader title="Members" />
-      {members?.items.length === 0
+      {sortedMembers.length === 0
         ? <p className="mt-2 text-[11px] text-muted-foreground">Nobody listed yet.</p>
         : (
             <ul className="mt-2 space-y-1.5">
-              {members?.items.map(member => (
+              {sortedMembers.map(member => (
                 <MemberRow
                   key={member.userId}
                   member={member}

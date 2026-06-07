@@ -10,6 +10,7 @@ import {
   AbsolutePath,
   AgentRoutingConfig,
   McpServerConfig,
+  McpServerId,
   OntologyId,
   ProductManifestDraft,
   SourceDescriptor as SourceDescriptorSchema,
@@ -49,6 +50,16 @@ const PatchWorkspaceBodySchema = z.object({
   storage: StorageDescriptor.optional(),
   agents: AgentRoutingConfig.optional(),
   mcpServers: z.array(McpServerConfig).optional(),
+}).refine(body => Object.keys(body).length > 0, { message: 'PATCH body must contain at least one field' })
+
+// Per-item PATCH bodies. Empty string for `description` is the explicit
+// "clear it" signal; absent means leave as-is.
+const PatchSourceBodySchema = z.object({
+  description: z.string().optional(),
+}).refine(body => Object.keys(body).length > 0, { message: 'PATCH body must contain at least one field' })
+
+const PatchMcpServerBodySchema = z.object({
+  description: z.string().optional(),
 }).refine(body => Object.keys(body).length > 0, { message: 'PATCH body must contain at least one field' })
 
 export interface WorkspacesRouterDeps {
@@ -220,6 +231,53 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     return context.json({ workspace: updated.toData(), filesRemoved })
   })
 
+  // Edit a source's editable metadata (description for now). Structural
+  // fields (id, kind, path, role) are immutable to keep cross-references
+  // and on-disk layout stable; rename / loader-change flows would need
+  // their own migration story.
+  router.patch('/:workspaceId/sources/:sourceId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), zValidator('json', PatchSourceBodySchema), async (context) => {
+    const workspaceId = getWorkspaceId(context)
+    const sourceId = SourceId.parse(context.req.param('sourceId'))
+    const patch = context.req.valid('json')
+    const workspace = await deps.workspaceService.findById(workspaceId)
+    const existing = workspace.sources.find(entry => entry.id === sourceId)
+    if (!existing)
+      throw new NotFoundError(`Source "${sourceId}" not found in workspace "${workspaceId}"`)
+
+    const patched: SourceDescriptor = patch.description === ''
+      ? stripField(existing, 'description')
+      : { ...existing, ...(patch.description !== undefined ? { description: patch.description } : {}) }
+    const nextManifest = withSources(workspace.productManifest, workspace.sources.map(s => (s.id === sourceId ? patched : s)))
+    await updateProductManifest(workspace.rootPath, nextManifest)
+    const updated = await reload(deps.workspaceService, workspace.rootPath)
+    return context.json({ workspace: updated.toData() })
+  })
+
+  // Edit an MCP server's editable metadata. URL / transport / headers
+  // stay editable via the workspace-level PATCH which expects the whole
+  // mcpServers[] array; this endpoint is specifically for the per-server
+  // description field so Studio doesn't need to send the whole list.
+  router.patch('/:workspaceId/mcpServers/:mcpServerId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), zValidator('json', PatchMcpServerBodySchema), async (context) => {
+    const workspaceId = getWorkspaceId(context)
+    const mcpServerId = McpServerId.parse(context.req.param('mcpServerId'))
+    const patch = context.req.valid('json')
+    const workspace = await deps.workspaceService.findById(workspaceId)
+    const existing = workspace.productManifest.mcpServers.find(s => s.id === mcpServerId)
+    if (!existing)
+      throw new NotFoundError(`MCP server "${mcpServerId}" not found in workspace "${workspaceId}"`)
+
+    const patched = patch.description === ''
+      ? stripField(existing, 'description')
+      : { ...existing, ...(patch.description !== undefined ? { description: patch.description } : {}) }
+    const nextManifest: ProductManifest = {
+      ...workspace.productManifest,
+      mcpServers: workspace.productManifest.mcpServers.map(s => (s.id === mcpServerId ? patched : s)),
+    }
+    await updateProductManifest(workspace.rootPath, nextManifest)
+    const updated = await reload(deps.workspaceService, workspace.rootPath)
+    return context.json({ workspace: updated.toData() })
+  })
+
   // Per-source sync. Looks up the source's loader and invokes `sync` (or
   // falls back to `ingest` if the destination doesn't exist yet).
   router.post('/:workspaceId/sources/:sourceId/sync', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), async (context) => {
@@ -297,6 +355,16 @@ interface IngestSummary {
 
 function withSources(manifest: ProductManifest, sources: readonly SourceDescriptor[]): ProductManifest {
   return { ...manifest, sources: [...sources] }
+}
+
+/**
+ * Returns a copy of `entry` without the named optional field. Used to
+ * honour the explicit "clear" signal in PATCH bodies (description='').
+ */
+function stripField<T extends Record<string, unknown>, K extends keyof T>(entry: T, field: K): T {
+  const next = { ...entry }
+  delete next[field]
+  return next
 }
 
 async function reload(workspaceService: WorkspaceService, rootPath: AbsolutePath): Promise<Workspace> {

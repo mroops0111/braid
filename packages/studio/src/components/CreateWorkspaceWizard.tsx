@@ -10,11 +10,11 @@ import { type ErrorCase, humaniseApiError } from '@/lib/errors'
 import { queryKeys } from '@/lib/queries'
 import { nameToId, rolePathSegment, toSourceDescriptor } from '@/lib/sourceDraft'
 import { useGoogleOAuth } from '@/lib/useGoogleOAuth'
+import { MarkdownDescriptionField } from './MarkdownDescriptionField'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
-import { WorkspaceDescriptionField } from './WorkspaceDescriptionField'
 
 type StepKey = 'basics' | 'sources' | 'mcp' | 'advanced' | 'confirm' | 'progress'
 
@@ -24,6 +24,7 @@ interface McpDraft {
   uiId: string
   id: string
   url: string
+  description: string
   /* headers as raw "Key: Value" lines */
   headersText: string
 }
@@ -45,7 +46,7 @@ const STEP_ORDER: StepKey[] = ['basics', 'sources', 'mcp', 'advanced', 'confirm'
 const STEP_LABELS: Record<StepKey, string> = {
   basics: 'Basics',
   sources: 'Sources',
-  mcp: 'MCP',
+  mcp: 'MCP Servers',
   advanced: 'Advanced',
   confirm: 'Review',
   progress: 'Creating',
@@ -124,7 +125,7 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
         }
       }}
     >
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="sm:max-w-[720px]">
         <DialogHeader>
           <DialogTitle>Create Workspace</DialogTitle>
           <DialogDescription>
@@ -290,7 +291,12 @@ function BasicsStep({ name, description, onName, onDescription }: {
           <p className="text-[11px] text-destructive">Name must start with a letter or digit and use only lowercase letters, digits, or dashes.</p>
         )}
       </div>
-      <WorkspaceDescriptionField id="ws-desc" value={description} onChange={onDescription} />
+      <MarkdownDescriptionField
+        id="ws-desc"
+        value={description}
+        onChange={onDescription}
+        placeholder="What is this workspace about? Markdown supported."
+      />
     </div>
   )
 }
@@ -389,6 +395,18 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
       </div>
 
       <p className="font-mono text-[10px] text-muted-foreground">{targetPath}</p>
+
+      <MarkdownDescriptionField
+        id={`src-desc-${draft.uiId}`}
+        value={draft.description}
+        onChange={next => onUpdate({ description: next })}
+        label="What is this source?"
+        placeholder={draft.role === 'intent'
+          ? 'e.g. Authoritative billing RFC; updated weekly by design team.'
+          : 'e.g. Legacy Java monolith; read-only reference.'}
+        helperText="Visible to skills via PRODUCT.md."
+        rows={2}
+      />
 
       <div className="space-y-2">
         {draft.loaderKind === 'git' && (
@@ -489,7 +507,7 @@ function McpStep({ servers, onChange }: {
   onChange: (servers: McpDraft[]) => void
 }) {
   function add() {
-    onChange([...servers, { uiId: crypto.randomUUID(), id: '', url: '', headersText: '' }])
+    onChange([...servers, { uiId: crypto.randomUUID(), id: '', url: '', description: '', headersText: '' }])
   }
   function update(uiId: string, patch: Partial<McpDraft>) {
     onChange(servers.map(s => (s.uiId === uiId ? { ...s, ...patch } : s)))
@@ -530,6 +548,15 @@ function McpStep({ servers, onChange }: {
                 <Trash2 />
               </Button>
             </div>
+            <MarkdownDescriptionField
+              id={`mcp-desc-${server.uiId}`}
+              value={server.description}
+              onChange={next => update(server.uiId, { description: next })}
+              label="What does this MCP serve?"
+              placeholder="e.g. Linear, source of truth for tickets."
+              helperText="Visible to skills via PRODUCT.md."
+              rows={2}
+            />
             <textarea
               // eslint-disable-next-line no-template-curly-in-string
               placeholder={'Authorization: Bearer ${LINEAR_TOKEN}\nX-Workspace-Id: ${WORKSPACE_ID}'}
@@ -782,6 +809,7 @@ function defaultSourceDraft(role: 'intent' | 'code'): SourceDraft {
     uiId: crypto.randomUUID(),
     role,
     name: '',
+    description: '',
     loaderKind: role === 'intent' ? 'gdrive' : 'git',
     gitUrl: '',
     gitBranch: 'master',
@@ -827,5 +855,6 @@ function toMcpServerConfig(draft: McpDraft): McpServerConfig {
     transport: 'streamable-http',
     url: draft.url,
     ...(Object.keys(headers).length > 0 ? { headers } : {}),
+    ...(draft.description ? { description: draft.description } : {}),
   }
 }

@@ -4,6 +4,7 @@ import { nameToId, type SourceDraft, toSourceDescriptor } from '../../src/lib/so
 const blank: SourceDraft = {
   role: 'intent',
   name: '',
+  description: '',
   loaderKind: '',
   gitUrl: '',
   gitBranch: '',
