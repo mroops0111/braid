@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
+import { getToken as readToken, setToken as writeToken } from './tokenStore'
 
 /**
  * Storage layout (localStorage, per-origin):
  *   braid:remotes         RemoteServer[]   saved remote entries
  *   braid:activeRemoteId  string           which remote is current
- *   braid:tokens          { [id]: token }  per-remote Bearer tokens
  *
- * `LOCAL_REMOTE_ID` is synthesised on read, never stored, so the user
- * can't delete the embedded sidecar entry by accident.
+ * Per-remote Bearer tokens live in `tokenStore` (localStorage on web,
+ * OS keyring on Tauri). `LOCAL_REMOTE_ID` is synthesised on read,
+ * never stored, so the user can't delete the embedded sidecar entry.
  */
 export interface RemoteServer {
   id: string
@@ -18,7 +19,6 @@ export interface RemoteServer {
 
 const KEY_REMOTES = 'braid:remotes'
 const KEY_ACTIVE = 'braid:activeRemoteId'
-const KEY_TOKENS = 'braid:tokens'
 const LEGACY_SERVER_URL = 'braid:serverUrl'
 const LEGACY_AUTH_TOKEN = 'braid:authToken'
 
@@ -64,12 +64,9 @@ function maybeMigrateLegacy(): void {
   if (typeof localStorage === 'undefined' || legacyMigrationDone)
     return
   legacyMigrationDone = true
-  const tokens = readJson<Record<string, string>>(KEY_TOKENS, {})
   const legacyToken = localStorage.getItem(LEGACY_AUTH_TOKEN)
-  if (legacyToken && !tokens[LOCAL_REMOTE_ID]) {
-    tokens[LOCAL_REMOTE_ID] = legacyToken
-    writeJson(KEY_TOKENS, tokens)
-  }
+  if (legacyToken && readToken(LOCAL_REMOTE_ID) == null)
+    writeToken(LOCAL_REMOTE_ID, legacyToken)
   const remotes = readJson<RemoteServer[]>(KEY_REMOTES, [])
   const legacyUrl = localStorage.getItem(LEGACY_SERVER_URL)
   if (legacyUrl && remotes.length === 0) {
@@ -81,10 +78,8 @@ function maybeMigrateLegacy(): void {
       addedAt: new Date().toISOString(),
     }
     writeJson(KEY_REMOTES, [migrated])
-    if (legacyToken) {
-      tokens[id] = legacyToken
-      writeJson(KEY_TOKENS, tokens)
-    }
+    if (legacyToken)
+      writeToken(id, legacyToken)
     localStorage.setItem(KEY_ACTIVE, id)
   }
 }
@@ -126,9 +121,7 @@ export function removeRemote(id: string): void {
     return
   const remotes = listRemotes().filter(r => r.id !== id)
   writeJson(KEY_REMOTES, remotes)
-  const tokens = readJson<Record<string, string>>(KEY_TOKENS, {})
-  delete tokens[id]
-  writeJson(KEY_TOKENS, tokens)
+  writeToken(id, null)
   if (getActiveRemoteId() === id)
     setActiveRemoteId(LOCAL_REMOTE_ID)
   emitChange()
@@ -136,18 +129,17 @@ export function removeRemote(id: string): void {
 
 export function getTokenFor(remoteId: string): string | null {
   maybeMigrateLegacy()
-  const tokens = readJson<Record<string, string>>(KEY_TOKENS, {})
-  return tokens[remoteId] ?? null
+  return readToken(remoteId)
 }
 
 export function setTokenFor(remoteId: string, token: string | null): void {
-  const tokens = readJson<Record<string, string>>(KEY_TOKENS, {})
-  if (token && token.length > 0)
-    tokens[remoteId] = token
-  else
-    delete tokens[remoteId]
-  writeJson(KEY_TOKENS, tokens)
+  writeToken(remoteId, token)
   emitChange()
+}
+
+export function listAllRemoteIds(): string[] {
+  const remotes = readJson<RemoteServer[]>(KEY_REMOTES, [])
+  return [LOCAL_REMOTE_ID, ...remotes.map(r => r.id)]
 }
 
 export function useRemotes(): RemoteServer[] {

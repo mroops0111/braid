@@ -1,3 +1,5 @@
+mod keyring;
+
 use std::net::TcpListener;
 use std::sync::Mutex;
 
@@ -117,7 +119,12 @@ pub fn run() {
         )
         .plugin(tauri_plugin_shell::init())
         .manage(EmbeddedServer::default())
-        .invoke_handler(tauri::generate_handler![get_server_info])
+        .invoke_handler(tauri::generate_handler![
+            get_server_info,
+            keyring::keyring_get_token,
+            keyring::keyring_set_token,
+            keyring::keyring_delete_token,
+        ])
         .setup(|app| {
             let handle = app.handle().clone();
             if let Err(err) = start_embedded_server(&handle) {
