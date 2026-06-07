@@ -190,6 +190,7 @@ function AppInner() {
                 activeSurface={activeSurface}
                 onSelectWorkspace={setActiveId}
                 onSelectSurface={setActiveSurface}
+                onOpenWorkspaceDetails={() => activeId && openDetails(activeId)}
               />
               <WorkspaceDetailsSheet
                 workspaceId={detailsId}
@@ -298,7 +299,7 @@ function WorkspaceHeader({ workspaceId, activeSurface, onOpenDetails }: {
                 <button
                   type="button"
                   onClick={onOpenDetails}
-                  title="Workspace settings"
+                  title="Workspace settings (G W)"
                   className="group flex h-7 items-center gap-1.5 rounded-md border border-transparent px-2 font-mono text-foreground transition-colors hover:border-border hover:bg-accent"
                 >
                   <span>{workspaceId}</span>

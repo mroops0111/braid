@@ -316,6 +316,7 @@ function HereSection({
           icon={Network}
           label="Graph"
           active={activeSurface === null}
+          shortcut="G G"
           onClick={onGoHome}
         />
         {canRunActions && (
@@ -324,6 +325,7 @@ function HereSection({
             icon={Sparkles}
             label="Actions"
             active={activeSurface === 'actions'}
+            shortcut="G A"
             onClick={() => onSelectSurface('actions')}
           />
         )}
@@ -334,6 +336,7 @@ function HereSection({
             label="Clarify"
             active={activeSurface === 'clarify'}
             count={pendingClarify}
+            shortcut="G C"
             onClick={() => onSelectSurface('clarify')}
           />
         )}
@@ -344,6 +347,7 @@ function HereSection({
             label="Proposals"
             active={activeSurface === 'proposals'}
             count={pendingProposals}
+            shortcut="G P"
             onClick={() => onSelectSurface('proposals')}
           />
         )}
@@ -353,6 +357,7 @@ function HereSection({
             icon={GitGraph}
             label="History"
             active={activeSurface === 'history'}
+            shortcut="G H"
             onClick={() => onSelectSurface('history')}
           />
         )}
@@ -378,6 +383,7 @@ function AccountSection({
           icon={Settings}
           label="Settings"
           active={activeSurface === 'settings'}
+          shortcut="G S"
           onClick={() => onSelectSurface('settings')}
         />
       </ul>
@@ -385,12 +391,13 @@ function AccountSection({
   )
 }
 
-function HereRow({ collapsed, icon: Icon, label, active, count = 0, onClick }: {
+function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, onClick }: {
   collapsed: boolean
   icon: typeof Sparkles
   label: string
   active: boolean
   count?: number
+  shortcut?: string
   onClick: () => void
 }) {
   return (
@@ -431,6 +438,14 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, onClick }: {
                 >
                   {count}
                 </span>
+              )}
+              {shortcut && count === 0 && (
+                <kbd
+                  className="rounded bg-sidebar-accent/40 px-1.5 py-0.5 text-[10px] font-mono text-sidebar-foreground/50"
+                  aria-hidden
+                >
+                  {shortcut}
+                </kbd>
               )}
             </>
           )}

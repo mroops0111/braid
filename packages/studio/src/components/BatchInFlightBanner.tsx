@@ -16,7 +16,9 @@ type Mode =
 // Cross-surface entry to the Batch view; hidden on the Batch surface itself and when no plan exists.
 export function BatchInFlightBanner({ workspaceId, onOpenBatch, suppress }: BatchInFlightBannerProps) {
   const { data: plan } = useBatchStatus(workspaceId ?? undefined)
-  if (!plan || suppress || plan.status === 'idle')
+  // `archived` is the user's explicit "I'm done seeing this" signal,
+  // so the banner stays hidden until a new plan kicks off.
+  if (!plan || suppress || plan.status === 'idle' || plan.status === 'archived')
     return null
 
   const completed = plan.units.filter(u => u.status === 'completed').length
