@@ -1,0 +1,7 @@
+export type { Capability } from './Capability.js'
+export { CAPABILITY_IDS } from './Capability.js'
+export type { CapabilityCheck } from './CapabilityCheck.js'
+export { buildDefaultPermissionRegistry, defaultPermissionRegistry } from './defaultRegistry.js'
+export { PermissionRegistry } from './PermissionRegistry.js'
+export { resolveViewer } from './resolveViewer.js'
+export type { ViewerContext, ViewerResource } from './ViewerContext.js'

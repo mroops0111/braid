@@ -4,6 +4,7 @@ import { asAbsolutePath, asLoaderKind, asSourceId } from './brands'
 export interface SourceDraft {
   role: 'intent' | 'code'
   name: string
+  description: string
   loaderKind: '' | 'git' | 'gdrive'
   gitUrl: string
   gitBranch: string
@@ -51,5 +52,6 @@ export function toSourceDescriptor(draft: SourceDraft): SourceDescriptor {
     name: draft.name,
     path,
     ...(loader ? { loader } : {}),
+    ...(draft.description ? { description: draft.description } : {}),
   }
 }

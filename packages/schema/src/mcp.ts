@@ -34,6 +34,11 @@ export const McpStreamableHttpServerConfig = z.object({
    * runner that builds the MCP config file resolves them at write time.
    */
   headers: z.record(z.string()).optional(),
+  /**
+   * Free-form markdown describing what this MCP serves. Read by skills
+   * via PRODUCT.md so the agent knows when to query which MCP.
+   */
+  description: z.string().optional(),
 })
 export type McpStreamableHttpServerConfig = z.infer<typeof McpStreamableHttpServerConfig>
 
@@ -55,6 +60,7 @@ export const McpStdioServerConfig = z.object({
    * same rule as `headers` on the HTTP transport.
    */
   env: z.record(z.string()).optional(),
+  description: z.string().optional(),
 })
 export type McpStdioServerConfig = z.infer<typeof McpStdioServerConfig>
 

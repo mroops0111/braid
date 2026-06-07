@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
 import { queryKeys, useCommitGraphDiff, useHistory, useHistoryCommit, useHistoryTags } from '@/lib/queries'
 import { cn } from '@/lib/utils'
+import { useWorkspacePolicy } from '@/policy'
 
 interface HistoryPageProps {
   workspaceId: string
@@ -208,6 +209,7 @@ function CommitDetail({ workspaceId, sha, tags, onStartCompare }: {
   const { data, isLoading } = useHistoryCommit(workspaceId, sha)
   const [restoreOpen, setRestoreOpen] = useState(false)
   const [tagDialogOpen, setTagDialogOpen] = useState(false)
+  const canWriteHistory = useWorkspacePolicy(workspaceId).can('history.write')
 
   if (isLoading || !data) {
     return <div className="p-4 text-sm text-muted-foreground">Loading commit…</div>
@@ -228,14 +230,18 @@ function CommitDetail({ workspaceId, sha, tags, onStartCompare }: {
             <ArrowLeftRight className="size-3.5" />
             Compare
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setTagDialogOpen(true)}>
-            <Tag className="size-3.5" />
-            Tag
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setRestoreOpen(true)}>
-            <RotateCcw className="size-3.5" />
-            Restore
-          </Button>
+          {canWriteHistory && (
+            <>
+              <Button size="sm" variant="outline" onClick={() => setTagDialogOpen(true)}>
+                <Tag className="size-3.5" />
+                Tag
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setRestoreOpen(true)}>
+                <RotateCcw className="size-3.5" />
+                Restore
+              </Button>
+            </>
+          )}
         </div>
       </header>
       <div className="flex-1 space-y-4 overflow-y-auto p-4 scrollbar-thin">
@@ -639,6 +645,7 @@ function FileDiffRow({ file }: { file: FileDiff }) {
 
 function TagRow({ workspaceId, tag }: { workspaceId: string, tag: TagMeta }) {
   const queryClient = useQueryClient()
+  const canWrite = useWorkspacePolicy(workspaceId).can('history.write')
   const remove = useMutation({
     mutationFn: () => api.deleteHistoryTag(workspaceId, tag.name),
     onSuccess: () => {
@@ -650,15 +657,17 @@ function TagRow({ workspaceId, tag }: { workspaceId: string, tag: TagMeta }) {
       <Tag className="size-3 shrink-0 text-primary" />
       <span className="font-medium text-foreground">{tag.name}</span>
       {tag.note && <span className="truncate text-muted-foreground">{tag.note}</span>}
-      <button
-        type="button"
-        onClick={() => remove.mutate()}
-        disabled={remove.isPending}
-        title="Remove tag"
-        className="ml-auto hidden rounded p-0.5 text-muted-foreground/60 hover:bg-destructive/15 hover:text-destructive group-hover/tag:inline-flex"
-      >
-        <Trash2 className="size-3" />
-      </button>
+      {canWrite && (
+        <button
+          type="button"
+          onClick={() => remove.mutate()}
+          disabled={remove.isPending}
+          title="Remove tag"
+          className="ml-auto hidden rounded p-0.5 text-muted-foreground/60 hover:bg-destructive/15 hover:text-destructive group-hover/tag:inline-flex"
+        >
+          <Trash2 className="size-3" />
+        </button>
+      )}
     </li>
   )
 }
@@ -672,7 +681,7 @@ function RestoreDialog({ open, onOpenChange, workspaceId, sha, subject }: {
 }) {
   const queryClient = useQueryClient()
   const restore = useMutation({
-    mutationFn: () => api.restoreCommit(workspaceId, sha, 'studio-user'),
+    mutationFn: () => api.restoreCommit(workspaceId, sha),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId] })
       onOpenChange(false)

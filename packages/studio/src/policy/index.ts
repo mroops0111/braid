@@ -1,0 +1,8 @@
+export type { Capability } from './Capability'
+export { CAPABILITY_IDS } from './Capability'
+export type { CapabilityCheck } from './CapabilityCheck'
+export { buildDefaultPermissionRegistry, defaultPermissionRegistry } from './defaultRegistry'
+export { PermissionRegistry } from './PermissionRegistry'
+export { resolveViewer } from './resolveViewer'
+export { useWorkspacePolicy, type ViewerPolicy } from './useWorkspacePolicy'
+export type { ViewerContext, ViewerResource } from './ViewerContext'

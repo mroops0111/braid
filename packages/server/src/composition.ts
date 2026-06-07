@@ -10,14 +10,19 @@ import type {
   RunRepository,
   SkillRegistry,
   SkillRunner,
+  UserDirectory,
   WorkspaceBootstrap,
   WorkspaceEventBus,
   WorkspaceHistory,
   WorkspaceRepository,
 } from '@braidhq/core'
 import type { AbsolutePath } from '@braidhq/schema'
+import type { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
+import type { SessionStore } from './infrastructure/auth/SessionStore.js'
+import type { WorkspaceRegistryFile } from './infrastructure/fs/WorkspaceRegistryFile.js'
 import type { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
 import type { SecretStore } from './infrastructure/secrets/SecretStore.js'
+import type { UserRegistryFile } from './infrastructure/users/UserRegistryFile.js'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -71,6 +76,45 @@ export interface AppDependencies {
    *  respond with 503 in that case.
    */
   googleOAuth?: GoogleOAuth
+  /**
+   * Server-side user roster (Phase A scaffolding). When absent the
+   * `/users` route is not mounted; routes that read `c.get('userId')`
+   * still work because `userIdMiddleware` falls back to `local-user`.
+   */
+  userRegistry?: UserRegistryFile
+  /**
+   * Server-side workspace registry — backs the Phase C membership
+   * model. Required to mount `workspaceAccessMiddleware` and the
+   * `/workspaces/:id/members` routes; absent in pure in-memory tests
+   * that don't need member-gating.
+   */
+  workspaceRegistry?: WorkspaceRegistryFile
+  /**
+   * Phase B: Bearer-token session backing. Required to mount `/auth/*`
+   * and the auth middleware. Absent in tests that want the pre-Phase-A
+   * trusted-network shape (no auth gate).
+   */
+  sessionStore?: SessionStore
+  /**
+   * Phase B: Gate-1 allowlist + invite list. Paired with `sessionStore`
+   * to mount `/auth/*`.
+   */
+  accessPolicy?: AccessPolicy
+  /**
+   * Phase B: URL the Studio bundle is served from. OAuth callback
+   * redirects here with `#token=...` so the SPA can capture the
+   * session. Defaults to the Vite dev origin in `composeFsApp`.
+   */
+  studioUrl?: string
+  /**
+   * Phase B: when true (default in tests / local dev where Google
+   * OAuth isn't configured), the auth middleware lets every request
+   * through and `userIdMiddleware`'s fallback (`local-user`) takes
+   * over. composeFs computes this from the presence of Google OAuth
+   * env vars; production remote deployments end up with `false` and
+   * an enforced Bearer-token gate.
+   */
+  localTrust: boolean
   clock: Clock
 }
 
@@ -103,6 +147,12 @@ export interface ComposeOptions {
   bootstrap?: WorkspaceBootstrap
   batchPlanRepository?: BatchPlanRepository
   intentLister?: IntentLister
+  /**
+   * Optional read-only user lookup used by HITLService / HistoryService
+   * to snapshot displayName + email into the git author when committing.
+   * Tests skip this so the existing `Author: <userId>` shape is preserved.
+   */
+  userDirectory?: UserDirectory
 }
 
 export function composeApp(options: ComposeOptions = {}): AppDependencies {
@@ -133,6 +183,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     workspaceLock,
     ...(options.history ? { history: options.history } : {}),
     ...(options.graphSerializer ? { graphSerializer: options.graphSerializer } : {}),
+    ...(options.userDirectory ? { userDirectory: options.userDirectory } : {}),
   })
 
   const historyService = options.history && options.bootstrap
@@ -143,6 +194,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
       bootstrap: options.bootstrap,
       runRepository: options.runRepository ?? noopRunRepository,
       ...(options.skillRunner ? { skillRunner: options.skillRunner } : {}),
+      ...(options.userDirectory ? { userDirectory: options.userDirectory } : {}),
       eventBus,
       clock,
     })
@@ -185,6 +237,11 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     skillRunner: options.skillRunner,
     runRepository: options.runRepository ?? noopRunRepository,
     workspacesRoot: options.workspacesRoot ?? (join(tmpdir(), 'braid-workspaces') as AbsolutePath),
+    // `composeApp` is the test / in-memory composition entry. It never
+    // wires sessionStore, so the auth middleware in `createApp` is
+    // skipped anyway — but explicit `localTrust: true` keeps the
+    // contract honest if a test does happen to pass sessionStore.
+    localTrust: true,
     clock,
   }
 }

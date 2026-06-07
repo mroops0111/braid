@@ -7,6 +7,7 @@ braid:
   category: ask
   summary: Answer questions from the graph, intent docs, and code
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
+  allowed-roles: [owner, maintainer, guest]
   inputs:
     - name: question
       label: Question

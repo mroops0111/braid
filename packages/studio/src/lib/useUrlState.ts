@@ -1,23 +1,40 @@
 import type { Surface } from '@/components/CommandPalette'
 import { useEffect } from 'react'
 
-const SURFACE_VALUES: readonly Surface[] = ['actions', 'batch', 'clarify', 'history', 'proposals']
+const SURFACE_VALUES: readonly Surface[] = ['actions', 'batch', 'clarify', 'history', 'proposals', 'settings']
 
 export interface UrlState {
   readonly workspaceId: string | null
   readonly surface: Surface | null
 }
 
-// Hash-based: #/ws/<id>(/<surface>)?. SPA-friendly and works under the Tauri
-// shell without server-side rewrites.
+/**
+ * Two URL shapes, depending on whether the surface is workspace-scoped:
+ *   #/ws/<id>            — workspace home (Graph)
+ *   #/ws/<id>/<surface>  — Proposals / Clarify / Actions / Batch / History
+ *   #/settings           — account-level Settings (no workspace context)
+ *
+ * Settings sits at the root because it's not workspace-scoped: editing
+ * the server connection list has the same meaning regardless of which
+ * workspace you were last looking at.
+ */
 export function readUrl(): UrlState {
   const hash = typeof window === 'undefined' ? '' : window.location.hash
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean)
-  if (parts.length === 0 || parts[0] !== 'ws')
+  if (parts.length === 0)
+    return { workspaceId: null, surface: null }
+  if (parts[0] === 'settings')
+    return { workspaceId: null, surface: 'settings' }
+  if (parts[0] !== 'ws')
     return { workspaceId: null, surface: null }
   const workspaceId = parts[1] ?? null
   const candidate = parts[2]
-  const surface = candidate && (SURFACE_VALUES as readonly string[]).includes(candidate)
+  // 'settings' isn't a workspace-scoped surface; reject it here even
+  // if someone hand-types #/ws/foo/settings — we'd rather drop them at
+  // workspace home than render a confused mix.
+  const surface = candidate
+    && candidate !== 'settings'
+    && (SURFACE_VALUES as readonly string[]).includes(candidate)
     ? candidate as Surface
     : null
   return { workspaceId, surface }
@@ -34,6 +51,8 @@ export function writeUrl(state: UrlState): void {
 }
 
 function formatHash(state: UrlState): string {
+  if (state.surface === 'settings')
+    return '#/settings'
   if (!state.workspaceId)
     return ''
   const tail = state.surface ? `/${state.surface}` : ''

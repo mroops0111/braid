@@ -39,6 +39,13 @@ export const FilesystemSourceDescriptor = z.object({
   path: AbsolutePath,
   language: z.string().optional(),
   loader: SourceLoaderDescriptor.optional(),
+  /**
+   * Free-form markdown describing this source's role and authority.
+   * Read verbatim by skills via $BRAID_WORKSPACE/PRODUCT.md so the
+   * agent can prioritise / cite correctly. Multi-line is fine; the
+   * YAML writer emits a literal block (`|`) when newlines are present.
+   */
+  description: z.string().optional(),
 })
 export type FilesystemSourceDescriptor = z.infer<typeof FilesystemSourceDescriptor>
 
@@ -55,6 +62,7 @@ export const McpSourceDescriptor = z.object({
   name: z.string().min(1),
   mcpServerId: McpServerId,
   scope: McpSourceScope.optional(),
+  description: z.string().optional(),
 })
 export type McpSourceDescriptor = z.infer<typeof McpSourceDescriptor>
 

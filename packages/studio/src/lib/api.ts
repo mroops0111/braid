@@ -24,9 +24,16 @@ import type {
   SkillManifest,
   SourceDescriptor,
   TagMeta,
+  User,
+  UserDraft,
+  UserPatch,
   ValidationResult,
   Workspace,
+  WorkspaceMember,
+  WorkspaceRole,
 } from '@braidhq/schema'
+import { getAuthToken } from './authToken.js'
+import { getCurrentUserId } from './currentUser.js'
 import { getServerUrl } from './serverUrl.js'
 
 export function workspaceEventsUrl(workspaceId: string): string {
@@ -34,6 +41,19 @@ export function workspaceEventsUrl(workspaceId: string): string {
 }
 
 export interface ItemList<T> { items: T[] }
+
+export interface Invite {
+  email: string
+  invitedAt: string
+  serverRole: 'admin' | 'user'
+}
+
+export interface AdminUserWorkspace {
+  workspaceId: string
+  role: WorkspaceRole
+}
+
+export type AdminUser = User & { workspaces: AdminUserWorkspace[] }
 
 /**
  * GET /workspaces/:ws/clarify/:id response — the canonical ticket plus
@@ -107,10 +127,19 @@ export class ApiError extends Error {
 }
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getAuthToken()
   const response = await fetch(`${getServerUrl()}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      // Remote mode (Bearer) takes precedence over local mode (X-Braid-User).
+      // The server's `authMiddleware` resolves the Bearer token to a userId
+      // and stamps c.set('userId'); userIdMiddleware then falls through
+      // (already set). Local trust mode leaves c.get('userId') empty so
+      // `X-Braid-User` becomes authoritative.
+      ...(token
+        ? { Authorization: `Bearer ${token}` }
+        : { 'X-Braid-User': getCurrentUserId() }),
       ...(init?.headers ?? {}),
     },
   })
@@ -129,7 +158,71 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
+export interface AuthConfig {
+  googleEnabled: boolean
+  studioUrl: string
+  requiresAuth: boolean
+}
+
+export interface AuthWhoami {
+  user: User | null
+}
+
 export const api = {
+  authConfig: () => fetchJson<AuthConfig>('/auth/config'),
+  whoami: () => fetchJson<AuthWhoami>('/auth/whoami'),
+  startGoogleSignIn: (returnTo: string) =>
+    fetchJson<{ authorizationUrl: string }>(
+      `/auth/google/start?returnTo=${encodeURIComponent(returnTo)}`,
+    ),
+  logout: () =>
+    fetchJson<void>('/auth/logout', { method: 'POST' }),
+
+  listUsers: () => fetchJson<ItemList<User>>('/users'),
+  getMe: () => fetchJson<User>('/users/me'),
+  createUser: (draft: UserDraft) =>
+    fetchJson<User>('/users', { method: 'POST', body: JSON.stringify(draft) }),
+  updateUser: (userId: string, patch: UserPatch) =>
+    fetchJson<User>(`/users/${userId}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+
+  listInvites: () => fetchJson<ItemList<Invite>>('/admin/invites'),
+  addInvite: (draft: { email: string, serverRole?: 'admin' | 'user' }) =>
+    fetchJson<Invite>('/admin/invites', { method: 'POST', body: JSON.stringify(draft) }),
+  revokeInvite: (email: string) =>
+    fetchJson<void>(`/admin/invites/${encodeURIComponent(email)}`, { method: 'DELETE' }),
+  adminListUsers: () => fetchJson<ItemList<AdminUser>>('/admin/users'),
+  adminUpdateUserRole: (userId: string, serverRole: 'admin' | 'user') =>
+    fetchJson<User>(`/admin/users/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ serverRole }),
+    }),
+  adminDeleteUser: (userId: string) =>
+    fetchJson<void>(`/admin/users/${userId}`, { method: 'DELETE' }),
+
+  listWorkspaceMembers: (workspaceId: string) =>
+    fetchJson<ItemList<WorkspaceMember>>(`/workspaces/${workspaceId}/members`),
+  addWorkspaceMember: (workspaceId: string, body: { userId: string, role?: WorkspaceRole }) =>
+    fetchJson<WorkspaceMember>(`/workspaces/${workspaceId}/members`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  patchWorkspaceMember: (
+    workspaceId: string,
+    memberUserId: string,
+    patch: { role?: WorkspaceRole, skillOverrides?: Record<string, 'allow' | 'deny'> },
+  ) =>
+    fetchJson<WorkspaceMember>(`/workspaces/${workspaceId}/members/${memberUserId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
+  removeWorkspaceMember: (workspaceId: string, memberUserId: string) =>
+    fetchJson<void>(`/workspaces/${workspaceId}/members/${memberUserId}`, { method: 'DELETE' }),
+  transferWorkspaceOwnership: (workspaceId: string, newOwnerId: string) =>
+    fetchJson<ItemList<WorkspaceMember>>(`/workspaces/${workspaceId}/transfer-ownership`, {
+      method: 'POST',
+      body: JSON.stringify({ newOwnerId }),
+    }),
+
   listWorkspaces: () => fetchJson<ItemList<Workspace>>('/workspaces'),
   getWorkspace: (workspaceId: string) =>
     fetchJson<Workspace>(`/workspaces/${workspaceId}`),
@@ -163,6 +256,16 @@ export const api = {
     fetchJson<{ workspace: Workspace }>(`/workspaces/${workspaceId}/sources/${sourceId}`, { method: 'DELETE' }),
   syncSource: (workspaceId: string, sourceId: string) =>
     fetchJson<IngestSummary>(`/workspaces/${workspaceId}/sources/${sourceId}/sync`, { method: 'POST' }),
+  patchSource: (workspaceId: string, sourceId: string, patch: { description?: string }) =>
+    fetchJson<{ workspace: Workspace }>(`/workspaces/${workspaceId}/sources/${sourceId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
+  patchMcpServer: (workspaceId: string, mcpServerId: string, patch: { description?: string }) =>
+    fetchJson<{ workspace: Workspace }>(`/workspaces/${workspaceId}/mcpServers/${mcpServerId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
 
   startGoogleOAuth: (workspaceId: string, sourceId: string) =>
     fetchJson<{ authorizationUrl: string }>('/oauth/google/start', {
@@ -185,25 +288,35 @@ export const api = {
   getOntology: (workspaceId: string) =>
     fetchJson<OntologyResponse>(`/workspaces/${workspaceId}/ontology`),
 
-  listProposals: (workspaceId: string, status?: string) => {
-    const query = status ? `?status=${status}` : ''
+  listProposals: (workspaceId: string, status?: string, showAll?: boolean) => {
+    const params = new URLSearchParams()
+    if (status)
+      params.set('status', status)
+    if (showAll)
+      params.set('showAll', 'true')
+    const query = params.toString() ? `?${params.toString()}` : ''
     return fetchJson<ItemList<Proposal>>(`/workspaces/${workspaceId}/proposals${query}`)
   },
-  applyProposal: (workspaceId: string, proposalId: string, userId: string) =>
+  applyProposal: (workspaceId: string, proposalId: string) =>
     fetchJson<Decision>(`/workspaces/${workspaceId}/proposals/${proposalId}/apply`, {
       method: 'POST',
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({}),
     }),
-  rejectProposal: (workspaceId: string, proposalId: string, reason: string, userId: string) =>
+  rejectProposal: (workspaceId: string, proposalId: string, reason: string) =>
     fetchJson<Decision>(`/workspaces/${workspaceId}/proposals/${proposalId}/reject`, {
       method: 'POST',
-      body: JSON.stringify({ reason, userId }),
+      body: JSON.stringify({ reason }),
     }),
   validateProposal: (workspaceId: string, proposalId: string) =>
     fetchJson<ValidationResult>(`/workspaces/${workspaceId}/proposals/${proposalId}/validate`),
 
-  listClarify: (workspaceId: string, status?: string) => {
-    const query = status ? `?status=${status}` : ''
+  listClarify: (workspaceId: string, status?: string, showAll?: boolean) => {
+    const params = new URLSearchParams()
+    if (status)
+      params.set('status', status)
+    if (showAll)
+      params.set('showAll', 'true')
+    const query = params.toString() ? `?${params.toString()}` : ''
     return fetchJson<ItemList<ClarifyTicket>>(`/workspaces/${workspaceId}/clarify${query}`)
   },
   /**
@@ -235,21 +348,19 @@ export const api = {
     workspaceId: string,
     ticketId: string,
     selection: { candidateId: string } | { customCandidate: { description: string } },
-    userId: string,
     note?: string,
   ) =>
     fetchJson<Decision>(`/workspaces/${workspaceId}/clarify/${ticketId}/answer`, {
       method: 'POST',
       body: JSON.stringify({
         ...selection,
-        userId,
         ...(note ? { note } : {}),
       }),
     }),
-  skipClarify: (workspaceId: string, ticketId: string, reason: string, userId: string) =>
+  skipClarify: (workspaceId: string, ticketId: string, reason: string) =>
     fetchJson<Decision>(`/workspaces/${workspaceId}/clarify/${ticketId}/skip`, {
       method: 'POST',
-      body: JSON.stringify({ reason, userId }),
+      body: JSON.stringify({ reason }),
     }),
 
   listDecisions: (workspaceId: string) =>
@@ -310,10 +421,10 @@ export const api = {
     fetchJson<CommitMeta & { diff: FileDiff[] }>(`/workspaces/${workspaceId}/history/${sha}`),
   getCommitGraphDiff: (workspaceId: string, fromSha: CommitSha, toSha: CommitSha) =>
     fetchJson<GraphDiffEnvelope>(`/workspaces/${workspaceId}/history/graph-diff?from=${fromSha}&to=${toSha}`),
-  restoreCommit: (workspaceId: string, sha: CommitSha, userId: string) =>
+  restoreCommit: (workspaceId: string, sha: CommitSha) =>
     fetchJson<{ newCommit: CommitSha, restoredTo: CommitSha }>(
       `/workspaces/${workspaceId}/history/${sha}/restore`,
-      { method: 'POST', body: JSON.stringify({ userId }) },
+      { method: 'POST', body: JSON.stringify({}) },
     ),
   listHistoryTags: (workspaceId: string) =>
     fetchJson<ItemList<TagMeta>>(`/workspaces/${workspaceId}/history/tags`),

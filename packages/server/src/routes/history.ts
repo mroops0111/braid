@@ -4,10 +4,14 @@ import { CommitSha, UserId } from '@braidhq/schema'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { getUserId } from '../middleware/userId.js'
+import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 
+// `userId` accepted for backwards compat; the authoritative value
+// comes from the request context (set by `userIdMiddleware`).
 const RestoreBody = z.object({
-  userId: UserId,
+  userId: UserId.optional(),
 })
 
 const TagBody = z.object({
@@ -32,6 +36,11 @@ export interface HistoryRouterDeps {
 
 export function createHistoryRouter(deps: HistoryRouterDeps): Hono {
   const router = new Hono()
+  // Restore is destructive — Owner only. Tag CRUD is workspace
+  // metadata management; Owner only as well to keep ACL coherent.
+  router.use('/:sha/restore', requirePermission('history.write'))
+  router.use('/tags', requirePermission('history.write'))
+  router.use('/tags/*', requirePermission('history.write'))
 
   router.get('/', zValidator('query', ListQuery), async (context) => {
     const workspaceId = getWorkspaceId(context)
@@ -76,7 +85,8 @@ export function createHistoryRouter(deps: HistoryRouterDeps): Hono {
   router.post('/:sha/restore', zValidator('json', RestoreBody), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const sha = CommitSha.parse(context.req.param('sha'))
-    const { userId } = context.req.valid('json')
+    const { userId: bodyUserId } = context.req.valid('json')
+    const userId = bodyUserId ?? getUserId(context)
     const newSha = await deps.historyService.restore(workspaceId, sha, userId)
     return context.json({ newCommit: newSha, restoredTo: sha })
   })

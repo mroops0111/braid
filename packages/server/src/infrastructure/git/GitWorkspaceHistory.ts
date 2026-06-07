@@ -240,11 +240,17 @@ export class GitWorkspaceHistory implements WorkspaceHistory {
     message: CommitMessage,
     options: { allowEmpty: boolean },
   ): Promise<CommitSha> {
-    const email = `${message.userId}@braid.local`
-    const args = ['commit', '-m', serializeCommitMessage(message), `--author=${message.userId} <${email}>`]
+    // `authorName` / `authorEmail` are snapshotted at commit time so
+    // a future rename of the user record doesn't rewrite git history.
+    // When absent (bootstrap, source-sync, pre-Phase-A artifacts) we
+    // fall back to the opaque `userId` for both — same behaviour as
+    // before Theme 13 landed.
+    const name = message.authorName ?? message.userId
+    const email = message.authorEmail ?? `${message.userId}@braid.local`
+    const args = ['commit', '-m', serializeCommitMessage(message), `--author=${name} <${email}>`]
     if (options.allowEmpty)
       args.push('--allow-empty')
-    await git.raw(['-c', `user.name=${message.userId}`, '-c', `user.email=${email}`, ...args])
+    await git.raw(['-c', `user.name=${name}`, '-c', `user.email=${email}`, ...args])
     const head = await git.revparse(['HEAD'])
     return CommitSha.parse(head.trim())
   }

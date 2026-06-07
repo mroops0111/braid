@@ -12,6 +12,7 @@ import type {
   QuestionId,
   SkillRunId,
   Timestamp,
+  UserId,
 } from '@braidhq/schema'
 
 export function newNodeId(): NodeId {
@@ -83,4 +84,14 @@ export function newBatchPlanId(now: Timestamp): BatchPlanId {
 
 export function newPlanUnitId(): PlanUnitId {
   return `pu-${shortRandom()}` as PlanUnitId
+}
+
+/**
+ * Opaque, prefix-tagged userId. Stable across renames: we may add an
+ * `email` or `displayName` field on the User row later, but the id
+ * itself never changes after creation, so artifacts that captured
+ * `reviewedBy: usr-...` keep pointing at the same person.
+ */
+export function newUserId(): UserId {
+  return `usr-${shortRandom()}` as UserId
 }

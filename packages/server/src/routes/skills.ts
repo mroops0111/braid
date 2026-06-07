@@ -6,6 +6,7 @@ import type {
 import type { SkillId } from '@braidhq/schema'
 import { SkillId as SkillIdSchema, SkillManifest, SkillRunId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
+import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
@@ -81,12 +82,26 @@ const runSkillRoute = createRoute({
       description: 'The accepted run id.',
       content: { 'application/json': { schema: RunCreatedResponse } },
     },
+    403: {
+      description: 'Caller is not permitted to run this skill in this workspace.',
+      content: { 'application/problem+json': { schema: z.object({}).passthrough() } },
+    },
     404: NotFoundResponse,
   },
 })
 
 export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
+
+  // skill.run is the only capability that needs a per-request resource
+  // (the skill manifest). The resource builder fetches the workspace +
+  // manifest once and hands the result to the policy check.
+  router.use('/:skillId/run', requirePermission('skill.run', async (context) => {
+    const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
+    const skillId = context.req.param('skillId') as SkillId
+    const manifest = await deps.skillRegistry.get(workspace, skillId)
+    return { skill: manifest.toData().frontmatter, skillId }
+  }))
 
   router.openapi(listSkillsRoute, async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)

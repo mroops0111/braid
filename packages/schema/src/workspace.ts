@@ -1,9 +1,44 @@
 import { z } from 'zod'
 import { AgentBindingDescriptor, AgentRoutingConfig } from './agent.js'
-import { AbsolutePath, OntologyId, WorkspaceId } from './common.js'
+import { AbsolutePath, OntologyId, SkillId, Timestamp, UserId, WorkspaceId } from './common.js'
 import { McpServerConfig } from './mcp.js'
 import { SourceDescriptor } from './source.js'
 import { StorageDescriptor } from './storage.js'
+
+/**
+ * Workspace-level role. Three tiers per the agreed RBAC:
+ *   - owner       sole authority over settings + member management;
+ *                 one per workspace; transferable to another maintainer
+ *   - maintainer  trusted operator; HITL gate participant (apply /
+ *                 reject / answer / skip); runs skills
+ *   - guest       read-only by default; Proposals / Clarify / Actions
+ *                 tabs hidden in the UI; per-skill overrides can
+ *                 selectively unlock skills (e.g. `braid-ask` for a
+ *                 support agent)
+ *
+ * `admin` is intentionally absent — server-wide Admin is a separate
+ * concept that lives on `User.serverRole`. An Admin who wants to
+ * touch a workspace must be added to its members list explicitly.
+ */
+export const WorkspaceRole = z.enum(['owner', 'maintainer', 'guest'])
+export type WorkspaceRole = z.infer<typeof WorkspaceRole>
+
+/**
+ * Per-(member, skill) override of the skill's default `allowedRoles`.
+ * `'allow'` opens a skill that the role would otherwise be denied;
+ * `'deny'` closes a skill the role would normally have. Inherited
+ * (absent) entries follow the skill manifest.
+ */
+export const SkillPermission = z.enum(['allow', 'deny'])
+export type SkillPermission = z.infer<typeof SkillPermission>
+
+export const WorkspaceMember = z.object({
+  userId: UserId,
+  role: WorkspaceRole,
+  joinedAt: Timestamp,
+  skillOverrides: z.record(SkillId, SkillPermission).optional(),
+})
+export type WorkspaceMember = z.infer<typeof WorkspaceMember>
 
 export const ProductManifest = z.object({
   name: z.string().min(1),

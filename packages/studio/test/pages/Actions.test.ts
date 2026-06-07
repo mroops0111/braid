@@ -20,6 +20,7 @@ function skill(opts: {
       braid: {
         requiredEnv: [],
         requiredMcpServers: [],
+        allowedRoles: ['owner', 'maintainer'],
         ...(opts.category ? { category: opts.category } : {}),
         ...(opts.order !== undefined ? { order: opts.order } : {}),
       },

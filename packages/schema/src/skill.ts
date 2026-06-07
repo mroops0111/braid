@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { AbsolutePath, PluginId, SkillId, SkillRunId, Timestamp, UserId, WorkspaceId } from './common.js'
 import { McpServerId } from './mcp.js'
+import { WorkspaceRole } from './workspace.js'
 
 export const SkillRunStatus = z.enum(['running', 'succeeded', 'failed', 'cancelled'])
 export type SkillRunStatus = z.infer<typeof SkillRunStatus>
@@ -240,6 +241,18 @@ export const BraidSkillExtension = z.object({
   inputs: z.array(SkillInputDescriptor).optional(),
   // Skill exists for server-side orchestration only; Studio surfaces hide it from the Actions list.
   hidden: z.boolean().optional(),
+  /**
+   * Workspace roles whose members may run this skill by default. Owner
+   * always implicitly allowed; this list applies to Maintainer / Guest.
+   * Omit (defaults to ['owner', 'maintainer']) for skills that mutate
+   * state or cost money. Set ['owner', 'maintainer', 'guest'] for
+   * read-only / customer-service-safe skills.
+   *
+   * Effective per-(member, skill) permission is computed by
+   * `requireSkillPermission` as:
+   *   member.skillOverrides[skillId] ?? allowedRoles.includes(member.role)
+   */
+  allowedRoles: z.array(WorkspaceRole).min(1).default(['owner', 'maintainer']),
 })
 export type BraidSkillExtension = z.infer<typeof BraidSkillExtension>
 
@@ -247,6 +260,7 @@ export const SkillFrontmatter = ClaudeCodeSkillFrontmatter.extend({
   braid: BraidSkillExtension.default({
     requiredEnv: [],
     requiredMcpServers: [],
+    allowedRoles: ['owner', 'maintainer'],
   }),
 })
 export type SkillFrontmatter = z.infer<typeof SkillFrontmatter>
