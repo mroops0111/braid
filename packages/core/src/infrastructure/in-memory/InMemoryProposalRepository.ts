@@ -21,6 +21,12 @@ export class InMemoryProposalRepository implements ProposalRepository {
       const skillIds = filter.generatedBy
       proposals = proposals.filter(proposal => skillIds.includes(proposal.generatedBy))
     }
+    if (filter?.viewerId !== undefined) {
+      const viewerId = filter.viewerId
+      proposals = proposals.filter(proposal =>
+        proposal.status !== 'pending' || proposal.ownerId === undefined || proposal.ownerId === viewerId,
+      )
+    }
     return paginate(proposals, filter?.limit, filter?.offset)
   }
 

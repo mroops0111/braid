@@ -41,6 +41,8 @@ export class ClarifyTicket {
   get selectedCandidateId(): ClarifyCandidateId | undefined { return this.data.selectedCandidateId }
   get resolution(): readonly GraphOperation[] | undefined { return this.data.resolution }
   get proposalId(): ProposalId | undefined { return this.data.proposalId }
+  get ownerId(): UserId | undefined { return this.data.ownerId }
+  get ownerDisplayName(): string | undefined { return this.data.ownerDisplayName }
   get externalReferences(): readonly ExternalReference[] | undefined { return this.data.externalReferences }
 
   resolveCandidate(candidateId: ClarifyCandidateId): readonly GraphOperation[] {

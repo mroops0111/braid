@@ -35,6 +35,7 @@ export function makeSkillManifestData(opts: MakeSkillManifestOptions = {}): Skil
       braid: {
         requiredEnv: [...(opts.requiredEnv ?? [])],
         requiredMcpServers: [...(opts.requiredMcpServers ?? [])],
+        allowedRoles: ['owner', 'maintainer'],
       },
     },
   }

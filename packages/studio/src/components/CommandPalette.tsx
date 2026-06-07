@@ -1,6 +1,6 @@
 import type { SkillManifest, Workspace } from '@braidhq/schema'
-import { Boxes, ClipboardCheck, GitGraph, HelpCircle, Network, Sparkles } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Boxes, ClipboardCheck, GitGraph, HelpCircle, Network, Settings2, SlidersHorizontal, Sparkles } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import {
   CommandDialog,
   CommandEmpty,
@@ -19,9 +19,10 @@ interface CommandPaletteProps {
   activeSurface: Surface | null
   onSelectWorkspace: (id: string) => void
   onSelectSurface: (surface: Surface | null) => void
+  onOpenWorkspaceDetails: () => void
 }
 
-export type Surface = 'actions' | 'batch' | 'clarify' | 'history' | 'proposals'
+export type Surface = 'actions' | 'batch' | 'clarify' | 'history' | 'proposals' | 'settings'
 
 interface SurfaceItem {
   id: Surface | null
@@ -30,24 +31,40 @@ interface SurfaceItem {
   shortcut: string
 }
 
-function chordToSurface(key: string): Surface | null | undefined {
+type ChordTarget = { kind: 'surface', surface: Surface | null } | { kind: 'workspace-details' }
+
+function chordSecondKey(key: string): ChordTarget | undefined {
   switch (key) {
-    case '1': return null
-    case '2': return 'actions'
-    case '3': return 'clarify'
-    case '4': return 'proposals'
-    case '5': return 'history'
+    case 'g': return { kind: 'surface', surface: null }
+    case 'a': return { kind: 'surface', surface: 'actions' }
+    case 'c': return { kind: 'surface', surface: 'clarify' }
+    case 'p': return { kind: 'surface', surface: 'proposals' }
+    case 'h': return { kind: 'surface', surface: 'history' }
+    case 's': return { kind: 'surface', surface: 'settings' }
+    case 'w': return { kind: 'workspace-details' }
     default: return undefined
   }
 }
 
 const SURFACE_ITEMS: SurfaceItem[] = [
-  { id: null, label: 'Graph (home)', Icon: Network, shortcut: '⌘1' },
-  { id: 'actions', label: 'Actions', Icon: Sparkles, shortcut: '⌘2' },
-  { id: 'clarify', label: 'Clarify', Icon: HelpCircle, shortcut: '⌘3' },
-  { id: 'proposals', label: 'Proposals', Icon: ClipboardCheck, shortcut: '⌘4' },
-  { id: 'history', label: 'History', Icon: GitGraph, shortcut: '⌘5' },
+  { id: null, label: 'Graph (home)', Icon: Network, shortcut: 'G G' },
+  { id: 'actions', label: 'Actions', Icon: Sparkles, shortcut: 'G A' },
+  { id: 'clarify', label: 'Clarify', Icon: HelpCircle, shortcut: 'G C' },
+  { id: 'proposals', label: 'Proposals', Icon: ClipboardCheck, shortcut: 'G P' },
+  { id: 'history', label: 'History', Icon: GitGraph, shortcut: 'G H' },
+  { id: 'settings', label: 'Settings', Icon: SlidersHorizontal, shortcut: 'G S' },
 ]
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement))
+    return false
+  if (target.isContentEditable)
+    return true
+  const tag = target.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+}
+
+const CHORD_TIMEOUT_MS = 1000
 
 export function CommandPalette({
   workspaces,
@@ -55,6 +72,7 @@ export function CommandPalette({
   activeSurface,
   onSelectWorkspace,
   onSelectSurface,
+  onOpenWorkspaceDetails,
 }: CommandPaletteProps) {
   const [open, setOpen] = useState(false)
   const { data: skillData } = useSkills(activeWorkspaceId ?? undefined)
@@ -70,22 +88,44 @@ export function CommandPalette({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Numeric chords switch surfaces from anywhere; only claimed when a workspace is active so browser defaults survive on the welcome screen.
+  // Linear / Gmail / GitHub-style `g`-chord navigation. Press `g`, then
+  // within 1s press the second key (e.g. `g s` for Settings). Ignored
+  // while typing into a form so it doesn't hijack normal text input.
+  const armedRef = useRef<number | null>(null)
   useEffect(() => {
-    if (!activeWorkspaceId)
-      return
     function onKey(event: KeyboardEvent) {
-      if (!(event.metaKey || event.ctrlKey))
+      if (event.metaKey || event.ctrlKey || event.altKey)
         return
-      const next = chordToSurface(event.key)
-      if (next === undefined)
+      if (isTypingTarget(event.target))
+        return
+
+      const armed = armedRef.current != null && Date.now() - armedRef.current < CHORD_TIMEOUT_MS
+      if (!armed) {
+        if (event.key === 'g' || event.key === 'G') {
+          event.preventDefault()
+          armedRef.current = Date.now()
+        }
+        return
+      }
+
+      armedRef.current = null
+      const target = chordSecondKey(event.key.toLowerCase())
+      if (target === undefined)
         return
       event.preventDefault()
-      onSelectSurface(next)
+      if (target.kind === 'workspace-details') {
+        if (!activeWorkspaceId)
+          return
+        onOpenWorkspaceDetails()
+        return
+      }
+      if (target.surface !== 'settings' && !activeWorkspaceId)
+        return
+      onSelectSurface(target.surface)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [activeWorkspaceId, onSelectSurface])
+  }, [activeWorkspaceId, onSelectSurface, onOpenWorkspaceDetails])
 
   const skills = (skillData?.items ?? []).filter((s: SkillManifest) => !s.frontmatter.braid.hidden)
 
@@ -103,13 +143,26 @@ export function CommandPalette({
                 onSelectSurface(id)
                 setOpen(false)
               }}
-              disabled={!activeWorkspaceId || activeSurface === id}
+              disabled={(id !== 'settings' && !activeWorkspaceId) || activeSurface === id}
             >
               <Icon />
               <span>{label}</span>
               <CommandShortcut>{shortcut}</CommandShortcut>
             </CommandItem>
           ))}
+          {activeWorkspaceId && (
+            <CommandItem
+              key="workspace-details"
+              onSelect={() => {
+                onOpenWorkspaceDetails()
+                setOpen(false)
+              }}
+            >
+              <Settings2 />
+              <span>Workspace Settings</span>
+              <CommandShortcut>G W</CommandShortcut>
+            </CommandItem>
+          )}
         </CommandGroup>
 
         {workspaces.length > 0 && (

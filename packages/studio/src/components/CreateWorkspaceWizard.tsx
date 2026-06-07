@@ -10,6 +10,7 @@ import { type ErrorCase, humaniseApiError } from '@/lib/errors'
 import { queryKeys } from '@/lib/queries'
 import { nameToId, rolePathSegment, toSourceDescriptor } from '@/lib/sourceDraft'
 import { useGoogleOAuth } from '@/lib/useGoogleOAuth'
+import { MarkdownDescriptionField } from './MarkdownDescriptionField'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
@@ -23,6 +24,7 @@ interface McpDraft {
   uiId: string
   id: string
   url: string
+  description: string
   /* headers as raw "Key: Value" lines */
   headersText: string
 }
@@ -44,7 +46,7 @@ const STEP_ORDER: StepKey[] = ['basics', 'sources', 'mcp', 'advanced', 'confirm'
 const STEP_LABELS: Record<StepKey, string> = {
   basics: 'Basics',
   sources: 'Sources',
-  mcp: 'MCP',
+  mcp: 'MCP Servers',
   advanced: 'Advanced',
   confirm: 'Review',
   progress: 'Creating',
@@ -123,7 +125,7 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
         }
       }}
     >
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-[720px]">
         <DialogHeader>
           <DialogTitle>Create Workspace</DialogTitle>
           <DialogDescription>
@@ -272,7 +274,7 @@ function BasicsStep({ name, description, onName, onDescription }: {
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <Label htmlFor="ws-name">Workspace name</Label>
+        <Label htmlFor="ws-name">Workspace Name</Label>
         <Input
           id="ws-name"
           autoFocus
@@ -289,15 +291,12 @@ function BasicsStep({ name, description, onName, onDescription }: {
           <p className="text-[11px] text-destructive">Name must start with a letter or digit and use only lowercase letters, digits, or dashes.</p>
         )}
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="ws-desc">Description (optional)</Label>
-        <Input
-          id="ws-desc"
-          placeholder="One-line description"
-          value={description}
-          onChange={e => onDescription(e.target.value)}
-        />
-      </div>
+      <MarkdownDescriptionField
+        id="ws-desc"
+        value={description}
+        onChange={onDescription}
+        placeholder="What is this workspace about? Markdown supported."
+      />
     </div>
   )
 }
@@ -397,6 +396,18 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
 
       <p className="font-mono text-[10px] text-muted-foreground">{targetPath}</p>
 
+      <MarkdownDescriptionField
+        id={`src-desc-${draft.uiId}`}
+        value={draft.description}
+        onChange={next => onUpdate({ description: next })}
+        label="What is this source?"
+        placeholder={draft.role === 'intent'
+          ? 'e.g. Authoritative billing RFC; updated weekly by design team.'
+          : 'e.g. Legacy Java monolith; read-only reference.'}
+        helperText="Visible to skills via PRODUCT.md."
+        rows={2}
+      />
+
       <div className="space-y-2">
         {draft.loaderKind === 'git' && (
           <div className="flex gap-2">
@@ -417,18 +428,18 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
         {draft.loaderKind === 'gdrive' && (
           <>
             <Input
-              placeholder="Google Drive folder ID"
+              placeholder="Google Drive Folder ID"
               value={draft.gdriveFolderId}
               onChange={e => onUpdate({ gdriveFolderId: e.target.value })}
             />
             <div className="grid grid-cols-2 gap-2">
               <Input
-                placeholder="include regex (optional, e.g. ^docs/)"
+                placeholder="Include regex (optional, e.g. ^docs/)"
                 value={draft.gdriveInclude}
                 onChange={e => onUpdate({ gdriveInclude: e.target.value })}
               />
               <Input
-                placeholder="exclude regex (optional)"
+                placeholder="Exclude regex (optional)"
                 value={draft.gdriveExclude}
                 onChange={e => onUpdate({ gdriveExclude: e.target.value })}
               />
@@ -496,7 +507,7 @@ function McpStep({ servers, onChange }: {
   onChange: (servers: McpDraft[]) => void
 }) {
   function add() {
-    onChange([...servers, { uiId: crypto.randomUUID(), id: '', url: '', headersText: '' }])
+    onChange([...servers, { uiId: crypto.randomUUID(), id: '', url: '', description: '', headersText: '' }])
   }
   function update(uiId: string, patch: Partial<McpDraft>) {
     onChange(servers.map(s => (s.uiId === uiId ? { ...s, ...patch } : s)))
@@ -522,7 +533,7 @@ function McpStep({ servers, onChange }: {
           <div key={server.uiId} className="space-y-2 rounded-md border border-border p-3">
             <div className="flex gap-2">
               <Input
-                placeholder="server id (e.g. linear)"
+                placeholder="Server ID (e.g. linear)"
                 value={server.id}
                 onChange={e => update(server.uiId, { id: e.target.value })}
                 className="w-40"
@@ -537,6 +548,15 @@ function McpStep({ servers, onChange }: {
                 <Trash2 />
               </Button>
             </div>
+            <MarkdownDescriptionField
+              id={`mcp-desc-${server.uiId}`}
+              value={server.description}
+              onChange={next => update(server.uiId, { description: next })}
+              label="What does this MCP serve?"
+              placeholder="e.g. Linear, source of truth for tickets."
+              helperText="Visible to skills via PRODUCT.md."
+              rows={2}
+            />
             <textarea
               // eslint-disable-next-line no-template-curly-in-string
               placeholder={'Authorization: Bearer ${LINEAR_TOKEN}\nX-Workspace-Id: ${WORKSPACE_ID}'}
@@ -570,7 +590,7 @@ function AdvancedStep({ ontologyId, storageKind, onOntologyId, onStorageKind }: 
         <Input id="ws-ontology" value={ontologyId} onChange={e => onOntologyId(e.target.value)} />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="ws-storage">Storage kind</Label>
+        <Label htmlFor="ws-storage">Storage Kind</Label>
         <Input id="ws-storage" value={storageKind} onChange={e => onStorageKind(e.target.value)} />
       </div>
     </div>
@@ -789,6 +809,7 @@ function defaultSourceDraft(role: 'intent' | 'code'): SourceDraft {
     uiId: crypto.randomUUID(),
     role,
     name: '',
+    description: '',
     loaderKind: role === 'intent' ? 'gdrive' : 'git',
     gitUrl: '',
     gitBranch: 'master',
@@ -834,5 +855,6 @@ function toMcpServerConfig(draft: McpDraft): McpServerConfig {
     transport: 'streamable-http',
     url: draft.url,
     ...(Object.keys(headers).length > 0 ? { headers } : {}),
+    ...(draft.description ? { description: draft.description } : {}),
   }
 }

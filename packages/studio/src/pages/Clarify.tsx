@@ -14,6 +14,7 @@ import { api } from '@/lib/api'
 import { queryKeys, useClarifyByStatus, useClarifyTicketDetail, usePendingClarify } from '@/lib/queries'
 import { useGraphNavigation } from '@/lib/useGraphNavigation'
 import { useTabNavigation } from '@/lib/useTabNavigation'
+import { useWorkspacePolicy } from '@/policy'
 
 export interface OpsSummary {
   adds: number
@@ -103,8 +104,6 @@ interface ClarifyPageProps {
   workspaceId: string
 }
 
-const DEFAULT_USER_ID = 'studio-user'
-
 type StatusFilter = ClarifyStatus
 
 const EMPTY_COPY: Record<StatusFilter, { title: string, description: string }> = {
@@ -131,13 +130,14 @@ export function ClarifyPage({ workspaceId }: ClarifyPageProps) {
   // detail pane reads only from the selected ticket so it can't show
   // an item that no longer matches the active filter.
   const [status, setStatus] = useState<StatusFilter>('pending')
+  const [showAll, setShowAll] = useState(false)
   const [selected, setSelected] = useState<ClarifyTicket | null>(null)
   // When `true`, the detail pane renders the inline SubmitIssueForm
   // instead of the selected ticket. Mutually exclusive with `selected`
   // — the compose surface fills the same area so the reviewer is
   // never doing two things at once.
   const [composing, setComposing] = useState(false)
-  const { data, isLoading } = useClarifyByStatus(workspaceId, status)
+  const { data, isLoading } = useClarifyByStatus(workspaceId, status, showAll)
 
   // Auto-select the first ticket when entering a list with no current selection (initial mount, after status switch, or after answer/skip clears the detail pane).
   // Saves the reviewer one click per ticket when working through a queue.
@@ -171,6 +171,12 @@ export function ClarifyPage({ workspaceId }: ClarifyPageProps) {
           workspaceId={workspaceId}
           status={status}
           onChange={changeStatus}
+        />
+        <ClarifyShowAllToggle
+          workspaceId={workspaceId}
+          status={status}
+          showAll={showAll}
+          onToggle={setShowAll}
         />
       </PageActions>
       <div className="flex flex-1 overflow-hidden">
@@ -265,6 +271,33 @@ export function ClarifyPage({ workspaceId }: ClarifyPageProps) {
  * list panel rather than here, so the header stays focused on
  * navigation.
  */
+function ClarifyShowAllToggle({
+  workspaceId,
+  status,
+  showAll,
+  onToggle,
+}: {
+  workspaceId: string
+  status: StatusFilter
+  showAll: boolean
+  onToggle: (next: boolean) => void
+}) {
+  const { effectiveRole } = useWorkspacePolicy(workspaceId)
+  if (effectiveRole !== 'owner' || status !== 'pending')
+    return null
+  return (
+    <Button
+      variant={showAll ? 'default' : 'ghost'}
+      size="sm"
+      className="h-7 text-[11px]"
+      onClick={() => onToggle(!showAll)}
+      title={showAll ? 'Showing pending questions from every member' : 'Showing only your own pending questions'}
+    >
+      {showAll ? 'Showing All' : 'Mine Only'}
+    </Button>
+  )
+}
+
 function ClarifyHeaderActions({
   workspaceId,
   status,
@@ -340,6 +373,7 @@ function ClarifyDetail({
   onComplete: () => void
 }) {
   const queryClient = useQueryClient()
+  const canWrite = useWorkspacePolicy(workspaceId).can('clarify.write')
   const isPending = ticket.status === 'pending'
   // The two answer paths are mutually exclusive: picking an existing
   // candidate closes the custom-answer form, and vice versa. Keeping
@@ -361,7 +395,7 @@ function ClarifyDetail({
 
   const answer = useMutation({
     mutationFn: (input: { selection: { candidateId: string } | { customCandidate: { description: string } }, note?: string }) =>
-      api.answerClarify(workspaceId, ticket.id, input.selection, DEFAULT_USER_ID, input.note),
+      api.answerClarify(workspaceId, ticket.id, input.selection, input.note),
     onSuccess: () => {
       invalidateClarify()
       onComplete()
@@ -370,7 +404,7 @@ function ClarifyDetail({
 
   const skip = useMutation({
     mutationFn: (reason: string) =>
-      api.skipClarify(workspaceId, ticket.id, reason, DEFAULT_USER_ID),
+      api.skipClarify(workspaceId, ticket.id, reason),
     onSuccess: () => {
       invalidateClarify()
       onComplete()
@@ -476,7 +510,7 @@ function ClarifyDetail({
         )}
       </div>
 
-      {isPending && (
+      {isPending && canWrite && (
         <div className="shrink-0 space-y-3 border-t border-border bg-background/80 px-4 py-3">
           {!skipOpen
             ? (

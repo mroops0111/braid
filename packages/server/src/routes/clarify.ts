@@ -3,6 +3,8 @@ import type { ClarifyTicketId as ClarifyTicketIdType, DecisionAction, WorkspaceI
 import { newClarifyCandidateId } from '@braidhq/core'
 import { ClarifyCandidate, ClarifyCandidateId, ClarifyDraft, ClarifyStatus, ClarifyTicket, ClarifyTicketId, Decision, ProposalId, UserId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
+import { getUserId } from '../middleware/userId.js'
+import { getViewerContext, requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 import { assertEntityInWorkspace } from './helpers.js'
@@ -24,6 +26,7 @@ const ListQuery = z.object({
   status: z.union([ClarifyStatus, z.array(ClarifyStatus)]).optional().openapi({ description: 'Filter by ticket status; pass one or many.' }),
   limit: z.coerce.number().int().positive().optional(),
   offset: z.coerce.number().int().nonnegative().optional(),
+  showAll: z.coerce.boolean().optional().openapi({ description: 'Owner-only: bypass the personal-pending filter so every member\'s open questions are visible.' }),
 })
 
 // Reviewer-facing answer body. The selection is either an existing
@@ -31,11 +34,13 @@ const ListQuery = z.object({
 // only — the server appends it to the ticket and answers in one
 // transaction). `note` is a free-text rationale that survives on the
 // Decision log; the GET projection surfaces it back as `answerNote`.
+// `userId` accepted for backwards compat; authoritative value is the
+// request context (set by `userIdMiddleware`).
 const AnswerBody = z
   .object({
     candidateId: ClarifyCandidateId.optional(),
     customCandidate: z.object({ description: z.string().min(1) }).optional(),
-    userId: UserId,
+    userId: UserId.optional(),
     note: z.string().min(1).optional(),
   })
   .refine(
@@ -46,7 +51,7 @@ const AnswerBody = z
 
 const SkipBody = z.object({
   reason: z.string().min(1),
-  userId: UserId,
+  userId: UserId.optional(),
 }).openapi('ClarifySkipBody')
 
 // PATCH body for clarify state transitions. Currently the only legal
@@ -57,7 +62,7 @@ const SkipBody = z.object({
 const ApplyBody = z.object({
   status: z.literal('applied'),
   proposalId: ProposalId.optional(),
-  userId: UserId,
+  userId: UserId.optional(),
 }).openapi('ClarifyApplyBody')
 
 // Skill-emitted candidates ship their own ids (`cc-1`, `cc-merge`, …);
@@ -204,23 +209,37 @@ const skipClarifyRoute = createRoute({
 
 export function createClarifyRouter(deps: ClarifyRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
+  // Answer / skip / mark-applied are HITL decisions — Owner + Maintainer
+  // only. Guests never see the tab but a direct curl still 403s here.
+  router.use('/:clarifyTicketId/answer', requirePermission('clarify.write'))
+  router.use('/:clarifyTicketId/skip', requirePermission('clarify.write'))
+  router.use('/:clarifyTicketId', requirePermission('clarify.write'))
 
   router.openapi(createClarifyRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const body = context.req.valid('json')
+    const submitterId = getUserId(context)
     const candidates = body.candidates.map(c => ({
       ...c,
       id: c.id ?? newClarifyCandidateId(),
     }))
-    const ticket = await deps.hitlService.submitClarifyTicket({ ...body, workspaceId, candidates })
+    const ticket = await deps.hitlService.submitClarifyTicket({ ...body, workspaceId, candidates, submitterId })
     return context.json(ticket.toData(), 201)
   })
 
   router.openapi(listClarifyRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
-    const { status, limit, offset } = context.req.valid('query')
+    const { status, limit, offset, showAll } = context.req.valid('query')
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
-    const tickets = await deps.clarifyRepository.list({ workspaceId, statuses, limit, offset })
+    const viewer = getViewerContext(context)
+    const viewerId = (showAll && viewer?.effectiveRole === 'owner') ? undefined : getUserId(context)
+    const tickets = await deps.clarifyRepository.list({
+      workspaceId,
+      statuses,
+      limit,
+      offset,
+      ...(viewerId ? { viewerId } : {}),
+    })
     return context.json({ items: tickets.map(ticket => ticket.toData()) }, 200)
   })
 
@@ -252,6 +271,7 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): OpenAPIHono {
     const workspaceId = getWorkspaceId(context)
     const { clarifyTicketId } = context.req.valid('param')
     const body = context.req.valid('json')
+    const userId = body.userId ?? getUserId(context)
     const ticket = await deps.clarifyRepository.load(clarifyTicketId)
     assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'ClarifyTicket', clarifyTicketId)
     const selection = body.candidateId
@@ -260,7 +280,7 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): OpenAPIHono {
     const decision = await deps.hitlService.answerClarifyTicket({
       clarifyTicketId,
       selection,
-      userId: body.userId,
+      userId,
       ...(body.note ? { note: body.note } : {}),
     })
     return context.json(decision, 200)
@@ -269,7 +289,8 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): OpenAPIHono {
   router.openapi(applyClarifyRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const { clarifyTicketId } = context.req.valid('param')
-    const { proposalId, userId } = context.req.valid('json')
+    const { proposalId, userId: bodyUserId } = context.req.valid('json')
+    const userId = bodyUserId ?? getUserId(context)
     const ticket = await deps.clarifyRepository.load(clarifyTicketId)
     assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'ClarifyTicket', clarifyTicketId)
     const decision = await deps.hitlService.markClarifyTicketApplied(clarifyTicketId, userId, proposalId)
@@ -279,7 +300,8 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): OpenAPIHono {
   router.openapi(skipClarifyRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const { clarifyTicketId } = context.req.valid('param')
-    const { reason, userId } = context.req.valid('json')
+    const { reason, userId: bodyUserId } = context.req.valid('json')
+    const userId = bodyUserId ?? getUserId(context)
     const ticket = await deps.clarifyRepository.load(clarifyTicketId)
     assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'ClarifyTicket', clarifyTicketId)
     const decision = await deps.hitlService.skipClarifyTicket(clarifyTicketId, reason, userId)

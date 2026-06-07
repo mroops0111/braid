@@ -57,7 +57,7 @@ function buildSkillManifest(): SkillManifest {
       name: 'ask',
       description: 'test skill',
       disableModelInvocation: false,
-      braid: { requiredEnv: [], requiredMcpServers: [] },
+      braid: { requiredEnv: [], requiredMcpServers: [], allowedRoles: ['owner', 'maintainer'] },
     },
   }
   return new SkillManifest(data)

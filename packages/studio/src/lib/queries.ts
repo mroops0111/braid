@@ -2,7 +2,12 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from './api'
 
 export const queryKeys = {
+  users: () => ['users'] as const,
+  me: () => ['users', 'me'] as const,
+  adminInvites: () => ['admin', 'invites'] as const,
+  adminUsers: () => ['admin', 'users'] as const,
   workspaces: () => ['workspaces'] as const,
+  workspaceMembers: (workspaceId: string) => ['workspaces', workspaceId, 'members'] as const,
   workspaceDetail: (workspaceId: string) => ['workspaces', workspaceId, 'detail'] as const,
   skills: (workspaceId: string) => ['workspaces', workspaceId, 'skills'] as const,
   modelSnapshot: (workspaceId: string) => ['workspaces', workspaceId, 'model', 'snapshot'] as const,
@@ -23,6 +28,38 @@ export const queryKeys = {
     ['workspaces', workspaceId, 'history', 'graph-diff', fromSha, toSha] as const,
   historyTags: (workspaceId: string) => ['workspaces', workspaceId, 'history', 'tags'] as const,
   batch: (workspaceId: string) => ['workspaces', workspaceId, 'batch'] as const,
+}
+
+export function useUsers() {
+  return useQuery({ queryKey: queryKeys.users(), queryFn: () => api.listUsers() })
+}
+
+export function useMe() {
+  return useQuery({ queryKey: queryKeys.me(), queryFn: () => api.getMe() })
+}
+
+export function useAdminInvites(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.adminInvites(),
+    queryFn: () => api.listInvites(),
+    enabled,
+  })
+}
+
+export function useAdminUsers(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.adminUsers(),
+    queryFn: () => api.adminListUsers(),
+    enabled,
+  })
+}
+
+export function useWorkspaceMembers(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: workspaceId ? queryKeys.workspaceMembers(workspaceId) : ['workspaceMembers', 'none'],
+    queryFn: () => api.listWorkspaceMembers(workspaceId!),
+    enabled: !!workspaceId,
+  })
 }
 
 export function useWorkspaces() {
@@ -73,10 +110,10 @@ export function useOntology(workspaceId: string | undefined) {
   })
 }
 
-export function useProposalsByStatus(workspaceId: string | undefined, status: string) {
+export function useProposalsByStatus(workspaceId: string | undefined, status: string, showAll?: boolean) {
   return useQuery({
-    queryKey: workspaceId ? queryKeys.proposals(workspaceId, status) : ['proposals', 'none'],
-    queryFn: () => api.listProposals(workspaceId!, status),
+    queryKey: workspaceId ? [...queryKeys.proposals(workspaceId, status), showAll ? 'all' : 'mine'] : ['proposals', 'none'],
+    queryFn: () => api.listProposals(workspaceId!, status, showAll),
     enabled: !!workspaceId,
   })
 }
@@ -93,10 +130,10 @@ export function useProposalValidation(workspaceId: string, proposalId: string | 
   })
 }
 
-export function useClarifyByStatus(workspaceId: string | undefined, status: string) {
+export function useClarifyByStatus(workspaceId: string | undefined, status: string, showAll?: boolean) {
   return useQuery({
-    queryKey: workspaceId ? queryKeys.clarifyByStatus(workspaceId, status) : ['clarify', 'none'],
-    queryFn: () => api.listClarify(workspaceId!, status),
+    queryKey: workspaceId ? [...queryKeys.clarifyByStatus(workspaceId, status), showAll ? 'all' : 'mine'] : ['clarify', 'none'],
+    queryFn: () => api.listClarify(workspaceId!, status, showAll),
     enabled: !!workspaceId,
   })
 }

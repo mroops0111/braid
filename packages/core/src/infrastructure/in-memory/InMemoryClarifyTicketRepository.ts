@@ -17,6 +17,12 @@ export class InMemoryClarifyTicketRepository implements ClarifyTicketRepository 
       const statuses = filter.statuses
       tickets = tickets.filter(ticket => statuses.includes(ticket.status))
     }
+    if (filter?.viewerId !== undefined) {
+      const viewerId = filter.viewerId
+      tickets = tickets.filter(ticket =>
+        ticket.status !== 'pending' || ticket.ownerId === undefined || ticket.ownerId === viewerId,
+      )
+    }
     return paginate(tickets, filter?.limit, filter?.offset)
   }
 

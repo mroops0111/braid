@@ -1,11 +1,13 @@
 import type { Workspace } from '@braidhq/schema'
 import type { Surface } from './CommandPalette'
-import { ClipboardCheck, GitGraph, HelpCircle, Moon, Network, PanelLeftClose, PanelLeftOpen, Plus, Server, Sparkles, Sun } from 'lucide-react'
+import { ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, Moon, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import braidLogo from '@/assets/braid-logo.svg'
-import { usePendingClarify, usePendingProposals, useRuns } from '@/lib/queries'
+import { usePendingClarify, usePendingProposals, useRuns, useSkills } from '@/lib/queries'
+import { LOCAL_REMOTE_ID, useActiveRemoteId, useRemotes } from '@/lib/remotes'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
+import { useWorkspacePolicy } from '@/policy'
 import { CreateWorkspaceWizard } from './CreateWorkspaceWizard'
 import { ListRow } from './ListRow'
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
@@ -35,7 +37,6 @@ interface SidebarProps {
   activeSurface: Surface | null
   onSelect: (id: string) => void
   onOpenDetails: (id: string) => void
-  onOpenServerUrl: () => void
   onGoHome: () => void
   onSelectSurface: (next: Surface) => void
 }
@@ -46,7 +47,6 @@ export function Sidebar({
   activeSurface,
   onSelect,
   onOpenDetails,
-  onOpenServerUrl,
   onGoHome,
   onSelectSurface,
 }: SidebarProps) {
@@ -58,9 +58,6 @@ export function Sidebar({
     setCollapsedState(next)
   }
 
-  // Cmd+\ / Ctrl+\ toggles the sidebar collapsed state. Linear / VS Code
-  // use the same chord; keeps the muscle memory consistent for users
-  // coming from those tools.
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
       if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
@@ -75,7 +72,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        'flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-150',
+        'flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground',
         collapsed ? 'w-12' : 'w-60',
       )}
     >
@@ -92,21 +89,22 @@ export function Sidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin px-2 pb-2">
-        <div className={cn('flex items-center pt-1 pb-1', collapsed ? 'justify-center' : 'justify-between px-2')}>
-          {!collapsed && (
+        <ActiveServerLabel collapsed={collapsed} />
+        {!collapsed && (
+          <div className="flex items-center justify-between pt-1 pb-1 px-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
               Workspaces
             </span>
-          )}
-          <button
-            type="button"
-            onClick={() => setWizardOpen(true)}
-            title="Open workspace"
-            className="flex size-5 items-center justify-center rounded text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-          >
-            <Plus className="size-3.5" />
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => setWizardOpen(true)}
+              title="Open workspace"
+              className="flex size-5 items-center justify-center rounded text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            >
+              <Plus className="size-3.5" />
+            </button>
+          </div>
+        )}
         <ul className="space-y-px">
           {workspaces.length === 0 && !collapsed && (
             <li className="px-2 py-1.5 text-xs text-sidebar-foreground/40">No workspace yet.</li>
@@ -147,6 +145,18 @@ export function Sidebar({
             </ListRow>
           ))}
         </ul>
+        {collapsed && (
+          <div className="flex justify-center pt-1">
+            <button
+              type="button"
+              onClick={() => setWizardOpen(true)}
+              title="Open workspace"
+              className="flex size-7 items-center justify-center rounded text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            >
+              <Plus className="size-3.5" />
+            </button>
+          </div>
+        )}
       </div>
 
       {activeWorkspaceId && (
@@ -159,6 +169,12 @@ export function Sidebar({
         />
       )}
 
+      <AccountSection
+        activeSurface={activeSurface}
+        collapsed={collapsed}
+        onSelectSurface={onSelectSurface}
+      />
+
       <div className={cn(
         'flex shrink-0 border-t border-sidebar-border',
         collapsed
@@ -169,9 +185,6 @@ export function Sidebar({
         {collapsed
           ? (
               <>
-                <SidebarIconButton onClick={onOpenServerUrl} title="Configure server URL">
-                  <Server className="size-3.5" />
-                </SidebarIconButton>
                 <ThemeToggle />
                 <SidebarIconButton
                   onClick={() => setCollapsed(false)}
@@ -188,9 +201,6 @@ export function Sidebar({
                     icons would drift to centre when account is absent. */}
                 <div className="flex-1" />
                 <div className="flex items-center gap-0.5">
-                  <SidebarIconButton onClick={onOpenServerUrl} title="Configure server URL">
-                    <Server className="size-3.5" />
-                  </SidebarIconButton>
                   <ThemeToggle />
                   <SidebarIconButton
                     onClick={() => setCollapsed(true)}
@@ -238,13 +248,25 @@ function ThemeToggle() {
   )
 }
 
-/**
- * "HERE" — surface nav scoped to the active workspace. Sits between
- * the workspaces list (top) and the app-level utility row (bottom),
- * so the sidebar reads top-to-bottom as `where → what → settings`.
- * Lives in the sidebar (not the header) so on mobile it transposes
- * cleanly into a bottom tab bar without restructuring nav.
- */
+function ActiveServerLabel({ collapsed }: { collapsed: boolean }) {
+  const remotes = useRemotes()
+  const activeId = useActiveRemoteId()
+  if (remotes.length === 0 || collapsed)
+    return null
+  const isLocal = activeId === LOCAL_REMOTE_ID
+  const activeName = isLocal
+    ? 'Local'
+    : remotes.find(r => r.id === activeId)?.name ?? 'Local'
+  const Icon = isLocal ? Laptop : Globe
+  return (
+    <div className="flex items-center gap-1.5 px-2 pt-1 pb-0.5">
+      <Icon className="size-3 text-sidebar-foreground/50" />
+      <span className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40">Server:</span>
+      <span className="font-mono text-[10px] text-sidebar-foreground/70">{activeName}</span>
+    </div>
+  )
+}
+
 function HereSection({
   workspaceId,
   activeSurface,
@@ -260,8 +282,26 @@ function HereSection({
 }) {
   const { data: proposals } = usePendingProposals(workspaceId)
   const { data: clarify } = usePendingClarify(workspaceId)
+  const policy = useWorkspacePolicy(workspaceId)
+  const { data: skills } = useSkills(workspaceId)
   const pendingProposals = proposals?.items.length ?? 0
   const pendingClarify = clarify?.items.length ?? 0
+  // HITL tabs are hidden when the viewer can't act on them. The server
+  // 403-gates the same routes, so devtools tampering changes nothing.
+  const canSeeProposals = policy.can('proposal.read')
+  const canSeeClarify = policy.can('clarify.read')
+  // Actions tab is visible when the viewer can run at least one
+  // workspace skill. Owners/maintainers trivially can; guests get the
+  // tab only when a skill's allowedRoles or their per-member override
+  // gives them something runnable (e.g. braid-ask in the default
+  // catalog).
+  const canRunActions = (skills?.items ?? []).some(s =>
+    !s.frontmatter.braid.hidden && policy.can('skill.run', { skill: s.frontmatter, skillId: s.id }),
+  )
+  // History page exposes Tag / Restore actions which are owner-only.
+  // Even though the server 403s, showing the buttons to guests is
+  // misleading; hide the whole tab for them.
+  const canSeeHistory = policy.effectiveRole !== null && policy.effectiveRole !== 'guest'
 
   return (
     <div className={cn('shrink-0 border-t border-sidebar-border px-2 pb-2', collapsed ? 'pt-1.5' : 'pt-2')}>
@@ -276,49 +316,88 @@ function HereSection({
           icon={Network}
           label="Graph"
           active={activeSurface === null}
+          shortcut="G G"
           onClick={onGoHome}
         />
+        {canRunActions && (
+          <HereRow
+            collapsed={collapsed}
+            icon={Sparkles}
+            label="Actions"
+            active={activeSurface === 'actions'}
+            shortcut="G A"
+            onClick={() => onSelectSurface('actions')}
+          />
+        )}
+        {canSeeClarify && (
+          <HereRow
+            collapsed={collapsed}
+            icon={HelpCircle}
+            label="Clarify"
+            active={activeSurface === 'clarify'}
+            count={pendingClarify}
+            shortcut="G C"
+            onClick={() => onSelectSurface('clarify')}
+          />
+        )}
+        {canSeeProposals && (
+          <HereRow
+            collapsed={collapsed}
+            icon={ClipboardCheck}
+            label="Proposals"
+            active={activeSurface === 'proposals'}
+            count={pendingProposals}
+            shortcut="G P"
+            onClick={() => onSelectSurface('proposals')}
+          />
+        )}
+        {canSeeHistory && (
+          <HereRow
+            collapsed={collapsed}
+            icon={GitGraph}
+            label="History"
+            active={activeSurface === 'history'}
+            shortcut="G H"
+            onClick={() => onSelectSurface('history')}
+          />
+        )}
+      </ul>
+    </div>
+  )
+}
+
+function AccountSection({
+  activeSurface,
+  collapsed,
+  onSelectSurface,
+}: {
+  activeSurface: Surface | null
+  collapsed: boolean
+  onSelectSurface: (next: Surface) => void
+}) {
+  return (
+    <div className={cn('shrink-0 border-t border-sidebar-border px-2 pb-2', collapsed ? 'pt-1.5' : 'pt-2')}>
+      <ul className="space-y-px">
         <HereRow
           collapsed={collapsed}
-          icon={Sparkles}
-          label="Actions"
-          active={activeSurface === 'actions'}
-          onClick={() => onSelectSurface('actions')}
-        />
-        <HereRow
-          collapsed={collapsed}
-          icon={HelpCircle}
-          label="Clarify"
-          active={activeSurface === 'clarify'}
-          count={pendingClarify}
-          onClick={() => onSelectSurface('clarify')}
-        />
-        <HereRow
-          collapsed={collapsed}
-          icon={ClipboardCheck}
-          label="Proposals"
-          active={activeSurface === 'proposals'}
-          count={pendingProposals}
-          onClick={() => onSelectSurface('proposals')}
-        />
-        <HereRow
-          collapsed={collapsed}
-          icon={GitGraph}
-          label="History"
-          active={activeSurface === 'history'}
-          onClick={() => onSelectSurface('history')}
+          icon={Settings}
+          label="Settings"
+          active={activeSurface === 'settings'}
+          shortcut="G S"
+          onClick={() => onSelectSurface('settings')}
         />
       </ul>
     </div>
   )
 }
 
-function HereRow({ collapsed, icon: Icon, label, active, count = 0, onClick }: {
+function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, onClick }: {
   collapsed: boolean
   icon: typeof Sparkles
   label: string
   active: boolean
   count?: number
+  shortcut?: string
   onClick: () => void
 }) {
   return (
@@ -359,6 +438,14 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, onClick }: {
                 >
                   {count}
                 </span>
+              )}
+              {shortcut && count === 0 && (
+                <kbd
+                  className="rounded bg-sidebar-accent/40 px-1.5 py-0.5 text-[10px] font-mono text-sidebar-foreground/50"
+                  aria-hidden
+                >
+                  {shortcut}
+                </kbd>
               )}
             </>
           )}

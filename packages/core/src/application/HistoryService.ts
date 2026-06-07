@@ -12,12 +12,14 @@ import type { Clock } from '../domain/Clock.js'
 import type { ListCommitsOptions, WorkspaceHistory } from '../domain/history/WorkspaceHistory.js'
 import type { RunRepository } from '../domain/skill/RunRepository.js'
 import type { SkillRunner } from '../domain/skill/SkillRunner.js'
+import type { UserDirectory } from '../domain/users/UserDirectory.js'
 import type { PerWorkspaceLock } from './PerWorkspaceLock.js'
 import type { WorkspaceBootstrap } from './WorkspaceBootstrap.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import type { WorkspaceService } from './WorkspaceService.js'
 import { diffSnapshots } from '@braidhq/schema'
 import { ConflictError } from '../domain/errors.js'
+import { noopUserDirectory } from '../domain/users/UserDirectory.js'
 
 export interface HistoryServiceDeps {
   history: WorkspaceHistory
@@ -28,10 +30,20 @@ export interface HistoryServiceDeps {
   skillRunner?: SkillRunner
   eventBus?: WorkspaceEventBus
   clock: Clock
+  /**
+   * Snapshots displayName + email into the `restore` commit so git
+   * stores the human's identity. Defaults to a no-op directory (the
+   * git layer falls back to `userId@braid.local`).
+   */
+  userDirectory?: UserDirectory
 }
 
 export class HistoryService {
-  constructor(private readonly deps: HistoryServiceDeps) {}
+  private readonly userDirectory: UserDirectory
+
+  constructor(private readonly deps: HistoryServiceDeps) {
+    this.userDirectory = deps.userDirectory ?? noopUserDirectory
+  }
 
   async listCommits(workspaceId: WorkspaceId, options?: ListCommitsOptions): Promise<readonly CommitMeta[]> {
     const workspace = await this.deps.workspaceService.findById(workspaceId)
@@ -73,10 +85,13 @@ export class HistoryService {
     return this.deps.workspaceLock.run(workspaceId, async () => {
       await this.assertNoInFlightRuns(workspaceId)
       const workspace = await this.deps.workspaceService.findById(workspaceId)
+      const author = await this.userDirectory.resolve(userId)
       const message: CommitMessage = {
         kind: 'restore',
         subject: `rolled back to ${targetSha.slice(0, 12)}`,
         userId,
+        ...(author?.displayName ? { authorName: author.displayName } : {}),
+        ...(author?.email ? { authorEmail: author.email } : {}),
       }
       const newSha = await this.deps.history.restore(workspace, targetSha, message)
       await this.deps.bootstrap.reloadFromDisk(workspace)

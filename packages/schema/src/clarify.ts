@@ -52,6 +52,15 @@ export const ClarifyTicket = z.object({
   selectedCandidateId: ClarifyCandidateId.optional(),
   resolution: z.array(GraphOperation).optional(),
   /**
+   * Human who triggered the run / submission that produced this ticket.
+   * While `pending`, only the owner sees it in their list; once it
+   * transitions to `answered` / `applied` / `skipped` it becomes
+   * workspace-shared audit history. Absent on tickets predating Phase E.
+   */
+  ownerId: UserId.optional(),
+  /** Snapshot of the owner's displayName at submit time. See Proposal.ownerDisplayName. */
+  ownerDisplayName: z.string().min(1).optional(),
+  /**
    * Set on `pending → answered → applied` transitions when the
    * braid-clarify skill wraps the resolution into a Proposal. Lets the
    * UI link back from a ticket to the Proposal that materialised it.
@@ -86,5 +95,12 @@ export const ClarifyFilter = z.object({
   statuses: z.array(ClarifyStatus).optional(),
   limit: z.number().int().positive().optional(),
   offset: z.number().int().nonnegative().optional(),
+  /**
+   * When present, hides pending tickets whose `ownerId` is not the
+   * viewer. Non-pending tickets stay visible to everyone (audit
+   * history). Absent means "show everything" — used by owners with
+   * Show All, by tests, and by bootstrap.
+   */
+  viewerId: UserId.optional(),
 })
 export type ClarifyFilter = z.infer<typeof ClarifyFilter>

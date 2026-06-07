@@ -15,6 +15,7 @@ import { api } from '@/lib/api'
 import { queryKeys, useProposalsByStatus, useProposalValidation } from '@/lib/queries'
 import { useGraphNavigation } from '@/lib/useGraphNavigation'
 import { useMutualExclusionPair } from '@/lib/useMutualExclusionPair'
+import { useWorkspacePolicy } from '@/policy'
 import { GraphSurface } from './GraphSurface'
 
 interface ProposalsPageProps {
@@ -29,8 +30,6 @@ interface ProposalsPageProps {
   focusedProposalId?: ProposalId | null
   onFocusConsumed?: () => void
 }
-
-const DEFAULT_USER_ID = 'studio-user'
 
 type StatusFilter = Extract<ProposalStatus, 'pending' | 'applied' | 'rejected'>
 
@@ -55,7 +54,8 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
   // selected proposal so the right pane doesn't show an item that no
   // longer matches the active filter.
   const [status, setStatus] = useState<StatusFilter>('pending')
-  const { data, isLoading } = useProposalsByStatus(workspaceId, status)
+  const [showAll, setShowAll] = useState(false)
+  const { data, isLoading } = useProposalsByStatus(workspaceId, status, showAll)
   const [selected, setSelected] = useState<Proposal | null>(null)
   // Tracks an in-progress sweep across statuses for a deep-link focus.
   // Each entry remembers which status filters we've already checked
@@ -112,6 +112,7 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
     <div className="flex h-full flex-col">
       <PageActions>
         <ProposalsStatusFilter workspaceId={workspaceId} status={status} onChange={changeStatus} />
+        <ShowAllToggle workspaceId={workspaceId} status={status} showAll={showAll} onToggle={setShowAll} />
       </PageActions>
       <div className="flex flex-1 overflow-hidden">
         <div className="flex w-72 shrink-0 flex-col border-r border-border">
@@ -179,6 +180,39 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
   )
 }
 
+/**
+ * Owner-only toggle that flips the personal-pending filter to "everyone's"
+ * mode. Only rendered on the pending tab — applied / rejected lists are
+ * shared by definition, so a toggle there would do nothing. Cmd-click
+ * suppression keeps it small + tucked next to the status tabs.
+ */
+function ShowAllToggle({
+  workspaceId,
+  status,
+  showAll,
+  onToggle,
+}: {
+  workspaceId: string
+  status: StatusFilter
+  showAll: boolean
+  onToggle: (next: boolean) => void
+}) {
+  const { effectiveRole } = useWorkspacePolicy(workspaceId)
+  if (effectiveRole !== 'owner' || status !== 'pending')
+    return null
+  return (
+    <Button
+      variant={showAll ? 'default' : 'ghost'}
+      size="sm"
+      className="h-7 text-[11px]"
+      onClick={() => onToggle(!showAll)}
+      title={showAll ? 'Showing pending proposals from every member' : 'Showing only your own pending proposals'}
+    >
+      {showAll ? 'Showing All' : 'Mine Only'}
+    </Button>
+  )
+}
+
 // Pending / Applied / Rejected segment. Rendered via PageActions into
 // the top tab row so it doesn't take a row of its own. Pending wears
 // a live count badge — the only one worth surfacing, since applied /
@@ -228,6 +262,7 @@ function ProposalDetail({
   // Apply / Reject are only meaningful while the proposal is still
   // pending. Applied / rejected entries are read-only history.
   const isPending = proposal.status === 'pending'
+  const canWrite = useWorkspacePolicy(workspaceId).can('proposal.write')
 
   const validation = useProposalValidation(workspaceId, isPending ? proposal.id : null)
   const errorCount = validation.data?.issues.filter(issue => issue.severity === 'error').length ?? 0
@@ -241,7 +276,7 @@ function ProposalDetail({
   }
 
   const apply = useMutation({
-    mutationFn: () => api.applyProposal(workspaceId, proposal.id, DEFAULT_USER_ID),
+    mutationFn: () => api.applyProposal(workspaceId, proposal.id),
     onSuccess: () => {
       invalidateProposals()
       queryClient.invalidateQueries({ queryKey: queryKeys.modelSnapshot(workspaceId) })
@@ -250,7 +285,7 @@ function ProposalDetail({
   })
 
   const reject = useMutation({
-    mutationFn: (reason: string) => api.rejectProposal(workspaceId, proposal.id, reason, DEFAULT_USER_ID),
+    mutationFn: (reason: string) => api.rejectProposal(workspaceId, proposal.id, reason),
     onSuccess: () => {
       invalidateProposals()
       onComplete()
@@ -274,32 +309,29 @@ function ProposalDetail({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {isPending
-            ? (
-                <>
-                  <Button
-                    size="sm"
-                    disabled={apply.isPending || blockedByErrors || validation.isLoading}
-                    onClick={() => apply.mutate()}
-                    title={applyTitle}
-                  >
-                    <Check />
-                    Apply
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    disabled={reject.isPending}
-                    onClick={() => setRejectOpen(open => !open)}
-                  >
-                    <X />
-                    Reject
-                  </Button>
-                </>
-              )
-            : (
-                <StatusBadge status={proposal.status} />
-              )}
+          {isPending && canWrite && (
+            <>
+              <Button
+                size="sm"
+                disabled={apply.isPending || blockedByErrors || validation.isLoading}
+                onClick={() => apply.mutate()}
+                title={applyTitle}
+              >
+                <Check />
+                Apply
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={reject.isPending}
+                onClick={() => setRejectOpen(open => !open)}
+              >
+                <X />
+                Reject
+              </Button>
+            </>
+          )}
+          {(!isPending || !canWrite) && <StatusBadge status={proposal.status} />}
         </div>
       </header>
       <div className="shrink-0">

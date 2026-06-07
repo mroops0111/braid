@@ -48,6 +48,21 @@ export const Proposal = z.object({
   reviewedBy: UserId.optional(),
   reviewedAt: Timestamp.optional(),
   externalReferences: z.array(ExternalReference).optional(),
+  /**
+   * Human who triggered the skill run that produced this proposal,
+   * or who manually submitted it (Theme 12 fork). While the proposal
+   * is `pending`, only the owner sees it in their inbox; once it
+   * transitions to `applied` / `rejected` it becomes workspace-
+   * shared audit history. Absent on artifacts predating Phase E.
+   */
+  ownerId: UserId.optional(),
+  /**
+   * Snapshot of the owner's `displayName` at submit time. Survives
+   * renames (the audit row keeps the name they had when they acted)
+   * and lets UIs render `by Alice` without joining against users.json
+   * on every list query.
+   */
+  ownerDisplayName: z.string().min(1).optional(),
 })
 export type Proposal = z.infer<typeof Proposal>
 
@@ -66,5 +81,13 @@ export const ProposalFilter = z.object({
   generatedBy: z.array(SkillId).optional(),
   limit: z.number().int().positive().optional(),
   offset: z.number().int().nonnegative().optional(),
+  /**
+   * When present, hides pending proposals whose `ownerId` is not the
+   * viewer. Non-pending proposals stay visible to everyone (audit
+   * history). Absent means "show everything" — used by owners with
+   * the Show All toggle, by tests, and by repositories that lack
+   * the userId context (e.g. bootstrap).
+   */
+  viewerId: UserId.optional(),
 })
 export type ProposalFilter = z.infer<typeof ProposalFilter>

@@ -1,40 +1,39 @@
-const STORAGE_KEY = 'braid:serverUrl'
+import { getActiveRemoteId, listRemotes, LOCAL_REMOTE_ID } from './remotes'
 
 export const DEFAULT_SERVER_URL = 'http://localhost:4321'
 
-/**
- * URL of the Tauri-spawned embedded server. Populated by
- * {@link initServerUrl} during boot; remains null in web / dev contexts.
- * Cached at module scope so {@link getServerUrl} can stay synchronous
- * (it is called from every API helper).
- */
+// Cached at module scope so getServerUrl stays sync (every API helper
+// hits it). Populated by initServerUrl in Tauri runtime, null in web dev.
 let cachedEmbeddedUrl: string | null = null
 
+/**
+ * Resolves the URL Studio should talk to right now:
+ *   1. Active remote in Settings, when not Local
+ *   2. Cached embedded sidecar URL (Tauri runtime)
+ *   3. Vite env / hard default (web dev)
+ *
+ * Falls through to Local if the active remote was removed externally.
+ */
 export function getServerUrl(): string {
-  // 1. Explicit user override wins. Lets Tier 2/3 users point the
-  // bundled desktop app at a remote team server.
-  if (typeof localStorage !== 'undefined') {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored)
-      return stored
+  const activeId = getActiveRemoteId()
+  if (activeId !== LOCAL_REMOTE_ID) {
+    const remote = listRemotes().find(r => r.id === activeId)
+    if (remote)
+      return remote.url
   }
-  // 2. Tauri embedded server (Tier 1).
   if (cachedEmbeddedUrl)
     return cachedEmbeddedUrl
-  // 3. Build-time env var / hard default.
   return import.meta.env.VITE_BRAID_API_URL ?? DEFAULT_SERVER_URL
 }
 
-export function setServerUrl(url: string): void {
-  const trimmed = url.trim().replace(/\/$/, '')
-  if (trimmed)
-    localStorage.setItem(STORAGE_KEY, trimmed)
-  else
-    localStorage.removeItem(STORAGE_KEY)
-}
-
-export function hasStoredServerUrl(): boolean {
-  return typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_KEY) !== null
+export function getServerUrlFor(remoteId: string): string {
+  if (remoteId === LOCAL_REMOTE_ID) {
+    if (cachedEmbeddedUrl)
+      return cachedEmbeddedUrl
+    return import.meta.env.VITE_BRAID_API_URL ?? DEFAULT_SERVER_URL
+  }
+  const remote = listRemotes().find(r => r.id === remoteId)
+  return remote?.url ?? DEFAULT_SERVER_URL
 }
 
 export function isTauriRuntime(): boolean {
@@ -42,10 +41,9 @@ export function isTauriRuntime(): boolean {
 }
 
 /**
- * Ask the Tauri shell for its embedded server URL and cache it. Safe to
- * call in web contexts — it short-circuits when Tauri isn't present.
- * Called once from main.tsx before the React tree mounts so the first
- * render sees the right URL.
+ * Asks the Tauri shell for its embedded server URL and caches it.
+ * No-op in web contexts. Called once from main.tsx before mount so the
+ * first render sees the right URL.
  */
 export async function initServerUrl(): Promise<void> {
   if (!isTauriRuntime())
@@ -56,9 +54,6 @@ export async function initServerUrl(): Promise<void> {
     cachedEmbeddedUrl = info.url
   }
   catch (err) {
-    // The Tauri side spawns the server asynchronously; if we get here
-    // before it starts, fall back to the localStorage / default chain.
-
     console.warn('[braid] embedded server not yet reachable:', err)
   }
 }
