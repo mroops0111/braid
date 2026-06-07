@@ -37,18 +37,29 @@ fn get_server_info(state: State<'_, EmbeddedServer>) -> Result<ServerInfo, Strin
     Ok(ServerInfo { url: handle.url.clone() })
 }
 
-/// Bind to port 0, ask the kernel which port we got, drop the listener.
-/// There is an inherent race between releasing the port and the Node
-/// sidecar binding it. The window is sub-millisecond, accepted for now.
-fn pick_free_port() -> std::io::Result<u16> {
-    let listener = TcpListener::bind("127.0.0.1:0")?;
-    let port = listener.local_addr()?.port();
+/// Sidecar port is pinned so the Google OAuth redirect URI registered
+/// against this client ID stays stable across launches. Anything
+/// dynamic (`pick_free_port`) would force users to register every
+/// random ephemeral port in their Google Console, which is impossible.
+/// 4321 matches `pnpm dev` (web) so desktop and web share the same
+/// registration; the trade-off is they can't run simultaneously.
+const SIDECAR_PORT: u16 = 4321;
+
+/// Probe the pinned port up-front so we fail with a clear error before
+/// spawning the sidecar.
+fn ensure_port_free() -> std::io::Result<()> {
+    let listener = TcpListener::bind(("127.0.0.1", SIDECAR_PORT))?;
     drop(listener);
-    Ok(port)
+    Ok(())
 }
 
 fn start_embedded_server(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    let port = pick_free_port()?;
+    ensure_port_free().map_err(|err| {
+        format!(
+            "Sidecar port {SIDECAR_PORT} is already in use ({err}). Stop the other process (often `pnpm dev:web`) and try again."
+        )
+    })?;
+    let port = SIDECAR_PORT;
     let braid_home = app.path().app_data_dir()?.join("workspaces");
     std::fs::create_dir_all(&braid_home)?;
 
@@ -62,6 +73,11 @@ fn start_embedded_server(app: &AppHandle) -> Result<(), Box<dyn std::error::Erro
         .arg(server_script)
         .env("BRAID_SERVER_PORT", port.to_string())
         .env("BRAID_HOME", braid_home)
+        // Force JSON logger output: pino-pretty runs in a worker thread
+        // that needs files which aren't bundled into the sidecar, and
+        // stdout already goes through the Tauri log plugin so pretty
+        // formatting is wasted anyway.
+        .env("BRAID_LOG_PRETTY", "false")
         .spawn()?;
 
     // Drain stdout/stderr so the OS pipe buffer never fills and stalls the
@@ -109,8 +125,31 @@ fn stop_embedded_server(app: &AppHandle) {
     }
 }
 
+/// Load `.env` from the monorepo root in dev builds so the sidecar
+/// inherits BRAID_* config (Google OAuth creds, allowed emails,
+/// BRAID_LOCAL_TRUST overrides). In a production .app bundle CARGO
+/// paths don't resolve and no .env is loaded; users configure via OS
+/// env vars or future settings UI.
+#[cfg(debug_assertions)]
+fn load_monorepo_dotenv() {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let env_path = std::path::Path::new(manifest_dir)
+        .join("../../../.env")
+        .canonicalize();
+    if let Ok(path) = env_path {
+        match dotenvy::from_path(&path) {
+            Ok(()) => log::info!("loaded .env from {}", path.display()),
+            Err(err) => log::warn!("failed to load .env from {}: {err}", path.display()),
+        }
+    }
+}
+
+#[cfg(not(debug_assertions))]
+fn load_monorepo_dotenv() {}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    load_monorepo_dotenv();
     let app = tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::default()

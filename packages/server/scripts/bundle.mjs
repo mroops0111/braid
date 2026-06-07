@@ -47,9 +47,17 @@ async function bundleServerJs() {
     outfile: join(bundleDir, 'server.mjs'),
     external: ['kuzu'],
     banner: {
-      // CommonJS shim for the few node_modules that still use `require`
-      // at module-eval time after being bundled into ESM output.
-      js: 'import { createRequire as __braidCreateRequire } from \'node:module\'; const require = __braidCreateRequire(import.meta.url);',
+      // CommonJS shim. Bundled CJS deps (pino/thread-stream) reference
+      // `require`, `__dirname`, and `__filename` at module-eval time;
+      // none exist in ESM output without these definitions.
+      js: [
+        'import { createRequire as __braidCreateRequire } from \'node:module\';',
+        'import { fileURLToPath as __braidFileURLToPath } from \'node:url\';',
+        'import { dirname as __braidDirname } from \'node:path\';',
+        'const require = __braidCreateRequire(import.meta.url);',
+        'const __filename = __braidFileURLToPath(import.meta.url);',
+        'const __dirname = __braidDirname(__filename);',
+      ].join(' '),
     },
     legalComments: 'none',
     minify: false,
