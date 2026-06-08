@@ -1,11 +1,12 @@
 import type { Workspace } from '@braidhq/schema'
 import type { Surface } from './CommandPalette'
-import { ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, Moon, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles, Sun } from 'lucide-react'
+import { ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, LogIn, Moon, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import braidLogo from '@/assets/braid-logo.svg'
 import { usePendingClarify, usePendingProposals, useRuns, useSkills } from '@/lib/queries'
-import { LOCAL_REMOTE_ID, useActiveRemoteId, useRemotes } from '@/lib/remotes'
+import { setActiveRemoteId, useActiveRemoteId } from '@/lib/remotes'
 import { useTheme } from '@/lib/theme'
+import { type RemoteSummary, type RemoteWorkspacesResult, useAllRemoteWorkspaces } from '@/lib/useRemoteWorkspaces'
 import { cn } from '@/lib/utils'
 import { useWorkspacePolicy } from '@/policy'
 import { CreateWorkspaceWizard } from './CreateWorkspaceWizard'
@@ -14,6 +15,28 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
 import { WorkspaceSwatch, WorkspaceSwatchWithPending } from './WorkspaceSwatch'
 
 const COLLAPSED_KEY = 'braid-sidebar-collapsed'
+
+// Server-stripe palette mirrors the workspace swatch palette but with
+// a stronger left-edge bar tone so it reads as identity even at 2-3px.
+// Local always uses the muted token so the embedded sidecar never
+// competes with named remotes for attention.
+const REMOTE_STRIPE_PALETTE = [
+  'bg-sky-500',
+  'bg-emerald-500',
+  'bg-amber-500',
+  'bg-rose-500',
+  'bg-violet-500',
+  'bg-fuchsia-500',
+] as const
+
+function remoteStripeClass(remote: RemoteSummary): string {
+  if (remote.isLocal)
+    return 'bg-sidebar-foreground/30'
+  let h = 0
+  for (let i = 0; i < remote.id.length; i++)
+    h = (h * 31 + remote.id.charCodeAt(i)) >>> 0
+  return REMOTE_STRIPE_PALETTE[h % REMOTE_STRIPE_PALETTE.length]!
+}
 
 function readStoredCollapsed(): boolean {
   try {
@@ -42,7 +65,6 @@ interface SidebarProps {
 }
 
 export function Sidebar({
-  workspaces,
   activeWorkspaceId,
   activeSurface,
   onSelect,
@@ -52,6 +74,8 @@ export function Sidebar({
 }: SidebarProps) {
   const [wizardOpen, setWizardOpen] = useState(false)
   const [collapsed, setCollapsedState] = useState<boolean>(readStoredCollapsed)
+  const activeRemoteId = useActiveRemoteId()
+  const remoteResults = useAllRemoteWorkspaces()
 
   function setCollapsed(next: boolean): void {
     writeStoredCollapsed(next)
@@ -68,6 +92,25 @@ export function Sidebar({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [collapsed])
+
+  function selectWorkspace(remote: RemoteSummary, workspaceId: string): void {
+    if (remote.id !== activeRemoteId)
+      setActiveRemoteId(remote.id)
+    onSelect(workspaceId)
+  }
+
+  function openAddWorkspace(remote: RemoteSummary): void {
+    if (remote.id !== activeRemoteId)
+      setActiveRemoteId(remote.id)
+    setWizardOpen(true)
+  }
+
+  function startRemoteSignIn(remote: RemoteSummary): void {
+    if (typeof window === 'undefined')
+      return
+    const returnTo = `${window.location.origin}${window.location.pathname}#auth-remote=${encodeURIComponent(remote.id)}`
+    window.location.href = `${remote.url}/auth/google/start?returnTo=${encodeURIComponent(returnTo)}`
+  }
 
   return (
     <aside
@@ -89,74 +132,19 @@ export function Sidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin px-2 pb-2">
-        <ActiveServerLabel collapsed={collapsed} />
-        {!collapsed && (
-          <div className="flex items-center justify-between pt-1 pb-1 px-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
-              Workspaces
-            </span>
-            <button
-              type="button"
-              onClick={() => setWizardOpen(true)}
-              title="Open workspace"
-              className="flex size-5 items-center justify-center rounded text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-            >
-              <Plus className="size-3.5" />
-            </button>
-          </div>
-        )}
-        <ul className="space-y-px">
-          {workspaces.length === 0 && !collapsed && (
-            <li className="px-2 py-1.5 text-xs text-sidebar-foreground/40">No workspace yet.</li>
-          )}
-          {workspaces.map(ws => (
-            <ListRow
-              key={ws.id}
-              variant="sidebar"
-              active={ws.id === activeWorkspaceId}
-              onClick={() => onSelect(ws.id)}
-              {...(collapsed ? { title: ws.id, className: 'justify-center px-0 py-1' } : {})}
-            >
-              {collapsed
-                ? (
-                    <WorkspaceSwatchWithPending
-                      workspaceId={ws.id}
-                      active={ws.id === activeWorkspaceId}
-                    />
-                  )
-                : (
-                    <>
-                      <WorkspaceSwatch workspaceId={ws.id} size="sm" />
-                      <span className="truncate font-medium">{ws.id}</span>
-                      <WorkspaceBadges workspaceId={ws.id} />
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onOpenDetails(ws.id)
-                        }}
-                        className="ml-1 hidden rounded p-0.5 text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-foreground group-hover:inline-flex"
-                        title="Details"
-                      >
-                        ⋯
-                      </button>
-                    </>
-                  )}
-            </ListRow>
-          ))}
-        </ul>
-        {collapsed && (
-          <div className="flex justify-center pt-1">
-            <button
-              type="button"
-              onClick={() => setWizardOpen(true)}
-              title="Open workspace"
-              className="flex size-7 items-center justify-center rounded text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-            >
-              <Plus className="size-3.5" />
-            </button>
-          </div>
-        )}
+        {remoteResults.map(result => (
+          <RemoteSection
+            key={result.remote.id}
+            result={result}
+            collapsed={collapsed}
+            activeWorkspaceId={activeWorkspaceId}
+            activeRemoteId={activeRemoteId}
+            onSelectWorkspace={selectWorkspace}
+            onOpenDetails={onOpenDetails}
+            onOpenAdd={openAddWorkspace}
+            onSignIn={startRemoteSignIn}
+          />
+        ))}
       </div>
 
       {activeWorkspaceId && (
@@ -196,9 +184,6 @@ export function Sidebar({
             )
           : (
               <>
-                {/* Empty flex spacer reserves the left of the utility row
-                    for a future user / account avatar; without it the
-                    icons would drift to centre when account is absent. */}
                 <div className="flex-1" />
                 <div className="flex items-center gap-0.5">
                   <ThemeToggle />
@@ -215,6 +200,278 @@ export function Sidebar({
 
       <CreateWorkspaceWizard open={wizardOpen} onOpenChange={setWizardOpen} onCreated={onSelect} />
     </aside>
+  )
+}
+
+function RemoteSection({
+  result,
+  collapsed,
+  activeWorkspaceId,
+  activeRemoteId,
+  onSelectWorkspace,
+  onOpenDetails,
+  onOpenAdd,
+  onSignIn,
+}: {
+  result: RemoteWorkspacesResult
+  collapsed: boolean
+  activeWorkspaceId: string | null
+  activeRemoteId: string
+  onSelectWorkspace: (remote: RemoteSummary, workspaceId: string) => void
+  onOpenDetails: (workspaceId: string) => void
+  onOpenAdd: (remote: RemoteSummary) => void
+  onSignIn: (remote: RemoteSummary) => void
+}) {
+  const { remote, state } = result
+  const isActiveRemote = remote.id === activeRemoteId
+  const stripe = remoteStripeClass(remote)
+  const Icon = remote.isLocal ? Laptop : Globe
+
+  return (
+    <div className={cn('pb-1', collapsed ? 'pt-1' : 'pt-2')}>
+      {!collapsed && (
+        <div className="group/heading flex items-center justify-between px-2 pb-1">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Icon className={cn('size-3 shrink-0', isActiveRemote ? 'text-sidebar-foreground/70' : 'text-sidebar-foreground/40')} />
+            <span
+              className={cn(
+                'truncate text-[10px] font-semibold uppercase tracking-wider',
+                isActiveRemote ? 'text-sidebar-foreground/70' : 'text-sidebar-foreground/45',
+              )}
+              title={remote.url}
+            >
+              {remote.name}
+            </span>
+          </div>
+          {state.kind === 'ok' && (
+            <button
+              type="button"
+              onClick={() => onOpenAdd(remote)}
+              title="Open workspace"
+              className="flex size-5 items-center justify-center rounded text-sidebar-foreground/40 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            >
+              <Plus className="size-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {collapsed && (
+        <div className="flex justify-center pb-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className={cn('h-0.5 w-6 rounded-full', stripe)} />
+            </TooltipTrigger>
+            <TooltipContent side="right">{remote.name}</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
+
+      <RemoteContent
+        state={state}
+        remote={remote}
+        stripe={stripe}
+        collapsed={collapsed}
+        isActiveRemote={isActiveRemote}
+        activeWorkspaceId={activeWorkspaceId}
+        onSelectWorkspace={onSelectWorkspace}
+        onOpenDetails={onOpenDetails}
+        onOpenAdd={onOpenAdd}
+        onSignIn={onSignIn}
+      />
+    </div>
+  )
+}
+
+function RemoteContent({
+  state,
+  remote,
+  stripe,
+  collapsed,
+  isActiveRemote,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onOpenDetails,
+  onOpenAdd,
+  onSignIn,
+}: {
+  state: RemoteWorkspacesResult['state']
+  remote: RemoteSummary
+  stripe: string
+  collapsed: boolean
+  isActiveRemote: boolean
+  activeWorkspaceId: string | null
+  onSelectWorkspace: (remote: RemoteSummary, workspaceId: string) => void
+  onOpenDetails: (workspaceId: string) => void
+  onOpenAdd: (remote: RemoteSummary) => void
+  onSignIn: (remote: RemoteSummary) => void
+}) {
+  if (state.kind === 'loading') {
+    if (collapsed)
+      return null
+    return (
+      <div className="px-2 py-1 text-[11px] text-sidebar-foreground/40">Loading…</div>
+    )
+  }
+
+  if (state.kind === 'unauthenticated') {
+    if (collapsed) {
+      return (
+        <div className="flex justify-center py-0.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => onSignIn(remote)}
+                title={`Sign in to ${remote.name}`}
+                className="flex size-7 items-center justify-center rounded text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+              >
+                <LogIn className="size-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{`Sign in to ${remote.name}`}</TooltipContent>
+          </Tooltip>
+        </div>
+      )
+    }
+    return (
+      <button
+        type="button"
+        onClick={() => onSignIn(remote)}
+        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+      >
+        <LogIn className="size-3.5" />
+        <span>Sign In</span>
+      </button>
+    )
+  }
+
+  if (state.kind === 'error') {
+    if (collapsed)
+      return null
+    return (
+      <div className="px-2 py-1 text-[11px] text-destructive" title={state.message}>
+        Unreachable
+      </div>
+    )
+  }
+
+  const workspaces = state.workspaces
+  if (workspaces.length === 0) {
+    if (collapsed) {
+      return (
+        <div className="flex justify-center py-0.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => onOpenAdd(remote)}
+                title={`Open workspace on ${remote.name}`}
+                className="flex size-7 items-center justify-center rounded text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+              >
+                <Plus className="size-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{`Open workspace on ${remote.name}`}</TooltipContent>
+          </Tooltip>
+        </div>
+      )
+    }
+    return (
+      <div className="px-2 py-1 text-[11px] text-sidebar-foreground/40">No workspace yet.</div>
+    )
+  }
+
+  return (
+    <ul className="space-y-px">
+      {workspaces.map(ws => (
+        <WorkspaceRow
+          key={`${remote.id}:${ws.id}`}
+          workspace={ws}
+          remote={remote}
+          stripe={stripe}
+          collapsed={collapsed}
+          isActiveRemote={isActiveRemote}
+          active={isActiveRemote && ws.id === activeWorkspaceId}
+          onClick={() => onSelectWorkspace(remote, ws.id)}
+          onOpenDetails={() => onOpenDetails(ws.id)}
+        />
+      ))}
+    </ul>
+  )
+}
+
+function WorkspaceRow({
+  workspace,
+  remote,
+  stripe,
+  collapsed,
+  isActiveRemote,
+  active,
+  onClick,
+  onOpenDetails,
+}: {
+  workspace: Workspace
+  remote: RemoteSummary
+  stripe: string
+  collapsed: boolean
+  isActiveRemote: boolean
+  active: boolean
+  onClick: () => void
+  onOpenDetails: () => void
+}) {
+  // Inactive remotes get a dimmer stripe so the active server still
+  // reads first while server identity stays visible across all rows.
+  return (
+    <ListRow
+      variant="sidebar"
+      active={active}
+      onClick={onClick}
+      stripeClassName={stripe}
+      stripeDim={!isActiveRemote}
+      {...(collapsed
+        ? { title: `${remote.name} / ${workspace.id}`, className: 'justify-center px-0 py-1 pl-1' }
+        : { className: 'pl-3' })}
+    >
+      {collapsed
+        ? (
+            isActiveRemote
+              ? (
+                  <WorkspaceSwatchWithPending
+                    workspaceId={workspace.id}
+                    active={active}
+                  />
+                )
+              : (
+                  <WorkspaceSwatch workspaceId={workspace.id} active={active} />
+                )
+          )
+        : (
+            <>
+              <WorkspaceSwatch workspaceId={workspace.id} size="sm" />
+              <span className="truncate font-medium">{workspace.id}</span>
+              {isActiveRemote && <WorkspaceBadges workspaceId={workspace.id} />}
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenDetails()
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.stopPropagation()
+                    onOpenDetails()
+                  }
+                }}
+                className="ml-1 hidden rounded p-0.5 text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-foreground group-hover:inline-flex"
+                title="Details"
+              >
+                ⋯
+              </span>
+            </>
+          )}
+    </ListRow>
   )
 }
 
@@ -248,25 +505,6 @@ function ThemeToggle() {
   )
 }
 
-function ActiveServerLabel({ collapsed }: { collapsed: boolean }) {
-  const remotes = useRemotes()
-  const activeId = useActiveRemoteId()
-  if (remotes.length === 0 || collapsed)
-    return null
-  const isLocal = activeId === LOCAL_REMOTE_ID
-  const activeName = isLocal
-    ? 'Local'
-    : remotes.find(r => r.id === activeId)?.name ?? 'Local'
-  const Icon = isLocal ? Laptop : Globe
-  return (
-    <div className="flex items-center gap-1.5 px-2 pt-1 pb-0.5">
-      <Icon className="size-3 text-sidebar-foreground/50" />
-      <span className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40">Server:</span>
-      <span className="font-mono text-[10px] text-sidebar-foreground/70">{activeName}</span>
-    </div>
-  )
-}
-
 function HereSection({
   workspaceId,
   activeSurface,
@@ -286,21 +524,11 @@ function HereSection({
   const { data: skills } = useSkills(workspaceId)
   const pendingProposals = proposals?.items.length ?? 0
   const pendingClarify = clarify?.items.length ?? 0
-  // HITL tabs are hidden when the viewer can't act on them. The server
-  // 403-gates the same routes, so devtools tampering changes nothing.
   const canSeeProposals = policy.can('proposal.read')
   const canSeeClarify = policy.can('clarify.read')
-  // Actions tab is visible when the viewer can run at least one
-  // workspace skill. Owners/maintainers trivially can; guests get the
-  // tab only when a skill's allowedRoles or their per-member override
-  // gives them something runnable (e.g. braid-ask in the default
-  // catalog).
   const canRunActions = (skills?.items ?? []).some(s =>
     !s.frontmatter.braid.hidden && policy.can('skill.run', { skill: s.frontmatter, skillId: s.id }),
   )
-  // History page exposes Tag / Restore actions which are owner-only.
-  // Even though the server 403s, showing the buttons to guests is
-  // misleading; hide the whole tab for them.
   const canSeeHistory = policy.effectiveRole !== null && policy.effectiveRole !== 'guest'
 
   return (
@@ -424,9 +652,6 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, on
           )
         : (
             <>
-              {/* size-5 wrapper so the icon column matches the workspace
-                  swatch column above (both 20px wide), keeping label
-                  x-positions aligned across both sections. */}
               <div className="flex size-5 shrink-0 items-center justify-center text-sidebar-foreground/70">
                 <Icon className="size-3.5" />
               </div>
@@ -454,13 +679,6 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, on
 }
 
 function WorkspaceBadges({ workspaceId }: { workspaceId: string }) {
-  // For the active workspace, useWorkspaceEvents keeps these query keys
-  // live. For inactive workspaces the counts are slightly stale until
-  // the user opens it; acceptable cost to avoid N concurrent SSEs.
-  // Three kinds (in-flight runs, pending clarifies, pending proposals)
-  // aggregate into a single number; the active workspace's HERE
-  // section is where the per-surface breakdown lives. A tooltip keeps
-  // the breakdown a hover away for the inactive-workspace case.
   const { data: proposals } = usePendingProposals(workspaceId)
   const { data: clarify } = usePendingClarify(workspaceId)
   const { data: runs } = useRuns(workspaceId)

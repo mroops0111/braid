@@ -2,10 +2,12 @@ import type { Workspace as WorkspaceData } from '@braidhq/schema'
 import type { WorkspaceRegistryFile } from './WorkspaceRegistryFile.js'
 import { readFile, stat } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { NotFoundError, ValidationError, Workspace, type WorkspaceRepository } from '@braidhq/core'
+import { createLogger, NotFoundError, ValidationError, Workspace, type WorkspaceRepository } from '@braidhq/core'
 import { AbsolutePath, ProductManifest, WorkspaceId } from '@braidhq/schema'
 import { parseMarkdownFrontmatter } from './frontmatter.js'
 import { workspaceProductManifestPath } from './paths.js'
+
+const log = createLogger('server').child({ mod: 'workspace-repo' })
 
 export interface FsWorkspaceRepositoryDeps {
   readonly registry: WorkspaceRegistryFile
@@ -16,11 +18,20 @@ export class FsWorkspaceRepository implements WorkspaceRepository {
 
   constructor(private readonly deps: FsWorkspaceRepositoryDeps) {}
 
+  // One unreadable rootPath (deleted dir, broken PRODUCT.md, ...)
+  // must not starve the rest. The asymmetry with `load()` is intentional:
+  // aggregate views recover, single-entity lookups distinguish present
+  // from absent.
   async list(): Promise<Workspace[]> {
     const rootPaths = await this.deps.registry.list()
     const workspaces: Workspace[] = []
     for (const rootPath of rootPaths) {
-      workspaces.push(await this.load(rootPath))
+      try {
+        workspaces.push(await this.load(rootPath))
+      }
+      catch (err) {
+        log.warn({ err, rootPath }, 'skipping unreadable registry entry')
+      }
     }
     return workspaces
   }

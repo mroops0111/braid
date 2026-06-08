@@ -78,6 +78,20 @@ describe('FsWorkspaceRepository', () => {
     await expect(repository.load(rootPath)).rejects.toThrow(NotFoundError)
   })
 
+  it('list skips registry entries whose workspace directory is missing', async () => {
+    const liveRoot = AbsolutePath.parse(await createWorkspaceDir({ name: 'alive' }))
+    const ghostRoot = AbsolutePath.parse('/tmp/braid-ghost-workspace-does-not-exist')
+    const registry = await makeRegistry()
+    // Stamp the stale entry directly; load+save would throw before saving.
+    await registry.add(ghostRoot)
+    await registry.add(liveRoot)
+
+    const repository = new FsWorkspaceRepository({ registry })
+    const all = await repository.list()
+
+    expect(all.map(w => w.productManifest.name)).toEqual(['alive'])
+  })
+
   it('throws ValidationError when frontmatter invalid', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'braid-ws-'))
     await writeFile(join(dir, 'PRODUCT.md'), '---\nname: ""\n---\n', 'utf-8')

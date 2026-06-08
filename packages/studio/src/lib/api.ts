@@ -34,7 +34,8 @@ import type {
 } from '@braidhq/schema'
 import { getAuthToken } from './authToken.js'
 import { getCurrentUserId } from './currentUser.js'
-import { getServerUrl } from './serverUrl.js'
+import { getTokenFor } from './remotes.js'
+import { getServerUrl, getServerUrlFor } from './serverUrl.js'
 
 export function workspaceEventsUrl(workspaceId: string): string {
   return `${getServerUrl()}/workspaces/${workspaceId}/events`
@@ -126,9 +127,8 @@ export class ApiError extends Error {
   }
 }
 
-async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getAuthToken()
-  const response = await fetch(`${getServerUrl()}${path}`, {
+async function rawFetch<T>(baseUrl: string, token: string | null, path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${baseUrl}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -156,6 +156,19 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   if (response.status === 204)
     return undefined as T
   return response.json() as Promise<T>
+}
+
+async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+  return rawFetch<T>(getServerUrl(), getAuthToken(), path, init)
+}
+
+/**
+ * Like `fetchJson` but targets an explicit remote regardless of the active
+ * one. The sidebar uses this to enumerate workspaces across every
+ * configured server without disturbing the active singleton.
+ */
+async function fetchJsonAt<T>(remoteId: string, path: string, init?: RequestInit): Promise<T> {
+  return rawFetch<T>(getServerUrlFor(remoteId), getTokenFor(remoteId), path, init)
 }
 
 export interface AuthConfig {
@@ -224,10 +237,10 @@ export const api = {
     }),
 
   listWorkspaces: () => fetchJson<ItemList<Workspace>>('/workspaces'),
+  listWorkspacesAt: (remoteId: string) =>
+    fetchJsonAt<ItemList<Workspace>>(remoteId, '/workspaces'),
   getWorkspace: (workspaceId: string) =>
     fetchJson<Workspace>(`/workspaces/${workspaceId}`),
-  registerWorkspace: (rootPath: string) =>
-    fetchJson<Workspace>('/workspaces', { method: 'POST', body: JSON.stringify({ rootPath }) }),
   scaffoldWorkspace: (name: string, manifest: ProductManifestDraft) =>
     fetchJson<ScaffoldResult>('/workspaces/scaffold', {
       method: 'POST',
