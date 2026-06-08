@@ -1,8 +1,10 @@
-name: PR
+name: Auto-label
 
 on:
   pull_request_target:
     types: [opened, edited, synchronize, reopened]
+  issues:
+    types: [opened, edited]
 
 permissions:
   pull-requests: write
@@ -15,7 +17,11 @@ jobs:
       - uses: actions/github-script@v7
         with:
           script: |
-            const title = context.payload.pull_request.title || '';
+            const isIssue = context.eventName === 'issues';
+            const target = isIssue
+              ? context.payload.issue
+              : context.payload.pull_request;
+            const title = target?.title || '';
             const match = title.match(/^([a-zA-Z]+)(\([^)]*\))?(!)?:/);
             if (!match) {
               core.info(`Title "${title}" has no conventional prefix, skipping`);
@@ -72,7 +78,7 @@ jobs:
             }
             await github.rest.issues.addLabels({
               ...context.repo,
-              issue_number: context.payload.pull_request.number,
+              issue_number: target.number,
               labels: [...labels],
             });
             core.info(`Applied labels: ${[...labels].join(', ')}`);
