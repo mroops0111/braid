@@ -241,8 +241,6 @@ export const api = {
     fetchJsonAt<ItemList<Workspace>>(remoteId, '/workspaces'),
   getWorkspace: (workspaceId: string) =>
     fetchJson<Workspace>(`/workspaces/${workspaceId}`),
-  registerWorkspace: (rootPath: string) =>
-    fetchJson<Workspace>('/workspaces', { method: 'POST', body: JSON.stringify({ rootPath }) }),
   scaffoldWorkspace: (name: string, manifest: ProductManifestDraft) =>
     fetchJson<ScaffoldResult>('/workspaces/scaffold', {
       method: 'POST',
