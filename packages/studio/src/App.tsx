@@ -14,6 +14,7 @@ import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
 import { useBatchStatus, useWorkspaces } from './lib/queries'
 import { useAuthGate } from './lib/useAuthGate'
 import { GraphNavigationContext } from './lib/useGraphNavigation'
+import { useResetOnRemoteChange } from './lib/useRemoteWorkspaces'
 import { TabNavigationContext } from './lib/useTabNavigation'
 import { readUrl, useUrlSync } from './lib/useUrlState'
 import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
@@ -44,6 +45,7 @@ function BootScreen() {
 }
 
 function AppInner() {
+  useResetOnRemoteChange()
   const { data: workspaces } = useWorkspaces()
   // Initial state is hydrated from the URL so refresh / deep links land back
   // on the same workspace + surface.
