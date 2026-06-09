@@ -22,6 +22,7 @@ import { createProposalsRouter } from './routes/proposals.js'
 import { createRunsRouter } from './routes/runs.js'
 import { createSkillInputOptionsRouter } from './routes/skillInputOptions.js'
 import { createSkillsRouter } from './routes/skills.js'
+import { createSourceUnitStatesRouter } from './routes/sourceUnitStates.js'
 import { createUsersRouter } from './routes/users.js'
 import { createWorkspaceEventsRouter } from './routes/workspaceEvents.js'
 import { createTransferOwnershipRouter, createWorkspaceMembersRouter } from './routes/workspaceMembers.js'
@@ -140,6 +141,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     decisionRepository: deps.decisionRepository,
   }))
   workspaceScoped.route('/decisions', createDecisionsRouter({ decisionRepository: deps.decisionRepository }))
+  workspaceScoped.route('/source-unit-states', createSourceUnitStatesRouter({
+    sourceUnitStateService: deps.sourceUnitStateService,
+  }))
   workspaceScoped.route('/ontology', createOntologyRouter({
     workspaceRepository: deps.workspaceRepository,
     pluginRegistry: deps.pluginRegistry,

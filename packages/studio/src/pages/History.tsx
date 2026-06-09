@@ -33,6 +33,7 @@ const KIND_LABEL: Record<CommitKind, string> = {
   'restore': 'Restore',
   'snapshot': 'Snapshot',
   'initial': 'Initial',
+  'batch-archive': 'Archive',
 }
 
 const KIND_TONE: Record<CommitKind, string> = {
@@ -48,6 +49,7 @@ const KIND_TONE: Record<CommitKind, string> = {
   'restore': 'border-orange-500/40 bg-orange-500/10 text-orange-700 dark:text-orange-300',
   'snapshot': 'border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300',
   'initial': 'border-zinc-400/40 bg-zinc-400/10 text-zinc-600 dark:text-zinc-400',
+  'batch-archive': 'border-zinc-500/40 bg-zinc-500/10 text-zinc-700 dark:text-zinc-300',
 }
 
 export function HistoryPage({ workspaceId }: HistoryPageProps) {

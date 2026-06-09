@@ -32,6 +32,7 @@ function makePlan(): BatchPlan {
     status: 'running',
     autoApply: true,
     units: [makeUnit('pu-a'), makeUnit('pu-b')],
+    checkpointPhases: [],
   })
 }
 

@@ -10,6 +10,8 @@ import type {
   RunRepository,
   SkillRegistry,
   SkillRunner,
+  SourceUnitDigest,
+  SourceUnitStateRepository,
   UserDirectory,
   WorkspaceBootstrap,
   WorkspaceEventBus,
@@ -33,6 +35,7 @@ import {
   InMemoryDecisionRepository,
   InMemoryModelRepository,
   InMemoryProposalRepository,
+  InMemorySourceUnitStateRepository,
   InMemoryWorkspaceEventBus,
   InMemoryWorkspaceRepository,
   ModelService,
@@ -40,6 +43,7 @@ import {
   PerWorkspaceLock,
   PluginRegistry,
   SourceLoaderRunner,
+  SourceUnitStateService,
   SystemClock,
   ValidationService,
   WorkspaceService,
@@ -50,6 +54,7 @@ export interface AppDependencies {
   hitlService: HITLService
   historyService?: HistoryService
   batchService?: BatchService
+  sourceUnitStateService: SourceUnitStateService
   modelService: ModelService
   validationService: ValidationService
   sourceLoaderRunner: SourceLoaderRunner
@@ -148,6 +153,20 @@ export interface ComposeOptions {
   batchPlanRepository?: BatchPlanRepository
   intentLister?: IntentLister
   /**
+   * Persistence for `SourceUnitState`. Defaults to an in-memory impl
+   * so unit tests of unrelated services keep working without wiring;
+   * `composeFsApp` swaps in the fs-backed repo.
+   */
+  sourceUnitStateRepository?: SourceUnitStateRepository
+  /**
+   * Content fingerprinter for source units. Required for batch / reactor
+   * / manual extract to record observations. Without it the
+   * `SourceUnitStateService` falls back to a no-op stub digest that
+   * throws on use, which is fine for tests that don't exercise observation
+   * recording but would break production batches.
+   */
+  sourceUnitDigest?: SourceUnitDigest
+  /**
    * Optional read-only user lookup used by HITLService / HistoryService
    * to snapshot displayName + email into the git author when committing.
    * Tests skip this so the existing `Author: <userId>` shape is preserved.
@@ -200,6 +219,15 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     })
     : undefined
 
+  const sourceUnitStateRepository = options.sourceUnitStateRepository ?? new InMemorySourceUnitStateRepository()
+  const sourceUnitDigest = options.sourceUnitDigest ?? new FailingSourceUnitDigest()
+  const sourceUnitStateService = new SourceUnitStateService({
+    repository: sourceUnitStateRepository,
+    digest: sourceUnitDigest,
+    workspaceService,
+    clock,
+  })
+
   // Batch needs SkillRunner + HistoryService + BatchPlanRepository + intent lister; otherwise no batch surface.
   const batchService = historyService && options.skillRunner && options.batchPlanRepository && options.intentLister
     ? new BatchService({
@@ -211,9 +239,11 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
       hitlService,
       batchPlanRepository: options.batchPlanRepository,
       intentLister: options.intentLister,
+      pluginRegistry,
       eventBus,
       workspaceLock,
       clock,
+      sourceUnitStateService,
     })
     : undefined
 
@@ -223,6 +253,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     ...(historyService ? { historyService } : {}),
     ...(batchService ? { batchService } : {}),
     ...(options.bootstrap ? { bootstrap: options.bootstrap } : {}),
+    sourceUnitStateService,
     modelService,
     validationService,
     sourceLoaderRunner,
@@ -243,5 +274,19 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     // contract honest if a test does happen to pass sessionStore.
     localTrust: true,
     clock,
+  }
+}
+
+/**
+ * Default `SourceUnitDigest` for in-memory `composeApp()` callers. Any
+ * call throws — production must wire a real impl via `composeFsApp` or
+ * pass one explicitly; tests that don't exercise observations stay
+ * happy because the digest is never reached.
+ */
+class FailingSourceUnitDigest implements SourceUnitDigest {
+  async computeSha(): Promise<never> {
+    throw new Error(
+      'SourceUnitDigest is not wired. Pass `sourceUnitDigest` to composeApp() (composeFsApp does this automatically).',
+    )
   }
 }

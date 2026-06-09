@@ -1,5 +1,5 @@
 import type { AgentPlugin, OntologyPlugin, SourceLoaderPlugin, StoragePlugin } from '@braidhq/core'
-import type { AbsolutePath, AgentEffort, AgentId, AgentKind, StorageKind, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, AgentEffort, StorageKind, WorkspaceId } from '@braidhq/schema'
 import type { AppDependencies } from './composition.js'
 import { spawn } from 'node:child_process'
 import { homedir } from 'node:os'
@@ -17,7 +17,7 @@ import {
   WorkspaceBootstrap,
 } from '@braidhq/core'
 import { dddOntology } from '@braidhq/ontology-ddd'
-import { StorageKind as StorageKindSchema } from '@braidhq/schema'
+import { AgentId, AgentKind, StorageKind as StorageKindSchema } from '@braidhq/schema'
 import { GoogleDriveLoader } from '@braidhq/source-loader-gdrive'
 import { GitLoader } from '@braidhq/source-loader-git'
 import { kuzuStoragePlugin } from '@braidhq/storage-kuzu'
@@ -34,6 +34,8 @@ import { FsGraphSerializer } from './infrastructure/fs/FsGraphSerializer.js'
 import { FsProposalRepository } from './infrastructure/fs/FsProposalRepository.js'
 import { FsRunRepository } from './infrastructure/fs/FsRunRepository.js'
 import { FsSkillRegistry } from './infrastructure/fs/FsSkillRegistry.js'
+import { FsSourceUnitDigest } from './infrastructure/fs/FsSourceUnitDigest.js'
+import { FsSourceUnitStateRepository } from './infrastructure/fs/FsSourceUnitStateRepository.js'
 import { FsWorkspaceRepository } from './infrastructure/fs/FsWorkspaceRepository.js'
 import { listIntentItems } from './infrastructure/fs/intentScan.js'
 import { discoverCanonicalWorkspaces } from './infrastructure/fs/WorkspaceDiscovery.js'
@@ -237,9 +239,9 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   )
 
   // Resolve the active agent plugin and build its binding.
-  const agentKind = (options.agentKind ?? 'claude-code') as AgentKind
+  const agentKind = AgentKind.parse(options.agentKind ?? 'claude-code')
   const agentBinding = pluginRegistry.requireAgentPlugin(agentKind).createBinding({
-    id: 'default' as AgentId,
+    id: AgentId.parse('default'),
     kind: agentKind,
     model: options.agentModel ?? 'opus',
     effort: options.agentEffort ?? 'high',
@@ -323,6 +325,8 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     bootstrap,
     batchPlanRepository: new FsBatchPlanRepository(),
     intentLister: listIntentItems,
+    sourceUnitStateRepository: new FsSourceUnitStateRepository({ workspaceRoots }),
+    sourceUnitDigest: new FsSourceUnitDigest(),
     userDirectory,
   })
 

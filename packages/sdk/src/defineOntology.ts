@@ -1,6 +1,7 @@
 import type {
   EdgeTypeDescriptor,
   NodeTypeDescriptor,
+  OntologyBatchBinding,
   OntologyPlugin,
   OntologyValidator,
 } from '@braidhq/core'
@@ -44,6 +45,13 @@ export interface DefineOntologyInput {
   readonly configSchema?: z.ZodTypeAny
   /** Optional explicit plugin id; defaults to `ontology.<ontologyId>`. */
   readonly pluginId?: string
+  /**
+   * Optional batch / reactor binding. Declare which skill processes a
+   * single intent unit, the (optional) checkpoint configuration, and
+   * the (optional) derive-units skill. Without this binding the
+   * workspace cannot start a batch under this ontology.
+   */
+  readonly batch?: OntologyBatchBinding
 }
 
 /**
@@ -106,6 +114,7 @@ export function defineOntology(input: DefineOntologyInput): OntologyPlugin {
     skills: input.skills ?? [],
     referenceDirs: input.referenceDirs ?? [],
     validators: [],
+    ...(input.batch ? { batch: input.batch } : {}),
   }
 
   const validators: OntologyValidator[] = [

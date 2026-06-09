@@ -9,16 +9,12 @@ import type {
   Workspace,
   WorkspaceEventBus,
 } from '@braidhq/core'
-import type { AbsolutePath, McpServerId, RunRecord, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
+import type { AbsolutePath, RunRecord, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import { mkdir, rm, symlink } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { newSkillRunId, NotFoundError } from '@braidhq/core'
-import {
-  AbsolutePath as AbsolutePathSchema,
-  SkillEvent as SkillEventSchema,
-  SkillRunId as SkillRunIdSchema,
-} from '@braidhq/schema'
+import { AbsolutePath as AbsolutePathSchema, McpServerId, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema } from '@braidhq/schema'
 import { sessionDirPath } from '../fs/paths.js'
 import { createAsyncQueue } from './asyncQueue.js'
 import { writeMcpConfigFile } from './mcpConfig.js'
@@ -101,21 +97,28 @@ export class SubprocessSkillRunner implements SkillRunner {
     const manifest = await this.deps.skillRegistry.get(workspace, skillId)
     const runId = newSkillRunId()
     const sessionDir = await this.resolveSessionDir(workspace, runId, options?.resumeSessionId)
+    const gatewayArgs = [
+      'openapi-mcp-gateway',
+      '--spec',
+      this.deps.coreGateway?.specUrl ?? '',
+      '--transport',
+      'stdio',
+      '--name',
+      'braid-core',
+      // Forward the caller's Bearer token so the gateway authenticates
+      // its outgoing API calls. The gateway resolves `${BRAID_TOKEN}`
+      // against its inherited process env at startup; without this the
+      // server's auth middleware rejects every callback with 401.
+      // eslint-disable-next-line no-template-curly-in-string
+      ...(options?.callerToken ? ['--auth-type', 'bearer', '--auth-token', '${BRAID_TOKEN}'] : []),
+    ]
     const mcpConfigFile = await writeMcpConfigFile(workspace, sessionDir, {
       extraServers: this.deps.coreGateway
         ? [{
-            id: 'braid-core' as McpServerId,
+            id: McpServerId.parse('braid-core'),
             transport: 'stdio',
             command: this.deps.coreGateway.uvxBin ?? 'uvx',
-            args: [
-              'openapi-mcp-gateway',
-              '--spec',
-              this.deps.coreGateway.specUrl,
-              '--transport',
-              'stdio',
-              '--name',
-              'braid-core',
-            ],
+            args: gatewayArgs,
           }]
         : [],
     })
@@ -135,7 +138,15 @@ export class SubprocessSkillRunner implements SkillRunner {
     // otherwise guess wrong about which one `.claude/skills/...` is rooted in.
     const child = spawnFn(invocation.bin, [...invocation.args], {
       cwd: sessionDir,
-      env: { ...invocation.env, BRAID_SESSION_DIR: sessionDir },
+      env: {
+        ...invocation.env,
+        BRAID_SESSION_DIR: sessionDir,
+        // BRAID_TOKEN is read by the braid-core MCP gateway and by any
+        // shell-level callback (curl in a SKILL.md) so the subprocess
+        // can authenticate against the running server.
+        ...(options?.callerToken ? { BRAID_TOKEN: options.callerToken } : {}),
+        ...(options?.extraEnv ?? {}),
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     this.running.set(runId, { workspace, child })

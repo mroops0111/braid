@@ -41,6 +41,9 @@ export type WorkspaceEvent =
   | BatchCompletedEvent
   | BatchStoppedEvent
   | BatchFailedEvent
+  | BatchCheckpointStartedEvent
+  | BatchCheckpointCompletedEvent
+  | BatchCheckpointFailedEvent
 
 export interface RunStartedEvent {
   readonly type: 'run.started'
@@ -186,6 +189,31 @@ export interface BatchFailedEvent {
   readonly type: 'batch.failed'
   readonly workspaceId: WorkspaceId
   readonly planId: BatchPlanId
+  readonly error: string
+  readonly at: string
+}
+
+export interface BatchCheckpointStartedEvent {
+  readonly type: 'batch.checkpoint.started'
+  readonly workspaceId: WorkspaceId
+  readonly planId: BatchPlanId
+  readonly skillRunId: SkillRunId
+  readonly at: string
+}
+
+export interface BatchCheckpointCompletedEvent {
+  readonly type: 'batch.checkpoint.completed'
+  readonly workspaceId: WorkspaceId
+  readonly planId: BatchPlanId
+  readonly skillRunId: SkillRunId
+  readonly at: string
+}
+
+export interface BatchCheckpointFailedEvent {
+  readonly type: 'batch.checkpoint.failed'
+  readonly workspaceId: WorkspaceId
+  readonly planId: BatchPlanId
+  readonly skillRunId: SkillRunId
   readonly error: string
   readonly at: string
 }

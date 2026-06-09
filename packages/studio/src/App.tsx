@@ -76,7 +76,7 @@ function AppInner() {
   useWorkspaceEvents(activeId)
 
   const { data: activeBatchPlan } = useBatchStatus(activeId ?? undefined)
-  const hasActiveBatch = activeBatchPlan?.status === 'running' || activeBatchPlan?.status === 'scanning'
+  const hasActiveBatch = activeBatchPlan?.status === 'running' || activeBatchPlan?.status === 'deriving'
 
   const items = workspaces?.items ?? []
 

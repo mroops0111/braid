@@ -1,6 +1,7 @@
 import type {
   EdgeTypeDescriptor,
   NodeTypeDescriptor,
+  OntologyBatchBinding,
   OntologyPlugin,
   OntologyValidator,
 } from '@braidhq/core'
@@ -13,6 +14,7 @@ export interface MakeOntologyOptions {
   readonly nodeTypes?: readonly NodeTypeDescriptor[]
   readonly edgeTypes?: readonly EdgeTypeDescriptor[]
   readonly validators?: readonly OntologyValidator[]
+  readonly batch?: OntologyBatchBinding
 }
 
 /**
@@ -34,5 +36,6 @@ export function makeOntology(opts: MakeOntologyOptions = {}): OntologyPlugin {
     nodeTypes: opts.nodeTypes ?? [],
     edgeTypes: opts.edgeTypes ?? [],
     validators: opts.validators ?? [],
+    ...(opts.batch ? { batch: opts.batch } : {}),
   }
 }

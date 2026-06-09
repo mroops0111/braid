@@ -8,6 +8,21 @@ export interface SkillRunOptions {
    * `--resume <sessionId>` so the model keeps its context.
    */
   readonly resumeSessionId?: string
+  /**
+   * Extra environment variables merged into the spawned skill's env.
+   * Used by orchestration code (e.g. `BatchService` passing
+   * `BRAID_CHANGED_UNITS` to `braid-model`) when the single positional
+   * `args` string is already spoken for.
+   */
+  readonly extraEnv?: Readonly<Record<string, string>>
+  /**
+   * Bearer token the spawned subprocess should use to call back into
+   * Braid's REST API via the `braid-core` MCP gateway. Route handlers
+   * forward the caller's session token here so the agent inherits the
+   * user's permissions. Absent in `BRAID_LOCAL_TRUST=true` mode where
+   * the server lets anonymous traffic through.
+   */
+  readonly callerToken?: string
 }
 
 export type SkillEventListener = (event: SkillEvent) => void

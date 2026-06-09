@@ -1,4 +1,4 @@
-import type { EdgeTypeId, ModelSnapshot, NodeStatus, NodeTypeId, OntologyId, ValidationIssue } from '@braidhq/schema'
+import type { EdgeTypeId, ModelSnapshot, NodeStatus, NodeTypeId, OntologyId, PlanUnit, SkillId, ValidationIssue } from '@braidhq/schema'
 import type { Plugin } from './Plugin.js'
 
 export interface NodeTypeDescriptor {
@@ -71,6 +71,44 @@ export interface OntologyValidator {
   validate: (snapshot: ModelSnapshot) => Promise<readonly ValidationIssue[]>
 }
 
+/** Skill dispatched against one intent unit, plus its UI label and arg builder. */
+export interface OntologyPerUnitBinding {
+  readonly skillId: SkillId
+  /** UI badge text per unit row. Falls back to `skillId` when omitted. */
+  readonly label?: string
+  /** Defaults to `unit.scopeHint ?? unit.name`. */
+  readonly argsFor?: (unit: PlanUnit) => string
+}
+
+/** Cross-unit hook fired between unit runs. Omit for a pure per-unit batch. */
+export interface OntologyCheckpointBinding {
+  readonly skillId: SkillId
+  /** UI badge text per checkpoint row. Falls back to `skillId` when omitted. */
+  readonly label?: string
+  /** Fire after every N successful per-unit runs. */
+  readonly chunkSize: number
+  /** Run an extra checkpoint at the end of the loop even when units divide evenly. */
+  readonly runAtEnd: boolean
+  /** Env vars the checkpoint skill reads (e.g. DDD's `BRAID_CHANGED_UNITS`). */
+  readonly extraEnv?: (units: readonly PlanUnit[]) => Record<string, string>
+}
+
+/** Discovery skill that produces a unit list when the workspace has no intent source. */
+export interface OntologyDeriveUnitsBinding {
+  readonly skillId: SkillId
+}
+
+/**
+ * Ontology's contract with framework-level batch / reactor processes.
+ * Framework owns "what to dispatch and when"; ontology owns skill IDs
+ * and env contracts. Optional fields let an ontology opt out of phases.
+ */
+export interface OntologyBatchBinding {
+  readonly perUnit: OntologyPerUnitBinding
+  readonly checkpoint?: OntologyCheckpointBinding
+  readonly deriveUnits?: OntologyDeriveUnitsBinding
+}
+
 export interface OntologyPlugin extends Plugin {
   readonly type: 'ontology'
   readonly ontologyId: OntologyId
@@ -81,4 +119,10 @@ export interface OntologyPlugin extends Plugin {
    * configured to use this ontology. Populated by `defineOntology()`.
    */
   readonly validators: readonly OntologyValidator[]
+  /**
+   * Wiring for batch / reactor orchestration. Required for any
+   * ontology that wants to participate in batches; framework refuses
+   * to start a batch if this is absent on the workspace's ontology.
+   */
+  readonly batch?: OntologyBatchBinding
 }
