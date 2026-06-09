@@ -258,7 +258,7 @@ export const dddOntology = defineOntology({
     checkpoint: {
       skillId: SkillId.parse('braid-model'),
       label: 'Model',
-      chunkSize: 2,
+      chunkSize: 5,
       runAtEnd: true,
       extraEnv: (units) => {
         const hint = units
