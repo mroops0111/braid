@@ -30,6 +30,9 @@ interface WorkspaceEvent {
     | 'batch.completed'
     | 'batch.stopped'
     | 'batch.failed'
+    | 'batch.checkpoint.started'
+    | 'batch.checkpoint.completed'
+    | 'batch.checkpoint.failed'
 }
 
 /**
@@ -122,6 +125,14 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
     source.addEventListener('batch.completed', invalidateBatch)
     source.addEventListener('batch.stopped', invalidateBatch)
     source.addEventListener('batch.failed', invalidateBatch)
+    source.addEventListener('batch.checkpoint.started', invalidateBatch)
+    source.addEventListener('batch.checkpoint.completed', () => {
+      // Model run cross-links nodes & runs validators — graph can shift.
+      invalidateBatch()
+      invalidateProposals()
+      invalidateGraph()
+    })
+    source.addEventListener('batch.checkpoint.failed', invalidateBatch)
 
     return () => {
       source.close()

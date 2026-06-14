@@ -15,6 +15,7 @@ export const CommitKind = z.enum([
   'restore',
   'snapshot',
   'initial',
+  'batch-archive',
 ])
 export type CommitKind = z.infer<typeof CommitKind>
 

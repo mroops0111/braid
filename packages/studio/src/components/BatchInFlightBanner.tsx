@@ -28,8 +28,8 @@ export function BatchInFlightBanner({ workspaceId, onOpenBatch, suppress }: Batc
   let mode: Mode
   if (plan.status === 'running')
     mode = { kind: 'active', label: 'Bootstrap Running', completed, total }
-  else if (plan.status === 'scanning')
-    mode = { kind: 'active', label: 'Scanning Codebase…', completed, total }
+  else if (plan.status === 'deriving')
+    mode = { kind: 'active', label: 'Deriving Units…', completed, total }
   else if ((plan.status === 'failed' || plan.status === 'stopped') && unfinished)
     mode = { kind: 'resumable', completed, total }
   else

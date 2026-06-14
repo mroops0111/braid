@@ -3,6 +3,7 @@ import { NotFoundError } from '@braidhq/core'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { extractBearerToken } from '../middleware/auth.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 
 const StartBody = z.object({
@@ -19,7 +20,11 @@ export function createBatchRouter(deps: BatchRouterDeps): Hono {
   router.post('/', zValidator('json', StartBody), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const { autoApply } = context.req.valid('json')
-    const plan = await deps.batchService.start(workspaceId, { autoApply })
+    const callerToken = extractBearerToken(context)
+    const plan = await deps.batchService.start(workspaceId, {
+      autoApply,
+      ...(callerToken ? { callerToken } : {}),
+    })
     return context.json(plan.toData(), 202)
   })
 
@@ -39,7 +44,8 @@ export function createBatchRouter(deps: BatchRouterDeps): Hono {
 
   router.post('/resume', async (context) => {
     const workspaceId = getWorkspaceId(context)
-    const plan = await deps.batchService.resume(workspaceId)
+    const callerToken = extractBearerToken(context)
+    const plan = await deps.batchService.resume(workspaceId, callerToken ? { callerToken } : {})
     return context.json(plan.toData(), 202)
   })
 

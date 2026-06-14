@@ -1,4 +1,5 @@
 import type {
+  BatchCheckpointPhase,
   BatchInputMode,
   BatchPlan as BatchPlanData,
   BatchPlanId,
@@ -8,6 +9,7 @@ import type {
   PlanUnit,
   PlanUnitId,
   ProposalId,
+  SkillRunId,
   Timestamp,
   WorkspaceId,
 } from '@braidhq/schema'
@@ -30,24 +32,25 @@ export class BatchPlan {
   get units(): readonly PlanUnit[] { return this.data.units }
   get running(): BatchRunning | undefined { return this.data.running }
   get error(): string | undefined { return this.data.error }
+  get checkpointPhases(): readonly BatchCheckpointPhase[] { return this.data.checkpointPhases }
   get createdAt(): Timestamp { return this.data.createdAt }
   get updatedAt(): Timestamp { return this.data.updatedAt }
 
-  // mode='scan' goes idle → scanning → running. mode='intent' goes idle → running.
+  // mode='derive' goes idle → deriving → running. mode='intent' goes idle → running.
   beginRun(now: Timestamp, baselineTag: string): BatchPlan {
     if (this.data.status !== 'idle')
       throw new ConflictError(`Batch plan ${this.data.id} is already ${this.data.status}`)
     return this.with({
-      status: this.data.mode === 'scan' ? 'scanning' : 'running',
+      status: this.data.mode === 'derive' ? 'deriving' : 'running',
       baselineTag,
       updatedAt: now,
     })
   }
 
-  // Called when braid-scan finished writing units back into the plan.
+  // Called when the ontology's `deriveUnits` skill finishes writing units back into the plan.
   promoteToRunning(now: Timestamp, units: readonly PlanUnit[]): BatchPlan {
-    if (this.data.status !== 'scanning')
-      throw new ConflictError(`Batch plan ${this.data.id} is not scanning (status=${this.data.status})`)
+    if (this.data.status !== 'deriving')
+      throw new ConflictError(`Batch plan ${this.data.id} is not deriving (status=${this.data.status})`)
     return this.with({ status: 'running', units: [...units], updatedAt: now })
   }
 
@@ -104,6 +107,41 @@ export class BatchPlan {
     return this.with({ status: 'stopped', running: undefined, updatedAt: now })
   }
 
+  startCheckpointPhase(now: Timestamp, skillRunId: SkillRunId, unitIds: readonly PlanUnitId[]): BatchPlan {
+    const newPhase: BatchCheckpointPhase = {
+      status: 'running',
+      unitIds: [...unitIds],
+      startedAt: now,
+      skillRunId,
+    }
+    return this.with({
+      checkpointPhases: [...this.data.checkpointPhases, newPhase],
+      updatedAt: now,
+    })
+  }
+
+  completeCheckpointPhase(now: Timestamp): BatchPlan {
+    return this.with({
+      checkpointPhases: this.mapLastCheckpointPhase(phase => ({ ...phase, status: 'completed', completedAt: now })),
+      updatedAt: now,
+    })
+  }
+
+  failCheckpointPhase(now: Timestamp, error: string): BatchPlan {
+    return this.with({
+      checkpointPhases: this.mapLastCheckpointPhase(phase => ({ ...phase, status: 'failed', completedAt: now, error })),
+      updatedAt: now,
+    })
+  }
+
+  private mapLastCheckpointPhase(fn: (phase: BatchCheckpointPhase) => BatchCheckpointPhase): BatchCheckpointPhase[] {
+    const arr = [...this.data.checkpointPhases]
+    if (arr.length === 0)
+      return arr
+    arr[arr.length - 1] = fn(arr[arr.length - 1]!)
+    return arr
+  }
+
   // User-driven dismiss after reviewing the report. Allowed only from a
   // terminal state so an in-flight batch can't be hidden by accident.
   // Archived plans stay on disk; the UI treats them like "no active plan"
@@ -119,14 +157,20 @@ export class BatchPlan {
     if (!this.isTerminal())
       throw new ConflictError(`Cannot resume plan ${this.data.id} from status=${this.data.status}`)
     const units = this.data.units.map(unit => unit.status === 'failed' || unit.status === 'pending' ? resetUnit(unit) : unit)
-    const patch: Partial<BatchPlanData> = {
+    // Drop failed checkpoint phases so the upcoming chunk accounting
+    // resets; successful phases stay because the units they consumed
+    // are still recorded as completed.
+    const checkpointPhases = this.data.checkpointPhases.filter(p => p.status === 'completed')
+    const next: BatchPlanData = {
+      ...this.data,
       status: 'running',
-      running: undefined,
       units,
+      checkpointPhases,
       updatedAt: now,
     }
-    delete patch.error
-    return this.with(patch)
+    delete (next as { running?: BatchRunning }).running
+    delete (next as { error?: string }).error
+    return new BatchPlan(next)
   }
 
   toData(): BatchPlanData {

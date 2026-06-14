@@ -70,6 +70,7 @@ This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its 
 3. Fetch the active ontology via `braid-core` so every type id you reference is canonical. Every `node.type` / `edge.type` you emit MUST equal one of the ids the ontology declares. Case-sensitive.
 4. Fetch the model snapshot via `braid-core`, then run two node-search calls filtering by `status: 'draft'` and `status: 'unclear'` to enumerate work-in-progress nodes for validation.
 5. Parse `$ARGUMENTS` (scope-hint / `validate` / empty) and pick the mode.
+6. Check `$BRAID_CHANGED_UNITS` (optional, newline-separated `<sourceId>::<path>` entries set by BatchService or Reactor). When present, prioritise the build pass around the listed units (bridges, containment, drift involving any of their nodes); when absent, walk the whole graph as before. The validate pass always covers the full graph regardless of this hint.
 
 ## Procedure
 
