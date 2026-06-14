@@ -42,6 +42,7 @@ function makePlan(overrides: Partial<BatchPlanData> = {}): BatchPlan {
     status: 'idle',
     autoApply: false,
     units: [makeUnit(unitA, 'prd'), makeUnit(unitB, 'design')],
+    checkpointPhases: [],
     ...overrides,
   })
 }
@@ -55,9 +56,9 @@ describe('BatchPlan', () => {
       expect(plan.updatedAt).toBe(T1)
     })
 
-    it('scan-mode goes idle → scanning', () => {
-      const plan = makePlan({ mode: 'scan', units: [] }).beginRun(T1, 'tag')
-      expect(plan.status).toBe('scanning')
+    it('derive-mode goes idle → deriving', () => {
+      const plan = makePlan({ mode: 'derive', units: [] }).beginRun(T1, 'tag')
+      expect(plan.status).toBe('deriving')
     })
 
     it('refuses to start a plan that is not idle', () => {
@@ -67,14 +68,14 @@ describe('BatchPlan', () => {
   })
 
   describe('promoteToRunning', () => {
-    it('replaces units and moves scanning → running', () => {
-      const plan = makePlan({ mode: 'scan', status: 'scanning', units: [] })
+    it('replaces units and moves deriving → running', () => {
+      const plan = makePlan({ mode: 'derive', status: 'deriving', units: [] })
       const promoted = plan.promoteToRunning(T1, [makeUnit(unitA, 'orders')])
       expect(promoted.status).toBe('running')
       expect(promoted.units.map(u => u.id)).toEqual([unitA])
     })
 
-    it('refuses unless current status is scanning', () => {
+    it('refuses unless current status is deriving', () => {
       const plan = makePlan({ status: 'running' })
       expect(() => plan.promoteToRunning(T1, [])).toThrow(ConflictError)
     })
@@ -132,7 +133,7 @@ describe('BatchPlan', () => {
 
     it('rejects archive on non-terminal status', () => {
       expect(() => makePlan({ status: 'running' }).archive(T2)).toThrow(/Cannot archive/)
-      expect(() => makePlan({ status: 'scanning' }).archive(T2)).toThrow(/Cannot archive/)
+      expect(() => makePlan({ status: 'deriving' }).archive(T2)).toThrow(/Cannot archive/)
       expect(() => makePlan({ status: 'idle' }).archive(T2)).toThrow(/Cannot archive/)
     })
 

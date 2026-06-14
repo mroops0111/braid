@@ -38,7 +38,12 @@ import { getTokenFor } from './remotes.js'
 import { getServerUrl, getServerUrlFor } from './serverUrl.js'
 
 export function workspaceEventsUrl(workspaceId: string): string {
-  return `${getServerUrl()}/workspaces/${workspaceId}/events`
+  // EventSource cannot send custom headers, so the Bearer token is
+  // appended as `?token=...` and matched server-side by the auth
+  // middleware for SSE paths only.
+  const base = `${getServerUrl()}/workspaces/${workspaceId}/events`
+  const token = getAuthToken()
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base
 }
 
 export interface ItemList<T> { items: T[] }
@@ -395,8 +400,11 @@ export const api = {
 
   listRuns: (workspaceId: string) =>
     fetchJson<ItemList<RunRecord>>(`/workspaces/${workspaceId}/runs`),
-  runEventsUrl: (workspaceId: string, runId: string) =>
-    `${getServerUrl()}/workspaces/${workspaceId}/runs/${runId}/events`,
+  runEventsUrl: (workspaceId: string, runId: string) => {
+    const base = `${getServerUrl()}/workspaces/${workspaceId}/runs/${runId}/events`
+    const token = getAuthToken()
+    return token ? `${base}?token=${encodeURIComponent(token)}` : base
+  },
   cancelRun: (workspaceId: string, runId: string) =>
     fetchJson<void>(`/workspaces/${workspaceId}/runs/${runId}/cancel`, { method: 'POST' }),
   forgetSession: (workspaceId: string, sessionId: string) =>

@@ -19,7 +19,7 @@ const EXTRACT_SKILL_ID = 'braid-extract'
 
 const STATUS_TONE: Record<BatchStatus, string> = {
   idle: 'border-zinc-400/40 bg-zinc-400/10 text-zinc-700 dark:text-zinc-300',
-  scanning: 'border-violet-500/40 bg-violet-500/10 text-violet-700 dark:text-violet-300',
+  deriving: 'border-violet-500/40 bg-violet-500/10 text-violet-700 dark:text-violet-300',
   running: 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300',
   completed: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
   failed: 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300',
@@ -193,7 +193,7 @@ function ActiveBatch({ workspaceId, plan }: { workspaceId: string, plan: BatchPl
       {terminal && <ReportBar plan={plan} />}
       <div className="flex flex-1 overflow-hidden">
         <UnitList
-          units={plan.units}
+          plan={plan}
           selectedRunId={selectedRunId}
           activeRunId={activeRunId}
           onSelect={setSelectedRunId}
@@ -222,6 +222,15 @@ function BatchHeader({ workspaceId, plan, terminal }: {
 
   const completed = plan.units.filter(u => u.status === 'completed').length
   const hasUnfinished = plan.units.some(u => u.status === 'failed' || u.status === 'pending')
+  const latestCheckpointPhase = plan.checkpointPhases[plan.checkpointPhases.length - 1]
+  const checkpointRunning = latestCheckpointPhase?.status === 'running'
+  const headerLabel = plan.status === 'deriving'
+    ? 'Deriving Units…'
+    : terminal
+      ? 'Bootstrap Report'
+      : checkpointRunning
+        ? 'Running Checkpoint…'
+        : 'Processing Units…'
 
   return (
     <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-4">
@@ -229,13 +238,7 @@ function BatchHeader({ workspaceId, plan, terminal }: {
         {terminal
           ? <Sparkles className="size-4 shrink-0 text-primary" />
           : <Loader2 className="size-4 shrink-0 animate-spin text-sky-500" />}
-        <h1 className="truncate text-sm font-semibold">
-          {plan.status === 'scanning'
-            ? 'Scanning Codebase…'
-            : terminal
-              ? 'Bootstrap Report'
-              : 'Running Bootstrap…'}
-        </h1>
+        <h1 className="truncate text-sm font-semibold">{headerLabel}</h1>
         <span className={cn('rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider', STATUS_TONE[plan.status])}>
           {plan.status}
         </span>
@@ -243,8 +246,16 @@ function BatchHeader({ workspaceId, plan, terminal }: {
           {completed}
           {' / '}
           {plan.units.length}
-          {' units'}
+          {' units processed'}
         </span>
+        {plan.checkpointPhases.length > 0 && (
+          <span className="text-xs text-muted-foreground">
+            {plan.checkpointPhases.filter(p => p.status === 'completed').length}
+            {' / '}
+            {plan.checkpointPhases.length}
+            {' checkpoints'}
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-2">
         {terminal
@@ -305,29 +316,239 @@ function ReportBar({ plan }: { plan: BatchPlan }) {
   )
 }
 
-function UnitList({ units, selectedRunId, activeRunId, onSelect }: {
-  units: readonly PlanUnit[]
+function UnitList({ plan, selectedRunId, activeRunId, onSelect }: {
+  plan: BatchPlan
   selectedRunId: SkillRunId | null
   activeRunId: SkillRunId | null
   onSelect: (runId: SkillRunId | null) => void
 }) {
+  const chunks = useMemo(() => groupUnitsByCheckpoint(plan), [plan])
+  const isTerminal = plan.status === 'completed' || plan.status === 'failed' || plan.status === 'stopped' || plan.status === 'archived'
+
+  const perUnitLabel = plan.batchPolicy?.perUnitLabel ?? plan.batchPolicy?.perUnitSkillId
+  const checkpointLabel = plan.batchPolicy?.checkpointLabel ?? plan.batchPolicy?.checkpointSkillId
   return (
-    <ul className="flex w-72 shrink-0 flex-col gap-1 overflow-y-auto border-r border-border bg-card/40 p-2 scrollbar-thin">
-      {units.map(unit => (
-        <UnitRow
-          key={unit.id}
-          unit={unit}
-          active={unit.skillRunId === activeRunId && activeRunId !== null}
-          selected={unit.skillRunId === selectedRunId && selectedRunId !== null}
-          onSelect={() => onSelect(unit.skillRunId ?? null)}
+    <div className="flex w-72 shrink-0 flex-col overflow-y-auto border-r border-border bg-card/40 scrollbar-thin">
+      {chunks.map((chunk, idx) => (
+        <ChunkSection
+          key={chunk.phase?.skillRunId ?? `chunk-${idx}`}
+          chunkIndex={idx}
+          chunk={chunk}
+          isTerminal={isTerminal}
+          perUnitLabel={perUnitLabel}
+          checkpointLabel={checkpointLabel}
+          selectedRunId={selectedRunId}
+          activeRunId={activeRunId}
+          onSelect={onSelect}
         />
       ))}
-    </ul>
+    </div>
   )
 }
 
-function UnitRow({ unit, active, selected, onSelect }: {
+interface UnitChunk {
+  units: readonly PlanUnit[]
+  phase: BatchPlan['checkpointPhases'][number] | undefined
+  isFinal: boolean
+}
+
+/**
+ * Build the visual chunks. For each committed checkpoint phase we
+ * group the units it consumed. Remaining units are split into
+ * anticipated chunks using `batchPolicy.checkpointChunkSize` so the
+ * reviewer sees the structure before any checkpoint fires.
+ *
+ * When `checkpointRunAtEnd` is true we also surface the mandatory
+ * final pass even if units happen to divide evenly — the orchestrator
+ * will fire one more checkpoint with an empty unit list in that case.
+ */
+function groupUnitsByCheckpoint(plan: BatchPlan): UnitChunk[] {
+  const unitsById = new Map(plan.units.map(u => [u.id, u]))
+  const consumed = new Set<string>()
+  const chunks: UnitChunk[] = []
+  for (const phase of plan.checkpointPhases) {
+    const units: PlanUnit[] = []
+    for (const id of phase.unitIds) {
+      const unit = unitsById.get(id)
+      if (unit) {
+        units.push(unit)
+        consumed.add(id)
+      }
+    }
+    chunks.push({ units, phase, isFinal: false })
+  }
+  const leftovers = plan.units.filter(u => !consumed.has(u.id))
+  const chunkSize = plan.batchPolicy?.checkpointChunkSize
+  const runAtEnd = plan.batchPolicy?.checkpointRunAtEnd ?? false
+  if (chunkSize && chunkSize > 0) {
+    for (let i = 0; i < leftovers.length; i += chunkSize) {
+      const slice = leftovers.slice(i, i + chunkSize)
+      const isLastSlice = i + chunkSize >= leftovers.length
+      chunks.push({ units: slice, phase: undefined, isFinal: isLastSlice && runAtEnd })
+    }
+    if (runAtEnd && leftovers.length > 0 && leftovers.length % chunkSize === 0)
+      chunks.push({ units: [], phase: undefined, isFinal: true })
+  }
+  else if (leftovers.length > 0) {
+    chunks.push({ units: leftovers, phase: undefined, isFinal: runAtEnd })
+  }
+  return chunks
+}
+
+type PhaseTone = 'completed' | 'failed' | 'running' | 'idle'
+
+function aggregateUnitsTone(units: readonly PlanUnit[]): PhaseTone {
+  if (units.length === 0)
+    return 'idle'
+  if (units.some(u => u.status === 'failed'))
+    return 'failed'
+  if (units.some(u => u.status === 'running'))
+    return 'running'
+  return units.every(u => u.status === 'completed') ? 'completed' : 'idle'
+}
+
+function ChunkSection({ chunkIndex, chunk, isTerminal, perUnitLabel, checkpointLabel, selectedRunId, activeRunId, onSelect }: {
+  chunkIndex: number
+  chunk: UnitChunk
+  isTerminal: boolean
+  perUnitLabel: string | undefined
+  checkpointLabel: string | undefined
+  selectedRunId: SkillRunId | null
+  activeRunId: SkillRunId | null
+  onSelect: (runId: SkillRunId | null) => void
+}) {
+  const completedUnits = chunk.units.filter(u => u.status === 'completed').length
+  const groupTone = aggregateUnitsTone(chunk.units)
+  return (
+    <>
+      <PhaseSectionHeader
+        title={perUnitLabel ? `${perUnitLabel} • Group ${chunkIndex + 1}` : `Group ${chunkIndex + 1}`}
+        badge={`${completedUnits} / ${chunk.units.length}`}
+        tone={groupTone}
+      />
+      <ul className="flex flex-col gap-1 px-2 py-1">
+        {chunk.units.map(unit => (
+          <UnitRow
+            key={unit.id}
+            unit={unit}
+            actionLabel={perUnitLabel}
+            active={unit.skillRunId === activeRunId && activeRunId !== null}
+            selected={unit.skillRunId === selectedRunId && selectedRunId !== null}
+            onSelect={() => onSelect(unit.skillRunId ?? null)}
+          />
+        ))}
+      </ul>
+      <PhaseSectionHeader
+        title={(() => {
+          const base = checkpointLabel ? `${checkpointLabel} • Checkpoint ${chunkIndex + 1}` : `Checkpoint ${chunkIndex + 1}`
+          return chunk.isFinal && !chunk.phase ? `${base} (final)` : base
+        })()}
+        badge={chunk.phase?.status === 'completed' ? '1 / 1' : '0 / 1'}
+        tone={chunk.phase
+          ? (chunk.phase.status === 'running' ? 'running' : chunk.phase.status === 'completed' ? 'completed' : 'failed')
+          : 'idle'}
+      />
+      <ul className="flex flex-col gap-1 px-2 py-1">
+        {chunk.phase
+          ? (
+              <CheckpointPhaseRow
+                phase={chunk.phase}
+                label={checkpointLabel}
+                active={!!chunk.phase.skillRunId && chunk.phase.skillRunId === activeRunId}
+                selected={!!chunk.phase.skillRunId && chunk.phase.skillRunId === selectedRunId}
+                onSelect={() => onSelect(chunk.phase?.skillRunId ?? null)}
+              />
+            )
+          : (
+              <li className="rounded-md border border-dashed border-border/60 px-2.5 py-2 text-[10px] text-muted-foreground">
+                {isTerminal
+                  ? 'No checkpoint recorded for these units.'
+                  : chunk.units.length === 0
+                    ? 'Final validation pass; runs after the last unit checkpoint.'
+                    : 'Will run once these units finish.'}
+              </li>
+            )}
+      </ul>
+    </>
+  )
+}
+
+function PhaseSectionHeader({ title, badge, tone = 'idle' }: {
+  title: string
+  badge?: string
+  tone?: 'idle' | 'running' | 'completed' | 'failed'
+}) {
+  return (
+    <div className="sticky top-0 z-10 flex items-center justify-between border-y border-border/60 bg-card/80 px-3 py-1.5 backdrop-blur">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
+      {badge && (
+        <span className={cn(
+          'rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider',
+          tone === 'running' && 'border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-300',
+          tone === 'completed' && 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+          tone === 'failed' && 'border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-300',
+          tone === 'idle' && 'border-border bg-muted/40 text-muted-foreground',
+        )}
+        >
+          {badge}
+        </span>
+      )}
+    </div>
+  )
+}
+
+const CHECKPOINT_PHASE_ICON: Record<BatchPlan['checkpointPhases'][number]['status'], ReactNode> = {
+  running: <Loader2 className="size-3.5 animate-spin text-sky-500" />,
+  completed: <Sparkles className="size-3.5 text-emerald-500" />,
+  failed: <StopCircle className="size-3.5 text-rose-500" />,
+}
+
+function CheckpointPhaseRow({ phase, label, active, selected, onSelect }: {
+  phase: BatchPlan['checkpointPhases'][number]
+  label: string | undefined
+  active: boolean
+  selected: boolean
+  onSelect: () => void
+}) {
+  const inspectable = !!phase.skillRunId
+  return (
+    <li className="mt-1 border-t border-border/40 pt-1">
+      <button
+        type="button"
+        disabled={!inspectable}
+        onClick={onSelect}
+        className={cn(
+          'flex w-full items-start gap-2 rounded-md border px-2.5 py-2 text-left transition-colors',
+          selected
+            ? 'border-primary/50 bg-primary/5'
+            : 'border-border bg-background hover:border-border/80 hover:bg-muted/30',
+          !inspectable && 'cursor-default opacity-70',
+          active && !selected && 'ring-1 ring-sky-500/40',
+        )}
+      >
+        <div className="mt-0.5 shrink-0">{CHECKPOINT_PHASE_ICON[phase.status]}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            {label && (
+              <span className="rounded border border-border bg-transparent px-1 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+                {label}
+              </span>
+            )}
+            <span className="truncate text-xs font-medium text-foreground">Checkpoint</span>
+          </div>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">{`Covers ${phase.unitIds.length} unit${phase.unitIds.length === 1 ? '' : 's'}`}</p>
+          {phase.error && (
+            <p className="mt-0.5 line-clamp-2 text-[10px] text-rose-600 dark:text-rose-300">{phase.error}</p>
+          )}
+        </div>
+      </button>
+    </li>
+  )
+}
+
+function UnitRow({ unit, actionLabel, active, selected, onSelect }: {
   unit: PlanUnit
+  actionLabel: string | undefined
   active: boolean
   selected: boolean
   onSelect: () => void
@@ -350,11 +571,13 @@ function UnitRow({ unit, active, selected, onSelect }: {
       >
         <div className="mt-0.5 shrink-0">{UNIT_ICON[unit.status]}</div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {actionLabel && (
+              <span className="rounded border border-border bg-transparent px-1 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+                {actionLabel}
+              </span>
+            )}
             <span className="truncate text-xs font-medium text-foreground">{unit.name}</span>
-            <span className="rounded border border-border/60 bg-background/60 px-1 py-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
-              {unit.status}
-            </span>
           </div>
           {(unit.proposalIds.length > 0 || unit.clarifyTicketIds.length > 0) && (
             <div className="mt-0.5 flex gap-2 text-[10px] text-muted-foreground">

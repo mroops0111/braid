@@ -413,6 +413,7 @@ describe('list endpoints return their empty shape for a fresh workspace', () => 
     { path: `/workspaces/${workspaceId}/nodes`, empty: { items: [] } },
     { path: `/workspaces/${workspaceId}/edges`, empty: { items: [] } },
     { path: `/workspaces/${workspaceId}/decisions`, empty: { items: [] } },
+    { path: `/workspaces/${workspaceId}/source-unit-states`, empty: { items: [] } },
   ] as const
 
   it.each(cases)('GET $path returns 200 + $empty', async ({ path, empty }) => {

@@ -10,7 +10,6 @@ import type {
   GraphOperation,
   ProposalDraft,
   ProposalId,
-  UserId,
   ValidationIssue,
   WorkspaceId,
 } from '@braidhq/schema'
@@ -26,15 +25,17 @@ import type { Workspace } from '../domain/workspace/Workspace.js'
 import type { ValidationService } from './ValidationService.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import type { WorkspaceService } from './WorkspaceService.js'
+import { UserId } from '@braidhq/schema'
 import { ValidationError } from '../domain/errors.js'
 import { ClarifyTicket } from '../domain/hitl/ClarifyTicket.js'
 import { Proposal } from '../domain/hitl/Proposal.js'
 import { newClarifyCandidateId, newClarifyTicketId, newDecisionId, newProposalId } from '../domain/ids.js'
 import { noopUserDirectory } from '../domain/users/UserDirectory.js'
+import { enrichCommitAuthor } from './enrichCommitAuthor.js'
 import { PerWorkspaceLock } from './PerWorkspaceLock.js'
 
 // Generic system author for submit commits until Theme 13 (account management) supplies real per-user attribution.
-const SUBMIT_USER_ID = 'braid-skill' as UserId
+const SUBMIT_USER_ID = UserId.parse('braid-skill')
 
 export interface HITLServiceDeps {
   proposalRepository: ProposalRepository
@@ -365,7 +366,7 @@ export class HITLService {
       const snapshot = await this.deps.modelRepository.load(workspace.id)
       await this.deps.graphSerializer.write(workspace, snapshot)
     }
-    const enriched = await this.enrichAuthor(message)
+    const enriched = await enrichCommitAuthor(message, this.userDirectory)
     const sha = await this.deps.history.commit(workspace, enriched)
     this.deps.eventBus?.publish({
       type: 'history.committed',
@@ -373,24 +374,5 @@ export class HITLService {
       sha,
       at: this.deps.clock.now(),
     })
-  }
-
-  /**
-   * Snapshot the user's displayName + email into the commit so git
-   * stores the real Google identity. Skips when `userDirectory`
-   * doesn't know the userId — bootstrap / skill-system authors lack
-   * a row and fall through to the placeholder synth in the git layer.
-   */
-  private async enrichAuthor(message: CommitMessage): Promise<CommitMessage> {
-    if (message.authorName !== undefined || message.authorEmail !== undefined)
-      return message
-    const author = await this.userDirectory.resolve(message.userId)
-    if (!author)
-      return message
-    return {
-      ...message,
-      authorName: author.displayName,
-      ...(author.email ? { authorEmail: author.email } : {}),
-    }
   }
 }

@@ -38,6 +38,30 @@ export function batchPlanPath(workspaceRoot: AbsolutePath): string {
   return join(workspaceArtifactsDir(workspaceRoot), 'batch-plan.json')
 }
 
+export function sourceUnitStateDir(workspaceRoot: AbsolutePath): string {
+  return join(workspaceArtifactsDir(workspaceRoot), 'source-unit-state')
+}
+
+export function sourceUnitStateFilePath(
+  workspaceRoot: AbsolutePath,
+  sourceId: string,
+  relativePath: string,
+): string {
+  // Drop trailing slash from folder units so file name doesn't end in
+  // `/.json`. Replace path separators inside the unit name with `__`
+  // so a multi-level folder unit still maps to one file.
+  const trimmed = relativePath.endsWith('/') ? relativePath.slice(0, -1) : relativePath
+  const flattened = trimmed.replace(/\//g, '__')
+  return join(sourceUnitStateDir(workspaceRoot), sourceId, `${flattened}.json`)
+}
+
+export function sourceUnitStateSourceDir(
+  workspaceRoot: AbsolutePath,
+  sourceId: string,
+): string {
+  return join(sourceUnitStateDir(workspaceRoot), sourceId)
+}
+
 export function proposalsDir(workspaceRoot: AbsolutePath, status: ProposalStatus): string {
   return join(workspaceArtifactsDir(workspaceRoot), 'proposals', status)
 }

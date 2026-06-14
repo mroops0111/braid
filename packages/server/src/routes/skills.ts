@@ -3,9 +3,9 @@ import type {
   SkillRunner,
   WorkspaceRepository,
 } from '@braidhq/core'
-import type { SkillId } from '@braidhq/schema'
 import { SkillId as SkillIdSchema, SkillManifest, SkillRunId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
+import { extractBearerToken } from '../middleware/auth.js'
 import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, WorkspaceIdParam } from './_shared.js'
@@ -98,7 +98,7 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
   // manifest once and hands the result to the policy check.
   router.use('/:skillId/run', requirePermission('skill.run', async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
-    const skillId = context.req.param('skillId') as SkillId
+    const skillId = SkillIdSchema.parse(context.req.param('skillId'))
     const manifest = await deps.skillRegistry.get(workspace, skillId)
     return { skill: manifest.toData().frontmatter, skillId }
   }))
@@ -122,8 +122,12 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const { skillId } = context.req.valid('param')
     const { args, resumeSessionId } = context.req.valid('json')
-    const options = resumeSessionId ? { resumeSessionId } : undefined
-    const runId = await deps.skillRunner.start(workspace, skillId as SkillId, args, options)
+    const callerToken = extractBearerToken(context)
+    const options = {
+      ...(resumeSessionId ? { resumeSessionId } : {}),
+      ...(callerToken ? { callerToken } : {}),
+    }
+    const runId = await deps.skillRunner.start(workspace, skillId, args, options)
     return context.json({ runId }, 202)
   })
 

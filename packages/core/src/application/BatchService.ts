@@ -1,13 +1,13 @@
 import type {
   BatchInputMode,
+  BatchPlan as BatchPlanData,
   ClarifyTicketId,
   PlanUnit,
+  PlanUnitId,
   ProposalId,
   SkillEvent,
-  SkillId,
   SkillRunId,
   Timestamp,
-  UserId,
   WorkspaceId,
 } from '@braidhq/schema'
 import type { BatchPlanRepository } from '../domain/batch/BatchPlanRepository.js'
@@ -15,20 +15,22 @@ import type { Clock } from '../domain/Clock.js'
 import type { WorkspaceEvent } from '../domain/events/WorkspaceEvent.js'
 import type { ClarifyTicketRepository } from '../domain/hitl/ClarifyTicketRepository.js'
 import type { ProposalRepository } from '../domain/hitl/ProposalRepository.js'
+import type { OntologyBatchBinding, OntologyPlugin } from '../domain/plugin/Ontology.js'
+import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
 import type { SkillRunner } from '../domain/skill/SkillRunner.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
 import type { HistoryService } from './HistoryService.js'
 import type { HITLService } from './HITLService.js'
 import type { PerWorkspaceLock } from './PerWorkspaceLock.js'
+import type { SourceUnitStateService } from './SourceUnitStateService.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import type { WorkspaceService } from './WorkspaceService.js'
+import { UserId } from '@braidhq/schema'
 import { BatchPlan } from '../domain/batch/BatchPlan.js'
 import { ConflictError, ValidationError } from '../domain/errors.js'
 import { newBatchPlanId, newPlanUnitId } from '../domain/ids.js'
 
-const BATCH_USER_ID = 'braid-batch' as UserId
-const SCAN_SKILL_ID = 'braid-scan' as SkillId
-const EXTRACT_SKILL_ID = 'braid-extract' as SkillId
+const BATCH_USER_ID = UserId.parse('braid-batch')
 
 export interface IntentItem {
   readonly value: string
@@ -49,13 +51,36 @@ export interface BatchServiceDeps {
   batchPlanRepository: BatchPlanRepository
   // Filesystem walk happens in infrastructure; the orchestrator just consumes the list.
   intentLister: IntentLister
+  /**
+   * Resolves the workspace's ontology plugin so the service can read its
+   * batch binding (per-unit skill, checkpoint config, derive skill).
+   * Without this binding the framework has no opinion on which skills
+   * to dispatch.
+   */
+  pluginRegistry: PluginRegistry
   eventBus?: WorkspaceEventBus
   workspaceLock: PerWorkspaceLock
   clock: Clock
+  /**
+   * Optional. When supplied, batch records a `SourceUnitState`
+   * observation after every successful unit extract so Reactor /
+   * manual paths share the same diff primitive. Absent in pure
+   * unit-test wiring; production composition (`composeFsApp`) always
+   * provides it.
+   */
+  sourceUnitStateService?: SourceUnitStateService
 }
 
 export interface StartBatchOptions {
   autoApply: boolean
+  /**
+   * Bearer token captured from the caller's session, forwarded to every
+   * skill subprocess this batch spawns so they can call back into the
+   * server API via the braid-core MCP gateway. Absent when running in
+   * `BRAID_LOCAL_TRUST=true` mode (anonymous local dev) where the auth
+   * middleware lets unauthenticated callers through.
+   */
+  callerToken?: string
 }
 
 export class BatchService {
@@ -67,7 +92,9 @@ export class BatchService {
     return this.deps.workspaceLock.run(workspaceId, async () => {
       const workspace = await this.deps.workspaceService.findById(workspaceId)
       await this.assertNoActiveBatch(workspace)
-      const mode = this.resolveMode(workspace)
+      const ontology = this.resolveOntology(workspace)
+      const binding = this.requireBinding(ontology)
+      const mode = this.resolveMode(workspace, binding)
       const now = this.deps.clock.now()
       const baselineTag = `batch-baseline-${tagSuffix(now)}`
       const initialUnits = mode === 'intent' ? await this.buildIntentUnits(workspace) : []
@@ -86,6 +113,8 @@ export class BatchService {
         status: 'idle',
         autoApply: options.autoApply,
         units: initialUnits,
+        checkpointPhases: [],
+        batchPolicy: snapshotBatchPolicy(binding),
       }).beginRun(now, baselineTag)
 
       await this.tagBaseline(workspace, baselineTag, now)
@@ -93,7 +122,7 @@ export class BatchService {
       this.publish(workspaceId, { type: 'batch.started', workspaceId, planId: plan.id, mode, at: now })
 
       // Fire-and-forget; callers poll via getStatus or subscribe to SSE.
-      void this.runLoop(workspace, plan).catch(async (err: unknown) => {
+      void this.runLoop(workspace, plan, options.callerToken).catch(async (err: unknown) => {
         const failed = (await this.deps.batchPlanRepository.load(workspace))
           ?.markFailed(this.deps.clock.now(), errorMessage(err))
         if (failed)
@@ -117,7 +146,7 @@ export class BatchService {
     const plan = await this.deps.batchPlanRepository.load(workspace)
     if (!plan)
       return
-    if (plan.status !== 'running' && plan.status !== 'scanning')
+    if (plan.status !== 'running' && plan.status !== 'deriving')
       return
     if (plan.running && this.deps.skillRunner.isActive(plan.running.skillRunId))
       return
@@ -125,7 +154,7 @@ export class BatchService {
     await this.deps.batchPlanRepository.save(workspace, failed)
   }
 
-  async resume(workspaceId: WorkspaceId): Promise<BatchPlan> {
+  async resume(workspaceId: WorkspaceId, options: { callerToken?: string } = {}): Promise<BatchPlan> {
     return this.deps.workspaceLock.run(workspaceId, async () => {
       const workspace = await this.deps.workspaceService.findById(workspaceId)
       const existing = await this.deps.batchPlanRepository.load(workspace)
@@ -142,7 +171,7 @@ export class BatchService {
         mode: resumed.mode,
         at: now,
       })
-      void this.runLoop(workspace, resumed).catch(async (err: unknown) => {
+      void this.runLoop(workspace, resumed, options.callerToken).catch(async (err: unknown) => {
         const failed = (await this.deps.batchPlanRepository.load(workspace))
           ?.markFailed(this.deps.clock.now(), errorMessage(err))
         if (failed)
@@ -188,7 +217,8 @@ export class BatchService {
 
   // Move a terminal plan to `archived`. The Studio Batch page treats
   // archived the same as "no active plan" but keeps the report
-  // browsable via the PreStart "previous batch" slot.
+  // browsable via the PreStart "previous batch" slot. Recorded in git
+  // history so the audit trail stays continuous (`batch-archive` kind).
   async archive(workspaceId: WorkspaceId): Promise<BatchPlan> {
     return this.deps.workspaceLock.run(workspaceId, async () => {
       const workspace = await this.deps.workspaceService.findById(workspaceId)
@@ -197,14 +227,20 @@ export class BatchService {
         throw new ValidationError(`No batch plan to archive on workspace "${workspaceId}"`)
       const archived = existing.archive(this.deps.clock.now())
       await this.deps.batchPlanRepository.save(workspace, archived)
+      await this.deps.historyService.commitWorkspaceChange(workspace.id, {
+        kind: 'batch-archive',
+        subject: `archived ${archived.id}`,
+        userId: BATCH_USER_ID,
+      })
       return archived
     })
   }
 
-  private async runLoop(workspace: Workspace, initial: BatchPlan): Promise<void> {
+  private async runLoop(workspace: Workspace, initial: BatchPlan, callerToken?: string): Promise<void> {
     let plan = initial
-    if (plan.mode === 'scan') {
-      plan = await this.runScanPhase(workspace, plan)
+    const binding = this.requireBinding(this.resolveOntology(workspace))
+    if (plan.mode === 'derive') {
+      plan = await this.runDerivePhase(workspace, plan, binding, callerToken)
       if (plan.status !== 'running')
         return
     }
@@ -223,27 +259,157 @@ export class BatchService {
         })
         return
       }
-      plan = await this.runUnit(workspace, plan, unit)
+      plan = await this.runUnit(workspace, plan, binding, unit, callerToken)
+      // Fire a checkpoint whenever the ontology's chunkSize threshold is
+      // crossed. A failed checkpoint fails the batch immediately so we
+      // don't keep dispatching unit runs into a model state we know is
+      // already broken.
+      if (binding.checkpoint) {
+        const unconsumed = unconsumedCompletedUnitIds(plan)
+        if (unconsumed.length >= binding.checkpoint.chunkSize) {
+          const chunkUnitIds = unconsumed.slice(0, binding.checkpoint.chunkSize)
+          const after = await this.runCheckpointPhase(workspace, plan, binding.checkpoint, chunkUnitIds, callerToken)
+          if (after.status === 'failed')
+            return
+          plan = after
+        }
+      }
+    }
+    // Optional end-of-loop checkpoint. The ontology decides whether
+    // to require it (`runAtEnd: true`); some ontologies might rely
+    // purely on per-chunk checkpoints, others might skip checkpoints
+    // entirely.
+    if (binding.checkpoint?.runAtEnd) {
+      const remainingUnits = unconsumedCompletedUnitIds(plan)
+      const after = await this.runCheckpointPhase(workspace, plan, binding.checkpoint, remainingUnits, callerToken)
+      if (after.status === 'failed')
+        return
+      plan = after
     }
     const now = this.deps.clock.now()
-    plan = plan.markCompleted(now)
-    await this.deps.batchPlanRepository.save(workspace, plan)
+    const completedPlan = plan.markCompleted(now)
+    await this.deps.batchPlanRepository.save(workspace, completedPlan)
     this.publish(workspace.id, {
       type: 'batch.completed',
       workspaceId: workspace.id,
-      planId: plan.id,
+      planId: completedPlan.id,
       at: now,
     })
   }
 
-  private async runScanPhase(workspace: Workspace, _plan: BatchPlan): Promise<BatchPlan> {
-    const runId = await this.deps.skillRunner.start(workspace, SCAN_SKILL_ID, '')
+  private async runCheckpointPhase(
+    workspace: Workspace,
+    plan: BatchPlan,
+    checkpoint: NonNullable<OntologyBatchBinding['checkpoint']>,
+    unitIds: readonly PlanUnitId[],
+    callerToken?: string,
+  ): Promise<BatchPlan> {
+    const unitsById = new Map(plan.units.map(u => [u.id, u] as const))
+    const units = unitIds.map(id => unitsById.get(id)).filter((u): u is PlanUnit => !!u)
+    const extraEnv = checkpoint.extraEnv?.(units)
+    const hasEnv = !!extraEnv && Object.keys(extraEnv).length > 0
+    let runId: SkillRunId | undefined
+    try {
+      const startedAt = this.deps.clock.now()
+      // Snapshot proposal ids so the post-run sweep can attribute new
+      // ones to this checkpoint (mirrors runUnit's set-difference).
+      const before = await this.snapshotIds(workspace.id)
+      runId = await this.deps.skillRunner.start(
+        workspace,
+        checkpoint.skillId,
+        '',
+        {
+          ...(hasEnv ? { extraEnv } : {}),
+          ...(callerToken ? { callerToken } : {}),
+        },
+      )
+      const running = plan.startCheckpointPhase(startedAt, runId, unitIds)
+      await this.deps.batchPlanRepository.save(workspace, running)
+      this.publish(workspace.id, {
+        type: 'batch.checkpoint.started',
+        workspaceId: workspace.id,
+        planId: running.id,
+        skillRunId: runId,
+        at: startedAt,
+      })
+      await this.runSkillWithAutoApply(workspace, runId, plan.autoApply, before)
+      const completedAt = this.deps.clock.now()
+      const completed = running.completeCheckpointPhase(completedAt)
+      await this.deps.batchPlanRepository.save(workspace, completed)
+      this.publish(workspace.id, {
+        type: 'batch.checkpoint.completed',
+        workspaceId: workspace.id,
+        planId: completed.id,
+        skillRunId: runId,
+        at: completedAt,
+      })
+      return completed
+    }
+    catch (err) {
+      const now = this.deps.clock.now()
+      const errorText = `checkpoint "${checkpoint.skillId}" failed: ${errorMessage(err)}`
+      const phaseFailed = (runId ? plan.startCheckpointPhase(now, runId, unitIds) : plan).failCheckpointPhase(now, errorText)
+      const failed = phaseFailed.markFailed(now, errorText)
+      await this.deps.batchPlanRepository.save(workspace, failed)
+      if (runId) {
+        this.publish(workspace.id, {
+          type: 'batch.checkpoint.failed',
+          workspaceId: workspace.id,
+          planId: failed.id,
+          skillRunId: runId,
+          error: errorText,
+          at: now,
+        })
+      }
+      this.publish(workspace.id, {
+        type: 'batch.failed',
+        workspaceId: workspace.id,
+        planId: failed.id,
+        error: errorText,
+        at: now,
+      })
+      return failed
+    }
+  }
+
+  private async recordObservation(
+    workspace: Workspace,
+    unit: PlanUnit,
+    runId: SkillRunId,
+  ): Promise<void> {
+    const service = this.deps.sourceUnitStateService
+    if (!service || !unit.sourceId || !unit.scopeHint)
+      return
+    try {
+      await service.recordObservation(workspace.id, unit.sourceId, unit.scopeHint, runId)
+    }
+    catch {
+      // Observation recording is best-effort. The extract itself
+      // already succeeded and failing to record it must not fail the
+      // batch; Reactor will see the unit as "changed" next cycle and
+      // re-extract, which is a recoverable state.
+    }
+  }
+
+  private async runDerivePhase(
+    workspace: Workspace,
+    _plan: BatchPlan,
+    binding: OntologyBatchBinding,
+    callerToken?: string,
+  ): Promise<BatchPlan> {
+    if (!binding.deriveUnits) {
+      throw new ValidationError(
+        `Workspace "${workspace.id}" has no intent source and the ontology "${this.resolveOntology(workspace).ontologyId}" provides no deriveUnits skill.`,
+      )
+    }
+    const skillId = binding.deriveUnits.skillId
+    const runId = await this.deps.skillRunner.start(workspace, skillId, '', callerToken ? { callerToken } : undefined)
     await waitForCompletion(this.deps.skillRunner, runId)
     const updated = await this.deps.batchPlanRepository.load(workspace)
     if (!updated)
-      throw new Error('batch-plan.json disappeared during scan')
+      throw new Error('batch-plan.json disappeared during derive')
     if (updated.units.length === 0) {
-      const failed = updated.markFailed(this.deps.clock.now(), 'braid-scan produced no units')
+      const failed = updated.markFailed(this.deps.clock.now(), `derive skill "${skillId}" produced no units`)
       await this.deps.batchPlanRepository.save(workspace, failed)
       return failed
     }
@@ -252,13 +418,19 @@ export class BatchService {
     return promoted
   }
 
-  private async runUnit(workspace: Workspace, plan: BatchPlan, unit: PlanUnit): Promise<BatchPlan> {
+  private async runUnit(workspace: Workspace, plan: BatchPlan, binding: OntologyBatchBinding, unit: PlanUnit, callerToken?: string): Promise<BatchPlan> {
     const startedAt = this.deps.clock.now()
     let running = plan
     try {
       // Snapshot the pre-run id sets so post-run additions can be attributed to this unit.
       const before = await this.snapshotIds(workspace.id)
-      const runId = await this.deps.skillRunner.start(workspace, EXTRACT_SKILL_ID, unitArg(unit))
+      const argsFor = binding.perUnit.argsFor ?? defaultUnitArg
+      const runId = await this.deps.skillRunner.start(
+        workspace,
+        binding.perUnit.skillId,
+        argsFor(unit),
+        callerToken ? { callerToken } : undefined,
+      )
       running = plan.startUnit(startedAt, unit.id, { unitId: unit.id, skillRunId: runId })
       await this.deps.batchPlanRepository.save(workspace, running)
       this.publish(workspace.id, {
@@ -270,29 +442,12 @@ export class BatchService {
         at: startedAt,
       })
 
-      // Apply mid-run instead of post-unit: extract validators can require prior proposals to be applied, which deadlocks a sweep.
-      const alreadyApplied = new Set<ProposalId>()
-      const unsubscribe = plan.autoApply
-        ? this.streamApplyProposals(workspace.id, alreadyApplied)
-        : () => {}
-
-      try {
-        await waitForCompletion(this.deps.skillRunner, runId)
-      }
-      finally {
-        unsubscribe()
-      }
-
-      const output = await this.collectUnitOutput(workspace.id, before)
-      if (plan.autoApply) {
-        // Belt + braces: sweep anything the stream listener missed (publish race / unsubscribe ordering).
-        const remaining = output.proposalIds.filter(id => !alreadyApplied.has(id))
-        await this.autoApply(remaining)
-      }
+      const output = await this.runSkillWithAutoApply(workspace, runId, plan.autoApply, before)
 
       const completedAt = this.deps.clock.now()
       const completed = running.completeUnit(completedAt, unit.id, output)
       await this.deps.batchPlanRepository.save(workspace, completed)
+      await this.recordObservation(workspace, unit, runId)
       this.publish(workspace.id, {
         type: 'batch.unit.completed',
         workspaceId: workspace.id,
@@ -346,6 +501,35 @@ export class BatchService {
     }
   }
 
+  // Drives a single skill run end to end with autoApply wiring: streams
+  // proposals as they're created, waits for the subprocess to exit, then
+  // sweeps anything the stream missed. Shared by runUnit and
+  // runCheckpointPhase so both kinds of skill dispatch get the same
+  // autoApply treatment.
+  private async runSkillWithAutoApply(
+    workspace: Workspace,
+    runId: SkillRunId,
+    autoApply: boolean,
+    before: { proposals: Set<ProposalId>, clarify: Set<ClarifyTicketId> },
+  ): Promise<{ proposalIds: ProposalId[], clarifyTicketIds: ClarifyTicketId[] }> {
+    const applied = new Set<ProposalId>()
+    const unsubscribe = autoApply
+      ? this.streamApplyProposals(workspace.id, applied)
+      : () => {}
+    try {
+      await waitForCompletion(this.deps.skillRunner, runId)
+    }
+    finally {
+      unsubscribe()
+    }
+    const output = await this.collectUnitOutput(workspace.id, before)
+    if (autoApply) {
+      const remaining = output.proposalIds.filter(id => !applied.has(id))
+      await this.autoApply(remaining)
+    }
+    return output
+  }
+
   private streamApplyProposals(workspaceId: WorkspaceId, applied: Set<ProposalId>): () => void {
     if (!this.deps.eventBus)
       return () => {}
@@ -376,21 +560,40 @@ export class BatchService {
 
   private async assertNoActiveBatch(workspace: Workspace): Promise<void> {
     const existing = await this.deps.batchPlanRepository.load(workspace)
-    if (existing && (existing.status === 'running' || existing.status === 'scanning')) {
+    if (existing && (existing.status === 'running' || existing.status === 'deriving')) {
       throw new ConflictError(
         `Workspace "${workspace.id}" already has an active batch (plan ${existing.id} status=${existing.status})`,
       )
     }
   }
 
-  private resolveMode(workspace: Workspace): BatchInputMode {
+  private resolveMode(workspace: Workspace, binding: OntologyBatchBinding): BatchInputMode {
     if (workspace.intentSources().length > 0)
       return 'intent'
-    if (workspace.codeSources().length > 0)
-      return 'scan'
+    if (workspace.codeSources().length > 0) {
+      if (!binding.deriveUnits) {
+        throw new ValidationError(
+          `Workspace "${workspace.id}" has no intent source; ontology "${workspace.productManifest.ontologyId}" must provide a deriveUnits skill to batch from code.`,
+        )
+      }
+      return 'derive'
+    }
     throw new ValidationError(
       `Workspace "${workspace.id}" has no intent or code sources to bootstrap from`,
     )
+  }
+
+  private resolveOntology(workspace: Workspace): OntologyPlugin {
+    return this.deps.pluginRegistry.requireOntology(workspace.productManifest.ontologyId)
+  }
+
+  private requireBinding(ontology: OntologyPlugin): OntologyBatchBinding {
+    if (!ontology.batch) {
+      throw new ValidationError(
+        `Ontology "${ontology.ontologyId}" does not declare a batch binding; it cannot participate in batches.`,
+      )
+    }
+    return ontology.batch
   }
 
   private async buildIntentUnits(workspace: Workspace): Promise<PlanUnit[]> {
@@ -427,7 +630,7 @@ export class BatchService {
   }
 }
 
-function unitArg(unit: PlanUnit): string {
+function defaultUnitArg(unit: PlanUnit): string {
   return unit.scopeHint ?? unit.name
 }
 
@@ -437,6 +640,38 @@ function tagSuffix(now: Timestamp): string {
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
+}
+
+/**
+ * Returns the ordered list of unit ids that are `completed` on the
+ * plan but have not yet been recorded as `unitIds` in any successful
+ * model phase. Order matches `plan.units` so the chunking inside the
+ * run loop processes them in extraction order.
+ */
+function snapshotBatchPolicy(binding: OntologyBatchBinding): NonNullable<BatchPlanData['batchPolicy']> {
+  return {
+    perUnitSkillId: binding.perUnit.skillId,
+    ...(binding.perUnit.label ? { perUnitLabel: binding.perUnit.label } : {}),
+    ...(binding.checkpoint
+      ? {
+          checkpointSkillId: binding.checkpoint.skillId,
+          ...(binding.checkpoint.label ? { checkpointLabel: binding.checkpoint.label } : {}),
+          checkpointChunkSize: binding.checkpoint.chunkSize,
+          checkpointRunAtEnd: binding.checkpoint.runAtEnd,
+        }
+      : {}),
+  }
+}
+
+function unconsumedCompletedUnitIds(plan: BatchPlan): readonly PlanUnitId[] {
+  const consumed = new Set<PlanUnitId>()
+  for (const phase of plan.checkpointPhases) {
+    if (phase.status === 'completed') {
+      for (const id of phase.unitIds)
+        consumed.add(id)
+    }
+  }
+  return plan.units.filter(u => u.status === 'completed' && !consumed.has(u.id)).map(u => u.id)
 }
 
 async function waitForCompletion(runner: SkillRunner, runId: SkillRunId): Promise<void> {

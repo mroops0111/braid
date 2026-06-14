@@ -20,6 +20,7 @@ import type { WorkspaceService } from './WorkspaceService.js'
 import { diffSnapshots } from '@braidhq/schema'
 import { ConflictError } from '../domain/errors.js'
 import { noopUserDirectory } from '../domain/users/UserDirectory.js'
+import { enrichCommitAuthor } from './enrichCommitAuthor.js'
 
 export interface HistoryServiceDeps {
   history: WorkspaceHistory
@@ -109,6 +110,26 @@ export class HistoryService {
   async createTag(workspaceId: WorkspaceId, sha: CommitSha, name: string, note?: string): Promise<TagMeta> {
     const workspace = await this.deps.workspaceService.findById(workspaceId)
     return this.deps.history.tag(workspace, sha, name, note)
+  }
+
+  /**
+   * Commit whatever artifact changes a caller has just persisted to
+   * disk, with the supplied commit message. The caller is responsible
+   * for holding the per-workspace lock (so the commit isn't racing a
+   * concurrent restore) and for having already written its file
+   * changes. `userId` is snapshotted into the git author line.
+   */
+  async commitWorkspaceChange(workspaceId: WorkspaceId, message: CommitMessage): Promise<CommitSha> {
+    const workspace = await this.deps.workspaceService.findById(workspaceId)
+    const enriched = await enrichCommitAuthor(message, this.userDirectory)
+    const sha = await this.deps.history.commit(workspace, enriched)
+    this.deps.eventBus?.publish({
+      type: 'history.committed',
+      workspaceId: workspace.id,
+      sha,
+      at: this.deps.clock.now(),
+    })
+    return sha
   }
 
   async listTags(workspaceId: WorkspaceId): Promise<readonly TagMeta[]> {
