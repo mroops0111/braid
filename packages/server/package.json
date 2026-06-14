@@ -33,7 +33,7 @@
     "@hono/node-server": "^1.13.0",
     "@hono/zod-openapi": "^0.19.10",
     "@hono/zod-validator": "^0.8.0",
-    "hono": "^4.12.21",
+    "hono": "^4.12.25",
     "pino": "^9.5.0",
     "simple-git": "^3.36.0",
     "yaml": "^2.9.0",
@@ -41,7 +41,7 @@
   },
   "devDependencies": {
     "@braidhq/test-utils": "workspace:*",
-    "esbuild": "^0.28.0",
+    "esbuild": "^0.28.1",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
     "vitest": "^4.1.0"
