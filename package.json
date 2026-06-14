@@ -32,7 +32,7 @@
     "eslint": "^9.16.0",
     "lint-staged": "^15.2.0",
     "simple-git-hooks": "^2.11.0",
-    "turbo": "^2.9.14",
+    "turbo": "^2.9.18",
     "typescript": "^6.0.3",
     "vitest": "^4.1.0"
   },
