@@ -397,6 +397,23 @@ function RemoteContent({
           onOpenDetails={() => onOpenDetails(ws.id)}
         />
       ))}
+      {collapsed && (
+        <li className="flex justify-center py-0.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => onOpenAdd(remote)}
+                title={`Open workspace on ${remote.name}`}
+                className="flex size-7 items-center justify-center rounded text-sidebar-foreground/40 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+              >
+                <Plus className="size-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{`Open workspace on ${remote.name}`}</TooltipContent>
+          </Tooltip>
+        </li>
+      )}
     </ul>
   )
 }
@@ -628,12 +645,13 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, on
   shortcut?: string
   onClick: () => void
 }) {
+  const collapsedTitle = [label, count > 0 ? `(${count})` : null, shortcut].filter(Boolean).join(' ')
   return (
     <ListRow
       variant="sidebar"
       active={active}
       onClick={onClick}
-      {...(collapsed ? { title: count > 0 ? `${label} (${count})` : label, className: 'justify-center px-0 py-1' } : {})}
+      {...(collapsed ? { title: collapsedTitle, className: 'justify-center px-0 py-1' } : {})}
     >
       {collapsed
         ? (
@@ -664,7 +682,7 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, on
                   {count}
                 </span>
               )}
-              {shortcut && count === 0 && (
+              {shortcut && (
                 <kbd
                   className="rounded bg-sidebar-accent/40 px-1.5 py-0.5 text-[10px] font-mono text-sidebar-foreground/50"
                   aria-hidden
