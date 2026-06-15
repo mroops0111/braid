@@ -76,6 +76,10 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
     onSuccess: (result) => {
       setIngestResults(result.ingest)
       queryClient.invalidateQueries({ queryKey: queryKeys.workspaces() })
+      // Sidebar reads per-remote via `['workspaces-at', remoteId]`, which is
+      // a different cache entry from the single-server `['workspaces']` key.
+      // Without this the newly-scaffolded workspace doesn't appear until reload.
+      queryClient.invalidateQueries({ queryKey: ['workspaces-at'], exact: false })
       onCreated?.(result.workspace.id)
     },
   })
