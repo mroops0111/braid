@@ -20,6 +20,7 @@ import { dddOntology } from '@braidhq/ontology-ddd'
 import { AgentId, AgentKind, StorageKind as StorageKindSchema } from '@braidhq/schema'
 import { GoogleDriveLoader } from '@braidhq/source-loader-gdrive'
 import { GitLoader } from '@braidhq/source-loader-git'
+import { GithubLoader } from '@braidhq/source-loader-github'
 import { kuzuStoragePlugin } from '@braidhq/storage-kuzu'
 import { composeApp } from './composition.js'
 import { SubprocessSkillRunner } from './infrastructure/agent/SubprocessSkillRunner.js'
@@ -71,7 +72,10 @@ export interface ComposeFsOptions {
    * composition. The defaults bundle is:
    *   - storage: `kuzuStoragePlugin`
    *   - ontology: `dddOntology`
-   *   - source-loader: `GitLoader` (+ `GoogleDriveLoader` if OAuth configured)
+   *   - source-loader: `GitLoader`, `GoogleDriveLoader` (always; throws at
+   *     ingest if OAuth env is missing), `GithubLoader` (only when
+   *     `GH_TOKEN` is set, since anonymous GitHub access is rate-limited
+   *     to 60 req/h)
    *   - agent: `claudeCodeAgentPlugin`
    *
    * `composeFsApp` is the opinionated entry that ships with batteries.
@@ -174,6 +178,13 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     pluginRegistry.register(plugin)
 
   pluginRegistry.register(new GitLoader())
+  // GitHub Issues loader is gated on GH_TOKEN: anonymous access is
+  // rate-limited to 60 req/h which won't survive a realistic sync, so
+  // declaring a `kind: 'github'` source without a token is almost
+  // certainly a misconfiguration. Skipping registration here surfaces it
+  // as an unknown-plugin error at workspace load time.
+  if ((process.env.GH_TOKEN ?? '').length > 0)
+    pluginRegistry.register(new GithubLoader())
   for (const plugin of options.extraSourceLoaderPlugins ?? [])
     pluginRegistry.register(plugin)
 
