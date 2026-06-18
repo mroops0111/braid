@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { humaniseApiError } from '@/lib/errors'
-import { nameToId, rolePathSegment, toSourceDescriptor } from '@/lib/sourceDraft'
+import { nameToId, rolePathSegment, type SourceDraft, toSourceDescriptor } from '@/lib/sourceDraft'
 import { useGoogleOAuth } from '@/lib/useGoogleOAuth'
 import { MarkdownDescriptionField } from './MarkdownDescriptionField'
 import { Button } from './ui/button'
@@ -21,12 +21,18 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
   const [role, setRole] = useState<'intent' | 'code'>('intent')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [loaderKind, setLoaderKind] = useState<'' | 'git' | 'gdrive'>(role === 'intent' ? 'gdrive' : 'git')
+  const [loaderKind, setLoaderKind] = useState<SourceDraft['loaderKind']>(role === 'intent' ? 'gdrive' : 'git')
   const [gitUrl, setGitUrl] = useState('')
   const [gitBranch, setGitBranch] = useState('master')
   const [gdriveFolderId, setGdriveFolderId] = useState('')
   const [gdriveInclude, setGdriveInclude] = useState('')
   const [gdriveExclude, setGdriveExclude] = useState('')
+  const [githubOwner, setGithubOwner] = useState('')
+  const [githubRepo, setGithubRepo] = useState('')
+  const [githubState, setGithubState] = useState<'open' | 'closed' | 'all'>('all')
+  const [githubLabels, setGithubLabels] = useState('')
+  const [githubIncludeComments, setGithubIncludeComments] = useState(true)
+  const [githubIncludePullRequests, setGithubIncludePullRequests] = useState(false)
   /**
    * Set once the user successfully completes the Google OAuth popup. Keyed to
    * the sourceId derived from `name` at the time of consent. If the user
@@ -51,7 +57,23 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
 
   const add = useMutation({
     mutationFn: () => {
-      const source = toSourceDescriptor({ role, name, description, loaderKind, gitUrl, gitBranch, gdriveFolderId, gdriveInclude, gdriveExclude })
+      const source = toSourceDescriptor({
+        role,
+        name,
+        description,
+        loaderKind,
+        gitUrl,
+        gitBranch,
+        gdriveFolderId,
+        gdriveInclude,
+        gdriveExclude,
+        githubOwner,
+        githubRepo,
+        githubState,
+        githubLabels,
+        githubIncludeComments,
+        githubIncludePullRequests,
+      })
       return api.addSource(workspaceId, source)
     },
     onSuccess: () => {
@@ -70,6 +92,12 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
     setGdriveFolderId('')
     setGdriveInclude('')
     setGdriveExclude('')
+    setGithubOwner('')
+    setGithubRepo('')
+    setGithubState('all')
+    setGithubLabels('')
+    setGithubIncludeComments(true)
+    setGithubIncludePullRequests(false)
     setOauthConnectedFor(null)
     add.reset()
     startOauth.reset()
@@ -83,6 +111,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
   const valid = name.trim().length > 0
     && (loaderKind !== 'git' || gitUrl.trim().length > 0)
     && (loaderKind !== 'gdrive' || (gdriveFolderId.trim().length > 0 && gdriveFolderId.trim() !== 'root' && oauthConnected))
+    && (loaderKind !== 'github' || (githubOwner.trim().length > 0 && githubRepo.trim().length > 0))
 
   return (
     <Dialog
@@ -109,6 +138,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
               <select value={loaderKind} onChange={e => setLoaderKind(e.target.value as typeof loaderKind)} className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs">
                 <option value="">manual (no auto-sync)</option>
                 <option value="git">git</option>
+                <option value="github">github (issues)</option>
                 <option value="gdrive">gdrive</option>
               </select>
             </Field>
@@ -184,6 +214,51 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
                   <p className="mt-2 text-[11px] text-destructive">{humaniseApiError(startOauth.error)}</p>
                 )}
               </div>
+            </>
+          )}
+          {loaderKind === 'github' && (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Owner">
+                  <Input value={githubOwner} onChange={e => setGithubOwner(e.target.value)} placeholder="anthropics" />
+                </Field>
+                <Field label="Repo">
+                  <Input value={githubRepo} onChange={e => setGithubRepo(e.target.value)} placeholder="claude-code" />
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="State">
+                  <select
+                    value={githubState}
+                    onChange={e => setGithubState(e.target.value as typeof githubState)}
+                    className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+                  >
+                    <option value="all">all</option>
+                    <option value="open">open</option>
+                    <option value="closed">closed</option>
+                  </select>
+                </Field>
+                <Field label="Labels (csv, optional)">
+                  <Input value={githubLabels} onChange={e => setGithubLabels(e.target.value)} placeholder="bug, p1" />
+                </Field>
+              </div>
+              <div className="flex flex-col gap-1 rounded-md border border-border p-2">
+                <label className="flex items-center gap-2 text-[11px]">
+                  <input type="checkbox" checked={githubIncludeComments} onChange={e => setGithubIncludeComments(e.target.checked)} />
+                  Include comments
+                </label>
+                <label className="flex items-center gap-2 text-[11px]">
+                  <input type="checkbox" checked={githubIncludePullRequests} onChange={e => setGithubIncludePullRequests(e.target.checked)} />
+                  Include pull requests (GitHub treats PRs as issues; off by default)
+                </label>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Auth: server reads
+                {' '}
+                <code className="font-mono">$GH_TOKEN</code>
+                {' '}
+                at sync time. Without one you get GitHub's 60 req/h anonymous rate limit.
+              </p>
             </>
           )}
           {add.error && <p className="text-xs text-destructive">{humaniseApiError(add.error)}</p>}

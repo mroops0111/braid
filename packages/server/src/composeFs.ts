@@ -72,10 +72,10 @@ export interface ComposeFsOptions {
    * composition. The defaults bundle is:
    *   - storage: `kuzuStoragePlugin`
    *   - ontology: `dddOntology`
-   *   - source-loader: `GitLoader`, `GoogleDriveLoader` (always; throws at
-   *     ingest if OAuth env is missing), `GithubLoader` (only when
-   *     `GH_TOKEN` is set, since anonymous GitHub access is rate-limited
-   *     to 60 req/h)
+   *   - source-loader: `GitLoader`, `GithubLoader`, `GoogleDriveLoader`
+   *     (gdrive throws an actionable error at ingest if OAuth env is missing;
+   *     github falls back to anonymous if `${GH_TOKEN}` is unset, subject to
+   *     the 60 req/h public rate limit)
    *   - agent: `claudeCodeAgentPlugin`
    *
    * `composeFsApp` is the opinionated entry that ships with batteries.
@@ -178,13 +178,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     pluginRegistry.register(plugin)
 
   pluginRegistry.register(new GitLoader())
-  // GitHub Issues loader is gated on GH_TOKEN: anonymous access is
-  // rate-limited to 60 req/h which won't survive a realistic sync, so
-  // declaring a `kind: 'github'` source without a token is almost
-  // certainly a misconfiguration. Skipping registration here surfaces it
-  // as an unknown-plugin error at workspace load time.
-  if ((process.env.GH_TOKEN ?? '').length > 0)
-    pluginRegistry.register(new GithubLoader())
+  pluginRegistry.register(new GithubLoader())
   for (const plugin of options.extraSourceLoaderPlugins ?? [])
     pluginRegistry.register(plugin)
 
