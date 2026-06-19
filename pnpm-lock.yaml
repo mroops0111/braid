@@ -39,6 +39,22 @@ importers:
         specifier: ^4.1.0
         version: 4.1.8(@types/node@25.9.3)(@vitest/coverage-v8@4.1.8)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
 
+  examples/redoc-extending-ddd:
+    dependencies:
+      '@braidhq/ontology-ddd':
+        specifier: workspace:*
+        version: link:../../packages/ontology-ddd
+      '@braidhq/schema':
+        specifier: workspace:*
+        version: link:../../packages/schema
+      '@braidhq/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   packages/agent-claude-code:
     dependencies:
       '@braidhq/core':
@@ -237,6 +253,9 @@ importers:
       '@braidhq/source-loader-git':
         specifier: workspace:*
         version: link:../source-loader-git
+      '@braidhq/source-loader-github':
+        specifier: workspace:*
+        version: link:../source-loader-github
       '@braidhq/storage-kuzu':
         specifier: workspace:*
         version: link:../storage-kuzu
@@ -314,6 +333,31 @@ importers:
       simple-git:
         specifier: ^3.36.0
         version: 3.36.0
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      '@braidhq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.8(@types/node@25.9.3)(@vitest/coverage-v8@4.1.8)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
+
+  packages/source-loader-github:
+    dependencies:
+      '@braidhq/core':
+        specifier: workspace:*
+        version: link:../core
+      '@braidhq/schema':
+        specifier: workspace:*
+        version: link:../schema
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
       zod:
         specifier: ^3.24.0
         version: 3.25.76
@@ -4829,6 +4873,11 @@ packages:
   type-fest@4.41.0:
     resolution: {integrity: sha512-TeTSQ6H5YHvpqVwBRcnLDCBnDOHWYu7IvGbHT6N8AOymcr9PJGjc1GTtiWZTYg0NCgYwvnYWEkVChQAr9bjfwA==}
     engines: {node: '>=16'}
+
+  typescript@5.9.3:
+    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
 
   typescript@6.0.3:
     resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
@@ -9679,6 +9728,8 @@ snapshots:
   type-fest@0.8.1: {}
 
   type-fest@4.41.0: {}
+
+  typescript@5.9.3: {}
 
   typescript@6.0.3: {}
 

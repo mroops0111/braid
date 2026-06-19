@@ -11,6 +11,12 @@ const blank: SourceDraft = {
   gdriveFolderId: '',
   gdriveInclude: '',
   gdriveExclude: '',
+  githubOwner: '',
+  githubRepo: '',
+  githubState: 'all',
+  githubLabels: '',
+  githubIncludeComments: true,
+  githubIncludePullRequests: false,
 }
 
 describe('nameToId', () => {
@@ -127,5 +133,51 @@ describe('toSourceDescriptor — filesystem', () => {
 
   it('throws when the name is empty (zod brand rejects empty SourceId)', () => {
     expect(() => toSourceDescriptor({ ...blank, name: '' })).toThrow()
+  })
+
+  it('attaches a github loader with owner / repo / state / flags', () => {
+    const descriptor = toSourceDescriptor({
+      ...blank,
+      name: 'issues',
+      loaderKind: 'github',
+      githubOwner: 'mroops0111',
+      githubRepo: 'braid',
+      githubState: 'open',
+      githubIncludeComments: true,
+      githubIncludePullRequests: false,
+    })
+    expect(descriptor).toMatchObject({
+      loader: {
+        kind: 'github',
+        config: {
+          owner: 'mroops0111',
+          repo: 'braid',
+          state: 'open',
+          includeComments: true,
+          includePullRequests: false,
+        },
+      },
+    })
+  })
+
+  it('parses comma-separated labels and omits the labels field when blank', () => {
+    const withLabels = toSourceDescriptor({
+      ...blank,
+      name: 'issues',
+      loaderKind: 'github',
+      githubOwner: 'o',
+      githubRepo: 'r',
+      githubLabels: ' bug , p1 , ',
+    })
+    expect((withLabels as { loader: { config: { labels?: string[] } } }).loader.config.labels).toEqual(['bug', 'p1'])
+
+    const noLabels = toSourceDescriptor({
+      ...blank,
+      name: 'issues2',
+      loaderKind: 'github',
+      githubOwner: 'o',
+      githubRepo: 'r',
+    })
+    expect((noLabels as { loader: { config: { labels?: string[] } } }).loader.config.labels).toBeUndefined()
   })
 })
