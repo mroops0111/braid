@@ -5,7 +5,8 @@
   "description": "Domain entities, application services, and plugin port interfaces for Braid. The framework engine; no concrete adapters.",
   "license": "MIT",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
   },
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -42,6 +43,10 @@
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
+      },
+      "./testing": {
+        "types": "./dist/testing.d.ts",
+        "default": "./dist/testing.js"
       }
     }
   }

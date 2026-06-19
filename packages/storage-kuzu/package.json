@@ -22,6 +22,7 @@
   "dependencies": {
     "@braidhq/core": "workspace:*",
     "@braidhq/schema": "workspace:*",
+    "@braidhq/sdk": "workspace:*",
     "kuzu": "^0.11.0",
     "zod": "^3.24.0"
   },

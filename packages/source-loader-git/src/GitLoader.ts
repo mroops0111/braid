@@ -1,7 +1,7 @@
-import type { IngestReport, SourceLoaderPlugin, SyncReport } from '@braidhq/core'
-import type { AbsolutePath, LoaderKind, PluginId } from '@braidhq/schema'
+import type { SourceLoaderPlugin } from '@braidhq/core'
 import { mkdir, rm } from 'node:fs/promises'
 import process from 'node:process'
+import { defineSourceLoader } from '@braidhq/sdk'
 import { simpleGit } from 'simple-git'
 import { z } from 'zod'
 
@@ -29,23 +29,17 @@ export type GitLoaderConfig = z.infer<typeof GitLoaderConfig>
  * `${VAR}` interpolation against the server's process env. Tokens never
  * land in PRODUCT.md.
  */
-export class GitLoader implements SourceLoaderPlugin {
-  readonly id = 'source-loader-git' as PluginId
-  readonly type = 'source-loader' as const
-  readonly kind = 'git' as LoaderKind
-  readonly configSchema = GitLoaderConfig
-
-  async ingest(rawConfig: unknown, destination: AbsolutePath): Promise<IngestReport> {
-    // GitLoader doesn't need the per-source context: auth is in env / ${VAR}.
-    const config = GitLoaderConfig.parse(rawConfig)
+export const gitLoader: SourceLoaderPlugin = defineSourceLoader({
+  kind: 'git',
+  configSchema: GitLoaderConfig,
+  ingest: async (config, destination) => {
     const url = interpolateEnv(config.url)
     await rm(destination, { recursive: true, force: true })
     await mkdir(destination, { recursive: true })
     const git = simpleGit({ baseDir: destination })
     const cloneOptions: string[] = ['--depth', String(config.depth)]
-    if (config.branch) {
+    if (config.branch)
       cloneOptions.push('--branch', config.branch)
-    }
     await git.clone(url, destination, cloneOptions)
     const sha = (await git.revparse(['HEAD'])).trim()
     return {
@@ -53,11 +47,8 @@ export class GitLoader implements SourceLoaderPlugin {
       metadata: { url: config.url, branch: config.branch ?? null, sha },
       fetchedAt: new Date().toISOString() as never,
     }
-  }
-
-  async sync(rawConfig: unknown, destination: AbsolutePath): Promise<SyncReport> {
-    // GitLoader doesn't need the per-source context: auth is in env / ${VAR}.
-    const config = GitLoaderConfig.parse(rawConfig)
+  },
+  sync: async (config, destination) => {
     const git = simpleGit({ baseDir: destination })
     const before = (await git.revparse(['HEAD'])).trim()
     await git.fetch('origin', config.branch ?? 'HEAD', ['--depth', String(config.depth)])
@@ -74,8 +65,8 @@ export class GitLoader implements SourceLoaderPlugin {
       metadata: { url: config.url, branch: config.branch ?? null, sha: after, previousSha: before },
       fetchedAt: new Date().toISOString() as never,
     }
-  }
-}
+  },
+})
 
 /**
  * Parse `git diff --name-status <before>..<after>` into add / update /
@@ -110,9 +101,8 @@ async function countChangedFiles(
 function interpolateEnv(input: string): string {
   return input.replace(/\$\{([A-Z_][A-Z0-9_]*)\}/g, (_match, name: string) => {
     const value = process.env[name]
-    if (value === undefined) {
-      throw new Error(`GitLoader: environment variable "${name}" referenced in URL is not set`)
-    }
+    if (value === undefined)
+      throw new Error(`gitLoader: environment variable "${name}" referenced in URL is not set`)
     return value
   })
 }

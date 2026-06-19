@@ -20,10 +20,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   BatchService,
   ConflictError,
-  InMemoryClarifyTicketRepository,
-  InMemoryProposalRepository,
-  InMemorySourceUnitStateRepository,
-  InMemoryWorkspaceRepository,
   PerWorkspaceLock,
   PluginRegistry,
   Proposal,
@@ -31,6 +27,12 @@ import {
   ValidationError,
   WorkspaceService,
 } from '../../src/index.js'
+import {
+  InMemoryClarifyTicketRepository,
+  InMemoryProposalRepository,
+  InMemorySourceUnitStateRepository,
+  InMemoryWorkspaceRepository,
+} from '../../src/testing.js'
 
 // Minimal fakes for the ports we need beyond the existing in-memory ones.
 

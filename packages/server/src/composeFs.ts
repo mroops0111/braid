@@ -10,17 +10,17 @@ import { claudeCodeAgentPlugin } from '@braidhq/agent-claude-code'
 import {
   builtinSkillsRoot,
   createLogger,
-  InMemoryWorkspaceEventBus,
   NotFoundError,
   PluginRegistry,
   ValidationError,
   WorkspaceBootstrap,
 } from '@braidhq/core'
+import { InMemoryWorkspaceEventBus } from '@braidhq/core/testing'
 import { dddOntology } from '@braidhq/ontology-ddd'
 import { AgentId, AgentKind, StorageKind as StorageKindSchema } from '@braidhq/schema'
-import { GoogleDriveLoader } from '@braidhq/source-loader-gdrive'
-import { GitLoader } from '@braidhq/source-loader-git'
-import { GithubLoader } from '@braidhq/source-loader-github'
+import { createGoogleDriveLoader } from '@braidhq/source-loader-gdrive'
+import { gitLoader } from '@braidhq/source-loader-git'
+import { createGithubLoader } from '@braidhq/source-loader-github'
 import { kuzuStoragePlugin } from '@braidhq/storage-kuzu'
 import { composeApp } from './composition.js'
 import { SubprocessSkillRunner } from './infrastructure/agent/SubprocessSkillRunner.js'
@@ -72,7 +72,7 @@ export interface ComposeFsOptions {
    * composition. The defaults bundle is:
    *   - storage: `kuzuStoragePlugin`
    *   - ontology: `dddOntology`
-   *   - source-loader: `GitLoader`, `GithubLoader`, `GoogleDriveLoader`
+   *   - source-loader: `gitLoader`, `createGithubLoader()`, `createGoogleDriveLoader()`
    *     (gdrive throws an actionable error at ingest if OAuth env is missing;
    *     github falls back to anonymous if `${GH_TOKEN}` is unset, subject to
    *     the 60 req/h public rate limit)
@@ -177,8 +177,8 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   for (const plugin of options.extraOntologyPlugins ?? [])
     pluginRegistry.register(plugin)
 
-  pluginRegistry.register(new GitLoader())
-  pluginRegistry.register(new GithubLoader())
+  pluginRegistry.register(gitLoader)
+  pluginRegistry.register(createGithubLoader())
   for (const plugin of options.extraSourceLoaderPlugins ?? [])
     pluginRegistry.register(plugin)
 
@@ -186,12 +186,12 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   for (const plugin of options.extraAgentPlugins ?? [])
     pluginRegistry.register(plugin)
 
-  // GoogleDriveLoader is always registered so a workspace declaring a
+  // The gdrive loader is always registered so a workspace declaring a
   // `kind: gdrive` source doesn't crash at plugin lookup. If OAuth env
   // vars aren't configured, the token resolver throws an actionable
   // error at ingest time so the user knows exactly what to set.
   const oauth = googleOAuth
-  pluginRegistry.register(new GoogleDriveLoader({
+  pluginRegistry.register(createGoogleDriveLoader({
     resolveAccessToken: async ({ workspaceId, sourceId }) => {
       if (!oauth) {
         throw new ValidationError(

@@ -1,6 +1,7 @@
 import type { AbsolutePath, AgentId, OntologyId, ProductManifest, StorageKind, Workspace as WorkspaceData, WorkspaceId } from '@braidhq/schema'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { InMemoryWorkspaceRepository, NotFoundError, Workspace, WorkspaceService } from '../../src/index.js'
+import { NotFoundError, Workspace, WorkspaceService } from '../../src/index.js'
+import { InMemoryWorkspaceRepository } from '../../src/testing.js'
 
 const rootPath = '/abs/path' as AbsolutePath
 

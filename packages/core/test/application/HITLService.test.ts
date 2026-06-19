@@ -18,11 +18,6 @@ import {
   ClarifyTicket,
   ConflictError,
   HITLService,
-  InMemoryClarifyTicketRepository,
-  InMemoryDecisionRepository,
-  InMemoryModelRepository,
-  InMemoryProposalRepository,
-  InMemoryWorkspaceRepository,
   NotFoundError,
   PluginRegistry,
   Proposal,
@@ -30,6 +25,13 @@ import {
   ValidationService,
   WorkspaceService,
 } from '../../src/index.js'
+import {
+  InMemoryClarifyTicketRepository,
+  InMemoryDecisionRepository,
+  InMemoryModelRepository,
+  InMemoryProposalRepository,
+  InMemoryWorkspaceRepository,
+} from '../../src/testing.js'
 
 const userId = 'u-1' as UserId
 

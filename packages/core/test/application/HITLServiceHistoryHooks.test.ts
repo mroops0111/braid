@@ -21,16 +21,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ClarifyTicket,
   HITLService,
-  InMemoryClarifyTicketRepository,
-  InMemoryDecisionRepository,
-  InMemoryModelRepository,
-  InMemoryProposalRepository,
-  InMemoryWorkspaceRepository,
   PluginRegistry,
   Proposal,
   ValidationService,
   WorkspaceService,
 } from '../../src/index.js'
+import {
+  InMemoryClarifyTicketRepository,
+  InMemoryDecisionRepository,
+  InMemoryModelRepository,
+  InMemoryProposalRepository,
+  InMemoryWorkspaceRepository,
+} from '../../src/testing.js'
 
 const userId = 'u-1' as UserId
 
