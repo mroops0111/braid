@@ -820,6 +820,12 @@ function defaultSourceDraft(role: 'intent' | 'code'): SourceDraft {
     gdriveFolderId: '',
     gdriveInclude: '',
     gdriveExclude: '',
+    githubOwner: '',
+    githubRepo: '',
+    githubState: 'all',
+    githubLabels: '',
+    githubIncludeComments: true,
+    githubIncludePullRequests: false,
   }
 }
 

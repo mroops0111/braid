@@ -20,6 +20,7 @@ import { dddOntology } from '@braidhq/ontology-ddd'
 import { AgentId, AgentKind, StorageKind as StorageKindSchema } from '@braidhq/schema'
 import { GoogleDriveLoader } from '@braidhq/source-loader-gdrive'
 import { GitLoader } from '@braidhq/source-loader-git'
+import { GithubLoader } from '@braidhq/source-loader-github'
 import { kuzuStoragePlugin } from '@braidhq/storage-kuzu'
 import { composeApp } from './composition.js'
 import { SubprocessSkillRunner } from './infrastructure/agent/SubprocessSkillRunner.js'
@@ -71,7 +72,10 @@ export interface ComposeFsOptions {
    * composition. The defaults bundle is:
    *   - storage: `kuzuStoragePlugin`
    *   - ontology: `dddOntology`
-   *   - source-loader: `GitLoader` (+ `GoogleDriveLoader` if OAuth configured)
+   *   - source-loader: `GitLoader`, `GithubLoader`, `GoogleDriveLoader`
+   *     (gdrive throws an actionable error at ingest if OAuth env is missing;
+   *     github falls back to anonymous if `${GH_TOKEN}` is unset, subject to
+   *     the 60 req/h public rate limit)
    *   - agent: `claudeCodeAgentPlugin`
    *
    * `composeFsApp` is the opinionated entry that ships with batteries.
@@ -174,6 +178,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     pluginRegistry.register(plugin)
 
   pluginRegistry.register(new GitLoader())
+  pluginRegistry.register(new GithubLoader())
   for (const plugin of options.extraSourceLoaderPlugins ?? [])
     pluginRegistry.register(plugin)
 

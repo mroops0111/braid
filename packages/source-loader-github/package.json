@@ -1,8 +1,8 @@
 {
-  "name": "@braidhq/server",
+  "name": "@braidhq/source-loader-github",
   "type": "module",
   "version": "0.0.1",
-  "description": "REST + SSE server for Braid.",
+  "description": "GitHub Issues source-loader plugin for Braid. Ingest issues + comments into markdown.",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"
@@ -15,35 +15,18 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "bundle": "node scripts/bundle.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "dev": "tsx watch src/server.ts",
-    "clean": "rm -rf dist bundle .turbo *.tsbuildinfo coverage"
+    "clean": "rm -rf dist .turbo *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@braidhq/agent-claude-code": "workspace:*",
     "@braidhq/core": "workspace:*",
-    "@braidhq/ontology-ddd": "workspace:*",
     "@braidhq/schema": "workspace:*",
-    "@braidhq/source-loader-gdrive": "workspace:*",
-    "@braidhq/source-loader-git": "workspace:*",
-    "@braidhq/source-loader-github": "workspace:*",
-    "@braidhq/storage-kuzu": "workspace:*",
-    "@hono/node-server": "^2.0.4",
-    "@hono/zod-openapi": "^0.19.10",
-    "@hono/zod-validator": "^0.8.0",
-    "hono": "^4.12.25",
-    "pino": "^9.5.0",
-    "simple-git": "^3.36.0",
     "yaml": "^2.9.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
     "@braidhq/test-utils": "workspace:*",
-    "esbuild": "^0.28.1",
-    "tsx": "^4.22.4",
     "typescript": "^6.0.3",
     "vitest": "^4.1.0"
   },

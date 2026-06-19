@@ -5,13 +5,20 @@ export interface SourceDraft {
   role: 'intent' | 'code'
   name: string
   description: string
-  loaderKind: '' | 'git' | 'gdrive'
+  loaderKind: '' | 'git' | 'gdrive' | 'github'
   gitUrl: string
   gitBranch: string
   gdriveFolderId: string
   /** Optional regex (string). Empty = no filter. Matched against gdrive's posix relative path. */
   gdriveInclude: string
   gdriveExclude: string
+  githubOwner: string
+  githubRepo: string
+  githubState: 'open' | 'closed' | 'all'
+  /** Comma-separated; trimmed + filtered to non-empty before serialising. */
+  githubLabels: string
+  githubIncludeComments: boolean
+  githubIncludePullRequests: boolean
 }
 
 export function nameToId(name: string): string {
@@ -44,7 +51,22 @@ export function toSourceDescriptor(draft: SourceDraft): SourceDescriptor {
             ...(draft.gdriveExclude ? { exclude: draft.gdriveExclude } : {}),
           },
         }
-      : undefined
+      : draft.loaderKind === 'github'
+        ? (() => {
+            const labels = draft.githubLabels.split(',').map(s => s.trim()).filter(s => s.length > 0)
+            return {
+              kind: asLoaderKind('github'),
+              config: {
+                owner: draft.githubOwner,
+                repo: draft.githubRepo,
+                state: draft.githubState,
+                ...(labels.length > 0 ? { labels } : {}),
+                includeComments: draft.githubIncludeComments,
+                includePullRequests: draft.githubIncludePullRequests,
+              },
+            }
+          })()
+        : undefined
   return {
     kind: 'filesystem',
     id,
