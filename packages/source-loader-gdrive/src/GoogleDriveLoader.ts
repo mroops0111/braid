@@ -1,8 +1,8 @@
-import type { IngestReport, SourceLoaderContext, SourceLoaderPlugin, SyncReport } from '@braidhq/core'
-import type { AbsolutePath, LoaderKind, PluginId } from '@braidhq/schema'
+import type { SourceLoaderContext, SourceLoaderPlugin } from '@braidhq/core'
 import { Buffer } from 'node:buffer'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { defineSourceLoader } from '@braidhq/sdk'
 import { z } from 'zod'
 import { DriveClient, type DriveFileMetadata, type FetchFn } from './driveClient.js'
 import { type Manifest, type ManifestEntry, readManifest, writeManifest } from './Manifest.js'
@@ -87,7 +87,7 @@ interface CandidateDoc {
 }
 
 /**
- * Google Drive source loader. Walks a Drive folder, exports every
+ * Build a Google Drive source loader. Walks a Drive folder, exports every
  * Google Doc inside as markdown, extracts inlined base64 images into
  * sibling files, and lays everything out as:
  *
@@ -109,175 +109,183 @@ interface CandidateDoc {
  * need spreadsheets / slide decks, ingest them through a different
  * source-loader plugin.
  */
-export class GoogleDriveLoader implements SourceLoaderPlugin {
-  readonly id = 'source-loader-gdrive' as PluginId
-  readonly type = 'source-loader' as const
-  readonly kind = 'gdrive' as LoaderKind
-  readonly configSchema = GoogleDriveLoaderConfig
-
-  constructor(private readonly deps: GoogleDriveLoaderDeps) {}
-
-  async ingest(rawConfig: unknown, destination: AbsolutePath, context: SourceLoaderContext): Promise<IngestReport> {
-    const config = GoogleDriveLoaderConfig.parse(rawConfig)
-    await rm(destination, { recursive: true, force: true })
-    await mkdir(destination, { recursive: true })
-    const client = await this.client(context)
-    const candidates = await this.walk(client, config)
-    const manifest: Manifest = {
-      folderId: config.folderId,
-      include: config.include,
-      exclude: config.exclude,
-      files: {},
-    }
-    for (const doc of candidates) {
-      await this.downloadOne(client, doc, destination)
-      manifest.files[doc.id] = entryOf(doc)
-    }
-    await writeManifest(destination, manifest)
-    return {
-      localPath: destination,
-      metadata: { folderId: config.folderId, fileCount: candidates.length },
-      fetchedAt: new Date().toISOString() as never,
-    }
-  }
-
-  async sync(rawConfig: unknown, destination: AbsolutePath, context: SourceLoaderContext): Promise<SyncReport> {
-    const config = GoogleDriveLoaderConfig.parse(rawConfig)
-    const cached = await readManifest(destination)
-    if (!cached) {
-      // No manifest yet (first sync after upgrade / cache wiped). Fall
-      // back to a clean ingest so we end up in a known-good state.
-      const report = await this.ingest(config, destination, context)
+export function createGoogleDriveLoader(deps: GoogleDriveLoaderDeps): SourceLoaderPlugin {
+  return defineSourceLoader({
+    kind: 'gdrive',
+    configSchema: GoogleDriveLoaderConfig,
+    ingest: async (config, destination, context) => {
+      await rm(destination, { recursive: true, force: true })
+      await mkdir(destination, { recursive: true })
+      const client = await buildClient(deps, context)
+      const candidates = await walk(client, config)
+      const manifest: Manifest = {
+        folderId: config.folderId,
+        include: config.include,
+        exclude: config.exclude,
+        files: {},
+      }
+      for (const doc of candidates) {
+        await downloadOne(client, doc, destination)
+        manifest.files[doc.id] = entryOf(doc)
+      }
+      await writeManifest(destination, manifest)
       return {
-        changed: true,
-        added: report.metadata && typeof report.metadata.fileCount === 'number' ? report.metadata.fileCount : 0,
-        updated: 0,
-        removed: 0,
-        unchanged: 0,
-        ...(report.metadata ? { metadata: report.metadata } : {}),
-        fetchedAt: report.fetchedAt,
+        localPath: destination,
+        metadata: { folderId: config.folderId, fileCount: candidates.length },
+        fetchedAt: new Date().toISOString() as never,
       }
-    }
+    },
+    sync: async (config, destination, context) => {
+      const cached = await readManifest(destination)
+      if (!cached) {
+        // No manifest yet (first sync after upgrade / cache wiped). Fall
+        // back to a clean ingest so we end up in a known-good state.
+        const client = await buildClient(deps, context)
+        await rm(destination, { recursive: true, force: true })
+        await mkdir(destination, { recursive: true })
+        const candidates = await walk(client, config)
+        const manifest: Manifest = {
+          folderId: config.folderId,
+          include: config.include,
+          exclude: config.exclude,
+          files: {},
+        }
+        for (const doc of candidates) {
+          await downloadOne(client, doc, destination)
+          manifest.files[doc.id] = entryOf(doc)
+        }
+        await writeManifest(destination, manifest)
+        return {
+          changed: true,
+          added: candidates.length,
+          updated: 0,
+          removed: 0,
+          unchanged: 0,
+          metadata: { folderId: config.folderId, fileCount: candidates.length },
+          fetchedAt: new Date().toISOString() as never,
+        }
+      }
 
-    const client = await this.client(context)
-    const candidates = await this.walk(client, config)
-    const seen = new Set<string>()
-    let added = 0
-    let updated = 0
-    let unchanged = 0
-    const next: Manifest = {
-      folderId: config.folderId,
-      include: config.include,
-      exclude: config.exclude,
-      files: {},
-    }
+      const client = await buildClient(deps, context)
+      const candidates = await walk(client, config)
+      const seen = new Set<string>()
+      let added = 0
+      let updated = 0
+      let unchanged = 0
+      const next: Manifest = {
+        folderId: config.folderId,
+        include: config.include,
+        exclude: config.exclude,
+        files: {},
+      }
 
-    for (const doc of candidates) {
-      seen.add(doc.id)
-      const prior = cached.files[doc.id]
-      if (!prior) {
-        await this.downloadOne(client, doc, destination)
-        added++
+      for (const doc of candidates) {
+        seen.add(doc.id)
+        const prior = cached.files[doc.id]
+        if (!prior) {
+          await downloadOne(client, doc, destination)
+          added++
+        }
+        else if (prior.localDir !== doc.localDir || prior.modifiedTime !== doc.modifiedTime) {
+          // Either content updated or the doc was renamed in Drive. Both
+          // cases: re-download to the new dir, then rm the old dir.
+          if (prior.localDir !== doc.localDir)
+            await rm(join(destination, prior.localDir), { recursive: true, force: true })
+          await downloadOne(client, doc, destination)
+          updated++
+        }
+        else {
+          unchanged++
+        }
+        next.files[doc.id] = entryOf(doc)
       }
-      else if (prior.localDir !== doc.localDir || prior.modifiedTime !== doc.modifiedTime) {
-        // Either content updated or the doc was renamed in Drive. Both
-        // cases: re-download to the new dir, then rm the old dir.
-        if (prior.localDir !== doc.localDir)
-          await rm(join(destination, prior.localDir), { recursive: true, force: true })
-        await this.downloadOne(client, doc, destination)
-        updated++
-      }
-      else {
-        unchanged++
-      }
-      next.files[doc.id] = entryOf(doc)
-    }
 
-    let removed = 0
-    for (const [id, entry] of Object.entries(cached.files)) {
-      if (seen.has(id))
+      let removed = 0
+      for (const [id, entry] of Object.entries(cached.files)) {
+        if (seen.has(id))
+          continue
+        await rm(join(destination, entry.localDir), { recursive: true, force: true })
+        removed++
+      }
+
+      await writeManifest(destination, next)
+
+      return {
+        changed: added + updated + removed > 0,
+        added,
+        updated,
+        removed,
+        unchanged,
+        metadata: { folderId: config.folderId },
+        fetchedAt: new Date().toISOString() as never,
+      }
+    },
+  })
+}
+
+async function buildClient(deps: GoogleDriveLoaderDeps, context: SourceLoaderContext): Promise<DriveClient> {
+  const token = await deps.resolveAccessToken(context)
+  return new DriveClient(token, deps.fetchFn)
+}
+
+async function walk(
+  client: DriveClient,
+  config: GoogleDriveLoaderConfig,
+): Promise<readonly CandidateDoc[]> {
+  const includeRe = compileRegex(config.include, 'include')
+  const excludeRe = compileRegex(config.exclude, 'exclude')
+  const out: CandidateDoc[] = []
+  const seenDirs = new Map<string, string>() // localDir -> first doc id, to detect collisions
+  const visit = async (folderId: string): Promise<void> => {
+    const children = await client.listChildren(folderId)
+    for (const child of children) {
+      if (child.mimeType === FOLDER_MIME) {
+        if (config.recursive)
+          await visit(child.id)
         continue
-      await rm(join(destination, entry.localDir), { recursive: true, force: true })
-      removed++
-    }
-
-    await writeManifest(destination, next)
-
-    return {
-      changed: added + updated + removed > 0,
-      added,
-      updated,
-      removed,
-      unchanged,
-      metadata: { folderId: config.folderId },
-      fetchedAt: new Date().toISOString() as never,
-    }
-  }
-
-  private async client(context: SourceLoaderContext): Promise<DriveClient> {
-    const token = await this.deps.resolveAccessToken(context)
-    return new DriveClient(token, this.deps.fetchFn)
-  }
-
-  private async walk(
-    client: DriveClient,
-    config: GoogleDriveLoaderConfig,
-  ): Promise<readonly CandidateDoc[]> {
-    const includeRe = compileRegex(config.include, 'include')
-    const excludeRe = compileRegex(config.exclude, 'exclude')
-    const out: CandidateDoc[] = []
-    const seenDirs = new Map<string, string>() // localDir -> first doc id, to detect collisions
-    const visit = async (folderId: string): Promise<void> => {
-      const children = await client.listChildren(folderId)
-      for (const child of children) {
-        if (child.mimeType === FOLDER_MIME) {
-          if (config.recursive)
-            await visit(child.id)
-          continue
-        }
-        if (child.mimeType !== DOC_MIME)
-          continue
-        if (COPY_PATTERNS.some(re => re.test(child.name)))
-          continue
-        if (includeRe && !includeRe.test(child.name))
-          continue
-        if (excludeRe && excludeRe.test(child.name))
-          continue
-        const localDir = sanitiseName(child.name)
-        const collides = seenDirs.get(localDir)
-        if (collides && collides !== child.id) {
-          // Two distinct Drive docs sanitise to the same dir name. Keep
-          // the first one we walked into; skipping the second is safer
-          // than silently overwriting. User can rename in Drive.
-          continue
-        }
-        seenDirs.set(localDir, child.id)
-        out.push({
-          id: child.id,
-          title: child.name,
-          modifiedTime: child.modifiedTime,
-          localDir,
-        })
       }
+      if (child.mimeType !== DOC_MIME)
+        continue
+      if (COPY_PATTERNS.some(re => re.test(child.name)))
+        continue
+      if (includeRe && !includeRe.test(child.name))
+        continue
+      if (excludeRe && excludeRe.test(child.name))
+        continue
+      const localDir = sanitiseName(child.name)
+      const collides = seenDirs.get(localDir)
+      if (collides && collides !== child.id) {
+        // Two distinct Drive docs sanitise to the same dir name. Keep
+        // the first one we walked into; skipping the second is safer
+        // than silently overwriting. User can rename in Drive.
+        continue
+      }
+      seenDirs.set(localDir, child.id)
+      out.push({
+        id: child.id,
+        title: child.name,
+        modifiedTime: child.modifiedTime,
+        localDir,
+      })
     }
-    await visit(config.folderId)
-    return out
   }
+  await visit(config.folderId)
+  return out
+}
 
-  private async downloadOne(
-    client: DriveClient,
-    doc: CandidateDoc,
-    destination: string,
-  ): Promise<void> {
-    const docDir = join(destination, doc.localDir)
-    // Clean any prior content for this doc so removed images don't linger.
-    await rm(docDir, { recursive: true, force: true })
-    await mkdir(docDir, { recursive: true })
-    const bytes = await client.exportDoc(doc.id, 'text/markdown')
-    const markdown = bytes.toString('utf-8')
-    const rewritten = await extractInlineImages(markdown, docDir)
-    await writeFile(join(docDir, 'index.md'), rewritten, 'utf-8')
-  }
+async function downloadOne(
+  client: DriveClient,
+  doc: CandidateDoc,
+  destination: string,
+): Promise<void> {
+  const docDir = join(destination, doc.localDir)
+  // Clean any prior content for this doc so removed images don't linger.
+  await rm(docDir, { recursive: true, force: true })
+  await mkdir(docDir, { recursive: true })
+  const bytes = await client.exportDoc(doc.id, 'text/markdown')
+  const markdown = bytes.toString('utf-8')
+  const rewritten = await extractInlineImages(markdown, docDir)
+  await writeFile(join(docDir, 'index.md'), rewritten, 'utf-8')
 }
 
 /**
@@ -304,7 +312,7 @@ function compileRegex(pattern: string | undefined, field: 'include' | 'exclude')
     return new RegExp(pattern)
   }
   catch (err) {
-    throw new Error(`GoogleDriveLoader: ${field} is not a valid regex (${(err as Error).message})`)
+    throw new Error(`googleDriveLoader: ${field} is not a valid regex (${(err as Error).message})`)
   }
 }
 

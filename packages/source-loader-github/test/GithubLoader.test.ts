@@ -1,10 +1,16 @@
-import type { AbsolutePath } from '@braidhq/schema'
+import type { SourceLoaderContext } from '@braidhq/core'
+import type { AbsolutePath, SourceId, WorkspaceId } from '@braidhq/schema'
 import { mkdtemp, readdir, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parse as parseYaml } from 'yaml'
-import { GithubLoader } from '../src/GithubLoader.js'
+import { createGithubLoader } from '../src/GithubLoader.js'
+
+const ctx: SourceLoaderContext = {
+  workspaceId: 'ws-test' as WorkspaceId,
+  sourceId: 'src-test' as SourceId,
+}
 
 interface MockIssue {
   number: number
@@ -131,8 +137,8 @@ describe('GithubLoader', () => {
       ],
     })
 
-    const loader = new GithubLoader(fetchFn)
-    const report = await loader.ingest({ owner: 'o', repo: 'r' }, dest)
+    const loader = createGithubLoader({ fetchFn })
+    const report = await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
 
     expect(report.localPath).toBe(dest)
     const files = (await readdir(join(dest, 'issues'))).sort()
@@ -155,14 +161,14 @@ describe('GithubLoader', () => {
       ],
     }
 
-    const loaderDefault = new GithubLoader(buildMockFetch(router))
-    await loaderDefault.ingest({ owner: 'o', repo: 'r' }, dest)
+    const loaderDefault = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    await loaderDefault.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md'])
 
     await rm(join(dest, 'issues'), { recursive: true, force: true })
 
-    const loaderWithPRs = new GithubLoader(buildMockFetch(router))
-    await loaderWithPRs.ingest({ owner: 'o', repo: 'r', includePullRequests: true }, dest)
+    const loaderWithPRs = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    await loaderWithPRs.ingest({ owner: 'o', repo: 'r', includePullRequests: true }, dest, ctx)
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md', '2.md'])
   })
 
@@ -184,8 +190,8 @@ describe('GithubLoader', () => {
       },
     })
 
-    const loader = new GithubLoader(fetchFn)
-    await loader.ingest({ owner: 'o', repo: 'r' }, dest)
+    const loader = createGithubLoader({ fetchFn })
+    await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
     const content = await readFile(join(dest, 'issues', '7.md'), 'utf-8')
     expect(content).toContain('## Comments')
     const aliceIdx = content.indexOf('alice')
@@ -203,8 +209,8 @@ describe('GithubLoader', () => {
     }))
     const fetchFn = buildMockFetch({ issues, pageSize: 1 })
 
-    const loader = new GithubLoader(fetchFn)
-    await loader.ingest({ owner: 'o', repo: 'r' }, dest)
+    const loader = createGithubLoader({ fetchFn })
+    await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md', '2.md', '3.md'])
   })
 
@@ -215,8 +221,8 @@ describe('GithubLoader', () => {
         { number: 2, title: 'Two', body: 'two', created_at: '2026-01-02T00:00:00Z', updated_at: '2026-02-02T00:00:00Z' },
       ],
     }
-    const loader = new GithubLoader(buildMockFetch(router))
-    await loader.ingest({ owner: 'o', repo: 'r' }, dest)
+    const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
 
     const beforeStat1 = await stat(join(dest, 'issues', '1.md'))
     const beforeContent1 = await readFile(join(dest, 'issues', '1.md'), 'utf-8')
@@ -228,8 +234,8 @@ describe('GithubLoader', () => {
         { number: 2, title: 'Two (edited)', body: 'two edited', created_at: '2026-01-02T00:00:00Z', updated_at: '2026-03-01T00:00:00Z' },
       ],
     }
-    const loader2 = new GithubLoader(buildMockFetch(router2))
-    const report = await loader2.sync({ owner: 'o', repo: 'r' }, dest)
+    const loader2 = createGithubLoader({ fetchFn: buildMockFetch(router2) })
+    const report = await loader2.sync!({ owner: 'o', repo: 'r' }, dest, ctx)
 
     expect(report.changed).toBe(true)
     expect(report.added).toBe(0)
@@ -250,14 +256,14 @@ describe('GithubLoader', () => {
     const fetchFn = buildMockFetch({ issues: [] }, recorder)
 
     vi.stubEnv('GH_TOKEN', 'ghp-abc-123')
-    const loader = new GithubLoader(fetchFn)
-    await loader.ingest({ owner: 'o', repo: 'r' }, dest)
+    const loader = createGithubLoader({ fetchFn })
+    await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
     expect(recorder.lastHeaders?.get('Authorization')).toBe('Bearer ghp-abc-123')
 
     vi.unstubAllEnvs()
     const recorder2 = { calls: [] as string[], lastHeaders: null as Headers | null }
-    const loader2 = new GithubLoader(buildMockFetch({ issues: [] }, recorder2))
-    await loader2.ingest({ owner: 'o', repo: 'r' }, dest)
+    const loader2 = createGithubLoader({ fetchFn: buildMockFetch({ issues: [] }, recorder2) })
+    await loader2.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
     expect(recorder2.lastHeaders?.get('Authorization')).toBeNull()
   })
 })

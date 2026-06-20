@@ -1,6 +1,6 @@
-import type { AgentBinding, AgentPlugin } from '@braidhq/core'
-import type { AgentBindingDescriptor, AgentKind, PluginId } from '@braidhq/schema'
-import { z } from 'zod'
+import type { AgentPlugin } from '@braidhq/core'
+import type { AgentKind } from '@braidhq/schema'
+import { defineAgentPlugin } from '@braidhq/sdk'
 import { ClaudeCodeAgentBinding } from './ClaudeCodeAgentBinding.js'
 
 const CLAUDE_CODE_KIND = 'claude-code' as AgentKind
@@ -13,13 +13,9 @@ const CLAUDE_CODE_KIND = 'claude-code' as AgentKind
  * (anthropic-api, cursor, ollama, codex, ...) register the same way
  * under a different `kind`.
  */
-export const claudeCodeAgentPlugin: AgentPlugin = Object.freeze({
-  id: 'agent.claude-code' as PluginId,
-  type: 'agent' as const,
+export const claudeCodeAgentPlugin: AgentPlugin = defineAgentPlugin({
   kind: CLAUDE_CODE_KIND,
-  configSchema: z.object({}).passthrough(),
-  createBinding: (descriptor: AgentBindingDescriptor): AgentBinding =>
-    new ClaudeCodeAgentBinding(descriptor),
+  createBinding: descriptor => new ClaudeCodeAgentBinding(descriptor),
 })
 
 export { CLAUDE_CODE_KIND }

@@ -1,3 +1,6 @@
+export * from './defineAgentPlugin.js'
 export * from './defineOntology.js'
 export * from './defineSourceLoader.js'
+export * from './defineStoragePlugin.js'
+export * from './defineViewGenerator.js'
 export * from './types.js'

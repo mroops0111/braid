@@ -2,7 +2,8 @@ import type { CommitMeta, CommitSha, EdgeId, FileDiff, GraphEdge, GraphNode, Mod
 import type { GraphSerializer } from '../../src/domain/model/GraphSerializer.js'
 import type { ListCommitsOptions, Workspace, WorkspaceHistory } from '../../src/index.js'
 import { describe, expect, it, vi } from 'vitest'
-import { InMemoryModelRepository, WorkspaceBootstrap } from '../../src/index.js'
+import { WorkspaceBootstrap } from '../../src/index.js'
+import { InMemoryModelRepository } from '../../src/testing.js'
 
 const WORKSPACE_ID = 'ws-1' as WorkspaceId
 

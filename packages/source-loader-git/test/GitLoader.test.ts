@@ -1,10 +1,16 @@
-import type { AbsolutePath } from '@braidhq/schema'
+import type { SourceLoaderContext } from '@braidhq/core'
+import type { AbsolutePath, SourceId, WorkspaceId } from '@braidhq/schema'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { simpleGit } from 'simple-git'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { GitLoader } from '../src/GitLoader.js'
+import { gitLoader } from '../src/GitLoader.js'
+
+const ctx: SourceLoaderContext = {
+  workspaceId: 'ws-test' as WorkspaceId,
+  sourceId: 'src-test' as SourceId,
+}
 
 /**
  * Integration test: clones a *local* bare repo, not the public internet.
@@ -37,9 +43,9 @@ describe('GitLoader', () => {
   })
 
   it('ingest does a shallow clone into the destination', async () => {
-    const loader = new GitLoader()
+    const loader = gitLoader
     const dest = join(scratch, 'workspace-source') as AbsolutePath
-    const report = await loader.ingest({ url: remoteUrl, branch: 'main' }, dest)
+    const report = await loader.ingest({ url: remoteUrl, branch: 'main' }, dest, ctx)
     expect(report.localPath).toBe(dest)
     expect(report.metadata?.sha).toMatch(/^[0-9a-f]{40}$/)
     const readme = await readFile(join(dest, 'README.md'), 'utf-8')
@@ -47,9 +53,9 @@ describe('GitLoader', () => {
   })
 
   it('sync pulls new commits and reports changed=true; second sync reports changed=false', async () => {
-    const loader = new GitLoader()
+    const loader = gitLoader
     const dest = join(scratch, 'workspace-source') as AbsolutePath
-    await loader.ingest({ url: remoteUrl, branch: 'main' }, dest)
+    await loader.ingest({ url: remoteUrl, branch: 'main' }, dest, ctx)
 
     // Push a new commit to the remote via a working clone.
     const upstream = join(scratch, 'upstream')
@@ -61,22 +67,22 @@ describe('GitLoader', () => {
     await up.add('.').commit('v2', ['--no-gpg-sign'])
     await up.push('origin', 'HEAD')
 
-    const first = await loader.sync({ url: remoteUrl, branch: 'main' }, dest)
+    const first = await loader.sync!({ url: remoteUrl, branch: 'main' }, dest, ctx)
     expect(first.changed).toBe(true)
     // README modified, no adds/removes → updated=1, added=0, removed=0.
     expect(first).toMatchObject({ added: 0, updated: 1, removed: 0 })
     const readme = await readFile(join(dest, 'README.md'), 'utf-8')
     expect(readme).toBe('# v2\n')
 
-    const second = await loader.sync({ url: remoteUrl, branch: 'main' }, dest)
+    const second = await loader.sync!({ url: remoteUrl, branch: 'main' }, dest, ctx)
     expect(second.changed).toBe(false)
     expect(second).toMatchObject({ added: 0, updated: 0, removed: 0 })
   })
 
   it('sync counts added / removed files (not just modified) for the unified per-file report', async () => {
-    const loader = new GitLoader()
+    const loader = gitLoader
     const dest = join(scratch, 'workspace-source') as AbsolutePath
-    await loader.ingest({ url: remoteUrl, branch: 'main' }, dest)
+    await loader.ingest({ url: remoteUrl, branch: 'main' }, dest, ctx)
 
     // Add one file + delete the existing README via an upstream clone.
     const upstream = join(scratch, 'upstream')
@@ -89,17 +95,17 @@ describe('GitLoader', () => {
     await up.add('.').commit('add NEW.md, drop README', ['--no-gpg-sign'])
     await up.push('origin', 'HEAD')
 
-    const report = await loader.sync({ url: remoteUrl, branch: 'main' }, dest)
+    const report = await loader.sync!({ url: remoteUrl, branch: 'main' }, dest, ctx)
     expect(report).toMatchObject({ added: 1, updated: 0, removed: 1, changed: true })
   })
 
   // eslint-disable-next-line no-template-curly-in-string -- intentional: testing literal ${VAR} interpolation
   it('throws on unset env var when URL contains ${VAR}', async () => {
-    const loader = new GitLoader()
+    const loader = gitLoader
     const dest = join(scratch, 'should-not-be-created') as AbsolutePath
     delete process.env.BRAID_GITLOADER_TEST_TOKEN
     // eslint-disable-next-line no-template-curly-in-string -- literal placeholder
     const url = 'https://x:${BRAID_GITLOADER_TEST_TOKEN}@example.invalid/repo.git'
-    await expect(loader.ingest({ url }, dest)).rejects.toThrow(/BRAID_GITLOADER_TEST_TOKEN/)
+    await expect(loader.ingest({ url }, dest, ctx)).rejects.toThrow(/BRAID_GITLOADER_TEST_TOKEN/)
   })
 })
