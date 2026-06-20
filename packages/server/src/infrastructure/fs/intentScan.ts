@@ -42,6 +42,23 @@ async function listIntentEntries(root: string, sourceId: string, sourceName: str
       continue
     if (entry.isDirectory()) {
       const folder = join(root, entry.name)
+      // Flat directories of loose markdown files (the github source-loader's
+      // `issues/<num>.md` layout, hand-curated `prd/onboarding.md`, ...) expand
+      // into one unit per file so downstream skills run per-document, not over
+      // the whole bag at once. Directories with their own sub-structure stay as
+      // a single unit because that structure is the unit's own organisation.
+      const flatFiles = await listFlatDocumentFiles(folder)
+      if (flatFiles) {
+        for (const name of flatFiles) {
+          items.push({
+            value: `${entry.name}/${name}`,
+            label: `${entry.name}/${stripExtension(name)}`,
+            sourceId,
+            sourceName,
+          })
+        }
+        continue
+      }
       if (await containsDocument(folder, 4)) {
         items.push({
           value: `${entry.name}/`,
@@ -62,6 +79,40 @@ async function listIntentEntries(root: string, sourceId: string, sourceName: str
     }
   }
   return items.sort((a, b) => a.label.localeCompare(b.label))
+}
+
+/**
+ * If `dir` is a "flat document directory" (every visible entry is a markdown
+ * file, no subdirectories), returns the sorted list of those filenames.
+ * Returns `undefined` otherwise so the caller falls back to treating the
+ * directory as a single unit.
+ *
+ * "Visible" excludes dotfiles, so loader-managed sync state like
+ * `.braid-github-cursor.json` does not disqualify a directory.
+ */
+async function listFlatDocumentFiles(dir: string): Promise<string[] | undefined> {
+  let entries
+  try {
+    entries = await readdir(dir, { withFileTypes: true })
+  }
+  catch {
+    return undefined
+  }
+  const docs: string[] = []
+  for (const entry of entries) {
+    if (entry.name.startsWith('.'))
+      continue
+    if (entry.isDirectory())
+      return undefined
+    if (!entry.isFile())
+      continue
+    if (!isIntentDocument(entry.name))
+      return undefined
+    docs.push(entry.name)
+  }
+  if (docs.length === 0)
+    return undefined
+  return docs.sort((a, b) => a.localeCompare(b))
 }
 
 async function containsDocument(dir: string, maxDepth: number): Promise<boolean> {
