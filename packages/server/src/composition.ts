@@ -31,15 +31,7 @@ import {
   BatchService,
   HistoryService,
   HITLService,
-  InMemoryClarifyTicketRepository,
-  InMemoryDecisionRepository,
-  InMemoryModelRepository,
-  InMemoryProposalRepository,
-  InMemorySourceUnitStateRepository,
-  InMemoryWorkspaceEventBus,
-  InMemoryWorkspaceRepository,
   ModelService,
-  noopRunRepository,
   PerWorkspaceLock,
   PluginRegistry,
   SourceLoaderRunner,
@@ -48,6 +40,16 @@ import {
   ValidationService,
   WorkspaceService,
 } from '@braidhq/core'
+import {
+  InMemoryClarifyTicketRepository,
+  InMemoryDecisionRepository,
+  InMemoryModelRepository,
+  InMemoryProposalRepository,
+  InMemorySourceUnitStateRepository,
+  InMemoryWorkspaceEventBus,
+  InMemoryWorkspaceRepository,
+  noopRunRepository,
+} from '@braidhq/core/testing'
 
 export interface AppDependencies {
   workspaceService: WorkspaceService

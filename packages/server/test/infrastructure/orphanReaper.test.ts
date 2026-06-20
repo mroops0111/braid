@@ -10,7 +10,7 @@ import type {
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { InMemoryWorkspaceRepository } from '@braidhq/core'
+import { InMemoryWorkspaceRepository } from '@braidhq/core/testing'
 import { at, makeWorkspace, T0 } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { FsRunRepository } from '../../src/infrastructure/fs/FsRunRepository.js'

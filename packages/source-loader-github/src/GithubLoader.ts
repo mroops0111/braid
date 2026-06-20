@@ -1,9 +1,9 @@
-import type { IngestReport, SourceLoaderPlugin, SyncReport } from '@braidhq/core'
-import type { AbsolutePath, LoaderKind, Timestamp } from '@braidhq/schema'
+import type { SourceLoaderPlugin } from '@braidhq/core'
+import type { Timestamp } from '@braidhq/schema'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import process from 'node:process'
-import { LoaderKind as LoaderKindSchema, PluginId as PluginIdSchema } from '@braidhq/schema'
+import { defineSourceLoader } from '@braidhq/sdk'
 import { stringify as stringifyYaml } from 'yaml'
 import { z } from 'zod'
 
@@ -35,6 +35,11 @@ export const GithubLoaderConfig = z.object({
 })
 export type GithubLoaderConfig = z.infer<typeof GithubLoaderConfig>
 
+export interface GithubLoaderDeps {
+  /** Inject for tests. Real callers use globalThis.fetch. */
+  fetchFn?: FetchFn
+}
+
 interface RawIssue {
   number: number
   title: string
@@ -65,155 +70,152 @@ interface CursorFile {
 const CURSOR_FILENAME = '.braid-github-cursor.json'
 
 /**
- * Source loader for a GitHub repository's Issues. The `destination` is
- * owned by the loader: each issue is written as
- * `<destination>/issues/<number>.md` with a deterministic YAML
- * frontmatter + body + `## Comments` section. Untouched issues stay
- * byte-identical across `sync` so downstream sha-based fingerprints
- * don't churn.
+ * Build a SourceLoader for a GitHub repository's Issues. The `destination`
+ * is owned by the loader: each issue is written as
+ * `<destination>/issues/<number>.md` with a deterministic YAML frontmatter
+ * + body + `## Comments` section. Untouched issues stay byte-identical
+ * across `sync` so downstream sha-based fingerprints don't churn.
  *
  * Auth: pass the token via `${GH_TOKEN}` (or any other env var) in
  * `config.token`. Tokens are never persisted on disk; only the rendered
  * markdown lands in `destination`.
  */
-export class GithubLoader implements SourceLoaderPlugin {
-  readonly id = PluginIdSchema.parse('source-loader-github')
-  readonly type = 'source-loader' as const
-  readonly kind: LoaderKind = LoaderKindSchema.parse('github')
-  readonly configSchema = GithubLoaderConfig
+export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlugin {
+  const fetchFn: FetchFn = deps.fetchFn ?? globalThis.fetch
 
-  constructor(private readonly fetchFn: FetchFn = globalThis.fetch) {}
-
-  async ingest(rawConfig: unknown, destination: AbsolutePath): Promise<IngestReport> {
-    const config = GithubLoaderConfig.parse(rawConfig)
-    const issuesDir = join(destination, 'issues')
-    await mkdir(issuesDir, { recursive: true })
-    const headers = this.buildHeaders(config)
-    const issues = await this.fetchIssues(config, headers, undefined)
-    let mostRecent = ''
-    for (const issue of issues) {
-      if (issue.updated_at > mostRecent)
-        mostRecent = issue.updated_at
-      const comments = await this.fetchCommentsIfNeeded(config, headers, issue)
-      const markdown = renderIssueMarkdown(config, issue, comments)
-      const path = join(issuesDir, `${issue.number}.md`)
-      await writeIfChanged(path, markdown)
-    }
-    if (mostRecent)
-      await writeCursor(destination, { owner: config.owner, repo: config.repo, since: mostRecent })
-    return {
-      localPath: destination,
-      metadata: { owner: config.owner, repo: config.repo, issueCount: issues.length },
-      fetchedAt: new Date().toISOString() as Timestamp,
-    }
-  }
-
-  async sync(rawConfig: unknown, destination: AbsolutePath): Promise<SyncReport> {
-    const config = GithubLoaderConfig.parse(rawConfig)
-    const issuesDir = join(destination, 'issues')
-    await mkdir(issuesDir, { recursive: true })
-    const headers = this.buildHeaders(config)
-    const cursor = await readCursor(destination)
-    const sinceParam = cursor?.owner === config.owner && cursor.repo === config.repo
-      ? cursor.since
-      : undefined
-    const issues = await this.fetchIssues(config, headers, sinceParam)
-    let added = 0
-    let updated = 0
-    let mostRecent = cursor?.since ?? ''
-    for (const issue of issues) {
-      if (issue.updated_at > mostRecent)
-        mostRecent = issue.updated_at
-      const comments = await this.fetchCommentsIfNeeded(config, headers, issue)
-      const markdown = renderIssueMarkdown(config, issue, comments)
-      const path = join(issuesDir, `${issue.number}.md`)
-      const result = await writeIfChanged(path, markdown)
-      if (result === 'added')
-        added++
-      else if (result === 'updated')
-        updated++
-    }
-    if (mostRecent)
-      await writeCursor(destination, { owner: config.owner, repo: config.repo, since: mostRecent })
-    return {
-      changed: added + updated > 0,
-      added,
-      updated,
-      removed: 0,
-      metadata: { owner: config.owner, repo: config.repo, since: sinceParam ?? null },
-      fetchedAt: new Date().toISOString() as Timestamp,
-    }
-  }
-
-  private buildHeaders(config: GithubLoaderConfig): Record<string, string> {
-    const headers: Record<string, string> = {
-      'Accept': 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': 'braid-source-loader-github',
-    }
-    const token = interpolateEnv(config.token).trim()
-    if (token.length > 0)
-      headers.Authorization = `Bearer ${token}`
-    return headers
-  }
-
-  private async fetchIssues(
-    config: GithubLoaderConfig,
-    headers: Record<string, string>,
-    since: string | undefined,
-  ): Promise<RawIssue[]> {
-    const params = new URLSearchParams()
-    params.set('state', config.state)
-    params.set('per_page', '100')
-    params.set('sort', 'updated')
-    params.set('direction', 'asc')
-    if (config.labels && config.labels.length > 0)
-      params.set('labels', config.labels.join(','))
-    if (since)
-      params.set('since', since)
-    let url = `${config.apiBaseUrl}/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/issues?${params.toString()}`
-    const out: RawIssue[] = []
-    while (url) {
-      const response = await this.fetchFn(url, { headers })
-      if (!response.ok) {
-        const body = await response.text().catch(() => '')
-        throw new Error(`GithubLoader: GET ${url} failed (${response.status}): ${body.slice(0, 200)}`)
+  return defineSourceLoader({
+    kind: 'github',
+    configSchema: GithubLoaderConfig,
+    ingest: async (config, destination) => {
+      const issuesDir = join(destination, 'issues')
+      await mkdir(issuesDir, { recursive: true })
+      const headers = buildHeaders(config)
+      const issues = await fetchIssues(fetchFn, config, headers, undefined)
+      let mostRecent = ''
+      for (const issue of issues) {
+        if (issue.updated_at > mostRecent)
+          mostRecent = issue.updated_at
+        const comments = await fetchCommentsIfNeeded(fetchFn, config, headers, issue)
+        const markdown = renderIssueMarkdown(config, issue, comments)
+        const path = join(issuesDir, `${issue.number}.md`)
+        await writeIfChanged(path, markdown)
       }
-      const page = (await response.json()) as RawIssue[]
-      for (const issue of page) {
-        if (!config.includePullRequests && issue.pull_request !== undefined)
-          continue
-        out.push(issue)
+      if (mostRecent)
+        await writeCursor(destination, { owner: config.owner, repo: config.repo, since: mostRecent })
+      return {
+        localPath: destination,
+        metadata: { owner: config.owner, repo: config.repo, issueCount: issues.length },
+        fetchedAt: new Date().toISOString() as Timestamp,
       }
-      url = parseNextLink(response.headers.get('link')) ?? ''
-    }
-    return out
-  }
+    },
+    sync: async (config, destination) => {
+      const issuesDir = join(destination, 'issues')
+      await mkdir(issuesDir, { recursive: true })
+      const headers = buildHeaders(config)
+      const cursor = await readCursor(destination)
+      const sinceParam = cursor?.owner === config.owner && cursor.repo === config.repo
+        ? cursor.since
+        : undefined
+      const issues = await fetchIssues(fetchFn, config, headers, sinceParam)
+      let added = 0
+      let updated = 0
+      let mostRecent = cursor?.since ?? ''
+      for (const issue of issues) {
+        if (issue.updated_at > mostRecent)
+          mostRecent = issue.updated_at
+        const comments = await fetchCommentsIfNeeded(fetchFn, config, headers, issue)
+        const markdown = renderIssueMarkdown(config, issue, comments)
+        const path = join(issuesDir, `${issue.number}.md`)
+        const result = await writeIfChanged(path, markdown)
+        if (result === 'added')
+          added++
+        else if (result === 'updated')
+          updated++
+      }
+      if (mostRecent)
+        await writeCursor(destination, { owner: config.owner, repo: config.repo, since: mostRecent })
+      return {
+        changed: added + updated > 0,
+        added,
+        updated,
+        removed: 0,
+        metadata: { owner: config.owner, repo: config.repo, since: sinceParam ?? null },
+        fetchedAt: new Date().toISOString() as Timestamp,
+      }
+    },
+  })
+}
 
-  private async fetchCommentsIfNeeded(
-    config: GithubLoaderConfig,
-    headers: Record<string, string>,
-    issue: RawIssue,
-  ): Promise<RawComment[]> {
-    if (!config.includeComments || issue.comments === 0)
-      return []
-    const params = new URLSearchParams()
-    params.set('per_page', '100')
-    let url = `${config.apiBaseUrl}/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/issues/${issue.number}/comments?${params.toString()}`
-    const out: RawComment[] = []
-    while (url) {
-      const response = await this.fetchFn(url, { headers })
-      if (!response.ok) {
-        const body = await response.text().catch(() => '')
-        throw new Error(`GithubLoader: GET ${url} failed (${response.status}): ${body.slice(0, 200)}`)
-      }
-      const page = (await response.json()) as RawComment[]
-      out.push(...page)
-      url = parseNextLink(response.headers.get('link')) ?? ''
-    }
-    out.sort((a, b) => a.created_at.localeCompare(b.created_at))
-    return out
+function buildHeaders(config: GithubLoaderConfig): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'braid-source-loader-github',
   }
+  const token = interpolateEnv(config.token).trim()
+  if (token.length > 0)
+    headers.Authorization = `Bearer ${token}`
+  return headers
+}
+
+async function fetchIssues(
+  fetchFn: FetchFn,
+  config: GithubLoaderConfig,
+  headers: Record<string, string>,
+  since: string | undefined,
+): Promise<RawIssue[]> {
+  const params = new URLSearchParams()
+  params.set('state', config.state)
+  params.set('per_page', '100')
+  params.set('sort', 'updated')
+  params.set('direction', 'asc')
+  if (config.labels && config.labels.length > 0)
+    params.set('labels', config.labels.join(','))
+  if (since)
+    params.set('since', since)
+  let url = `${config.apiBaseUrl}/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/issues?${params.toString()}`
+  const out: RawIssue[] = []
+  while (url) {
+    const response = await fetchFn(url, { headers })
+    if (!response.ok) {
+      const body = await response.text().catch(() => '')
+      throw new Error(`githubLoader: GET ${url} failed (${response.status}): ${body.slice(0, 200)}`)
+    }
+    const page = (await response.json()) as RawIssue[]
+    for (const issue of page) {
+      if (!config.includePullRequests && issue.pull_request !== undefined)
+        continue
+      out.push(issue)
+    }
+    url = parseNextLink(response.headers.get('link')) ?? ''
+  }
+  return out
+}
+
+async function fetchCommentsIfNeeded(
+  fetchFn: FetchFn,
+  config: GithubLoaderConfig,
+  headers: Record<string, string>,
+  issue: RawIssue,
+): Promise<RawComment[]> {
+  if (!config.includeComments || issue.comments === 0)
+    return []
+  const params = new URLSearchParams()
+  params.set('per_page', '100')
+  let url = `${config.apiBaseUrl}/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/issues/${issue.number}/comments?${params.toString()}`
+  const out: RawComment[] = []
+  while (url) {
+    const response = await fetchFn(url, { headers })
+    if (!response.ok) {
+      const body = await response.text().catch(() => '')
+      throw new Error(`githubLoader: GET ${url} failed (${response.status}): ${body.slice(0, 200)}`)
+    }
+    const page = (await response.json()) as RawComment[]
+    out.push(...page)
+    url = parseNextLink(response.headers.get('link')) ?? ''
+  }
+  out.sort((a, b) => a.created_at.localeCompare(b.created_at))
+  return out
 }
 
 function renderIssueMarkdown(
