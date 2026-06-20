@@ -64,13 +64,17 @@ Every string field follows the language of its **source intent** (the PRD / spec
 
 - **Format**: a single question sentence ending with `?`.
 - **Length**: aim for ≤ 200.
-- **Style**: name both candidate readings in the question itself ("Are `cancelOrder` and `revokeOrder` aliases for the same command, or two distinct commands?"). A reviewer should grok the alternatives from the question alone.
+- **Audience**: the reviewer pool the **active ontology** serves, not the skill author. The ontology's own `concept.md` names that pool explicitly and shows what the right vocabulary looks like for that ontology; consult it before writing.
+- **Translate, don't transliterate**: same principle as `node.description`. The question reads in the active ontology's ubiquitous language. Do not paste the ontology's own graph vocabulary (its node and edge type ids, the names of its structural relationships) or any code-side identifier (file path, class name, route, framework concept) into the question; the active ontology's `concept.md` enumerates which terms its reviewers will and will not recognise, and shows the parenthetical convention when a code-side name is genuinely the clearest cross-team reference. Lower graph topology, exact node ids, and the engineering reasoning into the ticket's `context` field instead, which has no audience constraint and is the right place for skill-author notes.
+- **Style**: name both candidate readings in the question itself, in the ontology's vocabulary, so a reviewer can grok the alternatives from the question alone.
 
 ### `clarify candidate.description`
 
 - **Format**: one-line plain text.
 - **Length**: aim for ≤ 100.
-- **Style**: imperative or declarative, fitting the answer ("Merge as aliases" / "Treat as distinct" / "Defer to architect").
+- **Audience**: same as `clarify.question`. The reviewer is picking between domain outcomes, not GraphOperations.
+- **Translate, don't transliterate**: same principle as `clarify.question`. The candidate describes the outcome the reviewer will pick in the active ontology's vocabulary, not the operations behind it.
+- **Style**: imperative or declarative, fitting the answer.
 
 ### `DriftIssue.description`
 

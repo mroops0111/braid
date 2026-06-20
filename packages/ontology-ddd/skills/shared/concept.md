@@ -116,6 +116,26 @@ Recommended skeleton (not a template; adapt freely):
 
 Skip any of these the source doesn't ground. A trivial event might be one line; a strategically-critical aggregate might use all four sections.
 
+## ClarifyTickets: Reviewer Pool and Vocabulary
+
+`braid-extract` and `braid-model` emit ClarifyTickets when an extraction or global-pass decision is genuinely ambiguous. For DDD workspaces, the reviewer pool that answers those tickets is the **cross-functional team that owns the domain**: PM, RD, QA, designer, and anyone whose work touches the affected concept. Engineers can read graph topology; the others cannot, and the workflow is broken when they cannot answer.
+
+Two rules apply to the ticket's `question` and each `candidate.description` (the fields the reviewer reads):
+
+1. **Audience is the domain team, not the skill author.** The question and each candidate must be grokkable by a reviewer who knows the product but not the graph. If a PM cannot pick a candidate without asking an engineer to translate, rewrite.
+
+2. **Translate, don't transliterate.** Same rule the node `description` field carries (see § Per-Type Description Aspects). Do not paste DDD vocabulary (`aggregate`, `emit`, `contains`, `performedBy edge`, "sibling commands") or code identifiers (`cmd.ingestSource`, `IntentExtractionLedger`) into the question or candidates. Use the term the team would say in a meeting. When a code-side name is the clearest cross-team reference, put the domain term first and the identifier in parentheses, sparingly. If the question reads like a graph walk in prose, rewrite it.
+
+The ticket's `context` field has no audience constraint and is the right place for the engineering reasoning: which nodes were inconsistent, which sibling-coverage pattern triggered the question, which graph operations each candidate would run.
+
+Worked contrast (same underlying ambiguity, two ways of writing it):
+
+| Field | Wrong (graph walk in prose) | Right (domain language) |
+|---|---|---|
+| `question` | "Does `cmd.ingestSource` emit `evt.sourceSynced` so the reactor picks up a first full load?" | "After the framework first connects to a new source, should the next extraction start automatically, or should a person trigger it?" |
+| `candidate.description` | "Add an emits edge from Ingest Source to Source Synced" | "Treat the first connect like every later refresh: extract automatically." |
+| `context` | (engineering reasoning belongs here) | "cmd.ingestSource currently has no emits edge; cmd.syncSource emits evt.sourceSynced; the reactor reacts only to source.synced." |
+
 ## Where This Doc Sits in the Architecture
 
 This file is shipped by `@braidhq/ontology-ddd` via its `Plugin.referenceDirs[]`. The runner symlinks it into every spawned skill session under `<session>/.claude/skills/ontology-ddd/`. Any DDD-resident skill consults it; non-DDD ontologies would ship their own equivalent under their own plugin name.
