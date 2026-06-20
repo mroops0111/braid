@@ -106,6 +106,8 @@ Outcomes: 201 means move on. 400 (`code: BRAID-VAL`) means fix the cited `issues
 
 Use the `braid-core` clarify-create capability with the question text and the candidate list. Each candidate must carry its own `proposedOperations`; the human's pick determines which ops run on Apply.
 
+Before writing the `question` and each `candidate.description`, re-read `<cwd>/.claude/skills/ontology-ddd/concept.md` § ClarifyTickets: Reviewer Pool and Vocabulary. The reviewer pool for DDD workspaces is the cross-functional team (PM, RD, QA, designer); the ticket fields must read in their ubiquitous language, not in graph topology or code identifiers. Lower graph terms, exact node ids, and the engineering reasoning into the ticket's `context` field instead, which has no audience constraint.
+
 ## Output
 
 stdout summary at the end:
