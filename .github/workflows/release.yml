@@ -98,13 +98,15 @@ jobs:
       # (main / types / exports / files override). --no-git-checks because
       # the worktree has the freshly-built dist/ files which are not
       # committed.
+      #
+      # Auth: each `@braidhq/*` package has Trusted Publisher (OIDC)
+      # configured on npmjs.com pointing back at this workflow. npm CLI
+      # picks up the OIDC token via the `id-token: write` permission
+      # above; no long-lived NPM_TOKEN secret is needed. A new package
+      # must be first-published manually with `npm publish` before this
+      # workflow can pick it up via OIDC.
       - name: Publish
         run: pnpm -r publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          # Trusted publishing (OIDC) is the more secure alternative;
-          # configure on https://www.npmjs.com/package/<pkg>/access once
-          # the package exists, then drop NPM_TOKEN.
 
   github-release:
     name: GitHub Release
