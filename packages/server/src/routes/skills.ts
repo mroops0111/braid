@@ -1,4 +1,5 @@
 import type {
+  PluginRegistry,
   RunRepository,
   SkillRegistry,
   SkillRunner,
@@ -6,7 +7,7 @@ import type {
   Workspace,
   WorkspaceRepository,
 } from '@braidhq/core'
-import type { SkillEvent, SkillRunId as SkillRunIdType } from '@braidhq/schema'
+import type { SkillEvent, SkillId, SkillRunId as SkillRunIdType } from '@braidhq/schema'
 import { createLogger, ValidationError } from '@braidhq/core'
 import { SkillId as SkillIdSchema, SkillManifest, SkillRunId, SourceId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
@@ -15,8 +16,6 @@ import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
-
-const BRAID_EXTRACT_SKILL_ID = 'braid-extract'
 
 const SourceUnitRef = z.object({
   sourceId: SourceId,
@@ -54,20 +53,24 @@ export interface SkillsRouterDeps {
   readonly skillRunner: SkillRunner
   readonly workspaceRepository: WorkspaceRepository
   /**
-   * When set, a successful manual `braid-extract` run carrying a
-   * `sourceUnit` body field records an observation against that unit.
-   * Without it the dispatch still works; observations only ever come
-   * from BatchService. The hook is hard-coded to `braid-extract` per
-   * the v0 scope of issue #31.
+   * Used to record a SourceUnitState observation after a successful
+   * per-unit skill run (the one named by the active ontology's
+   * `OntologyBatchBinding.perUnit.skillId`).
    */
-  readonly sourceUnitStateService?: SourceUnitStateService
+  readonly sourceUnitStateService: SourceUnitStateService
   /**
-   * Needed to backfill terminal exit state for runs that finished
-   * between `skillRunner.start` returning and the observation hook
-   * subscribing. Without it the hook only listens for future events
-   * and races become silent leaks.
+   * Used to backfill terminal exit state for runs that finished between
+   * `skillRunner.start` returning and the observation hook subscribing;
+   * without it the hook would only listen for future events and races
+   * would become silent leaks.
    */
-  readonly runRepository?: RunRepository
+  readonly runRepository: RunRepository
+  /**
+   * Resolves the active ontology for the workspace so the route can
+   * read its `batch.perUnit.skillId` instead of hard-coding the DDD
+   * extract skill name.
+   */
+  readonly pluginRegistry: PluginRegistry
 }
 
 const listSkillsRoute = createRoute({
@@ -162,11 +165,24 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
       ...(resumeSessionId ? { resumeSessionId } : {}),
       ...(callerToken ? { callerToken } : {}),
     }
-    // Reject malformed sourceUnit references early. Recording an
-    // observation against a sourceId that does not belong to a real
-    // intent source in the workspace would pollute the ledger and
-    // confuse downstream readers (Reactor, BatchService diff).
+    const perUnitSkillId = resolvePerUnitSkillId(deps.pluginRegistry, workspace)
+
     if (sourceUnit) {
+      // Reject sourceUnit for skills the active ontology does not
+      // dispatch as its per-unit step. The shared run-skill route
+      // would otherwise advertise sourceUnit support uniformly while
+      // silently dropping it for everything except the extract skill.
+      if (!perUnitSkillId || skillId !== perUnitSkillId) {
+        throw new ValidationError(
+          perUnitSkillId
+            ? `sourceUnit is only accepted for "${perUnitSkillId}" (the active ontology's per-unit skill)`
+            : `sourceUnit is not accepted: the active ontology declares no per-unit skill`,
+        )
+      }
+      // Reject sourceUnit references that name a sourceId not present
+      // in the workspace as an intent source. Recording against a
+      // ghost sourceId would pollute the ledger and confuse the
+      // Reactor and BatchService diff.
       const known = workspace.sources.find(s => s.id === sourceUnit.sourceId && s.role === 'intent')
       if (!known)
         throw new ValidationError(`sourceUnit.sourceId "${sourceUnit.sourceId}" does not name an intent source in workspace "${workspace.id}"`)
@@ -174,17 +190,10 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
 
     const runId = await deps.skillRunner.start(workspace, skillId, args, options)
 
-    // v0 of #31: only braid-extract participates in observation
-    // recording, only when the caller named a source unit. The hook
-    // runs in the background so the route still returns 202 promptly;
-    // failures (skill error, cancel, repository write) are logged but
-    // do not bubble up to the client.
-    if (
-      sourceUnit
-      && skillId === BRAID_EXTRACT_SKILL_ID
-      && deps.sourceUnitStateService
-      && deps.runRepository
-    ) {
+    // The observation hook runs in the background so the route still
+    // returns 202 promptly; failures (skill error, cancel, repository
+    // write) are logged but do not bubble up to the client.
+    if (sourceUnit && perUnitSkillId && skillId === perUnitSkillId) {
       void recordObservationOnSuccess({
         runner: deps.skillRunner,
         runRepository: deps.runRepository,
@@ -199,6 +208,11 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
   })
 
   return router
+}
+
+function resolvePerUnitSkillId(pluginRegistry: PluginRegistry, workspace: Workspace): SkillId | undefined {
+  const ontology = pluginRegistry.findOntology(workspace.productManifest.ontologyId)
+  return ontology?.batch?.perUnit?.skillId
 }
 
 const recordLogger = createLogger('skills.recordObservation')

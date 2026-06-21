@@ -7,12 +7,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { ClaudeCodeAgentBinding } from '@braidhq/agent-claude-code'
+import { PluginRegistry } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app.js'
 import { composeApp } from '../../src/composition.js'
 import { SubprocessSkillRunner } from '../../src/infrastructure/agent/SubprocessSkillRunner.js'
 import { FsRunRepository } from '../../src/infrastructure/fs/FsRunRepository.js'
-import { DEFAULT_AGENT_BINDING, makeSkillManifest, makeWorkspace } from '../helpers/fakes.js'
+import { DEFAULT_AGENT_BINDING, makeOntology, makeSkillManifest, makeWorkspace } from '../helpers/fakes.js'
 import { createMockSpawn } from '../helpers/mockSpawn.js'
 
 const SOURCE_ID = 'issues' as SourceId
@@ -34,7 +35,15 @@ function makeMultiSkillRegistry(skillIds: readonly string[]): SkillRegistry {
   }
 }
 
-async function buildAppForExtract(opts: { exitCode: number }) {
+function ontologyWithPerUnit(skillId: string) {
+  return makeOntology({
+    batch: {
+      perUnit: { skillId: skillId as SkillId, label: 'Extract' },
+    },
+  })
+}
+
+async function buildAppForExtract(opts: { exitCode: number, perUnitSkillId?: string }) {
   const rootPath = (await mkdtemp(join(tmpdir(), 'braid-skill-extract-'))) as AbsolutePath
   const workspace = makeWorkspace({
     rootPath,
@@ -58,10 +67,17 @@ async function buildAppForExtract(opts: { exitCode: number }) {
     runRepository: new FsRunRepository(),
     spawn,
   })
+  // Register an ontology whose batch.perUnit.skillId matches the
+  // workspace's ontologyId so the route knows which skill is allowed
+  // to carry sourceUnit. Default keeps the production wiring (extract
+  // is the per-unit skill); a test that wants the active ontology to
+  // disagree (or have no perUnit at all) can override.
+  const pluginRegistry = new PluginRegistry()
+  pluginRegistry.register(ontologyWithPerUnit(opts.perUnitSkillId ?? 'braid-extract'))
   const deps = composeApp({
     skillRegistry,
     skillRunner,
-    // Stable digest so the test does not need real file IO.
+    pluginRegistry,
     sourceUnitDigest: { computeSha: async () => 'sha-fake' as SourceUnitSha },
   })
   await deps.workspaceRepository.save(workspace)
@@ -205,9 +221,12 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
       runRepository: new FsRunRepository(),
       spawn: spawnFn,
     })
+    const pluginRegistry = new PluginRegistry()
+    pluginRegistry.register(ontologyWithPerUnit('braid-extract'))
     const deps = composeApp({
       skillRegistry,
       skillRunner,
+      pluginRegistry,
       sourceUnitDigest: { computeSha: async () => 'sha-fake' as SourceUnitSha },
     })
     await deps.workspaceRepository.save(workspace)
@@ -251,7 +270,7 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
     expect(states).toEqual([])
   })
 
-  it('does not record for skills other than braid-extract even when sourceUnit is provided', async () => {
+  it('rejects sourceUnit for skills the active ontology does not name as its per-unit step', async () => {
     const { app, workspace, deps } = await buildAppForExtract({ exitCode: 0 })
 
     const response = await app.request(`/workspaces/${workspace.id}/skills/braid-ask/run`, {
@@ -263,10 +282,7 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
       }),
     })
 
-    expect(response.status).toBe(202)
-    const body = await response.json() as { runId: string }
-    await waitForRunSettled(deps, body.runId)
-    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(response.status).toBe(400)
     const states = await deps.sourceUnitStateService.listByWorkspace(workspace.id)
     expect(states).toEqual([])
   })
