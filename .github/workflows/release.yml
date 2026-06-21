@@ -93,20 +93,22 @@ jobs:
         with:
           subject-path: '.release/*.tgz'
 
-      # `pnpm publish -r` walks workspace packages in topological order,
-      # skips private ones, and applies the per-package publishConfig
-      # (main / types / exports / files override). --no-git-checks because
-      # the worktree has the freshly-built dist/ files which are not
-      # committed.
-      #
-      # Auth: each `@braidhq/*` package has Trusted Publisher (OIDC)
-      # configured on npmjs.com pointing back at this workflow. npm CLI
-      # picks up the OIDC token via the `id-token: write` permission
-      # above; no long-lived NPM_TOKEN secret is needed. A new package
-      # must be first-published manually with `npm publish` before this
-      # workflow can pick it up via OIDC.
+      # Publish each tarball with `npm publish`, not `pnpm publish -r`.
+      # pnpm's publish path is anonymous against the registry and does
+      # not negotiate OIDC, so under Trusted Publisher it 404s. npm CLI
+      # 11+ exchanges the `id-token: write` workflow permission for a
+      # short-lived publish token via npm's OIDC endpoint and signs the
+      # provenance statement on the same flow. New packages must be
+      # first-published manually so they exist on npm and have a
+      # Trusted Publisher configured before this workflow can ship them.
       - name: Publish
-        run: pnpm -r publish --access public --no-git-checks
+        run: |
+          shopt -s nullglob
+          for tgz in .release/*.tgz; do
+            echo "::group::npm publish $tgz"
+            npm publish --access public --provenance "$tgz"
+            echo "::endgroup::"
+          done
 
   github-release:
     name: GitHub Release
