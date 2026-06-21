@@ -1,7 +1,7 @@
 {
   "name": "braid",
   "type": "module",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.33.1",
   "description": "Domain model framework that merges product intent with shipped code into a single HITL-validated model the whole team can read.",

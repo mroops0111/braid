@@ -1,7 +1,7 @@
 {
   "name": "@braidhq/cli",
   "type": "module",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Command-line entry point for Braid.",
   "license": "MIT",
   "main": "./src/main.ts",

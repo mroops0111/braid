@@ -1,7 +1,7 @@
 {
   "name": "@braidhq/sdk",
   "type": "module",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Plugin author SDK for Braid, used to define ontology, source loader, and view generator plugins.",
   "license": "MIT",
   "exports": {
