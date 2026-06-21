@@ -103,17 +103,28 @@ jobs:
       # Publish each tarball with `npm publish`, not `pnpm publish -r`.
       # pnpm's publish path is anonymous against the registry and does
       # not negotiate OIDC, so under Trusted Publisher it 404s. npm CLI
-      # 11+ exchanges the `id-token: write` workflow permission for a
-      # short-lived publish token via npm's OIDC endpoint and signs the
-      # provenance statement on the same flow. New packages must be
-      # first-published manually so they exist on npm and have a
-      # Trusted Publisher configured before this workflow can ship them.
+      # 11.5.1+ exchanges the `id-token: write` workflow permission for
+      # a short-lived publish token via npm's OIDC endpoint and signs
+      # the provenance statement on the same flow.
+      #
+      # The pre-check via `npm view` skips any tarball whose version is
+      # already on the registry. This covers two cases: (1) a new
+      # package the maintainer first-published manually so it can have
+      # a Trusted Publisher attached, and (2) a previous run that
+      # half-published before failing partway through; rerunning the
+      # workflow then resumes from the first unpublished package.
       - name: Publish
         run: |
           shopt -s nullglob
           for tgz in .release/*.tgz; do
-            echo "::group::npm publish $tgz"
-            npm publish --access public --provenance "$tgz"
+            pkg=$(tar -xOf "$tgz" package/package.json | jq -r .name)
+            ver=$(tar -xOf "$tgz" package/package.json | jq -r .version)
+            echo "::group::publish $pkg@$ver"
+            if npm view "$pkg@$ver" version >/dev/null 2>&1; then
+              echo "::notice::$pkg@$ver already on the registry; skipping"
+            else
+              npm publish --access public --provenance "$tgz"
+            fi
             echo "::endgroup::"
           done
 
