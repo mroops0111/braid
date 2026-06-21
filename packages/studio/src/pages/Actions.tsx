@@ -1,4 +1,4 @@
-import type { RunRecord, SessionMetadata, SkillCategory, SkillManifest } from '@braidhq/schema'
+import type { RunRecord, SessionMetadata, SkillCategory, SkillManifest, SourceId } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { BookOpen, Check, ChevronDown, ChevronUp, Lock, MessageCircleQuestion, MessageSquare, Pencil, Plus, Send, Sparkles, Trash2, Wand2, Wrench, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -465,7 +465,10 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
     }
   }
 
-  async function sendWith(promptToSend: string): Promise<void> {
+  async function sendWith(
+    promptToSend: string,
+    sourceUnit?: { sourceId: SourceId, path: string },
+  ): Promise<void> {
     if (running)
       return
     setSubmitting(true)
@@ -476,6 +479,7 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
         skill.id,
         promptToSend,
         conversation.sessionId ?? undefined,
+        sourceUnit,
       )
       runStore.pushTurn(workspaceId, skill.id, runId)
     }
@@ -542,11 +546,12 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
               workspaceId={workspaceId}
               inputs={skill.frontmatter.braid.inputs}
               disabled={running || locked}
-              onSubmit={(prompts) => {
-                // Fire all batch prompts in parallel; each becomes its
-                // own runId / turn under the same conversation key. The
-                // transcript will interleave them.
-                for (const p of prompts) void sendWith(p)
+              onSubmit={(runs) => {
+                // Fire all batch runs in parallel; each becomes its own
+                // runId / turn under the same conversation key. The
+                // transcript will interleave them. `sourceUnit` is set
+                // for runs whose value came from a source-intent picker.
+                for (const run of runs) void sendWith(run.args, run.sourceUnit)
               }}
             />
           )

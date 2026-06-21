@@ -1,9 +1,12 @@
 import type {
   SkillRegistry,
   SkillRunner,
+  SourceUnitStateService,
   WorkspaceRepository,
 } from '@braidhq/core'
-import { SkillId as SkillIdSchema, SkillManifest, SkillRunId } from '@braidhq/schema'
+import type { SkillEvent, SkillRunId as SkillRunIdType, Workspace } from '@braidhq/schema'
+import { createLogger } from '@braidhq/core'
+import { SkillId as SkillIdSchema, SkillManifest, SkillRunId, SourceId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { extractBearerToken } from '../middleware/auth.js'
 import { requirePermission } from '../middleware/workspaceAccess.js'
@@ -11,10 +14,25 @@ import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
 
+const BRAID_EXTRACT_SKILL_ID = 'braid-extract'
+
+const SourceUnitRef = z.object({
+  sourceId: SourceId,
+  path: z.string().min(1),
+}).openapi('SourceUnitRef')
+
 const RunBody = z.object({
   args: z.string().default(''),
   /** Continue an existing claude conversation (from a prior session-started event). */
   resumeSessionId: z.string().min(1).optional(),
+  /**
+   * Identifies the source unit this run will process so the server can
+   * record an observation against it after the run completes
+   * successfully. Studio sends this when the user picks an option from
+   * the `source-intent` provider. Only `braid-extract` consumes it
+   * today; other skills ignore it.
+   */
+  sourceUnit: SourceUnitRef.optional(),
 }).openapi('SkillRunBody')
 
 const SkillIdParam = WorkspaceIdParam.extend({
@@ -33,6 +51,14 @@ export interface SkillsRouterDeps {
   readonly skillRegistry: SkillRegistry
   readonly skillRunner: SkillRunner
   readonly workspaceRepository: WorkspaceRepository
+  /**
+   * When set, a successful manual `braid-extract` run carrying a
+   * `sourceUnit` body field records an observation against that unit.
+   * Without it the dispatch still works; observations only ever come
+   * from BatchService. The hook is hard-coded to `braid-extract` per
+   * the v0 scope of issue #31.
+   */
+  readonly sourceUnitStateService?: SourceUnitStateService
 }
 
 const listSkillsRoute = createRoute({
@@ -121,15 +147,82 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
   router.openapi(runSkillRoute, async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const { skillId } = context.req.valid('param')
-    const { args, resumeSessionId } = context.req.valid('json')
+    const { args, resumeSessionId, sourceUnit } = context.req.valid('json')
     const callerToken = extractBearerToken(context)
     const options = {
       ...(resumeSessionId ? { resumeSessionId } : {}),
       ...(callerToken ? { callerToken } : {}),
     }
     const runId = await deps.skillRunner.start(workspace, skillId, args, options)
+
+    // v0 of #31: only braid-extract participates in observation
+    // recording, only when the caller named a source unit. The hook
+    // runs in the background so the route still returns 202 promptly;
+    // failures (skill error, cancel, repository write) are logged but
+    // do not bubble up to the client.
+    if (sourceUnit && skillId === BRAID_EXTRACT_SKILL_ID && deps.sourceUnitStateService) {
+      void recordObservationOnSuccess({
+        runner: deps.skillRunner,
+        sourceUnitStateService: deps.sourceUnitStateService,
+        workspace,
+        runId,
+        sourceUnit,
+      })
+    }
+
     return context.json({ runId }, 202)
   })
 
   return router
+}
+
+const recordLogger = createLogger('skills.recordObservation')
+
+interface RecordObservationParams {
+  readonly runner: SkillRunner
+  readonly sourceUnitStateService: SourceUnitStateService
+  readonly workspace: Workspace
+  readonly runId: SkillRunIdType
+  readonly sourceUnit: { sourceId: SourceId, path: string }
+}
+
+/**
+ * Subscribe to a run, wait for it to terminate, and record a
+ * SourceUnitState observation iff the run finished cleanly (exit code
+ * 0). Cancellation or any non-zero exit short-circuits so the previous
+ * recorded state is preserved.
+ */
+async function recordObservationOnSuccess(params: RecordObservationParams): Promise<void> {
+  const { runner, sourceUnitStateService, workspace, runId, sourceUnit } = params
+  try {
+    const outcome = await new Promise<'success' | 'failure'>((resolve) => {
+      const sub = runner.subscribe(runId, (event: SkillEvent) => {
+        if (event.type === 'completed') {
+          sub.unsubscribe()
+          resolve(event.exitCode === 0 ? 'success' : 'failure')
+        }
+        else if (event.type === 'error') {
+          sub.unsubscribe()
+          resolve('failure')
+        }
+      })
+    })
+    if (outcome !== 'success')
+      return
+    await sourceUnitStateService.recordObservation(
+      workspace.id,
+      sourceUnit.sourceId,
+      sourceUnit.path,
+      runId,
+    )
+  }
+  catch (err) {
+    recordLogger.warn({
+      runId,
+      workspaceId: workspace.id,
+      sourceId: sourceUnit.sourceId,
+      path: sourceUnit.path,
+      err: (err as Error).message,
+    }, 'failed to record observation after braid-extract run')
+  }
 }

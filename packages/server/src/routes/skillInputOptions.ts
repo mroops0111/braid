@@ -1,6 +1,6 @@
 import type { ClarifyTicketRepository, ModelRepository, PluginRegistry, Workspace, WorkspaceRepository } from '@braidhq/core'
 import type { SkillInputDynamicOption } from '@braidhq/schema'
-import { SkillInputOptionsResponse } from '@braidhq/schema'
+import { SkillInputOptionsResponse, SourceId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { listIntentItems } from '../infrastructure/fs/intentScan.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
@@ -158,6 +158,7 @@ async function resolveSourceIntent(
       value: item.value,
       label: item.label,
       description: item.sourceName,
+      sourceId: SourceId.parse(item.sourceId),
     }))
 }
 
