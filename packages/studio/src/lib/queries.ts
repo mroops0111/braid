@@ -7,6 +7,7 @@ export const queryKeys = {
   adminInvites: () => ['admin', 'invites'] as const,
   adminUsers: () => ['admin', 'users'] as const,
   workspaces: () => ['workspaces'] as const,
+  sourceLoaders: () => ['source-loaders'] as const,
   workspaceMembers: (workspaceId: string) => ['workspaces', workspaceId, 'members'] as const,
   workspaceDetail: (workspaceId: string) => ['workspaces', workspaceId, 'detail'] as const,
   skills: (workspaceId: string) => ['workspaces', workspaceId, 'skills'] as const,
@@ -64,6 +65,20 @@ export function useWorkspaceMembers(workspaceId: string | undefined) {
 
 export function useWorkspaces() {
   return useQuery({ queryKey: queryKeys.workspaces(), queryFn: () => api.listWorkspaces() })
+}
+
+/**
+ * Source-loader plugins registered on the active server. Reflects whatever
+ * `composeFsApp` registered plus any extras the host passed in; updates
+ * automatically when a new plugin ships without Studio code changes.
+ */
+export function useSourceLoaders() {
+  return useQuery({
+    queryKey: queryKeys.sourceLoaders(),
+    queryFn: () => api.listSourceLoaders(),
+    // Server-level static data; refetch only on tab focus, not on every mount.
+    staleTime: 5 * 60 * 1000,
+  })
 }
 
 export function useSkills(workspaceId: string | undefined) {

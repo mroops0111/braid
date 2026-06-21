@@ -22,6 +22,7 @@ import { createProposalsRouter } from './routes/proposals.js'
 import { createRunsRouter } from './routes/runs.js'
 import { createSkillInputOptionsRouter } from './routes/skillInputOptions.js'
 import { createSkillsRouter } from './routes/skills.js'
+import { createSourceLoadersRouter } from './routes/sourceLoaders.js'
 import { createSourceUnitStatesRouter } from './routes/sourceUnitStates.js'
 import { createUsersRouter } from './routes/users.js'
 import { createWorkspaceEventsRouter } from './routes/workspaceEvents.js'
@@ -111,6 +112,11 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     ...(deps.userRegistry ? { userRegistry: deps.userRegistry } : {}),
   }))
   app.route('/workspaces', createWorkspaceEventsRouter({ eventBus: deps.eventBus }))
+  // Server-level plugin discovery: lets Studio render its loader dropdown
+  // from the active PluginRegistry rather than hardcoded strings. Not
+  // workspace-scoped because the answer is "what does this server have
+  // installed", which is identical across workspaces.
+  app.route('/source-loaders', createSourceLoadersRouter({ pluginRegistry: deps.pluginRegistry }))
 
   const workspaceScoped = new OpenAPIHono()
   workspaceScoped.use('*', workspaceIdMiddleware)

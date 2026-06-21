@@ -2,13 +2,15 @@ import { useMutation } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { humaniseApiError } from '@/lib/errors'
-import { nameToId, rolePathSegment, type SourceDraft, toSourceDescriptor } from '@/lib/sourceDraft'
+import { useSourceLoaders } from '@/lib/queries'
+import { loaderKindLabel, nameToId, rolePathSegment, type SourceDraft, STUDIO_KNOWN_LOADER_KINDS, toSourceDescriptor } from '@/lib/sourceDraft'
 import { useGoogleOAuth } from '@/lib/useGoogleOAuth'
 import { MarkdownDescriptionField } from './MarkdownDescriptionField'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
+import { UnknownLoaderWarning } from './UnknownLoaderWarning'
 
 interface AddSourceDialogProps {
   workspaceId: string
@@ -18,10 +20,12 @@ interface AddSourceDialogProps {
 }
 
 export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: AddSourceDialogProps) {
+  const sourceLoaders = useSourceLoaders()
   const [role, setRole] = useState<'intent' | 'code'>('intent')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [loaderKind, setLoaderKind] = useState<SourceDraft['loaderKind']>(role === 'intent' ? 'gdrive' : 'git')
+  const loaderKnown = loaderKind === '' || STUDIO_KNOWN_LOADER_KINDS.has(loaderKind)
   const [gitUrl, setGitUrl] = useState('')
   const [gitBranch, setGitBranch] = useState('master')
   const [gdriveFolderId, setGdriveFolderId] = useState('')
@@ -109,6 +113,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
   }
 
   const valid = name.trim().length > 0
+    && loaderKnown
     && (loaderKind !== 'git' || gitUrl.trim().length > 0)
     && (loaderKind !== 'gdrive' || (gdriveFolderId.trim().length > 0 && gdriveFolderId.trim() !== 'root' && oauthConnected))
     && (loaderKind !== 'github' || (githubOwner.trim().length > 0 && githubRepo.trim().length > 0))
@@ -135,11 +140,11 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
               </select>
             </Field>
             <Field label="Loader">
-              <select value={loaderKind} onChange={e => setLoaderKind(e.target.value as typeof loaderKind)} className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs">
-                <option value="">manual (no auto-sync)</option>
-                <option value="git">git</option>
-                <option value="github">github (issues)</option>
-                <option value="gdrive">gdrive</option>
+              <select value={loaderKind} onChange={e => setLoaderKind(e.target.value)} className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs">
+                <option value="">{loaderKindLabel('')}</option>
+                {(sourceLoaders.data?.loaders ?? []).map(loader => (
+                  <option key={loader.kind} value={loader.kind}>{loaderKindLabel(loader.kind)}</option>
+                ))}
               </select>
             </Field>
           </div>
@@ -260,6 +265,24 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
                 at sync time. Without one you get GitHub's 60 req/h anonymous rate limit.
               </p>
             </>
+          )}
+          {!loaderKnown && (
+            <UnknownLoaderWarning
+              kind={loaderKind}
+              hint={(
+                <>
+                  This loader plugin is registered on the server but Studio does not ship a per-field config for it. To use it, edit
+                  {' '}
+                  <code className="rounded bg-muted px-1 font-mono">PRODUCT.md</code>
+                  {' '}
+                  directly and add the
+                  {' '}
+                  <code className="rounded bg-muted px-1 font-mono">{loaderKind}</code>
+                  {' '}
+                  config under this source.
+                </>
+              )}
+            />
           )}
           {add.error && <p className="text-xs text-destructive">{humaniseApiError(add.error)}</p>}
         </div>
