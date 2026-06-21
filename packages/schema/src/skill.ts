@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { AbsolutePath, PluginId, SkillId, SkillRunId, Timestamp, UserId, WorkspaceId } from './common.js'
+import { AbsolutePath, PluginId, SkillId, SkillRunId, SourceId, Timestamp, UserId, WorkspaceId } from './common.js'
 import { McpServerId } from './mcp.js'
 import { WorkspaceRole } from './workspace.js'
 
@@ -198,6 +198,15 @@ export const SkillInputDynamicOption = z.object({
   value: z.string(),
   label: z.string().min(1),
   description: z.string().optional(),
+  /**
+   * Source id this option came from, when the option corresponds to a
+   * source unit (the `source-intent` provider populates it). Studio
+   * keeps the pair `{sourceId, value}` so the run-skill request can
+   * report which unit was processed and the server can record an
+   * observation against it. Empty for providers that don't speak in
+   * terms of source units (graph-node, clarify, ...).
+   */
+  sourceId: SourceId.optional(),
 })
 export type SkillInputDynamicOption = z.infer<typeof SkillInputDynamicOption>
 

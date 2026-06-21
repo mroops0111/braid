@@ -24,6 +24,7 @@ import type {
   SkillInputOptionsResponse,
   SkillManifest,
   SourceDescriptor,
+  SourceId,
   TagMeta,
   User,
   UserDraft,
@@ -391,7 +392,13 @@ export const api = {
 
   skillRunUrl: (workspaceId: string, skillId: string) =>
     `${getServerUrl()}/workspaces/${workspaceId}/skills/${skillId}/run`,
-  startSkillRun: (workspaceId: string, skillId: string, args: string, resumeSessionId?: string) =>
+  startSkillRun: (
+    workspaceId: string,
+    skillId: string,
+    args: string,
+    resumeSessionId?: string,
+    sourceUnit?: { sourceId: SourceId, path: string },
+  ) =>
     fetchJson<{ runId: string }>(
       `/workspaces/${workspaceId}/skills/${skillId}/run`,
       {
@@ -399,6 +406,7 @@ export const api = {
         body: JSON.stringify({
           args,
           ...(resumeSessionId ? { resumeSessionId } : {}),
+          ...(sourceUnit ? { sourceUnit } : {}),
         }),
       },
     ),

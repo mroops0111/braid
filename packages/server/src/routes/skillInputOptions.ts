@@ -1,6 +1,6 @@
 import type { ClarifyTicketRepository, ModelRepository, PluginRegistry, Workspace, WorkspaceRepository } from '@braidhq/core'
 import type { SkillInputDynamicOption } from '@braidhq/schema'
-import { SkillInputOptionsResponse } from '@braidhq/schema'
+import { SkillInputOptionsResponse, SourceId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { listIntentItems } from '../infrastructure/fs/intentScan.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
@@ -154,11 +154,18 @@ async function resolveSourceIntent(
       const source = workspace.sources.find(s => s.id === item.sourceId)
       return source?.kind === 'filesystem' && source.loader?.kind === loaderKindFilter
     })
-    .map(item => ({
-      value: item.value,
-      label: item.label,
-      description: item.sourceName,
-    }))
+    .map((item) => {
+      // Use safeParse: an invalid sourceId in a hand-edited PRODUCT.md
+      // should not 500 the whole dropdown. Drop the field on parse
+      // failure so the option still shows up without source tracking.
+      const parsed = SourceId.safeParse(item.sourceId)
+      return {
+        value: item.value,
+        label: item.label,
+        description: item.sourceName,
+        ...(parsed.success ? { sourceId: parsed.data } : {}),
+      }
+    })
 }
 
 async function resolveClarify(
