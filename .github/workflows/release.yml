@@ -68,15 +68,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-      # No registry-url here. setup-node writes an `.npmrc` with
-      # `_authToken=${NODE_AUTH_TOKEN}` when registry-url is set; without
-      # NODE_AUTH_TOKEN that line becomes an empty token which npm CLI
-      # still uses (and fails) instead of negotiating OIDC. The default
-      # public registry is what npm publish targets anyway.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
+          registry-url: 'https://registry.npmjs.org/'
+
+      # Trusted Publishing (OIDC) requires npm >= 11.5.1. Node 24 ships
+      # npm 11.x but not always the OIDC-aware patch; force the latest
+      # so the publish step can exchange the ACTIONS_ID_TOKEN for a
+      # short-lived registry token.
+      - run: npm install -g npm@latest
+      - run: npm --version
 
       - run: pnpm install --frozen-lockfile
 
