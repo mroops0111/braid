@@ -19,6 +19,13 @@ export type PluginType = z.infer<typeof PluginType>
 export const SourceLoaderEntry = z.object({
   kind: LoaderKind,
   pluginId: PluginId,
+  /**
+   * `true` when the loader plugin declares a `webhook` capability;
+   * Studio gates the GitHub webhook panel on this flag instead of
+   * switching on `kind` so registering a new loader does not require a
+   * matching Studio code change.
+   */
+  webhook: z.boolean().default(false),
 })
 export type SourceLoaderEntry = z.infer<typeof SourceLoaderEntry>
 

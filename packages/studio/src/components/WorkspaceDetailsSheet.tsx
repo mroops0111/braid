@@ -5,7 +5,7 @@ import { DropdownMenu as DropdownPrimitive } from 'radix-ui'
 import { useState } from 'react'
 import { api } from '@/lib/api'
 import { humaniseApiError } from '@/lib/errors'
-import { queryKeys, useMe, useUsers, useWorkspaceMembers } from '@/lib/queries'
+import { queryKeys, useMe, useSourceLoaders, useUsers, useWorkspaceMembers } from '@/lib/queries'
 import { useWorkspacePolicy } from '@/policy'
 import { AddSourceDialog } from './AddSourceDialog'
 import { ArmedConfirmBar } from './ArmedConfirmBar'
@@ -264,11 +264,26 @@ function SourceRow({ workspaceId, source, onChange }: {
       {(sync.error || remove.error) && (
         <p className="mt-1 text-[10px] text-destructive">{humaniseApiError(sync.error ?? remove.error)}</p>
       )}
-      {source.kind === 'filesystem' && (source.loader?.kind === 'github' || source.loader?.kind === 'git') && (
-        <GithubWebhookPanel workspaceId={workspaceId} sourceId={source.id} />
-      )}
+      <WebhookPanelGate workspaceId={workspaceId} source={source} />
     </li>
   )
+}
+
+/**
+ * Render the GitHub webhook panel only when the server reports the
+ * source's loader plugin as webhook-capable. Asking the server keeps
+ * Studio loader-agnostic: registering a new loader with a `webhook`
+ * field surfaces the panel automatically — no Studio code change.
+ */
+function WebhookPanelGate({ workspaceId, source }: { workspaceId: string, source: SourceDescriptor }) {
+  const loaders = useSourceLoaders()
+  if (source.kind !== 'filesystem' || !source.loader)
+    return null
+  const loaderKind = source.loader.kind
+  const entry = loaders.data?.loaders.find(l => l.kind === loaderKind)
+  if (!entry?.webhook)
+    return null
+  return <GithubWebhookPanel workspaceId={workspaceId} sourceId={source.id} />
 }
 
 function GithubWebhookPanel({ workspaceId, sourceId }: { workspaceId: string, sourceId: string }) {

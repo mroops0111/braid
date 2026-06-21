@@ -1,5 +1,8 @@
 import type {
+  PluginRegistry,
+  SourceLoaderPlugin,
   SourceLoaderRunner,
+  WebhookCapability,
   WorkspaceService,
 } from '@braidhq/core'
 import type { SourceDescriptor, SourceId, WorkspaceId } from '@braidhq/schema'
@@ -10,28 +13,34 @@ import { createLogger } from '@braidhq/core'
 import { Hono } from 'hono'
 
 /**
- * GitHub webhook plumbing for `kind: 'github'` sources.
+ * GitHub webhook plumbing for filesystem sources whose loader plugin
+ * declares a `webhook` capability.
  *
  * Two routers:
  *
  *   `createGithubWebhookReceiver` is public (no Bearer auth). GitHub
- *   POSTs `push` / `issues` / `issue_comment` deliveries here; we
- *   verify the HMAC, confirm the payload names the configured repo,
- *   and trigger `sourceLoaderRunner.syncOne` in the background. The
- *   response returns immediately so GitHub's delivery timeout never
- *   trips on a slow sync.
+ *   POSTs deliveries here; we verify the HMAC, confirm the payload
+ *   names the same repo the source's loader plugin claims, ask the
+ *   plugin whether the event is worth a `syncOne`, and dispatch in the
+ *   background. The response returns immediately so GitHub's ~10s
+ *   delivery timeout never trips on a slow loader.
  *
- *   `createSourceWebhooksAdminRouter` is workspace-scoped and gated
- *   by the existing auth middleware. Studio uses it to display the
- *   webhook URL and rotate the secret when the user installs / re-
- *   installs the webhook on the GitHub side.
+ *   `createSourceWebhooksAdminRouter` is workspace-scoped and gated by
+ *   the existing auth middleware. Studio uses it to display the
+ *   webhook URL and rotate the secret.
+ *
+ * The receiver is loader-agnostic: it does not switch on
+ * `loader.kind`. New loaders extend the webhook surface by adding a
+ * `webhook: { repoIdentity, shouldDispatch }` to their plugin
+ * definition.
  *
  * Secrets live in the existing `SecretStore` under namespace
- * `webhook-github`, keyed by `<workspaceId>--<sourceId>` to mirror
- * the OAuth namespaces.
+ * `webhook-github`, keyed by `<workspaceId>--<sourceId>` to mirror the
+ * OAuth namespaces.
  */
 
 const SECRET_NAMESPACE = 'webhook-github'
+const PROVIDER = 'github' as const
 
 interface WebhookSecretRecord {
   readonly secret: string
@@ -46,6 +55,7 @@ export interface GithubWebhookReceiverDeps {
   readonly workspaceService: WorkspaceService
   readonly sourceLoaderRunner: SourceLoaderRunner
   readonly secretStore: SecretStore
+  readonly pluginRegistry: PluginRegistry
 }
 
 const receiverLogger = createLogger('webhooks.github.receiver')
@@ -66,13 +76,31 @@ function verifySignature(rawBody: string, header: string | undefined, secret: st
   return timingSafeEqual(a, b)
 }
 
+/**
+ * Look up the loader plugin's `webhook` capability for a source, or
+ * return undefined when the source is not webhook-capable. Wraps the
+ * registry lookup so route handlers can short-circuit on a single
+ * truthy check.
+ */
+function resolveWebhookCapability(
+  pluginRegistry: PluginRegistry,
+  source: SourceDescriptor,
+): { capability: WebhookCapability, plugin: SourceLoaderPlugin, config: unknown } | undefined {
+  if (source.kind !== 'filesystem' || !source.loader)
+    return undefined
+  const plugin = pluginRegistry.findSourceLoader(source.loader.kind)
+  if (!plugin?.webhook)
+    return undefined
+  return { capability: plugin.webhook, plugin, config: source.loader.config }
+}
+
 export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Hono {
   const router = new Hono()
 
   // `:workspaceId/:sourceId` is the routing identity the user installs
   // on the GitHub side. We accept the request, verify, and return 202
-  // immediately; sync runs in the background so a slow loader run does
-  // not block GitHub's delivery worker (it times deliveries out at ~10s).
+  // immediately; sync runs in the background so a slow loader does not
+  // block GitHub's delivery worker (it times deliveries out at ~10s).
   router.post('/github/:workspaceId/:sourceId', async (context) => {
     const workspaceId = context.req.param('workspaceId') as WorkspaceId
     const sourceId = context.req.param('sourceId') as SourceId
@@ -89,9 +117,13 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
     const source = workspace.sources.find(s => s.id === sourceId)
     if (!source)
       return context.json({ error: `source "${sourceId}" not found in workspace` }, 404)
-    const githubConfig = extractGithubConfig(source)
-    if (!githubConfig)
-      return context.json({ error: `source "${sourceId}" is not a github-loader source` }, 400)
+
+    const resolved = resolveWebhookCapability(deps.pluginRegistry, source)
+    if (!resolved)
+      return context.json({ error: `source "${sourceId}" has no webhook-capable loader` }, 400)
+    const identity = resolved.capability.repoIdentity(resolved.config)
+    if (!identity || identity.provider !== PROVIDER)
+      return context.json({ error: `source "${sourceId}" is not bound to a github repo` }, 400)
 
     const record = await deps.secretStore.read<WebhookSecretRecord>(SECRET_NAMESPACE, secretKey(workspaceId, sourceId))
     if (!record)
@@ -112,9 +144,17 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
     }
 
     const fullName = extractFullName(payload)
-    const expectedFullName = `${githubConfig.owner}/${githubConfig.repo}`
+    const expectedFullName = `${identity.owner}/${identity.repo}`
     if (fullName && fullName !== expectedFullName)
       return context.json({ error: `payload repository "${fullName}" does not match configured "${expectedFullName}"` }, 400)
+
+    const event = context.req.header('X-GitHub-Event') ?? 'unknown'
+    const shouldDispatch = resolved.capability.shouldDispatch?.(resolved.config, { event, payload }) ?? true
+    if (!shouldDispatch) {
+      // Return 202 so GitHub does not treat the delivery as a failure
+      // and back off retries; we deliberately accept and drop.
+      return context.json({ accepted: true, event, workspaceId, sourceId, skipped: true }, 202)
+    }
 
     // Fire-and-forget. We must NOT await the sync; deliveries time out
     // at ~10s and a clean repo with many issues can take minutes to
@@ -132,57 +172,10 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
         )
       })
 
-    const event = context.req.header('X-GitHub-Event') ?? 'unknown'
     return context.json({ accepted: true, event, workspaceId, sourceId }, 202)
   })
 
   return router
-}
-
-/**
- * Resolve the GitHub `owner/repo` pair a source is tied to. Two loaders
- * surface a github webhook today: the dedicated `github` issues loader
- * (which stores `owner` / `repo` directly), and the generic `git` loader
- * pointed at a `github.com` URL (parsed). Any other shape returns
- * undefined and the webhook routes refuse to serve.
- */
-function extractGithubConfig(source: SourceDescriptor): { owner: string, repo: string } | undefined {
-  if (source.kind !== 'filesystem' || !source.loader)
-    return undefined
-  const config = source.loader.config
-  if (typeof config !== 'object' || config === null)
-    return undefined
-  if (source.loader.kind === 'github') {
-    const { owner, repo } = config as { owner?: unknown, repo?: unknown }
-    if (typeof owner !== 'string' || typeof repo !== 'string' || !owner || !repo)
-      return undefined
-    return { owner, repo }
-  }
-  if (source.loader.kind === 'git') {
-    const { url } = config as { url?: unknown }
-    if (typeof url !== 'string')
-      return undefined
-    return parseGithubUrl(url)
-  }
-  return undefined
-}
-
-/**
- * Pull `owner/repo` out of a GitHub clone URL. Accepts the three shapes
- * the git loader supports: `https://github.com/o/r.git`,
- * `git@github.com:o/r.git`, and credential-prefixed
- * `https://x-access-token:T@github.com/o/r.git`. Non-github hosts (e.g.
- * `gitlab.com`) return undefined so we don't pretend to validate them.
- */
-function parseGithubUrl(url: string): { owner: string, repo: string } | undefined {
-  const trimmed = url.trim().replace(/\.git$/, '')
-  const httpsMatch = trimmed.match(/^https?:\/\/(?:[^@/]+@)?github\.com\/([^/]+)\/([^/]+)$/)
-  if (httpsMatch)
-    return { owner: httpsMatch[1]!, repo: httpsMatch[2]! }
-  const sshMatch = trimmed.match(/^git@github\.com:([^/]+)\/([^/]+)$/)
-  if (sshMatch)
-    return { owner: sshMatch[1]!, repo: sshMatch[2]! }
-  return undefined
 }
 
 function extractFullName(payload: unknown): string | undefined {
@@ -198,6 +191,7 @@ function extractFullName(payload: unknown): string | undefined {
 export interface SourceWebhooksAdminDeps {
   readonly workspaceService: WorkspaceService
   readonly secretStore: SecretStore
+  readonly pluginRegistry: PluginRegistry
   /**
    * Base URL under which the public webhook receiver is reachable. Used
    * to render the URL the user pastes into GitHub. Falls back to an
@@ -221,8 +215,9 @@ export function createSourceWebhooksAdminRouter(deps: SourceWebhooksAdminDeps): 
     const source = workspace.sources.find(s => s.id === sourceId)
     if (!source)
       return context.json({ error: `source "${sourceId}" not found` }, 404)
-    if (!extractGithubConfig(source))
-      return context.json({ error: `source "${sourceId}" is not a github-loader source` }, 400)
+    const resolved = resolveWebhookCapability(deps.pluginRegistry, source)
+    if (!resolved || resolved.capability.repoIdentity(resolved.config)?.provider !== PROVIDER)
+      return context.json({ error: `source "${sourceId}" is not bound to a github repo` }, 400)
     const record = await deps.secretStore.read<WebhookSecretRecord>(SECRET_NAMESPACE, secretKey(workspaceId, sourceId))
     return context.json({
       url: buildWebhookUrl(deps.apiUrl, workspaceId, sourceId),
@@ -238,8 +233,9 @@ export function createSourceWebhooksAdminRouter(deps: SourceWebhooksAdminDeps): 
     const source = workspace.sources.find(s => s.id === sourceId)
     if (!source)
       return context.json({ error: `source "${sourceId}" not found` }, 404)
-    if (!extractGithubConfig(source))
-      return context.json({ error: `source "${sourceId}" is not a github-loader source` }, 400)
+    const resolved = resolveWebhookCapability(deps.pluginRegistry, source)
+    if (!resolved || resolved.capability.repoIdentity(resolved.config)?.provider !== PROVIDER)
+      return context.json({ error: `source "${sourceId}" is not bound to a github repo` }, 400)
 
     // 32 bytes is the GitHub-recommended minimum and matches what their
     // own webhook setup UI generates.

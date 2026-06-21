@@ -1,8 +1,11 @@
-import type { AbsolutePath, LoaderKind, SourceId } from '@braidhq/schema'
+import type { SourceLoaderPlugin } from '@braidhq/core'
+import type { AbsolutePath, LoaderKind, PluginId, SourceId, Timestamp } from '@braidhq/schema'
 import type { SecretStore } from '../../src/infrastructure/secrets/SecretStore.js'
 import { createHmac } from 'node:crypto'
+import { PluginRegistry } from '@braidhq/core'
 import { makeWorkspace } from '@braidhq/test-utils'
 import { describe, expect, it, vi } from 'vitest'
+import { z } from 'zod'
 import { createApp } from '../../src/app.js'
 import { composeApp } from '../../src/composition.js'
 
@@ -40,10 +43,96 @@ function makeGithubSource() {
   }
 }
 
-async function buildApp(opts: { withSecret?: string } = {}) {
-  const workspace = makeWorkspace({ sources: [makeGithubSource()] })
+function makeGitSource(branch?: string) {
+  return {
+    kind: 'filesystem' as const,
+    id: SOURCE_ID,
+    role: 'code' as const,
+    name: 'code',
+    path: '/abs/ws/code' as AbsolutePath,
+    loader: {
+      kind: 'git' as LoaderKind,
+      config: {
+        url: `https://github.com/${OWNER}/${REPO}.git`,
+        ...(branch ? { branch } : {}),
+      },
+    },
+  }
+}
+
+// Stand-in loader plugins for the receiver's plugin-registry lookup.
+// We deliberately bypass `defineSourceLoader` and construct the plugin
+// object literal so the test stays loader-agnostic: it only exercises
+// the receiver's contract (delegate to `plugin.webhook.{repoIdentity,
+// shouldDispatch}`) and does NOT reproduce production loader semantics.
+// Each real loader has its own webhook unit test in its own package.
+const FAKE_FETCHED_AT = '2026-01-01T00:00:00.000Z' as Timestamp
+
+interface FakeLoaderOptions {
+  readonly kind: string
+  readonly repoIdentity: SourceLoaderPlugin['webhook'] extends infer T
+    ? T extends { repoIdentity: infer R } ? R : never
+    : never
+  readonly shouldDispatch?: NonNullable<SourceLoaderPlugin['webhook']>['shouldDispatch']
+}
+
+function makeFakeLoader(opts: FakeLoaderOptions): SourceLoaderPlugin {
+  return {
+    id: `fake.${opts.kind}` as PluginId,
+    type: 'source-loader',
+    kind: opts.kind as LoaderKind,
+    configSchema: z.unknown(),
+    ingest: async () => ({ localPath: '/abs/x' as AbsolutePath, fetchedAt: FAKE_FETCHED_AT }),
+    webhook: {
+      repoIdentity: opts.repoIdentity,
+      ...(opts.shouldDispatch ? { shouldDispatch: opts.shouldDispatch } : {}),
+    },
+  }
+}
+
+const githubLikeFake = makeFakeLoader({
+  kind: 'github',
+  repoIdentity: (config) => {
+    const c = config as { owner?: unknown, repo?: unknown }
+    if (typeof c.owner !== 'string' || typeof c.repo !== 'string')
+      return undefined
+    return { provider: 'github', owner: c.owner, repo: c.repo }
+  },
+  shouldDispatch: (_c, d) => d.event === 'issues' || d.event === 'issue_comment' || d.event === 'ping',
+})
+
+const gitLikeFake = makeFakeLoader({
+  kind: 'git',
+  repoIdentity: (config) => {
+    const url = (config as { url?: unknown }).url
+    if (typeof url !== 'string')
+      return undefined
+    const m = url.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?$/)
+    return m ? { provider: 'github', owner: m[1]!, repo: m[2]! } : undefined
+  },
+  shouldDispatch: (config, delivery) => {
+    if (delivery.event === 'ping')
+      return true
+    if (delivery.event !== 'push')
+      return false
+    const ref = typeof delivery.payload === 'object' && delivery.payload !== null
+      ? (delivery.payload as { ref?: unknown }).ref
+      : undefined
+    if (typeof ref !== 'string')
+      return false
+    const branch = (config as { branch?: unknown }).branch
+    const tracked = typeof branch === 'string' ? branch : 'master'
+    return ref === `refs/heads/${tracked}`
+  },
+})
+
+async function buildApp(opts: { withSecret?: string, source?: ReturnType<typeof makeGithubSource> | ReturnType<typeof makeGitSource> } = {}) {
+  const workspace = makeWorkspace({ sources: [opts.source ?? makeGithubSource()] })
   const secretStore = makeInMemorySecretStore()
-  const deps = composeApp()
+  const pluginRegistry = new PluginRegistry()
+  pluginRegistry.register(githubLikeFake)
+  pluginRegistry.register(gitLikeFake)
+  const deps = composeApp({ pluginRegistry })
   deps.secretStore = secretStore
   await deps.workspaceRepository.save(workspace)
 
@@ -128,6 +217,95 @@ describe('POST /webhooks/github/:workspaceId/:sourceId (issue #30)', () => {
     })
 
     expect(response.status).toBe(400)
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(syncOne).not.toHaveBeenCalled()
+  })
+
+  it('accepts a push to the tracked branch on a git-loader source and dispatches syncOne', async () => {
+    const { app, workspace, syncOne } = await buildApp({
+      withSecret: 'super-secret',
+      source: makeGitSource('master'),
+    })
+    const body = JSON.stringify({ ref: 'refs/heads/master', repository: { full_name: `${OWNER}/${REPO}` } })
+
+    const response = await app.request(`/webhooks/github/${workspace.id}/${SOURCE_ID}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-GitHub-Event': 'push',
+        'X-Hub-Signature-256': sign('super-secret', body),
+      },
+      body,
+    })
+
+    expect(response.status).toBe(202)
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(syncOne).toHaveBeenCalledTimes(1)
+  })
+
+  it('accepts but skips syncOne when a push targets a branch other than the one the git loader tracks', async () => {
+    const { app, workspace, syncOne } = await buildApp({
+      withSecret: 'super-secret',
+      source: makeGitSource('master'),
+    })
+    const body = JSON.stringify({ ref: 'refs/heads/feature-x', repository: { full_name: `${OWNER}/${REPO}` } })
+
+    const response = await app.request(`/webhooks/github/${workspace.id}/${SOURCE_ID}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-GitHub-Event': 'push',
+        'X-Hub-Signature-256': sign('super-secret', body),
+      },
+      body,
+    })
+
+    expect(response.status).toBe(202)
+    const json = await response.json() as { skipped?: boolean }
+    expect(json.skipped).toBe(true)
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(syncOne).not.toHaveBeenCalled()
+  })
+
+  it('defaults the tracked branch to master when the git loader leaves branch unset', async () => {
+    const { app, workspace, syncOne } = await buildApp({
+      withSecret: 'super-secret',
+      source: makeGitSource(),
+    })
+    const body = JSON.stringify({ ref: 'refs/heads/master', repository: { full_name: `${OWNER}/${REPO}` } })
+
+    const response = await app.request(`/webhooks/github/${workspace.id}/${SOURCE_ID}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-GitHub-Event': 'push',
+        'X-Hub-Signature-256': sign('super-secret', body),
+      },
+      body,
+    })
+
+    expect(response.status).toBe(202)
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(syncOne).toHaveBeenCalledTimes(1)
+  })
+
+  it('accepts but skips a push event delivered to a github-issues loader source', async () => {
+    const { app, workspace, syncOne } = await buildApp({ withSecret: 'super-secret' })
+    const body = JSON.stringify({ ref: 'refs/heads/master', repository: { full_name: `${OWNER}/${REPO}` } })
+
+    const response = await app.request(`/webhooks/github/${workspace.id}/${SOURCE_ID}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-GitHub-Event': 'push',
+        'X-Hub-Signature-256': sign('super-secret', body),
+      },
+      body,
+    })
+
+    expect(response.status).toBe(202)
+    const json = await response.json() as { skipped?: boolean }
+    expect(json.skipped).toBe(true)
     await new Promise(resolve => setTimeout(resolve, 10))
     expect(syncOne).not.toHaveBeenCalled()
   })

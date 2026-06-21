@@ -128,6 +128,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       workspaceService: deps.workspaceService,
       sourceLoaderRunner: deps.sourceLoaderRunner,
       secretStore: deps.secretStore,
+      pluginRegistry: deps.pluginRegistry,
     }))
   }
 
@@ -193,6 +194,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     workspaceScoped.route('/source-webhooks', createSourceWebhooksAdminRouter({
       workspaceService: deps.workspaceService,
       secretStore: deps.secretStore,
+      pluginRegistry: deps.pluginRegistry,
       ...(options.apiUrl ? { apiUrl: options.apiUrl } : {}),
     }))
   }

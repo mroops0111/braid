@@ -109,3 +109,49 @@ describe('GitLoader', () => {
     await expect(loader.ingest({ url }, dest, ctx)).rejects.toThrow(/BRAID_GITLOADER_TEST_TOKEN/)
   })
 })
+
+describe('GitLoader webhook capability', () => {
+  it('parses owner/repo from an https github url', () => {
+    expect(gitLoader.webhook?.repoIdentity({ url: 'https://github.com/mroops0111/braid.git' }))
+      .toEqual({ provider: 'github', owner: 'mroops0111', repo: 'braid' })
+    expect(gitLoader.webhook?.repoIdentity({ url: 'https://github.com/mroops0111/braid' }))
+      .toEqual({ provider: 'github', owner: 'mroops0111', repo: 'braid' })
+  })
+
+  it('parses owner/repo from an ssh github url', () => {
+    expect(gitLoader.webhook?.repoIdentity({ url: 'git@github.com:mroops0111/braid.git' }))
+      .toEqual({ provider: 'github', owner: 'mroops0111', repo: 'braid' })
+  })
+
+  it('returns undefined for non-github hosts so the receiver rejects the delivery', () => {
+    expect(gitLoader.webhook?.repoIdentity({ url: 'https://gitlab.com/foo/bar.git' })).toBeUndefined()
+    expect(gitLoader.webhook?.repoIdentity({ url: 'https://git.sr.ht/~user/repo' })).toBeUndefined()
+  })
+
+  it('dispatches a push to the tracked branch', () => {
+    const config = { url: 'https://github.com/o/r.git', branch: 'main' }
+    expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'push', payload: { ref: 'refs/heads/main' } })).toBe(true)
+  })
+
+  it('skips a push to a different branch so we do not waste a fetch', () => {
+    const config = { url: 'https://github.com/o/r.git', branch: 'main' }
+    expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'push', payload: { ref: 'refs/heads/feature-x' } })).toBe(false)
+  })
+
+  it('defaults the tracked branch to master when branch is unset', () => {
+    const config = { url: 'https://github.com/o/r.git' }
+    expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'push', payload: { ref: 'refs/heads/master' } })).toBe(true)
+    expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'push', payload: { ref: 'refs/heads/main' } })).toBe(false)
+  })
+
+  it('always dispatches ping so wire-up smoke tests succeed', () => {
+    const config = { url: 'https://github.com/o/r.git' }
+    expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'ping', payload: {} })).toBe(true)
+  })
+
+  it('skips events the git mirror does not consume', () => {
+    const config = { url: 'https://github.com/o/r.git' }
+    expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'issues', payload: {} })).toBe(false)
+    expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'pull_request', payload: {} })).toBe(false)
+  })
+})

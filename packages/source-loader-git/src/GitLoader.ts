@@ -66,7 +66,47 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoader({
       fetchedAt: new Date().toISOString() as never,
     }
   },
+  webhook: {
+    repoIdentity: (config) => {
+      const parsed = parseGithubUrl(interpolateEnv(config.url))
+      return parsed ? { provider: 'github', owner: parsed.owner, repo: parsed.repo } : undefined
+    },
+    // We track a single ref. `push` events on other refs are guaranteed
+    // no-ops for `git fetch && reset --hard origin/<branch>`; skip them
+    // so we don't waste a network round-trip. `ping` always dispatches
+    // so the user sees `lastObservedSha` populate on first wire-up.
+    // Other event types (issues, deploy, …) are unrelated to the code
+    // mirror and are skipped.
+    shouldDispatch: (config, delivery) => {
+      if (delivery.event === 'ping')
+        return true
+      if (delivery.event !== 'push')
+        return false
+      const ref = typeof delivery.payload === 'object' && delivery.payload !== null
+        ? (delivery.payload as { ref?: unknown }).ref
+        : undefined
+      if (typeof ref !== 'string')
+        return false
+      return ref === `refs/heads/${config.branch ?? 'master'}`
+    },
+  },
 })
+
+/**
+ * Pull `owner/repo` out of a GitHub clone URL. Returns undefined for
+ * non-github hosts so the receiver rejects the delivery instead of
+ * pretending it matches.
+ */
+function parseGithubUrl(url: string): { owner: string, repo: string } | undefined {
+  const trimmed = url.trim().replace(/\.git$/, '')
+  const httpsMatch = trimmed.match(/^https?:\/\/(?:[^@/]+@)?github\.com\/([^/]+)\/([^/]+)$/)
+  if (httpsMatch)
+    return { owner: httpsMatch[1]!, repo: httpsMatch[2]! }
+  const sshMatch = trimmed.match(/^git@github\.com:([^/]+)\/([^/]+)$/)
+  if (sshMatch)
+    return { owner: sshMatch[1]!, repo: sshMatch[2]! }
+  return undefined
+}
 
 /**
  * Parse `git diff --name-status <before>..<after>` into add / update /
