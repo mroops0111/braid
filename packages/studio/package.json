@@ -5,6 +5,11 @@
   "private": true,
   "description": "Web UI for Braid.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mroops0111/braid.git",
+    "directory": "packages/studio"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

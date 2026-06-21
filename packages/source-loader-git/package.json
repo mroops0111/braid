@@ -4,6 +4,11 @@
   "version": "0.1.0",
   "description": "Git source-loader plugin for Braid. Clone a repo and sync automatically.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mroops0111/braid.git",
+    "directory": "packages/source-loader-git"
+  },
   "exports": {
     ".": "./src/index.ts"
   },

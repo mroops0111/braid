@@ -5,6 +5,11 @@
   "private": true,
   "description": "Tauri desktop shell for Braid.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mroops0111/braid.git",
+    "directory": "packages/desktop"
+  },
   "scripts": {
     "dev": "tauri dev",
     "build": "echo 'skipped (run `pnpm --filter @braidhq/desktop bundle` for an installer)'",

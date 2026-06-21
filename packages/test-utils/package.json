@@ -5,6 +5,11 @@
   "private": true,
   "description": "Shared test fixtures for the Braid monorepo.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mroops0111/braid.git",
+    "directory": "packages/test-utils"
+  },
   "exports": {
     ".": "./src/index.ts"
   },

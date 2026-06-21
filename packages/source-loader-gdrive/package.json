@@ -4,6 +4,11 @@
   "version": "0.1.0",
   "description": "Google Drive source-loader plugin for Braid. Export docs from Google Drive, requires OAuth on first use.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mroops0111/braid.git",
+    "directory": "packages/source-loader-gdrive"
+  },
   "exports": {
     ".": "./src/index.ts"
   },
