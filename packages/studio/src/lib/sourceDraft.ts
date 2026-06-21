@@ -5,7 +5,11 @@ export interface SourceDraft {
   role: 'intent' | 'code'
   name: string
   description: string
-  loaderKind: '' | 'git' | 'gdrive' | 'github'
+  // `''` is the "manual / no auto-sync" choice. Non-empty values mirror a
+  // registered source-loader plugin's `kind` and may be any string the
+  // server reports via `GET /source-loaders` (not a closed union here, so a
+  // future plugin's kind survives type-checking without a Studio change).
+  loaderKind: string
   gitUrl: string
   gitBranch: string
   gdriveFolderId: string
@@ -23,6 +27,27 @@ export interface SourceDraft {
 
 export function nameToId(name: string): string {
   return name.replace(/[^a-z0-9-]/gi, '-').toLowerCase()
+}
+
+/**
+ * Loader kinds for which Studio ships a per-field config form. Other kinds
+ * that the server reports still appear in the dropdown, but the dialog
+ * shows a warning instead of a form and disables submit until the kind is
+ * configured by editing PRODUCT.md directly.
+ */
+export const STUDIO_KNOWN_LOADER_KINDS = new Set(['git', 'github', 'gdrive'])
+
+/**
+ * Human-friendly label for a loader kind. Falls back to the raw kind so a
+ * new plugin without a Studio-side label still renders sensibly in the
+ * dropdown.
+ */
+export function loaderKindLabel(kind: string): string {
+  if (kind === '')
+    return 'manual (no auto-sync)'
+  if (kind === 'github')
+    return 'github (issues)'
+  return kind
 }
 
 /**

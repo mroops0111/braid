@@ -7,14 +7,15 @@ import { useEffect, useState } from 'react'
 import { api, workspaceEventsUrl } from '@/lib/api'
 import { asMcpServerId, asOntologyId, asStorageKind } from '@/lib/brands'
 import { type ErrorCase, humaniseApiError } from '@/lib/errors'
-import { queryKeys } from '@/lib/queries'
-import { nameToId, rolePathSegment, toSourceDescriptor } from '@/lib/sourceDraft'
+import { queryKeys, useSourceLoaders } from '@/lib/queries'
+import { loaderKindLabel, nameToId, rolePathSegment, STUDIO_KNOWN_LOADER_KINDS, toSourceDescriptor } from '@/lib/sourceDraft'
 import { useGoogleOAuth } from '@/lib/useGoogleOAuth'
 import { MarkdownDescriptionField } from './MarkdownDescriptionField'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
+import { UnknownLoaderWarning } from './UnknownLoaderWarning'
 
 type StepKey = 'basics' | 'sources' | 'mcp' | 'advanced' | 'confirm' | 'progress'
 
@@ -384,15 +385,7 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
           onChange={e => onUpdate({ name: e.target.value })}
           className="flex-1"
         />
-        <select
-          value={draft.loaderKind}
-          onChange={e => onUpdate({ loaderKind: e.target.value as SourceDraft['loaderKind'] })}
-          className="rounded-md border border-border bg-background px-2 py-1 text-xs"
-        >
-          <option value="">manual</option>
-          <option value="git">git</option>
-          <option value="gdrive">gdrive</option>
-        </select>
+        <LoaderSelect value={draft.loaderKind} onChange={k => onUpdate({ loaderKind: k })} />
         <Button variant="ghost" size="icon" onClick={onRemove}>
           <Trash2 />
         </Button>
@@ -456,8 +449,48 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
             />
           </>
         )}
+        {draft.loaderKind !== '' && !STUDIO_KNOWN_LOADER_KINDS.has(draft.loaderKind) && (
+          <UnknownLoaderWarning
+            kind={draft.loaderKind}
+            hint={(
+              <>
+                This loader plugin is registered on the server but Studio does not ship a per-field config for it. Scaffold the workspace with this source set to
+                {' '}
+                <code className="rounded bg-muted px-1 font-mono">manual</code>
+                {' '}
+                and add the
+                {' '}
+                <code className="rounded bg-muted px-1 font-mono">{draft.loaderKind}</code>
+                {' '}
+                config to PRODUCT.md afterwards.
+              </>
+            )}
+          />
+        )}
       </div>
     </div>
+  )
+}
+
+/**
+ * Loader dropdown for the wizard. Reads the server's `/source-loaders` list
+ * so any newly-registered plugin appears here without a Studio code change.
+ * The `manual` option is always offered first because it is not backed by a
+ * plugin (it just tells the workspace "this source has no auto-sync").
+ */
+function LoaderSelect({ value, onChange }: { value: string, onChange: (kind: string) => void }) {
+  const { data } = useSourceLoaders()
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+    >
+      <option value="">{loaderKindLabel('')}</option>
+      {(data?.loaders ?? []).map(loader => (
+        <option key={loader.kind} value={loader.kind}>{loaderKindLabel(loader.kind)}</option>
+      ))}
+    </select>
   )
 }
 

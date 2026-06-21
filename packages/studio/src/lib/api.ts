@@ -12,6 +12,7 @@ import type {
   GraphDiffEnvelope,
   GraphEdge,
   GraphNode,
+  ListSourceLoadersResponse,
   McpServerConfig,
   ModelSnapshot,
   NodeId,
@@ -244,6 +245,10 @@ export const api = {
   listWorkspaces: () => fetchJson<ItemList<Workspace>>('/workspaces'),
   listWorkspacesAt: (remoteId: string) =>
     fetchJsonAt<ItemList<Workspace>>(remoteId, '/workspaces'),
+  // Server-level: what source-loader plugins are registered on this server.
+  // Studio uses this to populate its loader dropdown without hardcoding
+  // `git / github / gdrive`.
+  listSourceLoaders: () => fetchJson<ListSourceLoadersResponse>('/source-loaders'),
   getWorkspace: (workspaceId: string) =>
     fetchJson<Workspace>(`/workspaces/${workspaceId}`),
   scaffoldWorkspace: (name: string, manifest: ProductManifestDraft) =>
