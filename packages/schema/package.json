@@ -4,6 +4,11 @@
   "version": "0.1.0",
   "description": "Zod schemas and branded TypeScript types for the Braid domain. The wire-format contract for all Braid packages.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mroops0111/braid.git",
+    "directory": "packages/schema"
+  },
   "exports": {
     ".": "./src/index.ts"
   },

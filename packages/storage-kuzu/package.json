@@ -4,6 +4,11 @@
   "version": "0.1.0",
   "description": "Embedded Kuzu graph-storage plugin for Braid. Zero-infra single-binary alternative to Neo4j.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mroops0111/braid.git",
+    "directory": "packages/storage-kuzu"
+  },
   "exports": {
     ".": "./src/index.ts"
   },

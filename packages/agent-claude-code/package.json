@@ -4,6 +4,11 @@
   "version": "0.1.0",
   "description": "Claude Code agent plugin for Braid. Spawns the `claude` CLI to run SKILL.md prompts; the default LLM backend.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mroops0111/braid.git",
+    "directory": "packages/agent-claude-code"
+  },
   "exports": {
     ".": "./src/index.ts"
   },

@@ -4,6 +4,11 @@
   "version": "0.1.0",
   "description": "Domain entities, application services, and plugin port interfaces for Braid. The framework engine; no concrete adapters.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mroops0111/braid.git",
+    "directory": "packages/core"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./testing": "./src/testing.ts"
