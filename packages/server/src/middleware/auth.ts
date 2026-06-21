@@ -16,7 +16,10 @@ import { parseBoolEnv } from '../infrastructure/env.js'
  * data, so leaking it to anonymous callers is safe.
  */
 const PUBLIC_EXACT = new Set(['/openapi.json'])
-const PUBLIC_PREFIXES = ['/auth/', '/health']
+// `/webhooks/` is anonymous because GitHub (and similar providers) cannot
+// present a Bearer token; the request authenticates via the per-source HMAC
+// secret checked inside the handler.
+const PUBLIC_PREFIXES = ['/auth/', '/health', '/webhooks/']
 
 export interface AuthMiddlewareOptions {
   readonly sessionStore: SessionStore

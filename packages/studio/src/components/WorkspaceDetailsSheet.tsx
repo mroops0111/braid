@@ -1,6 +1,6 @@
 import type { McpServerConfig, SourceDescriptor, User, Workspace, WorkspaceMember, WorkspaceRole } from '@braidhq/schema'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Crown, Database, GitBranch, HardDrive, MoreHorizontal, Plug, RefreshCw, Trash2, UserMinus, UserRound, UserRoundCheck, UserRoundCog } from 'lucide-react'
+import { Crown, Database, GitBranch, HardDrive, MoreHorizontal, Plug, RefreshCw, Trash2, UserMinus, UserRound, UserRoundCheck, UserRoundCog, Webhook } from 'lucide-react'
 import { DropdownMenu as DropdownPrimitive } from 'radix-ui'
 import { useState } from 'react'
 import { api } from '@/lib/api'
@@ -264,7 +264,79 @@ function SourceRow({ workspaceId, source, onChange }: {
       {(sync.error || remove.error) && (
         <p className="mt-1 text-[10px] text-destructive">{humaniseApiError(sync.error ?? remove.error)}</p>
       )}
+      {source.kind === 'filesystem' && (source.loader?.kind === 'github' || source.loader?.kind === 'git') && (
+        <GithubWebhookPanel workspaceId={workspaceId} sourceId={source.id} />
+      )}
     </li>
+  )
+}
+
+function GithubWebhookPanel({ workspaceId, sourceId }: { workspaceId: string, sourceId: string }) {
+  const [open, setOpen] = useState(false)
+  const [revealedSecret, setRevealedSecret] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+  const status = useQuery({
+    queryKey: ['github-webhook-status', workspaceId, sourceId],
+    queryFn: () => api.getGithubWebhookStatus(workspaceId, sourceId),
+    enabled: open,
+  })
+  const rotate = useMutation({
+    mutationFn: () => api.rotateGithubWebhookSecret(workspaceId, sourceId),
+    onSuccess: (data) => {
+      // The rotate response is the ONLY moment the secret is visible to
+      // the UI; subsequent GETs report `hasSecret` without the value.
+      // The user must copy it now or generate another one.
+      setRevealedSecret(data.secret)
+      queryClient.invalidateQueries({ queryKey: ['github-webhook-status', workspaceId, sourceId] })
+    },
+  })
+
+  return (
+    <div className="mt-2 rounded border border-dashed border-border/60 p-2 text-[11px]">
+      <button
+        type="button"
+        className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
+        onClick={() => setOpen(o => !o)}
+      >
+        <Webhook className="size-3" />
+        {open ? 'Hide GitHub webhook' : 'GitHub webhook'}
+      </button>
+      {open && (
+        <div className="mt-2 space-y-2">
+          {status.isLoading && <p className="text-muted-foreground">Loading…</p>}
+          {status.error && <p className="text-destructive">{humaniseApiError(status.error)}</p>}
+          {status.data && (
+            <>
+              <div>
+                <Label className="text-[10px] uppercase text-muted-foreground">Payload URL</Label>
+                <code className="mt-1 block break-all rounded bg-muted px-1.5 py-1 font-mono text-[10px]">
+                  {status.data.url}
+                </code>
+              </div>
+              <p className="text-muted-foreground">
+                {status.data.hasSecret
+                  ? `Secret last rotated ${status.data.createdAt ? new Date(status.data.createdAt).toLocaleString() : 'unknown'}.`
+                  : 'No secret configured yet. Generate one below and paste it into GitHub.'}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" disabled={rotate.isPending} onClick={() => rotate.mutate()}>
+                  {rotate.isPending ? 'Rotating…' : status.data.hasSecret ? 'Rotate secret' : 'Generate secret'}
+                </Button>
+              </div>
+              {revealedSecret && (
+                <div className="rounded border border-amber-500/60 bg-amber-50 p-2 text-foreground dark:bg-amber-950/40">
+                  <p className="font-medium">Copy this secret into GitHub now. It is shown once.</p>
+                  <code className="mt-1 block break-all rounded bg-background px-1.5 py-1 font-mono text-[10px]">
+                    {revealedSecret}
+                  </code>
+                </div>
+              )}
+              {rotate.error && <p className="text-destructive">{humaniseApiError(rotate.error)}</p>}
+            </>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 
