@@ -161,6 +161,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       skillRunner: deps.skillRunner,
       workspaceRepository: deps.workspaceRepository,
       sourceUnitStateService: deps.sourceUnitStateService,
+      runRepository: deps.runRepository,
     }))
     workspaceScoped.route('/runs', createRunsRouter({
       runRepository: deps.runRepository,

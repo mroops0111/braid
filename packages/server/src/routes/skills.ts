@@ -1,11 +1,13 @@
 import type {
+  RunRepository,
   SkillRegistry,
   SkillRunner,
   SourceUnitStateService,
+  Workspace,
   WorkspaceRepository,
 } from '@braidhq/core'
-import type { SkillEvent, SkillRunId as SkillRunIdType, Workspace } from '@braidhq/schema'
-import { createLogger } from '@braidhq/core'
+import type { SkillEvent, SkillRunId as SkillRunIdType } from '@braidhq/schema'
+import { createLogger, ValidationError } from '@braidhq/core'
 import { SkillId as SkillIdSchema, SkillManifest, SkillRunId, SourceId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { extractBearerToken } from '../middleware/auth.js'
@@ -59,6 +61,13 @@ export interface SkillsRouterDeps {
    * the v0 scope of issue #31.
    */
   readonly sourceUnitStateService?: SourceUnitStateService
+  /**
+   * Needed to backfill terminal exit state for runs that finished
+   * between `skillRunner.start` returning and the observation hook
+   * subscribing. Without it the hook only listens for future events
+   * and races become silent leaks.
+   */
+  readonly runRepository?: RunRepository
 }
 
 const listSkillsRoute = createRoute({
@@ -153,6 +162,16 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
       ...(resumeSessionId ? { resumeSessionId } : {}),
       ...(callerToken ? { callerToken } : {}),
     }
+    // Reject malformed sourceUnit references early. Recording an
+    // observation against a sourceId that does not belong to a real
+    // intent source in the workspace would pollute the ledger and
+    // confuse downstream readers (Reactor, BatchService diff).
+    if (sourceUnit) {
+      const known = workspace.sources.find(s => s.id === sourceUnit.sourceId && s.role === 'intent')
+      if (!known)
+        throw new ValidationError(`sourceUnit.sourceId "${sourceUnit.sourceId}" does not name an intent source in workspace "${workspace.id}"`)
+    }
+
     const runId = await deps.skillRunner.start(workspace, skillId, args, options)
 
     // v0 of #31: only braid-extract participates in observation
@@ -160,9 +179,15 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
     // runs in the background so the route still returns 202 promptly;
     // failures (skill error, cancel, repository write) are logged but
     // do not bubble up to the client.
-    if (sourceUnit && skillId === BRAID_EXTRACT_SKILL_ID && deps.sourceUnitStateService) {
+    if (
+      sourceUnit
+      && skillId === BRAID_EXTRACT_SKILL_ID
+      && deps.sourceUnitStateService
+      && deps.runRepository
+    ) {
       void recordObservationOnSuccess({
         runner: deps.skillRunner,
+        runRepository: deps.runRepository,
         sourceUnitStateService: deps.sourceUnitStateService,
         workspace,
         runId,
@@ -178,8 +203,15 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
 
 const recordLogger = createLogger('skills.recordObservation')
 
+// Stop waiting after this many ms even if the runner never produces a
+// terminal event. Real braid-extract runs settle in seconds to minutes;
+// this is a backstop against orphan subscriptions on crashed runners or
+// upstream queues that quietly drop events.
+const OBSERVATION_TIMEOUT_MS = 60 * 60 * 1000
+
 interface RecordObservationParams {
   readonly runner: SkillRunner
+  readonly runRepository: RunRepository
   readonly sourceUnitStateService: SourceUnitStateService
   readonly workspace: Workspace
   readonly runId: SkillRunIdType
@@ -189,28 +221,27 @@ interface RecordObservationParams {
 /**
  * Subscribe to a run, wait for it to terminate, and record a
  * SourceUnitState observation iff the run finished cleanly (exit code
- * 0). Cancellation or any non-zero exit short-circuits so the previous
- * recorded state is preserved.
+ * 0). Cancellation, non-zero exit, error event, or timeout all leave
+ * the previously recorded state untouched.
+ *
+ * Two race-safety measures matter here. First, the subscription is
+ * attached before checking `isActive`: if the run finished between
+ * those two operations, the subscription would have missed the
+ * terminal event, so we backfill by reading the persisted RunRecord
+ * for its exit code. Second, the Promise has a hard timeout so a run
+ * that never emits a terminal event (orphaned subprocess, restarted
+ * server, queue corruption) does not leak the subscription closure
+ * indefinitely.
  */
 async function recordObservationOnSuccess(params: RecordObservationParams): Promise<void> {
-  const { runner, sourceUnitStateService, workspace, runId, sourceUnit } = params
+  const { runner, runRepository, sourceUnitStateService, workspace, runId, sourceUnit } = params
+  const workspaceId = workspace.id
   try {
-    const outcome = await new Promise<'success' | 'failure'>((resolve) => {
-      const sub = runner.subscribe(runId, (event: SkillEvent) => {
-        if (event.type === 'completed') {
-          sub.unsubscribe()
-          resolve(event.exitCode === 0 ? 'success' : 'failure')
-        }
-        else if (event.type === 'error') {
-          sub.unsubscribe()
-          resolve('failure')
-        }
-      })
-    })
+    const outcome = await waitForTerminalOutcome(runner, runRepository, workspace, runId)
     if (outcome !== 'success')
       return
     await sourceUnitStateService.recordObservation(
-      workspace.id,
+      workspaceId,
       sourceUnit.sourceId,
       sourceUnit.path,
       runId,
@@ -219,10 +250,70 @@ async function recordObservationOnSuccess(params: RecordObservationParams): Prom
   catch (err) {
     recordLogger.warn({
       runId,
-      workspaceId: workspace.id,
+      workspaceId,
       sourceId: sourceUnit.sourceId,
       path: sourceUnit.path,
-      err: (err as Error).message,
+      err: err instanceof Error ? err.message : String(err),
     }, 'failed to record observation after braid-extract run')
   }
+}
+
+type RunOutcome = 'success' | 'failure'
+
+async function waitForTerminalOutcome(
+  runner: SkillRunner,
+  runRepository: RunRepository,
+  workspace: Workspace,
+  runId: SkillRunIdType,
+): Promise<RunOutcome> {
+  return new Promise<RunOutcome>((resolve) => {
+    let settled = false
+    let timeout: ReturnType<typeof setTimeout> | undefined
+
+    // Subscribe first so future events from a still-active run reach
+    // us. If we checked `isActive` first and the run finished between
+    // the two operations we would silently miss the terminal event.
+    const sub = runner.subscribe(runId, (event: SkillEvent) => {
+      if (event.type === 'completed')
+        settle(event.exitCode === 0 ? 'success' : 'failure')
+      else if (event.type === 'error')
+        settle('failure')
+    })
+
+    function settle(outcome: RunOutcome): void {
+      if (settled)
+        return
+      settled = true
+      sub.unsubscribe()
+      if (timeout)
+        clearTimeout(timeout)
+      resolve(outcome)
+    }
+
+    // Backfill: if the run already finished, the subscription will
+    // never receive a terminal event because the runner clears its
+    // subscriber set when drain exits. Read the persisted RunRecord
+    // instead.
+    if (!runner.isActive(runId)) {
+      ;(async () => {
+        try {
+          const records = await runRepository.listRecords(workspace)
+          const record = records.find(r => r.runId === runId)
+          if (record?.exitCode !== undefined)
+            settle(record.exitCode === 0 ? 'success' : 'failure')
+          else
+            settle('failure')
+        }
+        catch {
+          settle('failure')
+        }
+      })()
+    }
+
+    // Timeout backstop. .unref() so Node can exit while the timer is
+    // pending — observation recording is best-effort, not a reason to
+    // hold the process open.
+    timeout = setTimeout(() => settle('failure'), OBSERVATION_TIMEOUT_MS)
+    timeout.unref?.()
+  })
 }

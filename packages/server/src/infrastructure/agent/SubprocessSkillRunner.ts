@@ -253,12 +253,17 @@ export class SubprocessSkillRunner implements SkillRunner {
       const queue = createAsyncQueue<SkillEvent>()
       const buffers = attachOutputBuffers(input.child, queue.push, () => this.now())
 
-      input.child.on('close', (code) => {
+      input.child.on('close', (code, signal) => {
         buffers.flush()
         queue.push(SkillEventSchema.parse({
           type: 'completed',
           runId: input.runId,
-          exitCode: code ?? 0,
+          // Signal-killed runs (cancel via SIGTERM, OS-level SIGKILL on
+          // process exhaustion, etc.) must be reported as non-zero so
+          // downstream consumers can distinguish them from successful
+          // exits. Without this, `code ?? 0` collapses every signal kill
+          // to 0 and cancellation looks identical to a clean run.
+          exitCode: code ?? (signal ? 128 : 0),
           at: this.now(),
         }))
         queue.end()

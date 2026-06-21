@@ -1,8 +1,11 @@
 import type { SkillRegistry } from '@braidhq/core'
-import type { AbsolutePath, SkillId, SourceId, SourceUnitSha, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, SkillId, SkillRunId, SourceId, SourceUnitSha, WorkspaceId } from '@braidhq/schema'
+import type { ChildProcess, SpawnOptions } from 'node:child_process'
+import { EventEmitter } from 'node:events'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { Readable } from 'node:stream'
 import { ClaudeCodeAgentBinding } from '@braidhq/agent-claude-code'
 import { describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app.js'
@@ -90,6 +93,31 @@ async function waitForRunSettled(deps: Awaited<ReturnType<typeof buildAppForExtr
   }
 }
 
+/**
+ * Fake child process that does nothing until killed. On `kill(signal)`
+ * it emits the `close` event with `(code=null, signal)` so the
+ * runner's exitCode mapping (line 256-264 of SubprocessSkillRunner)
+ * sees a signal-terminated exit.
+ */
+function createCancellableChild(): ChildProcess {
+  const stdout = new Readable({ read() {} })
+  const stderr = new Readable({ read() {} })
+  const fake = Object.assign(new EventEmitter(), {
+    stdout,
+    stderr,
+    kill: (signal?: NodeJS.Signals | number) => {
+      const sig = typeof signal === 'string' ? signal : 'SIGTERM'
+      setImmediate(() => {
+        stdout.push(null)
+        stderr.push(null)
+        fake.emit('close', null, sig)
+      })
+      return true
+    },
+  })
+  return fake as unknown as ChildProcess
+}
+
 describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
   it('records a SourceUnitState observation after a successful run', async () => {
     const { app, workspace, deps } = await buildAppForExtract({ exitCode: 0 })
@@ -144,6 +172,81 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
     const body = await response.json() as { runId: string }
     await waitForRunSettled(deps, body.runId)
     await new Promise(resolve => setTimeout(resolve, 50))
+    const states = await deps.sourceUnitStateService.listByWorkspace(workspace.id)
+    expect(states).toEqual([])
+  })
+
+  it('does not record when the run is cancelled mid-flight', async () => {
+    const rootPath = (await mkdtemp(join(tmpdir(), 'braid-skill-cancel-'))) as AbsolutePath
+    const workspace = makeWorkspace({
+      rootPath,
+      sources: [{
+        kind: 'filesystem',
+        id: SOURCE_ID,
+        role: 'intent',
+        name: 'issues',
+        path: rootPath,
+      }],
+    })
+    // A child that never finishes on its own; only the runner's cancel
+    // (kill SIGTERM) wakes it up. After the fix in SubprocessSkillRunner
+    // the close event carries the signal and exitCode 128, so the
+    // observation hook treats it as a failure and skips recordObservation.
+    const spawnFn = (() => createCancellableChild()) as unknown as (
+      command: string,
+      args: readonly string[],
+      options: SpawnOptions,
+    ) => ChildProcess
+    const skillRegistry = makeMultiSkillRegistry(['braid-extract'])
+    const skillRunner = new SubprocessSkillRunner({
+      skillRegistry,
+      agentBinding: new ClaudeCodeAgentBinding(DEFAULT_AGENT_BINDING),
+      apiUrl: 'http://localhost:4321',
+      runRepository: new FsRunRepository(),
+      spawn: spawnFn,
+    })
+    const deps = composeApp({
+      skillRegistry,
+      skillRunner,
+      sourceUnitDigest: { computeSha: async () => 'sha-fake' as SourceUnitSha },
+    })
+    await deps.workspaceRepository.save(workspace)
+    const app = createApp(deps)
+
+    const response = await app.request(`/workspaces/${workspace.id}/skills/braid-extract/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        args: UNIT_PATH,
+        sourceUnit: { sourceId: SOURCE_ID, path: UNIT_PATH },
+      }),
+    })
+
+    expect(response.status).toBe(202)
+    const body = await response.json() as { runId: string }
+    // Tick once so the runner finishes start() and our background
+    // subscription has a chance to attach before we cancel.
+    await new Promise(resolve => setTimeout(resolve, 10))
+    await deps.skillRunner!.cancel(body.runId as SkillRunId)
+    await waitForRunSettled(deps, body.runId)
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const states = await deps.sourceUnitStateService.listByWorkspace(workspace.id)
+    expect(states).toEqual([])
+  })
+
+  it('rejects sourceUnit whose sourceId does not name an intent source in the workspace', async () => {
+    const { app, workspace, deps } = await buildAppForExtract({ exitCode: 0 })
+
+    const response = await app.request(`/workspaces/${workspace.id}/skills/braid-extract/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        args: UNIT_PATH,
+        sourceUnit: { sourceId: 'no-such-source' as SourceId, path: UNIT_PATH },
+      }),
+    })
+
+    expect(response.status).toBe(400)
     const states = await deps.sourceUnitStateService.listByWorkspace(workspace.id)
     expect(states).toEqual([])
   })

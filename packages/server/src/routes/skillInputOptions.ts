@@ -154,12 +154,18 @@ async function resolveSourceIntent(
       const source = workspace.sources.find(s => s.id === item.sourceId)
       return source?.kind === 'filesystem' && source.loader?.kind === loaderKindFilter
     })
-    .map(item => ({
-      value: item.value,
-      label: item.label,
-      description: item.sourceName,
-      sourceId: SourceId.parse(item.sourceId),
-    }))
+    .map((item) => {
+      // Use safeParse: an invalid sourceId in a hand-edited PRODUCT.md
+      // should not 500 the whole dropdown. Drop the field on parse
+      // failure so the option still shows up without source tracking.
+      const parsed = SourceId.safeParse(item.sourceId)
+      return {
+        value: item.value,
+        label: item.label,
+        description: item.sourceName,
+        ...(parsed.success ? { sourceId: parsed.data } : {}),
+      }
+    })
 }
 
 async function resolveClarify(
