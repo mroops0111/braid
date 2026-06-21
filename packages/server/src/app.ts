@@ -160,6 +160,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       skillRegistry: deps.skillRegistry,
       skillRunner: deps.skillRunner,
       workspaceRepository: deps.workspaceRepository,
+      sourceUnitStateService: deps.sourceUnitStateService,
+      runRepository: deps.runRepository,
+      pluginRegistry: deps.pluginRegistry,
     }))
     workspaceScoped.route('/runs', createRunsRouter({
       runRepository: deps.runRepository,

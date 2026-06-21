@@ -1,5 +1,5 @@
-import type { SkillInputDescriptor, SkillInputDynamicOption } from '@braidhq/schema'
-import { useQuery } from '@tanstack/react-query'
+import type { SkillInputDescriptor, SkillInputDynamicOption, SourceId } from '@braidhq/schema'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send } from 'lucide-react'
 import { useState } from 'react'
 import { MultiSelectDropdown } from '@/components/MultiSelectDropdown'
@@ -9,17 +9,32 @@ import { api } from '@/lib/api'
 type PickInput = Extract<SkillInputDescriptor, { kind: 'pick' | 'multi-pick' }>
 type TextInput = Extract<SkillInputDescriptor, { kind: 'text' }>
 
+export interface SkillRunSpec {
+  readonly args: string
+  /**
+   * Set when the run's value originated from a `source-intent` picker.
+   * Plumbing it through lets the server record an observation against
+   * the unit on successful completion (issue #31). Other run kinds
+   * leave it undefined.
+   */
+  readonly sourceUnit?: {
+    readonly sourceId: SourceId
+    readonly path: string
+  }
+}
+
 interface ActionInputFormProps {
   workspaceId: string
   inputs: readonly SkillInputDescriptor[]
   disabled: boolean
   /**
-   * Submit handler. Receives one composed args string per run to fire.
-   * Single-value inputs yield a one-element array; a multi-pick with N
-   * selected values fans out to N elements so the parent can spawn N
-   * parallel skill runs sharing the same per-skill conversation key.
+   * Submit handler. Receives one run spec per run to fire. A single-value
+   * form yields a one-element array; a multi-pick with N selected values
+   * fans out to N elements so the parent can spawn N parallel skill runs
+   * sharing the same per-skill conversation key. When the input came
+   * from a `source-intent` picker the spec carries `sourceUnit`.
    */
-  onSubmit: (composedArgs: readonly string[]) => void
+  onSubmit: (runs: readonly SkillRunSpec[]) => void
   submitLabel?: string
 }
 
@@ -31,6 +46,7 @@ interface ActionInputFormProps {
  * `fallback` when the workspace has nothing matching.
  */
 export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submitLabel = 'Start' }: ActionInputFormProps) {
+  const queryClient = useQueryClient()
   const [scalarValues, setScalarValues] = useState<Record<string, string>>(
     () => Object.fromEntries(inputs.filter(i => i.kind !== 'multi-pick').map(input => [input.name, input.default ?? ''])),
   )
@@ -69,28 +85,48 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
     if (!canSubmit)
       return
     const multiPick = multiPickInputs[0]
-    // Helper to compose one args string from a value-source function.
     function compose(valueFor: (name: string) => string): string {
       return inputs
         .map(input => valueFor(input.name).trim())
         .filter(v => v.length > 0)
         .join(' ')
     }
+
+    function sourceUnitFor(input: PickInput | undefined, value: string) {
+      if (!input || input.provider.type !== 'source-intent' || !value)
+        return undefined
+      const filter = 'filter' in input.provider ? input.provider.filter : undefined
+      const cached = queryClient.getQueryData<{ items: SkillInputDynamicOption[] }>(
+        ['skill-input-options', workspaceId, input.provider.type, filter],
+      )
+      const option = cached?.items.find(item => item.value === value)
+      if (!option?.sourceId)
+        return undefined
+      return { sourceId: option.sourceId, path: value }
+    }
+
     if (!multiPick) {
-      onSubmit([compose(name => scalarValues[name] ?? '')])
+      const args = compose(name => scalarValues[name] ?? '')
+      const sourcePick = inputs.find(
+        (i): i is PickInput => i.kind === 'pick' && i.provider.type === 'source-intent',
+      )
+      const sourceUnit = sourcePick ? sourceUnitFor(sourcePick, scalarValues[sourcePick.name] ?? '') : undefined
+      onSubmit([{ args, ...(sourceUnit ? { sourceUnit } : {}) }])
       return
     }
     const selected = multiValues[multiPick.name] ?? []
     if (selected.length === 0) {
       // Optional multi-pick with nothing chosen → one run with the
       // remaining fields, mirroring "leave empty for full pass" intent.
-      onSubmit([compose(name => (name === multiPick.name ? '' : scalarValues[name] ?? ''))])
+      onSubmit([{ args: compose(name => (name === multiPick.name ? '' : scalarValues[name] ?? '')) }])
       return
     }
-    const batch = selected.map(value =>
-      compose(name => (name === multiPick.name ? value : scalarValues[name] ?? '')),
-    )
-    onSubmit(batch)
+    const runs = selected.map((value): SkillRunSpec => {
+      const args = compose(name => (name === multiPick.name ? value : scalarValues[name] ?? ''))
+      const sourceUnit = sourceUnitFor(multiPick, value)
+      return { args, ...(sourceUnit ? { sourceUnit } : {}) }
+    })
+    onSubmit(runs)
   }
 
   return (
