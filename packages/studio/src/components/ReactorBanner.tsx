@@ -1,57 +1,70 @@
-import { Loader2 } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { workspaceEventsUrl } from '@/lib/api'
+import { TopBanner } from './TopBanner'
 
 interface ReactorBannerProps {
   workspaceId: string | null
+  /** Surface activation hook; clicking the "Open Activity" link drops the user on the Activity page. */
+  onOpenActivity: () => void
 }
 
-interface ReactorPassState {
+interface ReactorPassProgress {
+  readonly passId: string
   readonly sourceId: string
   readonly totalUnits: number
-  /** Unix-ms when the pass started; used to render elapsed time. */
-  readonly dispatchedAt: number
+  readonly processed: number
 }
 
 /**
- * Top-of-app banner that surfaces the active reactor pass: which
- * source is being re-extracted and how many units are queued. Lifecycle
- * is driven entirely by the SSE event stream: `reactor.dispatched`
- * opens the banner, `reactor.completed` clears it, `reactor.throttled`
- * flashes a brief notice that the dispatch was skipped.
+ * Top-of-app banner surfacing the active reactor pass. Subscribes to
+ * the workspace SSE stream directly and tracks progress via the
+ * `reactor.unit.completed` events the reactor emits per unit. The
+ * detail-pane lives on the dedicated Activity surface; this banner is
+ * intentionally minimal so it does not crowd out the parallel batch /
+ * run banners that may stack on top during a busy session.
  *
- * The reactor itself runs per-unit dispatches sequentially via
- * `SkillRunner`, so every per-unit `run.started` / `run.completed`
- * event already flows through the existing `InFlightRunBanner`. This
- * banner sits above it and gives the user the "you are in the middle
- * of a reactor pass over N units" context that the per-run banner
- * cannot express on its own.
+ * Throttle events flash an amber notice that auto-dismisses after a
+ * few seconds — they would otherwise pile up across consecutive
+ * dropped deliveries.
  */
-export function ReactorBanner({ workspaceId }: ReactorBannerProps) {
-  const [pass, setPass] = useState<ReactorPassState | null>(null)
+export function ReactorBanner({ workspaceId, onOpenActivity }: ReactorBannerProps) {
+  const [pass, setPass] = useState<ReactorPassProgress | null>(null)
   const [throttled, setThrottled] = useState<{ sourceId: string, limit: number } | null>(null)
 
   useEffect(() => {
     if (!workspaceId)
       return
+    setPass(null)
+    setThrottled(null)
     const source = new EventSource(workspaceEventsUrl(workspaceId))
 
     source.addEventListener('reactor.dispatched', (raw) => {
       try {
         const event = JSON.parse((raw as MessageEvent).data) as {
+          passId: string
           sourceId: string
           totalUnits: number
-          at: string
         }
-        setPass({
-          sourceId: event.sourceId,
-          totalUnits: event.totalUnits,
-          dispatchedAt: Date.parse(event.at) || Date.now(),
-        })
+        setPass({ passId: event.passId, sourceId: event.sourceId, totalUnits: event.totalUnits, processed: 0 })
       }
       catch {
-        // Malformed event payload — ignore. The next dispatch will
-        // reset the banner cleanly.
+        // Malformed payload — ignore; next event resets cleanly.
+      }
+    })
+    source.addEventListener('reactor.unit.completed', (raw) => {
+      try {
+        const event = JSON.parse((raw as MessageEvent).data) as {
+          passId: string
+          processed: number
+          total: number
+        }
+        setPass(current => (current?.passId === event.passId
+          ? { ...current, processed: event.processed, totalUnits: event.total }
+          : current))
+      }
+      catch {
+        // Same as above.
       }
     })
     source.addEventListener('reactor.completed', () => {
@@ -75,8 +88,6 @@ export function ReactorBanner({ workspaceId }: ReactorBannerProps) {
     }
   }, [workspaceId])
 
-  // Auto-clear the throttle notice after a few seconds so it does not
-  // pile up across consecutive throttled deliveries.
   useEffect(() => {
     if (!throttled)
       return
@@ -84,62 +95,57 @@ export function ReactorBanner({ workspaceId }: ReactorBannerProps) {
     return () => clearTimeout(id)
   }, [throttled])
 
-  const elapsed = useElapsed(pass?.dispatchedAt)
-
   if (!workspaceId || (!pass && !throttled))
     return null
 
   return (
     <>
       {pass && (
-        <div className="flex items-center gap-3 border-b border-emerald-500/30 bg-emerald-500/5 px-4 py-1.5 text-xs">
-          <Loader2 className="size-3 animate-spin text-emerald-600 dark:text-emerald-400" />
-          <span className="font-medium text-foreground">Reactor</span>
-          <span className="text-muted-foreground">
-            processing
-            {' '}
-            {pass.totalUnits}
-            {' '}
-            unit
-            {pass.totalUnits === 1 ? '' : 's'}
-            {' '}
-            from
-            {' '}
-            <span className="font-mono">{pass.sourceId}</span>
-            {' · '}
-            {elapsed}
-            s elapsed
-          </span>
-        </div>
+        <TopBanner
+          tone="reactor"
+          label="Reactor"
+          detail={(
+            <>
+              processing
+              {' '}
+              <span className="font-mono">{pass.sourceId}</span>
+              {' · '}
+              {pass.processed}
+              /
+              {pass.totalUnits}
+              {' units'}
+            </>
+          )}
+          actions={(
+            <button
+              type="button"
+              onClick={onOpenActivity}
+              className="text-[11px] text-muted-foreground hover:text-foreground"
+            >
+              Open Activity →
+            </button>
+          )}
+        />
       )}
       {throttled && !pass && (
-        <div className="flex items-center gap-3 border-b border-amber-500/30 bg-amber-500/5 px-4 py-1.5 text-xs">
-          <span className="font-medium text-foreground">Reactor</span>
-          <span className="text-muted-foreground">
-            throttled (cap
-            {' '}
-            {throttled.limit}
-            /h reached) — sync on
-            {' '}
-            <span className="font-mono">{throttled.sourceId}</span>
-            {' '}
-            skipped; next dispatch unblocks once the rolling window slides.
-          </span>
-        </div>
+        <TopBanner
+          tone="warning"
+          label="Reactor"
+          icon={AlertTriangle}
+          detail={(
+            <>
+              throttled (cap
+              {' '}
+              {throttled.limit}
+              /h reached) — sync on
+              {' '}
+              <span className="font-mono">{throttled.sourceId}</span>
+              {' '}
+              skipped; next dispatch unblocks once the rolling window slides.
+            </>
+          )}
+        />
       )}
     </>
   )
-}
-
-function useElapsed(dispatchedAt: number | undefined): number {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    if (!dispatchedAt)
-      return
-    const id = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(id)
-  }, [dispatchedAt])
-  if (!dispatchedAt)
-    return 0
-  return Math.max(0, Math.floor((now - dispatchedAt) / 1000))
 }

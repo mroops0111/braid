@@ -19,6 +19,8 @@ import type {
   OntologyResponse,
   ProductManifestDraft,
   Proposal,
+  ReactorPass,
+  ReactorPassId,
   RunRecord,
   SessionMetadata,
   SkillInputOptionsResponse,
@@ -321,6 +323,11 @@ export const api = {
     const qs = sourceId ? `?sourceId=${encodeURIComponent(sourceId)}` : ''
     return fetchJson<{ items: SourceUnitState[] }>(`/workspaces/${workspaceId}/source-unit-states${qs}`)
   },
+
+  listReactorPasses: (workspaceId: string) =>
+    fetchJson<{ items: ReactorPass[] }>(`/workspaces/${workspaceId}/reactor-passes`),
+  getReactorPass: (workspaceId: string, passId: ReactorPassId) =>
+    fetchJson<ReactorPass>(`/workspaces/${workspaceId}/reactor-passes/${passId}`),
 
   listSkills: (workspaceId: string) =>
     fetchJson<ItemList<SkillManifest>>(`/workspaces/${workspaceId}/skills`),

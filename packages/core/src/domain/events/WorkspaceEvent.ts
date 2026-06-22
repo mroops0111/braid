@@ -5,6 +5,8 @@ import type {
   CommitSha,
   PlanUnitId,
   ProposalId,
+  ReactorPassId,
+  SkillId,
   SkillRunId,
   SourceId,
   WorkspaceId,
@@ -47,6 +49,10 @@ export type WorkspaceEvent =
   | ReactorDispatchedEvent
   | ReactorCompletedEvent
   | ReactorThrottledEvent
+  | ReactorUnitStartedEvent
+  | ReactorUnitCompletedEvent
+  | ReactorCheckpointStartedEvent
+  | ReactorCheckpointCompletedEvent
 
 export interface RunStartedEvent {
   readonly type: 'run.started'
@@ -225,11 +231,13 @@ export interface BatchCheckpointFailedEvent {
  * Reactor finished partitioning a synced source and is about to start
  * dispatching per-unit skill runs sequentially. `totalUnits` is the
  * count of units in `new ∪ changed`; subscribers (Studio's banner) use
- * it to render progress against a known total.
+ * it to render progress against a known total. `passId` keys back into
+ * the `ReactorPass` record for the rich Activity-page view.
  */
 export interface ReactorDispatchedEvent {
   readonly type: 'reactor.dispatched'
   readonly workspaceId: WorkspaceId
+  readonly passId: ReactorPassId
   readonly sourceId: SourceId
   readonly totalUnits: number
   readonly at: string
@@ -237,13 +245,14 @@ export interface ReactorDispatchedEvent {
 
 /**
  * Reactor finished all per-unit dispatches plus the checkpoint pass for
- * a given source. The full reactor pass for that `source.synced` is
- * over; Studio clears the banner. `checkpointRan` distinguishes the
- * "0 changed units, no checkpoint needed" case from the normal flow.
+ * a given source. The full reactor pass is over; Studio clears the
+ * banner. `checkpointRan` distinguishes the "0 changed units, no
+ * checkpoint needed" case from the normal flow.
  */
 export interface ReactorCompletedEvent {
   readonly type: 'reactor.completed'
   readonly workspaceId: WorkspaceId
+  readonly passId: ReactorPassId
   readonly sourceId: SourceId
   readonly totalUnits: number
   readonly checkpointRan: boolean
@@ -259,8 +268,69 @@ export interface ReactorCompletedEvent {
 export interface ReactorThrottledEvent {
   readonly type: 'reactor.throttled'
   readonly workspaceId: WorkspaceId
+  readonly passId: ReactorPassId
   readonly sourceId: SourceId
   readonly limit: number
+  readonly at: string
+}
+
+/**
+ * Per-unit start signal. Studio's Activity page uses it to advance the
+ * highlighted row in the running pass's timeline; the banner uses
+ * `processed`/`total` to render the "3/15" progress text.
+ */
+export interface ReactorUnitStartedEvent {
+  readonly type: 'reactor.unit.started'
+  readonly workspaceId: WorkspaceId
+  readonly passId: ReactorPassId
+  readonly unitPath: string
+  readonly skillRunId: SkillRunId
+  readonly processed: number
+  readonly total: number
+  readonly at: string
+}
+
+/**
+ * Per-unit completion signal. `status` carries whether the dispatched
+ * skill exited cleanly. A failure does NOT abort the loop — the next
+ * unit still starts.
+ */
+export interface ReactorUnitCompletedEvent {
+  readonly type: 'reactor.unit.completed'
+  readonly workspaceId: WorkspaceId
+  readonly passId: ReactorPassId
+  readonly unitPath: string
+  readonly status: 'success' | 'failure'
+  readonly processed: number
+  readonly total: number
+  readonly at: string
+}
+
+/**
+ * Checkpoint skill is about to start (only fires when at least one
+ * per-unit dispatch succeeded AND the ontology declares a checkpoint
+ * binding).
+ */
+export interface ReactorCheckpointStartedEvent {
+  readonly type: 'reactor.checkpoint.started'
+  readonly workspaceId: WorkspaceId
+  readonly passId: ReactorPassId
+  readonly skillId: SkillId
+  readonly skillRunId: SkillRunId
+  readonly at: string
+}
+
+/**
+ * Checkpoint skill finished. `status === 'skipped'` means the pass
+ * decided not to run the checkpoint (no successful per-unit, or no
+ * checkpoint binding) — kept here so the Activity timeline always has
+ * a terminal entry for the checkpoint row.
+ */
+export interface ReactorCheckpointCompletedEvent {
+  readonly type: 'reactor.checkpoint.completed'
+  readonly workspaceId: WorkspaceId
+  readonly passId: ReactorPassId
+  readonly status: 'success' | 'failure' | 'skipped'
   readonly at: string
 }
 

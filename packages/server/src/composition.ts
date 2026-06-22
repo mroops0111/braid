@@ -7,6 +7,7 @@ import type {
   IntentLister,
   ModelRepository,
   ProposalRepository,
+  ReactorPassRepository,
   RunRepository,
   SkillRegistry,
   SkillRunner,
@@ -46,6 +47,7 @@ import {
   InMemoryDecisionRepository,
   InMemoryModelRepository,
   InMemoryProposalRepository,
+  InMemoryReactorPassRepository,
   InMemorySourceUnitStateRepository,
   InMemoryWorkspaceEventBus,
   InMemoryWorkspaceRepository,
@@ -65,6 +67,12 @@ export interface AppDependencies {
    * exercise it. `composeFsApp` is the production wiring path.
    */
   reactorService?: ReactorService
+  /**
+   * Persistence of `ReactorPass` records. Always wired (in-memory by
+   * default, fs-backed via `composeFsApp`) so the REST + Studio
+   * surfaces can render an empty list even when no pass has run yet.
+   */
+  reactorPassRepository: ReactorPassRepository
   sourceUnitStateService: SourceUnitStateService
   /**
    * Filesystem walk over a workspace's intent sources. Threaded into
@@ -182,6 +190,13 @@ export interface ComposeOptions {
    */
   sourceUnitStateRepository?: SourceUnitStateRepository
   /**
+   * Persistence for `ReactorPass`. Defaults to an in-memory impl so
+   * unit tests of unrelated services keep working without wiring;
+   * `composeFsApp` swaps in the fs-backed repo so passes survive
+   * restart and the Studio Activity page can render history.
+   */
+  reactorPassRepository?: ReactorPassRepository
+  /**
    * Content fingerprinter for source units. Required for batch / reactor
    * / manual extract to record observations. Without it the
    * `SourceUnitStateService` falls back to a no-op stub digest that
@@ -275,6 +290,8 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   // construct it whenever those are present; the service stays inert
   // until something calls `start(workspaceId)`. composeFsApp drives
   // start on workspaces whose ProductManifest.reactor.enabled is true.
+  const reactorPassRepository: ReactorPassRepository
+    = options.reactorPassRepository ?? new InMemoryReactorPassRepository()
   const reactorService = options.skillRunner && options.intentLister && sourceUnitDigest && !(sourceUnitDigest instanceof FailingSourceUnitDigest)
     ? new ReactorService({
       eventBus,
@@ -284,6 +301,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
       sourceUnitStateService,
       intentLister: options.intentLister,
       digest: sourceUnitDigest,
+      reactorPassRepository,
       workspaceLock,
       clock,
     })
@@ -295,6 +313,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     ...(historyService ? { historyService } : {}),
     ...(batchService ? { batchService } : {}),
     ...(reactorService ? { reactorService } : {}),
+    reactorPassRepository,
     ...(options.intentLister ? { intentLister: options.intentLister } : {}),
     ...(options.sourceUnitDigest ? { sourceUnitDigest: options.sourceUnitDigest } : {}),
     ...(options.bootstrap ? { bootstrap: options.bootstrap } : {}),

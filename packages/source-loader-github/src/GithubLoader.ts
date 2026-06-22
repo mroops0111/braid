@@ -19,8 +19,12 @@ export const GithubLoaderConfig = z.object({
   labels: z.array(z.string().min(1)).optional(),
   includeComments: z.boolean().default(true),
   /**
-   * GitHub's REST treats PRs as a subtype of issues. Default `false` so a
-   * source declared as "issues" doesn't silently pick up PR threads too.
+   * Deprecated. Originally controlled whether PR-shaped entries leaked
+   * into the issue list. Now hard-wired to `false`: the loader's
+   * "realized intent" semantics (see below) treat PRs themselves as
+   * the code-side artefact, not as intent. Setting this to `true` is
+   * silently ignored after a one-time warn so existing configs do not
+   * break — drop the field at your next config edit.
    */
   includePullRequests: z.boolean().default(false),
   /**
@@ -32,6 +36,8 @@ export const GithubLoaderConfig = z.object({
   token: z.string().default('${GH_TOKEN}'),
   /** REST base URL. Override for GitHub Enterprise. */
   apiBaseUrl: z.string().default('https://api.github.com'),
+  /** GraphQL endpoint. Defaults to `${apiBaseUrl}/graphql`. */
+  graphqlUrl: z.string().optional(),
 })
 export type GithubLoaderConfig = z.infer<typeof GithubLoaderConfig>
 
@@ -76,6 +82,15 @@ const CURSOR_FILENAME = '.braid-github-cursor.json'
  * + body + `## Comments` section. Untouched issues stay byte-identical
  * across `sync` so downstream sha-based fingerprints don't churn.
  *
+ * **Realized-intent filter (always on)**: only issues that have at least
+ * one merged pull request in their `closedByPullRequestsReferences`
+ * association are written to disk. This implements Braid's stated
+ * "intent + code convergence" contract — pure speculative intent (open
+ * issues with no PR yet, abandoned issues, docs-only closes) does not
+ * pollute the ledger, and the same workspace re-ingest is idempotent.
+ * The check uses GitHub's GraphQL API; setups behind an enterprise
+ * proxy that only exposes REST can override `graphqlUrl`.
+ *
  * Auth: pass the token via `${GH_TOKEN}` (or any other env var) in
  * `config.token`. Tokens are never persisted on disk; only the rendered
  * markdown lands in `destination`.
@@ -89,14 +104,16 @@ export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlu
     ingest: async (config, destination) => {
       const issuesDir = join(destination, 'issues')
       await mkdir(issuesDir, { recursive: true })
+      warnDeprecated(config)
       const headers = buildHeaders(config)
-      const issues = await fetchIssues(fetchFn, config, headers, undefined)
+      const rawIssues = await fetchIssues(fetchFn, config, headers, undefined)
+      const issues = await filterAndAnnotateRealizedIntent(fetchFn, config, headers, rawIssues)
       let mostRecent = ''
-      for (const issue of issues) {
+      for (const { issue, mergedPRs } of issues) {
         if (issue.updated_at > mostRecent)
           mostRecent = issue.updated_at
         const comments = await fetchCommentsIfNeeded(fetchFn, config, headers, issue)
-        const markdown = renderIssueMarkdown(config, issue, comments)
+        const markdown = renderIssueMarkdown(config, issue, comments, mergedPRs)
         const path = join(issuesDir, `${issue.number}.md`)
         await writeIfChanged(path, markdown)
       }
@@ -104,27 +121,34 @@ export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlu
         await writeCursor(destination, { owner: config.owner, repo: config.repo, since: mostRecent })
       return {
         localPath: destination,
-        metadata: { owner: config.owner, repo: config.repo, issueCount: issues.length },
+        metadata: {
+          owner: config.owner,
+          repo: config.repo,
+          issueCount: issues.length,
+          fetchedRaw: rawIssues.length,
+        },
         fetchedAt: new Date().toISOString() as Timestamp,
       }
     },
     sync: async (config, destination) => {
       const issuesDir = join(destination, 'issues')
       await mkdir(issuesDir, { recursive: true })
+      warnDeprecated(config)
       const headers = buildHeaders(config)
       const cursor = await readCursor(destination)
       const sinceParam = cursor?.owner === config.owner && cursor.repo === config.repo
         ? cursor.since
         : undefined
-      const issues = await fetchIssues(fetchFn, config, headers, sinceParam)
+      const rawIssues = await fetchIssues(fetchFn, config, headers, sinceParam)
+      const issues = await filterAndAnnotateRealizedIntent(fetchFn, config, headers, rawIssues)
       let added = 0
       let updated = 0
       let mostRecent = cursor?.since ?? ''
-      for (const issue of issues) {
+      for (const { issue, mergedPRs } of issues) {
         if (issue.updated_at > mostRecent)
           mostRecent = issue.updated_at
         const comments = await fetchCommentsIfNeeded(fetchFn, config, headers, issue)
-        const markdown = renderIssueMarkdown(config, issue, comments)
+        const markdown = renderIssueMarkdown(config, issue, comments, mergedPRs)
         const path = join(issuesDir, `${issue.number}.md`)
         const result = await writeIfChanged(path, markdown)
         if (result === 'added')
@@ -139,7 +163,12 @@ export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlu
         added,
         updated,
         removed: 0,
-        metadata: { owner: config.owner, repo: config.repo, since: sinceParam ?? null },
+        metadata: {
+          owner: config.owner,
+          repo: config.repo,
+          since: sinceParam ?? null,
+          fetchedRaw: rawIssues.length,
+        },
         fetchedAt: new Date().toISOString() as Timestamp,
       }
     },
@@ -194,13 +223,136 @@ async function fetchIssues(
     }
     const page = (await response.json()) as RawIssue[]
     for (const issue of page) {
-      if (!config.includePullRequests && issue.pull_request !== undefined)
+      // PR-shaped entries are the code-side artefact (their merged
+      // state is what gates issue inclusion in the realized-intent
+      // filter); they never become intent units themselves.
+      if (issue.pull_request !== undefined)
         continue
       out.push(issue)
     }
     url = parseNextLink(response.headers.get('link')) ?? ''
   }
   return out
+}
+
+/**
+ * Per-issue snapshot of merged PRs that closed it. Empty list means the
+ * issue is filtered out by the realized-intent gate; a non-empty list
+ * means the issue both passes the gate AND carries provenance bundles
+ * the markdown frontmatter ships to readers.
+ */
+interface MergedPRRef {
+  readonly number: number
+  readonly mergeCommit: string | null
+}
+
+interface RealizedIntentIssue {
+  readonly issue: RawIssue
+  readonly mergedPRs: readonly MergedPRRef[]
+}
+
+/**
+ * Apply the "realized intent" filter: keep only issues that have at
+ * least one merged PR in their `closedByPullRequestsReferences`
+ * association, and annotate each surviving issue with the merged-PR
+ * refs so the markdown frontmatter can carry the provenance.
+ *
+ * Implementation note: GitHub REST does not expose closed-by-PR
+ * directly (only `commit_id` on closed events, which is set for
+ * PR merges but also for plain `git commit --close ...` references).
+ * GraphQL's `closedByPullRequestsReferences` is the canonical source.
+ * One round-trip per issue keeps the code simple; batching with
+ * aliased subqueries is a future optimisation if rate limits bite.
+ */
+async function filterAndAnnotateRealizedIntent(
+  fetchFn: FetchFn,
+  config: GithubLoaderConfig,
+  headers: Record<string, string>,
+  issues: readonly RawIssue[],
+): Promise<readonly RealizedIntentIssue[]> {
+  const out: RealizedIntentIssue[] = []
+  for (const issue of issues) {
+    // PRs (which REST returns alongside issues) are the code-side
+    // artefact, not the intent. Always skip them irrespective of the
+    // deprecated `includePullRequests` knob.
+    if (issue.pull_request !== undefined)
+      continue
+    const mergedPRs = await fetchMergedPRsClosingIssue(fetchFn, config, headers, issue.number)
+    if (mergedPRs.length === 0)
+      continue
+    out.push({ issue, mergedPRs })
+  }
+  return out
+}
+
+interface ClosingPRNode {
+  number: number
+  merged: boolean
+  mergeCommit: { oid: string } | null
+}
+
+interface ClosedByQueryResponse {
+  data?: {
+    repository?: {
+      issue?: {
+        closedByPullRequestsReferences?: { nodes: ClosingPRNode[] }
+      }
+    }
+  }
+  errors?: Array<{ message: string }>
+}
+
+async function fetchMergedPRsClosingIssue(
+  fetchFn: FetchFn,
+  config: GithubLoaderConfig,
+  headers: Record<string, string>,
+  issueNumber: number,
+): Promise<readonly MergedPRRef[]> {
+  const query = `query($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $number) {
+      closedByPullRequestsReferences(first: 50, includeClosedPrs: true) {
+        nodes {
+          number
+          merged
+          mergeCommit { oid }
+        }
+      }
+    }
+  }
+}`
+  const url = config.graphqlUrl ?? `${config.apiBaseUrl}/graphql`
+  const response = await fetchFn(url, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query,
+      variables: { owner: config.owner, repo: config.repo, number: issueNumber },
+    }),
+  })
+  if (!response.ok) {
+    const body = await response.text().catch(() => '')
+    throw new Error(`githubLoader: GraphQL POST failed (${response.status}) for issue ${issueNumber}: ${body.slice(0, 200)}`)
+  }
+  const payload = await response.json() as ClosedByQueryResponse
+  if (payload.errors && payload.errors.length > 0)
+    throw new Error(`githubLoader: GraphQL errors for issue ${issueNumber}: ${payload.errors.map(e => e.message).join('; ')}`)
+  const nodes = payload.data?.repository?.issue?.closedByPullRequestsReferences?.nodes ?? []
+  return nodes
+    .filter(n => n.merged === true)
+    .map(n => ({ number: n.number, mergeCommit: n.mergeCommit?.oid ?? null }))
+}
+
+let warnedDeprecatedIncludePullRequests = false
+function warnDeprecated(config: GithubLoaderConfig): void {
+  if (config.includePullRequests && !warnedDeprecatedIncludePullRequests) {
+    warnedDeprecatedIncludePullRequests = true
+
+    console.warn(
+      'githubLoader: `includePullRequests` is deprecated and now always treated as false. '
+      + 'The realized-intent filter excludes PR-shaped entries; remove the flag from PRODUCT.md.',
+    )
+  }
 }
 
 async function fetchCommentsIfNeeded(
@@ -233,6 +385,7 @@ function renderIssueMarkdown(
   config: GithubLoaderConfig,
   issue: RawIssue,
   comments: readonly RawComment[],
+  mergedPRs: readonly MergedPRRef[],
 ): string {
   const labels = (issue.labels ?? [])
     .map(l => typeof l === 'string' ? l : l.name)
@@ -247,6 +400,10 @@ function renderIssueMarkdown(
     createdAt: issue.created_at,
     updatedAt: issue.updated_at,
     url: issue.html_url,
+    // The merged PRs that ship the work this issue tracks. Drives the
+    // "realized intent" semantics: an issue only lands here when at
+    // least one entry exists.
+    closedByMergedPRs: mergedPRs.map(p => ({ number: p.number, mergeCommit: p.mergeCommit })),
   }
   const yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd()
   const body = (issue.body ?? '').trimEnd()

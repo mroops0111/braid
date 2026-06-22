@@ -20,6 +20,7 @@ import {
   WorkspaceService,
 } from '../../src/index.js'
 import {
+  InMemoryReactorPassRepository,
   InMemorySourceUnitStateRepository,
   InMemoryWorkspaceEventBus,
   InMemoryWorkspaceRepository,
@@ -174,6 +175,7 @@ async function setup(opts: {
     await workspaceRepo.save(updated)
   }
 
+  const reactorPassRepository = new InMemoryReactorPassRepository()
   const reactor = new ReactorService({
     eventBus,
     workspaceService,
@@ -182,6 +184,7 @@ async function setup(opts: {
     sourceUnitStateService,
     intentLister,
     digest,
+    reactorPassRepository,
     workspaceLock: new PerWorkspaceLock(),
     clock,
   })
@@ -196,6 +199,7 @@ async function setup(opts: {
     digest,
     captured,
     sourceUnitStateService,
+    reactorPassRepository,
     setUnits,
   }
 }
@@ -228,10 +232,19 @@ describe('ReactorService', () => {
     const events = captured.filter(e => e.type.startsWith('reactor.'))
     expect(events.map(e => e.type)).toEqual([
       'reactor.dispatched',
+      'reactor.unit.started',
+      'reactor.unit.completed',
+      'reactor.unit.started',
+      'reactor.unit.completed',
+      'reactor.unit.started',
+      'reactor.unit.completed',
+      'reactor.checkpoint.started',
+      'reactor.checkpoint.completed',
       'reactor.completed',
     ])
-    expect((events[1] as { totalUnits: number, checkpointRan: boolean }).totalUnits).toBe(3)
-    expect((events[1] as { checkpointRan: boolean }).checkpointRan).toBe(true)
+    const completed = events.find(e => e.type === 'reactor.completed') as { totalUnits: number, checkpointRan: boolean }
+    expect(completed.totalUnits).toBe(3)
+    expect(completed.checkpointRan).toBe(true)
   })
 
   it('skips checkpoint when no per-unit succeeded', async () => {
@@ -335,5 +348,71 @@ describe('ReactorService', () => {
     emitSync(eventBus, workspace.id, 'issues')
     await tick(50)
     expect(runner.startCalls).toHaveLength(0)
+  })
+
+  it('persists a ReactorPass record with units in terminal status after a normal pass', async () => {
+    const { workspace, eventBus, reactorPassRepository, captured } = await setup({ hasCheckpoint: true })
+    emitSync(eventBus, workspace.id, 'issues')
+    await tick(150)
+    const passes = await reactorPassRepository.listByWorkspace(workspace.id)
+    expect(passes).toHaveLength(1)
+    const pass = passes[0]!
+    expect(pass.status).toBe('completed')
+    expect(pass.units).toHaveLength(3)
+    expect(pass.units.every(u => u.status === 'success')).toBe(true)
+    expect(pass.checkpoint?.status).toBe('success')
+    // Every emitted reactor.* event refers to the same passId.
+    const reactorEvents = captured.filter(e => e.type.startsWith('reactor.'))
+    expect(reactorEvents.every((e) => {
+      const eventWithPass = e as { passId?: string }
+      return eventWithPass.passId === pass.id
+    })).toBe(true)
+  })
+
+  it('emits reactor.unit.started + reactor.unit.completed for every dispatched unit, in order', async () => {
+    const { workspace, eventBus, captured } = await setup({ hasCheckpoint: true })
+    emitSync(eventBus, workspace.id, 'issues')
+    await tick(200)
+    const unitEvents = captured.filter(e => e.type === 'reactor.unit.started' || e.type === 'reactor.unit.completed')
+    expect(unitEvents.map(e => e.type)).toEqual([
+      'reactor.unit.started',
+      'reactor.unit.completed',
+      'reactor.unit.started',
+      'reactor.unit.completed',
+      'reactor.unit.started',
+      'reactor.unit.completed',
+    ])
+    const startedTotals = unitEvents.filter(e => e.type === 'reactor.unit.started').map(e => (e as { total: number }).total)
+    const completedProcessed = unitEvents.filter(e => e.type === 'reactor.unit.completed').map(e => (e as { processed: number }).processed)
+    expect(startedTotals).toEqual([3, 3, 3])
+    expect(completedProcessed).toEqual([1, 2, 3])
+  })
+
+  it('emits reactor.checkpoint.completed with status="skipped" when no per-unit succeeded but the binding exists', async () => {
+    const { workspace, eventBus, skillRunner, captured } = await setup({ hasCheckpoint: true })
+    skillRunner.exitCodes = [1, 1, 1]
+    emitSync(eventBus, workspace.id, 'issues')
+    await tick(200)
+    const checkpointEvents = captured.filter(e => e.type === 'reactor.checkpoint.started' || e.type === 'reactor.checkpoint.completed')
+    expect(checkpointEvents).toHaveLength(1)
+    expect((checkpointEvents[0] as { type: string, status: string }).type).toBe('reactor.checkpoint.completed')
+    expect((checkpointEvents[0] as { status: string }).status).toBe('skipped')
+  })
+
+  it('persists a throttled pass with status=throttled so the Activity page can surface it', async () => {
+    const { workspace, eventBus, digest, reactorPassRepository } = await setup({ maxRunsPerHour: 1 })
+    const shas: SourceUnitSha[] = [
+      ('a'.repeat(64)) as SourceUnitSha,
+      ('b'.repeat(64)) as SourceUnitSha,
+    ]
+    for (let i = 0; i < 2; i++) {
+      digest.defaultSha = shas[i]!
+      emitSync(eventBus, workspace.id, 'issues')
+      await tick(150)
+    }
+    const passes = await reactorPassRepository.listByWorkspace(workspace.id)
+    const throttled = passes.filter(p => p.status === 'throttled')
+    expect(throttled).toHaveLength(1)
+    expect(throttled[0]!.throttledReason).toBe('maxRunsPerHour=1')
   })
 })

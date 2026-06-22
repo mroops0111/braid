@@ -33,6 +33,7 @@ import { FsClarifyTicketRepository } from './infrastructure/fs/FsClarifyTicketRe
 import { FsDecisionRepository } from './infrastructure/fs/FsDecisionRepository.js'
 import { FsGraphSerializer } from './infrastructure/fs/FsGraphSerializer.js'
 import { FsProposalRepository } from './infrastructure/fs/FsProposalRepository.js'
+import { FsReactorPassRepository } from './infrastructure/fs/FsReactorPassRepository.js'
 import { FsRunRepository } from './infrastructure/fs/FsRunRepository.js'
 import { FsSkillRegistry } from './infrastructure/fs/FsSkillRegistry.js'
 import { FsSourceUnitDigest } from './infrastructure/fs/FsSourceUnitDigest.js'
@@ -331,6 +332,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     batchPlanRepository: new FsBatchPlanRepository(),
     intentLister: listIntentItems,
     sourceUnitStateRepository: new FsSourceUnitStateRepository({ workspaceRoots }),
+    reactorPassRepository: new FsReactorPassRepository({ workspaceRoots }),
     sourceUnitDigest: new FsSourceUnitDigest(),
     userDirectory,
   })

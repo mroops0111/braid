@@ -125,4 +125,16 @@ export interface OntologyPlugin extends Plugin {
    * to start a batch if this is absent on the workspace's ontology.
    */
   readonly batch?: OntologyBatchBinding
+  /**
+   * Source roles that MUST be present in the workspace for this
+   * ontology to function. The scaffold endpoint validates the
+   * manifest against this list; a workspace that omits any required
+   * role is rejected with 422 so the wizard can prompt for it. The
+   * DDD ontology declares `['intent', 'code']` because Braid's core
+   * value prop is intent⊕code convergence — pure-intent or pure-code
+   * workspaces produce a polluted ubiquitous language. Generative
+   * ontologies that have no code dimension (e.g. the everstory `story`
+   * ontology) declare only `['intent']`.
+   */
+  readonly requiredSourceRoles?: readonly ('code' | 'intent')[]
 }

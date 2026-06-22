@@ -20,6 +20,7 @@ import { TabNavigationContext } from './lib/useTabNavigation'
 import { readUrl, useUrlSync } from './lib/useUrlState'
 import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
 import { ActionsPage } from './pages/Actions'
+import { ActivityPage } from './pages/Activity'
 import { BatchPage } from './pages/Batch'
 import { ClarifyPage } from './pages/Clarify'
 import { GraphSurface, GraphSurfaceActions, useGraphSurfaceState } from './pages/GraphSurface'
@@ -138,7 +139,7 @@ function AppInner() {
                           activeSurface={activeSurface}
                           onOpenDetails={() => activeId && openDetails(activeId)}
                         />
-                        <ReactorBanner workspaceId={activeId} />
+                        <ReactorBanner workspaceId={activeId} onOpenActivity={() => setActiveSurface('activity')} />
                         <BatchInFlightBanner
                           workspaceId={activeId}
                           onOpenBatch={() => setActiveSurface('batch')}
@@ -173,6 +174,9 @@ function AppInner() {
                                     focusedProposalId={focusedProposalId}
                                     onFocusConsumed={() => setFocusedProposalId(null)}
                                   />
+                                )}
+                                {activeSurface === 'activity' && (
+                                  <ActivityPage workspaceId={activeId} />
                                 )}
                                 {activeSurface === 'history' && (
                                   <HistoryPage workspaceId={activeId} />

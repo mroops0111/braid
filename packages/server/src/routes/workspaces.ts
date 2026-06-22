@@ -1,4 +1,4 @@
-import type { SourceLoaderRunner, Workspace, WorkspaceBootstrap, WorkspaceService } from '@braidhq/core'
+import type { PluginRegistry, SourceLoaderRunner, Workspace, WorkspaceBootstrap, WorkspaceService } from '@braidhq/core'
 import type { AbsolutePath, ProductManifest, SourceDescriptor, Timestamp } from '@braidhq/schema'
 import type { Context, MiddlewareHandler } from 'hono'
 import type { WorkspaceRegistryFile } from '../infrastructure/fs/WorkspaceRegistryFile.js'
@@ -61,6 +61,11 @@ export interface WorkspacesRouterDeps {
   workspaceService: WorkspaceService
   sourceLoaderRunner: SourceLoaderRunner
   workspacesRoot: AbsolutePath
+  /**
+   * Used at scaffold time to look up the chosen ontology and validate
+   * that the manifest carries every role the ontology requires.
+   */
+  pluginRegistry: PluginRegistry
   bootstrap?: WorkspaceBootstrap
   /**
    * Optional: when present, `GET /workspaces` filters to ones the
@@ -146,6 +151,24 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     }
 
     const manifest = fillManifestDefaults(draft)
+    // Each ontology declares which source roles it needs to function
+    // (DDD requires both `intent` and `code`; a generative ontology may
+    // require only `intent`). Reject scaffolds that omit any required
+    // role here, before any filesystem writes, so the wizard can show
+    // a precise "you also need a code source" prompt instead of a
+    // post-scaffold validation error.
+    const ontology = deps.pluginRegistry.findOntology(manifest.ontologyId)
+    const requiredRoles = ontology?.requiredSourceRoles ?? []
+    if (requiredRoles.length > 0) {
+      const presentRoles = new Set(manifest.sources.map(s => s.role))
+      const missing = requiredRoles.filter(r => !presentRoles.has(r))
+      if (missing.length > 0) {
+        throw new ValidationError(
+          `Workspace requires source role${missing.length === 1 ? '' : 's'} ${missing.map(r => `"${r}"`).join(', ')} `
+          + `for ontology "${manifest.ontologyId}". Add a source of each role before creating the workspace.`,
+        )
+      }
+    }
     await writeProductManifest(rootPath, manifest, manifest.description)
     try {
       const workspace = await deps.workspaceService.load(rootPath)
