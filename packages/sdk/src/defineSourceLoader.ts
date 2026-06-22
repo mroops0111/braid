@@ -3,6 +3,9 @@ import type {
   SourceLoaderContext,
   SourceLoaderPlugin,
   SyncReport,
+  WebhookCapability,
+  WebhookDelivery,
+  WebhookRepoIdentity,
 } from '@braidhq/core'
 import type { AbsolutePath, LoaderKind, PluginId } from '@braidhq/schema'
 import type { z } from 'zod'
@@ -17,6 +20,18 @@ export interface DefineSourceLoaderInput<TSchema extends z.ZodTypeAny> {
   readonly ingest: (config: z.infer<TSchema>, destination: AbsolutePath, context: SourceLoaderContext) => Promise<IngestReport>
   /** Optional. Refresh `destination` in place. Loaders that can't refresh may omit this. */
   readonly sync?: (config: z.infer<TSchema>, destination: AbsolutePath, context: SourceLoaderContext) => Promise<SyncReport>
+  /**
+   * Optional. Declare that sources backed by this loader can receive
+   * webhook deliveries from their remote. `repoIdentity` returns the
+   * `(provider, owner, repo)` triple to match against the payload's
+   * `repository.full_name`; `shouldDispatch` decides whether a verified
+   * delivery is worth a `syncOne` call. Loaders that omit this field
+   * cannot serve webhooks at all (the receiver returns 400).
+   */
+  readonly webhook?: {
+    readonly repoIdentity: (config: z.infer<TSchema>) => WebhookRepoIdentity | undefined
+    readonly shouldDispatch?: (config: z.infer<TSchema>, delivery: WebhookDelivery) => boolean
+  }
   /** Skills this plugin ships (e.g. a migration walkthrough). */
   readonly skills?: readonly PluginSkillRef[]
   /** Optional explicit plugin id; defaults to `source-loader.<kind>`. */
@@ -43,6 +58,15 @@ export function defineSourceLoader<TSchema extends z.ZodTypeAny>(
 
   const parse = (raw: unknown): z.infer<TSchema> => input.configSchema.parse(raw) as z.infer<TSchema>
 
+  const webhook: WebhookCapability | undefined = input.webhook
+    ? {
+        repoIdentity: rawConfig => input.webhook!.repoIdentity(parse(rawConfig)),
+        ...(input.webhook.shouldDispatch
+          ? { shouldDispatch: (rawConfig: unknown, delivery: WebhookDelivery) => input.webhook!.shouldDispatch!(parse(rawConfig), delivery) }
+          : {}),
+      }
+    : undefined
+
   const loader: SourceLoaderPlugin & { readonly skills: readonly PluginSkillRef[] } = {
     id: (input.pluginId ?? `source-loader.${input.kind}`) as PluginId,
     type: 'source-loader' as const,
@@ -55,6 +79,7 @@ export function defineSourceLoader<TSchema extends z.ZodTypeAny>(
     ...(input.sync
       ? { sync: async (rawConfig: unknown, destination: AbsolutePath, context: SourceLoaderContext) => input.sync!(parse(rawConfig), destination, context) }
       : {}),
+    ...(webhook ? { webhook } : {}),
   }
 
   return Object.freeze(loader)

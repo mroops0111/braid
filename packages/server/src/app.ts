@@ -24,6 +24,7 @@ import { createSkillInputOptionsRouter } from './routes/skillInputOptions.js'
 import { createSkillsRouter } from './routes/skills.js'
 import { createSourceLoadersRouter } from './routes/sourceLoaders.js'
 import { createSourceUnitStatesRouter } from './routes/sourceUnitStates.js'
+import { createGithubWebhookReceiver, createSourceWebhooksAdminRouter } from './routes/sourceWebhooks.js'
 import { createUsersRouter } from './routes/users.js'
 import { createWorkspaceEventsRouter } from './routes/workspaceEvents.js'
 import { createTransferOwnershipRouter, createWorkspaceMembersRouter } from './routes/workspaceMembers.js'
@@ -118,6 +119,19 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   // installed", which is identical across workspaces.
   app.route('/source-loaders', createSourceLoadersRouter({ pluginRegistry: deps.pluginRegistry }))
 
+  // Public webhook receivers. Authenticated via per-source HMAC secrets
+  // inside the handler (not via Bearer token), so the auth middleware
+  // exempts the `/webhooks/` prefix. Mounted only when a SecretStore is
+  // wired — without it we have nowhere to read secrets from.
+  if (deps.secretStore) {
+    app.route('/webhooks', createGithubWebhookReceiver({
+      workspaceService: deps.workspaceService,
+      sourceLoaderRunner: deps.sourceLoaderRunner,
+      secretStore: deps.secretStore,
+      pluginRegistry: deps.pluginRegistry,
+    }))
+  }
+
   const workspaceScoped = new OpenAPIHono()
   workspaceScoped.use('*', workspaceIdMiddleware)
   // Workspace membership gate. Mounted only when both the workspace
@@ -175,6 +189,14 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   }
   if (deps.batchService) {
     workspaceScoped.route('/batch', createBatchRouter({ batchService: deps.batchService }))
+  }
+  if (deps.secretStore) {
+    workspaceScoped.route('/source-webhooks', createSourceWebhooksAdminRouter({
+      workspaceService: deps.workspaceService,
+      secretStore: deps.secretStore,
+      pluginRegistry: deps.pluginRegistry,
+      ...(options.apiUrl ? { apiUrl: options.apiUrl } : {}),
+    }))
   }
   workspaceScoped.route('/skill-input-options', createSkillInputOptionsRouter({
     modelRepository: deps.modelRepository,

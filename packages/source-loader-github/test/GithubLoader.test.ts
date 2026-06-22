@@ -267,3 +267,25 @@ describe('GithubLoader', () => {
     expect(recorder2.lastHeaders?.get('Authorization')).toBeNull()
   })
 })
+
+describe('GithubLoader webhook capability', () => {
+  const loader = createGithubLoader()
+
+  it('reports repoIdentity from the loader config', () => {
+    expect(loader.webhook?.repoIdentity({ owner: 'mroops0111', repo: 'braid' }))
+      .toEqual({ provider: 'github', owner: 'mroops0111', repo: 'braid' })
+  })
+
+  it('dispatches issues, issue_comment, and ping events', () => {
+    const config = { owner: 'o', repo: 'r' }
+    expect(loader.webhook?.shouldDispatch?.(config, { event: 'issues', payload: {} })).toBe(true)
+    expect(loader.webhook?.shouldDispatch?.(config, { event: 'issue_comment', payload: {} })).toBe(true)
+    expect(loader.webhook?.shouldDispatch?.(config, { event: 'ping', payload: {} })).toBe(true)
+  })
+
+  it('skips events the loader does not consume so the receiver returns 202 without a wasted fetch', () => {
+    const config = { owner: 'o', repo: 'r' }
+    expect(loader.webhook?.shouldDispatch?.(config, { event: 'push', payload: { ref: 'refs/heads/master' } })).toBe(false)
+    expect(loader.webhook?.shouldDispatch?.(config, { event: 'pull_request', payload: {} })).toBe(false)
+  })
+})

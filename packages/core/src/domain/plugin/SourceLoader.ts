@@ -64,4 +64,58 @@ export interface SourceLoaderPlugin extends Plugin {
 
   ingest: (config: unknown, destination: AbsolutePath, context: SourceLoaderContext) => Promise<IngestReport>
   sync?: (config: unknown, destination: AbsolutePath, context: SourceLoaderContext) => Promise<SyncReport>
+
+  /**
+   * Webhook integration. When defined, sources backed by this loader can
+   * receive (and verify) webhook deliveries from the remote `repoIdentity`
+   * names. The webhook route delegates two questions to the plugin:
+   * which `(provider, owner, repo)` triple this source is bound to (for
+   * matching `repository.full_name` in the payload), and whether a
+   * verified delivery should fire `syncOne` for this source. Adding a
+   * new loader extends the webhook surface without touching the route.
+   */
+  readonly webhook?: WebhookCapability
+}
+
+/**
+ * Provider this server's webhook receiver knows how to verify today.
+ * Future provider support (`gitlab`, `linear`, …) extends this union and
+ * mounts a sibling receiver router at `/webhooks/<provider>/...`.
+ */
+export type WebhookProvider = 'github'
+
+export interface WebhookRepoIdentity {
+  readonly provider: WebhookProvider
+  readonly owner: string
+  readonly repo: string
+}
+
+/**
+ * Normalised view of a verified webhook delivery handed to a loader's
+ * `shouldDispatch`. The receiver has already parsed JSON, verified the
+ * HMAC, and confirmed `repository.full_name` matches `repoIdentity`.
+ */
+export interface WebhookDelivery {
+  /** Provider header value, e.g. `push`, `issues`, `issue_comment`, `ping`. */
+  readonly event: string
+  /** Parsed payload JSON. Loaders read provider-specific fields off this. */
+  readonly payload: unknown
+}
+
+export interface WebhookCapability {
+  /**
+   * Resolve the canonical `(provider, owner, repo)` this source is
+   * bound to. Return `undefined` when the configured remote is not a
+   * webhook-capable host (e.g. a `git` loader pointed at a self-hosted
+   * gitea instance). The receiver rejects mismatches with 400.
+   */
+  readonly repoIdentity: (config: unknown) => WebhookRepoIdentity | undefined
+  /**
+   * Decide whether a verified delivery should actually fire `syncOne`.
+   * Default `() => true` lets every verified delivery through; loaders
+   * narrow this to avoid wasted fetches (e.g. a `push` to a ref the
+   * loader does not track). Returning `false` keeps the receiver's 202
+   * response so GitHub does not back off retries.
+   */
+  readonly shouldDispatch?: (config: unknown, delivery: WebhookDelivery) => boolean
 }

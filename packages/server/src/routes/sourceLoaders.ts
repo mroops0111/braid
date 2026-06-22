@@ -29,6 +29,7 @@ export function createSourceLoadersRouter(deps: SourceLoadersRouterDeps): OpenAP
     const loaders = plugins.map(plugin => ({
       kind: plugin.kind,
       pluginId: plugin.id,
+      webhook: plugin.webhook !== undefined,
     }))
     return context.json(ListSourceLoadersResponse.parse({ loaders }), 200)
   })

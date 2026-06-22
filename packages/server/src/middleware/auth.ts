@@ -16,7 +16,12 @@ import { parseBoolEnv } from '../infrastructure/env.js'
  * data, so leaking it to anonymous callers is safe.
  */
 const PUBLIC_EXACT = new Set(['/openapi.json'])
-const PUBLIC_PREFIXES = ['/auth/', '/health']
+// Each `/webhooks/<provider>/` prefix is anonymous because the provider
+// authenticates via a per-source HMAC checked inside the handler, not
+// via a Bearer token. Listing providers explicitly (rather than the
+// broad `/webhooks/` prefix) keeps a future `/webhooks/admin/...` or
+// `/webhooks/metrics` route from inheriting the bypass.
+const PUBLIC_PREFIXES = ['/auth/', '/health', '/webhooks/github/']
 
 export interface AuthMiddlewareOptions {
   readonly sessionStore: SessionStore
