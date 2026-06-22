@@ -44,6 +44,9 @@ export type WorkspaceEvent =
   | BatchCheckpointStartedEvent
   | BatchCheckpointCompletedEvent
   | BatchCheckpointFailedEvent
+  | ReactorDispatchedEvent
+  | ReactorCompletedEvent
+  | ReactorThrottledEvent
 
 export interface RunStartedEvent {
   readonly type: 'run.started'
@@ -215,6 +218,49 @@ export interface BatchCheckpointFailedEvent {
   readonly planId: BatchPlanId
   readonly skillRunId: SkillRunId
   readonly error: string
+  readonly at: string
+}
+
+/**
+ * Reactor finished partitioning a synced source and is about to start
+ * dispatching per-unit skill runs sequentially. `totalUnits` is the
+ * count of units in `new ∪ changed`; subscribers (Studio's banner) use
+ * it to render progress against a known total.
+ */
+export interface ReactorDispatchedEvent {
+  readonly type: 'reactor.dispatched'
+  readonly workspaceId: WorkspaceId
+  readonly sourceId: SourceId
+  readonly totalUnits: number
+  readonly at: string
+}
+
+/**
+ * Reactor finished all per-unit dispatches plus the checkpoint pass for
+ * a given source. The full reactor pass for that `source.synced` is
+ * over; Studio clears the banner. `checkpointRan` distinguishes the
+ * "0 changed units, no checkpoint needed" case from the normal flow.
+ */
+export interface ReactorCompletedEvent {
+  readonly type: 'reactor.completed'
+  readonly workspaceId: WorkspaceId
+  readonly sourceId: SourceId
+  readonly totalUnits: number
+  readonly checkpointRan: boolean
+  readonly at: string
+}
+
+/**
+ * Reactor refused to dispatch because the rolling 1h window already hit
+ * the workspace's `maxRunsPerHour`. The triggering `source.synced` is
+ * acknowledged and dropped; the operator's next manual sync (or
+ * another reactor pass after the window slides) will re-attempt.
+ */
+export interface ReactorThrottledEvent {
+  readonly type: 'reactor.throttled'
+  readonly workspaceId: WorkspaceId
+  readonly sourceId: SourceId
+  readonly limit: number
   readonly at: string
 }
 

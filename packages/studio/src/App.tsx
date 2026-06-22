@@ -7,6 +7,7 @@ import { CommandPalette } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
 import { InFlightRunBanner } from './components/InFlightRunBanner'
 import { PageActions, PageActionsHost, PageActionsProvider } from './components/PageActions'
+import { ReactorBanner } from './components/ReactorBanner'
 import { Sidebar } from './components/Sidebar'
 import { TooltipProvider } from './components/ui/tooltip'
 import { UserPicker } from './components/UserPicker'
@@ -137,6 +138,7 @@ function AppInner() {
                           activeSurface={activeSurface}
                           onOpenDetails={() => activeId && openDetails(activeId)}
                         />
+                        <ReactorBanner workspaceId={activeId} />
                         <BatchInFlightBanner
                           workspaceId={activeId}
                           onOpenBatch={() => setActiveSurface('batch')}

@@ -33,6 +33,9 @@ interface WorkspaceEvent {
     | 'batch.checkpoint.started'
     | 'batch.checkpoint.completed'
     | 'batch.checkpoint.failed'
+    | 'reactor.dispatched'
+    | 'reactor.completed'
+    | 'reactor.throttled'
 }
 
 /**
@@ -133,6 +136,20 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
       invalidateGraph()
     })
     source.addEventListener('batch.checkpoint.failed', invalidateBatch)
+
+    const invalidateSourceUnitDiffs = (): void => {
+      // Per-option badges (extracted / stale) live behind the diff
+      // endpoint; refresh them when the reactor finishes a pass so the
+      // dropdown's freshness chips reflect the new ledger.
+      queryClient.invalidateQueries({ queryKey: ['source-unit-diff', workspaceId], exact: false })
+      // Reactor also writes Proposals through the per-unit skill it
+      // dispatches; refresh those too.
+      invalidateProposals()
+      invalidateGraph()
+    }
+    source.addEventListener('reactor.dispatched', () => {})
+    source.addEventListener('reactor.completed', invalidateSourceUnitDiffs)
+    source.addEventListener('reactor.throttled', () => {})
 
     return () => {
       source.close()

@@ -34,6 +34,7 @@ import {
   ModelService,
   PerWorkspaceLock,
   PluginRegistry,
+  ReactorService,
   SourceLoaderRunner,
   SourceUnitStateService,
   SystemClock,
@@ -56,7 +57,27 @@ export interface AppDependencies {
   hitlService: HITLService
   historyService?: HistoryService
   batchService?: BatchService
+  /**
+   * Reactor that subscribes to `source.synced` and runs the active
+   * ontology's per-unit skill on intent-source diffs (#29). Present
+   * when the composition has skillRunner + intentLister + a real
+   * SourceUnitDigest; absent in pure in-memory tests that don't
+   * exercise it. `composeFsApp` is the production wiring path.
+   */
+  reactorService?: ReactorService
   sourceUnitStateService: SourceUnitStateService
+  /**
+   * Filesystem walk over a workspace's intent sources. Threaded into
+   * the source-unit-states diff endpoint so the route can compose
+   * `intentLister + digest + sourceUnitStateService` without
+   * re-implementing the walk. Absent in pure in-memory tests.
+   */
+  intentLister?: IntentLister
+  /**
+   * Per-source-unit content digest. Same usage as `intentLister`;
+   * absent in pure in-memory tests.
+   */
+  sourceUnitDigest?: SourceUnitDigest
   modelService: ModelService
   validationService: ValidationService
   sourceLoaderRunner: SourceLoaderRunner
@@ -249,11 +270,32 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     })
     : undefined
 
+  // Reactor shares Batch's dependency footprint (skillRunner +
+  // intentLister + sourceUnitStateService) plus the event bus. We
+  // construct it whenever those are present; the service stays inert
+  // until something calls `start(workspaceId)`. composeFsApp drives
+  // start on workspaces whose ProductManifest.reactor.enabled is true.
+  const reactorService = options.skillRunner && options.intentLister && sourceUnitDigest && !(sourceUnitDigest instanceof FailingSourceUnitDigest)
+    ? new ReactorService({
+      eventBus,
+      workspaceService,
+      pluginRegistry,
+      skillRunner: options.skillRunner,
+      sourceUnitStateService,
+      intentLister: options.intentLister,
+      digest: sourceUnitDigest,
+      clock,
+    })
+    : undefined
+
   return {
     workspaceService,
     hitlService,
     ...(historyService ? { historyService } : {}),
     ...(batchService ? { batchService } : {}),
+    ...(reactorService ? { reactorService } : {}),
+    ...(options.intentLister ? { intentLister: options.intentLister } : {}),
+    ...(options.sourceUnitDigest ? { sourceUnitDigest: options.sourceUnitDigest } : {}),
     ...(options.bootstrap ? { bootstrap: options.bootstrap } : {}),
     sourceUnitStateService,
     modelService,

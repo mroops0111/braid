@@ -355,6 +355,10 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
       // the UI doesn't show a phantom spinner. Safe to call even when there
       // is no plan or when the plan is already terminal.
       await deps.batchService?.reconcileAfterBoot(workspace.id)
+      // Reactor opt-in is per workspace; subscribe only when the
+      // operator has flipped `reactor.enabled` in PRODUCT.md.
+      if (workspace.productManifest.reactor?.enabled)
+        await deps.reactorService?.start(workspace.id)
     }
     catch (err) {
       bootstrapLog.warn({ err, workspaceId: workspace.id }, 'workspace bootstrap failed; skipping')
