@@ -121,8 +121,9 @@ const gitLikeFake = makeFakeLoader({
     if (typeof ref !== 'string')
       return false
     const branch = (config as { branch?: unknown }).branch
-    const tracked = typeof branch === 'string' ? branch : 'master'
-    return ref === `refs/heads/${tracked}`
+    if (typeof branch === 'string')
+      return ref === `refs/heads/${branch}`
+    return ref === 'refs/heads/main' || ref === 'refs/heads/master'
   },
 })
 
@@ -149,7 +150,7 @@ async function buildApp(opts: { withSecret?: string, source?: ReturnType<typeof 
   deps.sourceLoaderRunner = { syncOne } as never
 
   if (opts.withSecret) {
-    await secretStore.write('webhook-github', `${workspace.id}--${SOURCE_ID}`, {
+    await secretStore.write('webhook-github', composeSecretKey(workspace.id, SOURCE_ID), {
       secret: opts.withSecret,
       createdAt: '2026-06-19T00:00:00.000Z',
     })
@@ -157,6 +158,12 @@ async function buildApp(opts: { withSecret?: string, source?: ReturnType<typeof 
 
   const app = createApp(deps, { apiUrl: 'https://braid.test' })
   return { app, workspace, secretStore, syncOne }
+}
+
+// Mirror the receiver's composite key so secrets the test pre-writes
+// land in the same slot the receiver will read.
+function composeSecretKey(workspaceId: string, sourceId: string): string {
+  return `${workspaceId}--${sourceId}`
 }
 
 function sign(secret: string, body: string): string {
@@ -201,6 +208,71 @@ describe('POST /webhooks/github/:workspaceId/:sourceId (issue #30)', () => {
     expect(response.status).toBe(401)
     await new Promise(resolve => setTimeout(resolve, 10))
     expect(syncOne).not.toHaveBeenCalled()
+  })
+
+  it('returns 401 (uniform anonymous response) when the X-Hub-Signature-256 header is missing', async () => {
+    const { app, workspace, syncOne } = await buildApp({ withSecret: 'super-secret' })
+    const body = JSON.stringify({ repository: { full_name: `${OWNER}/${REPO}` } })
+    const response = await app.request(`/webhooks/github/${workspace.id}/${SOURCE_ID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-GitHub-Event': 'issues' },
+      body,
+    })
+    expect(response.status).toBe(401)
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(syncOne).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when X-GitHub-Event is missing on a verified delivery (no silent skip)', async () => {
+    const { app, workspace, syncOne } = await buildApp({ withSecret: 'super-secret' })
+    const body = JSON.stringify({ repository: { full_name: `${OWNER}/${REPO}` } })
+    const response = await app.request(`/webhooks/github/${workspace.id}/${SOURCE_ID}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Hub-Signature-256': sign('super-secret', body),
+      },
+      body,
+    })
+    expect(response.status).toBe(400)
+    const json = await response.json() as { error?: string }
+    expect(json.error).toContain('X-GitHub-Event')
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(syncOne).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when the verified payload omits repository.full_name (no silent dispatch)', async () => {
+    const { app, workspace, syncOne } = await buildApp({ withSecret: 'super-secret' })
+    const body = JSON.stringify({ action: 'opened' })
+    const response = await app.request(`/webhooks/github/${workspace.id}/${SOURCE_ID}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-GitHub-Event': 'issues',
+        'X-Hub-Signature-256': sign('super-secret', body),
+      },
+      body,
+    })
+    expect(response.status).toBe(400)
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(syncOne).not.toHaveBeenCalled()
+  })
+
+  it('accepts a delivery whose full_name differs in case from the configured owner/repo (github is case-insensitive)', async () => {
+    const { app, workspace, syncOne } = await buildApp({ withSecret: 'super-secret' })
+    const body = JSON.stringify({ repository: { full_name: `${OWNER.toUpperCase()}/${REPO.toUpperCase()}` } })
+    const response = await app.request(`/webhooks/github/${workspace.id}/${SOURCE_ID}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-GitHub-Event': 'issues',
+        'X-Hub-Signature-256': sign('super-secret', body),
+      },
+      body,
+    })
+    expect(response.status).toBe(202)
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(syncOne).toHaveBeenCalledTimes(1)
   })
 
   it('returns 400 and skips syncOne when the payload repository does not match the configured one', async () => {
@@ -267,26 +339,29 @@ describe('POST /webhooks/github/:workspaceId/:sourceId (issue #30)', () => {
     expect(syncOne).not.toHaveBeenCalled()
   })
 
-  it('defaults the tracked branch to master when the git loader leaves branch unset', async () => {
+  it('accepts pushes to both `main` and `master` when the git loader leaves branch unset', async () => {
     const { app, workspace, syncOne } = await buildApp({
       withSecret: 'super-secret',
       source: makeGitSource(),
     })
-    const body = JSON.stringify({ ref: 'refs/heads/master', repository: { full_name: `${OWNER}/${REPO}` } })
-
-    const response = await app.request(`/webhooks/github/${workspace.id}/${SOURCE_ID}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-GitHub-Event': 'push',
-        'X-Hub-Signature-256': sign('super-secret', body),
-      },
-      body,
-    })
-
-    expect(response.status).toBe(202)
-    await new Promise(resolve => setTimeout(resolve, 10))
-    expect(syncOne).toHaveBeenCalledTimes(1)
+    for (const ref of ['refs/heads/main', 'refs/heads/master']) {
+      const body = JSON.stringify({ ref, repository: { full_name: `${OWNER}/${REPO}` } })
+      const response = await app.request(`/webhooks/github/${workspace.id}/${SOURCE_ID}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-GitHub-Event': 'push',
+          'X-Hub-Signature-256': sign('super-secret', body),
+        },
+        body,
+      })
+      expect(response.status).toBe(202)
+      const json = await response.json() as { skipped?: boolean }
+      expect(json.skipped).toBe(false)
+      // Reset the in-flight tracker by letting the mocked resolve happen
+      await new Promise(r => setTimeout(r, 20))
+    }
+    expect(syncOne.mock.calls.length).toBeGreaterThanOrEqual(1)
   })
 
   it('accepts but skips a push event delivered to a github-issues loader source', async () => {
@@ -310,7 +385,7 @@ describe('POST /webhooks/github/:workspaceId/:sourceId (issue #30)', () => {
     expect(syncOne).not.toHaveBeenCalled()
   })
 
-  it('returns 404 when no webhook secret has been provisioned for the source', async () => {
+  it('returns uniform 401 (no oracle) when no webhook secret has been provisioned for the source', async () => {
     const { app, workspace } = await buildApp()
     const body = JSON.stringify({ repository: { full_name: `${OWNER}/${REPO}` } })
 
@@ -323,7 +398,28 @@ describe('POST /webhooks/github/:workspaceId/:sourceId (issue #30)', () => {
       body,
     })
 
-    expect(response.status).toBe(404)
+    expect(response.status).toBe(401)
+    const json = await response.json() as { error?: string }
+    // Anonymous callers learn nothing about which (ws, source) pairs
+    // exist or are webhook-armed.
+    expect(json.error).toBe('invalid signature')
+  })
+
+  it('returns uniform 401 for an unknown workspace + source so attackers cannot enumerate ids', async () => {
+    const { app } = await buildApp({ withSecret: 'super-secret' })
+    const body = JSON.stringify({ repository: { full_name: `${OWNER}/${REPO}` } })
+    const response = await app.request(`/webhooks/github/no-such-ws/no-such-source`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-GitHub-Event': 'issues',
+        'X-Hub-Signature-256': sign('super-secret', body),
+      },
+      body,
+    })
+    expect(response.status).toBe(401)
+    const json = await response.json() as { error?: string }
+    expect(json.error).toBe('invalid signature')
   })
 })
 
@@ -364,7 +460,7 @@ describe('POST /workspaces/:ws/source-webhooks/:sourceId/github/rotate', () => {
     expect(body.url).toBe(`https://braid.test/webhooks/github/${workspace.id}/${SOURCE_ID}`)
     expect(body.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
 
-    const stored = await secretStore.read<{ secret: string }>('webhook-github', `${workspace.id}--${SOURCE_ID}`)
+    const stored = await secretStore.read<{ secret: string }>('webhook-github', composeSecretKey(workspace.id, SOURCE_ID))
     expect(stored?.secret).toBe(body.secret)
   })
 

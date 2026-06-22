@@ -297,6 +297,12 @@ function GithubWebhookPanel({ workspaceId, sourceId }: { workspaceId: string, so
   })
   const rotate = useMutation({
     mutationFn: () => api.rotateGithubWebhookSecret(workspaceId, sourceId),
+    // Clear any previously-revealed secret BEFORE the new rotate
+    // request lands, so a transient error during rotation cannot leave
+    // a stale secret in the amber callout next to a red error message.
+    onMutate: () => {
+      setRevealedSecret(null)
+    },
     onSuccess: (data) => {
       // The rotate response is the ONLY moment the secret is visible to
       // the UI; subsequent GETs report `hasSecret` without the value.
@@ -306,12 +312,23 @@ function GithubWebhookPanel({ workspaceId, sourceId }: { workspaceId: string, so
     },
   })
 
+  // Clearing on collapse keeps the "shown once" contract honest:
+  // re-opening the panel does not re-display the previously rotated
+  // secret. The browser tab is the only place the user can keep it.
+  const togglePanel = (): void => {
+    setOpen((wasOpen) => {
+      if (wasOpen)
+        setRevealedSecret(null)
+      return !wasOpen
+    })
+  }
+
   return (
     <div className="mt-2 rounded border border-dashed border-border/60 p-2 text-[11px]">
       <button
         type="button"
         className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
-        onClick={() => setOpen(o => !o)}
+        onClick={togglePanel}
       >
         <Webhook className="size-3" />
         {open ? 'Hide GitHub webhook' : 'GitHub webhook'}
