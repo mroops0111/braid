@@ -14,31 +14,17 @@ import type { SourceId, WorkspaceId } from '@braidhq/schema'
  * lean on an intent-shaped loader (e.g. PR descriptions, see #61)
  * rather than asking the reactor to learn code-diff semantics.
  *
- * `start` returns a `disposed` handle the composition root keeps for
- * the workspace's lifetime; calling `dispose` detaches the event-bus
- * subscription and drops any in-flight per-unit dispatch (the running
- * SkillRunner subprocess is left alone, on the same theory as Studio's
- * cancel: the user can re-enable later).
+ * Lifecycle is per workspace: `start` attaches a subscription, `stop`
+ * detaches it. Both are idempotent: calling `start` twice for the
+ * same workspace is a no-op; same for `stop` on a workspace that was
+ * never started. There is no separate subscription handle — callers
+ * just remember the workspace id they passed to `start`.
  */
 export interface Reactor {
-  /**
-   * Begin reacting to `source.synced` for `workspaceId`. Implementations
-   * MUST be idempotent: calling `start` twice for the same workspace
-   * returns the same subscription handle without registering a second
-   * listener.
-   */
-  start: (workspaceId: WorkspaceId) => Promise<ReactorSubscription>
-  /**
-   * Drop any subscription previously created via `start` for this
-   * workspace. No-op if `start` was never called.
-   */
+  /** Begin reacting to `source.synced` for `workspaceId`. Idempotent. */
+  start: (workspaceId: WorkspaceId) => Promise<void>
+  /** Detach the listener for `workspaceId`. Idempotent. */
   stop: (workspaceId: WorkspaceId) => Promise<void>
-}
-
-export interface ReactorSubscription {
-  readonly workspaceId: WorkspaceId
-  /** Detach the event-bus listener; idempotent. */
-  readonly dispose: () => Promise<void>
 }
 
 /**

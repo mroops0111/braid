@@ -163,9 +163,15 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   workspaceScoped.route('/decisions', createDecisionsRouter({ decisionRepository: deps.decisionRepository }))
   workspaceScoped.route('/source-unit-states', createSourceUnitStatesRouter({
     sourceUnitStateService: deps.sourceUnitStateService,
-    workspaceService: deps.workspaceService,
-    ...(deps.intentLister ? { intentLister: deps.intentLister } : {}),
-    ...(deps.sourceUnitDigest ? { digest: deps.sourceUnitDigest } : {}),
+    ...(deps.intentLister && deps.sourceUnitDigest
+      ? {
+          diffSupport: {
+            workspaceService: deps.workspaceService,
+            intentLister: deps.intentLister,
+            digest: deps.sourceUnitDigest,
+          },
+        }
+      : {}),
   }))
   workspaceScoped.route('/ontology', createOntologyRouter({
     workspaceRepository: deps.workspaceRepository,

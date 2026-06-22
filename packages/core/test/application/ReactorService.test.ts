@@ -12,6 +12,7 @@ import { SkillId as SkillIdSchema } from '@braidhq/schema'
 import { FixedClock, makeOntology, makeWorkspace, mintTestId, resetTestIds, T0 } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import {
+  PerWorkspaceLock,
   PluginRegistry,
   ReactorService,
   SourceUnitStateService,
@@ -159,17 +160,8 @@ async function setup(opts: {
     intentItems = items
   }
 
-  const reactor = new ReactorService({
-    eventBus,
-    workspaceService,
-    pluginRegistry,
-    skillRunner,
-    sourceUnitStateService,
-    intentLister,
-    digest,
-    clock,
-  })
-
+  // Throttle limit is read at start() time, so update the workspace
+  // BEFORE constructing the reactor when a custom cap is requested.
   if (opts.maxRunsPerHour) {
     const updated = new Workspace({
       id: workspace.id,
@@ -181,6 +173,18 @@ async function setup(opts: {
     })
     await workspaceRepo.save(updated)
   }
+
+  const reactor = new ReactorService({
+    eventBus,
+    workspaceService,
+    pluginRegistry,
+    skillRunner,
+    sourceUnitStateService,
+    intentLister,
+    digest,
+    workspaceLock: new PerWorkspaceLock(),
+    clock,
+  })
 
   await reactor.start(workspace.id)
 
@@ -240,6 +244,22 @@ describe('ReactorService', () => {
     expect(checkpoint).toHaveLength(0)
     const completed = captured.find(e => e.type === 'reactor.completed')
     expect((completed as { checkpointRan: boolean }).checkpointRan).toBe(false)
+  })
+
+  it('runs the checkpoint when SOME per-unit dispatches succeed and others fail', async () => {
+    const { workspace, eventBus, skillRunner, captured } = await setup({ hasCheckpoint: true })
+    // First unit fails, second succeeds, third fails — the loop must not
+    // abort on the first failure, and the checkpoint must still run.
+    skillRunner.exitCodes = [1, 0, 1]
+    emitSync(eventBus, workspace.id, 'issues')
+    await tick(100)
+
+    const perUnit = skillRunner.startCalls.filter(c => c.skillId === PER_UNIT_SKILL)
+    const checkpoint = skillRunner.startCalls.filter(c => c.skillId === CHECKPOINT_SKILL)
+    expect(perUnit).toHaveLength(3)
+    expect(checkpoint).toHaveLength(1)
+    const completed = captured.find(e => e.type === 'reactor.completed')
+    expect((completed as { checkpointRan: boolean }).checkpointRan).toBe(true)
   })
 
   it('runs per-unit dispatches strictly sequentially: unit 2 does not start until unit 1 finishes', async () => {

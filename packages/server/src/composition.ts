@@ -284,6 +284,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
       sourceUnitStateService,
       intentLister: options.intentLister,
       digest: sourceUnitDigest,
+      workspaceLock,
       clock,
     })
     : undefined

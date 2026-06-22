@@ -22,13 +22,18 @@ const DiffResponse = SourceUnitDiff.openapi('SourceUnitDiffResponse')
 export interface SourceUnitStatesRouterDeps {
   sourceUnitStateService: SourceUnitStateService
   /**
-   * Wired only when the host composition has a real filesystem-backed
-   * intent lister + digest (`composeFsApp`). In-memory tests that don't
-   * exercise the diff endpoint can omit them; the diff route 503s.
+   * Optional `(workspaceService, intentLister, digest)` triple. When all
+   * three are present, the router exposes the `:sourceId/diff` route.
+   * When any is missing, the route is simply not registered — callers
+   * see a 404 from Hono's router, matching the "this server does not
+   * support that operation" semantics other partially-wired surfaces
+   * follow (Batch / Skills).
    */
-  workspaceService?: WorkspaceService
-  intentLister?: IntentLister
-  digest?: SourceUnitDigest
+  diffSupport?: {
+    workspaceService: WorkspaceService
+    intentLister: IntentLister
+    digest: SourceUnitDigest
+  }
 }
 
 const listRoute = createRoute({
@@ -68,10 +73,6 @@ const diffRoute = createRoute({
       content: { 'application/json': { schema: DiffResponse } },
     },
     404: NotFoundResponse,
-    503: {
-      description: 'Server lacks the filesystem-backed intent lister or digest required to compute the diff.',
-      content: { 'application/json': { schema: z.object({ error: z.string() }) } },
-    },
   },
 })
 
@@ -87,24 +88,24 @@ export function createSourceUnitStatesRouter(deps: SourceUnitStatesRouterDeps): 
     return context.json({ items: [...items] }, 200)
   })
 
-  router.openapi(diffRoute, async (context) => {
-    const workspaceId = getWorkspaceId(context)
-    const { sourceId } = context.req.valid('param')
-    if (!deps.workspaceService || !deps.intentLister || !deps.digest) {
-      return context.json({ error: 'diff endpoint is not configured on this server' }, 503)
-    }
-    const workspace = await deps.workspaceService.findById(workspaceId)
-    const diff = await computeSourceDiff(
-      {
-        intentLister: deps.intentLister,
-        digest: deps.digest,
-        sourceUnitStateService: deps.sourceUnitStateService,
-      },
-      workspace,
-      sourceId,
-    )
-    return context.json(diff, 200)
-  })
+  if (deps.diffSupport) {
+    const { workspaceService, intentLister, digest } = deps.diffSupport
+    router.openapi(diffRoute, async (context) => {
+      const workspaceId = getWorkspaceId(context)
+      const { sourceId } = context.req.valid('param')
+      const workspace = await workspaceService.findById(workspaceId)
+      const diff = await computeSourceDiff(
+        {
+          intentLister,
+          digest,
+          sourceUnitStateService: deps.sourceUnitStateService,
+        },
+        workspace,
+        sourceId,
+      )
+      return context.json(diff, 200)
+    })
+  }
 
   return router
 }
