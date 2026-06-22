@@ -297,6 +297,16 @@ export const api = {
       body: JSON.stringify({ workspaceId, sourceId }),
     }),
 
+  getGithubWebhookStatus: (workspaceId: string, sourceId: string) =>
+    fetchJson<{ url: string, hasSecret: boolean, createdAt?: string }>(
+      `/workspaces/${workspaceId}/source-webhooks/${sourceId}/github`,
+    ),
+  rotateGithubWebhookSecret: (workspaceId: string, sourceId: string) =>
+    fetchJson<{ url: string, secret: string, createdAt: string }>(
+      `/workspaces/${workspaceId}/source-webhooks/${sourceId}/github/rotate`,
+      { method: 'POST' },
+    ),
+
   listSkills: (workspaceId: string) =>
     fetchJson<ItemList<SkillManifest>>(`/workspaces/${workspaceId}/skills`),
 

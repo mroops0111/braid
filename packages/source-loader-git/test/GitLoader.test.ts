@@ -109,3 +109,69 @@ describe('GitLoader', () => {
     await expect(loader.ingest({ url }, dest, ctx)).rejects.toThrow(/BRAID_GITLOADER_TEST_TOKEN/)
   })
 })
+
+describe('GitLoader webhook capability', () => {
+  it('parses owner/repo from an https github url', () => {
+    expect(gitLoader.webhook?.repoIdentity({ url: 'https://github.com/mroops0111/braid.git' }))
+      .toEqual({ provider: 'github', owner: 'mroops0111', repo: 'braid' })
+    expect(gitLoader.webhook?.repoIdentity({ url: 'https://github.com/mroops0111/braid' }))
+      .toEqual({ provider: 'github', owner: 'mroops0111', repo: 'braid' })
+  })
+
+  it('parses owner/repo from an ssh github url', () => {
+    expect(gitLoader.webhook?.repoIdentity({ url: 'git@github.com:mroops0111/braid.git' }))
+      .toEqual({ provider: 'github', owner: 'mroops0111', repo: 'braid' })
+  })
+
+  it('returns undefined for non-github hosts so the receiver rejects the delivery', () => {
+    expect(gitLoader.webhook?.repoIdentity({ url: 'https://gitlab.com/foo/bar.git' })).toBeUndefined()
+    expect(gitLoader.webhook?.repoIdentity({ url: 'https://git.sr.ht/~user/repo' })).toBeUndefined()
+  })
+
+  it('dispatches a push to the tracked branch', () => {
+    const config = { url: 'https://github.com/o/r.git', branch: 'main' }
+    expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'push', payload: { ref: 'refs/heads/main' } })).toBe(true)
+  })
+
+  it('skips a push to a different branch so we do not waste a fetch', () => {
+    const config = { url: 'https://github.com/o/r.git', branch: 'main' }
+    expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'push', payload: { ref: 'refs/heads/feature-x' } })).toBe(false)
+  })
+
+  it('accepts pushes to both main and master when branch is unset (covers modern + legacy default)', () => {
+    const config = { url: 'https://github.com/o/r.git' }
+    expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'push', payload: { ref: 'refs/heads/main' } })).toBe(true)
+    expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'push', payload: { ref: 'refs/heads/master' } })).toBe(true)
+    expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'push', payload: { ref: 'refs/heads/develop' } })).toBe(false)
+  })
+
+  it('tolerates URL shapes the loader accepts: trailing slash, uppercase host, git+https, ssh-with-port, query string', () => {
+    expect(gitLoader.webhook?.repoIdentity({ url: 'https://github.com/foo/bar/' }))
+      .toEqual({ provider: 'github', owner: 'foo', repo: 'bar' })
+    expect(gitLoader.webhook?.repoIdentity({ url: 'https://GitHub.com/foo/bar.git' }))
+      .toEqual({ provider: 'github', owner: 'foo', repo: 'bar' })
+    expect(gitLoader.webhook?.repoIdentity({ url: 'git+https://github.com/foo/bar.git' }))
+      .toEqual({ provider: 'github', owner: 'foo', repo: 'bar' })
+    expect(gitLoader.webhook?.repoIdentity({ url: 'https://github.com/foo/bar?token=x' }))
+      .toEqual({ provider: 'github', owner: 'foo', repo: 'bar' })
+  })
+
+  it('does NOT interpolate env vars at identity time, so a missing env never crashes the webhook receiver', () => {
+    delete process.env.SHOULD_NOT_NEED_TO_BE_SET
+    // eslint-disable-next-line no-template-curly-in-string -- literal placeholder
+    const url = 'https://x:${SHOULD_NOT_NEED_TO_BE_SET}@github.com/foo/bar.git'
+    expect(gitLoader.webhook?.repoIdentity({ url }))
+      .toEqual({ provider: 'github', owner: 'foo', repo: 'bar' })
+  })
+
+  it('always dispatches ping so wire-up smoke tests succeed', () => {
+    const config = { url: 'https://github.com/o/r.git' }
+    expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'ping', payload: {} })).toBe(true)
+  })
+
+  it('skips events the git mirror does not consume', () => {
+    const config = { url: 'https://github.com/o/r.git' }
+    expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'issues', payload: {} })).toBe(false)
+    expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'pull_request', payload: {} })).toBe(false)
+  })
+})

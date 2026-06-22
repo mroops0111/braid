@@ -66,7 +66,80 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoader({
       fetchedAt: new Date().toISOString() as never,
     }
   },
+  webhook: {
+    // owner/repo live in the literal host/path segment, not in the
+    // credential portion of the URL. We deliberately do NOT interpolate
+    // ${VAR} placeholders here: that would couple webhook identity to
+    // credential rotation (a missing env var would throw 500 on every
+    // anonymous probe and leak the env var name) for zero benefit.
+    repoIdentity: (config) => {
+      const parsed = parseGithubUrl(config.url)
+      return parsed ? { provider: 'github', owner: parsed.owner, repo: parsed.repo } : undefined
+    },
+    // We track a single ref. `push` events on other refs are guaranteed
+    // no-ops for `git fetch && reset --hard origin/<branch>`; skip them
+    // so we don't waste a network round-trip. `ping` always dispatches
+    // so the user sees `lastObservedSha` populate on first wire-up.
+    // Other event types (issues, deploy, …) are unrelated to the code
+    // mirror and are skipped.
+    //
+    // Default-branch heuristic: when `config.branch` is unset we accept
+    // pushes to both `main` (the GitHub default since 2020) and
+    // `master` (the historical default). The git loader's sync follows
+    // remote HEAD; we cannot read HEAD from a push payload, so we
+    // dispatch on either common default and let `git fetch` no-op
+    // when the pushed ref happens not to be HEAD.
+    shouldDispatch: (config, delivery) => {
+      if (delivery.event === 'ping')
+        return true
+      if (delivery.event !== 'push')
+        return false
+      const ref = typeof delivery.payload === 'object' && delivery.payload !== null
+        ? (delivery.payload as { ref?: unknown }).ref
+        : undefined
+      if (typeof ref !== 'string')
+        return false
+      if (typeof config.branch === 'string')
+        return ref === `refs/heads/${config.branch}`
+      return ref === 'refs/heads/main' || ref === 'refs/heads/master'
+    },
+  },
 })
+
+/**
+ * Pull `owner/repo` out of a GitHub clone URL. Returns undefined for
+ * non-github hosts so the receiver rejects the delivery instead of
+ * pretending it matches.
+ *
+ * Accepts the URL shapes git itself accepts:
+ *   - `https://github.com/owner/repo`
+ *   - `https://github.com/owner/repo.git`
+ *   - `https://github.com/owner/repo/` (trailing slash)
+ *   - `https://user:token@github.com/owner/repo.git` (creds inline)
+ *   - `https://x:${GH_TOKEN}@github.com/owner/repo.git` (env placeholder)
+ *   - `git+https://github.com/owner/repo` (npm-style)
+ *   - `git@github.com:owner/repo[.git]` (ssh)
+ *
+ * Host comparison is case-insensitive (`GitHub.com` etc.) and query /
+ * fragment portions on the URL are tolerated (we ignore them — they
+ * never affect the repo identity).
+ */
+function parseGithubUrl(url: string): { owner: string, repo: string } | undefined {
+  // Strip an optional `git+` prefix, trim, drop query / fragment, and
+  // normalise a trailing slash + .git suffix.
+  let trimmed = url.trim().replace(/^git\+/, '')
+  const queryAt = trimmed.search(/[?#]/)
+  if (queryAt >= 0)
+    trimmed = trimmed.slice(0, queryAt)
+  trimmed = trimmed.replace(/\/$/, '').replace(/\.git$/, '')
+  const httpsMatch = trimmed.match(/^https?:\/\/(?:[^@/]+@)?github\.com\/([^/]+)\/([^/]+)$/i)
+  if (httpsMatch)
+    return { owner: httpsMatch[1]!, repo: httpsMatch[2]! }
+  const sshMatch = trimmed.match(/^git@github\.com:([^/]+)\/([^/]+)$/i)
+  if (sshMatch)
+    return { owner: sshMatch[1]!, repo: sshMatch[2]! }
+  return undefined
+}
 
 /**
  * Parse `git diff --name-status <before>..<after>` into add / update /
