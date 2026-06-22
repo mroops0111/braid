@@ -143,6 +143,17 @@ export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlu
         fetchedAt: new Date().toISOString() as Timestamp,
       }
     },
+    webhook: {
+      repoIdentity: config => ({ provider: 'github', owner: config.owner, repo: config.repo }),
+      // This loader pulls issues + (optionally) comments. Push and other
+      // code-side events do not change what we'd re-fetch; accept but
+      // skip so the receiver returns 202 (preserving GitHub's retry
+      // posture) without spending an API call.
+      shouldDispatch: (_config, delivery) =>
+        delivery.event === 'issues'
+        || delivery.event === 'issue_comment'
+        || delivery.event === 'ping',
+    },
   })
 }
 
