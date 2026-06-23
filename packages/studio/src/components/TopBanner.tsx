@@ -13,6 +13,8 @@ interface TopBannerProps {
   detail: ReactNode
   /** Optional icon override; defaults to a spinner appropriate for the tone. */
   icon?: ComponentType<{ className?: string }>
+  /** Opt out of the spin animation for non-spinning icons (e.g. CheckCircle2). Defaults true. */
+  spin?: boolean
   /** Right-aligned action slot, e.g. Cancel button or link. */
   actions?: ReactNode
 }
@@ -23,7 +25,7 @@ interface TopBannerProps {
  * never disagree on height, padding, or typography when they stack
  * during a busy session.
  */
-export function TopBanner({ tone, label, detail, icon: Icon, actions }: TopBannerProps): ReactNode {
+export function TopBanner({ tone, label, detail, icon: Icon, spin = true, actions }: TopBannerProps): ReactNode {
   const ResolvedIcon = Icon ?? Loader2
   return (
     <div
@@ -38,9 +40,10 @@ export function TopBanner({ tone, label, detail, icon: Icon, actions }: TopBanne
       <ResolvedIcon
         className={cn(
           'size-3',
-          tone === 'reactor' && 'animate-spin text-emerald-600 dark:text-emerald-400',
-          tone === 'run' && 'animate-spin text-primary',
-          tone === 'batch' && 'animate-spin text-sky-600 dark:text-sky-400',
+          spin && (tone === 'reactor' || tone === 'run' || tone === 'batch') && 'animate-spin',
+          tone === 'reactor' && 'text-emerald-600 dark:text-emerald-400',
+          tone === 'run' && 'text-primary',
+          tone === 'batch' && 'text-sky-600 dark:text-sky-400',
           tone === 'warning' && 'text-amber-600 dark:text-amber-400',
         )}
       />

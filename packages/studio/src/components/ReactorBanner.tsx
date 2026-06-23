@@ -1,6 +1,7 @@
+import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { workspaceEventsUrl } from '@/lib/api'
+import { api, workspaceEventsUrl } from '@/lib/api'
 import { TopBanner } from './TopBanner'
 
 interface ReactorBannerProps {
@@ -9,80 +10,41 @@ interface ReactorBannerProps {
   onOpenActivity: () => void
 }
 
-interface ReactorPassProgress {
-  readonly passId: string
-  readonly sourceId: string
-  readonly totalUnits: number
-  readonly processed: number
-}
-
 /**
- * Top-of-app banner surfacing the active reactor pass. Subscribes to
- * the workspace SSE stream directly and tracks progress via the
- * `reactor.unit.completed` events the reactor emits per unit. The
- * detail-pane lives on the dedicated Activity surface; this banner is
- * intentionally minimal so it does not crowd out the parallel batch /
- * run banners that may stack on top during a busy session.
+ * Top-of-app banner surfacing the active reactor pass. Reads the active
+ * pass from the same `reactor-passes` query the Activity page uses;
+ * `useWorkspaceEvents` invalidates that query on every reactor SSE event,
+ * so the banner stays live without its own EventSource. Mid-pass mount
+ * works because the query returns the in-flight pass from the API.
  *
- * Throttle events flash an amber notice that auto-dismisses after a
- * few seconds — they would otherwise pile up across consecutive
- * dropped deliveries.
+ * The throttle notice still listens to SSE directly: a throttled pass is
+ * a transient event (no persisted "in-flight" state to query), and it
+ * auto-dismisses after a few seconds.
  */
 export function ReactorBanner({ workspaceId, onOpenActivity }: ReactorBannerProps) {
-  const [pass, setPass] = useState<ReactorPassProgress | null>(null)
+  const passesQuery = useQuery({
+    queryKey: ['reactor-passes', workspaceId],
+    queryFn: () => api.listReactorPasses(workspaceId as string),
+    enabled: workspaceId !== null,
+  })
+  const active = (passesQuery.data?.items ?? []).find(p => p.status === 'dispatched' || p.status === 'running')
+
   const [throttled, setThrottled] = useState<{ sourceId: string, limit: number } | null>(null)
 
   useEffect(() => {
     if (!workspaceId)
       return
-    setPass(null)
     setThrottled(null)
     const source = new EventSource(workspaceEventsUrl(workspaceId))
-
-    source.addEventListener('reactor.dispatched', (raw) => {
-      try {
-        const event = JSON.parse((raw as MessageEvent).data) as {
-          passId: string
-          sourceId: string
-          totalUnits: number
-        }
-        setPass({ passId: event.passId, sourceId: event.sourceId, totalUnits: event.totalUnits, processed: 0 })
-      }
-      catch {
-        // Malformed payload — ignore; next event resets cleanly.
-      }
-    })
-    source.addEventListener('reactor.unit.completed', (raw) => {
-      try {
-        const event = JSON.parse((raw as MessageEvent).data) as {
-          passId: string
-          processed: number
-          total: number
-        }
-        setPass(current => (current?.passId === event.passId
-          ? { ...current, processed: event.processed, totalUnits: event.total }
-          : current))
-      }
-      catch {
-        // Same as above.
-      }
-    })
-    source.addEventListener('reactor.completed', () => {
-      setPass(null)
-    })
     source.addEventListener('reactor.throttled', (raw) => {
       try {
-        const event = JSON.parse((raw as MessageEvent).data) as {
-          sourceId: string
-          limit: number
-        }
+        const event = JSON.parse((raw as MessageEvent).data) as { sourceId: string, limit: number }
         setThrottled({ sourceId: event.sourceId, limit: event.limit })
       }
       catch {
         setThrottled({ sourceId: '(unknown)', limit: 0 })
       }
     })
-
     return () => {
       source.close()
     }
@@ -95,12 +57,15 @@ export function ReactorBanner({ workspaceId, onOpenActivity }: ReactorBannerProp
     return () => clearTimeout(id)
   }, [throttled])
 
-  if (!workspaceId || (!pass && !throttled))
+  if (!workspaceId || (!active && !throttled))
     return null
+
+  const processed = active ? active.units.filter(u => u.status === 'success' || u.status === 'failure').length : 0
+  const totalUnits = active?.units.length ?? 0
 
   return (
     <>
-      {pass && (
+      {active && (
         <TopBanner
           tone="reactor"
           label="Reactor"
@@ -108,11 +73,11 @@ export function ReactorBanner({ workspaceId, onOpenActivity }: ReactorBannerProp
             <>
               processing
               {' '}
-              <span className="font-mono">{pass.sourceId}</span>
+              <span className="font-mono">{active.sourceId}</span>
               {' · '}
-              {pass.processed}
+              {processed}
               /
-              {pass.totalUnits}
+              {totalUnits}
               {' units'}
             </>
           )}
@@ -127,7 +92,7 @@ export function ReactorBanner({ workspaceId, onOpenActivity }: ReactorBannerProp
           )}
         />
       )}
-      {throttled && !pass && (
+      {throttled && !active && (
         <TopBanner
           tone="warning"
           label="Reactor"

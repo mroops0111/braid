@@ -87,6 +87,7 @@ export function BatchInFlightBanner({ workspaceId, onOpenBatch, suppress }: Batc
       tone="reactor"
       label="Bootstrap Complete"
       icon={CheckCircle2}
+      spin={false}
       detail={(
         <>
           {mode.completed}

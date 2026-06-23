@@ -222,7 +222,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const pluginRegistry = options.pluginRegistry ?? new PluginRegistry()
 
   const eventBus = options.eventBus ?? new InMemoryWorkspaceEventBus()
-  const workspaceService = new WorkspaceService({ workspaceRepository })
+  const workspaceService = new WorkspaceService({ workspaceRepository, pluginRegistry })
   const modelService = new ModelService({ modelRepository })
   const validationService = new ValidationService({ pluginRegistry })
   const sourceLoaderRunner = new SourceLoaderRunner({ pluginRegistry, clock, eventBus })

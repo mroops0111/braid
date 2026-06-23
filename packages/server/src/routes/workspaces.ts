@@ -1,11 +1,11 @@
-import type { PluginRegistry, SourceLoaderRunner, Workspace, WorkspaceBootstrap, WorkspaceService } from '@braidhq/core'
+import type { PluginRegistry, SourceLoaderRunner, WorkspaceBootstrap, WorkspaceService } from '@braidhq/core'
 import type { AbsolutePath, ProductManifest, SourceDescriptor, Timestamp } from '@braidhq/schema'
 import type { Context, MiddlewareHandler } from 'hono'
 import type { WorkspaceRegistryFile } from '../infrastructure/fs/WorkspaceRegistryFile.js'
 import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
 import { rm } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
-import { NotFoundError, ValidationError } from '@braidhq/core'
+import { NotFoundError, ValidationError, Workspace } from '@braidhq/core'
 import {
   AgentRoutingConfig,
   McpServerConfig,
@@ -225,6 +225,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
       throw new NotFoundError(`Source "${sourceId}" not found in workspace "${workspaceId}"`)
 
     const nextManifest = withSources(workspace.productManifest, workspace.sources.filter(entry => entry.id !== sourceId))
+    deps.workspaceService.assertRequiredSourceRoles(new Workspace({ ...workspace.toData(), productManifest: nextManifest }))
     await updateProductManifest(workspace.rootPath, nextManifest)
 
     let filesRemoved = false

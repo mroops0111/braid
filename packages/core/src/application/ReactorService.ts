@@ -237,8 +237,10 @@ export class ReactorService implements Reactor {
     const checkpointSkillId = context.batchBinding.checkpoint?.skillId
     if (anySucceeded && checkpointSkillId)
       return this.dispatchCheckpoint(context, checkpointSkillId)
-    if (checkpointSkillId)
-      await this.persistAndEmit(context, this.checkpointCompleted(context, 'skipped'))
+    // No per-unit succeeded (or no checkpoint configured) — there is no
+    // checkpoint pass to report. The terminal `reactor.completed` event
+    // carries `checkpointRan: false`; no separate `checkpoint.completed`
+    // event is emitted, keeping persisted state and event stream in sync.
     return false
   }
 
@@ -246,16 +248,13 @@ export class ReactorService implements Reactor {
     const { workspace, sourceId, batchBinding, pass } = context
     const path = pass.units[index]!.path
     const total = pass.units.length
+    let runId: SkillRunId
     try {
       const args = argsForPath(batchBinding.perUnit, path)
-      const runId = await this.deps.skillRunner.start(workspace, batchBinding.perUnit.skillId, args)
+      runId = await this.deps.skillRunner.start(workspace, batchBinding.perUnit.skillId, args)
       context.pass = updateUnit(pass, index, { status: 'running', skillRunId: runId, startedAt: this.deps.clock.now() })
       await this.persistAndEmit(context, this.unitStarted(context, index, runId, total))
       await waitForCompletion(this.deps.skillRunner, runId)
-      await this.deps.sourceUnitStateService.recordObservation(workspace.id, sourceId, path, runId)
-      context.pass = updateUnit(context.pass, index, { status: 'success', completedAt: this.deps.clock.now() })
-      await this.persistAndEmit(context, this.unitCompleted(context, index, 'success', total))
-      return true
     }
     catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -271,6 +270,24 @@ export class ReactorService implements Reactor {
       await this.persistAndEmit(context, this.unitCompleted(context, index, 'failure', total))
       return false
     }
+    // The skill ran cleanly. Recording the observation and persisting the
+    // success state are best-effort follow-ups: if either fails, the unit
+    // is still semantically successful (the skill's side effects have
+    // already happened). Marking it as failure here would cause a
+    // duplicate dispatch on the next sync since the ledger may already
+    // have the new sha, which would silently re-run the skill.
+    try {
+      await this.deps.sourceUnitStateService.recordObservation(workspace.id, sourceId, path, runId)
+    }
+    catch (err) {
+      reactorLogger.warn(
+        { workspaceId: workspace.id, sourceId, path, err: err instanceof Error ? err.message : String(err) },
+        'reactor: skill succeeded but recordObservation failed; unit remains success',
+      )
+    }
+    context.pass = updateUnit(context.pass, index, { status: 'success', completedAt: this.deps.clock.now() })
+    await this.persistAndEmit(context, this.unitCompleted(context, index, 'success', total))
+    return true
   }
 
   private async dispatchCheckpoint(context: PassContext, skillId: SkillId): Promise<boolean> {

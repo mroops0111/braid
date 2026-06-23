@@ -108,10 +108,14 @@ export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlu
       const headers = buildHeaders(config)
       const rawIssues = await fetchIssues(fetchFn, config, headers, undefined)
       const issues = await filterAndAnnotateRealizedIntent(fetchFn, config, headers, rawIssues)
+      // Cursor advances over every raw issue we examined, not just
+      // survivors of the realized-intent filter — see same comment in `sync`.
       let mostRecent = ''
+      for (const raw of rawIssues) {
+        if (raw.updated_at > mostRecent)
+          mostRecent = raw.updated_at
+      }
       for (const { issue, mergedPRs } of issues) {
-        if (issue.updated_at > mostRecent)
-          mostRecent = issue.updated_at
         const comments = await fetchCommentsIfNeeded(fetchFn, config, headers, issue)
         const markdown = renderIssueMarkdown(config, issue, comments, mergedPRs)
         const path = join(issuesDir, `${issue.number}.md`)
@@ -143,10 +147,17 @@ export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlu
       const issues = await filterAndAnnotateRealizedIntent(fetchFn, config, headers, rawIssues)
       let added = 0
       let updated = 0
+      // Advance the cursor across every raw issue we examined this sync,
+      // not just survivors. Otherwise an issue that's filtered out (no
+      // merged PR yet) keeps appearing in every subsequent `since=` query
+      // and re-burns one GraphQL probe per sync until it eventually
+      // merges, which on a chatty repo can starve the rate budget.
       let mostRecent = cursor?.since ?? ''
+      for (const raw of rawIssues) {
+        if (raw.updated_at > mostRecent)
+          mostRecent = raw.updated_at
+      }
       for (const { issue, mergedPRs } of issues) {
-        if (issue.updated_at > mostRecent)
-          mostRecent = issue.updated_at
         const comments = await fetchCommentsIfNeeded(fetchFn, config, headers, issue)
         const markdown = renderIssueMarkdown(config, issue, comments, mergedPRs)
         const path = join(issuesDir, `${issue.number}.md`)
@@ -332,6 +343,16 @@ async function fetchMergedPRsClosingIssue(
   })
   if (!response.ok) {
     const body = await response.text().catch(() => '')
+    if (response.status === 401) {
+      throw new Error(
+        // GitHub's GraphQL endpoint rejects anonymous requests — the
+        // realized-intent filter needs `GH_TOKEN` (or any other env var
+        // referenced via ${VAR} in config.token). The REST issue list
+        // works anonymously, so this only bites when the loader reaches
+        // the merged-PR check; surface it actionably.
+        `githubLoader: realized-intent filter requires an authenticated token (set GH_TOKEN or override config.token). GitHub GraphQL returned 401 for issue ${issueNumber}.`,
+      )
+    }
     throw new Error(`githubLoader: GraphQL POST failed (${response.status}) for issue ${issueNumber}: ${body.slice(0, 200)}`)
   }
   const payload = await response.json() as ClosedByQueryResponse

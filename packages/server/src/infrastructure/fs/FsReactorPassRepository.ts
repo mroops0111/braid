@@ -1,6 +1,7 @@
 import type { ReactorPassRepository } from '@braidhq/core'
 import type { AbsolutePath, ReactorPass, ReactorPassId, WorkspaceId } from '@braidhq/schema'
 import type { Dirent } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import process from 'node:process'
@@ -36,7 +37,8 @@ export class FsReactorPassRepository implements ReactorPassRepository {
     const root = await this.resolveRoot(pass.workspaceId)
     const file = reactorPassFilePath(root, pass.id)
     await mkdir(reactorPassesDir(root), { recursive: true })
-    const tmp = `${file}.tmp-${process.pid}-${Date.now()}`
+    // Random suffix so concurrent saves in the same ms don't collide.
+    const tmp = `${file}.tmp-${process.pid}-${randomUUID()}`
     await writeFile(tmp, `${JSON.stringify(pass, null, 2)}\n`, 'utf-8')
     await rename(tmp, file)
   }

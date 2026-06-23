@@ -118,9 +118,9 @@ async function setup(opts: {
     sources: opts.sources ?? [intentSource('issues')],
   })
   await workspaceRepo.save(workspace)
-  const workspaceService = new WorkspaceService({ workspaceRepository: workspaceRepo })
 
   const pluginRegistry = new PluginRegistry()
+  const workspaceService = new WorkspaceService({ workspaceRepository: workspaceRepo, pluginRegistry })
   const batchBinding: {
     perUnit: { skillId: SkillId }
     checkpoint?: { skillId: SkillId, chunkSize: number, runAtEnd: boolean }
@@ -388,15 +388,15 @@ describe('ReactorService', () => {
     expect(completedProcessed).toEqual([1, 2, 3])
   })
 
-  it('emits reactor.checkpoint.completed with status="skipped" when no per-unit succeeded but the binding exists', async () => {
+  it('does NOT emit reactor.checkpoint.* when no per-unit succeeded; the terminal reactor.completed already says checkpointRan=false', async () => {
     const { workspace, eventBus, skillRunner, captured } = await setup({ hasCheckpoint: true })
     skillRunner.exitCodes = [1, 1, 1]
     emitSync(eventBus, workspace.id, 'issues')
     await tick(200)
     const checkpointEvents = captured.filter(e => e.type === 'reactor.checkpoint.started' || e.type === 'reactor.checkpoint.completed')
-    expect(checkpointEvents).toHaveLength(1)
-    expect((checkpointEvents[0] as { type: string, status: string }).type).toBe('reactor.checkpoint.completed')
-    expect((checkpointEvents[0] as { status: string }).status).toBe('skipped')
+    expect(checkpointEvents).toHaveLength(0)
+    const completed = captured.find(e => e.type === 'reactor.completed')
+    expect((completed as { checkpointRan: boolean }).checkpointRan).toBe(false)
   })
 
   it('persists a throttled pass with status=throttled so the Activity page can surface it', async () => {

@@ -59,7 +59,7 @@ async function setupWithHistory(options: { withHistory?: boolean } = {}) {
   const workspaceRepo = new InMemoryWorkspaceRepository()
   const workspace = makeWorkspace({ id: mintTestId('ws') }) as Workspace
   await workspaceRepo.save(workspace)
-  const workspaceService = new WorkspaceService({ workspaceRepository: workspaceRepo })
+  const workspaceService = new WorkspaceService({ workspaceRepository: workspaceRepo, pluginRegistry: new PluginRegistry() })
   const proposalRepository = new InMemoryProposalRepository()
   const clarifyRepository = new InMemoryClarifyTicketRepository()
   const decisionRepository = new InMemoryDecisionRepository()
