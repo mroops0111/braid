@@ -7,6 +7,17 @@ export interface MultiSelectOption {
   value: string
   label: string
   description?: string | undefined
+  /**
+   * Optional informational chip rendered next to the option label.
+   * Used by the source-intent picker to mark per-unit freshness
+   * ("extracted Nm ago" / "stale"); leave unset for plain options.
+   * The chip is purely informational — it does NOT disable selection.
+   */
+  badge?: {
+    readonly text: string
+    readonly tone?: 'fresh' | 'stale'
+    readonly title?: string
+  } | undefined
 }
 
 interface MultiSelectDropdownProps {
@@ -111,7 +122,22 @@ export function MultiSelectDropdown({
                         {checked && <Check className="size-2.5" />}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate font-mono text-[11px]">{option.label}</span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="block truncate font-mono text-[11px]">{option.label}</span>
+                          {option.badge && (
+                            <span
+                              title={option.badge.title}
+                              className={cn(
+                                'shrink-0 rounded-full px-1.5 py-px text-[9px] font-medium uppercase tracking-wider',
+                                option.badge.tone === 'stale'
+                                  ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                                  : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+                              )}
+                            >
+                              {option.badge.text}
+                            </span>
+                          )}
+                        </span>
                         {option.description && (
                           <span className="block truncate text-[10px] text-muted-foreground">{option.description}</span>
                         )}

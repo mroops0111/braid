@@ -34,7 +34,13 @@ describe('e2e history hooks: applying a proposal writes a commit', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: 'history-ws',
-        manifest: { name: 'history-ws', sources: [] },
+        manifest: {
+          name: 'history-ws',
+          sources: [
+            { kind: 'filesystem', id: 'intent', role: 'intent', name: 'intent', path: './intent' },
+            { kind: 'filesystem', id: 'code', role: 'code', name: 'code', path: './code' },
+          ],
+        },
       }),
     })
     expect(response.status).toBe(201)

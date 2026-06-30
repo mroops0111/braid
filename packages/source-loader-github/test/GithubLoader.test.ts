@@ -33,10 +33,23 @@ interface MockComment {
   updated_at: string
 }
 
+interface MockClosingPR {
+  number: number
+  merged: boolean
+  mergeCommit?: string | null
+}
+
 interface MockRouter {
   issues: readonly MockIssue[]
   comments?: Record<number, readonly MockComment[]>
   pageSize?: number
+  /**
+   * Per-issue mapping of "merged PRs linked to this issue". When
+   * omitted, the mock defaults to one merged PR per issue so existing
+   * happy-path tests don't need to spell out provenance. Tests that
+   * exercise the filter pass an explicit map.
+   */
+  linkedPRs?: Record<number, readonly MockClosingPR[]>
 }
 
 function buildMockFetch(router: MockRouter, recorder?: { calls: string[], lastHeaders: Headers | null }): typeof globalThis.fetch {
@@ -47,17 +60,49 @@ function buildMockFetch(router: MockRouter, recorder?: { calls: string[], lastHe
       recorder.lastHeaders = new Headers(init?.headers ?? {})
     }
     const parsed = new URL(url)
+    if (parsed.pathname === '/graphql') {
+      const body = init?.body ? JSON.parse(typeof init.body === 'string' ? init.body : '{}') as { variables?: { number?: number } } : {}
+      const issueNumber = body.variables?.number ?? 0
+      const linked = router.linkedPRs?.[issueNumber] ?? defaultLinkedPRsFor(router, issueNumber)
+      const payload = {
+        data: {
+          repository: {
+            issue: {
+              timelineItems: {
+                nodes: linked.map(n => ({
+                  source: {
+                    __typename: 'PullRequest',
+                    number: n.number,
+                    merged: n.merged,
+                    mergeCommit: n.mergeCommit === undefined
+                      ? { oid: `sha-pr-${n.number}` }
+                      : n.mergeCommit
+                        ? { oid: n.mergeCommit }
+                        : null,
+                  },
+                })),
+              },
+            },
+          },
+        },
+      }
+      return new Response(JSON.stringify(payload), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
     const issuesMatch = parsed.pathname.match(/^\/repos\/([^/]+)\/([^/]+)\/issues$/)
     if (issuesMatch) {
       const since = parsed.searchParams.get('since')
       const state = parsed.searchParams.get('state') ?? 'all'
       const page = Number.parseInt(parsed.searchParams.get('page') ?? '1', 10)
       const pageSize = router.pageSize ?? 100
-      let filtered = router.issues.slice()
+      // Mock issues default to `state: closed` so the realized-intent
+      // filter (closed + linked merged PR) lets them through. Tests
+      // that exercise the open-issue rejection path set `state: 'open'`
+      // explicitly on the fixture.
+      let filtered = router.issues.map(i => ({ ...i, state: i.state ?? 'closed' }))
       if (since)
         filtered = filtered.filter(i => i.updated_at > since)
       if (state !== 'all')
-        filtered = filtered.filter(i => (i.state ?? 'open') === state)
+        filtered = filtered.filter(i => i.state === state)
       const start = (page - 1) * pageSize
       const slice = filtered.slice(start, start + pageSize)
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -78,6 +123,12 @@ function buildMockFetch(router: MockRouter, recorder?: { calls: string[], lastHe
   }
 }
 
+function defaultLinkedPRsFor(router: MockRouter, issueNumber: number): readonly MockClosingPR[] {
+  if (router.linkedPRs)
+    return router.linkedPRs[issueNumber] ?? []
+  return [{ number: issueNumber * 100, merged: true }]
+}
+
 interface ParsedFrontmatter {
   number: number
   title: string
@@ -87,6 +138,7 @@ interface ParsedFrontmatter {
   createdAt: string
   updatedAt: string
   url: string
+  linkedMergedPRs: ReadonlyArray<{ number: number, mergeCommit: string | null }>
 }
 
 function splitMarkdown(content: string): { fm: ParsedFrontmatter, rest: string } {
@@ -114,7 +166,7 @@ describe('GithubLoader', () => {
         {
           number: 1,
           title: 'First issue',
-          state: 'open',
+          state: 'closed',
           user: { login: 'alice' },
           labels: [{ name: 'bug' }, { name: 'p1' }],
           body: 'Body of issue 1.',
@@ -153,23 +205,92 @@ describe('GithubLoader', () => {
     expect(rest.trim()).toBe('Body of issue 1.')
   })
 
-  it('omits pull requests by default and includes them when opted in', async () => {
+  it('always omits PR-shaped entries even when `includePullRequests` is set to true (deprecated flag is ignored)', async () => {
     const router: MockRouter = {
       issues: [
         { number: 1, title: 'Issue', created_at: 't', updated_at: 't' },
         { number: 2, title: 'PR', pull_request: { url: 'x' }, created_at: 't', updated_at: 't' },
       ],
     }
-
-    const loaderDefault = createGithubLoader({ fetchFn: buildMockFetch(router) })
-    await loaderDefault.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    await loader.ingest({ owner: 'o', repo: 'r', includePullRequests: true }, dest, ctx)
+    // PR (#2) is filtered out regardless of the deprecated flag; only #1
+    // survives, and it passes the realized-intent gate via the mock's
+    // default "one merged PR per issue" stub.
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md'])
+  })
 
-    await rm(join(dest, 'issues'), { recursive: true, force: true })
+  it('excludes closed issues that have no linked merged PR', async () => {
+    const router: MockRouter = {
+      issues: [
+        { number: 1, title: 'merged-pr-linked', created_at: 't', updated_at: 't' },
+        { number: 2, title: 'closed-no-pr', created_at: 't', updated_at: 't' },
+        { number: 3, title: 'pr-closed-without-merge', created_at: 't', updated_at: 't' },
+      ],
+      linkedPRs: {
+        1: [{ number: 10, merged: true, mergeCommit: 'abc1' }],
+        2: [], // no PR ever referenced this issue
+        3: [{ number: 30, merged: false }], // PR was closed without merging
+      },
+    }
+    const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md'])
+  })
 
-    const loaderWithPRs = createGithubLoader({ fetchFn: buildMockFetch(router) })
-    await loaderWithPRs.ingest({ owner: 'o', repo: 'r', includePullRequests: true }, dest, ctx)
-    expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md', '2.md'])
+  it('excludes open issues even when they already have a linked merged PR', async () => {
+    // A merged PR mentioning an open issue does not yet represent
+    // realized intent — more work may still be needed. Wait for close.
+    const router: MockRouter = {
+      issues: [
+        { number: 5, title: 'open-with-partial-pr', state: 'open', created_at: 't', updated_at: 't' },
+        { number: 6, title: 'closed-with-pr', state: 'closed', created_at: 't', updated_at: 't' },
+      ],
+      linkedPRs: {
+        5: [{ number: 50, merged: true, mergeCommit: 'shaA' }],
+        6: [{ number: 60, merged: true, mergeCommit: 'shaB' }],
+      },
+    }
+    const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['6.md'])
+  })
+
+  it('frontmatter records every merged PR ref (number + mergeCommit) so the markdown carries provenance', async () => {
+    const router: MockRouter = {
+      issues: [{ number: 7, title: 'multi-PR fix', created_at: 't', updated_at: 't' }],
+      linkedPRs: {
+        7: [
+          { number: 70, merged: true, mergeCommit: 'sha-70' },
+          { number: 71, merged: false }, // not merged; should be excluded
+          { number: 72, merged: true, mergeCommit: 'sha-72' },
+        ],
+      },
+    }
+    const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    const content = await readFile(join(dest, 'issues', '7.md'), 'utf-8')
+    const { fm } = splitMarkdown(content)
+    expect((fm as unknown as { linkedMergedPRs: Array<{ number: number, mergeCommit: string }> }).linkedMergedPRs).toEqual([
+      { number: 70, mergeCommit: 'sha-70' },
+      { number: 72, mergeCommit: 'sha-72' },
+    ])
+  })
+
+  it('reports `fetchedRaw` in the ingest metadata so dogfooders can see how many issues were filtered out', async () => {
+    const router: MockRouter = {
+      issues: [
+        { number: 1, title: 'kept', created_at: 't', updated_at: 't' },
+        { number: 2, title: 'filtered', created_at: 't', updated_at: 't' },
+      ],
+      linkedPRs: {
+        1: [{ number: 10, merged: true }],
+        2: [],
+      },
+    }
+    const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    const report = await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    expect(report.metadata).toMatchObject({ issueCount: 1, fetchedRaw: 2 })
   })
 
   it('appends sorted comments under ## Comments', async () => {
@@ -248,6 +369,41 @@ describe('GithubLoader', () => {
 
     const content2 = await readFile(join(dest, 'issues', '2.md'), 'utf-8')
     expect(content2).toContain('Two (edited)')
+  })
+
+  it('sync deletes on-disk files for issues that came back via cursor but no longer pass the realized-intent filter', async () => {
+    // Initial state: two closed issues, both with linked merged PRs.
+    const initial: MockRouter = {
+      issues: [
+        { number: 1, title: 'kept', state: 'closed', created_at: 't', updated_at: '2026-01-01T00:00:00Z' },
+        { number: 2, title: 'will-be-reopened', state: 'closed', created_at: 't', updated_at: '2026-01-01T00:00:00Z' },
+      ],
+      linkedPRs: {
+        1: [{ number: 10, merged: true }],
+        2: [{ number: 20, merged: true }],
+      },
+    }
+    const loader1 = createGithubLoader({ fetchFn: buildMockFetch(initial) })
+    await loader1.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md', '2.md'])
+
+    // Issue #2 gets re-opened. `since=` returns it because updated_at
+    // moved; the filter drops it (state !== closed); the loader must
+    // delete the orphan file.
+    const after: MockRouter = {
+      issues: [
+        { number: 2, title: 'will-be-reopened', state: 'open', created_at: 't', updated_at: '2026-02-01T00:00:00Z' },
+      ],
+      linkedPRs: {
+        2: [{ number: 20, merged: true }],
+      },
+    }
+    const loader2 = createGithubLoader({ fetchFn: buildMockFetch(after) })
+    const report = await loader2.sync!({ owner: 'o', repo: 'r' }, dest, ctx)
+
+    expect(report.removed).toBe(1)
+    expect(report.changed).toBe(true)
+    expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md'])
   })
 
   // eslint-disable-next-line no-template-curly-in-string -- describing the literal `${VAR}` placeholder, NOT a template string

@@ -36,7 +36,6 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
   const [githubState, setGithubState] = useState<'open' | 'closed' | 'all'>('all')
   const [githubLabels, setGithubLabels] = useState('')
   const [githubIncludeComments, setGithubIncludeComments] = useState(true)
-  const [githubIncludePullRequests, setGithubIncludePullRequests] = useState(false)
   /**
    * Set once the user successfully completes the Google OAuth popup. Keyed to
    * the sourceId derived from `name` at the time of consent. If the user
@@ -76,7 +75,6 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
         githubState,
         githubLabels,
         githubIncludeComments,
-        githubIncludePullRequests,
       })
       return api.addSource(workspaceId, source)
     },
@@ -101,7 +99,6 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
     setGithubState('all')
     setGithubLabels('')
     setGithubIncludeComments(true)
-    setGithubIncludePullRequests(false)
     setOauthConnectedFor(null)
     add.reset()
     startOauth.reset()
@@ -251,10 +248,6 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
                 <label className="flex items-center gap-2 text-[11px]">
                   <input type="checkbox" checked={githubIncludeComments} onChange={e => setGithubIncludeComments(e.target.checked)} />
                   Include comments
-                </label>
-                <label className="flex items-center gap-2 text-[11px]">
-                  <input type="checkbox" checked={githubIncludePullRequests} onChange={e => setGithubIncludePullRequests(e.target.checked)} />
-                  Include pull requests (GitHub treats PRs as issues; off by default)
                 </label>
               </div>
               <p className="text-[11px] text-muted-foreground">

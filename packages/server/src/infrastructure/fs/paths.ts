@@ -82,6 +82,14 @@ export function runsDir(workspaceRoot: AbsolutePath): string {
   return join(workspaceArtifactsDir(workspaceRoot), 'runs')
 }
 
+export function reactorPassesDir(workspaceRoot: AbsolutePath): string {
+  return join(workspaceArtifactsDir(workspaceRoot), 'reactor-passes')
+}
+
+export function reactorPassFilePath(workspaceRoot: AbsolutePath, passId: string): string {
+  return join(reactorPassesDir(workspaceRoot), `${passId}.json`)
+}
+
 export function runIndexPath(workspaceRoot: AbsolutePath): string {
   return join(runsDir(workspaceRoot), 'index.jsonl')
 }

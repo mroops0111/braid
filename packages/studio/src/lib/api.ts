@@ -19,12 +19,16 @@ import type {
   OntologyResponse,
   ProductManifestDraft,
   Proposal,
+  ReactorPass,
+  ReactorPassId,
   RunRecord,
   SessionMetadata,
   SkillInputOptionsResponse,
   SkillManifest,
   SourceDescriptor,
   SourceId,
+  SourceUnitDiff,
+  SourceUnitState,
   TagMeta,
   User,
   UserDraft,
@@ -306,6 +310,24 @@ export const api = {
       `/workspaces/${workspaceId}/source-webhooks/${sourceId}/github/rotate`,
       { method: 'POST' },
     ),
+
+  /**
+   * Diff a source's current units on disk against the recorded ledger.
+   * Reactor consumes this internally; Studio uses it to render
+   * per-option badges ("extracted Nm ago" / "stale" / never seen) on
+   * the source-intent picker.
+   */
+  getSourceUnitDiff: (workspaceId: string, sourceId: string) =>
+    fetchJson<SourceUnitDiff>(`/workspaces/${workspaceId}/source-unit-states/${sourceId}/diff`),
+  listSourceUnitStates: (workspaceId: string, sourceId?: string) => {
+    const qs = sourceId ? `?sourceId=${encodeURIComponent(sourceId)}` : ''
+    return fetchJson<{ items: SourceUnitState[] }>(`/workspaces/${workspaceId}/source-unit-states${qs}`)
+  },
+
+  listReactorPasses: (workspaceId: string) =>
+    fetchJson<{ items: ReactorPass[] }>(`/workspaces/${workspaceId}/reactor-passes`),
+  getReactorPass: (workspaceId: string, passId: ReactorPassId) =>
+    fetchJson<ReactorPass>(`/workspaces/${workspaceId}/reactor-passes/${passId}`),
 
   listSkills: (workspaceId: string) =>
     fetchJson<ItemList<SkillManifest>>(`/workspaces/${workspaceId}/skills`),

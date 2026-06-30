@@ -19,6 +19,7 @@ import { createNodesRouter } from './routes/nodes.js'
 import { createOAuthRouter } from './routes/oauth.js'
 import { createOntologyRouter } from './routes/ontology.js'
 import { createProposalsRouter } from './routes/proposals.js'
+import { createReactorPassesRouter } from './routes/reactorPasses.js'
 import { createRunsRouter } from './routes/runs.js'
 import { createSkillInputOptionsRouter } from './routes/skillInputOptions.js'
 import { createSkillsRouter } from './routes/skills.js'
@@ -108,6 +109,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     workspaceService: deps.workspaceService,
     sourceLoaderRunner: deps.sourceLoaderRunner,
     workspacesRoot: deps.workspacesRoot,
+    pluginRegistry: deps.pluginRegistry,
     ...(deps.bootstrap ? { bootstrap: deps.bootstrap } : {}),
     ...(deps.workspaceRegistry ? { workspaceRegistry: deps.workspaceRegistry } : {}),
     ...(deps.userRegistry ? { userRegistry: deps.userRegistry } : {}),
@@ -163,6 +165,15 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   workspaceScoped.route('/decisions', createDecisionsRouter({ decisionRepository: deps.decisionRepository }))
   workspaceScoped.route('/source-unit-states', createSourceUnitStatesRouter({
     sourceUnitStateService: deps.sourceUnitStateService,
+    ...(deps.intentLister && deps.sourceUnitDigest
+      ? {
+          diffSupport: {
+            workspaceService: deps.workspaceService,
+            intentLister: deps.intentLister,
+            digest: deps.sourceUnitDigest,
+          },
+        }
+      : {}),
   }))
   workspaceScoped.route('/ontology', createOntologyRouter({
     workspaceRepository: deps.workspaceRepository,
@@ -190,6 +201,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   if (deps.batchService) {
     workspaceScoped.route('/batch', createBatchRouter({ batchService: deps.batchService }))
   }
+  workspaceScoped.route('/reactor-passes', createReactorPassesRouter({
+    reactorPassRepository: deps.reactorPassRepository,
+  }))
   if (deps.secretStore) {
     workspaceScoped.route('/source-webhooks', createSourceWebhooksAdminRouter({
       workspaceService: deps.workspaceService,

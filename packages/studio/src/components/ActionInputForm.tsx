@@ -1,7 +1,7 @@
-import type { SkillInputDescriptor, SkillInputDynamicOption, SourceId } from '@braidhq/schema'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import type { SkillInputDescriptor, SkillInputDynamicOption, SourceId, SourceUnit, SourceUnitState } from '@braidhq/schema'
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { MultiSelectDropdown } from '@/components/MultiSelectDropdown'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
@@ -248,6 +248,137 @@ function PickField({ workspaceId, input, scalarValue, onScalarChange, multiValue
   )
 }
 
+/**
+ * Decorate source-intent picker options with per-unit freshness
+ * badges. For each distinct sourceId carried by the options:
+ *   - "fresh" badge when the on-disk sha matches the recorded
+ *     `lastObservedSha` (option appears in `diff.unchanged`)
+ *   - "stale" badge when the recorded sha differs (option appears in
+ *     `diff.changed`)
+ *   - no badge when the unit has never been observed (option appears
+ *     in `diff.new`)
+ *
+ * Returns the input options unchanged for any provider other than
+ * `source-intent`. The hook is always called with stable order so it
+ * is safe under the rules of hooks even when `rawOptions` is empty
+ * (loading / error pre-resolution).
+ */
+function useSourceIntentBadges(
+  workspaceId: string,
+  providerType: string,
+  rawOptions: readonly SkillInputDynamicOption[],
+): readonly DynamicOptionWithBadge[] {
+  const isSourceIntent = providerType === 'source-intent'
+  const sourceIds = useMemo(() => {
+    if (!isSourceIntent)
+      return [] as readonly string[]
+    const set = new Set<string>()
+    for (const opt of rawOptions) {
+      if (opt.sourceId)
+        set.add(opt.sourceId as string)
+    }
+    return [...set].sort()
+  }, [isSourceIntent, rawOptions])
+
+  const diffQueries = useQueries({
+    queries: sourceIds.map(sourceId => ({
+      queryKey: ['source-unit-diff', workspaceId, sourceId] as const,
+      queryFn: () => api.getSourceUnitDiff(workspaceId, sourceId),
+    })),
+  })
+  const ledgerQueries = useQueries({
+    queries: sourceIds.map(sourceId => ({
+      queryKey: ['source-unit-states', workspaceId, sourceId] as const,
+      queryFn: () => api.listSourceUnitStates(workspaceId, sourceId),
+    })),
+  })
+
+  return useMemo(() => {
+    if (!isSourceIntent)
+      return rawOptions as readonly DynamicOptionWithBadge[]
+    interface Lookup {
+      readonly fresh: Set<string>
+      readonly stale: Set<string>
+      readonly observedAt: Map<string, string>
+    }
+    const perSource = new Map<string, Lookup>()
+    sourceIds.forEach((sourceId, index) => {
+      const diff = diffQueries[index]?.data
+      const ledger = ledgerQueries[index]?.data
+      if (!diff || !ledger)
+        return
+      const fresh = new Set(diff.unchanged.map((u: SourceUnit) => u.path))
+      const stale = new Set(diff.changed.map((u: SourceUnit) => u.path))
+      const observedAt = new Map<string, string>()
+      for (const state of ledger.items as SourceUnitState[])
+        observedAt.set(state.path, state.lastObservedAt)
+      perSource.set(sourceId, { fresh, stale, observedAt })
+    })
+    const now = Date.now()
+    return rawOptions.map((opt) => {
+      const sourceId = opt.sourceId as string | undefined
+      if (!sourceId)
+        return opt
+      const lookup = perSource.get(sourceId)
+      if (!lookup)
+        return opt
+      const lastAt = lookup.observedAt.get(opt.value)
+      if (lookup.fresh.has(opt.value) && lastAt) {
+        return {
+          ...opt,
+          badge: {
+            text: relativeAgo(now, lastAt),
+            tone: 'fresh' as const,
+            title: `Last extracted ${new Date(lastAt).toLocaleString()}`,
+          },
+        }
+      }
+      if (lookup.stale.has(opt.value)) {
+        return {
+          ...opt,
+          badge: {
+            text: 'stale',
+            tone: 'stale' as const,
+            title: lastAt
+              ? `Changed since last extract ${new Date(lastAt).toLocaleString()}`
+              : 'Changed since last extract',
+          },
+        }
+      }
+      return opt
+    })
+  }, [isSourceIntent, rawOptions, sourceIds, diffQueries, ledgerQueries])
+}
+
+interface DynamicOptionWithBadge extends SkillInputDynamicOption {
+  badge?: {
+    readonly text: string
+    readonly tone?: 'fresh' | 'stale'
+    readonly title?: string
+  }
+}
+
+/**
+ * Compact "Nm ago" / "Nh ago" / "Nd ago" formatter for the freshness
+ * chip. Avoids pulling in a date library for one badge.
+ */
+function relativeAgo(now: number, iso: string): string {
+  const then = Date.parse(iso)
+  if (Number.isNaN(then))
+    return 'recent'
+  const delta = Math.max(0, now - then)
+  const m = Math.floor(delta / 60_000)
+  if (m < 1)
+    return 'just now'
+  if (m < 60)
+    return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24)
+    return `${h}h ago`
+  const d = Math.floor(h / 24)
+  return `${d}d ago`
+}
+
 function SelectControl({
   input,
   value,
@@ -286,6 +417,11 @@ function DynamicPick({ workspaceId, input, scalarValue, onScalarChange, multiVal
     queryKey: ['skill-input-options', workspaceId, providerType, filter],
     queryFn: () => api.listSkillInputOptions(workspaceId, providerType, filter),
   })
+  const rawOptions = query.data?.items ?? []
+  // Hook is always called (even with []) so the rules-of-hooks order
+  // stays stable across the loading / error early returns below.
+  const options = useSourceIntentBadges(workspaceId, providerType, rawOptions)
+  const isMulti = input.kind === 'multi-pick'
 
   if (query.isLoading)
     return <div className="mt-1 h-7 animate-pulse rounded-md bg-muted/40" />
@@ -298,8 +434,6 @@ function DynamicPick({ workspaceId, input, scalarValue, onScalarChange, multiVal
       </div>
     )
   }
-  const options = query.data?.items ?? []
-  const isMulti = input.kind === 'multi-pick'
 
   if (options.length === 0) {
     if (input.fallback === 'disabled') {

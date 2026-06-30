@@ -40,6 +40,23 @@ export const WorkspaceMember = z.object({
 })
 export type WorkspaceMember = z.infer<typeof WorkspaceMember>
 
+/**
+ * Per-workspace reactor settings. The reactor subscribes to
+ * `source.synced` events for intent-role sources and runs the active
+ * ontology's per-unit skill against new / changed units, then a
+ * checkpoint pass. Off by default so a workspace does not start
+ * spending on background LLM runs until the operator opts in.
+ *
+ * `maxRunsPerHour` is a fail-closed hard cap on dispatches per workspace
+ * over a rolling one-hour window; the sixth dispatch within an hour
+ * emits `reactor.throttled` instead of running.
+ */
+export const ReactorConfig = z.object({
+  enabled: z.boolean().default(false),
+  maxRunsPerHour: z.number().int().positive().default(5),
+})
+export type ReactorConfig = z.infer<typeof ReactorConfig>
+
 export const ProductManifest = z.object({
   name: z.string().min(1),
   version: z.string().default('0.0.0'),
@@ -50,6 +67,7 @@ export const ProductManifest = z.object({
   agents: AgentRoutingConfig,
   agentBindings: z.array(AgentBindingDescriptor).default([]),
   storage: StorageDescriptor,
+  reactor: ReactorConfig.optional(),
 })
 export type ProductManifest = z.infer<typeof ProductManifest>
 

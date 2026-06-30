@@ -1,5 +1,5 @@
 import type { SkillManifest, Workspace } from '@braidhq/schema'
-import { Boxes, ClipboardCheck, GitGraph, HelpCircle, Network, Settings2, SlidersHorizontal, Sparkles } from 'lucide-react'
+import { Activity, Boxes, ClipboardCheck, GitGraph, HelpCircle, Network, Settings2, SlidersHorizontal, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import {
   CommandDialog,
@@ -22,7 +22,7 @@ interface CommandPaletteProps {
   onOpenWorkspaceDetails: () => void
 }
 
-export type Surface = 'actions' | 'batch' | 'clarify' | 'history' | 'proposals' | 'settings'
+export type Surface = 'actions' | 'activity' | 'batch' | 'clarify' | 'history' | 'proposals' | 'settings'
 
 interface SurfaceItem {
   id: Surface | null
@@ -39,6 +39,7 @@ function chordSecondKey(key: string): ChordTarget | undefined {
     case 'a': return { kind: 'surface', surface: 'actions' }
     case 'c': return { kind: 'surface', surface: 'clarify' }
     case 'p': return { kind: 'surface', surface: 'proposals' }
+    case 'b': return { kind: 'surface', surface: 'activity' }
     case 'h': return { kind: 'surface', surface: 'history' }
     case 's': return { kind: 'surface', surface: 'settings' }
     case 'w': return { kind: 'workspace-details' }
@@ -51,6 +52,7 @@ const SURFACE_ITEMS: SurfaceItem[] = [
   { id: 'actions', label: 'Actions', Icon: Sparkles, shortcut: 'G A' },
   { id: 'clarify', label: 'Clarify', Icon: HelpCircle, shortcut: 'G C' },
   { id: 'proposals', label: 'Proposals', Icon: ClipboardCheck, shortcut: 'G P' },
+  { id: 'activity', label: 'Activity', Icon: Activity, shortcut: 'G B' },
   { id: 'history', label: 'History', Icon: GitGraph, shortcut: 'G H' },
   { id: 'settings', label: 'Settings', Icon: SlidersHorizontal, shortcut: 'G S' },
 ]

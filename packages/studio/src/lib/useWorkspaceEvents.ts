@@ -33,6 +33,13 @@ interface WorkspaceEvent {
     | 'batch.checkpoint.started'
     | 'batch.checkpoint.completed'
     | 'batch.checkpoint.failed'
+    | 'reactor.dispatched'
+    | 'reactor.completed'
+    | 'reactor.throttled'
+    | 'reactor.unit.started'
+    | 'reactor.unit.completed'
+    | 'reactor.checkpoint.started'
+    | 'reactor.checkpoint.completed'
 }
 
 /**
@@ -133,6 +140,29 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
       invalidateGraph()
     })
     source.addEventListener('batch.checkpoint.failed', invalidateBatch)
+
+    const invalidateReactorPasses = (): void => {
+      queryClient.invalidateQueries({ queryKey: ['reactor-passes', workspaceId], exact: false })
+    }
+    const invalidatePassFinished = (): void => {
+      // Per-option badges (extracted / stale) live behind the diff
+      // endpoint; refresh them when the reactor finishes a pass so the
+      // dropdown's freshness chips reflect the new ledger.
+      queryClient.invalidateQueries({ queryKey: ['source-unit-diff', workspaceId], exact: false })
+      // Reactor writes Proposals through the per-unit skill it dispatches.
+      invalidateProposals()
+      invalidateGraph()
+      invalidateReactorPasses()
+    }
+    // Every reactor.* event mutates the pass record. The Activity page
+    // is live-updating, so invalidate on every signal.
+    source.addEventListener('reactor.dispatched', invalidateReactorPasses)
+    source.addEventListener('reactor.unit.started', invalidateReactorPasses)
+    source.addEventListener('reactor.unit.completed', invalidateReactorPasses)
+    source.addEventListener('reactor.checkpoint.started', invalidateReactorPasses)
+    source.addEventListener('reactor.checkpoint.completed', invalidateReactorPasses)
+    source.addEventListener('reactor.completed', invalidatePassFinished)
+    source.addEventListener('reactor.throttled', invalidateReactorPasses)
 
     return () => {
       source.close()

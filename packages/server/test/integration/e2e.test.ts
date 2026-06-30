@@ -92,7 +92,13 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name,
-        manifest: { name, sources: [] },
+        manifest: {
+          name,
+          sources: [
+            { kind: 'filesystem', id: 'intent', role: 'intent', name: 'intent', path: './intent' },
+            { kind: 'filesystem', id: 'code', role: 'code', name: 'code', path: './code' },
+          ],
+        },
       }),
     })
     expect(response.status).toBe(201)

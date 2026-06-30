@@ -23,7 +23,16 @@ describe('history REST routes', () => {
     const response = await app.request('/workspaces/scaffold', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'rt', manifest: { name: 'rt', sources: [] } }),
+      body: JSON.stringify({
+        name: 'rt',
+        manifest: {
+          name: 'rt',
+          sources: [
+            { kind: 'filesystem', id: 'intent', role: 'intent', name: 'intent', path: './intent' },
+            { kind: 'filesystem', id: 'code', role: 'code', name: 'code', path: './code' },
+          ],
+        },
+      }),
     })
     workspaceId = (await readJson<{ workspace: { id: string } }>(response)).workspace.id
   })

@@ -7,6 +7,7 @@ import type {
   IntentLister,
   ModelRepository,
   ProposalRepository,
+  ReactorPassRepository,
   RunRepository,
   SkillRegistry,
   SkillRunner,
@@ -34,6 +35,7 @@ import {
   ModelService,
   PerWorkspaceLock,
   PluginRegistry,
+  ReactorService,
   SourceLoaderRunner,
   SourceUnitStateService,
   SystemClock,
@@ -45,6 +47,7 @@ import {
   InMemoryDecisionRepository,
   InMemoryModelRepository,
   InMemoryProposalRepository,
+  InMemoryReactorPassRepository,
   InMemorySourceUnitStateRepository,
   InMemoryWorkspaceEventBus,
   InMemoryWorkspaceRepository,
@@ -56,7 +59,33 @@ export interface AppDependencies {
   hitlService: HITLService
   historyService?: HistoryService
   batchService?: BatchService
+  /**
+   * Reactor that subscribes to `source.synced` and runs the active
+   * ontology's per-unit skill on intent-source diffs (#29). Present
+   * when the composition has skillRunner + intentLister + a real
+   * SourceUnitDigest; absent in pure in-memory tests that don't
+   * exercise it. `composeFsApp` is the production wiring path.
+   */
+  reactorService?: ReactorService
+  /**
+   * Persistence of `ReactorPass` records. Always wired (in-memory by
+   * default, fs-backed via `composeFsApp`) so the REST + Studio
+   * surfaces can render an empty list even when no pass has run yet.
+   */
+  reactorPassRepository: ReactorPassRepository
   sourceUnitStateService: SourceUnitStateService
+  /**
+   * Filesystem walk over a workspace's intent sources. Threaded into
+   * the source-unit-states diff endpoint so the route can compose
+   * `intentLister + digest + sourceUnitStateService` without
+   * re-implementing the walk. Absent in pure in-memory tests.
+   */
+  intentLister?: IntentLister
+  /**
+   * Per-source-unit content digest. Same usage as `intentLister`;
+   * absent in pure in-memory tests.
+   */
+  sourceUnitDigest?: SourceUnitDigest
   modelService: ModelService
   validationService: ValidationService
   sourceLoaderRunner: SourceLoaderRunner
@@ -161,6 +190,13 @@ export interface ComposeOptions {
    */
   sourceUnitStateRepository?: SourceUnitStateRepository
   /**
+   * Persistence for `ReactorPass`. Defaults to an in-memory impl so
+   * unit tests of unrelated services keep working without wiring;
+   * `composeFsApp` swaps in the fs-backed repo so passes survive
+   * restart and the Studio Activity page can render history.
+   */
+  reactorPassRepository?: ReactorPassRepository
+  /**
    * Content fingerprinter for source units. Required for batch / reactor
    * / manual extract to record observations. Without it the
    * `SourceUnitStateService` falls back to a no-op stub digest that
@@ -186,7 +222,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const pluginRegistry = options.pluginRegistry ?? new PluginRegistry()
 
   const eventBus = options.eventBus ?? new InMemoryWorkspaceEventBus()
-  const workspaceService = new WorkspaceService({ workspaceRepository })
+  const workspaceService = new WorkspaceService({ workspaceRepository, pluginRegistry })
   const modelService = new ModelService({ modelRepository })
   const validationService = new ValidationService({ pluginRegistry })
   const sourceLoaderRunner = new SourceLoaderRunner({ pluginRegistry, clock, eventBus })
@@ -249,11 +285,37 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     })
     : undefined
 
+  // Reactor shares Batch's dependency footprint (skillRunner +
+  // intentLister + sourceUnitStateService) plus the event bus. We
+  // construct it whenever those are present; the service stays inert
+  // until something calls `start(workspaceId)`. composeFsApp drives
+  // start on workspaces whose ProductManifest.reactor.enabled is true.
+  const reactorPassRepository: ReactorPassRepository
+    = options.reactorPassRepository ?? new InMemoryReactorPassRepository()
+  const reactorService = options.skillRunner && options.intentLister && sourceUnitDigest && !(sourceUnitDigest instanceof FailingSourceUnitDigest)
+    ? new ReactorService({
+      eventBus,
+      workspaceService,
+      pluginRegistry,
+      skillRunner: options.skillRunner,
+      sourceUnitStateService,
+      intentLister: options.intentLister,
+      digest: sourceUnitDigest,
+      reactorPassRepository,
+      workspaceLock,
+      clock,
+    })
+    : undefined
+
   return {
     workspaceService,
     hitlService,
     ...(historyService ? { historyService } : {}),
     ...(batchService ? { batchService } : {}),
+    ...(reactorService ? { reactorService } : {}),
+    reactorPassRepository,
+    ...(options.intentLister ? { intentLister: options.intentLister } : {}),
+    ...(options.sourceUnitDigest ? { sourceUnitDigest: options.sourceUnitDigest } : {}),
     ...(options.bootstrap ? { bootstrap: options.bootstrap } : {}),
     sourceUnitStateService,
     modelService,

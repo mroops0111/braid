@@ -53,9 +53,9 @@ async function setupFixture(options: {
   const workspaceRepo = new InMemoryWorkspaceRepository()
   const workspace = makeWorkspace({ id: mintTestId('ws') }) as Workspace
   await workspaceRepo.save(workspace)
-  const workspaceService = new WorkspaceService({ workspaceRepository: workspaceRepo })
-
   const pluginRegistry = options.pluginRegistry ?? new PluginRegistry()
+  const workspaceService = new WorkspaceService({ workspaceRepository: workspaceRepo, pluginRegistry })
+
   const proposalRepository = new InMemoryProposalRepository()
   const clarifyRepository = new InMemoryClarifyTicketRepository()
   const decisionRepository = new InMemoryDecisionRepository()

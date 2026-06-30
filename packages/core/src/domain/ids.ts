@@ -10,6 +10,7 @@ import type {
   PlanUnitId,
   ProposalId,
   QuestionId,
+  ReactorPassId,
   SkillRunId,
   Timestamp,
   UserId,
@@ -80,6 +81,16 @@ export function newDriftIssueId(): DriftIssueId {
 
 export function newBatchPlanId(now: Timestamp): BatchPlanId {
   return `bp-${dateOf(now)}-${shortRandom()}` as BatchPlanId
+}
+
+/**
+ * Reactor passes get date-prefixed ids so the Activity list sorts
+ * chronologically without a secondary timestamp lookup. Short suffix
+ * is enough — reactor v0 dispatches at most a few per workspace per
+ * hour (the throttle caps that).
+ */
+export function newReactorPassId(now: Timestamp): ReactorPassId {
+  return `rp-${dateOf(now)}-${shortRandom()}` as ReactorPassId
 }
 
 export function newPlanUnitId(): PlanUnitId {

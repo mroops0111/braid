@@ -16,7 +16,6 @@ const blank: SourceDraft = {
   githubState: 'all',
   githubLabels: '',
   githubIncludeComments: true,
-  githubIncludePullRequests: false,
 }
 
 describe('nameToId', () => {
@@ -144,7 +143,6 @@ describe('toSourceDescriptor — filesystem', () => {
       githubRepo: 'braid',
       githubState: 'open',
       githubIncludeComments: true,
-      githubIncludePullRequests: false,
     })
     expect(descriptor).toMatchObject({
       loader: {
@@ -154,7 +152,6 @@ describe('toSourceDescriptor — filesystem', () => {
           repo: 'braid',
           state: 'open',
           includeComments: true,
-          includePullRequests: false,
         },
       },
     })

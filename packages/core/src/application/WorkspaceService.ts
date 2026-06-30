@@ -1,10 +1,12 @@
 import type { AbsolutePath, WorkspaceId } from '@braidhq/schema'
+import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
 import type { WorkspaceRepository } from '../domain/workspace/WorkspaceRepository.js'
-import { NotFoundError } from '../domain/errors.js'
+import { NotFoundError, ValidationError } from '../domain/errors.js'
 
 export interface WorkspaceServiceDeps {
   workspaceRepository: WorkspaceRepository
+  pluginRegistry: PluginRegistry
 }
 
 export class WorkspaceService {
@@ -20,6 +22,28 @@ export class WorkspaceService {
 
   async save(workspace: Workspace): Promise<void> {
     return this.deps.workspaceRepository.save(workspace)
+  }
+
+  /**
+   * Throw if the workspace's sources don't cover every role the registered
+   * ontology declares as required. Route handlers that mutate `sources`
+   * (add/patch/delete) call this before `save()`. `save()` itself doesn't
+   * enforce so that discovery can re-load pre-existing workspaces whose
+   * manifests pre-date the rule.
+   */
+  assertRequiredSourceRoles(workspace: Workspace): void {
+    const ontology = this.deps.pluginRegistry.findOntology(workspace.productManifest.ontologyId)
+    const required = ontology?.requiredSourceRoles ?? []
+    if (required.length === 0)
+      return
+    const present = new Set(workspace.sources.map(s => s.role))
+    const missing = required.filter(r => !present.has(r))
+    if (missing.length === 0)
+      return
+    throw new ValidationError(
+      `Workspace requires source role${missing.length === 1 ? '' : 's'} ${missing.map(r => `"${r}"`).join(', ')} `
+      + `for ontology "${workspace.productManifest.ontologyId}".`,
+    )
   }
 
   async findById(workspaceId: WorkspaceId): Promise<Workspace> {
