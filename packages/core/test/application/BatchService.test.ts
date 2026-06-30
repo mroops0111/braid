@@ -155,11 +155,12 @@ async function setup(options: {
     sources: options.sources ?? [intentSource('prd'), intentSource('design')],
   })
   await workspaceRepo.save(workspace)
-  const workspaceService = new WorkspaceService({ workspaceRepository: workspaceRepo })
 
   // Register a DDD-like ontology with the batch binding the production
   // ontology declares. Tests assert on the resulting skill ids.
   const pluginRegistry = new PluginRegistry()
+  const workspaceService = new WorkspaceService({ workspaceRepository: workspaceRepo, pluginRegistry })
+
   await pluginRegistry.register(makeOntology({
     ontologyId: 'ddd',
     batch: {

@@ -1,6 +1,6 @@
 import type { Workspace } from '@braidhq/schema'
 import type { Surface } from './CommandPalette'
-import { ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, LogIn, Moon, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles, Sun } from 'lucide-react'
+import { Activity, ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, LogIn, Moon, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import braidLogo from '@/assets/braid-logo.svg'
 import { usePendingClarify, usePendingProposals, useRuns, useSkills } from '@/lib/queries'
@@ -596,6 +596,14 @@ function HereSection({
             onClick={() => onSelectSurface('proposals')}
           />
         )}
+        <HereRow
+          collapsed={collapsed}
+          icon={Activity}
+          label="Activity"
+          active={activeSurface === 'activity'}
+          shortcut="G B"
+          onClick={() => onSelectSurface('activity')}
+        />
         {canSeeHistory && (
           <HereRow
             collapsed={collapsed}

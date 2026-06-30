@@ -1,5 +1,6 @@
-import { AlertCircle, CheckCircle2, Loader2, Sparkles } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Sparkles } from 'lucide-react'
 import { useBatchStatus } from '@/lib/queries'
+import { TopBanner } from './TopBanner'
 import { Button } from './ui/button'
 
 interface BatchInFlightBannerProps {
@@ -35,60 +36,67 @@ export function BatchInFlightBanner({ workspaceId, onOpenBatch, suppress }: Batc
   else
     mode = { kind: 'completed', completed, total }
 
+  const actions = (label: string) => (
+    <Button variant="ghost" size="sm" className="h-6 gap-1 text-[11px]" onClick={onOpenBatch}>
+      <Sparkles className="size-3" />
+      {label}
+    </Button>
+  )
+
   if (mode.kind === 'active') {
     return (
-      <div className="flex items-center gap-3 border-b border-primary/30 bg-primary/5 px-4 py-1.5 text-xs">
-        <Loader2 className="size-3 animate-spin text-primary" />
-        <span className="font-medium text-foreground">{mode.label}</span>
-        {mode.total > 0 && (
-          <span className="text-muted-foreground">
-            {mode.completed}
-            {' / '}
-            {mode.total}
-            {' units'}
-          </span>
-        )}
-        <Button variant="ghost" size="sm" className="ml-auto h-6 gap-1 text-[11px]" onClick={onOpenBatch}>
-          <Sparkles className="size-3" />
-          View Progress
-        </Button>
-      </div>
+      <TopBanner
+        tone="batch"
+        label={mode.label}
+        detail={mode.total > 0
+          ? (
+              <>
+                {mode.completed}
+                {' / '}
+                {mode.total}
+                {' units'}
+              </>
+            )
+          : ''}
+        actions={actions('View Progress')}
+      />
     )
   }
 
   if (mode.kind === 'resumable') {
     return (
-      <div className="flex items-center gap-3 border-b border-amber-500/30 bg-amber-500/5 px-4 py-1.5 text-xs">
-        <AlertCircle className="size-3 text-amber-600 dark:text-amber-300" />
-        <span className="font-medium text-foreground">Bootstrap Incomplete</span>
-        <span className="text-muted-foreground">
-          {mode.completed}
-          {' / '}
-          {mode.total}
-          {' units done'}
-        </span>
-        <Button variant="ghost" size="sm" className="ml-auto h-6 gap-1 text-[11px]" onClick={onOpenBatch}>
-          <Sparkles className="size-3" />
-          Resume
-        </Button>
-      </div>
+      <TopBanner
+        tone="warning"
+        label="Bootstrap Incomplete"
+        icon={AlertCircle}
+        detail={(
+          <>
+            {mode.completed}
+            {' / '}
+            {mode.total}
+            {' units done'}
+          </>
+        )}
+        actions={actions('Resume')}
+      />
     )
   }
 
   return (
-    <div className="flex items-center gap-3 border-b border-emerald-500/30 bg-emerald-500/5 px-4 py-1.5 text-xs">
-      <CheckCircle2 className="size-3 text-emerald-600 dark:text-emerald-300" />
-      <span className="font-medium text-foreground">Bootstrap Complete</span>
-      <span className="text-muted-foreground">
-        {mode.completed}
-        {' / '}
-        {mode.total}
-        {' units'}
-      </span>
-      <Button variant="ghost" size="sm" className="ml-auto h-6 gap-1 text-[11px]" onClick={onOpenBatch}>
-        <Sparkles className="size-3" />
-        View Report
-      </Button>
-    </div>
+    <TopBanner
+      tone="reactor"
+      label="Bootstrap Complete"
+      icon={CheckCircle2}
+      spin={false}
+      detail={(
+        <>
+          {mode.completed}
+          {' / '}
+          {mode.total}
+          {' units'}
+        </>
+      )}
+      actions={actions('View Report')}
+    />
   )
 }

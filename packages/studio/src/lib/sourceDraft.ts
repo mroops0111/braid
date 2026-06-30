@@ -22,7 +22,6 @@ export interface SourceDraft {
   /** Comma-separated; trimmed + filtered to non-empty before serialising. */
   githubLabels: string
   githubIncludeComments: boolean
-  githubIncludePullRequests: boolean
 }
 
 export function nameToId(name: string): string {
@@ -87,7 +86,6 @@ export function toSourceDescriptor(draft: SourceDraft): SourceDescriptor {
                 state: draft.githubState,
                 ...(labels.length > 0 ? { labels } : {}),
                 includeComments: draft.githubIncludeComments,
-                includePullRequests: draft.githubIncludePullRequests,
               },
             }
           })()

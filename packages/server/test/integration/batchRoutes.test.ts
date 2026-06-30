@@ -21,7 +21,19 @@ describe('batch REST routes', () => {
     const response = await app.request('/workspaces/scaffold', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'bt', manifest: { name: 'bt', sources: [] } }),
+      // DDD ontology requires both intent + code roles. Use minimal
+      // filesystem sources so the scaffold passes its role check; the
+      // batch tests don't exercise loader-driven ingest.
+      body: JSON.stringify({
+        name: 'bt',
+        manifest: {
+          name: 'bt',
+          sources: [
+            { kind: 'filesystem', id: 'intent', role: 'intent', name: 'intent', path: './intent' },
+            { kind: 'filesystem', id: 'code', role: 'code', name: 'code', path: './code' },
+          ],
+        },
+      }),
     })
     workspaceId = (await readJson<{ workspace: { id: string } }>(response)).workspace.id
   })
@@ -35,16 +47,11 @@ describe('batch REST routes', () => {
     expect(response.status).toBe(404)
   })
 
-  it('POST /batch returns 400 when the workspace has no sources', async () => {
-    const response = await app.request(`/workspaces/${workspaceId}/batch`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ autoApply: false }),
-    })
-    expect(response.status).toBe(400)
-    const body = await readJson<{ detail: string }>(response)
-    expect(body.detail).toMatch(/no intent or code sources/)
-  })
+  // NOTE: the previous "POST /batch returns 400 when no sources" case is
+  // now blocked upstream by the scaffold endpoint's `requiredSourceRoles`
+  // check on the DDD ontology (`['intent', 'code']`). A workspace
+  // without both roles cannot be created in the first place. See
+  // packages/server/src/routes/workspaces.ts in the scaffold handler.
 
   it('POST /batch/stop is idempotent (204 even when no batch running)', async () => {
     const response = await app.request(`/workspaces/${workspaceId}/batch/stop`, { method: 'POST' })

@@ -7,11 +7,12 @@ import { CommandPalette } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
 import { InFlightRunBanner } from './components/InFlightRunBanner'
 import { PageActions, PageActionsHost, PageActionsProvider } from './components/PageActions'
+import { ReactorBanner } from './components/ReactorBanner'
 import { Sidebar } from './components/Sidebar'
 import { TooltipProvider } from './components/ui/tooltip'
 import { UserPicker } from './components/UserPicker'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
-import { useBatchStatus, useWorkspaces } from './lib/queries'
+import { useBatchStatus, useReactorPasses, useWorkspaces } from './lib/queries'
 import { useAuthGate } from './lib/useAuthGate'
 import { GraphNavigationContext } from './lib/useGraphNavigation'
 import { useResetOnRemoteChange } from './lib/useRemoteWorkspaces'
@@ -19,6 +20,7 @@ import { TabNavigationContext } from './lib/useTabNavigation'
 import { readUrl, useUrlSync } from './lib/useUrlState'
 import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
 import { ActionsPage } from './pages/Actions'
+import { ActivityPage } from './pages/Activity'
 import { BatchPage } from './pages/Batch'
 import { ClarifyPage } from './pages/Clarify'
 import { GraphSurface, GraphSurfaceActions, useGraphSurfaceState } from './pages/GraphSurface'
@@ -77,6 +79,14 @@ function AppInner() {
 
   const { data: activeBatchPlan } = useBatchStatus(activeId ?? undefined)
   const hasActiveBatch = activeBatchPlan?.status === 'running' || activeBatchPlan?.status === 'deriving'
+
+  // Same query as ReactorBanner — React Query dedupes by key. Drives the
+  // `InFlightRunBanner.suppress` below: when the reactor is mid-pass, the
+  // running `/braid-extract` run is the reactor's own per-unit dispatch
+  // and the Reactor banner already represents it. Showing both stacks
+  // two banners for one logical activity.
+  const { data: reactorPasses } = useReactorPasses(activeId)
+  const hasActiveReactor = !!(reactorPasses?.items ?? []).find(p => p.status === 'dispatched' || p.status === 'running')
 
   const items = workspaces?.items ?? []
 
@@ -137,6 +147,7 @@ function AppInner() {
                           activeSurface={activeSurface}
                           onOpenDetails={() => activeId && openDetails(activeId)}
                         />
+                        <ReactorBanner workspaceId={activeId} onOpenActivity={() => setActiveSurface('activity')} />
                         <BatchInFlightBanner
                           workspaceId={activeId}
                           onOpenBatch={() => setActiveSurface('batch')}
@@ -147,7 +158,7 @@ function AppInner() {
                           // Suppress on surfaces that render the run themselves AND
                           // when a batch banner is already showing — they'd both point
                           // at the same in-flight extract subprocess.
-                          suppress={activeSurface === 'actions' || activeSurface === 'batch' || hasActiveBatch}
+                          suppress={activeSurface === 'actions' || activeSurface === 'batch' || hasActiveBatch || hasActiveReactor}
                         />
                         {activeId
                           ? (
@@ -171,6 +182,9 @@ function AppInner() {
                                     focusedProposalId={focusedProposalId}
                                     onFocusConsumed={() => setFocusedProposalId(null)}
                                   />
+                                )}
+                                {activeSurface === 'activity' && (
+                                  <ActivityPage workspaceId={activeId} />
                                 )}
                                 {activeSurface === 'history' && (
                                   <HistoryPage workspaceId={activeId} />

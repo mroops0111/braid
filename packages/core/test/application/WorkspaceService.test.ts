@@ -1,6 +1,6 @@
 import type { AbsolutePath, AgentId, OntologyId, ProductManifest, StorageKind, Workspace as WorkspaceData, WorkspaceId } from '@braidhq/schema'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { NotFoundError, Workspace, WorkspaceService } from '../../src/index.js'
+import { NotFoundError, PluginRegistry, Workspace, WorkspaceService } from '../../src/index.js'
 import { InMemoryWorkspaceRepository } from '../../src/testing.js'
 
 const rootPath = '/abs/path' as AbsolutePath
@@ -28,7 +28,7 @@ describe('WorkspaceService', () => {
 
   beforeEach(() => {
     repository = new InMemoryWorkspaceRepository()
-    service = new WorkspaceService({ workspaceRepository: repository })
+    service = new WorkspaceService({ workspaceRepository: repository, pluginRegistry: new PluginRegistry() })
   })
 
   it('saves a workspace and reloads identical data', async () => {

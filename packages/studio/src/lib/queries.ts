@@ -207,3 +207,16 @@ export function useBatchStatus(workspaceId: string | undefined) {
     enabled: !!workspaceId,
   })
 }
+
+/**
+ * Shared with `ReactorBanner` and the Activity page via React Query's
+ * dedup-by-key. `useWorkspaceEvents` invalidates this on every reactor
+ * SSE event, so consumers stay live.
+ */
+export function useReactorPasses(workspaceId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['reactor-passes', workspaceId ?? null],
+    queryFn: () => api.listReactorPasses(workspaceId!),
+    enabled: !!workspaceId,
+  })
+}

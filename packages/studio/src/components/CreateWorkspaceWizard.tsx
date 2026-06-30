@@ -858,7 +858,6 @@ function defaultSourceDraft(role: 'intent' | 'code'): SourceDraft {
     githubState: 'all',
     githubLabels: '',
     githubIncludeComments: true,
-    githubIncludePullRequests: false,
   }
 }
 

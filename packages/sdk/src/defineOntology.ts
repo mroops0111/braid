@@ -52,6 +52,14 @@ export interface DefineOntologyInput {
    * workspace cannot start a batch under this ontology.
    */
   readonly batch?: OntologyBatchBinding
+  /**
+   * Source roles a workspace MUST have for this ontology to be usable.
+   * The scaffold endpoint validates the manifest against this list and
+   * rejects misses with 422 so the wizard can prompt for missing
+   * roles. DDD declares `['intent', 'code']`; a generative ontology
+   * with no code dimension declares `['intent']`.
+   */
+  readonly requiredSourceRoles?: readonly ('code' | 'intent')[]
 }
 
 /**
@@ -115,6 +123,7 @@ export function defineOntology(input: DefineOntologyInput): OntologyPlugin {
     referenceDirs: input.referenceDirs ?? [],
     validators: [],
     ...(input.batch ? { batch: input.batch } : {}),
+    ...(input.requiredSourceRoles ? { requiredSourceRoles: input.requiredSourceRoles } : {}),
   }
 
   const validators: OntologyValidator[] = [

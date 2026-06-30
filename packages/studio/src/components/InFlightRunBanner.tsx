@@ -1,8 +1,9 @@
 import { useMutation } from '@tanstack/react-query'
-import { Loader2, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { useRuns } from '@/lib/queries'
+import { TopBanner } from './TopBanner'
 import { Button } from './ui/button'
 
 interface InFlightRunBannerProps {
@@ -46,21 +47,23 @@ function ActiveBanner({ workspaceId, runId, skillId, startedAt }: {
   })
 
   return (
-    <div className="flex items-center gap-3 border-b border-primary/30 bg-primary/5 px-4 py-1.5 text-xs">
-      <Loader2 className="size-3 animate-spin text-primary" />
-      <span className="font-mono text-foreground">{`/${skillId}`}</span>
-      <span className="text-muted-foreground">{`running… ${elapsed}s elapsed`}</span>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="ml-auto h-6 gap-1 text-[11px]"
-        disabled={cancel.isPending}
-        onClick={() => cancel.mutate()}
-      >
-        <X className="size-3" />
-        {cancel.isPending ? 'Cancelling…' : 'Cancel'}
-      </Button>
-    </div>
+    <TopBanner
+      tone="run"
+      label={`/${skillId}`}
+      detail={`running… ${elapsed}s elapsed`}
+      actions={(
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 gap-1 text-[11px]"
+          disabled={cancel.isPending}
+          onClick={() => cancel.mutate()}
+        >
+          <X className="size-3" />
+          {cancel.isPending ? 'Cancelling…' : 'Cancel'}
+        </Button>
+      )}
+    />
   )
 }
 

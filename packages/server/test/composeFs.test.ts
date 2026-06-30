@@ -151,14 +151,24 @@ storage:
         name: 'rollback-demo',
         manifest: {
           name: 'rollback-demo',
-          sources: [{
-            kind: 'filesystem',
-            id: 'intent',
-            role: 'intent',
-            name: 'intent',
-            path: './intent',
-            loader: { kind: 'this-loader-does-not-exist', config: {} },
-          }],
+          sources: [
+            {
+              kind: 'filesystem',
+              id: 'intent',
+              role: 'intent',
+              name: 'intent',
+              path: './intent',
+              loader: { kind: 'this-loader-does-not-exist', config: {} },
+            },
+            {
+              kind: 'filesystem',
+              id: 'code',
+              role: 'code',
+              name: 'code',
+              path: './code',
+              loader: { kind: 'this-loader-does-not-exist', config: {} },
+            },
+          ],
         },
       }),
     })

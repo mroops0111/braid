@@ -1,6 +1,6 @@
 import type { SourceLoaderPlugin } from '@braidhq/core'
 import type { Timestamp } from '@braidhq/schema'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import process from 'node:process'
 import { defineSourceLoader } from '@braidhq/sdk'
@@ -19,8 +19,12 @@ export const GithubLoaderConfig = z.object({
   labels: z.array(z.string().min(1)).optional(),
   includeComments: z.boolean().default(true),
   /**
-   * GitHub's REST treats PRs as a subtype of issues. Default `false` so a
-   * source declared as "issues" doesn't silently pick up PR threads too.
+   * Deprecated. Originally controlled whether PR-shaped entries leaked
+   * into the issue list. Now hard-wired to `false`: the loader's
+   * "realized intent" semantics (see below) treat PRs themselves as
+   * the code-side artefact, not as intent. Setting this to `true` is
+   * silently ignored after a one-time warn so existing configs do not
+   * break — drop the field at your next config edit.
    */
   includePullRequests: z.boolean().default(false),
   /**
@@ -32,6 +36,8 @@ export const GithubLoaderConfig = z.object({
   token: z.string().default('${GH_TOKEN}'),
   /** REST base URL. Override for GitHub Enterprise. */
   apiBaseUrl: z.string().default('https://api.github.com'),
+  /** GraphQL endpoint. Defaults to `${apiBaseUrl}/graphql`. */
+  graphqlUrl: z.string().optional(),
 })
 export type GithubLoaderConfig = z.infer<typeof GithubLoaderConfig>
 
@@ -76,6 +82,17 @@ const CURSOR_FILENAME = '.braid-github-cursor.json'
  * + body + `## Comments` section. Untouched issues stay byte-identical
  * across `sync` so downstream sha-based fingerprints don't churn.
  *
+ * **Realized-intent filter (always on)**: an issue is written to disk
+ * only when its state is `closed` AND at least one merged pull request
+ * is cross-referenced from it (via `CROSS_REFERENCED_EVENT` timeline
+ * items, which covers PRs that link the issue with or without closing
+ * keywords). This implements Braid's stated "intent + code convergence"
+ * contract — pure speculative intent (open issues, abandoned issues,
+ * docs-only closes) does not pollute the ledger, and the same workspace
+ * re-ingest is idempotent. The check uses GitHub's GraphQL API; setups
+ * behind an enterprise proxy that only exposes REST can override
+ * `graphqlUrl`.
+ *
  * Auth: pass the token via `${GH_TOKEN}` (or any other env var) in
  * `config.token`. Tokens are never persisted on disk; only the rendered
  * markdown lands in `destination`.
@@ -89,14 +106,20 @@ export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlu
     ingest: async (config, destination) => {
       const issuesDir = join(destination, 'issues')
       await mkdir(issuesDir, { recursive: true })
+      warnDeprecated(config)
       const headers = buildHeaders(config)
-      const issues = await fetchIssues(fetchFn, config, headers, undefined)
+      const rawIssues = await fetchIssues(fetchFn, config, headers, undefined)
+      const issues = await filterAndAnnotateRealizedIntent(fetchFn, config, headers, rawIssues)
+      // Cursor advances over every raw issue we examined, not just
+      // survivors of the realized-intent filter — see same comment in `sync`.
       let mostRecent = ''
-      for (const issue of issues) {
-        if (issue.updated_at > mostRecent)
-          mostRecent = issue.updated_at
+      for (const raw of rawIssues) {
+        if (raw.updated_at > mostRecent)
+          mostRecent = raw.updated_at
+      }
+      for (const { issue, mergedPRs } of issues) {
         const comments = await fetchCommentsIfNeeded(fetchFn, config, headers, issue)
-        const markdown = renderIssueMarkdown(config, issue, comments)
+        const markdown = renderIssueMarkdown(config, issue, comments, mergedPRs)
         const path = join(issuesDir, `${issue.number}.md`)
         await writeIfChanged(path, markdown)
       }
@@ -104,27 +127,41 @@ export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlu
         await writeCursor(destination, { owner: config.owner, repo: config.repo, since: mostRecent })
       return {
         localPath: destination,
-        metadata: { owner: config.owner, repo: config.repo, issueCount: issues.length },
+        metadata: {
+          owner: config.owner,
+          repo: config.repo,
+          issueCount: issues.length,
+          fetchedRaw: rawIssues.length,
+        },
         fetchedAt: new Date().toISOString() as Timestamp,
       }
     },
     sync: async (config, destination) => {
       const issuesDir = join(destination, 'issues')
       await mkdir(issuesDir, { recursive: true })
+      warnDeprecated(config)
       const headers = buildHeaders(config)
       const cursor = await readCursor(destination)
       const sinceParam = cursor?.owner === config.owner && cursor.repo === config.repo
         ? cursor.since
         : undefined
-      const issues = await fetchIssues(fetchFn, config, headers, sinceParam)
+      const rawIssues = await fetchIssues(fetchFn, config, headers, sinceParam)
+      const issues = await filterAndAnnotateRealizedIntent(fetchFn, config, headers, rawIssues)
       let added = 0
       let updated = 0
+      // Advance the cursor across every raw issue we examined this sync,
+      // not just survivors. Otherwise an issue that's filtered out (no
+      // merged PR yet) keeps appearing in every subsequent `since=` query
+      // and re-burns one GraphQL probe per sync until it eventually
+      // merges, which on a chatty repo can starve the rate budget.
       let mostRecent = cursor?.since ?? ''
-      for (const issue of issues) {
-        if (issue.updated_at > mostRecent)
-          mostRecent = issue.updated_at
+      for (const raw of rawIssues) {
+        if (raw.updated_at > mostRecent)
+          mostRecent = raw.updated_at
+      }
+      for (const { issue, mergedPRs } of issues) {
         const comments = await fetchCommentsIfNeeded(fetchFn, config, headers, issue)
-        const markdown = renderIssueMarkdown(config, issue, comments)
+        const markdown = renderIssueMarkdown(config, issue, comments, mergedPRs)
         const path = join(issuesDir, `${issue.number}.md`)
         const result = await writeIfChanged(path, markdown)
         if (result === 'added')
@@ -132,14 +169,37 @@ export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlu
         else if (result === 'updated')
           updated++
       }
+      // Reactive orphan delete: any issue that came back via `since=` but
+      // failed the realized-intent filter (re-opened, PR unmerged, label
+      // removed, etc.) gets its on-disk file removed. This keeps the
+      // intent dir aligned with the current filter without a separate
+      // full-scan path. Issues that haven't been touched since the last
+      // cursor don't show up in `rawIssues` — those need a manual / full
+      // reconcile, not in scope for incremental sync.
+      const survivors = new Set(issues.map(i => i.issue.number))
+      let removed = 0
+      for (const raw of rawIssues) {
+        if (raw.pull_request !== undefined || survivors.has(raw.number))
+          continue
+        const removedPath = join(issuesDir, `${raw.number}.md`)
+        if (await fileExists(removedPath)) {
+          await rm(removedPath)
+          removed++
+        }
+      }
       if (mostRecent)
         await writeCursor(destination, { owner: config.owner, repo: config.repo, since: mostRecent })
       return {
-        changed: added + updated > 0,
+        changed: added + updated + removed > 0,
         added,
         updated,
-        removed: 0,
-        metadata: { owner: config.owner, repo: config.repo, since: sinceParam ?? null },
+        removed,
+        metadata: {
+          owner: config.owner,
+          repo: config.repo,
+          since: sinceParam ?? null,
+          fetchedRaw: rawIssues.length,
+        },
         fetchedAt: new Date().toISOString() as Timestamp,
       }
     },
@@ -194,13 +254,177 @@ async function fetchIssues(
     }
     const page = (await response.json()) as RawIssue[]
     for (const issue of page) {
-      if (!config.includePullRequests && issue.pull_request !== undefined)
+      // PR-shaped entries are the code-side artefact (their merged
+      // state is what gates issue inclusion in the realized-intent
+      // filter); they never become intent units themselves.
+      if (issue.pull_request !== undefined)
         continue
       out.push(issue)
     }
     url = parseNextLink(response.headers.get('link')) ?? ''
   }
   return out
+}
+
+/**
+ * Per-issue snapshot of merged PRs that closed it. Empty list means the
+ * issue is filtered out by the realized-intent gate; a non-empty list
+ * means the issue both passes the gate AND carries provenance bundles
+ * the markdown frontmatter ships to readers.
+ */
+interface MergedPRRef {
+  readonly number: number
+  readonly mergeCommit: string | null
+}
+
+interface RealizedIntentIssue {
+  readonly issue: RawIssue
+  readonly mergedPRs: readonly MergedPRRef[]
+}
+
+/**
+ * Apply the "realized intent" filter: keep only issues that have at
+ * least one merged PR in their `closedByPullRequestsReferences`
+ * association, and annotate each surviving issue with the merged-PR
+ * refs so the markdown frontmatter can carry the provenance.
+ *
+ * Implementation note: GitHub REST does not expose closed-by-PR
+ * directly (only `commit_id` on closed events, which is set for
+ * PR merges but also for plain `git commit --close ...` references).
+ * GraphQL's `closedByPullRequestsReferences` is the canonical source.
+ * One round-trip per issue keeps the code simple; batching with
+ * aliased subqueries is a future optimisation if rate limits bite.
+ */
+async function filterAndAnnotateRealizedIntent(
+  fetchFn: FetchFn,
+  config: GithubLoaderConfig,
+  headers: Record<string, string>,
+  issues: readonly RawIssue[],
+): Promise<readonly RealizedIntentIssue[]> {
+  const out: RealizedIntentIssue[] = []
+  for (const issue of issues) {
+    // PRs (which REST returns alongside issues) are the code-side
+    // artefact, not the intent. Always skip them irrespective of the
+    // deprecated `includePullRequests` knob.
+    if (issue.pull_request !== undefined)
+      continue
+    // Only closed issues count. Open issues — even ones with a merged
+    // PR already linked — are still in flight and may need more work.
+    if (issue.state !== 'closed')
+      continue
+    const mergedPRs = await fetchLinkedMergedPRs(fetchFn, config, headers, issue.number)
+    if (mergedPRs.length === 0)
+      continue
+    out.push({ issue, mergedPRs })
+  }
+  return out
+}
+
+interface LinkedPRNode {
+  number: number
+  merged: boolean
+  mergeCommit: { oid: string } | null
+}
+
+interface CrossRefEventNode {
+  source: ({ __typename: 'PullRequest' } & LinkedPRNode) | { __typename: string }
+}
+
+interface TimelineQueryResponse {
+  data?: {
+    repository?: {
+      issue?: {
+        timelineItems?: { nodes: CrossRefEventNode[] }
+      }
+    }
+  }
+  errors?: Array<{ message: string }>
+}
+
+async function fetchLinkedMergedPRs(
+  fetchFn: FetchFn,
+  config: GithubLoaderConfig,
+  headers: Record<string, string>,
+  issueNumber: number,
+): Promise<readonly MergedPRRef[]> {
+  // CROSS_REFERENCED_EVENT covers every PR that mentions the issue —
+  // closing-keyword PRs ("Closes #N"), in-flight "WIP for #N" PRs,
+  // and follow-ups that just reference the issue all generate this
+  // event. That's broader than `closedByPullRequestsReferences`,
+  // which only returns PRs with a closing keyword. The realized-
+  // intent semantic is "any merged PR is associated with this
+  // closed issue", not "the PR that closed it".
+  const query = `query($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $number) {
+      timelineItems(first: 100, itemTypes: [CROSS_REFERENCED_EVENT]) {
+        nodes {
+          ... on CrossReferencedEvent {
+            source {
+              __typename
+              ... on PullRequest {
+                number
+                merged
+                mergeCommit { oid }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+  const url = config.graphqlUrl ?? `${config.apiBaseUrl}/graphql`
+  const response = await fetchFn(url, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query,
+      variables: { owner: config.owner, repo: config.repo, number: issueNumber },
+    }),
+  })
+  if (!response.ok) {
+    const body = await response.text().catch(() => '')
+    if (response.status === 401) {
+      throw new Error(
+        // GitHub's GraphQL endpoint rejects anonymous requests — the
+        // realized-intent filter needs `GH_TOKEN` (or any other env var
+        // referenced via ${VAR} in config.token). The REST issue list
+        // works anonymously, so this only bites when the loader reaches
+        // the linked-PR check; surface it actionably.
+        `githubLoader: realized-intent filter requires an authenticated token (set GH_TOKEN or override config.token). GitHub GraphQL returned 401 for issue ${issueNumber}.`,
+      )
+    }
+    throw new Error(`githubLoader: GraphQL POST failed (${response.status}) for issue ${issueNumber}: ${body.slice(0, 200)}`)
+  }
+  const payload = await response.json() as TimelineQueryResponse
+  if (payload.errors && payload.errors.length > 0)
+    throw new Error(`githubLoader: GraphQL errors for issue ${issueNumber}: ${payload.errors.map(e => e.message).join('; ')}`)
+  const nodes = payload.data?.repository?.issue?.timelineItems?.nodes ?? []
+  const seen = new Set<number>()
+  const out: MergedPRRef[] = []
+  for (const node of nodes) {
+    if (node.source.__typename !== 'PullRequest')
+      continue
+    const pr = node.source as { __typename: 'PullRequest' } & LinkedPRNode
+    if (!pr.merged || seen.has(pr.number))
+      continue
+    seen.add(pr.number)
+    out.push({ number: pr.number, mergeCommit: pr.mergeCommit?.oid ?? null })
+  }
+  return out
+}
+
+let warnedDeprecatedIncludePullRequests = false
+function warnDeprecated(config: GithubLoaderConfig): void {
+  if (config.includePullRequests && !warnedDeprecatedIncludePullRequests) {
+    warnedDeprecatedIncludePullRequests = true
+
+    console.warn(
+      'githubLoader: `includePullRequests` is deprecated and now always treated as false. '
+      + 'The realized-intent filter excludes PR-shaped entries; remove the flag from PRODUCT.md.',
+    )
+  }
 }
 
 async function fetchCommentsIfNeeded(
@@ -233,6 +457,7 @@ function renderIssueMarkdown(
   config: GithubLoaderConfig,
   issue: RawIssue,
   comments: readonly RawComment[],
+  mergedPRs: readonly MergedPRRef[],
 ): string {
   const labels = (issue.labels ?? [])
     .map(l => typeof l === 'string' ? l : l.name)
@@ -247,6 +472,10 @@ function renderIssueMarkdown(
     createdAt: issue.created_at,
     updatedAt: issue.updated_at,
     url: issue.html_url,
+    // The merged PRs linked to this closed issue. Drives the realized-
+    // intent semantics: an issue only lands here when state is `closed`
+    // and at least one linked merged PR exists.
+    linkedMergedPRs: mergedPRs.map(p => ({ number: p.number, mergeCommit: p.mergeCommit })),
   }
   const yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd()
   const body = (issue.body ?? '').trimEnd()
@@ -259,6 +488,16 @@ function renderIssueMarkdown(
     }
   }
   return `${parts.join('\n').trimEnd()}\n`
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await stat(path)
+    return true
+  }
+  catch {
+    return false
+  }
 }
 
 async function writeIfChanged(path: string, content: string): Promise<'added' | 'updated' | 'unchanged'> {

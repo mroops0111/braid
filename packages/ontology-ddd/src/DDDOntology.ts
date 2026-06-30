@@ -11,6 +11,15 @@ import { defineOntology } from '@braidhq/sdk'
 export const dddOntology = defineOntology({
   ontologyId: 'ddd',
 
+  // DDD models domain via intent⊕code convergence: extracting concepts
+  // from intent alone (no code) ships speculation into the graph;
+  // extracting from code alone (no intent) pulls implementation
+  // accidents into the ubiquitous language. The scaffold endpoint
+  // enforces both roles so a workspace cannot be created in a state
+  // where this ontology's value prop fails. Generative ontologies
+  // (e.g. everstory's `story`) carry a different `requiredSourceRoles`.
+  requiredSourceRoles: ['intent', 'code'],
+
   // SKILL.md prompts shipped alongside this ontology. They encode
   // DDD-specific reasoning (BoundedContext-contains-aggregate, the
   // seven Context Mapping edges, Vernon Process Manager, etc.) that
