@@ -361,6 +361,25 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
       // operator has flipped `reactor.enabled` in PRODUCT.md.
       if (workspace.productManifest.reactor?.enabled)
         await deps.reactorService?.start(workspace.id)
+      // Boot-time sync: webhook deliveries that arrived while the
+      // server was down are unrecoverable (GitHub gives up retries
+      // after a few hours), so on every boot fire a `syncOne` per
+      // source whose loader supports it. Loaders use a persisted
+      // cursor (e.g. `?since=<lastUpdatedAt>`) so a caught-up source
+      // costs one empty round-trip and a stale one fetches only the
+      // missed window. Fire-and-forget so boot stays fast; the
+      // reactor (subscribed above) picks up resulting
+      // `source.synced` events normally.
+      for (const source of workspace.sources) {
+        if (source.kind !== 'filesystem' || !source.loader)
+          continue
+        void deps.sourceLoaderRunner.syncOne(workspace, source.id).catch((err) => {
+          bootstrapLog.warn(
+            { workspaceId: workspace.id, sourceId: source.id, err: err instanceof Error ? err.message : String(err) },
+            'boot syncOne failed; will retry on next webhook or manual sync',
+          )
+        })
+      }
     }
     catch (err) {
       bootstrapLog.warn({ err, workspaceId: workspace.id }, 'workspace bootstrap failed; skipping')
