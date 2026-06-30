@@ -1,8 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, ArrowRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { api, workspaceEventsUrl } from '@/lib/api'
+import { workspaceEventsUrl } from '@/lib/api'
+import { useReactorPasses } from '@/lib/queries'
 import { TopBanner } from './TopBanner'
+import { Button } from './ui/button'
 
 interface ReactorBannerProps {
   workspaceId: string | null
@@ -22,12 +23,8 @@ interface ReactorBannerProps {
  * auto-dismisses after a few seconds.
  */
 export function ReactorBanner({ workspaceId, onOpenActivity }: ReactorBannerProps) {
-  const passesQuery = useQuery({
-    queryKey: ['reactor-passes', workspaceId],
-    queryFn: () => api.listReactorPasses(workspaceId as string),
-    enabled: workspaceId !== null,
-  })
-  const active = (passesQuery.data?.items ?? []).find(p => p.status === 'dispatched' || p.status === 'running')
+  const { data: passes } = useReactorPasses(workspaceId)
+  const active = (passes?.items ?? []).find(p => p.status === 'dispatched' || p.status === 'running')
 
   const [throttled, setThrottled] = useState<{ sourceId: string, limit: number } | null>(null)
 
@@ -82,13 +79,10 @@ export function ReactorBanner({ workspaceId, onOpenActivity }: ReactorBannerProp
             </>
           )}
           actions={(
-            <button
-              type="button"
-              onClick={onOpenActivity}
-              className="text-[11px] text-muted-foreground hover:text-foreground"
-            >
-              Open Activity →
-            </button>
+            <Button variant="ghost" size="sm" className="h-6 gap-1 text-[11px]" onClick={onOpenActivity}>
+              <ArrowRight className="size-3" />
+              Open Activity
+            </Button>
           )}
         />
       )}

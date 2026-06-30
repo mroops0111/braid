@@ -44,13 +44,12 @@ interface MockRouter {
   comments?: Record<number, readonly MockComment[]>
   pageSize?: number
   /**
-   * Per-issue mapping of "PRs that close this issue". When omitted, the
-   * mock defaults to one merged PR per issue (lets the existing tests
-   * exercise the happy-path filter without each having to declare a
-   * provenance). Tests that want to assert filter behaviour pass an
-   * explicit map.
+   * Per-issue mapping of "merged PRs linked to this issue". When
+   * omitted, the mock defaults to one merged PR per issue so existing
+   * happy-path tests don't need to spell out provenance. Tests that
+   * exercise the filter pass an explicit map.
    */
-  closingPRs?: Record<number, readonly MockClosingPR[]>
+  linkedPRs?: Record<number, readonly MockClosingPR[]>
 }
 
 function buildMockFetch(router: MockRouter, recorder?: { calls: string[], lastHeaders: Headers | null }): typeof globalThis.fetch {
@@ -64,20 +63,23 @@ function buildMockFetch(router: MockRouter, recorder?: { calls: string[], lastHe
     if (parsed.pathname === '/graphql') {
       const body = init?.body ? JSON.parse(typeof init.body === 'string' ? init.body : '{}') as { variables?: { number?: number } } : {}
       const issueNumber = body.variables?.number ?? 0
-      const nodes = router.closingPRs?.[issueNumber] ?? defaultClosingPRsFor(router, issueNumber)
+      const linked = router.linkedPRs?.[issueNumber] ?? defaultLinkedPRsFor(router, issueNumber)
       const payload = {
         data: {
           repository: {
             issue: {
-              closedByPullRequestsReferences: {
-                nodes: nodes.map(n => ({
-                  number: n.number,
-                  merged: n.merged,
-                  mergeCommit: n.mergeCommit === undefined
-                    ? { oid: `sha-pr-${n.number}` }
-                    : n.mergeCommit
-                      ? { oid: n.mergeCommit }
-                      : null,
+              timelineItems: {
+                nodes: linked.map(n => ({
+                  source: {
+                    __typename: 'PullRequest',
+                    number: n.number,
+                    merged: n.merged,
+                    mergeCommit: n.mergeCommit === undefined
+                      ? { oid: `sha-pr-${n.number}` }
+                      : n.mergeCommit
+                        ? { oid: n.mergeCommit }
+                        : null,
+                  },
                 })),
               },
             },
@@ -92,11 +94,15 @@ function buildMockFetch(router: MockRouter, recorder?: { calls: string[], lastHe
       const state = parsed.searchParams.get('state') ?? 'all'
       const page = Number.parseInt(parsed.searchParams.get('page') ?? '1', 10)
       const pageSize = router.pageSize ?? 100
-      let filtered = router.issues.slice()
+      // Mock issues default to `state: closed` so the realized-intent
+      // filter (closed + linked merged PR) lets them through. Tests
+      // that exercise the open-issue rejection path set `state: 'open'`
+      // explicitly on the fixture.
+      let filtered = router.issues.map(i => ({ ...i, state: i.state ?? 'closed' }))
       if (since)
         filtered = filtered.filter(i => i.updated_at > since)
       if (state !== 'all')
-        filtered = filtered.filter(i => (i.state ?? 'open') === state)
+        filtered = filtered.filter(i => i.state === state)
       const start = (page - 1) * pageSize
       const slice = filtered.slice(start, start + pageSize)
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -117,15 +123,9 @@ function buildMockFetch(router: MockRouter, recorder?: { calls: string[], lastHe
   }
 }
 
-/**
- * When the test fixture doesn't declare per-issue closing PRs, fall
- * back to "one merged PR per issue" so all existing tests pass the
- * realized-intent gate without each having to spell out provenance.
- * Tests that exercise the filter explicitly set `closingPRs` instead.
- */
-function defaultClosingPRsFor(router: MockRouter, issueNumber: number): readonly MockClosingPR[] {
-  if (router.closingPRs)
-    return router.closingPRs[issueNumber] ?? []
+function defaultLinkedPRsFor(router: MockRouter, issueNumber: number): readonly MockClosingPR[] {
+  if (router.linkedPRs)
+    return router.linkedPRs[issueNumber] ?? []
   return [{ number: issueNumber * 100, merged: true }]
 }
 
@@ -138,7 +138,7 @@ interface ParsedFrontmatter {
   createdAt: string
   updatedAt: string
   url: string
-  closedByMergedPRs: ReadonlyArray<{ number: number, mergeCommit: string | null }>
+  linkedMergedPRs: ReadonlyArray<{ number: number, mergeCommit: string | null }>
 }
 
 function splitMarkdown(content: string): { fm: ParsedFrontmatter, rest: string } {
@@ -166,7 +166,7 @@ describe('GithubLoader', () => {
         {
           number: 1,
           title: 'First issue',
-          state: 'open',
+          state: 'closed',
           user: { login: 'alice' },
           labels: [{ name: 'bug' }, { name: 'p1' }],
           body: 'Body of issue 1.',
@@ -220,16 +220,16 @@ describe('GithubLoader', () => {
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md'])
   })
 
-  it('excludes issues whose closedByPullRequestsReferences contains no merged PR', async () => {
+  it('excludes closed issues that have no linked merged PR', async () => {
     const router: MockRouter = {
       issues: [
-        { number: 1, title: 'merged-by-pr', created_at: 't', updated_at: 't' },
-        { number: 2, title: 'closed-but-no-pr', created_at: 't', updated_at: 't' },
+        { number: 1, title: 'merged-pr-linked', created_at: 't', updated_at: 't' },
+        { number: 2, title: 'closed-no-pr', created_at: 't', updated_at: 't' },
         { number: 3, title: 'pr-closed-without-merge', created_at: 't', updated_at: 't' },
       ],
-      closingPRs: {
+      linkedPRs: {
         1: [{ number: 10, merged: true, mergeCommit: 'abc1' }],
-        2: [], // no PR ever closed this issue
+        2: [], // no PR ever referenced this issue
         3: [{ number: 30, merged: false }], // PR was closed without merging
       },
     }
@@ -238,10 +238,28 @@ describe('GithubLoader', () => {
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md'])
   })
 
+  it('excludes open issues even when they already have a linked merged PR', async () => {
+    // A merged PR mentioning an open issue does not yet represent
+    // realized intent — more work may still be needed. Wait for close.
+    const router: MockRouter = {
+      issues: [
+        { number: 5, title: 'open-with-partial-pr', state: 'open', created_at: 't', updated_at: 't' },
+        { number: 6, title: 'closed-with-pr', state: 'closed', created_at: 't', updated_at: 't' },
+      ],
+      linkedPRs: {
+        5: [{ number: 50, merged: true, mergeCommit: 'shaA' }],
+        6: [{ number: 60, merged: true, mergeCommit: 'shaB' }],
+      },
+    }
+    const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['6.md'])
+  })
+
   it('frontmatter records every merged PR ref (number + mergeCommit) so the markdown carries provenance', async () => {
     const router: MockRouter = {
       issues: [{ number: 7, title: 'multi-PR fix', created_at: 't', updated_at: 't' }],
-      closingPRs: {
+      linkedPRs: {
         7: [
           { number: 70, merged: true, mergeCommit: 'sha-70' },
           { number: 71, merged: false }, // not merged; should be excluded
@@ -253,7 +271,7 @@ describe('GithubLoader', () => {
     await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
     const content = await readFile(join(dest, 'issues', '7.md'), 'utf-8')
     const { fm } = splitMarkdown(content)
-    expect((fm as unknown as { closedByMergedPRs: Array<{ number: number, mergeCommit: string }> }).closedByMergedPRs).toEqual([
+    expect((fm as unknown as { linkedMergedPRs: Array<{ number: number, mergeCommit: string }> }).linkedMergedPRs).toEqual([
       { number: 70, mergeCommit: 'sha-70' },
       { number: 72, mergeCommit: 'sha-72' },
     ])
@@ -265,7 +283,7 @@ describe('GithubLoader', () => {
         { number: 1, title: 'kept', created_at: 't', updated_at: 't' },
         { number: 2, title: 'filtered', created_at: 't', updated_at: 't' },
       ],
-      closingPRs: {
+      linkedPRs: {
         1: [{ number: 10, merged: true }],
         2: [],
       },
@@ -351,6 +369,41 @@ describe('GithubLoader', () => {
 
     const content2 = await readFile(join(dest, 'issues', '2.md'), 'utf-8')
     expect(content2).toContain('Two (edited)')
+  })
+
+  it('sync deletes on-disk files for issues that came back via cursor but no longer pass the realized-intent filter', async () => {
+    // Initial state: two closed issues, both with linked merged PRs.
+    const initial: MockRouter = {
+      issues: [
+        { number: 1, title: 'kept', state: 'closed', created_at: 't', updated_at: '2026-01-01T00:00:00Z' },
+        { number: 2, title: 'will-be-reopened', state: 'closed', created_at: 't', updated_at: '2026-01-01T00:00:00Z' },
+      ],
+      linkedPRs: {
+        1: [{ number: 10, merged: true }],
+        2: [{ number: 20, merged: true }],
+      },
+    }
+    const loader1 = createGithubLoader({ fetchFn: buildMockFetch(initial) })
+    await loader1.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md', '2.md'])
+
+    // Issue #2 gets re-opened. `since=` returns it because updated_at
+    // moved; the filter drops it (state !== closed); the loader must
+    // delete the orphan file.
+    const after: MockRouter = {
+      issues: [
+        { number: 2, title: 'will-be-reopened', state: 'open', created_at: 't', updated_at: '2026-02-01T00:00:00Z' },
+      ],
+      linkedPRs: {
+        2: [{ number: 20, merged: true }],
+      },
+    }
+    const loader2 = createGithubLoader({ fetchFn: buildMockFetch(after) })
+    const report = await loader2.sync!({ owner: 'o', repo: 'r' }, dest, ctx)
+
+    expect(report.removed).toBe(1)
+    expect(report.changed).toBe(true)
+    expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md'])
   })
 
   // eslint-disable-next-line no-template-curly-in-string -- describing the literal `${VAR}` placeholder, NOT a template string

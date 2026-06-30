@@ -30,7 +30,11 @@ export function TopBanner({ tone, label, detail, icon: Icon, spin = true, action
   return (
     <div
       className={cn(
-        'flex items-center gap-3 border-b px-4 py-1.5 text-xs',
+        // Fixed height (h-9 = 36px) so Reactor / Batch / Run banners
+        // stack visually identical even when one carries an `h-6` Button
+        // in `actions` and another a plain text link. py is removed in
+        // favour of an explicit height so the container never shrinks.
+        'flex h-9 items-center gap-3 border-b px-4 text-xs',
         tone === 'reactor' && 'border-emerald-500/30 bg-emerald-500/5',
         tone === 'run' && 'border-primary/30 bg-primary/5',
         tone === 'batch' && 'border-sky-500/30 bg-sky-500/5',

@@ -1,6 +1,6 @@
 import type { SourceLoaderPlugin } from '@braidhq/core'
 import type { Timestamp } from '@braidhq/schema'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import process from 'node:process'
 import { defineSourceLoader } from '@braidhq/sdk'
@@ -82,14 +82,16 @@ const CURSOR_FILENAME = '.braid-github-cursor.json'
  * + body + `## Comments` section. Untouched issues stay byte-identical
  * across `sync` so downstream sha-based fingerprints don't churn.
  *
- * **Realized-intent filter (always on)**: only issues that have at least
- * one merged pull request in their `closedByPullRequestsReferences`
- * association are written to disk. This implements Braid's stated
- * "intent + code convergence" contract — pure speculative intent (open
- * issues with no PR yet, abandoned issues, docs-only closes) does not
- * pollute the ledger, and the same workspace re-ingest is idempotent.
- * The check uses GitHub's GraphQL API; setups behind an enterprise
- * proxy that only exposes REST can override `graphqlUrl`.
+ * **Realized-intent filter (always on)**: an issue is written to disk
+ * only when its state is `closed` AND at least one merged pull request
+ * is cross-referenced from it (via `CROSS_REFERENCED_EVENT` timeline
+ * items, which covers PRs that link the issue with or without closing
+ * keywords). This implements Braid's stated "intent + code convergence"
+ * contract — pure speculative intent (open issues, abandoned issues,
+ * docs-only closes) does not pollute the ledger, and the same workspace
+ * re-ingest is idempotent. The check uses GitHub's GraphQL API; setups
+ * behind an enterprise proxy that only exposes REST can override
+ * `graphqlUrl`.
  *
  * Auth: pass the token via `${GH_TOKEN}` (or any other env var) in
  * `config.token`. Tokens are never persisted on disk; only the rendered
@@ -167,13 +169,31 @@ export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlu
         else if (result === 'updated')
           updated++
       }
+      // Reactive orphan delete: any issue that came back via `since=` but
+      // failed the realized-intent filter (re-opened, PR unmerged, label
+      // removed, etc.) gets its on-disk file removed. This keeps the
+      // intent dir aligned with the current filter without a separate
+      // full-scan path. Issues that haven't been touched since the last
+      // cursor don't show up in `rawIssues` — those need a manual / full
+      // reconcile, not in scope for incremental sync.
+      const survivors = new Set(issues.map(i => i.issue.number))
+      let removed = 0
+      for (const raw of rawIssues) {
+        if (raw.pull_request !== undefined || survivors.has(raw.number))
+          continue
+        const removedPath = join(issuesDir, `${raw.number}.md`)
+        if (await fileExists(removedPath)) {
+          await rm(removedPath)
+          removed++
+        }
+      }
       if (mostRecent)
         await writeCursor(destination, { owner: config.owner, repo: config.repo, since: mostRecent })
       return {
-        changed: added + updated > 0,
+        changed: added + updated + removed > 0,
         added,
         updated,
-        removed: 0,
+        removed,
         metadata: {
           owner: config.owner,
           repo: config.repo,
@@ -288,7 +308,11 @@ async function filterAndAnnotateRealizedIntent(
     // deprecated `includePullRequests` knob.
     if (issue.pull_request !== undefined)
       continue
-    const mergedPRs = await fetchMergedPRsClosingIssue(fetchFn, config, headers, issue.number)
+    // Only closed issues count. Open issues — even ones with a merged
+    // PR already linked — are still in flight and may need more work.
+    if (issue.state !== 'closed')
+      continue
+    const mergedPRs = await fetchLinkedMergedPRs(fetchFn, config, headers, issue.number)
     if (mergedPRs.length === 0)
       continue
     out.push({ issue, mergedPRs })
@@ -296,37 +320,55 @@ async function filterAndAnnotateRealizedIntent(
   return out
 }
 
-interface ClosingPRNode {
+interface LinkedPRNode {
   number: number
   merged: boolean
   mergeCommit: { oid: string } | null
 }
 
-interface ClosedByQueryResponse {
+interface CrossRefEventNode {
+  source: ({ __typename: 'PullRequest' } & LinkedPRNode) | { __typename: string }
+}
+
+interface TimelineQueryResponse {
   data?: {
     repository?: {
       issue?: {
-        closedByPullRequestsReferences?: { nodes: ClosingPRNode[] }
+        timelineItems?: { nodes: CrossRefEventNode[] }
       }
     }
   }
   errors?: Array<{ message: string }>
 }
 
-async function fetchMergedPRsClosingIssue(
+async function fetchLinkedMergedPRs(
   fetchFn: FetchFn,
   config: GithubLoaderConfig,
   headers: Record<string, string>,
   issueNumber: number,
 ): Promise<readonly MergedPRRef[]> {
+  // CROSS_REFERENCED_EVENT covers every PR that mentions the issue —
+  // closing-keyword PRs ("Closes #N"), in-flight "WIP for #N" PRs,
+  // and follow-ups that just reference the issue all generate this
+  // event. That's broader than `closedByPullRequestsReferences`,
+  // which only returns PRs with a closing keyword. The realized-
+  // intent semantic is "any merged PR is associated with this
+  // closed issue", not "the PR that closed it".
   const query = `query($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) {
     issue(number: $number) {
-      closedByPullRequestsReferences(first: 50, includeClosedPrs: true) {
+      timelineItems(first: 100, itemTypes: [CROSS_REFERENCED_EVENT]) {
         nodes {
-          number
-          merged
-          mergeCommit { oid }
+          ... on CrossReferencedEvent {
+            source {
+              __typename
+              ... on PullRequest {
+                number
+                merged
+                mergeCommit { oid }
+              }
+            }
+          }
         }
       }
     }
@@ -349,19 +391,28 @@ async function fetchMergedPRsClosingIssue(
         // realized-intent filter needs `GH_TOKEN` (or any other env var
         // referenced via ${VAR} in config.token). The REST issue list
         // works anonymously, so this only bites when the loader reaches
-        // the merged-PR check; surface it actionably.
+        // the linked-PR check; surface it actionably.
         `githubLoader: realized-intent filter requires an authenticated token (set GH_TOKEN or override config.token). GitHub GraphQL returned 401 for issue ${issueNumber}.`,
       )
     }
     throw new Error(`githubLoader: GraphQL POST failed (${response.status}) for issue ${issueNumber}: ${body.slice(0, 200)}`)
   }
-  const payload = await response.json() as ClosedByQueryResponse
+  const payload = await response.json() as TimelineQueryResponse
   if (payload.errors && payload.errors.length > 0)
     throw new Error(`githubLoader: GraphQL errors for issue ${issueNumber}: ${payload.errors.map(e => e.message).join('; ')}`)
-  const nodes = payload.data?.repository?.issue?.closedByPullRequestsReferences?.nodes ?? []
-  return nodes
-    .filter(n => n.merged === true)
-    .map(n => ({ number: n.number, mergeCommit: n.mergeCommit?.oid ?? null }))
+  const nodes = payload.data?.repository?.issue?.timelineItems?.nodes ?? []
+  const seen = new Set<number>()
+  const out: MergedPRRef[] = []
+  for (const node of nodes) {
+    if (node.source.__typename !== 'PullRequest')
+      continue
+    const pr = node.source as { __typename: 'PullRequest' } & LinkedPRNode
+    if (!pr.merged || seen.has(pr.number))
+      continue
+    seen.add(pr.number)
+    out.push({ number: pr.number, mergeCommit: pr.mergeCommit?.oid ?? null })
+  }
+  return out
 }
 
 let warnedDeprecatedIncludePullRequests = false
@@ -421,10 +472,10 @@ function renderIssueMarkdown(
     createdAt: issue.created_at,
     updatedAt: issue.updated_at,
     url: issue.html_url,
-    // The merged PRs that ship the work this issue tracks. Drives the
-    // "realized intent" semantics: an issue only lands here when at
-    // least one entry exists.
-    closedByMergedPRs: mergedPRs.map(p => ({ number: p.number, mergeCommit: p.mergeCommit })),
+    // The merged PRs linked to this closed issue. Drives the realized-
+    // intent semantics: an issue only lands here when state is `closed`
+    // and at least one linked merged PR exists.
+    linkedMergedPRs: mergedPRs.map(p => ({ number: p.number, mergeCommit: p.mergeCommit })),
   }
   const yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd()
   const body = (issue.body ?? '').trimEnd()
@@ -437,6 +488,16 @@ function renderIssueMarkdown(
     }
   }
   return `${parts.join('\n').trimEnd()}\n`
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await stat(path)
+    return true
+  }
+  catch {
+    return false
+  }
 }
 
 async function writeIfChanged(path: string, content: string): Promise<'added' | 'updated' | 'unchanged'> {
