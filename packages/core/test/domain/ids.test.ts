@@ -1,6 +1,6 @@
 import type { Timestamp } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
-import { newClarifyTicketId, newEdgeId, newNodeId, newProposalId, newQuestionId } from '../../src/index.js'
+import { newClarifyTicketId, newEdgeId, newNodeId, newProposalId } from '../../src/index.js'
 
 const NOW = '2026-05-22T14:30:00.000Z' as Timestamp
 
@@ -13,8 +13,8 @@ describe('id minters', () => {
     expect(a.length).toBeGreaterThan(0)
   })
 
-  it('newEdgeId / newQuestionId return distinct uuids', () => {
-    const ids = [newEdgeId(), newQuestionId()]
+  it('newEdgeId returns distinct uuids', () => {
+    const ids = [newEdgeId(), newEdgeId()]
     expect(new Set(ids).size).toBe(2)
   })
 

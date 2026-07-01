@@ -1,5 +1,4 @@
 import type {
-  AnswerId,
   BatchPlanId,
   ClarifyCandidateId,
   ClarifyTicketId,
@@ -9,7 +8,6 @@ import type {
   NodeId,
   PlanUnitId,
   ProposalId,
-  QuestionId,
   ReactorPassId,
   SkillRunId,
   Timestamp,
@@ -61,14 +59,6 @@ function shortRandom(): string {
 
 export function newDecisionId(): DecisionId {
   return crypto.randomUUID() as DecisionId
-}
-
-export function newQuestionId(): QuestionId {
-  return crypto.randomUUID() as QuestionId
-}
-
-export function newAnswerId(): AnswerId {
-  return crypto.randomUUID() as AnswerId
 }
 
 export function newSkillRunId(): SkillRunId {

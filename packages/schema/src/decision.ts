@@ -3,7 +3,6 @@ import {
   ClarifyTicketId,
   DecisionId,
   ProposalId,
-  QuestionId,
   Timestamp,
   UserId,
   WorkspaceId,
@@ -25,7 +24,6 @@ export type DecisionActor = z.infer<typeof DecisionActor>
 export const DecisionReferences = z.object({
   proposalId: ProposalId.optional(),
   clarifyTicketId: ClarifyTicketId.optional(),
-  questionId: QuestionId.optional(),
 })
 export type DecisionReferences = z.infer<typeof DecisionReferences>
 

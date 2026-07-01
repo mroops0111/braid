@@ -8,8 +8,6 @@ const ListQuery = z.object({
   type: z.union([NodeTypeId, z.array(NodeTypeId)]).optional().openapi({ description: 'Filter by node type id; pass one or many.' }),
   status: z.union([NodeStatus, z.array(NodeStatus)]).optional().openapi({ description: 'Filter by node status; pass one or many.' }),
   q: z.string().optional().openapi({ description: 'Case-insensitive substring match against node name.' }),
-  limit: z.coerce.number().int().positive().optional(),
-  offset: z.coerce.number().int().nonnegative().optional(),
 })
 
 const NodeIdParam = WorkspaceIdParam.extend({
@@ -87,15 +85,13 @@ export function createNodesRouter(deps: NodesRouterDeps): OpenAPIHono {
 
   router.openapi(listNodesRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
-    const { type, status, q, limit, offset } = context.req.valid('query')
+    const { type, status, q } = context.req.valid('query')
     const types = type === undefined ? undefined : Array.isArray(type) ? type : [type]
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
     const nodes = await deps.modelService.findNodes(workspaceId, {
       types,
       statuses,
       nameContains: q,
-      limit,
-      offset,
     })
     return context.json({ items: nodes }, 200)
   })

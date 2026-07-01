@@ -11,7 +11,6 @@ import type {
 import type { ModelRepository } from '../../domain/model/ModelRepository.js'
 import { NotFoundError } from '../../domain/errors.js'
 import { Model } from '../../domain/model/Model.js'
-import { paginate } from '../../domain/paginate.js'
 
 export class InMemoryModelRepository implements ModelRepository {
   private readonly models = new Map<WorkspaceId, Model>()
@@ -38,7 +37,7 @@ export class InMemoryModelRepository implements ModelRepository {
       const needle = filter.nameContains.toLowerCase()
       nodes = nodes.filter(node => node.name.toLowerCase().includes(needle))
     }
-    return paginate(nodes, filter?.limit, filter?.offset)
+    return nodes
   }
 
   async getNode(workspaceId: WorkspaceId, nodeId: NodeId): Promise<GraphNode> {
@@ -92,7 +91,7 @@ export class InMemoryModelRepository implements ModelRepository {
       const toId = filter.toNodeId
       edges = edges.filter(edge => edge.toNodeId === toId)
     }
-    return paginate(edges, filter?.limit, filter?.offset)
+    return edges
   }
 
   private modelFor(workspaceId: WorkspaceId): Model {

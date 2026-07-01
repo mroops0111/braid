@@ -10,12 +10,7 @@ export type EdgeTypeId = z.infer<typeof EdgeTypeId>
 export const NodeStatus = z.enum(['draft', 'completed', 'unclear', 'deprecated'])
 export type NodeStatus = z.infer<typeof NodeStatus>
 
-/**
- * Hints for ontology-agnostic renderers (e.g. `braid-generate-doc`)
- * to lay nodes out in a document tree without hard-coding ontology
- * vocabulary. See `NodeTypeDescriptor.renderHint` in
- * `packages/core/src/domain/plugin/Ontology.ts` for the contract.
- */
+// Layout hints that let braid-generate-doc place nodes without hard-coding ontology vocabulary.
 export const NodeTypeRenderHint = z.object({
   container: z.boolean().optional(),
   expandedUnder: NodeTypeId.optional(),
@@ -25,7 +20,7 @@ export type NodeTypeRenderHint = z.infer<typeof NodeTypeRenderHint>
 
 export const NodeTypeDescriptor = z.object({
   id: NodeTypeId,
-  label: z.string().min(1),
+  label: z.string().min(1).max(40),
   description: z.string().optional(),
   allowedStatuses: z.array(NodeStatus).optional(),
   color: z.string().optional(),
@@ -39,7 +34,7 @@ export type EdgeCardinality = z.infer<typeof EdgeCardinality>
 
 export const EdgeTypeDescriptor = z.object({
   id: EdgeTypeId,
-  label: z.string().optional(),
+  label: z.string().min(1).max(40),
   description: z.string().optional(),
   fromTypes: z.array(NodeTypeId),
   toTypes: z.array(NodeTypeId),
@@ -48,12 +43,7 @@ export const EdgeTypeDescriptor = z.object({
 })
 export type EdgeTypeDescriptor = z.infer<typeof EdgeTypeDescriptor>
 
-/**
- * Wire shape for `GET /workspaces/:ws/ontology`. Mirrors the live
- * `Ontology` plugin's `nodeTypes` / `edgeTypes` arrays. Descriptor
- * order is meaningful: it's the order plugin authors declared and
- * Studio uses it for filter lists, legends, etc.
- */
+// Response for the ontology endpoint. Descriptor order matters: Studio preserves the author's declared order.
 export const OntologyResponse = z.object({
   ontologyId: OntologyId,
   nodeTypes: z.array(NodeTypeDescriptor),

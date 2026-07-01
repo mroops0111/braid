@@ -6,6 +6,8 @@ export interface OntologyPalette {
   nodeColor: (type: NodeTypeId) => string
   /** Raw CSS colour for an edge type's stroke. */
   edgeColor: (type: EdgeTypeId) => string
+  /** Human label for an edge type: the descriptor's label, or the id when none was authored. */
+  edgeLabel: (type: EdgeTypeId) => string
   /** Inline `style` object for the type badge background / border / text. */
   nodeBadgeStyle: (type: NodeTypeId) => CSSProperties
   /** Inline `style` object for a solid dot in the same colour. */
@@ -35,6 +37,7 @@ const FALLBACK_COLOR = 'oklch(0.55 0 0)'
 export function buildPalette(ontology: OntologyResponse | undefined): OntologyPalette {
   const nodeColorById = new Map<NodeTypeId, string>()
   const edgeColorById = new Map<EdgeTypeId, string>()
+  const edgeLabelById = new Map<EdgeTypeId, string>()
   const nodeOrder = new Map<NodeTypeId, number>()
 
   if (ontology) {
@@ -46,6 +49,8 @@ export function buildPalette(ontology: OntologyResponse | undefined): OntologyPa
     for (const descriptor of ontology.edgeTypes) {
       if (descriptor.color)
         edgeColorById.set(descriptor.id, descriptor.color)
+      if (descriptor.label)
+        edgeLabelById.set(descriptor.id, descriptor.label)
     }
   }
 
@@ -55,6 +60,10 @@ export function buildPalette(ontology: OntologyResponse | undefined): OntologyPa
 
   function edgeColor(type: EdgeTypeId): string {
     return edgeColorById.get(type) ?? (ontology ? hashColor(type) : FALLBACK_COLOR)
+  }
+
+  function edgeLabel(type: EdgeTypeId): string {
+    return edgeLabelById.get(type) ?? type
   }
 
   function nodeBadgeStyle(type: NodeTypeId): CSSProperties {
@@ -73,6 +82,7 @@ export function buildPalette(ontology: OntologyResponse | undefined): OntologyPa
   return {
     nodeColor,
     edgeColor,
+    edgeLabel,
     nodeBadgeStyle,
     nodeDotStyle,
     sortNodeTypes: <T extends NodeTypeId>(types: readonly T[]): T[] => {

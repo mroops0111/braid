@@ -58,7 +58,7 @@ export function EdgeDetailPanel({
             style={{ color: typeColor }}
           >
             <span className="inline-block size-1.5 rounded-full" style={{ backgroundColor: typeColor }} />
-            {edge.type}
+            {palette.edgeLabel(edge.type)}
           </span>
         </div>
         <h2 className="text-sm font-semibold text-foreground">Edge</h2>

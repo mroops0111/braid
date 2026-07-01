@@ -217,7 +217,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
       return {
         ...edge,
         selected,
-        label: selected ? edge.label : undefined,
+        label: selected ? palette.edgeLabel(edge.data!.edge.type) : undefined,
         animated: selected && change !== 'removed',
         style: {
           stroke,

@@ -4,7 +4,7 @@ import { DriftIssue } from './drift.js'
 import { EdgeTypeId, NodeStatus, NodeTypeId } from './ontology.js'
 
 export const Embedding = z.object({
-  // number[] not Float32Array; infrastructure converts at the Neo4j boundary.
+  // Plain number[], not Float32Array: the storage adapter converts at its own boundary.
   vector: z.array(z.number()),
   modelId: z.string().min(1),
   createdAt: Timestamp,
@@ -103,8 +103,6 @@ export const GraphNodeFilter = z.object({
   types: z.array(NodeTypeId).optional(),
   statuses: z.array(NodeStatus).optional(),
   nameContains: z.string().optional(),
-  limit: z.number().int().positive().optional(),
-  offset: z.number().int().nonnegative().optional(),
 })
 export type GraphNodeFilter = z.infer<typeof GraphNodeFilter>
 
@@ -112,7 +110,5 @@ export const GraphEdgeFilter = z.object({
   types: z.array(EdgeTypeId).optional(),
   fromNodeId: NodeId.optional(),
   toNodeId: NodeId.optional(),
-  limit: z.number().int().positive().optional(),
-  offset: z.number().int().nonnegative().optional(),
 })
 export type GraphEdgeFilter = z.infer<typeof GraphEdgeFilter>

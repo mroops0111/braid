@@ -176,7 +176,7 @@ function Legend({ ontology }: { ontology: OntologyResponse | undefined }) {
               {ontology.edgeTypes.map(descriptor => (
                 <li key={descriptor.id} className="flex items-center gap-2">
                   <span className="inline-block h-[2px] w-4" style={{ backgroundColor: palette.edgeColor(descriptor.id) }} />
-                  <span className="font-mono text-sidebar-foreground/80">{descriptor.id}</span>
+                  <span className="font-mono text-sidebar-foreground/80">{descriptor.label ?? descriptor.id}</span>
                 </li>
               ))}
             </ul>

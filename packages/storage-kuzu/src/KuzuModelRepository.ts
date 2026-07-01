@@ -12,7 +12,7 @@ import type {
 import type { Connection, Database, PreparedStatement, QueryResult } from 'kuzu'
 import { mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import { Model, NotFoundError, paginate } from '@braidhq/core'
+import { Model, NotFoundError } from '@braidhq/core'
 import * as kuzu from 'kuzu'
 import { edgeToParams, edgeToUpdateParams, nodeToParams, rowToEdge, rowToNode } from './codec.js'
 import { DDL_CREATE_EDGE_TABLE, DDL_CREATE_NODE_TABLE } from './schema.js'
@@ -259,7 +259,7 @@ function applyNodeFilter(nodes: GraphNode[], filter?: GraphNodeFilter): GraphNod
     const needle = filter.nameContains.toLowerCase()
     out = out.filter(n => n.name.toLowerCase().includes(needle))
   }
-  return paginate(out, filter?.limit, filter?.offset)
+  return out
 }
 
 function applyEdgeFilter(edges: GraphEdge[], filter?: GraphEdgeFilter): GraphEdge[] {
@@ -276,5 +276,5 @@ function applyEdgeFilter(edges: GraphEdge[], filter?: GraphEdgeFilter): GraphEdg
     const to = filter.toNodeId
     out = out.filter(e => e.toNodeId === to)
   }
-  return paginate(out, filter?.limit, filter?.offset)
+  return out
 }
