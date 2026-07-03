@@ -12,6 +12,7 @@ import type {
 import type { Connection, Database, PreparedStatement, QueryResult } from 'kuzu'
 import { mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import process from 'node:process'
 import { Model, NotFoundError } from '@braidhq/core'
 import * as kuzu from 'kuzu'
 import { edgeToParams, edgeToUpdateParams, nodeToParams, rowToEdge, rowToNode } from './codec.js'
@@ -114,7 +115,10 @@ export class KuzuModelRepository implements ModelRepository {
     const path = await this.opts.resolveDbPath(workspaceId)
     // Kuzu 0.11+ stores the DB as a single file; we just need the parent.
     await mkdir(dirname(path), { recursive: true })
-    const db = new kuzu.Database(path)
+    // Kuzu mmaps maxDBSize up front (8 TiB default), too big for constrained CI runners.
+    // 1 GiB is ample for Braid graphs, overridable via BRAID_KUZU_MAX_DB_SIZE.
+    const maxDbSize = Number(process.env.BRAID_KUZU_MAX_DB_SIZE) || 1_073_741_824
+    const db = new kuzu.Database(path, 0, true, false, maxDbSize)
     const conn = new kuzu.Connection(db)
     await conn.query(DDL_CREATE_NODE_TABLE)
     await conn.query(DDL_CREATE_EDGE_TABLE)
