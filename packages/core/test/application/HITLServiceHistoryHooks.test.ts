@@ -28,7 +28,6 @@ import {
 } from '../../src/index.js'
 import {
   InMemoryClarifyTicketRepository,
-  InMemoryDecisionRepository,
   InMemoryModelRepository,
   InMemoryProposalRepository,
   InMemoryWorkspaceRepository,
@@ -62,7 +61,6 @@ async function setupWithHistory(options: { withHistory?: boolean } = {}) {
   const workspaceService = new WorkspaceService({ workspaceRepository: workspaceRepo, pluginRegistry: new PluginRegistry() })
   const proposalRepository = new InMemoryProposalRepository()
   const clarifyRepository = new InMemoryClarifyTicketRepository()
-  const decisionRepository = new InMemoryDecisionRepository()
   const modelRepository = new InMemoryModelRepository()
   const clock = new FixedClock()
   const validationService = new ValidationService({ pluginRegistry: new PluginRegistry() })
@@ -72,7 +70,6 @@ async function setupWithHistory(options: { withHistory?: boolean } = {}) {
   const service = new HITLService({
     proposalRepository,
     clarifyRepository,
-    decisionRepository,
     modelRepository,
     validationService,
     workspaceService,

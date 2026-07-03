@@ -15,7 +15,7 @@ export interface StoragePluginContext extends PluginContext {
 /**
  * Graph-storage backend port. Storage here is strictly the graph (nodes /
  * edges / future vector index) — filesystem-backed concerns like Proposal /
- * Clarify / Decision are *not* part of this contract because they live in
+ * Clarify are *not* part of this contract because they live in
  * `<workspace>/artifacts/` and are not swappable on a graph-backend axis.
  *
  * A plugin returns one `ModelRepository` per process; that repository is

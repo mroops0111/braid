@@ -10,7 +10,6 @@ import { createAdminRouter } from './routes/admin.js'
 import { createAuthRouter } from './routes/auth.js'
 import { createBatchRouter } from './routes/batch.js'
 import { createClarifyRouter } from './routes/clarify.js'
-import { createDecisionsRouter } from './routes/decisions.js'
 import { createEdgesRouter } from './routes/edges.js'
 import { healthRouter } from './routes/health.js'
 import { createHistoryRouter } from './routes/history.js'
@@ -160,9 +159,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   workspaceScoped.route('/clarify', createClarifyRouter({
     hitlService: deps.hitlService,
     clarifyRepository: deps.clarifyRepository,
-    decisionRepository: deps.decisionRepository,
   }))
-  workspaceScoped.route('/decisions', createDecisionsRouter({ decisionRepository: deps.decisionRepository }))
   workspaceScoped.route('/source-unit-states', createSourceUnitStatesRouter({
     sourceUnitStateService: deps.sourceUnitStateService,
     ...(deps.intentLister && deps.sourceUnitDigest

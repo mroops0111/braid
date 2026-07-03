@@ -31,9 +31,6 @@ export type ClarifyTicketId = z.infer<typeof ClarifyTicketId>
 export const ClarifyCandidateId = z.string().min(1).brand<'ClarifyCandidateId'>()
 export type ClarifyCandidateId = z.infer<typeof ClarifyCandidateId>
 
-export const DecisionId = z.string().min(1).brand<'DecisionId'>()
-export type DecisionId = z.infer<typeof DecisionId>
-
 export const DriftIssueId = z.string().min(1).brand<'DriftIssueId'>()
 export type DriftIssueId = z.infer<typeof DriftIssueId>
 

@@ -1,5 +1,5 @@
 import type { HITLService, ModelRepository, ProposalRepository, ValidationService, WorkspaceService } from '@braidhq/core'
-import { Decision, Proposal, ProposalCreate, ProposalId, ProposalStatus, UserId, ValidationResult } from '@braidhq/schema'
+import { Proposal, ProposalCreate, ProposalId, ProposalStatus, UserId, ValidationResult } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getUserId } from '../middleware/userId.js'
 import { getViewerContext, requirePermission } from '../middleware/workspaceAccess.js'
@@ -131,8 +131,8 @@ const applyProposalRoute = createRoute({
   },
   responses: {
     200: {
-      description: 'The recorded Decision.',
-      content: { 'application/json': { schema: Decision } },
+      description: 'The updated proposal.',
+      content: { 'application/json': { schema: Proposal } },
     },
     404: NotFoundResponse,
   },
@@ -150,8 +150,8 @@ const rejectProposalRoute = createRoute({
   },
   responses: {
     200: {
-      description: 'The recorded Decision.',
-      content: { 'application/json': { schema: Decision } },
+      description: 'The updated proposal.',
+      content: { 'application/json': { schema: Proposal } },
     },
     404: NotFoundResponse,
   },
@@ -218,8 +218,8 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     const userId = body.userId ?? getUserId(context)
     const proposal = await deps.proposalRepository.load(proposalId)
     assertEntityInWorkspace(workspaceId, proposal.workspaceId, 'Proposal', proposalId)
-    const decision = await deps.hitlService.applyProposal(proposalId, userId)
-    return context.json(decision, 200)
+    const applied = await deps.hitlService.applyProposal(proposalId, userId)
+    return context.json(applied.toData(), 200)
   })
 
   router.openapi(rejectProposalRoute, async (context) => {
@@ -229,8 +229,8 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     const userId = bodyUserId ?? getUserId(context)
     const proposal = await deps.proposalRepository.load(proposalId)
     assertEntityInWorkspace(workspaceId, proposal.workspaceId, 'Proposal', proposalId)
-    const decision = await deps.hitlService.rejectProposal(proposalId, reason, userId)
-    return context.json(decision, 200)
+    const rejected = await deps.hitlService.rejectProposal(proposalId, reason, userId)
+    return context.json(rejected.toData(), 200)
   })
 
   return router

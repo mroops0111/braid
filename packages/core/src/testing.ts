@@ -14,7 +14,6 @@
  * these with filesystem-backed implementations.
  */
 export * from './infrastructure/in-memory/InMemoryClarifyTicketRepository.js'
-export * from './infrastructure/in-memory/InMemoryDecisionRepository.js'
 export * from './infrastructure/in-memory/InMemoryKeyedStore.js'
 export * from './infrastructure/in-memory/InMemoryModelRepository.js'
 export * from './infrastructure/in-memory/InMemoryProposalRepository.js'

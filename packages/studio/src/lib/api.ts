@@ -6,7 +6,6 @@ import type {
   ClarifyTicket,
   CommitMeta,
   CommitSha,
-  Decision,
   ExternalReference,
   FileDiff,
   GraphDiffEnvelope,
@@ -68,11 +67,9 @@ export interface AdminUserWorkspace {
 export type AdminUser = User & { workspaces: AdminUserWorkspace[] }
 
 /**
- * GET /workspaces/:ws/clarify/:id response — the canonical ticket plus
- * server-side projections derived from the Decision log so the detail
- * pane can render the reviewer's rationale without a second fetch.
- * `skipReason` is set on `skipped` tickets, `answerNote` on
- * `answered` / `applied` tickets.
+ * GET /workspaces/:ws/clarify/:id response. `skipReason` / `answerNote`
+ * are no longer populated — the reviewer's rationale lives in git history
+ * now — but kept optional until the detail pane resurfaces them.
  */
 export type ClarifyTicketDetail = ClarifyTicket & { skipReason?: string, answerNote?: string }
 
@@ -354,12 +351,12 @@ export const api = {
     return fetchJson<ItemList<Proposal>>(`/workspaces/${workspaceId}/proposals${query}`)
   },
   applyProposal: (workspaceId: string, proposalId: string) =>
-    fetchJson<Decision>(`/workspaces/${workspaceId}/proposals/${proposalId}/apply`, {
+    fetchJson<Proposal>(`/workspaces/${workspaceId}/proposals/${proposalId}/apply`, {
       method: 'POST',
       body: JSON.stringify({}),
     }),
   rejectProposal: (workspaceId: string, proposalId: string, reason: string) =>
-    fetchJson<Decision>(`/workspaces/${workspaceId}/proposals/${proposalId}/reject`, {
+    fetchJson<Proposal>(`/workspaces/${workspaceId}/proposals/${proposalId}/reject`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
     }),
@@ -376,9 +373,7 @@ export const api = {
     return fetchJson<ItemList<ClarifyTicket>>(`/workspaces/${workspaceId}/clarify${query}`)
   },
   /**
-   * Returns the ticket plus a `skipReason` projection when the ticket
-   * is in `skipped` status — derived server-side from the most recent
-   * skipClarifyTicket Decision so the UI doesn't need a second call.
+   * Fetch a single clarify ticket.
    */
   getClarify: (workspaceId: string, ticketId: string) =>
     fetchJson<ClarifyTicketDetail>(`/workspaces/${workspaceId}/clarify/${ticketId}`),
@@ -396,9 +391,7 @@ export const api = {
    * Answer a clarify ticket. `selection` is either picking an existing
    * candidate or supplying a freshly-written description that the
    * server appends to the ticket and answers in one transaction.
-   * `note` is the reviewer's free-form rationale; the server stores
-   * it on the Decision and projects it back as `answerNote` on the
-   * GET /clarify/:id response.
+   * `note` is the reviewer's free-form rationale, saved on the answer commit.
    */
   answerClarify: (
     workspaceId: string,
@@ -406,7 +399,7 @@ export const api = {
     selection: { candidateId: string } | { customCandidate: { description: string } },
     note?: string,
   ) =>
-    fetchJson<Decision>(`/workspaces/${workspaceId}/clarify/${ticketId}/answer`, {
+    fetchJson<ClarifyTicket>(`/workspaces/${workspaceId}/clarify/${ticketId}/answer`, {
       method: 'POST',
       body: JSON.stringify({
         ...selection,
@@ -414,13 +407,10 @@ export const api = {
       }),
     }),
   skipClarify: (workspaceId: string, ticketId: string, reason: string) =>
-    fetchJson<Decision>(`/workspaces/${workspaceId}/clarify/${ticketId}/skip`, {
+    fetchJson<ClarifyTicket>(`/workspaces/${workspaceId}/clarify/${ticketId}/skip`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
     }),
-
-  listDecisions: (workspaceId: string) =>
-    fetchJson<ItemList<Decision>>(`/workspaces/${workspaceId}/decisions`),
 
   skillRunUrl: (workspaceId: string, skillId: string) =>
     `${getServerUrl()}/workspaces/${workspaceId}/skills/${skillId}/run`,

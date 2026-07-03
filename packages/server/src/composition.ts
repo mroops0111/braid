@@ -2,7 +2,6 @@ import type {
   BatchPlanRepository,
   ClarifyTicketRepository,
   Clock,
-  DecisionRepository,
   GraphSerializer,
   IntentLister,
   ModelRepository,
@@ -44,7 +43,6 @@ import {
 } from '@braidhq/core'
 import {
   InMemoryClarifyTicketRepository,
-  InMemoryDecisionRepository,
   InMemoryModelRepository,
   InMemoryProposalRepository,
   InMemoryReactorPassRepository,
@@ -93,7 +91,6 @@ export interface AppDependencies {
   pluginRegistry: PluginRegistry
   proposalRepository: ProposalRepository
   clarifyRepository: ClarifyTicketRepository
-  decisionRepository: DecisionRepository
   modelRepository: ModelRepository
   workspaceRepository: WorkspaceRepository
   skillRegistry: SkillRegistry | undefined
@@ -158,7 +155,6 @@ export interface ComposeOptions {
   clock?: Clock
   proposalRepository?: ProposalRepository
   clarifyRepository?: ClarifyTicketRepository
-  decisionRepository?: DecisionRepository
   modelRepository?: ModelRepository
   workspaceRepository?: WorkspaceRepository
   pluginRegistry?: PluginRegistry
@@ -216,7 +212,6 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const clock = options.clock ?? new SystemClock()
   const proposalRepository = options.proposalRepository ?? new InMemoryProposalRepository()
   const clarifyRepository = options.clarifyRepository ?? new InMemoryClarifyTicketRepository()
-  const decisionRepository = options.decisionRepository ?? new InMemoryDecisionRepository()
   const modelRepository = options.modelRepository ?? new InMemoryModelRepository()
   const workspaceRepository = options.workspaceRepository ?? new InMemoryWorkspaceRepository()
   const pluginRegistry = options.pluginRegistry ?? new PluginRegistry()
@@ -231,7 +226,6 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const hitlService = new HITLService({
     proposalRepository,
     clarifyRepository,
-    decisionRepository,
     modelRepository,
     validationService,
     workspaceService,
@@ -325,7 +319,6 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     pluginRegistry,
     proposalRepository,
     clarifyRepository,
-    decisionRepository,
     modelRepository,
     workspaceRepository,
     skillRegistry: options.skillRegistry,

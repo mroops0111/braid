@@ -71,11 +71,6 @@ interface ProposalBody {
   generatedAt: string
 }
 
-interface DecisionBody {
-  action: string
-  references: { proposalId?: string }
-}
-
 interface ListBody<T> {
   items: T[]
 }
@@ -169,7 +164,7 @@ describe('POST /workspaces/:ws/clarify', () => {
 })
 
 describe('POST /workspaces/:ws/proposals/:id/apply', () => {
-  it('applies a seeded proposal and returns a decision', async () => {
+  it('applies a seeded proposal and returns the applied proposal', async () => {
     const { app, deps } = await buildTestApp()
     await deps.proposalRepository.save(makeProposal({
       operations: [{
@@ -191,8 +186,8 @@ describe('POST /workspaces/:ws/proposals/:id/apply', () => {
     })
 
     expect(response.status).toBe(200)
-    const body = await readJson<DecisionBody>(response)
-    expect(body.action).toBe('applyProposal')
+    const body = await readJson<{ id: string, status: string }>(response)
+    expect(body.status).toBe('applied')
   })
 
   it('returns 404 when the proposal does not exist', async () => {
@@ -305,28 +300,6 @@ describe('POST /workspaces/:ws/clarify/:id/answer', () => {
   })
 })
 
-describe('GET /workspaces/:ws/clarify/:id', () => {
-  it('projects answerNote from the latest answer decision for answered tickets', async () => {
-    const { app, deps } = await buildTestApp()
-    await deps.clarifyRepository.save(makeClarifyTicket({
-      id: 'ct-note',
-      candidates: [{ id: 'cc-1' as ClarifyCandidate['id'], description: 'opt', sourceReferences: [], proposedOperations: [] }],
-    }))
-
-    await app.request(`/workspaces/${workspaceId}/clarify/ct-note/answer`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ candidateId: 'cc-1', userId, note: 'this is the note' }),
-    })
-
-    const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-note`)
-    expect(response.status).toBe(200)
-    const body = await readJson<{ answerNote?: string, skipReason?: string }>(response)
-    expect(body.answerNote).toBe('this is the note')
-    expect(body.skipReason).toBeUndefined()
-  })
-})
-
 describe('PATCH /workspaces/:ws/clarify/:id', () => {
   it('moves an answered ticket to applied and stamps proposalId', async () => {
     const { app, deps } = await buildTestApp()
@@ -339,9 +312,9 @@ describe('PATCH /workspaces/:ws/clarify/:id', () => {
     })
 
     expect(response.status).toBe(200)
-    const decision = await readJson<DecisionBody>(response)
-    expect(decision.action).toBe('applyClarifyTicket')
-    expect(decision.references.proposalId).toBe('p-99')
+    const body = await readJson<{ status: string, proposalId?: string }>(response)
+    expect(body.status).toBe('applied')
+    expect(body.proposalId).toBe('p-99')
 
     const reloaded = await deps.clarifyRepository.load('ct-link' as ClarifyTicketId)
     expect(reloaded.status).toBe('applied')
@@ -359,9 +332,9 @@ describe('PATCH /workspaces/:ws/clarify/:id', () => {
     })
 
     expect(response.status).toBe(200)
-    const decision = await readJson<DecisionBody>(response)
-    expect(decision.action).toBe('applyClarifyTicket')
-    expect(decision.references.proposalId).toBeUndefined()
+    const body = await readJson<{ status: string, proposalId?: string }>(response)
+    expect(body.status).toBe('applied')
+    expect(body.proposalId).toBeUndefined()
 
     const reloaded = await deps.clarifyRepository.load('ct-noop' as ClarifyTicketId)
     expect(reloaded.status).toBe('applied')
@@ -415,7 +388,6 @@ describe('list endpoints return their empty shape for a fresh workspace', () => 
     { path: `/workspaces/${workspaceId}/model/snapshot`, empty: { nodes: [], edges: [] } },
     { path: `/workspaces/${workspaceId}/nodes`, empty: { items: [] } },
     { path: `/workspaces/${workspaceId}/edges`, empty: { items: [] } },
-    { path: `/workspaces/${workspaceId}/decisions`, empty: { items: [] } },
     { path: `/workspaces/${workspaceId}/source-unit-states`, empty: { items: [] } },
   ] as const
 
@@ -458,16 +430,6 @@ describe('GET /workspaces/:ws/nodes filters and lookup', () => {
     const { app } = await buildTestApp()
 
     const response = await app.request(`/workspaces/${workspaceId}/nodes/missing`)
-
-    expect(response.status).toBe(404)
-  })
-})
-
-describe('GET /workspaces/:ws/decisions/:id', () => {
-  it('returns 404 when the decision id is missing', async () => {
-    const { app } = await buildTestApp()
-
-    const response = await app.request(`/workspaces/${workspaceId}/decisions/missing`)
 
     expect(response.status).toBe(404)
   })

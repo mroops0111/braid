@@ -1,26 +1,12 @@
-import type { ClarifyTicketRepository, DecisionRepository, HITLService } from '@braidhq/core'
-import type { ClarifyTicketId as ClarifyTicketIdType, DecisionAction, WorkspaceId } from '@braidhq/schema'
+import type { ClarifyTicketRepository, HITLService } from '@braidhq/core'
 import { newClarifyCandidateId } from '@braidhq/core'
-import { ClarifyCandidate, ClarifyCandidateId, ClarifyStatus, ClarifyTicket, ClarifyTicketCreate, ClarifyTicketId, Decision, ProposalId, UserId } from '@braidhq/schema'
+import { ClarifyCandidate, ClarifyCandidateId, ClarifyStatus, ClarifyTicket, ClarifyTicketCreate, ClarifyTicketId, ProposalId, UserId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getUserId } from '../middleware/userId.js'
 import { getViewerContext, requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 import { assertEntityInWorkspace } from './helpers.js'
-
-async function latestRationale(
-  decisions: DecisionRepository,
-  workspaceId: WorkspaceId,
-  ticketId: ClarifyTicketIdType,
-  action: DecisionAction,
-): Promise<string | undefined> {
-  const all = await decisions.list({ workspaceId, actions: [action] })
-  const match = all
-    .filter(d => d.references.clarifyTicketId === ticketId && typeof d.rationale === 'string')
-    .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1))[0]
-  return match?.rationale
-}
 
 const ListQuery = z.object({
   status: z.union([ClarifyStatus, z.array(ClarifyStatus)]).optional().openapi({ description: 'Filter by ticket status; pass one or many.' }),
@@ -32,8 +18,7 @@ const ListQuery = z.object({
 // Reviewer-facing answer body. The selection is either an existing
 // `candidateId` or a freshly authored `customCandidate` (description
 // only — the server appends it to the ticket and answers in one
-// transaction). `note` is a free-text rationale that survives on the
-// Decision log; the GET projection surfaces it back as `answerNote`.
+// transaction). `note` is a free-text rationale saved on the answer commit.
 // `userId` accepted for backwards compat; authoritative value is the
 // request context (set by `userIdMiddleware`).
 const AnswerBody = z
@@ -82,18 +67,9 @@ const ClarifyListResponse = z.object({
   items: z.array(ClarifyTicket),
 }).openapi('ClarifyListResponse')
 
-// GET /clarify/:id may attach a projection field (`skipReason` /
-// `answerNote`) when surfacing the latest Decision rationale. Either
-// field shows up on top of the base ClarifyTicket shape; never both.
-const ClarifyTicketWithProjection = ClarifyTicket.extend({
-  skipReason: z.string().optional(),
-  answerNote: z.string().optional(),
-}).openapi('ClarifyTicketWithProjection')
-
 export interface ClarifyRouterDeps {
   hitlService: HITLService
   clarifyRepository: ClarifyTicketRepository
-  decisionRepository: DecisionRepository
 }
 
 const createClarifyRoute = createRoute({
@@ -137,13 +113,13 @@ const getClarifyRoute = createRoute({
   method: 'get',
   path: '/{clarifyTicketId}',
   operationId: 'getClarifyTicket',
-  summary: 'Fetch a single clarify ticket. May include `skipReason` / `answerNote` projection when terminal.',
+  summary: 'Fetch a single clarify ticket.',
   tags: ['clarify'],
   request: { params: ClarifyTicketIdParam },
   responses: {
     200: {
-      description: 'The requested ticket (optionally with skipReason / answerNote projection).',
-      content: { 'application/json': { schema: ClarifyTicketWithProjection } },
+      description: 'The requested ticket.',
+      content: { 'application/json': { schema: ClarifyTicket } },
     },
     404: NotFoundResponse,
   },
@@ -161,8 +137,8 @@ const answerClarifyRoute = createRoute({
   },
   responses: {
     200: {
-      description: 'The recorded Decision.',
-      content: { 'application/json': { schema: Decision } },
+      description: 'The updated ticket.',
+      content: { 'application/json': { schema: ClarifyTicket } },
     },
     404: NotFoundResponse,
   },
@@ -181,8 +157,8 @@ const applyClarifyRoute = createRoute({
   },
   responses: {
     200: {
-      description: 'The recorded Decision.',
-      content: { 'application/json': { schema: Decision } },
+      description: 'The updated ticket.',
+      content: { 'application/json': { schema: ClarifyTicket } },
     },
     404: NotFoundResponse,
   },
@@ -200,8 +176,8 @@ const skipClarifyRoute = createRoute({
   },
   responses: {
     200: {
-      description: 'The recorded Decision.',
-      content: { 'application/json': { schema: Decision } },
+      description: 'The updated ticket.',
+      content: { 'application/json': { schema: ClarifyTicket } },
     },
     404: NotFoundResponse,
   },
@@ -248,23 +224,7 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): OpenAPIHono {
     const { clarifyTicketId } = context.req.valid('param')
     const ticket = await deps.clarifyRepository.load(clarifyTicketId)
     assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'ClarifyTicket', clarifyTicketId)
-    const data = ticket.toData()
-    // Surface the reviewer's free-text rationale alongside the ticket
-    // so the UI can show it without a separate decisions fetch. The
-    // text lives only on the Decision; we read the latest matching one
-    // and add a projection field (`skipReason` or `answerNote`) for
-    // the relevant terminal status.
-    if (data.status === 'skipped') {
-      const reason = await latestRationale(deps.decisionRepository, workspaceId, clarifyTicketId, 'skipClarifyTicket')
-      if (reason)
-        return context.json({ ...data, skipReason: reason }, 200)
-    }
-    else if (data.status === 'answered' || data.status === 'applied') {
-      const note = await latestRationale(deps.decisionRepository, workspaceId, clarifyTicketId, 'answerClarifyTicket')
-      if (note)
-        return context.json({ ...data, answerNote: note }, 200)
-    }
-    return context.json(data, 200)
+    return context.json(ticket.toData(), 200)
   })
 
   router.openapi(answerClarifyRoute, async (context) => {
@@ -277,13 +237,13 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): OpenAPIHono {
     const selection = body.candidateId
       ? { kind: 'existing' as const, candidateId: body.candidateId }
       : { kind: 'custom' as const, description: body.customCandidate!.description }
-    const decision = await deps.hitlService.answerClarifyTicket({
+    const answered = await deps.hitlService.answerClarifyTicket({
       clarifyTicketId,
       selection,
       userId,
       ...(body.note ? { note: body.note } : {}),
     })
-    return context.json(decision, 200)
+    return context.json(answered.toData(), 200)
   })
 
   router.openapi(applyClarifyRoute, async (context) => {
@@ -293,8 +253,8 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): OpenAPIHono {
     const userId = bodyUserId ?? getUserId(context)
     const ticket = await deps.clarifyRepository.load(clarifyTicketId)
     assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'ClarifyTicket', clarifyTicketId)
-    const decision = await deps.hitlService.markClarifyTicketApplied(clarifyTicketId, userId, proposalId)
-    return context.json(decision, 200)
+    const applied = await deps.hitlService.markClarifyTicketApplied(clarifyTicketId, userId, proposalId)
+    return context.json(applied.toData(), 200)
   })
 
   router.openapi(skipClarifyRoute, async (context) => {
@@ -304,8 +264,8 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): OpenAPIHono {
     const userId = bodyUserId ?? getUserId(context)
     const ticket = await deps.clarifyRepository.load(clarifyTicketId)
     assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'ClarifyTicket', clarifyTicketId)
-    const decision = await deps.hitlService.skipClarifyTicket(clarifyTicketId, reason, userId)
-    return context.json(decision, 200)
+    const skipped = await deps.hitlService.skipClarifyTicket(clarifyTicketId, reason, userId)
+    return context.json(skipped.toData(), 200)
   })
 
   return router

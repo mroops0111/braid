@@ -2,7 +2,6 @@ import type {
   BatchPlanId,
   ClarifyCandidateId,
   ClarifyTicketId,
-  DecisionId,
   DriftIssueId,
   EdgeId,
   NodeId,
@@ -55,10 +54,6 @@ function dateOf(iso: Timestamp): string {
 
 function shortRandom(): string {
   return crypto.randomUUID().slice(0, 8)
-}
-
-export function newDecisionId(): DecisionId {
-  return crypto.randomUUID() as DecisionId
 }
 
 export function newSkillRunId(): SkillRunId {

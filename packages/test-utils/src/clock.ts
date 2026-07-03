@@ -4,7 +4,7 @@ import { T0 } from './time.js'
 
 /**
  * Mutable `Clock` for tests that exercise time-dependent behaviour
- * (e.g. Decision audit log, reviewedAt stamps).
+ * (e.g. reviewedAt stamps, commit timestamps).
  *
  * Defaults to the test time anchor (`T0`); change via `set()` mid-test
  * to assert that the service captured the clock-injected timestamp

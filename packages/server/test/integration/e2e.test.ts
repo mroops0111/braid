@@ -20,7 +20,7 @@ import { readJson } from '../helpers/readJson.js'
  *      OntologyPlugin's validators (OntologyType + Structural,
  *      auto-bound by `defineOntology`).
  *   3. Apply proposal — StoragePlugin → ModelRepository write,
- *      Decision recorded, status transitions to `applied`.
+ *      status transitions to `applied`.
  *
  * Does NOT spawn the `claude` subprocess; agent path is tested
  * separately with mockSpawn. This test pins the registry-routed
@@ -54,7 +54,6 @@ function proposalBody(opts: {
 
 interface ProposalRef { id: string }
 interface ProblemBody { code: string, issues?: Array<{ code: string }> }
-interface DecisionBody { action: string, references: { proposalId: string } }
 interface NodesBody { items: Array<{ id: string, name: string, type: string }> }
 interface OntologyBody {
   ontologyId: string
@@ -210,9 +209,9 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
       body: JSON.stringify({ userId: 'tester' }),
     })
     expect(applyResponse.status).toBe(200)
-    const decision = await readJson<DecisionBody>(applyResponse)
-    expect(decision.action).toBe('applyProposal')
-    expect(decision.references.proposalId).toBe(proposal.id)
+    const applied = await readJson<{ id: string, status: string }>(applyResponse)
+    expect(applied.status).toBe('applied')
+    expect(applied.id).toBe(proposal.id)
 
     // StoragePlugin-routed ModelRepository should now expose the node.
     const nodesResponse = await app.request(`/workspaces/${wsId}/nodes`)
@@ -221,10 +220,6 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
     const placed = nodesBody.items.find(n => n.id === 'cmd-place')
     expect(placed?.name).toBe('placeOrder')
     expect(placed?.type).toBe('command')
-
-    const decisionsResponse = await app.request(`/workspaces/${wsId}/decisions`)
-    const decisionsBody = await readJson<{ items: Array<{ action: string }> }>(decisionsResponse)
-    expect(decisionsBody.items.some(d => d.action === 'applyProposal')).toBe(true)
 
     const proposalRead = await app.request(`/workspaces/${wsId}/proposals/${proposal.id}`)
     const reread = await readJson<{ status: string }>(proposalRead)

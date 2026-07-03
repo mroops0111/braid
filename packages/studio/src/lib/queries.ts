@@ -20,7 +20,6 @@ export const queryKeys = {
   clarify: (workspaceId: string) => ['workspaces', workspaceId, 'clarify'] as const,
   clarifyByStatus: (workspaceId: string, status: string) => ['workspaces', workspaceId, 'clarify', status] as const,
   clarifyDetail: (workspaceId: string, ticketId: string) => ['workspaces', workspaceId, 'clarify', 'detail', ticketId] as const,
-  decisions: (workspaceId: string) => ['workspaces', workspaceId, 'decisions'] as const,
   runs: (workspaceId: string) => ['workspaces', workspaceId, 'runs'] as const,
   sessionMetadata: (workspaceId: string) => ['workspaces', workspaceId, 'runs', 'sessions'] as const,
   history: (workspaceId: string) => ['workspaces', workspaceId, 'history'] as const,

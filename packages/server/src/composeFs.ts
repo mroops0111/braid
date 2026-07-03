@@ -30,7 +30,6 @@ import { SessionStore } from './infrastructure/auth/SessionStore.js'
 import { parseBoolEnv } from './infrastructure/env.js'
 import { FsBatchPlanRepository } from './infrastructure/fs/FsBatchPlanRepository.js'
 import { FsClarifyTicketRepository } from './infrastructure/fs/FsClarifyTicketRepository.js'
-import { FsDecisionRepository } from './infrastructure/fs/FsDecisionRepository.js'
 import { FsGraphSerializer } from './infrastructure/fs/FsGraphSerializer.js'
 import { FsProposalRepository } from './infrastructure/fs/FsProposalRepository.js'
 import { FsReactorPassRepository } from './infrastructure/fs/FsReactorPassRepository.js'
@@ -163,7 +162,6 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
 
   const proposalRepository = new FsProposalRepository({ workspaceRoots })
   const clarifyRepository = new FsClarifyTicketRepository({ workspaceRoots })
-  const decisionRepository = new FsDecisionRepository({ workspaceRoots })
 
   // Plugin registration. Defaults bundle first, then extras, so a caller
   // that passes (e.g.) `extraOntologyPlugins: [c4]` ends up with both ddd
@@ -318,7 +316,6 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     workspaceRepository,
     proposalRepository,
     clarifyRepository,
-    decisionRepository,
     modelRepository,
     skillRegistry,
     skillRunner,
