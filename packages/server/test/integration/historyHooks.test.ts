@@ -10,7 +10,6 @@ import { composeFsApp } from '../../src/composeFs.js'
 import { readJson } from '../helpers/readJson.js'
 
 interface ProposalRef { id: string }
-interface DecisionBody { action: string, references: { proposalId: string } }
 
 /**
  * Phase-2 wiring proof: HITLService's mutation paths must land real
@@ -83,8 +82,8 @@ describe('e2e history hooks: applying a proposal writes a commit', () => {
       body: JSON.stringify({ userId: 'tester' }),
     })
     expect(apply.status).toBe(200)
-    const decision = await readJson<DecisionBody>(apply)
-    expect(decision.action).toBe('applyProposal')
+    const applied = await readJson<{ status: string }>(apply)
+    expect(applied.status).toBe('applied')
 
     // Real `.git/` should now hold an extra commit on top of the
     // synthetic `initial:` bootstrap one. We hit simple-git directly
