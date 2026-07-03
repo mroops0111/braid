@@ -5,30 +5,12 @@ import { McpServerConfig } from './mcp.js'
 import { SourceDescriptor } from './source.js'
 import { StorageDescriptor } from './storage.js'
 
-/**
- * Workspace-level role. Three tiers per the agreed RBAC:
- *   - owner       sole authority over settings + member management;
- *                 one per workspace; transferable to another maintainer
- *   - maintainer  trusted operator; HITL gate participant (apply /
- *                 reject / answer / skip); runs skills
- *   - guest       read-only by default; Proposals / Clarify / Actions
- *                 tabs hidden in the UI; per-skill overrides can
- *                 selectively unlock skills (e.g. `braid-ask` for a
- *                 support agent)
- *
- * `admin` is intentionally absent — server-wide Admin is a separate
- * concept that lives on `User.serverRole`. An Admin who wants to
- * touch a workspace must be added to its members list explicitly.
- */
+// owner: settings + members. maintainer: HITL gate + skills. guest: read-only by default.
+// admin is deliberately absent: server-wide Admin lives on User.serverRole.
 export const WorkspaceRole = z.enum(['owner', 'maintainer', 'guest'])
 export type WorkspaceRole = z.infer<typeof WorkspaceRole>
 
-/**
- * Per-(member, skill) override of the skill's default `allowedRoles`.
- * `'allow'` opens a skill that the role would otherwise be denied;
- * `'deny'` closes a skill the role would normally have. Inherited
- * (absent) entries follow the skill manifest.
- */
+// Per-member skill override: allow opens, deny closes, absent inherits the manifest.
 export const SkillPermission = z.enum(['allow', 'deny'])
 export type SkillPermission = z.infer<typeof SkillPermission>
 
@@ -40,17 +22,8 @@ export const WorkspaceMember = z.object({
 })
 export type WorkspaceMember = z.infer<typeof WorkspaceMember>
 
-/**
- * Per-workspace reactor settings. The reactor subscribes to
- * `source.synced` events for intent-role sources and runs the active
- * ontology's per-unit skill against new / changed units, then a
- * checkpoint pass. Off by default so a workspace does not start
- * spending on background LLM runs until the operator opts in.
- *
- * `maxRunsPerHour` is a fail-closed hard cap on dispatches per workspace
- * over a rolling one-hour window; the sixth dispatch within an hour
- * emits `reactor.throttled` instead of running.
- */
+// Off by default so no background LLM spend until the operator opts in.
+// maxRunsPerHour: fail-closed hourly cap. Over-cap dispatches emit reactor.throttled.
 export const ReactorConfig = z.object({
   enabled: z.boolean().default(false),
   maxRunsPerHour: z.number().int().positive().default(5),
@@ -71,16 +44,11 @@ export const ProductManifest = z.object({
 })
 export type ProductManifest = z.infer<typeof ProductManifest>
 
-export const ProductManifestPatch = ProductManifest.partial()
-export type ProductManifestPatch = z.infer<typeof ProductManifestPatch>
+export const ProductManifestUpdate = ProductManifest.partial()
+export type ProductManifestUpdate = z.infer<typeof ProductManifestUpdate>
 
-/**
- * Server-fillable subset used by the scaffold endpoint. The user provides
- * only what they care about (name, sources, mcpServers); the server
- * defaults the agent + storage blocks so the resulting PRODUCT.md is a
- * complete, valid `ProductManifest`.
- */
-export const ProductManifestDraft = z.object({
+// Scaffold subset: user gives name/sources/mcpServers, server defaults the rest.
+export const ProductManifestCreate = z.object({
   name: z.string().min(1),
   version: z.string().optional(),
   description: z.string().optional(),
@@ -91,7 +59,7 @@ export const ProductManifestDraft = z.object({
   agents: AgentRoutingConfig.optional(),
   agentBindings: z.array(AgentBindingDescriptor).optional(),
 })
-export type ProductManifestDraft = z.infer<typeof ProductManifestDraft>
+export type ProductManifestCreate = z.infer<typeof ProductManifestCreate>
 
 export const Workspace = z.object({
   id: WorkspaceId,

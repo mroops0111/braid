@@ -1,5 +1,5 @@
 import type { HITLService, ModelRepository, ProposalRepository, ValidationService, WorkspaceService } from '@braidhq/core'
-import { Decision, Proposal, ProposalDraft, ProposalId, ProposalStatus, UserId, ValidationResult } from '@braidhq/schema'
+import { Decision, Proposal, ProposalCreate, ProposalId, ProposalStatus, UserId, ValidationResult } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getUserId } from '../middleware/userId.js'
 import { getViewerContext, requirePermission } from '../middleware/workspaceAccess.js'
@@ -29,9 +29,9 @@ const RejectBody = z.object({
 }).openapi('ProposalRejectBody')
 
 // Skill-facing create. Body must carry `workspaceId` matching the route
-// param; we let zod parse the rest of the ProposalDraft fields and let
+// param; we let zod parse the rest of the ProposalCreate fields and let
 // HITLService.submitProposal validate ops against the live graph.
-const CreateBody = ProposalDraft.omit({ workspaceId: true }).openapi('ProposalCreateBody')
+const CreateBody = ProposalCreate.omit({ workspaceId: true }).openapi('ProposalCreateBody')
 
 const ProposalIdParam = WorkspaceIdParam.extend({
   proposalId: ProposalId.openapi({ param: { name: 'proposalId', in: 'path' } }),

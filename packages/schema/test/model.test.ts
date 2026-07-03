@@ -4,13 +4,13 @@ import { describe, expect, it } from 'vitest'
 import {
   Embedding,
   GraphEdge,
+  GraphEdgeCreate,
   GraphEdgeUpdate,
   GraphNode,
+  GraphNodeCreate,
   GraphNodeFilter,
   GraphNodeUpdate,
   ModelSnapshot,
-  NewGraphEdge,
-  NewGraphNode,
 } from '../src/index.js'
 
 describe('Embedding', () => {
@@ -29,16 +29,16 @@ describe('Embedding', () => {
   })
 })
 
-describe('NewGraphNode', () => {
+describe('GraphNodeCreate', () => {
   it('defaults status to draft', () => {
-    const node = NewGraphNode.parse({ type: 'command', name: 'voidTask' })
+    const node = GraphNodeCreate.parse({ type: 'command', name: 'voidTask' })
     expect(node.status).toBe('draft')
   })
   it('rejects empty name', () => {
-    expect(NewGraphNode.safeParse({ type: 'command', name: '' }).success).toBe(false)
+    expect(GraphNodeCreate.safeParse({ type: 'command', name: '' }).success).toBe(false)
   })
   it('accepts optional embedding', () => {
-    const node = NewGraphNode.parse({
+    const node = GraphNodeCreate.parse({
       type: 'command',
       name: 'voidTask',
       embedding: { vector: [0.1], modelId: 'voyage-3', createdAt: isoTimestamp },
@@ -82,7 +82,7 @@ describe('GraphEdge', () => {
     expect(edge.fromNodeId).toBe('n-1')
   })
   it('newGraphEdge allows omitting id', () => {
-    const edge = NewGraphEdge.parse({
+    const edge = GraphEdgeCreate.parse({
       type: 'emits',
       fromNodeId: 'n-1',
       toNodeId: 'n-2',

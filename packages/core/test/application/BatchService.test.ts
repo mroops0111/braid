@@ -263,6 +263,7 @@ function freshProposal(workspaceId: WorkspaceId, id: string): Proposal {
     generatedBy: 'extract' as SkillId,
     generatedAt: T0,
     rationale: 'r',
+    owner: 'system',
   })
 }
 

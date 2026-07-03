@@ -1,4 +1,4 @@
-import type { McpServerConfig, ProductManifestDraft } from '@braidhq/schema'
+import type { McpServerConfig, ProductManifestCreate } from '@braidhq/schema'
 import type { IngestSummary } from '@/lib/api'
 import type { SourceDraft as SourceDraftBase } from '@/lib/sourceDraft'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -868,7 +868,7 @@ function buildDraft(input: {
   mcpServers: McpDraft[]
   ontologyId: string
   storageKind: string
-}): ProductManifestDraft {
+}): ProductManifestCreate {
   const sources = input.sources.map(toSourceDescriptor)
   const mcpServers = input.mcpServers.map(toMcpServerConfig)
   return {

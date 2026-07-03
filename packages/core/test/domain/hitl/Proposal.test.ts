@@ -1,6 +1,6 @@
 import type {
+  GraphNodeCreate,
   GraphOperation,
-  NewGraphNode,
   NodeId,
   NodeStatus,
   NodeTypeId,
@@ -24,7 +24,7 @@ function defaultOperations(): GraphOperation[] {
       name: 'voidTask',
       id: 'n-1' as NodeId,
       status: 'draft' as NodeStatus,
-    } satisfies NewGraphNode,
+    } satisfies GraphNodeCreate,
   }]
 }
 
@@ -37,6 +37,7 @@ function proposalData(overrides: Partial<ProposalData> = {}): ProposalData {
     generatedBy: 'extract' as SkillId,
     generatedAt: T0,
     rationale: 'add voidTask',
+    owner: 'system',
     ...overrides,
   }
 }

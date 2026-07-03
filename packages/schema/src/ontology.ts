@@ -10,7 +10,7 @@ export type EdgeTypeId = z.infer<typeof EdgeTypeId>
 export const NodeStatus = z.enum(['draft', 'completed', 'unclear', 'deprecated'])
 export type NodeStatus = z.infer<typeof NodeStatus>
 
-// Layout hints that let braid-generate-doc place nodes without hard-coding ontology vocabulary.
+// Layout hints so braid-generate-doc places nodes without ontology-specific code.
 export const NodeTypeRenderHint = z.object({
   container: z.boolean().optional(),
   expandedUnder: NodeTypeId.optional(),
@@ -43,7 +43,7 @@ export const EdgeTypeDescriptor = z.object({
 })
 export type EdgeTypeDescriptor = z.infer<typeof EdgeTypeDescriptor>
 
-// Response for the ontology endpoint. Descriptor order matters: Studio preserves the author's declared order.
+// Ontology-endpoint response. Descriptor order matters, so Studio keeps the author's order.
 export const OntologyResponse = z.object({
   ontologyId: OntologyId,
   nodeTypes: z.array(NodeTypeDescriptor),

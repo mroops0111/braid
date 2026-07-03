@@ -1,14 +1,14 @@
 import type {
   ClarifyCandidate,
   ClarifyCandidateId,
-  ClarifyDraft,
+  ClarifyTicketCreate,
   ClarifyTicketId,
   CommitMessage,
   Decision,
   DecisionAction,
   DecisionReferences,
   GraphOperation,
-  ProposalDraft,
+  ProposalCreate,
   ProposalId,
   ValidationIssue,
   WorkspaceId,
@@ -69,10 +69,10 @@ export class HITLService {
     this.userDirectory = deps.userDirectory ?? noopUserDirectory
   }
 
-  async submitProposal(draft: ProposalDraft & { submitterId?: UserId }): Promise<Proposal> {
+  async submitProposal(draft: ProposalCreate & { submitterId?: UserId }): Promise<Proposal> {
     await this.assertOperationsValid(draft.workspaceId, draft.operations)
     const generatedAt = this.deps.clock.now()
-    const owner = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
+    const submitter = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
     const proposal = new Proposal({
       id: newProposalId(generatedAt),
       workspaceId: draft.workspaceId,
@@ -82,8 +82,8 @@ export class HITLService {
       generatedAt,
       rationale: draft.rationale,
       ...(draft.externalReferences ? { externalReferences: draft.externalReferences } : {}),
-      ...(draft.submitterId ? { ownerId: draft.submitterId } : {}),
-      ...(owner?.displayName ? { ownerDisplayName: owner.displayName } : {}),
+      owner: draft.submitterId ?? 'system',
+      ...(submitter?.displayName ? { ownerDisplayName: submitter.displayName } : {}),
     })
     return this.workspaceLock.run(draft.workspaceId, async () => {
       const workspace = await this.deps.workspaceService.findById(draft.workspaceId)
@@ -106,8 +106,8 @@ export class HITLService {
   }
 
   // Candidates are only validated at answer time, since each picks a different op set.
-  async submitClarifyTicket(draft: ClarifyDraft & { submitterId?: UserId }): Promise<ClarifyTicket> {
-    const owner = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
+  async submitClarifyTicket(draft: ClarifyTicketCreate & { submitterId?: UserId }): Promise<ClarifyTicket> {
+    const submitter = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
     const ticket = new ClarifyTicket({
       id: newClarifyTicketId(this.deps.clock.now()),
       workspaceId: draft.workspaceId,
@@ -115,12 +115,12 @@ export class HITLService {
       candidates: draft.candidates,
       status: 'pending',
       ...(draft.externalReferences ? { externalReferences: draft.externalReferences } : {}),
-      ...(draft.origin ? { origin: draft.origin } : {}),
+      origin: draft.origin ?? 'skill',
       ...(draft.context ? { context: draft.context } : {}),
       ...(draft.relatedNode ? { relatedNode: draft.relatedNode } : {}),
       ...(draft.ambiguityType ? { ambiguityType: draft.ambiguityType } : {}),
-      ...(draft.submitterId ? { ownerId: draft.submitterId } : {}),
-      ...(owner?.displayName ? { ownerDisplayName: owner.displayName } : {}),
+      owner: draft.submitterId ?? 'system',
+      ...(submitter?.displayName ? { ownerDisplayName: submitter.displayName } : {}),
     })
     return this.workspaceLock.run(draft.workspaceId, async () => {
       const workspace = await this.deps.workspaceService.findById(draft.workspaceId)

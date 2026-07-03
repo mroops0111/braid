@@ -1,4 +1,5 @@
 import type {
+  Actor,
   ExternalReference,
   GraphOperation,
   Proposal as ProposalData,
@@ -22,7 +23,7 @@ export class Proposal {
   get generatedAt(): Timestamp { return this.data.generatedAt }
   get rationale(): string { return this.data.rationale }
   get reviewedBy(): UserId | undefined { return this.data.reviewedBy }
-  get ownerId(): UserId | undefined { return this.data.ownerId }
+  get owner(): Actor { return this.data.owner }
   get ownerDisplayName(): string | undefined { return this.data.ownerDisplayName }
   get externalReferences(): readonly ExternalReference[] | undefined { return this.data.externalReferences }
 

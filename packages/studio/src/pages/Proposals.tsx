@@ -1,4 +1,4 @@
-import type { EdgeId, GraphOperation, NewGraphEdge, NewGraphNode, NodeId, Proposal, ProposalId, ProposalStatus, ValidationIssue, ValidationSeverity } from '@braidhq/schema'
+import type { EdgeId, GraphEdgeCreate, GraphNodeCreate, GraphOperation, NodeId, Proposal, ProposalId, ProposalStatus, ValidationIssue, ValidationSeverity } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, AlertTriangle, Check, ChevronDown, ChevronRight, Inbox, Info, MinusCircle, PencilLine, PlusCircle, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -798,7 +798,7 @@ function flattenOperations(operations: readonly GraphOperation[]): FlatOp[] {
   return out
 }
 
-function flatAddNode(payload: NewGraphNode): FlatOp {
+function flatAddNode(payload: GraphNodeCreate): FlatOp {
   const id = payload.id ?? '(server-minted)'
   return {
     kind: 'add',
@@ -821,7 +821,7 @@ function flatUpdateNode(id: string, patch: Record<string, unknown>): FlatOp {
   }
 }
 
-function flatAddEdge(payload: NewGraphEdge): FlatOp {
+function flatAddEdge(payload: GraphEdgeCreate): FlatOp {
   const id = payload.id ?? '(server-minted)'
   return {
     kind: 'add',

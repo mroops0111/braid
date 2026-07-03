@@ -7,7 +7,7 @@ import { readJson } from '../helpers/readJson.js'
 const COMMAND = 'command'
 
 interface PendingItemList {
-  items: ReadonlyArray<{ id: string, ownerId?: string }>
+  items: ReadonlyArray<{ id: string, owner?: string }>
 }
 
 async function submitProposal(

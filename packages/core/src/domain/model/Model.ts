@@ -1,11 +1,11 @@
 import type {
   EdgeId,
   GraphEdge,
+  GraphEdgeCreate,
   GraphNode,
+  GraphNodeCreate,
   GraphOperation,
   ModelSnapshot,
-  NewGraphEdge,
-  NewGraphNode,
   NodeId,
 } from '@braidhq/schema'
 import { ConflictError, NotFoundError } from '../errors.js'
@@ -32,13 +32,13 @@ export class Model {
     return model.toSnapshot()
   }
 
-  addNode(payload: NewGraphNode): NodeId {
+  addNode(payload: GraphNodeCreate): NodeId {
     const node = this.materializeNode(payload)
     this.applyValidatedAdd(this.state, node)
     return node.id
   }
 
-  addNodes(payloads: NewGraphNode[]): NodeId[] {
+  addNodes(payloads: GraphNodeCreate[]): NodeId[] {
     const nodes = payloads.map(payload => this.materializeNode(payload))
     const draft = this.cloneState()
     for (const node of nodes) this.applyValidatedAdd(draft, node)
@@ -58,7 +58,7 @@ export class Model {
     this.applyOperations([{ operation: 'updateNode', nodeId, patch }])
   }
 
-  addEdge(payload: NewGraphEdge): EdgeId {
+  addEdge(payload: GraphEdgeCreate): EdgeId {
     const edge = this.materializeEdge(payload)
     this.applyValidatedAddEdge(this.state, edge)
     return edge.id
@@ -92,7 +92,7 @@ export class Model {
     }
   }
 
-  private materializeNode(payload: NewGraphNode): GraphNode {
+  private materializeNode(payload: GraphNodeCreate): GraphNode {
     return {
       id: payload.id ?? newNodeId(),
       type: payload.type,
@@ -104,7 +104,7 @@ export class Model {
     }
   }
 
-  private materializeEdge(payload: NewGraphEdge): GraphEdge {
+  private materializeEdge(payload: GraphEdgeCreate): GraphEdge {
     return {
       id: payload.id ?? newEdgeId(),
       type: payload.type,

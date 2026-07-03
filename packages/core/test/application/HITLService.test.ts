@@ -106,6 +106,7 @@ function makeProposal(workspaceId: WorkspaceId, overrides: { id?: ProposalId } =
     generatedBy: 'extract' as SkillId,
     generatedAt: T0,
     rationale: 'add voidTask',
+    owner: 'system',
   })
 }
 
@@ -122,6 +123,8 @@ function makeClarifyTicket(workspaceId: WorkspaceId, overrides: {
     question: 'q?',
     candidates: [...(overrides.candidates ?? [])],
     status,
+    owner: 'system',
+    origin: 'skill',
     ...(status === 'answered' && overrides.selectedCandidateId
       ? {
           selectedCandidateId: overrides.selectedCandidateId,

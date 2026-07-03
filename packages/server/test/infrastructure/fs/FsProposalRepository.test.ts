@@ -21,6 +21,7 @@ function makeProposal(id: string, workspaceId: WorkspaceId, status: 'pending' | 
     generatedBy: 'extract' as SkillId,
     generatedAt: isoTimestamp,
     rationale: 'r',
+    owner: 'system',
   })
 }
 

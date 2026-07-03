@@ -1,4 +1,4 @@
-import type { UserId as UserIdType, UserPatch as UserPatchType, User as UserType } from '@braidhq/schema'
+import type { UserId as UserIdType, UserUpdate as UserPatchType, User as UserType } from '@braidhq/schema'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { NotFoundError, ValidationError } from '@braidhq/core'

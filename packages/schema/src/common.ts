@@ -9,7 +9,7 @@ export type CommitSha = z.infer<typeof CommitSha>
 export const AbsolutePath = z.string().min(1).brand<'AbsolutePath'>()
 export type AbsolutePath = z.infer<typeof AbsolutePath>
 
-// Branded: one ID type can't be used where another is expected, and stays a plain string at runtime.
+// Branded: a distinct type per ID at compile time, a plain string at runtime.
 export const WorkspaceId = z.string().min(1).brand<'WorkspaceId'>()
 export type WorkspaceId = z.infer<typeof WorkspaceId>
 
@@ -54,6 +54,10 @@ export type OntologyId = z.infer<typeof OntologyId>
 
 export const UserId = z.string().min(1).brand<'UserId'>()
 export type UserId = z.infer<typeof UserId>
+
+// Whoever acted: a user, or 'system' for autonomous reactor / bootstrap actions.
+export const Actor = z.union([UserId, z.literal('system')])
+export type Actor = z.infer<typeof Actor>
 
 export const SourceLocation = z.object({
   uri: z.string().min(1),

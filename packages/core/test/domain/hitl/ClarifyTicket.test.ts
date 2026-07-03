@@ -33,6 +33,8 @@ function data(overrides: Partial<ClarifyTicketData> = {}): ClarifyTicketData {
       candidate('cc-2'),
     ],
     status: 'pending',
+    owner: 'system',
+    origin: 'skill',
     ...overrides,
   }
 }

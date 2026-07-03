@@ -1,7 +1,7 @@
 import type { ClarifyTicketRepository, DecisionRepository, HITLService } from '@braidhq/core'
 import type { ClarifyTicketId as ClarifyTicketIdType, DecisionAction, WorkspaceId } from '@braidhq/schema'
 import { newClarifyCandidateId } from '@braidhq/core'
-import { ClarifyCandidate, ClarifyCandidateId, ClarifyDraft, ClarifyStatus, ClarifyTicket, ClarifyTicketId, Decision, ProposalId, UserId } from '@braidhq/schema'
+import { ClarifyCandidate, ClarifyCandidateId, ClarifyStatus, ClarifyTicket, ClarifyTicketCreate, ClarifyTicketId, Decision, ProposalId, UserId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getUserId } from '../middleware/userId.js'
 import { getViewerContext, requirePermission } from '../middleware/workspaceAccess.js'
@@ -69,7 +69,7 @@ const ApplyBody = z.object({
 // human-authored ones via Studio's "New question" form omit them and
 // let the server mint via `newClarifyCandidateId`. Keeps the ID
 // minting rule (no `crypto.randomUUID() as XxxId` in clients) intact.
-const CreateBody = ClarifyDraft
+const CreateBody = ClarifyTicketCreate
   .omit({ workspaceId: true })
   .extend({ candidates: z.array(ClarifyCandidate.partial({ id: true })) })
   .openapi('ClarifyCreateBody')

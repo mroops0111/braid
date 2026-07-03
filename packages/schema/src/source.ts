@@ -8,23 +8,11 @@ export type SourceRole = z.infer<typeof SourceRole>
 export const SourceKind = z.enum(['filesystem', 'mcp'])
 export type SourceKind = z.infer<typeof SourceKind>
 
-/**
- * Provisioning kind for a filesystem source. Identifies which `SourceLoader`
- * plugin populates the local path before claude reads it. Branded so users
- * can register custom loaders without editing this file.
- */
+// Picks the SourceLoader plugin. Branded so new loaders need no edit here.
 export const LoaderKind = z.string().min(1).brand<'LoaderKind'>()
 export type LoaderKind = z.infer<typeof LoaderKind>
 
-/**
- * Per-source loader config. `kind` selects the loader plugin; `config` is
- * opaque here and validated by the loader's own `configSchema` at runtime.
- *
- * Omitting `loader` on a `FilesystemSourceDescriptor` means "manual": the
- * user manages the directory themselves; Braid performs no ingestion or
- * sync. That's the default and preserves backwards compatibility with
- * existing workspaces.
- */
+// kind picks the loader. config is opaque, validated by the loader at runtime.
 export const SourceLoaderDescriptor = z.object({
   kind: LoaderKind,
   config: z.unknown(),
@@ -38,13 +26,9 @@ export const FilesystemSourceDescriptor = z.object({
   name: z.string().min(1),
   path: AbsolutePath,
   language: z.string().optional(),
+  // Omitted means manual. The user manages the directory, Braid does no ingestion.
   loader: SourceLoaderDescriptor.optional(),
-  /**
-   * Free-form markdown describing this source's role and authority.
-   * Read verbatim by skills via $BRAID_WORKSPACE/PRODUCT.md so the
-   * agent can prioritise / cite correctly. Multi-line is fine; the
-   * YAML writer emits a literal block (`|`) when newlines are present.
-   */
+  // Read verbatim by skills so the agent can prioritise and cite this source.
   description: z.string().optional(),
 })
 export type FilesystemSourceDescriptor = z.infer<typeof FilesystemSourceDescriptor>

@@ -1,7 +1,7 @@
 import type { Clock } from '@braidhq/core'
 import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
 import { newUserId, NotFoundError } from '@braidhq/core'
-import { User, UserDraft, UserId, UserPatch } from '@braidhq/schema'
+import { User, UserCreate, UserId, UserUpdate } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getUserId } from '../middleware/userId.js'
 import { NotFoundResponse, ValidationFailureResponse } from './_shared.js'
@@ -71,7 +71,7 @@ const createUserRoute = createRoute({
   summary: 'Create a user. Phase A: any caller; Phase B/C will gate by Admin role.',
   tags: ['users'],
   request: {
-    body: { content: { 'application/json': { schema: UserDraft } } },
+    body: { content: { 'application/json': { schema: UserCreate } } },
   },
   responses: {
     201: {
@@ -90,7 +90,7 @@ const updateUserRoute = createRoute({
   tags: ['users'],
   request: {
     params: UserIdParam,
-    body: { content: { 'application/json': { schema: UserPatch } } },
+    body: { content: { 'application/json': { schema: UserUpdate } } },
   },
   responses: {
     200: {

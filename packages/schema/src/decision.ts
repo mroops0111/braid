@@ -1,10 +1,10 @@
 import { z } from 'zod'
 import {
+  Actor,
   ClarifyTicketId,
   DecisionId,
   ProposalId,
   Timestamp,
-  UserId,
   WorkspaceId,
 } from './common.js'
 
@@ -18,8 +18,8 @@ export const DecisionAction = z.enum([
 ])
 export type DecisionAction = z.infer<typeof DecisionAction>
 
-export const DecisionActor = z.union([UserId, z.literal('system')])
-export type DecisionActor = z.infer<typeof DecisionActor>
+export const DecisionActor = Actor
+export type DecisionActor = Actor
 
 export const DecisionReferences = z.object({
   proposalId: ProposalId.optional(),

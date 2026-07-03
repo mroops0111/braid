@@ -17,7 +17,7 @@ import type {
   ModelSnapshot,
   NodeId,
   OntologyResponse,
-  ProductManifestDraft,
+  ProductManifestCreate,
   Proposal,
   ReactorPass,
   ReactorPassId,
@@ -31,8 +31,8 @@ import type {
   SourceUnitState,
   TagMeta,
   User,
-  UserDraft,
-  UserPatch,
+  UserCreate,
+  UserUpdate,
   ValidationResult,
   Workspace,
   WorkspaceMember,
@@ -204,9 +204,9 @@ export const api = {
 
   listUsers: () => fetchJson<ItemList<User>>('/users'),
   getMe: () => fetchJson<User>('/users/me'),
-  createUser: (draft: UserDraft) =>
+  createUser: (draft: UserCreate) =>
     fetchJson<User>('/users', { method: 'POST', body: JSON.stringify(draft) }),
-  updateUser: (userId: string, patch: UserPatch) =>
+  updateUser: (userId: string, patch: UserUpdate) =>
     fetchJson<User>(`/users/${userId}`, { method: 'PATCH', body: JSON.stringify(patch) }),
 
   listInvites: () => fetchJson<ItemList<Invite>>('/admin/invites'),
@@ -256,7 +256,7 @@ export const api = {
   listSourceLoaders: () => fetchJson<ListSourceLoadersResponse>('/source-loaders'),
   getWorkspace: (workspaceId: string) =>
     fetchJson<Workspace>(`/workspaces/${workspaceId}`),
-  scaffoldWorkspace: (name: string, manifest: ProductManifestDraft) =>
+  scaffoldWorkspace: (name: string, manifest: ProductManifestCreate) =>
     fetchJson<ScaffoldResult>('/workspaces/scaffold', {
       method: 'POST',
       body: JSON.stringify({ name, manifest }),

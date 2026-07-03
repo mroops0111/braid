@@ -1,12 +1,7 @@
 import { z } from 'zod'
 import { SkillId, SkillRunId, SourceId, Timestamp, WorkspaceId } from './common.js'
 
-/**
- * Identity of one reactor pass — i.e. one event-driven run of "diff
- * the source, dispatch the per-unit skill on the changed units, then
- * checkpoint". Branded so the type system catches accidental swaps
- * with `SourceId`, `SkillRunId`, etc.
- */
+// One event-driven pass: diff the source, dispatch per changed unit, then checkpoint.
 export const ReactorPassId = z.string().min(1).brand<'ReactorPassId'>()
 export type ReactorPassId = z.infer<typeof ReactorPassId>
 
@@ -19,12 +14,7 @@ export type ReactorCheckpointStatus = z.infer<typeof ReactorCheckpointStatus>
 export const ReactorPassStatus = z.enum(['dispatched', 'running', 'completed', 'throttled'])
 export type ReactorPassStatus = z.infer<typeof ReactorPassStatus>
 
-/**
- * Per-unit dispatch entry inside a reactor pass. The reactor walks
- * units sequentially; entries move through the status chain
- * `queued → running → success | failure`. Each entry carries the
- * `SkillRunId` so Studio can deep-link to the run's transcript.
- */
+// One unit's dispatch. skillRunId lets Studio deep-link to the transcript.
 export const ReactorPassUnit = z.object({
   path: z.string().min(1),
   status: ReactorUnitStatus,
@@ -35,11 +25,7 @@ export const ReactorPassUnit = z.object({
 })
 export type ReactorPassUnit = z.infer<typeof ReactorPassUnit>
 
-/**
- * Cross-unit checkpoint inside a reactor pass. Status `skipped`
- * indicates the loop reached the checkpoint phase but the ontology
- * either had no checkpoint binding or no per-unit dispatch succeeded.
- */
+// Cross-unit checkpoint. 'skipped' = no checkpoint binding, or no unit succeeded.
 export const ReactorPassCheckpoint = z.object({
   skillId: SkillId,
   status: ReactorCheckpointStatus,
@@ -50,12 +36,8 @@ export const ReactorPassCheckpoint = z.object({
 })
 export type ReactorPassCheckpoint = z.infer<typeof ReactorPassCheckpoint>
 
-/**
- * One reactor pass record. Persisted at every state transition so
- * Studio's Activity page can render the live pass while it runs and
- * historical passes after they finish. Throttled passes carry no
- * units (the throttle decision is made before the unit list is built).
- */
+// Persisted at every state transition so Studio renders live and past passes.
+// Throttled passes carry no units, decided before the unit list is built.
 export const ReactorPass = z.object({
   id: ReactorPassId,
   workspaceId: WorkspaceId,
@@ -65,11 +47,7 @@ export const ReactorPass = z.object({
   status: ReactorPassStatus,
   units: z.array(ReactorPassUnit).default([]),
   checkpoint: ReactorPassCheckpoint.optional(),
-  /**
-   * Why the pass was dropped, when `status === 'throttled'`. Free-form
-   * so the receiver can include the cap value or any future reasons
-   * the reactor learns to skip on.
-   */
+  // Why a throttled pass was dropped. Free-form, may carry the cap value.
   throttledReason: z.string().optional(),
 })
 export type ReactorPass = z.infer<typeof ReactorPass>

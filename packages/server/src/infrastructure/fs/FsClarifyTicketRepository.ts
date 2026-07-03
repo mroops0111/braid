@@ -42,7 +42,7 @@ export class FsClarifyTicketRepository implements ClarifyTicketRepository {
     if (filter?.viewerId !== undefined) {
       const viewerId = filter.viewerId
       tickets = tickets.filter(ticket =>
-        ticket.status !== 'pending' || ticket.ownerId === undefined || ticket.ownerId === viewerId,
+        ticket.status !== 'pending' || ticket.owner === 'system' || ticket.owner === viewerId,
       )
     }
     return paginate(tickets, filter?.limit, filter?.offset)

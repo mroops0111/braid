@@ -101,6 +101,7 @@ function makeProposal(workspaceId: WorkspaceId, overrides: { id?: ProposalId } =
     generatedBy: 'extract' as SkillId,
     generatedAt: T0,
     rationale: 'add voidTask',
+    owner: 'system',
   })
 }
 
@@ -114,6 +115,8 @@ function makeAnsweredTicket(workspaceId: WorkspaceId): ClarifyTicket {
     selectedCandidateId: 'cc-1' as never,
     resolution: [],
     answeredBy: userId,
+    owner: 'system',
+    origin: 'skill',
   })
 }
 
@@ -129,6 +132,8 @@ function makePendingTicket(workspaceId: WorkspaceId): ClarifyTicket {
       proposedOperations: [],
     }],
     status: 'pending',
+    owner: 'system',
+    origin: 'skill',
   })
 }
 

@@ -11,7 +11,7 @@ import {
   McpServerConfig,
   McpServerId,
   OntologyId,
-  ProductManifestDraft,
+  ProductManifestCreate,
   SourceDescriptor as SourceDescriptorSchema,
   SourceId,
   StorageDescriptor,
@@ -35,7 +35,7 @@ const WorkspaceFolderName = z.string().min(1).regex(
 
 const ScaffoldBodySchema = z.object({
   name: WorkspaceFolderName,
-  manifest: ProductManifestDraft,
+  manifest: ProductManifestCreate,
 })
 
 const PatchWorkspaceBodySchema = z.object({

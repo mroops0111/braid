@@ -4,7 +4,7 @@ import type {
   AgentKind,
   AgentRoutingConfig,
   ProductManifest,
-  ProductManifestDraft,
+  ProductManifestCreate,
   StorageDescriptor,
   StorageKind,
 } from '@braidhq/schema'
@@ -36,12 +36,12 @@ const DEFAULT_STORAGE: StorageDescriptor = {
 }
 
 /**
- * Take a user-provided `ProductManifestDraft` and fill in the structural
+ * Take a user-provided `ProductManifestCreate` and fill in the structural
  * blocks (agent / storage) so the result is a valid, complete
  * `ProductManifest` Zod will accept. Throws if the user's input itself is
  * inconsistent.
  */
-export function fillManifestDefaults(draft: ProductManifestDraft): ProductManifest {
+export function fillManifestDefaults(draft: ProductManifestCreate): ProductManifest {
   const manifest = {
     name: draft.name,
     version: draft.version ?? '0.1.0',

@@ -11,20 +11,11 @@ export const PluginType = z.enum([
 ])
 export type PluginType = z.infer<typeof PluginType>
 
-/**
- * Public projection of a source-loader plugin returned by `GET /source-loaders`.
- * Carries only what Studio needs to render the dropdown; the per-kind config
- * schema is not included because per-kind UI forms stay client-side.
- */
+// Projection for the source-loaders endpoint, minus the client-side config schema.
 export const SourceLoaderEntry = z.object({
   kind: LoaderKind,
   pluginId: PluginId,
-  /**
-   * `true` when the loader plugin declares a `webhook` capability;
-   * Studio gates the GitHub webhook panel on this flag instead of
-   * switching on `kind` so registering a new loader does not require a
-   * matching Studio code change.
-   */
+  // Studio gates the webhook panel on this flag, not kind, so new loaders need no UI change.
   webhook: z.boolean().default(false),
 })
 export type SourceLoaderEntry = z.infer<typeof SourceLoaderEntry>

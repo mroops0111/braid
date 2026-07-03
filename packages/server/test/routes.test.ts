@@ -45,6 +45,7 @@ function makeProposal(overrides: {
     generatedBy: 'extract' as SkillId,
     generatedAt: T0,
     rationale: 'r',
+    owner: 'system',
   })
 }
 
@@ -59,6 +60,8 @@ function makeClarifyTicket(overrides: {
     question: 'q?',
     candidates: [...(overrides.candidates ?? [])],
     status: overrides.status ?? 'pending',
+    owner: 'system',
+    origin: 'skill',
   })
 }
 

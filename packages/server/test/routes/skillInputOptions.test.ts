@@ -61,6 +61,8 @@ describe('GET /workspaces/:ws/skill-input-options', () => {
       question: 'merge or split?',
       candidates: [candidate],
       status: 'pending',
+      owner: 'system',
+      origin: 'skill',
     }))
     await deps.clarifyRepository.save(new ClarifyTicket({
       id: 'ct-answered' as ClarifyTicketId,
@@ -69,6 +71,8 @@ describe('GET /workspaces/:ws/skill-input-options', () => {
       candidates: [candidate],
       status: 'answered',
       selectedCandidateId: candidate.id,
+      owner: 'system',
+      origin: 'skill',
     }))
 
     const filter = JSON.stringify({ status: 'answered' })

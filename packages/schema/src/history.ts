@@ -23,19 +23,9 @@ export const CommitMessage = z.object({
   kind: CommitKind,
   subject: z.string().min(1).max(120),
   userId: UserId,
-  /**
-   * Human-readable author snapshot. When provided, becomes git's
-   * `user.name` for this commit; otherwise falls back to the opaque
-   * `userId`. Recorded at commit time so a future rename of the
-   * underlying user record doesn't retroactively rewrite git history.
-   */
+  // git user.name, snapshotted at commit time so a later rename doesn't rewrite history.
   authorName: z.string().min(1).optional(),
-  /**
-   * Author email snapshot. Real Google address when the user logged
-   * in via OAuth; synthesised `${userId}@braid.local` when absent,
-   * which is what `git log` historically saw for the single-tenant
-   * local install.
-   */
+  // git user.email: real OAuth address, or synthesised `${userId}@braid.local`.
   authorEmail: z.string().min(1).optional(),
   proposalId: ProposalId.optional(),
   clarifyTicketId: ClarifyTicketId.optional(),
@@ -71,7 +61,7 @@ export const FileDiff = z.object({
 })
 export type FileDiff = z.infer<typeof FileDiff>
 
-// Wire-friendly Map → Record so an HTTP envelope round-trips without custom JSON.
+// Record instead of Map so an HTTP envelope round-trips without custom JSON.
 export const ChangeKind = z.enum(['added', 'updated', 'removed'])
 export type ChangeKind = z.infer<typeof ChangeKind>
 
@@ -81,7 +71,7 @@ export const GraphDiffChanges = z.object({
 })
 export type GraphDiffChanges = z.infer<typeof GraphDiffChanges>
 
-// `removed` carries from-state details for entities gone in `snapshot`, sparing the UI a second round-trip.
+// from-state for entities gone in snapshot, sparing the UI a round-trip.
 export const GraphDiffEnvelope = z.object({
   from: CommitSha,
   to: CommitSha,

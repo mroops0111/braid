@@ -38,6 +38,8 @@ describe('ClarifyTicket', () => {
         { id: 'cc-2', description: 'no, distinct' },
       ],
       status: 'pending',
+      owner: 'system',
+      origin: 'skill',
     })
     expect(ticket.candidates).toHaveLength(2)
   })
@@ -61,6 +63,8 @@ describe('ClarifyTicket', () => {
       question: 'x?',
       candidates: [{ id: 'cc-1', description: 'a' }],
       status: 'answered',
+      owner: 'system',
+      origin: 'skill',
       answeredBy: 'u-1',
       selectedCandidateId: 'cc-1',
       resolution: [{ operation: 'removeNode', nodeId: 'n-1' }],
@@ -75,6 +79,8 @@ describe('ClarifyTicket', () => {
       question: 'x?',
       candidates: [],
       status: 'pending',
+      owner: 'system',
+      origin: 'skill',
       externalReferences: [{ kind: 'redmine', url: 'https://redmine.example.com/issues/1' }],
     })
     expect(ticket.externalReferences?.[0]?.kind).toBe('redmine')
