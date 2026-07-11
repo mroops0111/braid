@@ -93,11 +93,11 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
     }
 
     function sourceUnitFor(input: PickInput | undefined, value: string) {
-      if (!input || input.provider.type !== 'source-intent' || !value)
+      if (!input || input.provider.kind !== 'source-intent' || !value)
         return undefined
       const filter = 'filter' in input.provider ? input.provider.filter : undefined
       const cached = queryClient.getQueryData<{ items: SkillInputDynamicOption[] }>(
-        ['skill-input-options', workspaceId, input.provider.type, filter],
+        ['skill-input-options', workspaceId, input.provider.kind, filter],
       )
       const option = cached?.items.find(item => item.value === value)
       if (!option?.sourceId)
@@ -108,7 +108,7 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
     if (!multiPick) {
       const args = compose(name => scalarValues[name] ?? '')
       const sourcePick = inputs.find(
-        (i): i is PickInput => i.kind === 'pick' && i.provider.type === 'source-intent',
+        (i): i is PickInput => i.kind === 'pick' && i.provider.kind === 'source-intent',
       )
       const sourceUnit = sourcePick ? sourceUnitFor(sourcePick, scalarValues[sourcePick.name] ?? '') : undefined
       onSubmit([{ args, ...(sourceUnit ? { sourceUnit } : {}) }])
@@ -219,7 +219,7 @@ function TextField({ input, scalarValue, onScalarChange, disabled }: ControlProp
 
 function PickField({ workspaceId, input, scalarValue, onScalarChange, multiValue, onMultiToggle, disabled }: ControlProps<PickInput>) {
   const isMulti = input.kind === 'multi-pick'
-  if (input.provider.type === 'static') {
+  if (input.provider.kind === 'static') {
     if (isMulti) {
       return (
         <MultiPickField input={input} options={input.provider.options} selected={multiValue} onToggle={onMultiToggle} disabled={disabled} />
@@ -265,10 +265,10 @@ function PickField({ workspaceId, input, scalarValue, onScalarChange, multiValue
  */
 function useSourceIntentBadges(
   workspaceId: string,
-  providerType: string,
+  providerKind: string,
   rawOptions: readonly SkillInputDynamicOption[],
 ): readonly DynamicOptionWithBadge[] {
-  const isSourceIntent = providerType === 'source-intent'
+  const isSourceIntent = providerKind === 'source-intent'
   const sourceIds = useMemo(() => {
     if (!isSourceIntent)
       return [] as readonly string[]
@@ -411,16 +411,16 @@ function SelectControl({
 }
 
 function DynamicPick({ workspaceId, input, scalarValue, onScalarChange, multiValue, onMultiToggle, disabled }: ControlProps<PickInput>) {
-  const providerType = input.provider.type
+  const providerKind = input.provider.kind
   const filter = 'filter' in input.provider ? input.provider.filter : undefined
   const query = useQuery({
-    queryKey: ['skill-input-options', workspaceId, providerType, filter],
-    queryFn: () => api.listSkillInputOptions(workspaceId, providerType, filter),
+    queryKey: ['skill-input-options', workspaceId, providerKind, filter],
+    queryFn: () => api.listSkillInputOptions(workspaceId, providerKind, filter),
   })
   const rawOptions = query.data?.items ?? []
   // Hook is always called (even with []) so the rules-of-hooks order
   // stays stable across the loading / error early returns below.
-  const options = useSourceIntentBadges(workspaceId, providerType, rawOptions)
+  const options = useSourceIntentBadges(workspaceId, providerKind, rawOptions)
   const isMulti = input.kind === 'multi-pick'
 
   if (query.isLoading)

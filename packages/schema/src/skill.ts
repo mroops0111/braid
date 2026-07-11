@@ -33,14 +33,14 @@ export const SkillInputStaticOption = z.object({
 export type SkillInputStaticOption = z.infer<typeof SkillInputStaticOption>
 
 export const SkillInputStaticProvider = z.object({
-  type: z.literal('static'),
+  kind: z.literal('static'),
   options: z.array(SkillInputStaticOption).min(1),
 })
 export type SkillInputStaticProvider = z.infer<typeof SkillInputStaticProvider>
 
 // Pulls graph nodes, optionally filtered by type / status / renderHint. value = node.id.
 export const SkillInputGraphNodeProvider = z.object({
-  type: z.literal('graph-node'),
+  kind: z.literal('graph-node'),
   filter: z.object({
     types: z.array(z.string()).optional(),
     statuses: z.array(z.string()).optional(),
@@ -52,7 +52,7 @@ export type SkillInputGraphNodeProvider = z.infer<typeof SkillInputGraphNodeProv
 
 // Enumerates items from every role:intent source. value is the loader-relative path.
 export const SkillInputSourceIntentProvider = z.object({
-  type: z.literal('source-intent'),
+  kind: z.literal('source-intent'),
   filter: z.object({
     // Restrict to sources whose loader.kind matches. Omit to include all.
     loaderKind: z.string().optional(),
@@ -62,14 +62,14 @@ export type SkillInputSourceIntentProvider = z.infer<typeof SkillInputSourceInte
 
 // Clarify tickets, filtered by status. Defaults to all statuses.
 export const SkillInputClarifyProvider = z.object({
-  type: z.literal('clarify'),
+  kind: z.literal('clarify'),
   filter: z.object({
     status: z.enum(['pending', 'answered', 'applied', 'skipped']).optional(),
   }).optional(),
 })
 export type SkillInputClarifyProvider = z.infer<typeof SkillInputClarifyProvider>
 
-export const SkillInputProvider = z.discriminatedUnion('type', [
+export const SkillInputProvider = z.discriminatedUnion('kind', [
   SkillInputStaticProvider,
   SkillInputGraphNodeProvider,
   SkillInputSourceIntentProvider,

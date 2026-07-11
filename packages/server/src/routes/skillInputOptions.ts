@@ -8,27 +8,26 @@ import { WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
 
 /**
- * Studio-facing endpoint that resolves a skill input provider type
+ * Studio-facing endpoint that resolves a skill input provider kind
  * (declared in a SKILL.md frontmatter) to the current option list for
  * a given workspace. Used by the typed Actions form to populate
- * pickers backed by `graph-node` / `source-intent` / `clarify` /
- * `proposal` rather than static options.
+ * pickers backed by `graph-node` / `source-intent` / `clarify` rather
+ * than static options.
  *
  * The endpoint is intentionally read-only and lives alongside other
  * Studio-metadata routes; it's mounted under
  * `/workspaces/:workspaceId/skill-input-options`.
  */
 
-const ProviderType = z.enum(['graph-node', 'source-intent', 'clarify', 'proposal'])
+const ProviderKind = z.enum(['graph-node', 'source-intent', 'clarify'])
 
 const QuerySchema = z.object({
-  type: ProviderType.openapi({ param: { name: 'type', in: 'query' } }),
+  kind: ProviderKind.openapi({ param: { name: 'kind', in: 'query' } }),
   /**
    * JSON-encoded filter object. Shape depends on the provider:
    * graph-node    -> { types?: string[]; statuses?: string[]; renderHint?: { container?: boolean } }
    * source-intent -> { loaderKind?: string }
    * clarify       -> { status?: 'pending' | 'answered' | 'applied' | 'skipped' }
-   * proposal      -> { status?: 'pending' | 'applied' | 'rejected' }
    *
    * Query-string-encoded JSON keeps the schema simple while letting
    * each provider have a different filter shape. Studio is the only
@@ -68,12 +67,12 @@ export function createSkillInputOptionsRouter(deps: SkillInputOptionsRouterDeps)
   router.openapi(route, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const workspace = await loadWorkspaceById(workspaceId, deps.workspaceRepository)
-    const { type, filter } = context.req.valid('query')
+    const { kind, filter } = context.req.valid('query')
     const parsedFilter: Record<string, unknown> = filter
       ? safeParseJson(filter)
       : {}
 
-    const items = await resolveProvider(type, parsedFilter, workspace, deps)
+    const items = await resolveProvider(kind, parsedFilter, workspace, deps)
     return context.json({ items }, 200)
   })
 
@@ -81,24 +80,18 @@ export function createSkillInputOptionsRouter(deps: SkillInputOptionsRouterDeps)
 }
 
 async function resolveProvider(
-  type: z.infer<typeof ProviderType>,
+  kind: z.infer<typeof ProviderKind>,
   filter: Record<string, unknown>,
   workspace: Workspace,
   deps: SkillInputOptionsRouterDeps,
 ): Promise<SkillInputDynamicOption[]> {
-  switch (type) {
+  switch (kind) {
     case 'graph-node':
       return resolveGraphNode(filter, workspace, deps)
     case 'source-intent':
       return resolveSourceIntent(filter, workspace)
     case 'clarify':
       return resolveClarify(filter, workspace.id, deps.clarifyRepository)
-    case 'proposal':
-      // Phase 2 leaves the proposal provider as a stub; no SKILL.md
-      // wires it yet. Returning empty keeps the endpoint contract
-      // stable while signalling "implement when a skill actually
-      // declares it".
-      return []
   }
 }
 

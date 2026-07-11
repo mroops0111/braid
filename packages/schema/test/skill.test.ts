@@ -70,7 +70,7 @@ describe('SkillFrontmatter', () => {
             label: 'Mode',
             kind: 'pick',
             provider: {
-              type: 'static',
+              kind: 'static',
               options: [
                 { value: '', label: 'Detailed' },
                 { value: 'concise', label: 'Concise' },
@@ -87,7 +87,7 @@ describe('SkillFrontmatter', () => {
     const picked = inputs[1]
     expect(picked?.kind).toBe('pick')
     if (picked && picked.kind === 'pick')
-      expect(picked.provider.type).toBe('static')
+      expect(picked.provider.kind).toBe('static')
   })
 
   it('rejects pick input without provider', () => {

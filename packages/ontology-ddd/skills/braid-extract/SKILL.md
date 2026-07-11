@@ -15,7 +15,7 @@ braid:
       kind: multi-pick
       optional: true
       provider:
-        type: source-intent
+        kind: source-intent
       fallback: text
 ---
 

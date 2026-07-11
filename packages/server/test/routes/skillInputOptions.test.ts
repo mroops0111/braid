@@ -38,7 +38,7 @@ describe('GET /workspaces/:ws/skill-input-options', () => {
 
     const filter = JSON.stringify({ types: ['command'] })
     const response = await app.request(
-      `/workspaces/${workspaceId}/skill-input-options?type=graph-node&filter=${encodeURIComponent(filter)}`,
+      `/workspaces/${workspaceId}/skill-input-options?kind=graph-node&filter=${encodeURIComponent(filter)}`,
     )
     expect(response.status).toBe(200)
     const body = await readJson<OptionsBody>(response)
@@ -77,7 +77,7 @@ describe('GET /workspaces/:ws/skill-input-options', () => {
 
     const filter = JSON.stringify({ status: 'answered' })
     const response = await app.request(
-      `/workspaces/${workspaceId}/skill-input-options?type=clarify&filter=${encodeURIComponent(filter)}`,
+      `/workspaces/${workspaceId}/skill-input-options?kind=clarify&filter=${encodeURIComponent(filter)}`,
     )
     expect(response.status).toBe(200)
     const body = await readJson<OptionsBody>(response)
@@ -89,7 +89,7 @@ describe('GET /workspaces/:ws/skill-input-options', () => {
   it('source-intent returns empty list when no intent sources are configured', async () => {
     const { app } = await buildTestApp()
     const response = await app.request(
-      `/workspaces/${workspaceId}/skill-input-options?type=source-intent`,
+      `/workspaces/${workspaceId}/skill-input-options?kind=source-intent`,
     )
     expect(response.status).toBe(200)
     const body = await readJson<OptionsBody>(response)
@@ -99,7 +99,7 @@ describe('GET /workspaces/:ws/skill-input-options', () => {
   it('rejects an unknown provider type with 400', async () => {
     const { app } = await buildTestApp()
     const response = await app.request(
-      `/workspaces/${workspaceId}/skill-input-options?type=bogus`,
+      `/workspaces/${workspaceId}/skill-input-options?kind=bogus`,
     )
     expect(response.status).toBe(400)
   })

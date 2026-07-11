@@ -14,7 +14,7 @@ braid:
       kind: multi-pick
       optional: true
       provider:
-        type: graph-node
+        kind: graph-node
         filter:
           renderHint: { container: true }
       fallback: text

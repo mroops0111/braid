@@ -13,7 +13,7 @@ braid:
       label: Mode
       kind: pick
       provider:
-        type: static
+        kind: static
         options:
           - value: ""
             label: Build + Validate
@@ -28,7 +28,7 @@ braid:
       kind: pick
       optional: true
       provider:
-        type: graph-node
+        kind: graph-node
         filter:
           types: [boundedContext]
       fallback: text

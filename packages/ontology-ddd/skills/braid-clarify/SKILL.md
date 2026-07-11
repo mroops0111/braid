@@ -15,7 +15,7 @@ braid:
       kind: pick
       optional: true
       provider:
-        type: clarify
+        kind: clarify
         filter: { status: answered }
       fallback: disabled
 ---

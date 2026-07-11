@@ -514,8 +514,8 @@ export const api = {
   archiveBatch: (workspaceId: string) =>
     fetchJson<BatchPlan>(`/workspaces/${workspaceId}/batch/archive`, { method: 'POST' }),
 
-  listSkillInputOptions: (workspaceId: string, type: string, filter?: unknown) => {
-    const params = new URLSearchParams({ type })
+  listSkillInputOptions: (workspaceId: string, kind: string, filter?: unknown) => {
+    const params = new URLSearchParams({ kind })
     if (filter !== undefined)
       params.set('filter', JSON.stringify(filter))
     return fetchJson<SkillInputOptionsResponse>(`/workspaces/${workspaceId}/skill-input-options?${params.toString()}`)
