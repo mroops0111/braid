@@ -23,14 +23,14 @@ import {
   PerWorkspaceLock,
   PluginRegistry,
   Proposal,
-  SourceUnitStateService,
+  SourceUnitObservationService,
   ValidationError,
   WorkspaceService,
 } from '../../src/index.js'
 import {
   InMemoryClarifyTicketRepository,
   InMemoryProposalRepository,
-  InMemorySourceUnitStateRepository,
+  InMemorySourceUnitObservationRepository,
   InMemoryWorkspaceRepository,
 } from '../../src/testing.js'
 
@@ -186,11 +186,11 @@ async function setup(options: {
   const hitl = fakeHitlService()
   const clock = new FixedClock()
 
-  const sourceUnitStateRepository = new InMemorySourceUnitStateRepository()
+  const sourceUnitObservationRepository = new InMemorySourceUnitObservationRepository()
   const sourceUnitDigest = new FakeSourceUnitDigest()
-  const sourceUnitStateService = options.withObservations
-    ? new SourceUnitStateService({
-      repository: sourceUnitStateRepository,
+  const sourceUnitObservationService = options.withObservations
+    ? new SourceUnitObservationService({
+      repository: sourceUnitObservationRepository,
       digest: sourceUnitDigest,
       workspaceService,
       clock,
@@ -217,7 +217,7 @@ async function setup(options: {
     workspaceLock: new PerWorkspaceLock(),
     clock,
     pluginRegistry,
-    ...(sourceUnitStateService ? { sourceUnitStateService } : {}),
+    ...(sourceUnitObservationService ? { sourceUnitObservationService } : {}),
   })
 
   return {
@@ -229,7 +229,7 @@ async function setup(options: {
     history,
     hitl,
     clock,
-    sourceUnitStateRepository,
+    sourceUnitObservationRepository,
     sourceUnitDigest,
   }
 }
@@ -391,12 +391,12 @@ describe('BatchService', () => {
     expect(final.units.every(u => u.status === 'completed')).toBe(true)
   })
 
-  it('records a SourceUnitState observation per completed unit when service is wired', async () => {
-    const { service, workspace, planRepository, sourceUnitStateRepository, sourceUnitDigest } = await setup({ withObservations: true })
+  it('records a SourceUnitObservation observation per completed unit when service is wired', async () => {
+    const { service, workspace, planRepository, sourceUnitObservationRepository, sourceUnitDigest } = await setup({ withObservations: true })
     await service.start(workspace.id, { autoApply: false })
     await flushBatch(planRepository)
 
-    const states = await sourceUnitStateRepository.listByWorkspace(workspace.id)
+    const states = await sourceUnitObservationRepository.listByWorkspace(workspace.id)
     expect(states).toHaveLength(2)
     const paths = states.map(s => s.path).sort()
     expect(paths).toEqual(['design/', 'prd/'])

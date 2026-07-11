@@ -15,13 +15,13 @@ import {
   PerWorkspaceLock,
   PluginRegistry,
   ReactorService,
-  SourceUnitStateService,
+  SourceUnitObservationService,
   Workspace,
   WorkspaceService,
 } from '../../src/index.js'
 import {
-  InMemoryReactorPassRepository,
-  InMemorySourceUnitStateRepository,
+  InMemoryReactorCycleRepository,
+  InMemorySourceUnitObservationRepository,
   InMemoryWorkspaceEventBus,
   InMemoryWorkspaceRepository,
 } from '../../src/testing.js'
@@ -132,10 +132,10 @@ async function setup(opts: {
   const eventBus = new InMemoryWorkspaceEventBus()
   const clock = new FixedClock()
   const skillRunner = new FakeSkillRunner()
-  const sourceUnitStateRepository = new InMemorySourceUnitStateRepository()
+  const sourceUnitObservationRepository = new InMemorySourceUnitObservationRepository()
   const digest = new FakeSourceUnitDigest()
-  const sourceUnitStateService = new SourceUnitStateService({
-    repository: sourceUnitStateRepository,
+  const sourceUnitObservationService = new SourceUnitObservationService({
+    repository: sourceUnitObservationRepository,
     digest,
     workspaceService,
     clock,
@@ -175,16 +175,16 @@ async function setup(opts: {
     await workspaceRepo.save(updated)
   }
 
-  const reactorPassRepository = new InMemoryReactorPassRepository()
+  const reactorCycleRepository = new InMemoryReactorCycleRepository()
   const reactor = new ReactorService({
     eventBus,
     workspaceService,
     pluginRegistry,
     skillRunner,
-    sourceUnitStateService,
+    sourceUnitObservationService,
     intentLister,
     digest,
-    reactorPassRepository,
+    reactorCycleRepository,
     workspaceLock: new PerWorkspaceLock(),
     clock,
   })
@@ -198,8 +198,8 @@ async function setup(opts: {
     skillRunner,
     digest,
     captured,
-    sourceUnitStateService,
-    reactorPassRepository,
+    sourceUnitObservationService,
+    reactorCycleRepository,
     setUnits,
   }
 }
@@ -350,11 +350,11 @@ describe('ReactorService', () => {
     expect(runner.startCalls).toHaveLength(0)
   })
 
-  it('persists a ReactorPass record with units in terminal status after a normal pass', async () => {
-    const { workspace, eventBus, reactorPassRepository, captured } = await setup({ hasCheckpoint: true })
+  it('persists a ReactorCycle record with units in terminal status after a normal pass', async () => {
+    const { workspace, eventBus, reactorCycleRepository, captured } = await setup({ hasCheckpoint: true })
     emitSync(eventBus, workspace.id, 'issues')
     await tick(150)
-    const passes = await reactorPassRepository.listByWorkspace(workspace.id)
+    const passes = await reactorCycleRepository.listByWorkspace(workspace.id)
     expect(passes).toHaveLength(1)
     const pass = passes[0]!
     expect(pass.status).toBe('completed')
@@ -400,7 +400,7 @@ describe('ReactorService', () => {
   })
 
   it('persists a throttled pass with status=throttled so the Activity page can surface it', async () => {
-    const { workspace, eventBus, digest, reactorPassRepository } = await setup({ maxRunsPerHour: 1 })
+    const { workspace, eventBus, digest, reactorCycleRepository } = await setup({ maxRunsPerHour: 1 })
     const shas: SourceUnitSha[] = [
       ('a'.repeat(64)) as SourceUnitSha,
       ('b'.repeat(64)) as SourceUnitSha,
@@ -410,7 +410,7 @@ describe('ReactorService', () => {
       emitSync(eventBus, workspace.id, 'issues')
       await tick(150)
     }
-    const passes = await reactorPassRepository.listByWorkspace(workspace.id)
+    const passes = await reactorCycleRepository.listByWorkspace(workspace.id)
     const throttled = passes.filter(p => p.status === 'throttled')
     expect(throttled).toHaveLength(1)
     expect(throttled[0]!.throttledReason).toBe('maxRunsPerHour=1')

@@ -48,7 +48,7 @@ function buildWorkspace(): Workspace {
   })
 }
 
-function buildSkillManifest(): SkillManifest {
+function buildSkillManifest(extensionPath?: AbsolutePath): SkillManifest {
   const data: SkillManifestData = {
     id: 'ask' as SkillId,
     origin: 'builtin',
@@ -59,6 +59,7 @@ function buildSkillManifest(): SkillManifest {
       disableModelInvocation: false,
       braid: { requiredEnv: [], requiredMcpServers: [], allowedRoles: ['owner', 'maintainer'] },
     },
+    ...(extensionPath ? { extensionPath } : {}),
   }
   return new SkillManifest(data)
 }
@@ -104,6 +105,54 @@ describe('ClaudeCodeAgentBinding', () => {
     expect(result.env.BRAID_WORKSPACE_ID).toBe('ws-1')
     expect(result.env.BRAID_API_URL).toBe('http://localhost:4321')
     expect(result.env.FOO).toBe('bar')
+  })
+
+  it('invokes the plain slash command when the skill has no extension', () => {
+    const binding = new ClaudeCodeAgentBinding(descriptor)
+
+    const result = binding.resolveSpawn({
+      skillId: 'ask' as SkillId,
+      args: 'what is voidTask',
+      workspace: buildWorkspace(),
+      manifest: buildSkillManifest(),
+      apiUrl: 'http://localhost:4321',
+    })
+
+    const prompt = result.args[result.args.indexOf('-p') + 1]
+    expect(prompt).toBe('/ask what is voidTask')
+  })
+
+  it('points claude at the EXTEND.md path (not inlined) when the workspace extends the skill', () => {
+    const binding = new ClaudeCodeAgentBinding(descriptor)
+    const extendPath = '/abs/ws/skill-extensions/braid-ask/EXTEND.md' as AbsolutePath
+
+    const result = binding.resolveSpawn({
+      skillId: 'ask' as SkillId,
+      args: 'what is voidTask',
+      workspace: buildWorkspace(),
+      manifest: buildSkillManifest(extendPath),
+      apiUrl: 'http://localhost:4321',
+    })
+
+    const prompt = result.args[result.args.indexOf('-p') + 1]
+    expect(prompt).toContain('/ask what is voidTask')
+    expect(prompt).toContain(extendPath)
+  })
+
+  it('drops the slash command and extension pointer on resume', () => {
+    const binding = new ClaudeCodeAgentBinding(descriptor)
+
+    const result = binding.resolveSpawn({
+      skillId: 'ask' as SkillId,
+      args: 'follow-up question',
+      workspace: buildWorkspace(),
+      manifest: buildSkillManifest('/abs/ws/skill-extensions/braid-ask/EXTEND.md' as AbsolutePath),
+      apiUrl: 'http://localhost:4321',
+      resumeSessionId: 'sess-1',
+    })
+
+    const prompt = result.args[result.args.indexOf('-p') + 1]
+    expect(prompt).toBe('follow-up question')
   })
 
   it('throws when the binding descriptor is not claude-code', () => {

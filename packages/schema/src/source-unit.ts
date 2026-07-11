@@ -15,7 +15,7 @@ export type SourceUnit = z.infer<typeof SourceUnit>
 
 // One record per (workspaceId, sourceId, path), captured at a sha, run, and time.
 // No lifecycle state, just existence plus current sha. Ontology-neutral.
-export const SourceUnitState = z.object({
+export const SourceUnitObservation = z.object({
   workspaceId: WorkspaceId,
   sourceId: SourceId,
   path: z.string().min(1),
@@ -23,7 +23,7 @@ export const SourceUnitState = z.object({
   lastObservedAt: Timestamp,
   lastObservedByRunId: SkillRunId.optional(),
 })
-export type SourceUnitState = z.infer<typeof SourceUnitState>
+export type SourceUnitObservation = z.infer<typeof SourceUnitObservation>
 
 // On-disk units vs recorded states, used by Reactor to decide what to re-extract.
 // - new: not in the state store
@@ -34,6 +34,6 @@ export const SourceUnitDiff = z.object({
   new: z.array(SourceUnit),
   changed: z.array(SourceUnit),
   unchanged: z.array(SourceUnit),
-  orphaned: z.array(SourceUnitState),
+  orphaned: z.array(SourceUnitObservation),
 })
 export type SourceUnitDiff = z.infer<typeof SourceUnitDiff>

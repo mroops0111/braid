@@ -1,9 +1,9 @@
 import { z } from 'zod'
 import { SkillId, SkillRunId, SourceId, Timestamp, WorkspaceId } from './common.js'
 
-// One event-driven pass: diff the source, dispatch per changed unit, then checkpoint.
-export const ReactorPassId = z.string().min(1).brand<'ReactorPassId'>()
-export type ReactorPassId = z.infer<typeof ReactorPassId>
+// One event-driven cycle: diff the source, dispatch per changed unit, then checkpoint.
+export const ReactorCycleId = z.string().min(1).brand<'ReactorCycleId'>()
+export type ReactorCycleId = z.infer<typeof ReactorCycleId>
 
 export const ReactorUnitStatus = z.enum(['queued', 'running', 'success', 'failure'])
 export type ReactorUnitStatus = z.infer<typeof ReactorUnitStatus>
@@ -11,11 +11,11 @@ export type ReactorUnitStatus = z.infer<typeof ReactorUnitStatus>
 export const ReactorCheckpointStatus = z.enum(['queued', 'running', 'success', 'failure', 'skipped'])
 export type ReactorCheckpointStatus = z.infer<typeof ReactorCheckpointStatus>
 
-export const ReactorPassStatus = z.enum(['dispatched', 'running', 'completed', 'throttled'])
-export type ReactorPassStatus = z.infer<typeof ReactorPassStatus>
+export const ReactorCycleStatus = z.enum(['dispatched', 'running', 'completed', 'throttled'])
+export type ReactorCycleStatus = z.infer<typeof ReactorCycleStatus>
 
 // One unit's dispatch. skillRunId lets Studio deep-link to the transcript.
-export const ReactorPassUnit = z.object({
+export const ReactorUnit = z.object({
   path: z.string().min(1),
   status: ReactorUnitStatus,
   skillRunId: SkillRunId.optional(),
@@ -23,10 +23,10 @@ export const ReactorPassUnit = z.object({
   completedAt: Timestamp.optional(),
   error: z.string().optional(),
 })
-export type ReactorPassUnit = z.infer<typeof ReactorPassUnit>
+export type ReactorUnit = z.infer<typeof ReactorUnit>
 
 // Cross-unit checkpoint. 'skipped' = no checkpoint binding, or no unit succeeded.
-export const ReactorPassCheckpoint = z.object({
+export const ReactorCheckpoint = z.object({
   skillId: SkillId,
   status: ReactorCheckpointStatus,
   skillRunId: SkillRunId.optional(),
@@ -34,20 +34,20 @@ export const ReactorPassCheckpoint = z.object({
   completedAt: Timestamp.optional(),
   error: z.string().optional(),
 })
-export type ReactorPassCheckpoint = z.infer<typeof ReactorPassCheckpoint>
+export type ReactorCheckpoint = z.infer<typeof ReactorCheckpoint>
 
-// Persisted at every state transition so Studio renders live and past passes.
-// Throttled passes carry no units, decided before the unit list is built.
-export const ReactorPass = z.object({
-  id: ReactorPassId,
+// Persisted at every state transition so Studio renders live and past cycles.
+// Throttled cycles carry no units, decided before the unit list is built.
+export const ReactorCycle = z.object({
+  id: ReactorCycleId,
   workspaceId: WorkspaceId,
   sourceId: SourceId,
   startedAt: Timestamp,
   completedAt: Timestamp.optional(),
-  status: ReactorPassStatus,
-  units: z.array(ReactorPassUnit).default([]),
-  checkpoint: ReactorPassCheckpoint.optional(),
-  // Why a throttled pass was dropped. Free-form, may carry the cap value.
+  status: ReactorCycleStatus,
+  units: z.array(ReactorUnit).default([]),
+  checkpoint: ReactorCheckpoint.optional(),
+  // Why a throttled cycle was dropped. Free-form, may carry the cap value.
   throttledReason: z.string().optional(),
 })
-export type ReactorPass = z.infer<typeof ReactorPass>
+export type ReactorCycle = z.infer<typeof ReactorCycle>

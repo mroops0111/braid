@@ -1,15 +1,15 @@
-import type { ReactorPassRepository } from '@braidhq/core'
-import type { AbsolutePath, ReactorPass, ReactorPassId, WorkspaceId } from '@braidhq/schema'
+import type { ReactorCycleRepository } from '@braidhq/core'
+import type { AbsolutePath, ReactorCycle, ReactorCycleId, WorkspaceId } from '@braidhq/schema'
 import type { Dirent } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import process from 'node:process'
 import { NotFoundError } from '@braidhq/core'
-import { ReactorPass as ReactorPassSchema } from '@braidhq/schema'
-import { reactorPassesDir, reactorPassFilePath } from './paths.js'
+import { ReactorCycle as ReactorCycleSchema } from '@braidhq/schema'
+import { reactorCycleFilePath, reactorCyclesDir } from './paths.js'
 
-export interface FsReactorPassRepositoryOptions {
+export interface FsReactorCycleRepositoryOptions {
   /**
    * Lookup of `workspaceId → workspaceRoot`. Shared with the other Fs
    * repositories so this repo doesn't introduce a separate dependency
@@ -20,35 +20,35 @@ export interface FsReactorPassRepositoryOptions {
 }
 
 /**
- * Filesystem-backed `ReactorPassRepository`. One JSON file per pass at
- * `artifacts/reactor-passes/<passId>.json`. Each save is an atomic
+ * Filesystem-backed `ReactorCycleRepository`. One JSON file per cycle at
+ * `artifacts/reactor-cycles/<cycleId>.json`. Each save is an atomic
  * rename so the Studio Activity page never reads a half-written file
- * while the reactor is mid-pass.
+ * while the reactor is mid-cycle.
  *
- * The file body is exactly the `ReactorPass` shape; no wrapper, no
+ * The file body is exactly the `ReactorCycle` shape; no wrapper, no
  * envelope. Future SQLite/Postgres impls map one file to one row keyed
- * by `passId`, with `(workspaceId, startedAt)` indexed for the list
+ * by `cycleId`, with `(workspaceId, startedAt)` indexed for the list
  * query.
  */
-export class FsReactorPassRepository implements ReactorPassRepository {
-  constructor(private readonly options: FsReactorPassRepositoryOptions) {}
+export class FsReactorCycleRepository implements ReactorCycleRepository {
+  constructor(private readonly options: FsReactorCycleRepositoryOptions) {}
 
-  async save(pass: ReactorPass): Promise<void> {
-    const root = await this.resolveRoot(pass.workspaceId)
-    const file = reactorPassFilePath(root, pass.id)
-    await mkdir(reactorPassesDir(root), { recursive: true })
+  async save(cycle: ReactorCycle): Promise<void> {
+    const root = await this.resolveRoot(cycle.workspaceId)
+    const file = reactorCycleFilePath(root, cycle.id)
+    await mkdir(reactorCyclesDir(root), { recursive: true })
     // Random suffix so concurrent saves in the same ms don't collide.
     const tmp = `${file}.tmp-${process.pid}-${randomUUID()}`
-    await writeFile(tmp, `${JSON.stringify(pass, null, 2)}\n`, 'utf-8')
+    await writeFile(tmp, `${JSON.stringify(cycle, null, 2)}\n`, 'utf-8')
     await rename(tmp, file)
   }
 
-  async load(workspaceId: WorkspaceId, passId: ReactorPassId): Promise<ReactorPass | undefined> {
+  async load(workspaceId: WorkspaceId, cycleId: ReactorCycleId): Promise<ReactorCycle | undefined> {
     const root = await this.resolveRoot(workspaceId)
-    const file = reactorPassFilePath(root, passId)
+    const file = reactorCycleFilePath(root, cycleId)
     try {
       const raw = await readFile(file, 'utf-8')
-      const parsed = ReactorPassSchema.parse(JSON.parse(raw))
+      const parsed = ReactorCycleSchema.parse(JSON.parse(raw))
       // The directory layout is per-workspace already; double-check the
       // body matches in case a stray file from another workspace was
       // copy-pasted in by an operator.
@@ -63,11 +63,11 @@ export class FsReactorPassRepository implements ReactorPassRepository {
     }
   }
 
-  async listByWorkspace(workspaceId: WorkspaceId): Promise<readonly ReactorPass[]> {
+  async listByWorkspace(workspaceId: WorkspaceId): Promise<readonly ReactorCycle[]> {
     const root = await this.resolveRoot(workspaceId)
-    const dir = reactorPassesDir(root)
+    const dir = reactorCyclesDir(root)
     const entries = await safeReaddir(dir)
-    const passes: ReactorPass[] = []
+    const cycles: ReactorCycle[] = []
     for (const entry of entries) {
       if (!entry.isFile() || !entry.name.endsWith('.json'))
         continue
@@ -75,17 +75,17 @@ export class FsReactorPassRepository implements ReactorPassRepository {
         continue
       const raw = await readFile(join(dir, entry.name), 'utf-8')
       try {
-        const parsed = ReactorPassSchema.parse(JSON.parse(raw))
+        const parsed = ReactorCycleSchema.parse(JSON.parse(raw))
         if (parsed.workspaceId === workspaceId)
-          passes.push(parsed)
+          cycles.push(parsed)
       }
       catch {
         // Skip files that fail validation (truncated half-writes, manual
         // edits gone wrong). Surfacing them as errors in the list call
-        // would block the Activity page from rendering recent passes.
+        // would block the Activity page from rendering recent cycles.
       }
     }
-    return passes.sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+    return cycles.sort((a, b) => b.startedAt.localeCompare(a.startedAt))
   }
 
   private async resolveRoot(workspaceId: WorkspaceId): Promise<AbsolutePath> {

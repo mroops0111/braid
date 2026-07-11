@@ -32,11 +32,11 @@ import { FsBatchPlanRepository } from './infrastructure/fs/FsBatchPlanRepository
 import { FsClarifyTicketRepository } from './infrastructure/fs/FsClarifyTicketRepository.js'
 import { FsGraphSerializer } from './infrastructure/fs/FsGraphSerializer.js'
 import { FsProposalRepository } from './infrastructure/fs/FsProposalRepository.js'
-import { FsReactorPassRepository } from './infrastructure/fs/FsReactorPassRepository.js'
+import { FsReactorCycleRepository } from './infrastructure/fs/FsReactorCycleRepository.js'
 import { FsRunRepository } from './infrastructure/fs/FsRunRepository.js'
 import { FsSkillRegistry } from './infrastructure/fs/FsSkillRegistry.js'
 import { FsSourceUnitDigest } from './infrastructure/fs/FsSourceUnitDigest.js'
-import { FsSourceUnitStateRepository } from './infrastructure/fs/FsSourceUnitStateRepository.js'
+import { FsSourceUnitObservationRepository } from './infrastructure/fs/FsSourceUnitObservationRepository.js'
 import { FsWorkspaceRepository } from './infrastructure/fs/FsWorkspaceRepository.js'
 import { listIntentItems } from './infrastructure/fs/intentScan.js'
 import { discoverCanonicalWorkspaces } from './infrastructure/fs/WorkspaceDiscovery.js'
@@ -328,8 +328,8 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     bootstrap,
     batchPlanRepository: new FsBatchPlanRepository(),
     intentLister: listIntentItems,
-    sourceUnitStateRepository: new FsSourceUnitStateRepository({ workspaceRoots }),
-    reactorPassRepository: new FsReactorPassRepository({ workspaceRoots }),
+    sourceUnitObservationRepository: new FsSourceUnitObservationRepository({ workspaceRoots }),
+    reactorCycleRepository: new FsReactorCycleRepository({ workspaceRoots }),
     sourceUnitDigest: new FsSourceUnitDigest(),
     userDirectory,
   })

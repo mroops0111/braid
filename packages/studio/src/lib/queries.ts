@@ -212,10 +212,10 @@ export function useBatchStatus(workspaceId: string | undefined) {
  * dedup-by-key. `useWorkspaceEvents` invalidates this on every reactor
  * SSE event, so consumers stay live.
  */
-export function useReactorPasses(workspaceId: string | null | undefined) {
+export function useReactorCycles(workspaceId: string | null | undefined) {
   return useQuery({
-    queryKey: ['reactor-passes', workspaceId ?? null],
-    queryFn: () => api.listReactorPasses(workspaceId!),
+    queryKey: ['reactor-cycles', workspaceId ?? null],
+    queryFn: () => api.listReactorCycles(workspaceId!),
     enabled: !!workspaceId,
   })
 }

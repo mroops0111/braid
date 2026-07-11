@@ -18,8 +18,8 @@ import type {
   OntologyResponse,
   ProductManifestCreate,
   Proposal,
-  ReactorPass,
-  ReactorPassId,
+  ReactorCycle,
+  ReactorCycleId,
   RunRecord,
   SessionMetadata,
   SkillInputOptionsResponse,
@@ -27,7 +27,7 @@ import type {
   SourceDescriptor,
   SourceId,
   SourceUnitDiff,
-  SourceUnitState,
+  SourceUnitObservation,
   TagMeta,
   User,
   UserCreate,
@@ -316,15 +316,15 @@ export const api = {
    */
   getSourceUnitDiff: (workspaceId: string, sourceId: string) =>
     fetchJson<SourceUnitDiff>(`/workspaces/${workspaceId}/source-unit-states/${sourceId}/diff`),
-  listSourceUnitStates: (workspaceId: string, sourceId?: string) => {
+  listSourceUnitObservations: (workspaceId: string, sourceId?: string) => {
     const qs = sourceId ? `?sourceId=${encodeURIComponent(sourceId)}` : ''
-    return fetchJson<{ items: SourceUnitState[] }>(`/workspaces/${workspaceId}/source-unit-states${qs}`)
+    return fetchJson<{ items: SourceUnitObservation[] }>(`/workspaces/${workspaceId}/source-unit-states${qs}`)
   },
 
-  listReactorPasses: (workspaceId: string) =>
-    fetchJson<{ items: ReactorPass[] }>(`/workspaces/${workspaceId}/reactor-passes`),
-  getReactorPass: (workspaceId: string, passId: ReactorPassId) =>
-    fetchJson<ReactorPass>(`/workspaces/${workspaceId}/reactor-passes/${passId}`),
+  listReactorCycles: (workspaceId: string) =>
+    fetchJson<{ items: ReactorCycle[] }>(`/workspaces/${workspaceId}/reactor-cycles`),
+  getReactorCycle: (workspaceId: string, cycleId: ReactorCycleId) =>
+    fetchJson<ReactorCycle>(`/workspaces/${workspaceId}/reactor-cycles/${cycleId}`),
 
   listSkills: (workspaceId: string) =>
     fetchJson<ItemList<SkillManifest>>(`/workspaces/${workspaceId}/skills`),

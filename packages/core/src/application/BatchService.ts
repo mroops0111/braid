@@ -22,7 +22,7 @@ import type { Workspace } from '../domain/workspace/Workspace.js'
 import type { HistoryService } from './HistoryService.js'
 import type { HITLService } from './HITLService.js'
 import type { PerWorkspaceLock } from './PerWorkspaceLock.js'
-import type { SourceUnitStateService } from './SourceUnitStateService.js'
+import type { SourceUnitObservationService } from './SourceUnitObservationService.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import type { WorkspaceService } from './WorkspaceService.js'
 import { UserId } from '@braidhq/schema'
@@ -62,13 +62,13 @@ export interface BatchServiceDeps {
   workspaceLock: PerWorkspaceLock
   clock: Clock
   /**
-   * Optional. When supplied, batch records a `SourceUnitState`
+   * Optional. When supplied, batch records a `SourceUnitObservation`
    * observation after every successful unit extract so Reactor /
    * manual paths share the same diff primitive. Absent in pure
    * unit-test wiring; production composition (`composeFsApp`) always
    * provides it.
    */
-  sourceUnitStateService?: SourceUnitStateService
+  sourceUnitObservationService?: SourceUnitObservationService
 }
 
 export interface StartBatchOptions {
@@ -377,7 +377,7 @@ export class BatchService {
     unit: PlanUnit,
     runId: SkillRunId,
   ): Promise<void> {
-    const service = this.deps.sourceUnitStateService
+    const service = this.deps.sourceUnitObservationService
     if (!service || !unit.sourceId || !unit.scopeHint)
       return
     try {

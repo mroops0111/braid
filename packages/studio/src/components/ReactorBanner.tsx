@@ -1,7 +1,7 @@
 import { AlertTriangle, ArrowRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { workspaceEventsUrl } from '@/lib/api'
-import { useReactorPasses } from '@/lib/queries'
+import { useReactorCycles } from '@/lib/queries'
 import { TopBanner } from './TopBanner'
 import { Button } from './ui/button'
 
@@ -12,19 +12,19 @@ interface ReactorBannerProps {
 }
 
 /**
- * Top-of-app banner surfacing the active reactor pass. Reads the active
- * pass from the same `reactor-passes` query the Activity page uses;
+ * Top-of-app banner surfacing the active reactor cycle. Reads the active
+ * cycle from the same `reactor-cycles` query the Activity page uses;
  * `useWorkspaceEvents` invalidates that query on every reactor SSE event,
- * so the banner stays live without its own EventSource. Mid-pass mount
- * works because the query returns the in-flight pass from the API.
+ * so the banner stays live without its own EventSource. Mid-cycle mount
+ * works because the query returns the in-flight cycle from the API.
  *
- * The throttle notice still listens to SSE directly: a throttled pass is
+ * The throttle notice still listens to SSE directly: a throttled cycle is
  * a transient event (no persisted "in-flight" state to query), and it
  * auto-dismisses after a few seconds.
  */
 export function ReactorBanner({ workspaceId, onOpenActivity }: ReactorBannerProps) {
-  const { data: passes } = useReactorPasses(workspaceId)
-  const active = (passes?.items ?? []).find(p => p.status === 'dispatched' || p.status === 'running')
+  const { data: cycles } = useReactorCycles(workspaceId)
+  const active = (cycles?.items ?? []).find(c => c.status === 'dispatched' || c.status === 'running')
 
   const [throttled, setThrottled] = useState<{ sourceId: string, limit: number } | null>(null)
 

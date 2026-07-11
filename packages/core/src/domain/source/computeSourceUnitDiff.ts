@@ -1,4 +1,4 @@
-import type { SourceUnit, SourceUnitDiff, SourceUnitState } from '@braidhq/schema'
+import type { SourceUnit, SourceUnitDiff, SourceUnitObservation } from '@braidhq/schema'
 
 function key(sourceId: string, path: string): string {
   return `${sourceId}::${path}`
@@ -14,10 +14,10 @@ function key(sourceId: string, path: string): string {
  * function does not filter on workspaceId.
  */
 export function computeSourceUnitDiff(
-  states: readonly SourceUnitState[],
+  states: readonly SourceUnitObservation[],
   units: readonly SourceUnit[],
 ): SourceUnitDiff {
-  const byKey = new Map<string, SourceUnitState>()
+  const byKey = new Map<string, SourceUnitObservation>()
   for (const state of states)
     byKey.set(key(state.sourceId, state.path), state)
 

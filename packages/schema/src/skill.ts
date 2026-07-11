@@ -1,23 +1,7 @@
 import { z } from 'zod'
-import { AbsolutePath, PluginId, SkillId, SkillRunId, SourceId, Timestamp, UserId, WorkspaceId } from './common.js'
+import { AbsolutePath, PluginId, SkillId, SkillRunId, SourceId, Timestamp, WorkspaceId } from './common.js'
 import { McpServerId } from './mcp.js'
 import { WorkspaceRole } from './workspace.js'
-
-export const SkillRunStatus = z.enum(['running', 'succeeded', 'failed', 'cancelled'])
-export type SkillRunStatus = z.infer<typeof SkillRunStatus>
-
-export const SkillRun = z.object({
-  id: SkillRunId,
-  skillId: SkillId,
-  startedAt: Timestamp,
-  finishedAt: Timestamp.optional(),
-  status: SkillRunStatus,
-  triggeredBy: UserId,
-  durationMs: z.number().int().nonnegative().optional(),
-  tokensUsed: z.number().int().nonnegative().optional(),
-  errorMessage: z.string().optional(),
-})
-export type SkillRun = z.infer<typeof SkillRun>
 
 export const SkillOrigin = z.enum(['builtin', 'plugin', 'workspace', 'extension'])
 export type SkillOrigin = z.infer<typeof SkillOrigin>
@@ -117,19 +101,22 @@ export const SkillInputText = z.object({
 })
 export type SkillInputText = z.infer<typeof SkillInputText>
 
-export const SkillInputPick = z.object({
+// pick and multi-pick differ only in their kind literal.
+const SkillInputPickShape = {
   ...SkillInputBaseShape,
-  kind: z.literal('pick'),
   provider: SkillInputProvider,
   fallback: SkillInputFallback,
+}
+
+export const SkillInputPick = z.object({
+  ...SkillInputPickShape,
+  kind: z.literal('pick'),
 })
 export type SkillInputPick = z.infer<typeof SkillInputPick>
 
 export const SkillInputMultiPick = z.object({
-  ...SkillInputBaseShape,
+  ...SkillInputPickShape,
   kind: z.literal('multi-pick'),
-  provider: SkillInputProvider,
-  fallback: SkillInputFallback,
 })
 export type SkillInputMultiPick = z.infer<typeof SkillInputMultiPick>
 
@@ -229,7 +216,7 @@ export const SkillEventToolResult = z.object({
   isError: z.boolean(),
 })
 
-export const SkillArtifactKind = z.enum(['proposal', 'clarify', 'decision', 'view'])
+export const SkillArtifactKind = z.enum(['proposal', 'clarify', 'view'])
 export type SkillArtifactKind = z.infer<typeof SkillArtifactKind>
 
 export const SkillEventArtifactWritten = z.object({

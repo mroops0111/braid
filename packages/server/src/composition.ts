@@ -6,12 +6,12 @@ import type {
   IntentLister,
   ModelRepository,
   ProposalRepository,
-  ReactorPassRepository,
+  ReactorCycleRepository,
   RunRepository,
   SkillRegistry,
   SkillRunner,
   SourceUnitDigest,
-  SourceUnitStateRepository,
+  SourceUnitObservationRepository,
   UserDirectory,
   WorkspaceBootstrap,
   WorkspaceEventBus,
@@ -36,7 +36,7 @@ import {
   PluginRegistry,
   ReactorService,
   SourceLoaderRunner,
-  SourceUnitStateService,
+  SourceUnitObservationService,
   SystemClock,
   ValidationService,
   WorkspaceService,
@@ -45,8 +45,8 @@ import {
   InMemoryClarifyTicketRepository,
   InMemoryModelRepository,
   InMemoryProposalRepository,
-  InMemoryReactorPassRepository,
-  InMemorySourceUnitStateRepository,
+  InMemoryReactorCycleRepository,
+  InMemorySourceUnitObservationRepository,
   InMemoryWorkspaceEventBus,
   InMemoryWorkspaceRepository,
   noopRunRepository,
@@ -66,16 +66,16 @@ export interface AppDependencies {
    */
   reactorService?: ReactorService
   /**
-   * Persistence of `ReactorPass` records. Always wired (in-memory by
+   * Persistence of `ReactorCycle` records. Always wired (in-memory by
    * default, fs-backed via `composeFsApp`) so the REST + Studio
    * surfaces can render an empty list even when no pass has run yet.
    */
-  reactorPassRepository: ReactorPassRepository
-  sourceUnitStateService: SourceUnitStateService
+  reactorCycleRepository: ReactorCycleRepository
+  sourceUnitObservationService: SourceUnitObservationService
   /**
    * Filesystem walk over a workspace's intent sources. Threaded into
    * the source-unit-states diff endpoint so the route can compose
-   * `intentLister + digest + sourceUnitStateService` without
+   * `intentLister + digest + sourceUnitObservationService` without
    * re-implementing the walk. Absent in pure in-memory tests.
    */
   intentLister?: IntentLister
@@ -180,22 +180,22 @@ export interface ComposeOptions {
   batchPlanRepository?: BatchPlanRepository
   intentLister?: IntentLister
   /**
-   * Persistence for `SourceUnitState`. Defaults to an in-memory impl
+   * Persistence for `SourceUnitObservation`. Defaults to an in-memory impl
    * so unit tests of unrelated services keep working without wiring;
    * `composeFsApp` swaps in the fs-backed repo.
    */
-  sourceUnitStateRepository?: SourceUnitStateRepository
+  sourceUnitObservationRepository?: SourceUnitObservationRepository
   /**
-   * Persistence for `ReactorPass`. Defaults to an in-memory impl so
+   * Persistence for `ReactorCycle`. Defaults to an in-memory impl so
    * unit tests of unrelated services keep working without wiring;
    * `composeFsApp` swaps in the fs-backed repo so passes survive
    * restart and the Studio Activity page can render history.
    */
-  reactorPassRepository?: ReactorPassRepository
+  reactorCycleRepository?: ReactorCycleRepository
   /**
    * Content fingerprinter for source units. Required for batch / reactor
    * / manual extract to record observations. Without it the
-   * `SourceUnitStateService` falls back to a no-op stub digest that
+   * `SourceUnitObservationService` falls back to a no-op stub digest that
    * throws on use, which is fine for tests that don't exercise observation
    * recording but would break production batches.
    */
@@ -251,10 +251,10 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     })
     : undefined
 
-  const sourceUnitStateRepository = options.sourceUnitStateRepository ?? new InMemorySourceUnitStateRepository()
+  const sourceUnitObservationRepository = options.sourceUnitObservationRepository ?? new InMemorySourceUnitObservationRepository()
   const sourceUnitDigest = options.sourceUnitDigest ?? new FailingSourceUnitDigest()
-  const sourceUnitStateService = new SourceUnitStateService({
-    repository: sourceUnitStateRepository,
+  const sourceUnitObservationService = new SourceUnitObservationService({
+    repository: sourceUnitObservationRepository,
     digest: sourceUnitDigest,
     workspaceService,
     clock,
@@ -275,27 +275,27 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
       eventBus,
       workspaceLock,
       clock,
-      sourceUnitStateService,
+      sourceUnitObservationService,
     })
     : undefined
 
   // Reactor shares Batch's dependency footprint (skillRunner +
-  // intentLister + sourceUnitStateService) plus the event bus. We
+  // intentLister + sourceUnitObservationService) plus the event bus. We
   // construct it whenever those are present; the service stays inert
   // until something calls `start(workspaceId)`. composeFsApp drives
   // start on workspaces whose ProductManifest.reactor.enabled is true.
-  const reactorPassRepository: ReactorPassRepository
-    = options.reactorPassRepository ?? new InMemoryReactorPassRepository()
+  const reactorCycleRepository: ReactorCycleRepository
+    = options.reactorCycleRepository ?? new InMemoryReactorCycleRepository()
   const reactorService = options.skillRunner && options.intentLister && sourceUnitDigest && !(sourceUnitDigest instanceof FailingSourceUnitDigest)
     ? new ReactorService({
       eventBus,
       workspaceService,
       pluginRegistry,
       skillRunner: options.skillRunner,
-      sourceUnitStateService,
+      sourceUnitObservationService,
       intentLister: options.intentLister,
       digest: sourceUnitDigest,
-      reactorPassRepository,
+      reactorCycleRepository,
       workspaceLock,
       clock,
     })
@@ -307,11 +307,11 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     ...(historyService ? { historyService } : {}),
     ...(batchService ? { batchService } : {}),
     ...(reactorService ? { reactorService } : {}),
-    reactorPassRepository,
+    reactorCycleRepository,
     ...(options.intentLister ? { intentLister: options.intentLister } : {}),
     ...(options.sourceUnitDigest ? { sourceUnitDigest: options.sourceUnitDigest } : {}),
     ...(options.bootstrap ? { bootstrap: options.bootstrap } : {}),
-    sourceUnitStateService,
+    sourceUnitObservationService,
     modelService,
     validationService,
     sourceLoaderRunner,

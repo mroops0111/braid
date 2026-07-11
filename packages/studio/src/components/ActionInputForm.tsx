@@ -1,4 +1,4 @@
-import type { SkillInputDescriptor, SkillInputDynamicOption, SourceId, SourceUnit, SourceUnitState } from '@braidhq/schema'
+import type { SkillInputDescriptor, SkillInputDynamicOption, SourceId, SourceUnit, SourceUnitObservation } from '@braidhq/schema'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -289,7 +289,7 @@ function useSourceIntentBadges(
   const ledgerQueries = useQueries({
     queries: sourceIds.map(sourceId => ({
       queryKey: ['source-unit-states', workspaceId, sourceId] as const,
-      queryFn: () => api.listSourceUnitStates(workspaceId, sourceId),
+      queryFn: () => api.listSourceUnitObservations(workspaceId, sourceId),
     })),
   })
 
@@ -310,7 +310,7 @@ function useSourceIntentBadges(
       const fresh = new Set(diff.unchanged.map((u: SourceUnit) => u.path))
       const stale = new Set(diff.changed.map((u: SourceUnit) => u.path))
       const observedAt = new Map<string, string>()
-      for (const state of ledger.items as SourceUnitState[])
+      for (const state of ledger.items as SourceUnitObservation[])
         observedAt.set(state.path, state.lastObservedAt)
       perSource.set(sourceId, { fresh, stale, observedAt })
     })

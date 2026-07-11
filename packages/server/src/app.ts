@@ -18,12 +18,12 @@ import { createNodesRouter } from './routes/nodes.js'
 import { createOAuthRouter } from './routes/oauth.js'
 import { createOntologyRouter } from './routes/ontology.js'
 import { createProposalsRouter } from './routes/proposals.js'
-import { createReactorPassesRouter } from './routes/reactorPasses.js'
+import { createReactorCyclesRouter } from './routes/reactorCycles.js'
 import { createRunsRouter } from './routes/runs.js'
 import { createSkillInputOptionsRouter } from './routes/skillInputOptions.js'
 import { createSkillsRouter } from './routes/skills.js'
 import { createSourceLoadersRouter } from './routes/sourceLoaders.js'
-import { createSourceUnitStatesRouter } from './routes/sourceUnitStates.js'
+import { createSourceUnitObservationsRouter } from './routes/sourceUnitObservations.js'
 import { createGithubWebhookReceiver, createSourceWebhooksAdminRouter } from './routes/sourceWebhooks.js'
 import { createUsersRouter } from './routes/users.js'
 import { createWorkspaceEventsRouter } from './routes/workspaceEvents.js'
@@ -160,8 +160,8 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     hitlService: deps.hitlService,
     clarifyRepository: deps.clarifyRepository,
   }))
-  workspaceScoped.route('/source-unit-states', createSourceUnitStatesRouter({
-    sourceUnitStateService: deps.sourceUnitStateService,
+  workspaceScoped.route('/source-unit-states', createSourceUnitObservationsRouter({
+    sourceUnitObservationService: deps.sourceUnitObservationService,
     ...(deps.intentLister && deps.sourceUnitDigest
       ? {
           diffSupport: {
@@ -182,7 +182,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       skillRegistry: deps.skillRegistry,
       skillRunner: deps.skillRunner,
       workspaceRepository: deps.workspaceRepository,
-      sourceUnitStateService: deps.sourceUnitStateService,
+      sourceUnitObservationService: deps.sourceUnitObservationService,
       runRepository: deps.runRepository,
       pluginRegistry: deps.pluginRegistry,
     }))
@@ -198,8 +198,8 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   if (deps.batchService) {
     workspaceScoped.route('/batch', createBatchRouter({ batchService: deps.batchService }))
   }
-  workspaceScoped.route('/reactor-passes', createReactorPassesRouter({
-    reactorPassRepository: deps.reactorPassRepository,
+  workspaceScoped.route('/reactor-cycles', createReactorCyclesRouter({
+    reactorCycleRepository: deps.reactorCycleRepository,
   }))
   if (deps.secretStore) {
     workspaceScoped.route('/source-webhooks', createSourceWebhooksAdminRouter({

@@ -1,4 +1,4 @@
-import type { SkillRunId, SourceId, SourceUnit, SourceUnitSha, SourceUnitState, Timestamp, WorkspaceId } from '@braidhq/schema'
+import type { SkillRunId, SourceId, SourceUnit, SourceUnitObservation, SourceUnitSha, Timestamp, WorkspaceId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { computeSourceUnitDiff } from '../../src/index.js'
 
@@ -6,7 +6,7 @@ function sha(byte: string): SourceUnitSha {
   return byte.repeat(64) as SourceUnitSha
 }
 
-function state(path: string, byte: string): SourceUnitState {
+function state(path: string, byte: string): SourceUnitObservation {
   return {
     workspaceId: 'ws-1' as WorkspaceId,
     sourceId: 'src-1' as SourceId,

@@ -32,7 +32,7 @@ export interface Reactor {
  * Carries enough information for the Studio banner to render progress
  * without consulting any other endpoint.
  */
-export interface ReactorPassPlan {
+export interface ReactorCyclePlan {
   readonly workspaceId: WorkspaceId
   readonly sourceId: SourceId
   /** Unit paths in `new ∪ changed`, in dispatch order. */

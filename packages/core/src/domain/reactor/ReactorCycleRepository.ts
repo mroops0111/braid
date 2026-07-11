@@ -1,7 +1,7 @@
-import type { ReactorPass, ReactorPassId, WorkspaceId } from '@braidhq/schema'
+import type { ReactorCycle, ReactorCycleId, WorkspaceId } from '@braidhq/schema'
 
 /**
- * Persistence port for `ReactorPass` records. The reactor service
+ * Persistence port for `ReactorCycle` records. The reactor service
  * writes a record on every state transition (dispatched → running →
  * completed / throttled), and the REST routes + Studio Activity page
  * read it back to render the timeline.
@@ -12,8 +12,8 @@ import type { ReactorPass, ReactorPassId, WorkspaceId } from '@braidhq/schema'
  * relies on this to record per-unit progress without juggling
  * read-modify-write at the call site.
  */
-export interface ReactorPassRepository {
-  save: (pass: ReactorPass) => Promise<void>
-  load: (workspaceId: WorkspaceId, passId: ReactorPassId) => Promise<ReactorPass | undefined>
-  listByWorkspace: (workspaceId: WorkspaceId) => Promise<readonly ReactorPass[]>
+export interface ReactorCycleRepository {
+  save: (pass: ReactorCycle) => Promise<void>
+  load: (workspaceId: WorkspaceId, passId: ReactorCycleId) => Promise<ReactorCycle | undefined>
+  listByWorkspace: (workspaceId: WorkspaceId) => Promise<readonly ReactorCycle[]>
 }

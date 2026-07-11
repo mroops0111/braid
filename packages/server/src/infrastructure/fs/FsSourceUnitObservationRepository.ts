@@ -1,14 +1,14 @@
-import type { SourceUnitStateRepository } from '@braidhq/core'
-import type { AbsolutePath, SourceId, SourceUnitState, WorkspaceId } from '@braidhq/schema'
+import type { SourceUnitObservationRepository } from '@braidhq/core'
+import type { AbsolutePath, SourceId, SourceUnitObservation, WorkspaceId } from '@braidhq/schema'
 import type { Dirent } from 'node:fs'
 import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import process from 'node:process'
 import { NotFoundError } from '@braidhq/core'
-import { SourceUnitState as SourceUnitStateSchema } from '@braidhq/schema'
-import { sourceUnitStateDir, sourceUnitStateFilePath, sourceUnitStateSourceDir } from './paths.js'
+import { SourceUnitObservation as SourceUnitObservationSchema } from '@braidhq/schema'
+import { sourceUnitObservationDir, sourceUnitObservationFilePath, sourceUnitObservationSourceDir } from './paths.js'
 
-export interface FsSourceUnitStateRepositoryOptions {
+export interface FsSourceUnitObservationRepositoryOptions {
   /**
    * Lookup of `workspaceId → workspaceRoot`. Shared with the other Fs
    * repositories so this repo doesn't introduce a separate dependency
@@ -19,23 +19,23 @@ export interface FsSourceUnitStateRepositoryOptions {
 }
 
 /**
- * Filesystem-backed `SourceUnitStateRepository`. One JSON file per
+ * Filesystem-backed `SourceUnitObservationRepository`. One JSON file per
  * entity at `artifacts/source-unit-state/<sourceId>/<encoded-path>.json`,
  * matching the file-per-entity pattern used by proposals / clarify.
  *
- * The file body is exactly the `SourceUnitState` shape; no wrapper or
+ * The file body is exactly the `SourceUnitObservation` shape; no wrapper or
  * envelope. A future SQLite or Postgres impl maps each file to one row
  * with composite PK `(workspaceId, sourceId, path)`.
  */
-export class FsSourceUnitStateRepository implements SourceUnitStateRepository {
-  constructor(private readonly options: FsSourceUnitStateRepositoryOptions) {}
+export class FsSourceUnitObservationRepository implements SourceUnitObservationRepository {
+  constructor(private readonly options: FsSourceUnitObservationRepositoryOptions) {}
 
-  async find(workspaceId: WorkspaceId, sourceId: SourceId, path: string): Promise<SourceUnitState | null> {
+  async find(workspaceId: WorkspaceId, sourceId: SourceId, path: string): Promise<SourceUnitObservation | null> {
     const root = await this.resolveRoot(workspaceId)
-    const file = sourceUnitStateFilePath(root, sourceId, path)
+    const file = sourceUnitObservationFilePath(root, sourceId, path)
     try {
       const raw = await readFile(file, 'utf-8')
-      return SourceUnitStateSchema.parse(JSON.parse(raw))
+      return SourceUnitObservationSchema.parse(JSON.parse(raw))
     }
     catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT')
@@ -44,20 +44,20 @@ export class FsSourceUnitStateRepository implements SourceUnitStateRepository {
     }
   }
 
-  async save(state: SourceUnitState): Promise<void> {
+  async save(state: SourceUnitObservation): Promise<void> {
     const root = await this.resolveRoot(state.workspaceId)
-    const file = sourceUnitStateFilePath(root, state.sourceId, state.path)
-    await mkdir(sourceUnitStateSourceDir(root, state.sourceId), { recursive: true })
+    const file = sourceUnitObservationFilePath(root, state.sourceId, state.path)
+    await mkdir(sourceUnitObservationSourceDir(root, state.sourceId), { recursive: true })
     const tmp = `${file}.tmp-${process.pid}-${Date.now()}`
     await writeFile(tmp, `${JSON.stringify(state, null, 2)}\n`, 'utf-8')
     await rename(tmp, file)
   }
 
-  async listByWorkspace(workspaceId: WorkspaceId): Promise<readonly SourceUnitState[]> {
+  async listByWorkspace(workspaceId: WorkspaceId): Promise<readonly SourceUnitObservation[]> {
     const root = await this.resolveRoot(workspaceId)
-    const baseDir = sourceUnitStateDir(root)
+    const baseDir = sourceUnitObservationDir(root)
     const sourceDirs = await safeReaddir(baseDir)
-    const all: SourceUnitState[] = []
+    const all: SourceUnitObservation[] = []
     for (const sourceDir of sourceDirs) {
       if (!sourceDir.isDirectory())
         continue
@@ -66,9 +66,9 @@ export class FsSourceUnitStateRepository implements SourceUnitStateRepository {
     return all
   }
 
-  async listBySource(workspaceId: WorkspaceId, sourceId: SourceId): Promise<readonly SourceUnitState[]> {
+  async listBySource(workspaceId: WorkspaceId, sourceId: SourceId): Promise<readonly SourceUnitObservation[]> {
     const root = await this.resolveRoot(workspaceId)
-    return readEntriesIn(sourceUnitStateSourceDir(root, sourceId))
+    return readEntriesIn(sourceUnitObservationSourceDir(root, sourceId))
   }
 
   private async resolveRoot(workspaceId: WorkspaceId): Promise<AbsolutePath> {
@@ -91,14 +91,14 @@ async function safeReaddir(dir: string): Promise<Dirent[]> {
   }
 }
 
-async function readEntriesIn(dir: string): Promise<SourceUnitState[]> {
+async function readEntriesIn(dir: string): Promise<SourceUnitObservation[]> {
   const entries = await safeReaddir(dir)
-  const results: SourceUnitState[] = []
+  const results: SourceUnitObservation[] = []
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.endsWith('.json'))
       continue
     const raw = await readFile(join(dir, entry.name), 'utf-8')
-    results.push(SourceUnitStateSchema.parse(JSON.parse(raw)))
+    results.push(SourceUnitObservationSchema.parse(JSON.parse(raw)))
   }
   return results
 }

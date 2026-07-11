@@ -5,7 +5,7 @@ import type {
   CommitSha,
   PlanUnitId,
   ProposalId,
-  ReactorPassId,
+  ReactorCycleId,
   SkillId,
   SkillRunId,
   SourceId,
@@ -232,12 +232,12 @@ export interface BatchCheckpointFailedEvent {
  * dispatching per-unit skill runs sequentially. `totalUnits` is the
  * count of units in `new ∪ changed`; subscribers (Studio's banner) use
  * it to render progress against a known total. `passId` keys back into
- * the `ReactorPass` record for the rich Activity-page view.
+ * the `ReactorCycle` record for the rich Activity-page view.
  */
 export interface ReactorDispatchedEvent {
   readonly type: 'reactor.dispatched'
   readonly workspaceId: WorkspaceId
-  readonly passId: ReactorPassId
+  readonly passId: ReactorCycleId
   readonly sourceId: SourceId
   readonly totalUnits: number
   readonly at: string
@@ -252,7 +252,7 @@ export interface ReactorDispatchedEvent {
 export interface ReactorCompletedEvent {
   readonly type: 'reactor.completed'
   readonly workspaceId: WorkspaceId
-  readonly passId: ReactorPassId
+  readonly passId: ReactorCycleId
   readonly sourceId: SourceId
   readonly totalUnits: number
   readonly checkpointRan: boolean
@@ -268,7 +268,7 @@ export interface ReactorCompletedEvent {
 export interface ReactorThrottledEvent {
   readonly type: 'reactor.throttled'
   readonly workspaceId: WorkspaceId
-  readonly passId: ReactorPassId
+  readonly passId: ReactorCycleId
   readonly sourceId: SourceId
   readonly limit: number
   readonly at: string
@@ -282,7 +282,7 @@ export interface ReactorThrottledEvent {
 export interface ReactorUnitStartedEvent {
   readonly type: 'reactor.unit.started'
   readonly workspaceId: WorkspaceId
-  readonly passId: ReactorPassId
+  readonly passId: ReactorCycleId
   readonly unitPath: string
   readonly skillRunId: SkillRunId
   readonly processed: number
@@ -298,7 +298,7 @@ export interface ReactorUnitStartedEvent {
 export interface ReactorUnitCompletedEvent {
   readonly type: 'reactor.unit.completed'
   readonly workspaceId: WorkspaceId
-  readonly passId: ReactorPassId
+  readonly passId: ReactorCycleId
   readonly unitPath: string
   readonly status: 'success' | 'failure'
   readonly processed: number
@@ -314,7 +314,7 @@ export interface ReactorUnitCompletedEvent {
 export interface ReactorCheckpointStartedEvent {
   readonly type: 'reactor.checkpoint.started'
   readonly workspaceId: WorkspaceId
-  readonly passId: ReactorPassId
+  readonly passId: ReactorCycleId
   readonly skillId: SkillId
   readonly skillRunId: SkillRunId
   readonly at: string
@@ -329,7 +329,7 @@ export interface ReactorCheckpointStartedEvent {
 export interface ReactorCheckpointCompletedEvent {
   readonly type: 'reactor.checkpoint.completed'
   readonly workspaceId: WorkspaceId
-  readonly passId: ReactorPassId
+  readonly passId: ReactorCycleId
   readonly status: 'success' | 'failure' | 'skipped'
   readonly at: string
 }

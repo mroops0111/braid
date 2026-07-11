@@ -38,11 +38,11 @@ export function batchPlanPath(workspaceRoot: AbsolutePath): string {
   return join(workspaceArtifactsDir(workspaceRoot), 'batch-plan.json')
 }
 
-export function sourceUnitStateDir(workspaceRoot: AbsolutePath): string {
+export function sourceUnitObservationDir(workspaceRoot: AbsolutePath): string {
   return join(workspaceArtifactsDir(workspaceRoot), 'source-unit-state')
 }
 
-export function sourceUnitStateFilePath(
+export function sourceUnitObservationFilePath(
   workspaceRoot: AbsolutePath,
   sourceId: string,
   relativePath: string,
@@ -52,14 +52,14 @@ export function sourceUnitStateFilePath(
   // so a multi-level folder unit still maps to one file.
   const trimmed = relativePath.endsWith('/') ? relativePath.slice(0, -1) : relativePath
   const flattened = trimmed.replace(/\//g, '__')
-  return join(sourceUnitStateDir(workspaceRoot), sourceId, `${flattened}.json`)
+  return join(sourceUnitObservationDir(workspaceRoot), sourceId, `${flattened}.json`)
 }
 
-export function sourceUnitStateSourceDir(
+export function sourceUnitObservationSourceDir(
   workspaceRoot: AbsolutePath,
   sourceId: string,
 ): string {
-  return join(sourceUnitStateDir(workspaceRoot), sourceId)
+  return join(sourceUnitObservationDir(workspaceRoot), sourceId)
 }
 
 export function proposalsDir(workspaceRoot: AbsolutePath, status: ProposalStatus): string {
@@ -82,12 +82,12 @@ export function runsDir(workspaceRoot: AbsolutePath): string {
   return join(workspaceArtifactsDir(workspaceRoot), 'runs')
 }
 
-export function reactorPassesDir(workspaceRoot: AbsolutePath): string {
-  return join(workspaceArtifactsDir(workspaceRoot), 'reactor-passes')
+export function reactorCyclesDir(workspaceRoot: AbsolutePath): string {
+  return join(workspaceArtifactsDir(workspaceRoot), 'reactor-cycles')
 }
 
-export function reactorPassFilePath(workspaceRoot: AbsolutePath, passId: string): string {
-  return join(reactorPassesDir(workspaceRoot), `${passId}.json`)
+export function reactorCycleFilePath(workspaceRoot: AbsolutePath, passId: string): string {
+  return join(reactorCyclesDir(workspaceRoot), `${passId}.json`)
 }
 
 export function runIndexPath(workspaceRoot: AbsolutePath): string {

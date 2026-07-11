@@ -40,8 +40,8 @@ export class FsSkillRegistry implements SkillRegistry {
     )
 
     // Precedence (later wins): builtin < plugin < workspace.
-    // Extensions don't override; they attach an EXTEND.md path to the
-    // resolved skill so SubprocessSkillRunner appends it at run time.
+    // Extensions don't override. They attach an EXTEND.md path to the
+    // resolved skill so the agent binding points claude at it at run time.
     const manifests = new Map<SkillId, SkillManifest>()
     for (const manifest of builtins) manifests.set(manifest.id, manifest)
     for (const manifest of pluginSkills) manifests.set(manifest.id, manifest)

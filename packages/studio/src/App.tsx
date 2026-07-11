@@ -12,7 +12,7 @@ import { Sidebar } from './components/Sidebar'
 import { TooltipProvider } from './components/ui/tooltip'
 import { UserPicker } from './components/UserPicker'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
-import { useBatchStatus, useReactorPasses, useWorkspaces } from './lib/queries'
+import { useBatchStatus, useReactorCycles, useWorkspaces } from './lib/queries'
 import { useAuthGate } from './lib/useAuthGate'
 import { GraphNavigationContext } from './lib/useGraphNavigation'
 import { useResetOnRemoteChange } from './lib/useRemoteWorkspaces'
@@ -85,8 +85,8 @@ function AppInner() {
   // running `/braid-extract` run is the reactor's own per-unit dispatch
   // and the Reactor banner already represents it. Showing both stacks
   // two banners for one logical activity.
-  const { data: reactorPasses } = useReactorPasses(activeId)
-  const hasActiveReactor = !!(reactorPasses?.items ?? []).find(p => p.status === 'dispatched' || p.status === 'running')
+  const { data: reactorCycles } = useReactorCycles(activeId)
+  const hasActiveReactor = !!(reactorCycles?.items ?? []).find(p => p.status === 'dispatched' || p.status === 'running')
 
   const items = workspaces?.items ?? []
 

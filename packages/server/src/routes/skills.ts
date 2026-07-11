@@ -3,7 +3,7 @@ import type {
   RunRepository,
   SkillRegistry,
   SkillRunner,
-  SourceUnitStateService,
+  SourceUnitObservationService,
   Workspace,
   WorkspaceRepository,
 } from '@braidhq/core'
@@ -53,11 +53,11 @@ export interface SkillsRouterDeps {
   readonly skillRunner: SkillRunner
   readonly workspaceRepository: WorkspaceRepository
   /**
-   * Used to record a SourceUnitState observation after a successful
+   * Used to record a SourceUnitObservation observation after a successful
    * per-unit skill run (the one named by the active ontology's
    * `OntologyBatchBinding.perUnit.skillId`).
    */
-  readonly sourceUnitStateService: SourceUnitStateService
+  readonly sourceUnitObservationService: SourceUnitObservationService
   /**
    * Used to backfill terminal exit state for runs that finished between
    * `skillRunner.start` returning and the observation hook subscribing;
@@ -197,7 +197,7 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
       void recordObservationOnSuccess({
         runner: deps.skillRunner,
         runRepository: deps.runRepository,
-        sourceUnitStateService: deps.sourceUnitStateService,
+        sourceUnitObservationService: deps.sourceUnitObservationService,
         workspace,
         runId,
         sourceUnit,
@@ -226,7 +226,7 @@ const OBSERVATION_TIMEOUT_MS = 60 * 60 * 1000
 interface RecordObservationParams {
   readonly runner: SkillRunner
   readonly runRepository: RunRepository
-  readonly sourceUnitStateService: SourceUnitStateService
+  readonly sourceUnitObservationService: SourceUnitObservationService
   readonly workspace: Workspace
   readonly runId: SkillRunIdType
   readonly sourceUnit: { sourceId: SourceId, path: string }
@@ -234,7 +234,7 @@ interface RecordObservationParams {
 
 /**
  * Subscribe to a run, wait for it to terminate, and record a
- * SourceUnitState observation iff the run finished cleanly (exit code
+ * SourceUnitObservation observation iff the run finished cleanly (exit code
  * 0). Cancellation, non-zero exit, error event, or timeout all leave
  * the previously recorded state untouched.
  *
@@ -248,13 +248,13 @@ interface RecordObservationParams {
  * indefinitely.
  */
 async function recordObservationOnSuccess(params: RecordObservationParams): Promise<void> {
-  const { runner, runRepository, sourceUnitStateService, workspace, runId, sourceUnit } = params
+  const { runner, runRepository, sourceUnitObservationService, workspace, runId, sourceUnit } = params
   const workspaceId = workspace.id
   try {
     const outcome = await waitForTerminalOutcome(runner, runRepository, workspace, runId)
     if (outcome !== 'success')
       return
-    await sourceUnitStateService.recordObservation(
+    await sourceUnitObservationService.recordObservation(
       workspaceId,
       sourceUnit.sourceId,
       sourceUnit.path,

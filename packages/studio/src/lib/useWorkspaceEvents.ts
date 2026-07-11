@@ -141,8 +141,8 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
     })
     source.addEventListener('batch.checkpoint.failed', invalidateBatch)
 
-    const invalidateReactorPasses = (): void => {
-      queryClient.invalidateQueries({ queryKey: ['reactor-passes', workspaceId], exact: false })
+    const invalidateReactorCycles = (): void => {
+      queryClient.invalidateQueries({ queryKey: ['reactor-cycles', workspaceId], exact: false })
     }
     const invalidatePassFinished = (): void => {
       // Per-option badges (extracted / stale) live behind the diff
@@ -152,17 +152,17 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
       // Reactor writes Proposals through the per-unit skill it dispatches.
       invalidateProposals()
       invalidateGraph()
-      invalidateReactorPasses()
+      invalidateReactorCycles()
     }
     // Every reactor.* event mutates the pass record. The Activity page
     // is live-updating, so invalidate on every signal.
-    source.addEventListener('reactor.dispatched', invalidateReactorPasses)
-    source.addEventListener('reactor.unit.started', invalidateReactorPasses)
-    source.addEventListener('reactor.unit.completed', invalidateReactorPasses)
-    source.addEventListener('reactor.checkpoint.started', invalidateReactorPasses)
-    source.addEventListener('reactor.checkpoint.completed', invalidateReactorPasses)
+    source.addEventListener('reactor.dispatched', invalidateReactorCycles)
+    source.addEventListener('reactor.unit.started', invalidateReactorCycles)
+    source.addEventListener('reactor.unit.completed', invalidateReactorCycles)
+    source.addEventListener('reactor.checkpoint.started', invalidateReactorCycles)
+    source.addEventListener('reactor.checkpoint.completed', invalidateReactorCycles)
     source.addEventListener('reactor.completed', invalidatePassFinished)
-    source.addEventListener('reactor.throttled', invalidateReactorPasses)
+    source.addEventListener('reactor.throttled', invalidateReactorCycles)
 
     return () => {
       source.close()

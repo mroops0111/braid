@@ -91,7 +91,7 @@ async function waitForObservation(
 ) {
   const start = Date.now()
   while (Date.now() - start < maxMs) {
-    const states = await deps.sourceUnitStateService.listByWorkspace(workspaceId)
+    const states = await deps.sourceUnitObservationService.listByWorkspace(workspaceId)
     const observation = states.find(s => s.sourceId === SOURCE_ID && s.path === UNIT_PATH)
     if (observation)
       return observation
@@ -135,7 +135,7 @@ function createCancellableChild(): ChildProcess {
 }
 
 describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
-  it('records a SourceUnitState observation after a successful run', async () => {
+  it('records a SourceUnitObservation observation after a successful run', async () => {
     const { app, workspace, deps } = await buildAppForExtract({ exitCode: 0 })
 
     const response = await app.request(`/workspaces/${workspace.id}/skills/braid-extract/run`, {
@@ -171,7 +171,7 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
     await waitForRunSettled(deps, body.runId)
     // Give the post-completion hook a tick in case it would record incorrectly.
     await new Promise(resolve => setTimeout(resolve, 50))
-    const states = await deps.sourceUnitStateService.listByWorkspace(workspace.id)
+    const states = await deps.sourceUnitObservationService.listByWorkspace(workspace.id)
     expect(states).toEqual([])
   })
 
@@ -188,7 +188,7 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
     const body = await response.json() as { runId: string }
     await waitForRunSettled(deps, body.runId)
     await new Promise(resolve => setTimeout(resolve, 50))
-    const states = await deps.sourceUnitStateService.listByWorkspace(workspace.id)
+    const states = await deps.sourceUnitObservationService.listByWorkspace(workspace.id)
     expect(states).toEqual([])
   })
 
@@ -249,7 +249,7 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
     await deps.skillRunner!.cancel(body.runId as SkillRunId)
     await waitForRunSettled(deps, body.runId)
     await new Promise(resolve => setTimeout(resolve, 50))
-    const states = await deps.sourceUnitStateService.listByWorkspace(workspace.id)
+    const states = await deps.sourceUnitObservationService.listByWorkspace(workspace.id)
     expect(states).toEqual([])
   })
 
@@ -266,7 +266,7 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
     })
 
     expect(response.status).toBe(400)
-    const states = await deps.sourceUnitStateService.listByWorkspace(workspace.id)
+    const states = await deps.sourceUnitObservationService.listByWorkspace(workspace.id)
     expect(states).toEqual([])
   })
 
@@ -283,7 +283,7 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
     })
 
     expect(response.status).toBe(400)
-    const states = await deps.sourceUnitStateService.listByWorkspace(workspace.id)
+    const states = await deps.sourceUnitObservationService.listByWorkspace(workspace.id)
     expect(states).toEqual([])
   })
 })

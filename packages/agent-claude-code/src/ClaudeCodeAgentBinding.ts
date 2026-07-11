@@ -10,11 +10,19 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
   }
 
   resolveSpawn(input: AgentSpawnInput): SpawnInvocation {
-    // When resuming, the prompt is just the user's follow-up text — claude
-    // already holds the conversation context and the original slash command.
+    // When resuming, the prompt is just the user's follow-up text. claude
+    // already holds the conversation context and the original slash command,
+    // including any extension it read on the first run.
+    // Fresh run: invoke the skill's slash command. When the workspace dropped
+    // an EXTEND.md for this skill, point claude at it rather than inlining the
+    // text, so its relative references/*.md links still resolve.
+    const slashCommand = `/${input.manifest.frontmatter.name} ${input.args}`
+    const extensionPath = input.manifest.extensionPath
     const promptArg = input.resumeSessionId
       ? input.args
-      : `/${input.manifest.frontmatter.name} ${input.args}`
+      : extensionPath
+        ? `${slashCommand}\n\nThis workspace extends this skill. Read and follow ${extensionPath} before you begin.`
+        : slashCommand
     const baseArgs: string[] = [
       '-p',
       promptArg,

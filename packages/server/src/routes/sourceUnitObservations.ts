@@ -1,6 +1,6 @@
-import type { IntentLister, SourceUnitDigest, SourceUnitStateService, WorkspaceService } from '@braidhq/core'
+import type { IntentLister, SourceUnitDigest, SourceUnitObservationService, WorkspaceService } from '@braidhq/core'
 import { computeSourceDiff } from '@braidhq/core'
-import { SourceId, SourceUnitDiff, SourceUnitState } from '@braidhq/schema'
+import { SourceId, SourceUnitDiff, SourceUnitObservation } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
@@ -10,8 +10,8 @@ const ListQuery = z.object({
 })
 
 const ListResponse = z.object({
-  items: z.array(SourceUnitState),
-}).openapi('SourceUnitStateListResponse')
+  items: z.array(SourceUnitObservation),
+}).openapi('SourceUnitObservationListResponse')
 
 const SourceIdParam = WorkspaceIdParam.extend({
   sourceId: SourceId.openapi({ param: { name: 'sourceId', in: 'path' } }),
@@ -19,8 +19,8 @@ const SourceIdParam = WorkspaceIdParam.extend({
 
 const DiffResponse = SourceUnitDiff.openapi('SourceUnitDiffResponse')
 
-export interface SourceUnitStatesRouterDeps {
-  sourceUnitStateService: SourceUnitStateService
+export interface SourceUnitObservationsRouterDeps {
+  sourceUnitObservationService: SourceUnitObservationService
   /**
    * Optional `(workspaceService, intentLister, digest)` triple. When all
    * three are present, the router exposes the `:sourceId/diff` route.
@@ -39,7 +39,7 @@ export interface SourceUnitStatesRouterDeps {
 const listRoute = createRoute({
   method: 'get',
   path: '/',
-  operationId: 'listSourceUnitStates',
+  operationId: 'listSourceUnitObservations',
   summary: 'List recorded observations per source unit for a workspace.',
   description: 'Returns the framework\'s current view of each source unit '
     + 'last seen by an extract run. One entry per (sourceId, path). Used '
@@ -76,15 +76,15 @@ const diffRoute = createRoute({
   },
 })
 
-export function createSourceUnitStatesRouter(deps: SourceUnitStatesRouterDeps): OpenAPIHono {
+export function createSourceUnitObservationsRouter(deps: SourceUnitObservationsRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
 
   router.openapi(listRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const { sourceId } = context.req.valid('query')
     const items = sourceId
-      ? await deps.sourceUnitStateService.listBySource(workspaceId, sourceId)
-      : await deps.sourceUnitStateService.listByWorkspace(workspaceId)
+      ? await deps.sourceUnitObservationService.listBySource(workspaceId, sourceId)
+      : await deps.sourceUnitObservationService.listByWorkspace(workspaceId)
     return context.json({ items: [...items] }, 200)
   })
 
@@ -98,7 +98,7 @@ export function createSourceUnitStatesRouter(deps: SourceUnitStatesRouterDeps): 
         {
           intentLister,
           digest,
-          sourceUnitStateService: deps.sourceUnitStateService,
+          sourceUnitObservationService: deps.sourceUnitObservationService,
         },
         workspace,
         sourceId,

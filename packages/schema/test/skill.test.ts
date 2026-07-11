@@ -8,48 +8,7 @@ import {
   SkillFrontmatter,
   SkillManifest,
   SkillOrigin,
-  SkillRun,
 } from '../src/index.js'
-
-describe('SkillRun (audit record)', () => {
-  it('parses a running skill', () => {
-    const run = SkillRun.parse({
-      id: 'sr-1',
-      skillId: 'extract',
-      startedAt: isoTimestamp,
-      status: 'running',
-      triggeredBy: 'u-1',
-    })
-    expect(run.status).toBe('running')
-  })
-
-  it('parses a finished skill with metrics', () => {
-    const run = SkillRun.parse({
-      id: 'sr-1',
-      skillId: 'extract',
-      startedAt: isoTimestamp,
-      finishedAt: isoTimestamp,
-      status: 'succeeded',
-      triggeredBy: 'u-1',
-      durationMs: 12_345,
-      tokensUsed: 8_192,
-    })
-    expect(run.tokensUsed).toBe(8_192)
-  })
-
-  it('parses a failed skill with error', () => {
-    const run = SkillRun.parse({
-      id: 'sr-1',
-      skillId: 'extract',
-      startedAt: isoTimestamp,
-      finishedAt: isoTimestamp,
-      status: 'failed',
-      triggeredBy: 'u-1',
-      errorMessage: 'agent timeout',
-    })
-    expect(run.errorMessage).toBe('agent timeout')
-  })
-})
 
 describe('SkillOrigin', () => {
   it('accepts builtin / workspace / extension', () => {
@@ -223,11 +182,13 @@ describe('SkillManifest', () => {
 })
 
 describe('SkillArtifactKind', () => {
-  it('accepts proposal / clarify / decision / view', () => {
+  it('accepts proposal / clarify / view', () => {
     expect(SkillArtifactKind.parse('proposal')).toBe('proposal')
     expect(SkillArtifactKind.parse('clarify')).toBe('clarify')
-    expect(SkillArtifactKind.parse('decision')).toBe('decision')
     expect(SkillArtifactKind.parse('view')).toBe('view')
+  })
+  it('rejects the removed decision kind', () => {
+    expect(SkillArtifactKind.safeParse('decision').success).toBe(false)
   })
 })
 

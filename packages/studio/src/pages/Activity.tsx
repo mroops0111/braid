@@ -1,4 +1,4 @@
-import type { ReactorPass, ReactorPassCheckpoint, ReactorPassId, ReactorPassUnit } from '@braidhq/schema'
+import type { ReactorCheckpoint, ReactorCycle, ReactorCycleId, ReactorUnit } from '@braidhq/schema'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, AlertCircle, CheckCircle2, CircleDashed, Loader2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -19,16 +19,16 @@ interface ActivityPageProps {
  */
 export function ActivityPage({ workspaceId }: ActivityPageProps) {
   const list = useQuery({
-    queryKey: ['reactor-passes', workspaceId],
-    queryFn: () => api.listReactorPasses(workspaceId),
+    queryKey: ['reactor-cycles', workspaceId],
+    queryFn: () => api.listReactorCycles(workspaceId),
   })
-  const [selectedId, setSelectedId] = useState<ReactorPassId | null>(null)
+  const [selectedId, setSelectedId] = useState<ReactorCycleId | null>(null)
   const passes = list.data?.items ?? []
   const effectiveSelected = selectedId ?? passes[0]?.id ?? null
 
   const detail = useQuery({
-    queryKey: ['reactor-passes', workspaceId, effectiveSelected],
-    queryFn: () => api.getReactorPass(workspaceId, effectiveSelected!),
+    queryKey: ['reactor-cycles', workspaceId, effectiveSelected],
+    queryFn: () => api.getReactorCycle(workspaceId, effectiveSelected!),
     enabled: effectiveSelected !== null,
   })
 
@@ -79,7 +79,7 @@ export function ActivityPage({ workspaceId }: ActivityPageProps) {
 }
 
 function PassListItem({ pass, selected, onSelect }: {
-  pass: ReactorPass
+  pass: ReactorCycle
   selected: boolean
   onSelect: () => void
 }) {
@@ -111,7 +111,7 @@ function PassListItem({ pass, selected, onSelect }: {
   )
 }
 
-function PassDetail({ pass }: { pass: ReactorPass }) {
+function PassDetail({ pass }: { pass: ReactorCycle }) {
   const counts = useUnitCounts(pass.units)
   return (
     <article className="flex flex-col gap-4 p-4">
@@ -177,7 +177,7 @@ function PassDetail({ pass }: { pass: ReactorPass }) {
   )
 }
 
-function UnitRow({ unit, index }: { unit: ReactorPassUnit, index: number }) {
+function UnitRow({ unit, index }: { unit: ReactorUnit, index: number }) {
   return (
     <li className="flex items-center gap-2 rounded-md border border-border/60 px-2 py-1 text-[11px]">
       <UnitStatusIcon status={unit.status} />
@@ -195,7 +195,7 @@ function UnitRow({ unit, index }: { unit: ReactorPassUnit, index: number }) {
   )
 }
 
-function CheckpointRow({ checkpoint }: { checkpoint: ReactorPassCheckpoint }) {
+function CheckpointRow({ checkpoint }: { checkpoint: ReactorCheckpoint }) {
   return (
     <div className="flex items-center gap-2 rounded-md border border-border/60 px-2 py-1 text-[11px]">
       <CheckpointStatusIcon status={checkpoint.status} />
@@ -209,7 +209,7 @@ function CheckpointRow({ checkpoint }: { checkpoint: ReactorPassCheckpoint }) {
   )
 }
 
-function PassStatusIcon({ pass }: { pass: ReactorPass }) {
+function PassStatusIcon({ pass }: { pass: ReactorCycle }) {
   if (pass.status === 'throttled')
     return <AlertCircle className="size-3 text-amber-600 dark:text-amber-400" />
   if (pass.status === 'completed') {
@@ -221,7 +221,7 @@ function PassStatusIcon({ pass }: { pass: ReactorPass }) {
   return <Loader2 className="size-3 animate-spin text-emerald-600 dark:text-emerald-400" />
 }
 
-function UnitStatusIcon({ status }: { status: ReactorPassUnit['status'] }) {
+function UnitStatusIcon({ status }: { status: ReactorUnit['status'] }) {
   if (status === 'success')
     return <CheckCircle2 className="size-3 text-emerald-600 dark:text-emerald-400" />
   if (status === 'failure')
@@ -231,7 +231,7 @@ function UnitStatusIcon({ status }: { status: ReactorPassUnit['status'] }) {
   return <CircleDashed className="size-3 text-muted-foreground" />
 }
 
-function CheckpointStatusIcon({ status }: { status: ReactorPassCheckpoint['status'] }) {
+function CheckpointStatusIcon({ status }: { status: ReactorCheckpoint['status'] }) {
   if (status === 'success')
     return <CheckCircle2 className="size-3 text-emerald-600 dark:text-emerald-400" />
   if (status === 'failure')
@@ -257,7 +257,7 @@ function EmptyPanel({ icon: Icon, title, detail }: {
   )
 }
 
-function useUnitCounts(units: readonly ReactorPassUnit[]): {
+function useUnitCounts(units: readonly ReactorUnit[]): {
   success: number
   failure: number
   running: number

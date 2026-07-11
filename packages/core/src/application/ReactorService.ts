@@ -1,7 +1,7 @@
 import type {
-  ReactorPass,
-  ReactorPassCheckpoint,
-  ReactorPassUnit,
+  ReactorCheckpoint,
+  ReactorCycle,
+  ReactorUnit,
   SkillEvent,
   SkillId,
   SkillRunId,
@@ -15,16 +15,16 @@ import type { SourceSyncedEvent, WorkspaceEvent } from '../domain/events/Workspa
 import type { OntologyBatchBinding, OntologyPerUnitBinding } from '../domain/plugin/Ontology.js'
 import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
 import type { Reactor } from '../domain/reactor/Reactor.js'
-import type { ReactorPassRepository } from '../domain/reactor/ReactorPassRepository.js'
+import type { ReactorCycleRepository } from '../domain/reactor/ReactorCycleRepository.js'
 import type { SkillRunner } from '../domain/skill/SkillRunner.js'
 import type { SourceUnitDigest } from '../domain/source/SourceUnitDigest.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
 import type { IntentLister } from './BatchService.js'
 import type { PerWorkspaceLock } from './PerWorkspaceLock.js'
-import type { SourceUnitStateService } from './SourceUnitStateService.js'
+import type { SourceUnitObservationService } from './SourceUnitObservationService.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import type { WorkspaceService } from './WorkspaceService.js'
-import { newReactorPassId } from '../domain/ids.js'
+import { newReactorCycleId } from '../domain/ids.js'
 import { createLogger } from '../infrastructure/logger.js'
 import { computeSourceDiff } from './computeSourceDiff.js'
 
@@ -33,10 +33,10 @@ export interface ReactorServiceDeps {
   readonly workspaceService: WorkspaceService
   readonly pluginRegistry: PluginRegistry
   readonly skillRunner: SkillRunner
-  readonly sourceUnitStateService: SourceUnitStateService
+  readonly sourceUnitObservationService: SourceUnitObservationService
   readonly intentLister: IntentLister
   readonly digest: SourceUnitDigest
-  readonly reactorPassRepository: ReactorPassRepository
+  readonly reactorCycleRepository: ReactorCycleRepository
   readonly clock: Clock
   /**
    * Required. Two `source.synced` events for the same workspace
@@ -94,19 +94,19 @@ interface PassContext {
   readonly workspace: Workspace
   readonly sourceId: SourceId
   readonly batchBinding: OntologyBatchBinding
-  pass: ReactorPass
+  pass: ReactorCycle
 }
 
 /**
  * Reactor implementation. Listens to `source.synced` events on the
  * `WorkspaceEventBus` and, for intent-role sources, runs the active
  * ontology's per-unit skill against the diff between current units on
- * disk and the recorded `SourceUnitState` ledger. After all per-unit
+ * disk and the recorded `SourceUnitObservation` ledger. After all per-unit
  * dispatches settle, runs one ontology checkpoint pass when at least
  * one per-unit succeeded.
  *
- * Two outputs per pass: a `ReactorPass` record persisted via
- * `ReactorPassRepository` (queryable via REST + the Studio Activity
+ * Two outputs per pass: a `ReactorCycle` record persisted via
+ * `ReactorCycleRepository` (queryable via REST + the Studio Activity
  * page), and a stream of SSE events on the workspace bus the page
  * subscribes to for live updates. The two surfaces agree by
  * construction — every event corresponds to a save.
@@ -206,8 +206,8 @@ export class ReactorService implements Reactor {
     if (!batchBinding?.perUnit?.skillId)
       return undefined
     const startedAt = this.deps.clock.now()
-    const pass: ReactorPass = {
-      id: newReactorPassId(startedAt),
+    const pass: ReactorCycle = {
+      id: newReactorCycleId(startedAt),
       workspaceId: workspace.id,
       sourceId: event.sourceId,
       startedAt,
@@ -277,7 +277,7 @@ export class ReactorService implements Reactor {
     // duplicate dispatch on the next sync since the ledger may already
     // have the new sha, which would silently re-run the skill.
     try {
-      await this.deps.sourceUnitStateService.recordObservation(workspace.id, sourceId, path, runId)
+      await this.deps.sourceUnitObservationService.recordObservation(workspace.id, sourceId, path, runId)
     }
     catch (err) {
       reactorLogger.warn(
@@ -351,7 +351,7 @@ export class ReactorService implements Reactor {
   }
 
   private async persistAndEmit(context: PassContext, event: WorkspaceEvent): Promise<void> {
-    await this.deps.reactorPassRepository.save(context.pass)
+    await this.deps.reactorCycleRepository.save(context.pass)
     this.deps.eventBus.publish(event)
   }
 
@@ -439,23 +439,23 @@ export class ReactorService implements Reactor {
   }
 }
 
-// === ReactorPass mutation helpers =========================================
+// === ReactorCycle mutation helpers =========================================
 
-function makeQueuedUnit(path: string): ReactorPassUnit {
+function makeQueuedUnit(path: string): ReactorUnit {
   return { path, status: 'queued' }
 }
 
-function withUnits(pass: ReactorPass, units: readonly ReactorPassUnit[]): ReactorPass {
+function withUnits(pass: ReactorCycle, units: readonly ReactorUnit[]): ReactorCycle {
   return { ...pass, units: [...units], status: 'running' }
 }
 
-function updateUnit(pass: ReactorPass, index: number, patch: Partial<ReactorPassUnit>): ReactorPass {
+function updateUnit(pass: ReactorCycle, index: number, patch: Partial<ReactorUnit>): ReactorCycle {
   const units = pass.units.slice()
   units[index] = { ...units[index]!, ...patch }
   return { ...pass, units }
 }
 
-function withCheckpoint(pass: ReactorPass, checkpoint: ReactorPassCheckpoint): ReactorPass {
+function withCheckpoint(pass: ReactorCycle, checkpoint: ReactorCheckpoint): ReactorCycle {
   return { ...pass, checkpoint }
 }
 

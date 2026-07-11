@@ -1,7 +1,7 @@
-import type { SourceId, SourceUnitState, WorkspaceId } from '@braidhq/schema'
+import type { SourceId, SourceUnitObservation, WorkspaceId } from '@braidhq/schema'
 
 /**
- * Repository port for `SourceUnitState`. CRUD shape matching the
+ * Repository port for `SourceUnitObservation`. CRUD shape matching the
  * existing `ProposalRepository` / `ClarifyTicketRepository` pattern so
  * a SQL-backed implementation can swap in without touching the domain.
  *
@@ -9,19 +9,19 @@ import type { SourceId, SourceUnitState, WorkspaceId } from '@braidhq/schema'
  * delete: orphaned states stay in the store as audit trace; pruning is
  * deferred to a future GC step.
  */
-export interface SourceUnitStateRepository {
+export interface SourceUnitObservationRepository {
   find: (
     workspaceId: WorkspaceId,
     sourceId: SourceId,
     path: string,
-  ) => Promise<SourceUnitState | null>
+  ) => Promise<SourceUnitObservation | null>
 
-  save: (state: SourceUnitState) => Promise<void>
+  save: (state: SourceUnitObservation) => Promise<void>
 
-  listByWorkspace: (workspaceId: WorkspaceId) => Promise<readonly SourceUnitState[]>
+  listByWorkspace: (workspaceId: WorkspaceId) => Promise<readonly SourceUnitObservation[]>
 
   listBySource: (
     workspaceId: WorkspaceId,
     sourceId: SourceId,
-  ) => Promise<readonly SourceUnitState[]>
+  ) => Promise<readonly SourceUnitObservation[]>
 }
