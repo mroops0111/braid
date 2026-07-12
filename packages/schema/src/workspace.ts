@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { AgentBindingDescriptor, AgentRoutingConfig } from './agent.js'
 import { AbsolutePath, OntologyId, SkillId, Timestamp, UserId, WorkspaceId } from './common.js'
 import { McpServerConfig } from './mcp.js'
 import { SourceDescriptor } from './source.js'
@@ -37,8 +36,6 @@ export const ProductManifest = z.object({
   ontologyId: OntologyId.default('ddd' as OntologyId),
   sources: z.array(SourceDescriptor).default([]),
   mcpServers: z.array(McpServerConfig).default([]),
-  agents: AgentRoutingConfig,
-  agentBindings: z.array(AgentBindingDescriptor).default([]),
   storage: StorageDescriptor,
   reactor: ReactorConfig.optional(),
 })
@@ -56,8 +53,6 @@ export const ProductManifestCreate = z.object({
   sources: z.array(SourceDescriptor).default([]),
   mcpServers: z.array(McpServerConfig).default([]),
   storage: StorageDescriptor.optional(),
-  agents: AgentRoutingConfig.optional(),
-  agentBindings: z.array(AgentBindingDescriptor).optional(),
 })
 export type ProductManifestCreate = z.infer<typeof ProductManifestCreate>
 

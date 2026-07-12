@@ -62,7 +62,8 @@ async function buildAppForExtract(opts: { exitCode: number, perUnitSkillId?: str
   const skillRegistry = makeMultiSkillRegistry(['braid-extract', 'braid-ask'])
   const skillRunner = new SubprocessSkillRunner({
     skillRegistry,
-    agentBinding: new ClaudeCodeAgentBinding(DEFAULT_AGENT_BINDING),
+    buildAgentBinding: descriptor => new ClaudeCodeAgentBinding(descriptor),
+    defaultAgent: DEFAULT_AGENT_BINDING,
     apiUrl: 'http://localhost:4321',
     runRepository: new FsRunRepository(),
     spawn,
@@ -216,7 +217,8 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
     const skillRegistry = makeMultiSkillRegistry(['braid-extract'])
     const skillRunner = new SubprocessSkillRunner({
       skillRegistry,
-      agentBinding: new ClaudeCodeAgentBinding(DEFAULT_AGENT_BINDING),
+      buildAgentBinding: descriptor => new ClaudeCodeAgentBinding(descriptor),
+      defaultAgent: DEFAULT_AGENT_BINDING,
       apiUrl: 'http://localhost:4321',
       runRepository: new FsRunRepository(),
       spawn: spawnFn,

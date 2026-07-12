@@ -30,7 +30,8 @@ async function buildApp(stdoutLines: string[] = []) {
   const skillRegistry = makeSkillRegistry()
   const skillRunner = new SubprocessSkillRunner({
     skillRegistry,
-    agentBinding: new ClaudeCodeAgentBinding(DEFAULT_AGENT_BINDING),
+    buildAgentBinding: descriptor => new ClaudeCodeAgentBinding(descriptor),
+    defaultAgent: DEFAULT_AGENT_BINDING,
     apiUrl: 'http://localhost:4321',
     runRepository: new FsRunRepository(),
     spawn,
@@ -72,7 +73,8 @@ describe('skill routes', () => {
     const { spawn } = createMockSpawn([])
     const skillRunner = new SubprocessSkillRunner({
       skillRegistry,
-      agentBinding: new ClaudeCodeAgentBinding(DEFAULT_AGENT_BINDING),
+      buildAgentBinding: descriptor => new ClaudeCodeAgentBinding(descriptor),
+      defaultAgent: DEFAULT_AGENT_BINDING,
       apiUrl: 'http://localhost:4321',
       runRepository: new FsRunRepository(),
       spawn,

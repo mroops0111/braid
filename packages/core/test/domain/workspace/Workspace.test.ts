@@ -1,6 +1,5 @@
 import type {
   AbsolutePath,
-  AgentId,
   McpServerConfig,
   McpServerId,
   SourceDescriptor,
@@ -57,20 +56,6 @@ function buildWorkspace(overrides: { mcpServers?: readonly McpServerConfig[] } =
     storage: NEO4J_STORAGE,
   })
 }
-
-describe('Workspace.resolveAgentForTask', () => {
-  it('returns the task-specific binding when one is configured', () => {
-    const workspace = makeWorkspace({
-      agents: { default: 'claude-default' as AgentId, tasks: { ask: 'claude-fast' as AgentId } },
-    })
-    expect(workspace.resolveAgentForTask('ask')).toBe('claude-fast')
-  })
-
-  it('falls back to the default binding when a task is not mapped', () => {
-    const workspace = buildWorkspace()
-    expect(workspace.resolveAgentForTask('unmapped')).toBe('claude-default')
-  })
-})
 
 describe('Workspace source partitions', () => {
   it('splits sources by role into codeSources / intentSources', () => {

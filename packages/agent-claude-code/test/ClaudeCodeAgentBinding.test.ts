@@ -29,8 +29,6 @@ function buildWorkspace(): Workspace {
     name: 'ws-1',
     version: '0.0.0',
     ontologyId: 'ddd' as OntologyId,
-    agents: { default: 'claude-opus' as AgentId, tasks: {} },
-    agentBindings: [descriptor],
     sources: [{
       kind: 'filesystem',
       id: 'code-api' as SourceId,

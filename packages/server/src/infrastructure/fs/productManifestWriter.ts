@@ -1,8 +1,4 @@
 import type {
-  AgentBindingDescriptor,
-  AgentId,
-  AgentKind,
-  AgentRoutingConfig,
   ProductManifest,
   ProductManifestCreate,
   StorageDescriptor,
@@ -16,20 +12,6 @@ import { parseMarkdownFrontmatter } from './frontmatter.js'
 
 const FRONTMATTER_DELIMITER = '---'
 
-const DEFAULT_AGENT_BINDING: AgentBindingDescriptor = {
-  id: 'claude-default' as AgentId,
-  kind: 'claude-code' as AgentKind,
-  model: 'opus',
-  effort: 'high',
-  extraArgs: [],
-  env: {},
-}
-
-const DEFAULT_AGENTS: AgentRoutingConfig = {
-  default: 'claude-default',
-  tasks: {},
-}
-
 const DEFAULT_STORAGE: StorageDescriptor = {
   kind: 'kuzu' as StorageKind,
   config: {},
@@ -37,9 +19,8 @@ const DEFAULT_STORAGE: StorageDescriptor = {
 
 /**
  * Take a user-provided `ProductManifestCreate` and fill in the structural
- * blocks (agent / storage) so the result is a valid, complete
- * `ProductManifest` Zod will accept. Throws if the user's input itself is
- * inconsistent.
+ * blocks (storage) so the result is a valid, complete `ProductManifest` Zod
+ * will accept. Throws if the user's input itself is inconsistent.
  */
 export function fillManifestDefaults(draft: ProductManifestCreate): ProductManifest {
   const manifest = {
@@ -49,8 +30,6 @@ export function fillManifestDefaults(draft: ProductManifestCreate): ProductManif
     ontologyId: draft.ontologyId ?? OntologyId.parse('ddd'),
     sources: draft.sources,
     mcpServers: draft.mcpServers,
-    agents: draft.agents ?? DEFAULT_AGENTS,
-    agentBindings: draft.agentBindings ?? [DEFAULT_AGENT_BINDING],
     storage: draft.storage ?? DEFAULT_STORAGE,
   }
   return ProductManifestSchema.parse(manifest)

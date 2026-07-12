@@ -65,18 +65,6 @@ sources:
 
 mcpServers: []
 
-agents:
-  default: claude-default
-  tasks: {}
-
-agentBindings:
-  - id: claude-default
-    kind: claude-code
-    model: opus
-    effort: high
-    extraArgs: []
-    env: {}
-
 storage:
   kind: kuzu
   config: {}

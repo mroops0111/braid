@@ -23,8 +23,6 @@ async function seedWorkspaceDir(braidHome: string, name: string): Promise<string
   await mkdir(dir, { recursive: true })
   const manifest = `---
 name: ${name}
-agents:
-  default: claude-default
 storage:
   kind: in-memory
   config: {}
@@ -55,8 +53,6 @@ describe('composeFsApp', () => {
       join(discoveredDir, 'PRODUCT.md'),
       `---
 name: auto-discovered
-agents:
-  default: claude-default
 storage:
   kind: in-memory
   config: {}
@@ -85,8 +81,6 @@ storage:
       join(wsDir, 'PRODUCT.md'),
       `---
 name: purge-me
-agents:
-  default: claude-default
 storage:
   kind: in-memory
   config: {}

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { AgentEffort, AgentKind } from './agent.js'
 import { AbsolutePath, PluginId, SkillId, SkillRunId, SourceId, Timestamp, WorkspaceId } from './common.js'
 import { McpServerId } from './mcp.js'
 import { WorkspaceRole } from './workspace.js'
@@ -139,11 +140,22 @@ export const SkillInputOptionsResponse = z.object({
 })
 export type SkillInputOptionsResponse = z.infer<typeof SkillInputOptionsResponse>
 
+// Per-skill agent selection. Every field is optional, unset ones fall back to
+// the server-configured agent, which itself defaults to claude-code.
+export const SkillAgentOverride = z.object({
+  kind: AgentKind.optional(),
+  model: z.string().min(1).optional(),
+  effort: AgentEffort.optional(),
+})
+export type SkillAgentOverride = z.infer<typeof SkillAgentOverride>
+
 // Braid-specific fields under the braid: key so they never collide with Claude Code's own.
 // Read by SubprocessSkillRunner for preflight (env / path / MCP) before spawning.
 export const BraidSkillExtension = z.object({
   requiredEnv: z.array(z.string()).default([]),
   requiredMcpServers: z.array(McpServerId).default([]),
+  // Picks the agent and effort for this skill. Unset falls back to the server default.
+  agent: SkillAgentOverride.optional(),
   category: SkillCategory.optional(),
   // Step number within build, Studio sorts by it. Ignored for ask / generate.
   order: z.number().int().positive().optional(),

@@ -9,7 +9,7 @@ import type {
   Workspace,
   WorkspaceEventBus,
 } from '@braidhq/core'
-import type { AbsolutePath, RunRecord, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, RunRecord, SkillAgentOverride, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import { mkdir, rm, symlink } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -34,7 +34,11 @@ export interface SkillReferenceDir {
 
 export interface SubprocessSkillRunnerDeps {
   readonly skillRegistry: SkillRegistry
-  readonly agentBinding: AgentBinding
+  // Builds an agent binding from a resolved descriptor (composition resolves
+  // the plugin by kind). Called per run so each skill can pick its own agent.
+  readonly buildAgentBinding: (descriptor: AgentBindingDescriptor) => AgentBinding
+  // Fallback agent config for skills that declare no override.
+  readonly defaultAgent: AgentBindingDescriptor
   readonly apiUrl: string
   /** Required: runs persist their event log here as the source of truth for replays. */
   readonly runRepository: RunRepository
@@ -122,7 +126,7 @@ export class SubprocessSkillRunner implements SkillRunner {
           }]
         : [],
     })
-    const invocation = this.deps.agentBinding.resolveSpawn({
+    const invocation = this.bindingFor(manifest.frontmatter.braid.agent).resolveSpawn({
       skillId,
       args,
       workspace,
@@ -375,6 +379,21 @@ export class SubprocessSkillRunner implements SkillRunner {
     }
 
     return sessionDir
+  }
+
+  // Merge a skill's agent override onto the server default, then build the
+  // binding. Unset override fields inherit the default.
+  private bindingFor(override: SkillAgentOverride | undefined): AgentBinding {
+    const base = this.deps.defaultAgent
+    const effort = override?.effort ?? base.effort
+    return this.deps.buildAgentBinding({
+      id: base.id,
+      kind: override?.kind ?? base.kind,
+      model: override?.model ?? base.model,
+      ...(effort ? { effort } : {}),
+      extraArgs: base.extraArgs,
+      env: base.env,
+    })
   }
 
   private now(): string {

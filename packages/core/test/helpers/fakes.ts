@@ -2,7 +2,6 @@
 // keep working. New code should import from `@braidhq/test-utils` directly.
 export {
   at,
-  DEFAULT_AGENT_BINDING,
   FixedClock,
   makeOntology,
   makeSkillManifest,

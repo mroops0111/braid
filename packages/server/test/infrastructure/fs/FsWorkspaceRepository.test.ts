@@ -13,8 +13,6 @@ async function createWorkspaceDir(layout: { name?: string, withManifest?: boolea
   if (layout.withManifest !== false) {
     const manifest = `---
 name: ${layout.name ?? 'demo'}
-agents:
-  default: claude-default
 storage:
   kind: in-memory
   config: {}

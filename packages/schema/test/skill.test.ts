@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   RunRecord,
+  SkillAgentOverride,
   SkillArtifactKind,
   SkillEvent,
   SkillFrontmatter,
@@ -114,6 +115,25 @@ describe('SkillFrontmatter', () => {
     expect(
       SkillFrontmatter.safeParse({ name: '', description: 'x' }).success,
     ).toBe(false)
+  })
+
+  it('accepts a per-skill braid.agent override', () => {
+    const fm = SkillFrontmatter.parse({
+      name: 'braid-extract',
+      description: 'x',
+      braid: { agent: { kind: 'claude-code', effort: 'low' } },
+    })
+    expect(fm.braid.agent?.effort).toBe('low')
+    expect(fm.braid.agent?.kind).toBe('claude-code')
+  })
+})
+
+describe('SkillAgentOverride', () => {
+  it('allows every field to be omitted', () => {
+    expect(SkillAgentOverride.parse({})).toEqual({})
+  })
+  it('rejects an unknown effort', () => {
+    expect(SkillAgentOverride.safeParse({ effort: 'ultra' }).success).toBe(false)
   })
 })
 

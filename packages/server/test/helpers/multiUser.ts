@@ -115,8 +115,6 @@ async function seedCanonicalWorkspace(braidHome: string, name: string): Promise<
   await mkdir(dir, { recursive: true })
   const manifest = `---
 name: ${name}
-agents:
-  default: claude-default
 storage:
   kind: in-memory
   config: {}

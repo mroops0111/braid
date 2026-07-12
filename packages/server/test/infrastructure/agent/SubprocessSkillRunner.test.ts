@@ -1,9 +1,10 @@
-import type { AbsolutePath, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, SkillAgentOverride, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
 import { mkdir, mkdtemp, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ClaudeCodeAgentBinding } from '@braidhq/agent-claude-code'
 import {
+  type AgentBinding,
   SkillManifest,
   type SkillRegistry,
   type SkillRunner as SkillRunnerPort,
@@ -30,6 +31,8 @@ interface BuildRunnerInput {
   readonly clock?: () => string
   readonly runRepository?: FsRunRepository
   readonly skillRegistry?: SkillRegistry
+  readonly skillAgent?: SkillAgentOverride
+  readonly buildAgentBinding?: (descriptor: AgentBindingDescriptor) => AgentBinding
 }
 
 interface BuiltRunner {
@@ -41,12 +44,13 @@ interface BuiltRunner {
 }
 
 async function buildRunner(input: BuildRunnerInput): Promise<BuiltRunner> {
-  const skillRegistry = input.skillRegistry ?? await makeSkillRegistry(input.rootPath)
+  const skillRegistry = input.skillRegistry ?? await makeSkillRegistry(input.rootPath, input.skillAgent)
   const runRepository = input.runRepository ?? new FsRunRepository()
   const { spawn, invocations } = createMockSpawn(input.sequence ?? [{ stdoutLines: [], exitCode: 0 }])
   const runner = new SubprocessSkillRunner({
     skillRegistry,
-    agentBinding: new ClaudeCodeAgentBinding(DEFAULT_AGENT_BINDING),
+    buildAgentBinding: input.buildAgentBinding ?? (descriptor => new ClaudeCodeAgentBinding(descriptor)),
+    defaultAgent: DEFAULT_AGENT_BINDING,
     apiUrl: 'http://localhost:4321',
     runRepository,
     spawn,
@@ -63,7 +67,7 @@ async function makeWorkspaceRoot(): Promise<AbsolutePath> {
   return (await mkdtemp(join(tmpdir(), 'braid-runner-'))) as AbsolutePath
 }
 
-async function makeSkillRegistry(skillSourceParent: AbsolutePath): Promise<SkillRegistry> {
+async function makeSkillRegistry(skillSourceParent: AbsolutePath, agent?: SkillAgentOverride): Promise<SkillRegistry> {
   // Materialise a real SKILL.md under skillSourceParent/<id>/ so the runner's
   // session-dir builder can symlink it; tests that don't care about the
   // session-dir layout still get a valid manifest.
@@ -82,6 +86,7 @@ async function makeSkillRegistry(skillSourceParent: AbsolutePath): Promise<Skill
         requiredEnv: [],
         requiredMcpServers: [],
         allowedRoles: ['owner', 'maintainer'],
+        ...(agent ? { agent } : {}),
       },
     },
   })
@@ -132,6 +137,26 @@ describe('SubprocessSkillRunner', () => {
     expect(events.map(event => event.type)).toEqual(['started', 'message', 'tool-call', 'completed'])
     expect(invocations).toHaveLength(1)
     expect(invocations[0]?.command).toBe('claude')
+  })
+
+  it('merges a skill agent override onto the server default', async () => {
+    const rootPath = await makeWorkspaceRoot()
+    let captured: AgentBindingDescriptor | undefined
+    const { runner, workspace } = await buildRunner({
+      rootPath,
+      skillAgent: { effort: 'low', model: 'haiku' },
+      buildAgentBinding: (descriptor) => {
+        captured = descriptor
+        return new ClaudeCodeAgentBinding(descriptor)
+      },
+    })
+
+    await collectRunEvents(runner, workspace, '')
+
+    // Override wins for effort / model, kind inherits the server default.
+    expect(captured?.effort).toBe('low')
+    expect(captured?.model).toBe('haiku')
+    expect(captured?.kind).toBe(DEFAULT_AGENT_BINDING.kind)
   })
 
   it('spawns inside a session dir that symlinks every registered skill and reference dir', async () => {

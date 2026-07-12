@@ -1,5 +1,5 @@
 import type { AgentPlugin, OntologyPlugin, SourceLoaderPlugin, StoragePlugin } from '@braidhq/core'
-import type { AbsolutePath, AgentEffort, StorageKind, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, AgentEffort, StorageKind, WorkspaceId } from '@braidhq/schema'
 import type { AppDependencies } from './composition.js'
 import { spawn } from 'node:child_process'
 import { homedir } from 'node:os'
@@ -242,16 +242,17 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     },
   )
 
-  // Resolve the active agent plugin and build its binding.
+  // Server default agent. Each skill can override kind/model/effort in its
+  // SKILL.md frontmatter, merged onto this at run time by the skill runner.
   const agentKind = AgentKind.parse(options.agentKind ?? 'claude-code')
-  const agentBinding = pluginRegistry.requireAgentPlugin(agentKind).createBinding({
-    id: AgentId.parse('default'),
+  const defaultAgent: AgentBindingDescriptor = {
+    id: AgentId.parse('claude-code'),
     kind: agentKind,
     model: options.agentModel ?? 'opus',
     effort: options.agentEffort ?? 'high',
     extraArgs: [],
     env: {},
-  })
+  }
 
   const runRepository = new FsRunRepository()
 
@@ -288,7 +289,8 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   })
   const skillRunner = new SubprocessSkillRunner({
     skillRegistry,
-    agentBinding,
+    buildAgentBinding: descriptor => pluginRegistry.requireAgentPlugin(descriptor.kind).createBinding(descriptor),
+    defaultAgent,
     apiUrl,
     runRepository,
     eventBus,

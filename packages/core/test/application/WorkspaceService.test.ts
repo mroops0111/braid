@@ -1,4 +1,4 @@
-import type { AbsolutePath, AgentId, OntologyId, ProductManifest, StorageKind, Workspace as WorkspaceData, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, OntologyId, ProductManifest, StorageKind, Workspace as WorkspaceData, WorkspaceId } from '@braidhq/schema'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { NotFoundError, PluginRegistry, Workspace, WorkspaceService } from '../../src/index.js'
 import { InMemoryWorkspaceRepository } from '../../src/testing.js'
@@ -9,8 +9,6 @@ const productManifest: ProductManifest = {
   name: 'demo',
   version: '0.0.0',
   ontologyId: 'ddd' as OntologyId,
-  agents: { default: 'claudeCode' as AgentId, tasks: {} },
-  agentBindings: [],
   sources: [],
   mcpServers: [],
   storage: { kind: 'in-memory' as StorageKind, config: {} },
