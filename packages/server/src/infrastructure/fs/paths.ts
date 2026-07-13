@@ -6,9 +6,9 @@ export const PROPOSAL_STATUSES: readonly ProposalStatus[] = ['pending', 'applied
 export const CLARIFY_STATUSES: readonly ClarifyStatus[] = ['pending', 'answered', 'applied', 'skipped']
 
 /**
- * Path-prefix containment check. Both inputs must be absolute. Handles
- * the `/foo/bar-evil` vs `/foo/bar/` aliasing gotcha by normalising the
- * parent with a trailing slash before `startsWith`.
+ * Path-prefix containment check. Both inputs must be absolute.
+ * Handles the `/foo/bar-evil` vs `/foo/bar/` aliasing gotcha,
+ * normalising the parent with a trailing slash before `startsWith`.
  */
 export function isUnder(candidate: string, parent: string): boolean {
   const normalisedParent = parent.endsWith('/') ? parent : `${parent}/`
@@ -47,9 +47,8 @@ export function sourceUnitObservationFilePath(
   sourceId: string,
   relativePath: string,
 ): string {
-  // Drop trailing slash from folder units so file name doesn't end in
-  // `/.json`. Replace path separators inside the unit name with `__`
-  // so a multi-level folder unit still maps to one file.
+  // Drop the trailing slash from folder units, so the file name doesn't end in `/.json`.
+  // Replace path separators in the unit name with `__`, so a multi-level folder unit still maps to one file.
   const trimmed = relativePath.endsWith('/') ? relativePath.slice(0, -1) : relativePath
   const flattened = trimmed.replace(/\//g, '__')
   return join(sourceUnitObservationDir(workspaceRoot), sourceId, `${flattened}.json`)
@@ -102,9 +101,8 @@ export function runSessionsMetadataPath(workspaceRoot: AbsolutePath): string {
   return join(runsDir(workspaceRoot), 'sessions.jsonl')
 }
 
-// claude stores conversation memory keyed by cwd, so resume must spawn from
-// the same dir as the first turn. Putting it inside the workspace (not /tmp)
-// keeps the path derivable from runId and lets it survive a server restart.
+// claude stores conversation memory keyed by cwd, so resume must spawn from the same dir as the first turn.
+// Putting it inside the workspace, not /tmp, keeps the path derivable from runId and survives a server restart.
 export function sessionsDir(workspaceRoot: AbsolutePath): string {
   return join(workspaceRoot, '.braid-sessions')
 }

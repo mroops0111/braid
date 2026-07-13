@@ -11,24 +11,22 @@ interface EdgeDetailPanelProps {
   onClose: () => void
   /**
    * Click on the From / To node row jumps to that node's detail.
-   * The parent is expected to swap edge selection for node selection
-   * to keep the mutual-exclusion invariant.
+   * The parent is expected to swap edge selection for node selection to keep the mutual-exclusion invariant.
    */
   onSelectNode: (nodeId: NodeId) => void
   /**
-   * Canvas-only affordance: focus the edge in the layout. Omitted in
-   * the Table view since centering has no meaning there.
+   * Canvas-only affordance: focus the edge in the layout.
+   * Omitted in the Table view since centering has no meaning there.
    */
   onCenterInGraph?: () => void
 }
 
 /**
- * Shared right-side detail panel for selected edges. Mirrors the
- * structure of `NodeDetailPanel` so users get the same vocabulary
- * (Sources section, Centre-in-graph footer) regardless of which kind
- * of element they pick. Edge-specific affordances: typed pill that
- * matches the palette, plus From / To rows that are clickable and
- * jump the user to the relevant node.
+ * Shared right-side detail panel for selected edges.
+ * Mirrors the structure of `NodeDetailPanel` so users get the same vocabulary (Sources section,
+ * Centre-in-graph footer) regardless of which kind of element they pick.
+ * Edge-specific affordances: typed pill that matches the palette,
+ * plus From / To rows that are clickable and jump the user to the relevant node.
  */
 export function EdgeDetailPanel({
   edge,

@@ -33,20 +33,16 @@ import { createWorkspacesRouter } from './routes/workspaces.js'
 export interface AppOptions {
   readonly corsOrigins?: readonly string[]
   /**
-   * Base URL the OpenAPI spec advertises in its `servers[]` block. This
-   * is what downstream consumers (openapi-mcp-gateway, Swagger UI, code
-   * generators, …) use to dispatch REST calls. When unset, the spec is
-   * emitted without `servers[]`, which leaves the consumer to guess.
-   * composeFsApp threads its `apiUrl` through here so the gateway can
-   * route REST calls back to this server without an explicit
-   * `--base-url` flag.
+   * Base URL the OpenAPI spec advertises in its `servers[]` block. Downstream consumers (openapi-mcp-gateway,
+   * Swagger UI, code generators) use it to dispatch REST calls. When unset,
+   * the spec omits `servers[]` and leaves the consumer to guess.
+   * composeFsApp threads its `apiUrl` here so the gateway can route calls back without an explicit `--base-url` flag.
    */
   readonly apiUrl?: string
   /**
-   * When true (or `BRAID_LOCAL_TRUST=true`), the auth middleware lets
-   * every request through and the embedded `userIdMiddleware` falls
-   * back to `local-user`. Set by `composeFs` for the Tauri sidecar;
-   * production remote servers leave it `false`.
+   * When true (or `BRAID_LOCAL_TRUST=true`) the auth middleware lets every request through,
+   * and `userIdMiddleware` falls back to `local-user`.
+   * Set by `composeFs` for the Tauri sidecar. Production remote servers leave it false.
    */
   readonly localTrust?: boolean
 }
@@ -59,11 +55,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       ? corsMiddleware({ allowedOrigins: options.corsOrigins })
       : corsMiddleware(),
   )
-  // Phase B auth gate. In local-trust mode it short-circuits and lets
-  // the unauthenticated request through; otherwise a Bearer token is
-  // required (Google OAuth-issued session). Public routes — `/auth/*`,
-  // `/health` — are excluded inside the middleware so the login flow
-  // itself isn't gated.
+  // Auth gate. Local-trust mode short-circuits, letting the unauthenticated request through.
+  // Otherwise a Bearer token is required, from a Google OAuth-issued session. Public routes (`/auth/*`,
+  // `/health`) are excluded so the login flow itself isn't gated.
   if (deps.sessionStore) {
     const localTrust = options.localTrust ?? deps.localTrust
     app.use('*', authMiddleware({
@@ -71,10 +65,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       localTrust,
     }))
   }
-  // Phase A identity. Stamps `c.set('userId', ...)` from `X-Braid-User`
-  // when the auth layer left it empty — i.e. local-trust mode, or any
-  // public route. Bearer-authenticated requests already have a userId
-  // by the time this runs and pass through untouched.
+  // Identity. Stamps `c.set('userId', ...)` from `X-Braid-User` when the auth layer left it empty,
+  // i.e. local-trust mode or any public route.
+  // Bearer requests already have a userId by the time this runs and pass untouched.
   app.use('*', userIdMiddleware)
   app.onError(errorHandler)
 
@@ -112,18 +105,16 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     ...(deps.bootstrap ? { bootstrap: deps.bootstrap } : {}),
     ...(deps.workspaceRegistry ? { workspaceRegistry: deps.workspaceRegistry } : {}),
     ...(deps.userRegistry ? { userRegistry: deps.userRegistry } : {}),
+    ...(deps.historyService ? { historyService: deps.historyService } : {}),
   }))
   app.route('/workspaces', createWorkspaceEventsRouter({ eventBus: deps.eventBus }))
-  // Server-level plugin discovery: lets Studio render its loader dropdown
-  // from the active PluginRegistry rather than hardcoded strings. Not
-  // workspace-scoped because the answer is "what does this server have
-  // installed", which is identical across workspaces.
+  // Server-level plugin discovery. Lets Studio render its loader dropdown from the active PluginRegistry,
+  // rather than hardcoded strings. The installed loaders are identical across workspaces, so this is not scoped to one.
   app.route('/source-loaders', createSourceLoadersRouter({ pluginRegistry: deps.pluginRegistry }))
 
-  // Public webhook receivers. Authenticated via per-source HMAC secrets
-  // inside the handler (not via Bearer token), so the auth middleware
-  // exempts the `/webhooks/` prefix. Mounted only when a SecretStore is
-  // wired — without it we have nowhere to read secrets from.
+  // Public webhook receivers. Authenticated via per-source HMAC secrets,
+  // inside the handler rather than via Bearer token, so the auth middleware exempts the `/webhooks/` prefix.
+  // Mounted only when a SecretStore is wired, without it we have nowhere to read secrets from.
   if (deps.secretStore) {
     app.route('/webhooks', createGithubWebhookReceiver({
       workspaceService: deps.workspaceService,
@@ -135,10 +126,8 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
 
   const workspaceScoped = new OpenAPIHono()
   workspaceScoped.use('*', workspaceIdMiddleware)
-  // Workspace membership gate. Mounted only when both the workspace
-  // registry and user registry are present (i.e. composeFsApp);
-  // in-memory tests that compose without these stay open so existing
-  // routes keep behaving.
+  // Workspace membership gate. Mounted only when both the workspace registry, and the user registry are present,
+  // i.e. composeFsApp. In-memory tests that compose without these stay open, so existing routes keep behaving.
   if (deps.workspaceRegistry && deps.userRegistry) {
     workspaceScoped.use('*', workspaceAccessMiddleware({
       registry: deps.workspaceRegistry,
@@ -237,12 +226,10 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     }))
   }
 
-  // OpenAPI 3 spec; consumed by openapi-mcp-gateway to surface REST
-  // operations as MCP tools. SSE routes and the OAuth HTML callback
-  // are intentionally absent — they're mounted via app.route() with
-  // plain Hono sub-routers so they don't register with the OpenAPI
-  // registry. The `servers[]` block lets the gateway resolve the
-  // upstream API base URL without an explicit --base-url flag.
+  // OpenAPI 3 spec, consumed by openapi-mcp-gateway, to surface REST operations as MCP tools.
+  // SSE routes and the OAuth HTML callback are intentionally absent,
+  // they mount via app.route() with plain Hono sub-routers, so they don't register with the OpenAPI registry.
+  // The `servers[]` block lets the gateway resolve the upstream API base URL, without an explicit --base-url flag.
   app.doc('/openapi.json', {
     openapi: '3.0.0',
     info: {

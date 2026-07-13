@@ -50,7 +50,9 @@ import { UserDirectoryFromRegistry } from './infrastructure/users/UserDirectoryF
 import { UserRegistryFile } from './infrastructure/users/UserRegistryFile.js'
 
 export interface ComposeFsOptions {
-  /** Where to persist registered workspace paths. Default `$BRAID_HOME` or `~/.braid`. */
+  /**
+   * Where to persist registered workspace paths. Default `$BRAID_HOME` or `~/.braid`.
+   */
   readonly braidHome?: string
   /** URL the server reports to spawned subprocesses for REST callbacks. */
   readonly apiUrl?: string
@@ -59,28 +61,25 @@ export interface ComposeFsOptions {
   /** Coding-agent effort tier (default `high`). */
   readonly agentEffort?: AgentEffort
   /**
-   * Graph storage backend kind. Resolved against the StoragePlugin
-   * registry; default `kuzu`. Set via `BRAID_STORAGE_KIND` env to swap
-   * (e.g. `neo4j` once `@braidhq/storage-neo4j` is registered).
+   * Graph storage backend kind, resolved against the StoragePlugin registry. Default `kuzu`.
+   * Set via `BRAID_STORAGE_KIND` env to swap, e.g. `neo4j` once `@braidhq/storage-neo4j` is registered.
    */
   readonly storageKind?: StorageKind
   /** Coding-agent kind to spawn skill subprocesses with. Default `claude-code`. */
   readonly agentKind?: AgentKind
 
   /**
-   * Extra plugins to register alongside the defaults bundled with this
-   * composition. The defaults bundle is:
-   *   - storage: `kuzuStoragePlugin`
-   *   - ontology: `dddOntology`
-   *   - source-loader: `gitLoader`, `createGithubLoader()`, `createGoogleDriveLoader()`
-   *     (gdrive throws an actionable error at ingest if OAuth env is missing;
-   *     github falls back to anonymous if `${GH_TOKEN}` is unset, subject to
-   *     the 60 req/h public rate limit)
-   *   - agent: `claudeCodeAgentPlugin`
+   * Extra plugins registered alongside the defaults this composition bundles. The defaults bundle is:
+   * - storage: `kuzuStoragePlugin`
+   * - ontology: `dddOntology`
+   * - source-loader: `gitLoader`, `createGithubLoader()`, `createGoogleDriveLoader()`
+   * (gdrive throws an actionable error at ingest if OAuth env is missing,
+   * github falls back to anonymous if `${GH_TOKEN}` is unset,
+   * subject to the 60 req/h public rate limit).
+   * - agent: `claudeCodeAgentPlugin`
    *
    * `composeFsApp` is the opinionated entry that ships with batteries.
-   * Callers who want a different bundle should use `composeApp` directly
-   * with their own pluginRegistry.
+   * Callers who want a different bundle should use `composeApp` directly, with their own pluginRegistry.
    */
   readonly extraStoragePlugins?: readonly StoragePlugin[]
   readonly extraOntologyPlugins?: readonly OntologyPlugin[]
@@ -89,16 +88,14 @@ export interface ComposeFsOptions {
 }
 
 /**
- * Opinionated production composition: real filesystem persistence for
- * workspaces / proposals / clarify / decisions, built-in skills loaded
- * from `@braidhq/core`, and a batteries-included plugin bundle (Kuzu
- * storage / DDD ontology / Git+GDrive source loaders / Claude Code
- * agent).
+ * Opinionated production composition. Filesystem-persists workspaces, proposals, clarify, and decisions.
+ * Built-in skills load from `@braidhq/core`. Ships a batteries-included bundle of Kuzu storage, DDD ontology,
+ * Git and GDrive source loaders, and the Claude Code agent.
  *
  * To run with a different plugin set, either:
- *  1. Pass `extraXxxPlugins` to add alongside defaults + flip `storageKind`
- *     / `agentKind` to pick a different active one, OR
- *  2. Call `composeApp` directly with a `pluginRegistry` you built yourself.
+ * 1. Pass `extraXxxPlugins` to add alongside defaults,
+ * and flip `storageKind` / `agentKind` to pick a different active one.
+ * 2. Call `composeApp` directly with a `pluginRegistry` you built yourself.
  */
 export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppDependencies> {
   const braidHome = options.braidHome ?? process.env.BRAID_HOME ?? join(homedir(), '.braid')
@@ -122,19 +119,16 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   const registry = new WorkspaceRegistryFile(join(braidHome, 'workspaces.json'))
   const workspaceRepository = new FsWorkspaceRepository({ registry })
 
-  // Server-side user roster. Distinct from any workspace's git history:
-  // Auth and ACL belong to the host, not to the product knowledge a
-  // workspace records. Single-user local installs get a `local-user`
-  // bootstrapped here so `userIdMiddleware`'s default actually resolves.
+  // Server-side user roster, distinct from any workspace's git history. Auth and ACL belong to the host,
+  // not to what a workspace records. Single-user local installs get a `local-user` bootstrapped here,
+  // so `userIdMiddleware`'s default actually resolves.
   const userRegistry = new UserRegistryFile(join(braidHome, 'users.json'))
   await ensureLocalUser(userRegistry)
 
-  // Phase B auth. Both files live next to `users.json` under `${BRAID_HOME}`;
-  // never inside a workspace because access control is host state, not
-  // workspace artifact. AccessPolicy reads env at construct time so a
-  // running server doesn't need to be restarted when env changes mid-flight
-  // — but production deployments do restart on config changes, which is
-  // why this is fine to read once.
+  // Phase B auth. Both files live next to `users.json` under `${BRAID_HOME}`, never inside a workspace,
+  // because access control is host state, not a workspace artifact. AccessPolicy reads env at construct time,
+  // so a running server needn't restart when env changes mid-flight.
+  // Production deployments do restart on config changes, which is why reading once is fine.
   const sessionStore = new SessionStore(join(braidHome, 'sessions.json'))
   const accessPolicyConfig: {
     allowedDomains?: readonly string[]
@@ -151,8 +145,8 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   if (adminEmails)
     accessPolicyConfig.adminEmails = adminEmails
   const accessPolicy = new AccessPolicy(join(braidHome, 'access.json'), accessPolicyConfig)
-  // Back-fill approvedEmails for any pre-existing user accounts so the
-  // dynamic allowlist matches the user roster on boot.
+  // Back-fill approvedEmails for any pre-existing user accounts,
+  // so the dynamic allowlist matches the user roster on boot.
   await ensureApprovedEmails(userRegistry, accessPolicy)
   const studioUrl = process.env.BRAID_STUDIO_URL ?? 'http://localhost:5173'
   const workspaceRoots = async (): Promise<ReadonlyMap<WorkspaceId, AbsolutePath>> => {
@@ -163,10 +157,9 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   const proposalRepository = new FsProposalRepository({ workspaceRoots })
   const clarifyRepository = new FsClarifyTicketRepository({ workspaceRoots })
 
-  // Plugin registration. Defaults bundle first, then extras, so a caller
-  // that passes (e.g.) `extraOntologyPlugins: [c4]` ends up with both ddd
-  // and c4 registered; the active one is chosen per-workspace via
-  // PRODUCT.md.ontologyId.
+  // Plugin registration. Defaults bundle first, then extras,
+  // so a caller passing `extraOntologyPlugins: [c4]` gets both ddd and c4.
+  // The active one is chosen per-workspace via PRODUCT.md.ontologyId.
   const pluginRegistry = new PluginRegistry()
   pluginRegistry.register(kuzuStoragePlugin)
   for (const plugin of options.extraStoragePlugins ?? [])
@@ -185,10 +178,9 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   for (const plugin of options.extraAgentPlugins ?? [])
     pluginRegistry.register(plugin)
 
-  // The gdrive loader is always registered so a workspace declaring a
-  // `kind: gdrive` source doesn't crash at plugin lookup. If OAuth env
-  // vars aren't configured, the token resolver throws an actionable
-  // error at ingest time so the user knows exactly what to set.
+  // The gdrive loader is always registered, so a `kind: gdrive` source doesn't crash at plugin lookup.
+  // If OAuth env vars aren't configured, the token resolver throws an actionable error at ingest time,
+  // so the user knows exactly what to set.
   const oauth = googleOAuth
   pluginRegistry.register(createGoogleDriveLoader({
     resolveAccessToken: async ({ workspaceId, sourceId }) => {
@@ -242,8 +234,8 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     },
   )
 
-  // Server default agent. Each skill can override kind/model/effort in its
-  // SKILL.md frontmatter, merged onto this at run time by the skill runner.
+  // Server default agent. A skill overrides kind, model, or effort in its SKILL.md frontmatter,
+  // and the runner merges that onto this default at run time.
   const agentKind = AgentKind.parse(options.agentKind ?? 'claude-code')
   const defaultAgent: AgentBindingDescriptor = {
     id: AgentId.parse('claude-code'),
@@ -256,21 +248,19 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
 
   const runRepository = new FsRunRepository()
 
-  // Built after pluginRegistry is populated so plugin-shipped SKILL.md
-  // files mount under the `plugin` skill origin alongside builtins.
+  // Built after pluginRegistry is populated, so plugin-shipped SKILL.md files mount under the `plugin` origin,
+  // alongside builtins.
   const skillRegistry = new FsSkillRegistry({
     builtinSkillsRoot: builtinSkillsRoot as AbsolutePath,
     pluginRegistry,
   })
 
   const eventBus = new InMemoryWorkspaceEventBus()
-  // Built-in braid-core MCP gateway: each spawned skill gets a stdio
-  // entry that runs `uvx openapi-mcp-gateway` with --transport stdio.
-  // The gateway lifecycle tracks the claude subprocess; no separate
-  // long-running server. Requires `uv` to be installed on PATH; if it
-  // isn't, skip the entry silently — skills with
-  // `requiredMcpServers: ['braid-core']` will surface as not-ready
-  // via SkillManifest.readinessIssuesFor, with a clear pointer.
+  // Built-in braid-core MCP gateway. Each spawned skill gets a stdio entry,
+  // running `uvx openapi-mcp-gateway --transport stdio`. The gateway lifecycle tracks the claude subprocess,
+  // with no separate long-running server. It needs `uv` on PATH. If `uv` is missing, the entry is skipped,
+  // and skills with `requiredMcpServers: ['braid-core']` surface as not-ready, via SkillManifest.readinessIssuesFor,
+  // with a clear pointer.
   const uvxBin = await detectUvx()
   if (!uvxBin) {
     console.warn(
@@ -279,10 +269,12 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     )
   }
   // Build the list of reference dirs symlinked into every skill session:
-  //   - builtin `shared/` from @braidhq/core (Proposal / Clarify / Validator
-  //     format docs, content conventions, drift-detection guidance)
-  //   - whatever each registered plugin contributes (e.g. ontology-ddd's
-  //     concept doc). Plugin contributions resolve `URL` -> absolute path.
+  // - builtin `shared/` from @braidhq/core,
+  // format docs for Proposal, Clarify, Validator, content conventions,
+  // and drift-detection guidance.
+  // - whatever each registered plugin contributes,
+  // for example ontology-ddd's concept doc.
+  // Plugin contributions resolve `URL` to an absolute path.
   const pluginReferenceDirs = pluginRegistry.pluginReferenceDirs().map((ref) => {
     const dir = typeof ref.directory === 'string' ? ref.directory : fileURLToPath(ref.directory)
     return { name: ref.name, path: dir as AbsolutePath }
@@ -303,7 +295,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     ],
   })
 
-  // Shared by WorkspaceBootstrap (boot reconciliation) and HITLService (per-mutation commits).
+  // Shared by WorkspaceBootstrap (boot reconciliation), and HITLService (per-mutation commits).
   const history = new GitWorkspaceHistory()
   const graphSerializer = new FsGraphSerializer()
   const bootstrap = new WorkspaceBootstrap({
@@ -336,39 +328,32 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     userDirectory,
   })
 
-  // Pick up workspaces that exist on disk but aren't in the registry:
-  // CLI-created ones, scaffold-orphans, copies-from-another-machine.
-  // Registry add is idempotent so this is safe to run on every boot.
+  // Pick up workspaces that exist on disk but aren't in the registry. CLI-created ones, scaffold-orphans,
+  // copies from another machine. Registry add is idempotent, so this is safe to run on every boot.
   await discoverCanonicalWorkspaces(workspacesRoot, deps.workspaceService)
 
-  // Phase C migration: stamp `local-user` as owner of any workspace
-  // whose members[] is still empty (pre-Phase-C registry entries,
-  // freshly discovered workspaces). Owner promotion via `/members`
-  // routes can rewrite this later.
+  // Stamp `local-user` as owner of any workspace with an empty members[],
+  // covering older registry entries and freshly discovered workspaces.
+  // Owner promotion via `/members` routes can rewrite this later.
   await ensureWorkspaceOwners(registry)
 
-  // Per-workspace failures are logged and tolerated so one bad dir doesn't block boot.
+  // Per-workspace failures are logged and tolerated, so one bad dir doesn't block boot.
   const bootstrapLog = createLogger('server').child({ mod: 'workspace-bootstrap' })
   for (const workspace of await deps.workspaceService.list()) {
     try {
       await bootstrap.ensure(workspace)
-      // Mark any batch plan left running by a previous process as failed so
-      // the UI doesn't show a phantom spinner. Safe to call even when there
-      // is no plan or when the plan is already terminal.
+      // Mark any batch plan left running by a previous process as failed, so the UI doesn't show a phantom spinner.
+      // Safe to call even when there is no plan, or when it is already terminal.
       await deps.batchService?.reconcileAfterBoot(workspace.id)
-      // Reactor opt-in is per workspace; subscribe only when the
-      // operator has flipped `reactor.enabled` in PRODUCT.md.
+      // Reactor opt-in is per workspace. Subscribe only when the operator flips `reactor.enabled` in PRODUCT.md.
       if (workspace.productManifest.reactor?.enabled)
         await deps.reactorService?.start(workspace.id)
-      // Boot-time sync: webhook deliveries that arrived while the
-      // server was down are unrecoverable (GitHub gives up retries
-      // after a few hours), so on every boot fire a `syncOne` per
-      // source whose loader supports it. Loaders use a persisted
-      // cursor (e.g. `?since=<lastUpdatedAt>`) so a caught-up source
-      // costs one empty round-trip and a stale one fetches only the
-      // missed window. Fire-and-forget so boot stays fast; the
-      // reactor (subscribed above) picks up resulting
-      // `source.synced` events normally.
+      // Boot-time sync catches deliveries missed while the server was down. Those are unrecoverable,
+      // GitHub drops webhook retries after a few hours. So on every boot,
+      // fire a `syncOne` per source whose loader supports it. Loaders use a persisted cursor,
+      // e.g. `?since=<lastUpdatedAt>`, so a caught-up source costs one empty round-trip,
+      // and a stale one fetches only the missed window. Fire-and-forget keeps boot fast. The reactor, subscribed above,
+      // picks up the `source.synced` events.
       for (const source of workspace.sources) {
         if (source.kind !== 'filesystem' || !source.loader)
           continue
@@ -385,12 +370,10 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     }
   }
 
-  // Local trust is the default; production deployments opt into the
-  // Bearer-token gate by setting `BRAID_LOCAL_TRUST=false`. We deliberately
-  // DON'T flip the default just because Google OAuth env vars are
-  // present — those same creds are also used by the Drive source
-  // loader for ingest, so a local dev workspace pulling from Drive
-  // would otherwise get pushed into the Login flow on every reload.
+  // Local trust is the default. Production deployments set `BRAID_LOCAL_TRUST=false` for the Bearer gate.
+  // We don't flip the default when Google OAuth env vars are present,
+  // because those creds also feed the Drive source loader for ingest.
+  // A dev workspace pulling from Drive would otherwise hit the Login flow, on every reload.
   const localTrust = parseBoolEnv(process.env.BRAID_LOCAL_TRUST, true)
 
   return {
@@ -415,12 +398,10 @@ function parseCsv(input: string | undefined): readonly string[] | undefined {
 }
 
 /**
- * Resolve the `uvx` binary path by running `uvx --version`. Returns
- * `'uvx'` when the call succeeds (we let `PATH` resolve it at spawn
- * time so we don't bake an absolute path into mcp-config), or
- * `undefined` when `uv` isn't installed. Honours `BRAID_UVX_BIN` for
- * pinning a specific binary (uv in a non-PATH location, or tests
- * that want to inject a stub).
+ * Resolve the `uvx` binary path by running `uvx --version`. Returns `'uvx'` when the call succeeds.
+ * We let `PATH` resolve it at spawn time, so we don't bake an absolute path into mcp-config.
+ * Returns `undefined` when `uv` isn't installed. Honours `BRAID_UVX_BIN` for pinning a specific binary,
+ * a uv in a non-PATH location, or a stub injected by tests.
  */
 async function detectUvx(): Promise<string | undefined> {
   const pinned = process.env.BRAID_UVX_BIN

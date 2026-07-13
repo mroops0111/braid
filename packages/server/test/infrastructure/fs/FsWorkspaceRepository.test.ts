@@ -80,7 +80,7 @@ describe('FsWorkspaceRepository', () => {
     const liveRoot = AbsolutePath.parse(await createWorkspaceDir({ name: 'alive' }))
     const ghostRoot = AbsolutePath.parse('/tmp/braid-ghost-workspace-does-not-exist')
     const registry = await makeRegistry()
-    // Stamp the stale entry directly; load+save would throw before saving.
+    // Stamp the stale entry directly, load+save would throw before saving.
     await registry.add(ghostRoot)
     await registry.add(liveRoot)
 

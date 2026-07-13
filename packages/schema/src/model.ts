@@ -1,7 +1,20 @@
 import { z } from 'zod'
-import { EdgeId, ExternalReference, NodeId, SkillId, SourceReference, Timestamp } from './common.js'
-import { DriftIssue } from './drift.js'
+import { DriftIssueId, EdgeId, ExternalReference, NodeId, SkillId, SourceReference, Timestamp } from './common.js'
 import { EdgeTypeId, NodeStatus, NodeTypeId } from './ontology.js'
+
+export const DriftSeverity = z.enum(['error', 'warning', 'info'])
+export type DriftSeverity = z.infer<typeof DriftSeverity>
+
+// Re-derived each build, no resolved state. Fix the source or list it in acknowledgedDrifts.
+// Comparison taxonomy lives in the skill prompts, so new dimensions need no migration.
+export const DriftIssue = z.object({
+  id: DriftIssueId,
+  description: z.string().min(1),
+  severity: DriftSeverity,
+  sourceReferences: z.array(SourceReference).min(2),
+  raisedAt: Timestamp,
+})
+export type DriftIssue = z.infer<typeof DriftIssue>
 
 // Only the hard contract here. Authoring rules (length, tone, language) live in the skill layer.
 const nodeName = z.string().min(1).max(200).describe('Human-facing display name, distinct from id.')

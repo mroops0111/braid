@@ -5,14 +5,13 @@ import type { IntentLister } from './BatchService.js'
 import type { SourceUnitObservationService } from './SourceUnitObservationService.js'
 
 /**
- * Compose the "current units on disk" walk with the SourceUnitObservation
- * ledger diff. Reactor and the `GET .../source-unit-states/:sourceId/diff`
- * REST endpoint both consume this so the two surfaces always agree on
- * what is `new` / `changed` / `unchanged` / `orphaned`.
+ * Compose the "current units on disk" walk with the SourceUnitObservation ledger diff.
+ * Reactor and the `GET .../source-unit-states/:sourceId/diff` REST endpoint both consume this,
+ * so the two surfaces always agree on what is `new` / `changed` / `unchanged` / `orphaned`.
  *
- * The function intentionally lives outside `SourceUnitObservationService` so
- * the service stays a pure-ledger port (no filesystem walks, no
- * digest computation); the orchestrator composes the pieces.
+ * The function intentionally lives outside `SourceUnitObservationService`,
+ * so the service stays a pure-ledger port (no filesystem walks,
+ * no digest computation), the orchestrator composes the pieces.
  */
 export interface ComputeSourceDiffDeps {
   readonly intentLister: IntentLister

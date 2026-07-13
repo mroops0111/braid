@@ -1,5 +1,14 @@
+import { T0 as isoTimestamp } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
-import { ProductManifest, Workspace } from '../src/index.js'
+import {
+  ProductManifest,
+  ProductManifestCreate,
+  ProductManifestUpdate,
+  SkillPermission,
+  Workspace,
+  WorkspaceMember,
+  WorkspaceRole,
+} from '../src/index.js'
 
 const baseStorage = { kind: 'neo4j', config: { uri: 'bolt://localhost:7687', user: 'neo4j' } }
 
@@ -70,5 +79,49 @@ describe('Workspace', () => {
     })
     expect(workspace.id).toBe('w-1')
     expect(workspace.productManifest.sources).toEqual([])
+  })
+})
+
+describe('WorkspaceRole', () => {
+  it('has owner, maintainer, guest, with server admin kept off this axis', () => {
+    expect(WorkspaceRole.options).toEqual(['owner', 'maintainer', 'guest'])
+  })
+})
+
+describe('SkillPermission', () => {
+  it('is allow or deny', () => {
+    expect(SkillPermission.options).toEqual(['allow', 'deny'])
+  })
+})
+
+describe('WorkspaceMember', () => {
+  it('parses a member with per-skill overrides', () => {
+    const member = WorkspaceMember.parse({
+      userId: 'u-1',
+      role: 'maintainer',
+      joinedAt: isoTimestamp,
+      skillOverrides: { 'braid-extract': 'deny' },
+    })
+    expect(member.skillOverrides).toEqual({ 'braid-extract': 'deny' })
+  })
+  it('rejects an unknown role', () => {
+    expect(WorkspaceMember.safeParse({ userId: 'u-1', role: 'admin', joinedAt: isoTimestamp }).success).toBe(false)
+  })
+})
+
+describe('ProductManifestUpdate', () => {
+  it('makes every field optional', () => {
+    expect(ProductManifestUpdate.parse({})).toEqual({})
+  })
+})
+
+describe('ProductManifestCreate', () => {
+  it('accepts a scaffold subset with storage left to the server', () => {
+    const created = ProductManifestCreate.parse({ name: 'demo' })
+    expect(created.sources).toEqual([])
+    expect(created.storage).toBeUndefined()
+  })
+  it('still requires a name', () => {
+    expect(ProductManifestCreate.safeParse({}).success).toBe(false)
   })
 })

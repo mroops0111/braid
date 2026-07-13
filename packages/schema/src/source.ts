@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { AbsolutePath, SourceId } from './common.js'
+import { AbsolutePath, PluginId, SourceId } from './common.js'
 import { McpServerId } from './mcp.js'
 
 export const SourceRole = z.enum(['code', 'intent'])
@@ -55,3 +55,17 @@ export const SourceDescriptor = z.discriminatedUnion('kind', [
   McpSourceDescriptor,
 ])
 export type SourceDescriptor = z.infer<typeof SourceDescriptor>
+
+// Projection for the source-loaders endpoint, minus the client-side config schema.
+export const SourceLoaderEntry = z.object({
+  kind: LoaderKind,
+  pluginId: PluginId,
+  // Studio gates the webhook panel on this flag, not kind, so new loaders need no UI change.
+  webhook: z.boolean().default(false),
+})
+export type SourceLoaderEntry = z.infer<typeof SourceLoaderEntry>
+
+export const ListSourceLoadersResponse = z.object({
+  loaders: z.array(SourceLoaderEntry),
+})
+export type ListSourceLoadersResponse = z.infer<typeof ListSourceLoadersResponse>

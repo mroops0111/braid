@@ -39,11 +39,10 @@ export interface ReactorServiceDeps {
   readonly reactorCycleRepository: ReactorCycleRepository
   readonly clock: Clock
   /**
-   * Required. Two `source.synced` events for the same workspace
-   * arriving simultaneously must not both bypass the throttle — the
-   * lock serialises pass execution per workspace. The same lock
-   * instance HITLService / HistoryService use is fine; the reactor
-   * holds its own critical section so it does not block their writes.
+   * Required.
+   * Two `source.synced` events for the same workspace arriving simultaneously must not both bypass the throttle.
+   * The lock serialises pass execution per workspace. Sharing the HITLService or HistoryService lock instance is fine,
+   * the reactor holds its own critical section, it never blocks writes.
    */
   readonly workspaceLock: PerWorkspaceLock
 }
@@ -54,10 +53,9 @@ const HOUR_MS = 60 * 60 * 1000
 const DEFAULT_MAX_RUNS_PER_HOUR = 5
 
 /**
- * Rolling 1h sliding-window counter of reactor dispatches. Encapsulates
- * the "is this workspace over its cap right now" question and the
- * accompanying clock-based pruning so the service code does not mix a
- * predicate with a mutating side effect.
+ * Rolling 1h sliding-window counter of reactor dispatches.
+ * Encapsulates the "is this workspace over its cap right now" question and the accompanying clock-based pruning,
+ * so the service code does not mix a predicate with a mutating side effect.
  */
 class ThrottleWindow {
   private readonly timestamps: number[] = []
@@ -84,11 +82,9 @@ class ThrottleWindow {
 }
 
 /**
- * Per-pass context the orchestrator threads through its substeps. The
- * `pass` reference is the authoritative state object — every helper
- * mutates it through small `update*` methods and `persist()` saves the
- * latest snapshot so Studio's Activity page can render the live pass
- * without re-deriving anything.
+ * Per-pass context the orchestrator threads through its substeps.
+ * The `pass` reference is the authoritative state object. Every helper mutates it through small `update*` methods,
+ * and `persist()` saves the latest snapshot, so Studio's Activity page renders the live pass without re-deriving.
  */
 interface PassContext {
   readonly workspace: Workspace
@@ -98,28 +94,22 @@ interface PassContext {
 }
 
 /**
- * Reactor implementation. Listens to `source.synced` events on the
- * `WorkspaceEventBus` and, for intent-role sources, runs the active
- * ontology's per-unit skill against the diff between current units on
- * disk and the recorded `SourceUnitObservation` ledger. After all per-unit
- * dispatches settle, runs one ontology checkpoint pass when at least
- * one per-unit succeeded.
+ * Reactor implementation. Listens to `source.synced` events on the `WorkspaceEventBus` and, for intent-role sources,
+ * runs the active ontology's per-unit skill against the diff between current units on disk,
+ * and the recorded `SourceUnitObservation` ledger.
+ * After all per-unit dispatches settle, runs one ontology checkpoint pass when at least one per-unit succeeded.
  *
- * Two outputs per pass: a `ReactorCycle` record persisted via
- * `ReactorCycleRepository` (queryable via REST + the Studio Activity
- * page), and a stream of SSE events on the workspace bus the page
- * subscribes to for live updates. The two surfaces agree by
- * construction — every event corresponds to a save.
+ * Two outputs per pass. A `ReactorCycle` record persisted via `ReactorCycleRepository`,
+ * queryable via REST and the Studio Activity page.
+ * A stream of SSE events on the workspace bus the page subscribes to for live updates.
+ * The two surfaces agree by construction, every event corresponds to a save.
  *
- * Locked decisions (per #29):
- *   - per-unit dispatch (not batched), sequential (no concurrency)
- *   - intent-role only; `role: 'code'` sources fall through
- *   - first-ingest does NOT fire reactor; the operator runs
- *     `cmd.runBatch` for the initial corpus
- *   - throttle: rolling 1h window per workspace; the (N+1)th dispatch
- *     emits `reactor.throttled` and drops
- *   - no gate assumption: emits `reactor.completed` and stops; apply
- *     stays with upstream layers
+ * Locked decisions.
+ * - per-unit dispatch (not batched), sequential (no concurrency)
+ * - intent-role only, `role: 'code'` sources fall through
+ * - first-ingest does NOT fire reactor, the operator runs `cmd.runBatch` for the initial corpus
+ * - throttle, a rolling 1h window per workspace, the (N+1)th dispatch emits `reactor.throttled` and drops
+ * - no gate assumption, emits `reactor.completed` and stops, apply stays with upstream layers
  */
 export class ReactorService implements Reactor {
   private readonly subscriptions = new Map<WorkspaceId, () => void>()
@@ -150,11 +140,11 @@ export class ReactorService implements Reactor {
   }
 
   /**
-   * Entry point for every qualifying delivery. Serialised per workspace
-   * via `workspaceLock` so two events arriving in the same tick cannot
-   * both bypass the throttle, and so a sync arriving while a previous
-   * pass is mid-flight waits its turn rather than interleaving
-   * per-unit dispatches.
+   * Entry point for every qualifying delivery.
+   * Serialised per workspace via `workspaceLock`,
+   * so two events arriving in the same tick cannot both bypass the throttle,
+   * and so a sync arriving while a previous pass is mid-flight waits its turn,
+   * rather than interleaving per-unit dispatches.
    */
   private async handleSourceSynced(event: SourceSyncedEvent): Promise<void> {
     try {
@@ -178,9 +168,8 @@ export class ReactorService implements Reactor {
       return
     const changedPaths = await this.changedPathsForPass(resolved)
     if (changedPaths.length === 0) {
-      // No-op pass: still persist + emit so the Activity page records
-      // every delivered event consistently and the operator can see
-      // "reactor ran but had nothing to do".
+      // No-op pass. Still persist and emit, so the Activity page records every delivered event consistently,
+      // and the operator can see reactor ran but had nothing to do.
       await this.recordTerminal(resolved, 'completed', 0, false)
       return
     }
@@ -223,10 +212,9 @@ export class ReactorService implements Reactor {
   }
 
   /**
-   * Sequentially dispatch the per-unit skill against each queued unit
-   * then, iff at least one per-unit succeeded, dispatch the checkpoint
-   * skill. A per-unit failure does NOT abort the loop; the failed
-   * unit stays out of the ledger so the next sync retries it.
+   * Sequentially dispatch the per-unit skill against each queued unit then, iff at least one per-unit succeeded,
+   * dispatch the checkpoint skill. A per-unit failure does NOT abort the loop,
+   * the failed unit stays out of the ledger so the next sync retries it.
    */
   private async runDispatchLoop(context: PassContext): Promise<boolean> {
     let anySucceeded = false
@@ -237,10 +225,9 @@ export class ReactorService implements Reactor {
     const checkpointSkillId = context.batchBinding.checkpoint?.skillId
     if (anySucceeded && checkpointSkillId)
       return this.dispatchCheckpoint(context, checkpointSkillId)
-    // No per-unit succeeded (or no checkpoint configured) — there is no
-    // checkpoint pass to report. The terminal `reactor.completed` event
-    // carries `checkpointRan: false`; no separate `checkpoint.completed`
-    // event is emitted, keeping persisted state and event stream in sync.
+    // No per-unit succeeded, or no checkpoint configured, so there is no checkpoint pass to report.
+    // The terminal `reactor.completed` event carries `checkpointRan: false`.
+    // No separate `checkpoint.completed` event is emitted, keeping persisted state and event stream in sync.
     return false
   }
 
@@ -270,12 +257,10 @@ export class ReactorService implements Reactor {
       await this.persistAndEmit(context, this.unitCompleted(context, index, 'failure', total))
       return false
     }
-    // The skill ran cleanly. Recording the observation and persisting the
-    // success state are best-effort follow-ups: if either fails, the unit
-    // is still semantically successful (the skill's side effects have
-    // already happened). Marking it as failure here would cause a
-    // duplicate dispatch on the next sync since the ledger may already
-    // have the new sha, which would silently re-run the skill.
+    // The skill ran cleanly. Recording the observation and persisting success are best-effort. If either fails,
+    // the unit is still semantically successful, its side effects already happened.
+    // Marking it a failure here would cause a duplicate dispatch next sync,
+    // since the ledger may already hold the new sha, silently re-running the skill.
     try {
       await this.deps.sourceUnitObservationService.recordObservation(workspace.id, sourceId, path, runId)
     }
@@ -354,8 +339,6 @@ export class ReactorService implements Reactor {
     await this.deps.reactorCycleRepository.save(context.pass)
     this.deps.eventBus.publish(event)
   }
-
-  // === event builders ====================================================
 
   private dispatched(context: PassContext, totalUnits: number): WorkspaceEvent {
     return {
@@ -439,8 +422,6 @@ export class ReactorService implements Reactor {
   }
 }
 
-// === ReactorCycle mutation helpers =========================================
-
 function makeQueuedUnit(path: string): ReactorUnit {
   return { path, status: 'queued' }
 }
@@ -464,11 +445,10 @@ function isIntentSource(source: SourceDescriptor | undefined): source is SourceD
 }
 
 /**
- * Compute the per-unit skill args for a path. The ontology's `argsFor`
- * is typed against `PlanUnit` (BatchService's domain), but it only
- * reads `name` + `scopeHint`; we honour that contract by passing a
- * minimal synthetic. Keeping the cast in one helper means the rest of
- * the reactor stays free of `as unknown as` casts.
+ * Compute the per-unit skill args for a path.
+ * The ontology's `argsFor` is typed against `PlanUnit` (BatchService's domain),
+ * but it only reads `name` and `scopeHint`, we honour that contract by passing a minimal synthetic.
+ * Keeping the cast in one helper means the rest of the reactor stays free of `as unknown as` casts.
  */
 function argsForPath(binding: OntologyPerUnitBinding, path: string): string {
   if (!binding.argsFor)

@@ -22,13 +22,11 @@ export function newEdgeId(): EdgeId {
 }
 
 /**
- * HITL artifact ids are date-prefixed (`p-YYYY-MM-DD-{short}`,
- * `ct-YYYY-MM-DD-{short}`) so they sort chronologically, fit in narrow
- * UI surfaces without truncation, and match the documented format in
- * `skills/shared/{proposal,clarify}-format.md`. The `now` argument is the Clock
- * reading at creation time. Random suffix is 8 hex chars of a UUID,
- * which is enough to avoid same-day collisions for any plausible
- * proposal volume.
+ * HITL artifact ids are date-prefixed (`p-YYYY-MM-DD-{short}`, `ct-YYYY-MM-DD-{short}`) so they sort chronologically,
+ * fit in narrow UI surfaces without truncation,
+ * and match the documented format in `skills/shared/{proposal,clarify}-format.md`.
+ * The `now` argument is the Clock reading at creation time. Random suffix is 8 hex chars of a UUID,
+ * which is enough to avoid same-day collisions for any plausible proposal volume.
  */
 export function newProposalId(now: Timestamp): ProposalId {
   return `p-${dateOf(now)}-${shortRandom()}` as ProposalId
@@ -39,10 +37,9 @@ export function newClarifyTicketId(now: Timestamp): ClarifyTicketId {
 }
 
 /**
- * Candidate id for user-authored candidates appended via the answer
- * flow. Skill-emitted candidates use their own deterministic naming
- * (`cc-1`, `cc-merge`, …) since the skill mints them at extract time;
- * this minter is only for the "+ Add my own answer" path.
+ * Candidate id for user-authored candidates appended via the answer flow.
+ * Skill-emitted candidates use their own deterministic naming (`cc-1`, `cc-merge`,
+ * and so on) since the skill mints them at extract time. This minter is only for the "+ Add my own answer" path.
  */
 export function newClarifyCandidateId(): ClarifyCandidateId {
   return `cc-${shortRandom()}` as ClarifyCandidateId
@@ -69,10 +66,8 @@ export function newBatchPlanId(now: Timestamp): BatchPlanId {
 }
 
 /**
- * Reactor cycles get date-prefixed ids so the Activity list sorts
- * chronologically without a secondary timestamp lookup. Short suffix
- * is enough — reactor v0 dispatches at most a few per workspace per
- * hour (the throttle caps that).
+ * Reactor cycles get date-prefixed ids so the Activity list sorts chronologically without a secondary timestamp lookup.
+ * Short suffix is enough, reactor v0 dispatches at most a few per workspace per hour (the throttle caps that).
  */
 export function newReactorCycleId(now: Timestamp): ReactorCycleId {
   return `rc-${dateOf(now)}-${shortRandom()}` as ReactorCycleId
@@ -83,10 +78,10 @@ export function newPlanUnitId(): PlanUnitId {
 }
 
 /**
- * Opaque, prefix-tagged userId. Stable across renames: we may add an
- * `email` or `displayName` field on the User row later, but the id
- * itself never changes after creation, so artifacts that captured
- * `reviewedBy: usr-...` keep pointing at the same person.
+ * Opaque, prefix-tagged userId.
+ * Stable across renames: we may add an `email` or `displayName` field on the User row later,
+ * but the id itself never changes after creation,
+ * so artifacts that captured `reviewedBy: usr-...` keep pointing at the same person.
  */
 export function newUserId(): UserId {
   return `usr-${shortRandom()}` as UserId

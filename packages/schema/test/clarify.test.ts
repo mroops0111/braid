@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { ClarifyCandidate, ClarifyFilter, ClarifyStatus, ClarifyTicket } from '../src/index.js'
+import {
+  ClarifyAmbiguityType,
+  ClarifyCandidate,
+  ClarifyFilter,
+  ClarifyOrigin,
+  ClarifyStatus,
+  ClarifyTicket,
+  ClarifyTicketCreate,
+} from '../src/index.js'
 
 describe('ClarifyStatus', () => {
   it('has 4 states', () => {
@@ -93,5 +101,45 @@ describe('ClarifyFilter', () => {
   })
   it('accepts status filter', () => {
     expect(ClarifyFilter.parse({ statuses: ['pending'] }).statuses).toEqual(['pending'])
+  })
+})
+
+describe('ClarifyOrigin', () => {
+  it('is skill or human', () => {
+    expect(ClarifyOrigin.options).toEqual(['skill', 'human'])
+  })
+})
+
+describe('ClarifyAmbiguityType', () => {
+  it('has the four human-filed ambiguity kinds', () => {
+    expect(ClarifyAmbiguityType.options).toEqual(['gap', 'contradiction', 'ambiguous', 'assumption'])
+  })
+})
+
+describe('ClarifyCandidate single-line rule', () => {
+  it('rejects a multi-line description', () => {
+    expect(ClarifyCandidate.safeParse({ id: 'cc-1', description: 'line one\nline two' }).success).toBe(false)
+  })
+})
+
+describe('ClarifyTicketCreate', () => {
+  it('omits server-assigned fields and leaves origin optional', () => {
+    const created = ClarifyTicketCreate.parse({
+      workspaceId: 'w-1',
+      question: 'voidTask vs cancelTask?',
+      candidates: [],
+    })
+    expect(created.origin).toBeUndefined()
+  })
+  it('accepts a human-filed ticket with context and ambiguityType', () => {
+    const created = ClarifyTicketCreate.parse({
+      workspaceId: 'w-1',
+      question: 'is the cap 50 or 99?',
+      candidates: [],
+      origin: 'human',
+      context: 'PRD says 50, code says 99',
+      ambiguityType: 'contradiction',
+    })
+    expect(created.ambiguityType).toBe('contradiction')
   })
 })

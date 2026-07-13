@@ -3,22 +3,31 @@ import { describe, expect, it } from 'vitest'
 
 import {
   RunRecord,
+  SessionMetadata,
   SkillAgentOverride,
   SkillArtifactKind,
+  SkillCategory,
   SkillEvent,
   SkillFrontmatter,
+  SkillInputDescriptor,
+  SkillInputFallback,
+  SkillInputOptionsResponse,
   SkillManifest,
   SkillOrigin,
 } from '../src/index.js'
 
 describe('SkillOrigin', () => {
-  it('accepts builtin / workspace / extension', () => {
-    expect(SkillOrigin.parse('builtin')).toBe('builtin')
-    expect(SkillOrigin.parse('workspace')).toBe('workspace')
-    expect(SkillOrigin.parse('extension')).toBe('extension')
+  it('accepts builtin, plugin, workspace, extension', () => {
+    expect(SkillOrigin.options).toEqual(['builtin', 'plugin', 'workspace', 'extension'])
   })
   it('rejects unknown origin', () => {
     expect(SkillOrigin.safeParse('marketplace').success).toBe(false)
+  })
+})
+
+describe('SkillCategory', () => {
+  it('maps to the Studio sidebar sections', () => {
+    expect(SkillCategory.options).toEqual(['ask', 'build', 'generate'])
   })
 })
 
@@ -134,6 +143,36 @@ describe('SkillAgentOverride', () => {
   })
   it('rejects an unknown effort', () => {
     expect(SkillAgentOverride.safeParse({ effort: 'ultra' }).success).toBe(false)
+  })
+})
+
+describe('SkillInputFallback', () => {
+  it('defaults to text so an empty option set swaps to free-text', () => {
+    expect(SkillInputFallback.parse(undefined)).toBe('text')
+  })
+  it('rejects an unknown fallback', () => {
+    expect(SkillInputFallback.safeParse('hide').success).toBe(false)
+  })
+})
+
+describe('SkillInputDescriptor multi-pick', () => {
+  it('parses a multi-pick backed by a static provider', () => {
+    const input = SkillInputDescriptor.parse({
+      name: 'tags',
+      label: 'Tags',
+      kind: 'multi-pick',
+      provider: { kind: 'static', options: [{ value: 'a', label: 'A' }] },
+    })
+    expect(input.kind).toBe('multi-pick')
+  })
+})
+
+describe('SkillInputOptionsResponse', () => {
+  it('carries dynamic options with an optional sourceId', () => {
+    const res = SkillInputOptionsResponse.parse({
+      items: [{ value: 'intent/cart.md', label: 'cart.md', sourceId: 'src-prd' }],
+    })
+    expect(res.items[0]?.sourceId).toBe('src-prd')
   })
 })
 
@@ -350,5 +389,15 @@ describe('RunRecord', () => {
 
     expect(record.sessionId).toBe('sess-abc')
     expect(record.exitCode).toBe(0)
+  })
+})
+
+describe('SessionMetadata', () => {
+  it('allows a null title, the reviewer has not named the session yet', () => {
+    const meta = SessionMetadata.parse({ sessionId: 'sess-1', title: null, updatedAt: isoTimestamp })
+    expect(meta.title).toBeNull()
+  })
+  it('rejects an empty sessionId', () => {
+    expect(SessionMetadata.safeParse({ sessionId: '', title: null, updatedAt: isoTimestamp }).success).toBe(false)
   })
 })

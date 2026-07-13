@@ -52,7 +52,7 @@ export type OntologyId = z.infer<typeof OntologyId>
 export const UserId = z.string().min(1).brand<'UserId'>()
 export type UserId = z.infer<typeof UserId>
 
-// Whoever acted: a user, or 'system' for autonomous reactor / bootstrap actions.
+// Whoever acted, a user or 'system' for autonomous reactor / bootstrap actions.
 export const Actor = z.union([UserId, z.literal('system')])
 export type Actor = z.infer<typeof Actor>
 

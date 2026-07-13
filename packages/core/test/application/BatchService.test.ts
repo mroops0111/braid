@@ -40,16 +40,14 @@ class FakeSkillRunner implements SkillRunner {
   readonly startCalls: Array<{ skillId: SkillId, args: string, options?: SkillRunOptions }> = []
   // Per-call exit code (default 0). Override by pushing to `exitCodes`.
   exitCodes: number[] = []
-  // Hook fired AFTER start resolves, BEFORE completed event — lets tests
-  // synthesise side effects (creating proposals) that the orchestrator
-  // attributes to this unit via set-difference.
+  // Hook fired AFTER start resolves, BEFORE completed event. Lets tests synthesise side effects, creating proposals,
+  // that the orchestrator attributes to this unit via set-difference.
   onStart?: (skillId: SkillId, runId: SkillRunId) => Promise<void>
 
   async start(_workspace: Workspace, skillId: SkillId, args: string, options?: SkillRunOptions): Promise<SkillRunId> {
     const runId = `r-${this.startCalls.length}` as SkillRunId
     this.startCalls.push({ skillId, args, ...(options ? { options } : {}) })
-    // Defer via setTimeout so the orchestrator's subsequent `subscribe`
-    // registers before `completed` fires (queueMicrotask is too eager).
+    // Defer via setTimeout so `subscribe` registers before `completed`, queueMicrotask is too eager.
     setTimeout(async () => {
       await this.onStart?.(skillId, runId)
       const listener = this.listeners.get(runId)
@@ -156,8 +154,8 @@ async function setup(options: {
   })
   await workspaceRepo.save(workspace)
 
-  // Register a DDD-like ontology with the batch binding the production
-  // ontology declares. Tests assert on the resulting skill ids.
+  // Register a DDD-like ontology, with the batch binding the production ontology declares.
+  // Tests assert on the resulting skill ids.
   const pluginRegistry = new PluginRegistry()
   const workspaceService = new WorkspaceService({ workspaceRepository: workspaceRepo, pluginRegistry })
 
@@ -206,7 +204,7 @@ async function setup(options: {
     hitlService: hitl,
     batchPlanRepository: planRepository,
     intentLister: async (ws) => {
-      // Fake one intent item per intent source so tests can keep asserting unit count by source count.
+      // Fake one intent item per intent source, so tests can keep asserting unit count by source count.
       return ws.intentSources().map(source => ({
         value: `${source.name}/`,
         label: source.name,
@@ -235,7 +233,7 @@ async function setup(options: {
 }
 
 async function flushBatch(planRepository: InMemoryBatchPlanRepository): Promise<BatchPlan> {
-  // The run loop is fire-and-forget; poll the in-memory plan until terminal.
+  // The run loop is fire-and-forget. Poll the in-memory plan until terminal.
   for (let i = 0; i < 200; i++) {
     const plan = await planRepository.load()
     if (plan && (plan.status === 'completed' || plan.status === 'failed' || plan.status === 'stopped'))
@@ -305,8 +303,8 @@ describe('BatchService', () => {
     await service.start(workspace.id, { autoApply: true })
     await flushBatch(planRepository)
 
-    // 2 extracts + 1 final checkpoint = 3 skill runs, each produces a
-    // fresh proposal; with autoApply on, all three get applied.
+    // 2 extracts and 1 final checkpoint make 3 skill runs, each produces a fresh proposal. With autoApply on,
+    // all three get applied.
     expect(hitl.applyCalls).toEqual(['p-1', 'p-2', 'p-3'])
   })
 
@@ -343,7 +341,8 @@ describe('BatchService', () => {
       sources: [codeSource('codebase')],
     })
     await service.start(workspace.id, { autoApply: false })
-    // The orchestrator runs the derive skill in the background; assert the kick-off and mode without driving the loop to completion.
+    // The orchestrator runs the derive skill in the background.
+    // Assert the kick-off and mode without driving the loop to completion.
     expect(skillRunner.startCalls[0]?.skillId).toBe('braid-scan')
     expect((await planRepository.load())?.mode).toBe('derive')
   })
@@ -414,7 +413,7 @@ describe('BatchService', () => {
     await service.start(workspace.id, { autoApply: false })
     const final = await flushBatch(planRepository)
     expect(final.status).toBe('completed')
-    // Nothing to assert on the state store — the service was not wired.
+    // Nothing to assert on the state store, the service was not wired.
   })
 
   it('chunks braid-model every 5 successful extracts and runs a final partial chunk', async () => {

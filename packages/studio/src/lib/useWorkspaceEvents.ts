@@ -5,9 +5,9 @@ import { queryKeys } from './queries'
 
 /**
  * Workspace-scoped runtime events as sent by the server's SSE stream.
- * Keep this in sync with `packages/core/src/domain/events/WorkspaceEvent.ts` —
- * Studio only reads the discriminator to decide which query keys to
- * invalidate, so we don't lose anything by typing payloads loosely here.
+ * Keep this in sync with `packages/core/src/domain/events/WorkspaceEvent.ts`,
+ * Studio only reads the discriminator to decide which query keys to invalidate,
+ * so we don't lose anything by typing payloads loosely here.
  */
 interface WorkspaceEvent {
   type:
@@ -43,15 +43,13 @@ interface WorkspaceEvent {
 }
 
 /**
- * Subscribe to `/workspaces/:id/events` and invalidate matching react-query
- * caches in real time. Mounts once per selected workspace and is reactively
- * teardown when the workspace changes (or the component unmounts), so we
- * never leak a second EventSource for the same workspace.
+ * Subscribe to `/workspaces/:id/events` and invalidate matching react-query caches in real time.
+ * Mounts once per selected workspace and is reactively teardown when the workspace changes (or the component unmounts),
+ * so we never leak a second EventSource for the same workspace.
  *
  * Strategy: the SSE itself only delivers signals (one identifier each).
- * For every signal we re-fetch the relevant list / snapshot endpoint via
- * the existing react-query keys; the freshly-fetched value is what
- * downstream UI consumes. No state lives in this hook.
+ * For every signal we re-fetch the relevant list / snapshot endpoint via the existing react-query keys,
+ * the freshly-fetched value is what downstream UI consumes. No state lives in this hook.
  */
 export function useWorkspaceEvents(workspaceId: string | null): void {
   const queryClient = useQueryClient()
@@ -74,18 +72,16 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
       queryClient.invalidateQueries({ queryKey: queryKeys.modelSnapshot(workspaceId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.nodes(workspaceId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.edges(workspaceId) })
-      // Pre-validation results depend on the current graph; re-fetch
-      // them after any mutation so the Proposals tab can't show stale
-      // "no issues" against a snapshot that changed under it.
+      // Pre-validation results depend on the current graph. Re-fetch after any mutation,
+      // so the Proposals tab can't show stale "no issues" after a change.
       queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId, 'proposals'], exact: false })
     }
     const invalidateWorkspace = (): void => {
       queryClient.invalidateQueries({ queryKey: queryKeys.workspaceDetail(workspaceId) })
     }
 
-    // run.completed implies the graph may have changed (the skill may
-    // have applied operations via the proposal flow) — be liberal and
-    // invalidate runs + proposals + graph.
+    // run.completed implies the graph may have changed. The skill may have applied operations via the proposal flow,
+    // so be liberal and invalidate runs, proposals, and graph.
     source.addEventListener('run.started', invalidateRuns)
     source.addEventListener('run.completed', () => {
       invalidateRuns()
@@ -99,9 +95,9 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
     })
     source.addEventListener('proposal.rejected', invalidateProposals)
     source.addEventListener('clarify.created', invalidateClarify)
-    // `clarify.answered` is just a status update — graph stays untouched
-    // until the braid-clarify skill wraps it into a Proposal and the
-    // user reviews + applies. Don't refresh the graph here.
+    // `clarify.answered` is only a status update, no graph change yet.
+    // braid-clarify later wraps it into a Proposal the user reviews. Applying that Proposal changes the graph,
+    // not this event.
     source.addEventListener('clarify.answered', invalidateClarify)
     source.addEventListener('clarify.applied', () => {
       invalidateClarify()
@@ -112,8 +108,7 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
     source.addEventListener('history.committed', () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.history(workspaceId) })
     })
-    // Restore moved the working tree AND the storage backend; every
-    // workspace-scoped query is potentially stale.
+    // Restore moved the working tree and the storage backend. Every workspace-scoped query is potentially stale.
     source.addEventListener('workspace.restored', () => {
       queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId], exact: false })
     })
@@ -134,7 +129,7 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
     source.addEventListener('batch.failed', invalidateBatch)
     source.addEventListener('batch.checkpoint.started', invalidateBatch)
     source.addEventListener('batch.checkpoint.completed', () => {
-      // Model run cross-links nodes & runs validators — graph can shift.
+      // Model run cross-links nodes and runs validators, the graph can shift.
       invalidateBatch()
       invalidateProposals()
       invalidateGraph()
@@ -145,17 +140,15 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
       queryClient.invalidateQueries({ queryKey: ['reactor-cycles', workspaceId], exact: false })
     }
     const invalidatePassFinished = (): void => {
-      // Per-option badges (extracted / stale) live behind the diff
-      // endpoint; refresh them when the reactor finishes a pass so the
-      // dropdown's freshness chips reflect the new ledger.
+      // Per-option badges (extracted / stale) live behind the diff endpoint.
+      // Refresh them when the reactor finishes a cycle, so the dropdown's freshness chips reflect the new ledger.
       queryClient.invalidateQueries({ queryKey: ['source-unit-diff', workspaceId], exact: false })
       // Reactor writes Proposals through the per-unit skill it dispatches.
       invalidateProposals()
       invalidateGraph()
       invalidateReactorCycles()
     }
-    // Every reactor.* event mutates the pass record. The Activity page
-    // is live-updating, so invalidate on every signal.
+    // Every reactor.* event mutates the cycle record. The Activity page is live, so invalidate on every signal.
     source.addEventListener('reactor.dispatched', invalidateReactorCycles)
     source.addEventListener('reactor.unit.started', invalidateReactorCycles)
     source.addEventListener('reactor.unit.completed', invalidateReactorCycles)

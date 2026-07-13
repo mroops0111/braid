@@ -10,22 +10,20 @@ import { sourceUnitObservationDir, sourceUnitObservationFilePath, sourceUnitObse
 
 export interface FsSourceUnitObservationRepositoryOptions {
   /**
-   * Lookup of `workspaceId → workspaceRoot`. Shared with the other Fs
-   * repositories so this repo doesn't introduce a separate dependency
-   * on `WorkspaceService`. `composeFs.ts` builds a single closure once
-   * and passes it to every fs repo.
+   * Lookup of `workspaceId to workspaceRoot`.
+   * Shared with the other Fs repositories so this repo doesn't introduce a separate dependency on `WorkspaceService`.
+   * `composeFs.ts` builds a single closure once and passes it to every fs repo.
    */
   readonly workspaceRoots: () => Promise<ReadonlyMap<WorkspaceId, AbsolutePath>>
 }
 
 /**
- * Filesystem-backed `SourceUnitObservationRepository`. One JSON file per
- * entity at `artifacts/source-unit-state/<sourceId>/<encoded-path>.json`,
+ * Filesystem-backed `SourceUnitObservationRepository`.
+ * One JSON file per entity at `artifacts/source-unit-state/<sourceId>/<encoded-path>.json`,
  * matching the file-per-entity pattern used by proposals / clarify.
  *
- * The file body is exactly the `SourceUnitObservation` shape; no wrapper or
- * envelope. A future SQLite or Postgres impl maps each file to one row
- * with composite PK `(workspaceId, sourceId, path)`.
+ * The file body is exactly the `SourceUnitObservation` shape, no wrapper or envelope.
+ * A future SQLite or Postgres impl maps each file to one row with composite PK `(workspaceId, sourceId, path)`.
  */
 export class FsSourceUnitObservationRepository implements SourceUnitObservationRepository {
   constructor(private readonly options: FsSourceUnitObservationRepositoryOptions) {}

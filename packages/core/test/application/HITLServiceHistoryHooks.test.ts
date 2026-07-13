@@ -188,8 +188,7 @@ describe('HITLService — workspace history hooks', () => {
     expect(message.kind).toBe('proposal-apply')
     expect(message.proposalId).toBe(proposal.id)
     expect(message.userId).toBe(userId)
-    // Write must precede commit so the commit's tree captures the new
-    // graph state.
+    // Write must precede commit, so the commit's tree captures the new graph state.
     expect(serializer.write.mock.invocationCallOrder[0]!)
       .toBeLessThan(history.commit.mock.invocationCallOrder[0]!)
   })

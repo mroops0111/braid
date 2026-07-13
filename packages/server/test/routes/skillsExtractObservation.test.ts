@@ -68,11 +68,9 @@ async function buildAppForExtract(opts: { exitCode: number, perUnitSkillId?: str
     runRepository: new FsRunRepository(),
     spawn,
   })
-  // Register an ontology whose batch.perUnit.skillId matches the
-  // workspace's ontologyId so the route knows which skill is allowed
-  // to carry sourceUnit. Default keeps the production wiring (extract
-  // is the per-unit skill); a test that wants the active ontology to
-  // disagree (or have no perUnit at all) can override.
+  // Register an ontology whose batch.perUnit.skillId matches the ontologyId,
+  // so the route knows which skill may carry sourceUnit. Default keeps the production wiring,
+  // extract is the per-unit skill. A test wanting the active ontology to disagree can override.
   const pluginRegistry = new PluginRegistry()
   pluginRegistry.register(ontologyWithPerUnit(opts.perUnitSkillId ?? 'braid-extract'))
   const deps = composeApp({
@@ -111,10 +109,8 @@ async function waitForRunSettled(deps: Awaited<ReturnType<typeof buildAppForExtr
 }
 
 /**
- * Fake child process that does nothing until killed. On `kill(signal)`
- * it emits the `close` event with `(code=null, signal)` so the
- * runner's exitCode mapping (line 256-264 of SubprocessSkillRunner)
- * sees a signal-terminated exit.
+ * Fake child process that does nothing until killed. On `kill(signal)` it emits the `close` event with `(code=null,
+ * signal)` so the runner's exitCode mapping (line 256-264 of SubprocessSkillRunner) sees a signal-terminated exit.
  */
 function createCancellableChild(): ChildProcess {
   const stdout = new Readable({ read() {} })
@@ -205,10 +201,9 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
         path: rootPath,
       }],
     })
-    // A child that never finishes on its own; only the runner's cancel
-    // (kill SIGTERM) wakes it up. After the fix in SubprocessSkillRunner
-    // the close event carries the signal and exitCode 128, so the
-    // observation hook treats it as a failure and skips recordObservation.
+    // A child that never finishes on its own, only the runner's cancel (kill SIGTERM) wakes it up.
+    // The close event carries the signal and exitCode 128,
+    // so the observation hook treats it as a failure and skips recordObservation.
     const spawnFn = (() => createCancellableChild()) as unknown as (
       command: string,
       args: readonly string[],
@@ -245,8 +240,7 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
 
     expect(response.status).toBe(202)
     const body = await response.json() as { runId: string }
-    // Tick once so the runner finishes start() and our background
-    // subscription has a chance to attach before we cancel.
+    // Tick once so the runner finishes start(), and our background subscription attaches before we cancel.
     await new Promise(resolve => setTimeout(resolve, 10))
     await deps.skillRunner!.cancel(body.runId as SkillRunId)
     await waitForRunSettled(deps, body.runId)

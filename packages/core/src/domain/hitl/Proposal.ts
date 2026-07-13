@@ -27,9 +27,8 @@ export class Proposal {
   get ownerDisplayName(): string | undefined { return this.data.ownerDisplayName }
   get externalReferences(): readonly ExternalReference[] | undefined { return this.data.externalReferences }
 
-  // Returns a new Proposal in 'applied' state. Caller is responsible for
-  // persisting the new instance + actually running operations against the
-  // model (we keep entity pure, no side effects).
+  // Returns a new Proposal in 'applied' state. Caller must persist the new instance and run the operations,
+  // we keep the entity pure with no side effects.
   markApplied(userId: UserId, reviewedAt: Timestamp): Proposal {
     this.requirePending('apply')
     return new Proposal({

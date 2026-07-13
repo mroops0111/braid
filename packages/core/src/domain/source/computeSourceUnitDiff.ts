@@ -5,13 +5,11 @@ function key(sourceId: string, path: string): string {
 }
 
 /**
- * Pure partition: given the current set of on-disk units and the
- * existing recorded states, classify each unit as new / changed /
- * unchanged, and call out any state entries whose unit is no longer on
- * disk (orphaned).
+ * Pure partition: given the current set of on-disk units and the existing recorded states,
+ * classify each unit as new / changed / unchanged,
+ * and call out any state entries whose unit is no longer on disk (orphaned).
  *
- * Both inputs are scoped to a single workspace by the caller; this
- * function does not filter on workspaceId.
+ * Both inputs are scoped to a single workspace by the caller, this function does not filter on workspaceId.
  */
 export function computeSourceUnitDiff(
   states: readonly SourceUnitObservation[],

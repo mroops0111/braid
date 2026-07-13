@@ -13,16 +13,14 @@ export interface SourceUnitObservationServiceDeps {
 }
 
 /**
- * Application-level entry point for recording and querying source unit
- * observations. Every orchestrator that runs a skill against a source
- * unit (BatchService today, ReactorService and manual-extract dispatch
- * later) goes through `recordObservation` so the audit and diff
- * primitives stay in one place.
+ * Application-level entry point for recording and querying source unit observations.
+ * Every orchestrator that runs a skill against a source unit (BatchService today,
+ * ReactorService and manual-extract dispatch later) goes through `recordObservation`,
+ * so the audit and diff primitives stay in one place.
  *
- * Reads (`listByWorkspace`, `diffAgainst`) are delegated to the
- * repository / pure diff function. The service exists mostly to (a)
- * fan-in writes with sha computation, and (b) give callers a stable
- * surface even if persistence later moves to a database.
+ * Reads (`listByWorkspace`, `diffAgainst`) are delegated to the repository / pure diff function.
+ * The service exists mostly to (a) fan-in writes with sha computation,
+ * and (b) give callers a stable surface even if persistence later moves to a database.
  */
 export class SourceUnitObservationService {
   constructor(private readonly deps: SourceUnitObservationServiceDeps) {}
@@ -56,9 +54,8 @@ export class SourceUnitObservationService {
   }
 
   /**
-   * Compute the partition of `units` against what's currently recorded
-   * for this workspace. Used by Reactor to decide which units to
-   * re-extract; useful in tests for asserting batch progress.
+   * Compute the partition of `units` against what's currently recorded for this workspace.
+   * Used by Reactor to decide which units to re-extract, useful in tests for asserting batch progress.
    */
   async diffAgainst(workspaceId: WorkspaceId, units: ReadonlyArray<{ sourceId: SourceId, path: string, sha: SourceUnitObservation['lastObservedSha'] }>): Promise<SourceUnitDiff> {
     const states = await this.deps.repository.listByWorkspace(workspaceId)

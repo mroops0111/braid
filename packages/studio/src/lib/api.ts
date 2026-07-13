@@ -43,9 +43,8 @@ import { getTokenFor } from './remotes.js'
 import { getServerUrl, getServerUrlFor } from './serverUrl.js'
 
 export function workspaceEventsUrl(workspaceId: string): string {
-  // EventSource cannot send custom headers, so the Bearer token is
-  // appended as `?token=...` and matched server-side by the auth
-  // middleware for SSE paths only.
+  // EventSource cannot send custom headers, so the Bearer token is appended as `?token=...`,
+  // matched server-side by the auth middleware for SSE paths only.
   const base = `${getServerUrl()}/workspaces/${workspaceId}/events`
   const token = getAuthToken()
   return token ? `${base}?token=${encodeURIComponent(token)}` : base
@@ -67,16 +66,14 @@ export interface AdminUserWorkspace {
 export type AdminUser = User & { workspaces: AdminUserWorkspace[] }
 
 /**
- * GET /workspaces/:ws/clarify/:id response. `skipReason` / `answerNote`
- * are no longer populated — the reviewer's rationale lives in git history
- * now — but kept optional until the detail pane resurfaces them.
+ * GET /workspaces/:ws/clarify/:id response. `skipReason` / `answerNote` are no longer populated,
+ * the reviewer's rationale lives in git history now, but kept optional until the detail pane resurfaces them.
  */
 export type ClarifyTicketDetail = ClarifyTicket & { skipReason?: string, answerNote?: string }
 
 /**
- * POST /workspaces/:ws/clarify body shape — mirrors the server's
- * `CreateBodySchema`. Candidate `id` is optional so the server can
- * mint via `newClarifyCandidateId` for human-authored questions.
+ * POST /workspaces/:ws/clarify body shape, mirrors the server's `CreateBodySchema`.
+ * Candidate `id` is optional so the server can mint via `newClarifyCandidateId` for human-authored questions.
  */
 export interface ClarifySubmitBody {
   question: string
@@ -119,9 +116,8 @@ export interface PatchWorkspaceResult {
 }
 
 /**
- * Caller-friendly error: carries the original status code so the UI can
- * map known cases (404, 409, 400 with specific text) to suggested actions
- * rather than dumping raw `application/problem+json` on the user.
+ * Caller-friendly error: carries the original status code so the UI can map known cases (404, 409,
+ * 400 with specific text) to suggested actions rather than dumping raw `application/problem+json` on the user.
  */
 export class ApiError extends Error {
   constructor(
@@ -141,10 +137,9 @@ async function rawFetch<T>(baseUrl: string, token: string | null, path: string, 
     headers: {
       'Content-Type': 'application/json',
       // Remote mode (Bearer) takes precedence over local mode (X-Braid-User).
-      // The server's `authMiddleware` resolves the Bearer token to a userId
-      // and stamps c.set('userId'); userIdMiddleware then falls through
-      // (already set). Local trust mode leaves c.get('userId') empty so
-      // `X-Braid-User` becomes authoritative.
+      // The server's `authMiddleware` resolves the Bearer token to a userId, and stamps c.set('userId').
+      // userIdMiddleware then falls through, already set. Local trust mode leaves c.get('userId') empty,
+      // so `X-Braid-User` becomes authoritative.
       ...(token
         ? { Authorization: `Bearer ${token}` }
         : { 'X-Braid-User': getCurrentUserId() }),
@@ -171,9 +166,8 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 /**
- * Like `fetchJson` but targets an explicit remote regardless of the active
- * one. The sidebar uses this to enumerate workspaces across every
- * configured server without disturbing the active singleton.
+ * Like `fetchJson` but targets an explicit remote regardless of the active one.
+ * The sidebar uses this to enumerate workspaces across every configured server without disturbing the active singleton.
  */
 async function fetchJsonAt<T>(remoteId: string, path: string, init?: RequestInit): Promise<T> {
   return rawFetch<T>(getServerUrlFor(remoteId), getTokenFor(remoteId), path, init)
@@ -248,8 +242,7 @@ export const api = {
   listWorkspacesAt: (remoteId: string) =>
     fetchJsonAt<ItemList<Workspace>>(remoteId, '/workspaces'),
   // Server-level: what source-loader plugins are registered on this server.
-  // Studio uses this to populate its loader dropdown without hardcoding
-  // `git / github / gdrive`.
+  // Studio uses this to populate its loader dropdown, without hardcoding `git / github / gdrive`.
   listSourceLoaders: () => fetchJson<ListSourceLoadersResponse>('/source-loaders'),
   getWorkspace: (workspaceId: string) =>
     fetchJson<Workspace>(`/workspaces/${workspaceId}`),
@@ -309,10 +302,8 @@ export const api = {
     ),
 
   /**
-   * Diff a source's current units on disk against the recorded ledger.
-   * Reactor consumes this internally; Studio uses it to render
-   * per-option badges ("extracted Nm ago" / "stale" / never seen) on
-   * the source-intent picker.
+   * Diff a source's current units on disk against the recorded ledger. Reactor consumes this internally,
+   * Studio uses it to render per-option badges ("extracted Nm ago" / "stale" / never seen) on the source-intent picker.
    */
   getSourceUnitDiff: (workspaceId: string, sourceId: string) =>
     fetchJson<SourceUnitDiff>(`/workspaces/${workspaceId}/source-unit-states/${sourceId}/diff`),
@@ -378,9 +369,8 @@ export const api = {
   getClarify: (workspaceId: string, ticketId: string) =>
     fetchJson<ClarifyTicketDetail>(`/workspaces/${workspaceId}/clarify/${ticketId}`),
   /**
-   * Server mints any omitted candidate ids — skills supply them
-   * deterministically (cc-1 etc.), human-authored "New question"
-   * candidates leave them out and let `newClarifyCandidateId` fill in.
+   * Server mints any omitted candidate ids, skills supply them deterministically (cc-1 etc.),
+   * human-authored "New question" candidates leave them out and let `newClarifyCandidateId` fill in.
    */
   submitClarify: (workspaceId: string, draft: ClarifySubmitBody) =>
     fetchJson<ClarifyTicket>(`/workspaces/${workspaceId}/clarify`, {
@@ -388,9 +378,9 @@ export const api = {
       body: JSON.stringify(draft),
     }),
   /**
-   * Answer a clarify ticket. `selection` is either picking an existing
-   * candidate or supplying a freshly-written description that the
-   * server appends to the ticket and answers in one transaction.
+   * Answer a clarify ticket.
+   * `selection` is either picking an existing candidate or supplying a freshly-written description,
+   * that the server appends to the ticket and answers in one transaction.
    * `note` is the reviewer's free-form rationale, saved on the answer commit.
    */
   answerClarify: (

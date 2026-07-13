@@ -10,11 +10,10 @@ interface ActivityPageProps {
 }
 
 /**
- * Activity surface — the rich complement to the top-of-app
- * `<ReactorBanner>`. Lists every reactor pass for the workspace
- * (newest first) on the left; renders the selected pass's unit
- * timeline + checkpoint on the right. Live-updates via the
- * `useWorkspaceEvents` query-invalidation hook the App mounts globally,
+ * Activity surface, the rich complement to the top-of-app `<ReactorBanner>`.
+ * Lists every reactor pass for the workspace (newest first) on the left,
+ * renders the selected pass's unit timeline + checkpoint on the right.
+ * Live-updates via the `useWorkspaceEvents` query-invalidation hook the App mounts globally,
  * so the page stays current without its own SSE wiring.
  */
 export function ActivityPage({ workspaceId }: ActivityPageProps) {

@@ -12,10 +12,9 @@ import { readJson } from '../helpers/readJson.js'
 interface ProposalRef { id: string }
 
 /**
- * Phase-2 wiring proof: HITLService's mutation paths must land real
- * commits on the workspace's git repo. This drives the whole stack
- * (route → service → simple-git) instead of mocking history, so we
- * also catch any composition wiring regressions.
+ * Phase-2 wiring proof: HITLService's mutation paths must land real commits on the workspace's git repo.
+ * This drives the whole stack (route to service to simple-git) instead of mocking history,
+ * so we also catch any composition wiring regressions.
  */
 describe('e2e history hooks: applying a proposal writes a commit', () => {
   let braidHome: string
@@ -53,9 +52,8 @@ describe('e2e history hooks: applying a proposal writes a commit', () => {
   })
 
   it('appends an apply commit with Kind / Proposal-Id / Author trailers and updates graph.json', async () => {
-    // Submit a minimal valid proposal: a command node with the
-    // implementationMissing flag so EvidenceValidator is satisfied
-    // without faking sourceReferences.
+    // Submit a minimal valid proposal, a command node with implementationMissing.
+    // That flag satisfies EvidenceValidator without faking sourceReferences.
     const submit = await app.request(`/workspaces/${workspaceId}/proposals`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -85,11 +83,8 @@ describe('e2e history hooks: applying a proposal writes a commit', () => {
     const applied = await readJson<{ status: string }>(apply)
     expect(applied.status).toBe('applied')
 
-    // Real `.git/` should now hold an extra commit on top of the
-    // synthetic `initial:` bootstrap one. We hit simple-git directly
-    // rather than the (Phase-3) history routes so the test pins the
-    // disk-level effect rather than tautologising on the same code
-    // path we're verifying.
+    // The real `.git/` should now hold an extra commit over the initial one. We hit simple-git directly,
+    // not the history routes, so the test pins the disk effect instead of tautologising on our own code.
     const git = simpleGit({ baseDir: workspaceRoot })
     const log = await git.log({ maxCount: 5 })
     expect(log.all.length).toBeGreaterThanOrEqual(2)
@@ -100,8 +95,7 @@ describe('e2e history hooks: applying a proposal writes a commit', () => {
     expect(body).toContain(`Proposal-Id: ${proposalId}`)
     expect(body).toContain(`Author: tester`)
 
-    // graph.json must reflect the post-mutation state — the commit's
-    // tree should include the new node.
+    // graph.json must reflect the post-mutation state, the commit's tree should include the new node.
     const showPath = await git.raw(['show', `${head.hash}:artifacts/graph.json`])
     expect(showPath).toContain('"cmd-place"')
   })
@@ -139,8 +133,7 @@ describe('e2e history hooks: applying a proposal writes a commit', () => {
     const body = await git.raw(['show', '--no-patch', '--format=%B', head.hash])
     expect(body).toContain('Kind: proposal-reject')
     expect(body).toContain(`Proposal-Id: ${proposalId}`)
-    // graph.json shouldn't appear in the diff because reject doesn't
-    // mutate Kùzu nor call the graph serialiser.
+    // graph.json shouldn't appear in the diff, reject doesn't mutate Kùzu nor call the graph serialiser.
     const changed = await git.raw(['show', '--name-only', '--format=', head.hash])
     expect(changed).not.toContain('graph.json')
   })

@@ -13,8 +13,8 @@ export const SourceUnit = z.object({
 })
 export type SourceUnit = z.infer<typeof SourceUnit>
 
-// One record per (workspaceId, sourceId, path), captured at a sha, run, and time.
-// No lifecycle state, just existence plus current sha. Ontology-neutral.
+// One record per (workspaceId, sourceId, path), captured at a sha, run, and time. No lifecycle state,
+// just existence plus current sha. Ontology-neutral.
 export const SourceUnitObservation = z.object({
   workspaceId: WorkspaceId,
   sourceId: SourceId,

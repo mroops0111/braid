@@ -13,15 +13,14 @@ import type {
 } from '@braidhq/schema'
 
 /**
- * Workspace-scoped runtime notifications. Pure transport for the Studio's
- * `useWorkspaceEvents` hook to invalidate react-query caches the moment a
- * server mutation happens. NOT persisted. NOT replayable. Server restart
- * drops anything in flight; clients re-fetch on reconnect.
+ * Workspace-scoped runtime notifications.
+ * Pure transport for the Studio's `useWorkspaceEvents` hook,
+ * to invalidate react-query caches the moment a server mutation happens.
+ * NOT persisted. NOT replayable. Server restart drops anything in flight. Clients re-fetch on reconnect.
  *
- * Anything you'd otherwise have to "click refresh" for should fire here.
- * Keep payloads small: only the identifiers a subscriber needs to know
- * which query keys to invalidate. The fresh value lives behind the
- * existing list / detail endpoints; events are signals, not deliveries.
+ * Anything you'd otherwise have to "click refresh" for should fire here. Keep payloads small,
+ * only the identifiers a subscriber needs to know which query keys to invalidate.
+ * The fresh value lives behind the existing list / detail endpoints. Events are signals, not deliveries.
  */
 export type WorkspaceEvent =
   | RunStartedEvent
@@ -228,11 +227,10 @@ export interface BatchCheckpointFailedEvent {
 }
 
 /**
- * Reactor finished partitioning a synced source and is about to start
- * dispatching per-unit skill runs sequentially. `totalUnits` is the
- * count of units in `new ∪ changed`; subscribers (Studio's banner) use
- * it to render progress against a known total. `passId` keys back into
- * the `ReactorCycle` record for the rich Activity-page view.
+ * Reactor finished partitioning a synced source and is about to start dispatching per-unit skill runs sequentially.
+ * `totalUnits` is the count of units in `new` plus `changed`.
+ * Subscribers (Studio's banner) use it to render progress against a known total.
+ * `passId` keys back into the `ReactorCycle` record for the rich Activity-page view.
  */
 export interface ReactorDispatchedEvent {
   readonly type: 'reactor.dispatched'
@@ -244,10 +242,9 @@ export interface ReactorDispatchedEvent {
 }
 
 /**
- * Reactor finished all per-unit dispatches plus the checkpoint pass for
- * a given source. The full reactor pass is over; Studio clears the
- * banner. `checkpointRan` distinguishes the "0 changed units, no
- * checkpoint needed" case from the normal flow.
+ * Reactor finished all per-unit dispatches plus the checkpoint pass for a given source. The full reactor pass is over,
+ * Studio clears the banner. `checkpointRan` distinguishes the "0 changed units,
+ * no checkpoint needed" case from the normal flow.
  */
 export interface ReactorCompletedEvent {
   readonly type: 'reactor.completed'
@@ -260,10 +257,9 @@ export interface ReactorCompletedEvent {
 }
 
 /**
- * Reactor refused to dispatch because the rolling 1h window already hit
- * the workspace's `maxRunsPerHour`. The triggering `source.synced` is
- * acknowledged and dropped; the operator's next manual sync (or
- * another reactor pass after the window slides) will re-attempt.
+ * Reactor refused to dispatch because the rolling 1h window already hit the workspace's `maxRunsPerHour`.
+ * The triggering `source.synced` is acknowledged and dropped.
+ * The operator's next manual sync (or another reactor pass after the window slides) will re-attempt.
  */
 export interface ReactorThrottledEvent {
   readonly type: 'reactor.throttled'
@@ -275,9 +271,8 @@ export interface ReactorThrottledEvent {
 }
 
 /**
- * Per-unit start signal. Studio's Activity page uses it to advance the
- * highlighted row in the running pass's timeline; the banner uses
- * `processed`/`total` to render the "3/15" progress text.
+ * Per-unit start signal. Studio's Activity page uses it to advance the highlighted row in the running pass's timeline.
+ * The banner uses `processed`/`total` to render the "3/15" progress text.
  */
 export interface ReactorUnitStartedEvent {
   readonly type: 'reactor.unit.started'
@@ -291,9 +286,8 @@ export interface ReactorUnitStartedEvent {
 }
 
 /**
- * Per-unit completion signal. `status` carries whether the dispatched
- * skill exited cleanly. A failure does NOT abort the loop — the next
- * unit still starts.
+ * Per-unit completion signal. `status` carries whether the dispatched skill exited cleanly.
+ * A failure does NOT abort the loop, the next unit still starts.
  */
 export interface ReactorUnitCompletedEvent {
   readonly type: 'reactor.unit.completed'
@@ -307,9 +301,8 @@ export interface ReactorUnitCompletedEvent {
 }
 
 /**
- * Checkpoint skill is about to start (only fires when at least one
- * per-unit dispatch succeeded AND the ontology declares a checkpoint
- * binding).
+ * Checkpoint skill is about to start (only fires when at least one per-unit dispatch succeeded,
+ * and the ontology declares a checkpoint binding).
  */
 export interface ReactorCheckpointStartedEvent {
   readonly type: 'reactor.checkpoint.started'
@@ -321,10 +314,9 @@ export interface ReactorCheckpointStartedEvent {
 }
 
 /**
- * Checkpoint skill finished. `status === 'skipped'` means the pass
- * decided not to run the checkpoint (no successful per-unit, or no
- * checkpoint binding) — kept here so the Activity timeline always has
- * a terminal entry for the checkpoint row.
+ * Checkpoint skill finished.
+ * `status === 'skipped'` means the pass decided not to run the checkpoint (no successful per-unit,
+ * or no checkpoint binding), kept here so the Activity timeline always has a terminal entry for the checkpoint row.
  */
 export interface ReactorCheckpointCompletedEvent {
   readonly type: 'reactor.checkpoint.completed'

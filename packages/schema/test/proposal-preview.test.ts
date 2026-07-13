@@ -81,7 +81,7 @@ describe('previewProposal', () => {
     const { snapshot: next, diff } = previewProposal(base, [
       { operation: 'updateNode', nodeId: 'n1' as NodeId, patch: { description: undefined } },
     ])
-    // description should NOT be wiped out — undefined means "no change"
+    // description should NOT be wiped out, undefined means no change
     expect(next.nodes[0]!.description).toBe('kept-desc')
     expect(diff.nodes.has('n1' as NodeId)).toBe(false)
   })
@@ -155,5 +155,158 @@ describe('previewProposal', () => {
     expect(next.nodes).toEqual(base.nodes)
     expect(diff.nodes.size).toBe(0)
     expect(diff.edges.size).toBe(0)
+  })
+
+  it('marks a node updated when a sourceReference sourceId changes', () => {
+    const base = snapshot([node('n1', {
+      metadata: { sourceReferences: [{ sourceId: 'prd' as never, location: { uri: 'doc.md' as never } }] },
+    })])
+    const { diff } = previewProposal(base, [
+      {
+        operation: 'updateNode',
+        nodeId: 'n1' as NodeId,
+        patch: { metadata: { sourceReferences: [{ sourceId: 'code' as never, location: { uri: 'doc.md' as never } }] } },
+      },
+    ])
+    expect(diff.nodes.get('n1' as NodeId)).toBe('updated')
+  })
+
+  it('marks a node updated when only a sourceReference location line changes', () => {
+    const base = snapshot([node('n1', {
+      metadata: { sourceReferences: [{ sourceId: 'prd' as never, location: { uri: 'doc.md' as never, startLine: 1 } }] },
+    })])
+    const { diff } = previewProposal(base, [
+      {
+        operation: 'updateNode',
+        nodeId: 'n1' as NodeId,
+        patch: { metadata: { sourceReferences: [{ sourceId: 'prd' as never, location: { uri: 'doc.md' as never, startLine: 2 } }] } },
+      },
+    ])
+    expect(diff.nodes.get('n1' as NodeId)).toBe('updated')
+  })
+
+  it('marks a node updated when externalReferences appear where there were none', () => {
+    const base = snapshot([node('n1', { metadata: { sourceReferences: [] } })])
+    const { diff } = previewProposal(base, [
+      {
+        operation: 'updateNode',
+        nodeId: 'n1' as NodeId,
+        patch: { metadata: { sourceReferences: [], externalReferences: [{ kind: 'github' as never, url: 'https://x/1' }] } },
+      },
+    ])
+    expect(diff.nodes.get('n1' as NodeId)).toBe('updated')
+  })
+
+  it('marks a node updated when the externalReferences count changes', () => {
+    const base = snapshot([node('n1', {
+      metadata: { sourceReferences: [], externalReferences: [{ kind: 'github' as never, url: 'https://x/1' }] },
+    })])
+    const { diff } = previewProposal(base, [
+      {
+        operation: 'updateNode',
+        nodeId: 'n1' as NodeId,
+        patch: {
+          metadata: {
+            sourceReferences: [],
+            externalReferences: [
+              { kind: 'github' as never, url: 'https://x/1' },
+              { kind: 'github' as never, url: 'https://x/2' },
+            ],
+          },
+        },
+      },
+    ])
+    expect(diff.nodes.get('n1' as NodeId)).toBe('updated')
+  })
+
+  it('marks a node updated when an externalReference url changes', () => {
+    const base = snapshot([node('n1', {
+      metadata: { sourceReferences: [], externalReferences: [{ kind: 'github' as never, url: 'https://x/1' }] },
+    })])
+    const { diff } = previewProposal(base, [
+      {
+        operation: 'updateNode',
+        nodeId: 'n1' as NodeId,
+        patch: { metadata: { sourceReferences: [], externalReferences: [{ kind: 'github' as never, url: 'https://x/2' }] } },
+      },
+    ])
+    expect(diff.nodes.get('n1' as NodeId)).toBe('updated')
+  })
+
+  it('leaves a node unchanged when externalReferences are structurally equal', () => {
+    const ext = [{ kind: 'github' as never, url: 'https://x/1', label: 'issue 1' }]
+    const base = snapshot([node('n1', { metadata: { sourceReferences: [], externalReferences: ext } })])
+    const { diff } = previewProposal(base, [
+      {
+        operation: 'updateNode',
+        nodeId: 'n1' as NodeId,
+        patch: { metadata: { sourceReferences: [], externalReferences: [{ kind: 'github' as never, url: 'https://x/1', label: 'issue 1' }] } },
+      },
+    ])
+    expect(diff.nodes.has('n1' as NodeId)).toBe(false)
+  })
+
+  it('applies plural node operations in one pass', () => {
+    const base = snapshot([node('drop1'), node('drop2'), node('mod', { name: 'a' })])
+    const { diff } = previewProposal(base, [
+      { operation: 'addNodes', payloads: [
+        { id: 'x1' as NodeId, type: 'command' as NodeTypeId, name: 'x1', status: 'draft' as NodeStatus },
+        { id: 'x2' as NodeId, type: 'command' as NodeTypeId, name: 'x2', status: 'draft' as NodeStatus },
+      ] },
+      { operation: 'removeNodes', nodeIds: ['drop1' as NodeId, 'drop2' as NodeId] },
+      { operation: 'updateNodes', updates: [{ nodeId: 'mod' as NodeId, patch: { name: 'b' } }] },
+    ])
+    expect(diff.nodes.get('x1' as NodeId)).toBe('added')
+    expect(diff.nodes.get('drop2' as NodeId)).toBe('removed')
+    expect(diff.nodes.get('mod' as NodeId)).toBe('updated')
+  })
+
+  it('marks an edge updated when its type changes', () => {
+    const base = snapshot([node('a'), node('b')], [edge('e1', 'a', 'b')])
+    const { diff } = previewProposal(base, [
+      { operation: 'updateEdge', edgeId: 'e1' as EdgeId, patch: { type: 'triggers' as EdgeTypeId } },
+    ])
+    expect(diff.edges.get('e1' as EdgeId)).toBe('updated')
+  })
+
+  it('applies plural edge operations in one pass', () => {
+    const base = snapshot(
+      [node('a'), node('b'), node('c')],
+      [edge('drop1', 'a', 'b'), edge('mod', 'b', 'c')],
+    )
+    const { diff } = previewProposal(base, [
+      { operation: 'addEdges', payloads: [
+        { id: 'e1' as EdgeId, type: 'contains' as EdgeTypeId, fromNodeId: 'a' as NodeId, toNodeId: 'c' as NodeId },
+      ] },
+      { operation: 'removeEdges', edgeIds: ['drop1' as EdgeId] },
+      { operation: 'updateEdges', updates: [{ edgeId: 'mod' as EdgeId, patch: { type: 'triggers' as EdgeTypeId } }] },
+    ])
+    expect(diff.edges.get('e1' as EdgeId)).toBe('added')
+    expect(diff.edges.get('drop1' as EdgeId)).toBe('removed')
+    expect(diff.edges.get('mod' as EdgeId)).toBe('updated')
+  })
+
+  it('materializes an added node carrying description and embedding', () => {
+    const { snapshot: next } = previewProposal(snapshot([]), [
+      { operation: 'addNode', payload: {
+        id: 'n1' as NodeId,
+        type: 'command' as NodeTypeId,
+        name: 'n1',
+        status: 'draft' as NodeStatus,
+        description: 'desc',
+        embedding: { vector: [0.1], modelId: 'voyage-3', createdAt: '2026-05-09T00:00:00.000Z' as never },
+      } },
+    ])
+    expect(next.nodes[0]!.description).toBe('desc')
+    expect(next.nodes[0]!.embedding?.vector).toHaveLength(1)
+  })
+
+  it('synthesizes ids for id-less added node and edge payloads', () => {
+    const { snapshot: next, diff } = previewProposal(snapshot([]), [
+      { operation: 'addNode', payload: { type: 'command' as NodeTypeId, name: 'anon', status: 'draft' as NodeStatus } },
+    ])
+    const created = next.nodes[0]!
+    expect(created.id.startsWith('preview:')).toBe(true)
+    expect(diff.nodes.get(created.id)).toBe('added')
   })
 })

@@ -49,27 +49,26 @@ function BootScreen() {
 function AppInner() {
   useResetOnRemoteChange()
   const { data: workspaces } = useWorkspaces()
-  // Initial state is hydrated from the URL so refresh / deep links land back
-  // on the same workspace + surface.
+  // Initial state is hydrated from the URL, so refresh and deep links land back on the same workspace and surface.
   const initial = readUrl()
   const [activeId, setActiveId] = useState<string | null>(initial.workspaceId)
-  // Graph is the workspace's home view; secondary surfaces (Actions /
-  // Clarify / Proposals) overlay it when active. `null` = home.
+  // Graph is the workspace's home view. Secondary surfaces (Actions, Clarify, Proposals) overlay it when active.
+  // `null` = home.
   const [activeSurface, setActiveSurface] = useState<Surface | null>(initial.surface)
   useUrlSync({ workspaceId: activeId, surface: activeSurface })
   const [detailsId, setDetailsId] = useState<string | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const graphSurfaceState = useGraphSurfaceState()
   const { setSelectedNodeId, setSelectedEdgeId } = graphSurfaceState
-  // One-shot deep-link target for the Proposals surface. ProposalsPage
-  // consumes and clears it once it has selected the matching item.
+  // One-shot deep-link target for the Proposals surface.
+  // ProposalsPage consumes and clears it once it selects the matching item.
   const [focusedProposalId, setFocusedProposalId] = useState<ProposalId | null>(null)
 
   useEffect(() => {
     if (!workspaces?.items.length)
       return
-    // The URL might point at a workspace that no longer exists (deleted between
-    // sessions). Fall back to the first registered one in that case.
+    // The URL might point at a workspace that no longer exists, deleted between sessions.
+    // Fall back to the first registered one.
     const exists = activeId && workspaces.items.some(w => w.id === activeId)
     if (!exists)
       setActiveId(workspaces.items[0]!.id)
@@ -80,11 +79,9 @@ function AppInner() {
   const { data: activeBatchPlan } = useBatchStatus(activeId ?? undefined)
   const hasActiveBatch = activeBatchPlan?.status === 'running' || activeBatchPlan?.status === 'deriving'
 
-  // Same query as ReactorBanner — React Query dedupes by key. Drives the
-  // `InFlightRunBanner.suppress` below: when the reactor is mid-pass, the
-  // running `/braid-extract` run is the reactor's own per-unit dispatch
-  // and the Reactor banner already represents it. Showing both stacks
-  // two banners for one logical activity.
+  // Same query as ReactorBanner, React Query dedupes by key. Drives `InFlightRunBanner.suppress` below.
+  // When the reactor is mid-cycle, the extract run is its own per-unit dispatch, shown by the Reactor banner.
+  // Showing both would stack two banners for one activity.
   const { data: reactorCycles } = useReactorCycles(activeId)
   const hasActiveReactor = !!(reactorCycles?.items ?? []).find(p => p.status === 'dispatched' || p.status === 'running')
 
@@ -95,10 +92,8 @@ function AppInner() {
     setDetailsOpen(true)
   }
 
-  // Deep-link from a Proposal / Clarify validation issue: drop the
-  // overlaying surface so the user lands on the graph with their
-  // chosen node selected. The surface is one click away in the dock
-  // if they want to come back.
+  // Deep-link from a Proposal or Clarify validation issue. Drop the overlaying surface so the user lands on the graph,
+  // with their chosen node selected. The surface is one click away in the dock if they want to come back.
   const focusNode = useCallback((id: NodeId) => {
     setSelectedNodeId(id)
     setSelectedEdgeId(null)
@@ -155,9 +150,9 @@ function AppInner() {
                         />
                         <InFlightRunBanner
                           workspaceId={activeId}
-                          // Suppress on surfaces that render the run themselves AND
-                          // when a batch banner is already showing — they'd both point
-                          // at the same in-flight extract subprocess.
+                          // Suppress on surfaces that render the run themselves,
+                          // or when a batch banner already shows it.
+                          // Both would point at the same in-flight extract subprocess.
                           suppress={activeSurface === 'actions' || activeSurface === 'batch' || hasActiveBatch || hasActiveReactor}
                         />
                         {activeId
@@ -233,10 +228,9 @@ function AppInner() {
 }
 
 /**
- * Inlined Graph home view. Mounts the GraphSurface and routes its
- * toolbar through the shared PageActions portal so view / focus
- * controls sit in the contextual sub-bar alongside any future
- * graph-only actions.
+ * Inlined Graph home view.
+ * Mounts the GraphSurface and routes its toolbar through the shared PageActions portal,
+ * so view / focus controls sit in the contextual sub-bar alongside any future graph-only actions.
  */
 function GraphHomeView({ workspaceId, state, onStartBootstrap }: {
   workspaceId: string
@@ -292,9 +286,8 @@ function WorkspaceHeader({ workspaceId, activeSurface, onOpenDetails }: {
   activeSurface: Surface | null
   onOpenDetails: () => void
 }) {
-  // Surface nav lives in the Sidebar's HERE section now; the header
-  // just reports where you are (workspace name, optional surface
-  // suffix) and hosts page-specific tools on the right.
+  // Surface nav lives in the Sidebar's HERE section now. The header reports where you are,
+  // workspace name plus optional surface, and hosts page-specific tools on the right.
   const surfaceLabel
     = activeSurface === 'actions'
       ? 'Actions'

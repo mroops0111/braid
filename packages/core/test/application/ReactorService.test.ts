@@ -52,7 +52,7 @@ function codeSource(id: string): SourceDescriptor {
 class FakeSkillRunner implements SkillRunner {
   readonly startCalls: Array<{ skillId: SkillId, args: string }> = []
   private readonly listeners = new Map<SkillRunId, SkillEventListener>()
-  /** Settle the runner on `start` synchronously? Default: true (deferred via setTimeout). */
+  /** Settle runner on `start` synchronously? Default true, else setTimeout. */
   controlled = false
   /** When `controlled` is true, stores callbacks the test triggers manually. */
   private readonly pending: Array<() => void> = []
@@ -141,7 +141,7 @@ async function setup(opts: {
     clock,
   })
 
-  // Tracks captured events so tests can assert on what the reactor emitted
+  // Tracks captured events, so tests can assert on what the reactor emitted,
   // without subscribing to a workspace they don't have a handle on.
   const captured: WorkspaceEvent[] = []
   const originalPublish = eventBus.publish.bind(eventBus)
@@ -161,8 +161,8 @@ async function setup(opts: {
     intentItems = items
   }
 
-  // Throttle limit is read at start() time, so update the workspace
-  // BEFORE constructing the reactor when a custom cap is requested.
+  // Throttle limit is read at start() time, so update the workspace BEFORE constructing the reactor,
+  // when a custom cap is requested.
   if (opts.maxRunsPerHour) {
     const updated = new Workspace({
       id: workspace.id,
@@ -261,8 +261,8 @@ describe('ReactorService', () => {
 
   it('runs the checkpoint when SOME per-unit dispatches succeed and others fail', async () => {
     const { workspace, eventBus, skillRunner, captured } = await setup({ hasCheckpoint: true })
-    // First unit fails, second succeeds, third fails — the loop must not
-    // abort on the first failure, and the checkpoint must still run.
+    // First unit fails, second succeeds, third fails, the loop must not abort on the first failure,
+    // and the checkpoint must still run.
     skillRunner.exitCodes = [1, 0, 1]
     emitSync(eventBus, workspace.id, 'issues')
     await tick(100)
@@ -291,7 +291,7 @@ describe('ReactorService', () => {
     expect(skillRunner.startCalls).toHaveLength(3)
     skillRunner.flushOne()
     await tick(50)
-    // All three done; no more started since there's no checkpoint here.
+    // All three done. No more started since there's no checkpoint here.
     expect(skillRunner.startCalls).toHaveLength(3)
   })
 
@@ -307,10 +307,8 @@ describe('ReactorService', () => {
 
   it('throttles after maxRunsPerHour dispatches in a rolling 1h window', async () => {
     const { workspace, eventBus, digest, captured } = await setup({ maxRunsPerHour: 2 })
-    // Each sync brings a "changed" sha so the diff has something to
-    // dispatch on. Without rotating, after the first sync's ledger
-    // writes catch up to the digest's default, subsequent syncs see
-    // unchanged units and emit completed{0} instead of dispatched.
+    // Each sync brings a "changed" sha, so the diff has something to dispatch on. Without rotating,
+    // once the ledger catches up to the digest default, subsequent syncs see unchanged units and emit completed{0}.
     const shas: SourceUnitSha[] = [
       ('a'.repeat(64)) as SourceUnitSha,
       ('b'.repeat(64)) as SourceUnitSha,
@@ -330,7 +328,7 @@ describe('ReactorService', () => {
 
   it('emits a completed event with totalUnits=0 when the diff has no changes', async () => {
     const { workspace, eventBus, skillRunner, captured, setUnits } = await setup()
-    // No units → diff returns 0 in all partitions → reactor emits completed{0}
+    // No units, diff returns 0 in all partitions, reactor emits completed{0}
     setUnits([])
     emitSync(eventBus, workspace.id, 'issues')
     await tick(50)

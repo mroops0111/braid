@@ -6,9 +6,8 @@ function key(workspaceId: WorkspaceId, sourceId: SourceId, path: string): string
 }
 
 /**
- * Default `SourceUnitObservationRepository` for tests and the in-memory
- * `composeApp()` wiring. Composite-key lookup by
- * `(workspaceId, sourceId, path)`.
+ * Default `SourceUnitObservationRepository` for tests and the in-memory `composeApp()` wiring.
+ * Composite-key lookup by `(workspaceId, sourceId, path)`.
  */
 export class InMemorySourceUnitObservationRepository implements SourceUnitObservationRepository {
   private readonly store = new Map<string, SourceUnitObservation>()

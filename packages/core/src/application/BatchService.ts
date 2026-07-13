@@ -49,24 +49,21 @@ export interface BatchServiceDeps {
   historyService: HistoryService
   hitlService: HITLService
   batchPlanRepository: BatchPlanRepository
-  // Filesystem walk happens in infrastructure; the orchestrator just consumes the list.
+  // Filesystem walk happens in infrastructure. The orchestrator just consumes the list.
   intentLister: IntentLister
   /**
-   * Resolves the workspace's ontology plugin so the service can read its
-   * batch binding (per-unit skill, checkpoint config, derive skill).
-   * Without this binding the framework has no opinion on which skills
-   * to dispatch.
+   * Resolves the workspace's ontology plugin so the service can read its batch binding (per-unit skill,
+   * checkpoint config, derive skill). Without this binding the framework has no opinion on which skills to dispatch.
    */
   pluginRegistry: PluginRegistry
   eventBus?: WorkspaceEventBus
   workspaceLock: PerWorkspaceLock
   clock: Clock
   /**
-   * Optional. When supplied, batch records a `SourceUnitObservation`
-   * observation after every successful unit extract so Reactor /
-   * manual paths share the same diff primitive. Absent in pure
-   * unit-test wiring; production composition (`composeFsApp`) always
-   * provides it.
+   * Optional. When supplied,
+   * batch records a `SourceUnitObservation` observation after every successful unit extract,
+   * so Reactor / manual paths share the same diff primitive.
+   * Absent in pure unit-test wiring. Production composition (`composeFsApp`) always provides it.
    */
   sourceUnitObservationService?: SourceUnitObservationService
 }
@@ -74,11 +71,11 @@ export interface BatchServiceDeps {
 export interface StartBatchOptions {
   autoApply: boolean
   /**
-   * Bearer token captured from the caller's session, forwarded to every
-   * skill subprocess this batch spawns so they can call back into the
-   * server API via the braid-core MCP gateway. Absent when running in
-   * `BRAID_LOCAL_TRUST=true` mode (anonymous local dev) where the auth
-   * middleware lets unauthenticated callers through.
+   * Bearer token captured from the caller's session,
+   * forwarded to every skill subprocess this batch spawns,
+   * so they can call back into the server API via the braid-core MCP gateway.
+   * Absent when running in `BRAID_LOCAL_TRUST=true` mode (anonymous local dev),
+   * where the auth middleware lets unauthenticated callers through.
    */
   callerToken?: string
 }
@@ -121,7 +118,7 @@ export class BatchService {
       await this.deps.batchPlanRepository.save(workspace, plan)
       this.publish(workspaceId, { type: 'batch.started', workspaceId, planId: plan.id, mode, at: now })
 
-      // Fire-and-forget; callers poll via getStatus or subscribe to SSE.
+      // Fire-and-forget. Callers poll via getStatus or subscribe to SSE.
       void this.runLoop(workspace, plan, options.callerToken).catch(async (err: unknown) => {
         const failed = (await this.deps.batchPlanRepository.load(workspace))
           ?.markFailed(this.deps.clock.now(), errorMessage(err))
@@ -140,7 +137,7 @@ export class BatchService {
     })
   }
 
-  // Promote stale running plans to failed at boot so the UI never shows a frozen spinner from a previous crashed process.
+  // Promote stale running plans to failed at boot, so the UI never shows a frozen spinner from a previous crash.
   async reconcileAfterBoot(workspaceId: WorkspaceId): Promise<void> {
     const workspace = await this.deps.workspaceService.findById(workspaceId)
     const plan = await this.deps.batchPlanRepository.load(workspace)
@@ -199,7 +196,7 @@ export class BatchService {
     const plan = await this.deps.batchPlanRepository.load(workspace)
     if (!plan?.running)
       return
-    // Orphan runId (server restart between unit start and Stop): no subprocess to SIGTERM; mark the plan failed inline.
+    // Orphan runId (server restart between unit start and Stop). No subprocess to SIGTERM, mark the plan failed inline.
     if (this.deps.skillRunner.isActive(plan.running.skillRunId)) {
       await this.deps.skillRunner.cancel(plan.running.skillRunId)
       return
@@ -215,10 +212,8 @@ export class BatchService {
     })
   }
 
-  // Move a terminal plan to `archived`. The Studio Batch page treats
-  // archived the same as "no active plan" but keeps the report
-  // browsable via the PreStart "previous batch" slot. Recorded in git
-  // history so the audit trail stays continuous (`batch-archive` kind).
+  // Move a terminal plan to `archived`. The Studio Batch page treats it like no active plan,
+  // but keeps the report browsable in the PreStart slot. Recorded in git history as a `batch-archive` commit.
   async archive(workspaceId: WorkspaceId): Promise<BatchPlan> {
     return this.deps.workspaceLock.run(workspaceId, async () => {
       const workspace = await this.deps.workspaceService.findById(workspaceId)
@@ -245,7 +240,8 @@ export class BatchService {
         return
     }
     for (const unit of plan.units) {
-      // Skip completed units so Resume only re-runs pending ones (failed → pending was done by resumeRun()).
+      // Skip completed units so Resume only re-runs pending ones.
+      // The failed to pending move was already done by resumeRun().
       if (unit.status === 'completed')
         continue
       if (this.shouldStop(workspace.id)) {
@@ -260,10 +256,9 @@ export class BatchService {
         return
       }
       plan = await this.runUnit(workspace, plan, binding, unit, callerToken)
-      // Fire a checkpoint whenever the ontology's chunkSize threshold is
-      // crossed. A failed checkpoint fails the batch immediately so we
-      // don't keep dispatching unit runs into a model state we know is
-      // already broken.
+      // Fire a checkpoint when the ontology's chunkSize threshold is crossed.
+      // A failed checkpoint fails the batch immediately,
+      // so we stop dispatching runs into a model state we know is broken.
       if (binding.checkpoint) {
         const unconsumed = unconsumedCompletedUnitIds(plan)
         if (unconsumed.length >= binding.checkpoint.chunkSize) {
@@ -275,10 +270,8 @@ export class BatchService {
         }
       }
     }
-    // Optional end-of-loop checkpoint. The ontology decides whether
-    // to require it (`runAtEnd: true`); some ontologies might rely
-    // purely on per-chunk checkpoints, others might skip checkpoints
-    // entirely.
+    // Optional end-of-loop checkpoint. The ontology decides whether to require it (`runAtEnd: true`).
+    // Some ontologies rely purely on per-chunk checkpoints, others skip checkpoints entirely.
     if (binding.checkpoint?.runAtEnd) {
       const remainingUnits = unconsumedCompletedUnitIds(plan)
       const after = await this.runCheckpointPhase(workspace, plan, binding.checkpoint, remainingUnits, callerToken)
@@ -311,8 +304,7 @@ export class BatchService {
     let runId: SkillRunId | undefined
     try {
       const startedAt = this.deps.clock.now()
-      // Snapshot proposal ids so the post-run sweep can attribute new
-      // ones to this checkpoint (mirrors runUnit's set-difference).
+      // Snapshot proposal ids so the post-run sweep can attribute new ones, mirroring runUnit's set-difference.
       const before = await this.snapshotIds(workspace.id)
       runId = await this.deps.skillRunner.start(
         workspace,
@@ -384,10 +376,9 @@ export class BatchService {
       await service.recordObservation(workspace.id, unit.sourceId, unit.scopeHint, runId)
     }
     catch {
-      // Observation recording is best-effort. The extract itself
-      // already succeeded and failing to record it must not fail the
-      // batch; Reactor will see the unit as "changed" next cycle and
-      // re-extract, which is a recoverable state.
+      // Observation recording is best-effort. The extract itself already succeeded,
+      // and failing to record it must not fail the batch. Reactor sees the unit as changed next cycle and re-extracts,
+      // which is a recoverable state.
     }
   }
 
@@ -422,7 +413,7 @@ export class BatchService {
     const startedAt = this.deps.clock.now()
     let running = plan
     try {
-      // Snapshot the pre-run id sets so post-run additions can be attributed to this unit.
+      // Snapshot the pre-run id sets, so post-run additions can be attributed to this unit.
       const before = await this.snapshotIds(workspace.id)
       const argsFor = binding.perUnit.argsFor ?? defaultUnitArg
       const runId = await this.deps.skillRunner.start(
@@ -475,7 +466,7 @@ export class BatchService {
     }
   }
 
-  // Captures all statuses so stream-applied proposals still appear in the unit's after-vs-before set-difference.
+  // Captures all statuses, so stream-applied proposals still appear in the after-vs-before diff.
   private async snapshotIds(workspaceId: WorkspaceId): Promise<{
     proposals: Set<ProposalId>
     clarify: Set<ClarifyTicketId>
@@ -501,11 +492,9 @@ export class BatchService {
     }
   }
 
-  // Drives a single skill run end to end with autoApply wiring: streams
-  // proposals as they're created, waits for the subprocess to exit, then
-  // sweeps anything the stream missed. Shared by runUnit and
-  // runCheckpointPhase so both kinds of skill dispatch get the same
-  // autoApply treatment.
+  // Drives a single skill run end to end with autoApply wiring. Streams proposals as they're created,
+  // waits for the subprocess to exit, then sweeps anything the stream missed.
+  // Shared by runUnit and runCheckpointPhase so both get the same autoApply.
   private async runSkillWithAutoApply(
     workspace: Workspace,
     runId: SkillRunId,
@@ -539,9 +528,9 @@ export class BatchService {
       if (applied.has(event.proposalId))
         return
       applied.add(event.proposalId)
-      // Fire-and-forget; HITLService's per-workspace lock sequences this behind the submit that emitted the event.
+      // Fire-and-forget. HITLService's lock sequences this behind the submit that emitted it.
       void this.deps.hitlService.applyProposal(event.proposalId, BATCH_USER_ID).catch(() => {
-        // Validation race or conflict; the post-unit sweep retries.
+        // Validation race or conflict, the post-unit sweep retries.
         applied.delete(event.proposalId)
       })
     })
@@ -553,7 +542,7 @@ export class BatchService {
         await this.deps.hitlService.applyProposal(id, BATCH_USER_ID)
       }
       catch {
-        // Skip on conflict (e.g. validation error against latest snapshot); the proposal stays pending.
+        // Skip on conflict, e.g. a validation error against the latest snapshot. The proposal stays pending.
       }
     }
   }
@@ -643,10 +632,9 @@ function errorMessage(err: unknown): string {
 }
 
 /**
- * Returns the ordered list of unit ids that are `completed` on the
- * plan but have not yet been recorded as `unitIds` in any successful
- * model phase. Order matches `plan.units` so the chunking inside the
- * run loop processes them in extraction order.
+ * Returns the ordered list of unit ids that are `completed` on the plan,
+ * but have not yet been recorded as `unitIds` in any successful model phase.
+ * Order matches `plan.units` so the chunking inside the run loop processes them in extraction order.
  */
 function snapshotBatchPolicy(binding: OntologyBatchBinding): NonNullable<BatchPlanData['batchPolicy']> {
   return {

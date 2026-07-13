@@ -2,6 +2,9 @@ import { z } from 'zod'
 import { ClarifyTicketId, CommitSha, ProposalId, SourceId, Timestamp, UserId, WorkspaceId } from './common.js'
 import { GraphEdge, GraphNode, ModelSnapshot } from './model.js'
 
+// Every commit is stamped by one system operation, so this is the closed catalog of what writes to the workspace repo.
+// HITL flows get granular `entity-verb` kinds, each a distinct transition. Everything else is one kind per operation,
+// detail lives in the subject.
 export const CommitKind = z.enum([
   'proposal-submit',
   'proposal-apply',
@@ -10,8 +13,7 @@ export const CommitKind = z.enum([
   'clarify-answer',
   'clarify-apply',
   'clarify-skip',
-  'source-sync',
-  'bootstrap',
+  'config',
   'restore',
   'snapshot',
   'initial',
@@ -23,7 +25,7 @@ export const CommitMessage = z.object({
   kind: CommitKind,
   subject: z.string().min(1).max(120),
   userId: UserId,
-  // git user.name, snapshotted at commit time so a later rename doesn't rewrite history.
+  // git user.name, snapshotted at commit time. A later rename won't rewrite history.
   authorName: z.string().min(1).optional(),
   // git user.email: real OAuth address, or synthesised `${userId}@braid.local`.
   authorEmail: z.string().min(1).optional(),
@@ -56,7 +58,7 @@ export type CommitMeta = z.infer<typeof CommitMeta>
 
 export const FileDiff = z.object({
   path: z.string(),
-  status: z.enum(['added', 'modified', 'removed', 'renamed']),
+  status: z.enum(['added', 'updated', 'removed', 'renamed']),
   previousPath: z.string().optional(),
 })
 export type FileDiff = z.infer<typeof FileDiff>

@@ -1,7 +1,15 @@
 import { z } from 'zod'
 import { SkillId, SkillRunId, SourceId, Timestamp, WorkspaceId } from './common.js'
 
-// One event-driven cycle: diff the source, dispatch per changed unit, then checkpoint.
+// Off by default so no background LLM spend until the operator opts in. maxRunsPerHour: fail-closed hourly cap,
+// over-cap emits reactor.throttled.
+export const ReactorConfig = z.object({
+  enabled: z.boolean().default(false),
+  maxRunsPerHour: z.number().int().positive().default(5),
+})
+export type ReactorConfig = z.infer<typeof ReactorConfig>
+
+// One reactive cycle: diff source, dispatch per changed unit, then checkpoint.
 export const ReactorCycleId = z.string().min(1).brand<'ReactorCycleId'>()
 export type ReactorCycleId = z.infer<typeof ReactorCycleId>
 
@@ -36,8 +44,8 @@ export const ReactorCheckpoint = z.object({
 })
 export type ReactorCheckpoint = z.infer<typeof ReactorCheckpoint>
 
-// Persisted at every state transition so Studio renders live and past cycles.
-// Throttled cycles carry no units, decided before the unit list is built.
+// Persisted at every state transition so Studio renders live and past cycles. Throttled cycles carry no units,
+// decided before the unit list is built.
 export const ReactorCycle = z.object({
   id: ReactorCycleId,
   workspaceId: WorkspaceId,

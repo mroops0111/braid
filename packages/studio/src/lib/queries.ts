@@ -67,15 +67,15 @@ export function useWorkspaces() {
 }
 
 /**
- * Source-loader plugins registered on the active server. Reflects whatever
- * `composeFsApp` registered plus any extras the host passed in; updates
- * automatically when a new plugin ships without Studio code changes.
+ * Source-loader plugins registered on the active server.
+ * Reflects whatever `composeFsApp` registered plus any extras the host passed in,
+ * updates automatically when a new plugin ships without Studio code changes.
  */
 export function useSourceLoaders() {
   return useQuery({
     queryKey: queryKeys.sourceLoaders(),
     queryFn: () => api.listSourceLoaders(),
-    // Server-level static data; refetch only on tab focus, not on every mount.
+    // Server-level static data. Refetch only on tab focus, not on every mount.
     staleTime: 5 * 60 * 1000,
   })
 }
@@ -117,9 +117,8 @@ export function useOntology(workspaceId: string | undefined) {
     queryKey: workspaceId ? queryKeys.ontology(workspaceId) : ['ontology', 'none'],
     queryFn: () => api.getOntology(workspaceId!),
     enabled: !!workspaceId,
-    // The ontology is plugin-bound and only changes if the workspace
-    // switches `ontologyId` in its PRODUCT.md (rare). Avoid refetching
-    // on every focus.
+    // The ontology is plugin-bound. It only changes if the workspace switches `ontologyId` in PRODUCT.md,
+    // which is rare, so avoid refetching on every focus.
     staleTime: 60_000,
   })
 }
@@ -208,9 +207,8 @@ export function useBatchStatus(workspaceId: string | undefined) {
 }
 
 /**
- * Shared with `ReactorBanner` and the Activity page via React Query's
- * dedup-by-key. `useWorkspaceEvents` invalidates this on every reactor
- * SSE event, so consumers stay live.
+ * Shared with `ReactorBanner` and the Activity page via React Query's dedup-by-key.
+ * `useWorkspaceEvents` invalidates this on every reactor SSE event, so consumers stay live.
  */
 export function useReactorCycles(workspaceId: string | null | undefined) {
   return useQuery({

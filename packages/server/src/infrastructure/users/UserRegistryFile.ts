@@ -12,12 +12,11 @@ const RegistryContent = z.object({
 type RegistryContent = z.infer<typeof RegistryContent>
 
 /**
- * Persists the user registry to a JSON file at `${BRAID_HOME}/users.json`.
- * Source of truth across server restarts; in-memory data is a derivation.
+ * Persists the user registry to a JSON file at `${BRAID_HOME}/users.json`. Source of truth across server restarts,
+ * in-memory data is a derivation.
  *
- * Auth and ACL are server-side concerns and never enter a workspace's
- * git history — keep this file under `~/.braid/`, not inside any
- * workspace directory.
+ * Auth and ACL are server-side concerns. They never enter a workspace's git history. Keep this file under `~/.braid/`,
+ * not inside any workspace dir.
  */
 export class UserRegistryFile {
   constructor(private readonly filePath: string) {}
@@ -60,10 +59,9 @@ export class UserRegistryFile {
     if (idx < 0)
       throw new NotFoundError(`User "${id}" not found`)
     const current = content.users[idx]!
-    // Drop undefined keys so `{ displayName: undefined }` doesn't blow
-    // away the existing displayName. Zod's `.partial()` widens every
-    // field to optional, but the persisted User schema still requires
-    // the non-optional fields to be present.
+    // Drop undefined keys, so `{ displayName: undefined }` doesn't blow away the existing displayName.
+    // Zod's `.partial()` widens every field to optional,
+    // but the persisted User schema still requires the non-optional fields.
     const defined = Object.fromEntries(
       Object.entries(patch).filter(([, v]) => v !== undefined),
     ) as Partial<UserType>

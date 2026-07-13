@@ -12,15 +12,15 @@ interface ReactorBannerProps {
 }
 
 /**
- * Top-of-app banner surfacing the active reactor cycle. Reads the active
- * cycle from the same `reactor-cycles` query the Activity page uses;
+ * Top-of-app banner surfacing the active reactor cycle.
+ * Reads the active cycle from the same `reactor-cycles` query the Activity page uses.
  * `useWorkspaceEvents` invalidates that query on every reactor SSE event,
- * so the banner stays live without its own EventSource. Mid-cycle mount
- * works because the query returns the in-flight cycle from the API.
+ * so the banner stays live without its own EventSource.
+ * Mid-cycle mount works because the query returns the in-flight cycle from the API.
  *
- * The throttle notice still listens to SSE directly: a throttled cycle is
- * a transient event (no persisted "in-flight" state to query), and it
- * auto-dismisses after a few seconds.
+ * The throttle notice still listens to SSE directly: a throttled cycle is a transient event,
+ * with no persisted "in-flight" state to query,
+ * and it auto-dismisses after a few seconds.
  */
 export function ReactorBanner({ workspaceId, onOpenActivity }: ReactorBannerProps) {
   const { data: cycles } = useReactorCycles(workspaceId)

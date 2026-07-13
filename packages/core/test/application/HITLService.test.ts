@@ -93,8 +93,8 @@ function makeProposal(workspaceId: WorkspaceId, overrides: { id?: ProposalId } =
         name: 'voidTask',
         id: mintTestId('n') as NodeId,
         status: 'draft' as NodeStatus,
-        // implementationMissing satisfies EvidenceValidator (framework invariant):
-        // intent-side proposal where code hasn't shipped yet.
+        // implementationMissing satisfies EvidenceValidator, a framework invariant.
+        // Intent-side proposal where code hasn't shipped yet.
         metadata: { sourceReferences: [], implementationMissing: true },
       },
     }],
@@ -182,8 +182,8 @@ describe('HITLService', () => {
 
     it('throws ValidationError when the active ontology blocks and leaves proposal pending', async () => {
       // Active ontology ships a validator that always reports an error.
-      // HITLService looks up workspace.ontologyId at validate-time and
-      // runs `ontology.validators[]`, so the proposal gets rejected.
+      // HITLService looks up workspace.ontologyId at validate-time, and runs `ontology.validators[]`,
+      // so the proposal gets rejected.
       const pluginRegistry = new PluginRegistry()
       pluginRegistry.register(makeOntology({
         ontologyId: 'ddd',
@@ -208,11 +208,9 @@ describe('HITLService', () => {
     })
 
     it('serialises concurrent applyProposal calls per workspace', async () => {
-      // Without per-workspace locking both calls read the same empty
-      // snapshot, both pass validation, both try to write, and one
-      // surfaces a misleading "node already exists" from the underlying
-      // store. With the lock the second caller sees the proposal already
-      // applied and gets a clean ConflictError.
+      // Without per-workspace locking both calls read the same empty snapshot, both pass validation, both try to write,
+      // and one surfaces a misleading "node already exists" from the store.
+      // With the lock the second caller sees the proposal already applied, and gets a clean ConflictError.
       const fixture = await setupFixture()
       const proposal = makeProposal(fixture.workspaceId)
       await fixture.proposalRepository.save(proposal)
@@ -272,8 +270,8 @@ describe('HITLService', () => {
 
   describe('answerClarifyTicket', () => {
     it('records the chosen candidate as answered without mutating the graph', async () => {
-      // The user's answer is just a selection signal: graph writes go
-      // through the braid-clarify skill's Proposal path, not here.
+      // The user's answer is just a selection signal, graph writes go through the braid-clarify skill's Proposal path,
+      // not here.
       const fixture = await setupFixture()
       const nodeId = mintTestId('n') as NodeId
       await fixture.modelRepository.applyOperations(fixture.workspaceId, [
@@ -311,10 +309,8 @@ describe('HITLService', () => {
     })
 
     it('appends a custom candidate, marks it answered, and stamps the resolution', async () => {
-      // The reviewer's own answer flows through the same lifecycle as
-      // a skill-emitted candidate: the new one shows up in the
-      // ticket's candidates list with zero ops, and selectedCandidateId
-      // points at it.
+      // The reviewer's answer uses the same lifecycle as a skill candidate.
+      // The new one shows up in the ticket's candidates with zero ops, and selectedCandidateId points at it.
       const fixture = await setupFixture()
       const ticket = makeClarifyTicket(fixture.workspaceId, {
         candidates: [{
@@ -344,9 +340,9 @@ describe('HITLService', () => {
     })
 
     it('rejects answers whose resolution ops fail validation', async () => {
-      // Removing a node that doesn't exist trips the structural validator
-      // — surface the error here rather than letting the skill blow up
-      // later trying to wrap it into a Proposal.
+      // Removing a node that doesn't exist trips the structural validator.
+      // Surface the error here rather than letting the skill blow up later,
+      // when it tries to wrap the failure into a Proposal.
       const fixture = await setupFixture()
       const candidateId = mintTestId('cc') as ClarifyCandidateId
       const ticket = makeClarifyTicket(fixture.workspaceId, {

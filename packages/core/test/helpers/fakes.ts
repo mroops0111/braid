@@ -1,5 +1,5 @@
-// Re-export shared fixtures so existing imports (relative to ../helpers/fakes)
-// keep working. New code should import from `@braidhq/test-utils` directly.
+// Re-export shared fixtures so existing imports (relative to ../helpers/fakes) keep working.
+// New code should import from `@braidhq/test-utils` directly.
 export {
   at,
   FixedClock,

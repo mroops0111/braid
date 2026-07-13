@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   AbsolutePath,
+  Actor,
   AgentId,
   ClarifyCandidateId,
   ClarifyTicketId,
+  CommitSha,
   EdgeId,
   ExternalReference,
   ExternalReferenceKind,
@@ -34,9 +36,9 @@ describe('Timestamp', () => {
 })
 
 describe('Branded IDs share the z.string().min(1).brand() contract', () => {
-  // One representative case per schema — they all delegate to the same zod
-  // primitive, so picking one (NodeId) plus a parameterised name table is
-  // enough to catch a regression that swaps the brand for a looser type.
+  // One representative case per schema, they all delegate to the same zod primitive,
+  // so picking one (NodeId) plus a parameterised name table is enough,
+  // to catch a regression that swaps the brand for a looser type.
   const schemas = {
     WorkspaceId,
     NodeId,
@@ -125,5 +127,30 @@ describe('ExternalReference', () => {
     expect(
       ExternalReference.safeParse({ kind: 'github', url: 'not-a-url' }).success,
     ).toBe(false)
+  })
+})
+
+describe('CommitSha', () => {
+  it('accepts 40 lowercase hex chars', () => {
+    const sha = 'a'.repeat(40)
+    expect(CommitSha.parse(sha)).toBe(sha)
+  })
+  it('rejects the wrong length', () => {
+    expect(CommitSha.safeParse('a'.repeat(39)).success).toBe(false)
+  })
+  it('rejects uppercase, git shas are lowercase', () => {
+    expect(CommitSha.safeParse('A'.repeat(40)).success).toBe(false)
+  })
+})
+
+describe('Actor', () => {
+  it('accepts a user id', () => {
+    expect(Actor.parse('u-1')).toBe('u-1')
+  })
+  it('accepts the system sentinel', () => {
+    expect(Actor.parse('system')).toBe('system')
+  })
+  it('rejects empty', () => {
+    expect(Actor.safeParse('').success).toBe(false)
   })
 })

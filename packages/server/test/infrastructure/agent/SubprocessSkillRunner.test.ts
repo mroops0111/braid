@@ -68,9 +68,8 @@ async function makeWorkspaceRoot(): Promise<AbsolutePath> {
 }
 
 async function makeSkillRegistry(skillSourceParent: AbsolutePath, agent?: SkillAgentOverride): Promise<SkillRegistry> {
-  // Materialise a real SKILL.md under skillSourceParent/<id>/ so the runner's
-  // session-dir builder can symlink it; tests that don't care about the
-  // session-dir layout still get a valid manifest.
+  // Materialise a real SKILL.md so the runner's session-dir builder can symlink it.
+  // Tests that don't care about the session-dir layout still get a valid manifest.
   const skillDir = join(skillSourceParent, 'braid-ask')
   await mkdir(skillDir, { recursive: true })
   await writeFile(join(skillDir, 'SKILL.md'), makeSkillFileContents({ name: 'braid-ask' }), 'utf-8')
@@ -280,9 +279,8 @@ describe('SubprocessSkillRunner', () => {
     })
     await collectRunEvents(before.runner, before.workspace, 'first')
 
-    // Fresh runner instance simulates a process restart — in-memory session
-    // map is empty, but the JSONL run records still tell us which cwd the
-    // session originated from.
+    // Fresh runner simulates a restart, the in-memory session map is empty,
+    // but the JSONL run records still name the cwd the session came from.
     const after = await buildRunner({
       rootPath,
       cleanupSession: false,
@@ -329,7 +327,7 @@ describe('SubprocessSkillRunner', () => {
 
     const { events } = await collectRunEvents(runner, workspace, '')
 
-    // collectRunEvents stops once an error arrives — completed may not yet be observed.
+    // collectRunEvents stops once an error arrives, completed may not yet be observed.
     expect(events.map(event => event.type).slice(0, 2)).toEqual(['started', 'error'])
     const errorEvent = events.find(event => event.type === 'error')
     expect(errorEvent && 'message' in errorEvent ? errorEvent.message : undefined).toBe('Unknown command: /braid-ask')
@@ -344,8 +342,8 @@ describe('SubprocessSkillRunner', () => {
 
     const { runId } = await collectRunEvents(runner, workspace, '')
 
-    // After completion the runner forgets active state but the position
-    // counter persists, so a late subscriber sees the final count.
+    // After completion the runner forgets active state,
+    // but the position counter persists so a late subscriber sees the final count.
     const late = runner.subscribe(runId, () => {})
     expect(late.positionAtSubscribe).toBeGreaterThan(0)
     late.unsubscribe()
@@ -411,8 +409,7 @@ describe('SubprocessSkillRunner', () => {
     })
 
     it('publishes outcome:error when a SkillEvent of type error fires, even with exit 0', async () => {
-      // The OS-level exit code being 0 isn't enough to claim "success" when
-      // the skill itself reported a business-level failure mid-stream.
+      // Exit code 0 isn't enough to claim success, the skill itself reported a business-level failure mid-stream.
       const rootPath = await makeWorkspaceRoot()
       const { bus, events: busEvents, waitFor } = makeRecordingBus()
       const { runner, workspace } = await buildRunner({

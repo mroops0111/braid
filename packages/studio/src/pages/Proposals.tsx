@@ -21,11 +21,9 @@ import { GraphSurface } from './GraphSurface'
 interface ProposalsPageProps {
   workspaceId: string
   /**
-   * One-shot deep-link target. When set (e.g. clicking "→ Proposal #abc"
-   * on an applied ClarifyTicket), the page scans its current list for
-   * the matching proposal. If found in the current status filter, it's
-   * selected; otherwise the page sweeps the other statuses and switches
-   * the filter to wherever the proposal actually lives.
+   * One-shot deep-link target. When set (e.g. clicking "Proposal #abc" on an applied ClarifyTicket),
+   * the page scans its current list for the matching proposal. If found in the current status filter, it's selected,
+   * otherwise the page sweeps the other statuses and switches the filter to wherever the proposal actually lives.
    */
   focusedProposalId?: ProposalId | null
   onFocusConsumed?: () => void
@@ -49,16 +47,14 @@ const EMPTY_COPY: Record<StatusFilter, { title: string, description: string }> =
 }
 
 export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed }: ProposalsPageProps) {
-  // Status filter doubles as both the list query and the "is this
-  // read-only?" signal for the detail pane. Switching status clears the
-  // selected proposal so the right pane doesn't show an item that no
-  // longer matches the active filter.
+  // Status filter is both the list query and the detail pane's read-only cue.
+  // Switching status clears the selected proposal, so the right pane can't show an item that no longer matches.
   const [status, setStatus] = useState<StatusFilter>('pending')
   const [showAll, setShowAll] = useState(false)
   const { data, isLoading } = useProposalsByStatus(workspaceId, status, showAll)
   const [selected, setSelected] = useState<Proposal | null>(null)
   // Tracks an in-progress sweep across statuses for a deep-link focus.
-  // Each entry remembers which status filters we've already checked
+  // Each entry remembers which status filters we've already checked,
   // so we don't loop on an id that doesn't exist in any list.
   const [focusSweep, setFocusSweep] = useState<{ proposalId: ProposalId, attempted: Set<StatusFilter> } | null>(null)
 
@@ -67,18 +63,15 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
     setSelected(null)
   }
 
-  // Seed the sweep when a new focusedProposalId arrives. Status is
-  // intentionally excluded from deps — this effect must fire only on
-  // the externally driven id change, not when the user is mid-sweep
-  // switching filters.
+  // Seed the sweep when a new focusedProposalId arrives. Status is intentionally excluded from deps,
+  // this effect must fire only on the externally driven id change, not when the user is mid-sweep switching filters.
   useEffect(() => {
     if (focusedProposalId)
       setFocusSweep(prev => prev?.proposalId === focusedProposalId ? prev : { proposalId: focusedProposalId, attempted: new Set([status]) })
   }, [focusedProposalId, status])
 
-  // Drive the sweep: try the current list; if no match, advance to the
-  // next unchecked status. Consumes the focus once we either select
-  // the proposal or exhaust the status set.
+  // Drive the sweep. Try the current list, if no match advance to the next unchecked status.
+  // Consumes the focus once we select the proposal or exhaust the statuses.
   useEffect(() => {
     if (!focusSweep || isLoading || !data)
       return
@@ -100,8 +93,9 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
     setFocusSweep({ proposalId: focusSweep.proposalId, attempted: new Set([...focusSweep.attempted, next]) })
   }, [focusSweep, data, isLoading, onFocusConsumed])
 
-  // Auto-select the first item when entering a list with no current selection (initial mount, after status switch, or after a complete-and-clear from the detail pane).
-  // Skip while a deep-link focus sweep is in flight so we do not race the sweep's setSelected call.
+  // Auto-select the first item when entering a list with no selection. Covers initial mount, status switch,
+  // and complete-and-clear from detail. Skip while a deep-link focus sweep is in flight,
+  // so we don't race the sweep's setSelected call.
   useEffect(() => {
     if (focusSweep || selected || isLoading || !data?.items.length)
       return
@@ -181,10 +175,9 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
 }
 
 /**
- * Owner-only toggle that flips the personal-pending filter to "everyone's"
- * mode. Only rendered on the pending tab — applied / rejected lists are
- * shared by definition, so a toggle there would do nothing. Cmd-click
- * suppression keeps it small + tucked next to the status tabs.
+ * Owner-only toggle that flips the personal-pending filter to "everyone's" mode. Only rendered on the pending tab,
+ * applied / rejected lists are shared by definition, so a toggle there would do nothing.
+ * Cmd-click suppression keeps it small + tucked next to the status tabs.
  */
 function ShowAllToggle({
   workspaceId,
@@ -213,10 +206,9 @@ function ShowAllToggle({
   )
 }
 
-// Pending / Applied / Rejected segment. Rendered via PageActions into
-// the top tab row so it doesn't take a row of its own. Pending wears
-// a live count badge — the only one worth surfacing, since applied /
-// rejected lists grow monotonically and a count there is noise.
+// Pending / Applied / Rejected segment. Rendered via PageActions into the top tab row so it takes no row of its own.
+// Pending wears a live count badge, the only one worth surfacing. Applied and rejected lists grow monotonically,
+// a count there is noise.
 function ProposalsStatusFilter({
   workspaceId,
   status,
@@ -259,8 +251,8 @@ function ProposalDetail({
   const [rejectReason, setRejectReason] = useState('')
   const [rejectOpen, setRejectOpen] = useState(false)
 
-  // Apply / Reject are only meaningful while the proposal is still
-  // pending. Applied / rejected entries are read-only history.
+  // Apply / Reject are only meaningful while the proposal is still pending.
+  // Applied / rejected entries are read-only history.
   const isPending = proposal.status === 'pending'
   const canWrite = useWorkspacePolicy(workspaceId).can('proposal.write')
 
@@ -268,9 +260,8 @@ function ProposalDetail({
   const errorCount = validation.data?.issues.filter(issue => issue.severity === 'error').length ?? 0
   const blockedByErrors = errorCount > 0
 
-  // Invalidate the whole proposals namespace for this workspace so the
-  // entry moves from the Pending list into Applied / Rejected without
-  // a manual refresh.
+  // Invalidate the whole proposals namespace for this workspace,
+  // so the entry moves from Pending into Applied / Rejected, without a manual refresh.
   function invalidateProposals(): void {
     queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId, 'proposals'] })
   }
@@ -374,8 +365,8 @@ function ProposalDetail({
 }
 
 function firstSentence(text: string): string {
-  // Cut at the first period followed by space or newline. Keeps the
-  // header compact when an LLM writes a multi-sentence rationale.
+  // Cut at the first period followed by space or newline.
+  // Keeps the header compact when an LLM writes a multi-sentence rationale.
   const match = text.trim().match(/^.+?[.。!?](?:\s|$)/s)
   return (match ? match[0] : text.trim()).trim()
 }
@@ -489,9 +480,8 @@ function IssueGroup({ severity, issues }: { severity: ValidationSeverity, issues
   )
 }
 
-// Renders the trailing "→ nodeId" pointer on a validation issue.
-// When a GraphNavigation context is in scope, nodeId / edgeId become
-// buttons that switch to the Graph tab focused on the target.
+// Renders the trailing arrow pointer to nodeId on a validation issue. When a GraphNavigation context is in scope,
+// nodeId / edgeId become buttons that switch to the Graph tab on the target.
 function IssueTarget({ issue }: { issue: ValidationIssue }) {
   const nav = useGraphNavigation()
   if (!issue.nodeId && !issue.edgeId && !issue.path)
@@ -576,28 +566,25 @@ type PreviewView = 'graph' | 'table' | 'list'
 
 /**
  * Tri-view preview for the proposal's effect on the graph:
- * - **List**: grouped add / update / remove rows (default; densest summary).
- * - **Graph**: reuses the workspace `GraphCanvas` fed with a derived
- *   data source that applies the proposal's operations and annotates
- *   nodes/edges with their change kind.
+ * - **List**: grouped add / update / remove rows (default, densest summary).
+ * - **Graph**: reuses the workspace `GraphCanvas` fed with a derived data source,
+ * that applies the proposal's operations and annotates nodes/edges with their change kind.
  * - **Table**: same data source piped through `GraphTablePage`, gaining a
- *   `Change` column for diff readout in tabular form.
+ * `Change` column for diff readout in tabular form.
  *
- * The proposal source is computed once via `useProposalGraphDataSource`
- * and shared across views so toggling is cheap.
+ * The proposal source is computed once via `useProposalGraphDataSource` and shared across views so toggling is cheap.
  */
 /**
- * Threshold for auto-flipping `emphasizeAdded`. A proposal that touches
- * less than this fraction of the live graph counts as "incremental" —
- * the diff would otherwise be a handful of small green dots in a sea
- * of unmarked context, which user feedback showed is easy to miss.
+ * Threshold for auto-flipping `emphasizeAdded`.
+ * A proposal that touches less than this fraction of the live graph counts as "incremental",
+ * the diff would otherwise be a handful of small green dots in a sea of unmarked context,
+ * which user feedback showed is easy to miss.
  */
 const INCREMENTAL_RATIO_THRESHOLD = 0.3
 
 function ProposalPreview({ workspaceId, operations }: { workspaceId: string, operations: readonly GraphOperation[] }) {
-  // Proposal-preview adds a `list` view to the surface's normal
-  // graph/table pair, so we manage `view` here and only delegate to
-  // GraphSurface for the two graph-derived views.
+  // Proposal-preview adds a `list` view to the normal graph/table pair. So we manage `view` here,
+  // and only delegate to GraphSurface for the two graph-derived views.
   const [view, setView] = useState<PreviewView>('graph')
   const [selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId]
     = useMutualExclusionPair<NodeId, EdgeId>()
@@ -610,12 +597,10 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
   const updateCount = flat.filter(op => op.kind === 'update').length
   const removeCount = flat.filter(op => op.kind === 'remove').length
 
-  // Incremental proposals dilute their own visual: a few green dots in
-  // a sea of unmarked context. When the diff touches <30% of the
-  // preview snapshot, automatically beef up the `added` treatment
-  // (green ring + shadow instead of just a corner dot). The
-  // fresh-extract case (close to 100% touched) keeps the subtle
-  // markers so the type colour isn't drowned in green.
+  // Incremental proposals dilute their own visual, a few green dots in a sea of unmarked context.
+  // When the diff touches under 30% of the preview snapshot, beef up the `added` treatment (green ring and shadow,
+  // not a corner dot). The fresh-extract case (close to 100% touched) keeps the subtle markers,
+  // so the type colour isn't drowned in green.
   const changedCount = (source.diff?.nodes.size ?? 0) + (source.diff?.edges.size ?? 0)
   const totalCount = source.nodes.length + source.edges.length
   const incrementalRatio = totalCount > 0 ? changedCount / totalCount : 1
@@ -671,7 +656,9 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
 
 /**
  * Compact `+N / ~M / -K` chip set rendered next to the preview title.
- * Makes the impact of small incremental proposals visible without forcing the reviewer to scan the canvas for thin stroke differences (e.g. a model audit fix that adds 4 edges and changes nothing else).
+ * Makes the impact of small incremental proposals visible,
+ * without forcing the reviewer to scan the canvas for thin stroke differences,
+ * such as a model audit fix that adds 4 edges and changes nothing else.
  */
 function ProposalImpactSummary({ adds, updates, removes }: { adds: number, updates: number, removes: number }) {
   const total = adds + updates + removes
@@ -751,9 +738,9 @@ interface FlatOp {
 }
 
 function flattenOperations(operations: readonly GraphOperation[]): FlatOp[] {
-  // Each schema operation collapses to one FlatOp; batch operations
-  // (addNodes / removeEdges / updateNodes / ...) fan out into one
-  // FlatOp per item. Keeps the list view scannable: one row per change.
+  // Each schema operation collapses to one FlatOp.
+  // Batch operations (addNodes / removeEdges / updateNodes / ...) fan out, into one FlatOp per item.
+  // Keeps the list view scannable, one row per change.
   const out: FlatOp[] = []
   for (const op of operations) {
     switch (op.operation) {

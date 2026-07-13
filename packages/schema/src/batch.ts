@@ -13,8 +13,8 @@ export type UnitStatus = z.infer<typeof UnitStatus>
 export const BatchStatus = z.enum(['idle', 'deriving', 'running', 'completed', 'failed', 'stopped', 'archived'])
 export type BatchStatus = z.infer<typeof BatchStatus>
 
-// intent mode walks intent sources directly.
-// derive mode seeds units via the ontology's deriveUnits skill (code-only workspaces).
+// intent mode walks intent sources directly. derive mode seeds units via the ontology's deriveUnits skill,
+// for code-only workspaces.
 export const BatchInputMode = z.enum(['intent', 'derive'])
 export type BatchInputMode = z.infer<typeof BatchInputMode>
 

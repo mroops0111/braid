@@ -8,7 +8,7 @@ export type AgentKind = z.infer<typeof AgentKind>
 export const AgentEffort = z.enum(['low', 'medium', 'high'])
 export type AgentEffort = z.infer<typeof AgentEffort>
 
-// One coding agent's launch config. kind picks the plugin, the rest configures it.
+// One agent's launch config. kind picks the plugin, the rest configures it.
 export const AgentBindingDescriptor = z.object({
   id: AgentId,
   kind: AgentKind,

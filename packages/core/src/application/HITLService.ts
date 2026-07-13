@@ -30,7 +30,7 @@ import { noopUserDirectory } from '../domain/users/UserDirectory.js'
 import { enrichCommitAuthor } from './enrichCommitAuthor.js'
 import { PerWorkspaceLock } from './PerWorkspaceLock.js'
 
-// Generic system author for submit commits until Theme 13 (account management) supplies real per-user attribution.
+// Generic system author for submit commits, until account management supplies real per-user attribution.
 const SUBMIT_USER_ID = UserId.parse('braid-skill')
 
 export interface HITLServiceDeps {
@@ -41,15 +41,14 @@ export interface HITLServiceDeps {
   workspaceService: WorkspaceService
   clock: Clock
   eventBus?: WorkspaceEventBus
-  // Both required together; absence makes the commit hook a no-op.
+  // Both required together. Absence makes the commit hook a no-op.
   history?: WorkspaceHistory
   graphSerializer?: GraphSerializer
   // Inject so HistoryService.restore can share the same exclusion domain.
   workspaceLock?: PerWorkspaceLock
   /**
-   * Looks up displayName + email to snapshot into git author at commit
-   * time. Defaults to `noopUserDirectory` (no rewrite) so existing
-   * tests keep their `Author: <userId>` shape.
+   * Looks up displayName + email to snapshot into git author at commit time.
+   * Defaults to `noopUserDirectory` (no rewrite) so existing tests keep their `Author: <userId>` shape.
    */
   userDirectory?: UserDirectory
 }
@@ -83,7 +82,8 @@ export class HITLService {
     return this.workspaceLock.run(draft.workspaceId, async () => {
       const workspace = await this.deps.workspaceService.findById(draft.workspaceId)
       await this.deps.proposalRepository.save(proposal)
-      // Submit commits so collaborators see the artefact via `git pull`. Attribution stays generic until Theme 13.
+      // Submit commits so collaborators see the artefact via `git pull`.
+      // Attribution stays generic until account management lands.
       await this.commitWorkspaceChange(workspace, {
         kind: 'proposal-submit',
         subject: `submitted ${proposal.id}`,
@@ -137,7 +137,7 @@ export class HITLService {
   }
 
   async applyProposal(proposalId: ProposalId, userId: UserId): Promise<Proposal> {
-    // Outer load discovers the workspace for the lock key; the inner load is the authoritative read post-lock.
+    // Outer load discovers the workspace for the lock key. The inner load is the authoritative read post-lock.
     const initial = await this.deps.proposalRepository.load(proposalId)
     return this.workspaceLock.run(initial.workspaceId, async () => {
       const proposal = await this.deps.proposalRepository.load(proposalId)
@@ -231,7 +231,7 @@ export class HITLService {
     })
   }
 
-  // No graph mutation here — the Proposal apply path (when there is one) handled that.
+  // No graph mutation here. The Proposal apply path (when there is one) handled that.
   async markClarifyTicketApplied(
     clarifyTicketId: ClarifyTicketId,
     userId: UserId,

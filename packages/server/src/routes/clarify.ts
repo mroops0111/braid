@@ -15,12 +15,11 @@ const ListQuery = z.object({
   showAll: z.coerce.boolean().optional().openapi({ description: 'Owner-only: bypass the personal-pending filter so every member\'s open questions are visible.' }),
 })
 
-// Reviewer-facing answer body. The selection is either an existing
-// `candidateId` or a freshly authored `customCandidate` (description
-// only — the server appends it to the ticket and answers in one
-// transaction). `note` is a free-text rationale saved on the answer commit.
-// `userId` accepted for backwards compat; authoritative value is the
-// request context (set by `userIdMiddleware`).
+// Reviewer-facing answer body. The selection is either an existing `candidateId`,
+// or a freshly authored `customCandidate`, description only.
+// The server appends it to the ticket and answers in one transaction.
+// `note` is a free-text rationale saved on the answer commit. `userId` is accepted for backwards compat.
+// The authoritative value is the request context, set by `userIdMiddleware`.
 const AnswerBody = z
   .object({
     candidateId: ClarifyCandidateId.optional(),
@@ -39,21 +38,18 @@ const SkipBody = z.object({
   userId: UserId.optional(),
 }).openapi('ClarifySkipBody')
 
-// PATCH body for clarify state transitions. Currently the only legal
-// transition the skill drives is `answered → applied`. proposalId is
-// optional: present when a Proposal was produced, absent when the
-// chosen candidate had no graph impact (skill records the ticket as
-// applied without a linking proposal).
+// PATCH body for clarify state transitions. The only legal transition the skill drives is `answered` to `applied`.
+// proposalId is optional. Present when a Proposal was produced, absent when the chosen candidate had no graph impact.
+// The skill then records the ticket as applied without a linking proposal.
 const ApplyBody = z.object({
   status: z.literal('applied'),
   proposalId: ProposalId.optional(),
   userId: UserId.optional(),
 }).openapi('ClarifyApplyBody')
 
-// Skill-emitted candidates ship their own ids (`cc-1`, `cc-merge`, …);
-// human-authored ones via Studio's "New question" form omit them and
-// let the server mint via `newClarifyCandidateId`. Keeps the ID
-// minting rule (no `crypto.randomUUID() as XxxId` in clients) intact.
+// Skill-emitted candidates ship their own ids (`cc-1`, `cc-merge`).
+// Human-authored ones via Studio's "New question" form omit them, and let the server mint via `newClarifyCandidateId`.
+// This keeps the ID minting rule intact, no `crypto.randomUUID() as XxxId` in clients.
 const CreateBody = ClarifyTicketCreate
   .omit({ workspaceId: true })
   .extend({ candidates: z.array(ClarifyCandidate.partial({ id: true })) })
@@ -185,8 +181,8 @@ const skipClarifyRoute = createRoute({
 
 export function createClarifyRouter(deps: ClarifyRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
-  // Answer / skip / mark-applied are HITL decisions — Owner + Maintainer
-  // only. Guests never see the tab but a direct curl still 403s here.
+  // Answer / skip / mark-applied are HITL decisions, Owner + Maintainer only.
+  // Guests never see the tab but a direct curl still 403s here.
   router.use('/:clarifyTicketId/answer', requirePermission('clarify.write'))
   router.use('/:clarifyTicketId/skip', requirePermission('clarify.write'))
   router.use('/:clarifyTicketId', requirePermission('clarify.write'))

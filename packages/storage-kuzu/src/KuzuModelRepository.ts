@@ -20,10 +20,9 @@ import { DDL_CREATE_EDGE_TABLE, DDL_CREATE_NODE_TABLE } from './schema.js'
 
 export interface KuzuModelRepositoryOptions {
   /**
-   * Resolve the absolute Kuzu DB file path for a workspace id. Composition
-   * roots typically look this up via the `WorkspaceRepository`. The parent
-   * directory is created on demand. Called once per workspace per process
-   * and cached.
+   * Resolve the absolute Kuzu DB file path for a workspace id.
+   * Composition roots typically look this up via the `WorkspaceRepository`. The parent directory is created on demand.
+   * Called once per workspace per process and cached.
    */
   readonly resolveDbPath: (workspaceId: WorkspaceId) => Promise<string> | string
 }
@@ -44,14 +43,14 @@ interface PreparedStatementCache {
 }
 
 /**
- * Embedded graph storage for Braid. Each workspace gets its own Kuzu DB
- * directory; the schema is shared (one generic `Node` / `Edge` table since
- * Braid ontology is dynamic and lives in the `type` property).
+ * Embedded graph storage for Braid. Each workspace gets its own Kuzu DB directory.
+ * The schema is shared (one generic `Node` / `Edge` table,
+ * since Braid ontology is dynamic and lives in the `type` property).
  *
- * Writes use diff-against-snapshot semantics: load → preview ops via the
- * domain `Model` (which validates and mints ids) → translate the diff into
- * Cypher mutations. That keeps domain invariants in one place and lets us
- * stay non-transactional at the Kuzu layer until we actually need it.
+ * Writes use diff-against-snapshot semantics. Load, preview ops via the domain `Model` (which validates and mints ids),
+ * then translate the diff into Cypher mutations.
+ * That keeps domain invariants in one place,
+ * and lets us stay non-transactional at the Kuzu layer until we actually need it.
  */
 export class KuzuModelRepository implements ModelRepository {
   private readonly cache = new Map<WorkspaceId, CachedConnection>()
@@ -68,9 +67,8 @@ export class KuzuModelRepository implements ModelRepository {
     const previous = await readSnapshot(cached.conn)
     const next = Model.preview(previous, operations)
     await writeDiff(cached, previous, next)
-    // Kuzu auto-checkpoint is lazy; force it so the WAL is merged
-    // into model.kuzu before we return. A dirty shutdown (SIGKILL,
-    // tsx-watch reload) otherwise drops an unmerged WAL on the floor.
+    // Kuzu auto-checkpoint is lazy, force it so the WAL is merged into model.kuzu before we return. A dirty shutdown,
+    // a SIGKILL or tsx-watch reload, otherwise drops an unmerged WAL on the floor.
     await cached.conn.query('CHECKPOINT;')
   }
 
@@ -113,7 +111,7 @@ export class KuzuModelRepository implements ModelRepository {
     if (existing)
       return existing
     const path = await this.opts.resolveDbPath(workspaceId)
-    // Kuzu 0.11+ stores the DB as a single file; we just need the parent.
+    // Kuzu 0.11+ stores the DB as a single file, we just need the parent.
     await mkdir(dirname(path), { recursive: true })
     // Kuzu mmaps maxDBSize up front (8 TiB default), too big for constrained CI runners.
     // 1 GiB is ample for Braid graphs, overridable via BRAID_KUZU_MAX_DB_SIZE.
@@ -187,8 +185,8 @@ async function writeDiff(cached: CachedConnection, previous: ModelSnapshot, next
   const prevEdges = new Map(previous.edges.map(e => [e.id, e]))
   const nextEdges = new Map(next.edges.map(e => [e.id, e]))
 
-  // Edges first: removing a node DETACH-deletes its edges, so we drop
-  // edges before nodes to keep our explicit-delete bookkeeping accurate.
+  // Edges first, removing a node DETACH-deletes its edges,
+  // so we drop edges before nodes to keep delete bookkeeping accurate.
   for (const [id, prev] of prevEdges) {
     const after = nextEdges.get(id)
     if (!after) {

@@ -43,9 +43,9 @@ describe('composeFsApp', () => {
   })
 
   it('auto-discovers workspaces sitting under <braidHome>/workspaces/ on boot', async () => {
-    // CLI-created workspaces, scaffold orphans, and copies-from-another-
-    // machine end up at the canonical path but are not in workspaces.json.
-    // composeFsApp must surface them without requiring an explicit register.
+    // CLI-created workspaces, scaffold orphans, machine-to-machine copies,
+    // all land at the canonical path but aren't in workspaces.json.
+    // composeFsApp must surface them without an explicit register.
     const braidHome = await makeBraidHome()
     const discoveredDir = join(braidHome, 'workspaces', 'auto-discovered')
     await mkdir(discoveredDir, { recursive: true })
@@ -70,10 +70,8 @@ storage:
   })
 
   it('DELETE ?purge=true removes the workspace folder so auto-discover does not bring it back', async () => {
-    // The auto-discover-on-boot loop is exactly why plain unregister
-    // isn't enough for canonical-root workspaces: the folder is right
-    // there with a PRODUCT.md, so the next composeFsApp would register
-    // it again. Purge is the only way to fully rebuild from scratch.
+    // Auto-discover-on-boot is why plain unregister isn't enough here. The folder sits there with a PRODUCT.md,
+    // so the next boot re-registers it. Purge is the only way to fully rebuild from scratch.
     const braidHome = await makeBraidHome()
     const wsDir = join(braidHome, 'workspaces', 'purge-me')
     await mkdir(wsDir, { recursive: true })
@@ -97,7 +95,7 @@ storage:
     expect(purge.status).toBe(204)
     await expect(stat(wsDir)).rejects.toThrow(/ENOENT/)
 
-    // Boot afresh; auto-discover should find nothing (folder gone).
+    // Boot afresh, auto-discover should find nothing (folder gone).
     const secondApp = createApp(await composeFsApp({ braidHome }))
     list = await readJson<WorkspaceListBody>(await secondApp.request('/workspaces'))
     expect(list.items).toHaveLength(0)
@@ -131,10 +129,8 @@ storage:
   })
 
   it('POST /workspaces/scaffold rolls back PRODUCT.md and registry on ingest failure', async () => {
-    // A source whose loader.kind isn't registered makes
-    // SourceLoaderRunner.ingestAll throw. Verify the route catches it,
-    // removes the just-written PRODUCT.md, and leaves the registry empty
-    // so a retry doesn't trip on "PRODUCT.md already exists".
+    // A source with an unregistered loader.kind makes ingestAll throw. Verify the route catches it,
+    // removes the just-written PRODUCT.md, and leaves the registry empty so a retry doesn't hit "already exists".
     const braidHome = await makeBraidHome()
     const app = createApp(await composeFsApp({ braidHome }))
 

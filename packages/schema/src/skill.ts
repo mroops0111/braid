@@ -7,8 +7,8 @@ import { WorkspaceRole } from './workspace.js'
 export const SkillOrigin = z.enum(['builtin', 'plugin', 'workspace', 'extension'])
 export type SkillOrigin = z.infer<typeof SkillOrigin>
 
-// Frontmatter the Claude Code CLI reads to register the slash command and invocation rules.
-// camelCase in TS, emitted as kebab-case in YAML.
+// Frontmatter the Claude Code CLI reads to register the slash command, plus its invocation rules. camelCase in TS,
+// emitted as kebab-case in YAML.
 export const ClaudeCodeSkillFrontmatter = z.object({
   name: z.string().min(1),
   description: z.string().min(1),
@@ -19,8 +19,7 @@ export const ClaudeCodeSkillFrontmatter = z.object({
 })
 export type ClaudeCodeSkillFrontmatter = z.infer<typeof ClaudeCodeSkillFrontmatter>
 
-// Studio sidebar section, mapped 1:1.
-// ask: read-only Q&A. build: mutate the graph. generate: produce artifacts.
+// Studio sidebar section, mapped 1:1. ask: read-only Q&A. build: mutate the graph. generate: produce artifacts.
 export const SkillCategory = z.enum(['ask', 'build', 'generate'])
 export type SkillCategory = z.infer<typeof SkillCategory>
 
@@ -45,7 +44,7 @@ export const SkillInputGraphNodeProvider = z.object({
   filter: z.object({
     types: z.array(z.string()).optional(),
     statuses: z.array(z.string()).optional(),
-    // container: true picks node types flagged as top-level containers (e.g. boundedContext).
+    // container: true picks node types flagged as top-level containers, e.g. boundedContext.
     renderHint: z.object({ container: z.boolean().optional() }).optional(),
   }).optional(),
 })
@@ -78,8 +77,7 @@ export const SkillInputProvider = z.discriminatedUnion('kind', [
 ])
 export type SkillInputProvider = z.infer<typeof SkillInputProvider>
 
-// What the form does on zero options.
-// text: swap to free-text (default). disabled: for server-required selections.
+// What the form does on zero options. text: swap to free-text (default). disabled: for server-required selections.
 export const SkillInputFallback = z.enum(['text', 'disabled']).default('text')
 export type SkillInputFallback = z.infer<typeof SkillInputFallback>
 
@@ -129,7 +127,7 @@ export const SkillInputDynamicOption = z.object({
   value: z.string(),
   label: z.string().min(1),
   description: z.string().optional(),
-  // Set by the source-intent provider so a run can report which source unit it processed.
+  // Set by the source-intent provider so a run can name its source unit.
   // Empty for providers that don't speak in source units (graph-node, clarify).
   sourceId: SourceId.optional(),
 })
@@ -140,8 +138,8 @@ export const SkillInputOptionsResponse = z.object({
 })
 export type SkillInputOptionsResponse = z.infer<typeof SkillInputOptionsResponse>
 
-// Per-skill agent selection. Every field is optional, unset ones fall back to
-// the server-configured agent, which itself defaults to claude-code.
+// Per-skill agent selection. Every field is optional, unset ones fall back to the server agent,
+// which defaults to claude-code.
 export const SkillAgentOverride = z.object({
   kind: AgentKind.optional(),
   model: z.string().min(1).optional(),
@@ -149,12 +147,12 @@ export const SkillAgentOverride = z.object({
 })
 export type SkillAgentOverride = z.infer<typeof SkillAgentOverride>
 
-// Braid-specific fields under the braid: key so they never collide with Claude Code's own.
+// Braid-specific fields under the braid: key, so they never collide with Claude Code's own.
 // Read by SubprocessSkillRunner for preflight (env / path / MCP) before spawning.
 export const BraidSkillExtension = z.object({
   requiredEnv: z.array(z.string()).default([]),
   requiredMcpServers: z.array(McpServerId).default([]),
-  // Picks the agent and effort for this skill. Unset falls back to the server default.
+  // Picks agent/effort for this skill. Unset fields use the server default.
   agent: SkillAgentOverride.optional(),
   category: SkillCategory.optional(),
   // Step number within build, Studio sorts by it. Ignored for ask / generate.
@@ -202,7 +200,7 @@ export const SkillEventStarted = z.object({
   at: Timestamp,
 })
 
-// The claude session id, passed back on the next run to continue via claude --resume.
+// The claude session id, passed to the next run to resume via claude --resume.
 export const SkillEventSessionStarted = z.object({
   type: z.literal('session-started'),
   sessionId: z.string().min(1),
@@ -279,7 +277,7 @@ export const RunRecord = z.object({
 })
 export type RunRecord = z.infer<typeof RunRecord>
 
-// Per-session user metadata, separate from RunRecord since the reviewer owns it (rename).
+// Per-session user metadata, separate from RunRecord. The reviewer owns it (rename).
 // Append-only at artifacts/runs/sessions.jsonl, last-wins per sessionId.
 export const SessionMetadata = z.object({
   sessionId: z.string().min(1),

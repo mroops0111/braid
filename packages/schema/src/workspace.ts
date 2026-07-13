@@ -1,11 +1,12 @@
 import { z } from 'zod'
 import { AbsolutePath, OntologyId, SkillId, Timestamp, UserId, WorkspaceId } from './common.js'
 import { McpServerConfig } from './mcp.js'
+import { ReactorConfig } from './reactor.js'
 import { SourceDescriptor } from './source.js'
 import { StorageDescriptor } from './storage.js'
 
-// owner: settings + members. maintainer: HITL gate + skills. guest: read-only by default.
-// admin is deliberately absent: server-wide Admin lives on User.serverRole.
+// owner: settings + members. maintainer: HITL gate + skills. guest: read-only by default. admin is deliberately absent.
+// Server-wide Admin lives on User.serverRole.
 export const WorkspaceRole = z.enum(['owner', 'maintainer', 'guest'])
 export type WorkspaceRole = z.infer<typeof WorkspaceRole>
 
@@ -20,14 +21,6 @@ export const WorkspaceMember = z.object({
   skillOverrides: z.record(SkillId, SkillPermission).optional(),
 })
 export type WorkspaceMember = z.infer<typeof WorkspaceMember>
-
-// Off by default so no background LLM spend until the operator opts in.
-// maxRunsPerHour: fail-closed hourly cap. Over-cap dispatches emit reactor.throttled.
-export const ReactorConfig = z.object({
-  enabled: z.boolean().default(false),
-  maxRunsPerHour: z.number().int().positive().default(5),
-})
-export type ReactorConfig = z.infer<typeof ReactorConfig>
 
 export const ProductManifest = z.object({
   name: z.string().min(1),

@@ -16,11 +16,9 @@ interface DirentLike {
 export interface FsSkillRegistryOptions {
   readonly builtinSkillsRoot: AbsolutePath
   /**
-   * Optional plugin registry. When provided, skills declared by
-   * registered plugins are mounted under the `plugin` origin between
-   * builtins and workspace skills. Without it (e.g. in unit tests
-   * that don't compose a registry) only builtin / workspace /
-   * extension origins are discovered.
+   * Optional plugin registry. When provided, skills declared by registered plugins mount under the `plugin` origin,
+   * between builtins and workspace skills. Without it, as in unit tests that don't compose a registry, only builtin,
+   * workspace, and extension origins are discovered.
    */
   readonly pluginRegistry?: PluginRegistry
 }
@@ -39,9 +37,8 @@ export class FsSkillRegistry implements SkillRegistry {
       AbsolutePathSchema.parse(workspaceSkillExtensionsDir(workspace.rootPath)),
     )
 
-    // Precedence (later wins): builtin < plugin < workspace.
-    // Extensions don't override. They attach an EXTEND.md path to the
-    // resolved skill so the agent binding points claude at it at run time.
+    // Precedence (later wins): builtin < plugin < workspace. Extensions don't override.
+    // They attach an EXTEND.md path to the resolved skill, so the agent binding points claude at it at run time.
     const manifests = new Map<SkillId, SkillManifest>()
     for (const manifest of builtins) manifests.set(manifest.id, manifest)
     for (const manifest of pluginSkills) manifests.set(manifest.id, manifest)
@@ -89,12 +86,10 @@ export class FsSkillRegistry implements SkillRegistry {
   }
 
   /**
-   * Resolve every PluginSkillRef in the registry to a parsed
-   * SkillManifest. Each ref's `directory` is converted to an absolute
-   * fs path (URL via fileURLToPath), then `SKILL.md` is read and
-   * parsed. Missing files at a plugin-declared path are an error,
-   * not a silent skip: a plugin that ships a broken ref deserves a
-   * loud startup failure, not a mysteriously-absent skill.
+   * Resolve every PluginSkillRef in the registry to a parsed SkillManifest.
+   * Each ref's `directory` is converted to an absolute fs path, via fileURLToPath, then `SKILL.md` is read and parsed.
+   * Missing files at a plugin-declared path are an error, not a silent skip.
+   * A plugin that ships a broken ref deserves a loud startup failure, not a mysteriously-absent skill.
    */
   private async scanPluginSkills(): Promise<readonly SkillManifest[]> {
     const registry = this.options.pluginRegistry
@@ -152,11 +147,9 @@ export class FsSkillRegistry implements SkillRegistry {
     const { frontmatter: raw, body } = parseMarkdownFrontmatter<unknown>(content)
     const frontmatter = SkillFrontmatterSchema.parse(raw)
 
-    // Structural contract: SKILL.md must declare the required H2 sections
-    // per its `braid.category`. The validator is hard-fail so a broken
-    // skill never silently appears in the workspace's skill list — a
-    // skill missing `## Procedure` would burn an entire run before the
-    // agent notices the gap.
+    // Structural contract: SKILL.md must declare the required H2 sections, per its `braid.category`.
+    // The validator is hard-fail, so a broken skill never silently appears in the workspace's skill list.
+    // A skill missing `## Procedure` would burn an entire run, before the agent notices the gap.
     const validation = validateSkillStructure({ body, frontmatter })
     if (!validation.ok) {
       const issues = validation.issues.map(issue => `- ${issue.message}`).join('\n')

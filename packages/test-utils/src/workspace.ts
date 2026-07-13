@@ -38,12 +38,10 @@ export interface MakeWorkspaceOptions {
 }
 
 /**
- * Construct a `Workspace` aggregate for tests. Defaults give the
- * happy-path shape (DDD ontology, in-memory storage, one filesystem
- * code source); override per test for the specific axis under test.
+ * Construct a `Workspace` aggregate for tests. Defaults give the happy-path shape (DDD ontology, in-memory storage,
+ * one filesystem code source), override per test for the specific axis under test.
  *
- * The `id` and `manifest.name` are kept aligned so the production
- * invariant `WorkspaceId === manifest.name` holds.
+ * The `id` and `manifest.name` are kept aligned so the production invariant `WorkspaceId === manifest.name` holds.
  */
 export function makeWorkspace(opts: MakeWorkspaceOptions = {}): Workspace {
   const id = opts.id ?? 'ws-1'

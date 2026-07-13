@@ -64,9 +64,9 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
   const [storageKind, setStorageKind] = useState('kuzu')
   const [ingestResults, setIngestResults] = useState<IngestSummary[]>([])
   // sourceIds whose Google OAuth flow completed in this wizard session.
-  // The server stores tokens keyed by `${workspaceId}--${sourceId}` and
-  // since `workspaceId === name` (PRODUCT.md name == folder name) we can
-  // run OAuth before the workspace actually exists.
+  // The server stores tokens keyed by `${workspaceId}--${sourceId}`.
+  // Since `workspaceId === name` (PRODUCT.md name == folder name),
+  // we can run OAuth before the workspace actually exists.
   const [oauthConnectedFor, setOauthConnectedFor] = useState<Set<string>>(new Set())
 
   const scaffold = useMutation({
@@ -77,7 +77,7 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
     onSuccess: (result) => {
       setIngestResults(result.ingest)
       queryClient.invalidateQueries({ queryKey: queryKeys.workspaces() })
-      // Sidebar reads per-remote via `['workspaces-at', remoteId]`, which is
+      // Sidebar reads per-remote via `['workspaces-at', remoteId]`,
       // a different cache entry from the single-server `['workspaces']` key.
       // Without this the newly-scaffolded workspace doesn't appear until reload.
       queryClient.invalidateQueries({ queryKey: ['workspaces-at'], exact: false })
@@ -122,8 +122,8 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
       onOpenChange={(o) => {
         if (!o) {
           // Don't let outside-click / Escape kill the wizard mid-flight.
-          // Scaffold + ingest can take minutes for gdrive sources; closing
-          // would orphan the request and lose the progress we're showing.
+          // Scaffold and ingest can take minutes for gdrive sources.
+          // Closing would orphan the request and lose the progress shown.
           if (scaffold.isPending)
             return
           close()
@@ -473,10 +473,10 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
 }
 
 /**
- * Loader dropdown for the wizard. Reads the server's `/source-loaders` list
- * so any newly-registered plugin appears here without a Studio code change.
- * The `manual` option is always offered first because it is not backed by a
- * plugin (it just tells the workspace "this source has no auto-sync").
+ * Loader dropdown for the wizard.
+ * Reads the server's `/source-loaders` list so any newly-registered plugin appears here without a Studio code change.
+ * The `manual` option is always offered first,
+ * because it is not backed by a plugin (it just tells the workspace "this source has no auto-sync").
  */
 function LoaderSelect({ value, onChange }: { value: string, onChange: (kind: string) => void }) {
   const { data } = useSourceLoaders()
@@ -500,10 +500,9 @@ function GdriveOauthBlock({ workspaceName, sourceName, connected, onConnected }:
   connected: boolean
   onConnected: (sourceId: string) => void
 }) {
-  // Token storage key is `${workspaceId}--${sourceId}`. Workspace id is
-  // the typed workspace name (PRODUCT.md name); source id is derived from
-  // source name. Both come from the wizard's current state so we can
-  // authorise *before* scaffold runs.
+  // Token storage key is `${workspaceId}--${sourceId}`. Workspace id is the typed name (PRODUCT.md name),
+  // source id is derived from the source name. Both come from the wizard's current state,
+  // so we authorise before scaffold.
   const workspaceId = workspaceName.trim()
   const sourceId = nameToId(sourceName)
   const canStart = workspaceId.length > 0 && sourceId.length > 0
@@ -723,11 +722,9 @@ function ProgressStep({ workspaceName, status, error, ingest, expectedSources, o
   expectedSources: readonly ExpectedSource[]
   onClose: () => void
 }) {
-  // Live per-source progress via SSE. The workspace doesn't exist in the
-  // registry when we open this stream. `source.synced` events flow
-  // straight off the event bus by string key, so subscribing on the
-  // wizard's typed name catches every event ingestAll publishes during
-  // scaffold.
+  // Live per-source progress via SSE. The workspace isn't in the registry yet when we open this stream.
+  // `source.synced` events flow off the event bus by string key,
+  // so the wizard's typed name catches every event ingestAll fires.
   const [syncedIds, setSyncedIds] = useState<Set<string>>(new Set())
   useEffect(() => {
     if (status !== 'pending' || !workspaceName)
@@ -825,9 +822,8 @@ function canAdvanceFrom(
       if (source.loaderKind === 'gdrive') {
         if (source.gdriveFolderId.trim().length === 0)
           return false
-        // OAuth is mandatory for gdrive; otherwise scaffold's ingestAll
-        // will fail server-side with "not connected" and the user gets
-        // an opaque error after walking through all remaining steps.
+        // OAuth is mandatory for gdrive. Otherwise ingestAll fails server-side with "not connected",
+        // and the user gets an opaque error after the remaining steps.
         if (!state.oauthConnectedFor.has(nameToId(source.name)))
           return false
       }

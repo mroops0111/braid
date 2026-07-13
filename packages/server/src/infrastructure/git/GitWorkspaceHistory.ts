@@ -33,7 +33,7 @@ const TAG_FORMAT = [
   '%(contents:subject)',
 ].join(TAG_FIELD_SEPARATOR) + TAG_RECORD_SEPARATOR
 
-// Intent docs + codebases are re-fetchable; tracking them would nest foreign `.git/` dirs and bloat history.
+// Intent docs and codebases are re-fetchable. Tracking them would nest foreign `.git/` dirs and bloat history.
 const DEFAULT_GITIGNORE = `# Braid auto-generated.
 
 .braid/
@@ -54,7 +54,7 @@ const INITIAL_COMMIT: CommitMessage = {
   userId: BOOTSTRAP_USER_ID,
 }
 
-// `core.quotePath=false` keeps non-ASCII paths intact in log / name-status output.
+// `core.quotePath=false` keeps non-ASCII paths intact, in log and name-status output.
 function openGit(baseDir: string): SimpleGit {
   return simpleGit({
     baseDir,
@@ -76,7 +76,7 @@ export class GitWorkspaceHistory implements WorkspaceHistory {
       await writeFile(gitignorePath, DEFAULT_GITIGNORE, 'utf-8')
 
     await git.add(['-A'])
-    // Allow empty when the workspace dir has nothing tracked yet so HEAD still exists for later commits to parent on.
+    // Allow empty when the workspace dir has nothing tracked yet, so HEAD still exists for later commits to parent on.
     const allowEmpty = !(await this.hasPendingChanges(git))
     await this.commitWithMeta(git, INITIAL_COMMIT, { allowEmpty })
   }
@@ -84,7 +84,7 @@ export class GitWorkspaceHistory implements WorkspaceHistory {
   async commit(workspace: Workspace, message: CommitMessage): Promise<CommitSha> {
     const git = openGit(workspace.rootPath)
     await git.add(['-A'])
-    // Redundant commit attempts (e.g. reject after the artifact was already persisted) resolve to a no-op.
+    // Redundant commit attempts resolve to a no-op, for example a reject after the artifact was already persisted.
     if (!(await this.hasPendingChanges(git))) {
       const head = await git.revparse(['HEAD'])
       return CommitSha.parse(head.trim())
@@ -102,7 +102,7 @@ export class GitWorkspaceHistory implements WorkspaceHistory {
     if (options?.since)
       args.splice(1, 0, `${options.since}^`)
     const raw = await git.raw(args).catch((err: unknown) => {
-      // Fresh repo with no commits → `git log` exits non-zero; treat as empty.
+      // Fresh repo with no commits, `git log` exits non-zero. Treat as empty.
       if (looksLikeNoCommits(err))
         return ''
       throw err
@@ -129,7 +129,7 @@ export class GitWorkspaceHistory implements WorkspaceHistory {
 
   async readGraphAtCommit(workspace: Workspace, sha: CommitSha): Promise<ModelSnapshot> {
     const git = openGit(workspace.rootPath)
-    // Pre-bootstrap commits don't carry `graph.json`; empty snapshot lets diffs classify everything as `added`.
+    // Pre-bootstrap commits don't carry `graph.json`. An empty snapshot lets diffs classify everything as `added`.
     const raw = await git.raw(['show', `${sha}:artifacts/graph.json`]).catch((err: unknown) => {
       if (looksLikePathNotInCommit(err) || looksLikeUnknownRevision(err))
         return ''
@@ -148,7 +148,7 @@ export class GitWorkspaceHistory implements WorkspaceHistory {
 
   async getCommitDiff(workspace: Workspace, sha: CommitSha): Promise<readonly FileDiff[]> {
     const git = openGit(workspace.rootPath)
-    // `--root` keeps the root commit diffable against the empty tree instead of erroring.
+    // `--root` keeps the root commit diffable against the empty tree, instead of erroring.
     const raw = await git.raw(['show', '--name-status', '--root', '--format=', sha]).catch((err: unknown) => {
       if (looksLikeUnknownRevision(err))
         return ''
@@ -167,7 +167,7 @@ export class GitWorkspaceHistory implements WorkspaceHistory {
     const head = CommitSha.parse(headRaw.trim())
     if (head === targetSha)
       return head
-    // `checkout <sha> -- .` only restores files present in <sha>; we need an EXACT match so newer files must also go.
+    // `checkout <sha> -- .` only restores files present in <sha>. We need an EXACT match, so newer files must also go.
     await git.raw(['read-tree', targetSha])
     await git.raw(['checkout-index', '--force', '--all'])
     await git.raw(['clean', '-fd'])
@@ -188,7 +188,8 @@ export class GitWorkspaceHistory implements WorkspaceHistory {
   ): Promise<TagMeta> {
     const git = openGit(workspace.rootPath)
     if (note) {
-      // Annotated tags need a committer identity; pin inline so CI runners without global git config don't fail.
+      // Annotated tags need a committer identity.
+    // Pin it inline so CI runners without global git config don't fail.
       await git.raw([
         '-c',
         `user.name=${BOOTSTRAP_USER_ID}`,
@@ -240,11 +241,9 @@ export class GitWorkspaceHistory implements WorkspaceHistory {
     message: CommitMessage,
     options: { allowEmpty: boolean },
   ): Promise<CommitSha> {
-    // `authorName` / `authorEmail` are snapshotted at commit time so
-    // a future rename of the user record doesn't rewrite git history.
-    // When absent (bootstrap, source-sync, pre-Phase-A artifacts) we
-    // fall back to the opaque `userId` for both — same behaviour as
-    // before Theme 13 landed.
+    // `authorName` / `authorEmail` are snapshotted at commit time,
+    // so a future rename of the user record doesn't rewrite git history. When absent,
+    // we fall back to the opaque `userId` for both.
     const name = message.authorName ?? message.userId
     const email = message.authorEmail ?? `${message.userId}@braid.local`
     const args = ['commit', '-m', serializeCommitMessage(message), `--author=${name} <${email}>`]
@@ -271,7 +270,7 @@ function parseLogRecord(record: string, workspaceId: string): CommitMeta {
     parents: parents!.trim()
       ? parents!.trim().split(' ').map(s => CommitSha.parse(s.trim()))
       : [],
-    // Stats are derived lazily via `getCommitDiff` to avoid N extra diff calls per list page.
+    // Stats are derived lazily via `getCommitDiff`, to avoid N extra diff calls per list page.
     stats: null,
   }
 }
@@ -327,8 +326,8 @@ function splitLogRecords(raw: string): string[] {
   return raw.split(LOG_RECORD_SEPARATOR).map(s => s.trim()).filter(s => s.length > 0)
 }
 
-// Unknown letters fall back to `modified` so the row still surfaces.
-function statusFromCode(code: string | undefined): 'added' | 'modified' | 'removed' {
+// Unknown letters fall back to `updated` so the row still surfaces.
+function statusFromCode(code: string | undefined): 'added' | 'updated' | 'removed' {
   switch (code) {
     case 'A':
     case 'C':
@@ -336,9 +335,9 @@ function statusFromCode(code: string | undefined): 'added' | 'modified' | 'remov
     case 'D':
       return 'removed'
     case 'M':
-      return 'modified'
+      return 'updated'
     default:
-      return 'modified'
+      return 'updated'
   }
 }
 
@@ -352,7 +351,8 @@ function looksLikeUnknownRevision(err: unknown): boolean {
   return /unknown revision|bad revision|ambiguous argument/i.test(msg)
 }
 
-// `git show <sha>:<path>` for an untracked path reports "exists on disk, but not in" or "does not exist in".
+// `git show <sha>:<path>` for an untracked path reports a specific message. It says "exists on disk,
+// but not in" or "does not exist in".
 function looksLikePathNotInCommit(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err)
   return /exists on disk, but not in|does not exist in|path .* does not exist/i.test(msg)
