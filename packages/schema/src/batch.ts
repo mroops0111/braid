@@ -1,14 +1,14 @@
 import { z } from 'zod'
 import { ClarifyTicketId, ProposalId, SkillId, SkillRunId, SourceId, Timestamp, WorkspaceId } from './common.js'
 
-export const PlanUnitId = z.string().min(1).brand<'PlanUnitId'>()
-export type PlanUnitId = z.infer<typeof PlanUnitId>
+export const BatchUnitId = z.string().min(1).brand<'BatchUnitId'>()
+export type BatchUnitId = z.infer<typeof BatchUnitId>
 
 export const BatchPlanId = z.string().min(1).brand<'BatchPlanId'>()
 export type BatchPlanId = z.infer<typeof BatchPlanId>
 
-export const UnitStatus = z.enum(['pending', 'running', 'completed', 'failed', 'skipped'])
-export type UnitStatus = z.infer<typeof UnitStatus>
+export const BatchUnitStatus = z.enum(['pending', 'running', 'completed', 'failed', 'skipped'])
+export type BatchUnitStatus = z.infer<typeof BatchUnitStatus>
 
 export const BatchStatus = z.enum(['idle', 'deriving', 'running', 'completed', 'failed', 'stopped', 'archived'])
 export type BatchStatus = z.infer<typeof BatchStatus>
@@ -18,16 +18,16 @@ export type BatchStatus = z.infer<typeof BatchStatus>
 export const BatchInputMode = z.enum(['intent', 'derive'])
 export type BatchInputMode = z.infer<typeof BatchInputMode>
 
-export const PlanUnit = z.object({
-  id: PlanUnitId,
+export const BatchUnit = z.object({
+  id: BatchUnitId,
   name: z.string().min(1),
   description: z.string(),
   // The intent source this unit belongs to. Absent in derive mode.
   sourceId: SourceId.optional(),
   // Scope hint for braid-extract (doc/folder name). Empty falls back to name.
   scopeHint: z.string().optional(),
-  status: UnitStatus,
-  // Stamped at startUnit so the UI can replay the run's log.
+  status: BatchUnitStatus,
+  // Stamped at markUnitRunning so the UI can replay the run's log.
   skillRunId: SkillRunId.optional(),
   startedAt: Timestamp.optional(),
   completedAt: Timestamp.optional(),
@@ -35,10 +35,10 @@ export const PlanUnit = z.object({
   clarifyTicketIds: z.array(ClarifyTicketId).default([]),
   error: z.string().optional(),
 })
-export type PlanUnit = z.infer<typeof PlanUnit>
+export type BatchUnit = z.infer<typeof BatchUnit>
 
 export const BatchRunning = z.object({
-  unitId: PlanUnitId,
+  unitId: BatchUnitId,
   skillRunId: SkillRunId,
 })
 export type BatchRunning = z.infer<typeof BatchRunning>
@@ -49,7 +49,7 @@ export type BatchCheckpointPhaseStatus = z.infer<typeof BatchCheckpointPhaseStat
 // unitIds records which units this run consumed, for chunk accounting.
 export const BatchCheckpointPhase = z.object({
   status: BatchCheckpointPhaseStatus,
-  unitIds: z.array(PlanUnitId),
+  unitIds: z.array(BatchUnitId),
   startedAt: Timestamp.optional(),
   completedAt: Timestamp.optional(),
   skillRunId: SkillRunId.optional(),
@@ -67,7 +67,7 @@ export const BatchPlan = z.object({
   autoApply: z.boolean(),
   // Git tag from start(), lets Restore roll back a botched batch.
   baselineTag: z.string().optional(),
-  units: z.array(PlanUnit),
+  units: z.array(BatchUnit),
   running: BatchRunning.optional(),
   error: z.string().optional(),
   // resumeRun drops failed phases so a re-run starts accounting fresh.

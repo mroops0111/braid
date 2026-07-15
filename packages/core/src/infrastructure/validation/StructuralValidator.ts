@@ -7,7 +7,7 @@ import type {
   ValidationCode,
   ValidationIssue,
 } from '@braidhq/schema'
-import type { EdgeTypeDescriptor, OntologyPlugin, OntologyValidator } from '../../domain/plugin/Ontology.js'
+import type { EdgeTypeDescriptor, OntologyPlugin, OntologyValidator } from '../../domain/plugin/OntologyPlugin.js'
 
 /**
  * Generic engine: reads `EdgeTypeDescriptor.fromTypes / toTypes /

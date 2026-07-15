@@ -1,8 +1,8 @@
 import type {
   BatchPlan as BatchPlanData,
   BatchPlanId,
-  PlanUnit,
-  PlanUnitId,
+  BatchUnit,
+  BatchUnitId,
   ProposalId,
   SkillRunId,
   SourceId,
@@ -17,10 +17,10 @@ const T2 = at(2)
 
 const workspaceId = 'w-1' as WorkspaceId
 const planId = 'bp-2026-06-03-aaaa' as BatchPlanId
-const unitA = 'pu-a' as PlanUnitId
-const unitB = 'pu-b' as PlanUnitId
+const unitA = 'pu-a' as BatchUnitId
+const unitB = 'pu-b' as BatchUnitId
 
-function makeUnit(id: PlanUnitId, name: string): PlanUnit {
+function makeUnit(id: BatchUnitId, name: string): BatchUnit {
   return {
     id,
     name,
@@ -81,10 +81,10 @@ describe('BatchPlan', () => {
     })
   })
 
-  describe('startUnit / completeUnit / failUnit', () => {
+  describe('markUnitRunning / markUnitCompleted / markUnitFailed', () => {
     it('marks the unit running, then completed with output', () => {
       const plan = makePlan({ status: 'running' })
-      const running = plan.startUnit(T1, unitA, {
+      const running = plan.markUnitRunning(T1, unitA, {
         unitId: unitA,
         skillRunId: 'run-1' as SkillRunId,
       })
@@ -92,7 +92,7 @@ describe('BatchPlan', () => {
       expect(running.units[0]!.startedAt).toBe(T1)
       expect(running.running?.unitId).toBe(unitA)
 
-      const completed = running.completeUnit(T2, unitA, {
+      const completed = running.markUnitCompleted(T2, unitA, {
         proposalIds: ['p-1' as ProposalId],
         clarifyTicketIds: [],
       })
@@ -101,10 +101,10 @@ describe('BatchPlan', () => {
       expect(completed.running).toBeUndefined()
     })
 
-    it('failUnit records the error and clears the running pointer', () => {
+    it('markUnitFailed records the error and clears the running pointer', () => {
       const plan = makePlan({ status: 'running' })
-        .startUnit(T1, unitA, { unitId: unitA, skillRunId: 'r' as SkillRunId })
-        .failUnit(T2, unitA, 'extract exit 1')
+        .markUnitRunning(T1, unitA, { unitId: unitA, skillRunId: 'r' as SkillRunId })
+        .markUnitFailed(T2, unitA, 'extract exit 1')
       expect(plan.units[0]!.status).toBe('failed')
       expect(plan.units[0]!.error).toBe('extract exit 1')
       expect(plan.running).toBeUndefined()
@@ -113,7 +113,7 @@ describe('BatchPlan', () => {
 
   describe('terminal transitions', () => {
     it('markCompleted / markFailed / markStopped clear the running pointer', () => {
-      const base = makePlan({ status: 'running' }).startUnit(T1, unitA, {
+      const base = makePlan({ status: 'running' }).markUnitRunning(T1, unitA, {
         unitId: unitA,
         skillRunId: 'r' as SkillRunId,
       })
@@ -139,7 +139,7 @@ describe('BatchPlan', () => {
 
     it('clears the running pointer', () => {
       const completed = makePlan({ status: 'running' })
-        .startUnit(T1, unitA, { unitId: unitA, skillRunId: 'r' as SkillRunId })
+        .markUnitRunning(T1, unitA, { unitId: unitA, skillRunId: 'r' as SkillRunId })
         .markCompleted(T2)
       expect(completed.archive(T2).running).toBeUndefined()
     })

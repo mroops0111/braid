@@ -1,21 +1,21 @@
 import type {
   BatchInputMode,
   BatchPlan as BatchPlanData,
+  BatchUnit,
+  BatchUnitId,
   ClarifyTicketId,
-  PlanUnit,
-  PlanUnitId,
   ProposalId,
   SkillEvent,
   SkillRunId,
   Timestamp,
+  WorkspaceEvent,
   WorkspaceId,
 } from '@braidhq/schema'
 import type { BatchPlanRepository } from '../domain/batch/BatchPlanRepository.js'
 import type { Clock } from '../domain/Clock.js'
-import type { WorkspaceEvent } from '../domain/events/WorkspaceEvent.js'
 import type { ClarifyTicketRepository } from '../domain/hitl/ClarifyTicketRepository.js'
 import type { ProposalRepository } from '../domain/hitl/ProposalRepository.js'
-import type { OntologyBatchBinding, OntologyPlugin } from '../domain/plugin/Ontology.js'
+import type { OntologyBatchBinding, OntologyPlugin } from '../domain/plugin/OntologyPlugin.js'
 import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
 import type { SkillRunner } from '../domain/skill/SkillRunner.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
@@ -28,7 +28,7 @@ import type { WorkspaceService } from './WorkspaceService.js'
 import { UserId } from '@braidhq/schema'
 import { BatchPlan } from '../domain/batch/BatchPlan.js'
 import { ConflictError, ValidationError } from '../domain/errors.js'
-import { newBatchPlanId, newPlanUnitId } from '../domain/ids.js'
+import { newBatchPlanId, newBatchUnitId } from '../domain/ids.js'
 
 const BATCH_USER_ID = UserId.parse('braid-batch')
 
@@ -102,7 +102,7 @@ export class BatchService {
       }
 
       const plan = new BatchPlan({
-        id: newBatchPlanId(now),
+        id: newBatchPlanId(),
         workspaceId,
         createdAt: now,
         updatedAt: now,
@@ -294,11 +294,11 @@ export class BatchService {
     workspace: Workspace,
     plan: BatchPlan,
     checkpoint: NonNullable<OntologyBatchBinding['checkpoint']>,
-    unitIds: readonly PlanUnitId[],
+    unitIds: readonly BatchUnitId[],
     callerToken?: string,
   ): Promise<BatchPlan> {
     const unitsById = new Map(plan.units.map(u => [u.id, u] as const))
-    const units = unitIds.map(id => unitsById.get(id)).filter((u): u is PlanUnit => !!u)
+    const units = unitIds.map(id => unitsById.get(id)).filter((u): u is BatchUnit => !!u)
     const extraEnv = checkpoint.extraEnv?.(units)
     const hasEnv = !!extraEnv && Object.keys(extraEnv).length > 0
     let runId: SkillRunId | undefined
@@ -366,7 +366,7 @@ export class BatchService {
 
   private async recordObservation(
     workspace: Workspace,
-    unit: PlanUnit,
+    unit: BatchUnit,
     runId: SkillRunId,
   ): Promise<void> {
     const service = this.deps.sourceUnitObservationService
@@ -409,7 +409,7 @@ export class BatchService {
     return promoted
   }
 
-  private async runUnit(workspace: Workspace, plan: BatchPlan, binding: OntologyBatchBinding, unit: PlanUnit, callerToken?: string): Promise<BatchPlan> {
+  private async runUnit(workspace: Workspace, plan: BatchPlan, binding: OntologyBatchBinding, unit: BatchUnit, callerToken?: string): Promise<BatchPlan> {
     const startedAt = this.deps.clock.now()
     let running = plan
     try {
@@ -422,7 +422,7 @@ export class BatchService {
         argsFor(unit),
         callerToken ? { callerToken } : undefined,
       )
-      running = plan.startUnit(startedAt, unit.id, { unitId: unit.id, skillRunId: runId })
+      running = plan.markUnitRunning(startedAt, unit.id, { unitId: unit.id, skillRunId: runId })
       await this.deps.batchPlanRepository.save(workspace, running)
       this.publish(workspace.id, {
         type: 'batch.unit.started',
@@ -436,7 +436,7 @@ export class BatchService {
       const output = await this.runSkillWithAutoApply(workspace, runId, plan.autoApply, before)
 
       const completedAt = this.deps.clock.now()
-      const completed = running.completeUnit(completedAt, unit.id, output)
+      const completed = running.markUnitCompleted(completedAt, unit.id, output)
       await this.deps.batchPlanRepository.save(workspace, completed)
       await this.recordObservation(workspace, unit, runId)
       this.publish(workspace.id, {
@@ -452,7 +452,7 @@ export class BatchService {
     }
     catch (err) {
       const completedAt = this.deps.clock.now()
-      const failed = running.failUnit(completedAt, unit.id, errorMessage(err))
+      const failed = running.markUnitFailed(completedAt, unit.id, errorMessage(err))
       await this.deps.batchPlanRepository.save(workspace, failed)
       this.publish(workspace.id, {
         type: 'batch.unit.failed',
@@ -585,10 +585,10 @@ export class BatchService {
     return ontology.batch
   }
 
-  private async buildIntentUnits(workspace: Workspace): Promise<PlanUnit[]> {
+  private async buildIntentUnits(workspace: Workspace): Promise<BatchUnit[]> {
     const items = await this.deps.intentLister(workspace)
     return items.map(item => ({
-      id: newPlanUnitId(),
+      id: newBatchUnitId(),
       name: item.label,
       description: `Intent doc from ${item.sourceName}`,
       sourceId: item.sourceId as never,
@@ -619,7 +619,7 @@ export class BatchService {
   }
 }
 
-function defaultUnitArg(unit: PlanUnit): string {
+function defaultUnitArg(unit: BatchUnit): string {
   return unit.scopeHint ?? unit.name
 }
 
@@ -651,8 +651,8 @@ function snapshotBatchPolicy(binding: OntologyBatchBinding): NonNullable<BatchPl
   }
 }
 
-function unconsumedCompletedUnitIds(plan: BatchPlan): readonly PlanUnitId[] {
-  const consumed = new Set<PlanUnitId>()
+function unconsumedCompletedUnitIds(plan: BatchPlan): readonly BatchUnitId[] {
+  const consumed = new Set<BatchUnitId>()
   for (const phase of plan.checkpointPhases) {
     if (phase.status === 'completed') {
       for (const id of phase.unitIds)

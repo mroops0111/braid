@@ -88,7 +88,7 @@ describe('error middleware', () => {
     expect(response.status).toBe(400)
     expect(response.headers.get('Content-Type')).toContain('application/problem+json')
     const body = await readJson<ProblemBody>(response)
-    expect(body.code).toBe('BRAID-VAL')
+    expect(body.code).toBe('BRAID-VALIDATION')
     expect(body.title).toBe('ValidationError')
   })
 

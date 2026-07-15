@@ -1,4 +1,4 @@
-import type { AbsolutePath, AgentBindingDescriptor, SkillAgentOverride, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, SkillAgentOverride, SkillEvent, SkillId, SkillRunId, WorkspaceEvent } from '@braidhq/schema'
 import { mkdir, mkdtemp, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -9,7 +9,6 @@ import {
   type SkillRegistry,
   type SkillRunner as SkillRunnerPort,
   type Workspace,
-  type WorkspaceEvent,
   type WorkspaceEventBus,
 } from '@braidhq/core'
 import { T0 } from '@braidhq/test-utils'

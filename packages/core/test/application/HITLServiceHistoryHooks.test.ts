@@ -14,7 +14,7 @@ import type {
   UserId,
   WorkspaceId,
 } from '@braidhq/schema'
-import type { GraphSerializer } from '../../src/domain/model/GraphSerializer.js'
+import type { ModelSerializer } from '../../src/domain/model/ModelSerializer.js'
 import type { ListCommitsOptions, Workspace, WorkspaceHistory } from '../../src/index.js'
 import { FixedClock, makeWorkspace, mintTestId, resetTestIds, T0 } from '@braidhq/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -48,7 +48,7 @@ class SpyHistory implements WorkspaceHistory {
   readonly deleteTag = vi.fn(async (): Promise<void> => {})
 }
 
-class SpySerializer implements GraphSerializer {
+class SpySerializer implements ModelSerializer {
   readonly write = vi.fn(async (_workspace: Workspace, _snapshot: ModelSnapshot): Promise<void> => {})
   readonly read = vi.fn(async (): Promise<ModelSnapshot | null> => null)
   readonly exists = vi.fn(async (): Promise<boolean> => false)
@@ -74,7 +74,7 @@ async function setupWithHistory(options: { withHistory?: boolean } = {}) {
     validationService,
     workspaceService,
     clock,
-    ...(options.withHistory === false ? {} : { history, graphSerializer: serializer }),
+    ...(options.withHistory === false ? {} : { history, modelSerializer: serializer }),
   })
 
   return { service, history, serializer, workspaceId: workspace.id, workspace, proposalRepository, clarifyRepository, clock }

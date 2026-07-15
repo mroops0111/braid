@@ -88,7 +88,7 @@ export function createNodesRouter(deps: NodesRouterDeps): OpenAPIHono {
     const { type, status, q } = context.req.valid('query')
     const types = type === undefined ? undefined : Array.isArray(type) ? type : [type]
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
-    const nodes = await deps.modelService.findNodes(workspaceId, {
+    const nodes = await deps.modelService.listNodes(workspaceId, {
       types,
       statuses,
       nameContains: q,

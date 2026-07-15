@@ -25,7 +25,7 @@ const ListQuery = z.object({
   limit: z.coerce.number().int().positive().max(200).optional(),
 })
 
-const GraphDiffQuery = z.object({
+const ModelDiffQuery = z.object({
   from: CommitSha,
   to: CommitSha,
 })
@@ -53,10 +53,10 @@ export function createHistoryRouter(deps: HistoryRouterDeps): Hono {
   })
 
   // Must be registered before `/:sha` so `graph-diff` isn't matched as a sha.
-  router.get('/graph-diff', zValidator('query', GraphDiffQuery), async (context) => {
+  router.get('/graph-diff', zValidator('query', ModelDiffQuery), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const { from, to } = context.req.valid('query')
-    const envelope = await deps.historyService.getGraphDiff(workspaceId, from, to)
+    const envelope = await deps.historyService.getModelDiff(workspaceId, from, to)
     return context.json(envelope)
   })
 

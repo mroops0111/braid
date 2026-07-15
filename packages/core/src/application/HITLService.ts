@@ -14,8 +14,8 @@ import type { Clock } from '../domain/Clock.js'
 import type { WorkspaceHistory } from '../domain/history/WorkspaceHistory.js'
 import type { ClarifyTicketRepository } from '../domain/hitl/ClarifyTicketRepository.js'
 import type { ProposalRepository } from '../domain/hitl/ProposalRepository.js'
-import type { GraphSerializer } from '../domain/model/GraphSerializer.js'
 import type { ModelRepository } from '../domain/model/ModelRepository.js'
+import type { ModelSerializer } from '../domain/model/ModelSerializer.js'
 import type { UserDirectory } from '../domain/users/UserDirectory.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
 import type { ValidationService } from './ValidationService.js'
@@ -43,7 +43,7 @@ export interface HITLServiceDeps {
   eventBus?: WorkspaceEventBus
   // Both required together. Absence makes the commit hook a no-op.
   history?: WorkspaceHistory
-  graphSerializer?: GraphSerializer
+  modelSerializer?: ModelSerializer
   // Inject so HistoryService.restore can share the same exclusion domain.
   workspaceLock?: PerWorkspaceLock
   /**
@@ -68,7 +68,7 @@ export class HITLService {
     const generatedAt = this.deps.clock.now()
     const submitter = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
     const proposal = new Proposal({
-      id: newProposalId(generatedAt),
+      id: newProposalId(),
       workspaceId: draft.workspaceId,
       status: 'pending',
       operations: draft.operations,
@@ -104,7 +104,7 @@ export class HITLService {
   async submitClarifyTicket(draft: ClarifyTicketCreate & { submitterId?: UserId }): Promise<ClarifyTicket> {
     const submitter = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
     const ticket = new ClarifyTicket({
-      id: newClarifyTicketId(this.deps.clock.now()),
+      id: newClarifyTicketId(),
       workspaceId: draft.workspaceId,
       question: draft.question,
       candidates: draft.candidates,
@@ -149,7 +149,7 @@ export class HITLService {
       await this.commitWorkspaceChange(
         workspace,
         { kind: 'proposal-apply', subject: `applied ${proposalId}`, userId, proposalId },
-        { syncGraph: true },
+        { syncModel: true },
       )
       this.deps.eventBus?.publish({
         type: 'proposal.applied',
@@ -309,13 +309,13 @@ export class HITLService {
   private async commitWorkspaceChange(
     workspace: Workspace,
     message: CommitMessage,
-    options: { syncGraph: boolean } = { syncGraph: false },
+    options: { syncModel: boolean } = { syncModel: false },
   ): Promise<void> {
-    if (!this.deps.history || !this.deps.graphSerializer)
+    if (!this.deps.history || !this.deps.modelSerializer)
       return
-    if (options.syncGraph) {
+    if (options.syncModel) {
       const snapshot = await this.deps.modelRepository.load(workspace.id)
-      await this.deps.graphSerializer.write(workspace, snapshot)
+      await this.deps.modelSerializer.write(workspace, snapshot)
     }
     const enriched = await enrichCommitAuthor(message, this.userDirectory)
     const sha = await this.deps.history.commit(workspace, enriched)

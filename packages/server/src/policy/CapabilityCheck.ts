@@ -1,4 +1,4 @@
-import type { Capability } from './Capability.js'
+import type { Capability } from '@braidhq/schema'
 import type { ViewerContext } from './ViewerContext.js'
 
 /**

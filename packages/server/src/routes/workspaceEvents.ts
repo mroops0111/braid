@@ -1,4 +1,5 @@
-import type { WorkspaceEvent, WorkspaceEventBus } from '@braidhq/core'
+import type { WorkspaceEventBus } from '@braidhq/core'
+import type { WorkspaceEvent } from '@braidhq/schema'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { createAsyncQueue } from '../infrastructure/agent/asyncQueue.js'

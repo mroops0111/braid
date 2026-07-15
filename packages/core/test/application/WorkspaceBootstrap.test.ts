@@ -1,5 +1,5 @@
 import type { CommitMeta, CommitSha, EdgeId, FileDiff, GraphEdge, GraphNode, ModelSnapshot, NodeId, NodeTypeId, TagMeta, WorkspaceId } from '@braidhq/schema'
-import type { GraphSerializer } from '../../src/domain/model/GraphSerializer.js'
+import type { ModelSerializer } from '../../src/domain/model/ModelSerializer.js'
 import type { ListCommitsOptions, Workspace, WorkspaceHistory } from '../../src/index.js'
 import { describe, expect, it, vi } from 'vitest'
 import { WorkspaceBootstrap } from '../../src/index.js'
@@ -47,7 +47,7 @@ class FakeWorkspaceHistory implements WorkspaceHistory {
   readonly deleteTag = vi.fn(async (): Promise<void> => {})
 }
 
-class FakeGraphSerializer implements GraphSerializer {
+class FakeModelSerializer implements ModelSerializer {
   private stored: ModelSnapshot | null = null
   readonly writeSpy = vi.fn()
 
@@ -72,7 +72,7 @@ class FakeGraphSerializer implements GraphSerializer {
 interface Setup {
   workspace: Workspace
   history: FakeWorkspaceHistory
-  serializer: FakeGraphSerializer
+  serializer: FakeModelSerializer
   modelRepository: InMemoryModelRepository
   bootstrap: WorkspaceBootstrap
 }
@@ -80,7 +80,7 @@ interface Setup {
 function setup(): Setup {
   const workspace = makeWorkspace()
   const history = new FakeWorkspaceHistory()
-  const serializer = new FakeGraphSerializer()
+  const serializer = new FakeModelSerializer()
   const modelRepository = new InMemoryModelRepository()
   const bootstrap = new WorkspaceBootstrap({ history, serializer, modelRepository })
   return { workspace, history, serializer, modelRepository, bootstrap }
@@ -95,7 +95,7 @@ describe('WorkspaceBootstrap', () => {
     expect(history.ensureInitialised).toHaveBeenCalledWith(workspace)
   })
 
-  it('hydrates the backend from graph.json when the backend is empty and disk has data', async () => {
+  it('hydrates the backend from model.json when the backend is empty and disk has data', async () => {
     const { workspace, serializer, modelRepository, bootstrap } = setup()
     const persisted: ModelSnapshot = {
       nodes: [makeNode('a'), makeNode('b')],
@@ -110,7 +110,7 @@ describe('WorkspaceBootstrap', () => {
     expect(reloaded.edges).toHaveLength(1)
   })
 
-  it('dumps the backend to graph.json when the backend has data and disk is empty', async () => {
+  it('dumps the backend to model.json when the backend has data and disk is empty', async () => {
     const { workspace, serializer, modelRepository, bootstrap } = setup()
     await modelRepository.applyOperations(WORKSPACE_ID, [
       { operation: 'addNodes', payloads: [makeNode('a')] },

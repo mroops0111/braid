@@ -67,14 +67,14 @@ export type FileDiff = z.infer<typeof FileDiff>
 export const ChangeKind = z.enum(['added', 'updated', 'removed'])
 export type ChangeKind = z.infer<typeof ChangeKind>
 
-export const GraphDiffChanges = z.object({
+export const ModelDiffChanges = z.object({
   nodes: z.record(z.string(), ChangeKind),
   edges: z.record(z.string(), ChangeKind),
 })
-export type GraphDiffChanges = z.infer<typeof GraphDiffChanges>
+export type ModelDiffChanges = z.infer<typeof ModelDiffChanges>
 
 // from-state for entities gone in snapshot, sparing the UI a round-trip.
-export const GraphDiffEnvelope = z.object({
+export const ModelDiffEnvelope = z.object({
   from: CommitSha,
   to: CommitSha,
   snapshot: ModelSnapshot,
@@ -82,9 +82,9 @@ export const GraphDiffEnvelope = z.object({
     nodes: z.array(GraphNode),
     edges: z.array(GraphEdge),
   }),
-  changes: GraphDiffChanges,
+  changes: ModelDiffChanges,
 })
-export type GraphDiffEnvelope = z.infer<typeof GraphDiffEnvelope>
+export type ModelDiffEnvelope = z.infer<typeof ModelDiffEnvelope>
 
 export const TagMeta = z.object({
   name: z.string().min(1),

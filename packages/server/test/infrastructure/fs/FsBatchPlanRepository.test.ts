@@ -1,4 +1,4 @@
-import type { AbsolutePath, BatchPlanId, PlanUnit, PlanUnitId, ProposalId, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, BatchPlanId, BatchUnit, BatchUnitId, ProposalId, WorkspaceId } from '@braidhq/schema'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -11,9 +11,9 @@ async function makeRoot(): Promise<AbsolutePath> {
   return (await mkdtemp(join(tmpdir(), 'braid-batch-plan-'))) as AbsolutePath
 }
 
-function makeUnit(id: string): PlanUnit {
+function makeUnit(id: string): BatchUnit {
   return {
-    id: id as PlanUnitId,
+    id: id as BatchUnitId,
     name: id,
     description: `walk ${id}`,
     status: 'pending',
@@ -59,9 +59,9 @@ describe('FsBatchPlanRepository', () => {
     const ws = makeWorkspace({ rootPath: root })
     const repo = new FsBatchPlanRepository()
     await repo.save(ws, makePlan())
-    const next = makePlan().completeUnit(
+    const next = makePlan().markUnitCompleted(
       '2026-06-03T00:00:01.000Z' as never,
-      'pu-a' as PlanUnitId,
+      'pu-a' as BatchUnitId,
       { proposalIds: ['p-1' as ProposalId], clarifyTicketIds: [] },
     )
     await repo.save(ws, next)

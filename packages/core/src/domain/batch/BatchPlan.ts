@@ -5,9 +5,9 @@ import type {
   BatchPlanId,
   BatchRunning,
   BatchStatus,
+  BatchUnit,
+  BatchUnitId,
   ClarifyTicketId,
-  PlanUnit,
-  PlanUnitId,
   ProposalId,
   SkillRunId,
   Timestamp,
@@ -29,7 +29,7 @@ export class BatchPlan {
   get status(): BatchStatus { return this.data.status }
   get autoApply(): boolean { return this.data.autoApply }
   get baselineTag(): string | undefined { return this.data.baselineTag }
-  get units(): readonly PlanUnit[] { return this.data.units }
+  get units(): readonly BatchUnit[] { return this.data.units }
   get running(): BatchRunning | undefined { return this.data.running }
   get error(): string | undefined { return this.data.error }
   get checkpointPhases(): readonly BatchCheckpointPhase[] { return this.data.checkpointPhases }
@@ -48,51 +48,10 @@ export class BatchPlan {
   }
 
   // Called when the ontology's `deriveUnits` skill finishes writing units back into the plan.
-  promoteToRunning(now: Timestamp, units: readonly PlanUnit[]): BatchPlan {
+  promoteToRunning(now: Timestamp, units: readonly BatchUnit[]): BatchPlan {
     if (this.data.status !== 'deriving')
       throw new ConflictError(`Batch plan ${this.data.id} is not deriving (status=${this.data.status})`)
     return this.with({ status: 'running', units: [...units], updatedAt: now })
-  }
-
-  startUnit(now: Timestamp, unitId: PlanUnitId, running: BatchRunning): BatchPlan {
-    return this.with({
-      status: this.data.status === 'running' ? 'running' : this.data.status,
-      running,
-      units: this.mapUnit(unitId, unit => ({
-        ...unit,
-        status: 'running',
-        startedAt: now,
-        skillRunId: running.skillRunId,
-      })),
-      updatedAt: now,
-    })
-  }
-
-  completeUnit(now: Timestamp, unitId: PlanUnitId, output: UnitOutput): BatchPlan {
-    return this.with({
-      running: undefined,
-      units: this.mapUnit(unitId, unit => ({
-        ...unit,
-        status: 'completed',
-        completedAt: now,
-        proposalIds: [...output.proposalIds],
-        clarifyTicketIds: [...output.clarifyTicketIds],
-      })),
-      updatedAt: now,
-    })
-  }
-
-  failUnit(now: Timestamp, unitId: PlanUnitId, error: string): BatchPlan {
-    return this.with({
-      running: undefined,
-      units: this.mapUnit(unitId, unit => ({
-        ...unit,
-        status: 'failed',
-        completedAt: now,
-        error,
-      })),
-      updatedAt: now,
-    })
   }
 
   markCompleted(now: Timestamp): BatchPlan {
@@ -105,41 +64,6 @@ export class BatchPlan {
 
   markStopped(now: Timestamp): BatchPlan {
     return this.with({ status: 'stopped', running: undefined, updatedAt: now })
-  }
-
-  startCheckpointPhase(now: Timestamp, skillRunId: SkillRunId, unitIds: readonly PlanUnitId[]): BatchPlan {
-    const newPhase: BatchCheckpointPhase = {
-      status: 'running',
-      unitIds: [...unitIds],
-      startedAt: now,
-      skillRunId,
-    }
-    return this.with({
-      checkpointPhases: [...this.data.checkpointPhases, newPhase],
-      updatedAt: now,
-    })
-  }
-
-  completeCheckpointPhase(now: Timestamp): BatchPlan {
-    return this.with({
-      checkpointPhases: this.mapLastCheckpointPhase(phase => ({ ...phase, status: 'completed', completedAt: now })),
-      updatedAt: now,
-    })
-  }
-
-  failCheckpointPhase(now: Timestamp, error: string): BatchPlan {
-    return this.with({
-      checkpointPhases: this.mapLastCheckpointPhase(phase => ({ ...phase, status: 'failed', completedAt: now, error })),
-      updatedAt: now,
-    })
-  }
-
-  private mapLastCheckpointPhase(fn: (phase: BatchCheckpointPhase) => BatchCheckpointPhase): BatchCheckpointPhase[] {
-    const arr = [...this.data.checkpointPhases]
-    if (arr.length === 0)
-      return arr
-    arr[arr.length - 1] = fn(arr[arr.length - 1]!)
-    return arr
   }
 
   // User-driven dismiss after reviewing the report. Allowed only from a
@@ -173,8 +97,92 @@ export class BatchPlan {
     return new BatchPlan(next)
   }
 
+  markUnitRunning(now: Timestamp, unitId: BatchUnitId, running: BatchRunning): BatchPlan {
+    return this.with({
+      status: this.data.status === 'running' ? 'running' : this.data.status,
+      running,
+      units: this.mapUnit(unitId, unit => ({
+        ...unit,
+        status: 'running',
+        startedAt: now,
+        skillRunId: running.skillRunId,
+      })),
+      updatedAt: now,
+    })
+  }
+
+  markUnitCompleted(now: Timestamp, unitId: BatchUnitId, output: UnitOutput): BatchPlan {
+    return this.with({
+      running: undefined,
+      units: this.mapUnit(unitId, unit => ({
+        ...unit,
+        status: 'completed',
+        completedAt: now,
+        proposalIds: [...output.proposalIds],
+        clarifyTicketIds: [...output.clarifyTicketIds],
+      })),
+      updatedAt: now,
+    })
+  }
+
+  markUnitFailed(now: Timestamp, unitId: BatchUnitId, error: string): BatchPlan {
+    return this.with({
+      running: undefined,
+      units: this.mapUnit(unitId, unit => ({
+        ...unit,
+        status: 'failed',
+        completedAt: now,
+        error,
+      })),
+      updatedAt: now,
+    })
+  }
+
+  startCheckpointPhase(now: Timestamp, skillRunId: SkillRunId, unitIds: readonly BatchUnitId[]): BatchPlan {
+    const newPhase: BatchCheckpointPhase = {
+      status: 'running',
+      unitIds: [...unitIds],
+      startedAt: now,
+      skillRunId,
+    }
+    return this.with({
+      checkpointPhases: [...this.data.checkpointPhases, newPhase],
+      updatedAt: now,
+    })
+  }
+
+  completeCheckpointPhase(now: Timestamp): BatchPlan {
+    return this.with({
+      checkpointPhases: this.mapLastCheckpointPhase(phase => ({ ...phase, status: 'completed', completedAt: now })),
+      updatedAt: now,
+    })
+  }
+
+  failCheckpointPhase(now: Timestamp, error: string): BatchPlan {
+    return this.with({
+      checkpointPhases: this.mapLastCheckpointPhase(phase => ({ ...phase, status: 'failed', completedAt: now, error })),
+      updatedAt: now,
+    })
+  }
+
   toData(): BatchPlanData {
     return structuredClone(this.data)
+  }
+
+  private with(patch: Partial<BatchPlanData>): BatchPlan {
+    return new BatchPlan({ ...this.data, ...patch })
+  }
+
+  private mapUnit(unitId: BatchUnitId, fn: (unit: BatchUnit) => BatchUnit): BatchUnit[] {
+    return this.data.units.map(u => u.id === unitId ? fn(u) : u)
+  }
+
+  private mapLastCheckpointPhase(fn: (phase: BatchCheckpointPhase) => BatchCheckpointPhase): BatchCheckpointPhase[] {
+    const arr = [...this.data.checkpointPhases]
+    if (arr.length === 0)
+      return arr
+    arr[arr.length - 1] = fn(arr[arr.length - 1]!)
+    return arr
   }
 
   // Shared guard for transitions that only fire after the orchestrator
@@ -184,18 +192,10 @@ export class BatchPlan {
       || this.data.status === 'failed'
       || this.data.status === 'stopped'
   }
-
-  private with(patch: Partial<BatchPlanData>): BatchPlan {
-    return new BatchPlan({ ...this.data, ...patch })
-  }
-
-  private mapUnit(unitId: PlanUnitId, fn: (unit: PlanUnit) => PlanUnit): PlanUnit[] {
-    return this.data.units.map(u => u.id === unitId ? fn(u) : u)
-  }
 }
 
-function resetUnit(unit: PlanUnit): PlanUnit {
-  const fresh: PlanUnit = {
+function resetUnit(unit: BatchUnit): BatchUnit {
+  const fresh: BatchUnit = {
     id: unit.id,
     name: unit.name,
     description: unit.description,

@@ -24,7 +24,7 @@ export const queryKeys = {
   sessionMetadata: (workspaceId: string) => ['workspaces', workspaceId, 'runs', 'sessions'] as const,
   history: (workspaceId: string) => ['workspaces', workspaceId, 'history'] as const,
   historyCommit: (workspaceId: string, sha: string) => ['workspaces', workspaceId, 'history', sha] as const,
-  historyGraphDiff: (workspaceId: string, fromSha: string, toSha: string) =>
+  historyModelDiff: (workspaceId: string, fromSha: string, toSha: string) =>
     ['workspaces', workspaceId, 'history', 'graph-diff', fromSha, toSha] as const,
   historyTags: (workspaceId: string) => ['workspaces', workspaceId, 'history', 'tags'] as const,
   batch: (workspaceId: string) => ['workspaces', workspaceId, 'batch'] as const,
@@ -179,13 +179,13 @@ export function useHistoryCommit(workspaceId: string, sha: string | null) {
   })
 }
 
-export function useCommitGraphDiff(workspaceId: string, fromSha: string | null, toSha: string | null) {
+export function useCommitModelDiff(workspaceId: string, fromSha: string | null, toSha: string | null) {
   const enabled = !!fromSha && !!toSha && fromSha !== toSha
   return useQuery({
     queryKey: enabled
-      ? queryKeys.historyGraphDiff(workspaceId, fromSha, toSha)
+      ? queryKeys.historyModelDiff(workspaceId, fromSha, toSha)
       : ['history-graph-diff', 'none'],
-    queryFn: () => api.getCommitGraphDiff(workspaceId, fromSha as never, toSha as never),
+    queryFn: () => api.getCommitModelDiff(workspaceId, fromSha as never, toSha as never),
     enabled,
   })
 }

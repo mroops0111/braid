@@ -1,19 +1,19 @@
 import type { GraphOperation, ModelSnapshot } from '@braidhq/schema'
 import type { WorkspaceHistory } from '../domain/history/WorkspaceHistory.js'
-import type { GraphSerializer } from '../domain/model/GraphSerializer.js'
 import type { ModelRepository } from '../domain/model/ModelRepository.js'
+import type { ModelSerializer } from '../domain/model/ModelSerializer.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
 
 export interface WorkspaceBootstrapDeps {
   readonly history: WorkspaceHistory
-  readonly serializer: GraphSerializer
+  readonly serializer: ModelSerializer
   readonly modelRepository: ModelRepository
 }
 
 export class WorkspaceBootstrap {
   constructor(private readonly deps: WorkspaceBootstrapDeps) {}
 
-  /** Idempotent: git init + reconcile graph.json with the storage backend when they disagree. */
+  /** Idempotent: git init + reconcile model.json with the storage backend when they disagree. */
   async ensure(workspace: Workspace): Promise<void> {
     await this.deps.history.ensureInitialised(workspace)
     await this.reconcileModelWithDisk(workspace)

@@ -51,7 +51,7 @@ describe('e2e history hooks: applying a proposal writes a commit', () => {
     await rm(braidHome, { recursive: true, force: true }).catch(() => {})
   })
 
-  it('appends an apply commit with Kind / Proposal-Id / Author trailers and updates graph.json', async () => {
+  it('appends an apply commit with Kind / Proposal-Id / Author trailers and updates model.json', async () => {
     // Submit a minimal valid proposal, a command node with implementationMissing.
     // That flag satisfies EvidenceValidator without faking sourceReferences.
     const submit = await app.request(`/workspaces/${workspaceId}/proposals`, {
@@ -95,12 +95,12 @@ describe('e2e history hooks: applying a proposal writes a commit', () => {
     expect(body).toContain(`Proposal-Id: ${proposalId}`)
     expect(body).toContain(`Author: tester`)
 
-    // graph.json must reflect the post-mutation state, the commit's tree should include the new node.
-    const showPath = await git.raw(['show', `${head.hash}:artifacts/graph.json`])
+    // model.json must reflect the post-mutation state, the commit's tree should include the new node.
+    const showPath = await git.raw(['show', `${head.hash}:artifacts/model.json`])
     expect(showPath).toContain('"cmd-place"')
   })
 
-  it('rejecting a proposal writes a kind=reject commit without touching graph.json', async () => {
+  it('rejecting a proposal writes a kind=reject commit without touching model.json', async () => {
     const submit = await app.request(`/workspaces/${workspaceId}/proposals`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -133,8 +133,8 @@ describe('e2e history hooks: applying a proposal writes a commit', () => {
     const body = await git.raw(['show', '--no-patch', '--format=%B', head.hash])
     expect(body).toContain('Kind: proposal-reject')
     expect(body).toContain(`Proposal-Id: ${proposalId}`)
-    // graph.json shouldn't appear in the diff, reject doesn't mutate Kùzu nor call the graph serialiser.
+    // model.json shouldn't appear in the diff, reject doesn't mutate Kùzu nor call the graph serialiser.
     const changed = await git.raw(['show', '--name-only', '--format=', head.hash])
-    expect(changed).not.toContain('graph.json')
+    expect(changed).not.toContain('model.json')
   })
 })

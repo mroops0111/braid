@@ -71,6 +71,13 @@ export const ClarifyTicketCreate = z.object({
 })
 export type ClarifyTicketCreate = z.infer<typeof ClarifyTicketCreate>
 
+// The POST body for creating a ticket. Workspace comes from the path,
+// and human-authored candidates omit their id for the server to mint.
+export const ClarifyCreateBody = ClarifyTicketCreate
+  .omit({ workspaceId: true })
+  .extend({ candidates: z.array(ClarifyCandidate.partial({ id: true })) })
+export type ClarifyCreateBody = z.infer<typeof ClarifyCreateBody>
+
 export const ClarifyFilter = z.object({
   workspaceId: WorkspaceId.optional(),
   statuses: z.array(ClarifyStatus).optional(),

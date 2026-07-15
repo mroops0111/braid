@@ -1,46 +1,8 @@
+import type { WorkspaceEvent } from '@braidhq/schema'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { workspaceEventsUrl } from './api'
 import { queryKeys } from './queries'
-
-/**
- * Workspace-scoped runtime events as sent by the server's SSE stream.
- * Keep this in sync with `packages/core/src/domain/events/WorkspaceEvent.ts`,
- * Studio only reads the discriminator to decide which query keys to invalidate,
- * so we don't lose anything by typing payloads loosely here.
- */
-interface WorkspaceEvent {
-  type:
-    | 'run.started'
-    | 'run.completed'
-    | 'proposal.created'
-    | 'proposal.applied'
-    | 'proposal.rejected'
-    | 'clarify.created'
-    | 'clarify.answered'
-    | 'clarify.applied'
-    | 'clarify.skipped'
-    | 'source.synced'
-    | 'history.committed'
-    | 'workspace.restored'
-    | 'batch.started'
-    | 'batch.unit.started'
-    | 'batch.unit.completed'
-    | 'batch.unit.failed'
-    | 'batch.completed'
-    | 'batch.stopped'
-    | 'batch.failed'
-    | 'batch.checkpoint.started'
-    | 'batch.checkpoint.completed'
-    | 'batch.checkpoint.failed'
-    | 'reactor.dispatched'
-    | 'reactor.completed'
-    | 'reactor.throttled'
-    | 'reactor.unit.started'
-    | 'reactor.unit.completed'
-    | 'reactor.checkpoint.started'
-    | 'reactor.checkpoint.completed'
-}
 
 /**
  * Subscribe to `/workspaces/:id/events` and invalidate matching react-query caches in real time.

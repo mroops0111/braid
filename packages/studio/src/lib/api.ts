@@ -1,20 +1,16 @@
 import type {
   BatchPlan,
-  ClarifyAmbiguityType,
-  ClarifyCandidate,
-  ClarifyOrigin,
+  ClarifyCreateBody,
   ClarifyTicket,
   CommitMeta,
   CommitSha,
-  ExternalReference,
   FileDiff,
-  GraphDiffEnvelope,
   GraphEdge,
   GraphNode,
   ListSourceLoadersResponse,
   McpServerConfig,
+  ModelDiffEnvelope,
   ModelSnapshot,
-  NodeId,
   OntologyResponse,
   ProductManifestCreate,
   Proposal,
@@ -70,20 +66,6 @@ export type AdminUser = User & { workspaces: AdminUserWorkspace[] }
  * the reviewer's rationale lives in git history now, but kept optional until the detail pane resurfaces them.
  */
 export type ClarifyTicketDetail = ClarifyTicket & { skipReason?: string, answerNote?: string }
-
-/**
- * POST /workspaces/:ws/clarify body shape, mirrors the server's `CreateBodySchema`.
- * Candidate `id` is optional so the server can mint via `newClarifyCandidateId` for human-authored questions.
- */
-export interface ClarifySubmitBody {
-  question: string
-  candidates: ReadonlyArray<Omit<ClarifyCandidate, 'id'> & { id?: ClarifyCandidate['id'] }>
-  externalReferences?: ReadonlyArray<ExternalReference>
-  origin?: ClarifyOrigin
-  context?: string
-  relatedNode?: NodeId
-  ambiguityType?: ClarifyAmbiguityType
-}
 
 export interface IngestSummary {
   sourceId: string
@@ -372,7 +354,7 @@ export const api = {
    * Server mints any omitted candidate ids, skills supply them deterministically (cc-1 etc.),
    * human-authored "New question" candidates leave them out and let `newClarifyCandidateId` fill in.
    */
-  submitClarify: (workspaceId: string, draft: ClarifySubmitBody) =>
+  submitClarify: (workspaceId: string, draft: ClarifyCreateBody) =>
     fetchJson<ClarifyTicket>(`/workspaces/${workspaceId}/clarify`, {
       method: 'POST',
       body: JSON.stringify(draft),
@@ -465,8 +447,8 @@ export const api = {
   },
   getCommit: (workspaceId: string, sha: CommitSha) =>
     fetchJson<CommitMeta & { diff: FileDiff[] }>(`/workspaces/${workspaceId}/history/${sha}`),
-  getCommitGraphDiff: (workspaceId: string, fromSha: CommitSha, toSha: CommitSha) =>
-    fetchJson<GraphDiffEnvelope>(`/workspaces/${workspaceId}/history/graph-diff?from=${fromSha}&to=${toSha}`),
+  getCommitModelDiff: (workspaceId: string, fromSha: CommitSha, toSha: CommitSha) =>
+    fetchJson<ModelDiffEnvelope>(`/workspaces/${workspaceId}/history/graph-diff?from=${fromSha}&to=${toSha}`),
   restoreCommit: (workspaceId: string, sha: CommitSha) =>
     fetchJson<{ newCommit: CommitSha, restoredTo: CommitSha }>(
       `/workspaces/${workspaceId}/history/${sha}/restore`,

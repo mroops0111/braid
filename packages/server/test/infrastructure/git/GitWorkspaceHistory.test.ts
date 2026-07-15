@@ -130,19 +130,19 @@ describe('GitWorkspaceHistory', () => {
       const history = new GitWorkspaceHistory()
       await history.ensureInitialised(workspace)
 
-      await writeFile(join(root, 'graph.json'), '{"v":1}', 'utf-8')
+      await writeFile(join(root, 'model.json'), '{"v":1}', 'utf-8')
       await writeFile(join(root, 'PRODUCT.md'), '# product\n', 'utf-8')
       const sha = await history.commit(workspace, applyMessage())
 
       const diff = await history.getCommitDiff(workspace, sha)
       const paths = diff.map(d => d.path).sort()
-      expect(paths).toContain('graph.json')
+      expect(paths).toContain('model.json')
       expect(paths).toContain('PRODUCT.md')
     })
   })
 
   describe('readGraphAtCommit', () => {
-    it('returns the graph.json contents committed at the given sha', async () => {
+    it('returns the model.json contents committed at the given sha', async () => {
       const root = await makeRoot()
       const workspace = makeWorkspace({ rootPath: root })
       const history = new GitWorkspaceHistory()
@@ -151,7 +151,7 @@ describe('GitWorkspaceHistory', () => {
       const { mkdir, writeFile: write } = await import('node:fs/promises')
       await mkdir(join(root, 'artifacts'), { recursive: true })
       const v1 = { version: 1, nodes: [{ id: 'n-1', type: 'aggregate', name: 'Order', status: 'draft', metadata: { sourceReferences: [] } }], edges: [] }
-      await write(join(root, 'artifacts', 'graph.json'), `${JSON.stringify(v1)}\n`, 'utf-8')
+      await write(join(root, 'artifacts', 'model.json'), `${JSON.stringify(v1)}\n`, 'utf-8')
       const sha = await history.commit(workspace, applyMessage({ subject: 'v1' }))
 
       const snapshot = await history.readGraphAtCommit(workspace, sha)
@@ -160,7 +160,7 @@ describe('GitWorkspaceHistory', () => {
       expect(snapshot.edges).toHaveLength(0)
     })
 
-    it('returns an empty snapshot for commits that pre-date graph.json', async () => {
+    it('returns an empty snapshot for commits that pre-date model.json', async () => {
       const root = await makeRoot()
       const workspace = makeWorkspace({ rootPath: root })
       const history = new GitWorkspaceHistory()
@@ -181,9 +181,9 @@ describe('GitWorkspaceHistory', () => {
       const history = new GitWorkspaceHistory()
       await history.ensureInitialised(workspace)
 
-      await writeFile(join(root, 'graph.json'), '{"v":1}', 'utf-8')
+      await writeFile(join(root, 'model.json'), '{"v":1}', 'utf-8')
       const v1 = await history.commit(workspace, applyMessage({ subject: 'v1' }))
-      await writeFile(join(root, 'graph.json'), '{"v":2}', 'utf-8')
+      await writeFile(join(root, 'model.json'), '{"v":2}', 'utf-8')
       await history.commit(workspace, applyMessage({ subject: 'v2' }))
 
       const restored = await history.restore(workspace, v1, applyMessage({ subject: 'roll back to v1' }))
@@ -193,7 +193,7 @@ describe('GitWorkspaceHistory', () => {
       expect(commits[0]!.message.kind).toBe('restore')
       expect(commits[0]!.message.revertedTo).toBe(v1)
       // Working tree reflects v1's content again.
-      const onDisk = await readFile(join(root, 'graph.json'), 'utf-8')
+      const onDisk = await readFile(join(root, 'model.json'), 'utf-8')
       expect(onDisk).toBe('{"v":1}')
     })
 

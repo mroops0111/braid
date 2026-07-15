@@ -9,11 +9,11 @@ import type {
   ViewKind,
 } from '@braidhq/schema'
 import type { AgentPlugin } from './AgentPlugin.js'
-import type { ViewGeneratorPlugin } from './Generator.js'
-import type { OntologyPlugin } from './Ontology.js'
+import type { OntologyPlugin } from './OntologyPlugin.js'
 import type { Plugin, PluginReferenceDirRef, PluginSkillRef } from './Plugin.js'
-import type { SourceLoaderPlugin } from './SourceLoader.js'
+import type { SourceLoaderPlugin } from './SourceLoaderPlugin.js'
 import type { StoragePlugin } from './StoragePlugin.js'
+import type { ViewGeneratorPlugin } from './ViewGeneratorPlugin.js'
 import { ConflictError, NotFoundError } from '../errors.js'
 
 /** PluginSkillRef enriched with the id of the plugin that contributed it. */

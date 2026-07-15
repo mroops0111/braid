@@ -11,13 +11,15 @@ import type {
 import { ConflictError, NotFoundError } from '../errors.js'
 import { newEdgeId, newNodeId } from '../ids.js'
 
-interface MutableGraphState {
+interface MutableModelState {
   nodes: Map<NodeId, GraphNode>
   edges: Map<EdgeId, GraphEdge>
 }
 
+// The knowledge graph as one consistency boundary.
+// Parts are Graph* like GraphNode and GraphEdge, the whole and its handlers are Model*.
 export class Model {
-  private state: MutableGraphState
+  private state: MutableModelState
 
   constructor(snapshot?: ModelSnapshot) {
     this.state = {
@@ -85,7 +87,7 @@ export class Model {
     }
   }
 
-  private cloneState(): MutableGraphState {
+  private cloneState(): MutableModelState {
     return {
       nodes: new Map(this.state.nodes),
       edges: new Map(this.state.edges),
@@ -114,14 +116,14 @@ export class Model {
     }
   }
 
-  private applyValidatedAdd(state: MutableGraphState, node: GraphNode): void {
+  private applyValidatedAdd(state: MutableModelState, node: GraphNode): void {
     if (state.nodes.has(node.id)) {
       throw new ConflictError(`Node id "${node.id}" already exists`)
     }
     state.nodes.set(node.id, node)
   }
 
-  private applyValidatedRemove(state: MutableGraphState, nodeId: NodeId): void {
+  private applyValidatedRemove(state: MutableModelState, nodeId: NodeId): void {
     if (!state.nodes.has(nodeId)) {
       throw new NotFoundError(`Node "${nodeId}" not found`)
     }
@@ -134,7 +136,7 @@ export class Model {
   }
 
   private applyValidatedUpdate(
-    state: MutableGraphState,
+    state: MutableModelState,
     nodeId: NodeId,
     patch: Partial<GraphNode>,
   ): void {
@@ -145,7 +147,7 @@ export class Model {
     state.nodes.set(nodeId, { ...existing, ...patch, id: existing.id })
   }
 
-  private applyValidatedAddEdge(state: MutableGraphState, edge: GraphEdge): void {
+  private applyValidatedAddEdge(state: MutableModelState, edge: GraphEdge): void {
     if (!state.nodes.has(edge.fromNodeId)) {
       throw new NotFoundError(`Edge source "${edge.fromNodeId}" not found`)
     }
@@ -158,7 +160,7 @@ export class Model {
     state.edges.set(edge.id, edge)
   }
 
-  private applyValidatedRemoveEdge(state: MutableGraphState, edgeId: EdgeId): void {
+  private applyValidatedRemoveEdge(state: MutableModelState, edgeId: EdgeId): void {
     if (!state.edges.has(edgeId)) {
       throw new NotFoundError(`Edge "${edgeId}" not found`)
     }
@@ -166,7 +168,7 @@ export class Model {
   }
 
   private applyValidatedUpdateEdge(
-    state: MutableGraphState,
+    state: MutableModelState,
     edgeId: EdgeId,
     patch: Partial<GraphEdge>,
   ): void {
@@ -177,7 +179,7 @@ export class Model {
     state.edges.set(edgeId, { ...existing, ...patch, id: existing.id })
   }
 
-  private applyOperation(state: MutableGraphState, operation: GraphOperation): void {
+  private applyOperation(state: MutableModelState, operation: GraphOperation): void {
     switch (operation.operation) {
       case 'addNode':
         this.applyValidatedAdd(state, this.materializeNode(operation.payload))

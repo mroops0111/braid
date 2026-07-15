@@ -39,7 +39,7 @@ function problemFromZodError(error: ZodError): BraidProblemJson {
     type: `${PROBLEM_BASE_URL}/braid-val` as BraidProblemJson['type'],
     title: 'ValidationError',
     status: 400,
-    code: 'BRAID-VAL',
+    code: 'BRAID-VALIDATION',
     detail: error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join('; '),
   }
 }

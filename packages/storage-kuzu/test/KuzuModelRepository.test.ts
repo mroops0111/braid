@@ -161,7 +161,7 @@ describe('KuzuModelRepository', () => {
     expect(snapshot.edges).toEqual([])
   })
 
-  it('findNodes filters by type, status, and name substring', async () => {
+  it('listNodes filters by type, status, and name substring', async () => {
     await repo.applyOperations(wsId, [
       { operation: 'addNodes', payloads: [
         { id: 'a' as NodeId, type: aggregateType, name: 'Cart', status: draft },
@@ -169,9 +169,9 @@ describe('KuzuModelRepository', () => {
         { id: 'c' as NodeId, type: entityType, name: 'Order', status: draft },
       ] },
     ])
-    expect((await repo.findNodes(wsId, { types: [entityType] })).map(n => n.id).sort()).toEqual(['b', 'c'])
-    expect((await repo.findNodes(wsId, { statuses: [finalStatus] })).map(n => n.id)).toEqual(['b'])
-    expect((await repo.findNodes(wsId, { nameContains: 'cart' })).map(n => n.id).sort()).toEqual(['a', 'b'])
+    expect((await repo.listNodes(wsId, { types: [entityType] })).map(n => n.id).sort()).toEqual(['b', 'c'])
+    expect((await repo.listNodes(wsId, { statuses: [finalStatus] })).map(n => n.id)).toEqual(['b'])
+    expect((await repo.listNodes(wsId, { nameContains: 'cart' })).map(n => n.id).sort()).toEqual(['a', 'b'])
   })
 
   it('getNode throws NotFoundError for unknown id', async () => {

@@ -3,7 +3,7 @@ import type {
   ValidationCode,
   ValidationIssue,
 } from '@braidhq/schema'
-import type { OntologyPlugin, OntologyValidator } from '../../domain/plugin/Ontology.js'
+import type { OntologyPlugin, OntologyValidator } from '../../domain/plugin/OntologyPlugin.js'
 
 /**
  * Generic engine: reads `nodeTypes` / `edgeTypes` from an `OntologyPlugin`

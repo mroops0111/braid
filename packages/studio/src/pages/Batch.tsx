@@ -1,4 +1,4 @@
-import type { BatchPlan, BatchStatus, PlanUnit, SkillInputOptionsResponse, SkillRunId, UnitStatus } from '@braidhq/schema'
+import type { BatchPlan, BatchStatus, BatchUnit, BatchUnitStatus, SkillInputOptionsResponse, SkillRunId } from '@braidhq/schema'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Archive, CheckCircle2, CircleDot, FastForward, FileText, Loader2, Play, PlayCircle, Search, Sparkles, StopCircle, Terminal, XCircle } from 'lucide-react'
@@ -27,7 +27,7 @@ const STATUS_TONE: Record<BatchStatus, string> = {
   archived: 'border-zinc-400/40 bg-zinc-400/10 text-zinc-700 dark:text-zinc-300',
 }
 
-const UNIT_ICON: Record<UnitStatus, ReactNode> = {
+const UNIT_ICON: Record<BatchUnitStatus, ReactNode> = {
   pending: <CircleDot className="size-4 text-muted-foreground" />,
   running: <Loader2 className="size-4 animate-spin text-sky-500" />,
   completed: <CheckCircle2 className="size-4 text-emerald-500" />,
@@ -347,7 +347,7 @@ function UnitList({ plan, selectedRunId, activeRunId, onSelect }: {
 }
 
 interface UnitChunk {
-  units: readonly PlanUnit[]
+  units: readonly BatchUnit[]
   phase: BatchPlan['checkpointPhases'][number] | undefined
   isFinal: boolean
 }
@@ -367,7 +367,7 @@ function groupUnitsByCheckpoint(plan: BatchPlan): UnitChunk[] {
   const consumed = new Set<string>()
   const chunks: UnitChunk[] = []
   for (const phase of plan.checkpointPhases) {
-    const units: PlanUnit[] = []
+    const units: BatchUnit[] = []
     for (const id of phase.unitIds) {
       const unit = unitsById.get(id)
       if (unit) {
@@ -397,7 +397,7 @@ function groupUnitsByCheckpoint(plan: BatchPlan): UnitChunk[] {
 
 type PhaseTone = 'completed' | 'failed' | 'running' | 'idle'
 
-function aggregateUnitsTone(units: readonly PlanUnit[]): PhaseTone {
+function aggregateUnitsTone(units: readonly BatchUnit[]): PhaseTone {
   if (units.length === 0)
     return 'idle'
   if (units.some(u => u.status === 'failed'))
@@ -547,7 +547,7 @@ function CheckpointPhaseRow({ phase, label, active, selected, onSelect }: {
 }
 
 function UnitRow({ unit, actionLabel, active, selected, onSelect }: {
-  unit: PlanUnit
+  unit: BatchUnit
   actionLabel: string | undefined
   active: boolean
   selected: boolean
@@ -651,7 +651,7 @@ function isTerminal(status: BatchStatus): boolean {
   return status === 'completed' || status === 'failed' || status === 'stopped'
 }
 
-function lastFinishedRunId(units: readonly PlanUnit[]): SkillRunId | null {
+function lastFinishedRunId(units: readonly BatchUnit[]): SkillRunId | null {
   for (let i = units.length - 1; i >= 0; i--) {
     const unit = units[i]!
     if (unit.skillRunId && (unit.status === 'completed' || unit.status === 'failed'))

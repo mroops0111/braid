@@ -6,7 +6,7 @@ import type {
   NodeStatus,
   NodeTypeId,
 } from '@braidhq/schema'
-import type { EdgeTypeDescriptor } from '../../../src/domain/plugin/Ontology.js'
+import type { EdgeTypeDescriptor } from '../../../src/domain/plugin/OntologyPlugin.js'
 import { makeOntology } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { StructuralValidator } from '../../../src/infrastructure/validation/StructuralValidator.js'

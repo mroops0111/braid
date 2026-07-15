@@ -6,7 +6,7 @@ import type {
 } from '@braidhq/schema'
 import type { Clock } from '../domain/Clock.js'
 import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
-import type { IngestReport, SyncReport } from '../domain/plugin/SourceLoader.js'
+import type { IngestReport, SyncReport } from '../domain/plugin/SourceLoaderPlugin.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import { stat } from 'node:fs/promises'

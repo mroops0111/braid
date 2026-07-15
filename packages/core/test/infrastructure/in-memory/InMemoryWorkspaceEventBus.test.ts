@@ -1,5 +1,4 @@
-import type { ProposalId, WorkspaceId } from '@braidhq/schema'
-import type { WorkspaceEvent } from '../../../src/domain/events/WorkspaceEvent.js'
+import type { ProposalId, WorkspaceEvent, WorkspaceId } from '@braidhq/schema'
 import { T0 } from '@braidhq/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { InMemoryWorkspaceEventBus } from '../../../src/infrastructure/in-memory/InMemoryWorkspaceEventBus.js'

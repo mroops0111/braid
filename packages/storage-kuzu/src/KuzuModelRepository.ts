@@ -72,7 +72,7 @@ export class KuzuModelRepository implements ModelRepository {
     await cached.conn.query('CHECKPOINT;')
   }
 
-  async findNodes(workspaceId: WorkspaceId, filter?: GraphNodeFilter): Promise<GraphNode[]> {
+  async listNodes(workspaceId: WorkspaceId, filter?: GraphNodeFilter): Promise<GraphNode[]> {
     const snapshot = await this.load(workspaceId)
     return applyNodeFilter(snapshot.nodes, filter)
   }

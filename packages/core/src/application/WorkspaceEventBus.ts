@@ -1,5 +1,4 @@
-import type { WorkspaceId } from '@braidhq/schema'
-import type { WorkspaceEvent } from '../domain/events/WorkspaceEvent.js'
+import type { WorkspaceEvent, WorkspaceId } from '@braidhq/schema'
 
 export type WorkspaceEventListener = (event: WorkspaceEvent) => void
 

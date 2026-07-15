@@ -7,12 +7,13 @@ import type {
   SkillRunId,
   SourceDescriptor,
   SourceId,
+  SourceSyncedEvent,
   Timestamp,
+  WorkspaceEvent,
   WorkspaceId,
 } from '@braidhq/schema'
 import type { Clock } from '../domain/Clock.js'
-import type { SourceSyncedEvent, WorkspaceEvent } from '../domain/events/WorkspaceEvent.js'
-import type { OntologyBatchBinding, OntologyPerUnitBinding } from '../domain/plugin/Ontology.js'
+import type { OntologyBatchBinding, OntologyPerUnitBinding } from '../domain/plugin/OntologyPlugin.js'
 import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
 import type { Reactor } from '../domain/reactor/Reactor.js'
 import type { ReactorCycleRepository } from '../domain/reactor/ReactorCycleRepository.js'
@@ -196,7 +197,7 @@ export class ReactorService implements Reactor {
       return undefined
     const startedAt = this.deps.clock.now()
     const pass: ReactorCycle = {
-      id: newReactorCycleId(startedAt),
+      id: newReactorCycleId(),
       workspaceId: workspace.id,
       sourceId: event.sourceId,
       startedAt,
@@ -446,7 +447,7 @@ function isIntentSource(source: SourceDescriptor | undefined): source is SourceD
 
 /**
  * Compute the per-unit skill args for a path.
- * The ontology's `argsFor` is typed against `PlanUnit` (BatchService's domain),
+ * The ontology's `argsFor` is typed against `BatchUnit` (BatchService's domain),
  * but it only reads `name` and `scopeHint`, we honour that contract by passing a minimal synthetic.
  * Keeping the cast in one helper means the rest of the reactor stays free of `as unknown as` casts.
  */

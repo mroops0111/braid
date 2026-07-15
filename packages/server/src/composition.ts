@@ -2,9 +2,9 @@ import type {
   BatchPlanRepository,
   ClarifyTicketRepository,
   Clock,
-  GraphSerializer,
   IntentLister,
   ModelRepository,
+  ModelSerializer,
   ProposalRepository,
   ReactorCycleRepository,
   RunRepository,
@@ -159,7 +159,7 @@ export interface ComposeOptions {
   eventBus?: WorkspaceEventBus
   // Both required together. HITLService skips git hooks when absent.
   history?: WorkspaceHistory
-  graphSerializer?: GraphSerializer
+  modelSerializer?: ModelSerializer
   bootstrap?: WorkspaceBootstrap
   batchPlanRepository?: BatchPlanRepository
   intentLister?: IntentLister
@@ -213,7 +213,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     eventBus,
     workspaceLock,
     ...(options.history ? { history: options.history } : {}),
-    ...(options.graphSerializer ? { graphSerializer: options.graphSerializer } : {}),
+    ...(options.modelSerializer ? { modelSerializer: options.modelSerializer } : {}),
     ...(options.userDirectory ? { userDirectory: options.userDirectory } : {}),
   })
 

@@ -10,8 +10,8 @@ import {
 
 describe('BraidError base', () => {
   it('carries code + message + name', () => {
-    const error = new BraidError('BRAID-X', 'something broke')
-    expect(error.code).toBe('BRAID-X')
+    const error = new BraidError('BRAID-INTERNAL', 'something broke')
+    expect(error.code).toBe('BRAID-INTERNAL')
     expect(error.message).toBe('something broke')
     expect(error.name).toBe('BraidError')
     expect(error).toBeInstanceOf(Error)
@@ -19,18 +19,18 @@ describe('BraidError base', () => {
 
   it('preserves cause via standard Error options', () => {
     const cause = new Error('underlying')
-    const error = new BraidError('BRAID-X', 'wrapped', { cause })
+    const error = new BraidError('BRAID-INTERNAL', 'wrapped', { cause })
     expect(error.cause).toBe(cause)
   })
 })
 
 describe('ValidationError', () => {
-  it('uses BRAID-VAL code and reports issues', () => {
+  it('uses BRAID-VALIDATION code and reports issues', () => {
     const issues: ValidationIssue[] = [
       { code: ValidationCode.parse('x-required'), severity: 'error', message: 'x is required' },
     ]
     const error = new ValidationError('bad input', issues)
-    expect(error.code).toBe('BRAID-VAL')
+    expect(error.code).toBe('BRAID-VALIDATION')
     expect(error.name).toBe('ValidationError')
     expect(error.issues).toEqual(issues)
     expect(error).toBeInstanceOf(BraidError)

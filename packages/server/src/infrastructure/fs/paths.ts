@@ -31,7 +31,7 @@ export function workspaceArtifactsDir(workspaceRoot: AbsolutePath): string {
 }
 
 export function graphJsonPath(workspaceRoot: AbsolutePath): string {
-  return join(workspaceArtifactsDir(workspaceRoot), 'graph.json')
+  return join(workspaceArtifactsDir(workspaceRoot), 'model.json')
 }
 
 export function batchPlanPath(workspaceRoot: AbsolutePath): string {

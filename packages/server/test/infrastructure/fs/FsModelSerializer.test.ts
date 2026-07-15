@@ -3,7 +3,7 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { FsGraphSerializer } from '../../../src/infrastructure/fs/FsGraphSerializer.js'
+import { FsModelSerializer } from '../../../src/infrastructure/fs/FsModelSerializer.js'
 import { graphJsonPath, workspaceArtifactsDir } from '../../../src/infrastructure/fs/paths.js'
 import { makeWorkspace } from '../../helpers/fakes.js'
 
@@ -32,23 +32,23 @@ function makeEdge(id: string, from: string, to: string): GraphEdge {
   }
 }
 
-describe('FsGraphSerializer', () => {
+describe('FsModelSerializer', () => {
   it('exists returns false before any write', async () => {
     const root = await makeRoot()
     const ws = makeWorkspace({ rootPath: root })
-    expect(await new FsGraphSerializer().exists(ws)).toBe(false)
+    expect(await new FsModelSerializer().exists(ws)).toBe(false)
   })
 
   it('read returns null before any write', async () => {
     const root = await makeRoot()
     const ws = makeWorkspace({ rootPath: root })
-    expect(await new FsGraphSerializer().read(ws)).toBeNull()
+    expect(await new FsModelSerializer().read(ws)).toBeNull()
   })
 
   it('round-trips a snapshot through write + read', async () => {
     const root = await makeRoot()
     const ws = makeWorkspace({ rootPath: root })
-    const serializer = new FsGraphSerializer()
+    const serializer = new FsModelSerializer()
     const snapshot = {
       nodes: [makeNode('node-b'), makeNode('node-a')],
       edges: [makeEdge('edge-1', 'node-a', 'node-b')],
@@ -65,7 +65,7 @@ describe('FsGraphSerializer', () => {
   it('sorts nodes and edges by id so two writes of the same logical state are byte-identical', async () => {
     const root = await makeRoot()
     const ws = makeWorkspace({ rootPath: root })
-    const serializer = new FsGraphSerializer()
+    const serializer = new FsModelSerializer()
     const nodes = [makeNode('z'), makeNode('a'), makeNode('m')]
     const edges = [makeEdge('e-z', 'z', 'a'), makeEdge('e-a', 'a', 'm')]
 
@@ -79,10 +79,10 @@ describe('FsGraphSerializer', () => {
     expect(parsed.nodes.map(n => n.id)).toEqual(['a', 'm', 'z'])
   })
 
-  it('throws on an unknown graph.json version (forward-compat guard)', async () => {
+  it('throws on an unknown model.json version (forward-compat guard)', async () => {
     const root = await makeRoot()
     const ws = makeWorkspace({ rootPath: root })
-    const serializer = new FsGraphSerializer()
+    const serializer = new FsModelSerializer()
     await serializer.write(ws, { nodes: [], edges: [] })
     const path = graphJsonPath(root)
     const raw = await readFile(path, 'utf-8')
@@ -92,13 +92,13 @@ describe('FsGraphSerializer', () => {
     await expect(serializer.read(ws)).rejects.toThrow(/version mismatch/)
   })
 
-  it('writes to artifacts/graph.json under the workspace root', async () => {
+  it('writes to artifacts/model.json under the workspace root', async () => {
     const root = await makeRoot()
     const ws = makeWorkspace({ rootPath: root })
 
-    await new FsGraphSerializer().write(ws, { nodes: [], edges: [] })
+    await new FsModelSerializer().write(ws, { nodes: [], edges: [] })
 
-    const expected = join(workspaceArtifactsDir(root), 'graph.json')
+    const expected = join(workspaceArtifactsDir(root), 'model.json')
     const raw = await readFile(expected, 'utf-8')
     expect(JSON.parse(raw)).toMatchObject({ version: 1, nodes: [], edges: [] })
   })

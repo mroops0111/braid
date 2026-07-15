@@ -7,7 +7,7 @@ import {
   CommitMessage,
   CommitMeta,
   FileDiff,
-  GraphDiffEnvelope,
+  ModelDiffEnvelope,
   TagMeta,
 } from '../src/index.js'
 
@@ -96,7 +96,7 @@ describe('ChangeKind', () => {
   })
 })
 
-describe('GraphDiffEnvelope', () => {
+describe('ModelDiffEnvelope', () => {
   const valid = {
     from: sha,
     to: 'b'.repeat(40),
@@ -106,11 +106,11 @@ describe('GraphDiffEnvelope', () => {
   }
 
   it('keys change kinds by entity id', () => {
-    expect(GraphDiffEnvelope.parse(valid).changes.nodes['n-1']).toBe('added')
+    expect(ModelDiffEnvelope.parse(valid).changes.nodes['n-1']).toBe('added')
   })
   it('rejects an unknown change kind', () => {
     const bad = { ...valid, changes: { nodes: { 'n-1': 'moved' }, edges: {} } }
-    expect(GraphDiffEnvelope.safeParse(bad).success).toBe(false)
+    expect(ModelDiffEnvelope.safeParse(bad).success).toBe(false)
   })
 })
 

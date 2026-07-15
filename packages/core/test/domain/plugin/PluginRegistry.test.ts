@@ -68,7 +68,7 @@ function fakeStoragePlugin(id: string, kind: string): StoragePlugin {
   const emptyRepository: ModelRepository = {
     load: async (): Promise<ModelSnapshot> => ({ nodes: [], edges: [] }),
     applyOperations: async () => {},
-    findNodes: async () => [],
+    listNodes: async () => [],
     getNode: async () => { throw new NotFoundError('not found') },
     scopeOf: async (): Promise<ModelSnapshot> => ({ nodes: [], edges: [] }),
     listEdges: async () => [],

@@ -3,7 +3,7 @@ import type {
   CommitMeta,
   CommitSha,
   FileDiff,
-  GraphDiffEnvelope,
+  ModelDiffEnvelope,
   TagMeta,
   UserId,
   WorkspaceId,
@@ -61,7 +61,7 @@ export class HistoryService {
     return this.deps.history.getCommitDiff(workspace, sha)
   }
 
-  async getGraphDiff(workspaceId: WorkspaceId, fromSha: CommitSha, toSha: CommitSha): Promise<GraphDiffEnvelope> {
+  async getModelDiff(workspaceId: WorkspaceId, fromSha: CommitSha, toSha: CommitSha): Promise<ModelDiffEnvelope> {
     const workspace = await this.deps.workspaceService.findById(workspaceId)
     const [prev, next] = await Promise.all([
       this.deps.history.readGraphAtCommit(workspace, fromSha),

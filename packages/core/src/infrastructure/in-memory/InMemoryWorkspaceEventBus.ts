@@ -1,6 +1,5 @@
-import type { WorkspaceId } from '@braidhq/schema'
+import type { WorkspaceEvent, WorkspaceId } from '@braidhq/schema'
 import type { WorkspaceEventBus, WorkspaceEventListener } from '../../application/WorkspaceEventBus.js'
-import type { WorkspaceEvent } from '../../domain/events/WorkspaceEvent.js'
 
 /**
  * Process-local pub/sub. Holds listeners in a `Map<WorkspaceId, Set<listener>>`

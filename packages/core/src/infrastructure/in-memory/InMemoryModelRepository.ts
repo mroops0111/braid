@@ -23,7 +23,7 @@ export class InMemoryModelRepository implements ModelRepository {
     this.modelFor(workspaceId).applyOperations(operations)
   }
 
-  async findNodes(workspaceId: WorkspaceId, filter?: GraphNodeFilter): Promise<GraphNode[]> {
+  async listNodes(workspaceId: WorkspaceId, filter?: GraphNodeFilter): Promise<GraphNode[]> {
     let nodes = this.modelFor(workspaceId).toSnapshot().nodes
     if (filter?.types && filter.types.length > 0) {
       const types = filter.types

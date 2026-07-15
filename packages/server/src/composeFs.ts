@@ -30,7 +30,7 @@ import { SessionStore } from './infrastructure/auth/SessionStore.js'
 import { parseBoolEnv } from './infrastructure/env.js'
 import { FsBatchPlanRepository } from './infrastructure/fs/FsBatchPlanRepository.js'
 import { FsClarifyTicketRepository } from './infrastructure/fs/FsClarifyTicketRepository.js'
-import { FsGraphSerializer } from './infrastructure/fs/FsGraphSerializer.js'
+import { FsModelSerializer } from './infrastructure/fs/FsModelSerializer.js'
 import { FsProposalRepository } from './infrastructure/fs/FsProposalRepository.js'
 import { FsReactorCycleRepository } from './infrastructure/fs/FsReactorCycleRepository.js'
 import { FsRunRepository } from './infrastructure/fs/FsRunRepository.js'
@@ -297,10 +297,10 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
 
   // Shared by WorkspaceBootstrap (boot reconciliation), and HITLService (per-mutation commits).
   const history = new GitWorkspaceHistory()
-  const graphSerializer = new FsGraphSerializer()
+  const modelSerializer = new FsModelSerializer()
   const bootstrap = new WorkspaceBootstrap({
     history,
-    serializer: graphSerializer,
+    serializer: modelSerializer,
     modelRepository,
   })
 
@@ -318,7 +318,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     eventBus,
     workspacesRoot,
     history,
-    graphSerializer,
+    modelSerializer,
     bootstrap,
     batchPlanRepository: new FsBatchPlanRepository(),
     intentLister: listIntentItems,

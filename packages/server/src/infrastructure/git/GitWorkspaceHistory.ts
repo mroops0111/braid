@@ -12,7 +12,7 @@ import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { CommitSha, Timestamp, WorkspaceId } from '@braidhq/schema'
 import { simpleGit, type SimpleGit } from 'simple-git'
-import { GRAPH_JSON_VERSION, GraphJsonFile } from '../fs/FsGraphSerializer.js'
+import { MODEL_JSON_VERSION, ModelJsonFile } from '../fs/FsModelSerializer.js'
 import { parseCommitMessage, serializeCommitMessage } from './commitMessage.js'
 
 // ASCII control chars never appear in commit subjects / refnames.
@@ -129,18 +129,18 @@ export class GitWorkspaceHistory implements WorkspaceHistory {
 
   async readGraphAtCommit(workspace: Workspace, sha: CommitSha): Promise<ModelSnapshot> {
     const git = openGit(workspace.rootPath)
-    // Pre-bootstrap commits don't carry `graph.json`. An empty snapshot lets diffs classify everything as `added`.
-    const raw = await git.raw(['show', `${sha}:artifacts/graph.json`]).catch((err: unknown) => {
+    // Pre-bootstrap commits don't carry `model.json`. An empty snapshot lets diffs classify everything as `added`.
+    const raw = await git.raw(['show', `${sha}:artifacts/model.json`]).catch((err: unknown) => {
       if (looksLikePathNotInCommit(err) || looksLikeUnknownRevision(err))
         return ''
       throw err
     })
     if (!raw.trim())
       return { nodes: [], edges: [] }
-    const parsed = GraphJsonFile.parse(JSON.parse(raw))
-    if (parsed.version !== GRAPH_JSON_VERSION) {
+    const parsed = ModelJsonFile.parse(JSON.parse(raw))
+    if (parsed.version !== MODEL_JSON_VERSION) {
       throw new Error(
-        `graph.json version mismatch at ${sha}: expected ${GRAPH_JSON_VERSION}, got ${parsed.version}`,
+        `model.json version mismatch at ${sha}: expected ${MODEL_JSON_VERSION}, got ${parsed.version}`,
       )
     }
     return { nodes: parsed.nodes, edges: parsed.edges }

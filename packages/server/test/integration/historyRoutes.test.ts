@@ -94,7 +94,7 @@ describe('history REST routes', () => {
     const detail = await app.request(`/workspaces/${workspaceId}/history/${head.sha}`)
     const body = await readJson<{ sha: string, diff: Array<{ path: string, status: string }> }>(detail)
     expect(body.sha).toBe(head.sha)
-    expect(body.diff.some(d => d.path === 'artifacts/graph.json')).toBe(true)
+    expect(body.diff.some(d => d.path === 'artifacts/model.json')).toBe(true)
   })
 
   it('POST /history/:sha/restore rolls back graph and produces a forward commit', async () => {

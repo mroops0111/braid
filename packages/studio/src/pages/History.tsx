@@ -1,4 +1,4 @@
-import type { ChangeKind, CommitKind, CommitMeta, CommitSha, EdgeId, FileDiff, GraphDiffEnvelope, NodeId, TagMeta } from '@braidhq/schema'
+import type { ChangeKind, CommitKind, CommitMeta, CommitSha, EdgeId, FileDiff, ModelDiffEnvelope, NodeId, TagMeta } from '@braidhq/schema'
 import type { GraphDataSource } from '@/components/graph/GraphDataSource'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeftRight, Check, GitCommit, History, Plus, RotateCcw, Tag, Trash2, X } from 'lucide-react'
@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
-import { queryKeys, useCommitGraphDiff, useHistory, useHistoryCommit, useHistoryTags } from '@/lib/queries'
+import { queryKeys, useCommitModelDiff, useHistory, useHistoryCommit, useHistoryTags } from '@/lib/queries'
 import { cn } from '@/lib/utils'
 import { useWorkspacePolicy } from '@/policy'
 
@@ -316,7 +316,7 @@ function CompareDetail({ workspaceId, selectedSha, compareSha, commits, onExit }
   onExit: () => void
 }) {
   const { from, to } = useMemo(() => orderByAge(commits, selectedSha, compareSha), [selectedSha, compareSha, commits])
-  const { data, isLoading, error } = useCommitGraphDiff(workspaceId, from, to)
+  const { data, isLoading, error } = useCommitModelDiff(workspaceId, from, to)
 
   const groups = useMemo(() => buildDiffGroups(data ?? null), [data])
   const source = useMemo(() => envelopeToSource(data ?? null, isLoading), [data, isLoading])
@@ -524,7 +524,7 @@ function orderByAge(commits: readonly CommitMeta[], a: CommitSha, b: CommitSha):
   return aIdx > bIdx ? { from: a, to: b } : { from: b, to: a }
 }
 
-function buildDiffGroups(envelope: GraphDiffEnvelope | null): DiffGroupModel[] {
+function buildDiffGroups(envelope: ModelDiffEnvelope | null): DiffGroupModel[] {
   if (!envelope)
     return []
   const nodesById = indexById([...envelope.snapshot.nodes, ...envelope.removed.nodes])
@@ -574,7 +574,7 @@ function countByKind(groups: readonly DiffGroupModel[]): { added: number, update
   return { added, updated, removed, total: added + updated + removed }
 }
 
-function envelopeToSource(envelope: GraphDiffEnvelope | null, isLoading: boolean): GraphDataSource {
+function envelopeToSource(envelope: ModelDiffEnvelope | null, isLoading: boolean): GraphDataSource {
   if (!envelope) {
     return {
       nodes: [],

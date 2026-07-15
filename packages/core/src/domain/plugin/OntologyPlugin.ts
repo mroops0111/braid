@@ -1,4 +1,4 @@
-import type { EdgeTypeId, ModelSnapshot, NodeStatus, NodeTypeId, OntologyId, PlanUnit, SkillId, ValidationIssue } from '@braidhq/schema'
+import type { BatchUnit, EdgeTypeId, ModelSnapshot, NodeStatus, NodeTypeId, OntologyId, SkillId, ValidationIssue } from '@braidhq/schema'
 import type { Plugin } from './Plugin.js'
 
 export interface NodeTypeDescriptor {
@@ -77,7 +77,7 @@ export interface OntologyPerUnitBinding {
   /** UI badge text per unit row. Falls back to `skillId` when omitted. */
   readonly label?: string
   /** Defaults to `unit.scopeHint ?? unit.name`. */
-  readonly argsFor?: (unit: PlanUnit) => string
+  readonly argsFor?: (unit: BatchUnit) => string
 }
 
 /** Cross-unit hook fired between unit runs. Omit for a pure per-unit batch. */
@@ -90,7 +90,7 @@ export interface OntologyCheckpointBinding {
   /** Run an extra checkpoint at the end of the loop even when units divide evenly. */
   readonly runAtEnd: boolean
   /** Env vars the checkpoint skill reads (e.g. DDD's `BRAID_CHANGED_UNITS`). */
-  readonly extraEnv?: (units: readonly PlanUnit[]) => Record<string, string>
+  readonly extraEnv?: (units: readonly BatchUnit[]) => Record<string, string>
 }
 
 /** Discovery skill that produces a unit list when the workspace has no intent source. */

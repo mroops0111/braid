@@ -1,11 +1,10 @@
-import type { AbsolutePath, SkillEvent, SkillId, SkillRunId, SourceDescriptor, SourceId, SourceUnitSha, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, SkillEvent, SkillId, SkillRunId, SourceDescriptor, SourceId, SourceUnitSha, WorkspaceEvent, WorkspaceId } from '@braidhq/schema'
 import type {
   IntentLister,
   SkillEventListener,
   SkillRunner,
   SkillRunSubscription,
   SourceUnitDigest,
-  WorkspaceEvent,
   WorkspaceEventBus,
 } from '../../src/index.js'
 import { SkillId as SkillIdSchema } from '@braidhq/schema'

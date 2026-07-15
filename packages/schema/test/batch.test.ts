@@ -5,13 +5,13 @@ import {
   BatchInputMode,
   BatchPlan,
   BatchStatus,
-  PlanUnit,
-  UnitStatus,
+  BatchUnit,
+  BatchUnitStatus,
 } from '../src/index.js'
 
 describe('batch enums', () => {
   it('unit status covers the per-unit lifecycle', () => {
-    expect(UnitStatus.options).toEqual(['pending', 'running', 'completed', 'failed', 'skipped'])
+    expect(BatchUnitStatus.options).toEqual(['pending', 'running', 'completed', 'failed', 'skipped'])
   })
   it('batch status covers the plan lifecycle', () => {
     expect(BatchStatus.options).toEqual(['idle', 'deriving', 'running', 'completed', 'failed', 'stopped', 'archived'])
@@ -24,16 +24,16 @@ describe('batch enums', () => {
   })
 })
 
-describe('PlanUnit', () => {
+describe('BatchUnit', () => {
   const valid = { id: 'unit-1', name: 'cart', description: 'the cart doc', status: 'pending' }
 
   it('defaults proposal and clarify id lists to empty', () => {
-    const unit = PlanUnit.parse(valid)
+    const unit = BatchUnit.parse(valid)
     expect(unit.proposalIds).toEqual([])
     expect(unit.clarifyTicketIds).toEqual([])
   })
   it('rejects an empty name', () => {
-    expect(PlanUnit.safeParse({ ...valid, name: '' }).success).toBe(false)
+    expect(BatchUnit.safeParse({ ...valid, name: '' }).success).toBe(false)
   })
 })
 

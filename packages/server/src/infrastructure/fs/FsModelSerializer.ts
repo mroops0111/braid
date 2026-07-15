@@ -1,4 +1,4 @@
-import type { GraphSerializer, Workspace } from '@braidhq/core'
+import type { ModelSerializer, Workspace } from '@braidhq/core'
 import type { ModelSnapshot } from '@braidhq/schema'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import process from 'node:process'
@@ -6,20 +6,20 @@ import { GraphEdge, GraphNode } from '@braidhq/schema'
 import { z } from 'zod'
 import { graphJsonPath, workspaceArtifactsDir } from './paths.js'
 
-export const GRAPH_JSON_VERSION = 1
+export const MODEL_JSON_VERSION = 1
 
-export const GraphJsonFile = z.object({
+export const ModelJsonFile = z.object({
   version: z.number().int(),
   nodes: z.array(GraphNode),
   edges: z.array(GraphEdge),
 })
 
-export class FsGraphSerializer implements GraphSerializer {
+export class FsModelSerializer implements ModelSerializer {
   async write(workspace: Workspace, snapshot: ModelSnapshot): Promise<void> {
     const path = graphJsonPath(workspace.rootPath)
     await mkdir(workspaceArtifactsDir(workspace.rootPath), { recursive: true })
     const payload = {
-      version: GRAPH_JSON_VERSION,
+      version: MODEL_JSON_VERSION,
       nodes: [...snapshot.nodes].sort(byId),
       edges: [...snapshot.edges].sort(byId),
     }
@@ -40,10 +40,10 @@ export class FsGraphSerializer implements GraphSerializer {
         return null
       throw error
     }
-    const parsed = GraphJsonFile.parse(JSON.parse(raw))
-    if (parsed.version !== GRAPH_JSON_VERSION) {
+    const parsed = ModelJsonFile.parse(JSON.parse(raw))
+    if (parsed.version !== MODEL_JSON_VERSION) {
       throw new Error(
-        `graph.json version mismatch in ${workspace.rootPath}: expected ${GRAPH_JSON_VERSION}, got ${parsed.version}`,
+        `model.json version mismatch in ${workspace.rootPath}: expected ${MODEL_JSON_VERSION}, got ${parsed.version}`,
       )
     }
     return { nodes: parsed.nodes, edges: parsed.edges }

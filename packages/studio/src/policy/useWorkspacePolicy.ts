@@ -1,5 +1,4 @@
-import type { SkillFrontmatter, WorkspaceMember, WorkspaceRole } from '@braidhq/schema'
-import type { Capability } from './Capability'
+import type { Capability, SkillFrontmatter, WorkspaceMember, WorkspaceRole } from '@braidhq/schema'
 import { useMemo } from 'react'
 import { useMe, useWorkspaceMembers } from '@/lib/queries'
 import { defaultPermissionRegistry } from './defaultRegistry'

@@ -3,7 +3,7 @@ import type { SourceId, WorkspaceId } from '@braidhq/schema'
 /**
  * Reactor port. Implementations subscribe to `WorkspaceEventBus` and, on each qualifying `source.synced`,
  * run the active ontology's per-unit skill against new / changed units of the synced source,
- * plus one checkpoint pass over the resulting graph.
+ * plus one checkpoint pass over the resulting model.
  *
  * The reactor is intent-driven: it only reacts to `source.synced` whose source has `role: 'intent'`.
  * Code-source syncs fall through because per-unit skills consume intent units (issues / PRDs),
