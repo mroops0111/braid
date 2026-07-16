@@ -15,7 +15,6 @@ import type {
 import type { Clock } from '../domain/Clock.js'
 import type { OntologyBatchBinding, OntologyPerUnitBinding } from '../domain/plugin/OntologyPlugin.js'
 import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
-import type { Reactor } from '../domain/reactor/Reactor.js'
 import type { ReactorCycleRepository } from '../domain/reactor/ReactorCycleRepository.js'
 import type { SkillRunner } from '../domain/skill/SkillRunner.js'
 import type { SourceUnitDigest } from '../domain/source/SourceUnitDigest.js'
@@ -115,7 +114,7 @@ interface CycleContext {
  * - No gate assumption, emits `reactor.completed` and stops,
  *   apply stays with upstream layers.
  */
-export class ReactorService implements Reactor {
+export class ReactorService {
   private readonly subscriptions = new Map<WorkspaceId, () => void>()
   private readonly throttles = new Map<WorkspaceId, ThrottleWindow>()
 
