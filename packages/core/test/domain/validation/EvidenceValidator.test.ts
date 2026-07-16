@@ -1,6 +1,6 @@
 import type { DriftIssueId, ModelSnapshot, NodeId, NodeStatus, NodeTypeId, SourceId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
-import { EvidenceValidator } from '../../../src/infrastructure/validation/EvidenceValidator.js'
+import { EvidenceValidator } from '../../../src/domain/validation/EvidenceValidator.js'
 
 const draft = 'draft' as NodeStatus
 const completed = 'completed' as NodeStatus

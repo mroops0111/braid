@@ -1,6 +1,6 @@
 import type { EdgeId, EdgeTypeId, ModelSnapshot, NodeId, NodeStatus, NodeTypeId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
-import { OrphanEdgeValidator } from '../../../src/infrastructure/validation/OrphanEdgeValidator.js'
+import { OrphanEdgeValidator } from '../../../src/domain/validation/OrphanEdgeValidator.js'
 
 const aggregate = 'aggregate' as NodeTypeId
 const draft = 'draft' as NodeStatus

@@ -13,6 +13,7 @@ import type {
   WorkspaceId,
 } from '@braidhq/schema'
 import type { Clock } from '../domain/Clock.js'
+import type { Logger } from '../domain/Logger.js'
 import type { OntologyBatchBinding, OntologyPerUnitBinding } from '../domain/plugin/OntologyPlugin.js'
 import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
 import type { ReactorCycleRepository } from '../domain/reactor/ReactorCycleRepository.js'
@@ -25,7 +26,6 @@ import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import type { WorkspaceLock } from './WorkspaceLock.js'
 import type { WorkspaceService } from './WorkspaceService.js'
 import { newReactorCycleId } from '../domain/ids.js'
-import { createLogger } from '../infrastructure/logger.js'
 import { computeSourceDiff } from './computeSourceDiff.js'
 
 export interface ReactorServiceDeps {
@@ -45,9 +45,8 @@ export interface ReactorServiceDeps {
    * the reactor holds its own critical section, it never blocks writes.
    */
   readonly workspaceLock: WorkspaceLock
+  readonly logger: Logger
 }
-
-const reactorLogger = createLogger('reactor')
 
 const HOUR_MS = 60 * 60 * 1000
 const DEFAULT_MAX_RUNS_PER_HOUR = 5
@@ -154,7 +153,7 @@ export class ReactorService {
       await this.deps.workspaceLock.run(event.workspaceId, () => this.runCycleFor(event))
     }
     catch (err) {
-      reactorLogger.error(
+      this.deps.logger.error(
         {
           workspaceId: event.workspaceId,
           sourceId: event.sourceId,
@@ -248,7 +247,7 @@ export class ReactorService {
     }
     catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      reactorLogger.warn(
+      this.deps.logger.warn(
         { workspaceId: workspace.id, sourceId, path, err: message },
         'reactor: per-unit dispatch failed; continuing to next unit',
       )
@@ -268,7 +267,7 @@ export class ReactorService {
       await this.deps.sourceUnitObservationService.recordObservation(workspace.id, sourceId, path, runId)
     }
     catch (err) {
-      reactorLogger.warn(
+      this.deps.logger.warn(
         { workspaceId: workspace.id, sourceId, path, err: err instanceof Error ? err.message : String(err) },
         'reactor: skill succeeded but recordObservation failed; unit remains success',
       )
@@ -296,7 +295,7 @@ export class ReactorService {
     }
     catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      reactorLogger.warn({ workspaceId: workspace.id, skillId, err: message }, 'reactor: checkpoint dispatch failed')
+      this.deps.logger.warn({ workspaceId: workspace.id, skillId, err: message }, 'reactor: checkpoint dispatch failed')
       context.cycle = withCheckpoint(context.cycle, {
         skillId,
         status: 'failure',

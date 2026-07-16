@@ -2,8 +2,8 @@ import type { GraphOperation, ModelSnapshot, ValidationCode, ValidationIssue, Va
 import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
 import { Model } from '../domain/model/Model.js'
-import { EvidenceValidator } from '../infrastructure/validation/EvidenceValidator.js'
-import { OrphanEdgeValidator } from '../infrastructure/validation/OrphanEdgeValidator.js'
+import { EvidenceValidator } from '../domain/validation/EvidenceValidator.js'
+import { OrphanEdgeValidator } from '../domain/validation/OrphanEdgeValidator.js'
 
 export interface ValidationServiceDeps {
   pluginRegistry: PluginRegistry

@@ -9,7 +9,7 @@ import type {
 import type { EdgeTypeDescriptor } from '../../../src/domain/plugin/OntologyPlugin.js'
 import { makeOntology } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
-import { StructuralValidator } from '../../../src/infrastructure/validation/StructuralValidator.js'
+import { StructuralValidator } from '../../../src/domain/validation/StructuralValidator.js'
 
 const boundedContext = 'boundedContext' as NodeTypeId
 const aggregate = 'aggregate' as NodeTypeId

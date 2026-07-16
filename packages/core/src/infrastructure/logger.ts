@@ -1,8 +1,6 @@
 import process from 'node:process'
 import pino, { type Logger } from 'pino'
 
-export type { Logger }
-
 // Pretty by default, JSON when NODE_ENV=production,
 // so the bundled server emits machine-parseable lines for log aggregators.
 // `BRAID_LOG_PRETTY` (true/false) overrides both.

@@ -186,6 +186,7 @@ async function setup(opts: {
     reactorCycleRepository,
     workspaceLock: new WorkspaceLock(),
     clock,
+    logger: { info() {}, warn() {}, error() {} },
   })
 
   await reactor.start(workspace.id)

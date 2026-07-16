@@ -1,7 +1,7 @@
 import type { EdgeId, EdgeTypeId, ModelSnapshot, NodeId, NodeStatus, NodeTypeId } from '@braidhq/schema'
 import { makeOntology } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
-import { OntologyTypeValidator } from '../../../src/infrastructure/validation/OntologyTypeValidator.js'
+import { OntologyTypeValidator } from '../../../src/domain/validation/OntologyTypeValidator.js'
 
 const draft = 'draft' as NodeStatus
 

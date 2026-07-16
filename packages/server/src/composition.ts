@@ -29,6 +29,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   BatchService,
+  createLogger,
   HistoryService,
   HITLService,
   ModelService,
@@ -278,6 +279,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
       reactorCycleRepository,
       workspaceLock,
       clock,
+      logger: createLogger('reactor'),
     })
     : undefined
 
