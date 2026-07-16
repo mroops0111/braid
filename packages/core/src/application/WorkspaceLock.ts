@@ -9,7 +9,7 @@ import type { WorkspaceId } from '@braidhq/schema'
  * Without this, two applyProposal calls could pass the same pre-write snapshot,
  * then race on the graph write, leaving one client a spurious `"already exists"` 400.
  */
-export class PerWorkspaceLock {
+export class WorkspaceLock {
   private readonly chains = new Map<WorkspaceId, Promise<unknown>>()
 
   run<T>(workspaceId: WorkspaceId, task: () => Promise<T>): Promise<T> {

@@ -11,11 +11,11 @@ import { SkillId as SkillIdSchema } from '@braidhq/schema'
 import { FixedClock, makeOntology, makeWorkspace, mintTestId, resetTestIds, T0 } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import {
-  PerWorkspaceLock,
   PluginRegistry,
   ReactorService,
   SourceUnitObservationService,
   Workspace,
+  WorkspaceLock,
   WorkspaceService,
 } from '../../src/index.js'
 import {
@@ -184,7 +184,7 @@ async function setup(opts: {
     intentLister,
     digest,
     reactorCycleRepository,
-    workspaceLock: new PerWorkspaceLock(),
+    workspaceLock: new WorkspaceLock(),
     clock,
   })
 

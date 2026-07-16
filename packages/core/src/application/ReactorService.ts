@@ -21,9 +21,9 @@ import type { SkillRunner } from '../domain/skill/SkillRunner.js'
 import type { SourceUnitDigest } from '../domain/source/SourceUnitDigest.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
 import type { IntentLister } from './BatchService.js'
-import type { PerWorkspaceLock } from './PerWorkspaceLock.js'
 import type { SourceUnitObservationService } from './SourceUnitObservationService.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
+import type { WorkspaceLock } from './WorkspaceLock.js'
 import type { WorkspaceService } from './WorkspaceService.js'
 import { newReactorCycleId } from '../domain/ids.js'
 import { createLogger } from '../infrastructure/logger.js'
@@ -45,7 +45,7 @@ export interface ReactorServiceDeps {
    * The lock serialises pass execution per workspace. Sharing the HITLService or HistoryService lock instance is fine,
    * the reactor holds its own critical section, it never blocks writes.
    */
-  readonly workspaceLock: PerWorkspaceLock
+  readonly workspaceLock: WorkspaceLock
 }
 
 const reactorLogger = createLogger('reactor')

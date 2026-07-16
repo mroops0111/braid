@@ -32,13 +32,13 @@ import {
   HistoryService,
   HITLService,
   ModelService,
-  PerWorkspaceLock,
   PluginRegistry,
   ReactorService,
   SourceLoaderRunner,
   SourceUnitObservationService,
   SystemClock,
   ValidationService,
+  WorkspaceLock,
   WorkspaceService,
 } from '@braidhq/core'
 import {
@@ -202,7 +202,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const validationService = new ValidationService({ pluginRegistry })
   const sourceLoaderRunner = new SourceLoaderRunner({ pluginRegistry, clock, eventBus })
   // Shared lock domain so HITL mutations and history restore exclude each other.
-  const workspaceLock = new PerWorkspaceLock()
+  const workspaceLock = new WorkspaceLock()
   const hitlService = new HITLService({
     proposalRepository,
     clarifyRepository,

@@ -13,9 +13,9 @@ import type { ListCommitsOptions, WorkspaceHistory } from '../domain/history/Wor
 import type { RunRepository } from '../domain/skill/RunRepository.js'
 import type { SkillRunner } from '../domain/skill/SkillRunner.js'
 import type { UserDirectory } from '../domain/users/UserDirectory.js'
-import type { PerWorkspaceLock } from './PerWorkspaceLock.js'
 import type { WorkspaceBootstrapService } from './WorkspaceBootstrapService.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
+import type { WorkspaceLock } from './WorkspaceLock.js'
 import type { WorkspaceService } from './WorkspaceService.js'
 import { diffSnapshots } from '@braidhq/schema'
 import { ConflictError } from '../domain/errors.js'
@@ -25,7 +25,7 @@ import { enrichCommitAuthor } from './enrichCommitAuthor.js'
 export interface HistoryServiceDeps {
   history: WorkspaceHistory
   workspaceService: WorkspaceService
-  workspaceLock: PerWorkspaceLock
+  workspaceLock: WorkspaceLock
   bootstrap: WorkspaceBootstrapService
   runRepository: RunRepository
   skillRunner?: SkillRunner

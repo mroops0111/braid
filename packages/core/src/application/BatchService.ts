@@ -21,9 +21,9 @@ import type { SkillRunner } from '../domain/skill/SkillRunner.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
 import type { HistoryService } from './HistoryService.js'
 import type { HITLService } from './HITLService.js'
-import type { PerWorkspaceLock } from './PerWorkspaceLock.js'
 import type { SourceUnitObservationService } from './SourceUnitObservationService.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
+import type { WorkspaceLock } from './WorkspaceLock.js'
 import type { WorkspaceService } from './WorkspaceService.js'
 import { UserId } from '@braidhq/schema'
 import { BatchPlan } from '../domain/batch/BatchPlan.js'
@@ -57,7 +57,7 @@ export interface BatchServiceDeps {
    */
   pluginRegistry: PluginRegistry
   eventBus?: WorkspaceEventBus
-  workspaceLock: PerWorkspaceLock
+  workspaceLock: WorkspaceLock
   clock: Clock
   /**
    * Optional. When supplied,

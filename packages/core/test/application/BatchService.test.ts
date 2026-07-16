@@ -20,11 +20,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   BatchService,
   ConflictError,
-  PerWorkspaceLock,
   PluginRegistry,
   Proposal,
   SourceUnitObservationService,
   ValidationError,
+  WorkspaceLock,
   WorkspaceService,
 } from '../../src/index.js'
 import {
@@ -212,7 +212,7 @@ async function setup(options: {
         sourceName: source.name,
       }))
     },
-    workspaceLock: new PerWorkspaceLock(),
+    workspaceLock: new WorkspaceLock(),
     clock,
     pluginRegistry,
     ...(sourceUnitObservationService ? { sourceUnitObservationService } : {}),

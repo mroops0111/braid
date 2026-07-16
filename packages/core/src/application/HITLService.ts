@@ -28,7 +28,7 @@ import { Proposal } from '../domain/hitl/Proposal.js'
 import { newClarifyCandidateId, newClarifyTicketId, newProposalId } from '../domain/ids.js'
 import { noopUserDirectory } from '../domain/users/UserDirectory.js'
 import { enrichCommitAuthor } from './enrichCommitAuthor.js'
-import { PerWorkspaceLock } from './PerWorkspaceLock.js'
+import { WorkspaceLock } from './WorkspaceLock.js'
 
 // Generic system author for submit commits, until account management supplies real per-user attribution.
 const SUBMIT_USER_ID = UserId.parse('braid-skill')
@@ -45,7 +45,7 @@ export interface HITLServiceDeps {
   history?: WorkspaceHistory
   modelSerializer?: ModelSerializer
   // Inject so HistoryService.restore can share the same exclusion domain.
-  workspaceLock?: PerWorkspaceLock
+  workspaceLock?: WorkspaceLock
   /**
    * Looks up displayName + email to snapshot into git author at commit time.
    * Defaults to `noopUserDirectory` (no rewrite) so existing tests keep their `Author: <userId>` shape.
@@ -55,11 +55,11 @@ export interface HITLServiceDeps {
 
 export class HITLService {
   // Serialises mutation + commit on the same workspace.
-  private readonly workspaceLock: PerWorkspaceLock
+  private readonly workspaceLock: WorkspaceLock
   private readonly userDirectory: UserDirectory
 
   constructor(private readonly deps: HITLServiceDeps) {
-    this.workspaceLock = deps.workspaceLock ?? new PerWorkspaceLock()
+    this.workspaceLock = deps.workspaceLock ?? new WorkspaceLock()
     this.userDirectory = deps.userDirectory ?? noopUserDirectory
   }
 
@@ -79,8 +79,7 @@ export class HITLService {
       owner: draft.submitterId ?? 'system',
       ...(submitter?.displayName ? { ownerDisplayName: submitter.displayName } : {}),
     })
-    return this.workspaceLock.run(draft.workspaceId, async () => {
-      const workspace = await this.deps.workspaceService.findById(draft.workspaceId)
+    return this.withLockedWorkspace(draft.workspaceId, async (workspace) => {
       await this.deps.proposalRepository.save(proposal)
       // Submit commits so collaborators see the artefact via `git pull`.
       // Attribution stays generic until account management lands.
@@ -117,8 +116,7 @@ export class HITLService {
       owner: draft.submitterId ?? 'system',
       ...(submitter?.displayName ? { ownerDisplayName: submitter.displayName } : {}),
     })
-    return this.workspaceLock.run(draft.workspaceId, async () => {
-      const workspace = await this.deps.workspaceService.findById(draft.workspaceId)
+    return this.withLockedWorkspace(draft.workspaceId, async (workspace) => {
       await this.deps.clarifyRepository.save(ticket)
       await this.commitWorkspaceChange(workspace, {
         kind: 'clarify-submit',
@@ -139,9 +137,8 @@ export class HITLService {
   async applyProposal(proposalId: ProposalId, userId: UserId): Promise<Proposal> {
     // Outer load discovers the workspace for the lock key. The inner load is the authoritative read post-lock.
     const initial = await this.deps.proposalRepository.load(proposalId)
-    return this.workspaceLock.run(initial.workspaceId, async () => {
+    return this.withLockedWorkspace(initial.workspaceId, async (workspace) => {
       const proposal = await this.deps.proposalRepository.load(proposalId)
-      const workspace = await this.deps.workspaceService.findById(proposal.workspaceId)
       const applied = proposal.markApplied(userId, this.deps.clock.now())
       await this.assertOperationsValid(proposal.workspaceId, [...proposal.operations])
       await this.deps.modelRepository.applyOperations(proposal.workspaceId, [...proposal.operations])
@@ -163,8 +160,7 @@ export class HITLService {
 
   async rejectProposal(proposalId: ProposalId, reason: string, userId: UserId): Promise<Proposal> {
     const proposal = await this.deps.proposalRepository.load(proposalId)
-    return this.workspaceLock.run(proposal.workspaceId, async () => {
-      const workspace = await this.deps.workspaceService.findById(proposal.workspaceId)
+    return this.withLockedWorkspace(proposal.workspaceId, async (workspace) => {
       const rejected = proposal.markRejected(userId, this.deps.clock.now())
       await this.deps.proposalRepository.save(rejected)
       await this.commitWorkspaceChange(workspace, {
@@ -211,8 +207,7 @@ export class HITLService {
     const operations = [...ticket.resolveCandidate(candidateId)]
     await this.assertOperationsValid(ticket.workspaceId, operations)
 
-    return this.workspaceLock.run(ticket.workspaceId, async () => {
-      const workspace = await this.deps.workspaceService.findById(ticket.workspaceId)
+    return this.withLockedWorkspace(ticket.workspaceId, async (workspace) => {
       const answered = ticket.markAnswered(candidateId, userId)
       await this.deps.clarifyRepository.save(answered)
       await this.commitWorkspaceChange(workspace, {
@@ -238,8 +233,7 @@ export class HITLService {
     proposalId?: ProposalId,
   ): Promise<ClarifyTicket> {
     const ticket = await this.deps.clarifyRepository.load(clarifyTicketId)
-    return this.workspaceLock.run(ticket.workspaceId, async () => {
-      const workspace = await this.deps.workspaceService.findById(ticket.workspaceId)
+    return this.withLockedWorkspace(ticket.workspaceId, async (workspace) => {
       const applied = ticket.markApplied(proposalId)
       await this.deps.clarifyRepository.save(applied)
       await this.commitWorkspaceChange(workspace, {
@@ -266,8 +260,7 @@ export class HITLService {
     userId: UserId,
   ): Promise<ClarifyTicket> {
     const ticket = await this.deps.clarifyRepository.load(clarifyTicketId)
-    return this.workspaceLock.run(ticket.workspaceId, async () => {
-      const workspace = await this.deps.workspaceService.findById(ticket.workspaceId)
+    return this.withLockedWorkspace(ticket.workspaceId, async (workspace) => {
       const skipped = ticket.markSkipped(userId)
       await this.deps.clarifyRepository.save(skipped)
       await this.commitWorkspaceChange(workspace, {
@@ -283,6 +276,18 @@ export class HITLService {
         at: this.deps.clock.now(),
       })
       return skipped
+    })
+  }
+
+  // Every HITL mutation runs serialised per workspace, with the workspace loaded.
+  // Centralising the lock key and the load keeps that guard in one place.
+  private withLockedWorkspace<T>(
+    workspaceId: WorkspaceId,
+    body: (workspace: Workspace) => Promise<T>,
+  ): Promise<T> {
+    return this.workspaceLock.run(workspaceId, async () => {
+      const workspace = await this.deps.workspaceService.findById(workspaceId)
+      return body(workspace)
     })
   }
 
