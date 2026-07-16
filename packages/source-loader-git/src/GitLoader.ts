@@ -19,7 +19,7 @@ export type GitLoaderConfig = z.infer<typeof GitLoaderConfig>
 
 /**
  * Source loader for git remotes. The `destination` is treated as the full
- * git working tree: an initial `ingest` does a shallow clone there; `sync`
+ * git working tree: an initial `provision` does a shallow clone there; `sync`
  * does fetch + reset --hard so the user's local edits don't drift the
  * source content silently. If that's not the behaviour you want, pick the
  * `manual` loader and manage the directory yourself.
@@ -32,7 +32,7 @@ export type GitLoaderConfig = z.infer<typeof GitLoaderConfig>
 export const gitLoader: SourceLoaderPlugin = defineSourceLoader({
   kind: 'git',
   configSchema: GitLoaderConfig,
-  ingest: async (config, destination) => {
+  provision: async (config, destination) => {
     const url = interpolateEnv(config.url)
     await rm(destination, { recursive: true, force: true })
     await mkdir(destination, { recursive: true })

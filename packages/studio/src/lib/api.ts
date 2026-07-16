@@ -67,7 +67,7 @@ export type AdminUser = User & { workspaces: AdminUserWorkspace[] }
  */
 export type ClarifyTicketDetail = ClarifyTicket & { skipReason?: string, answerNote?: string }
 
-export interface IngestSummary {
+export interface ProvisionSummary {
   sourceId: string
   changed: boolean
   /** Per-file counts populated by loaders that can compute them cheaply (gdrive, git). */
@@ -82,12 +82,12 @@ export interface IngestSummary {
 
 export interface ScaffoldResult {
   workspace: Workspace
-  ingest: IngestSummary[]
+  provision: ProvisionSummary[]
 }
 
 export interface AddSourceResult {
   workspace: Workspace
-  ingest?: IngestSummary
+  provision?: ProvisionSummary
 }
 
 export interface PatchWorkspaceResult {
@@ -255,7 +255,7 @@ export const api = {
   removeSource: (workspaceId: string, sourceId: string) =>
     fetchJson<{ workspace: Workspace }>(`/workspaces/${workspaceId}/sources/${sourceId}`, { method: 'DELETE' }),
   syncSource: (workspaceId: string, sourceId: string) =>
-    fetchJson<IngestSummary>(`/workspaces/${workspaceId}/sources/${sourceId}/sync`, { method: 'POST' }),
+    fetchJson<ProvisionSummary>(`/workspaces/${workspaceId}/sources/${sourceId}/sync`, { method: 'POST' }),
   patchSource: (workspaceId: string, sourceId: string, patch: { description?: string }) =>
     fetchJson<{ workspace: Workspace }>(`/workspaces/${workspaceId}/sources/${sourceId}`, {
       method: 'PATCH',

@@ -15,7 +15,7 @@ import type {
  */
 export class OrphanEdgeValidator {
   async validate(snapshot: ModelSnapshot): Promise<readonly ValidationIssue[]> {
-    const nodeIds = new Set(snapshot.nodes.map(n => n.id))
+    const nodeIds = new Set(snapshot.nodes.map(node => node.id))
     const issues: ValidationIssue[] = []
     for (const edge of snapshot.edges) {
       if (!nodeIds.has(edge.fromNodeId)) {

@@ -81,7 +81,7 @@ describe('GoogleDriveLoader', () => {
     await rm(dest, { recursive: true, force: true })
   })
 
-  it('ingest lays each Google Doc out as <title>/index.md (flat per-doc, ignores subfolder hierarchy)', async () => {
+  it('provision lays each Google Doc out as <title>/index.md (flat per-doc, ignores subfolder hierarchy)', async () => {
     const fetchFn = buildMockFetch([
       { id: 'doc-1', name: 'Roadmap', mimeType: DOC_MIME, modifiedTime: '2026-05-01T00:00:00Z', parents: ['demo'], markdown: '# Roadmap\n\nh1 body' },
       { id: 'subfolder-1', name: 'subdir', mimeType: FOLDER_MIME, modifiedTime: 't', parents: ['demo'] },
@@ -89,7 +89,7 @@ describe('GoogleDriveLoader', () => {
     ])
 
     const loader = createGoogleDriveLoader({ resolveAccessToken: async () => 'fake', fetchFn })
-    const report = await loader.ingest({ folderId: 'demo' }, dest, CONTEXT)
+    const report = await loader.provision({ folderId: 'demo' }, dest, CONTEXT)
     expect(report.localPath).toBe(dest)
     expect((report.metadata as { fileCount?: number }).fileCount).toBe(2)
 
@@ -108,7 +108,7 @@ describe('GoogleDriveLoader', () => {
     ])
 
     const loader = createGoogleDriveLoader({ resolveAccessToken: async () => 'fake', fetchFn })
-    await loader.ingest({ folderId: 'demo' }, dest, CONTEXT)
+    await loader.provision({ folderId: 'demo' }, dest, CONTEXT)
 
     const docFiles = (await readdir(join(dest, 'Roadmap'))).sort()
     expect(docFiles).toEqual(['arch.png', 'index.md'])
@@ -133,7 +133,7 @@ describe('GoogleDriveLoader', () => {
       { id: 'binary-1', name: 'standalone.png', mimeType: 'image/png', modifiedTime: 't', parents: ['demo'] },
     ])
     const loader = createGoogleDriveLoader({ resolveAccessToken: async () => 'fake', fetchFn })
-    await loader.ingest({ folderId: 'demo' }, dest, CONTEXT)
+    await loader.provision({ folderId: 'demo' }, dest, CONTEXT)
     expect(await readdirNoManifest(dest)).toEqual(['Keep'])
   })
 
@@ -144,7 +144,7 @@ describe('GoogleDriveLoader', () => {
       { id: 'doc-3', name: 'Original的副本', mimeType: DOC_MIME, modifiedTime: 't', parents: ['demo'], markdown: 'c2' },
     ])
     const loader = createGoogleDriveLoader({ resolveAccessToken: async () => 'fake', fetchFn })
-    await loader.ingest({ folderId: 'demo' }, dest, CONTEXT)
+    await loader.provision({ folderId: 'demo' }, dest, CONTEXT)
     expect(await readdirNoManifest(dest)).toEqual(['Original'])
   })
 
@@ -153,7 +153,7 @@ describe('GoogleDriveLoader', () => {
       resolveAccessToken: async () => 'fake',
       fetchFn: buildMockFetch([]),
     })
-    await expect(loader.ingest({ folderId: 'root' }, dest, CONTEXT)).rejects.toThrow(/root/i)
+    await expect(loader.provision({ folderId: 'root' }, dest, CONTEXT)).rejects.toThrow(/root/i)
   })
 
   it('recursive=false ignores subfolders', async () => {
@@ -163,7 +163,7 @@ describe('GoogleDriveLoader', () => {
       { id: 'doc-2', name: 'B', mimeType: DOC_MIME, modifiedTime: 't', parents: ['sub'], markdown: 'b' },
     ])
     const loader = createGoogleDriveLoader({ resolveAccessToken: async () => 'fake', fetchFn })
-    await loader.ingest({ folderId: 'demo', recursive: false }, dest, CONTEXT)
+    await loader.provision({ folderId: 'demo', recursive: false }, dest, CONTEXT)
     expect(await readdirNoManifest(dest)).toEqual(['A'])
   })
 
@@ -173,7 +173,7 @@ describe('GoogleDriveLoader', () => {
       { id: 'b', name: 'Random', mimeType: DOC_MIME, modifiedTime: 't', parents: ['demo'], markdown: 'b' },
     ])
     const loader = createGoogleDriveLoader({ resolveAccessToken: async () => 'fake', fetchFn })
-    await loader.ingest({ folderId: 'demo', include: '^PRD-' }, dest, CONTEXT)
+    await loader.provision({ folderId: 'demo', include: '^PRD-' }, dest, CONTEXT)
     expect(await readdirNoManifest(dest)).toEqual(['PRD-Auth'])
   })
 
@@ -183,24 +183,24 @@ describe('GoogleDriveLoader', () => {
       { id: 'b', name: 'PRD-Drop', mimeType: DOC_MIME, modifiedTime: 't', parents: ['demo'], markdown: 'b' },
     ])
     const loader = createGoogleDriveLoader({ resolveAccessToken: async () => 'fake', fetchFn })
-    await loader.ingest({ folderId: 'demo', include: '^PRD-', exclude: 'Drop' }, dest, CONTEXT)
+    await loader.provision({ folderId: 'demo', include: '^PRD-', exclude: 'Drop' }, dest, CONTEXT)
     expect(await readdirNoManifest(dest)).toEqual(['PRD-Keep'])
   })
 
   it('rejects an invalid regex with a clear error', async () => {
     const loader = createGoogleDriveLoader({ resolveAccessToken: async () => 'fake', fetchFn: buildMockFetch([]) })
-    await expect(loader.ingest({ folderId: 'demo', include: '(' }, dest, CONTEXT))
+    await expect(loader.provision({ folderId: 'demo', include: '(' }, dest, CONTEXT))
       .rejects
       .toThrow(/include is not a valid regex/)
   })
 
-  it('writes a manifest after ingest with one entry per downloaded doc', async () => {
+  it('writes a manifest after provision with one entry per downloaded doc', async () => {
     const fetchFn = buildMockFetch([
       { id: 'doc-1', name: 'A', mimeType: DOC_MIME, modifiedTime: '2026-05-01T00:00:00Z', parents: ['demo'], markdown: 'a' },
       { id: 'doc-2', name: 'B', mimeType: DOC_MIME, modifiedTime: '2026-05-02T00:00:00Z', parents: ['demo'], markdown: 'b' },
     ])
     const loader = createGoogleDriveLoader({ resolveAccessToken: async () => 'fake', fetchFn })
-    await loader.ingest({ folderId: 'demo' }, dest, CONTEXT)
+    await loader.provision({ folderId: 'demo' }, dest, CONTEXT)
     const manifest = await readManifestFile(dest)
     expect(manifest.folderId).toBe('demo')
     expect(Object.keys(manifest.files).sort()).toEqual(['doc-1', 'doc-2'])
@@ -223,7 +223,7 @@ describe('GoogleDriveLoader', () => {
     const dynamicFetch: typeof globalThis.fetch = async (input, init) => buildMockFetch(active)(input, init)
     const loader = createGoogleDriveLoader({ resolveAccessToken: async () => 'fake', fetchFn: dynamicFetch })
 
-    await loader.ingest({ folderId: 'demo' }, dest, CONTEXT)
+    await loader.provision({ folderId: 'demo' }, dest, CONTEXT)
     expect((await readdirNoManifest(dest)).sort()).toEqual(['A', 'B', 'C'])
     expect(await readFile(join(dest, 'B', 'index.md'), 'utf-8')).toBe('b-v1')
 
@@ -235,7 +235,7 @@ describe('GoogleDriveLoader', () => {
     expect(await readFile(join(dest, 'B', 'index.md'), 'utf-8')).toBe('b-v2')
   })
 
-  it('sync without a prior manifest falls back to a clean ingest', async () => {
+  it('sync without a prior manifest falls back to a clean provision', async () => {
     const fetchFn = buildMockFetch([
       { id: 'a', name: 'A', mimeType: DOC_MIME, modifiedTime: 't', parents: ['demo'], markdown: 'a' },
     ])
@@ -256,7 +256,7 @@ describe('GoogleDriveLoader', () => {
     const dynamicFetch: typeof globalThis.fetch = async (input, init) => buildMockFetch(active)(input, init)
     const loader = createGoogleDriveLoader({ resolveAccessToken: async () => 'fake', fetchFn: dynamicFetch })
 
-    await loader.ingest({ folderId: 'demo' }, dest, CONTEXT)
+    await loader.provision({ folderId: 'demo' }, dest, CONTEXT)
     expect(await readdirNoManifest(dest)).toEqual(['Original'])
 
     active = after

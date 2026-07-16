@@ -13,12 +13,12 @@ export interface SourceLoaderContext {
   readonly sourceId: SourceId
 }
 
-export interface IngestReport {
+export interface ProvisionReport {
   /** Local path where the source content now lives (under destination). */
   readonly localPath: AbsolutePath
   /** Loader-specific provenance metadata, e.g. a commit sha or Drive revision. */
   readonly metadata?: Readonly<Record<string, unknown>>
-  /** When the ingest completed. */
+  /** When the provision completed. */
   readonly fetchedAt: Timestamp
 }
 
@@ -46,13 +46,13 @@ export interface SyncReport {
  * e.g. a git remote, Google Drive folder, or S3 prefix,
  * so claude can later read the files via `--add-dir`.
  *
- * `ingest` runs once at workspace scaffold / source-add time.
+ * `provision` runs once at workspace scaffold / source-add time.
  * `sync` is triggered by the user, or by a future scheduler, to refresh.
  * Loaders that can't refresh in place may omit `sync`.
  *
  * Loaders are pure provisioners.
  * They MUST NOT touch the Knowledge Graph directly, they only write files.
- * The `ingest`/`sync` contract is:
+ * The `provision`/`sync` contract is:
  *
  *  - The plugin owns the contents of `destination`.
  *    It MAY clear it before writing, the user agreed by picking this loader.
@@ -63,7 +63,7 @@ export interface SourceLoaderPlugin extends Plugin {
   readonly type: 'source-loader'
   readonly kind: LoaderKind
 
-  ingest: (config: unknown, destination: AbsolutePath, context: SourceLoaderContext) => Promise<IngestReport>
+  provision: (config: unknown, destination: AbsolutePath, context: SourceLoaderContext) => Promise<ProvisionReport>
   sync?: (config: unknown, destination: AbsolutePath, context: SourceLoaderContext) => Promise<SyncReport>
 
   /**

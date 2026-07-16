@@ -26,7 +26,7 @@ export const FilesystemSourceDescriptor = z.object({
   name: z.string().min(1),
   path: AbsolutePath,
   language: z.string().optional(),
-  // Omitted means manual. The user manages the directory, Braid does no ingestion.
+  // Omitted means manual. The user manages the directory, Braid does no provisioning.
   loader: SourceLoaderDescriptor.optional(),
   // Read verbatim by skills so the agent can prioritise and cite this source.
   description: z.string().optional(),

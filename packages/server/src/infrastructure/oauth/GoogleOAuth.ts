@@ -21,7 +21,7 @@ export interface GoogleOAuthConfig {
   /** OAuth client secret. */
   readonly clientSecret: string
   /**
-   * Redirect URI used by the Drive ingestion flow (existing OAuth
+   * Redirect URI used by the Drive provisioning flow (existing OAuth
    * router). Both paths must be registered in the GCP OAuth client's
    * authorised redirect URIs list.
    */

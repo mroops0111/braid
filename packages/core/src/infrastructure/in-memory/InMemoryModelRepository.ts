@@ -95,11 +95,11 @@ export class InMemoryModelRepository implements ModelRepository {
   }
 
   private modelFor(workspaceId: WorkspaceId): Model {
-    const existing = this.models.get(workspaceId)
-    if (existing)
-      return existing
-    const fresh = new Model()
-    this.models.set(workspaceId, fresh)
-    return fresh
+    const cachedModel = this.models.get(workspaceId)
+    if (cachedModel)
+      return cachedModel
+    const newModel = new Model()
+    this.models.set(workspaceId, newModel)
+    return newModel
   }
 }

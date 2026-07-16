@@ -154,21 +154,21 @@ export class BatchService {
   async resume(workspaceId: WorkspaceId, options: { callerToken?: string } = {}): Promise<BatchPlan> {
     return this.deps.workspaceLock.run(workspaceId, async () => {
       const workspace = await this.deps.workspaceService.findById(workspaceId)
-      const existing = await this.deps.batchPlanRepository.load(workspace)
-      if (!existing)
+      const existingPlan = await this.deps.batchPlanRepository.load(workspace)
+      if (!existingPlan)
         throw new ValidationError(`No batch plan to resume on workspace "${workspaceId}"`)
       const now = this.deps.clock.now()
-      const resumed = existing.resumeRun(now)
+      const resumedPlan = existingPlan.resumeRun(now)
       this.stopRequested.delete(workspaceId)
-      await this.deps.batchPlanRepository.save(workspace, resumed)
+      await this.deps.batchPlanRepository.save(workspace, resumedPlan)
       this.publish(workspaceId, {
         type: 'batch.started',
         workspaceId,
-        planId: resumed.id,
-        mode: resumed.mode,
+        planId: resumedPlan.id,
+        mode: resumedPlan.mode,
         at: now,
       })
-      void this.runLoop(workspace, resumed, options.callerToken).catch(async (err: unknown) => {
+      void this.runLoop(workspace, resumedPlan, options.callerToken).catch(async (err: unknown) => {
         const failed = (await this.deps.batchPlanRepository.load(workspace))
           ?.markFailed(this.deps.clock.now(), errorMessage(err))
         if (failed)
@@ -176,12 +176,12 @@ export class BatchService {
         this.publish(workspaceId, {
           type: 'batch.failed',
           workspaceId,
-          planId: resumed.id,
+          planId: resumedPlan.id,
           error: errorMessage(err),
           at: this.deps.clock.now(),
         })
       })
-      return resumed
+      return resumedPlan
     })
   }
 
@@ -217,17 +217,17 @@ export class BatchService {
   async archive(workspaceId: WorkspaceId): Promise<BatchPlan> {
     return this.deps.workspaceLock.run(workspaceId, async () => {
       const workspace = await this.deps.workspaceService.findById(workspaceId)
-      const existing = await this.deps.batchPlanRepository.load(workspace)
-      if (!existing)
+      const existingPlan = await this.deps.batchPlanRepository.load(workspace)
+      if (!existingPlan)
         throw new ValidationError(`No batch plan to archive on workspace "${workspaceId}"`)
-      const archived = existing.archive(this.deps.clock.now())
-      await this.deps.batchPlanRepository.save(workspace, archived)
+      const archivedPlan = existingPlan.archive(this.deps.clock.now())
+      await this.deps.batchPlanRepository.save(workspace, archivedPlan)
       await this.deps.historyService.commitWorkspaceChange(workspace.id, {
         kind: 'batch-archive',
-        subject: `archived ${archived.id}`,
+        subject: `archived ${archivedPlan.id}`,
         userId: BATCH_USER_ID,
       })
-      return archived
+      return archivedPlan
     })
   }
 
@@ -476,8 +476,8 @@ export class BatchService {
       this.deps.clarifyRepository.list({ workspaceId }),
     ])
     return {
-      proposals: new Set(proposals.map(p => p.id)),
-      clarify: new Set(clarify.map(c => c.id)),
+      proposals: new Set(proposals.map(proposal => proposal.id)),
+      clarify: new Set(clarify.map(ticket => ticket.id)),
     }
   }
 
@@ -548,10 +548,10 @@ export class BatchService {
   }
 
   private async assertNoActiveBatch(workspace: Workspace): Promise<void> {
-    const existing = await this.deps.batchPlanRepository.load(workspace)
-    if (existing && (existing.status === 'running' || existing.status === 'deriving')) {
+    const existingPlan = await this.deps.batchPlanRepository.load(workspace)
+    if (existingPlan && (existingPlan.status === 'running' || existingPlan.status === 'deriving')) {
       throw new ConflictError(
-        `Workspace "${workspace.id}" already has an active batch (plan ${existing.id} status=${existing.status})`,
+        `Workspace "${workspace.id}" already has an active batch (plan ${existingPlan.id} status=${existingPlan.status})`,
       )
     }
   }
@@ -659,7 +659,7 @@ function unconsumedCompletedUnitIds(plan: BatchPlan): readonly BatchUnitId[] {
         consumed.add(id)
     }
   }
-  return plan.units.filter(u => u.status === 'completed' && !consumed.has(u.id)).map(u => u.id)
+  return plan.units.filter(unit => unit.status === 'completed' && !consumed.has(unit.id)).map(unit => unit.id)
 }
 
 async function waitForCompletion(runner: SkillRunner, runId: SkillRunId): Promise<void> {

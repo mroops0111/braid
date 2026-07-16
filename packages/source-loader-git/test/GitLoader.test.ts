@@ -42,10 +42,10 @@ describe('GitLoader', () => {
     await rm(scratch, { recursive: true, force: true })
   })
 
-  it('ingest does a shallow clone into the destination', async () => {
+  it('provision does a shallow clone into the destination', async () => {
     const loader = gitLoader
     const dest = join(scratch, 'workspace-source') as AbsolutePath
-    const report = await loader.ingest({ url: remoteUrl, branch: 'main' }, dest, ctx)
+    const report = await loader.provision({ url: remoteUrl, branch: 'main' }, dest, ctx)
     expect(report.localPath).toBe(dest)
     expect(report.metadata?.sha).toMatch(/^[0-9a-f]{40}$/)
     const readme = await readFile(join(dest, 'README.md'), 'utf-8')
@@ -55,7 +55,7 @@ describe('GitLoader', () => {
   it('sync pulls new commits and reports changed=true; second sync reports changed=false', async () => {
     const loader = gitLoader
     const dest = join(scratch, 'workspace-source') as AbsolutePath
-    await loader.ingest({ url: remoteUrl, branch: 'main' }, dest, ctx)
+    await loader.provision({ url: remoteUrl, branch: 'main' }, dest, ctx)
 
     // Push a new commit to the remote via a working clone.
     const upstream = join(scratch, 'upstream')
@@ -82,7 +82,7 @@ describe('GitLoader', () => {
   it('sync counts added / removed files (not just modified) for the unified per-file report', async () => {
     const loader = gitLoader
     const dest = join(scratch, 'workspace-source') as AbsolutePath
-    await loader.ingest({ url: remoteUrl, branch: 'main' }, dest, ctx)
+    await loader.provision({ url: remoteUrl, branch: 'main' }, dest, ctx)
 
     // Add one file + delete the existing README via an upstream clone.
     const upstream = join(scratch, 'upstream')
@@ -106,7 +106,7 @@ describe('GitLoader', () => {
     delete process.env.BRAID_GITLOADER_TEST_TOKEN
     // eslint-disable-next-line no-template-curly-in-string -- literal placeholder
     const url = 'https://x:${BRAID_GITLOADER_TEST_TOKEN}@example.invalid/repo.git'
-    await expect(loader.ingest({ url }, dest, ctx)).rejects.toThrow(/BRAID_GITLOADER_TEST_TOKEN/)
+    await expect(loader.provision({ url }, dest, ctx)).rejects.toThrow(/BRAID_GITLOADER_TEST_TOKEN/)
   })
 })
 

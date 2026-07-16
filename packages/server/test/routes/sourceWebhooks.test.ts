@@ -82,7 +82,7 @@ function makeFakeLoader(opts: FakeLoaderOptions): SourceLoaderPlugin {
     type: 'source-loader',
     kind: opts.kind as LoaderKind,
     configSchema: z.unknown(),
-    ingest: async () => ({ localPath: '/abs/x' as AbsolutePath, fetchedAt: FAKE_FETCHED_AT }),
+    provision: async () => ({ localPath: '/abs/x' as AbsolutePath, fetchedAt: FAKE_FETCHED_AT }),
     webhook: {
       repoIdentity: opts.repoIdentity,
       ...(opts.shouldDispatch ? { shouldDispatch: opts.shouldDispatch } : {}),

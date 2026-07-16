@@ -12,7 +12,7 @@ function makeSourceLoader(kind: string, pluginId?: string): SourceLoaderPlugin {
     type: 'source-loader',
     kind: kind as LoaderKind,
     configSchema: z.object({}),
-    ingest: async () => ({
+    provision: async () => ({
       localPath: '/tmp/x' as never,
       fetchedAt: '2026-01-01T00:00:00Z' as never,
     }),

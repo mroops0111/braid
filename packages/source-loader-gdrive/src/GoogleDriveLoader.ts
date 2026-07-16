@@ -106,14 +106,14 @@ interface CandidateDoc {
  *
  * Out of scope (intentional): Google Sheets, Slides, Drawings, Forms,
  * and standalone binaries. Mirrors redoc's PRD-focused workflow. If you
- * need spreadsheets / slide decks, ingest them through a different
+ * need spreadsheets / slide decks, provision them through a different
  * source-loader plugin.
  */
 export function createGoogleDriveLoader(deps: GoogleDriveLoaderDeps): SourceLoaderPlugin {
   return defineSourceLoader({
     kind: 'gdrive',
     configSchema: GoogleDriveLoaderConfig,
-    ingest: async (config, destination, context) => {
+    provision: async (config, destination, context) => {
       await rm(destination, { recursive: true, force: true })
       await mkdir(destination, { recursive: true })
       const client = await buildClient(deps, context)
@@ -139,7 +139,7 @@ export function createGoogleDriveLoader(deps: GoogleDriveLoaderDeps): SourceLoad
       const cached = await readManifest(destination)
       if (!cached) {
         // No manifest yet (first sync after upgrade / cache wiped). Fall
-        // back to a clean ingest so we end up in a known-good state.
+        // back to a clean provision so we end up in a known-good state.
         const client = await buildClient(deps, context)
         await rm(destination, { recursive: true, force: true })
         await mkdir(destination, { recursive: true })

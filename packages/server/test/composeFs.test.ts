@@ -128,8 +128,8 @@ storage:
     expect(ids).toEqual(['braid-ask', 'braid-clarify', 'braid-extract', 'braid-generate-doc', 'braid-model', 'braid-scan'])
   })
 
-  it('POST /workspaces/scaffold rolls back PRODUCT.md and registry on ingest failure', async () => {
-    // A source with an unregistered loader.kind makes ingestAll throw. Verify the route catches it,
+  it('POST /workspaces/scaffold rolls back PRODUCT.md and registry on provision failure', async () => {
+    // A source with an unregistered loader.kind makes provisionAll throw. Verify the route catches it,
     // removes the just-written PRODUCT.md, and leaves the registry empty so a retry doesn't hit "already exists".
     const braidHome = await makeBraidHome()
     const app = createApp(await composeFsApp({ braidHome }))

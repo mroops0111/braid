@@ -160,7 +160,7 @@ describe('GithubLoader', () => {
     vi.unstubAllEnvs()
   })
 
-  it('ingest writes one markdown file per issue with deterministic frontmatter', async () => {
+  it('provision writes one markdown file per issue with deterministic frontmatter', async () => {
     const fetchFn = buildMockFetch({
       issues: [
         {
@@ -190,7 +190,7 @@ describe('GithubLoader', () => {
     })
 
     const loader = createGithubLoader({ fetchFn })
-    const report = await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    const report = await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
 
     expect(report.localPath).toBe(dest)
     const files = (await readdir(join(dest, 'issues'))).sort()
@@ -213,7 +213,7 @@ describe('GithubLoader', () => {
       ],
     }
     const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
-    await loader.ingest({ owner: 'o', repo: 'r', includePullRequests: true }, dest, ctx)
+    await loader.provision({ owner: 'o', repo: 'r', includePullRequests: true }, dest, ctx)
     // PR (#2) is filtered out regardless of the deprecated flag; only #1
     // survives, and it passes the realized-intent gate via the mock's
     // default "one merged PR per issue" stub.
@@ -234,7 +234,7 @@ describe('GithubLoader', () => {
       },
     }
     const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
-    await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md'])
   })
 
@@ -252,7 +252,7 @@ describe('GithubLoader', () => {
       },
     }
     const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
-    await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['6.md'])
   })
 
@@ -268,7 +268,7 @@ describe('GithubLoader', () => {
       },
     }
     const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
-    await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     const content = await readFile(join(dest, 'issues', '7.md'), 'utf-8')
     const { fm } = splitMarkdown(content)
     expect((fm as unknown as { linkedMergedPRs: Array<{ number: number, mergeCommit: string }> }).linkedMergedPRs).toEqual([
@@ -277,7 +277,7 @@ describe('GithubLoader', () => {
     ])
   })
 
-  it('reports `fetchedRaw` in the ingest metadata so dogfooders can see how many issues were filtered out', async () => {
+  it('reports `fetchedRaw` in the provision metadata so dogfooders can see how many issues were filtered out', async () => {
     const router: MockRouter = {
       issues: [
         { number: 1, title: 'kept', created_at: 't', updated_at: 't' },
@@ -289,7 +289,7 @@ describe('GithubLoader', () => {
       },
     }
     const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
-    const report = await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    const report = await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect(report.metadata).toMatchObject({ issueCount: 1, fetchedRaw: 2 })
   })
 
@@ -312,7 +312,7 @@ describe('GithubLoader', () => {
     })
 
     const loader = createGithubLoader({ fetchFn })
-    await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     const content = await readFile(join(dest, 'issues', '7.md'), 'utf-8')
     expect(content).toContain('## Comments')
     const aliceIdx = content.indexOf('alice')
@@ -331,7 +331,7 @@ describe('GithubLoader', () => {
     const fetchFn = buildMockFetch({ issues, pageSize: 1 })
 
     const loader = createGithubLoader({ fetchFn })
-    await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md', '2.md', '3.md'])
   })
 
@@ -343,7 +343,7 @@ describe('GithubLoader', () => {
       ],
     }
     const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
-    await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
 
     const beforeStat1 = await stat(join(dest, 'issues', '1.md'))
     const beforeContent1 = await readFile(join(dest, 'issues', '1.md'), 'utf-8')
@@ -384,7 +384,7 @@ describe('GithubLoader', () => {
       },
     }
     const loader1 = createGithubLoader({ fetchFn: buildMockFetch(initial) })
-    await loader1.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    await loader1.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md', '2.md'])
 
     // Issue #2 gets re-opened. `since=` returns it because updated_at
@@ -413,13 +413,13 @@ describe('GithubLoader', () => {
 
     vi.stubEnv('GH_TOKEN', 'ghp-abc-123')
     const loader = createGithubLoader({ fetchFn })
-    await loader.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect(recorder.lastHeaders?.get('Authorization')).toBe('Bearer ghp-abc-123')
 
     vi.unstubAllEnvs()
     const recorder2 = { calls: [] as string[], lastHeaders: null as Headers | null }
     const loader2 = createGithubLoader({ fetchFn: buildMockFetch({ issues: [] }, recorder2) })
-    await loader2.ingest({ owner: 'o', repo: 'r' }, dest, ctx)
+    await loader2.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect(recorder2.lastHeaders?.get('Authorization')).toBeNull()
   })
 })

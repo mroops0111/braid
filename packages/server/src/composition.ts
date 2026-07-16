@@ -13,7 +13,7 @@ import type {
   SourceUnitDigest,
   SourceUnitObservationRepository,
   UserDirectory,
-  WorkspaceBootstrap,
+  WorkspaceBootstrapService,
   WorkspaceEventBus,
   WorkspaceHistory,
   WorkspaceRepository,
@@ -96,7 +96,7 @@ export interface AppDependencies {
    * `POST /workspaces/scaffold { name }` resolves to `<workspacesRoot>/<name>`.
    */
   workspacesRoot: AbsolutePath
-  bootstrap?: WorkspaceBootstrap
+  bootstrap?: WorkspaceBootstrapService
   /** OAuth secret storage, file-based, pluggable for hosted deployments. */
   secretStore?: SecretStore
   /**
@@ -160,7 +160,7 @@ export interface ComposeOptions {
   // Both required together. HITLService skips git hooks when absent.
   history?: WorkspaceHistory
   modelSerializer?: ModelSerializer
-  bootstrap?: WorkspaceBootstrap
+  bootstrap?: WorkspaceBootstrapService
   batchPlanRepository?: BatchPlanRepository
   intentLister?: IntentLister
   /**

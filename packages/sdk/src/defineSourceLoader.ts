@@ -1,5 +1,5 @@
 import type {
-  IngestReport,
+  ProvisionReport,
   SourceLoaderContext,
   SourceLoaderPlugin,
   SyncReport,
@@ -14,10 +14,10 @@ import { assertNonEmpty } from './validation.js'
 
 export interface DefineSourceLoaderInput<TSchema extends z.ZodTypeAny> {
   readonly kind: string
-  /** Zod schema for the loader's per-source config; parsed before `ingest` / `sync` run. */
+  /** Zod schema for the loader's per-source config; parsed before `provision` / `sync` run. */
   readonly configSchema: TSchema
   /** Required. Fill `destination` with content drawn from somewhere external. */
-  readonly ingest: (config: z.infer<TSchema>, destination: AbsolutePath, context: SourceLoaderContext) => Promise<IngestReport>
+  readonly provision: (config: z.infer<TSchema>, destination: AbsolutePath, context: SourceLoaderContext) => Promise<ProvisionReport>
   /** Optional. Refresh `destination` in place. Loaders that can't refresh may omit this. */
   readonly sync?: (config: z.infer<TSchema>, destination: AbsolutePath, context: SourceLoaderContext) => Promise<SyncReport>
   /**
@@ -42,7 +42,7 @@ export interface DefineSourceLoaderInput<TSchema extends z.ZodTypeAny> {
  * Build a SourceLoader plugin from a declarative spec.
  *
  * The wrapper validates the config against `configSchema` before each
- * call to `ingest` / `sync`, so the loader body always receives a
+ * call to `provision` / `sync`, so the loader body always receives a
  * statically-typed config object without having to parse it itself.
  * `TSchema` is inferred from the declared schema; the callback's `config`
  * parameter is `z.infer<TSchema>` so Zod defaults / transforms surface as
@@ -75,7 +75,7 @@ export function defineSourceLoader<TSchema extends z.ZodTypeAny>(
     skills: input.skills ?? [],
     // `async` so that a parse error surfaces as a rejected promise,
     // not a synchronous throw the caller has to wrap separately.
-    ingest: async (rawConfig, destination, context) => input.ingest(parse(rawConfig), destination, context),
+    provision: async (rawConfig, destination, context) => input.provision(parse(rawConfig), destination, context),
     ...(input.sync
       ? { sync: async (rawConfig: unknown, destination: AbsolutePath, context: SourceLoaderContext) => input.sync!(parse(rawConfig), destination, context) }
       : {}),

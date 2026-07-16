@@ -126,7 +126,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add Source</DialogTitle>
-          <DialogDescription>Source rows are appended to PRODUCT.md and ingested if a loader is set.</DialogDescription>
+          <DialogDescription>Source rows are appended to PRODUCT.md and provisioned if a loader is set.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">

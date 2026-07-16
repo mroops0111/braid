@@ -14,7 +14,7 @@ import type { RunRepository } from '../domain/skill/RunRepository.js'
 import type { SkillRunner } from '../domain/skill/SkillRunner.js'
 import type { UserDirectory } from '../domain/users/UserDirectory.js'
 import type { PerWorkspaceLock } from './PerWorkspaceLock.js'
-import type { WorkspaceBootstrap } from './WorkspaceBootstrap.js'
+import type { WorkspaceBootstrapService } from './WorkspaceBootstrapService.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import type { WorkspaceService } from './WorkspaceService.js'
 import { diffSnapshots } from '@braidhq/schema'
@@ -26,7 +26,7 @@ export interface HistoryServiceDeps {
   history: WorkspaceHistory
   workspaceService: WorkspaceService
   workspaceLock: PerWorkspaceLock
-  bootstrap: WorkspaceBootstrap
+  bootstrap: WorkspaceBootstrapService
   runRepository: RunRepository
   skillRunner?: SkillRunner
   eventBus?: WorkspaceEventBus
@@ -68,8 +68,8 @@ export class HistoryService {
       this.deps.history.readGraphAtCommit(workspace, toSha),
     ])
     const diff = diffSnapshots(prev, next)
-    const removedNodes = prev.nodes.filter(n => diff.nodes.get(n.id) === 'removed')
-    const removedEdges = prev.edges.filter(e => diff.edges.get(e.id) === 'removed')
+    const removedNodes = prev.nodes.filter(node => diff.nodes.get(node.id) === 'removed')
+    const removedEdges = prev.edges.filter(edge => diff.edges.get(edge.id) === 'removed')
     return {
       from: fromSha,
       to: toSha,
@@ -95,7 +95,7 @@ export class HistoryService {
         ...(author?.email ? { authorEmail: author.email } : {}),
       }
       const newSha = await this.deps.history.restore(workspace, targetSha, message)
-      await this.deps.bootstrap.reloadFromDisk(workspace)
+      await this.deps.bootstrap.reloadStoreFromFile(workspace)
       this.deps.eventBus?.publish({
         type: 'workspace.restored',
         workspaceId,
@@ -149,10 +149,10 @@ export class HistoryService {
       return
     const workspace = await this.deps.workspaceService.findById(workspaceId)
     const records = await this.deps.runRepository.listRecords(workspace)
-    const live = records.find(r => !r.completedAt && this.deps.skillRunner!.isActive(r.runId))
-    if (live) {
+    const activeRun = records.find(record => !record.completedAt && this.deps.skillRunner!.isActive(record.runId))
+    if (activeRun) {
       throw new ConflictError(
-        `Cannot restore workspace "${workspaceId}" while run "${live.runId}" is still active`,
+        `Cannot restore workspace "${workspaceId}" while run "${activeRun.runId}" is still active`,
       )
     }
   }

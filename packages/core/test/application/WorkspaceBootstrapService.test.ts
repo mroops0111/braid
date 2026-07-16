@@ -2,7 +2,7 @@ import type { CommitMeta, CommitSha, EdgeId, FileDiff, GraphEdge, GraphNode, Mod
 import type { ModelSerializer } from '../../src/domain/model/ModelSerializer.js'
 import type { ListCommitsOptions, Workspace, WorkspaceHistory } from '../../src/index.js'
 import { describe, expect, it, vi } from 'vitest'
-import { WorkspaceBootstrap } from '../../src/index.js'
+import { WorkspaceBootstrapService } from '../../src/index.js'
 import { InMemoryModelRepository } from '../../src/testing.js'
 
 const WORKSPACE_ID = 'ws-1' as WorkspaceId
@@ -74,7 +74,7 @@ interface Setup {
   history: FakeWorkspaceHistory
   serializer: FakeModelSerializer
   modelRepository: InMemoryModelRepository
-  bootstrap: WorkspaceBootstrap
+  bootstrap: WorkspaceBootstrapService
 }
 
 function setup(): Setup {
@@ -82,11 +82,11 @@ function setup(): Setup {
   const history = new FakeWorkspaceHistory()
   const serializer = new FakeModelSerializer()
   const modelRepository = new InMemoryModelRepository()
-  const bootstrap = new WorkspaceBootstrap({ history, serializer, modelRepository })
+  const bootstrap = new WorkspaceBootstrapService({ history, serializer, modelRepository })
   return { workspace, history, serializer, modelRepository, bootstrap }
 }
 
-describe('WorkspaceBootstrap', () => {
+describe('WorkspaceBootstrapService', () => {
   it('always calls history.ensureInitialised so a fresh workspace lands as a git repo', async () => {
     const { workspace, history, bootstrap } = setup()
 

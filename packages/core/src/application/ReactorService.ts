@@ -108,7 +108,7 @@ interface PassContext {
  * Locked decisions.
  * - Per-unit dispatch, not batched, and sequential with no concurrency.
  * - Intent-role only, `role: 'code'` sources fall through.
- * - First-ingest does NOT fire the reactor,
+ * - First-provision does NOT fire the reactor,
  *   the operator runs `cmd.runBatch` for the initial corpus.
  * - Throttle on a rolling 1h window per workspace,
  *   the (N+1)th dispatch emits `reactor.throttled` and drops.
@@ -191,7 +191,7 @@ export class ReactorService implements Reactor {
 
   private async resolveContext(event: SourceSyncedEvent): Promise<PassContext | undefined> {
     const workspace = await this.deps.workspaceService.findById(event.workspaceId)
-    const source = workspace.sources.find(s => s.id === event.sourceId)
+    const source = workspace.sources.find(candidate => candidate.id === event.sourceId)
     if (!isIntentSource(source))
       return undefined
     const ontology = this.deps.pluginRegistry.findOntology(workspace.productManifest.ontologyId)
@@ -212,7 +212,7 @@ export class ReactorService implements Reactor {
 
   private async changedPathsForPass(context: PassContext): Promise<readonly string[]> {
     const diff = await computeSourceDiff(this.deps, context.workspace, context.sourceId)
-    return [...diff.new, ...diff.changed].map(u => u.path)
+    return [...diff.new, ...diff.changed].map(unit => unit.path)
   }
 
   /**

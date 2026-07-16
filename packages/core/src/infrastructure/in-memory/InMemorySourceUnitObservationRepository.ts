@@ -26,6 +26,6 @@ export class InMemorySourceUnitObservationRepository implements SourceUnitObserv
   }
 
   async listBySource(workspaceId: WorkspaceId, sourceId: SourceId): Promise<readonly SourceUnitObservation[]> {
-    return [...this.store.values()].filter(s => s.workspaceId === workspaceId && s.sourceId === sourceId)
+    return [...this.store.values()].filter(observation => observation.workspaceId === workspaceId && observation.sourceId === sourceId)
   }
 }

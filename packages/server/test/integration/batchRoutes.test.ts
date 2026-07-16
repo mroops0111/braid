@@ -23,7 +23,7 @@ describe('batch REST routes', () => {
       headers: { 'Content-Type': 'application/json' },
       // DDD ontology requires both intent + code roles. Use minimal
       // filesystem sources so the scaffold passes its role check; the
-      // batch tests don't exercise loader-driven ingest.
+      // batch tests don't exercise loader-driven provision.
       body: JSON.stringify({
         name: 'bt',
         manifest: {

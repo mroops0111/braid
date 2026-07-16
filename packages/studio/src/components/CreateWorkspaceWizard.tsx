@@ -1,5 +1,5 @@
 import type { McpServerConfig, ProductManifestCreate } from '@braidhq/schema'
-import type { IngestSummary } from '@/lib/api'
+import type { ProvisionSummary } from '@/lib/api'
 import type { SourceDraft as SourceDraftBase } from '@/lib/sourceDraft'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
@@ -62,7 +62,7 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
   const [mcpServers, setMcpServers] = useState<McpDraft[]>([])
   const [ontologyId, setOntologyId] = useState('ddd')
   const [storageKind, setStorageKind] = useState('kuzu')
-  const [ingestResults, setIngestResults] = useState<IngestSummary[]>([])
+  const [provisionResults, setProvisionResults] = useState<ProvisionSummary[]>([])
   // sourceIds whose Google OAuth flow completed in this wizard session.
   // The server stores tokens keyed by `${workspaceId}--${sourceId}`.
   // Since `workspaceId === name` (PRODUCT.md name == folder name),
@@ -75,7 +75,7 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
       return api.scaffoldWorkspace(name, draft)
     },
     onSuccess: (result) => {
-      setIngestResults(result.ingest)
+      setProvisionResults(result.provision)
       queryClient.invalidateQueries({ queryKey: queryKeys.workspaces() })
       // Sidebar reads per-remote via `['workspaces-at', remoteId]`,
       // a different cache entry from the single-server `['workspaces']` key.
@@ -93,7 +93,7 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
     setMcpServers([])
     setOntologyId('ddd')
     setStorageKind('kuzu')
-    setIngestResults([])
+    setProvisionResults([])
     setOauthConnectedFor(new Set())
     scaffold.reset()
   }
@@ -122,7 +122,7 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
       onOpenChange={(o) => {
         if (!o) {
           // Don't let outside-click / Escape kill the wizard mid-flight.
-          // Scaffold and ingest can take minutes for gdrive sources.
+          // Scaffold and provision can take minutes for gdrive sources.
           // Closing would orphan the request and lose the progress shown.
           if (scaffold.isPending)
             return
@@ -193,7 +193,7 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
               workspaceName={name}
               status={scaffold.status}
               error={scaffold.error}
-              ingest={ingestResults}
+              provision={provisionResults}
               expectedSources={sources
                 .filter(s => s.loaderKind !== '')
                 .map(s => ({ id: nameToId(s.name), name: s.name, loaderKind: s.loaderKind }))}
@@ -555,7 +555,7 @@ function McpStep({ servers, onChange }: {
   return (
     <div className="space-y-3">
       <p className="text-[11px] text-muted-foreground">
-        Optional. MCP endpoints the agent can call during extract / validate (e.g. Linear, Redmine, Jira) to fill gaps in your intent / code sources; they are not ingested as content sources themselves. Only Streamable HTTP transport is supported. Use
+        Optional. MCP endpoints the agent can call during extract / validate (e.g. Linear, Redmine, Jira) to fill gaps in your intent / code sources; they are not provisioned as content sources themselves. Only Streamable HTTP transport is supported. Use
         {' '}
         <code className="rounded bg-muted px-1">
           $
@@ -714,17 +714,17 @@ interface ExpectedSource {
   loaderKind: SourceDraft['loaderKind']
 }
 
-function ProgressStep({ workspaceName, status, error, ingest, expectedSources, onClose }: {
+function ProgressStep({ workspaceName, status, error, provision, expectedSources, onClose }: {
   workspaceName: string
   status: 'idle' | 'pending' | 'success' | 'error'
   error: unknown
-  ingest: IngestSummary[]
+  provision: ProvisionSummary[]
   expectedSources: readonly ExpectedSource[]
   onClose: () => void
 }) {
   // Live per-source progress via SSE. The workspace isn't in the registry yet when we open this stream.
   // `source.synced` events flow off the event bus by string key,
-  // so the wizard's typed name catches every event ingestAll fires.
+  // so the wizard's typed name catches every event provisionAll fires.
   const [syncedIds, setSyncedIds] = useState<Set<string>>(new Set())
   useEffect(() => {
     if (status !== 'pending' || !workspaceName)
@@ -748,7 +748,7 @@ function ProgressStep({ workspaceName, status, error, ingest, expectedSources, o
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <div className="size-4 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           Creating workspace
-          {expectedSources.length > 0 && ` (ingesting ${expectedSources.length} source${expectedSources.length === 1 ? '' : 's'})`}
+          {expectedSources.length > 0 && ` (provisioning ${expectedSources.length} source${expectedSources.length === 1 ? '' : 's'})`}
           …
         </div>
         {expectedSources.length > 0 && (
@@ -769,7 +769,7 @@ function ProgressStep({ workspaceName, status, error, ingest, expectedSources, o
           </ul>
         )}
         <p className="text-[11px] text-muted-foreground">
-          Don't close this window. Gdrive sources can take a few minutes for the first ingest.
+          Don't close this window. Gdrive sources can take a few minutes for the first provision.
         </p>
       </div>
     )
@@ -789,13 +789,13 @@ function ProgressStep({ workspaceName, status, error, ingest, expectedSources, o
     return (
       <div className="space-y-3 py-2">
         <p className="text-sm text-foreground">Workspace created.</p>
-        {ingest.length > 0 && (
+        {provision.length > 0 && (
           <ul className="space-y-1 text-[11px]">
-            {ingest.map(entry => (
+            {provision.map(entry => (
               <li key={entry.sourceId} className="flex items-center gap-2 font-mono">
                 <span className={`size-1.5 rounded-full ${entry.changed ? 'bg-green-500' : 'bg-muted-foreground'}`} />
                 {entry.sourceId}
-                <span className="text-muted-foreground">{entry.changed ? 'ingested' : 'no change'}</span>
+                <span className="text-muted-foreground">{entry.changed ? 'provisioned' : 'no change'}</span>
               </li>
             ))}
           </ul>
@@ -822,7 +822,7 @@ function canAdvanceFrom(
       if (source.loaderKind === 'gdrive') {
         if (source.gdriveFolderId.trim().length === 0)
           return false
-        // OAuth is mandatory for gdrive. Otherwise ingestAll fails server-side with "not connected",
+        // OAuth is mandatory for gdrive. Otherwise provisionAll fails server-side with "not connected",
         // and the user gets an opaque error after the remaining steps.
         if (!state.oauthConnectedFor.has(nameToId(source.name)))
           return false

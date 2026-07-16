@@ -37,12 +37,12 @@ export class WorkspaceService {
     const required = ontology?.requiredSourceRoles ?? []
     if (required.length === 0)
       return
-    const present = new Set(workspace.sources.map(s => s.role))
-    const missing = required.filter(r => !present.has(r))
+    const present = new Set(workspace.sources.map(source => source.role))
+    const missing = required.filter(role => !present.has(role))
     if (missing.length === 0)
       return
     throw new ValidationError(
-      `Workspace requires source role${missing.length === 1 ? '' : 's'} ${missing.map(r => `"${r}"`).join(', ')} `
+      `Workspace requires source role${missing.length === 1 ? '' : 's'} ${missing.map(role => `"${role}"`).join(', ')} `
       + `for ontology "${workspace.productManifest.ontologyId}".`,
     )
   }

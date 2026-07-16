@@ -32,6 +32,15 @@ src/
 - **application**: Services that run one use case each, such as `HITLService`, `BatchService`, and `ReactorService`.
 - **infrastructure**: In-memory default adapters and the graph validators. Vendor adapters such as Kuzu live in sibling packages.
 
+## Naming
+
+Application code is named by role, so the suffix tells you what a file is before you open it.
+
+- **`*Service`**: A class that orchestrates one domain concept's use cases, wired through a `Deps` object. This is the default shape (`HITLService`, `BatchService`, `WorkspaceBootstrapService`).
+- **Pattern Nouns**: A reusable mechanism takes its pattern's name instead of `Service`. A pub/sub port is a `*Bus`, a concurrency primitive is a `*Lock`, and a driver of plugin or subprocess work is a `*Runner` (`WorkspaceEventBus`, `PerWorkspaceLock`, `SourceLoaderRunner`).
+- **Ports**: An interface implemented in a sibling package is named for its role, never `Service` (`Repository`, `Clock`, `Digest`, `EventBus`).
+- **Functions**: A stateless helper shared by more than one caller is a camelCase function, not a single-method class (`computeSourceDiff`, `enrichCommitAuthor`).
+
 ## Boundaries
 
 These are the rules for anyone editing core. They are enforced in review rather than by tooling.

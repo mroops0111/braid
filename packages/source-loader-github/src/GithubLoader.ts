@@ -89,7 +89,7 @@ const CURSOR_FILENAME = '.braid-github-cursor.json'
  * keywords). This implements Braid's stated "intent + code convergence"
  * contract — pure speculative intent (open issues, abandoned issues,
  * docs-only closes) does not pollute the ledger, and the same workspace
- * re-ingest is idempotent. The check uses GitHub's GraphQL API; setups
+ * re-provision is idempotent. The check uses GitHub's GraphQL API; setups
  * behind an enterprise proxy that only exposes REST can override
  * `graphqlUrl`.
  *
@@ -103,7 +103,7 @@ export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlu
   return defineSourceLoader({
     kind: 'github',
     configSchema: GithubLoaderConfig,
-    ingest: async (config, destination) => {
+    provision: async (config, destination) => {
       const issuesDir = join(destination, 'issues')
       await mkdir(issuesDir, { recursive: true })
       warnDeprecated(config)

@@ -13,10 +13,10 @@ export class PerWorkspaceLock {
   private readonly chains = new Map<WorkspaceId, Promise<unknown>>()
 
   run<T>(workspaceId: WorkspaceId, task: () => Promise<T>): Promise<T> {
-    const previous = this.chains.get(workspaceId) ?? Promise.resolve()
+    const previousTail = this.chains.get(workspaceId) ?? Promise.resolve()
     // `.then(task, task)` runs task whether the predecessor resolved or rejected,
     // so one workspace's failure can't deadlock the next caller.
-    const result = previous.then(task, task)
+    const result = previousTail.then(task, task)
     // Store an error-swallowing tail,
     // so the next caller doesn't see this attempt's rejection.
     // Each call owns its own error.

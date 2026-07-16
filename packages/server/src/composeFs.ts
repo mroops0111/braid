@@ -13,7 +13,7 @@ import {
   NotFoundError,
   PluginRegistry,
   ValidationError,
-  WorkspaceBootstrap,
+  WorkspaceBootstrapService,
 } from '@braidhq/core'
 import { InMemoryWorkspaceEventBus } from '@braidhq/core/testing'
 import { dddOntology } from '@braidhq/ontology-ddd'
@@ -73,7 +73,7 @@ export interface ComposeFsOptions {
    * - storage: `kuzuStoragePlugin`
    * - ontology: `dddOntology`
    * - source-loader: `gitLoader`, `createGithubLoader()`, `createGoogleDriveLoader()`
-   * (gdrive throws an actionable error at ingest if OAuth env is missing,
+   * (gdrive throws an actionable error at provision if OAuth env is missing,
    * github falls back to anonymous if `${GH_TOKEN}` is unset,
    * subject to the 60 req/h public rate limit).
    * - agent: `claudeCodeAgentPlugin`
@@ -179,7 +179,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     pluginRegistry.register(plugin)
 
   // The gdrive loader is always registered, so a `kind: gdrive` source doesn't crash at plugin lookup.
-  // If OAuth env vars aren't configured, the token resolver throws an actionable error at ingest time,
+  // If OAuth env vars aren't configured, the token resolver throws an actionable error at provision time,
   // so the user knows exactly what to set.
   const oauth = googleOAuth
   pluginRegistry.register(createGoogleDriveLoader({
@@ -295,10 +295,10 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     ],
   })
 
-  // Shared by WorkspaceBootstrap (boot reconciliation), and HITLService (per-mutation commits).
+  // Shared by WorkspaceBootstrapService (boot reconciliation), and HITLService (per-mutation commits).
   const history = new GitWorkspaceHistory()
   const modelSerializer = new FsModelSerializer()
-  const bootstrap = new WorkspaceBootstrap({
+  const bootstrap = new WorkspaceBootstrapService({
     history,
     serializer: modelSerializer,
     modelRepository,
@@ -372,7 +372,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
 
   // Local trust is the default. Production deployments set `BRAID_LOCAL_TRUST=false` for the Bearer gate.
   // We don't flip the default when Google OAuth env vars are present,
-  // because those creds also feed the Drive source loader for ingest.
+  // because those creds also feed the Drive source loader for provision.
   // A dev workspace pulling from Drive would otherwise hit the Login flow, on every reload.
   const localTrust = parseBoolEnv(process.env.BRAID_LOCAL_TRUST, true)
 

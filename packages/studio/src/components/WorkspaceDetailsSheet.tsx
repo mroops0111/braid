@@ -77,7 +77,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
         <section>
           <SectionHeader title="Sources" onAdd={() => setAddSourceOpen(true)} addLabel="Add Source" />
           {workspace.productManifest.sources.length === 0
-            ? <p className="mt-2 text-[11px] text-muted-foreground">None yet. Click "Add Source" to ingest from git, gdrive, or a manual directory.</p>
+            ? <p className="mt-2 text-[11px] text-muted-foreground">None yet. Click "Add Source" to provision from git, gdrive, or a manual directory.</p>
             : (
                 <ul className="mt-2 space-y-1.5">
                   {workspace.productManifest.sources.map(source => (
@@ -891,7 +891,7 @@ function UnregisterButton({ workspaceId, onUnregistered }: { workspaceId: string
   return (
     <div className="space-y-2">
       <p className="text-[11px] text-muted-foreground">
-        Removes PRODUCT.md, all ingested files, and the workspace folder. You can re-create with the same name afterwards.
+        Removes PRODUCT.md, all provisioned files, and the workspace folder. You can re-create with the same name afterwards.
       </p>
       {action.error && <p className="text-[11px] text-destructive">{humaniseApiError(action.error)}</p>}
       <div className="flex gap-2">

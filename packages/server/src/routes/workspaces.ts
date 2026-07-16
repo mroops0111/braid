@@ -1,4 +1,4 @@
-import type { HistoryService, PluginRegistry, SourceLoaderRunner, WorkspaceBootstrap, WorkspaceService } from '@braidhq/core'
+import type { HistoryService, PluginRegistry, SourceLoaderRunner, WorkspaceBootstrapService, WorkspaceService } from '@braidhq/core'
 import type { AbsolutePath, ProductManifest, SourceDescriptor, SourceId as SourceIdType, Timestamp, UserId, WorkspaceId } from '@braidhq/schema'
 import type { Context, MiddlewareHandler } from 'hono'
 import type { WorkspaceRegistryFile } from '../infrastructure/fs/WorkspaceRegistryFile.js'
@@ -62,7 +62,7 @@ export interface WorkspacesRouterDeps {
    * and validate that the manifest carries every role the ontology requires.
    */
   pluginRegistry: PluginRegistry
-  bootstrap?: WorkspaceBootstrap
+  bootstrap?: WorkspaceBootstrapService
   /**
    * Optional. When present, `GET /workspaces` filters to ones the current user is a member of,
    * and newly registered workspaces stamp the caller as owner. Absent in tests that don't exercise membership.
@@ -144,8 +144,8 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   // so the wizard never doubles as "open". A conflict on submit means "pick a different name,
   // or delete the existing one first", a 400 the UI can humanise.
   //
-  // Writes PRODUCT.md with server-filled defaults, runs every loader-backed source's `ingest`, then registers.
-  // If ingest fails, for example a wrong git branch or missing OAuth scope,
+  // Writes PRODUCT.md with server-filled defaults, runs every loader-backed source's `provision`, then registers.
+  // If provisioning fails, for example a wrong git branch or missing OAuth scope,
   // we delete the PRODUCT.md just written and drop the parse cache, so the retry sees a clean slate,
   // not a stale half-created workspace.
   router.post('/scaffold', serverCreate, zValidator('json', ScaffoldBodySchema), async (context) => {
@@ -179,13 +179,13 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     await writeProductManifest(rootPath, manifest, manifest.description)
     try {
       const workspace = await deps.workspaceService.load(rootPath)
-      const ingestOutcomes = await deps.sourceLoaderRunner.ingestAll(workspace)
+      const provisionOutcomes = await deps.sourceLoaderRunner.provisionAll(workspace)
       await deps.workspaceService.save(workspace)
       await deps.bootstrap?.ensure(workspace)
       await ensureCallerOwner(deps.workspaceRegistry, workspace.rootPath, getUserId(context))
       return context.json({
         workspace: workspace.toData(),
-        ingest: ingestOutcomes.map(o => ({ sourceId: o.sourceId, ...o.report })),
+        provision: provisionOutcomes.map(o => ({ sourceId: o.sourceId, ...o.report })),
       }, 201)
     }
     catch (error) {
@@ -195,7 +195,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     }
   })
 
-  // Add a source to an existing workspace. Rewrites PRODUCT.md, and runs `ingest` if the source is loader-backed,
+  // Add a source to an existing workspace. Rewrites PRODUCT.md, and runs `provision` if the source is loader-backed,
   // so the local filesystem is populated before the user runs a skill on it.
   router.post('/:workspaceId/sources', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), zValidator('json', SourceDescriptorSchema), async (context) => {
     const workspaceId = getWorkspaceId(context)
@@ -209,12 +209,12 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     await commitConfigChange(deps, workspaceId, getUserId(context), `added source ${source.name}`, source.id)
     const updated = await reload(deps.workspaceService, workspace.rootPath)
 
-    let ingest: IngestSummary | undefined
+    let provision: ProvisionSummary | undefined
     if (source.kind === 'filesystem' && source.loader) {
       const report = await deps.sourceLoaderRunner.syncOne(updated, source.id)
-      ingest = { sourceId: source.id, ...report }
+      provision = { sourceId: source.id, ...report }
     }
-    return context.json({ workspace: updated.toData(), ...(ingest ? { ingest } : {}) }, 201)
+    return context.json({ workspace: updated.toData(), ...(provision ? { provision } : {}) }, 201)
   })
 
   // Remove a source from the manifest, and rm its local files when the resolved path is inside the workspace folder.
@@ -295,7 +295,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   })
 
   // Per-source sync. Looks up the source's loader and invokes `sync`,
-  // or falls back to `ingest` if the destination doesn't exist yet.
+  // or falls back to `provision` if the destination doesn't exist yet.
   router.post('/:workspaceId/sources/:sourceId/sync', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const sourceId = SourceId.parse(context.req.param('sourceId'))
@@ -342,7 +342,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   return router
 }
 
-interface IngestSummary {
+interface ProvisionSummary {
   readonly sourceId: SourceId
   readonly changed: boolean
   readonly bytes?: number

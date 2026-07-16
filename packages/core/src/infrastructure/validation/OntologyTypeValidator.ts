@@ -20,8 +20,8 @@ export class OntologyTypeValidator implements OntologyValidator {
   private readonly knownEdgeTypes: ReadonlySet<string>
 
   constructor(private readonly ontology: OntologyPlugin) {
-    this.knownNodeTypes = new Set(ontology.nodeTypes.map(t => t.id))
-    this.knownEdgeTypes = new Set(ontology.edgeTypes.map(t => t.id))
+    this.knownNodeTypes = new Set(ontology.nodeTypes.map(nodeType => nodeType.id))
+    this.knownEdgeTypes = new Set(ontology.edgeTypes.map(edgeType => edgeType.id))
   }
 
   async validate(snapshot: ModelSnapshot): Promise<readonly ValidationIssue[]> {

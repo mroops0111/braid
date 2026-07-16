@@ -56,7 +56,7 @@ export class ClarifyTicket {
    */
   appendCandidate(candidate: ClarifyCandidate): ClarifyTicket {
     this.requireStatus('pending')
-    if (this.data.candidates.some(existing => existing.id === candidate.id)) {
+    if (this.data.candidates.some(existingCandidate => existingCandidate.id === candidate.id)) {
       throw new ConflictError(
         `Candidate "${candidate.id}" already exists on ticket "${this.data.id}"`,
       )

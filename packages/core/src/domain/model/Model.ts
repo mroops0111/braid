@@ -140,11 +140,11 @@ export class Model {
     nodeId: NodeId,
     patch: Partial<GraphNode>,
   ): void {
-    const existing = state.nodes.get(nodeId)
-    if (!existing) {
+    const existingNode = state.nodes.get(nodeId)
+    if (!existingNode) {
       throw new NotFoundError(`Node "${nodeId}" not found`)
     }
-    state.nodes.set(nodeId, { ...existing, ...patch, id: existing.id })
+    state.nodes.set(nodeId, { ...existingNode, ...patch, id: existingNode.id })
   }
 
   private applyValidatedAddEdge(state: MutableModelState, edge: GraphEdge): void {
@@ -172,11 +172,11 @@ export class Model {
     edgeId: EdgeId,
     patch: Partial<GraphEdge>,
   ): void {
-    const existing = state.edges.get(edgeId)
-    if (!existing) {
+    const existingEdge = state.edges.get(edgeId)
+    if (!existingEdge) {
       throw new NotFoundError(`Edge "${edgeId}" not found`)
     }
-    state.edges.set(edgeId, { ...existing, ...patch, id: existing.id })
+    state.edges.set(edgeId, { ...existingEdge, ...patch, id: existingEdge.id })
   }
 
   private applyOperation(state: MutableModelState, operation: GraphOperation): void {
