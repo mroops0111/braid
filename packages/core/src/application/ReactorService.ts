@@ -168,7 +168,7 @@ export class ReactorService {
     const resolved = await this.resolveContext(event)
     if (!resolved)
       return
-    const changedPaths = await this.changedPathsForPass(resolved)
+    const changedPaths = await this.changedPathsForCycle(resolved)
     if (changedPaths.length === 0) {
       // No-op cycle. Still persist and emit, so the Activity page records every delivered event consistently,
       // and the operator can see reactor ran but had nothing to do.
@@ -208,7 +208,7 @@ export class ReactorService {
     return { workspace, sourceId: event.sourceId, batchBinding, cycle }
   }
 
-  private async changedPathsForPass(context: CycleContext): Promise<readonly string[]> {
+  private async changedPathsForCycle(context: CycleContext): Promise<readonly string[]> {
     const diff = await computeSourceDiff(this.deps, context.workspace, context.sourceId)
     return [...diff.new, ...diff.changed].map(unit => unit.path)
   }

@@ -5,7 +5,7 @@ import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, WorkspaceIdParam } from './_shared.js'
 
-const PassIdParam = WorkspaceIdParam.extend({
+const CycleIdParam = WorkspaceIdParam.extend({
   cycleId: ReactorCycleId.openapi({ param: { name: 'cycleId', in: 'path' } }),
 })
 
@@ -40,7 +40,7 @@ const getRoute = createRoute({
   summary: 'Fetch one reactor cycle by id.',
   description: 'The Activity page subscribes to the workspace event stream and refreshes this endpoint whenever a `reactor.unit.*` or `reactor.checkpoint.*` event fires for the open cycle.',
   tags: ['reactor'],
-  request: { params: PassIdParam },
+  request: { params: CycleIdParam },
   responses: {
     200: {
       description: 'The cycle record.',
