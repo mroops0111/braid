@@ -347,22 +347,22 @@ describe('ReactorService', () => {
     expect(runner.startCalls).toHaveLength(0)
   })
 
-  it('persists a ReactorCycle record with units in terminal status after a normal pass', async () => {
+  it('persists a ReactorCycle record with units in terminal status after a normal cycle', async () => {
     const { workspace, eventBus, reactorCycleRepository, captured } = await setup({ hasCheckpoint: true })
     emitSync(eventBus, workspace.id, 'issues')
     await tick(150)
     const passes = await reactorCycleRepository.listByWorkspace(workspace.id)
     expect(passes).toHaveLength(1)
-    const pass = passes[0]!
-    expect(pass.status).toBe('completed')
-    expect(pass.units).toHaveLength(3)
-    expect(pass.units.every(u => u.status === 'success')).toBe(true)
-    expect(pass.checkpoint?.status).toBe('success')
-    // Every emitted reactor.* event refers to the same passId.
+    const cycle = passes[0]!
+    expect(cycle.status).toBe('completed')
+    expect(cycle.units).toHaveLength(3)
+    expect(cycle.units.every(u => u.status === 'success')).toBe(true)
+    expect(cycle.checkpoint?.status).toBe('success')
+    // Every emitted reactor.* event refers to the same cycleId.
     const reactorEvents = captured.filter(e => e.type.startsWith('reactor.'))
     expect(reactorEvents.every((e) => {
-      const eventWithPass = e as { passId?: string }
-      return eventWithPass.passId === pass.id
+      const eventWithCycle = e as { cycleId?: string }
+      return eventWithCycle.cycleId === cycle.id
     })).toBe(true)
   })
 
@@ -396,7 +396,7 @@ describe('ReactorService', () => {
     expect((completed as { checkpointRan: boolean }).checkpointRan).toBe(false)
   })
 
-  it('persists a throttled pass with status=throttled so the Activity page can surface it', async () => {
+  it('persists a throttled cycle with status=throttled so the Activity page can surface it', async () => {
     const { workspace, eventBus, digest, reactorCycleRepository } = await setup({ maxRunsPerHour: 1 })
     const shas: SourceUnitSha[] = [
       ('a'.repeat(64)) as SourceUnitSha,

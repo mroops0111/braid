@@ -85,8 +85,8 @@ export function reactorCyclesDir(workspaceRoot: AbsolutePath): string {
   return join(workspaceArtifactsDir(workspaceRoot), 'reactor-cycles')
 }
 
-export function reactorCycleFilePath(workspaceRoot: AbsolutePath, passId: string): string {
-  return join(reactorCyclesDir(workspaceRoot), `${passId}.json`)
+export function reactorCycleFilePath(workspaceRoot: AbsolutePath, cycleId: string): string {
+  return join(reactorCyclesDir(workspaceRoot), `${cycleId}.json`)
 }
 
 export function runIndexPath(workspaceRoot: AbsolutePath): string {

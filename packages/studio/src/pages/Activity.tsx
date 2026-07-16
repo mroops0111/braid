@@ -11,8 +11,8 @@ interface ActivityPageProps {
 
 /**
  * Activity surface, the rich complement to the top-of-app `<ReactorBanner>`.
- * Lists every reactor pass for the workspace (newest first) on the left,
- * renders the selected pass's unit timeline + checkpoint on the right.
+ * Lists every reactor cycle for the workspace (newest first) on the left,
+ * renders the selected cycle's unit timeline + checkpoint on the right.
  * Live-updates via the `useWorkspaceEvents` query-invalidation hook the App mounts globally,
  * so the page stays current without its own SSE wiring.
  */
@@ -54,9 +54,9 @@ export function ActivityPage({ workspaceId }: ActivityPageProps) {
         )}
         <ul className="flex-1 overflow-y-auto">
           {passes.map(p => (
-            <PassListItem
+            <CycleListItem
               key={p.id}
-              pass={p}
+              cycle={p}
               selected={p.id === effectiveSelected}
               onSelect={() => setSelectedId(p.id)}
             />
@@ -67,22 +67,22 @@ export function ActivityPage({ workspaceId }: ActivityPageProps) {
         {!effectiveSelected && (
           <EmptyPanel
             icon={Activity}
-            title="No pass selected"
-            detail="Pick a pass from the list to see its per-unit timeline."
+            title="No cycle selected"
+            detail="Pick a cycle from the list to see its per-unit timeline."
           />
         )}
-        {effectiveSelected && detail.data && <PassDetail pass={detail.data} />}
+        {effectiveSelected && detail.data && <CycleDetail cycle={detail.data} />}
       </main>
     </div>
   )
 }
 
-function PassListItem({ pass, selected, onSelect }: {
-  pass: ReactorCycle
+function CycleListItem({ cycle, selected, onSelect }: {
+  cycle: ReactorCycle
   selected: boolean
   onSelect: () => void
 }) {
-  const counts = useUnitCounts(pass.units)
+  const counts = useUnitCounts(cycle.units)
   return (
     <li>
       <button
@@ -94,43 +94,43 @@ function PassListItem({ pass, selected, onSelect }: {
         )}
       >
         <span className="flex items-center gap-2">
-          <PassStatusIcon pass={pass} />
-          <span className="font-mono text-[11px] text-foreground">{pass.sourceId}</span>
+          <CycleStatusIcon cycle={cycle} />
+          <span className="font-mono text-[11px] text-foreground">{cycle.sourceId}</span>
           <span className="ml-auto text-[10px] text-muted-foreground">
-            {timeAgo(pass.startedAt)}
+            {timeAgo(cycle.startedAt)}
           </span>
         </span>
         <span className="text-[10px] text-muted-foreground">
-          {pass.status === 'throttled'
-            ? (pass.throttledReason ?? 'throttled')
-            : `${counts.success}/${pass.units.length} units · ${pass.status}`}
+          {cycle.status === 'throttled'
+            ? (cycle.throttledReason ?? 'throttled')
+            : `${counts.success}/${cycle.units.length} units · ${cycle.status}`}
         </span>
       </button>
     </li>
   )
 }
 
-function PassDetail({ pass }: { pass: ReactorCycle }) {
-  const counts = useUnitCounts(pass.units)
+function CycleDetail({ cycle }: { cycle: ReactorCycle }) {
+  const counts = useUnitCounts(cycle.units)
   return (
     <article className="flex flex-col gap-4 p-4">
       <header className="space-y-1">
         <div className="flex items-center gap-2">
-          <PassStatusIcon pass={pass} />
+          <CycleStatusIcon cycle={cycle} />
           <h2 className="font-medium text-foreground">
-            Reactor pass on
+            Reactor cycle on
             {' '}
-            <span className="font-mono">{pass.sourceId}</span>
+            <span className="font-mono">{cycle.sourceId}</span>
           </h2>
         </div>
         <p className="text-[11px] text-muted-foreground">
           Started
           {' '}
-          {new Date(pass.startedAt).toLocaleString()}
-          {pass.completedAt && (
+          {new Date(cycle.startedAt).toLocaleString()}
+          {cycle.completedAt && (
             <>
               {' · finished '}
-              {new Date(pass.completedAt).toLocaleString()}
+              {new Date(cycle.completedAt).toLocaleString()}
             </>
           )}
         </p>
@@ -145,31 +145,31 @@ function PassDetail({ pass }: { pass: ReactorCycle }) {
           {' queued'}
         </p>
       </header>
-      {pass.status === 'throttled' && (
+      {cycle.status === 'throttled' && (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-2 text-[11px] text-foreground">
           Dropped:
           {' '}
-          {pass.throttledReason ?? 'rolling 1h cap reached'}
+          {cycle.throttledReason ?? 'rolling 1h cap reached'}
           .
         </div>
       )}
-      {pass.units.length === 0 && pass.status !== 'throttled' && (
+      {cycle.units.length === 0 && cycle.status !== 'throttled' && (
         <p className="text-[11px] text-muted-foreground">No units required dispatch — the diff was empty.</p>
       )}
-      {pass.units.length > 0 && (
+      {cycle.units.length > 0 && (
         <section>
           <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Units</h3>
           <ol className="space-y-1">
-            {pass.units.map((unit, idx) => (
+            {cycle.units.map((unit, idx) => (
               <UnitRow key={`${unit.path}-${idx}`} unit={unit} index={idx + 1} />
             ))}
           </ol>
         </section>
       )}
-      {pass.checkpoint && (
+      {cycle.checkpoint && (
         <section>
           <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Checkpoint</h3>
-          <CheckpointRow checkpoint={pass.checkpoint} />
+          <CheckpointRow checkpoint={cycle.checkpoint} />
         </section>
       )}
     </article>
@@ -208,11 +208,11 @@ function CheckpointRow({ checkpoint }: { checkpoint: ReactorCheckpoint }) {
   )
 }
 
-function PassStatusIcon({ pass }: { pass: ReactorCycle }) {
-  if (pass.status === 'throttled')
+function CycleStatusIcon({ cycle }: { cycle: ReactorCycle }) {
+  if (cycle.status === 'throttled')
     return <AlertCircle className="size-3 text-amber-600 dark:text-amber-400" />
-  if (pass.status === 'completed') {
-    const failures = pass.units.filter(u => u.status === 'failure').length
+  if (cycle.status === 'completed') {
+    const failures = cycle.units.filter(u => u.status === 'failure').length
     if (failures > 0)
       return <AlertCircle className="size-3 text-amber-600 dark:text-amber-400" />
     return <CheckCircle2 className="size-3 text-emerald-600 dark:text-emerald-400" />

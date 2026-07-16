@@ -6,7 +6,7 @@ import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, WorkspaceIdParam } from './_shared.js'
 
 const PassIdParam = WorkspaceIdParam.extend({
-  passId: ReactorCycleId.openapi({ param: { name: 'passId', in: 'path' } }),
+  cycleId: ReactorCycleId.openapi({ param: { name: 'cycleId', in: 'path' } }),
 })
 
 const ListResponse = z.object({
@@ -22,7 +22,7 @@ const listRoute = createRoute({
   path: '/',
   operationId: 'listReactorCycles',
   summary: 'List reactor passes for a workspace, newest first.',
-  description: 'One entry per reactor pass — the full timeline (units + checkpoint) is on each entry, so the Activity page does not need a second round-trip to render the list.',
+  description: 'One entry per reactor cycle — the full timeline (units + checkpoint) is on each entry, so the Activity page does not need a second round-trip to render the list.',
   tags: ['reactor'],
   request: { params: WorkspaceIdParam },
   responses: {
@@ -35,15 +35,15 @@ const listRoute = createRoute({
 
 const getRoute = createRoute({
   method: 'get',
-  path: '/{passId}',
+  path: '/{cycleId}',
   operationId: 'getReactorCycle',
-  summary: 'Fetch one reactor pass by id.',
-  description: 'The Activity page subscribes to the workspace event stream and refreshes this endpoint whenever a `reactor.unit.*` or `reactor.checkpoint.*` event fires for the open pass.',
+  summary: 'Fetch one reactor cycle by id.',
+  description: 'The Activity page subscribes to the workspace event stream and refreshes this endpoint whenever a `reactor.unit.*` or `reactor.checkpoint.*` event fires for the open cycle.',
   tags: ['reactor'],
   request: { params: PassIdParam },
   responses: {
     200: {
-      description: 'The pass record.',
+      description: 'The cycle record.',
       content: { 'application/json': { schema: ReactorCycle } },
     },
     404: NotFoundResponse,
@@ -61,11 +61,11 @@ export function createReactorCyclesRouter(deps: ReactorCyclesRouterDeps): OpenAP
 
   router.openapi(getRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
-    const { passId } = context.req.valid('param')
-    const pass = await deps.reactorCycleRepository.load(workspaceId, passId)
-    if (!pass)
-      throw new NotFoundError(`reactor pass "${passId}" not found for workspace "${workspaceId}"`)
-    return context.json(pass, 200)
+    const { cycleId } = context.req.valid('param')
+    const cycle = await deps.reactorCycleRepository.load(workspaceId, cycleId)
+    if (!cycle)
+      throw new NotFoundError(`reactor cycle "${cycleId}" not found for workspace "${workspaceId}"`)
+    return context.json(cycle, 200)
   })
 
   return router

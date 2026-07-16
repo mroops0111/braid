@@ -101,7 +101,7 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
     const invalidateReactorCycles = (): void => {
       queryClient.invalidateQueries({ queryKey: ['reactor-cycles', workspaceId], exact: false })
     }
-    const invalidatePassFinished = (): void => {
+    const invalidateCycleFinished = (): void => {
       // Per-option badges (extracted / stale) live behind the diff endpoint.
       // Refresh them when the reactor finishes a cycle, so the dropdown's freshness chips reflect the new ledger.
       queryClient.invalidateQueries({ queryKey: ['source-unit-diff', workspaceId], exact: false })
@@ -116,7 +116,7 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
     source.addEventListener('reactor.unit.completed', invalidateReactorCycles)
     source.addEventListener('reactor.checkpoint.started', invalidateReactorCycles)
     source.addEventListener('reactor.checkpoint.completed', invalidateReactorCycles)
-    source.addEventListener('reactor.completed', invalidatePassFinished)
+    source.addEventListener('reactor.completed', invalidateCycleFinished)
     source.addEventListener('reactor.throttled', invalidateReactorCycles)
 
     return () => {

@@ -205,23 +205,23 @@ export const BatchCheckpointFailedEvent = z.object({
 export type BatchCheckpointFailedEvent = z.infer<typeof BatchCheckpointFailedEvent>
 
 // Reactor finished partitioning a synced source, about to dispatch per-unit runs sequentially.
-// totalUnits is the count of new plus changed units. passId keys into the ReactorCycle record.
+// totalUnits is the count of new plus changed units. cycleId keys into the ReactorCycle record.
 export const ReactorDispatchedEvent = z.object({
   type: z.literal('reactor.dispatched'),
   workspaceId: WorkspaceId,
-  passId: ReactorCycleId,
+  cycleId: ReactorCycleId,
   sourceId: SourceId,
   totalUnits: z.number(),
   at: z.string(),
 })
 export type ReactorDispatchedEvent = z.infer<typeof ReactorDispatchedEvent>
 
-// The full reactor pass is over. checkpointRan distinguishes the "0 changed units,
+// The full reactor cycle is over. checkpointRan distinguishes the "0 changed units,
 // no checkpoint needed" case from the normal flow.
 export const ReactorCompletedEvent = z.object({
   type: z.literal('reactor.completed'),
   workspaceId: WorkspaceId,
-  passId: ReactorCycleId,
+  cycleId: ReactorCycleId,
   sourceId: SourceId,
   totalUnits: z.number(),
   checkpointRan: z.boolean(),
@@ -234,7 +234,7 @@ export type ReactorCompletedEvent = z.infer<typeof ReactorCompletedEvent>
 export const ReactorThrottledEvent = z.object({
   type: z.literal('reactor.throttled'),
   workspaceId: WorkspaceId,
-  passId: ReactorCycleId,
+  cycleId: ReactorCycleId,
   sourceId: SourceId,
   limit: z.number(),
   at: z.string(),
@@ -245,7 +245,7 @@ export type ReactorThrottledEvent = z.infer<typeof ReactorThrottledEvent>
 export const ReactorUnitStartedEvent = z.object({
   type: z.literal('reactor.unit.started'),
   workspaceId: WorkspaceId,
-  passId: ReactorCycleId,
+  cycleId: ReactorCycleId,
   unitPath: z.string(),
   skillRunId: SkillRunId,
   processed: z.number(),
@@ -258,7 +258,7 @@ export type ReactorUnitStartedEvent = z.infer<typeof ReactorUnitStartedEvent>
 export const ReactorUnitCompletedEvent = z.object({
   type: z.literal('reactor.unit.completed'),
   workspaceId: WorkspaceId,
-  passId: ReactorCycleId,
+  cycleId: ReactorCycleId,
   unitPath: z.string(),
   status: z.enum(['success', 'failure']),
   processed: z.number(),
@@ -272,19 +272,19 @@ export type ReactorUnitCompletedEvent = z.infer<typeof ReactorUnitCompletedEvent
 export const ReactorCheckpointStartedEvent = z.object({
   type: z.literal('reactor.checkpoint.started'),
   workspaceId: WorkspaceId,
-  passId: ReactorCycleId,
+  cycleId: ReactorCycleId,
   skillId: SkillId,
   skillRunId: SkillRunId,
   at: z.string(),
 })
 export type ReactorCheckpointStartedEvent = z.infer<typeof ReactorCheckpointStartedEvent>
 
-// Checkpoint skill finished. status='skipped' means the pass chose not to run the checkpoint,
+// Checkpoint skill finished. status='skipped' means the cycle chose not to run the checkpoint,
 // kept so the Activity timeline always has a terminal entry for the checkpoint row.
 export const ReactorCheckpointCompletedEvent = z.object({
   type: z.literal('reactor.checkpoint.completed'),
   workspaceId: WorkspaceId,
-  passId: ReactorCycleId,
+  cycleId: ReactorCycleId,
   status: z.enum(['success', 'failure', 'skipped']),
   at: z.string(),
 })
