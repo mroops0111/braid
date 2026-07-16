@@ -38,6 +38,7 @@ import {
   SourceLoaderRunner,
   SourceUnitObservationService,
   SystemClock,
+  SystemScheduler,
   ValidationService,
   WorkspaceLock,
   WorkspaceService,
@@ -280,6 +281,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
       workspaceLock,
       clock,
       logger: createLogger('reactor'),
+      scheduler: new SystemScheduler(),
     })
     : undefined
 

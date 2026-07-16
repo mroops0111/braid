@@ -1,4 +1,4 @@
-import type { AbsolutePath, SkillEvent, SkillId, SkillRunId, SourceDescriptor, SourceId, SourceUnitSha, WorkspaceEvent, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, SkillEvent, SkillId, SkillRunId, SourceDescriptor, SourceId, SourceUnitSha, Timestamp, WorkspaceEvent, WorkspaceId } from '@braidhq/schema'
 import type {
   IntentLister,
   SkillEventListener,
@@ -175,6 +175,20 @@ async function setup(opts: {
   }
 
   const reactorCycleRepository = new InMemoryReactorCycleRepository()
+  const scheduled: Array<{ delayMs: number, run: () => void }> = []
+  const scheduler = {
+    schedule(delayMs: number, run: () => void) {
+      const entry = { delayMs, run }
+      scheduled.push(entry)
+      return {
+        cancel: () => {
+          const index = scheduled.indexOf(entry)
+          if (index >= 0)
+            scheduled.splice(index, 1)
+        },
+      }
+    },
+  }
   const reactor = new ReactorService({
     eventBus,
     workspaceService,
@@ -187,6 +201,7 @@ async function setup(opts: {
     workspaceLock: new WorkspaceLock(),
     clock,
     logger: { info() {}, warn() {}, error() {} },
+    scheduler,
   })
 
   await reactor.start(workspace.id)
@@ -201,6 +216,8 @@ async function setup(opts: {
     sourceUnitObservationService,
     reactorCycleRepository,
     setUnits,
+    clock,
+    scheduled,
   }
 }
 
@@ -412,5 +429,33 @@ describe('ReactorService', () => {
     const throttled = passes.filter(p => p.status === 'throttled')
     expect(throttled).toHaveLength(1)
     expect(throttled[0]!.throttledReason).toBe('maxRunsPerHour=1')
+  })
+
+  it('schedules a catch-up when throttled, and it runs once a slot frees', async () => {
+    const { workspace, eventBus, digest, reactorCycleRepository, skillRunner, clock, scheduled } = await setup({ maxRunsPerHour: 1 })
+    // First sync spends the single hourly slot.
+    digest.defaultSha = ('a'.repeat(64)) as SourceUnitSha
+    emitSync(eventBus, workspace.id, 'issues')
+    await tick(150)
+    // Second sync changes the units again but is throttled, which schedules one retry.
+    digest.defaultSha = ('b'.repeat(64)) as SourceUnitSha
+    emitSync(eventBus, workspace.id, 'issues')
+    await tick(150)
+
+    expect(scheduled).toHaveLength(1)
+    expect(scheduled[0]!.delayMs).toBeGreaterThan(0)
+    const throttledBefore = (await reactorCycleRepository.listByWorkspace(workspace.id)).filter(c => c.status === 'throttled')
+    expect(throttledBefore).toHaveLength(1)
+
+    // Advance past the rolling window so the slot frees, then fire the scheduled retry.
+    clock.set(new Date(Date.parse(T0) + 60 * 60 * 1000 + 1000).toISOString() as Timestamp)
+    const runsBefore = skillRunner.startCalls.length
+    scheduled[0]!.run()
+    await tick(150)
+
+    // The retry re-derived the diff and processed the still-changed units.
+    expect(skillRunner.startCalls.length).toBeGreaterThan(runsBefore)
+    const completed = (await reactorCycleRepository.listByWorkspace(workspace.id)).filter(c => c.status === 'completed')
+    expect(completed.length).toBeGreaterThan(0)
   })
 })
