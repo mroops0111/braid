@@ -7,19 +7,19 @@ import type {
 
 /**
  * Framework invariant: every node must declare *some* evidence trail.
+ * One of these must hold:
+ *   - at least one `metadata.sourceReferences[]` entry,
+ *   - `metadata.implementationMissing: true`, intent-only, code not built yet,
+ *   - `metadata.intentMissing: true`, code-only, intent not written yet.
  *
- *   - At least one `metadata.sourceReferences[]` entry, OR
- *   - `metadata.implementationMissing: true` (intent-only, code not built yet), OR
- *   - `metadata.intentMissing: true` (code-only, intent not written yet).
+ * Without this, the graph silently accepts wishful thinking,
+ * intent claimed as done with no code and no explicit "not yet" flag.
  *
- * Without that, the graph silently accepts wishful thinking (which is what
- * happened the first time we ran braid-extract on intent without code).
+ * Also catches the contradiction of `status: 'completed'` with zero references,
+ * completion is a claim of fact, and needs at least one source citation.
  *
- * Also catches the contradiction `status: 'completed'` + zero source references
- * (completion is a claim of fact, which needs at least one source citation).
- *
- * Not a plugin: this rule is structural to Braid's HITL trust model. Hosts
- * always run it via `ValidationService`.
+ * Not a plugin: this rule is structural to Braid's HITL trust model.
+ * Hosts always run it via `ValidationService`.
  */
 export class EvidenceValidator {
   async validate(snapshot: ModelSnapshot): Promise<readonly ValidationIssue[]> {
@@ -61,12 +61,12 @@ export class EvidenceValidator {
   }
 
   /**
-   * Drift detection itself happens upstream in build-cycle skills
-   * (braid-extract / braid-model), which write structured DriftIssue
-   * entries onto the node's metadata. This validator's job is to
-   * surface those entries as `ValidationIssue`s so the proposal review
-   * pane shows them and the apply-gate respects severity. Drift entries
-   * whose description appears in `acknowledgedDrifts` are silenced.
+   * Drift detection itself happens upstream in build-cycle skills,
+   * e.g. braid-extract or braid-model,
+   * which write structured DriftIssue entries onto the node's metadata.
+   * This validator's job is to surface those entries as `ValidationIssue`s,
+   * so the proposal review pane shows them, and the apply-gate respects severity.
+   * Drift entries whose description appears in `acknowledgedDrifts` are silenced.
    */
   private surfaceDriftIssues(node: GraphNode): ValidationIssue[] {
     const drifts = node.metadata.driftIssues

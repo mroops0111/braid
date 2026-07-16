@@ -10,22 +10,23 @@ import type {
 import type { EdgeTypeDescriptor, OntologyPlugin, OntologyValidator } from '../../domain/plugin/OntologyPlugin.js'
 
 /**
- * Generic engine: reads `EdgeTypeDescriptor.fromTypes / toTypes /
- * cardinality` from an `OntologyPlugin` instance and rejects edges
- * whose endpoints violate the declared topology or whose count
- * violates the declared cardinality.
+ * Generic engine. Reads `EdgeTypeDescriptor.fromTypes / toTypes / cardinality`,
+ * from an `OntologyPlugin` instance.
+ * Rejects edges whose endpoints violate the declared topology,
+ * or whose count violates the declared cardinality.
  *
- * Complements `OntologyTypeValidator` (type allow-list) and
- * `OrphanEdgeValidator` (endpoints exist). Without this, the extract
- * skill could land an `aggregate contains boundedContext` reversal —
- * every downstream consumer reading the graph would assume the
- * ontology's `contains` direction and produce wrong results.
+ * Complements `OntologyTypeValidator` and `OrphanEdgeValidator`,
+ * the type allow-list and the endpoints-exist check.
+ * Without this, the extract skill could land a reversed edge,
+ * such as `aggregate contains boundedContext`.
+ * Every consumer would then read the edge in the wrong direction,
+ * and produce wrong results.
  *
- * Edge types not declared by the ontology are skipped here; the
- * type validator already flags them as unknown.
+ * Edge types not declared by the ontology are skipped here.
+ * The type validator already flags them as unknown.
  *
- * Not a plugin: each ontology constructs its own instance and exposes
- * it via `OntologyPlugin.validators[]`.
+ * Not a plugin: each ontology constructs its own instance,
+ * exposed via `OntologyPlugin.validators[]`.
  */
 export class StructuralValidator implements OntologyValidator {
   private readonly edgeTypeById: ReadonlyMap<EdgeTypeId, EdgeTypeDescriptor>
@@ -58,7 +59,7 @@ export class StructuralValidator implements OntologyValidator {
     const fromType = nodeTypeById.get(edge.fromNodeId)
     const toType = nodeTypeById.get(edge.toNodeId)
 
-    // Missing nodes are OrphanEdgeValidator's job; skip silently here.
+    // Missing nodes are OrphanEdgeValidator's job, skip silently here.
     if (fromType && !descriptor.fromTypes.includes(fromType)) {
       issues.push({
         code: 'structural.endpoint-type-from' as ValidationCode,
@@ -79,11 +80,11 @@ export class StructuralValidator implements OntologyValidator {
   }
 
   /**
-   * Cardinality is a property of the edge **type**, evaluated by counting
-   * how many edges of that type each node participates in. Bucket edges
-   * by type once, then walk each bucket counting source / target
-   * frequency; surface the offending node so the user can see *where*
-   * the duplicate lives rather than just *that* it exists.
+   * Cardinality is a property of the edge **type**,
+   * evaluated by counting how many edges each node participates in.
+   * Bucket edges by type, then count source / target frequency per node.
+   * Surface the offending node, so the user sees where the duplicate lives,
+   * not just that it exists.
    */
   private checkCardinality(edges: readonly GraphEdge[]): readonly ValidationIssue[] {
     const issues: ValidationIssue[] = []
@@ -109,11 +110,12 @@ export class StructuralValidator implements OntologyValidator {
   }
 }
 
-// Cardinality reads as "one-to-many": '1:N' = "one source relates to many
-// targets" so each TARGET has at most one source; the SOURCE side can
-// fan out without limit. Mnemonic:
-//   sourceLimit ← right side  (max outgoing edges a single source can have)
-//   targetLimit ← left side   (max incoming edges a single target can have)
+// Cardinality reads as "one-to-many".
+// '1:N' means one source relates to many targets,
+// so each TARGET has at most one source. The SOURCE side can fan out without limit.
+// Mnemonic:
+//   sourceLimit = right side  (max outgoing edges a single source can have)
+//   targetLimit = left side   (max incoming edges a single target can have)
 function limitForSource(cardinality: NonNullable<EdgeTypeDescriptor['cardinality']>): number {
   return cardinality.endsWith('1') ? 1 : Infinity
 }

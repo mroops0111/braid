@@ -10,21 +10,23 @@ export interface ValidationServiceDeps {
 }
 
 /**
- * Orchestrates two layers of validation against a `ModelSnapshot`:
+ * Orchestrates two layers of validation against a `ModelSnapshot`.
  *
- *  1. **Framework invariants** (`EvidenceValidator`, `OrphanEdgeValidator`) —
- *     hard-coded here because they're structural to Braid's HITL trust model
- *     (every node has evidence; every edge has endpoints). Not user-replaceable.
+ *  1. **Framework invariants** (`EvidenceValidator`, `OrphanEdgeValidator`),
+ *     hard-coded here because they are structural to Braid's HITL trust model.
+ *     Every node has evidence, every edge has endpoints. Not user-replaceable.
  *
- *  2. **Active ontology's validators** — each `OntologyPlugin` ships its own
- *     `validators[]` (auto-bound type + structural engines from
- *     `defineOntology()`; ontology authors may add more). Looked up by
- *     `workspace.productManifest.ontologyId` at validate-time, so switching
- *     a workspace's ontology immediately changes which rules apply.
+ *  2. **Active ontology's validators**.
+ *     Each `OntologyPlugin` ships its own `validators[]`,
+ *     the type and structural engines auto-bound by `defineOntology()`,
+ *     plus any the ontology author adds.
+ *     Looked up by `workspace.productManifest.ontologyId` at validate-time,
+ *     so switching a workspace's ontology immediately changes which rules apply.
  *
- * There is no separate `Validator` plugin axis. If user code needs to add
- * cross-cutting rules in the future, it adds them as a domain service that
- * `HITLService` calls before / after this one — not as a plugin.
+ * There is no separate `Validator` plugin axis.
+ * If user code needs cross-cutting rules in the future,
+ * it adds them as a domain service that `HITLService` calls around this one,
+ * not as a plugin.
  */
 export class ValidationService {
   private readonly evidence = new EvidenceValidator()
@@ -48,13 +50,13 @@ export class ValidationService {
   }
 
   /**
-   * Pre-apply check used by `GET /proposals/:id/validate`. Runs the ops
-   * through `Model.preview` to get the projected next snapshot, then
-   * delegates to `validate`. If preview itself rejects (e.g. removeNode
-   * of a non-existent node), we convert that into a structural
-   * validation issue rather than letting the route 404 — the UI needs
-   * a single shape it can render, and a structural mismatch is what
-   * the user wants to see anyway.
+   * Pre-apply check used by `GET /proposals/:id/validate`.
+   * Runs the ops through `Model.preview` to get the projected next snapshot,
+   * then delegates to `validate`.
+   * If preview itself rejects, e.g. removeNode of a non-existent node,
+   * we convert that into a structural validation issue,
+   * rather than letting the route 404. The UI needs a single shape it can render,
+   * and a structural mismatch is what the user wants to see anyway.
    */
   async validateOperations(
     snapshot: ModelSnapshot,

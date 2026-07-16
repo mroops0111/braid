@@ -6,7 +6,8 @@ function key(workspaceId: WorkspaceId, sourceId: SourceId, path: string): string
 }
 
 /**
- * Default `SourceUnitObservationRepository` for tests and the in-memory `composeApp()` wiring.
+ * Default `SourceUnitObservationRepository` for tests,
+ * and the in-memory `composeApp()` wiring.
  * Composite-key lookup by `(workspaceId, sourceId, path)`.
  */
 export class InMemorySourceUnitObservationRepository implements SourceUnitObservationRepository {
@@ -21,7 +22,7 @@ export class InMemorySourceUnitObservationRepository implements SourceUnitObserv
   }
 
   async listByWorkspace(workspaceId: WorkspaceId): Promise<readonly SourceUnitObservation[]> {
-    return [...this.store.values()].filter(s => s.workspaceId === workspaceId)
+    return [...this.store.values()].filter(observation => observation.workspaceId === workspaceId)
   }
 
   async listBySource(workspaceId: WorkspaceId, sourceId: SourceId): Promise<readonly SourceUnitObservation[]> {

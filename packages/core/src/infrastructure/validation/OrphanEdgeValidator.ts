@@ -5,11 +5,11 @@ import type {
 } from '@braidhq/schema'
 
 /**
- * Framework invariant: defense in depth on edge integrity. `Model.preview`
- * already rejects edges whose endpoints do not exist in the snapshot, but a
- * corrupt JSONL stream or a buggy storage adapter could still land us in a
- * state with dangling edges. Surface that loud rather than letting
- * downstream queries return inconsistent neighbours.
+ * Framework invariant: defense in depth on edge integrity.
+ * `Model.preview` already rejects edges whose endpoints are missing,
+ * but a corrupt JSONL stream or a buggy storage adapter,
+ * could still land us in a state with dangling edges.
+ * Surface that loudly rather than letting queries return bad neighbours.
  *
  * Not a plugin: hosts always run this via `ValidationService`.
  */

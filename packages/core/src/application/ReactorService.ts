@@ -106,11 +106,14 @@ interface PassContext {
  * The two surfaces agree by construction, every event corresponds to a save.
  *
  * Locked decisions.
- * - per-unit dispatch (not batched), sequential (no concurrency)
- * - intent-role only, `role: 'code'` sources fall through
- * - first-ingest does NOT fire reactor, the operator runs `cmd.runBatch` for the initial corpus
- * - throttle, a rolling 1h window per workspace, the (N+1)th dispatch emits `reactor.throttled` and drops
- * - no gate assumption, emits `reactor.completed` and stops, apply stays with upstream layers
+ * - Per-unit dispatch, not batched, and sequential with no concurrency.
+ * - Intent-role only, `role: 'code'` sources fall through.
+ * - First-ingest does NOT fire the reactor,
+ *   the operator runs `cmd.runBatch` for the initial corpus.
+ * - Throttle on a rolling 1h window per workspace,
+ *   the (N+1)th dispatch emits `reactor.throttled` and drops.
+ * - No gate assumption, emits `reactor.completed` and stops,
+ *   apply stays with upstream layers.
  */
 export class ReactorService implements Reactor {
   private readonly subscriptions = new Map<WorkspaceId, () => void>()

@@ -17,22 +17,23 @@ import { NotFoundError, ValidationError } from '../domain/errors.js'
 export interface SourceLoaderRunnerDeps {
   readonly pluginRegistry: PluginRegistry
   readonly clock: Clock
-  /** Optional pub/sub for Studio invalidation; see HITLService for the pattern. */
+  /** Optional pub/sub for Studio invalidation. See HITLService for the pattern. */
   readonly eventBus?: WorkspaceEventBus
 }
 
 /**
- * Runs `SourceLoader.ingest` / `.sync` for a workspace's loader-backed
- * filesystem sources. Sources without a loader (or that aren't
- * filesystem-kind) are a no-op.
+ * Runs `SourceLoader.ingest` / `.sync`,
+ * for a workspace's loader-backed filesystem sources.
+ * Sources without a loader, or that aren't filesystem-kind, are a no-op.
  *
  * Two entry points:
  *   - `ingestAll` runs at workspace scaffold / source add time.
- *   - `syncOne` runs when the user clicks the source's "Sync" button or a
- *     scheduler triggers a refresh.
+ *   - `syncOne` runs when the user clicks the source's "Sync" button,
+ *     or a scheduler triggers a refresh.
  *
- * Both are pure provisioning: they materialise files under each source's
- * configured `path` and do not touch the Knowledge Graph.
+ * Both are pure provisioning.
+ * They materialise files under each source's configured `path`,
+ * and do not touch the Knowledge Graph.
  */
 export class SourceLoaderRunner {
   constructor(private readonly deps: SourceLoaderRunnerDeps) {}
@@ -64,9 +65,10 @@ export class SourceLoaderRunner {
     const loader = this.deps.pluginRegistry.requireSourceLoader(source.loader.kind)
     const context = { workspaceId: workspace.id, sourceId: source.id }
     const destination = resolveSourcePath(workspace, source)
-    // If the destination doesn't exist yet (first run after register),
-    // fall back to ingest. The user's intent for "sync" is "make this
-    // source current"; whether that's a fresh clone or a pull is plumbing.
+    // If the destination doesn't exist yet, the first run after register,
+    // fall back to ingest.
+    // The user's intent for "sync" is "make this source current",
+    // whether that's a fresh clone or a pull is plumbing.
     if (!(await pathExists(destination))) {
       const ingest = await loader.ingest(source.loader.config, destination, context)
       const report: SyncReport = {
@@ -123,9 +125,9 @@ async function pathExists(path: string): Promise<boolean> {
 }
 
 /**
- * PRODUCT.md `sources[].path` can be relative (e.g. `./intent`) or
- * absolute. Loaders need an absolute path to operate on. Relative paths
- * are resolved against the workspace's `rootPath`.
+ * PRODUCT.md `sources[].path` can be relative, e.g. `./intent`, or absolute.
+ * Loaders need an absolute path to operate on.
+ * Relative paths are resolved against the workspace's `rootPath`.
  */
 function resolveSourcePath(workspace: Workspace, source: FilesystemSourceDescriptor): AbsolutePath {
   if (isAbsolute(source.path))

@@ -2,9 +2,10 @@ import type { SkillCategory, SkillFrontmatter } from '@braidhq/schema'
 
 /**
  * Section heading text required at H2 depth (`## `) in every SKILL.md.
- * Ordering reflects the canonical reading order — agents read top to
- * bottom and skipping a section is treated as omission. The validator
- * does not enforce order, only presence; ordering is style-guide-level.
+ * Ordering reflects the canonical reading order.
+ * Agents read top to bottom, and skipping a section is treated as omission.
+ * The validator does not enforce order, only presence.
+ * Ordering is style-guide-level.
  */
 const COMMON_REQUIRED_SECTIONS = [
   'Role',
@@ -18,8 +19,8 @@ const COMMON_REQUIRED_SECTIONS = [
 
 /**
  * Sections that are required only for specific skill categories.
- * Unknown categories (those not in `SkillCategory`) require no
- * category-specific section and are flagged separately.
+ * Unknown categories, those not in `SkillCategory`,
+ * require no category-specific section, and are flagged separately.
  */
 const CATEGORY_SPECIFIC_REQUIRED_SECTIONS: Record<SkillCategory, readonly string[]> = {
   ask: [],
@@ -49,19 +50,18 @@ export interface SkillStructureValidationResult {
 }
 
 /**
- * Pure parser + checker. Extracts every H2 heading from the SKILL.md
- * body and asserts that the required-section contract for the skill's
- * category is satisfied.
+ * Pure parser and checker. Extracts every H2 heading from the SKILL.md body,
+ * and asserts the required-section contract for the skill's category.
  *
- * Skills without a `braid.category` (workspace one-offs in the
- * "Custom" sidebar bucket) are held to the common contract only —
- * they have to declare the structural sections, but no category-
- * specific section is required of them.
+ * Skills without a `braid.category` are held to the common contract only,
+ * the workspace one-offs in the "Custom" sidebar bucket.
+ * They must declare the structural sections,
+ * but no category-specific section is required of them.
  *
- * The validator is intentionally text-level, not AST-level: a SKILL.md
- * with an H2 inside a fenced code block is unusual enough that we
- * don't pay the parser cost for it. If it bites, switch to a markdown
- * AST library here; the contract surface to callers stays the same.
+ * The validator is intentionally text-level, not AST-level.
+ * An H2 inside a fenced code block is rare, so we skip the parser cost.
+ * If it bites, switch to a markdown AST library here.
+ * The contract surface to callers stays the same.
  */
 export function validateSkillStructure(input: ValidateSkillStructureInput): SkillStructureValidationResult {
   const issues: SkillStructureIssue[] = []
@@ -92,9 +92,9 @@ export function validateSkillStructure(input: ValidateSkillStructureInput): Skil
     }
   }
 
-  // Duplicate `inputs[].name` detection. zod enforces each entry's
-  // own shape (and the kind discriminator), but uniqueness across
-  // the list is a cross-cutting rule that has to live here.
+  // Duplicate `inputs[].name` detection.
+  // zod enforces each entry's own shape and the kind discriminator,
+  // but uniqueness across the list is a cross-cutting rule that lives here.
   const inputs = input.frontmatter.braid.inputs
   if (inputs && inputs.length > 0) {
     const seen = new Set<string>()
@@ -114,12 +114,12 @@ export function validateSkillStructure(input: ValidateSkillStructureInput): Skil
 }
 
 /**
- * Extract the text of every line that opens with `## ` (case-sensitive)
- * and isn't inside a fenced code block. Returns a `Set` for O(1)
- * membership checks downstream.
+ * Extract the text of every line that opens with `## `, case-sensitive,
+ * and isn't inside a fenced code block.
+ * Returns a `Set` for O(1) membership checks downstream.
  *
- * Trailing whitespace and inline anchors like `## Role {#role}` are
- * trimmed so authors can decorate headings without breaking validation.
+ * Trailing whitespace and inline anchors like `## Role {#role}` are trimmed,
+ * so authors can decorate headings without breaking validation.
  */
 function collectH2Headings(body: string): Set<string> {
   const headings = new Set<string>()

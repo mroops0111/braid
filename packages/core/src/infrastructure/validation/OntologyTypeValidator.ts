@@ -6,13 +6,14 @@ import type {
 import type { OntologyPlugin, OntologyValidator } from '../../domain/plugin/OntologyPlugin.js'
 
 /**
- * Generic engine: reads `nodeTypes` / `edgeTypes` from an `OntologyPlugin`
- * and rejects graph nodes/edges whose `type` field isn't in the allow-list.
+ * Generic engine. Reads `nodeTypes` / `edgeTypes` from an `OntologyPlugin`,
+ * and rejects nodes or edges whose `type` field isn't in the allow-list.
  *
- * Not a plugin: callers (typically `defineOntology()` in the SDK) `new` an
- * instance bound to their ontology and expose it via `OntologyPlugin.validators[]`.
- * Other ontologies (c4, event-modeling, ...) reuse the same engine without
- * importing the ddd package.
+ * Not a plugin: callers construct an instance bound to their ontology,
+ * typically `defineOntology()` in the SDK,
+ * and expose it via `OntologyPlugin.validators[]`.
+ * Other ontologies reuse the same engine without importing the ddd package,
+ * e.g. c4 or event-modeling.
  */
 export class OntologyTypeValidator implements OntologyValidator {
   private readonly knownNodeTypes: ReadonlySet<string>

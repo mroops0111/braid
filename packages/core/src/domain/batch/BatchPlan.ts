@@ -36,7 +36,7 @@ export class BatchPlan {
   get createdAt(): Timestamp { return this.data.createdAt }
   get updatedAt(): Timestamp { return this.data.updatedAt }
 
-  // mode='derive' goes idle → deriving → running. mode='intent' goes idle → running.
+  // mode='derive' goes idle to deriving to running. mode='intent' goes idle to running.
   beginRun(now: Timestamp, baselineTag: string): BatchPlan {
     if (this.data.status !== 'idle')
       throw new ConflictError(`Batch plan ${this.data.id} is already ${this.data.status}`)
@@ -66,9 +66,9 @@ export class BatchPlan {
     return this.with({ status: 'stopped', running: undefined, updatedAt: now })
   }
 
-  // User-driven dismiss after reviewing the report. Allowed only from a
-  // terminal state so an in-flight batch can't be hidden by accident.
-  // Archived plans stay on disk; the UI treats them like "no active plan"
+  // User-driven dismiss after reviewing the report,
+  // allowed only from a terminal state so an in-flight batch isn't hidden.
+  // Archived plans stay on disk, the UI treats them like "no active plan",
   // and surfaces them via PreStart's "previous batch" slot.
   archive(now: Timestamp): BatchPlan {
     if (!this.isTerminal())
@@ -76,15 +76,15 @@ export class BatchPlan {
     return this.with({ status: 'archived', running: undefined, updatedAt: now })
   }
 
-  // Re-enter running from a terminal state; failed units reset to pending, completed units stay.
+  // Re-enter running from a terminal state.
+  // Failed units reset to pending, completed units stay.
   resumeRun(now: Timestamp): BatchPlan {
     if (!this.isTerminal())
       throw new ConflictError(`Cannot resume plan ${this.data.id} from status=${this.data.status}`)
     const units = this.data.units.map(unit => unit.status === 'failed' || unit.status === 'pending' ? resetUnit(unit) : unit)
-    // Drop failed checkpoint phases so the upcoming chunk accounting
-    // resets; successful phases stay because the units they consumed
-    // are still recorded as completed.
-    const checkpointPhases = this.data.checkpointPhases.filter(p => p.status === 'completed')
+    // Drop failed checkpoint phases so the upcoming chunk accounting resets.
+    // Successful phases remain, their units are still recorded as completed.
+    const checkpointPhases = this.data.checkpointPhases.filter(phase => phase.status === 'completed')
     const next: BatchPlanData = {
       ...this.data,
       status: 'running',
@@ -174,19 +174,20 @@ export class BatchPlan {
   }
 
   private mapUnit(unitId: BatchUnitId, fn: (unit: BatchUnit) => BatchUnit): BatchUnit[] {
-    return this.data.units.map(u => u.id === unitId ? fn(u) : u)
+    return this.data.units.map(unit => unit.id === unitId ? fn(unit) : unit)
   }
 
   private mapLastCheckpointPhase(fn: (phase: BatchCheckpointPhase) => BatchCheckpointPhase): BatchCheckpointPhase[] {
-    const arr = [...this.data.checkpointPhases]
-    if (arr.length === 0)
-      return arr
-    arr[arr.length - 1] = fn(arr[arr.length - 1]!)
-    return arr
+    const phases = [...this.data.checkpointPhases]
+    if (phases.length === 0)
+      return phases
+    phases[phases.length - 1] = fn(phases[phases.length - 1]!)
+    return phases
   }
 
-  // Shared guard for transitions that only fire after the orchestrator
-  // is done with the plan (Resume, Archive). Add new terminal states here.
+  // Shared guard for transitions that only fire,
+  // after the orchestrator is done with the plan, e.g. Resume or Archive.
+  // Add new terminal states here.
   private isTerminal(): boolean {
     return this.data.status === 'completed'
       || this.data.status === 'failed'

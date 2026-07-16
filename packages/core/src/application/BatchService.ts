@@ -297,8 +297,8 @@ export class BatchService {
     unitIds: readonly BatchUnitId[],
     callerToken?: string,
   ): Promise<BatchPlan> {
-    const unitsById = new Map(plan.units.map(u => [u.id, u] as const))
-    const units = unitIds.map(id => unitsById.get(id)).filter((u): u is BatchUnit => !!u)
+    const unitsById = new Map(plan.units.map(unit => [unit.id, unit] as const))
+    const units = unitIds.map(id => unitsById.get(id)).filter((unit): unit is BatchUnit => !!unit)
     const extraEnv = checkpoint.extraEnv?.(units)
     const hasEnv = !!extraEnv && Object.keys(extraEnv).length > 0
     let runId: SkillRunId | undefined

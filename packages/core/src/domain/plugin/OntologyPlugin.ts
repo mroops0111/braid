@@ -7,31 +7,30 @@ export interface NodeTypeDescriptor {
   readonly description?: string
   readonly allowedStatuses?: readonly NodeStatus[]
   /**
-   * Optional UI accent colour. Any CSS colour string the browser
-   * accepts (`oklch(...)`, `#7c3aed`, `rgb(...)`). Studio uses it for
-   * node-card type badges and edge strokes; if omitted, Studio falls
-   * back to a deterministic hash-of-id colour so an ontology without
-   * authored colours still renders distinguishable types.
+   * Optional UI accent colour, any CSS colour string the browser accepts,
+   * for example `oklch(...)`, `#7c3aed`, or `rgb(...)`.
+   * Studio uses it for node-card type badges and edge strokes.
+   * If omitted, Studio falls back to a deterministic hash-of-id colour,
+   * so an ontology without authored colours still renders distinct types.
    */
   readonly color?: string
   /**
-   * Whether this type is shown by default when the user first opens the
-   * graph. When any descriptor sets this, Studio initialises the type
-   * filter to only those types (typically the high-level structural
-   * types like boundedContext / aggregate). User can clear the filter
-   * to reveal the rest. If no descriptor sets it, all types show.
+   * Whether this type is shown by default when the user first opens the graph.
+   * When any descriptor sets this, Studio initialises the type filter,
+   * to only those types, typically the high-level structural types,
+   * like boundedContext / aggregate.
+   * The user can clear the filter to reveal the rest.
+   * If no descriptor sets it, all types show.
    */
   readonly defaultVisible?: boolean
   /**
-   * Hints for ontology-agnostic renderers (e.g. `braid-generate-doc`)
-   * to lay nodes out in a document tree without hard-coding ontology
-   * vocabulary. `container: true` marks a type as a top-level
-   * grouping (one rendered file per node). `expandedUnder` names
-   * the type whose nodes act as parents in the rendered tree —
+   * Hints for ontology-agnostic renderers, e.g. `braid-generate-doc`,
+   * to lay out nodes in a document tree without hard-coding vocabulary.
+   * `container: true` marks a type as a top-level grouping, one file per node.
+   * `expandedUnder` names the type whose nodes act as parents in the tree,
    * children of nodes of that type appear nested under them.
-   * `section` is the human-facing heading text the renderer uses
-   * when grouping flat lists of this type. All fields are optional;
-   * a descriptor with no hint is rendered as a footnote / leaf.
+   * `section` is the human-facing heading the renderer uses for flat lists.
+   * All fields are optional, a descriptor with no hint renders as a leaf.
    */
   readonly renderHint?: {
     readonly container?: boolean
@@ -45,9 +44,9 @@ export interface EdgeTypeDescriptor {
   readonly label?: string
   /**
    * Short prose explaining what this edge means and when to emit it.
-   * Surfaced to LLMs through the `/ontology` API and to reviewers
-   * through the Studio palette / legend tooltip. Same role as
-   * `NodeTypeDescriptor.description`.
+   * Surfaced to LLMs through the `/ontology` API,
+   * and to reviewers through the Studio palette / legend tooltip.
+   * Same role as `NodeTypeDescriptor.description`.
    */
   readonly description?: string
   readonly fromTypes: readonly NodeTypeId[]
@@ -58,14 +57,13 @@ export interface EdgeTypeDescriptor {
 }
 
 /**
- * Validator bundled with an ontology. The ontology brings its own
- * enforcement (type check, structural rules, future ontology-specific
- * invariants) instead of those being separate plugins that have to
- * cross-reference the ontology at runtime.
+ * Validator bundled with an ontology. The ontology brings its own enforcement,
+ * type checks, structural rules, and future ontology-specific invariants,
+ * instead of separate plugins that cross-reference the ontology at runtime.
  *
- * `defineOntology()` auto-binds the framework's two generic engines
- * (`OntologyTypeValidator` + `StructuralValidator`); ontology authors
- * pass `extraValidators` for anything beyond declarative checks.
+ * `defineOntology()` auto-binds the two generic engines,
+ * `OntologyTypeValidator` and `StructuralValidator`.
+ * Ontology authors pass `extraValidators` for anything beyond declarative checks.
  */
 export interface OntologyValidator {
   validate: (snapshot: ModelSnapshot) => Promise<readonly ValidationIssue[]>
@@ -100,8 +98,9 @@ export interface OntologyDeriveUnitsBinding {
 
 /**
  * Ontology's contract with framework-level batch / reactor processes.
- * Framework owns "what to dispatch and when"; ontology owns skill IDs
- * and env contracts. Optional fields let an ontology opt out of phases.
+ * Framework owns "what to dispatch and when",
+ * ontology owns skill IDs and env contracts.
+ * Optional fields let an ontology opt out of phases.
  */
 export interface OntologyBatchBinding {
   readonly perUnit: OntologyPerUnitBinding
@@ -115,26 +114,27 @@ export interface OntologyPlugin extends Plugin {
   readonly nodeTypes: readonly NodeTypeDescriptor[]
   readonly edgeTypes: readonly EdgeTypeDescriptor[]
   /**
-   * Validators that run against the model whenever the workspace is
-   * configured to use this ontology. Populated by `defineOntology()`.
+   * Validators that run against the model,
+   * whenever the workspace is configured to use this ontology.
+   * Populated by `defineOntology()`.
    */
   readonly validators: readonly OntologyValidator[]
   /**
-   * Wiring for batch / reactor orchestration. Required for any
-   * ontology that wants to participate in batches; framework refuses
-   * to start a batch if this is absent on the workspace's ontology.
+   * Wiring for batch / reactor orchestration.
+   * Required for any ontology that wants to participate in batches.
+   * Framework refuses to start a batch if this is absent on the ontology.
    */
   readonly batch?: OntologyBatchBinding
   /**
-   * Source roles that MUST be present in the workspace for this
-   * ontology to function. The scaffold endpoint validates the
-   * manifest against this list; a workspace that omits any required
-   * role is rejected with 422 so the wizard can prompt for it. The
-   * DDD ontology declares `['intent', 'code']` because Braid's core
-   * value prop is intent⊕code convergence — pure-intent or pure-code
-   * workspaces produce a polluted ubiquitous language. Generative
-   * ontologies that have no code dimension (e.g. the everstory `story`
-   * ontology) declare only `['intent']`.
+   * Source roles that MUST be present for this ontology to function.
+   * The scaffold endpoint validates the manifest against this list.
+   * A workspace that omits any required role is rejected with 422,
+   * so the wizard can prompt for it.
+   * The DDD ontology declares `['intent', 'code']`,
+   * because Braid's core value prop is intent and code convergence.
+   * Pure-intent or pure-code workspaces produce a polluted ubiquitous language.
+   * Generative ontologies with no code dimension declare only `['intent']`,
+   * for example the everstory `story` ontology.
    */
   readonly requiredSourceRoles?: readonly ('code' | 'intent')[]
 }

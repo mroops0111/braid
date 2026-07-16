@@ -41,11 +41,11 @@ export class ClarifyTicket {
   get externalReferences(): readonly ExternalReference[] | undefined { return this.data.externalReferences }
 
   resolveCandidate(candidateId: ClarifyCandidateId): readonly GraphOperation[] {
-    const candidate = this.data.candidates.find(entry => entry.id === candidateId)
-    if (!candidate) {
+    const match = this.data.candidates.find(candidate => candidate.id === candidateId)
+    if (!match) {
       throw new NotFoundError(`Candidate "${candidateId}" not in ticket "${this.data.id}"`)
     }
-    return candidate.proposedOperations
+    return match.proposedOperations
   }
 
   /**
@@ -55,7 +55,7 @@ export class ClarifyTicket {
    * and rejects duplicate ids to keep `resolveCandidate` deterministic.
    */
   appendCandidate(candidate: ClarifyCandidate): ClarifyTicket {
-    this.requireStatus('append candidate', 'pending')
+    this.requireStatus('pending')
     if (this.data.candidates.some(existing => existing.id === candidate.id)) {
       throw new ConflictError(
         `Candidate "${candidate.id}" already exists on ticket "${this.data.id}"`,
@@ -68,7 +68,7 @@ export class ClarifyTicket {
   }
 
   markAnswered(candidateId: ClarifyCandidateId, userId: UserId): ClarifyTicket {
-    this.requireStatus('answer', 'pending')
+    this.requireStatus('pending')
     const operations = this.resolveCandidate(candidateId)
     return new ClarifyTicket({
       ...this.data,
@@ -80,7 +80,7 @@ export class ClarifyTicket {
   }
 
   markApplied(proposalId?: ProposalId): ClarifyTicket {
-    this.requireStatus('apply', 'answered')
+    this.requireStatus('answered')
     return new ClarifyTicket({
       ...this.data,
       status: 'applied',
@@ -89,7 +89,7 @@ export class ClarifyTicket {
   }
 
   markSkipped(userId: UserId): ClarifyTicket {
-    this.requireStatus('skip', 'pending')
+    this.requireStatus('pending')
     return new ClarifyTicket({
       ...this.data,
       status: 'skipped',
@@ -101,11 +101,9 @@ export class ClarifyTicket {
     return this.data
   }
 
-  private requireStatus(action: string, expected: ClarifyStatus): void {
-    if (this.data.status !== expected) {
-      throw new ConflictError(
-        `Cannot ${action} clarify ticket "${this.data.id}": current status is "${this.data.status}", expected "${expected}"`,
-      )
+  private requireStatus(expectedStatus: ClarifyStatus): void {
+    if (this.data.status !== expectedStatus) {
+      throw new ConflictError(`Clarify ticket "${this.data.id}" is ${this.data.status}, not ${expectedStatus}`)
     }
   }
 }

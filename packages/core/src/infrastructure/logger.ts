@@ -3,9 +3,9 @@ import pino, { type Logger } from 'pino'
 
 export type { Logger }
 
-// Pretty by default; JSON when NODE_ENV=production so the bundled server
-// emits machine-parseable lines for log aggregators. `BRAID_LOG_PRETTY`
-// (true/false) overrides both.
+// Pretty by default, JSON when NODE_ENV=production,
+// so the bundled server emits machine-parseable lines for log aggregators.
+// `BRAID_LOG_PRETTY` (true/false) overrides both.
 function shouldPrettyPrint(): boolean {
   if (process.env.BRAID_LOG_PRETTY === 'true')
     return true
@@ -17,13 +17,13 @@ function shouldPrettyPrint(): boolean {
 /**
  * Build a Node-side logger tagged with the calling package's name.
  *
- * Convention: `ns` is the bare package name (`server`, `agent-claude-code`,
- * `storage-kuzu`): the package the calling file lives in, NOT the
- * package it talks to. Sub-namespaces (`server/agent`) only when a single
- * package's logs become noisy enough to need splitting.
+ * Convention: `ns` is the bare package name,
+ * e.g. `server`, `agent-claude-code`, or `storage-kuzu`,
+ * the package the calling file lives in, NOT the package it talks to.
+ * Use a sub-namespace like `server/agent` when one package's logs get noisy.
  *
- * Studio (browser) and the Tauri Rust shell have their own loggers; this
- * factory is for Node processes only.
+ * Studio (browser) and the Tauri Rust shell have their own loggers.
+ * This factory is for Node processes only.
  */
 export function createLogger(ns: string): Logger {
   return pino({

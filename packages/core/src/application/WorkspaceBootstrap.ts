@@ -13,13 +13,16 @@ export interface WorkspaceBootstrapDeps {
 export class WorkspaceBootstrap {
   constructor(private readonly deps: WorkspaceBootstrapDeps) {}
 
-  /** Idempotent: git init + reconcile model.json with the storage backend when they disagree. */
+  /**
+   * Idempotent. Runs git init,
+   * then reconciles model.json against the storage backend when they disagree.
+   */
   async ensure(workspace: Workspace): Promise<void> {
     await this.deps.history.ensureInitialised(workspace)
     await this.reconcileModelWithDisk(workspace)
   }
 
-  /** Hard-reset: used by restore after the working tree just rolled back. */
+  /** Hard reset, used by restore after the working tree just rolled back. */
   async reloadFromDisk(workspace: Workspace): Promise<void> {
     const persisted = await this.deps.serializer.read(workspace)
     await this.wipeBackend(workspace)

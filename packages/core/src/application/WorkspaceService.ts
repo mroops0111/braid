@@ -25,11 +25,12 @@ export class WorkspaceService {
   }
 
   /**
-   * Throw if the workspace's sources don't cover every role the registered
-   * ontology declares as required. Route handlers that mutate `sources`
-   * (add/patch/delete) call this before `save()`. `save()` itself doesn't
-   * enforce so that discovery can re-load pre-existing workspaces whose
-   * manifests pre-date the rule.
+   * Throw if the workspace's sources don't cover every role,
+   * that the registered ontology declares as required.
+   * Route handlers that mutate `sources` call this before `save()`,
+   * on add, patch, or delete.
+   * `save()` itself doesn't enforce the rule,
+   * so discovery can re-load pre-existing workspaces whose manifests pre-date it.
    */
   assertRequiredSourceRoles(workspace: Workspace): void {
     const ontology = this.deps.pluginRegistry.findOntology(workspace.productManifest.ontologyId)
@@ -59,8 +60,8 @@ export class WorkspaceService {
   }
 
   /**
-   * Discard any cached parse so the next `load` re-reads from disk. Call
-   * after rewriting PRODUCT.md so subsequent reads pick up the new manifest.
+   * Discard any cached parse so the next `load` re-reads from disk.
+   * Call after rewriting PRODUCT.md, so subsequent reads pick up the new manifest.
    */
   invalidate(rootPath: AbsolutePath): void {
     this.deps.workspaceRepository.invalidate?.(rootPath)

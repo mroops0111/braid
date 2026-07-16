@@ -34,9 +34,9 @@ export class PluginRegistry {
     if (this.plugins.has(plugin.id)) {
       throw new ConflictError(`Plugin "${plugin.id}" is already registered`)
     }
-    // Catch skill-id collisions across plugins at register time so the
-    // failure points at the second plugin to register, not at some
-    // later workspace.list() call.
+    // Catch skill-id collisions across plugins at register time,
+    // so the failure points at the second plugin to register,
+    // not at some later workspace.list() call.
     for (const skill of plugin.skills ?? []) {
       const owner = this.skillContributors.get(skill.id)
       if (owner !== undefined)
@@ -47,9 +47,9 @@ export class PluginRegistry {
   }
 
   /**
-   * All skills declared by registered plugins, tagged with the plugin
-   * id that contributed each. Consumers (FsSkillRegistry) mount these
-   * under the `plugin` skill origin.
+   * All skills declared by registered plugins,
+   * tagged with the plugin id that contributed each.
+   * Consumers like FsSkillRegistry mount these under the `plugin` skill origin.
    */
   pluginSkills(): readonly PluginSourcedSkill[] {
     const result: PluginSourcedSkill[] = []
@@ -61,11 +61,11 @@ export class PluginRegistry {
   }
 
   /**
-   * All reference directories declared by registered plugins, tagged
-   * with the plugin id that contributed each. Consumers
-   * (SubprocessSkillRunner) symlink these into every spawned skill
-   * session so SKILL.md authors can reference plugin-owned concept
-   * docs via a stable cwd-relative path.
+   * All reference directories declared by registered plugins,
+   * tagged with the plugin id that contributed each.
+   * Consumers like SubprocessSkillRunner symlink these into every session,
+   * so SKILL.md authors can reference plugin-owned concept docs,
+   * via a stable cwd-relative path.
    */
   pluginReferenceDirs(): readonly PluginSourcedReferenceDir[] {
     const result: PluginSourcedReferenceDir[] = []
