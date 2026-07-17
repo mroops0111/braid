@@ -11,7 +11,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./testing": "./src/testing.ts"
+    "./in-memory": "./src/in-memory.ts"
   },
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -23,8 +23,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
+    "test": "vitest run --coverage",
     "test:integration": "vitest run --passWithNoTests --config vitest.integration.config.ts",
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
@@ -49,9 +48,9 @@
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       },
-      "./testing": {
-        "types": "./dist/testing.d.ts",
-        "default": "./dist/testing.js"
+      "./in-memory": {
+        "types": "./dist/in-memory.d.ts",
+        "default": "./dist/in-memory.js"
       }
     }
   }

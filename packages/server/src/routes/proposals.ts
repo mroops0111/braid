@@ -1,4 +1,4 @@
-import type { HITLService, ModelRepository, ProposalRepository, ValidationService, WorkspaceService } from '@braidhq/core'
+import type { HITLService, ModelRepository, ModelValidationService, ProposalRepository, WorkspaceService } from '@braidhq/core'
 import { Proposal, ProposalCreate, ProposalId, ProposalStatus, UserId, ValidationResult } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getUserId } from '../middleware/userId.js'
@@ -44,7 +44,7 @@ export interface ProposalsRouterDeps {
   hitlService: HITLService
   proposalRepository: ProposalRepository
   modelRepository: ModelRepository
-  validationService: ValidationService
+  modelValidationService: ModelValidationService
   workspaceService: WorkspaceService
 }
 
@@ -204,7 +204,7 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     assertEntityInWorkspace(workspaceId, proposal.workspaceId, 'Proposal', proposalId)
     const workspace = await deps.workspaceService.findById(workspaceId)
     const snapshot = await deps.modelRepository.load(workspaceId)
-    const result = await deps.validationService.validateOperations(snapshot, proposal.operations, workspace)
+    const result = await deps.modelValidationService.validateOperations(snapshot, proposal.operations, workspace)
     return context.json(result, 200)
   })
 

@@ -11,6 +11,12 @@ import { SkillId as SkillIdSchema } from '@braidhq/schema'
 import { FixedClock, makeOntology, makeWorkspace, mintTestId, resetTestIds, T0 } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import {
+  InMemoryReactorCycleRepository,
+  InMemorySourceUnitObservationRepository,
+  InMemoryWorkspaceEventBus,
+  InMemoryWorkspaceRepository,
+} from '../../src/in-memory.js'
+import {
   PluginRegistry,
   ReactorService,
   SourceUnitObservationService,
@@ -18,12 +24,6 @@ import {
   WorkspaceLock,
   WorkspaceService,
 } from '../../src/index.js'
-import {
-  InMemoryReactorCycleRepository,
-  InMemorySourceUnitObservationRepository,
-  InMemoryWorkspaceEventBus,
-  InMemoryWorkspaceRepository,
-} from '../../src/testing.js'
 
 const PER_UNIT_SKILL = SkillIdSchema.parse('braid-extract')
 const CHECKPOINT_SKILL = SkillIdSchema.parse('braid-model')
@@ -51,9 +51,9 @@ function codeSource(id: string): SourceDescriptor {
 class FakeSkillRunner implements SkillRunner {
   readonly startCalls: Array<{ skillId: SkillId, args: string }> = []
   private readonly listeners = new Map<SkillRunId, SkillEventListener>()
-  /** Settle runner on `start` synchronously? Default true, else setTimeout. */
+  // When set, start() defers completion until flushOne fires it.
   controlled = false
-  /** When `controlled` is true, stores callbacks the test triggers manually. */
+  // Pending completions the test fires manually while controlled.
   private readonly pending: Array<() => void> = []
   exitCodes: number[] = []
 
@@ -73,7 +73,7 @@ class FakeSkillRunner implements SkillRunner {
     return runId
   }
 
-  /** Manually flush one pending completion. Used by the sequential-ordering test. */
+  // Fire one pending completion, for the sequential-ordering test.
   flushOne(): void {
     const fire = this.pending.shift()
     fire?.()
@@ -264,7 +264,7 @@ describe('ReactorService', () => {
     expect(completed.checkpointRan).toBe(true)
   })
 
-  it('skips checkpoint when no per-unit succeeded', async () => {
+  it('skips the checkpoint entirely when no per-unit dispatch succeeded', async () => {
     const { workspace, eventBus, skillRunner, captured } = await setup({ hasCheckpoint: true })
     skillRunner.exitCodes = [1, 1, 1]
     emitSync(eventBus, workspace.id, 'issues')
@@ -272,6 +272,8 @@ describe('ReactorService', () => {
 
     const checkpoint = skillRunner.startCalls.filter(c => c.skillId === CHECKPOINT_SKILL)
     expect(checkpoint).toHaveLength(0)
+    const checkpointEvents = captured.filter(e => e.type === 'reactor.checkpoint.started' || e.type === 'reactor.checkpoint.completed')
+    expect(checkpointEvents).toHaveLength(0)
     const completed = captured.find(e => e.type === 'reactor.completed')
     expect((completed as { checkpointRan: boolean }).checkpointRan).toBe(false)
   })
@@ -401,17 +403,6 @@ describe('ReactorService', () => {
     const completedProcessed = unitEvents.filter(e => e.type === 'reactor.unit.completed').map(e => (e as { processed: number }).processed)
     expect(startedTotals).toEqual([3, 3, 3])
     expect(completedProcessed).toEqual([1, 2, 3])
-  })
-
-  it('does NOT emit reactor.checkpoint.* when no per-unit succeeded; the terminal reactor.completed already says checkpointRan=false', async () => {
-    const { workspace, eventBus, skillRunner, captured } = await setup({ hasCheckpoint: true })
-    skillRunner.exitCodes = [1, 1, 1]
-    emitSync(eventBus, workspace.id, 'issues')
-    await tick(200)
-    const checkpointEvents = captured.filter(e => e.type === 'reactor.checkpoint.started' || e.type === 'reactor.checkpoint.completed')
-    expect(checkpointEvents).toHaveLength(0)
-    const completed = captured.find(e => e.type === 'reactor.completed')
-    expect((completed as { checkpointRan: boolean }).checkpointRan).toBe(false)
   })
 
   it('persists a throttled cycle with status=throttled so the Activity page can surface it', async () => {

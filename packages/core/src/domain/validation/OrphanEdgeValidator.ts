@@ -11,7 +11,7 @@ import type {
  * could still land us in a state with dangling edges.
  * Surface that loudly rather than letting queries return bad neighbours.
  *
- * Not a plugin: hosts always run this via `ValidationService`.
+ * Not a plugin, the host runs it unconditionally as a framework invariant.
  */
 export class OrphanEdgeValidator {
   async validate(snapshot: ModelSnapshot): Promise<readonly ValidationIssue[]> {

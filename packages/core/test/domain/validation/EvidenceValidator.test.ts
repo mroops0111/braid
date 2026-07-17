@@ -77,8 +77,8 @@ describe('EvidenceValidator', () => {
         metadata: { sourceReferences: [], implementationMissing: true },
       },
     ]))
-    // both rules fire? no: implementationMissing satisfies first rule, but
-    // completed-with-no-source still fires.
+    // implementationMissing clears the no-source rule,
+    // but completed-no-source still fires.
     expect(issues.map(i => i.code)).toEqual(['evidence.completed-no-source'])
   })
 

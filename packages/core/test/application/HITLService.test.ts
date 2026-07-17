@@ -6,31 +6,29 @@ import type {
   NodeStatus,
   NodeTypeId,
   ProposalId,
-  SkillId,
   UserId,
   ValidationCode,
   WorkspaceId,
 } from '@braidhq/schema'
 import type { Workspace } from '../../src/index.js'
-import { FixedClock, makeOntology, makeWorkspace, mintTestId, resetTestIds, T0 } from '@braidhq/test-utils'
+import { FixedClock, makeOntology, makeProposal, makeWorkspace, mintTestId, resetTestIds } from '@braidhq/test-utils'
 import { beforeEach, describe, expect, it } from 'vitest'
-import {
-  ClarifyTicket,
-  ConflictError,
-  HITLService,
-  NotFoundError,
-  PluginRegistry,
-  Proposal,
-  ValidationError,
-  ValidationService,
-  WorkspaceService,
-} from '../../src/index.js'
 import {
   InMemoryClarifyTicketRepository,
   InMemoryModelRepository,
   InMemoryProposalRepository,
   InMemoryWorkspaceRepository,
-} from '../../src/testing.js'
+} from '../../src/in-memory.js'
+import {
+  ClarifyTicket,
+  ConflictError,
+  HITLService,
+  ModelValidationService,
+  NotFoundError,
+  PluginRegistry,
+  ValidationError,
+  WorkspaceService,
+} from '../../src/index.js'
 
 const userId = 'u-1' as UserId
 
@@ -58,13 +56,13 @@ async function setupFixture(options: {
   const clarifyRepository = new InMemoryClarifyTicketRepository()
   const modelRepository = new InMemoryModelRepository()
   const clock = new FixedClock()
-  const validationService = new ValidationService({ pluginRegistry })
+  const modelValidationService = new ModelValidationService({ pluginRegistry })
 
   const service = new HITLService({
     proposalRepository,
     clarifyRepository,
     modelRepository,
-    validationService,
+    modelValidationService,
     workspaceService,
     clock,
   })
@@ -79,30 +77,6 @@ async function setupFixture(options: {
     workspaceId: workspace.id,
     service,
   }
-}
-
-function makeProposal(workspaceId: WorkspaceId, overrides: { id?: ProposalId } = {}): Proposal {
-  return new Proposal({
-    id: overrides.id ?? (mintTestId('p') as ProposalId),
-    workspaceId,
-    status: 'pending',
-    operations: [{
-      operation: 'addNode',
-      payload: {
-        type: 'command' as NodeTypeId,
-        name: 'voidTask',
-        id: mintTestId('n') as NodeId,
-        status: 'draft' as NodeStatus,
-        // implementationMissing satisfies EvidenceValidator, a framework invariant.
-        // Intent-side proposal where code hasn't shipped yet.
-        metadata: { sourceReferences: [], implementationMissing: true },
-      },
-    }],
-    generatedBy: 'extract' as SkillId,
-    generatedAt: T0,
-    rationale: 'add voidTask',
-    owner: 'system',
-  })
 }
 
 function makeClarifyTicket(workspaceId: WorkspaceId, overrides: {

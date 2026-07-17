@@ -142,7 +142,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     hitlService: deps.hitlService,
     proposalRepository: deps.proposalRepository,
     modelRepository: deps.modelRepository,
-    validationService: deps.validationService,
+    modelValidationService: deps.modelValidationService,
     workspaceService: deps.workspaceService,
   }))
   workspaceScoped.route('/clarify', createClarifyRouter({

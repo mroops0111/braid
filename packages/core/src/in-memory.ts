@@ -1,15 +1,16 @@
 /**
  * Public entry for the framework's in-memory adapters.
  *
- * These adapters are test fakes / lightweight in-process defaults, not a production storage layer.
- * They live behind the `@braidhq/core/testing` subpath (rather than the main entry),
- * so the main entry stays a pure port-and-service surface.
- * Plugin authors and downstream packages get a clear signal,
- * that anything reachable from `@braidhq/core` is part of the framework's stable contract,
- * while anything under `/testing` is a convenience for writing tests or wiring temporary in-memory deployments.
+ * Faithful in-process implementations of the repository ports,
+ * a lightweight default for tests and ephemeral boot, not a durable store.
+ * They sit behind the `@braidhq/core/in-memory` subpath, not the main entry,
+ * so `@braidhq/core` stays a pure port-and-service surface.
+ * The signal to downstream packages,
+ * anything reachable from `@braidhq/core` is the stable framework contract,
+ * anything under `/in-memory` is a convenience for tests or ephemeral boot.
  *
- * The composition root in `@braidhq/server` imports from here for `composeApp()` defaults,
- * production wiring (`composeFsApp`) replaces these with filesystem-backed implementations.
+ * The server composition root imports these for `composeApp()` defaults,
+ * production wiring swaps them for filesystem or vendor adapters.
  */
 export * from './infrastructure/in-memory/InMemoryClarifyTicketRepository.js'
 export * from './infrastructure/in-memory/InMemoryKeyedStore.js'

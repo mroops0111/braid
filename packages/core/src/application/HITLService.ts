@@ -18,7 +18,7 @@ import type { ModelRepository } from '../domain/model/ModelRepository.js'
 import type { ModelSerializer } from '../domain/model/ModelSerializer.js'
 import type { UserDirectory } from '../domain/users/UserDirectory.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
-import type { ValidationService } from './ValidationService.js'
+import type { ModelValidationService } from './ModelValidationService.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import type { WorkspaceService } from './WorkspaceService.js'
 import { UserId } from '@braidhq/schema'
@@ -37,7 +37,7 @@ export interface HITLServiceDeps {
   proposalRepository: ProposalRepository
   clarifyRepository: ClarifyTicketRepository
   modelRepository: ModelRepository
-  validationService: ValidationService
+  modelValidationService: ModelValidationService
   workspaceService: WorkspaceService
   clock: Clock
   eventBus?: WorkspaceEventBus
@@ -297,7 +297,7 @@ export class HITLService {
   ): Promise<void> {
     const workspace = await this.deps.workspaceService.findById(workspaceId)
     const snapshot = await this.deps.modelRepository.load(workspaceId)
-    const result = await this.deps.validationService.validateOperations(snapshot, operations, workspace)
+    const result = await this.deps.modelValidationService.validateOperations(snapshot, operations, workspace)
     if (!result.ok) {
       throw new ValidationError(this.formatValidationErrors(result.issues), result.issues)
     }

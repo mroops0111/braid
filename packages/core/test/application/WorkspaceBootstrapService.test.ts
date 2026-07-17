@@ -1,18 +1,13 @@
-import type { CommitMeta, CommitSha, EdgeId, FileDiff, GraphEdge, GraphNode, ModelSnapshot, NodeId, NodeTypeId, TagMeta, WorkspaceId } from '@braidhq/schema'
+import type { EdgeId, GraphEdge, GraphNode, ModelSnapshot, NodeId, NodeTypeId, WorkspaceId } from '@braidhq/schema'
 import type { ModelSerializer } from '../../src/domain/model/ModelSerializer.js'
-import type { ListCommitsOptions, Workspace, WorkspaceHistory } from '../../src/index.js'
+import type { Workspace } from '../../src/index.js'
+import { makeWorkspace } from '@braidhq/test-utils'
 import { describe, expect, it, vi } from 'vitest'
+import { InMemoryModelRepository } from '../../src/in-memory.js'
 import { WorkspaceBootstrapService } from '../../src/index.js'
-import { InMemoryModelRepository } from '../../src/testing.js'
+import { SpyWorkspaceHistory } from '../helpers/doubles.js'
 
 const WORKSPACE_ID = 'ws-1' as WorkspaceId
-
-function makeWorkspace(): Workspace {
-  return {
-    id: WORKSPACE_ID,
-    rootPath: '/tmp/fake-workspace',
-  } as unknown as Workspace
-}
 
 function makeNode(id: string): GraphNode {
   return {
@@ -32,19 +27,6 @@ function makeEdge(id: string, from: string, to: string): GraphEdge {
     toNodeId: to as NodeId,
     metadata: { sourceReferences: [] },
   }
-}
-
-class FakeWorkspaceHistory implements WorkspaceHistory {
-  readonly ensureInitialised = vi.fn(async (_workspace: Workspace): Promise<void> => {})
-  readonly commit = vi.fn(async (): Promise<CommitSha> => '0'.repeat(40) as CommitSha)
-  readonly listCommits = vi.fn(async (_ws: Workspace, _opts?: ListCommitsOptions): Promise<readonly CommitMeta[]> => [])
-  readonly getCommit = vi.fn(async (): Promise<CommitMeta | null> => null)
-  readonly getCommitDiff = vi.fn(async (): Promise<readonly FileDiff[]> => [])
-  readonly readGraphAtCommit = vi.fn(async (): Promise<ModelSnapshot> => ({ nodes: [], edges: [] }))
-  readonly restore = vi.fn(async (): Promise<CommitSha> => '0'.repeat(40) as CommitSha)
-  readonly tag = vi.fn(async (): Promise<TagMeta> => ({ name: '', sha: '0'.repeat(40) as CommitSha, createdAt: new Date().toISOString() as never }))
-  readonly listTags = vi.fn(async (): Promise<readonly TagMeta[]> => [])
-  readonly deleteTag = vi.fn(async (): Promise<void> => {})
 }
 
 class FakeModelSerializer implements ModelSerializer {
@@ -71,15 +53,15 @@ class FakeModelSerializer implements ModelSerializer {
 
 interface Setup {
   workspace: Workspace
-  history: FakeWorkspaceHistory
+  history: SpyWorkspaceHistory
   serializer: FakeModelSerializer
   modelRepository: InMemoryModelRepository
   bootstrap: WorkspaceBootstrapService
 }
 
 function setup(): Setup {
-  const workspace = makeWorkspace()
-  const history = new FakeWorkspaceHistory()
+  const workspace = makeWorkspace({ id: 'ws-1' })
+  const history = new SpyWorkspaceHistory()
   const serializer = new FakeModelSerializer()
   const modelRepository = new InMemoryModelRepository()
   const bootstrap = new WorkspaceBootstrapService({ history, serializer, modelRepository })
@@ -154,5 +136,44 @@ describe('WorkspaceBootstrapService', () => {
 
     const reloaded = await modelRepository.load(WORKSPACE_ID)
     expect(reloaded.nodes).toHaveLength(1)
+  })
+
+  describe('reloadStoreFromFile', () => {
+    it('wipes the store and rehydrates from model.json', async () => {
+      const { workspace, serializer, modelRepository, bootstrap } = setup()
+      await modelRepository.applyOperations(WORKSPACE_ID, [
+        { operation: 'addNodes', payloads: [makeNode('stale')] },
+      ])
+      serializer.seed({ nodes: [makeNode('a'), makeNode('b')], edges: [makeEdge('e-1', 'a', 'b')] })
+
+      await bootstrap.reloadStoreFromFile(workspace)
+
+      const reloaded = await modelRepository.load(WORKSPACE_ID)
+      expect(reloaded.nodes.map(n => n.id).sort()).toEqual(['a', 'b'])
+      expect(reloaded.edges).toHaveLength(1)
+    })
+
+    it('wipes the store to empty when model.json is absent', async () => {
+      const { workspace, modelRepository, bootstrap } = setup()
+      await modelRepository.applyOperations(WORKSPACE_ID, [
+        { operation: 'addNodes', payloads: [makeNode('a'), makeNode('b')] },
+        { operation: 'addEdges', payloads: [makeEdge('e-1', 'a', 'b')] },
+      ])
+
+      await bootstrap.reloadStoreFromFile(workspace)
+
+      const reloaded = await modelRepository.load(WORKSPACE_ID)
+      expect(reloaded.nodes).toHaveLength(0)
+      expect(reloaded.edges).toHaveLength(0)
+    })
+
+    it('leaves the store empty when model.json holds an empty snapshot', async () => {
+      const { workspace, serializer, modelRepository, bootstrap } = setup()
+      serializer.seed({ nodes: [], edges: [] })
+
+      await bootstrap.reloadStoreFromFile(workspace)
+
+      expect((await modelRepository.load(WORKSPACE_ID)).nodes).toHaveLength(0)
+    })
   })
 })

@@ -81,7 +81,7 @@ describe('BatchPlan', () => {
     })
   })
 
-  describe('markUnitRunning / markUnitCompleted / markUnitFailed', () => {
+  describe('unit lifecycle', () => {
     it('marks the unit running, then completed with output', () => {
       const plan = makePlan({ status: 'running' })
       const running = plan.markUnitRunning(T1, unitA, {
@@ -111,16 +111,62 @@ describe('BatchPlan', () => {
     })
   })
 
+  describe('checkpoint phases', () => {
+    const runId = 'ckpt-run' as SkillRunId
+
+    it('startCheckpointPhase appends a running phase', () => {
+      const plan = makePlan({ status: 'running' }).startCheckpointPhase(T1, runId, [unitA])
+      expect(plan.checkpointPhases).toHaveLength(1)
+      expect(plan.checkpointPhases[0]!.status).toBe('running')
+      expect(plan.checkpointPhases[0]!.unitIds).toEqual([unitA])
+      expect(plan.checkpointPhases[0]!.skillRunId).toBe(runId)
+    })
+
+    it('completeCheckpointPhase completes the last phase', () => {
+      const plan = makePlan({ status: 'running' })
+        .startCheckpointPhase(T1, runId, [unitA])
+        .completeCheckpointPhase(T2)
+      expect(plan.checkpointPhases[0]!.status).toBe('completed')
+      expect(plan.checkpointPhases[0]!.completedAt).toBe(T2)
+    })
+
+    it('failCheckpointPhase fails the last phase with an error', () => {
+      const plan = makePlan({ status: 'running' })
+        .startCheckpointPhase(T1, runId, [unitA])
+        .failCheckpointPhase(T2, 'checkpoint boom')
+      expect(plan.checkpointPhases[0]!.status).toBe('failed')
+      expect(plan.checkpointPhases[0]!.error).toBe('checkpoint boom')
+    })
+
+    it('completing with no phase started is a no-op', () => {
+      const plan = makePlan({ status: 'running' }).completeCheckpointPhase(T2)
+      expect(plan.checkpointPhases).toEqual([])
+    })
+  })
+
   describe('terminal transitions', () => {
-    it('markCompleted / markFailed / markStopped clear the running pointer', () => {
-      const base = makePlan({ status: 'running' }).markUnitRunning(T1, unitA, {
-        unitId: unitA,
-        skillRunId: 'r' as SkillRunId,
-      })
-      expect(base.markCompleted(T2).status).toBe('completed')
-      expect(base.markCompleted(T2).running).toBeUndefined()
-      expect(base.markFailed(T2, 'boom').error).toBe('boom')
-      expect(base.markStopped(T2).status).toBe('stopped')
+    const running = makePlan({ status: 'running' }).markUnitRunning(T1, unitA, {
+      unitId: unitA,
+      skillRunId: 'r' as SkillRunId,
+    })
+
+    it('markCompleted moves to completed and clears the running pointer', () => {
+      const done = running.markCompleted(T2)
+      expect(done.status).toBe('completed')
+      expect(done.running).toBeUndefined()
+    })
+
+    it('markFailed records the error and clears the running pointer', () => {
+      const failed = running.markFailed(T2, 'boom')
+      expect(failed.status).toBe('failed')
+      expect(failed.error).toBe('boom')
+      expect(failed.running).toBeUndefined()
+    })
+
+    it('markStopped moves to stopped and clears the running pointer', () => {
+      const stopped = running.markStopped(T2)
+      expect(stopped.status).toBe('stopped')
+      expect(stopped.running).toBeUndefined()
     })
   })
 
@@ -132,9 +178,9 @@ describe('BatchPlan', () => {
     })
 
     it('rejects archive on non-terminal status', () => {
-      expect(() => makePlan({ status: 'running' }).archive(T2)).toThrow(/Cannot archive/)
-      expect(() => makePlan({ status: 'deriving' }).archive(T2)).toThrow(/Cannot archive/)
-      expect(() => makePlan({ status: 'idle' }).archive(T2)).toThrow(/Cannot archive/)
+      expect(() => makePlan({ status: 'running' }).archive(T2)).toThrow(ConflictError)
+      expect(() => makePlan({ status: 'deriving' }).archive(T2)).toThrow(ConflictError)
+      expect(() => makePlan({ status: 'idle' }).archive(T2)).toThrow(ConflictError)
     })
 
     it('clears the running pointer', () => {
@@ -142,6 +188,38 @@ describe('BatchPlan', () => {
         .markUnitRunning(T1, unitA, { unitId: unitA, skillRunId: 'r' as SkillRunId })
         .markCompleted(T2)
       expect(completed.archive(T2).running).toBeUndefined()
+    })
+  })
+
+  describe('resumeRun', () => {
+    const failedUnit = { ...makeUnit(unitA, 'prd'), status: 'failed' as const, error: 'boom' }
+    const doneUnit = { ...makeUnit(unitB, 'design'), status: 'completed' as const, proposalIds: ['p-1' as ProposalId] }
+
+    it('resets failed units to pending, keeps completed units, and re-enters running', () => {
+      const resumed = makePlan({ status: 'failed', units: [failedUnit, doneUnit] }).resumeRun(T1)
+      expect(resumed.status).toBe('running')
+      expect(resumed.units[0]!.status).toBe('pending')
+      expect(resumed.units[0]!.error).toBeUndefined()
+      expect(resumed.units[1]!.status).toBe('completed')
+      expect(resumed.units[1]!.proposalIds).toEqual(['p-1'])
+    })
+
+    it('clears the running pointer and error', () => {
+      const resumed = makePlan({ status: 'failed', error: 'boom', units: [failedUnit] }).resumeRun(T1)
+      expect(resumed.running).toBeUndefined()
+      expect(resumed.error).toBeUndefined()
+    })
+
+    it('drops failed checkpoint phases but keeps completed ones', () => {
+      const done = { status: 'completed' as const, unitIds: [unitB], startedAt: T0, completedAt: T1, skillRunId: 'r-done' as SkillRunId }
+      const failed = { status: 'failed' as const, unitIds: [unitA], startedAt: T0, skillRunId: 'r-fail' as SkillRunId, error: 'x' }
+      const resumed = makePlan({ status: 'failed', checkpointPhases: [done, failed] }).resumeRun(T1)
+      expect(resumed.checkpointPhases).toHaveLength(1)
+      expect(resumed.checkpointPhases[0]!.status).toBe('completed')
+    })
+
+    it('refuses to resume a non-terminal plan', () => {
+      expect(() => makePlan({ status: 'running' }).resumeRun(T1)).toThrow(ConflictError)
     })
   })
 

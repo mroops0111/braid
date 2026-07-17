@@ -18,8 +18,8 @@ import type {
  * Also catches the contradiction of `status: 'completed'` with zero references,
  * completion is a claim of fact, and needs at least one source citation.
  *
- * Not a plugin: this rule is structural to Braid's HITL trust model.
- * Hosts always run it via `ValidationService`.
+ * Not a plugin, this rule is structural to Braid's HITL trust model.
+ * The host runs it unconditionally, never as an opt-in ontology validator.
  */
 export class EvidenceValidator {
   async validate(snapshot: ModelSnapshot): Promise<readonly ValidationIssue[]> {

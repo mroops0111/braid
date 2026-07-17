@@ -1,7 +1,7 @@
 import type { AbsolutePath, McpServerId } from '@braidhq/schema'
+import { makeSkillManifest, makeSkillManifestData, makeWorkspace } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { SkillManifest } from '../../../src/index.js'
-import { makeSkillManifest, makeSkillManifestData, makeWorkspace } from '../../helpers/fakes.js'
 
 const REDMINE_MCP = {
   id: 'redmine' as McpServerId,

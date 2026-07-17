@@ -1,52 +1,36 @@
 import type {
+  ClarifyCandidateId,
   ClarifyTicketId,
-  CommitMessage,
-  CommitMeta,
-  CommitSha,
-  FileDiff,
   ModelSnapshot,
   NodeId,
   NodeStatus,
   NodeTypeId,
   ProposalId,
   SkillId,
-  TagMeta,
   UserId,
   WorkspaceId,
 } from '@braidhq/schema'
 import type { ModelSerializer } from '../../src/domain/model/ModelSerializer.js'
-import type { ListCommitsOptions, Workspace, WorkspaceHistory } from '../../src/index.js'
-import { FixedClock, makeWorkspace, mintTestId, resetTestIds, T0 } from '@braidhq/test-utils'
+import type { Workspace } from '../../src/index.js'
+import { FixedClock, makeProposal, makeWorkspace, mintTestId, resetTestIds } from '@braidhq/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  ClarifyTicket,
-  HITLService,
-  PluginRegistry,
-  Proposal,
-  ValidationService,
-  WorkspaceService,
-} from '../../src/index.js'
 import {
   InMemoryClarifyTicketRepository,
   InMemoryModelRepository,
   InMemoryProposalRepository,
   InMemoryWorkspaceRepository,
-} from '../../src/testing.js'
+} from '../../src/in-memory.js'
+import {
+  ClarifyTicket,
+  HITLService,
+  ModelValidationService,
+  PluginRegistry,
+  WorkspaceService,
+} from '../../src/index.js'
+import { SpyWorkspaceHistory } from '../helpers/doubles.js'
 
 const userId = 'u-1' as UserId
-
-class SpyHistory implements WorkspaceHistory {
-  readonly commit = vi.fn(async (_workspace: Workspace, _message: CommitMessage): Promise<CommitSha> => '0'.repeat(40) as CommitSha)
-  readonly ensureInitialised = vi.fn(async (): Promise<void> => {})
-  readonly listCommits = vi.fn(async (_ws: Workspace, _opts?: ListCommitsOptions): Promise<readonly CommitMeta[]> => [])
-  readonly getCommit = vi.fn(async (): Promise<CommitMeta | null> => null)
-  readonly getCommitDiff = vi.fn(async (): Promise<readonly FileDiff[]> => [])
-  readonly readGraphAtCommit = vi.fn(async (): Promise<ModelSnapshot> => ({ nodes: [], edges: [] }))
-  readonly restore = vi.fn(async (): Promise<CommitSha> => '0'.repeat(40) as CommitSha)
-  readonly tag = vi.fn(async (): Promise<TagMeta> => ({ name: '', sha: '0'.repeat(40) as CommitSha, createdAt: T0 }))
-  readonly listTags = vi.fn(async (): Promise<readonly TagMeta[]> => [])
-  readonly deleteTag = vi.fn(async (): Promise<void> => {})
-}
+const candidateId = 'cc-1' as ClarifyCandidateId
 
 class SpySerializer implements ModelSerializer {
   readonly write = vi.fn(async (_workspace: Workspace, _snapshot: ModelSnapshot): Promise<void> => {})
@@ -63,43 +47,21 @@ async function setupWithHistory(options: { withHistory?: boolean } = {}) {
   const clarifyRepository = new InMemoryClarifyTicketRepository()
   const modelRepository = new InMemoryModelRepository()
   const clock = new FixedClock()
-  const validationService = new ValidationService({ pluginRegistry: new PluginRegistry() })
+  const modelValidationService = new ModelValidationService({ pluginRegistry: new PluginRegistry() })
 
-  const history = new SpyHistory()
+  const history = new SpyWorkspaceHistory()
   const serializer = new SpySerializer()
   const service = new HITLService({
     proposalRepository,
     clarifyRepository,
     modelRepository,
-    validationService,
+    modelValidationService,
     workspaceService,
     clock,
     ...(options.withHistory === false ? {} : { history, modelSerializer: serializer }),
   })
 
   return { service, history, serializer, workspaceId: workspace.id, workspace, proposalRepository, clarifyRepository, clock }
-}
-
-function makeProposal(workspaceId: WorkspaceId, overrides: { id?: ProposalId } = {}): Proposal {
-  return new Proposal({
-    id: overrides.id ?? (mintTestId('p') as ProposalId),
-    workspaceId,
-    status: 'pending',
-    operations: [{
-      operation: 'addNode',
-      payload: {
-        type: 'command' as NodeTypeId,
-        name: 'voidTask',
-        id: mintTestId('n') as NodeId,
-        status: 'draft' as NodeStatus,
-        metadata: { sourceReferences: [], implementationMissing: true },
-      },
-    }],
-    generatedBy: 'extract' as SkillId,
-    generatedAt: T0,
-    rationale: 'add voidTask',
-    owner: 'system',
-  })
 }
 
 function makeAnsweredTicket(workspaceId: WorkspaceId): ClarifyTicket {
@@ -109,7 +71,7 @@ function makeAnsweredTicket(workspaceId: WorkspaceId): ClarifyTicket {
     question: 'q?',
     candidates: [],
     status: 'answered',
-    selectedCandidateId: 'cc-1' as never,
+    selectedCandidateId: candidateId,
     resolution: [],
     answeredBy: userId,
     owner: 'system',
@@ -123,7 +85,7 @@ function makePendingTicket(workspaceId: WorkspaceId): ClarifyTicket {
     workspaceId,
     question: 'q?',
     candidates: [{
-      id: 'cc-1' as never,
+      id: candidateId,
       description: 'option A',
       sourceReferences: [],
       proposedOperations: [],
@@ -139,7 +101,7 @@ describe('HITLService — workspace history hooks', () => {
     resetTestIds()
   })
 
-  it('submitProposal commits with kind=proposal-submit so the artefact is visible to collaborators', async () => {
+  it('submitProposal commits with kind proposal-submit', async () => {
     const { service, history, workspaceId } = await setupWithHistory()
     const proposal = await service.submitProposal({
       workspaceId,
@@ -175,7 +137,7 @@ describe('HITLService — workspace history hooks', () => {
     expect(message.clarifyTicketId).toBe(ticket.id)
   })
 
-  it('applyProposal serialises the post-mutation graph then commits with kind=apply', async () => {
+  it('applyProposal serialises the post-mutation graph then commits with kind proposal-apply', async () => {
     const { service, history, serializer, workspaceId, proposalRepository } = await setupWithHistory()
     const proposal = makeProposal(workspaceId)
     await proposalRepository.save(proposal)
@@ -213,7 +175,7 @@ describe('HITLService — workspace history hooks', () => {
 
     await service.answerClarifyTicket({
       clarifyTicketId: ticket.id,
-      selection: { kind: 'existing', candidateId: 'cc-1' as never },
+      selection: { kind: 'existing', candidateId },
       userId,
     })
 

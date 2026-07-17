@@ -107,7 +107,7 @@ describe('InMemoryWorkspaceEventBus', () => {
   })
 
   it('supports re-subscribe after fully unsubscribing the workspace', () => {
-    // After every listener unsubscribes, the bus should drop the bucket;
+    // After every listener unsubscribes, the bus drops the bucket,
     // a fresh subscribe must still work.
     const bus = new InMemoryWorkspaceEventBus()
     const first = vi.fn()

@@ -5,7 +5,7 @@ import { Model } from '../domain/model/Model.js'
 import { EvidenceValidator } from '../domain/validation/EvidenceValidator.js'
 import { OrphanEdgeValidator } from '../domain/validation/OrphanEdgeValidator.js'
 
-export interface ValidationServiceDeps {
+export interface ModelValidationServiceDeps {
   pluginRegistry: PluginRegistry
 }
 
@@ -28,11 +28,11 @@ export interface ValidationServiceDeps {
  * it adds them as a domain service that `HITLService` calls around this one,
  * not as a plugin.
  */
-export class ValidationService {
+export class ModelValidationService {
   private readonly evidence = new EvidenceValidator()
   private readonly orphanEdge = new OrphanEdgeValidator()
 
-  constructor(private readonly deps: ValidationServiceDeps) {}
+  constructor(private readonly deps: ModelValidationServiceDeps) {}
 
   async validate(snapshot: ModelSnapshot, workspace: Workspace): Promise<ValidationResult> {
     const issues: ValidationIssue[] = []

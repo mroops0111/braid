@@ -15,7 +15,7 @@ import {
   ValidationError,
   WorkspaceBootstrapService,
 } from '@braidhq/core'
-import { InMemoryWorkspaceEventBus } from '@braidhq/core/testing'
+import { InMemoryWorkspaceEventBus } from '@braidhq/core/in-memory'
 import { dddOntology } from '@braidhq/ontology-ddd'
 import { AgentId, AgentKind, StorageKind as StorageKindSchema } from '@braidhq/schema'
 import { createGoogleDriveLoader } from '@braidhq/source-loader-gdrive'

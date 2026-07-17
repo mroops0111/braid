@@ -7,9 +7,9 @@ import type {
   StorageDescriptor,
   StorageKind,
 } from '@braidhq/schema'
+import { makeWorkspace } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { NotFoundError, type Workspace } from '../../../src/index.js'
-import { makeWorkspace } from '../../helpers/fakes.js'
 
 const MCP_SOURCES: readonly SourceDescriptor[] = [
   {
@@ -75,11 +75,26 @@ describe('Workspace source partitions', () => {
     expect(workspace.resolveAddDirs()).toEqual(['/abs/code/a', '/abs/intent'])
   })
 
-  it('looks up sources by name (findSource / requireSource)', () => {
+  it('findSource returns the named source, or undefined when absent', () => {
     const workspace = buildWorkspace()
     expect(workspace.findSource('api')?.kind).toBe('filesystem')
     expect(workspace.findSource('missing')).toBeUndefined()
-    expect(() => workspace.requireSource('missing')).toThrow(NotFoundError)
+  })
+
+  it('requireSource returns the named source', () => {
+    expect(buildWorkspace().requireSource('api').id).toBe('src-api')
+  })
+
+  it('requireSource throws NotFoundError when the name is absent', () => {
+    expect(() => buildWorkspace().requireSource('missing')).toThrow(NotFoundError)
+  })
+})
+
+describe('Workspace accessors', () => {
+  it('exposes storage and round-trips its underlying data', () => {
+    const workspace = buildWorkspace()
+    expect(workspace.storage.kind).toBe('neo4j')
+    expect(workspace.toData().id).toBe(workspace.id)
   })
 })
 

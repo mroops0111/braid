@@ -33,13 +33,13 @@ import {
   HistoryService,
   HITLService,
   ModelService,
+  ModelValidationService,
   PluginRegistry,
   ReactorService,
   SourceLoaderRunner,
   SourceUnitObservationService,
   SystemClock,
   SystemScheduler,
-  ValidationService,
   WorkspaceLock,
   WorkspaceService,
 } from '@braidhq/core'
@@ -51,8 +51,8 @@ import {
   InMemorySourceUnitObservationRepository,
   InMemoryWorkspaceEventBus,
   InMemoryWorkspaceRepository,
-  noopRunRepository,
-} from '@braidhq/core/testing'
+  NoopRunRepository,
+} from '@braidhq/core/in-memory'
 
 export interface AppDependencies {
   workspaceService: WorkspaceService
@@ -82,7 +82,7 @@ export interface AppDependencies {
    */
   sourceUnitDigest?: SourceUnitDigest
   modelService: ModelService
-  validationService: ValidationService
+  modelValidationService: ModelValidationService
   sourceLoaderRunner: SourceLoaderRunner
   eventBus: WorkspaceEventBus
   pluginRegistry: PluginRegistry
@@ -201,7 +201,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const eventBus = options.eventBus ?? new InMemoryWorkspaceEventBus()
   const workspaceService = new WorkspaceService({ workspaceRepository, pluginRegistry })
   const modelService = new ModelService({ modelRepository })
-  const validationService = new ValidationService({ pluginRegistry })
+  const modelValidationService = new ModelValidationService({ pluginRegistry })
   const sourceLoaderRunner = new SourceLoaderRunner({ pluginRegistry, clock, eventBus })
   // Shared lock domain so HITL mutations and history restore exclude each other.
   const workspaceLock = new WorkspaceLock()
@@ -209,7 +209,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     proposalRepository,
     clarifyRepository,
     modelRepository,
-    validationService,
+    modelValidationService,
     workspaceService,
     clock,
     eventBus,
@@ -225,7 +225,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
       workspaceService,
       workspaceLock,
       bootstrap: options.bootstrap,
-      runRepository: options.runRepository ?? noopRunRepository,
+      runRepository: options.runRepository ?? new NoopRunRepository(),
       ...(options.skillRunner ? { skillRunner: options.skillRunner } : {}),
       ...(options.userDirectory ? { userDirectory: options.userDirectory } : {}),
       eventBus,
@@ -297,7 +297,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     ...(options.bootstrap ? { bootstrap: options.bootstrap } : {}),
     sourceUnitObservationService,
     modelService,
-    validationService,
+    modelValidationService,
     sourceLoaderRunner,
     eventBus,
     pluginRegistry,
@@ -307,7 +307,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     workspaceRepository,
     skillRegistry: options.skillRegistry,
     skillRunner: options.skillRunner,
-    runRepository: options.runRepository ?? noopRunRepository,
+    runRepository: options.runRepository ?? new NoopRunRepository(),
     workspacesRoot: options.workspacesRoot ?? (join(tmpdir(), 'braid-workspaces') as AbsolutePath),
     // `composeApp` is the test and in-memory composition entry. It never wires sessionStore,
     // so the auth middleware in `createApp` is skipped anyway. Explicit `localTrust: true` keeps the contract honest,

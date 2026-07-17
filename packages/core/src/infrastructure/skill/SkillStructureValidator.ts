@@ -18,9 +18,8 @@ const COMMON_REQUIRED_SECTIONS = [
 ] as const
 
 /**
- * Sections that are required only for specific skill categories.
- * Unknown categories, those not in `SkillCategory`,
- * require no category-specific section, and are flagged separately.
+ * Sections required on top of the common set, keyed by skill category.
+ * A skill with no category declared is held to the common contract only.
  */
 const CATEGORY_SPECIFIC_REQUIRED_SECTIONS: Record<SkillCategory, readonly string[]> = {
   ask: [],
@@ -29,7 +28,7 @@ const CATEGORY_SPECIFIC_REQUIRED_SECTIONS: Record<SkillCategory, readonly string
 }
 
 export interface SkillStructureIssue {
-  readonly kind: 'missing-section' | 'unknown-category' | 'invalid-h2' | 'duplicate-input-name'
+  readonly kind: 'missing-section' | 'duplicate-input-name'
   readonly message: string
   /** When kind is `missing-section`, the section heading that was expected. */
   readonly section?: string

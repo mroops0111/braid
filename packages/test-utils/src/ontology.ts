@@ -15,6 +15,7 @@ export interface MakeOntologyOptions {
   readonly edgeTypes?: readonly EdgeTypeDescriptor[]
   readonly validators?: readonly OntologyValidator[]
   readonly batch?: OntologyBatchBinding
+  readonly requiredSourceRoles?: readonly ('code' | 'intent')[]
 }
 
 /**
@@ -37,5 +38,6 @@ export function makeOntology(opts: MakeOntologyOptions = {}): OntologyPlugin {
     edgeTypes: opts.edgeTypes ?? [],
     validators: opts.validators ?? [],
     ...(opts.batch ? { batch: opts.batch } : {}),
+    ...(opts.requiredSourceRoles ? { requiredSourceRoles: [...opts.requiredSourceRoles] } : {}),
   }
 }
