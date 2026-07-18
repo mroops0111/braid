@@ -12,11 +12,11 @@ const RegistryContent = z.object({
 type RegistryContent = z.infer<typeof RegistryContent>
 
 /**
- * Persists the user registry to a JSON file at `${BRAID_HOME}/users.json`. Source of truth across server restarts,
- * in-memory data is a derivation.
+ * Persists the user registry to a JSON file at `${BRAID_HOME}/users.json`.
+ * Source of truth across server restarts, in-memory data is a derivation.
  *
- * Auth and ACL are server-side concerns. They never enter a workspace's git history. Keep this file under `~/.braid/`,
- * not inside any workspace dir.
+ * Auth and ACL are server-side concerns, never part of a workspace's git history.
+ * Keep this file under `~/.braid/`, not inside any workspace dir.
  */
 export class UserRegistryFile {
   constructor(private readonly filePath: string) {}

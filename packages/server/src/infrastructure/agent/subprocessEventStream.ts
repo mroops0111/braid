@@ -7,9 +7,8 @@ interface RawEvent { readonly type: string, readonly [key: string]: unknown }
 interface RawContentPart { readonly type?: string, readonly [key: string]: unknown }
 
 /**
- * Wires a child's stdout / stderr to a single SkillEvent callback.
- * Returns `flush` so callers can drain the final un-terminated line on
- * `close`.
+ * Wires a child's stdout and stderr to a single SkillEvent callback.
+ * Returns `flush` so callers can drain the final un-terminated line on `close`.
  */
 export function attachOutputBuffers(
   child: ChildProcess,
@@ -23,8 +22,8 @@ export function attachOutputBuffers(
     for (const event of mapSubprocessEvents(parsed, now()))
       onEvent(event)
   })
-  // stderr is wrapped verbatim into a `[stderr]` message event so it
-  // shows up in the transcript alongside model output.
+  // stderr is wrapped verbatim into a `[stderr]` message event,
+  // so it shows up in the transcript alongside model output.
   const stderr = new LineBuffer((line) => {
     onEvent(SkillEventSchema.parse({ type: 'message', text: `[stderr] ${line}` }))
   })
@@ -43,13 +42,14 @@ export function attachOutputBuffers(
 }
 
 /**
- * Maps a single `claude --output-format stream-json` line into zero or more
- * `SkillEvent`s. Claude emits these envelope shapes today: `system` (init
- * meta, ignored except for `session_id`), `assistant` (text / tool_use
- * content parts), `user` (echoed tool_result, only `is_error` surfaced),
- * `rate_limit_*` (ignored), `result` (final outcome). Legacy flat shapes
- * (`text`, `tool_use`, `artifact-written`, `error`) are kept for tests and
- * older tools.
+ * Maps a single `claude --output-format stream-json` line into zero or more `SkillEvent`s.
+ * Claude emits these envelope shapes today.
+ * `system` carries init meta, ignored except for `session_id`.
+ * `assistant` carries text and tool_use content parts.
+ * `user` echoes tool_result, only `is_error` surfaced.
+ * `rate_limit_*` is ignored, and `result` is the final outcome.
+ * Legacy flat shapes (`text`, `tool_use`, `artifact-written`, `error`)
+ * are kept for tests and older tools.
  */
 export function mapSubprocessEvents(raw: RawEvent, now: string): SkillEvent[] {
   const out: SkillEvent[] = []

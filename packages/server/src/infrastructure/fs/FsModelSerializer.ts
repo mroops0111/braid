@@ -23,8 +23,8 @@ export class FsModelSerializer implements ModelSerializer {
       nodes: [...snapshot.nodes].sort(byId),
       edges: [...snapshot.edges].sort(byId),
     }
-    // Atomic write so a crashed server can't leave a half-file that
-    // mis-hydrates Kùzu on restart.
+    // Atomic write. A crashed server must not leave a half-file behind,
+    // one that would mis-hydrate Kùzu on the next restart.
     const tmp = `${path}.tmp-${process.pid}-${Date.now()}`
     await writeFile(tmp, `${JSON.stringify(payload, null, 2)}\n`, 'utf-8')
     await rename(tmp, path)

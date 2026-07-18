@@ -23,8 +23,9 @@ import { attachOutputBuffers } from './subprocessEventStream.js'
 export type SpawnFn = (command: string, args: readonly string[], options: SpawnOptions) => ChildProcess
 
 /**
- * Additional directories to expose under the session's `.claude/skills/` tree. Typically non-skill reference content,
- * e.g. `shared/` that builtin SKILL.md files reference.
+ * Additional directories to expose under the session's `.claude/skills/` tree.
+ * Typically non-skill reference content,
+ * e.g. a `shared/` dir that builtin SKILL.md files reference.
  */
 export interface SkillReferenceDir {
   readonly name: string
@@ -33,40 +34,42 @@ export interface SkillReferenceDir {
 
 export interface SubprocessSkillRunnerDeps {
   readonly skillRegistry: SkillRegistry
-  // Builds an agent binding from a resolved descriptor. Composition resolves the plugin by kind. Called per run,
-  // so each skill can pick its own agent.
+  // Builds an agent binding from a resolved descriptor.
+  // Composition resolves the plugin by kind.
+  // Called per run, so each skill can pick its own agent.
   readonly buildAgentBinding: (descriptor: AgentBindingDescriptor) => AgentBinding
   // Fallback agent config for skills that declare no override.
   readonly defaultAgent: AgentBindingDescriptor
   readonly apiUrl: string
-  /** Required. The persisted event log is the replay source of truth. */
+  // Required. The persisted event log is the replay source of truth.
   readonly runRepository: RunRepository
   readonly spawn?: SpawnFn
   readonly clock?: () => string
-  /** Extra directories symlinked alongside skills (e.g. shared reference docs). */
+  // Extra directories symlinked alongside skills (e.g. shared reference docs).
   readonly referenceDirs?: readonly SkillReferenceDir[]
-  /** Delete the per-run session directory after the run. Default `true`. */
+  // Delete the per-run session directory after the run. Default `true`.
   readonly cleanupSession?: boolean
-  /**
-   * Enables the built-in `braid-core` MCP gateway. When set, every spawned skill gets a stdio MCP server entry,
-   * running `<uvxBin> openapi-mcp-gateway --spec <specUrl> --transport stdio`.
-   * claude spawns the gateway as a per-session child. The gateway fetches the OpenAPI spec from `specUrl`,
-   * and exposes the REST surface as MCP tools (`braid_search_nodes`, etc.).
-   *
-   * `specUrl` is typically `${apiUrl}/openapi.json`. `uvxBin` defaults to `'uvx'`, resolved against PATH.
-   * composeFs preflight-checks for its presence at boot.
-   *
-   * Leave undefined to skip the entry entirely. A skill needing `braid-core` then surfaces as not-ready,
-   * via SkillManifest.readinessIssuesFor.
-   */
+  // Enables the built-in `braid-core` MCP gateway.
+  // When set, every spawned skill gets a stdio MCP server entry,
+  // running `<uvxBin> openapi-mcp-gateway --spec <specUrl> --transport stdio`.
+  // claude spawns the gateway as a per-session child.
+  // The gateway fetches the OpenAPI spec from `specUrl`,
+  // and exposes the REST surface as MCP tools such as `braid_search_nodes`.
+  //
+  // `specUrl` is typically `${apiUrl}/openapi.json`.
+  // `uvxBin` defaults to `'uvx'`, resolved against PATH.
+  // composeFs preflight-checks for its presence at boot.
+  //
+  // Leave undefined to skip the entry entirely.
+  // A skill needing `braid-core` then surfaces as not-ready,
+  // via SkillManifest.readinessIssuesFor.
   readonly coreGateway?: {
     readonly specUrl: string
     readonly uvxBin?: string
   }
-  /**
-   * Optional pub/sub for workspace-scoped notifications. Studio uses it to invalidate run and proposal lists live,
-   * without polling. Tests can leave this undefined.
-   */
+  // Optional pub/sub for workspace-scoped notifications.
+  // Studio uses it to invalidate run and proposal lists live, without polling.
+  // Tests can leave this undefined.
   readonly eventBus?: WorkspaceEventBus
 }
 
@@ -77,10 +80,10 @@ interface ActiveRun {
 
 export class SubprocessSkillRunner implements SkillRunner {
   private readonly running = new Map<SkillRunId, ActiveRun>()
-  /** Maps sessionId to cwd for resuming. claude needs the same cwd per turn. */
+  // Maps sessionId to cwd for resuming. claude needs the same cwd per turn.
   private readonly sessionDirs = new Map<string, string>()
   private readonly subscribers = new Map<SkillRunId, Set<SkillEventListener>>()
-  /** How many events have been emitted (and persisted) per run so far. */
+  // How many events have been emitted (and persisted) per run so far.
   private readonly positions = new Map<SkillRunId, number>()
 
   constructor(private readonly deps: SubprocessSkillRunnerDeps) {}
@@ -102,7 +105,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       'stdio',
       '--name',
       'braid-core',
-      // Forward the caller's Bearer token, so the gateway authenticates its outgoing API calls.
+      // Forward the caller's Bearer token so the gateway authenticates its outgoing API calls.
       // The gateway resolves `${BRAID_TOKEN}` against its process env at startup.
       // Without this the server's auth middleware rejects every callback with 401.
       // eslint-disable-next-line no-template-curly-in-string
@@ -129,14 +132,16 @@ export class SubprocessSkillRunner implements SkillRunner {
     })
 
     const spawnFn = this.deps.spawn ?? (await defaultSpawn())
-    // BRAID_SESSION_DIR resolves ambiguity in SKILL.md paths. claude sees both `BRAID_WORKSPACE` and a cwd inside it,
+    // BRAID_SESSION_DIR resolves ambiguity in SKILL.md paths.
+    // claude sees both `BRAID_WORKSPACE` and a cwd inside it,
     // and would otherwise guess which one `.claude/skills/...` is rooted in.
     const child = spawnFn(invocation.bin, [...invocation.args], {
       cwd: sessionDir,
       env: {
         ...invocation.env,
         BRAID_SESSION_DIR: sessionDir,
-        // BRAID_TOKEN is read by the braid-core MCP gateway, and by any shell-level callback (curl in a SKILL.md),
+        // BRAID_TOKEN is read by the braid-core MCP gateway,
+        // and by any shell-level callback (curl in a SKILL.md),
         // so the subprocess can authenticate against the running server.
         ...(options?.callerToken ? { BRAID_TOKEN: options.callerToken } : {}),
         ...(options?.extraEnv ?? {}),
@@ -145,7 +150,8 @@ export class SubprocessSkillRunner implements SkillRunner {
     })
     this.running.set(runId, { workspace, child })
 
-    // Persist the started record up front, so listing endpoints see the run immediately, before any output.
+    // Persist the started record up front,
+    // so listing endpoints see the run immediately, before any output.
     const startedAt = this.now()
     const initialRecord: RunRecord = {
       runId,
@@ -165,7 +171,8 @@ export class SubprocessSkillRunner implements SkillRunner {
       at: startedAt,
     })
 
-    // Fire-and-forget the drain, so the HTTP request that called start() can return immediately.
+    // Fire-and-forget the drain,
+    // so the HTTP request that called start() can return immediately.
     void this.drain({
       workspace,
       runId,
@@ -250,9 +257,11 @@ export class SubprocessSkillRunner implements SkillRunner {
         queue.push(SkillEventSchema.parse({
           type: 'completed',
           runId: input.runId,
-          // A signal-killed run must be reported as non-zero. Examples are cancel via SIGTERM, or OS-level SIGKILL.
-          // Downstream consumers then distinguish it from a clean exit. Without this,
-          // `code ?? 0` collapses every signal kill to 0, and cancellation looks identical to a clean run.
+          // A signal-killed run must be reported as non-zero,
+          // e.g. cancel via SIGTERM, or OS-level SIGKILL.
+          // Downstream consumers then distinguish it from a clean exit.
+          // Without this, `code ?? 0` collapses every signal kill to 0,
+          // and cancellation looks identical to a clean run.
           exitCode: code ?? (signal ? 128 : 0),
           at: this.now(),
         }))
@@ -287,16 +296,17 @@ export class SubprocessSkillRunner implements SkillRunner {
         at: this.now(),
       })
       this.subscribers.delete(input.runId)
-      // Keep the session dir on disk if a session id was captured. claude stores conversation state per-cwd,
-      // so the dir must survive between turns. GC happens via forgetSession(sessionId).
+      // Keep the session dir on disk if a session id was captured.
+      // claude stores conversation state per-cwd, so the dir must survive between turns.
+      // GC happens via forgetSession(sessionId).
       const keepForResume = capturedSessionId !== null
       if (this.deps.cleanupSession !== false && !keepForResume)
         await rm(input.sessionDir, { recursive: true, force: true }).catch(() => {})
     }
   }
 
-  // Persist first, then broadcast. This guarantees a just-subscribed listener receives every event,
-  // strictly past its positionAtSubscribe.
+  // Persist first, then broadcast.
+  // This guarantees a just-subscribed listener receives every event strictly past its positionAtSubscribe.
   private async emit(workspace: Workspace, runId: SkillRunId, event: SkillEvent): Promise<void> {
     await this.deps.runRepository.appendEvent(workspace, runId, event)
     const next = (this.positions.get(runId) ?? 0) + 1

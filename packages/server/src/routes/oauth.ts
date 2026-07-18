@@ -26,14 +26,13 @@ interface PendingFlow {
 
 /**
  * OAuth routes for source-loader providers that need user consent.
+ * `POST /oauth/google/start` returns an authorizationUrl.
+ * `GET /oauth/google/callback` returns an HTML page that closes the popup.
  *
- *   POST /oauth/google/start    → { authorizationUrl }
- *   GET  /oauth/google/callback?code=…&state=… → HTML page that closes the popup
- *
- * Pending state is kept in process memory. The flow is short-lived
- * (single browser round-trip); a server restart cancels in-flight flows,
- * which is acceptable for a local desktop / single-user install. SaaS
- * deployments should swap the in-memory `pending` map for a shared store.
+ * Pending state is kept in process memory. The flow is short-lived,
+ * a single browser round-trip, and a server restart cancels it,
+ * acceptable for a local desktop or single-user install.
+ * SaaS deployments should swap `pending` for a shared store.
  */
 export function createOAuthRouter(deps: OAuthRouterDeps): Hono {
   const router = new Hono()

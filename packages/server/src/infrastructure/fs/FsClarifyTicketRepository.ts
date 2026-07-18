@@ -37,8 +37,8 @@ export class FsClarifyTicketRepository implements ClarifyTicketRepository {
       ...(filter?.workspaceId !== undefined ? { workspaceId: filter.workspaceId } : {}),
       ...(filter?.statuses !== undefined ? { statuses: filter.statuses } : {}),
     })
-    // Pending tickets are personal, only the owner sees them. Answered, applied,
-    // and skipped tickets stay workspace-shared.
+    // Pending tickets are personal, only the owner sees them.
+    // Answered, applied, and skipped tickets stay workspace-shared.
     if (filter?.viewerId !== undefined) {
       const viewerId = filter.viewerId
       tickets = tickets.filter(ticket =>

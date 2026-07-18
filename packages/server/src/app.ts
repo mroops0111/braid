@@ -1,4 +1,4 @@
-import type { AppDependencies } from './composition.js'
+import type { AppDependencies } from './composeApp.js'
 import { OpenAPIHono } from '@hono/zod-openapi'
 import { authMiddleware } from './middleware/auth.js'
 import { corsMiddleware } from './middleware/cors.js'
@@ -33,18 +33,14 @@ import { createWorkspacesRouter } from './routes/workspaces.js'
 export interface AppOptions {
   readonly corsOrigins?: readonly string[]
   /**
-   * Base URL the OpenAPI spec advertises in its `servers[]` block. Downstream consumers (openapi-mcp-gateway,
-   * Swagger UI, code generators) use it to dispatch REST calls. When unset,
-   * the spec omits `servers[]` and leaves the consumer to guess.
-   * composeFsApp threads its `apiUrl` here so the gateway can route calls back without an explicit `--base-url` flag.
+   * Base URL the OpenAPI spec advertises in its `servers[]` block.
+   * Downstream consumers use it to dispatch REST calls,
+   * openapi-mcp-gateway, Swagger UI, and code generators among them.
+   * When unset, the spec omits `servers[]` and leaves the consumer to guess.
+   * `composeFsApp` threads its `apiUrl` here,
+   * so the gateway routes calls back without an explicit base-url flag.
    */
   readonly apiUrl?: string
-  /**
-   * When true (or `BRAID_LOCAL_TRUST=true`) the auth middleware lets every request through,
-   * and `userIdMiddleware` falls back to `local-user`.
-   * Set by `composeFs` for the Tauri sidecar. Production remote servers leave it false.
-   */
-  readonly localTrust?: boolean
 }
 
 export function createApp(deps: AppDependencies, options: AppOptions = {}): OpenAPIHono {
@@ -55,20 +51,20 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       ? corsMiddleware({ allowedOrigins: options.corsOrigins })
       : corsMiddleware(),
   )
-  // Auth gate. Local-trust mode short-circuits, letting the unauthenticated request through.
-  // Otherwise a Bearer token is required, from a Google OAuth-issued session. Public routes (`/auth/*`,
-  // `/health`) are excluded so the login flow itself isn't gated.
+  // Auth gate. Single-tenant short-circuits, letting the request through.
+  // Otherwise a Bearer token from a Google OAuth session is required.
+  // Public routes, `/auth/*` and `/health`, are excluded,
+  // so the login flow itself is not gated.
   if (deps.sessionStore) {
-    const localTrust = options.localTrust ?? deps.localTrust
     app.use('*', authMiddleware({
       sessionStore: deps.sessionStore,
-      localTrust,
+      defaultPrincipal: deps.tenancy.defaultPrincipal,
     }))
   }
-  // Identity. Stamps `c.set('userId', ...)` from `X-Braid-User` when the auth layer left it empty,
-  // i.e. local-trust mode or any public route.
-  // Bearer requests already have a userId by the time this runs and pass untouched.
-  app.use('*', userIdMiddleware)
+  // Identity. Stamps `userId` on the context from `X-Braid-User`,
+  // when the auth layer left it empty, i.e. single-tenant or a public route.
+  // Bearer requests already carry a userId here, and pass untouched.
+  app.use('*', userIdMiddleware(deps.tenancy.defaultPrincipal))
   app.onError(errorHandler)
 
   app.route('/health', healthRouter)
@@ -80,7 +76,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       userRegistry: deps.userRegistry,
       ...(deps.googleOAuth ? { googleOAuth: deps.googleOAuth } : {}),
       studioUrl: deps.studioUrl ?? 'http://localhost:5173',
-      localTrust: options.localTrust ?? deps.localTrust,
+      defaultPrincipal: deps.tenancy.defaultPrincipal,
     }))
   }
   if (deps.userRegistry) {
@@ -108,13 +104,16 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     ...(deps.historyService ? { historyService: deps.historyService } : {}),
   }))
   app.route('/workspaces', createWorkspaceEventsRouter({ eventBus: deps.eventBus }))
-  // Server-level plugin discovery. Lets Studio render its loader dropdown from the active PluginRegistry,
-  // rather than hardcoded strings. The installed loaders are identical across workspaces, so this is not scoped to one.
+  // Server-level plugin discovery for Studio's loader dropdown,
+  // sourced from the active PluginRegistry, not hardcoded strings.
+  // Installed loaders are identical across workspaces, not scoped to one.
   app.route('/source-loaders', createSourceLoadersRouter({ pluginRegistry: deps.pluginRegistry }))
 
-  // Public webhook receivers. Authenticated via per-source HMAC secrets,
-  // inside the handler rather than via Bearer token, so the auth middleware exempts the `/webhooks/` prefix.
-  // Mounted only when a SecretStore is wired, without it we have nowhere to read secrets from.
+  // Public webhook receivers, authenticated by per-source HMAC secrets,
+  // inside the handler, not by a Bearer token.
+  // The auth middleware exempts the `/webhooks/` prefix.
+  // Mounted only when a SecretStore is wired,
+  // without one there is nowhere to read the secrets.
   if (deps.secretStore) {
     app.route('/webhooks', createGithubWebhookReceiver({
       workspaceService: deps.workspaceService,
@@ -126,8 +125,10 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
 
   const workspaceScoped = new OpenAPIHono()
   workspaceScoped.use('*', workspaceIdMiddleware)
-  // Workspace membership gate. Mounted only when both the workspace registry, and the user registry are present,
-  // i.e. composeFsApp. In-memory tests that compose without these stay open, so existing routes keep behaving.
+  // Workspace membership gate, present only in composeFsApp,
+  // which wires both the workspace registry and the user registry.
+  // In-memory tests compose without these and stay open,
+  // so existing routes keep behaving.
   if (deps.workspaceRegistry && deps.userRegistry) {
     workspaceScoped.use('*', workspaceAccessMiddleware({
       registry: deps.workspaceRegistry,

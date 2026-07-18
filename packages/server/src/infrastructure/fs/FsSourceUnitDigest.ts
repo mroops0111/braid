@@ -5,17 +5,17 @@ import { readdir, readFile, stat } from 'node:fs/promises'
 import { isAbsolute, join, relative } from 'node:path'
 
 /**
- * Filesystem-backed `SourceUnitDigest`. Resolves the unit's relative
- * path under its filesystem source root, then either:
+ * Filesystem-backed `SourceUnitDigest`. Resolves the unit's relative path,
+ * under its filesystem source root, then hashes.
  *
- * - regular file: sha256 of file bytes
- * - directory: recursive walk; hash each file by content; build a
- *   deterministic `<relpath>:<filehash>\n` manifest sorted by relpath;
- *   sha256 the manifest. Dot-prefixed entries are skipped (mirrors the
- *   intent scanner's convention).
+ * - regular file: the sha256 of the file bytes.
+ * - directory: a recursive walk hashes each file by content,
+ *   assembles a deterministic `<relpath>:<filehash>\n` manifest,
+ *   sorted by relpath, then returns the sha256 of that manifest.
+ *   Dot-prefixed entries are skipped, per the intent scanner's convention.
  *
- * Trailing-slash convention from the intent scanner (file = `foo.md`,
- * folder = `foo/`) is accepted.
+ * The intent scanner's trailing-slash convention is accepted,
+ * so a file reads as `foo.md` and a folder as `foo/`.
  */
 export class FsSourceUnitDigest implements SourceUnitDigest {
   async computeSha(workspace: Workspace, sourceId: SourceId, path: string): Promise<SourceUnitSha> {

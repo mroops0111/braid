@@ -6,15 +6,15 @@ import { fileURLToPath } from 'node:url'
 import { createLogger } from '@braidhq/core'
 import { serve } from '@hono/node-server'
 import { createApp } from './app.js'
-import { composeFsApp } from './composeFs.js'
-import { reapOrphanRuns } from './infrastructure/orphanReaper.js'
+import { composeFsApp } from './composeFsApp.js'
+import { startupAfterServe } from './startup.js'
 
-// Load .env from the monorepo root (where pnpm-workspace.yaml lives) before
-// anything reads process.env. Silent if the file is missing; production
-// boots from real env, not dotfiles.
+// Load .env from the monorepo root, where pnpm-workspace.yaml lives,
+// before anything reads process.env.
+// A missing file is silent, production boots from real env, not dotfiles.
 {
   const here = dirname(fileURLToPath(import.meta.url))
-  // src/server.ts → packages/server/src → ../../../.env at repo root.
+  // src/server.ts sits in packages/server/src, so the root is ../../../.env.
   const candidates = [resolve(here, '../../../.env'), resolve(process.cwd(), '.env')]
   for (const path of candidates) {
     if (existsSync(path)) {
@@ -64,19 +64,8 @@ async function main(): Promise<void> {
   process.on('SIGINT', () => void shutdown('SIGINT'))
   process.on('SIGTERM', () => void shutdown('SIGTERM'))
 
-  // Any run without a `completedAt` is from a previous server process that was
-  // killed mid-run. Tag those as aborted so they don't appear "active forever"
-  // in the Runs UI. Run after `serve()` so it doesn't delay accepting requests.
-  reapOrphanRuns({
-    workspaceRepository: deps.workspaceRepository,
-    runRepository: deps.runRepository,
-    clock: deps.clock,
-  }).then(({ reaped }) => {
-    if (reaped > 0)
-      log.info({ reaped }, `marked ${reaped} orphan run(s) as aborted`)
-  }).catch((error) => {
-    log.error({ err: error }, 'orphan reaper failed')
-  })
+  // Background recovery, after serve() so it never delays accepting requests.
+  void startupAfterServe(deps)
 }
 
 main().catch((error) => {

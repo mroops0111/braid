@@ -4,7 +4,7 @@ import { PluginRegistry } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { createApp } from '../../src/app.js'
-import { composeApp } from '../../src/composition.js'
+import { composeApp } from '../../src/composeApp.js'
 
 function makeSourceLoader(kind: string, pluginId?: string): SourceLoaderPlugin {
   return {

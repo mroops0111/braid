@@ -47,8 +47,10 @@ export function sourceUnitObservationFilePath(
   sourceId: string,
   relativePath: string,
 ): string {
-  // Drop the trailing slash from folder units, so the file name doesn't end in `/.json`.
-  // Replace path separators in the unit name with `__`, so a multi-level folder unit still maps to one file.
+  // Drop the trailing slash from folder units,
+  // so the file name doesn't end in `/.json`.
+  // In the unit name,
+  // replace path separators with `__`, so a nested unit maps to one file.
   const trimmed = relativePath.endsWith('/') ? relativePath.slice(0, -1) : relativePath
   const flattened = trimmed.replace(/\//g, '__')
   return join(sourceUnitObservationDir(workspaceRoot), sourceId, `${flattened}.json`)
@@ -101,8 +103,10 @@ export function runSessionsMetadataPath(workspaceRoot: AbsolutePath): string {
   return join(runsDir(workspaceRoot), 'sessions.jsonl')
 }
 
-// claude stores conversation memory keyed by cwd, so resume must spawn from the same dir as the first turn.
-// Putting it inside the workspace, not /tmp, keeps the path derivable from runId and survives a server restart.
+// claude stores conversation memory keyed by cwd,
+// so resume must spawn from the same dir as the first turn.
+// Keeping it in the workspace, not /tmp, stays derivable from runId,
+// and survives a server restart.
 export function sessionsDir(workspaceRoot: AbsolutePath): string {
   return join(workspaceRoot, '.braid-sessions')
 }

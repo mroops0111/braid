@@ -14,10 +14,13 @@ const ListQuery = z.object({
   showAll: z.coerce.boolean().optional().openapi({ description: 'Owner-only: bypass the personal-pending filter so every member\'s drafts are visible.' }),
 })
 
-// Body `userId` is a back-compat shim for API consumers,
-// that haven't migrated to the `X-Braid-User` header or Bearer-token flow.
-// When present it overrides the middleware-derived id. When omitted the handler falls back to `getUserId(c)`.
-// Studio sends it via header only. The path will be removed once the deprecation window closes.
+// Body `userId` is a back-compat shim.
+// It serves API consumers still on neither the `X-Braid-User` header,
+// nor the Bearer-token flow.
+// When present it overrides the middleware-derived id.
+// When omitted the handler falls back to `getUserId(c)`.
+// Studio sends it via header only.
+// The path will be removed once the deprecation window closes.
 const ApplyBody = z.object({
   userId: UserId.optional(),
 }).openapi('ProposalApplyBody')
@@ -28,7 +31,7 @@ const RejectBody = z.object({
 }).openapi('ProposalRejectBody')
 
 // Skill-facing create. Body must carry `workspaceId` matching the route param.
-// We let zod parse the rest of the ProposalCreate fields,
+// Zod parses the rest of the ProposalCreate fields,
 // and HITLService.submitProposal validates ops against the live graph.
 const CreateBody = ProposalCreate.omit({ workspaceId: true }).openapi('ProposalCreateBody')
 
@@ -158,8 +161,9 @@ const rejectProposalRoute = createRoute({
 
 export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
-  // Apply / reject are HITL decisions, Owner + Maintainer only. Guests never see the buttons, the UI hides the tab.
-  // Defence-in-depth here means a direct curl from a Guest token still 403s.
+  // Apply and reject are HITL decisions, Owner and Maintainer only.
+  // Guests never see the buttons, the UI hides the tab.
+  // Defence-in-depth here means a direct curl from a Guest still 403s.
   router.use('/:proposalId/apply', requirePermission('proposal.write'))
   router.use('/:proposalId/reject', requirePermission('proposal.write'))
 
@@ -175,8 +179,9 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     const workspaceId = getWorkspaceId(context)
     const { status, limit, offset, showAll } = context.req.valid('query')
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
-    // Show All bypass is gated to the workspace owner. Everyone else is forced through the personal-pending filter,
-    // regardless of what they send.
+    // Show All bypass is gated to the workspace owner.
+    // Everyone else is forced through the personal-pending filter,
+    // whatever they send.
     const viewer = getViewerContext(context)
     const viewerId = (showAll && viewer?.effectiveRole === 'owner') ? undefined : getUserId(context)
     const proposals = await deps.proposalRepository.list({

@@ -5,15 +5,18 @@ import { join } from 'node:path'
 import { createLogger } from '@braidhq/core'
 
 /**
- * Walk `<workspacesRoot>/*` and register every subdirectory that owns a
- * `PRODUCT.md` with the WorkspaceService. Idempotent: already-registered
- * workspaces are a no-op against the FS registry. Run on server boot so
- * CLI-created / hand-copied workspaces surface in Studio without an
- * explicit `register` step.
+ * Walk `<workspacesRoot>/*` and register with the WorkspaceService,
+ * every subdirectory that owns a `PRODUCT.md`.
+ * It is idempotent,
+ * an already-registered workspace is a no-op against the FS registry.
+ * We run it on server boot,
+ * so CLI-created or hand-copied workspaces surface in Studio,
+ * without any explicit `register` step.
  *
- * Errors per-entry (corrupt PRODUCT.md, permissions) are logged and
- * skipped; the server must still come up so the user can fix the
- * outlier and re-boot.
+ * A per-entry error, a corrupt PRODUCT.md or bad permissions,
+ * is logged and skipped.
+ * The server must still come up,
+ * so the user can fix the outlier and re-boot.
  */
 export async function discoverCanonicalWorkspaces(
   workspacesRoot: AbsolutePath,
@@ -25,9 +28,10 @@ export async function discoverCanonicalWorkspaces(
     entries = await readdir(workspacesRoot)
   }
   catch (err) {
-    // ENOENT on first boot is expected; the dir is created lazily by
-    // the first scaffold. Other errors (permissions, etc.) we log and
-    // continue. Server must still come up.
+    // ENOENT on first boot is expected,
+    // the dir is created lazily by the first scaffold.
+    // Any other error, such as bad permissions, we log and continue.
+    // The server still boots.
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT')
       log.warn({ err, workspacesRoot }, 'failed to read workspaces root')
     return

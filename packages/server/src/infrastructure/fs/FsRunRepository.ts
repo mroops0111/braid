@@ -14,9 +14,10 @@ import { runEventsPath, runIndexPath, runsDir, runSessionsMetadataPath } from '.
  *     ├── index.jsonl                (append-only summary, last-wins per runId)
  *     └── <runId>.jsonl              (full SkillEvent stream for one run)
  *
- * Index is append-only because every concurrent write of a single workspace
- * goes through one server process today; if that changes we'd swap to
- * `mv tmp final` atomic rewrites or hand it to sqlite.
+ * The index is append-only because every write of one workspace goes,
+ * today, through a single server process.
+ * Should that ever change,
+ * we would swap to atomic `mv tmp final` rewrites, or hand it to sqlite.
  */
 export class FsRunRepository implements RunRepository {
   async saveRecord(workspace: Workspace, record: RunRecord): Promise<void> {
@@ -92,9 +93,10 @@ export class FsRunRepository implements RunRepository {
       throw error
     }
     // Rewrite the index excluding every line that names a target run.
-    // Last-wins reader semantics mean we must drop ALL occurrences, not
-    // just the latest one, otherwise an earlier entry would resurrect
-    // the run in `listRecords()`.
+    // Last-wins reader semantics mean we must drop ALL occurrences,
+    // not just the latest one.
+    // An earlier entry left behind would,
+    // otherwise resurrect the run when `listRecords()` next runs.
     const kept: string[] = []
     for (const line of raw.split('\n')) {
       if (line.length === 0)
@@ -107,8 +109,8 @@ export class FsRunRepository implements RunRepository {
     const tmp = `${indexPath}.tmp-${process.pid}-${Date.now()}`
     await writeFile(tmp, kept.length === 0 ? '' : `${kept.join('\n')}\n`, 'utf-8')
     await rename(tmp, indexPath)
-    // Per-runId event files: best-effort removal. A missing file is
-    // fine (the run errored before any event was appended).
+    // Per-runId event files get best-effort removal.
+    // A missing file is fine, the run errored before any event landed.
     await Promise.all(runIds.map(id => rm(runEventsPath(root, id), { force: true })))
   }
 

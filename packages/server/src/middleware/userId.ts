@@ -8,29 +8,30 @@ declare module 'hono' {
   }
 }
 
-/**
- * Header name carrying the caller's userId in Phase A (pre-auth).
- * Phase B (Google OAuth) will replace this with `Authorization: Bearer`
- * token resolution and `c.set('userId', ...)` upstream of this middleware;
- * the rest of the codebase only ever calls `getUserId(c)`, so the
- * substitution stays local to the auth layer.
- */
+// Header carrying the caller's userId before OAuth lands.
+// Once Bearer token resolution sets userId upstream of this middleware,
+// only the auth layer changes, since the rest of the codebase calls getUserId.
 const HEADER = 'X-Braid-User'
 
-const DEFAULT_USER_ID = UserId.parse('local-user')
-
 /**
- * Resolve the caller's userId from `X-Braid-User` (Phase A) and stash
- * it on the request context. Falls back to `local-user` when the
- * header is absent, preserving local-only behaviour for the embedded
- * sidecar that doesn't bother sending one.
+ * Resolve the caller's userId from `X-Braid-User`,
+ * and stash it on the request context.
+ * Falls back to `defaultPrincipal` when the header is absent,
+ * the single-tenant install's implicit user.
+ * A multi-tenant deployment passes null,
+ * then an unauthenticated request leaves `userId` unset for the route to reject.
  */
-export const userIdMiddleware: MiddlewareHandler = async (context, next) => {
-  if (context.get('userId') === undefined) {
-    const header = context.req.header(HEADER)
-    context.set('userId', header && header.length > 0 ? UserId.parse(header) : DEFAULT_USER_ID)
+export function userIdMiddleware(defaultPrincipal: UserIdType | null): MiddlewareHandler {
+  return async (context, next) => {
+    if (context.get('userId') === undefined) {
+      const header = context.req.header(HEADER)
+      const fromHeader = header && header.length > 0 ? UserId.parse(header) : null
+      const resolved = fromHeader ?? defaultPrincipal
+      if (resolved)
+        context.set('userId', resolved)
+    }
+    await next()
   }
-  await next()
 }
 
 export function getUserId(context: Context): UserIdType {

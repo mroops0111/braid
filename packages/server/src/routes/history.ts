@@ -8,8 +8,9 @@ import { getUserId } from '../middleware/userId.js'
 import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 
-// `userId` accepted for backwards compat; the authoritative value
-// comes from the request context (set by `userIdMiddleware`).
+// `userId` accepted for backwards compat,
+// the authoritative value comes from the request context,
+// set by `userIdMiddleware`.
 const RestoreBody = z.object({
   userId: UserId.optional(),
 })
@@ -36,8 +37,9 @@ export interface HistoryRouterDeps {
 
 export function createHistoryRouter(deps: HistoryRouterDeps): Hono {
   const router = new Hono()
-  // Restore is destructive — Owner only. Tag CRUD is workspace
-  // metadata management; Owner only as well to keep ACL coherent.
+  // Restore is destructive, Owner only.
+  // Tag CRUD is workspace metadata management,
+  // Owner only as well to keep ACL coherent.
   router.use('/:sha/restore', requirePermission('history.write'))
   router.use('/tags', requirePermission('history.write'))
   router.use('/tags/*', requirePermission('history.write'))
@@ -77,7 +79,7 @@ export function createHistoryRouter(deps: HistoryRouterDeps): Hono {
     const workspaceId = getWorkspaceId(context)
     const name = context.req.param('name')
     if (!name)
-      throw new NotFoundError('tag name is required')
+      throw new NotFoundError('Tag name is required')
     await deps.historyService.deleteTag(workspaceId, name)
     return context.body(null, 204)
   })
@@ -96,7 +98,7 @@ export function createHistoryRouter(deps: HistoryRouterDeps): Hono {
     const sha = CommitSha.parse(context.req.param('sha'))
     const commit = await deps.historyService.getCommit(workspaceId, sha)
     if (!commit)
-      throw new NotFoundError(`commit ${sha} not found in workspace ${workspaceId}`)
+      throw new NotFoundError(`Commit ${sha} not found in workspace ${workspaceId}`)
     const diff = await deps.historyService.getCommitDiff(workspaceId, sha)
     return context.json({ ...commit, diff })
   })

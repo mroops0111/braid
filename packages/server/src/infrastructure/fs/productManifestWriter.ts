@@ -18,8 +18,10 @@ const DEFAULT_STORAGE: StorageDescriptor = {
 }
 
 /**
- * Take a user-provided `ProductManifestCreate` and fill in the structural blocks (storage) so the result is a valid,
- * complete `ProductManifest` Zod will accept. Throws if the user's input itself is inconsistent.
+ * Take a user-provided `ProductManifestCreate` and fill in the structure,
+ * such as the storage block, so the result is a complete `ProductManifest`,
+ * that Zod will accept.
+ * Throws if the user's own input is inconsistent.
  */
 export function fillManifestDefaults(draft: ProductManifestCreate): ProductManifest {
   const manifest = {
@@ -35,8 +37,10 @@ export function fillManifestDefaults(draft: ProductManifestCreate): ProductManif
 }
 
 /**
- * Render a `ProductManifest` as YAML-frontmatter markdown and write it to `<workspaceRoot>/PRODUCT.md`.
- * The parent directory is created if missing, an existing PRODUCT.md is overwritten.
+ * Render a `ProductManifest` as YAML-frontmatter markdown,
+ * then write it to `<workspaceRoot>/PRODUCT.md`.
+ * A missing parent directory is created first,
+ * and an existing PRODUCT.md is overwritten.
  */
 export async function writeProductManifest(workspaceRoot: string, manifest: ProductManifest, bodyTitle?: string): Promise<string> {
   await mkdir(workspaceRoot, { recursive: true })
@@ -50,10 +54,11 @@ export async function writeProductManifest(workspaceRoot: string, manifest: Prod
 }
 
 /**
- * Replace the YAML frontmatter of an existing PRODUCT.md while preserving the markdown body underneath.
- * Used by workspace mutation endpoints so user-written prose (e.g. project notes added below the frontmatter)
- * survives a manifest update.
- * The file must exist, throws otherwise.
+ * Replace the YAML frontmatter of an existing PRODUCT.md,
+ * preserving the markdown body underneath.
+ * Workspace mutation endpoints call this,
+ * so user prose below the frontmatter survives an update.
+ * The file must exist, otherwise this throws.
  */
 export async function updateProductManifest(workspaceRoot: string, manifest: ProductManifest): Promise<string> {
   const path = join(workspaceRoot, 'PRODUCT.md')

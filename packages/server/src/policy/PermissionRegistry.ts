@@ -3,12 +3,13 @@ import type { CapabilityCheck } from './CapabilityCheck.js'
 import type { ViewerContext } from './ViewerContext.js'
 
 /**
- * Open registry of capability strategies. Adding a new capability =
- * `registry.register(new MyCheck())`; existing checks are untouched.
+ * Open registry of capability strategies.
+ * A new capability arrives via `registry.register(new MyCheck())`,
+ * leaving existing checks untouched.
  *
- * Unknown capability ids resolve to `false` (default deny). This makes
- * it safe to typo a capability id; the call denies instead of
- * accidentally allowing.
+ * Unknown capability ids resolve to `false`, a default deny.
+ * This makes a typo'd capability id safe,
+ * since the call denies rather than accidentally allowing.
  */
 export class PermissionRegistry {
   private readonly checks = new Map<Capability, CapabilityCheck>()
@@ -23,9 +24,10 @@ export class PermissionRegistry {
   }
 
   /**
-   * Decide whether a viewer can perform a capability. The viewer
-   * already carries its own resource (e.g. skill for skill.run); the
-   * caller is responsible for building the right viewer.
+   * Decide whether a viewer can perform a capability.
+   * The viewer already carries its own resource,
+   * such as the skill for skill.run,
+   * so the caller is responsible for building the right viewer.
    */
   can(capability: Capability, viewer: ViewerContext): boolean {
     return this.checks.get(capability)?.evaluate(viewer) ?? false

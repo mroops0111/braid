@@ -35,8 +35,8 @@ export function createWorkspaceMembersRouter(deps: WorkspaceMembersRouterDeps): 
   const router = new Hono()
   const ownerOnly = requirePermission('workspace.write')
 
-  // List is open to every member of the workspace. The access
-  // middleware upstream already enforced membership.
+  // List is open to every member of the workspace.
+  // The access middleware upstream already enforced membership.
   router.get('/', async (context) => {
     const workspaceId = getWorkspaceId(context)
     const workspace = await deps.workspaceService.findById(workspaceId)

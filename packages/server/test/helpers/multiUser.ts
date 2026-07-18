@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { UserId, WorkspaceId } from '@braidhq/schema'
 import { createApp } from '../../src/app.js'
-import { composeFsApp } from '../../src/composeFs.js'
+import { composeFsApp } from '../../src/composeFsApp.js'
 
 const TEST_TIMESTAMP = '2026-01-01T00:00:00.000Z' as Timestamp
 
@@ -57,7 +57,7 @@ export interface BuildMultiUserAppOptions {
 
 /**
  * Build a server app backed by a real `~/.braid`-style filesystem layout with seeded users + a canonical workspace.
- * composeFsApp defaults `localTrust: true`,
+ * composeFsApp defaults to single-tenant,
  * so callers pass `X-Braid-User` (see `asUser`) to act as a specific identity.
  */
 export async function buildMultiUserApp(

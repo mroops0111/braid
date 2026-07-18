@@ -3,10 +3,10 @@ import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.
 import { getUserId } from './userId.js'
 
 /**
- * Server-admin gate. Composes after `authMiddleware` + `userIdMiddleware`
- * so the resolved userId is on the context. Local-trust callers stamped
- * as `local-user` pass through because `ensureLocalUser` seeds them
- * with `serverRole: 'admin'`.
+ * Server-admin gate. Composes after `authMiddleware` and `userIdMiddleware`,
+ * so the resolved userId is on the context.
+ * Single-tenant callers stamped as `local-user` pass through,
+ * since `singleTenant` provisioning seeds them with an admin serverRole.
  */
 export function requireAdmin(userRegistry: UserRegistryFile): MiddlewareHandler {
   return async (context, next) => {

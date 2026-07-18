@@ -10,10 +10,11 @@ export interface WorkspaceEventsRouterDeps {
 }
 
 /**
- * SSE endpoint the Studio opens once per workspace to invalidate
- * react-query caches in real time. Pure delivery: events are dropped if
- * no one is listening, and the route makes no attempt to backfill state
- * on connect. The client re-fetches list endpoints on `EventSource.open`
+ * SSE endpoint the Studio opens once per workspace,
+ * to invalidate react-query caches in real time.
+ * Delivery is best-effort, events are dropped when no one is listening,
+ * and the route makes no attempt to backfill state on connect.
+ * The client re-fetches list endpoints on `EventSource.open`,
  * so a fresh subscriber catches up.
  */
 export function createWorkspaceEventsRouter(deps: WorkspaceEventsRouterDeps): Hono {
@@ -26,7 +27,7 @@ export function createWorkspaceEventsRouter(deps: WorkspaceEventsRouterDeps): Ho
       const unsubscribe = deps.eventBus.subscribe(workspaceId, (event) => {
         queue.push(event)
       })
-      // Initial comment so the client's EventSource.onopen fires
+      // Initial comment so the client's EventSource.onopen fires,
       // immediately even if no event has been published yet.
       await stream.writeSSE({ event: 'ready', data: JSON.stringify({ workspaceId }) })
       try {

@@ -1,17 +1,15 @@
 /**
- * Single-producer / single-consumer async queue backing an `AsyncIterable`.
+ * Single-producer, single-consumer async queue backing an `AsyncIterable`.
+ * Bridges node `EventEmitter`-style callbacks,
+ * which fire whenever subprocess stdout, stderr, or close events arrive,
+ * into `for await of` consumers (Hono's SSE writer, vitest assertions),
+ * without buffering every event until the producer is done.
  *
- * Used to bridge node `EventEmitter`-style callbacks (which fire whenever
- * subprocess stdout / stderr / close events arrive) into `for await … of`
- * consumers (Hono's SSE writer, vitest assertions) without buffering every
- * event until the producer is done.
- *
- * Contract:
- *   - `push(item)` enqueues an item and wakes a pending consumer.
- *   - `end()` signals that no more items are coming; the iterator finishes
- *     once it has drained the queue.
- *   - `iterate()` returns a single-use async generator. Calling it more than
- *     once is undefined.
+ * `push(item)` enqueues an item and wakes a pending consumer.
+ * `end()` signals that no more items are coming,
+ * the iterator finishes once it has drained the queue.
+ * `iterate()` returns a single-use async generator,
+ * calling it more than once is undefined.
  */
 export interface AsyncQueue<T> {
   push: (item: T) => void
@@ -49,9 +47,8 @@ export function createAsyncQueue<T>(): AsyncQueue<T> {
         }
         if (finished)
           return
-        // The double check inside the Promise constructor avoids a race
-        // where `push` or `end` is called between the queue-length check
-        // and the resolver assignment.
+        // Re-check inside the Promise constructor to avoid a race,
+        // where `push` or `end` fires between the queue-length check and the resolver assignment.
         await new Promise<void>((r) => {
           if (buffer.length > 0 || finished) {
             r()

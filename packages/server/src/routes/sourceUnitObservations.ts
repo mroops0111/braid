@@ -22,11 +22,12 @@ const DiffResponse = SourceUnitDiff.openapi('SourceUnitDiffResponse')
 export interface SourceUnitObservationsRouterDeps {
   sourceUnitObservationService: SourceUnitObservationService
   /**
-   * Optional `(workspaceService, intentLister, digest)` triple. When all three are present,
-   * the router exposes the `:sourceId/diff` route. When any is missing, the route is simply not registered,
-   * callers see a 404 from Hono's router,
-   * matching the "this server does not support that operation" semantics,
-   * other partially-wired surfaces follow (Batch / Skills).
+   * Optional `(workspaceService, intentLister, digest)` triple.
+   * When all three are present, the router exposes the `:sourceId/diff` route.
+   * When any is missing, the route is simply not registered,
+   * so callers see a 404 from Hono's router.
+   * That matches the unsupported-operation semantics,
+   * other partially-wired surfaces follow (Batch, Skills).
    */
   diffSupport?: {
     workspaceService: WorkspaceService

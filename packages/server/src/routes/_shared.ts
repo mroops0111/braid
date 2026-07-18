@@ -1,11 +1,11 @@
 /**
  * Shared OpenAPI building blocks used across workspace-scoped routes.
  *
- * Path parameters declared on parent app.route() mounts are NOT
- * automatically merged into child routes' OpenAPI definitions. Each
- * route under `/workspaces/:workspaceId/*` must therefore re-declare
- * `workspaceId` in its `request.params`. Use `WorkspaceIdParam` to
- * keep the declaration consistent.
+ * Path parameters on parent app.route() mounts do not merge,
+ * into a child route's OpenAPI definitions.
+ * So each route under `/workspaces/:workspaceId/*` must re-declare it,
+ * naming `workspaceId` in its own `request.params`.
+ * Use `WorkspaceIdParam` to keep the declaration consistent.
  */
 import { BraidProblemJson, WorkspaceId } from '@braidhq/schema'
 import { z } from '@hono/zod-openapi'

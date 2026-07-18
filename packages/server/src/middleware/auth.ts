@@ -1,56 +1,45 @@
+import type { UserId } from '@braidhq/schema'
 import type { MiddlewareHandler } from 'hono'
 import type { SessionStore } from '../infrastructure/auth/SessionStore.js'
-import process from 'node:process'
-import { parseBoolEnv } from '../infrastructure/env.js'
 
-/**
- * Routes the auth middleware never gates. Anonymous access is required
- * here, otherwise the login flow itself becomes impossible to bootstrap.
- *
- * Path prefixes (not exact match) so `/auth/google/start`,
- * `/auth/google/callback`, `/auth/whoami` all flow through without a
- * token. `/health` stays open so platform probes don't need a token.
- * `/openapi.json` matches the broad industry convention that OpenAPI
- * descriptions are publicly readable (Swagger UI, codegen, MCP gateways
- * default to fetching them without auth). It only documents shape, not
- * data, so leaking it to anonymous callers is safe.
- */
+// Routes the auth middleware never gates,
+// since bootstrapping the login flow needs anonymous access.
+// `/openapi.json` follows the convention that OpenAPI reads publicly,
+// honored by Swagger UI, codegen, and MCP gateways.
+// It documents shape and not data, so exposing it to anonymous callers is safe.
 const PUBLIC_EXACT = new Set(['/openapi.json'])
-// Each `/webhooks/<provider>/` prefix is anonymous because the provider
-// authenticates via a per-source HMAC checked inside the handler, not
-// via a Bearer token. Listing providers explicitly (rather than the
-// broad `/webhooks/` prefix) keeps a future `/webhooks/admin/...` or
-// `/webhooks/metrics` route from inheriting the bypass.
+// Each `/webhooks/<provider>/` prefix is anonymous,
+// because the provider authenticates via a per-source HMAC,
+// checked inside the handler rather than via a Bearer token.
+// Listing providers one by one, rather than the broad `/webhooks/`,
+// keeps a future admin or metrics webhook from inheriting the bypass.
 const PUBLIC_PREFIXES = ['/auth/', '/health', '/webhooks/github/']
 
 export interface AuthMiddlewareOptions {
   readonly sessionStore: SessionStore
   /**
-   * When true, skip the Bearer check and let `userIdMiddleware`'s
-   * fallback (local-user via env / header) take over. The Tauri
-   * embedded sidecar sets this so the local install keeps working
-   * without an OAuth round trip; a remote deployment leaves it false
-   * so anonymous traffic is rejected.
-   *
-   * Resolution: explicit option > `BRAID_LOCAL_TRUST=true` env var.
-   * Defaults to `false` when neither is set — composeFs flips this
-   * to `true` for local development.
+   * The single-tenant default principal, or null for a multi-tenant server.
+   * When set, the Bearer check is skipped,
+   * the downstream `userIdMiddleware` resolves the caller.
+   * When null, every non-public route requires a valid Bearer token.
    */
-  readonly localTrust?: boolean
+  readonly defaultPrincipal: UserId | null
 }
 
-// EventSource (browser SSE) cannot send custom Authorization headers, so
-// for live-update endpoints we additionally accept a `?token=...` query
-// parameter and treat it identically to a Bearer token. Limited to paths
-// ending in `/events` so this lenient path doesn't apply to mutating routes.
+// EventSource (browser SSE) cannot send custom Authorization headers,
+// so live-update endpoints also accept a `token` query parameter,
+// treated as a Bearer token.
+// Limited to paths ending in `/events`,
+// so the lenient path never applies to mutating routes.
 function isSseEventsPath(path: string): boolean {
   return path.endsWith('/events')
 }
 
 /**
- * Pull a Bearer token off the request, or return `undefined` if the
- * header is missing / malformed. Route handlers use this to forward the
- * caller's identity to spawned skill subprocesses without re-parsing.
+ * Pull a Bearer token off the request,
+ * returning `undefined` when the header is missing or malformed.
+ * Route handlers use this to forward the caller's identity,
+ * reaching spawned skill subprocesses without reparsing.
  */
 export function extractBearerToken(context: { req: { header: (name: string) => string | undefined } }): string | undefined {
   const header = context.req.header('Authorization')
@@ -61,17 +50,16 @@ export function extractBearerToken(context: { req: { header: (name: string) => s
 }
 
 export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandler {
-  const localTrust = options.localTrust ?? parseBoolEnv(process.env.BRAID_LOCAL_TRUST, false)
   return async (context, next) => {
     const path = context.req.path
     if (PUBLIC_EXACT.has(path) || PUBLIC_PREFIXES.some(prefix => path.startsWith(prefix))) {
       await next()
       return undefined
     }
-    if (localTrust) {
-      // The downstream `userIdMiddleware` will stamp `local-user` (or
-      // honour an explicit `X-Braid-User` header for multi-persona
-      // dev). The auth layer has no opinion here.
+    if (options.defaultPrincipal !== null) {
+      // Single-tenant, so skip the Bearer check.
+      // `userIdMiddleware` stamps the default principal downstream,
+      // or an explicit `X-Braid-User` header for multi-persona dev.
       await next()
       return undefined
     }

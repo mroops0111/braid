@@ -64,7 +64,7 @@ export function createReactorCyclesRouter(deps: ReactorCyclesRouterDeps): OpenAP
     const { cycleId } = context.req.valid('param')
     const cycle = await deps.reactorCycleRepository.load(workspaceId, cycleId)
     if (!cycle)
-      throw new NotFoundError(`reactor cycle "${cycleId}" not found for workspace "${workspaceId}"`)
+      throw new NotFoundError(`Reactor cycle "${cycleId}" not found for workspace "${workspaceId}"`)
     return context.json(cycle, 200)
   })
 

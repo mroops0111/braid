@@ -1,12 +1,12 @@
 import type { OpenAPIHono } from '@hono/zod-openapi'
-import type { AppDependencies } from '../../src/composition.js'
+import type { AppDependencies } from '../../src/composeApp.js'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { simpleGit } from 'simple-git'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app.js'
-import { composeFsApp } from '../../src/composeFs.js'
+import { composeFsApp } from '../../src/composeFsApp.js'
 import { readJson } from '../helpers/readJson.js'
 
 interface ProposalRef { id: string }

@@ -7,7 +7,7 @@ import { makeWorkspace } from '@braidhq/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { createApp } from '../../src/app.js'
-import { composeApp } from '../../src/composition.js'
+import { composeApp } from '../../src/composeApp.js'
 
 const SOURCE_ID = 'issues' as SourceId
 const OWNER = 'mroops0111'

@@ -2,11 +2,13 @@ import type { Clock, RunRepository, WorkspaceRepository } from '@braidhq/core'
 import type { SkillEvent } from '@braidhq/schema'
 
 /**
- * Run records survive across server restarts, but the subprocess that was
- * driving each run does not. On startup any run without a `completedAt`
- * timestamp is an orphan: nobody is going to drain its events. We tag those
- * with a synthetic `error` event so the UI can show why the transcript is
- * truncated, and a `completed` event so the run leaves the active list.
+ * Run records survive across server restarts,
+ * but the subprocess that was driving each run does not.
+ * On startup any run without a `completedAt` timestamp is an orphan,
+ * nobody is going to drain its events.
+ * We tag those with a synthetic `error` event,
+ * so the UI can show why the transcript is truncated.
+ * A `completed` event then makes the run leave the active list.
  *
  * Idempotent: runs that are already marked completed are skipped.
  */

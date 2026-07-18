@@ -14,31 +14,30 @@ import { Hono } from 'hono'
 import { WorkspaceIdParam } from './_shared.js'
 
 /**
- * GitHub webhook plumbing for filesystem sources whose loader plugin
- * declares a `webhook` capability.
+ * GitHub webhook plumbing for filesystem sources,
+ * whose loader plugin declares a `webhook` capability.
  *
- * Two routers:
+ * Two routers.
  *
- *   `createGithubWebhookReceiver` is public (no Bearer auth). GitHub
- *   POSTs deliveries here; we verify the HMAC, confirm the payload
- *   names the same repo the source's loader plugin claims, ask the
- *   plugin whether the event is worth a `syncOne`, and dispatch in the
- *   background. The response returns immediately so GitHub's ~10s
- *   delivery timeout never trips on a slow loader.
+ *   `createGithubWebhookReceiver` is public (no Bearer auth).
+ *   GitHub POSTs deliveries here.
+ *   We verify the HMAC, confirm the payload names the claimed repo,
+ *   ask the plugin whether the event is worth a `syncOne`,
+ *   and dispatch in the background. The response returns immediately,
+ *   so GitHub's ~10s delivery timeout never trips on a slow loader.
  *
- *   `createSourceWebhooksAdminRouter` is workspace-scoped and gated by
- *   the existing auth middleware. Studio uses it to display the
- *   webhook URL and rotate the secret.
+ *   `createSourceWebhooksAdminRouter` is workspace-scoped,
+ *   and gated by the existing auth middleware.
+ *   Studio uses it to display the webhook URL and rotate the secret.
  *
- * The receiver is loader-agnostic: it does not switch on
- * `loader.kind`. New loaders extend the webhook surface by adding a
- * `webhook: { repoIdentity, shouldDispatch }` to their plugin
- * definition.
+ * The receiver is loader-agnostic and does not switch on `loader.kind`.
+ * A new loader extends the webhook surface from its plugin definition,
+ * via `webhook: { repoIdentity, shouldDispatch }`.
  *
- * Secrets live in the existing `SecretStore` under namespace
- * `webhook-github`, keyed by `<workspaceId>--<sourceId>` to mirror the
- * OAuth namespaces (oauth-google, oauth-github) that already use the
- * same `--` separator.
+ * Secrets live in the existing `SecretStore`,
+ * under namespace `webhook-github`, keyed by `<workspaceId>--<sourceId>`.
+ * That mirrors the OAuth namespaces (oauth-google, oauth-github),
+ * which already use the same `--` separator.
  */
 
 const SECRET_NAMESPACE = 'webhook-github'
@@ -62,17 +61,17 @@ export interface GithubWebhookReceiverDeps {
 
 const receiverLogger = createLogger('webhooks.github.receiver')
 
-/**
- * Verify GitHub's `X-Hub-Signature-256` header. GitHub computes
- * `sha256=<hex>` over the raw request body using the webhook secret;
- * we recompute and compare in constant time. The prefix check is
- * case-insensitive because some proxies / WAFs normalise header values.
- */
+// Verify GitHub's `X-Hub-Signature-256` header.
+// GitHub computes `sha256=<hex>` over the raw body with the secret.
+// We recompute and compare in constant time.
+// The prefix check is case-insensitive,
+// because some proxies and WAFs normalise headers.
 function verifySignature(rawBody: string, header: string | undefined, secret: string): boolean {
   if (!header || !header.toLowerCase().startsWith('sha256='))
     return false
-  // Normalise the hex digest to lowercase so the timing-safe compare
-  // does not reject a verifier that uppercased the hex (rare but valid).
+  // Normalise the hex digest to lowercase,
+  // so the timing-safe compare still accepts an uppercased hex,
+  // (rare but valid).
   const provided = `sha256=${header.slice('sha256='.length).toLowerCase()}`
   const expected = `sha256=${createHmac('sha256', secret).update(rawBody).digest('hex')}`
   const a = Buffer.from(expected)
@@ -82,10 +81,8 @@ function verifySignature(rawBody: string, header: string | undefined, secret: st
   return timingSafeEqual(a, b)
 }
 
-/**
- * Look up the loader plugin's `webhook` capability for a source. Returns
- * undefined when the source is not webhook-capable; never throws.
- */
+// Look up the loader plugin's `webhook` capability for a source.
+// Returns undefined when the source is not webhook-capable, never throws.
 function resolveWebhookCapability(
   pluginRegistry: PluginRegistry,
   source: SourceDescriptor,
@@ -98,13 +95,11 @@ function resolveWebhookCapability(
   return { capability: plugin.webhook, config: source.loader.config }
 }
 
-/**
- * Uniform anonymous response for any pre-signature failure (missing
- * workspace, missing source, no webhook capability, missing secret,
- * bad HMAC). Distinct error bodies would let an unauthenticated
- * caller enumerate which (workspaceId, sourceId) pairs exist and which
- * are webhook-armed — a recon ladder we deliberately close off.
- */
+// Uniform anonymous response for any pre-signature failure,
+// (missing workspace, source, webhook capability, secret, or HMAC).
+// Distinct error bodies would leak which pairs exist,
+// and which are webhook-armed, to an unauthenticated caller.
+// That recon ladder we deliberately close off.
 function unauthorized(context: { json: (body: unknown, status: 401) => Response }): Response {
   return context.json({ error: 'invalid signature' }, 401)
 }
@@ -116,13 +111,11 @@ interface VerifiedDelivery {
   readonly rawBody: string
 }
 
-/**
- * Run the full pre-signature pipeline (header presence, body read,
- * workspace + source lookup, plugin webhook capability, repo identity,
- * secret read, HMAC verify) inside a single try/catch. Returns the
- * trusted state on success and `undefined` on any failure — the caller
- * collapses every failure mode to a 401.
- */
+// Run the full pre-signature pipeline inside a single try/catch,
+// (header presence, body read, workspace and source lookup,
+// plugin webhook capability, repo identity, secret read, HMAC verify).
+// Returns the trusted state on success and `undefined` on any failure.
+// The caller collapses every failure mode to a 401.
 async function verifyDelivery(
   deps: GithubWebhookReceiverDeps,
   context: { req: { header: (n: string) => string | undefined, text: () => Promise<string> } },
@@ -160,25 +153,27 @@ async function verifyDelivery(
 export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Hono {
   const router = new Hono()
 
-  // `:workspaceId/:sourceId` is the routing identity the user installs
-  // on the GitHub side. We accept the request, verify, and return 202
-  // immediately; sync runs in the background so a slow loader does not
-  // block GitHub's delivery worker (it times deliveries out at ~10s).
+  // `:workspaceId/:sourceId` is the routing identity,
+  // the user installs on the GitHub side.
+  // We accept the request, verify, and return 202 immediately.
+  // Sync runs in the background,
+  // so a slow loader never blocks GitHub's delivery worker.
+  // GitHub times deliveries out at ~10s.
   router.post('/github/:workspaceId/:sourceId', async (context) => {
     const workspaceId = context.req.param('workspaceId') as WorkspaceId
     const sourceId = context.req.param('sourceId') as SourceId
-    // verifyDelivery returns either the trusted state (workspace +
-    // resolved capability + repository identity + raw body) or
-    // undefined; on undefined we always return a uniform 401 so
-    // anonymous callers cannot tell apart "no such workspace" from "no
-    // secret yet" from "bad signature" by reading distinct errors.
+    // verifyDelivery returns either the trusted state or undefined,
+    // (workspace, resolved capability, repository identity, raw body).
+    // On undefined we always return a uniform 401,
+    // so distinct errors never tell an anonymous caller apart,
+    // "no such workspace", "no secret yet", and "bad signature".
     const verified = await verifyDelivery(deps, context, workspaceId, sourceId)
     if (!verified)
       return unauthorized(context)
     const { workspace, resolved, identity, rawBody } = verified
 
-    // Parse the body after the signature check so an attacker who can't
-    // forge the HMAC never reaches our JSON parser.
+    // Parse the body only after the signature check,
+    // so an attacker who can't forge the HMAC, never reaches our JSON parser.
     let payload: unknown
     try {
       payload = JSON.parse(rawBody)
@@ -189,34 +184,37 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
 
     const fullName = extractFullName(payload)
     const expectedFullName = `${identity.owner}/${identity.repo}`.toLowerCase()
-    // GitHub repo names are case-insensitive (the user can store
-    // `Owner/Repo` while sending `owner/repo` in the payload, or vice
-    // versa). Compare normalised. Also REQUIRE full_name to be present:
-    // a verified delivery without one (some org-level / installation
-    // events) is rejected since this receiver is per-source.
+    // GitHub repo names are case-insensitive,
+    // (a stored `Owner/Repo` may arrive as `owner/repo`, or vice versa).
+    // Compare normalised. Also REQUIRE full_name to be present.
+    // A verified delivery without one is rejected,
+    // since this receiver is per-source,
+    // (some org-level or installation events omit it).
     if (typeof fullName !== 'string' || fullName.toLowerCase() !== expectedFullName)
       return context.json({ error: `payload repository "${fullName ?? '(missing)'}" does not match configured "${expectedFullName}"` }, 400)
 
-    // X-GitHub-Event must be present on real deliveries. Treating an
-    // absent header as "unknown" would let a stripping proxy silently
-    // drop every event (loaders default to skipping unknown events).
+    // X-GitHub-Event must be present on real deliveries.
+    // Treating an absent header as "unknown",
+    // would let a stripping proxy silently drop every event,
+    // since loaders default to skipping unknown events.
     const event = context.req.header('X-GitHub-Event')
     if (!event)
       return context.json({ error: 'missing X-GitHub-Event header' }, 400)
 
     const shouldDispatch = resolved.capability.shouldDispatch?.(resolved.config, { event, payload }) ?? true
     if (!shouldDispatch) {
-      // Return 202 so GitHub does not treat the delivery as a failure
-      // and back off retries; we deliberately accept and drop.
+      // Return 202 so GitHub does not treat the delivery as a failure,
+      // and back off retries, deliberately accepting and dropping.
       return context.json({ accepted: true, event, workspaceId, sourceId, skipped: true }, 202)
     }
 
-    // Fire-and-forget. Deliveries time out at ~10s and a clean repo
-    // with many issues can take minutes to poll. Errors are logged so a
-    // failing sync doesn't silently disappear; the next delivery
-    // retries. Concurrent deliveries are allowed to race — loaders are
-    // designed to be idempotent (last-writer-wins per file) so the
-    // result still converges to the latest remote state.
+    // Fire-and-forget. Deliveries time out at ~10s,
+    // and a clean repo with many issues can take minutes to poll.
+    // Errors are logged so a failing sync doesn't silently disappear,
+    // the next delivery retries.
+    // Concurrent deliveries are allowed to race, loaders are idempotent,
+    // (last-writer-wins per file) so the result still converges,
+    // to the latest remote state.
     void deps.sourceLoaderRunner.syncOne(workspace, sourceId).catch((err) => {
       receiverLogger.warn(
         {
@@ -250,10 +248,10 @@ export interface SourceWebhooksAdminDeps {
   readonly pluginRegistry: PluginRegistry
   /**
    * Base URL under which the public webhook receiver is reachable.
-   * Required so the admin response can return an absolute URL the user
-   * can paste straight into GitHub's webhook settings. When unset
-   * (composeApp in tests), the admin endpoints return 503 — better than
-   * silently returning a relative path Studio would render verbatim.
+   * Required so the admin response can return an absolute URL,
+   * that the user pastes straight into GitHub's webhook settings.
+   * When unset (composeApp in tests), the admin endpoints return 503.
+   * Better than returning a relative path Studio would render verbatim.
    */
   readonly apiUrl?: string
 }
@@ -341,8 +339,8 @@ export function createSourceWebhooksAdminRouter(deps: SourceWebhooksAdminDeps): 
     if (guard)
       return context.json({ error: guard.message }, guard.status)
 
-    // 32 bytes is the GitHub-recommended minimum and matches what their
-    // own webhook setup UI generates.
+    // 32 bytes is the GitHub-recommended minimum,
+    // matching what their own webhook setup UI generates.
     const secret = randomBytes(32).toString('hex')
     const createdAt = new Date().toISOString()
     const record: WebhookSecretRecord = { secret, createdAt }
@@ -357,12 +355,11 @@ export function createSourceWebhooksAdminRouter(deps: SourceWebhooksAdminDeps): 
   return router
 }
 
-/**
- * Shared admin precondition check. Returns undefined when the source is
- * a webhook-capable github source; otherwise returns the 4xx the caller
- * should surface. We never throw — defineSourceLoader's wrapper may
- * throw ZodError on schema drift, which we catch and translate to 400.
- */
+// Shared admin precondition check.
+// Returns undefined when the source is a webhook-capable github source,
+// otherwise returns the 4xx the caller should surface.
+// We never throw. On schema drift defineSourceLoader's wrapper,
+// may throw ZodError, which we catch and translate to 400.
 async function guardWebhookSource(
   deps: SourceWebhooksAdminDeps,
   workspaceId: WorkspaceId,
@@ -371,18 +368,18 @@ async function guardWebhookSource(
   const workspace = await deps.workspaceService.findById(workspaceId)
   const source = workspace.sources.find(s => s.id === sourceId)
   if (!source)
-    return { status: 404, message: `source "${sourceId}" not found` }
+    return { status: 404, message: `Source "${sourceId}" not found` }
   const resolved = resolveWebhookCapability(deps.pluginRegistry, source)
   if (!resolved)
-    return { status: 400, message: `source "${sourceId}" has no webhook-capable loader` }
+    return { status: 400, message: `Source "${sourceId}" has no webhook-capable loader` }
   try {
     const identity = resolved.capability.repoIdentity(resolved.config)
     if (!identity || identity.provider !== PROVIDER)
-      return { status: 400, message: `source "${sourceId}" is not bound to a github repo` }
+      return { status: 400, message: `Source "${sourceId}" is not bound to a github repo` }
   }
   catch (err) {
     adminLogger.warn({ workspaceId, sourceId, err: err instanceof Error ? err.message : String(err) }, 'admin: repoIdentity threw')
-    return { status: 400, message: `source "${sourceId}" loader config does not match the loader's schema` }
+    return { status: 400, message: `Source "${sourceId}" loader config does not match the loader's schema` }
   }
   return undefined
 }

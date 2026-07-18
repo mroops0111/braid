@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createApp } from '../src/app.js'
-import { composeFsApp } from '../src/composeFs.js'
+import { composeFsApp } from '../src/composeFsApp.js'
 import { readJson } from './helpers/readJson.js'
 
 interface WorkspaceListBody {

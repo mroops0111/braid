@@ -8,14 +8,11 @@ import {
 } from '@braidhq/schema'
 import { z } from 'zod'
 
-/**
- * The registry stores a per-workspace `members[]` list alongside
- * `rootPath`. Old shapes (pre-Phase-C, with only `rootPath`) are
- * accepted by `.default([])` and lazily upgraded the next time we
- * write — `ensureLocalOwner` in `composeFs` seeds `local-user` as
- * owner so the single-tenant install keeps working without manual
- * migration.
- */
+// The registry stores a per-workspace `members[]` list alongside `rootPath`.
+// Old shapes carrying only `rootPath` are accepted by `.default([])`,
+// then lazily upgraded on the next write.
+// `ensureWorkspaceOwners` in `composeFsApp` seeds the default owner,
+// so the single-tenant install keeps working without any manual migration.
 const RegistryEntry = z.object({
   rootPath: AbsolutePathSchema,
   members: z.array(WorkspaceMemberSchema).default([]),
@@ -30,9 +27,9 @@ type RegistryContent = z.infer<typeof RegistryContent>
 
 /**
  * Persists the list of registered workspace rootPaths to a JSON file.
- * Default location is `${BRAID_HOME}/workspaces.json` (set by the caller).
- * Acts as the source of truth across server restarts — the in-memory
- * `FsWorkspaceRepository` cache is rebuilt from this file on cold start.
+ * Default location is `${BRAID_HOME}/workspaces.json`, set by the caller.
+ * Acts as the source of truth across server restarts,
+ * the in-memory `FsWorkspaceRepository` cache rebuilds from it on cold start.
  */
 export class WorkspaceRegistryFile {
   constructor(private readonly filePath: string) {}
@@ -67,8 +64,8 @@ export class WorkspaceRegistryFile {
   }
 
   /**
-   * All entries with their members in one read. Lets admin views invert
-   * to user → workspaces without N+1 reads of workspaces.json.
+   * All entries with their members in one read. An admin view can then,
+   * invert to a user-to-workspaces map, with no N+1 reads of the file.
    */
   async listAllWithMembers(): Promise<ReadonlyArray<{ rootPath: AbsolutePath, members: readonly WorkspaceMember[] }>> {
     const content = await this.read()
@@ -132,10 +129,11 @@ export class WorkspaceRegistryFile {
   }
 
   /**
-   * Demote the current owner to maintainer + promote `newOwnerId` to
-   * owner in one atomic write. Throws if `newOwnerId` isn't a maintainer
-   * of this workspace (we don't auto-add — the caller should add them
-   * first if needed).
+   * In one atomic write, demote the current owner to maintainer,
+   * and promote `newOwnerId` to owner.
+   * If the target is not yet a maintainer here, this throws.
+   * We never auto-add the target,
+   * so the caller must add them first when that is needed.
    */
   async transferOwnership(rootPath: AbsolutePath, newOwnerId: UserId): Promise<void> {
     const content = await this.read()

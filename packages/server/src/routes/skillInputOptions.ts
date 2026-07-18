@@ -8,26 +8,28 @@ import { WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
 
 /**
- * Studio-facing endpoint that resolves a skill input provider kind, declared in a SKILL.md frontmatter,
- * to the current option list, for a given workspace. Used by the typed Actions form to populate pickers,
- * backed by `graph-node`, `source-intent`, or `clarify` rather than static.
- *
- * The endpoint is intentionally read-only, and lives alongside other Studio-metadata routes.
- * It's mounted under `/workspaces/:workspaceId/skill-input-options`.
+ * Studio-facing endpoint that resolves a skill input provider kind,
+ * declared in a SKILL.md frontmatter, to the current option list,
+ * for a given workspace.
+ * The typed Actions form uses it to populate pickers,
+ * backed by `graph-node`, `source-intent`, or `clarify` (not static).
+ * Read-only, and lives alongside other Studio-metadata routes.
+ * Mounted under `/workspaces/:workspaceId/skill-input-options`.
  */
 
 const ProviderKind = z.enum(['graph-node', 'source-intent', 'clarify'])
 
 const QuerySchema = z.object({
   kind: ProviderKind.openapi({ param: { name: 'kind', in: 'query' } }),
-  /**
-   * JSON-encoded filter object. Shape depends on the provider. graph-node uses `{ types?, statuses?,
-   * renderHint?: { container? } }`. source-intent uses `{ loaderKind? }`.
-   * clarify uses `{ status?: pending | answered | applied | skipped }`.
-   *
-   * Query-string-encoded JSON keeps the schema simple, while letting each provider have a different filter shape.
-   * Studio is the only intended caller. Humans drafting URLs by hand will rarely need it.
-   */
+  // JSON-encoded filter object whose shape depends on the provider.
+  // graph-node uses `{ types?, statuses?, renderHint?: { container? } }`,
+  // source-intent uses `{ loaderKind? }`,
+  // and clarify uses `{ status?: pending | answered | applied | skipped }`.
+  //
+  // Query-string-encoded JSON keeps the schema simple,
+  // while letting each provider carry a different filter shape.
+  // Studio is the only intended caller.
+  // Humans drafting URLs by hand will rarely need it.
   filter: z.string().optional().openapi({ param: { name: 'filter', in: 'query' } }),
 })
 
@@ -102,7 +104,8 @@ async function resolveGraphNode(
 
   let typesToInclude = types
   if (wantContainerOnly) {
-    // Container-ness is an ontology concern. The ontology's node-type descriptors carry `renderHint.container`.
+    // Container-ness is an ontology concern.
+    // Its node-type descriptors carry `renderHint.container`.
     // Intersect with any explicit `types` filter so both axes compose.
     const ontology = deps.pluginRegistry.requireOntology(workspace.productManifest.ontologyId)
     const containerTypeIds = ontology.nodeTypes
@@ -142,7 +145,9 @@ async function resolveSourceIntent(
       return source?.kind === 'filesystem' && source.loader?.kind === loaderKindFilter
     })
     .map((item) => {
-      // Use safeParse here. An invalid sourceId in a hand-edited PRODUCT.md, should not 500 the whole dropdown.
+      // Use safeParse here.
+      // A hand-edited PRODUCT.md may carry an invalid sourceId,
+      // which should not 500 the whole dropdown.
       // Drop the field on parse failure so the option still shows up.
       const parsed = SourceId.safeParse(item.sourceId)
       return {

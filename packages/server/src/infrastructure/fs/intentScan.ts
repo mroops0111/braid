@@ -11,14 +11,15 @@ export interface IntentItem {
   readonly sourceName: string
 }
 
-// Shared by the Studio source picker and BatchService so both see the same per-doc granularity.
+// Shared by the Studio source picker and BatchService,
+// so both see the same per-doc granularity.
 export async function listIntentItems(workspace: Workspace): Promise<IntentItem[]> {
   const items: IntentItem[] = []
   for (const source of workspace.sources) {
     if (source.role !== 'intent')
       continue
     if (source.kind !== 'filesystem')
-      // MCP intent sources aren't directory-listable; future enhancement.
+      // MCP intent sources aren't directory-listable, future enhancement.
       continue
     const absoluteRoot = isAbsolute(source.path)
       ? source.path
@@ -42,11 +43,12 @@ async function listIntentEntries(root: string, sourceId: string, sourceName: str
       continue
     if (entry.isDirectory()) {
       const folder = join(root, entry.name)
-      // Flat directories of loose markdown files (the github source-loader's
-      // `issues/<num>.md` layout, hand-curated `prd/onboarding.md`, ...) expand
-      // into one unit per file so downstream skills run per-document, not over
-      // the whole bag at once. Directories with their own sub-structure stay as
-      // a single unit because that structure is the unit's own organisation.
+      // A flat directory of loose markdown files gives one unit per file,
+      // so downstream skills run per-document rather than over the bag all at once.
+      // Such layouts include a github loader's issues tree,
+      // or a hand-curated prd folder of onboarding docs.
+      // A directory with its own sub-structure stays a single unit,
+      // since that structure is the unit's own organisation.
       const flatFiles = await listFlatDocumentFiles(folder)
       if (flatFiles) {
         for (const name of flatFiles) {
@@ -81,15 +83,13 @@ async function listIntentEntries(root: string, sourceId: string, sourceName: str
   return items.sort((a, b) => a.label.localeCompare(b.label))
 }
 
-/**
- * If `dir` is a "flat document directory" (every visible entry is a markdown
- * file, no subdirectories), returns the sorted list of those filenames.
- * Returns `undefined` otherwise so the caller falls back to treating the
- * directory as a single unit.
- *
- * "Visible" excludes dotfiles, so loader-managed sync state like
- * `.braid-github-cursor.json` does not disqualify a directory.
- */
+// A flat document directory has every visible entry a markdown file,
+// with no subdirectories.
+// For one, returns the sorted list of filenames.
+// Returns `undefined` otherwise, so the caller falls back to treating,
+// the directory as a single unit.
+// "Visible" here excludes dotfiles,
+// so sync state like `.braid-github-cursor.json` doesn't disqualify it.
 async function listFlatDocumentFiles(dir: string): Promise<string[] | undefined> {
   let entries
   try {

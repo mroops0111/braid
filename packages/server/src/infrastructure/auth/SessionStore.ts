@@ -6,12 +6,11 @@ import { ValidationError } from '@braidhq/core'
 import { z } from 'zod'
 
 const SessionRow = z.object({
-  /**
-   * SHA-256 hex of the actual token. The plaintext is shown to the
-   * client exactly once at issuance time; the server only ever sees
-   * the hash thereafter. Constant-time compare is unnecessary for a
-   * pre-image lookup on hex strings, which is what `findByToken` does.
-   */
+  // SHA-256 hex of the actual token.
+  // The plaintext is shown to the client once at issuance time,
+  // the server only ever sees the hash thereafter.
+  // Constant-time compare is unnecessary for a pre-image lookup on hex strings,
+  // which is what `findByToken` does.
   tokenHash: z.string().length(64),
   userId: z.string().min(1),
   createdAt: z.string().datetime({ offset: true }),
@@ -39,15 +38,13 @@ export interface ResolvedSession {
 
 /**
  * Hashed session tokens persisted to `${BRAID_HOME}/sessions.json`.
+ * Token format is 32 random bytes encoded as `base64url` (43 chars).
+ * The plain text is returned once at issuance time, the server stores SHA-256 of it.
+ * A leaked sessions.json therefore cannot be replayed as a Bearer header.
  *
- * Token format: 32 random bytes encoded as `base64url` (43 chars). The
- * plain text is returned exactly once at issuance time; the server
- * stores SHA-256 of it. A leaked sessions.json therefore cannot be
- * replayed as a Bearer header.
- *
- * No rotation, no rolling expiry, no per-device tracking: this is the
- * minimum useful surface for v0.2. Phase D / future remote-server work
- * can revisit if needed.
+ * No rotation, no rolling expiry, no per-device tracking,
+ * this is the minimum useful surface for v0.2.
+ * Future remote-server work can revisit if needed.
  */
 export class SessionStore {
   constructor(private readonly filePath: string) {}
@@ -66,9 +63,9 @@ export class SessionStore {
   }
 
   /**
-   * Resolve a Bearer token to its session. Updates `lastUsedAt` as a
-   * side effect; not strictly required for correctness but useful for
-   * the future "active sessions" admin view.
+   * Resolve a Bearer token to its session.
+   * Updates `lastUsedAt` as a side effect,
+   * not required for correctness but useful for the future "active sessions" admin view.
    */
   async resolve(token: string): Promise<ResolvedSession | null> {
     if (!token || token.length === 0)
