@@ -53,7 +53,8 @@ export interface BatchServiceDeps {
   intentLister: IntentLister
   /**
    * Resolves the workspace's ontology plugin so the service can read its batch binding (per-unit skill,
-   * checkpoint config, derive skill). Without this binding the framework has no opinion on which skills to dispatch.
+   * checkpoint config, derive skill).
+   * Without this binding the framework has no opinion on which skills to dispatch.
    */
   pluginRegistry: PluginRegistry
   eventBus?: WorkspaceEventBus
@@ -213,7 +214,8 @@ export class BatchService {
   }
 
   // Move a terminal plan to `archived`. The Studio Batch page treats it like no active plan,
-  // but keeps the report browsable in the PreStart slot. Recorded in git history as a `batch-archive` commit.
+  // but keeps the report browsable in the PreStart slot.
+  // Recorded in git history as a `batch-archive` commit.
   async archive(workspaceId: WorkspaceId): Promise<BatchPlan> {
     return this.deps.workspaceLock.run(workspaceId, async () => {
       const workspace = await this.deps.workspaceService.findById(workspaceId)
@@ -377,7 +379,8 @@ export class BatchService {
     }
     catch {
       // Observation recording is best-effort. The extract itself already succeeded,
-      // and failing to record it must not fail the batch. Reactor sees the unit as changed next cycle and re-extracts,
+      // and failing to record it must not fail the batch.
+      // Reactor sees the unit as changed next cycle and re-extracts,
       // which is a recoverable state.
     }
   }

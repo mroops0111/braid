@@ -1,6 +1,6 @@
 import type { DriftIssueId, ModelSnapshot, NodeId, NodeStatus, NodeTypeId, SourceId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
-import { EvidenceValidator } from '../../../src/domain/validation/EvidenceValidator.js'
+import { validateEvidence } from '../../../src/domain/validation/validateEvidence.js'
 
 const draft = 'draft' as NodeStatus
 const completed = 'completed' as NodeStatus
@@ -14,11 +14,9 @@ function snapshot(nodes: ModelSnapshot['nodes'], edges: ModelSnapshot['edges'] =
   return { nodes, edges }
 }
 
-describe('EvidenceValidator', () => {
-  const validator = new EvidenceValidator()
-
-  it('emits error when node has no sources and no missing-evidence flag', async () => {
-    const issues = await validator.validate(snapshot([
+describe('validateEvidence', () => {
+  it('emits error when node has no sources and no missing-evidence flag', () => {
+    const issues = validateEvidence(snapshot([
       {
         id: 'n1' as NodeId,
         type: aggregate,
@@ -35,8 +33,8 @@ describe('EvidenceValidator', () => {
     })
   })
 
-  it('accepts node with implementationMissing flag', async () => {
-    const issues = await validator.validate(snapshot([
+  it('accepts node with implementationMissing flag', () => {
+    const issues = validateEvidence(snapshot([
       {
         id: 'n1' as NodeId,
         type: aggregate,
@@ -48,8 +46,8 @@ describe('EvidenceValidator', () => {
     expect(issues).toEqual([])
   })
 
-  it('accepts node with intentMissing flag', async () => {
-    const issues = await validator.validate(snapshot([
+  it('accepts node with intentMissing flag', () => {
+    const issues = validateEvidence(snapshot([
       {
         id: 'n1' as NodeId,
         type: aggregate,
@@ -67,8 +65,8 @@ describe('EvidenceValidator', () => {
     expect(issues).toEqual([])
   })
 
-  it('rejects status=completed with no sources', async () => {
-    const issues = await validator.validate(snapshot([
+  it('rejects status=completed with no sources', () => {
+    const issues = validateEvidence(snapshot([
       {
         id: 'n1' as NodeId,
         type: aggregate,
@@ -82,8 +80,8 @@ describe('EvidenceValidator', () => {
     expect(issues.map(i => i.code)).toEqual(['evidence.completed-no-source'])
   })
 
-  it('multiple bad nodes produce multiple issues', async () => {
-    const issues = await validator.validate(snapshot([
+  it('multiple bad nodes produce multiple issues', () => {
+    const issues = validateEvidence(snapshot([
       { id: 'a' as NodeId, type: aggregate, name: 'A', status: draft, metadata: { sourceReferences: [] } },
       { id: 'b' as NodeId, type: aggregate, name: 'B', status: draft, metadata: { sourceReferences: [] } },
     ]))
@@ -92,8 +90,8 @@ describe('EvidenceValidator', () => {
   })
 
   describe('drift surfacing', () => {
-    it('emits one ValidationIssue per DriftIssue with severity preserved', async () => {
-      const issues = await validator.validate(snapshot([
+    it('emits one ValidationIssue per DriftIssue with severity preserved', () => {
+      const issues = validateEvidence(snapshot([
         {
           id: 'n1' as NodeId,
           type: aggregate,
@@ -127,9 +125,9 @@ describe('EvidenceValidator', () => {
       expect(drift[0]!.message).toContain('Cart')
     })
 
-    it('suppresses drift whose description appears in acknowledgedDrifts', async () => {
+    it('suppresses drift whose description appears in acknowledgedDrifts', () => {
       const description = 'Intent uses "shopper", code uses "customer"'
-      const issues = await validator.validate(snapshot([
+      const issues = validateEvidence(snapshot([
         {
           id: 'n1' as NodeId,
           type: aggregate,
@@ -153,8 +151,8 @@ describe('EvidenceValidator', () => {
       expect(issues.filter(i => i.code === 'evidence.drift')).toEqual([])
     })
 
-    it('emits nothing when driftIssues is undefined or empty', async () => {
-      const issues = await validator.validate(snapshot([
+    it('emits nothing when driftIssues is undefined or empty', () => {
+      const issues = validateEvidence(snapshot([
         {
           id: 'n1' as NodeId,
           type: aggregate,

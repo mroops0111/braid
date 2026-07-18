@@ -112,7 +112,8 @@ export class StructuralValidator implements OntologyValidator {
 
 // Cardinality reads as "one-to-many".
 // '1:N' means one source relates to many targets,
-// so each TARGET has at most one source. The SOURCE side can fan out without limit.
+// so each TARGET has at most one source.
+// The SOURCE side can fan out without limit.
 // Mnemonic:
 //   sourceLimit = right side  (max outgoing edges a single source can have)
 //   targetLimit = left side   (max incoming edges a single target can have)

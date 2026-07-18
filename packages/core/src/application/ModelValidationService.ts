@@ -2,8 +2,8 @@ import type { GraphOperation, ModelSnapshot, ValidationCode, ValidationIssue, Va
 import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
 import { Model } from '../domain/model/Model.js'
-import { EvidenceValidator } from '../domain/validation/EvidenceValidator.js'
-import { OrphanEdgeValidator } from '../domain/validation/OrphanEdgeValidator.js'
+import { validateEvidence } from '../domain/validation/validateEvidence.js'
+import { validateOrphanEdges } from '../domain/validation/validateOrphanEdges.js'
 
 export interface ModelValidationServiceDeps {
   pluginRegistry: PluginRegistry
@@ -12,7 +12,7 @@ export interface ModelValidationServiceDeps {
 /**
  * Orchestrates two layers of validation against a `ModelSnapshot`.
  *
- *  1. **Framework invariants** (`EvidenceValidator`, `OrphanEdgeValidator`),
+ *  1. **Framework invariants** (`validateEvidence`, `validateOrphanEdges`),
  *     hard-coded here because they are structural to Braid's HITL trust model.
  *     Every node has evidence, every edge has endpoints. Not user-replaceable.
  *
@@ -29,15 +29,12 @@ export interface ModelValidationServiceDeps {
  * not as a plugin.
  */
 export class ModelValidationService {
-  private readonly evidence = new EvidenceValidator()
-  private readonly orphanEdge = new OrphanEdgeValidator()
-
   constructor(private readonly deps: ModelValidationServiceDeps) {}
 
   async validate(snapshot: ModelSnapshot, workspace: Workspace): Promise<ValidationResult> {
     const issues: ValidationIssue[] = []
-    issues.push(...await this.evidence.validate(snapshot))
-    issues.push(...await this.orphanEdge.validate(snapshot))
+    issues.push(...validateEvidence(snapshot))
+    issues.push(...validateOrphanEdges(snapshot))
 
     const ontology = this.deps.pluginRegistry.findOntology(workspace.productManifest.ontologyId)
     if (ontology) {
@@ -55,7 +52,8 @@ export class ModelValidationService {
    * then delegates to `validate`.
    * If preview itself rejects, e.g. removeNode of a non-existent node,
    * we convert that into a structural validation issue,
-   * rather than letting the route 404. The UI needs a single shape it can render,
+   * rather than letting the route 404.
+   * The UI needs a single shape it can render,
    * and a structural mismatch is what the user wants to see anyway.
    */
   async validateOperations(
