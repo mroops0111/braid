@@ -4,6 +4,7 @@ import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import {
   BraidError,
   ConflictError,
+  ForbiddenError,
   NotFoundError,
   ValidationError,
 } from '@braidhq/core'
@@ -18,6 +19,8 @@ function statusFor(error: BraidError): number {
     return 404
   if (error instanceof ConflictError)
     return 409
+  if (error instanceof ForbiddenError)
+    return 403
   return 500
 }
 

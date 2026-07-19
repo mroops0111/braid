@@ -8,6 +8,7 @@ export const BraidErrorCode = z.enum([
   'BRAID-VALIDATION',
   'BRAID-NOT-FOUND',
   'BRAID-CONFLICT',
+  'BRAID-FORBIDDEN',
   'BRAID-INTERNAL',
 ])
 export type BraidErrorCode = z.infer<typeof BraidErrorCode>

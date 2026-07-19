@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   BraidError,
   ConflictError,
+  ForbiddenError,
   NotFoundError,
   ValidationError,
 } from '../../src/index.js'
@@ -55,5 +56,14 @@ describe('ConflictError', () => {
     const error = new ConflictError('duplicate id')
     expect(error.code).toBe('BRAID-CONFLICT')
     expect(error.name).toBe('ConflictError')
+  })
+})
+
+describe('ForbiddenError', () => {
+  it('uses BRAID-FORBIDDEN code', () => {
+    const error = new ForbiddenError('You can only update your own profile.')
+    expect(error.code).toBe('BRAID-FORBIDDEN')
+    expect(error.name).toBe('ForbiddenError')
+    expect(error).toBeInstanceOf(BraidError)
   })
 })

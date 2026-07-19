@@ -31,3 +31,9 @@ export class ConflictError extends BraidError {
     super('BRAID-CONFLICT', message, options)
   }
 }
+
+export class ForbiddenError extends BraidError {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super('BRAID-FORBIDDEN', message, options)
+  }
+}

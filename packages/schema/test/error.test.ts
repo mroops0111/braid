@@ -14,6 +14,7 @@ describe('BraidErrorCode', () => {
       'BRAID-VALIDATION',
       'BRAID-NOT-FOUND',
       'BRAID-CONFLICT',
+      'BRAID-FORBIDDEN',
       'BRAID-INTERNAL',
     ])
   })
