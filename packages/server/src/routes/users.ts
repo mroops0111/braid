@@ -1,10 +1,9 @@
-import type { Clock } from '@braidhq/core'
 import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
-import { newUserId, NotFoundError } from '@braidhq/core'
-import { User, UserCreate, UserId, UserUpdate } from '@braidhq/schema'
+import { ForbiddenError, NotFoundError } from '@braidhq/core'
+import { User, UserId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getUserId } from '../middleware/userId.js'
-import { NotFoundResponse, ValidationFailureResponse } from './_shared.js'
+import { ForbiddenResponse, NotFoundResponse } from './_shared.js'
 
 const UserIdParam = z.object({
   userId: UserId.openapi({ param: { name: 'userId', in: 'path' } }),
@@ -14,9 +13,14 @@ const UserListResponse = z.object({
   items: z.array(User),
 }).openapi('UserListResponse')
 
+// Self-service profile edit, only the display name.
+// Server-role changes go through the admin-gated `/admin/users` routes.
+const SelfProfileUpdate = z.object({
+  displayName: z.string().min(1),
+})
+
 export interface UsersRouterDeps {
   userRegistry: UserRegistryFile
-  clock: Clock
 }
 
 const listUsersRoute = createRoute({
@@ -64,39 +68,22 @@ const getUserRoute = createRoute({
   },
 })
 
-const createUserRoute = createRoute({
-  method: 'post',
-  path: '/',
-  operationId: 'createUser',
-  summary: 'Create a user. Phase A: any caller; Phase B/C will gate by Admin role.',
-  tags: ['users'],
-  request: {
-    body: { content: { 'application/json': { schema: UserCreate } } },
-  },
-  responses: {
-    201: {
-      description: 'The created user.',
-      content: { 'application/json': { schema: User } },
-    },
-    400: ValidationFailureResponse,
-  },
-})
-
 const updateUserRoute = createRoute({
   method: 'patch',
   path: '/{userId}',
   operationId: 'updateUser',
-  summary: 'Patch a user record. Phase A: any caller; Phase B/C will gate by Admin role.',
+  summary: 'Update your own display name, role changes go through /admin.',
   tags: ['users'],
   request: {
     params: UserIdParam,
-    body: { content: { 'application/json': { schema: UserUpdate } } },
+    body: { content: { 'application/json': { schema: SelfProfileUpdate } } },
   },
   responses: {
     200: {
       description: 'The updated user.',
       content: { 'application/json': { schema: User } },
     },
+    403: ForbiddenResponse,
     404: NotFoundResponse,
   },
 })
@@ -125,19 +112,11 @@ export function createUsersRouter(deps: UsersRouterDeps): OpenAPIHono {
     return context.json(user, 200)
   })
 
-  router.openapi(createUserRoute, async (context) => {
-    const draft = context.req.valid('json')
-    const created = await deps.userRegistry.create({
-      id: newUserId(),
-      ...draft,
-      serverRole: draft.serverRole ?? 'user',
-      createdAt: deps.clock.now(),
-    })
-    return context.json(created, 201)
-  })
-
   router.openapi(updateUserRoute, async (context) => {
     const { userId } = context.req.valid('param')
+    // Self-service only. Server-admin edits go through the admin routes.
+    if (userId !== getUserId(context))
+      throw new ForbiddenError('You can only update your own profile.')
     const patch = context.req.valid('json')
     const updated = await deps.userRegistry.update(userId, patch)
     return context.json(updated, 200)

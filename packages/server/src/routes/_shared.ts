@@ -26,6 +26,11 @@ export const NotFoundResponse = {
   content: ProblemJsonResponseContent,
 } as const
 
+export const ForbiddenResponse = {
+  description: 'The caller lacks permission for this action.',
+  content: ProblemJsonResponseContent,
+} as const
+
 export const ValidationFailureResponse = {
   description: 'Request body or query failed validation.',
   content: ProblemJsonResponseContent,

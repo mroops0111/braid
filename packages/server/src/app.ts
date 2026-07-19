@@ -45,6 +45,8 @@ export interface AppOptions {
 
 export function createApp(deps: AppDependencies, options: AppOptions = {}): OpenAPIHono {
   const app = new OpenAPIHono()
+
+  // Global middleware, every request passes these in order.
   app.use(
     '*',
     options.corsOrigins
@@ -58,15 +60,16 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   if (deps.sessionStore) {
     app.use('*', authMiddleware({
       sessionStore: deps.sessionStore,
-      defaultPrincipal: deps.tenancy.defaultPrincipal,
+      defaultPrincipal: deps.authMode.defaultPrincipal,
     }))
   }
   // Identity. Stamps `userId` on the context from `X-Braid-User`,
   // when the auth layer left it empty, i.e. single-tenant or a public route.
   // Bearer requests already carry a userId here, and pass untouched.
-  app.use('*', userIdMiddleware(deps.tenancy.defaultPrincipal))
+  app.use('*', userIdMiddleware(deps.authMode.defaultPrincipal))
   app.onError(errorHandler)
 
+  // Host-level routes, not scoped to a single workspace.
   app.route('/health', healthRouter)
   if (deps.sessionStore && deps.accessPolicy && deps.userRegistry) {
     app.route('/auth', createAuthRouter({
@@ -76,13 +79,12 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       userRegistry: deps.userRegistry,
       ...(deps.googleOAuth ? { googleOAuth: deps.googleOAuth } : {}),
       studioUrl: deps.studioUrl ?? 'http://localhost:5173',
-      defaultPrincipal: deps.tenancy.defaultPrincipal,
+      defaultPrincipal: deps.authMode.defaultPrincipal,
     }))
   }
   if (deps.userRegistry) {
     app.route('/users', createUsersRouter({
       userRegistry: deps.userRegistry,
-      clock: deps.clock,
     }))
   }
   if (deps.userRegistry && deps.accessPolicy && deps.workspaceRegistry) {
@@ -123,6 +125,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     }))
   }
 
+  // Workspace-scoped sub-app, mounted under `/workspaces/:workspaceId` below.
   const workspaceScoped = new OpenAPIHono()
   workspaceScoped.use('*', workspaceIdMiddleware)
   // Workspace membership gate, present only in composeFsApp,
@@ -229,8 +232,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
 
   // OpenAPI 3 spec, consumed by openapi-mcp-gateway, to surface REST operations as MCP tools.
   // SSE routes and the OAuth HTML callback are intentionally absent,
-  // they mount via app.route() with plain Hono sub-routers, so they don't register with the OpenAPI registry.
-  // The `servers[]` block lets the gateway resolve the upstream API base URL, without an explicit --base-url flag.
+  // they mount plain Hono sub-routers, so they never register with the doc.
+  // The `servers[]` block lets the gateway resolve the upstream base URL,
+  // without an explicit --base-url flag.
   app.doc('/openapi.json', {
     openapi: '3.0.0',
     info: {

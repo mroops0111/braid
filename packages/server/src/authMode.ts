@@ -7,15 +7,15 @@ import { UserId as UserIdSchema } from '@braidhq/schema'
 
 export const LOCAL_USER_ID = UserIdSchema.parse('local-user')
 
-export interface TenancyContext {
+export interface AuthContext {
   readonly userRegistry: UserRegistryFile
   readonly accessPolicy: AccessPolicy
 }
 
 /**
  * How a deployment resolves identity.
- * The one axis that separates a single-tenant local install,
- * from a multi-tenant remote server.
+ * The one axis that separates a trusted local install,
+ * from an authenticated remote server.
  *
  * `defaultPrincipal` is the implicit user for an unauthenticated request,
  * and the owner a workspace falls back to when it has none.
@@ -26,15 +26,15 @@ export interface TenancyContext {
  * Stateless behaviour behind an interface, so a const object per mode,
  * the idiomatic strategy form when there is no constructor dependency.
  */
-export interface TenancyMode {
+export interface AuthMode {
   readonly defaultPrincipal: UserId | null
   // Seed the host state this mode needs, called once at boot.
-  provision: (context: TenancyContext) => Promise<void>
+  provision: (context: AuthContext) => Promise<void>
 }
 
 // A local desktop or sidecar. One implicit user owns everything,
 // so provision seeds that `local-user` admin account, idempotently.
-export const singleTenant: TenancyMode = {
+export const localTrust: AuthMode = {
   defaultPrincipal: LOCAL_USER_ID,
   async provision({ userRegistry }) {
     if (await userRegistry.get(LOCAL_USER_ID))
@@ -50,7 +50,7 @@ export const singleTenant: TenancyMode = {
 
 // A remote server. Real users authenticate against an allowlist,
 // so provision back-fills `approvedEmails` from the roster, idempotently.
-export const multiTenant: TenancyMode = {
+export const authenticated: AuthMode = {
   defaultPrincipal: null,
   async provision({ userRegistry, accessPolicy }) {
     for (const user of await userRegistry.list()) {

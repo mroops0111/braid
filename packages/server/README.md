@@ -10,6 +10,17 @@ Server is the composition root and the presentation layer. It turns the framewor
 - **The Adapters**: Filesystem and git implementations of core's repositories and history, plus the subprocess runner that executes skills.
 - **The API**: A REST and SSE surface built on Hono, one router per resource, with authentication, workspace scoping, and an OpenAPI 3 spec at `GET /openapi.json`.
 
+## Positioning: framework kernel and worldview preset
+
+Braid is worldview-agnostic. The intent-graph engine, workspaces, proposals, HITL review, the reactor, and the authorization policy, knows nothing about software. A worldview supplies the rest: an ontology plus the storage, source loaders, and agent that serve it. The software worldview, a DDD ontology whose sources split into `intent` and `code`, is the default, not a built-in.
+
+Two layers share this package for now.
+
+- **Kernel**: `composeApp`, routes, middleware, policy, auth mode, and the generic filesystem infrastructure. Worldview-agnostic. `composeApp` registers no plugin, a caller hands it a `PluginRegistry`. Nothing here imports a concrete ontology, storage, loader, or agent.
+- **Coding preset**: `composeFsApp` assembles the default bundle, Kuzu storage, the DDD ontology, the git, github, and drive loaders, and the claude-code agent, over filesystem persistence. Its default identities live as `DEFAULT_*` constants at the head of the file.
+
+A future app, a story world or a research-notes base, reuses the kernel and swaps the preset for its own ontology and adapters. When that second worldview arrives, the coding preset extracts into its own package, `@braidhq/preset-code`, and this package drops its plugin dependencies. Until a second worldview exists that pressure is speculative, so both layers stay here at no cost. The seam is `composeApp`: whatever the kernel reaches without a concrete plugin already belongs to it.
+
 ## Structure
 
 The package layers outward from core. Infrastructure implements core's ports, routes expose them, and composition binds the two.
@@ -18,10 +29,10 @@ The package layers outward from core. Infrastructure implements core's ports, ro
 src/
 ├── server.ts          process entry, serves the app
 ├── app.ts             builds the Hono app, mounts middleware and routes
-├── composeApp.ts      the generic root, in-memory defaults
-├── composeFsApp.ts    the production wiring
+├── composeApp.ts      the worldview-agnostic kernel root
+├── composeFsApp.ts    the coding preset, filesystem and vendor adapters
 ├── startup.ts         blocking per-workspace boot steps
-├── tenancy.ts         TenancyMode strategy, singleTenant and multiTenant
+├── authMode.ts        AuthMode strategy, localTrust and authenticated
 ├── routes/            one router per resource
 ├── middleware/        auth, cors, error mapping, workspace scoping
 ├── policy/            authorization rules
@@ -32,7 +43,7 @@ src/
     └── auth/, oauth/, secrets/, users/
 ```
 
-- **composeApp / composeFsApp**: Two roots. `composeApp` takes a deps object and defaults every port to an in-memory adapter. `composeFsApp` builds the filesystem, git, and vendor adapters, then hands them to `composeApp`. Production runs the latter.
+- **composeApp / composeFsApp**: The kernel root and the coding preset. `composeApp` takes a deps object, registers no plugin, and defaults every unset port to an in-memory adapter. `composeFsApp` builds the filesystem, git, and vendor adapters, registers the default plugin bundle, then hands the result to `composeApp`. Production runs the latter. See Positioning above.
 - **startup**: The two boot passes, `startupBeforeServe` and `startupAfterServe`. See Startup below for the full order.
 - **infrastructure**: The real adapters behind core's ports. `fs/` persists the graph, proposals, and runs as files. `git/` records every workspace change as a commit. `agent/` runs a skill as a subprocess and streams its events back.
 - **routes**: One `createXxxRouter(deps)` per resource, each taking only the services it needs. Bodies validate through zod, path ids parse through their branded schema.
@@ -44,12 +55,12 @@ The blocking phase runs inside `composeFsApp` before the server accepts a reques
 
 Provision host identity, who may use this server:
 
-1. `tenancy.provision` seeds what the deployment's mode needs. Single-tenant seeds the `local-user` fallback account, multi-tenant syncs the login allowlist to the user roster. See Tenancy below.
+1. `authMode.provision` seeds what the deployment's mode needs. Local trust seeds the `local-user` fallback account, authenticated mode syncs the login allowlist to the user roster. See Auth Mode below.
 
 Reconcile workspaces, register then boot each:
 
 2. `discoverCanonicalWorkspaces` registers workspaces present on disk but absent from the registry.
-3. `ensureWorkspaceOwners` gives any ownerless workspace the tenancy's default principal, or throws under multi-tenant where every workspace must have an explicit owner.
+3. `ensureWorkspaceOwners` gives any ownerless workspace the auth mode's default principal, or throws under authenticated mode where every workspace must have an explicit owner.
 4. `startupBeforeServe` runs the per-workspace pass. Per workspace it provisions the git repo and store, recovers a batch left running by a killed process, subscribes the reactor when the workspace opts in, and fires a catch-up sync for each loader-backed source.
 
 After `serve()`, the background phase runs cosmetic recovery that need not finish first, via `startupAfterServe`:
@@ -58,34 +69,34 @@ After `serve()`, the background phase runs cosmetic recovery that need not finis
 
 Both passes live in `startup.ts`, `startupBeforeServe` before `serve()` and `startupAfterServe` after. A new blocking per-workspace step is added to `startupBeforeServe`, a new background step to `startupAfterServe`. Provisioning tied to one adapter stays next to that adapter's construction. Source loaders take part without a bespoke step, the sync in step 4 fires for any registered loader.
 
-## Tenancy
+## Auth Mode
 
-One axis separates a single-tenant local install from a multi-tenant remote server, who the implicit user is. Rather than scatter that decision, a `TenancyMode` strategy carries it, and the auth and ownership code reads the strategy, never a hardcoded `local-user`.
+One axis separates a trusted local install from an authenticated remote server, who the implicit user is. Rather than scatter that decision, an `AuthMode` strategy carries it, and the auth and ownership code reads the strategy, never a hardcoded `local-user`.
 
 ```mermaid
 classDiagram
-    class TenancyMode {
+    class AuthMode {
         <<interface>>
         +defaultPrincipal: UserId | null
         +provision(context) Promise
     }
-    class singleTenant {
+    class localTrust {
         <<const>>
         defaultPrincipal = local-user
         provision() seeds local-user
     }
-    class multiTenant {
+    class authenticated {
         <<const>>
         defaultPrincipal = null
         provision() syncs allowlist
     }
-    TenancyMode <|.. singleTenant
-    TenancyMode <|.. multiTenant
+    AuthMode <|.. localTrust
+    AuthMode <|.. authenticated
 ```
 
 Three consumers read the strategy, none a hardcoded account. `authMiddleware` skips the Bearer gate when a principal is present. `userIdMiddleware` resolves an unauthenticated caller to the principal. `ensureWorkspaceOwners` gives an ownerless workspace the principal, or throws when there is none.
 
-`composeFsApp` picks the mode from `BRAID_LOCAL_TRUST`, single-tenant by default. Adding a mode, a service account or an SSO-only deployment, is a new `TenancyMode`, with no change to the middleware, the ownership code, or boot.
+`composeFsApp` picks the mode from `BRAID_LOCAL_TRUST`, local trust by default. Adding a mode, a service account or an SSO-only deployment, is a new `AuthMode`, with no change to the middleware, the ownership code, or boot.
 
 ## Boundaries
 
@@ -99,9 +110,9 @@ These are the rules for anyone editing server. They are enforced in review rathe
 
 ## Dependencies
 
-Server sits at the outer edge, above core and the plugin packages it bundles as defaults.
+Server sits at the outer edge, above core and the plugin packages the coding preset bundles as defaults.
 
-- **Depends On**: `@braidhq/core` and `@braidhq/schema`, `hono` for HTTP, `simple-git` for history, and the default plugin bundle of `storage-kuzu`, `agent-claude-code`, `ontology-ddd`, and `source-loader-*`.
+- **Depends On**: `@braidhq/core` and `@braidhq/schema`, `hono` for HTTP, `simple-git` for history, and, only through the coding preset, the default plugin bundle of `storage-kuzu`, `agent-claude-code`, `ontology-ddd`, and `source-loader-*`. The kernel itself needs none of the plugin packages; they leave with the preset when it extracts. See Positioning.
 - **Consumed By**: `cli` and the `desktop` Tauri shell, which run it as their backend.
 
 ## MCP Gateway

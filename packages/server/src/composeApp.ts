@@ -19,13 +19,13 @@ import type {
   WorkspaceRepository,
 } from '@braidhq/core'
 import type { AbsolutePath } from '@braidhq/schema'
+import type { AuthMode } from './authMode.js'
 import type { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
 import type { SessionStore } from './infrastructure/auth/SessionStore.js'
 import type { WorkspaceRegistryFile } from './infrastructure/fs/WorkspaceRegistryFile.js'
 import type { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
 import type { SecretStore } from './infrastructure/secrets/SecretStore.js'
 import type { UserRegistryFile } from './infrastructure/users/UserRegistryFile.js'
-import type { TenancyMode } from './tenancy.js'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -54,126 +54,121 @@ import {
   InMemoryWorkspaceRepository,
   NoopRunRepository,
 } from '@braidhq/core/in-memory'
-import { singleTenant } from './tenancy.js'
+import { localTrust } from './authMode.js'
 
+// The assembled application, what routes and middleware consume.
+// A required field is always present.
+// An optional field is a capability slot,
+// absent under in-memory or test wiring, filled by `composeFsApp`.
 export interface AppDependencies {
+  // Core services, always present.
   workspaceService: WorkspaceService
   hitlService: HITLService
-  historyService?: HistoryService
-  batchService?: BatchService
-  // Subscribes to `source.synced`,
-  // runs the active ontology's per-unit skill on intent-source diffs.
-  // Present when the composition has skillRunner, intentLister,
-  // and a real SourceUnitDigest.
-  // Absent in pure in-memory tests that don't exercise it.
-  // `composeFsApp` is the wiring path.
-  reactorService?: ReactorService
-  // Persistence of `ReactorCycle` records. Always wired, in-memory by default,
-  // fs-backed via `composeFsApp`,
-  // so the REST and Studio surfaces render an empty list before any cycle runs.
-  reactorCycleRepository: ReactorCycleRepository
-  sourceUnitObservationService: SourceUnitObservationService
-  // Filesystem walk over a workspace's intent sources,
-  // threaded into the source-unit-states diff endpoint,
-  // so the route composes intentLister, digest, and sourceUnitObservationService,
-  // without re-implementing the walk.
-  // Absent in pure in-memory tests.
-  intentLister?: IntentLister
-  // Per-source-unit content digest. Same usage as `intentLister`.
-  // Absent in pure in-memory tests.
-  sourceUnitDigest?: SourceUnitDigest
   modelService: ModelService
   modelValidationService: ModelValidationService
   sourceLoaderRunner: SourceLoaderRunner
-  eventBus: WorkspaceEventBus
-  pluginRegistry: PluginRegistry
-  proposalRepository: ProposalRepository
-  clarifyRepository: ClarifyTicketRepository
+  sourceUnitObservationService: SourceUnitObservationService
+
+  // Capability services, each built only when its dependencies are wired.
+  historyService?: HistoryService
+  batchService?: BatchService
+  // Runs the active ontology's per-unit skill on intent-source diffs.
+  reactorService?: ReactorService
+
+  // Repositories, in-memory by default, fs-backed via `composeFsApp`.
   modelRepository: ModelRepository
   workspaceRepository: WorkspaceRepository
+  proposalRepository: ProposalRepository
+  clarifyRepository: ClarifyTicketRepository
+  runRepository: RunRepository
+  // Always wired, the Activity page renders an empty list before any cycle.
+  reactorCycleRepository: ReactorCycleRepository
+
+  // Source-unit extraction, the filesystem walk and content digest,
+  // threaded into the source-unit-states diff endpoint.
+  intentLister?: IntentLister
+  sourceUnitDigest?: SourceUnitDigest
+
+  // Skills, the registry and the subprocess runner.
   skillRegistry: SkillRegistry | undefined
   skillRunner: SkillRunner | undefined
-  runRepository: RunRepository
-  // Parent directory under which name-based workspaces are scaffolded.
+
+  // Infrastructure singletons.
+  eventBus: WorkspaceEventBus
+  pluginRegistry: PluginRegistry
+  clock: Clock
+
+  // Workspace scaffolding.
   // `POST /workspaces/scaffold { name }` resolves to `<workspacesRoot>/<name>`.
   workspacesRoot: AbsolutePath
   bootstrap?: WorkspaceBootstrapService
+
+  // Identity and auth, the multi-user axis.
+  // Local trust carries a default principal,
+  // so unauthenticated requests pass through as that user.
+  // Authenticated mode carries none, so a Bearer token is enforced.
+  authMode: AuthMode
+  // Each absent field drops its surface,
+  // no `userRegistry` unmounts `/users`,
+  // no `sessionStore` with `accessPolicy` unmounts `/auth/*`,
+  // no `workspaceRegistry` unmounts member-gating and the members routes.
+  userRegistry?: UserRegistryFile
+  workspaceRegistry?: WorkspaceRegistryFile
+  sessionStore?: SessionStore
+  accessPolicy?: AccessPolicy
   // OAuth secret storage, file-based, pluggable for hosted deployments.
   secretStore?: SecretStore
-  // Google OAuth client. Undefined when env vars aren't set,
-  // in which case routes respond with 503.
+  // Google client, undefined when its env is unset,
+  // then `/auth/google/*` respond 503.
   googleOAuth?: GoogleOAuth
-  // Server-side user roster. When absent the `/users` route is not mounted.
-  // Routes that read `c.get('userId')` still work,
-  // because `userIdMiddleware` falls back to the tenancy's default principal.
-  userRegistry?: UserRegistryFile
-  // Server-side workspace registry backing the membership model.
-  // Required to mount `workspaceAccessMiddleware`,
-  // and the `/workspaces/:id/members` routes.
-  // Absent in pure in-memory tests that don't need member-gating.
-  workspaceRegistry?: WorkspaceRegistryFile
-  // Bearer-token session backing. Required to mount `/auth/*` and the middleware.
-  // Absent in tests that want the trusted-network shape with no auth gate.
-  sessionStore?: SessionStore
-  // Allowlist plus invite list. Paired with `sessionStore` to mount `/auth/*`.
-  accessPolicy?: AccessPolicy
-  // URL the Studio bundle is served from. The OAuth callback redirects here,
-  // with `#token=...`, so the SPA can capture the session.
-  // Defaults to the Vite dev origin in `composeFsApp`.
+  // Where the OAuth callback redirects with `#token=...`,
+  // defaults to the Vite dev origin.
   studioUrl?: string
-  // The deployment's identity strategy, single-tenant or multi-tenant.
-  // Single-tenant carries a default principal,
-  // so the auth middleware lets unauthenticated requests through as that user.
-  // Multi-tenant carries none, so a Bearer token is enforced.
-  tenancy: TenancyMode
-  clock: Clock
 }
 
+// Every field is optional, an unset one falls to an in-memory default.
+// `composeFsApp` passes the fs, git, and vendor adapters through here.
 export interface ComposeOptions {
+  // Infrastructure singletons.
   clock?: Clock
-  // Identity strategy for the deployment. Defaults to single-tenant.
-  tenancy?: TenancyMode
-  proposalRepository?: ProposalRepository
-  clarifyRepository?: ClarifyTicketRepository
+  // The same instance wired into `SubprocessSkillRunner`,
+  // so event-bus subscribers see runner events.
+  eventBus?: WorkspaceEventBus
+  pluginRegistry?: PluginRegistry
+
+  // Repositories.
   modelRepository?: ModelRepository
   workspaceRepository?: WorkspaceRepository
-  pluginRegistry?: PluginRegistry
+  proposalRepository?: ProposalRepository
+  clarifyRepository?: ClarifyTicketRepository
+  runRepository?: RunRepository
+  // Swapped fs-backed by `composeFsApp`, so records survive restart.
+  reactorCycleRepository?: ReactorCycleRepository
+  sourceUnitObservationRepository?: SourceUnitObservationRepository
+  batchPlanRepository?: BatchPlanRepository
+
+  // Source-unit extraction.
+  // Without a real digest the observation service falls back,
+  // to a no-op stub that throws, fine unless a batch or reactor runs.
+  intentLister?: IntentLister
+  sourceUnitDigest?: SourceUnitDigest
+
+  // Skills.
   skillRegistry?: SkillRegistry
   skillRunner?: SkillRunner
-  runRepository?: RunRepository
-  // Parent dir for scaffolds, set to `<braidHome>/workspaces` by `composeFsApp`.
-  // Tests using `composeApp` directly can leave the default,
-  // unless they exercise the scaffold endpoint.
-  workspacesRoot?: AbsolutePath
-  // Pre-created event bus, the same instance wired into `SubprocessSkillRunner`,
-  // so subscribers see runner events.
-  // Defaults to a fresh `InMemoryWorkspaceEventBus` for tests and in-memory boot.
-  eventBus?: WorkspaceEventBus
-  // Both required together. HITLService skips git hooks when absent.
+
+  // History and git authorship, both required together,
+  // HITL skips git hooks when absent.
   history?: WorkspaceHistory
   modelSerializer?: ModelSerializer
   bootstrap?: WorkspaceBootstrapService
-  batchPlanRepository?: BatchPlanRepository
-  intentLister?: IntentLister
-  // Persistence for `SourceUnitObservation`. Defaults to an in-memory impl,
-  // so unit tests of unrelated services keep working without wiring.
-  // `composeFsApp` swaps in the fs-backed repo.
-  sourceUnitObservationRepository?: SourceUnitObservationRepository
-  // Persistence for `ReactorCycle`. Defaults to an in-memory impl,
-  // so unit tests of unrelated services keep working without wiring.
-  // `composeFsApp` swaps in the fs-backed repo,
-  // so cycles survive restart and the Studio Activity page can render history.
-  reactorCycleRepository?: ReactorCycleRepository
-  // Content fingerprinter for source units.
-  // Required for batch, reactor, and manual extract to record observations.
-  // Without it the `SourceUnitObservationService` falls back,
-  // to a no-op stub digest that throws on use.
-  // Fine for tests that don't record observations, but would break batches.
-  sourceUnitDigest?: SourceUnitDigest
-  // Optional read-only user lookup used by HITLService and HistoryService,
-  // to snapshot displayName and email into the git author when committing.
-  // Tests skip this so the existing `Author: <userId>` shape is preserved.
+  // Read-only user lookup, snapshots displayName and email into the git author.
   userDirectory?: UserDirectory
+
+  // Identity and scaffolding.
+  authMode?: AuthMode
+  // Scaffold parent, `<braidHome>/workspaces` in `composeFsApp`.
+  workspacesRoot?: AbsolutePath
 }
 
 export function composeApp(options: ComposeOptions = {}): AppDependencies {
@@ -298,9 +293,9 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     runRepository: options.runRepository ?? new NoopRunRepository(),
     workspacesRoot: options.workspacesRoot ?? (join(tmpdir(), 'braid-workspaces') as AbsolutePath),
     // `composeApp` is the test and in-memory composition entry.
-    // It defaults to single-tenant, the local-user fallback,
+    // It defaults to local trust, the local-user fallback,
     // so a test that wires a sessionStore still resolves a caller.
-    tenancy: options.tenancy ?? singleTenant,
+    authMode: options.authMode ?? localTrust,
     clock,
   }
 }

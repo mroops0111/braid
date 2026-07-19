@@ -26,7 +26,6 @@ import type {
   SourceUnitObservation,
   TagMeta,
   User,
-  UserCreate,
   UserUpdate,
   ValidationResult,
   Workspace,
@@ -177,8 +176,6 @@ export const api = {
 
   listUsers: () => fetchJson<ItemList<User>>('/users'),
   getMe: () => fetchJson<User>('/users/me'),
-  createUser: (draft: UserCreate) =>
-    fetchJson<User>('/users', { method: 'POST', body: JSON.stringify(draft) }),
   updateUser: (userId: string, patch: UserUpdate) =>
     fetchJson<User>(`/users/${userId}`, { method: 'PATCH', body: JSON.stringify(patch) }),
 

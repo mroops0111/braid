@@ -21,6 +21,7 @@ import { createGoogleDriveLoader } from '@braidhq/source-loader-gdrive'
 import { gitLoader } from '@braidhq/source-loader-git'
 import { createGithubLoader } from '@braidhq/source-loader-github'
 import { kuzuStoragePlugin } from '@braidhq/storage-kuzu'
+import { authenticated, localTrust } from './authMode.js'
 import { composeApp } from './composeApp.js'
 import { SubprocessSkillRunner } from './infrastructure/agent/SubprocessSkillRunner.js'
 import { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
@@ -46,38 +47,32 @@ import { ensureWorkspaceOwners } from './infrastructure/users/ensureWorkspaceOwn
 import { UserDirectoryFromRegistry } from './infrastructure/users/UserDirectoryFromRegistry.js'
 import { UserRegistryFile } from './infrastructure/users/UserRegistryFile.js'
 import { startupBeforeServe } from './startup.js'
-import { multiTenant, singleTenant } from './tenancy.js'
+
+// The coding preset's default plugin identities, its worldview in one place.
+// A caller overrides any of these through ComposeFsOptions,
+// or drops to composeApp with its own PluginRegistry for a different worldview.
+const DEFAULT_STORAGE_KIND = 'kuzu'
+const DEFAULT_AGENT_KIND = 'claude-code'
+const DEFAULT_AGENT_MODEL = 'opus'
+const DEFAULT_AGENT_EFFORT = 'high'
 
 export interface ComposeFsOptions {
-  // Where to persist registered workspace paths.
-  // Default `$BRAID_HOME` or `~/.braid`.
+  // Paths and URLs.
+  // `braidHome` defaults to `$BRAID_HOME` or `~/.braid`.
+  // `apiUrl` is what the server reports to spawned subprocesses for callbacks.
   readonly braidHome?: string
-  // URL the server reports to spawned subprocesses for REST callbacks.
   readonly apiUrl?: string
-  // Coding-agent model selection (default `opus`).
-  readonly agentModel?: string
-  // Coding-agent effort tier (default `high`).
-  readonly agentEffort?: AgentEffort
-  // Graph storage backend kind, resolved against the StoragePlugin registry.
-  // Default `kuzu`. Set via `BRAID_STORAGE_KIND` env to swap,
-  // e.g. `neo4j` once `@braidhq/storage-neo4j` is registered.
-  readonly storageKind?: StorageKind
-  // Coding-agent kind to spawn skill subprocesses with. Default `claude-code`.
-  readonly agentKind?: AgentKind
 
-  // Extra plugins registered alongside the defaults this composition bundles.
-  // The defaults bundle is:
-  // - storage: `kuzuStoragePlugin`
-  // - ontology: `dddOntology`
-  // - source-loader: `gitLoader`, `createGithubLoader()`, `createGoogleDriveLoader()`.
-  //   gdrive throws an actionable error at provision if OAuth env is missing.
-  //   github falls back to anonymous if `${GH_TOKEN}` is unset,
-  //   subject to the 60 req/h public rate limit.
-  // - agent: `claudeCodeAgentPlugin`
-  //
-  // `composeFsApp` is the opinionated entry that ships with batteries.
-  // Callers who want a different bundle should use `composeApp` directly,
-  // with their own pluginRegistry.
+  // Preset default overrides, each falls to the `DEFAULT_*` constant above.
+  // `storageKind` also reads `BRAID_STORAGE_KIND`, resolved against the registry.
+  readonly storageKind?: StorageKind
+  readonly agentKind?: AgentKind
+  readonly agentModel?: string
+  readonly agentEffort?: AgentEffort
+
+  // Extra plugins registered alongside the preset defaults, not replacing them.
+  // The active ontology, storage, and agent stay chosen per-workspace,
+  // so a caller registers a plugin here, then a workspace opts into it.
   readonly extraStoragePlugins?: readonly StoragePlugin[]
   readonly extraOntologyPlugins?: readonly OntologyPlugin[]
   readonly extraSourceLoaderPlugins?: readonly SourceLoaderPlugin[]
@@ -85,15 +80,13 @@ export interface ComposeFsOptions {
 }
 
 /**
- * Opinionated production composition.
- * Filesystem-persists workspaces, proposals, clarify, and decisions.
- * Built-in skills load from `@braidhq/core`. Ships a batteries-included bundle,
- * of Kuzu storage, DDD ontology, Git and GDrive source loaders, and the agent.
+ * Opinionated production composition, the coding preset.
+ * Filesystem-persists workspaces, proposals, clarify, and decisions,
+ * and bundles Kuzu storage, the DDD ontology, the git, github, and drive
+ * loaders, and the claude-code agent.
  *
- * To run with a different plugin set, either:
- * 1. Pass `extraXxxPlugins` to add alongside defaults,
- *    and flip `storageKind` or `agentKind` to pick a different active one.
- * 2. Call `composeApp` directly with a `pluginRegistry` you built yourself.
+ * To run a different plugin set, either pass `extraXxxPlugins` and flip
+ * `storageKind` or `agentKind`, or call `composeApp` with your own registry.
  */
 export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppDependencies> {
   const braidHome = options.braidHome ?? process.env.BRAID_HOME ?? join(homedir(), '.braid')
@@ -143,14 +136,14 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     accessPolicyConfig.adminEmails = adminEmails
   const accessPolicy = new AccessPolicy(join(braidHome, 'access.json'), accessPolicyConfig)
   // Boot, part one, provision host identity, who may use this server.
-  // Local trust is the default, single-tenant.
-  // Production sets `BRAID_LOCAL_TRUST=false` for multi-tenant, real auth.
+  // Local trust is the default.
+  // Production sets `BRAID_LOCAL_TRUST=false` to require real authentication.
   // We do not flip the default when Google OAuth env is present,
   // those creds also feed the Drive loader,
   // and a dev pulling from Drive should not hit Login on every reload.
-  const tenancy = parseBoolEnv(process.env.BRAID_LOCAL_TRUST, true) ? singleTenant : multiTenant
-  // Single-tenant seeds `local-user`, multi-tenant syncs the login allowlist.
-  await tenancy.provision({ userRegistry, accessPolicy })
+  const authMode = parseBoolEnv(process.env.BRAID_LOCAL_TRUST, true) ? localTrust : authenticated
+  // Local trust seeds `local-user`, authenticated mode syncs the login allowlist.
+  await authMode.provision({ userRegistry, accessPolicy })
   const studioUrl = process.env.BRAID_STUDIO_URL ?? 'http://localhost:5173'
   const workspaceRoots = async (): Promise<ReadonlyMap<WorkspaceId, AbsolutePath>> => {
     const workspaces = await workspaceRepository.list()
@@ -222,7 +215,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
 
   // Resolve the active storage plugin and ask it for a ModelRepository.
   const storageKind = StorageKindSchema.parse(
-    options.storageKind ?? process.env.BRAID_STORAGE_KIND ?? 'kuzu',
+    options.storageKind ?? process.env.BRAID_STORAGE_KIND ?? DEFAULT_STORAGE_KIND,
   )
   const modelRepository = await pluginRegistry.requireStoragePlugin(storageKind).createModelRepository(
     { kind: storageKind, config: {} },
@@ -242,12 +235,12 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   // Server default agent.
   // A skill overrides kind, model, or effort in its SKILL.md frontmatter,
   // and the runner merges that onto this default at run time.
-  const agentKind = AgentKind.parse(options.agentKind ?? 'claude-code')
+  const agentKind = AgentKind.parse(options.agentKind ?? DEFAULT_AGENT_KIND)
   const defaultAgent: AgentBindingDescriptor = {
-    id: AgentId.parse('claude-code'),
+    id: AgentId.parse(DEFAULT_AGENT_KIND),
     kind: agentKind,
-    model: options.agentModel ?? 'opus',
-    effort: options.agentEffort ?? 'high',
+    model: options.agentModel ?? DEFAULT_AGENT_MODEL,
+    effort: options.agentEffort ?? DEFAULT_AGENT_EFFORT,
     extraArgs: [],
     env: {},
   }
@@ -336,7 +329,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     reactorCycleRepository: new FsReactorCycleRepository({ workspaceRoots }),
     sourceUnitDigest: new FsSourceUnitDigest(),
     userDirectory,
-    tenancy,
+    authMode,
   })
 
   // Boot, part two, reconcile workspaces, register then boot each.
@@ -348,7 +341,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   // Give any workspace with an empty members[] its default owner,
   // covering older registry entries and freshly discovered workspaces.
   // Owner promotion via `/members` routes can rewrite this later.
-  await ensureWorkspaceOwners(registry, tenancy.defaultPrincipal)
+  await ensureWorkspaceOwners(registry, authMode.defaultPrincipal)
 
   // Blocking per-workspace startup, provision, recover, subscribe, catch-up sync.
   // See startup.ts, the single home for boot steps.
