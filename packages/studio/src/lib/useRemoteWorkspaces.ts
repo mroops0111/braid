@@ -84,7 +84,7 @@ export function useAllRemoteWorkspaces(): RemoteWorkspacesResult[] {
 
 /**
  * Clears the react-query cache whenever the active remote flips. Without
- * this every workspace-scoped query (proposals, clarify, history…) would
+ * this every workspace-scoped query (proposals, clarifications, history…) would
  * return stale data from the previous server until its own TTL expired.
  */
 export function useResetOnRemoteChange(): void {

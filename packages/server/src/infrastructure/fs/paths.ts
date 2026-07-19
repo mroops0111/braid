@@ -1,9 +1,9 @@
-import type { AbsolutePath, ClarifyStatus, ProposalStatus, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, ClarificationStatus, ProposalStatus, WorkspaceId } from '@braidhq/schema'
 import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
 export const PROPOSAL_STATUSES: readonly ProposalStatus[] = ['pending', 'applied', 'rejected']
-export const CLARIFY_STATUSES: readonly ClarifyStatus[] = ['pending', 'answered', 'applied', 'skipped']
+export const CLARIFY_STATUSES: readonly ClarificationStatus[] = ['pending', 'answered', 'applied', 'skipped']
 
 /**
  * Path-prefix containment check. Both inputs must be absolute.
@@ -67,8 +67,8 @@ export function proposalsDir(workspaceRoot: AbsolutePath, status: ProposalStatus
   return join(workspaceArtifactsDir(workspaceRoot), 'proposals', status)
 }
 
-export function clarifyDir(workspaceRoot: AbsolutePath, status: ClarifyStatus): string {
-  return join(workspaceArtifactsDir(workspaceRoot), 'clarify', status)
+export function clarificationDir(workspaceRoot: AbsolutePath, status: ClarificationStatus): string {
+  return join(workspaceArtifactsDir(workspaceRoot), 'clarifications', status)
 }
 
 export function decisionsDir(workspaceRoot: AbsolutePath): string {

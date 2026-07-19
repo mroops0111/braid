@@ -1,4 +1,4 @@
-import type { ClarifyTicketRepository, ModelRepository, PluginRegistry, Workspace, WorkspaceRepository } from '@braidhq/core'
+import type { ClarificationRepository, ModelRepository, PluginRegistry, Workspace, WorkspaceRepository } from '@braidhq/core'
 import type { SkillInputDynamicOption } from '@braidhq/schema'
 import { SkillInputOptionsResponse, SourceId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
@@ -53,7 +53,7 @@ const route = createRoute({
 
 export interface SkillInputOptionsRouterDeps {
   readonly modelRepository: ModelRepository
-  readonly clarifyRepository: ClarifyTicketRepository
+  readonly clarificationRepository: ClarificationRepository
   readonly workspaceRepository: WorkspaceRepository
   readonly pluginRegistry: PluginRegistry
 }
@@ -88,7 +88,7 @@ async function resolveProvider(
     case 'source-intent':
       return resolveSourceIntent(filter, workspace)
     case 'clarify':
-      return resolveClarify(filter, workspace.id, deps.clarifyRepository)
+      return resolveClarification(filter, workspace.id, deps.clarificationRepository)
   }
 }
 
@@ -159,13 +159,13 @@ async function resolveSourceIntent(
     })
 }
 
-async function resolveClarify(
+async function resolveClarification(
   filter: Record<string, unknown>,
   workspaceId: Workspace['id'],
-  clarifyRepository: ClarifyTicketRepository,
+  clarificationRepository: ClarificationRepository,
 ): Promise<SkillInputDynamicOption[]> {
   const status = typeof filter.status === 'string' ? filter.status : undefined
-  const tickets = await clarifyRepository.list({
+  const tickets = await clarificationRepository.list({
     workspaceId,
     ...(status ? { statuses: [status] as never } : {}),
   })

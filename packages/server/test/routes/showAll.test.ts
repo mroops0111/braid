@@ -37,14 +37,14 @@ async function submitProposal(
   return body.id
 }
 
-async function submitClarify(
+async function submitClarification(
   app: OpenAPIHono,
   workspaceId: WorkspaceId,
   submitter: User,
   question: string,
 ): Promise<string> {
   const response = await app.request(
-    `/workspaces/${workspaceId}/clarify`,
+    `/workspaces/${workspaceId}/clarifications`,
     asUserJson(submitter.id, 'POST', {
       question,
       candidates: [
@@ -109,14 +109,14 @@ describe('GET /workspaces/:ws/proposals?showAll=', () => {
   })
 })
 
-describe('GET /workspaces/:ws/clarify?showAll=', () => {
+describe('GET /workspaces/:ws/clarifications?showAll=', () => {
   it('filters owner to their own pending tickets by default', async () => {
     const { app, workspaceId, users } = await buildMultiUserApp()
-    const ownerTicketId = await submitClarify(app, workspaceId, users.owner, 'owner question?')
-    const maintainerTicketId = await submitClarify(app, workspaceId, users.maintainer, 'maintainer question?')
+    const ownerTicketId = await submitClarification(app, workspaceId, users.owner, 'owner question?')
+    const maintainerTicketId = await submitClarification(app, workspaceId, users.maintainer, 'maintainer question?')
 
     const response = await app.request(
-      `/workspaces/${workspaceId}/clarify?status=pending`,
+      `/workspaces/${workspaceId}/clarifications?status=pending`,
       { headers: { 'X-Braid-User': users.owner.id } },
     )
 
@@ -129,11 +129,11 @@ describe('GET /workspaces/:ws/clarify?showAll=', () => {
 
   it('shows every pending ticket when the owner sets showAll=true', async () => {
     const { app, workspaceId, users } = await buildMultiUserApp()
-    const ownerTicketId = await submitClarify(app, workspaceId, users.owner, 'owner question?')
-    const maintainerTicketId = await submitClarify(app, workspaceId, users.maintainer, 'maintainer question?')
+    const ownerTicketId = await submitClarification(app, workspaceId, users.owner, 'owner question?')
+    const maintainerTicketId = await submitClarification(app, workspaceId, users.maintainer, 'maintainer question?')
 
     const response = await app.request(
-      `/workspaces/${workspaceId}/clarify?status=pending&showAll=true`,
+      `/workspaces/${workspaceId}/clarifications?status=pending&showAll=true`,
       { headers: { 'X-Braid-User': users.owner.id } },
     )
 
@@ -145,11 +145,11 @@ describe('GET /workspaces/:ws/clarify?showAll=', () => {
 
   it('silently falls back to mine-only when a non-owner sets showAll=true', async () => {
     const { app, workspaceId, users } = await buildMultiUserApp()
-    await submitClarify(app, workspaceId, users.owner, 'owner question?')
-    const maintainerTicketId = await submitClarify(app, workspaceId, users.maintainer, 'maintainer question?')
+    await submitClarification(app, workspaceId, users.owner, 'owner question?')
+    const maintainerTicketId = await submitClarification(app, workspaceId, users.maintainer, 'maintainer question?')
 
     const response = await app.request(
-      `/workspaces/${workspaceId}/clarify?status=pending&showAll=true`,
+      `/workspaces/${workspaceId}/clarifications?status=pending&showAll=true`,
       { headers: { 'X-Braid-User': users.maintainer.id } },
     )
 

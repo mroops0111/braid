@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ClarifyTicketId, ProposalId, SkillId, SkillRunId, SourceId, Timestamp, WorkspaceId } from './common.js'
+import { ClarificationId, ProposalId, SkillId, SkillRunId, SourceId, Timestamp, WorkspaceId } from './common.js'
 
 export const BatchUnitId = z.string().min(1).brand<'BatchUnitId'>()
 export type BatchUnitId = z.infer<typeof BatchUnitId>
@@ -32,7 +32,7 @@ export const BatchUnit = z.object({
   startedAt: Timestamp.optional(),
   completedAt: Timestamp.optional(),
   proposalIds: z.array(ProposalId).default([]),
-  clarifyTicketIds: z.array(ClarifyTicketId).default([]),
+  clarificationIds: z.array(ClarificationId).default([]),
   error: z.string().optional(),
 })
 export type BatchUnit = z.infer<typeof BatchUnit>

@@ -1,6 +1,6 @@
 import type {
   BatchPlanRepository,
-  ClarifyTicketRepository,
+  ClarificationRepository,
   Clock,
   IntentLister,
   ModelRepository,
@@ -45,7 +45,7 @@ import {
   WorkspaceService,
 } from '@braidhq/core'
 import {
-  InMemoryClarifyTicketRepository,
+  InMemoryClarificationRepository,
   InMemoryModelRepository,
   InMemoryProposalRepository,
   InMemoryReactorCycleRepository,
@@ -79,7 +79,7 @@ export interface AppDependencies {
   modelRepository: ModelRepository
   workspaceRepository: WorkspaceRepository
   proposalRepository: ProposalRepository
-  clarifyRepository: ClarifyTicketRepository
+  clarificationRepository: ClarificationRepository
   runRepository: RunRepository
   // Always wired, the Activity page renders an empty list before any cycle.
   reactorCycleRepository: ReactorCycleRepository
@@ -140,7 +140,7 @@ export interface ComposeOptions {
   modelRepository?: ModelRepository
   workspaceRepository?: WorkspaceRepository
   proposalRepository?: ProposalRepository
-  clarifyRepository?: ClarifyTicketRepository
+  clarificationRepository?: ClarificationRepository
   runRepository?: RunRepository
   // Swapped fs-backed by `composeFsApp`, so records survive restart.
   reactorCycleRepository?: ReactorCycleRepository
@@ -174,7 +174,7 @@ export interface ComposeOptions {
 export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const clock = options.clock ?? new SystemClock()
   const proposalRepository = options.proposalRepository ?? new InMemoryProposalRepository()
-  const clarifyRepository = options.clarifyRepository ?? new InMemoryClarifyTicketRepository()
+  const clarificationRepository = options.clarificationRepository ?? new InMemoryClarificationRepository()
   const modelRepository = options.modelRepository ?? new InMemoryModelRepository()
   const workspaceRepository = options.workspaceRepository ?? new InMemoryWorkspaceRepository()
   const pluginRegistry = options.pluginRegistry ?? new PluginRegistry()
@@ -188,7 +188,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const workspaceLock = new WorkspaceLock()
   const hitlService = new HITLService({
     proposalRepository,
-    clarifyRepository,
+    clarificationRepository,
     modelRepository,
     modelValidationService,
     workspaceService,
@@ -230,7 +230,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
       workspaceService,
       skillRunner: options.skillRunner,
       proposalRepository,
-      clarifyRepository,
+      clarificationRepository,
       historyService,
       hitlService,
       batchPlanRepository: options.batchPlanRepository,
@@ -285,7 +285,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     eventBus,
     pluginRegistry,
     proposalRepository,
-    clarifyRepository,
+    clarificationRepository,
     modelRepository,
     workspaceRepository,
     skillRegistry: options.skillRegistry,

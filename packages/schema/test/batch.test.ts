@@ -27,10 +27,10 @@ describe('batch enums', () => {
 describe('BatchUnit', () => {
   const valid = { id: 'unit-1', name: 'cart', description: 'the cart doc', status: 'pending' }
 
-  it('defaults proposal and clarify id lists to empty', () => {
+  it('defaults proposal and clarification id lists to empty', () => {
     const unit = BatchUnit.parse(valid)
     expect(unit.proposalIds).toEqual([])
-    expect(unit.clarifyTicketIds).toEqual([])
+    expect(unit.clarificationIds).toEqual([])
   })
   it('rejects an empty name', () => {
     expect(BatchUnit.safeParse({ ...valid, name: '' }).success).toBe(false)

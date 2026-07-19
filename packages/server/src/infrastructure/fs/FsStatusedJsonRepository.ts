@@ -5,7 +5,7 @@ import { NotFoundError } from '@braidhq/core'
 import { listJsonFiles, moveFile, readJsonFile, writeJsonFile } from './jsonFileStore.js'
 
 export interface FsStatusedJsonRepositoryConfig<TEntity, TStatus extends string, TId extends string> {
-  /** Used in NotFoundError messages, e.g. "Proposal" or "ClarifyTicket". */
+  /** Used in NotFoundError messages, e.g. "Proposal" or "Clarification". */
   readonly entityName: string
   /** Exhaustive status list, used by `locate` to scan every possible folder. */
   readonly statuses: readonly TStatus[]

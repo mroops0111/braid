@@ -1,28 +1,28 @@
 import type {
   AbsolutePath,
-  ClarifyFilter,
-  ClarifyTicketId,
+  ClarificationFilter,
+  ClarificationId,
   WorkspaceId,
 } from '@braidhq/schema'
-import { ClarifyTicket, type ClarifyTicketRepository, paginate } from '@braidhq/core'
-import { ClarifyTicket as ClarifyTicketSchema } from '@braidhq/schema'
+import { Clarification, type ClarificationRepository, paginate } from '@braidhq/core'
+import { Clarification as ClarificationSchema } from '@braidhq/schema'
 import { FsStatusedJsonRepository } from './FsStatusedJsonRepository.js'
-import { CLARIFY_STATUSES, clarifyDir } from './paths.js'
+import { clarificationDir, CLARIFY_STATUSES } from './paths.js'
 
-export interface FsClarifyTicketRepositoryOptions {
+export interface FsClarificationRepositoryOptions {
   readonly workspaceRoots: () => Promise<ReadonlyMap<WorkspaceId, AbsolutePath>>
 }
 
-export class FsClarifyTicketRepository implements ClarifyTicketRepository {
-  private readonly base: FsStatusedJsonRepository<ClarifyTicket, typeof CLARIFY_STATUSES[number], ClarifyTicketId>
+export class FsClarificationRepository implements ClarificationRepository {
+  private readonly base: FsStatusedJsonRepository<Clarification, typeof CLARIFY_STATUSES[number], ClarificationId>
 
-  constructor(options: FsClarifyTicketRepositoryOptions) {
+  constructor(options: FsClarificationRepositoryOptions) {
     this.base = new FsStatusedJsonRepository(
       {
-        entityName: 'ClarifyTicket',
+        entityName: 'Clarification',
         statuses: CLARIFY_STATUSES,
-        dirFor: clarifyDir,
-        parse: raw => new ClarifyTicket(ClarifyTicketSchema.parse(raw)),
+        dirFor: clarificationDir,
+        parse: raw => new Clarification(ClarificationSchema.parse(raw)),
         serialize: entity => entity.toData(),
         idOf: entity => entity.id,
         statusOf: entity => entity.status,
@@ -32,7 +32,7 @@ export class FsClarifyTicketRepository implements ClarifyTicketRepository {
     )
   }
 
-  async list(filter?: ClarifyFilter): Promise<ClarifyTicket[]> {
+  async list(filter?: ClarificationFilter): Promise<Clarification[]> {
     let tickets = await this.base.list({
       ...(filter?.workspaceId !== undefined ? { workspaceId: filter.workspaceId } : {}),
       ...(filter?.statuses !== undefined ? { statuses: filter.statuses } : {}),
@@ -48,11 +48,11 @@ export class FsClarifyTicketRepository implements ClarifyTicketRepository {
     return paginate(tickets, filter?.limit, filter?.offset)
   }
 
-  load(clarifyTicketId: ClarifyTicketId): Promise<ClarifyTicket> {
-    return this.base.load(clarifyTicketId)
+  load(clarificationId: ClarificationId): Promise<Clarification> {
+    return this.base.load(clarificationId)
   }
 
-  save(ticket: ClarifyTicket): Promise<void> {
+  save(ticket: Clarification): Promise<void> {
     return this.base.save(ticket)
   }
 }

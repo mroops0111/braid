@@ -27,8 +27,8 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
     const invalidateProposals = (): void => {
       queryClient.invalidateQueries({ queryKey: queryKeys.proposals(workspaceId) })
     }
-    const invalidateClarify = (): void => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.clarify(workspaceId) })
+    const invalidateClarification = (): void => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.clarifications(workspaceId) })
     }
     const invalidateGraph = (): void => {
       queryClient.invalidateQueries({ queryKey: queryKeys.modelSnapshot(workspaceId) })
@@ -56,16 +56,16 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
       invalidateGraph()
     })
     source.addEventListener('proposal.rejected', invalidateProposals)
-    source.addEventListener('clarify.created', invalidateClarify)
-    // `clarify.answered` is only a status update, no graph change yet.
+    source.addEventListener('clarification.created', invalidateClarification)
+    // `clarification.answered` is only a status update, no graph change yet.
     // braid-clarify later wraps it into a Proposal the user reviews. Applying that Proposal changes the graph,
     // not this event.
-    source.addEventListener('clarify.answered', invalidateClarify)
-    source.addEventListener('clarify.applied', () => {
-      invalidateClarify()
+    source.addEventListener('clarification.answered', invalidateClarification)
+    source.addEventListener('clarification.applied', () => {
+      invalidateClarification()
       invalidateGraph()
     })
-    source.addEventListener('clarify.skipped', invalidateClarify)
+    source.addEventListener('clarification.skipped', invalidateClarification)
     source.addEventListener('source.synced', invalidateWorkspace)
     source.addEventListener('history.committed', () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.history(workspaceId) })
@@ -82,7 +82,7 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
     source.addEventListener('batch.unit.completed', () => {
       invalidateBatch()
       invalidateProposals()
-      invalidateClarify()
+      invalidateClarification()
       invalidateGraph()
     })
     source.addEventListener('batch.unit.failed', invalidateBatch)

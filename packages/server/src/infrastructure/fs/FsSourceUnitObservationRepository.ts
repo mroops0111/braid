@@ -21,7 +21,7 @@ export interface FsSourceUnitObservationRepositoryOptions {
 /**
  * Filesystem-backed `SourceUnitObservationRepository`. Each entity maps to,
  * `artifacts/source-unit-state/<sourceId>/<encoded-path>.json`, one file each,
- * matching the file-per-entity pattern used by proposals / clarify.
+ * matching the file-per-entity pattern used by proposals / clarifications.
  *
  * The file body is exactly the `SourceUnitObservation` shape,
  * with no wrapper or envelope.

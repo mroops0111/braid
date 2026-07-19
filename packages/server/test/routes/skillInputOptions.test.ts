@@ -1,5 +1,5 @@
-import type { ClarifyCandidate, ClarifyTicketId, NodeId, NodeStatus, NodeTypeId, WorkspaceId } from '@braidhq/schema'
-import { ClarifyTicket } from '@braidhq/core'
+import type { ClarificationCandidate, ClarificationId, NodeId, NodeStatus, NodeTypeId, WorkspaceId } from '@braidhq/schema'
+import { Clarification } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { buildTestApp } from '../helpers/buildApp.js'
 import { readJson } from '../helpers/readJson.js'
@@ -49,14 +49,14 @@ describe('GET /workspaces/:ws/skill-input-options', () => {
 
   it('clarify returns tickets filtered by status', async () => {
     const { app, deps } = await buildTestApp()
-    const candidate: ClarifyCandidate = {
+    const candidate: ClarificationCandidate = {
       id: 'cc-1' as never,
       description: 'Merge',
       sourceReferences: [],
       proposedOperations: [],
     }
-    await deps.clarifyRepository.save(new ClarifyTicket({
-      id: 'ct-pending' as ClarifyTicketId,
+    await deps.clarificationRepository.save(new Clarification({
+      id: 'ct-pending' as ClarificationId,
       workspaceId,
       question: 'merge or split?',
       candidates: [candidate],
@@ -64,8 +64,8 @@ describe('GET /workspaces/:ws/skill-input-options', () => {
       owner: 'system',
       origin: 'skill',
     }))
-    await deps.clarifyRepository.save(new ClarifyTicket({
-      id: 'ct-answered' as ClarifyTicketId,
+    await deps.clarificationRepository.save(new Clarification({
+      id: 'ct-answered' as ClarificationId,
       workspaceId,
       question: 'alias or distinct?',
       candidates: [candidate],

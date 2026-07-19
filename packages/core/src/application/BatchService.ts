@@ -3,7 +3,7 @@ import type {
   BatchPlan as BatchPlanData,
   BatchUnit,
   BatchUnitId,
-  ClarifyTicketId,
+  ClarificationId,
   ProposalId,
   SkillEvent,
   SkillRunId,
@@ -13,7 +13,7 @@ import type {
 } from '@braidhq/schema'
 import type { BatchPlanRepository } from '../domain/batch/BatchPlanRepository.js'
 import type { Clock } from '../domain/Clock.js'
-import type { ClarifyTicketRepository } from '../domain/hitl/ClarifyTicketRepository.js'
+import type { ClarificationRepository } from '../domain/hitl/ClarificationRepository.js'
 import type { ProposalRepository } from '../domain/hitl/ProposalRepository.js'
 import type { OntologyBatchBinding, OntologyPlugin } from '../domain/plugin/OntologyPlugin.js'
 import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
@@ -45,7 +45,7 @@ export interface BatchServiceDeps {
   workspaceService: WorkspaceService
   skillRunner: SkillRunner
   proposalRepository: ProposalRepository
-  clarifyRepository: ClarifyTicketRepository
+  clarificationRepository: ClarificationRepository
   historyService: HistoryService
   hitlService: HITLService
   batchPlanRepository: BatchPlanRepository
@@ -448,7 +448,7 @@ export class BatchService {
         planId: plan.id,
         unitId: unit.id,
         applied: plan.autoApply ? output.proposalIds.length : 0,
-        queued: output.clarifyTicketIds.length,
+        queued: output.clarificationIds.length,
         at: completedAt,
       })
       return completed
@@ -472,26 +472,26 @@ export class BatchService {
   // Captures all statuses, so stream-applied proposals still appear in the after-vs-before diff.
   private async snapshotIds(workspaceId: WorkspaceId): Promise<{
     proposals: Set<ProposalId>
-    clarify: Set<ClarifyTicketId>
+    clarifications: Set<ClarificationId>
   }> {
-    const [proposals, clarify] = await Promise.all([
+    const [proposals, clarifications] = await Promise.all([
       this.deps.proposalRepository.list({ workspaceId }),
-      this.deps.clarifyRepository.list({ workspaceId }),
+      this.deps.clarificationRepository.list({ workspaceId }),
     ])
     return {
       proposals: new Set(proposals.map(proposal => proposal.id)),
-      clarify: new Set(clarify.map(ticket => ticket.id)),
+      clarifications: new Set(clarifications.map(ticket => ticket.id)),
     }
   }
 
-  private async collectUnitOutput(workspaceId: WorkspaceId, before: { proposals: Set<ProposalId>, clarify: Set<ClarifyTicketId> }): Promise<{
+  private async collectUnitOutput(workspaceId: WorkspaceId, before: { proposals: Set<ProposalId>, clarifications: Set<ClarificationId> }): Promise<{
     proposalIds: ProposalId[]
-    clarifyTicketIds: ClarifyTicketId[]
+    clarificationIds: ClarificationId[]
   }> {
     const after = await this.snapshotIds(workspaceId)
     return {
       proposalIds: [...after.proposals].filter(id => !before.proposals.has(id)),
-      clarifyTicketIds: [...after.clarify].filter(id => !before.clarify.has(id)),
+      clarificationIds: [...after.clarifications].filter(id => !before.clarifications.has(id)),
     }
   }
 
@@ -502,8 +502,8 @@ export class BatchService {
     workspace: Workspace,
     runId: SkillRunId,
     autoApply: boolean,
-    before: { proposals: Set<ProposalId>, clarify: Set<ClarifyTicketId> },
-  ): Promise<{ proposalIds: ProposalId[], clarifyTicketIds: ClarifyTicketId[] }> {
+    before: { proposals: Set<ProposalId>, clarifications: Set<ClarificationId> },
+  ): Promise<{ proposalIds: ProposalId[], clarificationIds: ClarificationId[] }> {
     const applied = new Set<ProposalId>()
     const unsubscribe = autoApply
       ? this.streamApplyProposals(workspace.id, applied)
@@ -598,7 +598,7 @@ export class BatchService {
       scopeHint: item.value,
       status: 'pending' as const,
       proposalIds: [],
-      clarifyTicketIds: [],
+      clarificationIds: [],
     }))
   }
 

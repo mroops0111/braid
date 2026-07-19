@@ -57,10 +57,10 @@ describe('GET /openapi.json', () => {
       'getProposal',
       'createProposal',
       'validateProposal',
-      'listClarifyTickets',
-      'getClarifyTicket',
-      'createClarifyTicket',
-      'markClarifyTicketApplied',
+      'listClarifications',
+      'getClarification',
+      'createClarification',
+      'markClarificationApplied',
     ]) {
       expect(operationIds, `missing operationId: ${expected}`).toContain(expected)
     }

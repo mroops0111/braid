@@ -1,7 +1,7 @@
 import type {
   BatchPlan,
-  ClarifyCreateBody,
-  ClarifyTicket,
+  Clarification,
+  ClarificationCreateBody,
   CommitMeta,
   CommitSha,
   FileDiff,
@@ -61,10 +61,10 @@ export interface AdminUserWorkspace {
 export type AdminUser = User & { workspaces: AdminUserWorkspace[] }
 
 /**
- * GET /workspaces/:ws/clarify/:id response. `skipReason` / `answerNote` are no longer populated,
+ * GET /workspaces/:ws/clarifications/:id response. `skipReason` / `answerNote` are no longer populated,
  * the reviewer's rationale lives in git history now, but kept optional until the detail pane resurfaces them.
  */
-export type ClarifyTicketDetail = ClarifyTicket & { skipReason?: string, answerNote?: string }
+export type ClarificationDetail = Clarification & { skipReason?: string, answerNote?: string }
 
 export interface ProvisionSummary {
   sourceId: string
@@ -333,50 +333,50 @@ export const api = {
   validateProposal: (workspaceId: string, proposalId: string) =>
     fetchJson<ValidationResult>(`/workspaces/${workspaceId}/proposals/${proposalId}/validate`),
 
-  listClarify: (workspaceId: string, status?: string, showAll?: boolean) => {
+  listClarification: (workspaceId: string, status?: string, showAll?: boolean) => {
     const params = new URLSearchParams()
     if (status)
       params.set('status', status)
     if (showAll)
       params.set('showAll', 'true')
     const query = params.toString() ? `?${params.toString()}` : ''
-    return fetchJson<ItemList<ClarifyTicket>>(`/workspaces/${workspaceId}/clarify${query}`)
+    return fetchJson<ItemList<Clarification>>(`/workspaces/${workspaceId}/clarifications${query}`)
   },
   /**
-   * Fetch a single clarify ticket.
+   * Fetch a single clarification.
    */
-  getClarify: (workspaceId: string, ticketId: string) =>
-    fetchJson<ClarifyTicketDetail>(`/workspaces/${workspaceId}/clarify/${ticketId}`),
+  getClarification: (workspaceId: string, ticketId: string) =>
+    fetchJson<ClarificationDetail>(`/workspaces/${workspaceId}/clarifications/${ticketId}`),
   /**
    * Server mints any omitted candidate ids, skills supply them deterministically (cc-1 etc.),
-   * human-authored "New question" candidates leave them out and let `newClarifyCandidateId` fill in.
+   * human-authored "New question" candidates leave them out and let `newClarificationCandidateId` fill in.
    */
-  submitClarify: (workspaceId: string, draft: ClarifyCreateBody) =>
-    fetchJson<ClarifyTicket>(`/workspaces/${workspaceId}/clarify`, {
+  submitClarification: (workspaceId: string, draft: ClarificationCreateBody) =>
+    fetchJson<Clarification>(`/workspaces/${workspaceId}/clarifications`, {
       method: 'POST',
       body: JSON.stringify(draft),
     }),
   /**
-   * Answer a clarify ticket.
+   * Answer a clarification.
    * `selection` is either picking an existing candidate or supplying a freshly-written description,
    * that the server appends to the ticket and answers in one transaction.
    * `note` is the reviewer's free-form rationale, saved on the answer commit.
    */
-  answerClarify: (
+  answerClarification: (
     workspaceId: string,
     ticketId: string,
     selection: { candidateId: string } | { customCandidate: { description: string } },
     note?: string,
   ) =>
-    fetchJson<ClarifyTicket>(`/workspaces/${workspaceId}/clarify/${ticketId}/answer`, {
+    fetchJson<Clarification>(`/workspaces/${workspaceId}/clarifications/${ticketId}/answer`, {
       method: 'POST',
       body: JSON.stringify({
         ...selection,
         ...(note ? { note } : {}),
       }),
     }),
-  skipClarify: (workspaceId: string, ticketId: string, reason: string) =>
-    fetchJson<ClarifyTicket>(`/workspaces/${workspaceId}/clarify/${ticketId}/skip`, {
+  skipClarification: (workspaceId: string, ticketId: string, reason: string) =>
+    fetchJson<Clarification>(`/workspaces/${workspaceId}/clarifications/${ticketId}/skip`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
     }),

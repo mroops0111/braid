@@ -1,23 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ClarifyAmbiguityType,
-  ClarifyCandidate,
-  ClarifyFilter,
-  ClarifyOrigin,
-  ClarifyStatus,
-  ClarifyTicket,
-  ClarifyTicketCreate,
+  Clarification,
+  ClarificationAmbiguityType,
+  ClarificationCandidate,
+  ClarificationCreate,
+  ClarificationFilter,
+  ClarificationOrigin,
+  ClarificationStatus,
 } from '../src/index.js'
 
-describe('ClarifyStatus', () => {
+describe('ClarificationStatus', () => {
   it('has 4 states', () => {
-    expect(ClarifyStatus.options).toEqual(['pending', 'answered', 'applied', 'skipped'])
+    expect(ClarificationStatus.options).toEqual(['pending', 'answered', 'applied', 'skipped'])
   })
 })
 
-describe('ClarifyCandidate', () => {
+describe('ClarificationCandidate', () => {
   it('parses with empty references and operations', () => {
-    const candidate = ClarifyCandidate.parse({
+    const candidate = ClarificationCandidate.parse({
       id: 'cc-1',
       description: 'voidTask and cancelTask are the same command',
     })
@@ -26,7 +26,7 @@ describe('ClarifyCandidate', () => {
   })
 
   it('parses with proposed operations', () => {
-    const candidate = ClarifyCandidate.parse({
+    const candidate = ClarificationCandidate.parse({
       id: 'cc-1',
       description: 'merge them',
       proposedOperations: [{ operation: 'removeNode', nodeId: 'n-1' }],
@@ -35,9 +35,9 @@ describe('ClarifyCandidate', () => {
   })
 })
 
-describe('ClarifyTicket', () => {
+describe('Clarification', () => {
   it('parses pending ticket with candidates', () => {
-    const ticket = ClarifyTicket.parse({
+    const ticket = Clarification.parse({
       id: 'ct-1',
       workspaceId: 'w-1',
       question: 'voidTask vs cancelTask: same command?',
@@ -54,7 +54,7 @@ describe('ClarifyTicket', () => {
 
   it('rejects empty question', () => {
     expect(
-      ClarifyTicket.safeParse({
+      Clarification.safeParse({
         id: 'ct-1',
         workspaceId: 'w-1',
         question: '',
@@ -65,7 +65,7 @@ describe('ClarifyTicket', () => {
   })
 
   it('accepts answered ticket with selection + resolution', () => {
-    const ticket = ClarifyTicket.parse({
+    const ticket = Clarification.parse({
       id: 'ct-1',
       workspaceId: 'w-1',
       question: 'x?',
@@ -81,7 +81,7 @@ describe('ClarifyTicket', () => {
   })
 
   it('accepts externalReferences (v2 forward-compat)', () => {
-    const ticket = ClarifyTicket.parse({
+    const ticket = Clarification.parse({
       id: 'ct-1',
       workspaceId: 'w-1',
       question: 'x?',
@@ -95,36 +95,36 @@ describe('ClarifyTicket', () => {
   })
 })
 
-describe('ClarifyFilter', () => {
+describe('ClarificationFilter', () => {
   it('all fields optional', () => {
-    expect(ClarifyFilter.parse({})).toEqual({})
+    expect(ClarificationFilter.parse({})).toEqual({})
   })
   it('accepts status filter', () => {
-    expect(ClarifyFilter.parse({ statuses: ['pending'] }).statuses).toEqual(['pending'])
+    expect(ClarificationFilter.parse({ statuses: ['pending'] }).statuses).toEqual(['pending'])
   })
 })
 
-describe('ClarifyOrigin', () => {
+describe('ClarificationOrigin', () => {
   it('is skill or human', () => {
-    expect(ClarifyOrigin.options).toEqual(['skill', 'human'])
+    expect(ClarificationOrigin.options).toEqual(['skill', 'human'])
   })
 })
 
-describe('ClarifyAmbiguityType', () => {
+describe('ClarificationAmbiguityType', () => {
   it('has the four human-filed ambiguity kinds', () => {
-    expect(ClarifyAmbiguityType.options).toEqual(['gap', 'contradiction', 'ambiguous', 'assumption'])
+    expect(ClarificationAmbiguityType.options).toEqual(['gap', 'contradiction', 'ambiguous', 'assumption'])
   })
 })
 
-describe('ClarifyCandidate single-line rule', () => {
+describe('ClarificationCandidate single-line rule', () => {
   it('rejects a multi-line description', () => {
-    expect(ClarifyCandidate.safeParse({ id: 'cc-1', description: 'line one\nline two' }).success).toBe(false)
+    expect(ClarificationCandidate.safeParse({ id: 'cc-1', description: 'line one\nline two' }).success).toBe(false)
   })
 })
 
-describe('ClarifyTicketCreate', () => {
+describe('ClarificationCreate', () => {
   it('omits server-assigned fields and leaves origin optional', () => {
-    const created = ClarifyTicketCreate.parse({
+    const created = ClarificationCreate.parse({
       workspaceId: 'w-1',
       question: 'voidTask vs cancelTask?',
       candidates: [],
@@ -132,7 +132,7 @@ describe('ClarifyTicketCreate', () => {
     expect(created.origin).toBeUndefined()
   })
   it('accepts a human-filed ticket with context and ambiguityType', () => {
-    const created = ClarifyTicketCreate.parse({
+    const created = ClarificationCreate.parse({
       workspaceId: 'w-1',
       question: 'is the cap 50 or 99?',
       candidates: [],

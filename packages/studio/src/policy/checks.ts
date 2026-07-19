@@ -25,11 +25,11 @@ export const checks: readonly CapabilityCheck[] = [
     evaluate: v => v.effectiveRole === 'owner' || v.effectiveRole === 'maintainer',
   },
   {
-    id: 'clarify.read',
+    id: 'clarification.read',
     evaluate: v => v.effectiveRole === 'owner' || v.effectiveRole === 'maintainer',
   },
   {
-    id: 'clarify.write',
+    id: 'clarification.write',
     evaluate: v => v.effectiveRole === 'owner' || v.effectiveRole === 'maintainer',
   },
   { id: 'history.write', evaluate: v => v.effectiveRole === 'owner' },

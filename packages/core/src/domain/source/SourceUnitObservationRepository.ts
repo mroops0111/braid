@@ -2,7 +2,7 @@ import type { SourceId, SourceUnitObservation, WorkspaceId } from '@braidhq/sche
 
 /**
  * Repository port for `SourceUnitObservation`.
- * CRUD shape matching the existing `ProposalRepository` / `ClarifyTicketRepository` pattern,
+ * CRUD shape matching the existing `ProposalRepository` / `ClarificationRepository` pattern,
  * so a SQL-backed implementation can swap in without touching the domain.
  *
  * Identity is the composite `(workspaceId, sourceId, path)`.

@@ -1,10 +1,10 @@
 import type {
   Actor,
-  ClarifyCandidate,
-  ClarifyCandidateId,
-  ClarifyStatus,
-  ClarifyTicket as ClarifyTicketData,
-  ClarifyTicketId,
+  ClarificationCandidate,
+  ClarificationCandidateId,
+  Clarification as ClarificationData,
+  ClarificationId,
+  ClarificationStatus,
   ExternalReference,
   GraphOperation,
   ProposalId,
@@ -23,24 +23,24 @@ import { ConflictError, NotFoundError } from '../errors.js'
  * proposalId is omitted when the chosen candidate's resolution had no graph impact, so no Proposal was produced.
  *
  * Keeping these two transitions distinct preserves the invariant that only HITLService.applyProposal writes Kùzu.
- * Clarify answers go through the same review gate as any other agent output.
+ * Clarification answers go through the same review gate as any other agent output.
  */
-export class ClarifyTicket {
-  constructor(private readonly data: ClarifyTicketData) {}
+export class Clarification {
+  constructor(private readonly data: ClarificationData) {}
 
-  get id(): ClarifyTicketId { return this.data.id }
+  get id(): ClarificationId { return this.data.id }
   get workspaceId(): WorkspaceId { return this.data.workspaceId }
   get question(): string { return this.data.question }
-  get candidates(): readonly ClarifyCandidate[] { return this.data.candidates }
-  get status(): ClarifyStatus { return this.data.status }
-  get selectedCandidateId(): ClarifyCandidateId | undefined { return this.data.selectedCandidateId }
+  get candidates(): readonly ClarificationCandidate[] { return this.data.candidates }
+  get status(): ClarificationStatus { return this.data.status }
+  get selectedCandidateId(): ClarificationCandidateId | undefined { return this.data.selectedCandidateId }
   get resolution(): readonly GraphOperation[] | undefined { return this.data.resolution }
   get proposalId(): ProposalId | undefined { return this.data.proposalId }
   get owner(): Actor { return this.data.owner }
   get ownerDisplayName(): string | undefined { return this.data.ownerDisplayName }
   get externalReferences(): readonly ExternalReference[] | undefined { return this.data.externalReferences }
 
-  resolveCandidate(candidateId: ClarifyCandidateId): readonly GraphOperation[] {
+  resolveCandidate(candidateId: ClarificationCandidateId): readonly GraphOperation[] {
     const match = this.data.candidates.find(candidate => candidate.id === candidateId)
     if (!match) {
       throw new NotFoundError(`Candidate "${candidateId}" not in ticket "${this.data.id}"`)
@@ -54,23 +54,23 @@ export class ClarifyTicket {
    * Refuses on non-pending tickets so an already-answered ticket can't grow new options retroactively,
    * and rejects duplicate ids to keep `resolveCandidate` deterministic.
    */
-  appendCandidate(candidate: ClarifyCandidate): ClarifyTicket {
+  appendCandidate(candidate: ClarificationCandidate): Clarification {
     this.requireStatus('pending')
     if (this.data.candidates.some(existingCandidate => existingCandidate.id === candidate.id)) {
       throw new ConflictError(
         `Candidate "${candidate.id}" already exists on ticket "${this.data.id}"`,
       )
     }
-    return new ClarifyTicket({
+    return new Clarification({
       ...this.data,
       candidates: [...this.data.candidates, candidate],
     })
   }
 
-  markAnswered(candidateId: ClarifyCandidateId, userId: UserId): ClarifyTicket {
+  markAnswered(candidateId: ClarificationCandidateId, userId: UserId): Clarification {
     this.requireStatus('pending')
     const operations = this.resolveCandidate(candidateId)
-    return new ClarifyTicket({
+    return new Clarification({
       ...this.data,
       status: 'answered',
       selectedCandidateId: candidateId,
@@ -79,31 +79,31 @@ export class ClarifyTicket {
     })
   }
 
-  markApplied(proposalId?: ProposalId): ClarifyTicket {
+  markApplied(proposalId?: ProposalId): Clarification {
     this.requireStatus('answered')
-    return new ClarifyTicket({
+    return new Clarification({
       ...this.data,
       status: 'applied',
       ...(proposalId ? { proposalId } : {}),
     })
   }
 
-  markSkipped(userId: UserId): ClarifyTicket {
+  markSkipped(userId: UserId): Clarification {
     this.requireStatus('pending')
-    return new ClarifyTicket({
+    return new Clarification({
       ...this.data,
       status: 'skipped',
       answeredBy: userId,
     })
   }
 
-  toData(): ClarifyTicketData {
+  toData(): ClarificationData {
     return this.data
   }
 
-  private requireStatus(expectedStatus: ClarifyStatus): void {
+  private requireStatus(expectedStatus: ClarificationStatus): void {
     if (this.data.status !== expectedStatus) {
-      throw new ConflictError(`Clarify ticket "${this.data.id}" is ${this.data.status}, not ${expectedStatus}`)
+      throw new ConflictError(`Clarification ticket "${this.data.id}" is ${this.data.status}, not ${expectedStatus}`)
     }
   }
 }

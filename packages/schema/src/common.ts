@@ -25,11 +25,11 @@ export type SourceId = z.infer<typeof SourceId>
 export const ProposalId = z.string().min(1).brand<'ProposalId'>()
 export type ProposalId = z.infer<typeof ProposalId>
 
-export const ClarifyTicketId = z.string().min(1).brand<'ClarifyTicketId'>()
-export type ClarifyTicketId = z.infer<typeof ClarifyTicketId>
+export const ClarificationId = z.string().min(1).brand<'ClarificationId'>()
+export type ClarificationId = z.infer<typeof ClarificationId>
 
-export const ClarifyCandidateId = z.string().min(1).brand<'ClarifyCandidateId'>()
-export type ClarifyCandidateId = z.infer<typeof ClarifyCandidateId>
+export const ClarificationCandidateId = z.string().min(1).brand<'ClarificationCandidateId'>()
+export type ClarificationCandidateId = z.infer<typeof ClarificationCandidateId>
 
 export const DriftIssueId = z.string().min(1).brand<'DriftIssueId'>()
 export type DriftIssueId = z.infer<typeof DriftIssueId>

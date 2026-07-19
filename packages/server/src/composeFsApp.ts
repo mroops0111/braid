@@ -28,7 +28,7 @@ import { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
 import { SessionStore } from './infrastructure/auth/SessionStore.js'
 import { parseBoolEnv } from './infrastructure/env.js'
 import { FsBatchPlanRepository } from './infrastructure/fs/FsBatchPlanRepository.js'
-import { FsClarifyTicketRepository } from './infrastructure/fs/FsClarifyTicketRepository.js'
+import { FsClarificationRepository } from './infrastructure/fs/FsClarificationRepository.js'
 import { FsModelSerializer } from './infrastructure/fs/FsModelSerializer.js'
 import { FsProposalRepository } from './infrastructure/fs/FsProposalRepository.js'
 import { FsReactorCycleRepository } from './infrastructure/fs/FsReactorCycleRepository.js'
@@ -81,7 +81,7 @@ export interface ComposeFsOptions {
 
 /**
  * Opinionated production composition, the coding preset.
- * Filesystem-persists workspaces, proposals, clarify, and decisions,
+ * Filesystem-persists workspaces, proposals, clarifications, and decisions,
  * and bundles Kuzu storage, the DDD ontology, the git, github, and drive
  * loaders, and the claude-code agent.
  *
@@ -151,7 +151,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   }
 
   const proposalRepository = new FsProposalRepository({ workspaceRoots })
-  const clarifyRepository = new FsClarifyTicketRepository({ workspaceRoots })
+  const clarificationRepository = new FsClarificationRepository({ workspaceRoots })
 
   // Plugin registration. Defaults bundle first, then extras,
   // so a caller passing `extraOntologyPlugins: [c4]` gets both ddd and c4.
@@ -272,7 +272,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   }
   // Build the list of reference dirs symlinked into every skill session:
   // - builtin `shared/` from @braidhq/core,
-  //   format docs for Proposal, Clarify, Validator, content conventions,
+  //   format docs for Proposal, Clarification, Validator, content conventions,
   //   and drift-detection guidance.
   // - whatever each registered plugin contributes,
   //   for example the concept doc from ontology-ddd.
@@ -312,7 +312,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   const deps = composeApp({
     workspaceRepository,
     proposalRepository,
-    clarifyRepository,
+    clarificationRepository,
     modelRepository,
     skillRegistry,
     skillRunner,

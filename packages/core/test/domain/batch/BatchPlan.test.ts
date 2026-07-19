@@ -28,7 +28,7 @@ function makeUnit(id: BatchUnitId, name: string): BatchUnit {
     sourceId: name as SourceId,
     status: 'pending',
     proposalIds: [],
-    clarifyTicketIds: [],
+    clarificationIds: [],
   }
 }
 
@@ -94,7 +94,7 @@ describe('BatchPlan', () => {
 
       const completed = running.markUnitCompleted(T2, unitA, {
         proposalIds: ['p-1' as ProposalId],
-        clarifyTicketIds: [],
+        clarificationIds: [],
       })
       expect(completed.units[0]!.status).toBe('completed')
       expect(completed.units[0]!.proposalIds).toEqual(['p-1'])

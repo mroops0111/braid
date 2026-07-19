@@ -22,7 +22,7 @@ import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
 import { ActionsPage } from './pages/Actions'
 import { ActivityPage } from './pages/Activity'
 import { BatchPage } from './pages/Batch'
-import { ClarifyPage } from './pages/Clarify'
+import { ClarificationPage } from './pages/Clarification'
 import { GraphSurface, GraphSurfaceActions, useGraphSurfaceState } from './pages/GraphSurface'
 import { HistoryPage } from './pages/History'
 import { LoginPage } from './pages/Login'
@@ -52,7 +52,7 @@ function AppInner() {
   // Initial state is hydrated from the URL, so refresh and deep links land back on the same workspace and surface.
   const initial = readUrl()
   const [activeId, setActiveId] = useState<string | null>(initial.workspaceId)
-  // Graph is the workspace's home view. Secondary surfaces (Actions, Clarify, Proposals) overlay it when active.
+  // Graph is the workspace's home view. Secondary surfaces (Actions, Clarification, Proposals) overlay it when active.
   // `null` = home.
   const [activeSurface, setActiveSurface] = useState<Surface | null>(initial.surface)
   useUrlSync({ workspaceId: activeId, surface: activeSurface })
@@ -92,7 +92,7 @@ function AppInner() {
     setDetailsOpen(true)
   }
 
-  // Deep-link from a Proposal or Clarify validation issue. Drop the overlaying surface so the user lands on the graph,
+  // Deep-link from a Proposal or Clarification validation issue. Drop the overlaying surface so the user lands on the graph,
   // with their chosen node selected. The surface is one click away in the dock if they want to come back.
   const focusNode = useCallback((id: NodeId) => {
     setSelectedNodeId(id)
@@ -168,8 +168,8 @@ function AppInner() {
                                 {activeSurface === 'actions' && (
                                   <ActionsPage workspaceId={activeId} />
                                 )}
-                                {activeSurface === 'clarify' && (
-                                  <ClarifyPage workspaceId={activeId} />
+                                {activeSurface === 'clarifications' && (
+                                  <ClarificationPage workspaceId={activeId} />
                                 )}
                                 {activeSurface === 'proposals' && (
                                   <ProposalsPage
@@ -291,8 +291,8 @@ function WorkspaceHeader({ workspaceId, activeSurface, onOpenDetails }: {
   const surfaceLabel
     = activeSurface === 'actions'
       ? 'Actions'
-      : activeSurface === 'clarify'
-        ? 'Clarify'
+      : activeSurface === 'clarifications'
+        ? 'Clarifications'
         : activeSurface === 'proposals'
           ? 'Proposals'
           : activeSurface === 'history'

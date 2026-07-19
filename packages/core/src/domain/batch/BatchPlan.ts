@@ -7,7 +7,7 @@ import type {
   BatchStatus,
   BatchUnit,
   BatchUnitId,
-  ClarifyTicketId,
+  ClarificationId,
   ProposalId,
   SkillRunId,
   Timestamp,
@@ -17,7 +17,7 @@ import { ConflictError } from '../errors.js'
 
 interface UnitOutput {
   proposalIds: readonly ProposalId[]
-  clarifyTicketIds: readonly ClarifyTicketId[]
+  clarificationIds: readonly ClarificationId[]
 }
 
 export class BatchPlan {
@@ -119,7 +119,7 @@ export class BatchPlan {
         status: 'completed',
         completedAt: now,
         proposalIds: [...output.proposalIds],
-        clarifyTicketIds: [...output.clarifyTicketIds],
+        clarificationIds: [...output.clarificationIds],
       })),
       updatedAt: now,
     })
@@ -204,7 +204,7 @@ function resetUnit(unit: BatchUnit): BatchUnit {
     ...(unit.scopeHint ? { scopeHint: unit.scopeHint } : {}),
     status: 'pending',
     proposalIds: [],
-    clarifyTicketIds: [],
+    clarificationIds: [],
   }
   return fresh
 }

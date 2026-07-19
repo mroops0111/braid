@@ -12,7 +12,7 @@
  * The server composition root imports these for `composeApp()` defaults,
  * production wiring swaps them for filesystem or vendor adapters.
  */
-export * from './infrastructure/in-memory/InMemoryClarifyTicketRepository.js'
+export * from './infrastructure/in-memory/InMemoryClarificationRepository.js'
 export * from './infrastructure/in-memory/InMemoryKeyedStore.js'
 export * from './infrastructure/in-memory/InMemoryModelRepository.js'
 export * from './infrastructure/in-memory/InMemoryProposalRepository.js'

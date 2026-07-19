@@ -1,4 +1,4 @@
-import type { ClarifyCandidate, ClarifyStatus, ClarifyTicket, ExternalReference, GraphOperation, NodeId, ProposalId } from '@braidhq/schema'
+import type { Clarification, ClarificationCandidate, ClarificationStatus, ExternalReference, GraphOperation, NodeId, ProposalId } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, ExternalLink, Inbox, Pencil, Plus, SkipForward, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
-import { queryKeys, useClarifyByStatus, useClarifyTicketDetail, usePendingClarify } from '@/lib/queries'
+import { queryKeys, useClarificationByStatus, useClarificationDetail, usePendingClarification } from '@/lib/queries'
 import { useGraphNavigation } from '@/lib/useGraphNavigation'
 import { useTabNavigation } from '@/lib/useTabNavigation'
 import { useWorkspacePolicy } from '@/policy'
@@ -92,7 +92,7 @@ export function candidateLetter(index: number): string {
   return String.fromCharCode(65 + index)
 }
 
-/** Short, whitespace-collapsed excerpt of a clarify question, suitable for list rows. */
+/** Short, whitespace-collapsed excerpt of a clarification question, suitable for list rows. */
 export function questionExcerpt(question: string, max = 80): string {
   const trimmed = question.trim().replace(/\s+/g, ' ')
   if (trimmed.length <= max)
@@ -100,11 +100,11 @@ export function questionExcerpt(question: string, max = 80): string {
   return `${trimmed.slice(0, max - 1)}…`
 }
 
-interface ClarifyPageProps {
+interface ClarificationPageProps {
   workspaceId: string
 }
 
-type StatusFilter = ClarifyStatus
+type StatusFilter = ClarificationStatus
 
 const EMPTY_COPY: Record<StatusFilter, { title: string, description: string }> = {
   pending: {
@@ -125,19 +125,19 @@ const EMPTY_COPY: Record<StatusFilter, { title: string, description: string }> =
   },
 }
 
-export function ClarifyPage({ workspaceId }: ClarifyPageProps) {
+export function ClarificationPage({ workspaceId }: ClarificationPageProps) {
   // Same shape as Proposals: status drives the list query, and the
   // detail pane reads only from the selected ticket so it can't show
   // an item that no longer matches the active filter.
   const [status, setStatus] = useState<StatusFilter>('pending')
   const [showAll, setShowAll] = useState(false)
-  const [selected, setSelected] = useState<ClarifyTicket | null>(null)
+  const [selected, setSelected] = useState<Clarification | null>(null)
   // When `true`, the detail pane renders the inline SubmitIssueForm
   // instead of the selected ticket. Mutually exclusive with `selected`
   // — the compose surface fills the same area so the reviewer is
   // never doing two things at once.
   const [composing, setComposing] = useState(false)
-  const { data, isLoading } = useClarifyByStatus(workspaceId, status, showAll)
+  const { data, isLoading } = useClarificationByStatus(workspaceId, status, showAll)
 
   // Auto-select the first ticket when entering a list with no current selection (initial mount, after status switch, or after answer/skip clears the detail pane).
   // Saves the reviewer one click per ticket when working through a queue.
@@ -167,12 +167,12 @@ export function ClarifyPage({ workspaceId }: ClarifyPageProps) {
   return (
     <div className="flex h-full flex-col">
       <PageActions>
-        <ClarifyHeaderActions
+        <ClarificationHeaderActions
           workspaceId={workspaceId}
           status={status}
           onChange={changeStatus}
         />
-        <ClarifyShowAllToggle
+        <ClarificationShowAllToggle
           workspaceId={workspaceId}
           status={status}
           showAll={showAll}
@@ -190,7 +190,7 @@ export function ClarifyPage({ workspaceId }: ClarifyPageProps) {
                   {data && data.items.length > 0 && (
                     <ul className="flex-1 overflow-y-auto scrollbar-thin">
                       {data.items.map(ticket => (
-                        <ClarifyListItem
+                        <ClarificationListItem
                           key={ticket.id}
                           ticket={ticket}
                           active={selected?.id === ticket.id}
@@ -227,7 +227,7 @@ export function ClarifyPage({ workspaceId }: ClarifyPageProps) {
                   workspaceId={workspaceId}
                   onCancel={() => setComposing(false)}
                   onSubmitted={(ticket) => {
-                    // SSE clarify.created already invalidates the list;
+                    // SSE clarification.created already invalidates the list;
                     // selecting the new ticket also dismisses compose
                     // mode so the reviewer lands on the freshly filed
                     // issue.
@@ -239,7 +239,7 @@ export function ClarifyPage({ workspaceId }: ClarifyPageProps) {
               )
             : selected
               ? (
-                  <ClarifyDetail
+                  <ClarificationDetail
                     workspaceId={workspaceId}
                     ticket={selected}
                     onComplete={() => setSelected(null)}
@@ -271,7 +271,7 @@ export function ClarifyPage({ workspaceId }: ClarifyPageProps) {
  * list panel rather than here, so the header stays focused on
  * navigation.
  */
-function ClarifyShowAllToggle({
+function ClarificationShowAllToggle({
   workspaceId,
   status,
   showAll,
@@ -298,7 +298,7 @@ function ClarifyShowAllToggle({
   )
 }
 
-function ClarifyHeaderActions({
+function ClarificationHeaderActions({
   workspaceId,
   status,
   onChange,
@@ -307,7 +307,7 @@ function ClarifyHeaderActions({
   status: StatusFilter
   onChange: (next: StatusFilter) => void
 }) {
-  const { data: pending } = usePendingClarify(workspaceId)
+  const { data: pending } = usePendingClarification(workspaceId)
   const pendingCount = pending?.items.length ?? 0
   return (
     <Tabs value={status} onValueChange={value => onChange(value as StatusFilter)}>
@@ -328,12 +328,12 @@ function ClarifyHeaderActions({
   )
 }
 
-function ClarifyListItem({
+function ClarificationListItem({
   ticket,
   active,
   onSelect,
 }: {
-  ticket: ClarifyTicket
+  ticket: Clarification
   active: boolean
   onSelect: () => void
 }) {
@@ -363,17 +363,17 @@ function ClarifyListItem({
   )
 }
 
-function ClarifyDetail({
+function ClarificationDetail({
   workspaceId,
   ticket,
   onComplete,
 }: {
   workspaceId: string
-  ticket: ClarifyTicket
+  ticket: Clarification
   onComplete: () => void
 }) {
   const queryClient = useQueryClient()
-  const canWrite = useWorkspacePolicy(workspaceId).can('clarify.write')
+  const canWrite = useWorkspacePolicy(workspaceId).can('clarification.write')
   const isPending = ticket.status === 'pending'
   // The two answer paths are mutually exclusive: picking an existing
   // candidate closes the custom-answer form, and vice versa. Keeping
@@ -386,27 +386,27 @@ function ClarifyDetail({
   const [skipOpen, setSkipOpen] = useState(false)
   const [skipReason, setSkipReason] = useState('')
 
-  function invalidateClarify(): void {
+  function invalidateClarification(): void {
     // The 3-element prefix matches every status sub-key, so the
     // freshly-moved ticket disappears from the current list and
     // re-appears in its new tab without manual reconciliation.
-    queryClient.invalidateQueries({ queryKey: queryKeys.clarify(workspaceId) })
+    queryClient.invalidateQueries({ queryKey: queryKeys.clarifications(workspaceId) })
   }
 
   const answer = useMutation({
     mutationFn: (input: { selection: { candidateId: string } | { customCandidate: { description: string } }, note?: string }) =>
-      api.answerClarify(workspaceId, ticket.id, input.selection, input.note),
+      api.answerClarification(workspaceId, ticket.id, input.selection, input.note),
     onSuccess: () => {
-      invalidateClarify()
+      invalidateClarification()
       onComplete()
     },
   })
 
   const skip = useMutation({
     mutationFn: (reason: string) =>
-      api.skipClarify(workspaceId, ticket.id, reason),
+      api.skipClarification(workspaceId, ticket.id, reason),
     onSuccess: () => {
-      invalidateClarify()
+      invalidateClarification()
       onComplete()
     },
   })
@@ -421,7 +421,7 @@ function ClarifyDetail({
   // once and thread them down. Lets the answered candidate row show
   // the rationale inline (same anchor as the editable rationale on
   // pending), instead of dumping it in the footer.
-  const detail = useClarifyTicketDetail(workspaceId, isPending ? null : ticket.id)
+  const detail = useClarificationDetail(workspaceId, isPending ? null : ticket.id)
   const terminalAnswerNote = !isPending ? detail.data?.answerNote : undefined
   const projectedSkipReason = ticket.status === 'skipped' ? detail.data?.skipReason : undefined
 
@@ -683,7 +683,7 @@ function CandidatesList({
   onNoteChange,
   terminalAnswerNote,
 }: {
-  candidates: readonly ClarifyCandidate[]
+  candidates: readonly ClarificationCandidate[]
   isPending: boolean
   selectedCandidateId: string | null
   appliedCandidateId: string | null
@@ -749,7 +749,7 @@ function CandidateRow({
   onSelect,
   inlineNote,
 }: {
-  candidate: ClarifyCandidate
+  candidate: ClarificationCandidate
   letter: string
   isPending: boolean
   active: boolean
@@ -878,14 +878,14 @@ function InlineRationale({
   return (
     <div>
       <label
-        htmlFor={`clarify-rationale-${candidateLetter}`}
+        htmlFor={`clarification-rationale-${candidateLetter}`}
         className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
       >
         Rationale
         <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">(optional)</span>
       </label>
       <textarea
-        id={`clarify-rationale-${candidateLetter}`}
+        id={`clarification-rationale-${candidateLetter}`}
         value={slot.value}
         onChange={e => slot.onChange(e.target.value)}
         rows={2}
@@ -896,7 +896,7 @@ function InlineRationale({
   )
 }
 
-function collectNodeIds(candidate: ClarifyCandidate): NodeId[] {
+function collectNodeIds(candidate: ClarificationCandidate): NodeId[] {
   const ids = new Set<NodeId>()
   for (const op of candidate.proposedOperations) {
     switch (op.operation) {
@@ -974,7 +974,7 @@ function SkipForm({ value, onChange, onCancel, onSubmit, isPending }: {
   )
 }
 
-function TerminalFooter({ ticket, skipReason }: { ticket: ClarifyTicket, skipReason: string | null }) {
+function TerminalFooter({ ticket, skipReason }: { ticket: Clarification, skipReason: string | null }) {
   // The reviewer's rationale (answerNote) for answered/applied tickets
   // is rendered inline under the selected candidate, not here, so the
   // visual anchor matches the editable rationale shown during pending.

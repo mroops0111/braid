@@ -60,20 +60,20 @@ export const SkillInputSourceIntentProvider = z.object({
 })
 export type SkillInputSourceIntentProvider = z.infer<typeof SkillInputSourceIntentProvider>
 
-// Clarify tickets, filtered by status. Defaults to all statuses.
-export const SkillInputClarifyProvider = z.object({
+// Clarification tickets, filtered by status. Defaults to all statuses.
+export const SkillInputClarificationProvider = z.object({
   kind: z.literal('clarify'),
   filter: z.object({
     status: z.enum(['pending', 'answered', 'applied', 'skipped']).optional(),
   }).optional(),
 })
-export type SkillInputClarifyProvider = z.infer<typeof SkillInputClarifyProvider>
+export type SkillInputClarificationProvider = z.infer<typeof SkillInputClarificationProvider>
 
 export const SkillInputProvider = z.discriminatedUnion('kind', [
   SkillInputStaticProvider,
   SkillInputGraphNodeProvider,
   SkillInputSourceIntentProvider,
-  SkillInputClarifyProvider,
+  SkillInputClarificationProvider,
 ])
 export type SkillInputProvider = z.infer<typeof SkillInputProvider>
 

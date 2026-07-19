@@ -22,7 +22,7 @@ interface CommandPaletteProps {
   onOpenWorkspaceDetails: () => void
 }
 
-export type Surface = 'actions' | 'activity' | 'batch' | 'clarify' | 'history' | 'proposals' | 'settings'
+export type Surface = 'actions' | 'activity' | 'batch' | 'clarifications' | 'history' | 'proposals' | 'settings'
 
 interface SurfaceItem {
   id: Surface | null
@@ -37,7 +37,7 @@ function chordSecondKey(key: string): ChordTarget | undefined {
   switch (key) {
     case 'g': return { kind: 'surface', surface: null }
     case 'a': return { kind: 'surface', surface: 'actions' }
-    case 'c': return { kind: 'surface', surface: 'clarify' }
+    case 'c': return { kind: 'surface', surface: 'clarifications' }
     case 'p': return { kind: 'surface', surface: 'proposals' }
     case 'b': return { kind: 'surface', surface: 'activity' }
     case 'h': return { kind: 'surface', surface: 'history' }
@@ -50,7 +50,7 @@ function chordSecondKey(key: string): ChordTarget | undefined {
 const SURFACE_ITEMS: SurfaceItem[] = [
   { id: null, label: 'Graph (home)', Icon: Network, shortcut: 'G G' },
   { id: 'actions', label: 'Actions', Icon: Sparkles, shortcut: 'G A' },
-  { id: 'clarify', label: 'Clarify', Icon: HelpCircle, shortcut: 'G C' },
+  { id: 'clarifications', label: 'Clarifications', Icon: HelpCircle, shortcut: 'G C' },
   { id: 'proposals', label: 'Proposals', Icon: ClipboardCheck, shortcut: 'G P' },
   { id: 'activity', label: 'Activity', Icon: Activity, shortcut: 'G B' },
   { id: 'history', label: 'History', Icon: GitGraph, shortcut: 'G H' },

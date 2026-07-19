@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { BatchInputMode, BatchPlanId, BatchUnitId } from './batch.js'
-import { ClarifyTicketId, CommitSha, ProposalId, SkillId, SkillRunId, SourceId, WorkspaceId } from './common.js'
+import { ClarificationId, CommitSha, ProposalId, SkillId, SkillRunId, SourceId, WorkspaceId } from './common.js'
 import { ReactorCycleId } from './reactor.js'
 
 // Workspace-scoped runtime notifications, the SSE contract between server and Studio.
@@ -48,30 +48,30 @@ export const ProposalRejectedEvent = WorkspaceEventBase.extend({
 })
 export type ProposalRejectedEvent = z.infer<typeof ProposalRejectedEvent>
 
-export const ClarifyCreatedEvent = WorkspaceEventBase.extend({
-  type: z.literal('clarify.created'),
-  ticketId: ClarifyTicketId,
+export const ClarificationCreatedEvent = WorkspaceEventBase.extend({
+  type: z.literal('clarification.created'),
+  ticketId: ClarificationId,
 })
-export type ClarifyCreatedEvent = z.infer<typeof ClarifyCreatedEvent>
+export type ClarificationCreatedEvent = z.infer<typeof ClarificationCreatedEvent>
 
-export const ClarifyAnsweredEvent = WorkspaceEventBase.extend({
-  type: z.literal('clarify.answered'),
-  ticketId: ClarifyTicketId,
+export const ClarificationAnsweredEvent = WorkspaceEventBase.extend({
+  type: z.literal('clarification.answered'),
+  ticketId: ClarificationId,
 })
-export type ClarifyAnsweredEvent = z.infer<typeof ClarifyAnsweredEvent>
+export type ClarificationAnsweredEvent = z.infer<typeof ClarificationAnsweredEvent>
 
-export const ClarifyAppliedEvent = WorkspaceEventBase.extend({
-  type: z.literal('clarify.applied'),
-  ticketId: ClarifyTicketId,
+export const ClarificationAppliedEvent = WorkspaceEventBase.extend({
+  type: z.literal('clarification.applied'),
+  ticketId: ClarificationId,
   proposalId: ProposalId.optional(),
 })
-export type ClarifyAppliedEvent = z.infer<typeof ClarifyAppliedEvent>
+export type ClarificationAppliedEvent = z.infer<typeof ClarificationAppliedEvent>
 
-export const ClarifySkippedEvent = WorkspaceEventBase.extend({
-  type: z.literal('clarify.skipped'),
-  ticketId: ClarifyTicketId,
+export const ClarificationSkippedEvent = WorkspaceEventBase.extend({
+  type: z.literal('clarification.skipped'),
+  ticketId: ClarificationId,
 })
-export type ClarifySkippedEvent = z.infer<typeof ClarifySkippedEvent>
+export type ClarificationSkippedEvent = z.infer<typeof ClarificationSkippedEvent>
 
 export const SourceSyncedEvent = WorkspaceEventBase.extend({
   type: z.literal('source.synced'),
@@ -244,10 +244,10 @@ export const WorkspaceEvent = z.discriminatedUnion('type', [
   ProposalCreatedEvent,
   ProposalAppliedEvent,
   ProposalRejectedEvent,
-  ClarifyCreatedEvent,
-  ClarifyAnsweredEvent,
-  ClarifyAppliedEvent,
-  ClarifySkippedEvent,
+  ClarificationCreatedEvent,
+  ClarificationAnsweredEvent,
+  ClarificationAppliedEvent,
+  ClarificationSkippedEvent,
   SourceSyncedEvent,
   HistoryCommittedEvent,
   WorkspaceRestoredEvent,

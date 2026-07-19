@@ -3,7 +3,7 @@ import { createContext, useContext } from 'react'
 
 /**
  * Cross-tab navigation for non-graph entities. Provided by `App.tsx`,
- * consumed by views (e.g. an applied ClarifyTicket footer) that want
+ * consumed by views (e.g. an applied Clarification footer) that want
  * to deep-link into another tab. Today only proposal focus is wired;
  * extend the shape when a second target lands.
  */

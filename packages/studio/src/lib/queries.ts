@@ -17,9 +17,9 @@ export const queryKeys = {
   edges: (workspaceId: string) => ['workspaces', workspaceId, 'edges'] as const,
   proposals: (workspaceId: string, status?: string) => ['workspaces', workspaceId, 'proposals', status ?? 'all'] as const,
   proposalValidation: (workspaceId: string, proposalId: string) => ['workspaces', workspaceId, 'proposals', proposalId, 'validate'] as const,
-  clarify: (workspaceId: string) => ['workspaces', workspaceId, 'clarify'] as const,
-  clarifyByStatus: (workspaceId: string, status: string) => ['workspaces', workspaceId, 'clarify', status] as const,
-  clarifyDetail: (workspaceId: string, ticketId: string) => ['workspaces', workspaceId, 'clarify', 'detail', ticketId] as const,
+  clarifications: (workspaceId: string) => ['workspaces', workspaceId, 'clarifications'] as const,
+  clarificationByStatus: (workspaceId: string, status: string) => ['workspaces', workspaceId, 'clarifications', status] as const,
+  clarificationDetail: (workspaceId: string, ticketId: string) => ['workspaces', workspaceId, 'clarifications', 'detail', ticketId] as const,
   runs: (workspaceId: string) => ['workspaces', workspaceId, 'runs'] as const,
   sessionMetadata: (workspaceId: string) => ['workspaces', workspaceId, 'runs', 'sessions'] as const,
   history: (workspaceId: string) => ['workspaces', workspaceId, 'history'] as const,
@@ -143,22 +143,22 @@ export function useProposalValidation(workspaceId: string, proposalId: string | 
   })
 }
 
-export function useClarifyByStatus(workspaceId: string | undefined, status: string, showAll?: boolean) {
+export function useClarificationByStatus(workspaceId: string | undefined, status: string, showAll?: boolean) {
   return useQuery({
-    queryKey: workspaceId ? [...queryKeys.clarifyByStatus(workspaceId, status), showAll ? 'all' : 'mine'] : ['clarify', 'none'],
-    queryFn: () => api.listClarify(workspaceId!, status, showAll),
+    queryKey: workspaceId ? [...queryKeys.clarificationByStatus(workspaceId, status), showAll ? 'all' : 'mine'] : ['clarifications', 'none'],
+    queryFn: () => api.listClarification(workspaceId!, status, showAll),
     enabled: !!workspaceId,
   })
 }
 
-export function usePendingClarify(workspaceId: string | undefined) {
-  return useClarifyByStatus(workspaceId, 'pending')
+export function usePendingClarification(workspaceId: string | undefined) {
+  return useClarificationByStatus(workspaceId, 'pending')
 }
 
-export function useClarifyTicketDetail(workspaceId: string, ticketId: string | null) {
+export function useClarificationDetail(workspaceId: string, ticketId: string | null) {
   return useQuery({
-    queryKey: ticketId ? queryKeys.clarifyDetail(workspaceId, ticketId) : ['clarify-detail', 'none'],
-    queryFn: () => api.getClarify(workspaceId, ticketId!),
+    queryKey: ticketId ? queryKeys.clarificationDetail(workspaceId, ticketId) : ['clarifications-detail', 'none'],
+    queryFn: () => api.getClarification(workspaceId, ticketId!),
     enabled: !!ticketId,
   })
 }

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   newBatchPlanId,
   newBatchUnitId,
-  newClarifyCandidateId,
-  newClarifyTicketId,
+  newClarificationCandidateId,
+  newClarificationId,
   newDriftIssueId,
   newEdgeId,
   newNodeId,
@@ -17,11 +17,11 @@ describe('id minters', () => {
   it('every minter stamps its own kebab name on a 12 hex suffix', () => {
     const cases: [string, string][] = [
       ['proposal', newProposalId()],
-      ['clarify-ticket', newClarifyTicketId()],
+      ['clarification', newClarificationId()],
       ['batch-plan', newBatchPlanId()],
       ['reactor-cycle', newReactorCycleId()],
       ['skill-run', newSkillRunId()],
-      ['clarify-candidate', newClarifyCandidateId()],
+      ['clarification-candidate', newClarificationCandidateId()],
       ['batch-unit', newBatchUnitId()],
       ['drift-issue', newDriftIssueId()],
       ['user', newUserId()],

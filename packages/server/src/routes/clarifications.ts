@@ -1,6 +1,6 @@
-import type { ClarifyTicketRepository, HITLService } from '@braidhq/core'
-import { newClarifyCandidateId } from '@braidhq/core'
-import { ClarifyCandidateId, ClarifyCreateBody, ClarifyStatus, ClarifyTicket, ClarifyTicketId, ProposalId, UserId } from '@braidhq/schema'
+import type { ClarificationRepository, HITLService } from '@braidhq/core'
+import { newClarificationCandidateId } from '@braidhq/core'
+import { Clarification, ClarificationCandidateId, ClarificationCreateBody, ClarificationId, ClarificationStatus, ProposalId, UserId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getUserId } from '../middleware/userId.js'
 import { getViewerContext, requirePermission } from '../middleware/workspaceAccess.js'
@@ -9,7 +9,7 @@ import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from '.
 import { assertEntityInWorkspace } from './helpers.js'
 
 const ListQuery = z.object({
-  status: z.union([ClarifyStatus, z.array(ClarifyStatus)]).optional().openapi({ description: 'Filter by ticket status; pass one or many.' }),
+  status: z.union([ClarificationStatus, z.array(ClarificationStatus)]).optional().openapi({ description: 'Filter by ticket status; pass one or many.' }),
   limit: z.coerce.number().int().positive().optional(),
   offset: z.coerce.number().int().nonnegative().optional(),
   showAll: z.coerce.boolean().optional().openapi({ description: 'Owner-only: bypass the personal-pending filter so every member\'s open questions are visible.' }),
@@ -24,7 +24,7 @@ const ListQuery = z.object({
 // the authoritative value is the request context set by middleware.
 const AnswerBody = z
   .object({
-    candidateId: ClarifyCandidateId.optional(),
+    candidateId: ClarificationCandidateId.optional(),
     customCandidate: z.object({ description: z.string().min(1) }).optional(),
     userId: UserId.optional(),
     note: z.string().min(1).optional(),
@@ -33,14 +33,14 @@ const AnswerBody = z
     body => Boolean(body.candidateId) !== Boolean(body.customCandidate),
     { message: 'Provide exactly one of candidateId or customCandidate' },
   )
-  .openapi('ClarifyAnswerBody')
+  .openapi('ClarificationAnswerBody')
 
 const SkipBody = z.object({
   reason: z.string().min(1),
   userId: UserId.optional(),
-}).openapi('ClarifySkipBody')
+}).openapi('ClarificationSkipBody')
 
-// PATCH body for clarify state transitions.
+// PATCH body for clarification state transitions.
 // The only legal transition the skill drives is `answered` to `applied`.
 // proposalId is optional, present when a Proposal was produced,
 // absent when the chosen candidate had no graph impact.
@@ -49,33 +49,33 @@ const ApplyBody = z.object({
   status: z.literal('applied'),
   proposalId: ProposalId.optional(),
   userId: UserId.optional(),
-}).openapi('ClarifyApplyBody')
+}).openapi('ClarificationApplyBody')
 
 // Skill-emitted candidates ship their own ids (`cc-1`, `cc-merge`).
 // Human-authored ones via Studio's "New question" form omit them,
-// letting the server mint via `newClarifyCandidateId`.
+// letting the server mint via `newClarificationCandidateId`.
 // This keeps the ID minting rule intact,
 // no `crypto.randomUUID() as XxxId` in clients.
-const CreateBody = ClarifyCreateBody.openapi('ClarifyCreateBody')
+const CreateBody = ClarificationCreateBody.openapi('ClarificationCreateBody')
 
-const ClarifyTicketIdParam = WorkspaceIdParam.extend({
-  clarifyTicketId: ClarifyTicketId.openapi({ param: { name: 'clarifyTicketId', in: 'path' } }),
+const ClarificationIdParam = WorkspaceIdParam.extend({
+  clarificationId: ClarificationId.openapi({ param: { name: 'clarificationId', in: 'path' } }),
 })
 
-const ClarifyListResponse = z.object({
-  items: z.array(ClarifyTicket),
-}).openapi('ClarifyListResponse')
+const ClarificationListResponse = z.object({
+  items: z.array(Clarification),
+}).openapi('ClarificationListResponse')
 
-export interface ClarifyRouterDeps {
+export interface ClarificationRouterDeps {
   hitlService: HITLService
-  clarifyRepository: ClarifyTicketRepository
+  clarificationRepository: ClarificationRepository
 }
 
-const createClarifyRoute = createRoute({
+const createClarificationRoute = createRoute({
   method: 'post',
   path: '/',
-  operationId: 'createClarifyTicket',
-  summary: 'Create a clarify ticket. Skills submit this when they cannot decide between candidate interpretations.',
+  operationId: 'createClarification',
+  summary: 'Create a clarification. Skills submit this when they cannot decide between candidate interpretations.',
   tags: ['clarify'],
   request: {
     params: WorkspaceIdParam,
@@ -83,18 +83,18 @@ const createClarifyRoute = createRoute({
   },
   responses: {
     201: {
-      description: 'The saved clarify ticket.',
-      content: { 'application/json': { schema: ClarifyTicket } },
+      description: 'The saved clarification.',
+      content: { 'application/json': { schema: Clarification } },
     },
     400: ValidationFailureResponse,
   },
 })
 
-const listClarifyRoute = createRoute({
+const listClarificationRoute = createRoute({
   method: 'get',
   path: '/',
-  operationId: 'listClarifyTickets',
-  summary: 'List clarify tickets for a workspace, optionally filtered by status.',
+  operationId: 'listClarifications',
+  summary: 'List clarifications for a workspace, optionally filtered by status.',
   tags: ['clarify'],
   request: {
     params: WorkspaceIdParam,
@@ -102,114 +102,114 @@ const listClarifyRoute = createRoute({
   },
   responses: {
     200: {
-      description: 'A page of matching clarify tickets.',
-      content: { 'application/json': { schema: ClarifyListResponse } },
+      description: 'A page of matching clarifications.',
+      content: { 'application/json': { schema: ClarificationListResponse } },
     },
   },
 })
 
-const getClarifyRoute = createRoute({
+const getClarificationRoute = createRoute({
   method: 'get',
-  path: '/{clarifyTicketId}',
-  operationId: 'getClarifyTicket',
-  summary: 'Fetch a single clarify ticket.',
+  path: '/{clarificationId}',
+  operationId: 'getClarification',
+  summary: 'Fetch a single clarification.',
   tags: ['clarify'],
-  request: { params: ClarifyTicketIdParam },
+  request: { params: ClarificationIdParam },
   responses: {
     200: {
       description: 'The requested ticket.',
-      content: { 'application/json': { schema: ClarifyTicket } },
+      content: { 'application/json': { schema: Clarification } },
     },
     404: NotFoundResponse,
   },
 })
 
-const answerClarifyRoute = createRoute({
+const answerClarificationRoute = createRoute({
   method: 'post',
-  path: '/{clarifyTicketId}/answer',
-  operationId: 'answerClarifyTicket',
-  summary: 'Reviewer answers a clarify ticket. Triggers `pending → answered` transition.',
+  path: '/{clarificationId}/answer',
+  operationId: 'answerClarification',
+  summary: 'Reviewer answers a clarification. Triggers `pending → answered` transition.',
   tags: ['clarify'],
   request: {
-    params: ClarifyTicketIdParam,
+    params: ClarificationIdParam,
     body: { content: { 'application/json': { schema: AnswerBody } } },
   },
   responses: {
     200: {
       description: 'The updated ticket.',
-      content: { 'application/json': { schema: ClarifyTicket } },
+      content: { 'application/json': { schema: Clarification } },
     },
     404: NotFoundResponse,
   },
 })
 
-const applyClarifyRoute = createRoute({
+const applyClarificationRoute = createRoute({
   method: 'patch',
-  path: '/{clarifyTicketId}',
-  operationId: 'markClarifyTicketApplied',
-  summary: 'Mark a clarify ticket applied. Optionally link the materialised Proposal.',
+  path: '/{clarificationId}',
+  operationId: 'markClarificationApplied',
+  summary: 'Mark a clarification applied. Optionally link the materialised Proposal.',
   description: 'Called by the braid-clarify skill once it has wrapped the resolution into a Proposal (or determined there is no graph impact). Transitions `answered → applied`.',
   tags: ['clarify'],
   request: {
-    params: ClarifyTicketIdParam,
+    params: ClarificationIdParam,
     body: { content: { 'application/json': { schema: ApplyBody } } },
   },
   responses: {
     200: {
       description: 'The updated ticket.',
-      content: { 'application/json': { schema: ClarifyTicket } },
+      content: { 'application/json': { schema: Clarification } },
     },
     404: NotFoundResponse,
   },
 })
 
-const skipClarifyRoute = createRoute({
+const skipClarificationRoute = createRoute({
   method: 'post',
-  path: '/{clarifyTicketId}/skip',
-  operationId: 'skipClarifyTicket',
-  summary: 'Skip a clarify ticket with a reason. Triggers `pending → skipped` transition.',
+  path: '/{clarificationId}/skip',
+  operationId: 'skipClarification',
+  summary: 'Skip a clarification with a reason. Triggers `pending → skipped` transition.',
   tags: ['clarify'],
   request: {
-    params: ClarifyTicketIdParam,
+    params: ClarificationIdParam,
     body: { content: { 'application/json': { schema: SkipBody } } },
   },
   responses: {
     200: {
       description: 'The updated ticket.',
-      content: { 'application/json': { schema: ClarifyTicket } },
+      content: { 'application/json': { schema: Clarification } },
     },
     404: NotFoundResponse,
   },
 })
 
-export function createClarifyRouter(deps: ClarifyRouterDeps): OpenAPIHono {
+export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
   // Answer, skip, and mark-applied are HITL decisions,
   // Owner and Maintainer only.
   // Guests never see the tab, but a direct curl still 403s here.
-  router.use('/:clarifyTicketId/answer', requirePermission('clarify.write'))
-  router.use('/:clarifyTicketId/skip', requirePermission('clarify.write'))
-  router.use('/:clarifyTicketId', requirePermission('clarify.write'))
+  router.use('/:clarificationId/answer', requirePermission('clarification.write'))
+  router.use('/:clarificationId/skip', requirePermission('clarification.write'))
+  router.use('/:clarificationId', requirePermission('clarification.write'))
 
-  router.openapi(createClarifyRoute, async (context) => {
+  router.openapi(createClarificationRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const body = context.req.valid('json')
     const submitterId = getUserId(context)
     const candidates = body.candidates.map(c => ({
       ...c,
-      id: c.id ?? newClarifyCandidateId(),
+      id: c.id ?? newClarificationCandidateId(),
     }))
-    const ticket = await deps.hitlService.submitClarifyTicket({ ...body, workspaceId, candidates, submitterId })
+    const ticket = await deps.hitlService.submitClarification({ ...body, workspaceId, candidates, submitterId })
     return context.json(ticket.toData(), 201)
   })
 
-  router.openapi(listClarifyRoute, async (context) => {
+  router.openapi(listClarificationRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const { status, limit, offset, showAll } = context.req.valid('query')
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
     const viewer = getViewerContext(context)
     const viewerId = (showAll && viewer?.effectiveRole === 'owner') ? undefined : getUserId(context)
-    const tickets = await deps.clarifyRepository.list({
+    const tickets = await deps.clarificationRepository.list({
       workspaceId,
       statuses,
       limit,
@@ -219,26 +219,26 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): OpenAPIHono {
     return context.json({ items: tickets.map(ticket => ticket.toData()) }, 200)
   })
 
-  router.openapi(getClarifyRoute, async (context) => {
+  router.openapi(getClarificationRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
-    const { clarifyTicketId } = context.req.valid('param')
-    const ticket = await deps.clarifyRepository.load(clarifyTicketId)
-    assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'ClarifyTicket', clarifyTicketId)
+    const { clarificationId } = context.req.valid('param')
+    const ticket = await deps.clarificationRepository.load(clarificationId)
+    assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'Clarification', clarificationId)
     return context.json(ticket.toData(), 200)
   })
 
-  router.openapi(answerClarifyRoute, async (context) => {
+  router.openapi(answerClarificationRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
-    const { clarifyTicketId } = context.req.valid('param')
+    const { clarificationId } = context.req.valid('param')
     const body = context.req.valid('json')
     const userId = body.userId ?? getUserId(context)
-    const ticket = await deps.clarifyRepository.load(clarifyTicketId)
-    assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'ClarifyTicket', clarifyTicketId)
+    const ticket = await deps.clarificationRepository.load(clarificationId)
+    assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'Clarification', clarificationId)
     const selection = body.candidateId
       ? { kind: 'existing' as const, candidateId: body.candidateId }
       : { kind: 'custom' as const, description: body.customCandidate!.description }
-    const answered = await deps.hitlService.answerClarifyTicket({
-      clarifyTicketId,
+    const answered = await deps.hitlService.answerClarification({
+      clarificationId,
       selection,
       userId,
       ...(body.note ? { note: body.note } : {}),
@@ -246,25 +246,25 @@ export function createClarifyRouter(deps: ClarifyRouterDeps): OpenAPIHono {
     return context.json(answered.toData(), 200)
   })
 
-  router.openapi(applyClarifyRoute, async (context) => {
+  router.openapi(applyClarificationRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
-    const { clarifyTicketId } = context.req.valid('param')
+    const { clarificationId } = context.req.valid('param')
     const { proposalId, userId: bodyUserId } = context.req.valid('json')
     const userId = bodyUserId ?? getUserId(context)
-    const ticket = await deps.clarifyRepository.load(clarifyTicketId)
-    assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'ClarifyTicket', clarifyTicketId)
-    const applied = await deps.hitlService.markClarifyTicketApplied(clarifyTicketId, userId, proposalId)
+    const ticket = await deps.clarificationRepository.load(clarificationId)
+    assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'Clarification', clarificationId)
+    const applied = await deps.hitlService.markClarificationApplied(clarificationId, userId, proposalId)
     return context.json(applied.toData(), 200)
   })
 
-  router.openapi(skipClarifyRoute, async (context) => {
+  router.openapi(skipClarificationRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
-    const { clarifyTicketId } = context.req.valid('param')
+    const { clarificationId } = context.req.valid('param')
     const { reason, userId: bodyUserId } = context.req.valid('json')
     const userId = bodyUserId ?? getUserId(context)
-    const ticket = await deps.clarifyRepository.load(clarifyTicketId)
-    assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'ClarifyTicket', clarifyTicketId)
-    const skipped = await deps.hitlService.skipClarifyTicket(clarifyTicketId, reason, userId)
+    const ticket = await deps.clarificationRepository.load(clarificationId)
+    assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'Clarification', clarificationId)
+    const skipped = await deps.hitlService.skipClarification(clarificationId, reason, userId)
     return context.json(skipped.toData(), 200)
   })
 

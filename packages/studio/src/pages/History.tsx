@@ -60,7 +60,7 @@ export function HistoryPage({ workspaceId }: HistoryPageProps) {
   const commits = data?.items ?? []
   const tagsBySha = groupTagsBySha(tags?.items ?? [])
 
-  // Mirror Proposals / Clarify: land the reviewer on the most recent row.
+  // Mirror Proposals / Clarification: land the reviewer on the most recent row.
   useEffect(() => {
     if (selectedSha || isLoading || commits.length === 0)
       return
@@ -271,7 +271,7 @@ function CommitDetail({ workspaceId, sha, tags, onStartCompare }: {
             <TrailerRow label="Kind" value={data.message.kind} />
             <TrailerRow label="Author" value={data.message.userId} />
             {data.message.proposalId && <TrailerRow label="Proposal" value={data.message.proposalId} mono />}
-            {data.message.clarifyTicketId && <TrailerRow label="Clarify ticket" value={data.message.clarifyTicketId} mono />}
+            {data.message.clarificationId && <TrailerRow label="Clarification" value={data.message.clarificationId} mono />}
             {data.message.sourceId && <TrailerRow label="Source" value={data.message.sourceId} mono />}
             {data.message.revertedFrom && <TrailerRow label="Reverted from" value={data.message.revertedFrom.slice(0, 12)} mono />}
             {data.message.revertedTo && <TrailerRow label="Reverted to" value={data.message.revertedTo.slice(0, 12)} mono />}
@@ -693,7 +693,7 @@ function RestoreDialog({ open, onOpenChange, workspaceId, sha, subject }: {
         <DialogHeader>
           <DialogTitle>Restore workspace to this commit?</DialogTitle>
           <DialogDescription>
-            The graph, proposals, clarify tickets, and decisions will all roll back to "
+            The graph, proposals, clarifications, and decisions will all roll back to "
             {subject}
             ". A new
             {' '}

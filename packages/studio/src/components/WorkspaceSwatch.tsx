@@ -1,4 +1,4 @@
-import { usePendingClarify, usePendingProposals, useRuns } from '@/lib/queries'
+import { usePendingClarification, usePendingProposals, useRuns } from '@/lib/queries'
 import { cn } from '@/lib/utils'
 
 // Muted tint palette: low-saturation background + accented foreground
@@ -70,11 +70,11 @@ export function WorkspaceSwatchWithPending({ workspaceId, size = 'md', active = 
   active?: boolean
 }) {
   const { data: proposals } = usePendingProposals(workspaceId)
-  const { data: clarify } = usePendingClarify(workspaceId)
+  const { data: clarifications } = usePendingClarification(workspaceId)
   const { data: runs } = useRuns(workspaceId)
   const hasPending
     = (proposals?.items.length ?? 0) > 0
-      || (clarify?.items.length ?? 0) > 0
+      || (clarifications?.items.length ?? 0) > 0
       || (runs?.items.some(r => !r.completedAt) ?? false)
   return <WorkspaceSwatch workspaceId={workspaceId} size={size} active={active} pendingDot={hasPending} />
 }

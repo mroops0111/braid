@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ClarifyTicketId, CommitSha, ProposalId, SourceId, Timestamp, UserId, WorkspaceId } from './common.js'
+import { ClarificationId, CommitSha, ProposalId, SourceId, Timestamp, UserId, WorkspaceId } from './common.js'
 import { GraphEdge, GraphNode, ModelSnapshot } from './model.js'
 
 // Every commit is stamped by one system operation, so this is the closed catalog of what writes to the workspace repo.
@@ -30,7 +30,7 @@ export const CommitMessage = z.object({
   // git user.email: real OAuth address, or synthesised `${userId}@braid.local`.
   authorEmail: z.string().min(1).optional(),
   proposalId: ProposalId.optional(),
-  clarifyTicketId: ClarifyTicketId.optional(),
+  clarificationId: ClarificationId.optional(),
   sourceId: SourceId.optional(),
   revertedTo: CommitSha.optional(),
   revertedFrom: CommitSha.optional(),

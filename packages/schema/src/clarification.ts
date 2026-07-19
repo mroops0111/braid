@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import {
   Actor,
-  ClarifyCandidateId,
-  ClarifyTicketId,
+  ClarificationCandidateId,
+  ClarificationId,
   ExternalReference,
   NodeId,
   ProposalId,
@@ -13,35 +13,35 @@ import {
 import { GraphOperation } from './proposal.js'
 
 // Only the hard contract here. Authoring rules (length, tone, language) live in the skill layer.
-const clarifyQuestion = z.string().min(1).max(400).describe('The single question shown to the reviewer.')
+const clarificationQuestion = z.string().min(1).max(400).describe('The single question shown to the reviewer.')
 
-export const ClarifyStatus = z.enum(['pending', 'answered', 'applied', 'skipped'])
-export type ClarifyStatus = z.infer<typeof ClarifyStatus>
+export const ClarificationStatus = z.enum(['pending', 'answered', 'applied', 'skipped'])
+export type ClarificationStatus = z.infer<typeof ClarificationStatus>
 
 // 'skill' = AI-emitted with candidates. 'human' = filed via Studio.
-export const ClarifyOrigin = z.enum(['skill', 'human'])
-export type ClarifyOrigin = z.infer<typeof ClarifyOrigin>
+export const ClarificationOrigin = z.enum(['skill', 'human'])
+export type ClarificationOrigin = z.infer<typeof ClarificationOrigin>
 
 // Human picks this when filing to steer the AI. Skill tickets leave it unset.
-export const ClarifyAmbiguityType = z.enum(['gap', 'contradiction', 'ambiguous', 'assumption'])
-export type ClarifyAmbiguityType = z.infer<typeof ClarifyAmbiguityType>
+export const ClarificationAmbiguityType = z.enum(['gap', 'contradiction', 'ambiguous', 'assumption'])
+export type ClarificationAmbiguityType = z.infer<typeof ClarificationAmbiguityType>
 
-export const ClarifyCandidate = z.object({
-  id: ClarifyCandidateId,
+export const ClarificationCandidate = z.object({
+  id: ClarificationCandidateId,
   description: z.string().min(1).max(200).regex(/^[^\n]+$/, 'Candidate description must be a single line').describe('One-line summary of this candidate resolution.'),
   sourceReferences: z.array(SourceReference).default([]),
   proposedOperations: z.array(GraphOperation).default([]),
 })
-export type ClarifyCandidate = z.infer<typeof ClarifyCandidate>
+export type ClarificationCandidate = z.infer<typeof ClarificationCandidate>
 
-export const ClarifyTicket = z.object({
-  id: ClarifyTicketId,
+export const Clarification = z.object({
+  id: ClarificationId,
   workspaceId: WorkspaceId,
-  question: clarifyQuestion,
-  candidates: z.array(ClarifyCandidate),
-  status: ClarifyStatus,
+  question: clarificationQuestion,
+  candidates: z.array(ClarificationCandidate),
+  status: ClarificationStatus,
   answeredBy: UserId.optional(),
-  selectedCandidateId: ClarifyCandidateId.optional(),
+  selectedCandidateId: ClarificationCandidateId.optional(),
   resolution: z.array(GraphOperation).optional(),
   // The user who filed it, or 'system' for autonomous ones. Pending is owner-only.
   owner: Actor,
@@ -50,40 +50,40 @@ export const ClarifyTicket = z.object({
   // Set when the resolution becomes a Proposal, so the UI can link the two.
   proposalId: ProposalId.optional(),
   externalReferences: z.array(ExternalReference).optional(),
-  origin: ClarifyOrigin,
+  origin: ClarificationOrigin,
   // Free-form background on a human-filed issue. Skill tickets leave it empty.
   context: z.string().max(2000).optional(),
   // Node the human believes the issue concerns, to help the AI scope its resolution.
   relatedNode: NodeId.optional(),
-  ambiguityType: ClarifyAmbiguityType.optional(),
+  ambiguityType: ClarificationAmbiguityType.optional(),
 })
-export type ClarifyTicket = z.infer<typeof ClarifyTicket>
+export type Clarification = z.infer<typeof Clarification>
 
-export const ClarifyTicketCreate = z.object({
+export const ClarificationCreate = z.object({
   workspaceId: WorkspaceId,
-  question: clarifyQuestion,
-  candidates: z.array(ClarifyCandidate),
+  question: clarificationQuestion,
+  candidates: z.array(ClarificationCandidate),
   externalReferences: z.array(ExternalReference).optional(),
-  origin: ClarifyOrigin.optional(),
+  origin: ClarificationOrigin.optional(),
   context: z.string().max(2000).optional(),
   relatedNode: NodeId.optional(),
-  ambiguityType: ClarifyAmbiguityType.optional(),
+  ambiguityType: ClarificationAmbiguityType.optional(),
 })
-export type ClarifyTicketCreate = z.infer<typeof ClarifyTicketCreate>
+export type ClarificationCreate = z.infer<typeof ClarificationCreate>
 
 // The POST body for creating a ticket. Workspace comes from the path,
 // and human-authored candidates omit their id for the server to mint.
-export const ClarifyCreateBody = ClarifyTicketCreate
+export const ClarificationCreateBody = ClarificationCreate
   .omit({ workspaceId: true })
-  .extend({ candidates: z.array(ClarifyCandidate.partial({ id: true })) })
-export type ClarifyCreateBody = z.infer<typeof ClarifyCreateBody>
+  .extend({ candidates: z.array(ClarificationCandidate.partial({ id: true })) })
+export type ClarificationCreateBody = z.infer<typeof ClarificationCreateBody>
 
-export const ClarifyFilter = z.object({
+export const ClarificationFilter = z.object({
   workspaceId: WorkspaceId.optional(),
-  statuses: z.array(ClarifyStatus).optional(),
+  statuses: z.array(ClarificationStatus).optional(),
   limit: z.number().int().positive().optional(),
   offset: z.number().int().nonnegative().optional(),
   // When set, hides others' pending tickets. Non-pending stay visible, absent shows all.
   viewerId: UserId.optional(),
 })
-export type ClarifyFilter = z.infer<typeof ClarifyFilter>
+export type ClarificationFilter = z.infer<typeof ClarificationFilter>

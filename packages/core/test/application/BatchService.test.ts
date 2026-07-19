@@ -18,7 +18,7 @@ import { SkillId as SkillIdSchema } from '@braidhq/schema'
 import { FixedClock, makeOntology, makeProposal, makeWorkspace, mintTestId, resetTestIds, T0 } from '@braidhq/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  InMemoryClarifyTicketRepository,
+  InMemoryClarificationRepository,
   InMemoryProposalRepository,
   InMemorySourceUnitObservationRepository,
   InMemoryWorkspaceRepository,
@@ -171,7 +171,7 @@ async function setup(options: {
   }))
 
   const proposalRepository = new InMemoryProposalRepository()
-  const clarifyRepository = new InMemoryClarifyTicketRepository()
+  const clarificationRepository = new InMemoryClarificationRepository()
   const planRepository = new InMemoryBatchPlanRepository()
   const skillRunner = new FakeSkillRunner()
   const history = stubHistoryService()
@@ -193,7 +193,7 @@ async function setup(options: {
     workspaceService,
     skillRunner,
     proposalRepository,
-    clarifyRepository,
+    clarificationRepository,
     historyService: history,
     hitlService: hitl,
     batchPlanRepository: planRepository,

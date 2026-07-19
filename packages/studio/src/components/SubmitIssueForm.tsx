@@ -1,4 +1,4 @@
-import type { ClarifyAmbiguityType, ClarifyTicket, NodeId } from '@braidhq/schema'
+import type { Clarification, ClarificationAmbiguityType, NodeId } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, Send, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -11,11 +11,11 @@ import { queryKeys } from '@/lib/queries'
 interface SubmitIssueFormProps {
   workspaceId: string
   /** Caller closes the compose surface and may auto-select the new ticket. */
-  onSubmitted: (ticket: ClarifyTicket) => void
+  onSubmitted: (ticket: Clarification) => void
   onCancel: () => void
 }
 
-const AMBIGUITY_TYPES: { value: ClarifyAmbiguityType, label: string, hint: string }[] = [
+const AMBIGUITY_TYPES: { value: ClarificationAmbiguityType, label: string, hint: string }[] = [
   { value: 'gap', label: 'Gap', hint: 'something missing from the model' },
   { value: 'contradiction', label: 'Contradiction', hint: 'two parts of the model disagree' },
   { value: 'ambiguous', label: 'Ambiguous', hint: 'the model is unclear or open to interpretation' },
@@ -23,14 +23,14 @@ const AMBIGUITY_TYPES: { value: ClarifyAmbiguityType, label: string, hint: strin
 ]
 
 /**
- * Compose surface for a human-filed ClarifyTicket. Fields mirror the
+ * Compose surface for a human-filed Clarification. Fields mirror the
  * ReDoc SubmitIssueForm shape (question + context + relatedNode +
  * ambiguityType). The ticket is persisted with `origin: 'human'` and
  * empty `candidates: []`; the next braid-clarify run is expected to
  * append candidates so the standard pending → answered → applied
  * pipeline can resume.
  *
- * Rendered in-place (no modal) in the Clarify page's detail pane when
+ * Rendered in-place (no modal) in the Clarification page's detail pane when
  * the reviewer chooses to compose a new issue. The form takes the
  * full pane width so multi-line fields breathe — narrower call sites
  * (e.g. a dropdown) would crowd the textareas.
@@ -40,7 +40,7 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
   const [question, setQuestion] = useState('')
   const [context, setContext] = useState('')
   const [relatedNode, setRelatedNode] = useState('')
-  const [ambiguityType, setAmbiguityType] = useState<ClarifyAmbiguityType>('gap')
+  const [ambiguityType, setAmbiguityType] = useState<ClarificationAmbiguityType>('gap')
 
   useEffect(() => {
     setQuestion('')
@@ -54,7 +54,7 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
       const trimmedQuestion = question.trim()
       const trimmedContext = context.trim()
       const trimmedRelatedNode = relatedNode.trim()
-      return api.submitClarify(workspaceId, {
+      return api.submitClarification(workspaceId, {
         question: trimmedQuestion,
         candidates: [],
         origin: 'human',
@@ -64,7 +64,7 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
       })
     },
     onSuccess: (ticket) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.clarify(workspaceId) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.clarifications(workspaceId) })
       onSubmitted(ticket)
     },
   })
@@ -153,7 +153,7 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
             <select
               id="issue-type"
               value={ambiguityType}
-              onChange={e => setAmbiguityType(e.target.value as ClarifyAmbiguityType)}
+              onChange={e => setAmbiguityType(e.target.value as ClarificationAmbiguityType)}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring/40"
             >
               {AMBIGUITY_TYPES.map(opt => (

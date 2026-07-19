@@ -1,13 +1,13 @@
-import type { ClarifyFilter, ClarifyTicketId } from '@braidhq/schema'
-import type { ClarifyTicket } from '../../domain/hitl/ClarifyTicket.js'
-import type { ClarifyTicketRepository } from '../../domain/hitl/ClarifyTicketRepository.js'
+import type { ClarificationFilter, ClarificationId } from '@braidhq/schema'
+import type { Clarification } from '../../domain/hitl/Clarification.js'
+import type { ClarificationRepository } from '../../domain/hitl/ClarificationRepository.js'
 import { paginate } from '../../domain/paginate.js'
 import { InMemoryKeyedStore } from './InMemoryKeyedStore.js'
 
-export class InMemoryClarifyTicketRepository implements ClarifyTicketRepository {
-  private readonly store = new InMemoryKeyedStore<ClarifyTicketId, ClarifyTicket>('ClarifyTicket')
+export class InMemoryClarificationRepository implements ClarificationRepository {
+  private readonly store = new InMemoryKeyedStore<ClarificationId, Clarification>('Clarification')
 
-  async list(filter?: ClarifyFilter): Promise<ClarifyTicket[]> {
+  async list(filter?: ClarificationFilter): Promise<Clarification[]> {
     let tickets = this.store.listAll()
     if (filter?.workspaceId !== undefined) {
       const wsId = filter.workspaceId
@@ -26,11 +26,11 @@ export class InMemoryClarifyTicketRepository implements ClarifyTicketRepository 
     return paginate(tickets, filter?.limit, filter?.offset)
   }
 
-  async load(clarifyTicketId: ClarifyTicketId): Promise<ClarifyTicket> {
-    return this.store.get(clarifyTicketId)
+  async load(clarificationId: ClarificationId): Promise<Clarification> {
+    return this.store.get(clarificationId)
   }
 
-  async save(ticket: ClarifyTicket): Promise<void> {
+  async save(ticket: Clarification): Promise<void> {
     this.store.set(ticket.id, ticket)
   }
 }

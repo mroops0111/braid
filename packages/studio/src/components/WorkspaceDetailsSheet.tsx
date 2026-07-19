@@ -764,7 +764,7 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
                   Demote
                   <span className="font-medium">{displayName}</span>
                   {' '}
-                  to Guest? They will lose Proposals / Clarify access and can only run skills explicitly granted to them.
+                  to Guest? They will lose Proposals / Clarification access and can only run skills explicitly granted to them.
                 </>
               )}
               confirmLabel={promote.isPending ? 'Saving…' : 'Demote to Guest'}

@@ -21,7 +21,7 @@ import { GraphSurface } from './GraphSurface'
 interface ProposalsPageProps {
   workspaceId: string
   /**
-   * One-shot deep-link target. When set (e.g. clicking "Proposal #abc" on an applied ClarifyTicket),
+   * One-shot deep-link target. When set (e.g. clicking "Proposal #abc" on an applied Clarification),
    * the page scans its current list for the matching proposal. If found in the current status filter, it's selected,
    * otherwise the page sweeps the other statuses and switches the filter to wherever the proposal actually lives.
    */

@@ -1,6 +1,6 @@
 /**
  * Shared className overrides for the in-surface status filter pattern
- * (Proposals `Pending | Applied | Rejected`, Clarify `Pending |
+ * (Proposals `Pending | Applied | Rejected`, Clarification `Pending |
  * Answered | Applied | Skipped`). Renders as a segmented control: a
  * subtle outer container wraps the triggers so they read as "options
  * for ONE decision" rather than three independent nav items.

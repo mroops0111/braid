@@ -1,8 +1,8 @@
 import type {
   BatchPlanId,
   BatchUnitId,
-  ClarifyCandidateId,
-  ClarifyTicketId,
+  ClarificationCandidateId,
+  ClarificationId,
   DriftIssueId,
   EdgeId,
   NodeId,
@@ -13,7 +13,7 @@ import type {
 } from '@braidhq/schema'
 
 // Every id is the type name in kebab-case then a 12 hex random suffix,
-// for example `clarify-ticket-3f9a2b7c1d4e`.
+// for example `clarification-3f9a2b7c1d4e`.
 // The name keeps logs and urls readable,
 // the random is 48 bit, collision-safe far past this project's volume.
 // No time in the id, entities carry their own timestamp,
@@ -23,11 +23,11 @@ function mint<T extends string>(name: string): T {
 }
 
 export const newProposalId = (): ProposalId => mint('proposal')
-export const newClarifyTicketId = (): ClarifyTicketId => mint('clarify-ticket')
+export const newClarificationId = (): ClarificationId => mint('clarification')
 export const newBatchPlanId = (): BatchPlanId => mint('batch-plan')
 export const newReactorCycleId = (): ReactorCycleId => mint('reactor-cycle')
 export const newSkillRunId = (): SkillRunId => mint('skill-run')
-export const newClarifyCandidateId = (): ClarifyCandidateId => mint('clarify-candidate')
+export const newClarificationCandidateId = (): ClarificationCandidateId => mint('clarification-candidate')
 export const newBatchUnitId = (): BatchUnitId => mint('batch-unit')
 export const newDriftIssueId = (): DriftIssueId => mint('drift-issue')
 export const newUserId = (): UserId => mint('user')

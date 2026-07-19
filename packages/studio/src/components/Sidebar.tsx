@@ -3,7 +3,7 @@ import type { Surface } from './CommandPalette'
 import { Activity, ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, LogIn, Moon, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import braidLogo from '@/assets/braid-logo.svg'
-import { usePendingClarify, usePendingProposals, useRuns, useSkills } from '@/lib/queries'
+import { usePendingClarification, usePendingProposals, useRuns, useSkills } from '@/lib/queries'
 import { setActiveRemoteId, useActiveRemoteId } from '@/lib/remotes'
 import { useTheme } from '@/lib/theme'
 import { type RemoteSummary, type RemoteWorkspacesResult, useAllRemoteWorkspaces } from '@/lib/useRemoteWorkspaces'
@@ -536,13 +536,13 @@ function HereSection({
   onSelectSurface: (next: Surface) => void
 }) {
   const { data: proposals } = usePendingProposals(workspaceId)
-  const { data: clarify } = usePendingClarify(workspaceId)
+  const { data: clarifications } = usePendingClarification(workspaceId)
   const policy = useWorkspacePolicy(workspaceId)
   const { data: skills } = useSkills(workspaceId)
   const pendingProposals = proposals?.items.length ?? 0
-  const pendingClarify = clarify?.items.length ?? 0
+  const pendingClarification = clarifications?.items.length ?? 0
   const canSeeProposals = policy.can('proposal.read')
-  const canSeeClarify = policy.can('clarify.read')
+  const canSeeClarification = policy.can('clarification.read')
   const canRunActions = (skills?.items ?? []).some(s =>
     !s.frontmatter.braid.hidden && policy.can('skill.run', { skill: s.frontmatter, skillId: s.id }),
   )
@@ -574,15 +574,15 @@ function HereSection({
             onClick={() => onSelectSurface('actions')}
           />
         )}
-        {canSeeClarify && (
+        {canSeeClarification && (
           <HereRow
             collapsed={collapsed}
             icon={HelpCircle}
-            label="Clarify"
-            active={activeSurface === 'clarify'}
-            count={pendingClarify}
+            label="Clarifications"
+            active={activeSurface === 'clarifications'}
+            count={pendingClarification}
             shortcut="G C"
-            onClick={() => onSelectSurface('clarify')}
+            onClick={() => onSelectSurface('clarifications')}
           />
         )}
         {canSeeProposals && (
@@ -706,17 +706,17 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, on
 
 function WorkspaceBadges({ workspaceId }: { workspaceId: string }) {
   const { data: proposals } = usePendingProposals(workspaceId)
-  const { data: clarify } = usePendingClarify(workspaceId)
+  const { data: clarifications } = usePendingClarification(workspaceId)
   const { data: runs } = useRuns(workspaceId)
   const pendingProposals = proposals?.items.length ?? 0
-  const pendingClarify = clarify?.items.length ?? 0
+  const pendingClarification = clarifications?.items.length ?? 0
   const running = runs?.items.filter(r => !r.completedAt).length ?? 0
-  const total = pendingProposals + pendingClarify + running
+  const total = pendingProposals + pendingClarification + running
   if (total === 0)
     return null
   const breakdown = [
     running > 0 ? `${running} run${running === 1 ? '' : 's'} in flight` : null,
-    pendingClarify > 0 ? `${pendingClarify} pending clarification${pendingClarify === 1 ? '' : 's'}` : null,
+    pendingClarification > 0 ? `${pendingClarification} pending clarification${pendingClarification === 1 ? '' : 's'}` : null,
     pendingProposals > 0 ? `${pendingProposals} pending proposal${pendingProposals === 1 ? '' : 's'}` : null,
   ].filter(Boolean)
   return (

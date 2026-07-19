@@ -18,7 +18,7 @@ function makeUnit(id: string): BatchUnit {
     description: `walk ${id}`,
     status: 'pending',
     proposalIds: [],
-    clarifyTicketIds: [],
+    clarificationIds: [],
   }
 }
 
@@ -62,7 +62,7 @@ describe('FsBatchPlanRepository', () => {
     const next = makePlan().markUnitCompleted(
       '2026-06-03T00:00:01.000Z' as never,
       'pu-a' as BatchUnitId,
-      { proposalIds: ['p-1' as ProposalId], clarifyTicketIds: [] },
+      { proposalIds: ['p-1' as ProposalId], clarificationIds: [] },
     )
     await repo.save(ws, next)
     const loaded = await repo.load(ws)

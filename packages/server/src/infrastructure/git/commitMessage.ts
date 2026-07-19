@@ -1,6 +1,6 @@
 import type { CommitMessage } from '@braidhq/schema'
 import {
-  ClarifyTicketId,
+  ClarificationId,
   CommitKind,
   CommitSha,
   ProposalId,
@@ -19,8 +19,8 @@ export function serializeCommitMessage(message: CommitMessage): string {
   ]
   if (message.proposalId)
     trailers.push(`Proposal-Id: ${message.proposalId}`)
-  if (message.clarifyTicketId)
-    trailers.push(`Clarify-Ticket-Id: ${message.clarifyTicketId}`)
+  if (message.clarificationId)
+    trailers.push(`Clarification-Ticket-Id: ${message.clarificationId}`)
   if (message.sourceId)
     trailers.push(`Source-Id: ${message.sourceId}`)
   if (message.revertedFrom)
@@ -50,8 +50,8 @@ export function parseCommitMessage(raw: string): CommitMessage {
   }
   if (trailers['Proposal-Id'])
     Object.assign(out, { proposalId: ProposalId.parse(trailers['Proposal-Id']) })
-  if (trailers['Clarify-Ticket-Id'])
-    Object.assign(out, { clarifyTicketId: ClarifyTicketId.parse(trailers['Clarify-Ticket-Id']) })
+  if (trailers['Clarification-Ticket-Id'])
+    Object.assign(out, { clarificationId: ClarificationId.parse(trailers['Clarification-Ticket-Id']) })
   if (trailers['Source-Id'])
     Object.assign(out, { sourceId: SourceId.parse(trailers['Source-Id']) })
   if (trailers['Reverted-From'])

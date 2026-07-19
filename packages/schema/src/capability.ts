@@ -14,8 +14,8 @@ export const Capability = z.enum([
   'workspace.write', // edit PRODUCT.md, sources, plugins, ontology, members, or delete
   'proposal.read', // list and read pending or decided proposals
   'proposal.write', // submit, apply, reject
-  'clarify.read', // list and read clarify tickets
-  'clarify.write', // answer, skip
+  'clarification.read', // list and read clarifications
+  'clarification.write', // answer, skip
   'history.write', // restore a past commit, manage tags
 
   // Skill run carries a per-member override matrix on top of the role default,

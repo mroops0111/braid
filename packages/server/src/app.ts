@@ -9,7 +9,7 @@ import { workspaceIdMiddleware } from './middleware/workspaceId.js'
 import { createAdminRouter } from './routes/admin.js'
 import { createAuthRouter } from './routes/auth.js'
 import { createBatchRouter } from './routes/batch.js'
-import { createClarifyRouter } from './routes/clarify.js'
+import { createClarificationRouter } from './routes/clarifications.js'
 import { createEdgesRouter } from './routes/edges.js'
 import { healthRouter } from './routes/health.js'
 import { createHistoryRouter } from './routes/history.js'
@@ -149,9 +149,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     modelValidationService: deps.modelValidationService,
     workspaceService: deps.workspaceService,
   }))
-  workspaceScoped.route('/clarify', createClarifyRouter({
+  workspaceScoped.route('/clarifications', createClarificationRouter({
     hitlService: deps.hitlService,
-    clarifyRepository: deps.clarifyRepository,
+    clarificationRepository: deps.clarificationRepository,
   }))
   workspaceScoped.route('/source-unit-states', createSourceUnitObservationsRouter({
     sourceUnitObservationService: deps.sourceUnitObservationService,
@@ -204,7 +204,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   }
   workspaceScoped.route('/skill-input-options', createSkillInputOptionsRouter({
     modelRepository: deps.modelRepository,
-    clarifyRepository: deps.clarifyRepository,
+    clarificationRepository: deps.clarificationRepository,
     workspaceRepository: deps.workspaceRepository,
     pluginRegistry: deps.pluginRegistry,
   }))

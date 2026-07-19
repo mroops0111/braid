@@ -75,7 +75,7 @@ function PreStart({ workspaceId, previousPlan }: { workspaceId: string, previous
       <section className="rounded-lg border border-border bg-card/40 p-4 text-sm leading-relaxed text-foreground/90 [text-wrap:pretty]">
         <div className="font-medium">What Happens</div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Confident proposals are applied straight to the graph. Ambiguous ones queue in Clarify for you to decide. If you want to review every single proposal by hand, run a single
+          Confident proposals are applied straight to the graph. Ambiguous ones queue in Clarification for you to decide. If you want to review every single proposal by hand, run a single
           {' '}
           <code className="rounded bg-muted px-1 font-mono">/braid-extract</code>
           {' '}
@@ -579,7 +579,7 @@ function UnitRow({ unit, actionLabel, active, selected, onSelect }: {
             )}
             <span className="truncate text-xs font-medium text-foreground">{unit.name}</span>
           </div>
-          {(unit.proposalIds.length > 0 || unit.clarifyTicketIds.length > 0) && (
+          {(unit.proposalIds.length > 0 || unit.clarificationIds.length > 0) && (
             <div className="mt-0.5 flex gap-2 text-[10px] text-muted-foreground">
               {unit.proposalIds.length > 0 && (
                 <span>
@@ -587,9 +587,9 @@ function UnitRow({ unit, actionLabel, active, selected, onSelect }: {
                   {' p'}
                 </span>
               )}
-              {unit.clarifyTicketIds.length > 0 && (
+              {unit.clarificationIds.length > 0 && (
                 <span>
-                  {unit.clarifyTicketIds.length}
+                  {unit.clarificationIds.length}
                   {' c'}
                 </span>
               )}
