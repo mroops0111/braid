@@ -22,7 +22,7 @@ const listRoute = createRoute({
   path: '/',
   operationId: 'listReactorCycles',
   summary: 'List reactor passes for a workspace, newest first.',
-  description: 'One entry per reactor cycle — the full timeline (units + checkpoint) is on each entry, so the Activity page does not need a second round-trip to render the list.',
+  description: 'One entry per reactor cycle. The full timeline (units + checkpoint) is on each entry, so the Activity page does not need a second round-trip to render the list.',
   tags: ['reactor'],
   request: { params: WorkspaceIdParam },
   responses: {

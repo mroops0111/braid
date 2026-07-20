@@ -156,7 +156,7 @@ const deleteUserRoute = createRoute({
   method: 'delete',
   path: '/users/{userId}',
   operationId: 'deleteUserAdmin',
-  summary: 'Delete a user record. Admin only. Idempotent. Does NOT clean up workspace memberships referencing this userId; those rows become orphans.',
+  summary: 'Delete a user record. Admin only. Idempotent. Does NOT clean up workspace memberships referencing this userId. Those rows become orphans.',
   tags: ['admin'],
   request: { params: UserIdParam },
   responses: {

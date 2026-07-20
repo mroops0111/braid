@@ -5,7 +5,7 @@ import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 
 const ListQuery = z.object({
-  type: z.union([EdgeTypeId, z.array(EdgeTypeId)]).optional().openapi({ description: 'Filter by edge type id; pass one or many.' }),
+  type: z.union([EdgeTypeId, z.array(EdgeTypeId)]).optional().openapi({ description: 'Filter by edge type id. Pass one or many.' }),
   fromNodeId: NodeId.optional()
     .openapi({ description: 'Filter to edges originating from this node.' }),
   toNodeId: NodeId.optional()

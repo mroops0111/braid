@@ -5,8 +5,8 @@ import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 
 const ListQuery = z.object({
-  type: z.union([NodeTypeId, z.array(NodeTypeId)]).optional().openapi({ description: 'Filter by node type id; pass one or many.' }),
-  status: z.union([NodeStatus, z.array(NodeStatus)]).optional().openapi({ description: 'Filter by node status; pass one or many.' }),
+  type: z.union([NodeTypeId, z.array(NodeTypeId)]).optional().openapi({ description: 'Filter by node type id. Pass one or many.' }),
+  status: z.union([NodeStatus, z.array(NodeStatus)]).optional().openapi({ description: 'Filter by node status. Pass one or many.' }),
   q: z.string().optional().openapi({ description: 'Case-insensitive substring match against node name.' }),
 })
 

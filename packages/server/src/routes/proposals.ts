@@ -8,7 +8,7 @@ import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from '.
 import { assertEntityInWorkspace } from './helpers.js'
 
 const ListQuery = z.object({
-  status: z.union([ProposalStatus, z.array(ProposalStatus)]).optional().openapi({ description: 'Filter by proposal status; pass one or many.' }),
+  status: z.union([ProposalStatus, z.array(ProposalStatus)]).optional().openapi({ description: 'Filter by proposal status. Pass one or many.' }),
   limit: z.coerce.number().int().positive().optional(),
   offset: z.coerce.number().int().nonnegative().optional(),
   showAll: z.coerce.boolean().optional().openapi({ description: 'Owner-only: bypass the personal-pending filter so every member\'s drafts are visible.' }),
@@ -109,7 +109,7 @@ const validateProposalRoute = createRoute({
   method: 'get',
   path: '/{proposalId}/validate',
   operationId: 'validateProposal',
-  summary: 'Pre-apply check; returns the validation issues a proposal would hit if applied now.',
+  summary: 'Pre-apply check that returns the validation issues a proposal would hit if applied now.',
   tags: ['proposals'],
   request: { params: ProposalIdParam },
   responses: {

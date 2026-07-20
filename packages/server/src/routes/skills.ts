@@ -105,7 +105,7 @@ const runSkillRoute = createRoute({
   path: '/{skillId}/run',
   operationId: 'runSkill',
   summary: 'Fire-and-forget run of a skill. Returns the runId to subscribe to via SSE.',
-  description: 'The subprocess + event drain runs in the background; events are persisted to JSONL and broadcast to subscribers regardless of whether the client stays connected. Tail progress via GET /workspaces/{workspaceId}/runs/{runId}/events.',
+  description: 'The subprocess + event drain runs in the background. Events are persisted to JSONL and broadcast to subscribers regardless of whether the client stays connected. Tail progress via GET /workspaces/{workspaceId}/runs/{runId}/events.',
   tags: ['skills'],
   request: {
     params: SkillIdParam,
@@ -172,8 +172,8 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
       if (!perUnitSkillId || skillId !== perUnitSkillId) {
         throw new ValidationError(
           perUnitSkillId
-            ? `sourceUnit is only accepted for "${perUnitSkillId}" (the active ontology's per-unit skill)`
-            : `sourceUnit is not accepted: the active ontology declares no per-unit skill`,
+            ? `The \`sourceUnit\` field is only accepted for "${perUnitSkillId}", the active ontology's per-unit skill.`
+            : `The \`sourceUnit\` field is not accepted, the active ontology declares no per-unit skill.`,
         )
       }
       // Reject a sourceUnit whose sourceId is not an intent source here.
