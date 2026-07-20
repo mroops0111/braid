@@ -6,6 +6,8 @@ import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
+  ServiceUnavailableError,
+  UnauthorizedError,
   ValidationError,
 } from '@braidhq/core'
 import { ZodError } from 'zod'
@@ -21,6 +23,10 @@ function statusFor(error: BraidError): number {
     return 409
   if (error instanceof ForbiddenError)
     return 403
+  if (error instanceof UnauthorizedError)
+    return 401
+  if (error instanceof ServiceUnavailableError)
+    return 503
   return 500
 }
 

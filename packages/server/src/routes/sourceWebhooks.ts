@@ -8,7 +8,7 @@ import type { SourceDescriptor, SourceId, WorkspaceId } from '@braidhq/schema'
 import type { SecretStore } from '../infrastructure/secrets/SecretStore.js'
 import { Buffer } from 'node:buffer'
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
-import { createLogger } from '@braidhq/core'
+import { createLogger, NotFoundError, ServiceUnavailableError, UnauthorizedError, ValidationError } from '@braidhq/core'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { Hono } from 'hono'
 import { WorkspaceIdParam } from './_shared.js'
@@ -100,8 +100,8 @@ function resolveWebhookCapability(
 // Distinct error bodies would leak which pairs exist,
 // and which are webhook-armed, to an unauthenticated caller.
 // That recon ladder we deliberately close off.
-function unauthorized(context: { json: (body: unknown, status: 401) => Response }): Response {
-  return context.json({ error: 'invalid signature' }, 401)
+function unauthorized(): never {
+  throw new UnauthorizedError('Invalid webhook signature.')
 }
 
 interface VerifiedDelivery {
@@ -169,7 +169,7 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
     // "no such workspace", "no secret yet", and "bad signature".
     const verified = await verifyDelivery(deps, context, workspaceId, sourceId)
     if (!verified)
-      return unauthorized(context)
+      return unauthorized()
     const { workspace, resolved, identity, rawBody } = verified
 
     // Parse the body only after the signature check,
@@ -179,7 +179,7 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
       payload = JSON.parse(rawBody)
     }
     catch {
-      return context.json({ error: 'invalid json payload' }, 400)
+      throw new ValidationError('Invalid JSON payload.')
     }
 
     const fullName = extractFullName(payload)
@@ -191,7 +191,7 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
     // since this receiver is per-source,
     // (some org-level or installation events omit it).
     if (typeof fullName !== 'string' || fullName.toLowerCase() !== expectedFullName)
-      return context.json({ error: `payload repository "${fullName ?? '(missing)'}" does not match configured "${expectedFullName}"` }, 400)
+      throw new ValidationError(`Payload repository "${fullName ?? '(missing)'}" does not match configured "${expectedFullName}".`)
 
     // X-GitHub-Event must be present on real deliveries.
     // Treating an absent header as "unknown",
@@ -199,7 +199,7 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
     // since loaders default to skipping unknown events.
     const event = context.req.header('X-GitHub-Event')
     if (!event)
-      return context.json({ error: 'missing X-GitHub-Event header' }, 400)
+      throw new ValidationError('Missing X-GitHub-Event header.')
 
     const shouldDispatch = resolved.capability.shouldDispatch?.(resolved.config, { event, payload }) ?? true
     if (!shouldDispatch) {
@@ -319,10 +319,8 @@ export function createSourceWebhooksAdminRouter(deps: SourceWebhooksAdminDeps): 
   router.openapi(getStatusRoute, async (context) => {
     const { workspaceId, sourceId } = context.req.valid('param')
     if (!deps.apiUrl)
-      return context.json({ error: 'server is not configured with a public apiUrl; webhook URLs cannot be rendered' }, 503)
-    const guard = await guardWebhookSource(deps, workspaceId as WorkspaceId, sourceId as SourceId)
-    if (guard)
-      return context.json({ error: guard.message }, guard.status)
+      throw new ServiceUnavailableError('Server is not configured with a public apiUrl. Webhook URLs cannot be rendered.')
+    await guardWebhookSource(deps, workspaceId as WorkspaceId, sourceId as SourceId)
     const record = await deps.secretStore.read<WebhookSecretRecord>(SECRET_NAMESPACE, secretKey(workspaceId as WorkspaceId, sourceId as SourceId))
     return context.json({
       url: buildWebhookUrl(deps.apiUrl, workspaceId as WorkspaceId, sourceId as SourceId),
@@ -334,10 +332,8 @@ export function createSourceWebhooksAdminRouter(deps: SourceWebhooksAdminDeps): 
   router.openapi(rotateRoute, async (context) => {
     const { workspaceId, sourceId } = context.req.valid('param')
     if (!deps.apiUrl)
-      return context.json({ error: 'server is not configured with a public apiUrl; webhook URLs cannot be rendered' }, 503)
-    const guard = await guardWebhookSource(deps, workspaceId as WorkspaceId, sourceId as SourceId)
-    if (guard)
-      return context.json({ error: guard.message }, guard.status)
+      throw new ServiceUnavailableError('Server is not configured with a public apiUrl. Webhook URLs cannot be rendered.')
+    await guardWebhookSource(deps, workspaceId as WorkspaceId, sourceId as SourceId)
 
     // 32 bytes is the GitHub-recommended minimum,
     // matching what their own webhook setup UI generates.
@@ -364,24 +360,25 @@ async function guardWebhookSource(
   deps: SourceWebhooksAdminDeps,
   workspaceId: WorkspaceId,
   sourceId: SourceId,
-): Promise<{ status: 400 | 404, message: string } | undefined> {
+): Promise<void> {
   const workspace = await deps.workspaceService.findById(workspaceId)
   const source = workspace.sources.find(s => s.id === sourceId)
   if (!source)
-    return { status: 404, message: `Source "${sourceId}" not found` }
+    throw new NotFoundError(`Source "${sourceId}" not found`)
   const resolved = resolveWebhookCapability(deps.pluginRegistry, source)
   if (!resolved)
-    return { status: 400, message: `Source "${sourceId}" has no webhook-capable loader` }
+    throw new ValidationError(`Source "${sourceId}" has no webhook-capable loader.`)
   try {
     const identity = resolved.capability.repoIdentity(resolved.config)
     if (!identity || identity.provider !== PROVIDER)
-      return { status: 400, message: `Source "${sourceId}" is not bound to a github repo` }
+      throw new ValidationError(`Source "${sourceId}" is not bound to a github repo.`)
   }
   catch (err) {
+    if (err instanceof ValidationError)
+      throw err
     adminLogger.warn({ workspaceId, sourceId, err: err instanceof Error ? err.message : String(err) }, 'admin: repoIdentity threw')
-    return { status: 400, message: `Source "${sourceId}" loader config does not match the loader's schema` }
+    throw new ValidationError(`Source "${sourceId}" loader config does not match the loader's schema.`)
   }
-  return undefined
 }
 
 function buildWebhookUrl(apiUrl: string, workspaceId: WorkspaceId, sourceId: SourceId): string {

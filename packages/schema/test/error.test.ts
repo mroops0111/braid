@@ -12,9 +12,11 @@ describe('BraidErrorCode', () => {
   it('is the closed set of one code per HTTP failure class', () => {
     expect(BraidErrorCode.options).toEqual([
       'BRAID-VALIDATION',
+      'BRAID-UNAUTHORIZED',
       'BRAID-NOT-FOUND',
       'BRAID-CONFLICT',
       'BRAID-FORBIDDEN',
+      'BRAID-UNAVAILABLE',
       'BRAID-INTERNAL',
     ])
   })

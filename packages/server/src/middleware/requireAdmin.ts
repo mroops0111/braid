@@ -1,5 +1,6 @@
 import type { MiddlewareHandler } from 'hono'
 import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
+import { ForbiddenError } from '@braidhq/core'
 import { getUserId } from './userId.js'
 
 /**
@@ -12,18 +13,8 @@ export function requireAdmin(userRegistry: UserRegistryFile): MiddlewareHandler 
   return async (context, next) => {
     const userId = getUserId(context)
     const user = await userRegistry.get(userId)
-    if (!user || user.serverRole !== 'admin') {
-      return context.json(
-        {
-          type: 'about:blank',
-          title: 'Forbidden',
-          status: 403,
-          detail: 'Server admin required.',
-        },
-        403,
-        { 'Content-Type': 'application/problem+json' },
-      )
-    }
+    if (!user || user.serverRole !== 'admin')
+      throw new ForbiddenError('Server admin required.')
     await next()
     return undefined
   }

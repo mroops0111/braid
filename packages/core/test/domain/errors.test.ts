@@ -6,6 +6,8 @@ import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
+  ServiceUnavailableError,
+  UnauthorizedError,
   ValidationError,
 } from '../../src/index.js'
 
@@ -64,6 +66,24 @@ describe('ForbiddenError', () => {
     const error = new ForbiddenError('You can only update your own profile.')
     expect(error.code).toBe('BRAID-FORBIDDEN')
     expect(error.name).toBe('ForbiddenError')
+    expect(error).toBeInstanceOf(BraidError)
+  })
+})
+
+describe('UnauthorizedError', () => {
+  it('uses BRAID-UNAUTHORIZED code', () => {
+    const error = new UnauthorizedError('Sign in to continue.')
+    expect(error.code).toBe('BRAID-UNAUTHORIZED')
+    expect(error.name).toBe('UnauthorizedError')
+    expect(error).toBeInstanceOf(BraidError)
+  })
+})
+
+describe('ServiceUnavailableError', () => {
+  it('uses BRAID-UNAVAILABLE code', () => {
+    const error = new ServiceUnavailableError('Google sign-in is not configured.')
+    expect(error.code).toBe('BRAID-UNAVAILABLE')
+    expect(error.name).toBe('ServiceUnavailableError')
     expect(error).toBeInstanceOf(BraidError)
   })
 })

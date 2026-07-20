@@ -6,9 +6,11 @@ import { ValidationIssues } from './graph-validation.js'
 // not on parsed status text.
 export const BraidErrorCode = z.enum([
   'BRAID-VALIDATION',
+  'BRAID-UNAUTHORIZED',
   'BRAID-NOT-FOUND',
   'BRAID-CONFLICT',
   'BRAID-FORBIDDEN',
+  'BRAID-UNAVAILABLE',
   'BRAID-INTERNAL',
 ])
 export type BraidErrorCode = z.infer<typeof BraidErrorCode>

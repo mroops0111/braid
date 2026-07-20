@@ -37,3 +37,15 @@ export class ForbiddenError extends BraidError {
     super('BRAID-FORBIDDEN', message, options)
   }
 }
+
+export class UnauthorizedError extends BraidError {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super('BRAID-UNAUTHORIZED', message, options)
+  }
+}
+
+export class ServiceUnavailableError extends BraidError {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super('BRAID-UNAVAILABLE', message, options)
+  }
+}

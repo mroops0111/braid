@@ -1,6 +1,7 @@
 import type { UserId } from '@braidhq/schema'
 import type { MiddlewareHandler } from 'hono'
 import type { SessionStore } from '../infrastructure/auth/SessionStore.js'
+import { UnauthorizedError } from '@braidhq/core'
 
 // Routes the auth middleware never gates,
 // since bootstrapping the login flow needs anonymous access.
@@ -71,31 +72,11 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
       if (queryToken)
         token = queryToken
     }
-    if (!token) {
-      return context.json(
-        {
-          type: 'about:blank',
-          title: 'Unauthorized',
-          status: 401,
-          detail: 'Missing or invalid Authorization header. Sign in to continue.',
-        },
-        401,
-        { 'Content-Type': 'application/problem+json' },
-      )
-    }
+    if (!token)
+      throw new UnauthorizedError('Missing or invalid Authorization header. Sign in to continue.')
     const session = await options.sessionStore.resolve(token)
-    if (!session) {
-      return context.json(
-        {
-          type: 'about:blank',
-          title: 'Unauthorized',
-          status: 401,
-          detail: 'Session expired or revoked. Sign in again.',
-        },
-        401,
-        { 'Content-Type': 'application/problem+json' },
-      )
-    }
+    if (!session)
+      throw new UnauthorizedError('Session expired or revoked. Sign in again.')
     context.set('userId', session.userId)
     await next()
     return undefined

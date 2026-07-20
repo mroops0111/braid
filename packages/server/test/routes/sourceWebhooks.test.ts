@@ -235,8 +235,8 @@ describe('POST /webhooks/github/:workspaceId/:sourceId (issue #30)', () => {
       body,
     })
     expect(response.status).toBe(400)
-    const json = await response.json() as { error?: string }
-    expect(json.error).toContain('X-GitHub-Event')
+    const json = await response.json() as { detail?: string }
+    expect(json.detail).toContain('X-GitHub-Event')
     await new Promise(resolve => setTimeout(resolve, 10))
     expect(syncOne).not.toHaveBeenCalled()
   })
@@ -399,10 +399,10 @@ describe('POST /webhooks/github/:workspaceId/:sourceId (issue #30)', () => {
     })
 
     expect(response.status).toBe(401)
-    const json = await response.json() as { error?: string }
+    const json = await response.json() as { detail?: string }
     // Anonymous callers learn nothing about which (ws, source) pairs
     // exist or are webhook-armed.
-    expect(json.error).toBe('invalid signature')
+    expect(json.detail).toBe('Invalid webhook signature.')
   })
 
   it('returns uniform 401 for an unknown workspace + source so attackers cannot enumerate ids', async () => {
@@ -418,8 +418,8 @@ describe('POST /webhooks/github/:workspaceId/:sourceId (issue #30)', () => {
       body,
     })
     expect(response.status).toBe(401)
-    const json = await response.json() as { error?: string }
-    expect(json.error).toBe('invalid signature')
+    const json = await response.json() as { detail?: string }
+    expect(json.detail).toBe('Invalid webhook signature.')
   })
 })
 

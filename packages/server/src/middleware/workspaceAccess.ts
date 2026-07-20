@@ -3,6 +3,7 @@ import type { Context, MiddlewareHandler } from 'hono'
 import type { WorkspaceRegistryFile } from '../infrastructure/fs/WorkspaceRegistryFile.js'
 import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
 import type { Capability, ViewerContext } from '../policy/index.js'
+import { ForbiddenError } from '@braidhq/core'
 import { defaultPermissionRegistry, resolveViewer } from '../policy/index.js'
 import { getUserId } from './userId.js'
 import { getWorkspaceId } from './workspaceId.js'
@@ -30,10 +31,10 @@ export function requireServerCapability(
     const userId = getUserId(context)
     const user = await userRegistry.get(userId)
     if (!user)
-      return forbid(context, `Unknown user "${userId}".`)
+      return forbid(`Unknown user "${userId}".`)
     const viewer = resolveViewer(user, undefined)
     if (!defaultPermissionRegistry.can(capability, viewer))
-      return forbid(context, `Your role cannot perform "${capability}".`)
+      return forbid(`Your role cannot perform "${capability}".`)
     await next()
     return undefined
   }
@@ -67,12 +68,12 @@ export function workspaceAccessMiddleware(options: WorkspaceAccessOptions): Midd
     const userId = getUserId(context)
     const user = await options.userRegistry.get(userId)
     if (!user)
-      return forbid(context, `Unknown user "${userId}".`)
+      return forbid(`Unknown user "${userId}".`)
     const workspace = await options.workspaceService.findById(workspaceId)
     const member = await options.registry.getMember(workspace.rootPath, userId)
     const viewer = resolveViewer(user, member)
     if (viewer.effectiveRole === null)
-      return forbid(context, `You are not a member of workspace "${workspaceId}".`)
+      return forbid(`You are not a member of workspace "${workspaceId}".`)
     context.set('viewerContext', viewer)
     await next()
     return undefined
@@ -106,16 +107,12 @@ export function requirePermission(
     const resource = buildResource ? await buildResource(context) : undefined
     const viewer: ViewerContext = resource ? { ...base, resource } : base
     if (!defaultPermissionRegistry.can(capability, viewer))
-      return forbid(context, `Your role cannot perform "${capability}".`)
+      return forbid(`Your role cannot perform "${capability}".`)
     await next()
     return undefined
   }
 }
 
-function forbid(context: Context, detail: string): Response {
-  return context.json(
-    { type: 'about:blank', title: 'Forbidden', status: 403, detail },
-    403,
-    { 'Content-Type': 'application/problem+json' },
-  )
+function forbid(detail: string): never {
+  throw new ForbiddenError(detail)
 }

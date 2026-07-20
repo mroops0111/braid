@@ -5,7 +5,7 @@ import type { AccessPolicy } from '../infrastructure/auth/AccessPolicy.js'
 import type { SessionStore } from '../infrastructure/auth/SessionStore.js'
 import type { GoogleOAuth } from '../infrastructure/oauth/GoogleOAuth.js'
 import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
-import { newUserId, NotFoundError } from '@braidhq/core'
+import { newUserId, NotFoundError, ServiceUnavailableError, ValidationError } from '@braidhq/core'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { createOAuthState, createPkceVerifier } from '../infrastructure/oauth/GoogleOAuth.js'
@@ -74,21 +74,14 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
   }
 
   router.get('/google/start', async (context) => {
-    if (!deps.googleOAuth) {
-      return context.json(
-        {
-          title: 'Google sign-in unavailable',
-          detail: 'Server is missing BRAID_GOOGLE_CLIENT_ID / BRAID_GOOGLE_CLIENT_SECRET; ask the admin to configure them.',
-        },
-        503,
-      )
-    }
+    if (!deps.googleOAuth)
+      throw new ServiceUnavailableError('Server is missing BRAID_GOOGLE_CLIENT_ID / BRAID_GOOGLE_CLIENT_SECRET. Ask the admin to configure them.')
     reapExpired()
     const parsed = StartQuery.safeParse({
       returnTo: context.req.query('returnTo'),
     })
     if (!parsed.success)
-      return context.json({ title: 'Invalid returnTo' }, 400)
+      throw new ValidationError('Invalid returnTo query parameter.')
     const state = createOAuthState()
     const codeVerifier = createPkceVerifier()
     pending.set(state, {
@@ -102,7 +95,7 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
 
   router.get('/google/callback', async (context) => {
     if (!deps.googleOAuth)
-      return context.text('Google sign-in is not configured on this server.', 503)
+      throw new ServiceUnavailableError('Google sign-in is not configured on this server.')
     const parsed = CallbackQuery.safeParse({
       code: context.req.query('code'),
       state: context.req.query('state'),
@@ -110,7 +103,7 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
       error_description: context.req.query('error_description'),
     })
     if (!parsed.success)
-      return context.text('Invalid callback parameters.', 400)
+      throw new ValidationError('Invalid callback parameters.')
     const { code, state, error, error_description: errorDescription } = parsed.data
     if (error || !code || !state)
       return redirectWithError(context, deps.studioUrl, error_description_or_default(error, errorDescription))
