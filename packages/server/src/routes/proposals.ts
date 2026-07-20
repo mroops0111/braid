@@ -1,7 +1,7 @@
 import type { HITLService, ModelRepository, ModelValidationService, ProposalRepository, WorkspaceService } from '@braidhq/core'
 import { Proposal, ProposalCreate, ProposalId, ProposalStatus, UserId, ValidationResult } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
-import { getUserId } from '../middleware/userId.js'
+import { getUserId } from '../middleware/auth.js'
 import { getViewerContext, requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'

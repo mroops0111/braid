@@ -17,17 +17,19 @@ export interface AuthContext {
  * The one axis that separates a trusted local install,
  * from an authenticated remote server.
  *
- * `defaultPrincipal` is the implicit user for an unauthenticated request,
- * and the owner a workspace falls back to when it has none.
- * It is null when real authentication is required,
- * then an unauthenticated request and an ownerless workspace are errors,
- * never silently attributed to a shared account.
+ * Two separate axes, not one nullable field.
+ * `defaultPrincipal` is the identity axis, the implicit user for an
+ * unauthenticated request, and the owner a workspace falls back to,
+ * or null when there is no implicit user.
+ * `requiresAuth` is the policy axis, whether a caller must present a valid
+ * Bearer token. The middleware reads this, never the principal's null-ness.
  *
  * Stateless behaviour behind an interface, so a const object per mode,
  * the idiomatic strategy form when there is no constructor dependency.
  */
 export interface AuthMode {
   readonly defaultPrincipal: UserId | null
+  readonly requiresAuth: boolean
   // Seed the host state this mode needs, called once at boot.
   provision: (context: AuthContext) => Promise<void>
 }
@@ -36,6 +38,7 @@ export interface AuthMode {
 // so provision seeds that `local-user` admin account, idempotently.
 export const localTrust: AuthMode = {
   defaultPrincipal: LOCAL_USER_ID,
+  requiresAuth: false,
   async provision({ userRegistry }) {
     if (await userRegistry.get(LOCAL_USER_ID))
       return
@@ -52,6 +55,7 @@ export const localTrust: AuthMode = {
 // so provision back-fills `approvedEmails` from the roster, idempotently.
 export const authenticated: AuthMode = {
   defaultPrincipal: null,
+  requiresAuth: true,
   async provision({ userRegistry, accessPolicy }) {
     for (const user of await userRegistry.list()) {
       if (user.email)

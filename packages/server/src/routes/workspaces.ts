@@ -20,7 +20,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { isUnder, pathExists } from '../infrastructure/fs/paths.js'
 import { fillManifestDefaults, updateProductManifest, writeProductManifest } from '../infrastructure/fs/productManifestWriter.js'
-import { getUserId } from '../middleware/userId.js'
+import { getUserId } from '../middleware/auth.js'
 import { requirePermission, requireServerCapability, workspaceAccessMiddleware } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId, workspaceIdMiddleware } from '../middleware/workspaceId.js'
 

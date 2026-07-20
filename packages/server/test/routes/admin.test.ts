@@ -13,7 +13,7 @@ interface AdminUserListBody {
   }>
 }
 
-describe('admin routes (requireAdmin gate)', () => {
+describe('admin routes (server.admin gate)', () => {
   it('returns 403 to non-admin callers across every endpoint', async () => {
     const { app, users } = await buildMultiUserApp()
     const owner = users.owner.id

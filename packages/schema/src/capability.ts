@@ -8,6 +8,7 @@ import { z } from 'zod'
 export const Capability = z.enum([
   // Server scope, no workspace member required.
   'workspace.create', // scaffold a new workspace or register a path
+  'server.admin', // manage users and invites, requires the admin serverRole
 
   // Workspace scope.
   'workspace.read', // open the workspace, see settings, sources, members, graph, history

@@ -37,13 +37,13 @@ export interface AuthRouterDeps {
    */
   studioUrl: string
   /**
-   * The single-tenant default principal, or null for multi-tenant.
+   * Whether a caller must authenticate.
    * Mirrored into `/auth/config.requiresAuth`,
    * telling the Studio whether to gate behind the Login page.
-   * When set, anonymous sessions fall through to it, fine for a sidecar or dev.
-   * When null, the Login page is mandatory.
+   * When false, anonymous sessions fall through, fine for a sidecar or dev.
+   * When true, the Login page is mandatory.
    */
-  defaultPrincipal: UserId | null
+  requiresAuth: boolean
 }
 
 const StartQuery = z.object({
@@ -164,11 +164,11 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
   })
 
   router.get('/whoami', async (context) => {
-    // `/auth/*` is in the auth middleware's PUBLIC_PREFIXES,
+    // `/auth/*` is in the auth middleware's PUBLIC_PATH_PREFIXES,
     // so the Bearer header isn't validated upstream.
     // Whoami exists precisely to identify the caller,
     // so resolve the Bearer token here directly,
-    // rather than trusting `userIdMiddleware`'s local-user fallback.
+    // rather than trusting the auth middleware's local-user fallback.
     // An absent or invalid token yields `{ user: null }`.
     const header = context.req.header('Authorization')
     const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length).trim() : null
@@ -177,10 +177,10 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
       const session = await deps.sessionStore.resolve(token)
       userId = session?.userId
     }
-    // Single-tenant deployments don't issue tokens,
+    // A deployment without enforced auth doesn't issue tokens,
     // so fall back to the context userId, keeping /whoami working there.
     // authMiddleware wouldn't have rejected the request anyway.
-    if (!userId && deps.defaultPrincipal !== null)
+    if (!userId && !deps.requiresAuth)
       userId = context.get('userId') as UserId | undefined
     if (!userId)
       return context.json({ user: null })
@@ -203,7 +203,7 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
     return context.json({
       googleEnabled: deps.googleOAuth !== undefined,
       studioUrl: deps.studioUrl,
-      requiresAuth: deps.defaultPrincipal === null,
+      requiresAuth: deps.requiresAuth,
     })
   })
 

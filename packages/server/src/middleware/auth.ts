@@ -1,30 +1,40 @@
-import type { UserId } from '@braidhq/schema'
-import type { MiddlewareHandler } from 'hono'
+import type { UserId as UserIdType } from '@braidhq/schema'
+import type { Context, MiddlewareHandler } from 'hono'
 import type { SessionStore } from '../infrastructure/auth/SessionStore.js'
 import { UnauthorizedError } from '@braidhq/core'
+import { UserId } from '@braidhq/schema'
+
+declare module 'hono' {
+  interface ContextVariableMap {
+    userId: UserIdType
+  }
+}
 
 // Routes the auth middleware never gates,
 // since bootstrapping the login flow needs anonymous access.
 // `/openapi.json` follows the convention that OpenAPI reads publicly,
 // honored by Swagger UI, codegen, and MCP gateways.
 // It documents shape and not data, so exposing it to anonymous callers is safe.
-const PUBLIC_EXACT = new Set(['/openapi.json'])
+const PUBLIC_EXACT_PATHS = new Set(['/openapi.json'])
 // Each `/webhooks/<provider>/` prefix is anonymous,
 // because the provider authenticates via a per-source HMAC,
 // checked inside the handler rather than via a Bearer token.
 // Listing providers one by one, rather than the broad `/webhooks/`,
 // keeps a future admin or metrics webhook from inheriting the bypass.
-const PUBLIC_PREFIXES = ['/auth/', '/health', '/webhooks/github/']
+const PUBLIC_PATH_PREFIXES = ['/auth/', '/health', '/webhooks/github/']
+
+// Header naming the caller under local trust, a dev and multi-persona convenience.
+// Read only when auth is not enforced, never on an authenticated deployment,
+// so it can never impersonate a caller behind real auth.
+const USER_HEADER = 'X-Braid-User'
 
 export interface AuthMiddlewareOptions {
-  readonly sessionStore: SessionStore
-  /**
-   * The single-tenant default principal, or null for a multi-tenant server.
-   * When set, the Bearer check is skipped,
-   * the downstream `userIdMiddleware` resolves the caller.
-   * When null, every non-public route requires a valid Bearer token.
-   */
-  readonly defaultPrincipal: UserId | null
+  // Resolves Bearer sessions. Required whenever `requireAuth` is true.
+  readonly sessionStore?: SessionStore
+  // Whether a caller must present a valid Bearer token.
+  readonly requireAuth: boolean
+  // The implicit caller under local trust, or null when there is none.
+  readonly defaultPrincipal: UserIdType | null
 }
 
 // EventSource (browser SSE) cannot send custom Authorization headers,
@@ -50,35 +60,54 @@ export function extractBearerToken(context: { req: { header: (name: string) => s
   return token.length > 0 ? token : undefined
 }
 
+/**
+ * Establish the caller's identity, and gate when auth is enforced.
+ * The single place a request's `userId` is resolved.
+ *
+ * Under local trust, identity comes from `X-Braid-User`, else the default
+ * principal, on every path so public routes like `/auth/whoami` see the caller.
+ * Nothing is rejected.
+ *
+ * When auth is enforced, identity comes only from a valid Bearer session, and a
+ * missing or invalid token on a non-public route is a 401. The header is never
+ * read here, so it cannot impersonate an authenticated caller.
+ */
 export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandler {
   return async (context, next) => {
     const path = context.req.path
-    if (PUBLIC_EXACT.has(path) || PUBLIC_PREFIXES.some(prefix => path.startsWith(prefix))) {
+
+    if (!options.requireAuth) {
+      const header = context.req.header(USER_HEADER)
+      const fromHeader = header && header.length > 0 ? UserId.parse(header) : null
+      const resolved = fromHeader ?? options.defaultPrincipal
+      if (resolved)
+        context.set('userId', resolved)
       await next()
       return undefined
     }
-    if (options.defaultPrincipal !== null) {
-      // Single-tenant, so skip the Bearer check.
-      // `userIdMiddleware` stamps the default principal downstream,
-      // or an explicit `X-Braid-User` header for multi-persona dev.
+
+    // Public routes bootstrap the login flow, so pass them through ungated,
+    // and without reading the header, they must never carry a caller.
+    if (PUBLIC_EXACT_PATHS.has(path) || PUBLIC_PATH_PREFIXES.some(prefix => path.startsWith(prefix))) {
       await next()
       return undefined
     }
-    const header = context.req.header('Authorization')
-    let token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length).trim() : null
-    // Fall back to a query-param token for SSE endpoints only.
-    if (!token && isSseEventsPath(path)) {
-      const queryToken = context.req.query('token')
-      if (queryToken)
-        token = queryToken
-    }
+
+    let token = extractBearerToken(context)
+    if (!token && isSseEventsPath(path))
+      token = context.req.query('token') || undefined
     if (!token)
       throw new UnauthorizedError('Missing or invalid Authorization header. Sign in to continue.')
-    const session = await options.sessionStore.resolve(token)
+    // sessionStore is always wired alongside requireAuth by the composition root.
+    const session = await options.sessionStore!.resolve(token)
     if (!session)
       throw new UnauthorizedError('Session expired or revoked. Sign in again.')
     context.set('userId', session.userId)
     await next()
     return undefined
   }
+}
+
+export function getUserId(context: Context): UserIdType {
+  return context.get('userId')
 }

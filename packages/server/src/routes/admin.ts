@@ -6,8 +6,8 @@ import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.
 import { NotFoundError } from '@braidhq/core'
 import { ServerRole, User, UserId, WorkspaceId, WorkspaceRole } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
-import { requireAdmin } from '../middleware/requireAdmin.js'
-import { getUserId } from '../middleware/userId.js'
+import { getUserId } from '../middleware/auth.js'
+import { requireServerCapability } from '../middleware/workspaceAccess.js'
 import { NotFoundResponse, ValidationFailureResponse } from './_shared.js'
 
 const Invite = z.object({
@@ -174,7 +174,7 @@ const deleteUserRoute = createRoute({
 
 export function createAdminRouter(deps: AdminRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
-  router.use('*', requireAdmin(deps.userRegistry))
+  router.use('*', requireServerCapability('server.admin', deps.userRegistry))
 
   router.openapi(listInvitesRoute, async (context) => {
     const items = await deps.accessPolicy.listInvites()

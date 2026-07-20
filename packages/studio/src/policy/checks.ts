@@ -13,6 +13,9 @@ export const checks: readonly CapabilityCheck[] = [
   // Server-scope. Evaluated with member=undefined; only admins resolve
   // to effectiveRole='owner' under that path.
   { id: 'workspace.create', evaluate: v => v.effectiveRole === 'owner' },
+  // Server admin reads serverRole directly, not effectiveRole,
+  // since a workspace owner also resolves to an owner effectiveRole.
+  { id: 'server.admin', evaluate: v => v.user.serverRole === 'admin' },
   // Workspace-scope read/write pairs.
   { id: 'workspace.read', evaluate: v => v.effectiveRole !== null },
   { id: 'workspace.write', evaluate: v => v.effectiveRole === 'owner' },

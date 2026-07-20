@@ -14,6 +14,9 @@ import type { CapabilityCheck } from './CapabilityCheck.js'
  */
 export const checks: readonly CapabilityCheck[] = [
   { id: 'workspace.create', evaluate: v => v.effectiveRole === 'owner' },
+  // Server admin reads serverRole directly, not effectiveRole,
+  // since a workspace owner also resolves to an owner effectiveRole.
+  { id: 'server.admin', evaluate: v => v.user.serverRole === 'admin' },
   { id: 'workspace.read', evaluate: v => v.effectiveRole !== null },
   { id: 'workspace.write', evaluate: v => v.effectiveRole === 'owner' },
   {

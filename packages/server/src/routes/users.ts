@@ -2,7 +2,7 @@ import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.
 import { ForbiddenError, NotFoundError } from '@braidhq/core'
 import { User, UserId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
-import { getUserId } from '../middleware/userId.js'
+import { getUserId } from '../middleware/auth.js'
 import { ForbiddenResponse, NotFoundResponse } from './_shared.js'
 
 const UserIdParam = z.object({

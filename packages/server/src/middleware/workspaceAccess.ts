@@ -5,7 +5,7 @@ import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.
 import type { Capability, ViewerContext } from '../policy/index.js'
 import { ForbiddenError } from '@braidhq/core'
 import { defaultPermissionRegistry, resolveViewer } from '../policy/index.js'
-import { getUserId } from './userId.js'
+import { getUserId } from './auth.js'
 import { getWorkspaceId } from './workspaceId.js'
 
 /**
@@ -55,7 +55,7 @@ export interface WorkspaceAccessOptions {
 /**
  * Resolves the caller's ViewerContext for this workspace,
  * and stashes it on the Hono context for every downstream layer to read.
- * Composes after `workspaceIdMiddleware` and `userIdMiddleware`.
+ * Composes after `workspaceIdMiddleware` and `authMiddleware`.
  * Outsiders get 403 here, meaning no member row and not a server admin.
  *
  * The actual policy decisions live in `policy/`.

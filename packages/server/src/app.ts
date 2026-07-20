@@ -3,7 +3,6 @@ import { OpenAPIHono } from '@hono/zod-openapi'
 import { authMiddleware } from './middleware/auth.js'
 import { corsMiddleware } from './middleware/cors.js'
 import { errorHandler } from './middleware/error.js'
-import { userIdMiddleware } from './middleware/userId.js'
 import { workspaceAccessMiddleware } from './middleware/workspaceAccess.js'
 import { workspaceIdMiddleware } from './middleware/workspaceId.js'
 import { createAdminRouter } from './routes/admin.js'
@@ -53,20 +52,14 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       ? corsMiddleware({ allowedOrigins: options.corsOrigins })
       : corsMiddleware(),
   )
-  // Auth gate. Single-tenant short-circuits, letting the request through.
-  // Otherwise a Bearer token from a Google OAuth session is required.
-  // Public routes, `/auth/*` and `/health`, are excluded,
-  // so the login flow itself is not gated.
-  if (deps.sessionStore) {
-    app.use('*', authMiddleware({
-      sessionStore: deps.sessionStore,
-      defaultPrincipal: deps.authMode.defaultPrincipal,
-    }))
-  }
-  // Identity. Stamps `userId` on the context from `X-Braid-User`,
-  // when the auth layer left it empty, i.e. single-tenant or a public route.
-  // Bearer requests already carry a userId here, and pass untouched.
-  app.use('*', userIdMiddleware(deps.authMode.defaultPrincipal))
+  // Identity and auth gate. Resolves the caller's `userId` from a Bearer session
+  // when auth is enforced, else the `X-Braid-User` header or the default principal.
+  // Non-public routes that lack a required Bearer token are rejected.
+  app.use('*', authMiddleware({
+    ...(deps.sessionStore ? { sessionStore: deps.sessionStore } : {}),
+    requireAuth: deps.authMode.requiresAuth,
+    defaultPrincipal: deps.authMode.defaultPrincipal,
+  }))
   app.onError(errorHandler)
 
   // Host-level routes, not scoped to a single workspace.
@@ -79,7 +72,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       userRegistry: deps.userRegistry,
       ...(deps.googleOAuth ? { googleOAuth: deps.googleOAuth } : {}),
       studioUrl: deps.studioUrl ?? 'http://localhost:5173',
-      defaultPrincipal: deps.authMode.defaultPrincipal,
+      requiresAuth: deps.authMode.requiresAuth,
     }))
   }
   if (deps.userRegistry) {

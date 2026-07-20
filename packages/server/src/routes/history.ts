@@ -4,13 +4,13 @@ import { CommitSha, UserId } from '@braidhq/schema'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { getUserId } from '../middleware/userId.js'
+import { getUserId } from '../middleware/auth.js'
 import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 
 // `userId` accepted for backwards compat,
 // the authoritative value comes from the request context,
-// set by `userIdMiddleware`.
+// set by the auth middleware.
 const RestoreBody = z.object({
   userId: UserId.optional(),
 })
