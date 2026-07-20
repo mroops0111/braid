@@ -98,6 +98,37 @@ Three consumers read the strategy, none a hardcoded account. `authMiddleware` sk
 
 `composeFsApp` picks the mode from `BRAID_LOCAL_TRUST`, local trust by default. Adding a mode, a service account or an SSO-only deployment, is a new `AuthMode`, with no change to the middleware, the ownership code, or boot.
 
+## Authorization
+
+Every gated action is a capability. The server is the authoritative check, and Studio mirrors the same list to grey out affordances it cannot use. The authoritative logic is `packages/server/src/policy/checks.ts`, the matrix below is a readable mirror of it.
+
+### Where the decision happens
+
+A request's permission is decided in three steps, all under `policy/`.
+
+1. `resolveViewer(user, member)` builds a `ViewerContext` once per request, the caller's `effectiveRole` in this workspace. It is the sole place a server admin short-circuits to an `owner` role.
+2. `workspaceAccessMiddleware` runs `resolveViewer`, stamps the viewer on the request, and rejects an outright outsider. `requirePermission(cap)` and the server-scope `requireServerCapability(cap)` are the route gates that read it.
+3. `PermissionRegistry.can(capability, viewer)` finds the capability's check and evaluates it against the viewer. An unregistered capability denies by default.
+
+Each capability owns one pure check in `checks.ts`, a stateless const object. Plugins register their own checks on the same registry, so adding a capability never edits an existing one.
+
+### Capability matrix
+
+Workspace roles resolve from membership. `admin` is the server role, which short-circuits to an `owner` effectiveRole in any workspace, so an admin holds every workspace capability below.
+
+| Capability | owner | maintainer | member | Notes |
+|---|:--:|:--:|:--:|---|
+| `server.admin` | n/a | n/a | n/a | Server role `admin` only. Gates `/admin`, read from the server role, not `effectiveRole`, since a workspace owner also resolves to `owner`. |
+| `workspace.create` | n/a | n/a | n/a | Server scope, resolved with no member, so only a server admin passes. |
+| `workspace.read` | yes | yes | yes | Any member. |
+| `workspace.write` | yes | | | Owner only. |
+| `proposal.read` | yes | yes | | Owner or maintainer. |
+| `proposal.write` | yes | yes | | Owner or maintainer. |
+| `clarification.read` | yes | yes | | Owner or maintainer. |
+| `clarification.write` | yes | yes | | Owner or maintainer. |
+| `history.write` | yes | | | Owner only. |
+| `skill.run` | yes | maybe | maybe | Owner always. Otherwise the skill's `allowedRoles`, overridden per member by `skillOverrides`. |
+
 ## Boundaries
 
 These are the rules for anyone editing server. They are enforced in review rather than by tooling.
@@ -117,16 +148,8 @@ Server sits at the outer edge, above core and the plugin packages the coding pre
 
 ## MCP Gateway
 
-Skills run as claude subprocesses and reach this server's REST API as MCP tools, not by curl. An off-the-shelf translator, `openapi-mcp-gateway`, reads `/openapi.json` and re-exposes each operation as a tool named `braid-core`.
+Skills run as coding-agent subprocesses and reach this server's REST API as MCP tools, not by curl. An off-the-shelf translator, `openapi-mcp-gateway`, reads `/openapi.json` and re-exposes each operation as a tool named `braid-core`.
 
-The gateway runs as a per-skill stdio child of claude, launched on demand through `uvx`. Its lifecycle tracks the skill run, so there is no long-lived gateway process, no open port, and no network auth to manage. The `streamable-http` transport would drop the `uv` dependency, but only by moving the gateway into a persistent HTTP service that needs its own port, lifecycle, and auth. For a local, per-run tool surface the stdio child is the smaller cost. The `streamable-http` transport stays first-class in the schema for third-party remote MCP servers, and for a future hosted Braid.
-
-The one prerequisite is the `uv` runtime, which provides `uvx`:
-
-```bash
-brew install uv   # or see https://docs.astral.sh/uv/
-```
-
-The server preflight-checks for `uv` at boot. Without it, skills that declare `requiredMcpServers: ['braid-core']` show as not-ready in Studio, while every other skill keeps working. Pin a specific binary with `BRAID_UVX_BIN` for reproducible environments.
+The gateway is spawned per skill run and torn down with it, so there is no long-lived gateway process, no open port, and no network auth to manage. The transport is an implementation detail of the runner.
 
 SSE streams, the OAuth HTML callback, and the workspace-admin routes are deliberately absent from the spec, they are not one-shot MCP tools. The `GET /openapi.json` test in `test/app.test.ts` pins that boundary.
