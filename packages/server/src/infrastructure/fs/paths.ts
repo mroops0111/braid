@@ -71,10 +71,6 @@ export function clarificationDir(workspaceRoot: AbsolutePath, status: Clarificat
   return join(workspaceArtifactsDir(workspaceRoot), 'clarifications', status)
 }
 
-export function decisionsDir(workspaceRoot: AbsolutePath): string {
-  return join(workspaceArtifactsDir(workspaceRoot), 'decisions')
-}
-
 export function viewsDir(workspaceRoot: AbsolutePath, kind: string): string {
   return join(workspaceArtifactsDir(workspaceRoot), 'views', kind)
 }

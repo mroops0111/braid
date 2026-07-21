@@ -6,18 +6,18 @@ import type {
 } from '@braidhq/schema'
 import { Clarification, type ClarificationRepository, paginate } from '@braidhq/core'
 import { Clarification as ClarificationSchema } from '@braidhq/schema'
-import { FsStatusedJsonRepository } from './FsStatusedJsonRepository.js'
 import { clarificationDir, CLARIFY_STATUSES } from './paths.js'
+import { StatusedJsonStore } from './StatusedJsonStore.js'
 
 export interface FsClarificationRepositoryOptions {
   readonly workspaceRoots: () => Promise<ReadonlyMap<WorkspaceId, AbsolutePath>>
 }
 
 export class FsClarificationRepository implements ClarificationRepository {
-  private readonly base: FsStatusedJsonRepository<Clarification, typeof CLARIFY_STATUSES[number], ClarificationId>
+  private readonly base: StatusedJsonStore<Clarification, typeof CLARIFY_STATUSES[number], ClarificationId>
 
   constructor(options: FsClarificationRepositoryOptions) {
-    this.base = new FsStatusedJsonRepository(
+    this.base = new StatusedJsonStore(
       {
         entityName: 'Clarification',
         statuses: CLARIFY_STATUSES,

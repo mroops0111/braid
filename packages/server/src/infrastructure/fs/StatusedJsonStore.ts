@@ -4,34 +4,38 @@ import { join } from 'node:path'
 import { NotFoundError } from '@braidhq/core'
 import { listJsonFiles, moveFile, readJsonFile, writeJsonFile } from './jsonFileStore.js'
 
-export interface FsStatusedJsonRepositoryConfig<TEntity, TStatus extends string, TId extends string> {
-  /** Used in NotFoundError messages, e.g. "Proposal" or "Clarification". */
+export interface StatusedJsonStoreConfig<TEntity, TStatus extends string, TId extends string> {
+  // Descriptors.
+  // `entityName` names the type in NotFoundError messages, e.g. "Proposal".
+  // `statuses` is the exhaustive list `locate` scans across every folder.
   readonly entityName: string
-  /** Exhaustive status list, used by `locate` to scan every possible folder. */
   readonly statuses: readonly TStatus[]
-  /** Maps `(workspace root, status)` to the directory holding `{id}.json` files. */
-  readonly dirFor: (workspaceRoot: AbsolutePath, status: TStatus) => string
-  /** Parses raw JSON read from disk into a domain entity (schema validation + class wrap). */
-  readonly parse: (raw: unknown) => TEntity
-  /** Unwrap an entity to the plain JSON shape written to disk. */
-  readonly serialize: (entity: TEntity) => unknown
+
+  // Projections, one per axis the store partitions on.
   readonly idOf: (entity: TEntity) => TId
   readonly statusOf: (entity: TEntity) => TStatus
   readonly workspaceIdOf: (entity: TEntity) => WorkspaceId
+  // Resolves the directory holding `{id}.json` for a workspace root and status.
+  readonly dirFor: (workspaceRoot: AbsolutePath, status: TStatus) => string
+
+  // Disk codec, `parse` validates and class-wraps raw JSON,
+  // `serialize` unwraps an entity to the plain shape written back.
+  readonly parse: (raw: unknown) => TEntity
+  readonly serialize: (entity: TEntity) => unknown
 }
 
-export interface FsStatusedJsonListFilter<TStatus extends string> {
+export interface StatusedJsonListFilter<TStatus extends string> {
   readonly workspaceId?: WorkspaceId
   readonly statuses?: readonly TStatus[]
 }
 
-export class FsStatusedJsonRepository<TEntity, TStatus extends string, TId extends string> {
+export class StatusedJsonStore<TEntity, TStatus extends string, TId extends string> {
   constructor(
-    private readonly config: FsStatusedJsonRepositoryConfig<TEntity, TStatus, TId>,
+    private readonly config: StatusedJsonStoreConfig<TEntity, TStatus, TId>,
     private readonly workspaceRoots: () => Promise<ReadonlyMap<WorkspaceId, AbsolutePath>>,
   ) {}
 
-  async list(filter?: FsStatusedJsonListFilter<TStatus>): Promise<TEntity[]> {
+  async list(filter?: StatusedJsonListFilter<TStatus>): Promise<TEntity[]> {
     const roots = await this.candidateRoots(filter?.workspaceId)
     const statuses = filter?.statuses?.length ? filter.statuses : this.config.statuses
 

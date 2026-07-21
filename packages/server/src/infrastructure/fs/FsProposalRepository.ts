@@ -1,18 +1,18 @@
 import type { AbsolutePath, ProposalFilter, ProposalId, WorkspaceId } from '@braidhq/schema'
 import { paginate, Proposal, type ProposalRepository } from '@braidhq/core'
 import { Proposal as ProposalSchema } from '@braidhq/schema'
-import { FsStatusedJsonRepository } from './FsStatusedJsonRepository.js'
 import { PROPOSAL_STATUSES, proposalsDir } from './paths.js'
+import { StatusedJsonStore } from './StatusedJsonStore.js'
 
 export interface FsProposalRepositoryOptions {
   readonly workspaceRoots: () => Promise<ReadonlyMap<WorkspaceId, AbsolutePath>>
 }
 
 export class FsProposalRepository implements ProposalRepository {
-  private readonly base: FsStatusedJsonRepository<Proposal, typeof PROPOSAL_STATUSES[number], ProposalId>
+  private readonly base: StatusedJsonStore<Proposal, typeof PROPOSAL_STATUSES[number], ProposalId>
 
   constructor(options: FsProposalRepositoryOptions) {
-    this.base = new FsStatusedJsonRepository(
+    this.base = new StatusedJsonStore(
       {
         entityName: 'Proposal',
         statuses: PROPOSAL_STATUSES,

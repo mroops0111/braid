@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { NotFoundError } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
-import { FsStatusedJsonRepository } from '../../../src/infrastructure/fs/FsStatusedJsonRepository.js'
+import { StatusedJsonStore } from '../../../src/infrastructure/fs/StatusedJsonStore.js'
 
 type Status = 'pending' | 'done'
 
@@ -30,7 +30,7 @@ function makeItem(overrides: Partial<Item> = {}): Item {
 }
 
 function makeRepository(roots: ReadonlyMap<WorkspaceId, AbsolutePath>) {
-  return new FsStatusedJsonRepository<Item, Status, string>(
+  return new StatusedJsonStore<Item, Status, string>(
     {
       entityName: 'Item',
       statuses: ['pending', 'done'],
@@ -46,7 +46,7 @@ function makeRepository(roots: ReadonlyMap<WorkspaceId, AbsolutePath>) {
 }
 
 async function repositoryWithSingleWorkspace(): Promise<{
-  repository: FsStatusedJsonRepository<Item, Status, string>
+  repository: StatusedJsonStore<Item, Status, string>
   root: AbsolutePath
   workspaceId: WorkspaceId
 }> {
@@ -55,7 +55,7 @@ async function repositoryWithSingleWorkspace(): Promise<{
   return { repository: makeRepository(new Map([[workspaceId, root]])), root, workspaceId }
 }
 
-describe('FsStatusedJsonRepository round-trips', () => {
+describe('StatusedJsonStore round-trips', () => {
   it('saves then loads an entity back unchanged', async () => {
     const { repository, workspaceId } = await repositoryWithSingleWorkspace()
 
@@ -94,7 +94,7 @@ describe('FsStatusedJsonRepository round-trips', () => {
   })
 })
 
-describe('FsStatusedJsonRepository list filtering', () => {
+describe('StatusedJsonStore list filtering', () => {
   it('filters by workspaceId and statuses combined', async () => {
     const { repository, workspaceId } = await repositoryWithSingleWorkspace()
 
@@ -123,7 +123,7 @@ describe('FsStatusedJsonRepository list filtering', () => {
   })
 })
 
-describe('FsStatusedJsonRepository failure modes', () => {
+describe('StatusedJsonStore failure modes', () => {
   it('throws NotFoundError when load() targets an id that does not exist', async () => {
     const { repository } = await repositoryWithSingleWorkspace()
 

@@ -81,7 +81,7 @@ export interface ComposeFsOptions {
 
 /**
  * Opinionated production composition, the coding preset.
- * Filesystem-persists workspaces, proposals, clarifications, and decisions,
+ * Filesystem-persists workspaces, proposals, and clarifications,
  * and bundles Kuzu storage, the DDD ontology, the git, github, and drive
  * loaders, and the claude-code agent.
  *
