@@ -4,11 +4,11 @@ import type {
   WebhookCapability,
   WorkspaceService,
 } from '@braidhq/core'
-import type { SourceDescriptor, SourceId, WorkspaceId } from '@braidhq/schema'
 import type { SecretStore } from '../infrastructure/secrets/SecretStore.js'
 import { Buffer } from 'node:buffer'
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import { createLogger, NotFoundError, ServiceUnavailableError, UnauthorizedError, ValidationError } from '@braidhq/core'
+import { type SourceDescriptor, SourceId, WorkspaceId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { Hono } from 'hono'
 import { WorkspaceIdParam } from './_shared.js'
@@ -160,9 +160,9 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
   // so a slow loader never blocks GitHub's delivery worker.
   // GitHub times deliveries out at ~10s.
   router.post('/github/:workspaceId/:sourceId', async (context) => {
-    const workspaceId = context.req.param('workspaceId') as WorkspaceId
-    const sourceId = context.req.param('sourceId') as SourceId
-    // verifyDelivery returns either the trusted state or undefined,
+    const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
+    const sourceId = SourceId.parse(context.req.param('sourceId'))
+    // The verifyDelivery call returns either the trusted state or undefined,
     // (workspace, resolved capability, repository identity, raw body).
     // On undefined we always return a uniform 401,
     // so distinct errors never tell an anonymous caller apart,
@@ -259,7 +259,7 @@ export interface SourceWebhooksAdminDeps {
 const adminLogger = createLogger('webhooks.github.admin')
 
 const SourceIdParam = WorkspaceIdParam.extend({
-  sourceId: z.string().min(1).openapi({ param: { name: 'sourceId', in: 'path' } }),
+  sourceId: SourceId.openapi({ param: { name: 'sourceId', in: 'path' } }),
 })
 
 const WebhookStatusResponse = z.object({
@@ -320,10 +320,10 @@ export function createSourceWebhooksAdminRouter(deps: SourceWebhooksAdminDeps): 
     const { workspaceId, sourceId } = context.req.valid('param')
     if (!deps.apiUrl)
       throw new ServiceUnavailableError('Server is not configured with a public apiUrl. Webhook URLs cannot be rendered.')
-    await guardWebhookSource(deps, workspaceId as WorkspaceId, sourceId as SourceId)
-    const record = await deps.secretStore.read<WebhookSecretRecord>(SECRET_NAMESPACE, secretKey(workspaceId as WorkspaceId, sourceId as SourceId))
+    await guardWebhookSource(deps, workspaceId, sourceId)
+    const record = await deps.secretStore.read<WebhookSecretRecord>(SECRET_NAMESPACE, secretKey(workspaceId, sourceId))
     return context.json({
-      url: buildWebhookUrl(deps.apiUrl, workspaceId as WorkspaceId, sourceId as SourceId),
+      url: buildWebhookUrl(deps.apiUrl, workspaceId, sourceId),
       hasSecret: record !== undefined,
       ...(record?.createdAt ? { createdAt: record.createdAt } : {}),
     }, 200)
@@ -333,16 +333,16 @@ export function createSourceWebhooksAdminRouter(deps: SourceWebhooksAdminDeps): 
     const { workspaceId, sourceId } = context.req.valid('param')
     if (!deps.apiUrl)
       throw new ServiceUnavailableError('Server is not configured with a public apiUrl. Webhook URLs cannot be rendered.')
-    await guardWebhookSource(deps, workspaceId as WorkspaceId, sourceId as SourceId)
+    await guardWebhookSource(deps, workspaceId, sourceId)
 
     // 32 bytes is the GitHub-recommended minimum,
     // matching what their own webhook setup UI generates.
     const secret = randomBytes(32).toString('hex')
     const createdAt = new Date().toISOString()
     const record: WebhookSecretRecord = { secret, createdAt }
-    await deps.secretStore.write(SECRET_NAMESPACE, secretKey(workspaceId as WorkspaceId, sourceId as SourceId), record)
+    await deps.secretStore.write(SECRET_NAMESPACE, secretKey(workspaceId, sourceId), record)
     return context.json({
-      url: buildWebhookUrl(deps.apiUrl, workspaceId as WorkspaceId, sourceId as SourceId),
+      url: buildWebhookUrl(deps.apiUrl, workspaceId, sourceId),
       secret,
       createdAt,
     }, 200)
