@@ -64,7 +64,8 @@ function fakeAgentPlugin(id: string, kind: string): AgentPlugin {
     kind: kind as AgentKind,
     createBinding: (descriptor: AgentBindingDescriptor): AgentBinding => ({
       descriptor,
-      resolveSpawn: () => ({ bin: '/usr/bin/true', args: [], env: {} }),
+      resolveSpawn: async () => ({ bin: '/usr/bin/true', args: [], env: {} }),
+      parseLine: () => [],
     }),
   }
 }

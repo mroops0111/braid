@@ -1,6 +1,8 @@
 import type { AgentBinding, AgentSpawnInput, SpawnInvocation } from '@braidhq/core'
-import type { AgentBindingDescriptor } from '@braidhq/schema'
+import type { AgentBindingDescriptor, SkillEvent } from '@braidhq/schema'
 import process from 'node:process'
+import { writeClaudeMcpConfig } from './claudeMcpConfig.js'
+import { parseClaudeLine } from './claudeStream.js'
 
 export class ClaudeCodeAgentBinding implements AgentBinding {
   constructor(readonly descriptor: AgentBindingDescriptor) {
@@ -9,7 +11,7 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
     }
   }
 
-  resolveSpawn(input: AgentSpawnInput): SpawnInvocation {
+  async resolveSpawn(input: AgentSpawnInput): Promise<SpawnInvocation> {
     // When resuming, the prompt is just the user's follow-up text.
     // claude already holds the conversation context and the slash command,
     // including any extension it read on the first run. Fresh run, invoke the skill's slash command.
@@ -38,8 +40,9 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
     if (this.descriptor.effort) {
       baseArgs.push('--effort', this.descriptor.effort)
     }
-    if (input.mcpConfigFile) {
-      baseArgs.push('--mcp-config', input.mcpConfigFile)
+    if (input.mcpServers.length > 0) {
+      const mcpConfigFile = await writeClaudeMcpConfig(input.sessionDir, input.workspace.id, input.mcpServers)
+      baseArgs.push('--mcp-config', mcpConfigFile)
     }
     for (const dir of input.workspace.resolveAddDirs()) {
       baseArgs.push('--add-dir', dir)
@@ -56,11 +59,11 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
       BRAID_API_URL: input.apiUrl,
     }
 
-    const invocation: SpawnInvocation = input.mcpConfigFile
-      ? { bin: 'claude', args: baseArgs, env, mcpConfigFile: input.mcpConfigFile }
-      : { bin: 'claude', args: baseArgs, env }
-    return invocation
+    return { bin: 'claude', args: baseArgs, env }
   }
+
+  // Claude streams newline-delimited JSON, so the runner hands each line here.
+  parseLine = (line: string, now: string): SkillEvent[] => parseClaudeLine(line, now)
 }
 
 function filterEnv(source: NodeJS.ProcessEnv): Record<string, string> {

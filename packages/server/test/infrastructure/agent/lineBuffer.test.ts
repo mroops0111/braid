@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LineBuffer, parseJsonLine } from '../../../src/infrastructure/agent/streamJsonParser.js'
+import { LineBuffer } from '../../../src/infrastructure/agent/lineBuffer.js'
 
 describe('LineBuffer', () => {
   it('splits chunked text on newlines', () => {
@@ -31,17 +31,5 @@ describe('LineBuffer', () => {
     const buffer = new LineBuffer(line => lines.push(line))
     buffer.append('a\n\nb\n')
     expect(lines).toEqual(['a', 'b'])
-  })
-})
-
-describe('parseJsonLine', () => {
-  it('parses valid JSON', () => {
-    expect(parseJsonLine('{"type":"x"}')?.type).toBe('x')
-  })
-  it('returns undefined for invalid JSON', () => {
-    expect(parseJsonLine('not json')).toBeUndefined()
-  })
-  it('returns undefined for empty / whitespace lines', () => {
-    expect(parseJsonLine('   ')).toBeUndefined()
   })
 })

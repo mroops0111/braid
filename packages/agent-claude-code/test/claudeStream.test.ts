@@ -1,44 +1,49 @@
-import { T0 as now } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
-import { mapSubprocessEvents } from '../../../src/infrastructure/agent/subprocessEventStream.js'
+import { parseClaudeLine } from '../src/claudeStream.js'
 
-describe('mapSubprocessEvents', () => {
+const now = '2024-01-01T00:00:00.000Z'
+
+function parse(raw: unknown): ReturnType<typeof parseClaudeLine> {
+  return parseClaudeLine(JSON.stringify(raw), now)
+}
+
+describe('parseClaudeLine', () => {
+  it('returns [] for malformed or empty lines', () => {
+    expect(parseClaudeLine('not json', now)).toEqual([])
+    expect(parseClaudeLine('   ', now)).toEqual([])
+  })
+
   it('drops envelopes that carry no public-facing signal (system w/o session_id, rate_limit, user-success)', () => {
-    expect(mapSubprocessEvents({ type: 'system', subtype: 'init' }, now)).toEqual([])
-    expect(mapSubprocessEvents({ type: 'rate_limit_event' }, now)).toEqual([])
-    expect(mapSubprocessEvents({
+    expect(parse({ type: 'system', subtype: 'init' })).toEqual([])
+    expect(parse({ type: 'rate_limit_event' })).toEqual([])
+    expect(parse({
       type: 'user',
       message: { content: [{ type: 'tool_result', is_error: false, content: 'ok' }] },
-    }, now)).toEqual([])
+    })).toEqual([])
   })
 
   it('maps system/init with session_id into a session-started event', () => {
-    const events = mapSubprocessEvents({
-      type: 'system',
-      subtype: 'init',
-      session_id: 'abc-123-uuid',
-    }, now)
-
+    const events = parse({ type: 'system', subtype: 'init', session_id: 'abc-123-uuid' })
     expect(events).toHaveLength(1)
     expect(events[0]).toMatchObject({ type: 'session-started', sessionId: 'abc-123-uuid' })
   })
 
   it('maps user.tool_result into a tool-result event with isError mirroring the stream flag', () => {
-    const ok = mapSubprocessEvents({
+    const ok = parse({
       type: 'user',
       message: { content: [{ type: 'tool_result', tool_use_id: 't1', is_error: false, content: 'ok' }] },
-    }, now)
+    })
     expect(ok[0]).toMatchObject({ type: 'tool-result', toolCallId: 't1', output: 'ok', isError: false })
 
-    const bad = mapSubprocessEvents({
+    const bad = parse({
       type: 'user',
       message: { content: [{ type: 'tool_result', tool_use_id: 't2', is_error: true, content: 'bash: cmd not found' }] },
-    }, now)
+    })
     expect(bad[0]).toMatchObject({ type: 'tool-result', toolCallId: 't2', isError: true })
   })
 
   it('expands assistant.message.content[] into one event per text / tool_use part, preserving toolCallId', () => {
-    const events = mapSubprocessEvents({
+    const events = parse({
       type: 'assistant',
       message: {
         content: [
@@ -46,7 +51,7 @@ describe('mapSubprocessEvents', () => {
           { type: 'tool_use', id: 'toolu_abc', name: 'Bash', input: { command: 'ls' } },
         ],
       },
-    }, now)
+    })
 
     expect(events.map(event => event.type)).toEqual(['message', 'tool-call'])
     expect(events[1]).toMatchObject({ type: 'tool-call', tool: 'Bash', toolCallId: 'toolu_abc' })

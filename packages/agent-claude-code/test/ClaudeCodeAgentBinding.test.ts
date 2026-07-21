@@ -1,3 +1,4 @@
+import type { AgentSpawnInput } from '@braidhq/core'
 import type {
   AbsolutePath,
   AgentBindingDescriptor,
@@ -11,7 +12,11 @@ import type {
   StorageKind,
   WorkspaceId,
 } from '@braidhq/schema'
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { SkillManifest, Workspace } from '@braidhq/core'
+import { McpServerId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { ClaudeCodeAgentBinding } from '../src/ClaudeCodeAgentBinding.js'
 
@@ -62,18 +67,24 @@ function buildSkillManifest(extensionPath?: AbsolutePath): SkillManifest {
   return new SkillManifest(data)
 }
 
+function makeInput(overrides: Partial<AgentSpawnInput> = {}): AgentSpawnInput {
+  return {
+    skillId: 'ask' as SkillId,
+    args: 'what is voidTask',
+    workspace: buildWorkspace(),
+    manifest: buildSkillManifest(),
+    apiUrl: 'http://localhost:4321',
+    mcpServers: [],
+    sessionDir: '/tmp/sess' as AbsolutePath,
+    ...overrides,
+  }
+}
+
 describe('ClaudeCodeAgentBinding', () => {
-  it('assembles claude CLI args with model, effort, mcp config, extra args, and code source --add-dir', () => {
+  it('assembles claude CLI args with model, effort, extra args, and code source --add-dir', async () => {
     const binding = new ClaudeCodeAgentBinding(descriptor)
 
-    const result = binding.resolveSpawn({
-      skillId: 'ask' as SkillId,
-      args: 'what is voidTask',
-      workspace: buildWorkspace(),
-      manifest: buildSkillManifest(),
-      apiUrl: 'http://localhost:4321',
-      mcpConfigFile: '/tmp/.mcp.json' as AbsolutePath,
-    })
+    const result = await binding.resolveSpawn(makeInput())
 
     expect(result.bin).toBe('claude')
     expect(result.args).toContain('-p')
@@ -81,23 +92,34 @@ describe('ClaudeCodeAgentBinding', () => {
     expect(result.args).toContain('opus')
     expect(result.args).toContain('--effort')
     expect(result.args).toContain('high')
-    expect(result.args).toContain('--mcp-config')
-    expect(result.args).toContain('/tmp/.mcp.json')
     expect(result.args).toContain('--add-dir')
     expect(result.args).toContain('/abs/code/api')
     expect(result.args).toContain('--verbose-stream')
   })
 
-  it('forwards workspace path, workspace id, api url, and descriptor env into the child env', () => {
+  it('writes an mcp config file and points claude at it when servers are provided', async () => {
+    const binding = new ClaudeCodeAgentBinding(descriptor)
+    const dir = await mkdtemp(join(tmpdir(), 'braid-mcp-'))
+
+    const result = await binding.resolveSpawn(makeInput({
+      sessionDir: dir as AbsolutePath,
+      mcpServers: [{ id: McpServerId.parse('braid-core'), transport: 'stdio', command: 'uvx', args: [] }],
+    }))
+
+    expect(result.args).toContain('--mcp-config')
+    expect(result.args).toContain(join(dir, '.braid-mcp-ws-1.json'))
+  })
+
+  it('omits --mcp-config when no servers are provided', async () => {
+    const binding = new ClaudeCodeAgentBinding(descriptor)
+    const result = await binding.resolveSpawn(makeInput())
+    expect(result.args).not.toContain('--mcp-config')
+  })
+
+  it('forwards workspace path, workspace id, api url, and descriptor env into the child env', async () => {
     const binding = new ClaudeCodeAgentBinding(descriptor)
 
-    const result = binding.resolveSpawn({
-      skillId: 'ask' as SkillId,
-      args: '',
-      workspace: buildWorkspace(),
-      manifest: buildSkillManifest(),
-      apiUrl: 'http://localhost:4321',
-    })
+    const result = await binding.resolveSpawn(makeInput({ args: '' }))
 
     expect(result.env.BRAID_WORKSPACE).toBe('/abs/ws')
     expect(result.env.BRAID_WORKSPACE_ID).toBe('ws-1')
@@ -105,49 +127,34 @@ describe('ClaudeCodeAgentBinding', () => {
     expect(result.env.FOO).toBe('bar')
   })
 
-  it('invokes the plain slash command when the skill has no extension', () => {
+  it('invokes the plain slash command when the skill has no extension', async () => {
     const binding = new ClaudeCodeAgentBinding(descriptor)
 
-    const result = binding.resolveSpawn({
-      skillId: 'ask' as SkillId,
-      args: 'what is voidTask',
-      workspace: buildWorkspace(),
-      manifest: buildSkillManifest(),
-      apiUrl: 'http://localhost:4321',
-    })
+    const result = await binding.resolveSpawn(makeInput())
 
     const prompt = result.args[result.args.indexOf('-p') + 1]
     expect(prompt).toBe('/ask what is voidTask')
   })
 
-  it('points claude at the EXTEND.md path (not inlined) when the workspace extends the skill', () => {
+  it('points claude at the EXTEND.md path (not inlined) when the workspace extends the skill', async () => {
     const binding = new ClaudeCodeAgentBinding(descriptor)
     const extendPath = '/abs/ws/skill-extensions/braid-ask/EXTEND.md' as AbsolutePath
 
-    const result = binding.resolveSpawn({
-      skillId: 'ask' as SkillId,
-      args: 'what is voidTask',
-      workspace: buildWorkspace(),
-      manifest: buildSkillManifest(extendPath),
-      apiUrl: 'http://localhost:4321',
-    })
+    const result = await binding.resolveSpawn(makeInput({ manifest: buildSkillManifest(extendPath) }))
 
     const prompt = result.args[result.args.indexOf('-p') + 1]
     expect(prompt).toContain('/ask what is voidTask')
     expect(prompt).toContain(extendPath)
   })
 
-  it('drops the slash command and extension pointer on resume', () => {
+  it('drops the slash command and extension pointer on resume', async () => {
     const binding = new ClaudeCodeAgentBinding(descriptor)
 
-    const result = binding.resolveSpawn({
-      skillId: 'ask' as SkillId,
+    const result = await binding.resolveSpawn(makeInput({
       args: 'follow-up question',
-      workspace: buildWorkspace(),
       manifest: buildSkillManifest('/abs/ws/skill-extensions/braid-ask/EXTEND.md' as AbsolutePath),
-      apiUrl: 'http://localhost:4321',
       resumeSessionId: 'sess-1',
-    })
+    }))
 
     const prompt = result.args[result.args.indexOf('-p') + 1]
     expect(prompt).toBe('follow-up question')

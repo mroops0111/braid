@@ -1,12 +1,7 @@
-import type { Workspace } from '@braidhq/core'
 import type { McpServerConfig } from '@braidhq/schema'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import process from 'node:process'
-
-export interface McpConfigFile {
-  readonly mcpServers: Readonly<Record<string, McpServerEntry>>
-}
 
 // Shape claude expects in `--mcp-config <file>`.
 // The Streamable HTTP transport is `type: 'http'`,
@@ -28,32 +23,26 @@ interface McpStdioEntry {
 
 type McpServerEntry = McpStreamableHttpEntry | McpStdioEntry
 
-export interface BuildMcpConfigOptions {
-  // Extra MCP server entries injected on top of the workspace's own `mcpServers`.
-  // Wires the built-in `braid-core` gateway, see `SubprocessSkillRunner`.
-  // Workspace entries with the same id take precedence,
-  // so a workspace can override a built-in.
-  extraServers?: readonly McpServerConfig[]
+export interface ClaudeMcpConfig {
+  readonly mcpServers: Readonly<Record<string, McpServerEntry>>
 }
 
-export function buildMcpConfig(workspace: Workspace, options: BuildMcpConfigOptions = {}): McpConfigFile {
+// Later entries win on id, so a workspace server overrides a built-in of the same id.
+export function buildClaudeMcpConfig(servers: readonly McpServerConfig[]): ClaudeMcpConfig {
   const entries: Record<string, McpServerEntry> = {}
-  for (const server of options.extraServers ?? []) {
+  for (const server of servers)
     entries[server.id] = toEntry(server)
-  }
-  for (const server of workspace.mcpServers) {
-    entries[server.id] = toEntry(server)
-  }
   return { mcpServers: entries }
 }
 
-export async function writeMcpConfigFile(
-  workspace: Workspace,
-  targetDir: string,
-  options: BuildMcpConfigOptions = {},
+// Write the config claude reads and return its path.
+export async function writeClaudeMcpConfig(
+  sessionDir: string,
+  workspaceId: string,
+  servers: readonly McpServerConfig[],
 ): Promise<string> {
-  const config = buildMcpConfig(workspace, options)
-  const targetPath = join(targetDir, `.braid-mcp-${workspace.id}.json`)
+  const config = buildClaudeMcpConfig(servers)
+  const targetPath = join(sessionDir, `.braid-mcp-${workspaceId}.json`)
   await mkdir(dirname(targetPath), { recursive: true })
   await writeFile(targetPath, `${JSON.stringify(config, null, 2)}\n`, 'utf-8')
   return targetPath
@@ -75,7 +64,7 @@ function toEntry(server: McpServerConfig): McpServerEntry {
   }
 }
 
-// Replace `${VAR}` references in header and env values with the matching parent-process env var.
+// Replace `${VAR}` references in header and env values with the parent-process env var.
 // Throws if a referenced var is missing,
 // so the user gets a clear error at config-write time rather than a confusing 401
 // from the MCP server or a silently-misconfigured subprocess.

@@ -31,21 +31,3 @@ export class LineBuffer {
     this.onLine(remainder)
   }
 }
-
-export interface StreamJsonEvent {
-  readonly type: string
-  readonly [key: string]: unknown
-}
-
-export function parseJsonLine(line: string): StreamJsonEvent | undefined {
-  const trimmed = line.trim()
-  if (trimmed.length === 0)
-    return undefined
-  try {
-    const parsed = JSON.parse(trimmed) as StreamJsonEvent
-    return parsed
-  }
-  catch {
-    return undefined
-  }
-}

@@ -9,7 +9,7 @@ import type {
   Workspace,
   WorkspaceEventBus,
 } from '@braidhq/core'
-import type { AbsolutePath, AgentBindingDescriptor, RunRecord, SkillAgentOverride, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, McpServerConfig, RunRecord, SkillAgentOverride, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import { mkdir, rm, symlink } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -17,8 +17,7 @@ import { newSkillRunId, NotFoundError } from '@braidhq/core'
 import { AbsolutePath as AbsolutePathSchema, McpServerId, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema } from '@braidhq/schema'
 import { sessionDirPath } from '../fs/paths.js'
 import { createAsyncQueue } from './asyncQueue.js'
-import { writeMcpConfigFile } from './mcpConfig.js'
-import { attachOutputBuffers } from './subprocessEventStream.js'
+import { attachOutputBuffers, type LineParser } from './subprocessEventStream.js'
 
 export type SpawnFn = (command: string, args: readonly string[], options: SpawnOptions) => ChildProcess
 
@@ -111,23 +110,25 @@ export class SubprocessSkillRunner implements SkillRunner {
       // eslint-disable-next-line no-template-curly-in-string
       ...(options?.callerToken ? ['--auth-type', 'bearer', '--auth-token', '${BRAID_TOKEN}'] : []),
     ]
-    const mcpConfigFile = await writeMcpConfigFile(workspace, sessionDir, {
-      extraServers: this.deps.coreGateway
-        ? [{
-            id: McpServerId.parse('braid-core'),
-            transport: 'stdio',
-            command: this.deps.coreGateway.uvxBin ?? 'uvx',
-            args: gatewayArgs,
-          }]
-        : [],
-    })
-    const invocation = this.bindingFor(manifest.frontmatter.braid.agent).resolveSpawn({
+    // Compose the MCP server list, the built-in gateway plus any the workspace
+    // declares. The binding writes whatever config its CLI needs from this.
+    const gatewayServers: McpServerConfig[] = this.deps.coreGateway
+      ? [{
+          id: McpServerId.parse('braid-core'),
+          transport: 'stdio',
+          command: this.deps.coreGateway.uvxBin ?? 'uvx',
+          args: gatewayArgs,
+        }]
+      : []
+    const binding = this.bindingFor(manifest.frontmatter.braid.agent)
+    const invocation = await binding.resolveSpawn({
       skillId,
       args,
       workspace,
       manifest,
       apiUrl: this.deps.apiUrl,
-      mcpConfigFile: AbsolutePathSchema.parse(mcpConfigFile),
+      mcpServers: [...gatewayServers, ...workspace.mcpServers],
+      sessionDir: AbsolutePathSchema.parse(sessionDir),
       ...(options?.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
     })
 
@@ -177,6 +178,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       workspace,
       runId,
       child,
+      parseLine: binding.parseLine,
       skillId,
       args,
       sessionDir,
@@ -227,6 +229,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     workspace: Workspace
     runId: SkillRunId
     child: ChildProcess
+    parseLine: LineParser
     skillId: SkillId
     args: string
     sessionDir: string
@@ -250,7 +253,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       }))
 
       const queue = createAsyncQueue<SkillEvent>()
-      const buffers = attachOutputBuffers(input.child, queue.push, () => this.now())
+      const buffers = attachOutputBuffers(input.child, input.parseLine, queue.push, () => this.now())
 
       input.child.on('close', (code, signal) => {
         buffers.flush()
