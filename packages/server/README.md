@@ -36,16 +36,22 @@ src/
 ├── routes/            one router per resource
 ├── middleware/        auth, cors, error mapping, workspace scoping
 ├── policy/            authorization rules
-└── infrastructure/
-    ├── fs/            filesystem repositories and serializers
-    ├── git/           GitWorkspaceHistory
-    ├── agent/         SubprocessSkillRunner and its event stream
-    └── auth/, oauth/, secrets/, users/
+└── infrastructure/   adapters behind core ports, one folder per domain concern
+    ├── hitl/         proposal and clarification stores
+    ├── workspace/    workspace repository, registry, discovery, PRODUCT.md writer
+    ├── skill/        skill registry, run store, subprocess runner and its event stream
+    ├── source/       source unit observations, digests, intent listing
+    ├── model/        graph serializer
+    ├── reactor/      reactor cycle store
+    ├── batch/        batch plan store
+    ├── history/      GitWorkspaceHistory, commit messages
+    ├── users/, auth/, secrets/, oauth/   host services, no core port
+    └── _shared/      cross-cutting fs plumbing, paths, json store, frontmatter
 ```
 
 - **composeApp / composeFsApp**: The kernel root and the coding preset. `composeApp` takes a deps object, registers no plugin, and defaults every unset port to an in-memory adapter. `composeFsApp` builds the filesystem, git, and vendor adapters, registers the default plugin bundle, then hands the result to `composeApp`. Production runs the latter. See Positioning above.
 - **startup**: The two boot passes, `startupBeforeServe` and `startupAfterServe`. See Startup below for the full order.
-- **infrastructure**: The real adapters behind core's ports. `fs/` persists the graph, proposals, and runs as files. `git/` records every workspace change as a commit. `agent/` runs a skill as a subprocess and streams its events back.
+- **infrastructure**: The real adapters behind core's ports, grouped by domain concern to mirror `core/domain`, never by storage technology. Each folder owns one aggregate's adapter, so a future SQLite or Postgres store lands beside the filesystem one instead of in a separate `sql/` tree. `hitl/` persists proposals and clarifications, `workspace/` the graph and workspace files, `history/` records every change as a git commit, `skill/` runs a skill as a subprocess and streams its events back. `_shared/` holds the cross-cutting fs plumbing, its underscore marking it as the one folder that is not a domain concern, matching `routes/_shared.ts`. `users/ auth/ secrets/ oauth/` are host services with no core port.
 - **routes**: One `createXxxRouter(deps)` per resource, each taking only the services it needs. Bodies validate through zod, path ids parse through their branded schema.
 - **middleware**: The cross-cutting edge. Auth resolves the user, workspace middleware scopes and authorizes the request, and the error middleware maps `BraidError` subclasses to problem+json status codes.
 

@@ -2,7 +2,7 @@ import type { WorkspaceEventBus } from '@braidhq/core'
 import type { WorkspaceEvent } from '@braidhq/schema'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
-import { createAsyncQueue } from '../infrastructure/agent/asyncQueue.js'
+import { createAsyncQueue } from '../infrastructure/skill/asyncQueue.js'
 import { getWorkspaceId, workspaceIdMiddleware } from '../middleware/workspaceId.js'
 
 export interface WorkspaceEventsRouterDeps {

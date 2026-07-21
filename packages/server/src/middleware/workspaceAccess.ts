@@ -1,7 +1,7 @@
 import type { WorkspaceService } from '@braidhq/core'
 import type { Context, MiddlewareHandler } from 'hono'
-import type { WorkspaceRegistryFile } from '../infrastructure/fs/WorkspaceRegistryFile.js'
 import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
+import type { WorkspaceRegistryFile } from '../infrastructure/workspace/WorkspaceRegistryFile.js'
 import type { Capability, ViewerContext } from '../policy/index.js'
 import { ForbiddenError } from '@braidhq/core'
 import { defaultPermissionRegistry, resolveViewer } from '../policy/index.js'

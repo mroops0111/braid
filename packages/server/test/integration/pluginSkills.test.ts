@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { createApp } from '../../src/app.js'
 import { composeApp } from '../../src/composeApp.js'
-import { FsSkillRegistry } from '../../src/infrastructure/fs/FsSkillRegistry.js'
+import { FsSkillRegistry } from '../../src/infrastructure/skill/FsSkillRegistry.js'
 import { readJson } from '../helpers/readJson.js'
 import { makeSkillFileContents } from '../helpers/skillFixtures.js'
 

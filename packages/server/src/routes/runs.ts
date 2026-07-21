@@ -9,7 +9,7 @@ import { SkillRunId } from '@braidhq/schema'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { z } from 'zod'
-import { createAsyncQueue } from '../infrastructure/agent/asyncQueue.js'
+import { createAsyncQueue } from '../infrastructure/skill/asyncQueue.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { loadWorkspaceById } from './helpers.js'
 

@@ -1,6 +1,6 @@
 import type { Clock, WorkspaceService } from '@braidhq/core'
 import type { SkillId, Timestamp, WorkspaceMember as WorkspaceMemberType } from '@braidhq/schema'
-import type { WorkspaceRegistryFile } from '../infrastructure/fs/WorkspaceRegistryFile.js'
+import type { WorkspaceRegistryFile } from '../infrastructure/workspace/WorkspaceRegistryFile.js'
 import { NotFoundError } from '@braidhq/core'
 import { SkillPermission, UserId, WorkspaceRole } from '@braidhq/schema'
 import { zValidator } from '@hono/zod-validator'

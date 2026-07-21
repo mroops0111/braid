@@ -1,6 +1,6 @@
 import type { AppDependencies } from './composeApp.js'
 import { createLogger } from '@braidhq/core'
-import { reapOrphanRuns } from './infrastructure/orphanReaper.js'
+import { reapOrphanRuns } from './infrastructure/skill/orphanReaper.js'
 
 /**
  * The blocking startup pass, run once after composition,

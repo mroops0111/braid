@@ -1,5 +1,5 @@
 import type { Timestamp, UserId } from '@braidhq/schema'
-import type { WorkspaceRegistryFile } from '../fs/WorkspaceRegistryFile.js'
+import type { WorkspaceRegistryFile } from '../workspace/WorkspaceRegistryFile.js'
 
 /**
  * Give every ownerless workspace a default owner.

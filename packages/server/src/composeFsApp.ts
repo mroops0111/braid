@@ -23,29 +23,29 @@ import { createGithubLoader } from '@braidhq/source-loader-github'
 import { kuzuStoragePlugin } from '@braidhq/storage-kuzu'
 import { authenticated, localTrust } from './authMode.js'
 import { composeApp } from './composeApp.js'
-import { SubprocessSkillRunner } from './infrastructure/agent/SubprocessSkillRunner.js'
+import { parseBoolEnv } from './infrastructure/_shared/env.js'
 import { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
-import { SessionStore } from './infrastructure/auth/SessionStore.js'
-import { parseBoolEnv } from './infrastructure/env.js'
-import { FsBatchPlanRepository } from './infrastructure/fs/FsBatchPlanRepository.js'
-import { FsClarificationRepository } from './infrastructure/fs/FsClarificationRepository.js'
-import { FsModelSerializer } from './infrastructure/fs/FsModelSerializer.js'
-import { FsProposalRepository } from './infrastructure/fs/FsProposalRepository.js'
-import { FsReactorCycleRepository } from './infrastructure/fs/FsReactorCycleRepository.js'
-import { FsRunRepository } from './infrastructure/fs/FsRunRepository.js'
-import { FsSkillRegistry } from './infrastructure/fs/FsSkillRegistry.js'
-import { FsSourceUnitDigest } from './infrastructure/fs/FsSourceUnitDigest.js'
-import { FsSourceUnitObservationRepository } from './infrastructure/fs/FsSourceUnitObservationRepository.js'
-import { FsWorkspaceRepository } from './infrastructure/fs/FsWorkspaceRepository.js'
-import { listIntentItems } from './infrastructure/fs/intentScan.js'
-import { discoverCanonicalWorkspaces } from './infrastructure/fs/WorkspaceDiscovery.js'
-import { WorkspaceRegistryFile } from './infrastructure/fs/WorkspaceRegistryFile.js'
-import { GitWorkspaceHistory } from './infrastructure/git/GitWorkspaceHistory.js'
+import { FsSessionStore } from './infrastructure/auth/SessionStore.js'
+import { FsBatchPlanRepository } from './infrastructure/batch/FsBatchPlanRepository.js'
+import { GitWorkspaceHistory } from './infrastructure/history/GitWorkspaceHistory.js'
+import { FsClarificationRepository } from './infrastructure/hitl/FsClarificationRepository.js'
+import { FsProposalRepository } from './infrastructure/hitl/FsProposalRepository.js'
+import { FsModelSerializer } from './infrastructure/model/FsModelSerializer.js'
 import { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
+import { FsReactorCycleRepository } from './infrastructure/reactor/FsReactorCycleRepository.js'
 import { FsSecretStore } from './infrastructure/secrets/SecretStore.js'
+import { FsRunRepository } from './infrastructure/skill/FsRunRepository.js'
+import { FsSkillRegistry } from './infrastructure/skill/FsSkillRegistry.js'
+import { SubprocessSkillRunner } from './infrastructure/skill/SubprocessSkillRunner.js'
+import { FsSourceUnitDigest } from './infrastructure/source/FsSourceUnitDigest.js'
+import { FsSourceUnitObservationRepository } from './infrastructure/source/FsSourceUnitObservationRepository.js'
+import { listIntentItems } from './infrastructure/source/intentScan.js'
 import { ensureWorkspaceOwners } from './infrastructure/users/ensureWorkspaceOwners.js'
 import { UserDirectoryFromRegistry } from './infrastructure/users/UserDirectoryFromRegistry.js'
 import { UserRegistryFile } from './infrastructure/users/UserRegistryFile.js'
+import { FsWorkspaceRepository } from './infrastructure/workspace/FsWorkspaceRepository.js'
+import { discoverCanonicalWorkspaces } from './infrastructure/workspace/WorkspaceDiscovery.js'
+import { WorkspaceRegistryFile } from './infrastructure/workspace/WorkspaceRegistryFile.js'
 import { startupBeforeServe } from './startup.js'
 
 // The coding preset's default plugin identities, its worldview in one place.
@@ -119,7 +119,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   // because access control is host state, not a workspace artifact.
   // AccessPolicy reads env at construct time.
   // Production deployments restart on config changes, so reading once is fine.
-  const sessionStore = new SessionStore(join(braidHome, 'sessions.json'))
+  const sessionStore = new FsSessionStore(join(braidHome, 'sessions.json'))
   const accessPolicyConfig: {
     allowedDomains?: readonly string[]
     allowedEmails?: readonly string[]

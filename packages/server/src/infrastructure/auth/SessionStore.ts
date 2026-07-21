@@ -36,6 +36,15 @@ export interface ResolvedSession {
   readonly expiresAt?: string
 }
 
+// The port. A hosted deployment swaps the file-backed impl for a shared store,
+// such as Redis or Postgres, behind this interface.
+export interface SessionStore {
+  issue: (userId: UserId, options?: { ttlSeconds?: number }) => Promise<IssuedSession>
+  resolve: (token: string) => Promise<ResolvedSession | null>
+  revoke: (token: string) => Promise<void>
+  revokeAllForUser: (userId: UserId) => Promise<void>
+}
+
 /**
  * Hashed session tokens persisted to `${BRAID_HOME}/sessions.json`.
  * Token format is 32 random bytes encoded as `base64url` (43 chars).
@@ -46,7 +55,7 @@ export interface ResolvedSession {
  * this is the minimum useful surface for v0.2.
  * Future remote-server work can revisit if needed.
  */
-export class SessionStore {
+export class FsSessionStore implements SessionStore {
   constructor(private readonly filePath: string) {}
 
   async issue(userId: UserId, options: { ttlSeconds?: number } = {}): Promise<IssuedSession> {

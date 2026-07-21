@@ -2,7 +2,7 @@ import type { ClarificationRepository, ModelRepository, PluginRegistry, Workspac
 import type { SkillInputDynamicOption } from '@braidhq/schema'
 import { SkillInputOptionsResponse, SourceId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
-import { listIntentItems } from '../infrastructure/fs/intentScan.js'
+import { listIntentItems } from '../infrastructure/source/intentScan.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
