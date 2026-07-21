@@ -98,7 +98,7 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
       token = context.req.query('token') || undefined
     if (!token)
       throw new UnauthorizedError('Missing or invalid Authorization header. Sign in to continue.')
-    // sessionStore is always wired alongside requireAuth by the composition root.
+    // The composition root always wires sessionStore alongside requireAuth.
     const session = await options.sessionStore!.resolve(token)
     if (!session)
       throw new UnauthorizedError('Session expired or revoked. Sign in again.')

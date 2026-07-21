@@ -42,7 +42,7 @@ const SkipBody = z.object({
 
 // PATCH body for clarification state transitions.
 // The only legal transition the skill drives is `answered` to `applied`.
-// proposalId is optional, present when a Proposal was produced,
+// The proposalId is optional, present when a Proposal was produced,
 // absent when the chosen candidate had no graph impact.
 // The skill then records the ticket as applied without a linking proposal.
 const ApplyBody = z.object({
@@ -128,7 +128,7 @@ const answerClarificationRoute = createRoute({
   method: 'post',
   path: '/{clarificationId}/answer',
   operationId: 'answerClarification',
-  summary: 'Reviewer answers a clarification. Triggers `pending → answered` transition.',
+  summary: 'Reviewer answers a clarification. Triggers `pending` to `answered` transition.',
   tags: ['clarify'],
   request: {
     params: ClarificationIdParam,
@@ -148,7 +148,7 @@ const applyClarificationRoute = createRoute({
   path: '/{clarificationId}',
   operationId: 'markClarificationApplied',
   summary: 'Mark a clarification applied. Optionally link the materialised Proposal.',
-  description: 'Called by the braid-clarify skill once it has wrapped the resolution into a Proposal (or determined there is no graph impact). Transitions `answered → applied`.',
+  description: 'Called by the braid-clarify skill once it has wrapped the resolution into a Proposal (or determined there is no graph impact). Transitions `answered` to `applied`.',
   tags: ['clarify'],
   request: {
     params: ClarificationIdParam,
@@ -167,7 +167,7 @@ const skipClarificationRoute = createRoute({
   method: 'post',
   path: '/{clarificationId}/skip',
   operationId: 'skipClarification',
-  summary: 'Skip a clarification with a reason. Triggers `pending → skipped` transition.',
+  summary: 'Skip a clarification with a reason. Triggers `pending` to `skipped` transition.',
   tags: ['clarify'],
   request: {
     params: ClarificationIdParam,

@@ -84,23 +84,26 @@ classDiagram
     class AuthMode {
         <<interface>>
         +defaultPrincipal: UserId | null
+        +requiresAuth: boolean
         +provision(context) Promise
     }
     class localTrust {
         <<const>>
         defaultPrincipal = local-user
+        requiresAuth = false
         provision() seeds local-user
     }
     class authenticated {
         <<const>>
         defaultPrincipal = null
+        requiresAuth = true
         provision() syncs allowlist
     }
     AuthMode <|.. localTrust
     AuthMode <|.. authenticated
 ```
 
-Three consumers read the strategy, none a hardcoded account. `authMiddleware` skips the Bearer gate when a principal is present. `userIdMiddleware` resolves an unauthenticated caller to the principal. `ensureWorkspaceOwners` gives an ownerless workspace the principal, or throws when there is none.
+Two consumers read the strategy, neither a hardcoded account. `authMiddleware` resolves the caller, applying the Bearer gate under `requiresAuth` and falling back to `defaultPrincipal` when one is present. `ensureWorkspaceOwners` gives an ownerless workspace the principal, or throws when there is none.
 
 `composeFsApp` picks the mode from `BRAID_LOCAL_TRUST`, local trust by default. Adding a mode, a service account or an SSO-only deployment, is a new `AuthMode`, with no change to the middleware, the ownership code, or boot.
 

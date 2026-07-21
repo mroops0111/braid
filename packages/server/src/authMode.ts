@@ -73,7 +73,7 @@ function osUsername(): string {
       return info.username
   }
   catch {
-    // userInfo is not available here.
+    // The userInfo lookup can throw, fall through to the env vars below.
   }
   return process.env.USER ?? process.env.USERNAME ?? 'local'
 }

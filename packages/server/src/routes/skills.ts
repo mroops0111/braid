@@ -165,7 +165,7 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
     const perUnitSkillId = resolvePerUnitSkillId(deps.pluginRegistry, workspace)
 
     if (sourceUnit) {
-      // sourceUnit is only for the ontology's per-unit step,
+      // The sourceUnit applies only to the ontology's per-unit step,
       // so reject it for any other skill.
       // Otherwise the run-skill route advertises support uniformly,
       // then silently drops it for every skill except extract.

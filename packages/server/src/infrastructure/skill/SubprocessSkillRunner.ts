@@ -57,7 +57,7 @@ export interface SubprocessSkillRunnerDeps {
   //
   // `specUrl` is typically `${apiUrl}/openapi.json`.
   // `uvxBin` defaults to `'uvx'`, resolved against PATH.
-  // composeFs preflight-checks for its presence at boot.
+  // The composeFsApp step preflight-checks for its presence at boot.
   //
   // Leave undefined to skip the entry entirely.
   // A skill needing `braid-core` then surfaces as not-ready,

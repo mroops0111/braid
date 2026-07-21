@@ -45,7 +45,7 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
       }
 
       // Subscribe BEFORE reading JSONL.
-      // positionAtSubscribe snapshots how many events were persisted,
+      // The positionAtSubscribe count snapshots how many events were persisted,
       // so we read exactly that many from disk,
       // and rely on the live listener for everything after.
       const queue = createAsyncQueue<SkillEvent>()
