@@ -1,40 +1,28 @@
-import type { BraidProblemJson } from '@braidhq/schema'
+import type { BraidErrorCode, BraidProblemJson } from '@braidhq/schema'
 import type { ErrorHandler } from 'hono'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
-import {
-  BraidError,
-  ConflictError,
-  ForbiddenError,
-  NotFoundError,
-  ServiceUnavailableError,
-  UnauthorizedError,
-  ValidationError,
-} from '@braidhq/core'
+import { BraidError, ValidationError } from '@braidhq/core'
 import { ZodError } from 'zod'
 
 const PROBLEM_BASE_URL = 'https://braid.dev/errors'
 
-function statusFor(error: BraidError): number {
-  if (error instanceof ValidationError)
-    return 400
-  if (error instanceof NotFoundError)
-    return 404
-  if (error instanceof ConflictError)
-    return 409
-  if (error instanceof ForbiddenError)
-    return 403
-  if (error instanceof UnauthorizedError)
-    return 401
-  if (error instanceof ServiceUnavailableError)
-    return 503
-  return 500
+// The HTTP status per error code, keyed by the closed BraidErrorCode enum,
+// so a new code fails to compile until it is mapped here.
+const STATUS_BY_CODE: Record<BraidErrorCode, number> = {
+  'BRAID-VALIDATION': 400,
+  'BRAID-UNAUTHORIZED': 401,
+  'BRAID-NOT-FOUND': 404,
+  'BRAID-CONFLICT': 409,
+  'BRAID-FORBIDDEN': 403,
+  'BRAID-UNAVAILABLE': 503,
+  'BRAID-INTERNAL': 500,
 }
 
 function problemFromBraidError(error: BraidError): BraidProblemJson {
   const problem: BraidProblemJson = {
     type: `${PROBLEM_BASE_URL}/${error.code.toLowerCase()}` as BraidProblemJson['type'],
     title: error.name,
-    status: statusFor(error),
+    status: STATUS_BY_CODE[error.code],
     code: error.code,
     detail: error.message,
   }
