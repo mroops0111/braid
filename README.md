@@ -51,7 +51,7 @@ flowchart LR
 
 Once `braid dev` is running, work the loop in Studio (`http://localhost:5173`):
 
-1. **Skills** tab. Run `braid-extract`.
+1. **Skills** tab. Run `/ddd:extract`.
 2. **Proposals** tab. Inspect each diff, click pre-validate.
 3. **Apply** when green, or **Reject** with a reason.
 
@@ -124,11 +124,11 @@ createApp(await composeFsApp({
 
 ### Writing a custom skill
 
-A skill is a `SKILL.md` file at `<workspace>/skills/<id>/SKILL.md`. The framework picks it up on the next request and it shows up in Studio's Skills tab alongside the built-ins.
+A skill is a `SKILL.md` file at `<workspace>/skills/<verb>/SKILL.md`, and it invokes as `/workspace:<verb>`. The framework picks it up on the next request and it shows up in Studio's Skills tab alongside the built-ins.
 
 ```markdown
 ---
-name: braid-extract
+name: quick-extract
 description: Extract DDD entities from intent + code
 argumentHint: <ctx-name>
 model: opus

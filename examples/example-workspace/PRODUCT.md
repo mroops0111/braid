@@ -67,7 +67,7 @@ curl -X POST http://localhost:4321/workspaces \
 curl http://localhost:4321/workspaces/example-workspace/skills
 
 # Run extract (requires `claude` CLI on PATH)
-curl -X POST http://localhost:4321/workspaces/example-workspace/skills/braid-extract/run \
+curl -X POST http://localhost:4321/workspaces/example-workspace/skills/ddd:extract/run \
   -H 'Content-Type: application/json' \
   -d '{"args":"signup"}'
 ```
