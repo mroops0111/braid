@@ -120,6 +120,10 @@ export function defineOntology(input: DefineOntologyInput): OntologyPlugin {
     nodeTypes,
     edgeTypes,
     skills: input.skills ?? [],
+    // The ontology id is the skill namespace,
+    // so its skills invoke as `/<ontologyId>:<verb>`,
+    // without the author repeating it per skill.
+    skillNamespace: input.ontologyId,
     referenceDirs: input.referenceDirs ?? [],
     validators: [],
     ...(input.batch ? { batch: input.batch } : {}),

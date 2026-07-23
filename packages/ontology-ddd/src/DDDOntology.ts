@@ -24,19 +24,12 @@ export const dddOntology = defineOntology({
   // They encode DDD-specific reasoning, like the Context Mapping edges,
   // that a non-DDD ontology should not inherit,
   // so they live here rather than in @braidhq/core.
+  // The id is composed as `ddd:<directory basename>`, ddd from ontologyId,
+  // so the namespace is never repeated or forgotten here.
   skills: [
-    {
-      id: SkillId.parse('ddd:extract'),
-      directory: new URL('../skills/extract', import.meta.url),
-    },
-    {
-      id: SkillId.parse('ddd:clarify'),
-      directory: new URL('../skills/clarify', import.meta.url),
-    },
-    {
-      id: SkillId.parse('ddd:model'),
-      directory: new URL('../skills/model', import.meta.url),
-    },
+    { directory: new URL('../skills/extract', import.meta.url) },
+    { directory: new URL('../skills/clarify', import.meta.url) },
+    { directory: new URL('../skills/model', import.meta.url) },
   ],
 
   // Shared reference docs every SKILL.md above consults,

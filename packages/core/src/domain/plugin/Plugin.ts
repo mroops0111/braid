@@ -1,4 +1,4 @@
-import type { PluginId, PluginType, SkillId } from '@braidhq/schema'
+import type { PluginId, PluginType } from '@braidhq/schema'
 import type { z } from 'zod'
 
 export interface PluginLogger {
@@ -23,10 +23,12 @@ export interface PluginContext {
  * that want to ship a companion skill without widening the base interface.
  */
 export interface PluginSkillRef {
-  readonly id: SkillId
   /**
    * Directory that contains `SKILL.md`.
-   * `URL` accepted so authors can write `new URL('../skills/foo', import.meta.url)`.
+   * The basename is the skill's verb.
+   * The loader composes the id as `<plugin.skillNamespace>:<verb>`,
+   * so an author never writes or forgets the namespace per skill.
+   * A `URL` is accepted for `new URL('../skills/foo', import.meta.url)`.
    */
   readonly directory: URL | string
 }
@@ -58,6 +60,12 @@ export interface Plugin {
   readonly configSchema: z.ZodSchema
   /** Skills shipped by this plugin, omitted when it contributes none. */
   readonly skills?: readonly PluginSkillRef[]
+  /**
+   * Namespace for this plugin's skill ids, composed as `<skillNamespace>:<verb>`.
+   * Required once `skills` is non-empty, the registry fails loudly otherwise.
+   * An ontology plugin sets it to its `ontologyId`.
+   */
+  readonly skillNamespace?: string
   /**
    * Reference directories symlinked into every skill session,
    * under `<session>/.claude/skills/<name>/`.

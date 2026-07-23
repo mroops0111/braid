@@ -1,5 +1,3 @@
-import type { SkillId } from '@braidhq/schema'
-
 /**
  * Reference to a SKILL.md file shipped alongside a plugin. The plugin's
  * `define*` builder records these on the resulting Plugin instance; at
@@ -10,12 +8,13 @@ import type { SkillId } from '@braidhq/schema'
  * kind without changing the base interface again.
  */
 export interface PluginSkillRef {
-  readonly id: SkillId
   /**
-   * Filesystem location of the SKILL.md directory's parent (i.e. the
-   * directory that *contains* `SKILL.md`). A `URL` is accepted so
-   * plugin authors can write `new URL('../skills/foo', import.meta.url)`
-   * and have it resolve correctly both in source and after publish.
+   * Filesystem location of the directory that *contains* `SKILL.md`.
+   * The basename is the skill's verb.
+   * The loader composes the id as `<plugin.skillNamespace>:<verb>`,
+   * so an author never writes or forgets the namespace per skill.
+   * A `URL` is accepted for `new URL('../skills/foo', import.meta.url)`,
+   * so it resolves both in source and after publish.
    */
   readonly directory: URL | string
 }

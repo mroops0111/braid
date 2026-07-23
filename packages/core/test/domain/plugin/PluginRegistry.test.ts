@@ -26,6 +26,7 @@ import {
   type ProvisionReport,
   type SourceLoaderPlugin,
   type StoragePlugin,
+  ValidationError,
   type ViewGeneratorPlugin,
 } from '../../../src/index.js'
 
@@ -128,10 +129,13 @@ describe('PluginRegistry', () => {
   })
 
   describe('pluginSkills', () => {
-    function fakePluginWithSkills(id: string, skillIds: readonly string[]): Plugin {
+    // The verb comes from the directory basename, the namespace from the
+    // plugin. The loader composes `<skillNamespace>:<verb>`.
+    function fakePluginWithSkills(id: string, verbs: readonly string[]): Plugin {
       return {
         ...fakePlugin(id, 'ontology'),
-        skills: skillIds.map(s => ({ id: s as never, directory: `/abs/${s}` })),
+        skillNamespace: 'test',
+        skills: verbs.map(v => ({ directory: `/abs/${v}` })),
       }
     }
 
@@ -139,13 +143,18 @@ describe('PluginRegistry', () => {
       registry.register(fakePluginWithSkills('p1', ['extract-foo']))
       registry.register(fakePluginWithSkills('p2', ['extract-bar', 'fix-baz']))
       const skills = registry.pluginSkills()
-      expect(skills.map(s => s.id)).toEqual(['extract-foo', 'extract-bar', 'fix-baz'])
-      expect(skills.find(s => s.id === 'fix-baz' as never)?.contributedBy).toBe('p2')
+      expect(skills.map(s => s.id)).toEqual(['test:extract-foo', 'test:extract-bar', 'test:fix-baz'])
+      expect(skills.find(s => s.id === 'test:fix-baz' as never)?.contributedBy).toBe('p2')
     })
 
     it('throws ConflictError when two plugins declare the same skill id', () => {
       registry.register(fakePluginWithSkills('p1', ['shared-skill']))
       expect(() => registry.register(fakePluginWithSkills('p2', ['shared-skill']))).toThrow(ConflictError)
+    })
+
+    it('throws when a plugin ships skills but declares no skillNamespace', () => {
+      const noNamespace: Plugin = { ...fakePlugin('p1', 'ontology'), skills: [{ directory: '/abs/extract' }] }
+      expect(() => registry.register(noNamespace)).toThrow(ValidationError)
     })
 
     it('returns an empty array when no plugin contributes skills', () => {

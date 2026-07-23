@@ -92,12 +92,13 @@ describe('FsSkillRegistry', () => {
   })
 
   describe('plugin-shipped skills', () => {
-    function fakeOntologyWithSkill(pluginId: string, skillId: string, directory: string): Plugin {
+    function fakeOntologyWithSkill(pluginId: string, skillNamespace: string, directory: string): Plugin {
       return {
         id: pluginId as PluginId,
         type: 'ontology' as const,
         configSchema: z.object({}),
-        skills: [{ id: skillId as SkillId, directory }],
+        skillNamespace,
+        skills: [{ directory }],
       } satisfies Plugin
     }
 
@@ -110,7 +111,7 @@ describe('FsSkillRegistry', () => {
       const pluginRegistry = new PluginRegistry()
       pluginRegistry.register(fakeOntologyWithSkill(
         'plugin.redoc',
-        'redoc:design',
+        'redoc',
         join(pluginRoot, 'design'),
       ))
 
@@ -133,7 +134,7 @@ describe('FsSkillRegistry', () => {
       const pluginRegistry = new PluginRegistry()
       pluginRegistry.register(fakeOntologyWithSkill(
         'plugin.redoc',
-        'redoc:design',
+        'redoc',
         join(pluginRoot, 'design'),
       ))
 

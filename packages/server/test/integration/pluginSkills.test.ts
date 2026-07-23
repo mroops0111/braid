@@ -1,4 +1,4 @@
-import type { AbsolutePath, PluginId, SkillId, SkillRunId, SourceId, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, PluginId, SkillRunId, SourceId, WorkspaceId } from '@braidhq/schema'
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -58,12 +58,13 @@ function makeWorkspace(rootPath: AbsolutePath): Workspace {
   })
 }
 
-function fakeOntologyWithSkill(pluginId: string, skillId: string, directory: string): Plugin {
+function fakeOntologyWithSkill(pluginId: string, skillNamespace: string, directory: string): Plugin {
   return {
     id: pluginId as PluginId,
     type: 'ontology' as const,
     configSchema: z.object({}),
-    skills: [{ id: skillId as SkillId, directory }],
+    skillNamespace,
+    skills: [{ directory }],
   }
 }
 
@@ -86,7 +87,7 @@ describe('plugin-shipped skills (integration)', () => {
     const skillDir = await writePluginSkill(pluginSkillsRoot, 'design', 'design')
 
     const pluginRegistry = new PluginRegistry()
-    pluginRegistry.register(fakeOntologyWithSkill('plugin.redoc', 'redoc:design', skillDir))
+    pluginRegistry.register(fakeOntologyWithSkill('plugin.redoc', 'redoc', skillDir))
 
     const builtinSkillsRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
     const wsRoot = (await mkdtemp(join(tmpdir(), 'braid-ws-'))) as AbsolutePath
@@ -113,7 +114,7 @@ describe('plugin-shipped skills (integration)', () => {
     const skillDir = await writePluginSkill(pluginSkillsRoot, 'design', 'design-plugin')
 
     const pluginRegistry = new PluginRegistry()
-    pluginRegistry.register(fakeOntologyWithSkill('plugin.redoc', 'redoc:design', skillDir))
+    pluginRegistry.register(fakeOntologyWithSkill('plugin.redoc', 'redoc', skillDir))
 
     const builtinSkillsRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
     const wsRoot = (await mkdtemp(join(tmpdir(), 'braid-ws-'))) as AbsolutePath

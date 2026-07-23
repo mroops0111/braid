@@ -1,6 +1,5 @@
 import type { EdgeTypeId, NodeTypeId } from '@braidhq/schema'
 import { ConflictError, ValidationError } from '@braidhq/core'
-import { SkillId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { defineOntology } from '../src/defineOntology.js'
 
@@ -124,8 +123,9 @@ describe('defineOntology', () => {
       ontologyId: 'tiny',
       nodeTypes: [minimalNode('a')],
       edgeTypes: [],
-      skills: [{ id: SkillId.parse('my-skill'), directory: '/abs/path' }],
+      skills: [{ directory: '/abs/path' }],
     })
     expect(ontology.skills).toHaveLength(1)
+    expect(ontology.skillNamespace).toBe('tiny')
   })
 })
