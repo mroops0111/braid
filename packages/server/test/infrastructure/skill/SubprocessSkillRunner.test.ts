@@ -1,5 +1,5 @@
 import type { AbsolutePath, AgentBindingDescriptor, SkillAgentOverride, SkillEvent, SkillId, SkillRunId, WorkspaceEvent } from '@braidhq/schema'
-import { mkdir, mkdtemp, readdir, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ClaudeCodeAgentBinding } from '@braidhq/agent-claude-code'
@@ -19,7 +19,7 @@ import { DEFAULT_AGENT_BINDING, makeWorkspace } from '../../helpers/fakes.js'
 import { createMockSpawn, type MockSpawnRecord, type MockSpawnScript } from '../../helpers/mockSpawn.js'
 import { makeSkillFileContents } from '../../helpers/skillFixtures.js'
 
-const SKILL_ID = 'braid-ask' as SkillId
+const SKILL_ID = 'braid:ask' as SkillId
 
 interface BuildRunnerInput {
   readonly rootPath: AbsolutePath
@@ -69,15 +69,15 @@ async function makeWorkspaceRoot(): Promise<AbsolutePath> {
 async function makeSkillRegistry(skillSourceParent: AbsolutePath, agent?: SkillAgentOverride): Promise<SkillRegistry> {
   // Materialise a real SKILL.md so the runner's session-dir builder can symlink it.
   // Tests that don't care about the session-dir layout still get a valid manifest.
-  const skillDir = join(skillSourceParent, 'braid-ask')
+  const skillDir = join(skillSourceParent, 'ask')
   await mkdir(skillDir, { recursive: true })
-  await writeFile(join(skillDir, 'SKILL.md'), makeSkillFileContents({ name: 'braid-ask' }), 'utf-8')
+  await writeFile(join(skillDir, 'SKILL.md'), makeSkillFileContents({ name: 'ask' }), 'utf-8')
   const manifest = new SkillManifest({
     id: SKILL_ID,
     origin: 'builtin',
     path: join(skillDir, 'SKILL.md') as AbsolutePath,
     frontmatter: {
-      name: 'braid-ask',
+      name: 'ask',
       description: 'a',
       disableModelInvocation: false,
       braid: {
@@ -157,7 +157,7 @@ describe('SubprocessSkillRunner', () => {
     expect(captured?.kind).toBe(DEFAULT_AGENT_BINDING.kind)
   })
 
-  it('spawns inside a session dir that symlinks every registered skill and reference dir', async () => {
+  it('stages reference dirs under .claude/skills and each skill as a per-namespace plugin', async () => {
     const rootPath = await makeWorkspaceRoot()
     const sharedDir = join(rootPath, 'shared')
     await mkdir(sharedDir, { recursive: true })
@@ -175,9 +175,27 @@ describe('SubprocessSkillRunner', () => {
     expect(sessionCwd).toContain('.braid-sessions/')
     expect(sessionCwd.startsWith(rootPath)).toBe(true)
 
-    const skillNames = await readdir(join(sessionCwd, '.claude', 'skills'))
-    expect(skillNames).toContain('braid-ask')
-    expect(skillNames).toContain('shared')
+    // Companion reference dirs still live under .claude/skills/, but invokable
+    // skills no longer do. They stage as a claude plugin per namespace.
+    const claudeSkillNames = await readdir(join(sessionCwd, '.claude', 'skills'))
+    expect(claudeSkillNames).toContain('shared')
+    expect(claudeSkillNames).not.toContain('ask')
+
+    // The `braid:ask` skill stages as plugin `braid`, verb dir `ask`, plus a
+    // .claude-plugin/plugin.json manifest naming the namespace.
+    const pluginRoot = join(sessionCwd, '.braid-plugins', 'braid')
+    const pluginManifest = JSON.parse(
+      await readFile(join(pluginRoot, '.claude-plugin', 'plugin.json'), 'utf-8'),
+    ) as { name: string }
+    expect(pluginManifest.name).toBe('braid')
+    const verbDirs = await readdir(join(pluginRoot, 'skills'))
+    expect(verbDirs).toContain('ask')
+
+    // The binding is pointed at the bundle via --plugin-dir.
+    const spawnArgs = invocations[0]!.args
+    const pluginDirIdx = spawnArgs.indexOf('--plugin-dir')
+    expect(pluginDirIdx).toBeGreaterThan(-1)
+    expect(spawnArgs[pluginDirIdx + 1]).toBe(pluginRoot)
   })
 
   it('forwards non-zero subprocess exit code into the completed event', async () => {
@@ -317,7 +335,7 @@ describe('SubprocessSkillRunner', () => {
       rootPath,
       sequence: [{
         stdoutLines: [
-          JSON.stringify({ type: 'result', subtype: 'error', is_error: true, result: 'Unknown command: /braid-ask' }),
+          JSON.stringify({ type: 'result', subtype: 'error', is_error: true, result: 'Unknown command: /braid:ask' }),
         ],
         exitCode: 0,
       }],
@@ -329,7 +347,7 @@ describe('SubprocessSkillRunner', () => {
     // collectRunEvents stops once an error arrives, completed may not yet be observed.
     expect(events.map(event => event.type).slice(0, 2)).toEqual(['started', 'error'])
     const errorEvent = events.find(event => event.type === 'error')
-    expect(errorEvent && 'message' in errorEvent ? errorEvent.message : undefined).toBe('Unknown command: /braid-ask')
+    expect(errorEvent && 'message' in errorEvent ? errorEvent.message : undefined).toBe('Unknown command: /braid:ask')
   })
 
   it('reports positionAtSubscribe matching the events already persisted when a late subscriber arrives', async () => {

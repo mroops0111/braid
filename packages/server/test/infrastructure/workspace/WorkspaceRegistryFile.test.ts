@@ -89,13 +89,13 @@ describe('WorkspaceRegistryFile members', () => {
       userId: 'usr-1' as UserId,
       role: 'guest',
       joinedAt: TEST_TIMESTAMP,
-      skillOverrides: { [SkillId.parse('braid-ask')]: 'allow', [SkillId.parse('braid-extract')]: 'deny' },
+      skillOverrides: { [SkillId.parse('braid:ask')]: 'allow', [SkillId.parse('ddd:extract')]: 'deny' },
     })
 
     const cold = new WorkspaceRegistryFile(filePath)
     const member = await cold.getMember(rootPath, 'usr-1' as UserId)
 
-    expect(member?.skillOverrides).toEqual({ [SkillId.parse('braid-ask')]: 'allow', [SkillId.parse('braid-extract')]: 'deny' })
+    expect(member?.skillOverrides).toEqual({ [SkillId.parse('braid:ask')]: 'allow', [SkillId.parse('ddd:extract')]: 'deny' })
   })
 
   it('updateMember can merge a fresh skillOverride into an existing member', async () => {
@@ -107,10 +107,10 @@ describe('WorkspaceRegistryFile members', () => {
     })
 
     const updated = await registry.updateMember(rootPath, 'usr-1' as UserId, {
-      skillOverrides: { [SkillId.parse('braid-ask')]: 'allow' },
+      skillOverrides: { [SkillId.parse('braid:ask')]: 'allow' },
     })
 
-    expect(updated.skillOverrides).toEqual({ [SkillId.parse('braid-ask')]: 'allow' })
+    expect(updated.skillOverrides).toEqual({ [SkillId.parse('braid:ask')]: 'allow' })
   })
 
   it('updateMember replaces, rather than merges, the skillOverrides map', async () => {
@@ -119,14 +119,14 @@ describe('WorkspaceRegistryFile members', () => {
       userId: 'usr-1' as UserId,
       role: 'guest',
       joinedAt: TEST_TIMESTAMP,
-      skillOverrides: { [SkillId.parse('braid-ask')]: 'allow', [SkillId.parse('braid-extract')]: 'deny' },
+      skillOverrides: { [SkillId.parse('braid:ask')]: 'allow', [SkillId.parse('ddd:extract')]: 'deny' },
     })
 
     const updated = await registry.updateMember(rootPath, 'usr-1' as UserId, {
-      skillOverrides: { [SkillId.parse('braid-model')]: 'allow' },
+      skillOverrides: { [SkillId.parse('ddd:model')]: 'allow' },
     })
 
-    expect(updated.skillOverrides).toEqual({ [SkillId.parse('braid-model')]: 'allow' })
+    expect(updated.skillOverrides).toEqual({ [SkillId.parse('ddd:model')]: 'allow' })
   })
 
   it('transferOwnership demotes the current owner and promotes the target atomically', async () => {

@@ -19,6 +19,10 @@ export interface AgentSpawnInput {
   // config under `sessionDir` when it needs a file.
   readonly mcpServers: readonly McpServerConfig[]
   readonly sessionDir: AbsolutePath
+  // Directories, each a self-contained bundle of the workspace's invokable
+  // skills for one namespace. The binding loads them however its CLI expects,
+  // claude via `--plugin-dir`, so a skill invokes as `/namespace:verb`.
+  readonly skillBundleDirs: readonly string[]
   // Session id to continue, when the agent supports resuming a conversation.
   readonly resumeSessionId?: string
 }

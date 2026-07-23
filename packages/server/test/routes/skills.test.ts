@@ -13,7 +13,7 @@ import { DEFAULT_AGENT_BINDING, makeSkillManifest, makeWorkspace } from '../help
 import { createMockSpawn } from '../helpers/mockSpawn.js'
 
 function makeSkillRegistry(): SkillRegistry {
-  const manifest = makeSkillManifest({ id: 'ask', path: '/abs/SKILL.md' as AbsolutePath })
+  const manifest = makeSkillManifest({ id: 'braid:ask', path: '/abs/SKILL.md' as AbsolutePath })
   return {
     list: async () => [manifest],
     find: async () => manifest,
@@ -50,13 +50,13 @@ describe('skill routes', () => {
     expect(response.status).toBe(200)
     const body = await response.json() as { items: Array<{ id: string }> }
     expect(body.items).toHaveLength(1)
-    expect(body.items[0]?.id).toBe('ask')
+    expect(body.items[0]?.id).toBe('braid:ask')
   })
 
   it('POST /workspaces/:ws/skills/:id/run accepts the request and returns a fresh run id', async () => {
     const { app, workspace } = await buildApp([JSON.stringify({ type: 'text', text: 'hello' })])
 
-    const response = await app.request(`/workspaces/${workspace.id}/skills/ask/run`, {
+    const response = await app.request(`/workspaces/${workspace.id}/skills/braid:ask/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ args: 'what is voidTask' }),

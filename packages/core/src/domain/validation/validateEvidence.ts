@@ -61,7 +61,7 @@ function checkNode(node: GraphNode): ValidationIssue[] {
 
 /**
  * Drift detection itself happens upstream in build-cycle skills,
- * e.g. braid-extract or braid-model,
+ * e.g. ddd:extract or ddd:model,
  * which write structured DriftIssue entries onto the node's metadata.
  * This job is to surface those entries as `ValidationIssue`s,
  * so the proposal review pane shows them, and the apply-gate respects severity.

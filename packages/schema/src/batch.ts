@@ -24,7 +24,7 @@ export const BatchUnit = z.object({
   description: z.string(),
   // The intent source this unit belongs to. Absent in derive mode.
   sourceId: SourceId.optional(),
-  // Scope hint for braid-extract (doc/folder name). Empty falls back to name.
+  // Scope hint for ddd:extract (doc/folder name). Empty falls back to name.
   scopeHint: z.string().optional(),
   status: BatchUnitStatus,
   // Stamped at markUnitRunning so the UI can replay the run's log.

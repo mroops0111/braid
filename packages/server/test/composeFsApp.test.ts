@@ -125,7 +125,7 @@ storage:
     expect(response.status).toBe(200)
     const body = await readJson<SkillsListBody>(response)
     const ids = body.items.map(item => item.id).sort()
-    expect(ids).toEqual(['braid-ask', 'braid-clarify', 'braid-extract', 'braid-generate-doc', 'braid-model', 'braid-scan'])
+    expect(ids).toEqual(['braid:ask', 'braid:generate-doc', 'braid:scan', 'ddd:clarify', 'ddd:extract', 'ddd:model'])
   })
 
   it('POST /workspaces/scaffold rolls back PRODUCT.md and registry on provision failure', async () => {

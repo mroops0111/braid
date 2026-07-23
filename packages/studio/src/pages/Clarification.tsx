@@ -109,11 +109,11 @@ type StatusFilter = ClarificationStatus
 const EMPTY_COPY: Record<StatusFilter, { title: string, description: string }> = {
   pending: {
     title: 'No Pending Clarifications',
-    description: 'Run /braid-extract or /braid-model to surface ambiguity — or open a new question yourself.',
+    description: 'Run /ddd:extract or /ddd:model to surface ambiguity — or open a new question yourself.',
   },
   answered: {
     title: 'No Answered Tickets',
-    description: 'Tickets you answer wait here until /braid-clarify materialises them into a Proposal.',
+    description: 'Tickets you answer wait here until /ddd:clarify materialises them into a Proposal.',
   },
   applied: {
     title: 'No Applied Tickets',
@@ -630,7 +630,7 @@ function CustomAnswerSection({
           />
           <p className="text-[10px] text-muted-foreground">
             No graph operations are attached — picking this resolves the ticket
-            without mutating the graph (the same path /braid-clarify uses for
+            without mutating the graph (the same path /ddd:clarify uses for
             zero-impact resolutions).
           </p>
         </div>
@@ -979,7 +979,7 @@ function TerminalFooter({ ticket, skipReason }: { ticket: Clarification, skipRea
   // is rendered inline under the selected candidate, not here, so the
   // visual anchor matches the editable rationale shown during pending.
   // Footer is reserved for status-action info only (e.g. "Run
-  // /braid-clarify", "→ Proposal #abc", skip reason — which has no
+  // /ddd:clarify", "→ Proposal #abc", skip reason — which has no
   // candidate to anchor to).
   if (ticket.status === 'answered') {
     return (
@@ -988,7 +988,7 @@ function TerminalFooter({ ticket, skipReason }: { ticket: Clarification, skipRea
         {ticket.answeredBy ? ` by ${ticket.answeredBy}` : ''}
         . Run
         {' '}
-        <code className="rounded bg-muted px-1 font-mono text-[11px] text-foreground/90">/braid-clarify</code>
+        <code className="rounded bg-muted px-1 font-mono text-[11px] text-foreground/90">/ddd:clarify</code>
         {' '}
         from the Actions tab to materialise the resolution as a Proposal.
       </footer>

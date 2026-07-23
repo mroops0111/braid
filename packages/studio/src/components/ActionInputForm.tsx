@@ -437,7 +437,7 @@ function DynamicPick({ workspaceId, input, scalarValue, onScalarChange, multiVal
       )
     }
     // fallback === 'text' (default). Render a free-text field, so the user can still drive the skill manually,
-    // e.g. a fresh workspace letting `braid-extract` still take a scope.
+    // e.g. a fresh workspace letting `ddd:extract` still take a scope.
     return (
       <input
         id={`input-${input.name}`}

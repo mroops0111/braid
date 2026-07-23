@@ -77,8 +77,12 @@ export class FsSkillRegistry implements SkillRegistry {
       const frontmatter = await this.readSkillFrontmatter(skillFile)
       if (!frontmatter)
         continue
+      // The directory is the bare verb. Namespace it by origin,
+      // builtins under `braid`, workspace skills under `workspace`,
+      // so the id matches the plugin the agent binding stages it as.
+      const namespace = origin === 'builtin' ? 'braid' : 'workspace'
       manifests.push(new SkillManifest({
-        id: SkillIdSchema.parse(entry.name),
+        id: SkillIdSchema.parse(`${namespace}:${entry.name}`),
         origin,
         path: skillFile,
         frontmatter,
@@ -126,7 +130,11 @@ export class FsSkillRegistry implements SkillRegistry {
       const extendPath = AbsolutePathSchema.parse(join(root, entry.name, 'EXTEND.md'))
       try {
         await stat(extendPath)
-        const skillId = SkillIdSchema.parse(entry.name.replace(/^braid-/, ''))
+        // The extension dir is `<namespace>-<verb>`, filesystem-safe.
+        // The first hyphen maps back to the id's `:` separator,
+        // so `ddd-extract` targets `ddd:extract` and `braid:generate-doc`
+        // targets `braid:generate-doc`.
+        const skillId = SkillIdSchema.parse(entry.name.replace('-', ':'))
         results.push({ id: skillId, path: extendPath })
       }
       catch (error) {

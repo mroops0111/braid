@@ -1,5 +1,5 @@
 ---
-name: braid-ask
+name: ask
 description: Answer a question about the product by searching the Knowledge Graph, intent docs, and codebases. Read-only. Does NOT produce proposals or graph mutations.
 argument-hint: "[question]"
 disable-model-invocation: true
@@ -92,7 +92,7 @@ Produce two sections separated by `---`.
 - ⚠️ {dimension}: {drift, described as business impact, e.g. "Doc says cap 50 line items, code allows 99"}
 
 {If all consistent: "Within this query scope, doc and behaviour agree."}
-{If graph empty: "Knowledge Graph not yet built. Run /braid-extract."}
+{If graph empty: "Knowledge Graph not yet built. Run /ddd:extract."}
 ```
 
 ### Lower Section (Engineering Audience)
@@ -144,4 +144,4 @@ Companion docs sit at `<cwd>/.claude/skills/shared/`, where `<cwd>` is the value
 ## Notes
 
 - If `$BRAID_WORKSPACE/skill-extensions/braid-ask/EXTEND.md` exists, follow its rules after the steps above. It overrides or supplements the defaults in this prompt.
-- If the question reveals the graph is wrong or outdated, *suggest* running `/braid-extract` or `/braid-clarify`. This skill itself does not modify the graph.
+- If the question reveals the graph is wrong or outdated, *suggest* running `/ddd:extract` or `/ddd:clarify`. This skill itself does not modify the graph.

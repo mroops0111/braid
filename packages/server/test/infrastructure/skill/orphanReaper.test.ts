@@ -48,7 +48,7 @@ function makeRunRecord(
 ): RunRecord {
   return {
     workspaceId: workspace.id as WorkspaceId,
-    skillId: 'braid-ask' as SkillId,
+    skillId: 'braid:ask' as SkillId,
     args: '',
     resumed: false,
     startedAt: T0,

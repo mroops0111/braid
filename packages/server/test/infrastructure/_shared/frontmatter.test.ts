@@ -4,19 +4,19 @@ import { parseMarkdownFrontmatter } from '../../../src/infrastructure/_shared/fr
 describe('parseMarkdownFrontmatter', () => {
   it('parses YAML frontmatter and body', () => {
     const source = `---
-name: braid-ask
+name: ask
 description: ask
 ---
 body line 1
 body line 2`
     const result = parseMarkdownFrontmatter<{ name: string, description: string }>(source)
-    expect(result.frontmatter.name).toBe('braid-ask')
+    expect(result.frontmatter.name).toBe('ask')
     expect(result.body).toContain('body line 1')
   })
 
   it('normalises kebab-case keys to camelCase', () => {
     const source = `---
-name: braid-ask
+name: ask
 argument-hint: "[question]"
 disable-model-invocation: true
 allowed-tools: [Read, Grep]

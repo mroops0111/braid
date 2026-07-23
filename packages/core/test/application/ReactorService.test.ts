@@ -25,8 +25,8 @@ import {
   WorkspaceService,
 } from '../../src/index.js'
 
-const PER_UNIT_SKILL = SkillIdSchema.parse('braid-extract')
-const CHECKPOINT_SKILL = SkillIdSchema.parse('braid-model')
+const PER_UNIT_SKILL = SkillIdSchema.parse('ddd:extract')
+const CHECKPOINT_SKILL = SkillIdSchema.parse('ddd:model')
 
 function intentSource(id: string): SourceDescriptor {
   return {

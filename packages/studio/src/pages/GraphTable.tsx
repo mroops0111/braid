@@ -102,7 +102,7 @@ function GraphTableInner({
       <EmptyState
         icon={GitBranch}
         title="Graph Is Empty"
-        description="Run /braid-extract to populate it from your codebase and intent docs."
+        description="Run /ddd:extract to populate it from your codebase and intent docs."
       />
     )
   }

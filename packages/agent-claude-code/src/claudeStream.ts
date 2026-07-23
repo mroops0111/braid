@@ -4,16 +4,14 @@ import { SkillEvent as SkillEventSchema } from '@braidhq/schema'
 interface RawEvent { readonly type: string, readonly [key: string]: unknown }
 interface RawContentPart { readonly type?: string, readonly [key: string]: unknown }
 
-/**
- * Map one `claude --output-format stream-json` line into zero or more SkillEvents.
- * Claude emits these envelope shapes today.
- * `system` carries init meta, ignored except for `session_id`.
- * `assistant` carries text and tool_use content parts.
- * `user` echoes tool_result, only `is_error` surfaced.
- * `rate_limit_*` is ignored, and `result` is the final outcome.
- * Legacy flat shapes (`text`, `tool_use`, `artifact-written`, `error`)
- * are kept for tests and older tools.
- */
+// Map a `claude` stream-json line into zero or more SkillEvents.
+// Claude emits these envelope shapes today.
+// `system` carries init meta, ignored except for `session_id`.
+// `assistant` carries text and tool_use content parts.
+// `user` echoes tool_result, only `is_error` surfaced.
+// `rate_limit_*` is ignored, and `result` is the final outcome.
+// Legacy flat shapes are kept for tests and older tools,
+// `text`, `tool_use`, `artifact-written`, and `error`.
 export function parseClaudeLine(line: string, now: string): SkillEvent[] {
   const trimmed = line.trim()
   if (trimmed.length === 0)

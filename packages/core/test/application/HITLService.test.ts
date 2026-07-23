@@ -244,7 +244,7 @@ describe('HITLService', () => {
 
   describe('answerClarification', () => {
     it('records the chosen candidate as answered without mutating the graph', async () => {
-      // The user's answer is just a selection signal, graph writes go through the braid-clarify skill's Proposal path,
+      // The user's answer is just a selection signal, graph writes go through the ddd:clarify skill's Proposal path,
       // not here.
       const fixture = await setupFixture()
       const nodeId = mintTestId('n') as NodeId

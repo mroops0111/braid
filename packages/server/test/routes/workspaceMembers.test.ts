@@ -99,12 +99,12 @@ describe('PATCH /workspaces/:ws/members/:userId', () => {
 
     const response = await app.request(
       `/workspaces/${workspaceId}/members/${users.guest.id}`,
-      asUserJson(users.owner.id, 'PATCH', { skillOverrides: { 'braid-ask': 'allow' } }),
+      asUserJson(users.owner.id, 'PATCH', { skillOverrides: { 'braid:ask': 'allow' } }),
     )
 
     expect(response.status).toBe(200)
     const updated = await response.json() as WorkspaceMember
-    expect(updated.skillOverrides).toEqual({ 'braid-ask': 'allow' })
+    expect(updated.skillOverrides).toEqual({ 'braid:ask': 'allow' })
   })
 
   it('forbids maintainers from changing roles', async () => {

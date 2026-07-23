@@ -118,7 +118,7 @@ describe('groupBySession', () => {
     return {
       runId: opts.runId as SkillRunId,
       workspaceId: 'ws' as WorkspaceId,
-      skillId: (opts.skillId ?? 'braid-ask') as SkillId,
+      skillId: (opts.skillId ?? 'braid:ask') as SkillId,
       args: opts.args ?? '',
       resumed: false,
       ...(opts.sessionId ? { sessionId: opts.sessionId } : {}),

@@ -1,6 +1,6 @@
 ---
-name: braid-scan
-description: Decompose a codebase into business units when no intent docs exist. One-shot bootstrap helper consumed by the batch orchestrator; the units it writes back are fed unit-by-unit into braid-extract.
+name: scan
+description: Decompose a codebase into business units when no intent docs exist. One-shot bootstrap helper consumed by the batch orchestrator; the units it writes back are fed unit-by-unit into ddd:extract.
 argument-hint: ""
 disable-model-invocation: true
 braid:
@@ -13,7 +13,7 @@ braid:
 
 ## Role
 
-You analyse a codebase's overall structure and split it into independent **business units** that the batch orchestrator will feed one-by-one into `braid-extract`. You do NOT extract entities, do NOT submit proposals, do NOT submit clarify tickets. You only plan the cut.
+You analyse a codebase's overall structure and split it into independent **business units** that the batch orchestrator will feed one-by-one into `ddd:extract`. You do NOT extract entities, do NOT submit proposals, do NOT submit clarify tickets. You only plan the cut.
 
 This skill runs once when bootstrapping a workspace that has no intent docs (only codebases). The orchestrator created `artifacts/batch-plan.json` with `status: 'scanning'` and an empty `units` array before invoking you; your job is to populate `units` and return.
 
@@ -63,4 +63,4 @@ You do not write any other files. You do not call any `braid-core` write capabil
 
 ## Companion Docs
 
-None. Scan is self-contained. The downstream `braid-extract` skill owns its own companion docs (ontology-specific shared/*.md files) when it picks up the unit.
+None. Scan is self-contained. The downstream `ddd:extract` skill owns its own companion docs (ontology-specific shared/*.md files) when it picks up the unit.

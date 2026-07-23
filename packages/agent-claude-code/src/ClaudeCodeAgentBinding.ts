@@ -12,12 +12,16 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
   }
 
   async resolveSpawn(input: AgentSpawnInput): Promise<SpawnInvocation> {
-    // When resuming, the prompt is just the user's follow-up text.
-    // claude already holds the conversation context and the slash command,
-    // including any extension it read on the first run. Fresh run, invoke the skill's slash command.
-    // When the workspace has an EXTEND.md for this skill, point claude at it rather than inline the text,
-    // so its relative references/*.md links still resolve.
-    const slashCommand = `/${input.manifest.frontmatter.name} ${input.args}`
+    // On resume the prompt is just the user's follow-up text.
+    // Claude still holds the conversation context and the slash command,
+    // including any extension it read on the first run.
+    // On a fresh run, invoke the skill's slash command.
+    // When the workspace has an EXTEND.md for this skill,
+    // point claude at it rather than inline the text,
+    // so the relative *.md links inside it still resolve.
+    // The skill id is already `namespace:verb`, which is exactly claude's
+    // plugin-skill invocation once the bundles load via `--plugin-dir`.
+    const slashCommand = `/${input.skillId} ${input.args}`
     const extensionPath = input.manifest.extensionPath
     const promptArg = input.resumeSessionId
       ? input.args
@@ -43,6 +47,10 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
     if (input.mcpServers.length > 0) {
       const mcpConfigFile = await writeClaudeMcpConfig(input.sessionDir, input.workspace.id, input.mcpServers)
       baseArgs.push('--mcp-config', mcpConfigFile)
+    }
+    // Load each namespace's skill bundle, so `/namespace:verb` resolves.
+    for (const bundleDir of input.skillBundleDirs) {
+      baseArgs.push('--plugin-dir', bundleDir)
     }
     for (const dir of input.workspace.resolveAddDirs()) {
       baseArgs.push('--add-dir', dir)

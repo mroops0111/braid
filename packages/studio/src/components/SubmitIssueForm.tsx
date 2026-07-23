@@ -26,7 +26,7 @@ const AMBIGUITY_TYPES: { value: ClarificationAmbiguityType, label: string, hint:
  * Compose surface for a human-filed Clarification. Fields mirror the
  * ReDoc SubmitIssueForm shape (question + context + relatedNode +
  * ambiguityType). The ticket is persisted with `origin: 'human'` and
- * empty `candidates: []`; the next braid-clarify run is expected to
+ * empty `candidates: []`; the next ddd:clarify run is expected to
  * append candidates so the standard pending → answered → applied
  * pipeline can resume.
  *

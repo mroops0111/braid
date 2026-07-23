@@ -2,6 +2,7 @@ import type {
   AgentBinding,
   RunRepository,
   SkillEventListener,
+  SkillManifest,
   SkillRegistry,
   SkillRunner,
   SkillRunOptions,
@@ -11,10 +12,10 @@ import type {
 } from '@braidhq/core'
 import type { AbsolutePath, AgentBindingDescriptor, McpServerConfig, RunRecord, SkillAgentOverride, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
-import { mkdir, rm, symlink } from 'node:fs/promises'
+import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { newSkillRunId, NotFoundError } from '@braidhq/core'
-import { AbsolutePath as AbsolutePathSchema, McpServerId, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema } from '@braidhq/schema'
+import { AbsolutePath as AbsolutePathSchema, McpServerId, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema, splitSkillId } from '@braidhq/schema'
 import { sessionDirPath } from '../_shared/paths.js'
 import { createAsyncQueue } from './asyncQueue.js'
 import { attachOutputBuffers, type LineParser } from './subprocessEventStream.js'
@@ -96,6 +97,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     const manifest = await this.deps.skillRegistry.get(workspace, skillId)
     const runId = newSkillRunId()
     const sessionDir = await this.resolveSessionDir(workspace, runId, options?.resumeSessionId)
+    const skillBundleDirs = await this.skillBundleDirsFor(workspace, sessionDir)
     const gatewayArgs = [
       'openapi-mcp-gateway',
       '--spec',
@@ -129,6 +131,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       apiUrl: this.deps.apiUrl,
       mcpServers: [...gatewayServers, ...workspace.mcpServers],
       sessionDir: AbsolutePathSchema.parse(sessionDir),
+      skillBundleDirs,
       ...(options?.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
     })
 
@@ -355,27 +358,60 @@ export class SubprocessSkillRunner implements SkillRunner {
 
   private async buildSessionDir(workspace: Workspace, runId: SkillRunId): Promise<string> {
     const sessionDir = sessionDirPath(workspace.rootPath, runId)
-    const skillsDir = join(sessionDir, '.claude', 'skills')
-    await mkdir(skillsDir, { recursive: true })
 
-    const manifests = await this.deps.skillRegistry.list(workspace)
-    const linked = new Set<string>()
-    for (const manifest of manifests) {
-      const slashName = manifest.frontmatter.name
-      if (linked.has(slashName))
+    // Companion reference docs stay under `.claude/skills/<name>/`,
+    // so SKILL.md bodies keep reading `<cwd>/.claude/skills/shared/...`.
+    const docsDir = join(sessionDir, '.claude', 'skills')
+    await mkdir(docsDir, { recursive: true })
+    const linkedRefs = new Set<string>()
+    for (const reference of this.deps.referenceDirs ?? []) {
+      if (linkedRefs.has(reference.name))
         continue
-      linked.add(slashName)
-      await symlink(dirname(manifest.path), join(skillsDir, slashName), 'dir')
+      linkedRefs.add(reference.name)
+      await symlink(reference.path, join(docsDir, reference.name), 'dir')
     }
 
-    for (const reference of this.deps.referenceDirs ?? []) {
-      if (linked.has(reference.name))
-        continue
-      linked.add(reference.name)
-      await symlink(reference.path, join(skillsDir, reference.name), 'dir')
+    // Invokable skills stage as one claude plugin per namespace, so a skill
+    // invokes as `/namespace:verb`. The colon lives only in the invocation
+    // token claude synthesises, never in a path, so the layout is portable.
+    const byNamespace = new Map<string, SkillManifest[]>()
+    for (const manifest of await this.deps.skillRegistry.list(workspace)) {
+      const { namespace } = splitSkillId(manifest.id)
+      const bucket = byNamespace.get(namespace) ?? []
+      bucket.push(manifest)
+      byNamespace.set(namespace, bucket)
+    }
+    for (const [namespace, skills] of byNamespace) {
+      const pluginDir = this.skillBundleDir(sessionDir, namespace)
+      await mkdir(join(pluginDir, '.claude-plugin'), { recursive: true })
+      const manifest = { name: namespace, version: '0.0.0', description: `Braid ${namespace} skills` }
+      await writeFile(join(pluginDir, '.claude-plugin', 'plugin.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf-8')
+      const skillsDir = join(pluginDir, 'skills')
+      await mkdir(skillsDir, { recursive: true })
+      const linked = new Set<string>()
+      for (const skill of skills) {
+        const { verb } = splitSkillId(skill.id)
+        if (linked.has(verb))
+          continue
+        linked.add(verb)
+        await symlink(dirname(skill.path), join(skillsDir, verb), 'dir')
+      }
     }
 
     return sessionDir
+  }
+
+  private skillBundleDir(sessionDir: string, namespace: string): string {
+    return join(sessionDir, '.braid-plugins', namespace)
+  }
+
+  // The plugin bundle dir for every namespace present in the workspace.
+  // Deterministic from the session dir, so it works on a resumed session,
+  // whose bundles were staged on the first run, without restaging.
+  private async skillBundleDirsFor(workspace: Workspace, sessionDir: string): Promise<string[]> {
+    const manifests = await this.deps.skillRegistry.list(workspace)
+    const namespaces = [...new Set(manifests.map(manifest => splitSkillId(manifest.id).namespace))]
+    return namespaces.map(namespace => this.skillBundleDir(sessionDir, namespace))
   }
 
   // Merge a skill's agent override onto the server default, then build the binding.

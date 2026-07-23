@@ -15,7 +15,7 @@ interface BatchPageProps {
   workspaceId: string
 }
 
-const EXTRACT_SKILL_ID = 'braid-extract'
+const EXTRACT_SKILL_ID = 'ddd:extract'
 
 const STATUS_TONE: Record<BatchStatus, string> = {
   idle: 'border-zinc-400/40 bg-zinc-400/10 text-zinc-700 dark:text-zinc-300',
@@ -77,7 +77,7 @@ function PreStart({ workspaceId, previousPlan }: { workspaceId: string, previous
         <p className="mt-1 text-xs text-muted-foreground">
           Confident proposals are applied straight to the graph. Ambiguous ones queue in Clarification for you to decide. If you want to review every single proposal by hand, run a single
           {' '}
-          <code className="rounded bg-muted px-1 font-mono">/braid-extract</code>
+          <code className="rounded bg-muted px-1 font-mono">/ddd:extract</code>
           {' '}
           from Actions instead.
         </p>

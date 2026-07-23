@@ -148,7 +148,7 @@ const applyClarificationRoute = createRoute({
   path: '/{clarificationId}',
   operationId: 'markClarificationApplied',
   summary: 'Mark a clarification applied. Optionally link the materialised Proposal.',
-  description: 'Called by the braid-clarify skill once it has wrapped the resolution into a Proposal (or determined there is no graph impact). Transitions `answered` to `applied`.',
+  description: 'Called by the ddd:clarify skill once it has wrapped the resolution into a Proposal (or determined there is no graph impact). Transitions `answered` to `applied`.',
   tags: ['clarify'],
   request: {
     params: ClarificationIdParam,

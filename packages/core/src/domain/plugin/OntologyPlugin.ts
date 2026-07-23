@@ -24,7 +24,7 @@ export interface NodeTypeDescriptor {
    */
   readonly defaultVisible?: boolean
   /**
-   * Hints for ontology-agnostic renderers, e.g. `braid-generate-doc`,
+   * Hints for ontology-agnostic renderers, e.g. `braid:generate-doc`,
    * to lay out nodes in a document tree without hard-coding vocabulary.
    * `container: true` marks a type as a top-level grouping, one file per node.
    * `expandedUnder` names the type whose nodes act as parents in the tree,

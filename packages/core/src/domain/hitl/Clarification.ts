@@ -17,7 +17,7 @@ import { ConflictError, NotFoundError } from '../errors.js'
  * Lifecycle. From pending a ticket is either answered then applied, or skipped.
  *
  * `markAnswered` records the user's choice but does NOT mutate the graph,
- * the resolution is snapshotted onto the ticket and the braid-clarify skill is expected to wrap it into a Proposal.
+ * the resolution is snapshotted onto the ticket and the ddd:clarify skill is expected to wrap it into a Proposal.
  * Once that Proposal lands the ticket transitions to `applied` via `markApplied`,
  * which only stamps the (optional) proposalId, the actual graph mutation happens inside `HITLService.applyProposal`.
  * proposalId is omitted when the chosen candidate's resolution had no graph impact, so no Proposal was produced.

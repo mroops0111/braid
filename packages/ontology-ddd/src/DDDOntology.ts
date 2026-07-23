@@ -1,47 +1,47 @@
 import { EdgeTypeId, NodeTypeId, SkillId } from '@braidhq/schema'
 import { defineOntology } from '@braidhq/sdk'
 
-/**
- * Default DDD ontology.
- * Modern stack: Khononov "Learning Domain-Driven Design" (O'Reilly, 2021) consolidates Strategic DDD (Evans Blue Book Part IV), Tactical DDD (Evans Blue Book Part II, Vernon IDDD), EventStorming notation (Brandolini), and CQRS (Young).
- * Every node and edge `description` tags its sub-domain (Strategic / Tactical / EventStorming / CQRS) and cites the canonical source so LLMs and reviewers know which tradition each element comes from.
- *
- * Edits here flow automatically to Studio (palette, legend, filter), the StructuralValidator, the OntologyTypeValidator, and the `GET /workspaces/:ws/ontology` API.
- */
+// The default DDD ontology, consolidating Strategic DDD (Evans),
+// Tactical DDD (Vernon), EventStorming (Brandolini), and CQRS (Young),
+// as framed by Khononov's Learning Domain-Driven Design (2021).
+// Every node and edge description tags its sub-domain and cites its source,
+// so an LLM or reviewer knows which tradition each element comes from.
+// Editing a type here flows through the ontology contract to Studio,
+// the structural and ontology-type validators, and the ontology API,
+// with no change needed on those sides.
 export const dddOntology = defineOntology({
   ontologyId: 'ddd',
 
-  // DDD models domain via intent⊕code convergence: extracting concepts
-  // from intent alone (no code) ships speculation into the graph;
-  // extracting from code alone (no intent) pulls implementation
-  // accidents into the ubiquitous language. The scaffold endpoint
-  // enforces both roles so a workspace cannot be created in a state
-  // where this ontology's value prop fails. Generative ontologies
-  // (e.g. everstory's `story`) carry a different `requiredSourceRoles`.
+  // DDD models a domain through intent and code convergence.
+  // Extracting from intent alone ships speculation into the graph,
+  // and from code alone drags implementation accidents into the language.
+  // The scaffold endpoint requires both roles,
+  // so a workspace cannot start in a state where this value prop fails.
+  // A generative ontology, such as everstory's story, sets other roles.
   requiredSourceRoles: ['intent', 'code'],
 
-  // SKILL.md prompts shipped alongside this ontology. They encode
-  // DDD-specific reasoning (BoundedContext-contains-aggregate, the
-  // seven Context Mapping edges, Vernon Process Manager, etc.) that
-  // would be wrong for a non-DDD ontology to inherit, so they live
-  // here rather than in @braidhq/core.
+  // SKILL.md prompts shipped with this ontology.
+  // They encode DDD-specific reasoning, like the Context Mapping edges,
+  // that a non-DDD ontology should not inherit,
+  // so they live here rather than in @braidhq/core.
   skills: [
     {
-      id: SkillId.parse('braid-extract'),
-      directory: new URL('../skills/braid-extract', import.meta.url),
+      id: SkillId.parse('ddd:extract'),
+      directory: new URL('../skills/extract', import.meta.url),
     },
     {
-      id: SkillId.parse('braid-clarify'),
-      directory: new URL('../skills/braid-clarify', import.meta.url),
+      id: SkillId.parse('ddd:clarify'),
+      directory: new URL('../skills/clarify', import.meta.url),
     },
     {
-      id: SkillId.parse('braid-model'),
-      directory: new URL('../skills/braid-model', import.meta.url),
+      id: SkillId.parse('ddd:model'),
+      directory: new URL('../skills/model', import.meta.url),
     },
   ],
-  // Shared reference docs the SKILL.md files above all consult so the
-  // DDD vocabulary / wiring rules / ID conventions live in one place
-  // instead of being duplicated in each Procedure.
+
+  // Shared reference docs every SKILL.md above consults,
+  // so the DDD vocabulary, wiring rules, and id conventions live in one place,
+  // not duplicated per prompt.
   referenceDirs: [
     {
       name: 'ontology-ddd',
@@ -132,7 +132,7 @@ export const dddOntology = defineOntology({
     {
       id: EdgeTypeId.parse('emits'),
       label: 'emits',
-      description: 'A command produces an event as the result of executing on its aggregate. Either source is valid in this ontology: command-source (CQRS / EventStorming visual reading: cmd → evt) and aggregate-source (Vernon IDDD structural reading: agg → evt). Khononov 2021 illustrates both; prefer the command-source form when extracting from PRD/spec language and the aggregate-source form when describing state ownership.',
+      description: 'A command produces an event as the result of executing on its aggregate. Either source is valid in this ontology: command-source (CQRS / EventStorming visual reading: cmd to evt) and aggregate-source (Vernon IDDD structural reading: agg to evt). Khononov 2021 illustrates both; prefer the command-source form when extracting from PRD/spec language and the aggregate-source form when describing state ownership.',
       fromTypes: [NodeTypeId.parse('command'), NodeTypeId.parse('aggregate')],
       toTypes: [NodeTypeId.parse('event')],
       cardinality: '1:N',
@@ -184,9 +184,11 @@ export const dddOntology = defineOntology({
       color: 'oklch(0.72 0.13 310)',
     },
 
-    // Context Mapping (Strategic DDD, Evans Blue Book Part IV).
-    // All edges run BoundedContext to BoundedContext; each pattern has its own direction and cardinality.
-    // These describe strategic relationships between teams and integrations, not derivable from individual feature slices.
+    // Context Mapping, Strategic DDD from Evans Blue Book Part IV.
+    // Every edge runs BoundedContext to BoundedContext,
+    // each pattern with its own direction and cardinality.
+    // These are strategic relationships between teams and integrations,
+    // not derivable from individual feature slices.
     {
       id: EdgeTypeId.parse('partnership'),
       label: 'partnership',
@@ -252,20 +254,19 @@ export const dddOntology = defineOntology({
     },
   ],
 
-  /**
-   * Batch / reactor binding. DDD's per-unit skill is `braid-extract`;
-   * the checkpoint is `braid-model`, fired every 5 successful extracts
-   * and once more at the end of the loop for global validation. When
-   * the workspace has no intent source, `braid-scan` derives units
-   * from the codebase.
-   */
+  // Batch and reactor binding.
+  // The per-unit skill is ddd:extract.
+  // The checkpoint ddd:model fires every 5 successful extracts,
+  // and once more at the end of the loop for global validation.
+  // When the workspace has no intent source,
+  // braid:scan derives units from the codebase.
   batch: {
     perUnit: {
-      skillId: SkillId.parse('braid-extract'),
+      skillId: SkillId.parse('ddd:extract'),
       label: 'Extract',
     },
     checkpoint: {
-      skillId: SkillId.parse('braid-model'),
+      skillId: SkillId.parse('ddd:model'),
       label: 'Model',
       chunkSize: 5,
       runAtEnd: true,
@@ -278,7 +279,7 @@ export const dddOntology = defineOntology({
       },
     },
     deriveUnits: {
-      skillId: SkillId.parse('braid-scan'),
+      skillId: SkillId.parse('braid:scan'),
     },
   },
 })

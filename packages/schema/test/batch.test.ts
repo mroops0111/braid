@@ -53,7 +53,7 @@ describe('BatchPlan', () => {
     expect(BatchPlan.parse(valid).checkpointPhases).toEqual([])
   })
   it('rejects a zero checkpoint chunk size', () => {
-    const bad = { ...valid, batchPolicy: { perUnitSkillId: 'braid-extract', checkpointChunkSize: 0 } }
+    const bad = { ...valid, batchPolicy: { perUnitSkillId: 'ddd:extract', checkpointChunkSize: 0 } }
     expect(BatchPlan.safeParse(bad).success).toBe(false)
   })
 })

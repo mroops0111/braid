@@ -59,7 +59,7 @@ async function buildAppForExtract(opts: { exitCode: number, perUnitSkillId?: str
     stdoutLines: [JSON.stringify({ type: 'text', text: 'done' })],
     exitCode: opts.exitCode,
   }])
-  const skillRegistry = makeMultiSkillRegistry(['braid-extract', 'braid-ask'])
+  const skillRegistry = makeMultiSkillRegistry(['ddd:extract', 'braid:ask'])
   const skillRunner = new SubprocessSkillRunner({
     skillRegistry,
     buildAgentBinding: descriptor => new ClaudeCodeAgentBinding(descriptor),
@@ -72,7 +72,7 @@ async function buildAppForExtract(opts: { exitCode: number, perUnitSkillId?: str
   // so the route knows which skill may carry sourceUnit. Default keeps the production wiring,
   // extract is the per-unit skill. A test wanting the active ontology to disagree can override.
   const pluginRegistry = new PluginRegistry()
-  pluginRegistry.register(ontologyWithPerUnit(opts.perUnitSkillId ?? 'braid-extract'))
+  pluginRegistry.register(ontologyWithPerUnit(opts.perUnitSkillId ?? 'ddd:extract'))
   const deps = composeApp({
     skillRegistry,
     skillRunner,
@@ -131,11 +131,11 @@ function createCancellableChild(): ChildProcess {
   return fake as unknown as ChildProcess
 }
 
-describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
+describe('POST /skills/ddd:extract/run with sourceUnit (issue #31)', () => {
   it('records a SourceUnitObservation observation after a successful run', async () => {
     const { app, workspace, deps } = await buildAppForExtract({ exitCode: 0 })
 
-    const response = await app.request(`/workspaces/${workspace.id}/skills/braid-extract/run`, {
+    const response = await app.request(`/workspaces/${workspace.id}/skills/ddd:extract/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -154,7 +154,7 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
   it('does not record when the run exits with a non-zero code', async () => {
     const { app, workspace, deps } = await buildAppForExtract({ exitCode: 1 })
 
-    const response = await app.request(`/workspaces/${workspace.id}/skills/braid-extract/run`, {
+    const response = await app.request(`/workspaces/${workspace.id}/skills/ddd:extract/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -172,10 +172,10 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
     expect(states).toEqual([])
   })
 
-  it('does not record when no sourceUnit is provided even for braid-extract', async () => {
+  it('does not record when no sourceUnit is provided even for ddd:extract', async () => {
     const { app, workspace, deps } = await buildAppForExtract({ exitCode: 0 })
 
-    const response = await app.request(`/workspaces/${workspace.id}/skills/braid-extract/run`, {
+    const response = await app.request(`/workspaces/${workspace.id}/skills/ddd:extract/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ args: UNIT_PATH }),
@@ -209,7 +209,7 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
       args: readonly string[],
       options: SpawnOptions,
     ) => ChildProcess
-    const skillRegistry = makeMultiSkillRegistry(['braid-extract'])
+    const skillRegistry = makeMultiSkillRegistry(['ddd:extract'])
     const skillRunner = new SubprocessSkillRunner({
       skillRegistry,
       buildAgentBinding: descriptor => new ClaudeCodeAgentBinding(descriptor),
@@ -219,7 +219,7 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
       spawn: spawnFn,
     })
     const pluginRegistry = new PluginRegistry()
-    pluginRegistry.register(ontologyWithPerUnit('braid-extract'))
+    pluginRegistry.register(ontologyWithPerUnit('ddd:extract'))
     const deps = composeApp({
       skillRegistry,
       skillRunner,
@@ -229,7 +229,7 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
     await deps.workspaceRepository.save(workspace)
     const app = createApp(deps)
 
-    const response = await app.request(`/workspaces/${workspace.id}/skills/braid-extract/run`, {
+    const response = await app.request(`/workspaces/${workspace.id}/skills/ddd:extract/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -252,7 +252,7 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
   it('rejects sourceUnit whose sourceId does not name an intent source in the workspace', async () => {
     const { app, workspace, deps } = await buildAppForExtract({ exitCode: 0 })
 
-    const response = await app.request(`/workspaces/${workspace.id}/skills/braid-extract/run`, {
+    const response = await app.request(`/workspaces/${workspace.id}/skills/ddd:extract/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -269,7 +269,7 @@ describe('POST /skills/braid-extract/run with sourceUnit (issue #31)', () => {
   it('rejects sourceUnit for skills the active ontology does not name as its per-unit step', async () => {
     const { app, workspace, deps } = await buildAppForExtract({ exitCode: 0 })
 
-    const response = await app.request(`/workspaces/${workspace.id}/skills/braid-ask/run`, {
+    const response = await app.request(`/workspaces/${workspace.id}/skills/braid:ask/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

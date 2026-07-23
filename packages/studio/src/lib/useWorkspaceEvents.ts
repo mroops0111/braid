@@ -58,7 +58,7 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
     source.addEventListener('proposal.rejected', invalidateProposals)
     source.addEventListener('clarification.created', invalidateClarification)
     // `clarification.answered` is only a status update, no graph change yet.
-    // braid-clarify later wraps it into a Proposal the user reviews. Applying that Proposal changes the graph,
+    // ddd:clarify later wraps it into a Proposal the user reviews. Applying that Proposal changes the graph,
     // not this event.
     source.addEventListener('clarification.answered', invalidateClarification)
     source.addEventListener('clarification.applied', () => {

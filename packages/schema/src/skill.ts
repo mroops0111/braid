@@ -7,6 +7,16 @@ import { WorkspaceRole } from './workspace.js'
 export const SkillOrigin = z.enum(['builtin', 'plugin', 'workspace', 'extension'])
 export type SkillOrigin = z.infer<typeof SkillOrigin>
 
+// A SkillId is `<namespace>:<verb>`, such as `ddd:extract` or `braid:scan`.
+// The namespace is the contributing plugin, the verb the bare action.
+// Split on the first colon, so a hyphenated verb like `generate-doc` survives.
+export function splitSkillId(id: SkillId): { namespace: string, verb: string } {
+  const colon = id.indexOf(':')
+  if (colon <= 0 || colon === id.length - 1)
+    throw new Error(`SkillId "${id}" is not in <namespace>:<verb> form`)
+  return { namespace: id.slice(0, colon), verb: id.slice(colon + 1) }
+}
+
 // Frontmatter the Claude Code CLI reads to register the slash command, plus its invocation rules. camelCase in TS,
 // emitted as kebab-case in YAML.
 export const ClaudeCodeSkillFrontmatter = z.object({

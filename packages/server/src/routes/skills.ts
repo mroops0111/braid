@@ -29,7 +29,7 @@ const RunBody = z.object({
   // Identifies the source unit this run will process,
   // so the server records an observation against it after a clean run.
   // Studio sends this when the user picks a `source-intent` option.
-  // Only `braid-extract` consumes it today, other skills ignore it.
+  // Only `ddd:extract` consumes it today, other skills ignore it.
   sourceUnit: SourceUnitRef.optional(),
 }).openapi('SkillRunBody')
 
@@ -215,7 +215,7 @@ function resolvePerUnitSkillId(pluginRegistry: PluginRegistry, workspace: Worksp
 const recordLogger = createLogger('skills.recordObservation')
 
 // Stop waiting after this many ms, even if no terminal event arrives.
-// Real braid-extract runs settle in seconds to minutes.
+// Real ddd:extract runs settle in seconds to minutes.
 // This backstops orphan subscriptions on crashed runners,
 // or upstream queues that quietly drop events.
 const OBSERVATION_TIMEOUT_MS = 60 * 60 * 1000
@@ -261,7 +261,7 @@ async function recordObservationOnSuccess(params: RecordObservationParams): Prom
       sourceId: sourceUnit.sourceId,
       path: sourceUnit.path,
       err: err instanceof Error ? err.message : String(err),
-    }, 'failed to record observation after braid-extract run')
+    }, 'failed to record observation after ddd:extract run')
   }
 }
 

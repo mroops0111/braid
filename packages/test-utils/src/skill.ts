@@ -22,14 +22,14 @@ export interface MakeSkillManifestOptions {
  * when you want the wrapped `SkillManifest` aggregate.
  */
 export function makeSkillManifestData(opts: MakeSkillManifestOptions = {}): SkillManifestData {
-  const id = opts.id ?? 'braid-ask'
+  const id = opts.id ?? 'braid:ask'
   return {
     id: id as SkillId,
     origin: opts.origin ?? 'builtin',
     path: opts.path ?? (`/abs/skills/${id}/SKILL.md` as AbsolutePath),
     ...(opts.extensionPath ? { extensionPath: opts.extensionPath } : {}),
     frontmatter: {
-      name: opts.name ?? id,
+      name: opts.name ?? 'ask',
       description: opts.description ?? 'test skill',
       disableModelInvocation: false,
       braid: {
@@ -42,7 +42,7 @@ export function makeSkillManifestData(opts: MakeSkillManifestOptions = {}): Skil
 }
 
 /**
- * Construct a wrapped `SkillManifest`. Defaults to a `braid-ask`
+ * Construct a wrapped `SkillManifest`. Defaults to a `braid:ask`
  * builtin manifest with no env / path / mcp requirements; override
  * for readiness-check tests.
  */

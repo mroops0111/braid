@@ -1,5 +1,5 @@
 ---
-name: braid-clarify
+name: clarify
 description: Process answered ClarifyTickets by turning the chosen candidate into a Proposal for HITL apply. Optionally raise a new ClarifyTicket if the resolution breaks graph invariants.
 argument-hint: "[clarifyTicketId | all]"
 disable-model-invocation: true
@@ -79,7 +79,7 @@ A "minor" supplementary op is one that preserves the reviewer's intent (their an
 Submit a Proposal via the `braid-core` proposal-create capability:
 
 - `operations`: the resolution (plus any Step-2 supplementary ops)
-- `generatedBy`: `"braid-clarify"`
+- `generatedBy`: `"ddd:clarify"`
 - `rationale`: `"Materialised from ClarifyTicket <id>, candidate <candidateId>."`
 
 Outcomes:
@@ -132,4 +132,4 @@ Companion docs sit at `<cwd>/.claude/skills/shared/` (core) and `<cwd>/.claude/s
 ## Notes
 
 - If a candidate's resolution is empty (the reviewer picked an option with no graph impact), skip Step 3 and call clarify-apply without a proposal id. The server records the ticket as applied even when nothing was materialised.
-- If `$BRAID_WORKSPACE/skill-extensions/braid-clarify/EXTEND.md` exists, follow its rules after the steps above. Workspace-specific supplementary-op rules go there.
+- If `$BRAID_WORKSPACE/skill-extensions/ddd-clarify/EXTEND.md` exists, follow its rules after the steps above. Workspace-specific supplementary-op rules go there.

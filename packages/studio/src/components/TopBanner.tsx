@@ -7,7 +7,7 @@ export type TopBannerTone = 'reactor' | 'run' | 'batch' | 'warning'
 interface TopBannerProps {
   /** Visual / colour palette. Each tone matches one of the three live surfaces. */
   tone: TopBannerTone
-  /** Bold prefix label, e.g. "Reactor" / "Batch" / `/braid-extract`. */
+  /** Bold prefix label, e.g. "Reactor" / "Batch" / `/ddd:extract`. */
   label: string
   /** Description text rendered next to the label in `text-muted-foreground`. */
   detail: ReactNode

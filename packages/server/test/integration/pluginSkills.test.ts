@@ -82,10 +82,11 @@ interface SkillsResponseBody {
 describe('plugin-shipped skills (integration)', () => {
   it('surfaces a plugin-declared SKILL.md through GET /workspaces/:ws/skills with origin=plugin', async () => {
     const pluginSkillsRoot = (await mkdtemp(join(tmpdir(), 'braid-plugin-skills-'))) as AbsolutePath
-    const skillDir = await writePluginSkill(pluginSkillsRoot, 'redoc-design', 'redoc-design')
+    // The plugin ships verb `design` under its own `redoc` namespace.
+    const skillDir = await writePluginSkill(pluginSkillsRoot, 'design', 'design')
 
     const pluginRegistry = new PluginRegistry()
-    pluginRegistry.register(fakeOntologyWithSkill('plugin.redoc', 'redoc-design', skillDir))
+    pluginRegistry.register(fakeOntologyWithSkill('plugin.redoc', 'redoc:design', skillDir))
 
     const builtinSkillsRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
     const wsRoot = (await mkdtemp(join(tmpdir(), 'braid-ws-'))) as AbsolutePath
@@ -103,20 +104,22 @@ describe('plugin-shipped skills (integration)', () => {
     const response = await app.request(`/workspaces/${WORKSPACE_ID}/skills`)
     expect(response.status).toBe(200)
     const body = await readJson<SkillsResponseBody>(response)
-    const plugin = body.items.find(item => item.id === 'redoc-design')
+    const plugin = body.items.find(item => item.id === 'redoc:design')
     expect(plugin?.origin).toBe('plugin')
   })
 
-  it('lets a workspace-local SKILL.md override a plugin-shipped one of the same id', async () => {
+  it('surfaces a workspace skill separately from a same-verb plugin skill', async () => {
     const pluginSkillsRoot = (await mkdtemp(join(tmpdir(), 'braid-plugin-skills-'))) as AbsolutePath
-    const skillDir = await writePluginSkill(pluginSkillsRoot, 'redoc-design', 'redoc-design-plugin')
+    const skillDir = await writePluginSkill(pluginSkillsRoot, 'design', 'design-plugin')
 
     const pluginRegistry = new PluginRegistry()
-    pluginRegistry.register(fakeOntologyWithSkill('plugin.redoc', 'redoc-design', skillDir))
+    pluginRegistry.register(fakeOntologyWithSkill('plugin.redoc', 'redoc:design', skillDir))
 
     const builtinSkillsRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
     const wsRoot = (await mkdtemp(join(tmpdir(), 'braid-ws-'))) as AbsolutePath
-    await writePluginSkill(join(wsRoot, 'skills'), 'redoc-design', 'redoc-design-local')
+    // The workspace skill in dir `design` composes to `workspace:design`,
+    // distinct from the plugin's `redoc:design`, so both appear.
+    await writePluginSkill(join(wsRoot, 'skills'), 'design', 'design-local')
 
     const skillRegistry = new FsSkillRegistry({ builtinSkillsRoot, pluginRegistry })
     const deps = composeApp({ pluginRegistry, skillRegistry, skillRunner: noopSkillRunner })
@@ -125,8 +128,13 @@ describe('plugin-shipped skills (integration)', () => {
 
     const response = await app.request(`/workspaces/${WORKSPACE_ID}/skills`)
     const body = await readJson<SkillsResponseBody>(response)
-    const skill = body.items.find(item => item.id === 'redoc-design')
-    expect(skill?.origin).toBe('workspace')
-    expect(skill?.frontmatter.name).toBe('redoc-design-local')
+
+    const workspaceSkill = body.items.find(item => item.id === 'workspace:design')
+    expect(workspaceSkill?.origin).toBe('workspace')
+    expect(workspaceSkill?.frontmatter.name).toBe('design-local')
+
+    const pluginSkill = body.items.find(item => item.id === 'redoc:design')
+    expect(pluginSkill?.origin).toBe('plugin')
+    expect(pluginSkill?.frontmatter.name).toBe('design-plugin')
   })
 })

@@ -35,41 +35,50 @@ async function writeSkillFile(dir: string, skillId: string, name: string): Promi
 describe('FsSkillRegistry', () => {
   it('lists builtin skills', async () => {
     const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
-    await writeSkillFile(builtinRoot, 'ask', 'braid-ask')
-    await writeSkillFile(builtinRoot, 'extract', 'braid-extract')
+    await writeSkillFile(builtinRoot, 'ask', 'ask')
+    await writeSkillFile(builtinRoot, 'extract', 'extract')
 
     const { workspace } = await makeWorkspace()
     const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
     const manifests = await registry.list(workspace)
     const ids = manifests.map(m => m.id).sort()
-    expect(ids).toEqual(['ask', 'extract'])
+    // Builtin dirs are bare verbs, but the id namespaces them under `braid`.
+    expect(ids).toEqual(['braid:ask', 'braid:extract'])
     expect(manifests.every(m => m.origin === 'builtin')).toBe(true)
   })
 
-  it('workspace skills override builtins', async () => {
+  it('namespaces workspace skills under `workspace`, distinct from builtins', async () => {
     const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
-    await writeSkillFile(builtinRoot, 'ask', 'braid-ask')
+    await writeSkillFile(builtinRoot, 'ask', 'ask')
 
     const { workspace, root } = await makeWorkspace()
-    await writeSkillFile(join(root, 'skills'), 'ask', 'braid-ask-custom')
+    await writeSkillFile(join(root, 'skills'), 'ask', 'ask-custom')
 
+    // A workspace skill in dir `ask` composes to `workspace:ask`, distinct
+    // from the builtin `braid:ask`. Both coexist under their own namespace.
     const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
-    const manifest = await registry.get(workspace, 'ask' as SkillId)
-    expect(manifest.origin).toBe('workspace')
-    expect(manifest.frontmatter.name).toBe('braid-ask-custom')
+    const custom = await registry.get(workspace, 'workspace:ask' as SkillId)
+    expect(custom.origin).toBe('workspace')
+    expect(custom.frontmatter.name).toBe('ask-custom')
+
+    const builtin = await registry.get(workspace, 'braid:ask' as SkillId)
+    expect(builtin.origin).toBe('builtin')
   })
 
   it('extension annotates builtin skill with extensionPath', async () => {
     const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
-    await writeSkillFile(builtinRoot, 'extract', 'braid-extract')
+    await writeSkillFile(builtinRoot, 'extract', 'extract')
 
     const { workspace, root } = await makeWorkspace()
+    // The extension dir is the filesystem-safe `<namespace>-<verb>` form,
+    // whose first hyphen maps to the id's colon: `braid-extract` targets
+    // `braid:extract`.
     const extensionDir = join(root, 'skill-extensions', 'braid-extract')
     await mkdir(extensionDir, { recursive: true })
     await writeFile(join(extensionDir, 'EXTEND.md'), '# extra context', 'utf-8')
 
     const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
-    const manifest = await registry.get(workspace, 'extract' as SkillId)
+    const manifest = await registry.get(workspace, 'braid:extract' as SkillId)
     expect(manifest.origin).toBe('builtin')
     expect(manifest.isExtended()).toBe(true)
     expect(manifest.extensionPath).toBeTruthy()
@@ -95,45 +104,52 @@ describe('FsSkillRegistry', () => {
     it('lists plugin skills under the plugin origin', async () => {
       const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
       const pluginRoot = (await mkdtemp(join(tmpdir(), 'braid-plugin-'))) as AbsolutePath
-      await writeSkillFile(pluginRoot, 'redoc-design', 'redoc-design')
+      // The plugin ships its skill under its own `redoc` namespace, verb `design`.
+      await writeSkillFile(pluginRoot, 'design', 'design')
 
       const pluginRegistry = new PluginRegistry()
       pluginRegistry.register(fakeOntologyWithSkill(
         'plugin.redoc',
-        'redoc-design',
-        join(pluginRoot, 'redoc-design'),
+        'redoc:design',
+        join(pluginRoot, 'design'),
       ))
 
       const { workspace } = await makeWorkspace()
       const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot, pluginRegistry })
-      const manifest = await registry.get(workspace, 'redoc-design' as SkillId)
+      const manifest = await registry.get(workspace, 'redoc:design' as SkillId)
       expect(manifest.origin).toBe('plugin')
-      expect(manifest.frontmatter.name).toBe('redoc-design')
+      expect(manifest.frontmatter.name).toBe('design')
       // pluginId travels with the manifest so Studio can label the
       // sidebar badge with the contributing plugin instead of a generic
       // "plugin" string.
       expect(manifest.toData().pluginId).toBe('plugin.redoc')
     })
 
-    it('workspace skills override plugin skills with the same id', async () => {
+    it('namespaces a workspace skill separately from a same-verb plugin skill', async () => {
       const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
       const pluginRoot = (await mkdtemp(join(tmpdir(), 'braid-plugin-'))) as AbsolutePath
-      await writeSkillFile(pluginRoot, 'redoc-design', 'redoc-design-plugin')
+      await writeSkillFile(pluginRoot, 'design', 'design-plugin')
 
       const pluginRegistry = new PluginRegistry()
       pluginRegistry.register(fakeOntologyWithSkill(
         'plugin.redoc',
-        'redoc-design',
-        join(pluginRoot, 'redoc-design'),
+        'redoc:design',
+        join(pluginRoot, 'design'),
       ))
 
       const { workspace, root } = await makeWorkspace()
-      await writeSkillFile(join(root, 'skills'), 'redoc-design', 'redoc-design-local')
+      // A workspace skill in dir `design` composes to `workspace:design`, a
+      // distinct id from the plugin's `redoc:design`. Both coexist.
+      await writeSkillFile(join(root, 'skills'), 'design', 'design-local')
 
       const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot, pluginRegistry })
-      const manifest = await registry.get(workspace, 'redoc-design' as SkillId)
-      expect(manifest.origin).toBe('workspace')
-      expect(manifest.frontmatter.name).toBe('redoc-design-local')
+      const workspaceSkill = await registry.get(workspace, 'workspace:design' as SkillId)
+      expect(workspaceSkill.origin).toBe('workspace')
+      expect(workspaceSkill.frontmatter.name).toBe('design-local')
+
+      const pluginSkill = await registry.get(workspace, 'redoc:design' as SkillId)
+      expect(pluginSkill.origin).toBe('plugin')
+      expect(pluginSkill.frontmatter.name).toBe('design-plugin')
     })
 
     it('throws when plugin declares a skill but SKILL.md is missing', async () => {

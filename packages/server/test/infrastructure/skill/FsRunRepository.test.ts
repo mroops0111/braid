@@ -15,7 +15,7 @@ function makeRecord(runId: string, overrides: Partial<RunRecord> = {}): RunRecor
   return {
     runId: runId as SkillRunId,
     workspaceId: 'ws-1' as WorkspaceId,
-    skillId: 'braid-ask' as SkillId,
+    skillId: 'braid:ask' as SkillId,
     args: 'hi',
     resumed: false,
     startedAt: isoTimestamp,

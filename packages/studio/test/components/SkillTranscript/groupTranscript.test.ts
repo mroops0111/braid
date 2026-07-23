@@ -16,7 +16,7 @@ function started(): SkillEvent {
   return {
     type: 'started',
     runId: 'sr-1' as SkillRunId,
-    skillId: 'braid-ask' as SkillId,
+    skillId: 'braid:ask' as SkillId,
     args: '',
     resumed: false,
     at: now,

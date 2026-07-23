@@ -53,7 +53,7 @@ function buildWorkspace(): Workspace {
 
 function buildSkillManifest(extensionPath?: AbsolutePath): SkillManifest {
   const data: SkillManifestData = {
-    id: 'ask' as SkillId,
+    id: 'braid:ask' as SkillId,
     origin: 'builtin',
     path: '/abs/skills/ask/SKILL.md' as AbsolutePath,
     frontmatter: {
@@ -69,13 +69,14 @@ function buildSkillManifest(extensionPath?: AbsolutePath): SkillManifest {
 
 function makeInput(overrides: Partial<AgentSpawnInput> = {}): AgentSpawnInput {
   return {
-    skillId: 'ask' as SkillId,
+    skillId: 'braid:ask' as SkillId,
     args: 'what is voidTask',
     workspace: buildWorkspace(),
     manifest: buildSkillManifest(),
     apiUrl: 'http://localhost:4321',
     mcpServers: [],
     sessionDir: '/tmp/sess' as AbsolutePath,
+    skillBundleDirs: [],
     ...overrides,
   }
 }
@@ -95,6 +96,25 @@ describe('ClaudeCodeAgentBinding', () => {
     expect(result.args).toContain('--add-dir')
     expect(result.args).toContain('/abs/code/api')
     expect(result.args).toContain('--verbose-stream')
+  })
+
+  it('appends --plugin-dir once per staged skill bundle', async () => {
+    const binding = new ClaudeCodeAgentBinding(descriptor)
+
+    const result = await binding.resolveSpawn(makeInput({
+      skillBundleDirs: ['/tmp/sess/.braid-plugins/braid', '/tmp/sess/.braid-plugins/ddd'],
+    }))
+
+    const pluginDirIdx = result.args.reduce<number[]>((acc, arg, i) => {
+      if (arg === '--plugin-dir')
+        acc.push(i)
+      return acc
+    }, [])
+    expect(pluginDirIdx).toHaveLength(2)
+    expect(pluginDirIdx.map(i => result.args[i + 1])).toEqual([
+      '/tmp/sess/.braid-plugins/braid',
+      '/tmp/sess/.braid-plugins/ddd',
+    ])
   })
 
   it('writes an mcp config file and points claude at it when servers are provided', async () => {
@@ -133,7 +153,7 @@ describe('ClaudeCodeAgentBinding', () => {
     const result = await binding.resolveSpawn(makeInput())
 
     const prompt = result.args[result.args.indexOf('-p') + 1]
-    expect(prompt).toBe('/ask what is voidTask')
+    expect(prompt).toBe('/braid:ask what is voidTask')
   })
 
   it('points claude at the EXTEND.md path (not inlined) when the workspace extends the skill', async () => {
@@ -143,7 +163,7 @@ describe('ClaudeCodeAgentBinding', () => {
     const result = await binding.resolveSpawn(makeInput({ manifest: buildSkillManifest(extendPath) }))
 
     const prompt = result.args[result.args.indexOf('-p') + 1]
-    expect(prompt).toContain('/ask what is voidTask')
+    expect(prompt).toContain('/braid:ask what is voidTask')
     expect(prompt).toContain(extendPath)
   })
 

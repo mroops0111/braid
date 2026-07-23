@@ -34,7 +34,7 @@ type StatusFilter = Extract<ProposalStatus, 'pending' | 'applied' | 'rejected'>
 const EMPTY_COPY: Record<StatusFilter, { title: string, description: string }> = {
   pending: {
     title: 'No Pending Proposals',
-    description: 'Run /braid-extract or /braid-clarify to produce graph mutations awaiting HITL review.',
+    description: 'Run /ddd:extract or /ddd:clarify to produce graph mutations awaiting HITL review.',
   },
   applied: {
     title: 'No Applied Proposals',

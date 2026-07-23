@@ -100,9 +100,9 @@ describe('WorkspaceMember', () => {
       userId: 'u-1',
       role: 'maintainer',
       joinedAt: isoTimestamp,
-      skillOverrides: { 'braid-extract': 'deny' },
+      skillOverrides: { 'ddd:extract': 'deny' },
     })
-    expect(member.skillOverrides).toEqual({ 'braid-extract': 'deny' })
+    expect(member.skillOverrides).toEqual({ 'ddd:extract': 'deny' })
   })
   it('rejects an unknown role', () => {
     expect(WorkspaceMember.safeParse({ userId: 'u-1', role: 'admin', joinedAt: isoTimestamp }).success).toBe(false)

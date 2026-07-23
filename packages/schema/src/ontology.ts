@@ -10,7 +10,7 @@ export type EdgeTypeId = z.infer<typeof EdgeTypeId>
 export const NodeStatus = z.enum(['draft', 'completed', 'unclear', 'deprecated'])
 export type NodeStatus = z.infer<typeof NodeStatus>
 
-// Layout hints so braid-generate-doc places nodes without ontology-specific code.
+// Layout hints so braid:generate-doc places nodes without ontology-specific code.
 export const NodeTypeRenderHint = z.object({
   container: z.boolean().optional(),
   expandedUnder: NodeTypeId.optional(),

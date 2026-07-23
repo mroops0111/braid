@@ -34,7 +34,7 @@ describe('SkillCategory', () => {
 describe('SkillFrontmatter', () => {
   it('parses minimal frontmatter with defaults (no braid extension)', () => {
     const fm = SkillFrontmatter.parse({
-      name: 'braid-ask',
+      name: 'ask',
       description: 'answer questions',
     })
     expect(fm.disableModelInvocation).toBe(false)
@@ -60,7 +60,7 @@ describe('SkillFrontmatter', () => {
 
   it('does not mix Claude Code fields with braid extension fields', () => {
     const fm = SkillFrontmatter.parse({
-      name: 'braid-ask',
+      name: 'ask',
       description: 'a',
       braid: { requiredEnv: ['X'] },
     })
@@ -70,7 +70,7 @@ describe('SkillFrontmatter', () => {
 
   it('parses inputs[] with text and pick + static provider', () => {
     const fm = SkillFrontmatter.parse({
-      name: 'braid-ask',
+      name: 'ask',
       description: 'answer questions',
       braid: {
         inputs: [
@@ -128,7 +128,7 @@ describe('SkillFrontmatter', () => {
 
   it('accepts a per-skill braid.agent override', () => {
     const fm = SkillFrontmatter.parse({
-      name: 'braid-extract',
+      name: 'extract',
       description: 'x',
       braid: { agent: { kind: 'claude-code', effort: 'low' } },
     })
@@ -183,7 +183,7 @@ describe('SkillManifest', () => {
       origin: 'builtin',
       path: '/abs/path/to/SKILL.md',
       frontmatter: {
-        name: 'braid-ask',
+        name: 'ask',
         description: 'answer questions',
       },
     })
@@ -196,8 +196,8 @@ describe('SkillManifest', () => {
       id: 'extract',
       origin: 'builtin',
       path: '/abs/SKILL.md',
-      frontmatter: { name: 'braid-extract', description: 'extract' },
-      extensionPath: '/abs/skill-extensions/braid-extract/EXTEND.md',
+      frontmatter: { name: 'extract', description: 'extract' },
+      extensionPath: '/abs/skill-extensions/ddd-extract/EXTEND.md',
     })
     expect(manifest.extensionPath).toBeTruthy()
   })
@@ -219,7 +219,7 @@ describe('SkillManifest', () => {
       origin: 'builtin',
       path: '/abs/SKILL.md',
       frontmatter: {
-        name: 'braid-extract',
+        name: 'extract',
         description: 'extract',
         braid: { category: 'build', order: 100 },
       },
@@ -364,7 +364,7 @@ describe('RunRecord', () => {
     const record = RunRecord.parse({
       runId: 'sr-1',
       workspaceId: 'demo',
-      skillId: 'braid-ask',
+      skillId: 'braid:ask',
       args: 'hi',
       startedAt: isoTimestamp,
     })
@@ -378,7 +378,7 @@ describe('RunRecord', () => {
     const record = RunRecord.parse({
       runId: 'sr-2',
       workspaceId: 'demo',
-      skillId: 'braid-ask',
+      skillId: 'braid:ask',
       args: 'hi',
       resumed: true,
       sessionId: 'sess-abc',
