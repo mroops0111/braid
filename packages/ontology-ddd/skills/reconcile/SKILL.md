@@ -1,5 +1,5 @@
 ---
-name: model
+name: reconcile
 description: Build cross-source graph structure (bridge edges, missing containment) and validate the graph globally. Emit a Proposal JSON when fixes / additions are needed. Read-only when run with the `validate` argument.
 argument-hint: "[scope-hint | validate]"
 disable-model-invocation: true
@@ -127,7 +127,7 @@ For each node with a source `ref`, scan for known coverage gaps the ontology car
 Submit the Proposal via the `braid-core` proposal-create capability:
 
 - `operations`: the bridge / containment / DriftIssue / status-flip ops you derived in Steps 1–6.
-- `generatedBy`: `"ddd:model"`.
+- `generatedBy`: `"ddd:reconcile"`.
 - `rationale`: `"global structure pass + validation: <one-line summary of bridges added, drift attached, content fills>"`.
 
 Operation names and payload shapes are in `.claude/skills/shared/proposal-format.md` (see § Companion Docs). Follow that file rather than freelancing JSON.
@@ -143,8 +143,8 @@ Before writing the `question` and each `candidate.description`, re-read `<cwd>/.
 stdout summary at the end:
 
 ```
-ddd:model (build + validate): proposal p-2026-05-12-abc (18 ops; 4 bridges, 5 driftIssues, 9 content fills)
-ddd:model raised 2 clarify tickets (ct-..., ct-...)
+ddd:reconcile (build + validate): proposal p-2026-05-12-abc (18 ops; 4 bridges, 5 driftIssues, 9 content fills)
+ddd:reconcile raised 2 clarify tickets (ct-..., ct-...)
 ```
 
 In `validate` mode, omit the `bridges` figure and prefix with `(validate-only)`.
@@ -174,4 +174,4 @@ Companion docs sit at `<cwd>/.claude/skills/shared/` (core) and `<cwd>/.claude/s
 
 ## Notes
 
-- If `$BRAID_WORKSPACE/skill-extensions/ddd-model/EXTEND.md` exists, follow its rules after the steps above. Workspace-specific overrides (custom rules, ontology hints) belong there.
+- If `$BRAID_WORKSPACE/skill-extensions/ddd-reconcile/EXTEND.md` exists, follow its rules after the steps above. Workspace-specific overrides (custom rules, ontology hints) belong there.

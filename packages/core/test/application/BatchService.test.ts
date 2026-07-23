@@ -158,7 +158,7 @@ async function setup(options: {
     batch: {
       perUnit: { skillId: SkillIdSchema.parse('ddd:extract') },
       checkpoint: {
-        skillId: SkillIdSchema.parse('ddd:model'),
+        skillId: SkillIdSchema.parse('ddd:reconcile'),
         chunkSize: 5,
         runAtEnd: true,
         extraEnv: (units) => {
@@ -258,7 +258,7 @@ describe('BatchService', () => {
     expect(skillRunner.startCalls.map(c => c.skillId)).toEqual([
       'ddd:extract',
       'ddd:extract',
-      'ddd:model',
+      'ddd:reconcile',
     ])
     expect(final.units[0]!.proposalIds).toEqual(['p-1'])
     expect(final.units[1]!.proposalIds).toEqual(['p-2'])
@@ -335,13 +335,13 @@ describe('BatchService', () => {
     await expect(service.archive(workspace.id)).rejects.toThrow(ValidationError)
   })
 
-  it('runs ddd:model once after the extract loop and passes BRAID_CHANGED_UNITS', async () => {
+  it('runs ddd:reconcile once after the extract loop and passes BRAID_CHANGED_UNITS', async () => {
     const { service, workspace, planRepository, skillRunner } = await setup()
     await service.start(workspace.id, { autoApply: false })
     const final = await flushBatch(planRepository)
 
     expect(final.status).toBe('completed')
-    const modelCalls = skillRunner.startCalls.filter(c => c.skillId === 'ddd:model')
+    const modelCalls = skillRunner.startCalls.filter(c => c.skillId === 'ddd:reconcile')
     expect(modelCalls).toHaveLength(1)
     expect(modelCalls[0]!.args).toBe('')
     const env = modelCalls[0]!.options?.extraEnv
@@ -358,7 +358,7 @@ describe('BatchService', () => {
     const final = await flushBatch(planRepository)
 
     expect(final.status).toBe('failed')
-    expect(final.error).toMatch(/checkpoint "ddd:model" failed/)
+    expect(final.error).toMatch(/checkpoint "ddd:reconcile" failed/)
     expect(final.units.every(u => u.status === 'completed')).toBe(true)
   })
 
@@ -388,7 +388,7 @@ describe('BatchService', () => {
     // Nothing to assert on the state store, the service was not wired.
   })
 
-  it('chunks ddd:model every 5 successful extracts and runs a final partial chunk', async () => {
+  it('chunks ddd:reconcile every 5 successful extracts and runs a final partial chunk', async () => {
     // 7 intent sources => 7 units => one full chunk (5) + one partial (2).
     const sources = Array.from({ length: 7 }, (_, i) => intentSource(`src-${i}`))
     const { service, workspace, planRepository, skillRunner } = await setup({ sources })
@@ -405,10 +405,10 @@ describe('BatchService', () => {
       'ddd:extract',
       'ddd:extract',
       'ddd:extract',
-      'ddd:model',
+      'ddd:reconcile',
       'ddd:extract',
       'ddd:extract',
-      'ddd:model',
+      'ddd:reconcile',
     ])
     expect(final.checkpointPhases).toHaveLength(2)
     expect(final.checkpointPhases[0]!.unitIds).toHaveLength(5)
@@ -425,7 +425,7 @@ describe('BatchService', () => {
     const final = await flushBatch(planRepository)
 
     expect(final.status).toBe('completed')
-    const modelCount = skillRunner.startCalls.filter(c => c.skillId === 'ddd:model').length
+    const modelCount = skillRunner.startCalls.filter(c => c.skillId === 'ddd:reconcile').length
     expect(modelCount).toBe(2)
     expect(final.checkpointPhases).toHaveLength(2)
     expect(final.checkpointPhases[0]!.unitIds).toHaveLength(5)

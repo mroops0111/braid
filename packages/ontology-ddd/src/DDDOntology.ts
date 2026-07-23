@@ -29,7 +29,7 @@ export const dddOntology = defineOntology({
   skills: [
     { directory: new URL('../skills/extract', import.meta.url) },
     { directory: new URL('../skills/clarify', import.meta.url) },
-    { directory: new URL('../skills/model', import.meta.url) },
+    { directory: new URL('../skills/reconcile', import.meta.url) },
   ],
 
   // Shared reference docs every SKILL.md above consults,
@@ -249,7 +249,7 @@ export const dddOntology = defineOntology({
 
   // Batch and reactor binding.
   // The per-unit skill is ddd:extract.
-  // The checkpoint ddd:model fires every 5 successful extracts,
+  // The checkpoint ddd:reconcile fires every 5 successful extracts,
   // and once more at the end of the loop for global validation.
   // When the workspace has no intent source,
   // braid:scan derives units from the codebase.
@@ -259,7 +259,7 @@ export const dddOntology = defineOntology({
       label: 'Extract',
     },
     checkpoint: {
-      skillId: SkillId.parse('ddd:model'),
+      skillId: SkillId.parse('ddd:reconcile'),
       label: 'Model',
       chunkSize: 5,
       runAtEnd: true,

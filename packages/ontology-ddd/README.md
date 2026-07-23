@@ -7,8 +7,8 @@ Braid extracts a product's intent and code into one knowledge graph. `@braidhq/o
 The package is an `OntologyPlugin` for DDD. It says what a DDD graph is made of, and supplies the reasoning that fills it.
 
 - **The Vocabulary**: Eight node types (bounded context, aggregate, command, query, event, rule, actor, policy) and fifteen edge types, each tagged with the sub-domain and canonical source it comes from.
-- **The Skills**: The `ddd:extract`, `ddd:clarify`, and `ddd:model` SKILL.md prompts, plus the shared reference docs they all consult. Each directory is the bare verb, the `ddd` namespace comes from the ontology.
-- **The Binding**: The required source roles, and the batch and reactor loop that drives per-unit extraction with periodic model checkpoints.
+- **The Skills**: The `ddd:extract`, `ddd:clarify`, and `ddd:reconcile` SKILL.md prompts, plus the shared reference docs they all consult. Each directory is the bare verb, the `ddd` namespace comes from the ontology.
+- **The Binding**: The required source roles, and the batch and reactor loop that drives per-unit extraction with periodic reconcile checkpoints.
 
 ## Structure
 
@@ -20,10 +20,10 @@ src/
 ├── types.ts         the DDDNodeType and DDDEdgeType enums
 └── index.ts
 skills/
-├── extract/   per-unit extraction prompt
-├── clarify/   clarification prompt
-├── model/     checkpoint modelling prompt
-└── shared/    reference docs every prompt consults
+├── extract/    per-unit extraction prompt
+├── clarify/    clarification prompt
+├── reconcile/  cross-link the slices and validate the whole graph
+└── shared/     reference docs every prompt consults
 ```
 
 - **DDDOntology**: The single `defineOntology` call. Node and edge types with their labels, colors, and render hints, the required source roles, the skills, and the batch binding.

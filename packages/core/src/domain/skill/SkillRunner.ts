@@ -12,7 +12,7 @@ export interface SkillRunOptions {
   /**
    * Extra environment variables merged into the spawned skill's env.
    * Used by orchestration code when the single positional `args` is taken,
-   * e.g. `BatchService` passing `BRAID_CHANGED_UNITS` to `ddd:model`.
+   * e.g. `BatchService` passing `BRAID_CHANGED_UNITS` to `ddd:reconcile`.
    */
   readonly extraEnv?: Readonly<Record<string, string>>
   /**

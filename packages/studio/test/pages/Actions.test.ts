@@ -46,11 +46,11 @@ describe('bucketByGroup', () => {
   it('sorts the build group by numeric order so step ranks line up with the workflow', () => {
     const buckets = bucketByGroup([
       // intentionally out of order; bucketByGroup must re-sort by `order`.
-      skill({ id: 'model', category: 'build', order: 300 }),
+      skill({ id: 'reconcile', category: 'build', order: 300 }),
       skill({ id: 'extract', category: 'build', order: 100 }),
       skill({ id: 'clarify', category: 'build', order: 200 }),
     ])
-    expect(buckets.build.map(s => s.id)).toEqual(['extract', 'clarify', 'model'])
+    expect(buckets.build.map(s => s.id)).toEqual(['extract', 'clarify', 'reconcile'])
   })
 
   it('puts build skills without an order at the end so a plugin missing order is recoverable', () => {
@@ -66,7 +66,7 @@ describe('bucketByGroup', () => {
     const buckets = bucketByGroup([
       skill({ id: 'extract', category: 'build', order: 100 }),
       skill({ id: 'clarify', category: 'build', order: 200 }),
-      skill({ id: 'model', category: 'build', order: 300 }),
+      skill({ id: 'reconcile', category: 'build', order: 300 }),
       skill({ id: 'plugin-pre-extract', category: 'build', order: 50 }),
       skill({ id: 'plugin-mid', category: 'build', order: 150 }),
     ])
@@ -75,7 +75,7 @@ describe('bucketByGroup', () => {
       'extract',
       'plugin-mid',
       'clarify',
-      'model',
+      'reconcile',
     ])
   })
 })

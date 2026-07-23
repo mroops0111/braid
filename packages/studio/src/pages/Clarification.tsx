@@ -109,7 +109,7 @@ type StatusFilter = ClarificationStatus
 const EMPTY_COPY: Record<StatusFilter, { title: string, description: string }> = {
   pending: {
     title: 'No Pending Clarifications',
-    description: 'Run /ddd:extract or /ddd:model to surface ambiguity — or open a new question yourself.',
+    description: 'Run /ddd:extract or /ddd:reconcile to surface ambiguity — or open a new question yourself.',
   },
   answered: {
     title: 'No Answered Tickets',

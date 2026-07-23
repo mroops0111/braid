@@ -26,7 +26,7 @@ import {
 } from '../../src/index.js'
 
 const PER_UNIT_SKILL = SkillIdSchema.parse('ddd:extract')
-const CHECKPOINT_SKILL = SkillIdSchema.parse('ddd:model')
+const CHECKPOINT_SKILL = SkillIdSchema.parse('ddd:reconcile')
 
 function intentSource(id: string): SourceDescriptor {
   return {
