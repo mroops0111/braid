@@ -1,21 +1,15 @@
-import type {
-  EdgeId,
-  EdgeTypeId,
-  ModelSnapshot,
-  NodeId,
-  NodeStatus,
-  NodeTypeId,
-} from '@braidhq/schema'
+import type { ModelSnapshot } from '@braidhq/schema'
 import { StructuralValidator } from '@braidhq/core'
+import { EdgeId, EdgeTypeId, NodeId, NodeStatus, NodeTypeId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { dddOntology } from '../src/DDDOntology.js'
 
-const draft = 'draft' as NodeStatus
+const draft = NodeStatus.parse('draft')
 
 function node(id: string, type: string): ModelSnapshot['nodes'][number] {
   return {
-    id: id as NodeId,
-    type: type as NodeTypeId,
+    id: NodeId.parse(id),
+    type: NodeTypeId.parse(type),
     name: id,
     status: draft,
     metadata: { sourceReferences: [] },
@@ -24,10 +18,10 @@ function node(id: string, type: string): ModelSnapshot['nodes'][number] {
 
 function edge(id: string, type: string, from: string, to: string): ModelSnapshot['edges'][number] {
   return {
-    id: id as EdgeId,
-    type: type as EdgeTypeId,
-    fromNodeId: from as NodeId,
-    toNodeId: to as NodeId,
+    id: EdgeId.parse(id),
+    type: EdgeTypeId.parse(type),
+    fromNodeId: NodeId.parse(from),
+    toNodeId: NodeId.parse(to),
     metadata: { sourceReferences: [] },
   }
 }
