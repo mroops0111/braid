@@ -225,11 +225,11 @@ function SourceRow({ workspaceId, source, onChange }: {
         )}
         <div className="ml-auto flex items-center gap-1">
           {canSync && (
-            <Button variant="ghost" size="icon" onClick={() => sync.mutate()} disabled={sync.isPending} title="Sync">
+            <Button variant="ghost" size="icon" onClick={() => sync.mutate()} disabled={sync.isPending} title="Sync" aria-label="Sync">
               <RefreshCw className={sync.isPending ? 'animate-spin' : ''} />
             </Button>
           )}
-          <Button variant="ghost" size="icon" onClick={() => remove.mutate()} disabled={remove.isPending} title="Remove">
+          <Button variant="ghost" size="icon" onClick={() => remove.mutate()} disabled={remove.isPending} title="Remove" aria-label="Remove">
             <Trash2 />
           </Button>
         </div>
@@ -687,7 +687,7 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
         {showKebab && (
           <DropdownPrimitive.Root>
             <DropdownPrimitive.Trigger asChild>
-              <Button variant="ghost" size="icon" className="size-6 shrink-0" title="Member actions">
+              <Button variant="ghost" size="icon" className="size-6 shrink-0" title="Member actions" aria-label="Member actions">
                 <MoreHorizontal className="size-3" />
               </Button>
             </DropdownPrimitive.Trigger>

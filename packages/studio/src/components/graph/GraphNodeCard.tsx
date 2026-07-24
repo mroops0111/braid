@@ -4,11 +4,10 @@ import { Handle, Position } from '@xyflow/react'
 import { Markdown } from '@/components/SkillTranscript/Markdown'
 import { cn } from '@/lib/utils'
 import { NodeTypeBadge } from './NodeTypeBadge'
-import { usePaletteContext } from './usePalette'
 
 /**
  * Custom react-flow node, styled to match the Linear list-row card.
- * A 3px primary bar on the left when selected,
+ * A primary border when selected,
  * a type-coloured badge top-left, the name as primary label,
  * and an optional description preview as subtitle.
  * The raw `id` is not on the card because it is a machine-facing identifier,
@@ -22,7 +21,6 @@ import { usePaletteContext } from './usePalette'
  */
 export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
   const { node, change, emphasizeAdded } = data
-  const palette = usePaletteContext()
   const firstParagraph = node.description?.split(/\n\s*\n/, 1)[0]?.trim() ?? ''
   // Diff signals layer without fighting the type and topology layer.
   //   - Always-on left bar carries node type colour.
@@ -59,17 +57,10 @@ export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
   return (
     <div
       className={cn(
-        'relative w-[200px] rounded-md border bg-card pl-[14px] pr-3 py-2 transition-colors duration-150',
+        'relative w-[200px] rounded-md border bg-card px-3 py-2 transition-colors duration-150',
         selected ? 'border-primary' : (changeBorder ?? 'border-border hover:border-border/80'),
       )}
     >
-      <span
-        className={cn(
-          'absolute inset-y-1 left-0 w-[3px] rounded-r-full transition-opacity',
-          selected ? 'opacity-100' : 'opacity-70',
-        )}
-        style={palette.nodeDotStyle(node.type)}
-      />
       {changeDotColor && (
         <span
           className={cn('absolute right-1.5 top-1.5 size-2 rounded-full', changeDotColor)}

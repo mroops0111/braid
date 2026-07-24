@@ -96,6 +96,7 @@ export function HistoryPage({ workspaceId }: HistoryPageProps) {
               onClick={() => setPickingCompare(false)}
               className="ml-auto rounded p-0.5 hover:bg-background/80"
               title="Cancel"
+              aria-label="Cancel"
             >
               <X className="size-3" />
             </button>
@@ -665,6 +666,7 @@ function TagRow({ workspaceId, tag }: { workspaceId: string, tag: TagMeta }) {
           onClick={() => remove.mutate()}
           disabled={remove.isPending}
           title="Remove tag"
+          aria-label="Remove tag"
           className="ml-auto hidden rounded p-0.5 text-muted-foreground/60 hover:bg-destructive/15 hover:text-destructive group-hover/tag:inline-flex"
         >
           <Trash2 className="size-3" />

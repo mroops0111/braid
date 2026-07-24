@@ -299,6 +299,7 @@ function ConversationRow({ workspaceId, group, onResume }: {
                   setEditing(true)
                 }}
                 title="Rename"
+                aria-label="Rename"
                 className="hidden rounded p-0.5 text-muted-foreground/60 hover:bg-accent hover:text-foreground group-hover/row:inline-flex"
               >
                 <Pencil className="size-3" />
@@ -311,6 +312,7 @@ function ConversationRow({ workspaceId, group, onResume }: {
                 setConfirmOpen(true)
               }}
               title="Delete conversation"
+              aria-label="Delete conversation"
               className="hidden rounded p-0.5 text-muted-foreground/60 hover:bg-destructive/15 hover:text-destructive group-hover/row:inline-flex"
             >
               <Trash2 className="size-3" />

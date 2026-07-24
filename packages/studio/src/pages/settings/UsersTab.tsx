@@ -92,6 +92,7 @@ function InviteRow({ email, role }: { email: string, role: 'admin' | 'user' }) {
                 variant="ghost"
                 size="icon"
                 title="Revoke invite"
+                aria-label="Revoke invite"
                 className="text-destructive hover:text-destructive"
                 onClick={() => setArmed(true)}
               >
@@ -312,7 +313,7 @@ function UserRow({ user, isMe, isLast }: { user: AdminUser, isMe: boolean, isLas
             : (
                 <DropdownPrimitive.Root>
                   <DropdownPrimitive.Trigger asChild>
-                    <Button variant="ghost" size="icon" className="size-7" title="User actions">
+                    <Button variant="ghost" size="icon" className="size-7" title="User actions" aria-label="User actions">
                       <MoreHorizontal className="size-3.5" />
                     </Button>
                   </DropdownPrimitive.Trigger>

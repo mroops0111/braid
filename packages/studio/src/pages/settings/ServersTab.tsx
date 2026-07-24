@@ -135,6 +135,7 @@ function ServerRow({ id, name, url, isLocal, isActive }: ServerRowProps) {
                 size="icon"
                 onClick={() => setArmedForRemove(true)}
                 title="Remove server"
+                aria-label="Remove server"
                 className="text-destructive hover:text-destructive"
               >
                 <Trash2 />

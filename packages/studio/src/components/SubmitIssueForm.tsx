@@ -83,6 +83,7 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
           type="button"
           onClick={onCancel}
           title="Cancel"
+          aria-label="Cancel"
           className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
         >
           <X className="size-4" />

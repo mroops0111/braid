@@ -615,6 +615,7 @@ function CustomAnswerSection({
               type="button"
               onClick={onClose}
               title="Discard"
+              aria-label="Discard"
               className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
             >
               <X className="size-3.5" />

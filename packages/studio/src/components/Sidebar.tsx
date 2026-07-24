@@ -254,6 +254,7 @@ function RemoteSection({
               type="button"
               onClick={() => onOpenAdd(remote)}
               title="Open workspace"
+              aria-label="Open workspace"
               className="flex size-5 items-center justify-center rounded text-sidebar-foreground/40 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
             >
               <Plus className="size-3.5" />
@@ -330,6 +331,7 @@ function RemoteContent({
                 type="button"
                 onClick={() => onSignIn(remote)}
                 title={`Sign in to ${remote.name}`}
+                aria-label={`Sign in to ${remote.name}`}
                 className="flex size-7 items-center justify-center rounded text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
               >
                 <LogIn className="size-3.5" />
@@ -373,6 +375,7 @@ function RemoteContent({
                 type="button"
                 onClick={() => onOpenAdd(remote)}
                 title={`Open workspace on ${remote.name}`}
+                aria-label={`Open workspace on ${remote.name}`}
                 className="flex size-7 items-center justify-center rounded text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
               >
                 <Plus className="size-3.5" />
@@ -411,6 +414,7 @@ function RemoteContent({
                 type="button"
                 onClick={() => onOpenAdd(remote)}
                 title={`Open workspace on ${remote.name}`}
+                aria-label={`Open workspace on ${remote.name}`}
                 className="flex size-7 items-center justify-center rounded text-sidebar-foreground/40 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
               >
                 <Plus className="size-3.5" />
@@ -490,6 +494,7 @@ function WorkspaceRow({
                 }}
                 className="ml-1 hidden rounded p-0.5 text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-foreground group-hover:inline-flex"
                 title="Details"
+                aria-label="Details"
               >
                 ⋯
               </span>
@@ -509,6 +514,7 @@ function SidebarIconButton({ onClick, title, children }: {
       type="button"
       onClick={onClick}
       title={title}
+      aria-label={title}
       className="flex size-7 items-center justify-center rounded text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
     >
       {children}
