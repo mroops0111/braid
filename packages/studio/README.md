@@ -37,6 +37,19 @@ State comes from the server and returns to it as intent. Studio caches and rende
 - **Writes are proposals**: The canvas never edits the graph directly. A skill run emits a `Proposal`, a reviewer sees its diff and validation issues, and applying it POSTs to the server, which commits and emits the event that refreshes the graph.
 - **Runs stream**: `runStore` holds in-flight and completed runs outside React state, so leaving and returning to a page keeps the transcript and lets a multi-turn conversation resume.
 
+## Design
+
+Studio follows Linear: dark-first, compact, keyboard-first, with a purple accent. The look lives in tokens, so `src/styles.css` is the single source of truth for every colour, radius, and size. This section is the guideline, not the numbers.
+
+- **Tokens, Not Values**: Style with semantic tokens (`bg-background`, `bg-card`, `text-muted-foreground`, `border-border`) and the named type scale. Never inline a hex, an `oklch(...)`, or an arbitrary `text-[13px]`. A missing value is added to `styles.css`, not hardcoded in a component.
+- **Type**: Geist for the UI, Geist Mono for identifiers, ids, paths, args, and skill names. Four sizes only: `text-2xs` for labels and metadata, `text-xs` for body, `text-sm` for emphasis, `text-base` for headers.
+- **Density**: An 8px rhythm. The sidebar recesses below the page, cards lift above it, and rows breathe. Dense like a tool, never cramped.
+- **Casing**: Title Case for buttons and tabs, UPPERCASE for small section labels, Sentence case for descriptions and placeholders, and lowercase for status text since it mirrors the schema enum.
+- **Reuse the Patterns**: A selectable row shows a 3px purple bar on its left edge when active (`ListRow`). Empty states go through `EmptyState`, domain status through `StatusBadge`, and a new primitive comes from shadcn in `ui/` before it is hand-rolled.
+- **Restrained Motion**: `transition-colors duration-150` on hover, `tw-animate-css` for enters, and nothing that bounces, scales, or parallaxes. Reduced-motion is honoured globally.
+- **Accessibility**: A visible focus ring, a pointer cursor on every control, and an `aria-label` on icon-only buttons. The same code ships to the Tauri desktop and mobile shells, so keep touch targets near 44px where the layout allows.
+- **No Em-Dashes**: Never `—` or `–` in a user-facing string. Use a colon, a comma, or two sentences.
+
 ## Boundaries
 
 These are the rules that keep Studio a thin, honest client. They are enforced in review.
