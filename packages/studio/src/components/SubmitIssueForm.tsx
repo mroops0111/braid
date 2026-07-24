@@ -72,7 +72,7 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
+      <header className="flex h-11 shrink-0 items-center justify-between border-b border-border px-4">
         <div>
           <div className="text-sm font-medium text-foreground">Submit an issue for AI to clarify</div>
           <div className="text-2xs text-muted-foreground">

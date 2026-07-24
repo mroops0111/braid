@@ -220,7 +220,7 @@ function CommitDetail({ workspaceId, sha, tags, onStartCompare }: {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
+      <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
         <div className="flex min-w-0 items-center gap-2">
           <GitCommit className="size-4 shrink-0 text-muted-foreground" />
           <span className="truncate font-mono text-sm text-foreground">{sha.slice(0, 12)}</span>
@@ -363,7 +363,7 @@ function CompareHeader({ from, to, groups, onExit }: {
   onExit: () => void
 }) {
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
+    <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
       <div className="flex min-w-0 items-center gap-2 text-sm">
         <ArrowLeftRight className="size-4 shrink-0 text-muted-foreground" />
         <span className="font-mono text-xs text-muted-foreground">{from.slice(0, 7)}</span>

@@ -518,7 +518,7 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
+      <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
         <div className="flex items-center gap-2 min-w-0">
           <span className="font-mono text-sm text-foreground">
             /

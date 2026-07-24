@@ -234,7 +234,7 @@ function BatchHeader({ workspaceId, plan, terminal }: {
         : 'Processing Units…'
 
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-4">
+    <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-4">
       <div className="flex min-w-0 items-center gap-3">
         {terminal
           ? <Sparkles className="size-4 shrink-0 text-primary" />
