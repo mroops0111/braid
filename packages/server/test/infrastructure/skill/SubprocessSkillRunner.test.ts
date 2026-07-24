@@ -240,12 +240,14 @@ describe('SubprocessSkillRunner', () => {
 
     const { events } = await collectRunEvents(runner, workspace, '')
 
-    expect(events.map(event => event.type)).toEqual(['started', 'message', 'tool-call', 'message', 'completed'])
-    const messageOne = events[1]
+    expect(events.map(event => event.type)).toEqual(['started', 'thinking', 'message', 'tool-call', 'message', 'completed'])
+    const thinking = events[1]
+    expect(thinking && 'text' in thinking ? thinking.text : undefined).toBe('hidden')
+    const messageOne = events[2]
     expect(messageOne && 'text' in messageOne ? messageOne.text : undefined).toBe('Found 3 nodes.')
-    const toolCall = events[2]
+    const toolCall = events[3]
     expect(toolCall && 'tool' in toolCall ? toolCall.tool : undefined).toBe('Read')
-    const messageTwo = events[3]
+    const messageTwo = events[4]
     expect(messageTwo && 'text' in messageTwo ? messageTwo.text : undefined).toBe('This workspace tracks the order pipeline.')
   })
 

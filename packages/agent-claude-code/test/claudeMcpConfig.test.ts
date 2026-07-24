@@ -1,12 +1,13 @@
-import type { McpServerConfig, McpServerId } from '@braidhq/schema'
 import { mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import process from 'node:process'
+import { type McpServerConfig, McpServerId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { buildClaudeMcpConfig, writeClaudeMcpConfig } from '../src/claudeMcpConfig.js'
 
 const BRAID_CORE_STDIO: McpServerConfig = {
-  id: 'braid-core' as McpServerId,
+  id: McpServerId.parse('braid-core'),
   transport: 'stdio',
   command: 'uvx',
   args: [
@@ -23,7 +24,7 @@ const BRAID_CORE_STDIO: McpServerConfig = {
 describe('buildClaudeMcpConfig', () => {
   it('emits a streamable-http server as a claude-cli http entry', () => {
     const config = buildClaudeMcpConfig([
-      { id: 'jira' as McpServerId, transport: 'streamable-http', url: 'https://jira.example/mcp' },
+      { id: McpServerId.parse('jira'), transport: 'streamable-http', url: 'https://jira.example/mcp' },
     ])
     expect(config.mcpServers.jira).toEqual({ type: 'http', url: 'https://jira.example/mcp' })
   })
@@ -40,7 +41,7 @@ describe('buildClaudeMcpConfig', () => {
   it('lets a later entry override an earlier one with the same id', () => {
     const config = buildClaudeMcpConfig([
       BRAID_CORE_STDIO,
-      { id: 'braid-core' as McpServerId, transport: 'streamable-http', url: 'http://override.example/mcp' },
+      { id: McpServerId.parse('braid-core'), transport: 'streamable-http', url: 'http://override.example/mcp' },
     ])
     expect(config.mcpServers['braid-core']).toEqual({ type: 'http', url: 'http://override.example/mcp' })
   })
@@ -54,5 +55,38 @@ describe('writeClaudeMcpConfig', () => {
     const parsed = JSON.parse(await readFile(written, 'utf-8'))
     expect(parsed.mcpServers['braid-core']).toMatchObject({ type: 'stdio', command: 'uvx' })
     expect(parsed.mcpServers['braid-core'].args).toContain('openapi-mcp-gateway')
+  })
+})
+
+describe('env and header variable resolution', () => {
+  // A literal `${VAR}` reference, written so it is not read as a template literal.
+  // eslint-disable-next-line no-template-curly-in-string
+  const tokenRef = '${BRAID_TEST_TOKEN}'
+  // eslint-disable-next-line no-template-curly-in-string
+  const missingRef = '${BRAID_TEST_MISSING}'
+
+  it('resolves references in stdio env and http headers from the parent process env', () => {
+    process.env.BRAID_TEST_TOKEN = 'secret-123'
+    try {
+      const stdio = buildClaudeMcpConfig([
+        { id: McpServerId.parse('x'), transport: 'stdio', command: 'run', env: { TOKEN: tokenRef } },
+      ])
+      expect((stdio.mcpServers.x as { env: Record<string, string> }).env.TOKEN).toBe('secret-123')
+
+      const http = buildClaudeMcpConfig([
+        { id: McpServerId.parse('y'), transport: 'streamable-http', url: 'https://h/mcp', headers: { Authorization: `Bearer ${tokenRef}` } },
+      ])
+      expect((http.mcpServers.y as { headers: Record<string, string> }).headers.Authorization).toBe('Bearer secret-123')
+    }
+    finally {
+      delete process.env.BRAID_TEST_TOKEN
+    }
+  })
+
+  it('throws a clear error naming the missing variable', () => {
+    delete process.env.BRAID_TEST_MISSING
+    expect(() => buildClaudeMcpConfig([
+      { id: McpServerId.parse('x'), transport: 'stdio', command: 'run', env: { TOKEN: missingRef } },
+    ])).toThrow(/BRAID_TEST_MISSING.*is not set/)
   })
 })

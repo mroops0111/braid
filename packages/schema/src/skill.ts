@@ -259,6 +259,33 @@ export const SkillEventError = z.object({
   at: Timestamp,
 })
 
+// The agent's private reasoning, surfaced so a reviewer can see why a skill
+// proposed what it did. Studio renders it collapsed, it is not the output.
+export const SkillEventThinking = z.object({
+  type: z.literal('thinking'),
+  text: z.string(),
+})
+
+// The agent hit a usage limit. Only emitted when the run is actually
+// throttled, so a stalled transcript reads as waiting rather than frozen.
+export const SkillEventRateLimit = z.object({
+  type: z.literal('rate-limit'),
+  status: z.string(),
+  // Unix seconds when the limit resets, when the agent reports it.
+  resetsAt: z.number().optional(),
+})
+
+// Cost and effort of a finished run, surfaced so the reviewer sees what each
+// skill run spent. Every field is optional, agents report a different subset.
+export const SkillEventUsage = z.object({
+  type: z.literal('usage'),
+  costUsd: z.number().optional(),
+  durationMs: z.number().optional(),
+  turns: z.number().optional(),
+  inputTokens: z.number().optional(),
+  outputTokens: z.number().optional(),
+})
+
 export const SkillEvent = z.discriminatedUnion('type', [
   SkillEventStarted,
   SkillEventSessionStarted,
@@ -268,6 +295,9 @@ export const SkillEvent = z.discriminatedUnion('type', [
   SkillEventArtifactWritten,
   SkillEventCompleted,
   SkillEventError,
+  SkillEventThinking,
+  SkillEventRateLimit,
+  SkillEventUsage,
 ])
 export type SkillEvent = z.infer<typeof SkillEvent>
 

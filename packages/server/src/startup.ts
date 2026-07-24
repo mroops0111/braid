@@ -1,4 +1,6 @@
 import type { AppDependencies } from './composeApp.js'
+import { spawn } from 'node:child_process'
+import process from 'node:process'
 import { createLogger } from '@braidhq/core'
 import { reapOrphanRuns } from './infrastructure/skill/orphanReaper.js'
 
@@ -76,4 +78,24 @@ export async function startupAfterServe(deps: AppDependencies): Promise<void> {
   catch (err) {
     log.error({ err }, 'orphan reaper failed')
   }
+
+  // Warm the MCP gateway package so the first skill run's braid-core connects
+  // fast, rather than paying the uvx cold-start mid-conversation.
+  warmGateway()
+}
+
+// Pre-fetch the openapi-mcp-gateway package, the download that otherwise makes
+// braid-core look slow to connect on the first run. Fire-and-forget and
+// unref'd, a warm cache is best-effort and never gates the boot. A 30s kill
+// guards a `--help` that hangs once the package is cached, and a missing uvx
+// just errors out quietly. This lives in the after-serve pass, not composition,
+// so it stays out of tests that build the app directly.
+function warmGateway(): void {
+  const uvxBin = process.env.BRAID_UVX_BIN || 'uvx'
+  const child = spawn(uvxBin, ['openapi-mcp-gateway', '--help'], { stdio: 'ignore' })
+  child.once('error', () => {})
+  child.unref()
+  const timer = setTimeout(() => child.kill(), 30_000)
+  timer.unref()
+  child.once('exit', () => clearTimeout(timer))
 }

@@ -56,4 +56,68 @@ describe('parseClaudeLine', () => {
     expect(events.map(event => event.type)).toEqual(['message', 'tool-call'])
     expect(events[1]).toMatchObject({ type: 'tool-call', tool: 'Bash', toolCallId: 'toolu_abc' })
   })
+
+  it('maps result.is_error into an error event, with the run-failed fallback message', () => {
+    expect(parse({ type: 'result', is_error: true, result: 'boom' })[0]).toMatchObject({ type: 'error', message: 'boom' })
+    expect(parse({ type: 'result', is_error: true })[0]).toMatchObject({ type: 'error', message: 'skill run failed' })
+  })
+
+  it('maps a successful result with text into a message, and an empty result into nothing', () => {
+    expect(parse({ type: 'result', is_error: false, result: 'done' })[0]).toMatchObject({ type: 'message', text: 'done' })
+    expect(parse({ type: 'result', is_error: false, result: '' })).toEqual([])
+  })
+
+  it('maps the legacy flat text, tool_use, error, and artifact-written shapes', () => {
+    expect(parse({ type: 'text', text: 'hi' })[0]).toMatchObject({ type: 'message', text: 'hi' })
+    expect(parse({ type: 'tool_use', name: 'Bash', input: { command: 'ls' } })[0]).toMatchObject({ type: 'tool-call', tool: 'Bash' })
+    expect(parse({ type: 'error', message: 'nope' })[0]).toMatchObject({ type: 'error', message: 'nope' })
+    expect(parse({ type: 'artifact-written', artifactKind: 'view', artifactId: 'a1', path: '/abs/x.md' })[0])
+      .toMatchObject({ type: 'artifact-written', artifactKind: 'view' })
+  })
+
+  it('returns [] for a known type whose required payload is absent', () => {
+    expect(parse({ type: 'text' })).toEqual([])
+    expect(parse({ type: 'tool_use' })).toEqual([])
+    expect(parse({ type: 'result', is_error: false })).toEqual([])
+  })
+
+  it('surfaces an assistant thinking part, dropping an empty one', () => {
+    const events = parse({
+      type: 'assistant',
+      message: { content: [{ type: 'thinking', thinking: 'let me reason', signature: 'sig' }] },
+    })
+    expect(events[0]).toMatchObject({ type: 'thinking', text: 'let me reason' })
+    expect(parse({ type: 'assistant', message: { content: [{ type: 'thinking', thinking: '' }] } })).toEqual([])
+  })
+
+  it('surfaces a rate_limit_event only when the status is not allowed', () => {
+    expect(parse({ type: 'rate_limit_event', rate_limit_info: { status: 'allowed', resetsAt: 123 } })).toEqual([])
+    const throttled = parse({ type: 'rate_limit_event', rate_limit_info: { status: 'rejected', resetsAt: 456 } })
+    expect(throttled[0]).toMatchObject({ type: 'rate-limit', status: 'rejected', resetsAt: 456 })
+  })
+
+  it('emits a usage event from the result envelope metrics, alongside the message', () => {
+    const events = parse({
+      type: 'result',
+      is_error: false,
+      result: 'done',
+      total_cost_usd: 0.12,
+      duration_ms: 5000,
+      num_turns: 3,
+      usage: { input_tokens: 100, output_tokens: 50 },
+    })
+    expect(events).toContainEqual(expect.objectContaining({ type: 'message', text: 'done' }))
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'usage',
+      costUsd: 0.12,
+      durationMs: 5000,
+      turns: 3,
+      inputTokens: 100,
+      outputTokens: 50,
+    }))
+  })
+
+  it('omits the usage event when the result carries no metrics', () => {
+    expect(parse({ type: 'result', is_error: false, result: 'hi' }).some(event => event.type === 'usage')).toBe(false)
+  })
 })

@@ -401,3 +401,15 @@ describe('SessionMetadata', () => {
     expect(SessionMetadata.safeParse({ sessionId: '', title: null, updatedAt: isoTimestamp }).success).toBe(false)
   })
 })
+
+describe('SkillEvent surfacing variants', () => {
+  it('accepts the thinking, rate-limit, and usage events', () => {
+    expect(SkillEvent.parse({ type: 'thinking', text: 'why' })).toMatchObject({ type: 'thinking', text: 'why' })
+    expect(SkillEvent.parse({ type: 'rate-limit', status: 'rejected', resetsAt: 1 })).toMatchObject({ type: 'rate-limit', status: 'rejected' })
+    expect(SkillEvent.parse({ type: 'usage', costUsd: 0.1, turns: 2 })).toMatchObject({ type: 'usage', costUsd: 0.1, turns: 2 })
+  })
+
+  it('lets usage omit every optional metric', () => {
+    expect(SkillEvent.parse({ type: 'usage' })).toEqual({ type: 'usage' })
+  })
+})

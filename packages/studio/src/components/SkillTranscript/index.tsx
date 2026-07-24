@@ -96,6 +96,36 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
           {event.message}
         </div>
       )
+    case 'thinking':
+      // The model's reasoning. Collapsed by default so it never buries the
+      // actual output, but available when a reviewer wants the why.
+      return (
+        <details className="my-1 font-sans text-muted-foreground/70">
+          <summary className="cursor-pointer select-none text-[10px] font-semibold uppercase tracking-wider">
+            Thinking
+          </summary>
+          <div className="mt-1 whitespace-pre-wrap border-l-2 border-muted pl-3 italic">
+            {event.text}
+          </div>
+        </details>
+      )
+    case 'rate-limit':
+      return (
+        <div className="text-amber-400">
+          ⏳ waiting on rate limit
+          {event.resetsAt ? ` (resets ${new Date(event.resetsAt * 1000).toLocaleTimeString()})` : ''}
+        </div>
+      )
+    case 'usage': {
+      const parts = [
+        event.costUsd != null ? `$${event.costUsd.toFixed(3)}` : null,
+        event.durationMs != null ? `${(event.durationMs / 1000).toFixed(1)}s` : null,
+        event.turns != null ? `${event.turns} turns` : null,
+      ].filter(Boolean)
+      return parts.length > 0
+        ? <div className="mt-1 text-muted-foreground/60">{parts.join(' · ')}</div>
+        : null
+    }
     default:
       return null
   }

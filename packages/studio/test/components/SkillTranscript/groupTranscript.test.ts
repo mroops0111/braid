@@ -29,6 +29,20 @@ describe('groupTranscript', () => {
     expect(items.map(i => i.kind)).toEqual(['event', 'event'])
   })
 
+  it('passes the surfacing events (thinking, usage, rate-limit) through as items', () => {
+    const events: SkillEvent[] = [
+      { type: 'thinking', text: 'reasoning' },
+      { type: 'usage', costUsd: 0.1 },
+      { type: 'rate-limit', status: 'rejected' },
+    ]
+    const items = groupTranscript(events)
+    expect(items.map(item => (item.kind === 'event' ? item.event.type : 'group'))).toEqual([
+      'thinking',
+      'usage',
+      'rate-limit',
+    ])
+  })
+
   it('merges consecutive tool-call + tool-result into one group', () => {
     const items = groupTranscript([
       call('a'),

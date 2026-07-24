@@ -12,15 +12,12 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
   }
 
   async resolveSpawn(input: AgentSpawnInput): Promise<SpawnInvocation> {
-    // On resume the prompt is just the user's follow-up text.
-    // Claude still holds the conversation context and the slash command,
-    // including any extension it read on the first run.
-    // On a fresh run, invoke the skill's slash command.
-    // When the workspace has an EXTEND.md for this skill,
-    // point claude at it rather than inline the text,
-    // so the relative *.md links inside it still resolve.
-    // The skill id is already `namespace:verb`, which is exactly claude's
-    // plugin-skill invocation once the bundles load via `--plugin-dir`.
+    // On resume the prompt is just the follow-up text,
+    // since claude still holds the conversation and slash command from earlier.
+    // A fresh run invokes the slash command, and for a skill with an EXTEND.md,
+    // point claude at that file rather than inline it so its *.md links resolve.
+    // The skill id is already `namespace:verb`,
+    // claude's plugin-skill invocation once `--plugin-dir` loads the bundles.
     const slashCommand = `/${input.skillId} ${input.args}`
     const extensionPath = input.manifest.extensionPath
     const promptArg = input.resumeSessionId

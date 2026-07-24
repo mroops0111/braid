@@ -17,8 +17,8 @@ export type TranscriptItem =
  * events into a single TranscriptItem. Pairing is by toolCallId; a tool-result
  * whose id matches no preceding call becomes a synthetic "(unknown tool)" row.
  *
- * Any non-tool event (message / started / completed / error / artifact-written)
- * passes through as its own item, breaking the current group.
+ * Any non-tool event (message, thinking, usage, rate-limit, started, completed,
+ * error, artifact-written) passes through as its own item, breaking the group.
  */
 export function groupTranscript(events: readonly SkillEvent[]): TranscriptItem[] {
   const items: TranscriptItem[] = []
