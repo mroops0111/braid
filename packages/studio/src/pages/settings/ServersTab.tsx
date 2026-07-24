@@ -1,5 +1,6 @@
 import { Check, CircleDashed, Globe, Laptop, LogIn, LogOut, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -102,9 +103,9 @@ function ServerRow({ id, name, url, isLocal, isActive }: ServerRowProps) {
               </span>
             )}
             {!connected && (
-              <span className="rounded bg-muted/60 px-1.5 py-0.5 text-2xs uppercase tracking-wider text-muted-foreground">
+              <Badge variant="outline" className="text-2xs uppercase tracking-wider text-muted-foreground">
                 Not signed in
-              </span>
+              </Badge>
             )}
           </div>
           <p className="truncate font-mono text-2xs text-muted-foreground">{url}</p>

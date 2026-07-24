@@ -1,6 +1,7 @@
 import type { SkillManifest, SkillPermission, WorkspaceMember } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, Minus, X } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { api } from '@/lib/api'
 import { queryKeys, useMe, useSkills, useUsers, useWorkspaceMembers } from '@/lib/queries'
 import { bucketByGroup } from '@/pages/Actions'
@@ -145,9 +146,9 @@ function PermissionRow({ workspaceId, member, displayName, skills, isMe, isLast 
               You
             </span>
           )}
-          <span className="rounded bg-muted/60 px-1 py-0.5 text-2xs uppercase tracking-wider text-muted-foreground">
+          <Badge variant="outline" className="text-2xs uppercase tracking-wider text-muted-foreground">
             {member.role}
-          </span>
+          </Badge>
         </div>
       </td>
       {skills.map((skill) => {

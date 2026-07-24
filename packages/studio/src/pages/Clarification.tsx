@@ -7,6 +7,7 @@ import { ListRow } from '@/components/ListRow'
 import { PageActions } from '@/components/PageActions'
 import { StatusBadge } from '@/components/StatusBadge'
 import { SubmitIssueForm } from '@/components/SubmitIssueForm'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -655,9 +656,9 @@ function ExternalRefs({ refs }: { refs: readonly ExternalReference[] }) {
       <ul className="mt-1.5 space-y-1">
         {refs.map((ref, i) => (
           <li key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="rounded bg-muted px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider">
+            <Badge variant="outline" className="text-2xs uppercase tracking-wider text-muted-foreground">
               {ref.kind}
-            </span>
+            </Badge>
             <a
               href={ref.url}
               target="_blank"

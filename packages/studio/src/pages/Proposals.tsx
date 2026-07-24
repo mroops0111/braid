@@ -8,6 +8,7 @@ import { FocusToggle, OnlyChangesToggle } from '@/components/graph/GraphToolbar'
 import { ListRow } from '@/components/ListRow'
 import { PageActions } from '@/components/PageActions'
 import { StatusBadge } from '@/components/StatusBadge'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -870,10 +871,10 @@ function OperationGroup({ kind, ops }: { kind: FlatOp['kind'], ops: readonly Fla
       <ul className="divide-y divide-border/50">
         {ops.map((op, idx) => (
           <li key={`${op.id}-${idx}`} className="flex items-baseline gap-2 px-3 py-1.5 text-2xs">
-            <span className="rounded bg-muted/40 px-1.5 py-0.5 text-2xs uppercase tracking-wider text-muted-foreground">
+            <Badge variant="outline" className="text-2xs uppercase tracking-wider text-muted-foreground">
               {op.target}
               {op.type ? `:${op.type}` : ''}
-            </span>
+            </Badge>
             <span className="truncate font-mono text-foreground">{op.label}</span>
             {op.detail && <span className="truncate text-muted-foreground">{op.detail}</span>}
             <span className="ml-auto shrink-0 font-mono text-2xs text-muted-foreground/70">{op.id}</span>

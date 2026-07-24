@@ -399,13 +399,14 @@ function SkillRow({ skill, active, onClick, step, locked }: {
           </span>
           <Badge variant="outline" className="text-2xs uppercase">{originLabel(skill)}</Badge>
           {locked && (
-            <span
-              className="inline-flex items-center gap-1 rounded bg-muted/60 px-1 py-0.5 text-2xs uppercase tracking-wider text-muted-foreground"
+            <Badge
+              variant="outline"
+              className="text-2xs uppercase tracking-wider text-muted-foreground"
               title="Your role cannot run this skill. Ask an Owner to grant access."
             >
               <Lock className="size-2.5" />
               Locked
-            </span>
+            </Badge>
           )}
         </div>
         <div className="mt-1 break-words text-xs text-muted-foreground">

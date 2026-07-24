@@ -83,7 +83,7 @@ export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
       </div>
       <div className="mt-1 truncate text-sm font-medium text-foreground">{node.name}</div>
       {firstParagraph && (
-        <div className="mt-0.5 line-clamp-2 text-2xs leading-snug text-muted-foreground [&_p]:!my-0 [&_p]:!text-2xs [&_p]:!leading-snug">
+        <div className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground [&_p]:!my-0 [&_p]:!text-xs [&_p]:!leading-snug">
           <Markdown text={firstParagraph} />
         </div>
       )}

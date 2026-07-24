@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Crown, Database, GitBranch, HardDrive, MoreHorizontal, Plug, RefreshCw, Trash2, UserMinus, UserRound, UserRoundCheck, UserRoundCog, Webhook } from 'lucide-react'
 import { DropdownMenu as DropdownPrimitive } from 'radix-ui'
 import { useState } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { api } from '@/lib/api'
 import { humaniseApiError } from '@/lib/errors'
 import { queryKeys, useMe, useSourceLoaders, useUsers, useWorkspaceMembers } from '@/lib/queries'
@@ -215,7 +216,7 @@ function SourceRow({ workspaceId, source, onChange }: {
   return (
     <li className="rounded-md border border-border p-2">
       <div className="flex items-center gap-2">
-        <span className="rounded bg-muted px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider">{source.role}</span>
+        <Badge variant="outline" className="text-2xs uppercase tracking-wider text-muted-foreground">{source.role}</Badge>
         <span className="font-mono text-xs">{source.name}</span>
         {loaderKind && (
           <span className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-0.5 text-2xs text-muted-foreground">
@@ -676,9 +677,9 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
           <div className="flex items-center gap-2">
             <span className="truncate text-xs">{displayName}</span>
             {isMe && <span className="text-2xs text-muted-foreground">(you)</span>}
-            <span className="ml-auto shrink-0 rounded bg-muted/60 px-1.5 py-0.5 text-2xs uppercase tracking-wider text-muted-foreground">
+            <Badge variant="outline" className="ml-auto shrink-0 text-2xs uppercase tracking-wider text-muted-foreground">
               {member.role}
-            </span>
+            </Badge>
           </div>
           {user?.email && (
             <p className="truncate font-mono text-2xs text-muted-foreground">{user.email}</p>

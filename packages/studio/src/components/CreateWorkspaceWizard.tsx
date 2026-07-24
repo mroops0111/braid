@@ -4,6 +4,7 @@ import type { SourceDraft as SourceDraftBase } from '@/lib/sourceDraft'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { api, workspaceEventsUrl } from '@/lib/api'
 import { asMcpServerId, asOntologyId, asStorageKind } from '@/lib/brands'
 import { type ErrorCase, humaniseApiError } from '@/lib/errors'
@@ -378,7 +379,7 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
   return (
     <div className="space-y-2 rounded-md border border-border p-3">
       <div className="flex items-center gap-2">
-        <span className="rounded bg-muted px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider">{draft.role}</span>
+        <Badge variant="outline" className="text-2xs uppercase tracking-wider text-muted-foreground">{draft.role}</Badge>
         <Input
           placeholder={draft.role === 'intent' ? 'intent-name' : 'repo-name'}
           value={draft.name}

@@ -45,5 +45,5 @@ export const EDGE_DASH = {
 } as const
 
 /** Dim factor for the type-coloured edge stroke when not selected or incident. */
-export const EDGE_DIM_REMOVED = 0.4
-export const EDGE_DIM_DEFAULT = 0.65
+export const EDGE_DIM_REMOVED = 0.35
+export const EDGE_DIM_DEFAULT = 0.45

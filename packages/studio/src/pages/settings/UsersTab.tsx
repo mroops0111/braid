@@ -4,6 +4,7 @@ import { ChevronDown, MoreHorizontal, Shield, Trash2 } from 'lucide-react'
 import { DropdownMenu as DropdownPrimitive } from 'radix-ui'
 import { useState } from 'react'
 import { ArmedConfirmBar } from '@/components/ArmedConfirmBar'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -67,9 +68,9 @@ function InviteRow({ email, role }: { email: string, role: 'admin' | 'user' }) {
   return (
     <li className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs">
       <span className="truncate font-mono">{email}</span>
-      <span className="rounded bg-muted/60 px-1.5 py-0.5 text-2xs uppercase tracking-wider text-muted-foreground">
+      <Badge variant="outline" className="text-2xs uppercase tracking-wider text-muted-foreground">
         {role}
-      </span>
+      </Badge>
       <div className="ml-auto flex items-center gap-1">
         {armed
           ? (
