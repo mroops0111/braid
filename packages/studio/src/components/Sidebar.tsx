@@ -453,7 +453,7 @@ function WorkspaceRow({
   return (
     <ListRow
       variant="sidebar"
-      active={active}
+      active={collapsed ? false : active}
       onClick={onClick}
       stripeClassName={stripe}
       stripeDim={!isActiveRemote}
