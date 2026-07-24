@@ -2,6 +2,7 @@ import type { ReactorCheckpoint, ReactorCycle, ReactorCycleId, ReactorUnit } fro
 import { useQuery } from '@tanstack/react-query'
 import { Activity, AlertCircle, CheckCircle2, CircleDashed, Loader2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { EmptyState } from '@/components/EmptyState'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -33,7 +34,7 @@ export function ActivityPage({ workspaceId }: ActivityPageProps) {
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      <aside className="flex w-80 shrink-0 flex-col border-r border-border bg-card/30">
+      <aside className="flex w-72 shrink-0 flex-col border-r border-border bg-card/30">
         <header className="border-b border-border px-3 py-2 text-2xs font-medium uppercase tracking-wider text-muted-foreground">
           Reactor passes
         </header>
@@ -65,10 +66,10 @@ export function ActivityPage({ workspaceId }: ActivityPageProps) {
       </aside>
       <main className="flex flex-1 flex-col overflow-y-auto">
         {!effectiveSelected && (
-          <EmptyPanel
+          <EmptyState
             icon={Activity}
             title="No Cycle Selected"
-            detail="Pick a cycle from the list to see its per-unit timeline."
+            description="Pick a cycle from the list to see its per-unit timeline."
           />
         )}
         {effectiveSelected && detail.data && <CycleDetail cycle={detail.data} />}
@@ -217,7 +218,7 @@ function CycleStatusIcon({ cycle }: { cycle: ReactorCycle }) {
       return <AlertCircle className="size-3 text-amber-600 dark:text-amber-400" />
     return <CheckCircle2 className="size-3 text-emerald-600 dark:text-emerald-400" />
   }
-  return <Loader2 className="size-3 animate-spin text-emerald-600 dark:text-emerald-400" />
+  return <Loader2 className="size-3 animate-spin text-sky-600 dark:text-sky-400" />
 }
 
 function UnitStatusIcon({ status }: { status: ReactorUnit['status'] }) {
@@ -226,7 +227,7 @@ function UnitStatusIcon({ status }: { status: ReactorUnit['status'] }) {
   if (status === 'failure')
     return <AlertCircle className="size-3 text-rose-600 dark:text-rose-400" />
   if (status === 'running')
-    return <Loader2 className="size-3 animate-spin text-emerald-600 dark:text-emerald-400" />
+    return <Loader2 className="size-3 animate-spin text-sky-600 dark:text-sky-400" />
   return <CircleDashed className="size-3 text-muted-foreground" />
 }
 
@@ -236,24 +237,10 @@ function CheckpointStatusIcon({ status }: { status: ReactorCheckpoint['status'] 
   if (status === 'failure')
     return <AlertCircle className="size-3 text-rose-600 dark:text-rose-400" />
   if (status === 'running')
-    return <Loader2 className="size-3 animate-spin text-emerald-600 dark:text-emerald-400" />
+    return <Loader2 className="size-3 animate-spin text-sky-600 dark:text-sky-400" />
   if (status === 'skipped')
     return <CircleDashed className="size-3 text-muted-foreground" />
   return <CircleDashed className="size-3 text-muted-foreground" />
-}
-
-function EmptyPanel({ icon: Icon, title, detail }: {
-  icon: typeof Activity
-  title: string
-  detail: string
-}) {
-  return (
-    <div className="m-auto flex max-w-sm flex-col items-center gap-2 text-center text-xs text-muted-foreground">
-      <Icon className="size-6 opacity-60" />
-      <p className="font-medium text-foreground">{title}</p>
-      <p>{detail}</p>
-    </div>
-  )
 }
 
 function useUnitCounts(units: readonly ReactorUnit[]): {

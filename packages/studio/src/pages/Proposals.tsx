@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
-import { queryKeys, useProposalsByStatus, useProposalValidation } from '@/lib/queries'
+import { queryKeys, useProposalsByStatus, useProposalValidation, useWorkspaceMembers } from '@/lib/queries'
 import { useGraphNavigation } from '@/lib/useGraphNavigation'
 import { useMutualExclusionPair } from '@/lib/useMutualExclusionPair'
 import { useWorkspacePolicy } from '@/policy'
@@ -198,7 +198,10 @@ function ShowAllToggle({
   onToggle: (next: boolean) => void
 }) {
   const { effectiveRole } = useWorkspacePolicy(workspaceId)
-  if (effectiveRole !== 'owner' || status !== 'pending')
+  const { data: members } = useWorkspaceMembers(workspaceId)
+  // Nothing to disambiguate on a solo workspace, every proposal is yours.
+  const multiMember = (members?.items.length ?? 0) > 1
+  if (effectiveRole !== 'owner' || status !== 'pending' || !multiMember)
     return null
   return (
     <Button
@@ -573,16 +576,14 @@ function RejectForm({ value, onChange, onCancel, onSubmit, isPending }: {
   )
 }
 
-type PreviewView = 'graph' | 'table' | 'list'
+type PreviewView = 'graph' | 'list'
 
 /**
- * Tri-view preview for the proposal's effect on the graph.
+ * Dual-view preview for the proposal's effect on the graph.
  * - **List**: grouped add, update, and remove rows, the densest summary.
  * - **Graph**: reuses the workspace `GraphCanvas`,
  * fed with a derived data source that applies the proposal's operations,
  * and annotates nodes and edges with their change kind.
- * - **Table**: the same data source piped through `GraphTablePage`,
- * gaining a `Change` column for diff readout in tabular form.
  *
  * The source is computed once via `useProposalGraphDataSource`,
  * and shared across views so toggling is cheap.
@@ -597,9 +598,9 @@ type PreviewView = 'graph' | 'table' | 'list'
 const INCREMENTAL_RATIO_THRESHOLD = 0.3
 
 function ProposalPreview({ workspaceId, operations }: { workspaceId: string, operations: readonly GraphOperation[] }) {
-  // Proposal-preview adds a `list` view to the normal graph and table pair.
-  // So we manage `view` here,
-  // and only delegate to GraphSurface for the two graph-derived views.
+  // Proposal preview pairs the graph visualization with a flat list view.
+  // We manage `view` here,
+  // and delegate the graph view to GraphSurface.
   const [view, setView] = useState<PreviewView>('graph')
   const [selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId]
     = useMutualExclusionPair<NodeId, EdgeId>()
@@ -645,7 +646,6 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
           )}
           <div role="tablist" aria-label="Preview view" className="inline-flex items-center gap-0.5 rounded border border-border bg-card p-0.5">
             <ViewTab active={view === 'graph'} onClick={() => setView('graph')}>Graph</ViewTab>
-            <ViewTab active={view === 'table'} onClick={() => setView('table')}>Table</ViewTab>
             <ViewTab active={view === 'list'} onClick={() => setView('list')}>List</ViewTab>
           </div>
         </div>
@@ -657,7 +657,7 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
               <GraphSurface
                 workspaceId={workspaceId}
                 source={source}
-                view={view === 'graph' ? 'visualization' : 'table'}
+                view="visualization"
                 selectedNodeId={selectedNodeId}
                 onSelectNode={setSelectedNodeId}
                 selectedEdgeId={selectedEdgeId}

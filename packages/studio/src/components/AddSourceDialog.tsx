@@ -11,6 +11,7 @@ import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { UnknownLoaderWarning } from './UnknownLoaderWarning'
 
 interface AddSourceDialogProps {
@@ -132,18 +133,25 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <Field label="Role">
-              <select value={role} onChange={e => setRole(e.target.value as typeof role)} className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs">
-                <option value="intent">intent</option>
-                <option value="code">code</option>
-              </select>
+              <Select value={role} onValueChange={v => setRole(v as typeof role)}>
+                <SelectTrigger size="sm" className="w-full text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="intent">intent</SelectItem>
+                  <SelectItem value="code">code</SelectItem>
+                </SelectContent>
+              </Select>
             </Field>
             <Field label="Loader">
-              <select value={loaderKind} onChange={e => setLoaderKind(e.target.value)} className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs">
-                <option value="">{loaderKindLabel('')}</option>
-                {(sourceLoaders.data?.loaders ?? []).map(loader => (
-                  <option key={loader.kind} value={loader.kind}>{loaderKindLabel(loader.kind)}</option>
-                ))}
-              </select>
+              {/* Radix reserves the empty value, so a "none" sentinel maps to "". */}
+              <Select value={loaderKind || 'none'} onValueChange={v => setLoaderKind(v === 'none' ? '' : v)}>
+                <SelectTrigger size="sm" className="w-full text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{loaderKindLabel('')}</SelectItem>
+                  {(sourceLoaders.data?.loaders ?? []).map(loader => (
+                    <SelectItem key={loader.kind} value={loader.kind}>{loaderKindLabel(loader.kind)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
           </div>
           <Field label="Name">
@@ -232,15 +240,14 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Field label="State">
-                  <select
-                    value={githubState}
-                    onChange={e => setGithubState(e.target.value as typeof githubState)}
-                    className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
-                  >
-                    <option value="all">all</option>
-                    <option value="open">open</option>
-                    <option value="closed">closed</option>
-                  </select>
+                  <Select value={githubState} onValueChange={v => setGithubState(v as typeof githubState)}>
+                    <SelectTrigger size="sm" className="w-full text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">all</SelectItem>
+                      <SelectItem value="open">open</SelectItem>
+                      <SelectItem value="closed">closed</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </Field>
                 <Field label="Labels (csv, optional)">
                   <Input value={githubLabels} onChange={e => setGithubLabels(e.target.value)} placeholder="bug, p1" />

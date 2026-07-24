@@ -79,7 +79,10 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
   // Older ones live in History if anyone really needs them.
   const groups = groupBySession(runsData?.items ?? [], titleData?.items ?? []).slice(0, 10)
   const selected = skills.find(s => s.id === selectedSkillId) ?? null
-  const [conversationsOpen, setConversationsOpen] = useState(false)
+  // null means follow the default, open when there are conversations.
+  // A boolean means the user has taken explicit control.
+  const [conversationsOpen, setConversationsOpen] = useState<boolean | null>(null)
+  const showConversations = conversationsOpen ?? groups.length > 0
 
   function startFresh(skill: SkillManifest): void {
     runStore.clearTurns(workspaceId, skill.id)
@@ -103,9 +106,9 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
     <SurfaceLayout
       list={(
         <>
-          {/* Skills take the full sidebar height; conversations live as a
-              collapsed-by-default drawer pinned to the bottom so the runner
-              list isn't competing for vertical space. */}
+          {/* Skills take the full sidebar height. Conversations live in a
+              bottom drawer that opens when there are any to show,
+              so the runner list isn't competing for vertical space. */}
           <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
             {skills.length === 0
               ? (
@@ -141,7 +144,7 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
           <div className="shrink-0 border-t border-border">
             <button
               type="button"
-              onClick={() => setConversationsOpen(o => !o)}
+              onClick={() => setConversationsOpen(!showConversations)}
               className="flex w-full items-center gap-2 px-3 py-2 text-2xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent/40"
             >
               <MessageSquare className="size-3" />
@@ -151,11 +154,11 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
                   {groups.length}
                 </span>
               )}
-              {conversationsOpen
+              {showConversations
                 ? <ChevronDown className="ml-auto size-3" />
                 : <ChevronUp className="ml-auto size-3" />}
             </button>
-            {conversationsOpen && (
+            {showConversations && (
               <ul className="max-h-[30vh] overflow-y-auto scrollbar-thin border-t border-border">
                 {groups.length === 0
                   ? <SidebarEmpty>Past conversations will appear here.</SidebarEmpty>

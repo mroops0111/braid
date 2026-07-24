@@ -63,7 +63,7 @@ export function GraphNavigator({ workspaceId, nodes, orphanIds, filters, onFilte
               onClick={() => onFiltersChange({ ...filters, types: [] })}
               className="text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground disabled:opacity-30"
             >
-              Clear
+              None
             </button>
           </div>
         </div>

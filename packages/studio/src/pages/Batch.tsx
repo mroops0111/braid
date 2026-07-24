@@ -1,7 +1,7 @@
 import type { BatchPlan, BatchStatus, BatchUnit, BatchUnitStatus, SkillInputOptionsResponse, SkillRunId } from '@braidhq/schema'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Archive, CheckCircle2, CircleDot, FastForward, FileText, Loader2, Play, PlayCircle, Search, Sparkles, StopCircle, Terminal, XCircle } from 'lucide-react'
+import { Archive, CheckCircle2, CircleDot, ClipboardCheck, FastForward, FileText, HelpCircle, Loader2, Play, PlayCircle, Search, Sparkles, StopCircle, Terminal, XCircle } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { SkillTranscript } from '@/components/SkillTranscript'
 import { Button } from '@/components/ui/button'
@@ -584,15 +584,15 @@ function UnitRow({ unit, actionLabel, active, selected, onSelect }: {
           {(unit.proposalIds.length > 0 || unit.clarificationIds.length > 0) && (
             <div className="mt-0.5 flex gap-2 text-2xs text-muted-foreground">
               {unit.proposalIds.length > 0 && (
-                <span>
+                <span className="flex items-center gap-0.5" title={`${unit.proposalIds.length} proposals`}>
+                  <ClipboardCheck className="size-3" />
                   {unit.proposalIds.length}
-                  {' p'}
                 </span>
               )}
               {unit.clarificationIds.length > 0 && (
-                <span>
+                <span className="flex items-center gap-0.5" title={`${unit.clarificationIds.length} clarifications`}>
+                  <HelpCircle className="size-3" />
                   {unit.clarificationIds.length}
-                  {' c'}
                 </span>
               )}
             </div>
