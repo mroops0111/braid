@@ -1,4 +1,4 @@
-import { Focus as FocusIcon, LayoutGrid, Network, SquareDashed } from 'lucide-react'
+import { Focus as FocusIcon, GitCompare, LayoutGrid, Network } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export type GraphView = 'visualization' | 'table'
@@ -59,7 +59,7 @@ export function OnlyChangesToggle({ active, onChange }: { active: boolean, onCha
           : 'bg-card text-muted-foreground hover:bg-accent/50 hover:text-foreground',
       )}
     >
-      <SquareDashed className="size-3.5" />
+      <GitCompare className="size-3.5" />
       Only changes
     </button>
   )

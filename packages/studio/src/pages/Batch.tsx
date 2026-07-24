@@ -501,7 +501,7 @@ function PhaseSectionHeader({ title, badge, tone = 'idle' }: {
 
 const CHECKPOINT_PHASE_ICON: Record<BatchPlan['checkpointPhases'][number]['status'], ReactNode> = {
   running: <Loader2 className="size-3.5 animate-spin text-sky-500" />,
-  completed: <Sparkles className="size-3.5 text-emerald-500" />,
+  completed: <CheckCircle2 className="size-3.5 text-emerald-500" />,
   failed: <StopCircle className="size-3.5 text-rose-500" />,
 }
 

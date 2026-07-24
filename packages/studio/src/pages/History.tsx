@@ -783,7 +783,7 @@ function TagDialog({ open, onOpenChange, workspaceId, sha }: {
             </Button>
             <Button type="submit" disabled={!name.trim() || create.isPending}>
               <Plus />
-              {create.isPending ? 'Tagging…' : 'Create tag'}
+              {create.isPending ? 'Tagging…' : 'Create Tag'}
             </Button>
           </DialogFooter>
         </form>
