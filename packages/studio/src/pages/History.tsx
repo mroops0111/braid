@@ -170,20 +170,20 @@ function CommitRow({ commit, tags, active, compareActive, dimmed, onSelect }: {
       )}
     >
       <div className="flex w-full items-center gap-1.5">
-        <span className={cn('rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider', KIND_TONE[commit.message.kind])}>
+        <span className={cn('rounded border px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wider', KIND_TONE[commit.message.kind])}>
           {KIND_LABEL[commit.message.kind]}
         </span>
         {compareActive && (
-          <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-700 dark:text-amber-300">
+          <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wider text-amber-700 dark:text-amber-300">
             Compare
           </span>
         )}
-        <span className="ml-auto truncate font-mono text-[10px] text-muted-foreground">
+        <span className="ml-auto truncate font-mono text-[11px] text-muted-foreground">
           {commit.sha.slice(0, 7)}
         </span>
       </div>
       <div className="break-words text-xs text-foreground/90">{commit.message.subject}</div>
-      <div className="flex w-full items-center gap-1.5 text-[10px] text-muted-foreground">
+      <div className="flex w-full items-center gap-1.5 text-[11px] text-muted-foreground">
         <span>{commit.author.name}</span>
         <span>·</span>
         <span>{relativeTime(commit.committedAt)}</span>
@@ -191,7 +191,7 @@ function CommitRow({ commit, tags, active, compareActive, dimmed, onSelect }: {
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {tags.map(tag => (
-            <span key={tag.name} className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+            <span key={tag.name} className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] text-primary">
               <Tag className="size-2.5" />
               {tag.name}
             </span>
@@ -223,7 +223,7 @@ function CommitDetail({ workspaceId, sha, tags, onStartCompare }: {
         <div className="flex min-w-0 items-center gap-2">
           <GitCommit className="size-4 shrink-0 text-muted-foreground" />
           <span className="truncate font-mono text-sm text-foreground">{sha.slice(0, 12)}</span>
-          <span className={cn('rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider', KIND_TONE[data.message.kind])}>
+          <span className={cn('rounded border px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wider', KIND_TONE[data.message.kind])}>
             {KIND_LABEL[data.message.kind]}
           </span>
         </div>
@@ -508,7 +508,7 @@ function DiffGroup({ group }: { group: DiffGroupModel }) {
           <li key={entry.id} className="rounded-md px-1.5 py-1 text-xs hover:bg-muted/50">
             <div className="flex items-center gap-1.5">
               <span className="truncate text-foreground/90">{entry.label}</span>
-              <span className="ml-auto shrink-0 rounded border border-border/60 bg-background/60 px-1 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="ml-auto shrink-0 rounded border border-border/60 bg-background/60 px-1 py-0.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 {entry.type}
               </span>
             </div>
@@ -607,7 +607,7 @@ function indexById<T extends { id: K }, K extends string>(items: readonly T[]): 
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
+    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
   )
 }
 
@@ -630,12 +630,12 @@ function FileDiffRow({ file }: { file: FileDiff }) {
         : 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300'
   return (
     <li className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2 py-1.5">
-      <span className={cn('rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider', badge)}>
+      <span className={cn('rounded border px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wider', badge)}>
         {file.status[0]}
       </span>
       <span className="truncate font-mono text-xs text-foreground/90">{file.path}</span>
       {file.previousPath && (
-        <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+        <span className="ml-auto font-mono text-[11px] text-muted-foreground">
           from
           {' '}
           {file.previousPath}

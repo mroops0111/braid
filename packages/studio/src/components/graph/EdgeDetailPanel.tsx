@@ -62,7 +62,7 @@ export function EdgeDetailPanel({
           </span>
         </div>
         <h2 className="text-sm font-semibold text-foreground">Edge</h2>
-        <p className="font-mono text-[10px] text-muted-foreground">{edge.id}</p>
+        <p className="font-mono text-[11px] text-muted-foreground">{edge.id}</p>
       </header>
 
       <div className="flex-1 space-y-5 overflow-y-auto p-4 scrollbar-thin">
@@ -98,11 +98,11 @@ export function EdgeDetailPanel({
                         <FileText className="size-3 text-muted-foreground" />
                         <span className="font-mono text-foreground">{reference.sourceId}</span>
                       </div>
-                      <p className="mt-0.5 break-all font-mono text-[10px] text-muted-foreground">
+                      <p className="mt-0.5 break-all font-mono text-[11px] text-muted-foreground">
                         {formatLocation(reference.location.uri, reference.location.startLine, reference.location.endLine)}
                       </p>
                       {reference.snippet && (
-                        <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-sm bg-muted/40 p-1.5 text-[10px] text-foreground/80">
+                        <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-sm bg-muted/40 p-1.5 text-[11px] text-foreground/80">
                           {reference.snippet}
                         </pre>
                       )}
@@ -145,7 +145,7 @@ function EndpointRow({
         className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] hover:bg-accent"
       >
         <Icon className="size-3 shrink-0 text-muted-foreground" />
-        <span className="w-10 shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+        <span className="w-10 shrink-0 text-[11px] uppercase tracking-wider text-muted-foreground">{label}</span>
         {node
           ? (
               <>
@@ -154,7 +154,7 @@ function EndpointRow({
               </>
             )
           : (
-              <span className="truncate font-mono text-[10px] text-muted-foreground">{nodeId}</span>
+              <span className="truncate font-mono text-[11px] text-muted-foreground">{nodeId}</span>
             )}
       </button>
     </li>
@@ -163,7 +163,7 @@ function EndpointRow({
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{children}</h3>
+    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{children}</h3>
   )
 }
 

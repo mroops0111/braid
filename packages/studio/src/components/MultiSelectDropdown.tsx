@@ -129,7 +129,7 @@ export function MultiSelectDropdown({
                             <span
                               title={option.badge.title}
                               className={cn(
-                                'shrink-0 rounded-full px-1.5 py-px text-[9px] font-medium uppercase tracking-wider',
+                                'shrink-0 rounded-full px-1.5 py-px text-[11px] font-medium uppercase tracking-wider',
                                 option.badge.tone === 'stale'
                                   ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
                                   : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
@@ -140,7 +140,7 @@ export function MultiSelectDropdown({
                           )}
                         </span>
                         {option.description && (
-                          <span className="block truncate text-[10px] text-muted-foreground">{option.description}</span>
+                          <span className="block truncate text-[11px] text-muted-foreground">{option.description}</span>
                         )}
                       </span>
                     </button>
@@ -149,7 +149,7 @@ export function MultiSelectDropdown({
               })}
             </ul>
             {selected.length > 0 && (
-              <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-[10px] text-muted-foreground">
+              <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-[11px] text-muted-foreground">
                 <span>
                   {selected.length}
                   {' '}
@@ -194,7 +194,7 @@ function SelectedChips({
         const option = optionsByValue.get(value)
         return (
           <li key={value}>
-            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[10px] text-foreground">
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[11px] text-foreground">
               <span className="max-w-[12rem] truncate font-mono">{option?.label ?? value}</span>
               <button
                 type="button"

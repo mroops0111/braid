@@ -136,7 +136,7 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
   return (
     <div className="space-y-3 border-t border-border px-4 py-3">
       {tooManyMultiPicks && (
-        <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-[10px] text-rose-300">
+        <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-[11px] text-rose-300">
           This skill declares more than one multi-pick input. Only one is supported per skill.
         </div>
       )}
@@ -186,7 +186,7 @@ function InputControl({ input, ...rest }: ControlProps<SkillInputDescriptor>) {
         {input.label}
         {!input.optional && <span className="ml-0.5 text-rose-400">*</span>}
       </label>
-      {input.description && <p className="mt-0.5 text-[10px] text-muted-foreground">{input.description}</p>}
+      {input.description && <p className="mt-0.5 text-[11px] text-muted-foreground">{input.description}</p>}
       {input.kind === 'text'
         ? <TextField input={input} {...rest} />
         : <PickField input={input} {...rest} />}
@@ -432,7 +432,7 @@ function DynamicPick({ workspaceId, input, scalarValue, onScalarChange, multiVal
     return <div className="mt-1 h-7 animate-pulse rounded-md bg-muted/40" />
   if (query.error) {
     return (
-      <div className="mt-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-[10px] text-rose-300">
+      <div className="mt-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-[11px] text-rose-300">
         Failed to load options:
         {' '}
         {(query.error as Error).message}
@@ -510,7 +510,7 @@ function MultiPickField({
         disabled={disabled}
       />
       {selected.length > 1 && (
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-[11px] text-muted-foreground">
           Will fire
           {' '}
           {selected.length}

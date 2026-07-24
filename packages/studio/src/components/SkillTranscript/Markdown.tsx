@@ -71,7 +71,7 @@ const components: NonNullable<Parameters<typeof ReactMarkdown>[0]['components']>
   tbody: ({ children }) => <tbody>{children}</tbody>,
   tr: ({ children }) => <tr className="border-b border-border/40">{children}</tr>,
   th: ({ children, style }) => (
-    <th style={style} className="px-2 py-1 text-left text-[10px] font-semibold uppercase tracking-wider">
+    <th style={style} className="px-2 py-1 text-left text-[11px] font-semibold uppercase tracking-wider">
       {children}
     </th>
   ),

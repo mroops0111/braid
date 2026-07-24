@@ -14,7 +14,7 @@ export function NodeTypeBadge({ type, className }: { type: NodeTypeId, className
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-sm border px-1 py-0.5 text-[10px] font-medium uppercase tracking-wider',
+        'inline-flex items-center rounded-sm border px-1 py-0.5 text-[11px] font-medium uppercase tracking-wider',
         className,
       )}
       style={palette.nodeBadgeStyle(type)}

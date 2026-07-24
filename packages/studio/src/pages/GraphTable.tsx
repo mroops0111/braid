@@ -200,14 +200,14 @@ function NodeTable({
   const showChange = diff !== undefined
   return (
     <section>
-      <h3 className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         Nodes (
         {nodes.length}
         )
       </h3>
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-y border-border text-[10px] uppercase tracking-wider text-muted-foreground">
+          <tr className="border-y border-border text-[11px] uppercase tracking-wider text-muted-foreground">
             {showChange && <th className="w-24 px-4 py-2 text-left font-semibold">Change</th>}
             <th className="w-32 px-4 py-2 text-left font-semibold">Type</th>
             <th className="px-4 py-2 text-left font-semibold">ID</th>
@@ -275,14 +275,14 @@ function EdgeTable({
   const showChange = diff !== undefined
   return (
     <section>
-      <h3 className="px-4 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 className="px-4 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         Edges (
         {edges.length}
         )
       </h3>
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-y border-border text-[10px] uppercase tracking-wider text-muted-foreground">
+          <tr className="border-y border-border text-[11px] uppercase tracking-wider text-muted-foreground">
             {showChange && <th className="w-24 px-4 py-2 text-left font-semibold">Change</th>}
             <th className="px-4 py-2 text-left font-semibold">Type</th>
             <th className="px-4 py-2 text-left font-semibold">From</th>
@@ -351,7 +351,7 @@ function ChangeBadge({ change }: { change: ChangeKind | undefined }) {
   if (!change)
     return <span className="text-[11px] text-muted-foreground/50">·</span>
   return (
-    <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider ${CHANGE_BADGE_CLASS[change]}`}>
+    <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wider ${CHANGE_BADGE_CLASS[change]}`}>
       {change}
     </span>
   )

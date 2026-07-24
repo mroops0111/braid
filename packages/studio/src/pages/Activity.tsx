@@ -96,11 +96,11 @@ function CycleListItem({ cycle, selected, onSelect }: {
         <span className="flex items-center gap-2">
           <CycleStatusIcon cycle={cycle} />
           <span className="font-mono text-[11px] text-foreground">{cycle.sourceId}</span>
-          <span className="ml-auto text-[10px] text-muted-foreground">
+          <span className="ml-auto text-[11px] text-muted-foreground">
             {timeAgo(cycle.startedAt)}
           </span>
         </span>
-        <span className="text-[10px] text-muted-foreground">
+        <span className="text-[11px] text-muted-foreground">
           {cycle.status === 'throttled'
             ? (cycle.throttledReason ?? 'throttled')
             : `${counts.success}/${cycle.units.length} units · ${cycle.status}`}
@@ -185,7 +185,7 @@ function UnitRow({ unit, index }: { unit: ReactorUnit, index: number }) {
         .
       </span>
       <span className="truncate font-mono">{unit.path}</span>
-      <span className="ml-auto text-[10px] text-muted-foreground">
+      <span className="ml-auto text-[11px] text-muted-foreground">
         {unit.startedAt && unit.completedAt
           ? `${secondsBetween(unit.startedAt, unit.completedAt)}s`
           : unit.startedAt ? 'running…' : ''}
@@ -199,7 +199,7 @@ function CheckpointRow({ checkpoint }: { checkpoint: ReactorCheckpoint }) {
     <div className="flex items-center gap-2 rounded-md border border-border/60 px-2 py-1 text-[11px]">
       <CheckpointStatusIcon status={checkpoint.status} />
       <span className="font-mono text-foreground">{checkpoint.skillId}</span>
-      <span className="ml-auto text-[10px] text-muted-foreground">
+      <span className="ml-auto text-[11px] text-muted-foreground">
         {checkpoint.startedAt && checkpoint.completedAt
           ? `${secondsBetween(checkpoint.startedAt, checkpoint.completedAt)}s`
           : checkpoint.startedAt ? 'running…' : checkpoint.status}

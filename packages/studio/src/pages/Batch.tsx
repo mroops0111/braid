@@ -170,7 +170,7 @@ function BatchPreviewList({ query }: { query: ReturnType<typeof useQuery<SkillIn
             <div className="min-w-0 flex-1">
               <div className="truncate text-foreground/90">{item.label}</div>
               {item.description && (
-                <div className="truncate text-[10px] text-muted-foreground">{item.description}</div>
+                <div className="truncate text-[11px] text-muted-foreground">{item.description}</div>
               )}
             </div>
           </li>
@@ -240,7 +240,7 @@ function BatchHeader({ workspaceId, plan, terminal }: {
           ? <Sparkles className="size-4 shrink-0 text-primary" />
           : <Loader2 className="size-4 shrink-0 animate-spin text-sky-500" />}
         <h1 className="truncate text-sm font-semibold">{headerLabel}</h1>
-        <span className={cn('rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider', STATUS_TONE[plan.status])}>
+        <span className={cn('rounded border px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wider', STATUS_TONE[plan.status])}>
           {plan.status}
         </span>
         <span className="text-xs text-muted-foreground">
@@ -462,7 +462,7 @@ function ChunkSection({ chunkIndex, chunk, isTerminal, perUnitLabel, checkpointL
               />
             )
           : (
-              <li className="rounded-md border border-dashed border-border/60 px-2.5 py-2 text-[10px] text-muted-foreground">
+              <li className="rounded-md border border-dashed border-border/60 px-2.5 py-2 text-[11px] text-muted-foreground">
                 {isTerminal
                   ? 'No checkpoint recorded for these units.'
                   : chunk.units.length === 0
@@ -482,10 +482,10 @@ function PhaseSectionHeader({ title, badge, tone = 'idle' }: {
 }) {
   return (
     <div className="sticky top-0 z-10 flex items-center justify-between border-y border-border/60 bg-card/80 px-3 py-1.5 backdrop-blur">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
       {badge && (
         <span className={cn(
-          'rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider',
+          'rounded border px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wider',
           tone === 'running' && 'border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-300',
           tone === 'completed' && 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
           tone === 'failed' && 'border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-300',
@@ -532,15 +532,15 @@ function CheckpointPhaseRow({ phase, label, active, selected, onSelect }: {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             {label && (
-              <span className="rounded border border-border bg-transparent px-1 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="rounded border border-border bg-transparent px-1 py-0.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 {label}
               </span>
             )}
             <span className="truncate text-xs font-medium text-foreground">Checkpoint</span>
           </div>
-          <p className="mt-0.5 text-[10px] text-muted-foreground">{`Covers ${phase.unitIds.length} unit${phase.unitIds.length === 1 ? '' : 's'}`}</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">{`Covers ${phase.unitIds.length} unit${phase.unitIds.length === 1 ? '' : 's'}`}</p>
           {phase.error && (
-            <p className="mt-0.5 line-clamp-2 text-[10px] text-rose-600 dark:text-rose-300">{phase.error}</p>
+            <p className="mt-0.5 line-clamp-2 text-[11px] text-rose-600 dark:text-rose-300">{phase.error}</p>
           )}
         </div>
       </button>
@@ -575,14 +575,14 @@ function UnitRow({ unit, actionLabel, active, selected, onSelect }: {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             {actionLabel && (
-              <span className="rounded border border-border bg-transparent px-1 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="rounded border border-border bg-transparent px-1 py-0.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 {actionLabel}
               </span>
             )}
             <span className="truncate text-xs font-medium text-foreground">{unit.name}</span>
           </div>
           {(unit.proposalIds.length > 0 || unit.clarificationIds.length > 0) && (
-            <div className="mt-0.5 flex gap-2 text-[10px] text-muted-foreground">
+            <div className="mt-0.5 flex gap-2 text-[11px] text-muted-foreground">
               {unit.proposalIds.length > 0 && (
                 <span>
                   {unit.proposalIds.length}
@@ -598,7 +598,7 @@ function UnitRow({ unit, actionLabel, active, selected, onSelect }: {
             </div>
           )}
           {unit.error && (
-            <p className="mt-0.5 line-clamp-2 text-[10px] text-rose-600 dark:text-rose-300">{unit.error}</p>
+            <p className="mt-0.5 line-clamp-2 text-[11px] text-rose-600 dark:text-rose-300">{unit.error}</p>
           )}
         </div>
       </button>

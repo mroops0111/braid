@@ -35,7 +35,7 @@ function InvitesSection() {
   const { data, isLoading, error } = useAdminInvites(true)
   return (
     <section className="space-y-2">
-      <h2 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         Pending Invites
       </h2>
       {error && <p className="text-[11px] text-destructive">{humaniseApiError(error)}</p>}
@@ -67,7 +67,7 @@ function InviteRow({ email, role }: { email: string, role: 'admin' | 'user' }) {
   return (
     <li className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs">
       <span className="truncate font-mono">{email}</span>
-      <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+      <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px] uppercase tracking-wider text-muted-foreground">
         {role}
       </span>
       <div className="ml-auto flex items-center gap-1">
@@ -146,7 +146,7 @@ function AddInviteForm() {
   }
   return (
     <section className="space-y-3 rounded-md border border-border p-3">
-      <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">New Invite</h3>
+      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">New Invite</h3>
       <div className="space-y-2">
         <Label htmlFor="invite-email" className="text-xs">Email</Label>
         <Input
@@ -186,7 +186,7 @@ function UsersSection() {
   const sorted = data ? sortUsers(data.items, me?.id) : []
   return (
     <section className="space-y-2">
-      <h2 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         Users
       </h2>
       {isLoading
@@ -195,7 +195,7 @@ function UsersSection() {
             <div className="overflow-hidden rounded-md border border-border">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-border bg-card/40 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <tr className="border-b border-border bg-card/40 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     <th className="px-3 py-1.5">User</th>
                     <th className="px-3 py-1.5">Role</th>
                     <th className="px-3 py-1.5">Workspaces</th>
@@ -221,13 +221,13 @@ function UsersSection() {
 
 function WorkspaceList({ workspaces }: { workspaces: AdminUser['workspaces'] }) {
   if (workspaces.length === 0)
-    return <span className="text-[10px] text-muted-foreground/60">none</span>
+    return <span className="text-[11px] text-muted-foreground/60">none</span>
   return (
     <ul className="flex flex-wrap gap-1">
       {workspaces.map(w => (
         <li
           key={w.workspaceId}
-          className="inline-flex items-center gap-1 rounded bg-muted/60 px-1.5 py-0.5 text-[10px]"
+          className="inline-flex items-center gap-1 rounded bg-muted/60 px-1.5 py-0.5 text-[11px]"
         >
           <span className="font-mono text-foreground/80">{w.workspaceId}</span>
           <span className="uppercase tracking-wider text-muted-foreground/70">{w.role}</span>
@@ -285,15 +285,15 @@ function UserRow({ user, isMe, isLast }: { user: AdminUser, isMe: boolean, isLas
           <div className="flex items-center gap-1.5">
             <span className="font-medium">{user.displayName}</span>
             {isMe && (
-              <span className="rounded bg-primary/15 px-1 py-0.5 text-[10px] uppercase tracking-wider text-primary">
+              <span className="rounded bg-primary/15 px-1 py-0.5 text-[11px] uppercase tracking-wider text-primary">
                 You
               </span>
             )}
           </div>
-          <div className="truncate font-mono text-[10px] text-muted-foreground">{secondary}</div>
+          <div className="truncate font-mono text-[11px] text-muted-foreground">{secondary}</div>
         </td>
         <td className="px-3 py-2">
-          <span className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider ${
+          <span className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] uppercase tracking-wider ${
             user.serverRole === 'admin'
               ? 'bg-primary/15 text-primary'
               : 'bg-muted/60 text-muted-foreground'

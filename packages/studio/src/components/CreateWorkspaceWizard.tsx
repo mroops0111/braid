@@ -245,14 +245,14 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
 function StepIndicator({ step }: { step: StepKey }) {
   const current = STEP_ORDER.indexOf(step)
   return (
-    <ol className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider">
+    <ol className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider">
       {STEP_ORDER.slice(0, -1).map((key, index) => {
         const active = index === current
         const done = index < current
         return (
           <li key={key} className="flex items-center gap-1.5 whitespace-nowrap">
             <span
-              className={`flex size-5 items-center justify-center rounded-full border text-[10px] ${
+              className={`flex size-5 items-center justify-center rounded-full border text-[11px] ${
                 done ? 'border-primary bg-primary text-primary-foreground' : active ? 'border-primary text-primary' : 'border-border text-muted-foreground'
               }`}
             >
@@ -378,7 +378,7 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
   return (
     <div className="space-y-2 rounded-md border border-border p-3">
       <div className="flex items-center gap-2">
-        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider">{draft.role}</span>
+        <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wider">{draft.role}</span>
         <Input
           placeholder={draft.role === 'intent' ? 'intent-name' : 'repo-name'}
           value={draft.name}
@@ -391,7 +391,7 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
         </Button>
       </div>
 
-      <p className="font-mono text-[10px] text-muted-foreground">{targetPath}</p>
+      <p className="font-mono text-[11px] text-muted-foreground">{targetPath}</p>
 
       <MarkdownDescriptionField
         id={`src-desc-${draft.uiId}`}
@@ -653,7 +653,7 @@ function ConfirmStep({ name, description, sources, mcpServers, ontologyId, stora
       <Field label="Ontology" value={ontologyId} />
       <Field label="Storage" value={storageKind} />
       <div>
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Sources</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Sources</div>
         {sources.length === 0
           ? <p className="text-muted-foreground/70">None. You can add sources later from the workspace panel.</p>
           : (
@@ -677,7 +677,7 @@ function ConfirmStep({ name, description, sources, mcpServers, ontologyId, stora
             )}
       </div>
       <div>
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">MCP Servers</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">MCP Servers</div>
         {mcpServers.length === 0
           ? <p className="text-muted-foreground/70">None.</p>
           : (
@@ -702,7 +702,7 @@ function ConfirmStep({ name, description, sources, mcpServers, ontologyId, stora
 function Field({ label, value, mono }: { label: string, value: string, mono?: boolean }) {
   return (
     <div>
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
         :
         {' '}

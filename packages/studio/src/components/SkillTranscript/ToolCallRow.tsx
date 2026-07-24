@@ -24,7 +24,7 @@ export function ToolCallRow({ paired }: ToolCallRowProps) {
         <span className={cn('font-medium', isError ? 'text-red-400' : 'text-amber-400')}>{call.tool}</span>
         {compact && <span className="truncate text-muted-foreground/80">{compact}</span>}
         {isError && (
-          <span className="ml-auto rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-red-400">
+          <span className="ml-auto rounded bg-red-500/15 px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wider text-red-400">
             error
           </span>
         )}
@@ -56,7 +56,7 @@ export function ToolCallRow({ paired }: ToolCallRowProps) {
 
 function SectionLabel({ children, className }: { children: React.ReactNode, className?: string }) {
   return (
-    <div className={cn('text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70', className)}>
+    <div className={cn('text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70', className)}>
       {children}
     </div>
   )

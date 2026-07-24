@@ -147,7 +147,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
           </div>
           <Field label="Name">
             <Input value={name} onChange={e => setName(e.target.value)} placeholder={role === 'intent' ? 'intent-name' : 'repo-name'} autoFocus />
-            <p className="font-mono text-[10px] text-muted-foreground">
+            <p className="font-mono text-[11px] text-muted-foreground">
               ./
               {rolePathSegment(role)}
               /

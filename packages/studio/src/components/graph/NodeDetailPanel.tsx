@@ -53,7 +53,7 @@ export function NodeDetailPanel({
           <StatusBadge status={node.status} />
         </div>
         <h2 className="text-sm font-semibold text-foreground">{node.name}</h2>
-        <p className="font-mono text-[10px] text-muted-foreground">{node.id}</p>
+        <p className="font-mono text-[11px] text-muted-foreground">{node.id}</p>
       </header>
 
       <div className="flex-1 space-y-5 overflow-y-auto p-4 scrollbar-thin">
@@ -98,11 +98,11 @@ export function NodeDetailPanel({
                         <FileText className="size-3 text-muted-foreground" />
                         <span className="font-mono text-foreground">{reference.sourceId}</span>
                       </div>
-                      <p className="mt-0.5 break-all font-mono text-[10px] text-muted-foreground">
+                      <p className="mt-0.5 break-all font-mono text-[11px] text-muted-foreground">
                         {formatLocation(reference.location.uri, reference.location.startLine, reference.location.endLine)}
                       </p>
                       {reference.snippet && (
-                        <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-sm bg-muted/40 p-1.5 text-[10px] text-foreground/80">
+                        <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-sm bg-muted/40 p-1.5 text-[11px] text-foreground/80">
                           {reference.snippet}
                         </pre>
                       )}
@@ -149,7 +149,7 @@ function EdgeList({ title, icon: Icon, edges, getOther, nodesById, onSelectNode 
                 className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] hover:bg-accent"
               >
                 <Icon className="size-3 shrink-0 text-muted-foreground" />
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{edge.type}</span>
+                <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{edge.type}</span>
                 <span className="truncate text-foreground">{other?.name ?? otherId}</span>
               </button>
             </li>
@@ -177,7 +177,7 @@ function FlagsSection({ node }: { node: GraphNode }) {
         {flags.map(flag => (
           <li
             key={flag.label}
-            className={`inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[10px] uppercase tracking-wider ${
+            className={`inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[11px] uppercase tracking-wider ${
               flag.tone === 'amber'
                 ? 'border-amber-500/30 bg-amber-500/15 text-amber-400'
                 : 'border-rose-500/30 bg-rose-500/15 text-rose-400'
@@ -193,7 +193,7 @@ function FlagsSection({ node }: { node: GraphNode }) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{children}</h3>
+    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{children}</h3>
   )
 }
 

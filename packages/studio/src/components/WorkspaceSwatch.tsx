@@ -40,7 +40,7 @@ interface WorkspaceSwatchProps {
 export function WorkspaceSwatch({ workspaceId, size = 'md', active, pendingDot }: WorkspaceSwatchProps) {
   const letters = monogramLetters(workspaceId)
   const color = colorClass(workspaceId)
-  const dims = size === 'md' ? 'size-7 text-[11px]' : 'size-5 text-[9px]'
+  const dims = size === 'md' ? 'size-7 text-[11px]' : 'size-5 text-[11px]'
   return (
     <div className={cn('relative shrink-0', size === 'md' ? 'size-7' : 'size-5')}>
       <div

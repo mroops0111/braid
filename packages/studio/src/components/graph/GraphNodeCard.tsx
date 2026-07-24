@@ -88,7 +88,7 @@ export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
       />
       <div className="flex items-center gap-1.5">
         <NodeTypeBadge type={node.type} />
-        <span className="text-[10px] text-muted-foreground">{node.status}</span>
+        <span className="text-[11px] text-muted-foreground">{node.status}</span>
       </div>
       <div className="mt-1 truncate text-sm font-medium text-foreground">{node.name}</div>
       {firstParagraph && (

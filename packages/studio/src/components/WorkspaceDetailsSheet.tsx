@@ -138,7 +138,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
 function SectionHeader({ title, onAdd, addLabel }: { title: string, onAdd?: (() => void) | undefined, addLabel?: string | undefined }) {
   return (
     <div className="flex items-center justify-between">
-      <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
+      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
       {onAdd && (
         <Button variant="ghost" size="sm" onClick={onAdd} className="h-6 text-[11px]">
           {addLabel}
@@ -215,10 +215,10 @@ function SourceRow({ workspaceId, source, onChange }: {
   return (
     <li className="rounded-md border border-border p-2">
       <div className="flex items-center gap-2">
-        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider">{source.role}</span>
+        <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wider">{source.role}</span>
         <span className="font-mono text-xs">{source.name}</span>
         {loaderKind && (
-          <span className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-0.5 text-[11px] text-muted-foreground">
             <GitBranch className="size-2.5" />
             {loaderKind}
           </span>
@@ -255,14 +255,14 @@ function SourceRow({ workspaceId, source, onChange }: {
         emptyHint="Add description"
       />
       {sync.data && (
-        <p className="mt-1 text-[10px] text-muted-foreground">
+        <p className="mt-1 text-[11px] text-muted-foreground">
           <SyncSummary report={sync.data} />
           {' · '}
           {new Date(sync.data.fetchedAt ?? Date.now()).toLocaleTimeString()}
         </p>
       )}
       {(sync.error || remove.error) && (
-        <p className="mt-1 text-[10px] text-destructive">{humaniseApiError(sync.error ?? remove.error)}</p>
+        <p className="mt-1 text-[11px] text-destructive">{humaniseApiError(sync.error ?? remove.error)}</p>
       )}
       <WebhookPanelGate workspaceId={workspaceId} source={source} />
     </li>
@@ -341,8 +341,8 @@ function GithubWebhookPanel({ workspaceId, sourceId }: { workspaceId: string, so
           {status.data && (
             <>
               <div>
-                <Label className="text-[10px] uppercase text-muted-foreground">Payload URL</Label>
-                <code className="mt-1 block break-all rounded bg-muted px-1.5 py-1 font-mono text-[10px]">
+                <Label className="text-[11px] uppercase text-muted-foreground">Payload URL</Label>
+                <code className="mt-1 block break-all rounded bg-muted px-1.5 py-1 font-mono text-[11px]">
                   {status.data.url}
                 </code>
               </div>
@@ -359,7 +359,7 @@ function GithubWebhookPanel({ workspaceId, sourceId }: { workspaceId: string, so
               {revealedSecret && (
                 <div className="rounded border border-amber-500/60 bg-amber-50 p-2 text-foreground dark:bg-amber-950/40">
                   <p className="font-medium">Copy this secret into GitHub now. It is shown once.</p>
-                  <code className="mt-1 block break-all rounded bg-background px-1.5 py-1 font-mono text-[10px]">
+                  <code className="mt-1 block break-all rounded bg-background px-1.5 py-1 font-mono text-[11px]">
                     {revealedSecret}
                   </code>
                 </div>
@@ -487,7 +487,7 @@ function InlineDescriptionEditor({
         rows={2}
       />
       {error !== null && error !== undefined && (
-        <p className="text-[10px] text-destructive">{humaniseApiError(error)}</p>
+        <p className="text-[11px] text-destructive">{humaniseApiError(error)}</p>
       )}
       <div className="flex justify-end gap-1.5">
         <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={onCancel} disabled={saving}>
@@ -504,7 +504,7 @@ function InlineDescriptionEditor({
 function MetaField({ icon: Icon, label, value }: { icon: typeof Database, label: string, value: string }) {
   return (
     <div className="rounded-md border border-border p-2">
-      <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
         <Icon className="size-3" />
         {label}
       </div>
@@ -675,13 +675,13 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="truncate text-xs">{displayName}</span>
-            {isMe && <span className="text-[10px] text-muted-foreground">(you)</span>}
-            <span className="ml-auto shrink-0 rounded bg-muted/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+            {isMe && <span className="text-[11px] text-muted-foreground">(you)</span>}
+            <span className="ml-auto shrink-0 rounded bg-muted/60 px-1.5 py-0.5 text-[11px] uppercase tracking-wider text-muted-foreground">
               {member.role}
             </span>
           </div>
           {user?.email && (
-            <p className="truncate font-mono text-[10px] text-muted-foreground">{user.email}</p>
+            <p className="truncate font-mono text-[11px] text-muted-foreground">{user.email}</p>
           )}
         </div>
         {showKebab && (
@@ -867,7 +867,7 @@ function AddMemberControl({ workspaceId, candidates, onAdded }: {
         <option value="guest">Guest</option>
         <option value="maintainer">Maintainer</option>
       </select>
-      {add.error && <p className="text-[10px] text-destructive">{humaniseApiError(add.error)}</p>}
+      {add.error && <p className="text-[11px] text-destructive">{humaniseApiError(add.error)}</p>}
       <div className="flex gap-2">
         <Button variant="ghost" size="sm" className="flex-1" onClick={() => setOpen(false)}>Cancel</Button>
         <Button size="sm" className="flex-1" disabled={!selectedUserId || add.isPending} onClick={() => add.mutate()}>

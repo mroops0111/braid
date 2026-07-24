@@ -22,7 +22,7 @@ export function ServersTab() {
   return (
     <div className="space-y-6">
       <section className="space-y-2">
-        <h2 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Connections</h2>
+        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Connections</h2>
         <ul className="space-y-2">
           <ServerRow
             id={LOCAL_REMOTE_ID}
@@ -92,17 +92,17 @@ function ServerRow({ id, name, url, isLocal, isActive }: ServerRowProps) {
           <div className="flex items-center gap-2">
             <span className="truncate text-sm">{name}</span>
             {isActive && (
-              <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-primary">
+              <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] uppercase tracking-wider text-primary">
                 Active
               </span>
             )}
             {!isActive && connected && (
-              <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-emerald-400">
+              <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[11px] uppercase tracking-wider text-emerald-400">
                 Connected
               </span>
             )}
             {!connected && (
-              <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+              <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px] uppercase tracking-wider text-muted-foreground">
                 Not signed in
               </span>
             )}
@@ -247,7 +247,7 @@ function AddRemoteForm() {
   }
   return (
     <section className="space-y-3 rounded-md border border-border p-3">
-      <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">New Server</h3>
+      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">New Server</h3>
       <div className="space-y-2">
         <Label htmlFor="add-remote-url" className="text-xs">URL</Label>
         <Input

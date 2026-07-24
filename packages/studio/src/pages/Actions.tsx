@@ -142,12 +142,12 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
             <button
               type="button"
               onClick={() => setConversationsOpen(o => !o)}
-              className="flex w-full items-center gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent/40"
+              className="flex w-full items-center gap-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent/40"
             >
               <MessageSquare className="size-3" />
               <span>Conversations</span>
               {groups.length > 0 && (
-                <span className="rounded bg-muted px-1.5 py-0.5 font-mono normal-case text-[10px] text-muted-foreground">
+                <span className="rounded bg-muted px-1.5 py-0.5 font-mono normal-case text-[11px] text-muted-foreground">
                   {groups.length}
                 </span>
               )}
@@ -285,7 +285,7 @@ function ConversationRow({ workspaceId, group, onResume }: {
             {group.skillId}
           </span>
           <div className="flex items-center gap-1">
-            <Badge variant="outline" className="text-[10px] uppercase">
+            <Badge variant="outline" className="text-[11px] uppercase">
               {group.records.length}
               {' '}
               turn
@@ -320,7 +320,7 @@ function ConversationRow({ workspaceId, group, onResume }: {
         <div className="break-words text-xs text-foreground/90">
           {group.title ?? group.firstPrompt}
         </div>
-        <div className="text-[10px] text-muted-foreground">{formatTimestamp(group.lastStartedAt)}</div>
+        <div className="text-[11px] text-muted-foreground">{formatTimestamp(group.lastStartedAt)}</div>
       </ListRow>
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
@@ -362,7 +362,7 @@ function SidebarSection({ icon: Icon, title, children }: {
 }) {
   return (
     <section>
-      <header className="flex items-center gap-1.5 px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <header className="flex items-center gap-1.5 px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         <Icon className="size-3" />
         {title}
       </header>
@@ -385,7 +385,7 @@ function SkillRow({ skill, active, onClick, step, locked }: {
   return (
     <ListRow active={active} onClick={onClick} className="items-start gap-2">
       {step !== undefined && (
-        <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-foreground/70">
+        <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-foreground/70">
           {step}
         </span>
       )}
@@ -395,10 +395,10 @@ function SkillRow({ skill, active, onClick, step, locked }: {
             /
             {skill.frontmatter.name}
           </span>
-          <Badge variant="outline" className="text-[10px] uppercase">{originLabel(skill)}</Badge>
+          <Badge variant="outline" className="text-[11px] uppercase">{originLabel(skill)}</Badge>
           {locked && (
             <span
-              className="inline-flex items-center gap-1 rounded bg-muted/60 px-1 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground"
+              className="inline-flex items-center gap-1 rounded bg-muted/60 px-1 py-0.5 text-[11px] uppercase tracking-wider text-muted-foreground"
               title="Your role cannot run this skill. Ask an Owner to grant access."
             >
               <Lock className="size-2.5" />

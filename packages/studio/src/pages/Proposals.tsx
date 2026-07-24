@@ -137,7 +137,7 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
                             <span className="break-all font-mono text-xs text-foreground">{proposal.id}</span>
                             <StatusBadge status={proposal.status} />
                           </div>
-                          <div className="text-[10px] text-muted-foreground">
+                          <div className="text-[11px] text-muted-foreground">
                             {proposal.operations.length}
                             {' '}
                             ops · by
@@ -234,7 +234,7 @@ function ProposalsStatusFilter({
         <TabsTrigger value="pending" className={FILTER_TAB_TRIGGER}>
           Pending
           {pendingCount > 0 && (
-            <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-medium leading-none text-primary">
+            <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-[11px] font-medium leading-none text-primary">
               {pendingCount}
             </span>
           )}
@@ -303,7 +303,7 @@ function ProposalDetail({
     <div className="flex h-full flex-col overflow-hidden">
       <header className="flex items-start justify-between gap-2 border-b border-border px-4 py-3">
         <div className="min-w-0 flex-1">
-          <div className="font-mono text-[10px] text-muted-foreground">{proposal.id}</div>
+          <div className="font-mono text-[11px] text-muted-foreground">{proposal.id}</div>
           <div className="truncate text-sm font-medium text-foreground" title={proposal.rationale}>
             {title}
           </div>
@@ -390,7 +390,7 @@ function RationaleSection({ text, firstSentence: shown }: { text: string, firstS
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+        className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
       >
         {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
         Rationale
@@ -463,7 +463,7 @@ function IssueGroup({ severity, issues }: { severity: ValidationSeverity, issues
   const Icon = palette.icon
   return (
     <div className={`rounded-md border ${palette.border} ${palette.bg} px-3 py-2`}>
-      <div className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider ${palette.text}`}>
+      <div className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider ${palette.text}`}>
         <Icon className="size-3" />
         {severity}
         {' '}
@@ -496,7 +496,7 @@ function IssueTarget({ issue }: { issue: ValidationIssue }) {
   const nav = useGraphNavigation()
   if (!issue.nodeId && !issue.edgeId && !issue.path)
     return null
-  const linkClass = 'rounded font-mono text-[10px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline'
+  const linkClass = 'rounded font-mono text-[11px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline'
   if (issue.nodeId && nav) {
     return (
       <span className="ml-1 inline-flex items-center gap-1 text-muted-foreground">
@@ -528,7 +528,7 @@ function IssueTarget({ issue }: { issue: ValidationIssue }) {
     )
   }
   return (
-    <span className="ml-1 font-mono text-[10px] text-muted-foreground">
+    <span className="ml-1 font-mono text-[11px] text-muted-foreground">
       →
       {' '}
       {issue.nodeId ?? issue.edgeId ?? issue.path}
@@ -546,7 +546,7 @@ function RejectForm({ value, onChange, onCancel, onSubmit, isPending }: {
   const hasReason = value.trim().length > 0
   return (
     <div className="mx-4 mt-3 space-y-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2">
-      <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         Reject Reason
       </label>
       <textarea
@@ -627,7 +627,7 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
     <section className="flex min-h-0 flex-1 flex-col border-t border-border">
       <div className="flex shrink-0 items-center justify-between px-4 pt-3 pb-2">
         <div className="flex items-baseline gap-2">
-          <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Preview (
             {flat.length}
             {' '}
@@ -680,7 +680,7 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
 function ProposalImpactSummary({ adds, updates, removes }: { adds: number, updates: number, removes: number }) {
   const total = adds + updates + removes
   if (total === 0) {
-    return <span className="text-[10px] text-muted-foreground/70">empty</span>
+    return <span className="text-[11px] text-muted-foreground/70">empty</span>
   }
   return (
     <span className="flex items-baseline gap-1.5 text-[11px] font-mono">
@@ -733,7 +733,7 @@ function ViewTab({ active, onClick, children }: { active: boolean, onClick: () =
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`rounded-sm px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider transition-colors ${
+      className={`rounded-sm px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider transition-colors ${
         active ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
       }`}
     >
@@ -859,7 +859,7 @@ function OperationGroup({ kind, ops }: { kind: FlatOp['kind'], ops: readonly Fla
   const Icon = palette.icon
   return (
     <div className={`rounded-md border ${palette.ring}`}>
-      <div className={`flex items-center gap-1.5 border-b border-border/50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider ${palette.text}`}>
+      <div className={`flex items-center gap-1.5 border-b border-border/50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider ${palette.text}`}>
         <Icon className="size-3" />
         {palette.label}
         {' '}
@@ -870,13 +870,13 @@ function OperationGroup({ kind, ops }: { kind: FlatOp['kind'], ops: readonly Fla
       <ul className="divide-y divide-border/50">
         {ops.map((op, idx) => (
           <li key={`${op.id}-${idx}`} className="flex items-baseline gap-2 px-3 py-1.5 text-[11px]">
-            <span className="rounded bg-muted/40 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
+            <span className="rounded bg-muted/40 px-1.5 py-0.5 text-[11px] uppercase tracking-wider text-muted-foreground">
               {op.target}
               {op.type ? `:${op.type}` : ''}
             </span>
             <span className="truncate font-mono text-foreground">{op.label}</span>
             {op.detail && <span className="truncate text-muted-foreground">{op.detail}</span>}
-            <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground/70">{op.id}</span>
+            <span className="ml-auto shrink-0 font-mono text-[11px] text-muted-foreground/70">{op.id}</span>
           </li>
         ))}
       </ul>

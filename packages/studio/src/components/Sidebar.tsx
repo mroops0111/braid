@@ -126,7 +126,7 @@ export function Sidebar({
           {!collapsed && (
             <div className="flex flex-col leading-tight">
               <span className="text-sm font-semibold tracking-tight">Braid</span>
-              <span className="text-[10px] italic text-sidebar-foreground/60">braiding intent &amp; code</span>
+              <span className="text-[11px] italic text-sidebar-foreground/60">braiding intent &amp; code</span>
             </div>
           )}
         </div>
@@ -241,7 +241,7 @@ function RemoteSection({
             <Icon className={cn('size-3 shrink-0', isActiveRemote ? 'text-sidebar-foreground/70' : 'text-sidebar-foreground/40')} />
             <span
               className={cn(
-                'truncate text-[10px] font-semibold uppercase tracking-wider',
+                'truncate text-[11px] font-semibold uppercase tracking-wider',
                 isActiveRemote ? 'text-sidebar-foreground/70' : 'text-sidebar-foreground/45',
               )}
               title={remote.url}
@@ -559,7 +559,7 @@ function HereSection({
     <div className={cn('shrink-0 border-t border-sidebar-border px-2 pb-2', collapsed ? 'pt-1.5' : 'pt-2')}>
       {!collapsed && (
         <div className="px-2 pb-1">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">Here</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">Here</span>
         </div>
       )}
       <ul className="space-y-px">
@@ -686,12 +686,12 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, on
         : (
             <>
               <div className="flex size-5 shrink-0 items-center justify-center text-sidebar-foreground/70">
-                <Icon className="size-3.5" />
+                <Icon className="size-4" />
               </div>
               <span className="flex-1 truncate text-left font-medium">{label}</span>
               {count > 0 && (
                 <span
-                  className="rounded bg-sidebar-accent px-1.5 py-0.5 text-[10px] font-medium text-sidebar-foreground/80"
+                  className="rounded bg-sidebar-accent px-1.5 py-0.5 text-[11px] font-medium text-sidebar-foreground/80"
                   title={`${count} pending`}
                 >
                   {count}
@@ -699,7 +699,7 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, on
               )}
               {shortcut && (
                 <kbd
-                  className="rounded bg-sidebar-accent/40 px-1.5 py-0.5 text-[10px] font-mono text-sidebar-foreground/50"
+                  className="rounded bg-sidebar-accent/40 px-1.5 py-0.5 text-[11px] font-mono text-sidebar-foreground/50"
                   aria-hidden
                 >
                   {shortcut}
@@ -730,7 +730,7 @@ function WorkspaceBadges({ workspaceId }: { workspaceId: string }) {
     <Tooltip>
       <TooltipTrigger asChild>
         <span
-          className="ml-auto rounded bg-sidebar-accent px-1.5 py-0.5 text-[10px] font-medium text-sidebar-foreground/80"
+          className="ml-auto rounded bg-sidebar-accent px-1.5 py-0.5 text-[11px] font-medium text-sidebar-foreground/80"
         >
           {total}
         </span>
