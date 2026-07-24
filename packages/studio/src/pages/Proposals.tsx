@@ -123,11 +123,7 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
                 <div className="p-4 text-sm text-muted-foreground">Loading…</div>
               )
             : !data || data.items.length === 0
-                ? (
-                    <div className="flex flex-1 items-center justify-center p-4 text-center text-xs text-muted-foreground">
-                      {EMPTY_COPY[status].title}
-                    </div>
-                  )
+                ? null
                 : (
                     <ul className="flex-1 overflow-y-auto scrollbar-thin">
                       {data.items.map(proposal => (

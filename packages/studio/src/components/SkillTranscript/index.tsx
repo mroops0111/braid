@@ -28,7 +28,7 @@ export function SkillTranscript({ events, error, running }: SkillTranscriptProps
   }, [events])
 
   return (
-    <div ref={containerRef} className="flex-1 overflow-y-auto scrollbar-thin bg-card px-4 py-3 font-mono text-xs leading-relaxed">
+    <div ref={containerRef} className="flex-1 overflow-y-auto scrollbar-thin px-4 py-3 font-mono text-xs leading-relaxed">
       {events.length === 0 && !running && !error && (
         <div className="text-muted-foreground/60">Output appears here.</div>
       )}

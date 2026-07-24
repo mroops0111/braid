@@ -205,11 +205,6 @@ export function ClarificationPage({ workspaceId }: ClarificationPageProps) {
                       ))}
                     </ul>
                   )}
-                  {(!data || data.items.length === 0) && (
-                    <div className="flex flex-1 items-center justify-center p-4 text-center text-xs text-muted-foreground">
-                      {EMPTY_COPY[status].title}
-                    </div>
-                  )}
                   {canSubmitIssue && (
                     <button
                       type="button"

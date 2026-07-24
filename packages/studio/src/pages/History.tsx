@@ -104,7 +104,7 @@ export function HistoryPage({ workspaceId }: HistoryPageProps) {
         {isLoading
           ? <div className="p-4 text-sm text-muted-foreground">Loading…</div>
           : commits.length === 0
-            ? <div className="flex flex-1 items-center justify-center p-4 text-center text-xs text-muted-foreground">No commits yet.</div>
+            ? null
             : (
                 <ul className="flex-1 overflow-y-auto scrollbar-thin">
                   {commits.map(commit => (
@@ -143,7 +143,9 @@ export function HistoryPage({ workspaceId }: HistoryPageProps) {
                   key={selectedSha}
                 />
               )
-            : <EmptyState icon={History} title="Pick a commit" description="Select a commit on the left to see its diff, tag it, or restore the workspace to that point." />}
+            : commits.length === 0
+              ? <EmptyState icon={History} title="No commits yet" description="History records each applied proposal, clarify answer, and restore as a commit." />
+              : <EmptyState icon={History} title="Pick a commit" description="Select a commit on the left to see its diff, tag it, or restore the workspace to that point." />}
       </div>
     </div>
   )
