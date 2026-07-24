@@ -1,5 +1,5 @@
 import type { SkillManifest, Workspace } from '@braidhq/schema'
-import { Activity, Boxes, ClipboardCheck, GitGraph, HelpCircle, Network, Settings2, SlidersHorizontal, Sparkles } from 'lucide-react'
+import { Activity, ClipboardCheck, GitGraph, HelpCircle, Network, Settings, Settings2, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import {
   CommandDialog,
@@ -54,7 +54,7 @@ const SURFACE_ITEMS: SurfaceItem[] = [
   { id: 'proposals', label: 'Proposals', Icon: ClipboardCheck, shortcut: 'G P' },
   { id: 'activity', label: 'Activity', Icon: Activity, shortcut: 'G B' },
   { id: 'history', label: 'History', Icon: GitGraph, shortcut: 'G H' },
-  { id: 'settings', label: 'Settings', Icon: SlidersHorizontal, shortcut: 'G S' },
+  { id: 'settings', label: 'Settings', Icon: Settings, shortcut: 'G S' },
 ]
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -196,7 +196,7 @@ export function CommandPalette({
                   setOpen(false)
                 }}
               >
-                <Boxes />
+                <Sparkles />
                 <span className="font-mono">
                   /
                   {skill.frontmatter.name}

@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import { Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { humaniseApiError } from '@/lib/errors'
@@ -209,6 +210,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
                     disabled={!name.trim() || startOauth.isPending}
                     onClick={() => startOauth.mutate()}
                   >
+                    {startOauth.isPending && <Loader2 className="mr-1 size-3 animate-spin" />}
                     {startOauth.isPending ? 'Opening…' : oauthConnected ? 'Reconnect' : 'Connect Google'}
                   </Button>
                 </div>
@@ -282,6 +284,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
         <DialogFooter>
           <Button variant="ghost" size="sm" onClick={close}>Cancel</Button>
           <Button size="sm" disabled={!valid || add.isPending} onClick={() => add.mutate()}>
+            {add.isPending && <Loader2 className="mr-1 size-3 animate-spin" />}
             {add.isPending ? 'Adding…' : 'Add'}
           </Button>
         </DialogFooter>

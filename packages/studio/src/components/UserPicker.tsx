@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { LogOut, UserRound } from 'lucide-react'
+import { Loader2, LogOut, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { clearAuthToken } from '@/lib/authToken'
@@ -148,6 +148,7 @@ function RenameDialog({
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button size="sm" onClick={save} disabled={saving || !value.trim() || value.trim() === me?.displayName}>
+              {saving && <Loader2 className="mr-1 size-3 animate-spin" />}
               {saving ? 'Saving…' : 'Save'}
             </Button>
           </div>

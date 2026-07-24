@@ -1,6 +1,6 @@
 import type { AdminUser } from '@/lib/api'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, MoreHorizontal, Shield, Trash2 } from 'lucide-react'
+import { ChevronDown, Loader2, MoreHorizontal, Plus, Shield, Trash2 } from 'lucide-react'
 import { DropdownMenu as DropdownPrimitive } from 'radix-ui'
 import { useState } from 'react'
 import { ArmedConfirmBar } from '@/components/ArmedConfirmBar'
@@ -142,7 +142,8 @@ function AddInviteForm() {
   if (!open) {
     return (
       <Button variant="ghost" size="sm" onClick={() => setOpen(true)} className="h-7 text-2xs">
-        + Add Invite
+        <Plus className="mr-1 size-3" />
+        Add Invite
       </Button>
     )
   }
@@ -175,6 +176,7 @@ function AddInviteForm() {
       <div className="flex gap-2">
         <Button variant="ghost" size="sm" onClick={reset} className="flex-1" disabled={add.isPending}>Cancel</Button>
         <Button size="sm" onClick={submit} className="flex-1" disabled={add.isPending}>
+          {add.isPending && <Loader2 className="mr-1 size-3 animate-spin" />}
           {add.isPending ? 'Saving…' : 'Save'}
         </Button>
       </div>
@@ -287,23 +289,23 @@ function UserRow({ user, isMe, isLast }: { user: AdminUser, isMe: boolean, isLas
           <div className="flex items-center gap-1.5">
             <span className="font-medium">{user.displayName}</span>
             {isMe && (
-              <span className="rounded bg-primary/15 px-1 py-0.5 text-2xs uppercase tracking-wider text-primary">
+              <Badge variant="outline" className="bg-primary/15 text-2xs uppercase tracking-wider text-primary">
                 You
-              </span>
+              </Badge>
             )}
           </div>
           <div className="truncate font-mono text-2xs text-muted-foreground">{secondary}</div>
         </td>
         <td className="px-3 py-2">
-          <span className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-2xs uppercase tracking-wider ${
-            user.serverRole === 'admin'
-              ? 'bg-primary/15 text-primary'
-              : 'bg-muted/60 text-muted-foreground'
-          }`}
+          <Badge
+            variant="outline"
+            className={`gap-0.5 text-2xs uppercase tracking-wider ${
+              user.serverRole === 'admin' ? 'bg-primary/15 text-primary' : 'text-muted-foreground'
+            }`}
           >
             {user.serverRole === 'admin' && <Shield className="size-2.5" />}
             {user.serverRole}
-          </span>
+          </Badge>
         </td>
         <td className="px-3 py-2">
           <WorkspaceList workspaces={user.workspaces} />
