@@ -121,7 +121,7 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
       open={open}
       onOpenChange={(o) => {
         if (!o) {
-          // Don't let outside-click / Escape kill the wizard mid-flight.
+          // Don't let an outside-click or Escape kill the wizard mid-flight.
           // Scaffold and provision can take minutes for gdrive sources.
           // Closing would orphan the request and lose the progress shown.
           if (scaffold.isPending)
@@ -474,9 +474,11 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
 
 /**
  * Loader dropdown for the wizard.
- * Reads the server's `/source-loaders` list so any newly-registered plugin appears here without a Studio code change.
+ * Reads the server's `/source-loaders` list,
+ * so any newly-registered plugin appears here without a Studio code change.
  * The `manual` option is always offered first,
- * because it is not backed by a plugin (it just tells the workspace "this source has no auto-sync").
+ * because it is not backed by a plugin.
+ * It just tells the workspace the source has no auto-sync.
  */
 function LoaderSelect({ value, onChange }: { value: string, onChange: (kind: string) => void }) {
   const { data } = useSourceLoaders()
@@ -500,8 +502,10 @@ function GdriveOauthBlock({ workspaceName, sourceName, connected, onConnected }:
   connected: boolean
   onConnected: (sourceId: string) => void
 }) {
-  // Token storage key is `${workspaceId}--${sourceId}`. Workspace id is the typed name (PRODUCT.md name),
-  // source id is derived from the source name. Both come from the wizard's current state,
+  // Token storage key is `${workspaceId}--${sourceId}`.
+  // Workspace id is the typed name, the PRODUCT.md name,
+  // source id is derived from the source name.
+  // Both come from the wizard's current state,
   // so we authorise before scaffold.
   const workspaceId = workspaceName.trim()
   const sourceId = nameToId(sourceName)
@@ -722,7 +726,8 @@ function ProgressStep({ workspaceName, status, error, provision, expectedSources
   expectedSources: readonly ExpectedSource[]
   onClose: () => void
 }) {
-  // Live per-source progress via SSE. The workspace isn't in the registry yet when we open this stream.
+  // Live per-source progress via SSE.
+  // The workspace is not in the registry yet when we open this stream.
   // `source.synced` events flow off the event bus by string key,
   // so the wizard's typed name catches every event provisionAll fires.
   const [syncedIds, setSyncedIds] = useState<Set<string>>(new Set())
@@ -822,7 +827,8 @@ function canAdvanceFrom(
       if (source.loaderKind === 'gdrive') {
         if (source.gdriveFolderId.trim().length === 0)
           return false
-        // OAuth is mandatory for gdrive. Otherwise provisionAll fails server-side with "not connected",
+        // OAuth is mandatory for gdrive.
+        // Otherwise provisionAll fails server-side with "not connected",
         // and the user gets an opaque error after the remaining steps.
         if (!state.oauthConnectedFor.has(nameToId(source.name)))
           return false

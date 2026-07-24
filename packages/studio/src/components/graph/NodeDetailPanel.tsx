@@ -13,9 +13,9 @@ interface NodeDetailPanelProps {
   onClose: () => void
   onSelectNode: (nodeId: NodeId) => void
   /**
-   * Canvas-only affordance. When present, a "Center in graph" footer
-   * button calls it. The table view omits this prop since centering
-   * has no meaning there.
+   * Canvas-only affordance.
+   * When present, a "Center in graph" footer button calls it.
+   * The table view omits this prop since centering has no meaning there.
    */
   onCenterInGraph?: () => void
 }
@@ -23,10 +23,9 @@ interface NodeDetailPanelProps {
 /**
  * Shared right-side detail panel for both Canvas and Table views.
  *
- * Lives in-flow as a flex sibling (not a modal Sheet) so the height
- * matches the surrounding page chrome — the previous Sheet-based
- * canvas detail was viewport-fixed and ran past the page's top/bottom,
- * which made it visually inconsistent with the table's in-flow aside.
+ * Lives in-flow as a flex sibling, not a modal Sheet,
+ * so its height matches the surrounding page chrome,
+ * and stays consistent with the table's in-flow aside.
  */
 export function NodeDetailPanel({
   node,

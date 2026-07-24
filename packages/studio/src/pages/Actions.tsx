@@ -17,9 +17,10 @@ import { useConversation } from '@/lib/useRun'
 import { useWorkspacePolicy } from '@/policy'
 
 /**
- * Schema `SkillCategory` maps 1:1 to a sidebar group. Skills with no
- * category land in "Custom", which is for workspace one-offs and plugin
- * skills that don't fit the canonical workflow.
+ * Schema `SkillCategory` maps 1:1 to a sidebar group.
+ * Skills with no category land in "Custom",
+ * which is for workspace one-offs and plugin skills,
+ * that do not fit the canonical workflow.
  */
 type Group = SkillCategory | 'custom'
 
@@ -44,23 +45,24 @@ export interface SessionGroup {
   firstPrompt: string
   skillId: string
   lastStartedAt: string
-  /** Reviewer-set title via SessionMetadata; null falls back to firstPrompt. */
+  /** Reviewer-set title via SessionMetadata, null falls back to firstPrompt. */
   title: string | null
 }
 
 /**
- * The single tab for everything skill-related. The left panel is split
- * into two independent scroll areas:
+ * The single tab for everything skill-related.
+ * The left panel is split into two independent scroll areas.
  *
- *   - "Skills": the available skill manifests (start a new conversation
- *     by clicking one). Caps at ~45vh; scrolls internally.
- *   - "Conversations": past conversations grouped by session, with
- *     per-row rename (pencil) and delete (trash). Fills remaining
- *     height; scrolls independently of the Skills section.
+ *   - "Skills": the available skill manifests.
+ *     Start a new conversation by clicking one.
+ *     Caps at ~45vh, scrolls internally.
+ *   - "Conversations": past conversations grouped by session,
+ *     with per-row rename (pencil) and delete (trash).
+ *     Fills the remaining height, scrolls independently of Skills.
  *
- * The right pane always renders the conversation runner. The internal
- * `runStore` decides whether it's an empty new chat or a hydrated past
- * one based on the per-skill turn list.
+ * The right pane always renders the conversation runner.
+ * The internal `runStore` decides whether it is an empty new chat,
+ * or a hydrated past one, based on the per-skill turn list.
  */
 export function ActionsPage({ workspaceId }: ActionsPageProps) {
   const { data: skillsData } = useSkills(workspaceId)
@@ -70,9 +72,10 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null)
 
   const skills = (skillsData?.items ?? []).filter(s => !s.frontmatter.braid.hidden)
-  // Cap visible conversations to keep the bottom drawer compact. groupBySession
-  // already orders by recency (newest first), so slicing keeps the most
-  // recent N — older ones live in History if anyone really needs them.
+  // Cap visible conversations to keep the bottom drawer compact.
+  // groupBySession already orders by recency, newest first,
+  // so slicing keeps the most recent N.
+  // Older ones live in History if anyone really needs them.
   const groups = groupBySession(runsData?.items ?? [], titleData?.items ?? []).slice(0, 10)
   const selected = skills.find(s => s.id === selectedSkillId) ?? null
   const [conversationsOpen, setConversationsOpen] = useState(false)
@@ -120,8 +123,9 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
                         key={skill.id}
                         skill={skill}
                         // Only the Build group gets explicit step numbers,
-                        // because it's the only group where the order between
-                        // skills is semantically meaningful (extract -> clarify -> model).
+                        // because it is the only group,
+                        // where the order between skills is semantically meaningful,
+                        // extract, then clarify, then model.
                         step={group === 'build' ? index + 1 : undefined}
                         active={selectedSkillId === skill.id}
                         locked={!policy.can('skill.run', { skill: skill.frontmatter, skillId: skill.id })}
@@ -414,11 +418,13 @@ export function bucketByGroup(skills: readonly SkillManifest[]): Record<Group, S
     const category = skill.frontmatter.braid?.category
     out[category ?? 'custom'].push(skill)
   }
-  // Sort the Build group by `order` so the numbered steps line up with
-  // the workflow. Sparse numbering (100, 200, 300 by convention) lets
-  // plugins slot between built-ins by picking e.g. 150 without anyone
-  // renumbering. The UI displays sequential rank (1, 2, 3) so users
-  // never see the raw sort keys.
+  // Sort the Build group by `order` so the numbered steps line up,
+  // with the workflow.
+  // Sparse numbering (100, 200, 300 by convention),
+  // lets plugins slot between built-ins by picking e.g. 150,
+  // without anyone renumbering.
+  // The UI displays sequential rank (1, 2, 3),
+  // so users never see the raw sort keys.
   out.build.sort((a, b) => {
     const ao = a.frontmatter.braid?.order ?? Number.POSITIVE_INFINITY
     const bo = b.frontmatter.braid?.order ?? Number.POSITIVE_INFINITY
@@ -442,9 +448,10 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
   const running = conversation.phase === 'streaming' || submitting
   const isFollowUp = conversation.sessionId !== null
   const turnCount = conversation.events.filter(e => e.type === 'started').length
-  // Cancel targets the in-flight turn (the last runId), only meaningful
-  // while the runner is actively streaming. During `submitting` we don't
-  // have a runId yet, so the button is hidden in that window.
+  // Cancel targets the in-flight turn (the last runId),
+  // only meaningful while the runner is actively streaming.
+  // During `submitting` we do not have a runId yet,
+  // so the button is hidden in that window.
   const activeRunId = conversation.phase === 'streaming' ? conversation.turnIds.at(-1) ?? null : null
   const cancel = useMutation({
     mutationFn: () => {
@@ -547,10 +554,10 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
               inputs={skill.frontmatter.braid.inputs}
               disabled={running || locked}
               onSubmit={(runs) => {
-                // Fire all batch runs in parallel; each becomes its own
-                // runId / turn under the same conversation key. The
-                // transcript will interleave them. `sourceUnit` is set
-                // for runs whose value came from a source-intent picker.
+                // Fire all batch runs in parallel.
+                // Each becomes its own runId and turn under one conversation key,
+                // so the transcript will interleave them.
+                // `sourceUnit` is set for runs from a source-intent picker.
                 for (const run of runs) void sendWith(run.args, run.sourceUnit)
               }}
             />
@@ -568,11 +575,12 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
                 value={prompt}
                 onChange={e => setPrompt(e.target.value)}
                 onKeyDown={(e) => {
-                  // While the user is composing CJK / accented input through an
-                  // IME, Enter confirms the candidate character and must not
-                  // submit the message. `nativeEvent.isComposing` is the only
-                  // reliable signal across browsers; `e.keyCode === 229` is the
-                  // legacy fallback for older Safari that we no longer support.
+                  // While the user composes CJK or accented input through an IME,
+                  // Enter confirms the candidate character and must not submit.
+                  // `nativeEvent.isComposing` is the only reliable signal,
+                  // across browsers.
+                  // `e.keyCode === 229` is the legacy fallback,
+                  // for older Safari that we no longer support.
                   if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !running && !locked) {
                     e.preventDefault()
                     void send()
@@ -600,8 +608,9 @@ export function groupBySession(
   const titleMap = new Map<string, string | null>(sessionTitles.map(m => [m.sessionId, m.title]))
   const groups = new Map<string, SessionGroup>()
   const orphans: SessionGroup[] = []
-  // records arrive newest-first from the API; we want oldest-first inside a
-  // session so the replay reads top-to-bottom in chronological order.
+  // Records arrive newest-first from the API.
+  // We want oldest-first inside a session,
+  // so the replay reads top-to-bottom in chronological order.
   for (const rec of [...records].reverse()) {
     if (!rec.sessionId) {
       orphans.push({
@@ -636,18 +645,20 @@ export function groupBySession(
 }
 
 export function originLabel(skill: SkillManifest): string {
-  // Plugin skills surface their plugin id (e.g. `redoc-ddd`) so the user
-  // can tell at a glance which plugin shipped the action; everything else
-  // shows the origin value directly (`builtin` / `workspace` / `extension`).
+  // Plugin skills surface their plugin id, such as `ontology-ddd`,
+  // so the user can tell at a glance which plugin shipped the action.
+  // Everything else shows the origin value directly,
+  // `builtin`, `workspace`, or `extension`.
   if (skill.origin === 'plugin' && skill.pluginId)
     return skill.pluginId
   return skill.origin
 }
 
 export function formatTimestamp(value: string): string {
-  // ISO 8601: `YYYY-MM-DDTHH:mm` local time. T-separator (not space) is
-  // the distinguishing ISO marker. Seconds dropped because the sidebar
-  // is narrow; full precision lives in the run record itself.
+  // ISO 8601: `YYYY-MM-DDTHH:mm` local time.
+  // The T-separator, not a space, is the distinguishing ISO marker.
+  // Seconds dropped because the sidebar is narrow.
+  // Full precision lives in the run record itself.
   try {
     const d = new Date(value)
     if (Number.isNaN(d.getTime()))

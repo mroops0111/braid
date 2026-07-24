@@ -23,17 +23,16 @@ const AMBIGUITY_TYPES: { value: ClarificationAmbiguityType, label: string, hint:
 ]
 
 /**
- * Compose surface for a human-filed Clarification. Fields mirror the
- * ReDoc SubmitIssueForm shape (question + context + relatedNode +
- * ambiguityType). The ticket is persisted with `origin: 'human'` and
- * empty `candidates: []`; the next ddd:clarify run is expected to
- * append candidates so the standard pending → answered → applied
- * pipeline can resume.
+ * Compose surface for a human-filed Clarification.
+ * Fields are question, context, relatedNode, and ambiguityType.
+ * The ticket is persisted with `origin: 'human'` and empty `candidates: []`.
+ * The next ddd:clarify run is expected to append candidates,
+ * so the standard pending, answered, applied pipeline can resume.
  *
- * Rendered in-place (no modal) in the Clarification page's detail pane when
- * the reviewer chooses to compose a new issue. The form takes the
- * full pane width so multi-line fields breathe — narrower call sites
- * (e.g. a dropdown) would crowd the textareas.
+ * Rendered in-place with no modal, in the Clarification page's detail pane,
+ * when the reviewer chooses to compose a new issue.
+ * The form takes the full pane width so multi-line fields breathe.
+ * A narrower call site such as a dropdown would crowd the textareas.
  */
 export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIssueFormProps) {
   const queryClient = useQueryClient()

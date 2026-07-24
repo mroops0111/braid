@@ -32,45 +32,55 @@ interface GraphCanvasProps {
   /**
    * Optional data source override. Defaults to the live workspace snapshot.
    * Proposal previews pass a derived source carrying a `diff` overlay,
-   * so the renderer can tint added / updated / removed elements without knowing anything about proposals.
+   * so the renderer can tint added, updated, and removed elements,
+   * without knowing anything about proposals.
    */
   source?: GraphDataSource
   /**
    * Controlled selection.
-   * When both `selectedNodeId` and `onSelectNode` are provided the canvas defers ownership to the parent,
-   * so a sibling view (e.g. table) can share the highlight.
+   * When both `selectedNodeId` and `onSelectNode` are provided,
+   * the canvas defers ownership to the parent,
+   * so a sibling view such as the table can share the highlight.
    * When omitted the canvas falls back to internal state.
    */
   selectedNodeId?: NodeId | null
   onSelectNode?: (id: NodeId | null) => void
   /**
-   * Controlled edge selection. Mirrors node selection,
-   * mutual exclusion is the parent's responsibility (see GraphSurface's setter pair).
-   * When omitted the canvas falls back to internal state and still maintains its own mutual-exclusion invariant.
+   * Controlled edge selection. Mirrors node selection.
+   * Mutual exclusion is the parent's responsibility,
+   * see GraphSurface's setter pair.
+   * When omitted the canvas falls back to internal state,
+   * and still maintains its own mutual-exclusion invariant.
    */
   selectedEdgeId?: EdgeId | null
   onSelectEdge?: (id: EdgeId | null) => void
   /**
-   * Controlled focus mode. When provided, the parent owns the on/off state,
-   * pages set this from a page-level toolbar so the same toggle drives both canvas and table.
+   * Controlled focus mode. When provided, the parent owns the on/off state.
+   * Pages set this from a page-level toolbar,
+   * so the same toggle drives both canvas and table.
    */
   focusMode?: boolean
   /**
-   * When `true`, nodes and edges the proposal does not touch render at a dimmed opacity,
+   * When `true`, nodes and edges the proposal does not touch render dimmed,
    * so the changed minority is what a reviewer's eyes land on first.
-   * Set by `Proposals` when the user activates the "Only changes" toggle. Has no effect outside proposal preview.
+   * Set by `Proposals` when the user activates the "Only changes" toggle.
+   * Has no effect outside proposal preview.
    */
   dimUnchanged?: boolean
   /**
-   * When `true`, `added` nodes wear a green ring + accent dot instead of just the small corner dot.
-   * Studio normally keeps `added` subtle so a fresh-extract proposal (where 100% of nodes are added)
-   * is not overwhelmed by green,
-   * for incremental proposals (small fraction of the graph changed) the subtler treatment hides the diff.
-   * Caller (Proposals) flips this on when the diff ratio is low.
+   * When `true`, `added` nodes wear a green ring and accent dot,
+   * instead of just the small corner dot.
+   * Studio normally keeps `added` subtle,
+   * so a fresh-extract proposal where all nodes are added,
+   * is not overwhelmed by green.
+   * For an incremental proposal where a small fraction changed,
+   * the subtler treatment hides the diff.
+   * Caller `Proposals` flips this on when the diff ratio is low.
    */
   emphasizeAdded?: boolean
   /**
-   * When provided, the empty-graph EmptyState shows an action button routing to the Batch surface.
+   * When provided, the empty-graph EmptyState shows an action button,
+   * routing to the Batch surface.
    * Lets a freshly-scaffolded workspace discover the bootstrap flow.
    */
   onStartBootstrap?: () => void
@@ -99,7 +109,8 @@ export function GraphCanvas({ workspaceId, source, selectedNodeId, onSelectNode,
 }
 
 function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, onSelectNode, selectedEdgeId: controlledEdgeSelected, onSelectEdge, focusMode = false, dimUnchanged = false, emphasizeAdded = false, onStartBootstrap }: GraphCanvasProps) {
-  // React Query dedupes the live snapshot fetch by queryKey, so it's effectively free when `source` is supplied.
+  // React Query dedupes the live snapshot fetch by queryKey,
+  // so it is effectively free when `source` is supplied.
   const liveSource = useLiveGraphDataSource(workspaceId)
   const effective = source ?? liveSource
   const { data: ontology } = useOntology(workspaceId)
@@ -112,7 +123,8 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   const [filters, setFilters] = useState<GraphFilters>(INITIAL_FILTERS)
   const [selectedNodeId, setSelectedNodeId] = useControllableState<NodeId | null>(controlledSelected, onSelectNode, null)
   const [selectedEdgeId, setSelectedEdgeId] = useControllableState<EdgeId | null>(controlledEdgeSelected, onSelectEdge, null)
-  // Navigator stays open across tab and preview modes, so the filter chips are visible from the start.
+  // Navigator stays open across tab and preview modes,
+  // so the filter chips are visible from the start.
   // Reviewers got stuck in preview mode wondering how to surface types.
   const [navigatorOpen, setNavigatorOpen] = useState(true)
 
@@ -128,7 +140,8 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
     () => computeNeighborhood(selectedNodeId, filtered.edges),
     [selectedNodeId, filtered.edges],
   )
-  // Focus mode shrinks the layout input, so dagre doesn't lay out off-screen cards that get filtered post-layout.
+  // Focus mode shrinks the layout input,
+  // so dagre does not lay out off-screen cards that get filtered later.
   const visible = useMemo(() => {
     if (!focusMode || !selectedNodeId)
       return filtered
@@ -139,9 +152,11 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   }, [filtered, focusMode, selectedNodeId, neighborhood])
 
   const dagreLaidOut = useGraphLayout(visible.nodes, visible.edges)
-  // Session-only drag overrides. Each drag updates this map. On refresh the graph re-lays out via dagre.
+  // Session-only drag overrides. Each drag updates this map.
+  // On refresh the graph re-lays out via dagre.
   // Per-user persistence is deferred until accounts ship.
-  // A server-side layout would be shared across every collaborator, which is worse than a refresh resetting positions.
+  // A server-side layout would be shared across every collaborator,
+  // which is worse than a refresh resetting positions.
   const [dragPositions, setDragPositions] = useState<Map<string, { x: number, y: number }>>(() => new Map())
   const laidOut = useMemo(() => {
     if (dragPositions.size === 0)
@@ -161,9 +176,9 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   const reactFlowNodes = useMemo(
     () => laidOut.nodes.map((n) => {
       const change = diff?.nodes.get(n.data.node.id)
-      // Two independent dim conditions:
-      // - focus-style: selected node, this one not in its neighbourhood
-      // - only-changes: the proposal didn't touch this node
+      // Two independent dim conditions.
+      // - focus-style: a node is selected and this one is not its neighbour.
+      // - only-changes: the proposal did not touch this node.
       // Either reason dims. Both together still just dim once.
       const dimmedByFocus = selectedNodeId !== null && !focusMode && !neighborhood.neighbors.has(n.data.node.id)
       const dimmedByDiff = dimUnchanged && !change
@@ -178,8 +193,9 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
     [laidOut.nodes, selectedNodeId, diff, focusMode, neighborhood, dimUnchanged, emphasizeAdded],
   )
 
-  // Edges keep their type colour so topology is readable. Diff state is signalled via stroke shape (dashed removed,
-  // thicker added). Labels are hidden until selected,
+  // Edges keep their type colour so topology is readable.
+  // Diff state is signalled via stroke shape, dashed removed, thicker added.
+  // Labels are hidden until selected,
   // long-jump edges would otherwise drop pills over every card they cross.
   const reactFlowEdges = useMemo(
     () => laidOut.edges.map((edge) => {
@@ -240,8 +256,9 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
     reactFlow.setCenter(positioned.position.x + 100, positioned.position.y + 32, { zoom: 1, duration: 250 })
   }, [laidOut.nodes, reactFlow])
 
-  // Node and edge selections are mutually exclusive. These helpers encapsulate the "set one,
-  // clear the other" invariant, so callers can't accidentally leave both set.
+  // Node and edge selections are mutually exclusive.
+  // These helpers encapsulate the "set one, clear the other" invariant,
+  // so callers cannot accidentally leave both set.
   const selectNode = useCallback((nodeId: NodeId | null) => {
     setSelectedNodeId(nodeId)
     setSelectedEdgeId(null)
@@ -262,7 +279,8 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
     centerOnNode(nodeId)
   }, [centerOnNode, selectNode])
 
-  // Direct canvas clicks use `selectNode` with no centering, auto-pan on every click felt twitchy.
+  // Direct canvas clicks use `selectNode` with no centering,
+  // auto-pan on every click felt twitchy.
   // Only navigator and detail-sheet entry points use `selectAndCenter`.
 
   // Edge-centring helper. Declared before any early return,
@@ -279,7 +297,8 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
 
   useGraphShortcuts(reactFlow)
 
-  // xyflow v12 controlled mode requires `onNodesChange`, to advance the visual during a drag.
+  // xyflow v12 controlled mode requires `onNodesChange`,
+  // to advance the visual during a drag.
   // Mirroring position changes into `dragPositions` tracks the cursor,
   // the final position stays in the map after drag-end.
   // Re-renders then keep the node where the user left it until refresh.
@@ -323,9 +342,9 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
     : null
   const selectedEdgeFromNode = selectedEdge ? nodesById.get(selectedEdge.fromNodeId) : undefined
   const selectedEdgeToNode = selectedEdge ? nodesById.get(selectedEdge.toNodeId) : undefined
-  // When we reach the `FilteredEmpty` branch below, `allNodes` is non-empty, the early return covers the zero case,
-  // and `filtered` is empty. The filter is, by elimination, the cause.
-  // The previous `filterActive` derived flag is now redundant.
+  // When we reach the `FilteredEmpty` branch below, `allNodes` is non-empty,
+  // and `filtered` is empty. The early return covers the zero case.
+  // The filter is, by elimination, the cause.
 
   return (
     <div className="flex h-full">
@@ -355,7 +374,8 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
               <FilteredEmpty
                 onClear={() => setFilters({
                   ...INITIAL_FILTERS,
-                  // Reset must enable every type currently in the workspace. Under the strict-whitelist convention,
+                  // Reset must enable every type currently in the workspace.
+                  // Under the strict-whitelist convention,
                   // an empty list would just stay empty.
                   types: Array.from(new Set(allNodes.map(n => n.type))),
                 })}
@@ -460,16 +480,21 @@ function applyFilters(
   orphanIds: ReadonlySet<NodeId>,
 ): FilteredGraph {
   const nodeMatches = nodes.filter((node) => {
-    // Type filter is a strict whitelist. An empty list means nothing matches, the user cleared all chips.
-    // The "empty = show all" convention surprised users, clicking `clear` looked like a no-op.
-    // Initial state is seeded from the ontology's `defaultVisible` types, so first render still has content.
+    // Type filter is a strict whitelist.
+    // An empty list means nothing matches, the user cleared all chips.
+    // The "empty = show all" convention surprised users,
+    // clicking `clear` looked like a no-op.
+    // Initial state is seeded from the ontology's `defaultVisible` types,
+    // so first render still has content.
     if (!filters.types.includes(node.type))
       return false
     if (filters.orphansOnly && !orphanIds.has(node.id))
       return false
     if (filters.search) {
-      // Search is free-text against the human-facing content, name and description. Structured criteria (type,
-      // orphan) have their own filter UI. Conflating them into search caused "what does typing here even do?".
+      // Search is free-text against the human-facing content,
+      // name and description.
+      // Structured criteria such as type and orphan have their own filter UI.
+      // Conflating them into search caused "what does typing here even do?".
       const needle = filters.search.toLowerCase()
       const haystack = `${node.name} ${node.description ?? ''}`.toLowerCase()
       if (!haystack.includes(needle))

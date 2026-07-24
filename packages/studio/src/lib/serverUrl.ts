@@ -2,12 +2,13 @@ import { getActiveRemoteId, listRemotes, LOCAL_REMOTE_ID } from './remotes'
 
 export const DEFAULT_SERVER_URL = 'http://localhost:4321'
 
-// Cached at module scope so getServerUrl stays sync (every API helper
-// hits it). Populated by initServerUrl in Tauri runtime, null in web dev.
+// Cached at module scope so getServerUrl stays sync,
+// since every API helper hits it.
+// Populated by initServerUrl in Tauri runtime, null in web dev.
 let cachedEmbeddedUrl: string | null = null
 
 /**
- * Resolves the URL Studio should talk to right now:
+ * Resolves the URL Studio should talk to right now.
  *   1. Active remote in Settings, when not Local
  *   2. Cached embedded sidecar URL (Tauri runtime)
  *   3. Vite env / hard default (web dev)
@@ -42,8 +43,8 @@ export function isTauriRuntime(): boolean {
 
 /**
  * Asks the Tauri shell for its embedded server URL and caches it.
- * No-op in web contexts. Called once from main.tsx before mount so the
- * first render sees the right URL.
+ * No-op in web contexts.
+ * Called once from main.tsx before mount, so the first render sees the URL.
  */
 export async function initServerUrl(): Promise<void> {
   if (!isTauriRuntime())

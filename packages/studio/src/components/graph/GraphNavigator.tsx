@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { usePaletteContext } from './usePalette'
 
 export interface GraphFilters {
-  /** Free-text query against node `name` + `description`. */
+  /** Free-text query against node `name` and `description`. */
   search: string
   /** Whitelist of node types to keep. Empty = none shown. */
   types: NodeTypeId[]

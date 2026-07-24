@@ -270,10 +270,11 @@ function SourceRow({ workspaceId, source, onChange }: {
 }
 
 /**
- * Render the GitHub webhook panel only when the server reports the
- * source's loader plugin as webhook-capable. Asking the server keeps
- * Studio loader-agnostic: registering a new loader with a `webhook`
- * field surfaces the panel automatically — no Studio code change.
+ * Render the GitHub webhook panel only when the server reports,
+ * the source's loader plugin as webhook-capable.
+ * Asking the server keeps Studio loader-agnostic.
+ * Registering a new loader with a `webhook` field,
+ * surfaces the panel automatically, no Studio code change.
  */
 function WebhookPanelGate({ workspaceId, source }: { workspaceId: string, source: SourceDescriptor }) {
   const loaders = useSourceLoaders()
@@ -297,24 +298,24 @@ function GithubWebhookPanel({ workspaceId, sourceId }: { workspaceId: string, so
   })
   const rotate = useMutation({
     mutationFn: () => api.rotateGithubWebhookSecret(workspaceId, sourceId),
-    // Clear any previously-revealed secret BEFORE the new rotate
-    // request lands, so a transient error during rotation cannot leave
-    // a stale secret in the amber callout next to a red error message.
+    // Clear any previously-revealed secret before the new rotate request.
+    // A transient error during rotation could otherwise leave a stale secret,
+    // in the amber callout next to a red error message.
     onMutate: () => {
       setRevealedSecret(null)
     },
     onSuccess: (data) => {
-      // The rotate response is the ONLY moment the secret is visible to
-      // the UI; subsequent GETs report `hasSecret` without the value.
+      // The rotate response is the only moment the secret is visible to the UI.
+      // Subsequent GETs report `hasSecret` without the value.
       // The user must copy it now or generate another one.
       setRevealedSecret(data.secret)
       queryClient.invalidateQueries({ queryKey: ['github-webhook-status', workspaceId, sourceId] })
     },
   })
 
-  // Clearing on collapse keeps the "shown once" contract honest:
-  // re-opening the panel does not re-display the previously rotated
-  // secret. The browser tab is the only place the user can keep it.
+  // Clearing on collapse keeps the "shown once" contract honest.
+  // Re-opening the panel does not re-display the previously rotated secret.
+  // The browser tab is the only place the user can keep it.
   const togglePanel = (): void => {
     setOpen((wasOpen) => {
       if (wasOpen)
@@ -373,8 +374,9 @@ function GithubWebhookPanel({ workspaceId, sourceId }: { workspaceId: string, so
 }
 
 function SyncSummary({ report }: { report: { changed: boolean, added?: number, updated?: number, removed?: number } }) {
-  // When the loader reports structured counts use the unified `+a ~u -r`
-  // format; otherwise fall back to a plain changed/unchanged label.
+  // When the loader reports structured counts,
+  // use the unified `+a ~u -r` format.
+  // Otherwise fall back to a plain changed or unchanged label.
   const hasCounts = report.added !== undefined || report.updated !== undefined || report.removed !== undefined
   if (!hasCounts)
     return <span>{report.changed ? 'updated' : 'no change'}</span>
@@ -525,9 +527,10 @@ const MEMBER_ROLE_RANK: Record<WorkspaceRole, number> = {
 }
 
 /**
- * Same ordering as the Admin Console's user list: self pinned at the
- * top, then by rank within scope (workspace role here, server role
- * there), then by display name for a predictable scan.
+ * Same ordering as the Admin Console's user list.
+ * Self is pinned at the top, then by rank within scope,
+ * workspace role here, server role there,
+ * then by display name for a predictable scan.
  */
 function sortMembers(
   members: readonly WorkspaceMember[],
@@ -651,9 +654,10 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
       ? UserRoundCog
       : UserRound
   const displayName = user?.displayName ?? member.userId
-  // Owners can't be demoted directly (server forbids; use Transfer
-  // Ownership). Self can't be removed (would lock the UI out). Owners
-  // are excluded from every kebab action.
+  // Owners cannot be demoted directly, the server forbids it,
+  // use Transfer Ownership instead.
+  // Self cannot be removed, it would lock the UI out.
+  // Owners are excluded from every kebab action.
   const targetIsOwner = member.role === 'owner'
   const canTransfer = canManage && !targetIsOwner
   const canChangeRole = canManage && !targetIsOwner

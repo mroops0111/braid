@@ -2,10 +2,11 @@ import type { ReactFlowInstance } from '@xyflow/react'
 import { useEffect } from 'react'
 
 /**
- * Keyboard shortcuts scoped to the graph canvas. Cmd+F focuses the
- * navigator search input; Cmd+0 fits the canvas to viewport. The
- * effect's mount/unmount window ensures other tabs' chords aren't
- * affected when the canvas isn't mounted.
+ * Keyboard shortcuts scoped to the graph canvas.
+ * Cmd+F focuses the navigator search input,
+ * and Cmd+0 fits the canvas to viewport.
+ * The effect's mount and unmount window ensures other tabs' chords,
+ * are not affected when the canvas is not mounted.
  */
 export function useGraphShortcuts(reactFlow: ReactFlowInstance): void {
   useEffect(() => {

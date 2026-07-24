@@ -14,9 +14,10 @@ export function SkillTranscript({ events, error, running }: SkillTranscriptProps
   const items = groupTranscript(events)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to bottom when new events arrive so the latest output is
-  // always visible. We compare scrollHeight to scrollTop+clientHeight to
-  // avoid stealing scroll when the user has manually scrolled up to read.
+  // Auto-scroll to the bottom when new events arrive,
+  // so the latest output is always visible.
+  // We compare scrollHeight to scrollTop+clientHeight,
+  // to avoid stealing scroll when the user has scrolled up to read.
   useEffect(() => {
     const node = containerRef.current
     if (!node)
@@ -60,7 +61,7 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
         </div>
       )
     case 'session-started':
-      // Side-channel event; the session id is captured by the runner state.
+      // Side-channel event, the session id is captured by the runner state.
       return null
     case 'message':
       return <Markdown text={event.text} />
@@ -97,8 +98,9 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
         </div>
       )
     case 'thinking':
-      // The model's reasoning. Collapsed by default so it never buries the
-      // actual output, but available when a reviewer wants the why.
+      // The model's reasoning.
+      // Collapsed by default so it never buries the actual output,
+      // but available when a reviewer wants the why.
       return (
         <details className="my-1 font-sans text-muted-foreground/70">
           <summary className="cursor-pointer select-none text-[10px] font-semibold uppercase tracking-wider">

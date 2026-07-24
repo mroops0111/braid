@@ -37,18 +37,18 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
   const [githubLabels, setGithubLabels] = useState('')
   const [githubIncludeComments, setGithubIncludeComments] = useState(true)
   /**
-   * Set once the user successfully completes the Google OAuth popup. Keyed to
-   * the sourceId derived from `name` at the time of consent. If the user
-   * changes the name after connecting we invalidate and re-prompt, because
-   * tokens are stored under `${workspaceId}--${sourceId}`.
+   * Set once the user successfully completes the Google OAuth popup.
+   * Keyed to the sourceId derived from `name` at the time of consent.
+   * If the user changes the name after connecting we invalidate and re-prompt,
+   * because tokens are stored under `${workspaceId}--${sourceId}`.
    */
   const [oauthConnectedFor, setOauthConnectedFor] = useState<string | null>(null)
 
   const sourceId = nameToId(name)
   const oauthConnected = !!oauthConnectedFor && oauthConnectedFor === sourceId
 
-  // Invalidate the OAuth flag if the user edits name after connecting, since
-  // tokens were stored under the previous sourceId.
+  // Invalidate the OAuth flag if the user edits name after connecting,
+  // since tokens were stored under the previous sourceId.
   useEffect(() => {
     if (oauthConnectedFor && oauthConnectedFor !== sourceId)
       setOauthConnectedFor(null)

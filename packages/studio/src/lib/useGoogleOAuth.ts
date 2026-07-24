@@ -9,19 +9,18 @@ interface OauthPostMessage {
 }
 
 /**
- * Start the Google OAuth flow for a `(workspaceId, sourceId)` pair and
- * resolve when the popup posts a success status. Caller passes a
- * `onConnected` callback that fires once consent completes; the popup
- * itself closes via `window.close()` in the callback HTML page that
- * `/oauth/google/callback` serves.
+ * Start the Google OAuth flow for a `(workspaceId, sourceId)` pair,
+ * and resolve when the popup posts a success status.
+ * The caller passes an `onConnected` callback that fires on consent.
+ * The popup closes via `window.close()`,
+ * in the callback HTML page that `/oauth/google/callback` serves.
  *
- * The same hook is used in two places:
- *   - `CreateWorkspaceWizard`: workspaceId comes from the wizard's
- *     typed name (the workspace doesn't exist on the server yet, but
- *     the SecretStore key is just `${workspaceId}--${sourceId}` so we
- *     can stash tokens ahead of scaffold).
- *   - `AddSourceDialog`: workspaceId is the real id of the workspace
- *     the dialog is opened on.
+ * The same hook is used in two places.
+ *   - `CreateWorkspaceWizard`: workspaceId comes from the typed name.
+ *     The workspace does not exist on the server yet,
+ *     but the SecretStore key is just `${workspaceId}--${sourceId}`,
+ *     so tokens can be stashed ahead of scaffold.
+ *   - `AddSourceDialog`: workspaceId is the workspace's real id.
  */
 export function useGoogleOAuth(
   workspaceId: string,

@@ -13,11 +13,11 @@ interface MarkdownDescriptionFieldProps {
 }
 
 /**
- * Shared multiline editor for Markdown text fields persisted to
- * PRODUCT.md. Workspace, per-source, and per-MCP descriptions all use
- * this so the surface, sizing, and hint stay consistent across create
- * + edit. The agent reads the same raw text at skill runtime, so the
- * placeholder coaches authors to write something the agent can act on.
+ * Shared multiline editor for Markdown text fields persisted to PRODUCT.md.
+ * Workspace, per-source, and per-MCP descriptions all use this,
+ * so the surface, sizing, and hint stay consistent across create and edit.
+ * The agent reads the same raw text at skill runtime,
+ * so the placeholder coaches authors to write something it can act on.
  */
 export function MarkdownDescriptionField({
   id,

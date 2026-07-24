@@ -13,7 +13,8 @@ export interface SkillRunSpec {
   readonly args: string
   /**
    * Set when the run's value originated from a `source-intent` picker.
-   * Plumbing it through lets the server record an observation against the unit on successful completion (issue #31).
+   * Plumbing it through lets the server record an observation,
+   * against the unit on successful completion.
    * Other run kinds leave it undefined.
    */
   readonly sourceUnit?: {
@@ -27,18 +28,22 @@ interface ActionInputFormProps {
   inputs: readonly SkillInputDescriptor[]
   disabled: boolean
   /**
-   * Submit handler. Receives one run spec per run to fire. A single-value form yields a one-element array,
+   * Submit handler. Receives one run spec per run to fire.
+   * A single-value form yields a one-element array,
    * a multi-pick with N selected values fans out to N elements,
-   * so the parent can spawn N parallel skill runs sharing the same per-skill conversation key.
-   * When the input came from a `source-intent` picker the spec carries `sourceUnit`.
+   * so the parent can spawn N parallel skill runs,
+   * sharing the same per-skill conversation key.
+   * When the input came from a `source-intent` picker,
+   * the spec carries `sourceUnit`.
    */
   onSubmit: (runs: readonly SkillRunSpec[]) => void
   submitLabel?: string
 }
 
 /**
- * Renders a typed form driven by a skill's `braid.inputs` frontmatter declaration. Static-provider picks render inline,
- * dynamic-provider picks (graph-node / source-intent / clarify)
+ * Renders a typed form driven by a skill's `braid.inputs` frontmatter.
+ * Static-provider picks render inline.
+ * Dynamic-provider picks, graph-node, source-intent, or clarify,
  * fetch options via the server's `/skill-input-options` endpoint,
  * and apply the declared `fallback` when the workspace has nothing matching.
  */
@@ -51,7 +56,9 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
     () => Object.fromEntries(inputs.filter(i => i.kind === 'multi-pick').map(input => [input.name, []])),
   )
 
-  // Required inputs must be filled. Multi-pick required = one selection, scalar required = a non-empty value.
+  // Required inputs must be filled.
+  // Multi-pick required = one selection,
+  // scalar required = a non-empty value.
   const missingRequired = inputs.filter((input) => {
     if (input.optional)
       return false
@@ -59,8 +66,10 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
       return (multiValues[input.name]?.length ?? 0) === 0
     return (scalarValues[input.name] ?? '').trim() === ''
   })
-  // Refuse more than one multi-pick per skill. The cartesian product gets too big and the transcript unreadable.
-  // The validator could enforce this at load time too, this is the backstop.
+  // Refuse more than one multi-pick per skill.
+  // The cartesian product gets too big and the transcript unreadable.
+  // The validator could enforce this at load time too,
+  // this is the backstop.
   const multiPickInputs = inputs.filter(i => i.kind === 'multi-pick')
   const tooManyMultiPicks = multiPickInputs.length > 1
   const canSubmit = !disabled && missingRequired.length === 0 && !tooManyMultiPicks
@@ -246,16 +255,18 @@ function PickField({ workspaceId, input, scalarValue, onScalarChange, multiValue
 /**
  * Decorate source-intent picker options with per-unit freshness badges.
  * For each distinct sourceId carried by the options:
- * - "fresh" badge when the on-disk sha matches the recorded
- * `lastObservedSha` (option appears in `diff.unchanged`)
- * - "stale" badge when the recorded sha differs (option appears in
- * `diff.changed`)
- * - no badge when the unit has never been observed (option appears
- * in `diff.new`)
+ * - "fresh" badge when the on-disk sha matches the recorded `lastObservedSha`,
+ *   the option appears in `diff.unchanged`.
+ * - "stale" badge when the recorded sha differs,
+ *   the option appears in `diff.changed`.
+ * - no badge when the unit has never been observed,
+ *   the option appears in `diff.new`.
  *
- * Returns the input options unchanged for any provider other than `source-intent`.
- * The hook is always called with stable order so it is safe under the rules of hooks,
- * even when `rawOptions` is empty (loading / error pre-resolution).
+ * Returns the input options unchanged for any provider,
+ * other than `source-intent`.
+ * The hook is always called with stable order,
+ * so it is safe under the rules of hooks,
+ * even when `rawOptions` is empty during loading or error pre-resolution.
  */
 function useSourceIntentBadges(
   workspaceId: string,
@@ -353,7 +364,7 @@ interface DynamicOptionWithBadge extends SkillInputDynamicOption {
 }
 
 /**
- * Compact "Nm ago" / "Nh ago" / "Nd ago" formatter for the freshness chip.
+ * Compact "Nm ago", "Nh ago", or "Nd ago" formatter for the freshness chip.
  * Avoids pulling in a date library for one badge.
  */
 function relativeAgo(now: number, iso: string): string {
@@ -412,7 +423,8 @@ function DynamicPick({ workspaceId, input, scalarValue, onScalarChange, multiVal
     queryFn: () => api.listSkillInputOptions(workspaceId, providerKind, filter),
   })
   const rawOptions = query.data?.items ?? []
-  // Hook is always called even with [], so the rules-of-hooks order stays stable across the early returns below.
+  // Hook is always called even with [],
+  // so the rules-of-hooks order stays stable across the early returns below.
   const options = useSourceIntentBadges(workspaceId, providerKind, rawOptions)
   const isMulti = input.kind === 'multi-pick'
 
@@ -436,7 +448,8 @@ function DynamicPick({ workspaceId, input, scalarValue, onScalarChange, multiVal
         </div>
       )
     }
-    // fallback === 'text' (default). Render a free-text field, so the user can still drive the skill manually,
+    // fallback === 'text' (default). Render a free-text field,
+    // so the user can still drive the skill manually,
     // e.g. a fresh workspace letting `ddd:extract` still take a scope.
     return (
       <input
@@ -469,8 +482,9 @@ function DynamicPick({ workspaceId, input, scalarValue, onScalarChange, multiVal
 }
 
 /**
- * Form-context wrapper around the generic dropdown. Adds the batch-run hint when multiple values are selected,
- * that's Actions-form specific, not part of the dropdown's contract.
+ * Form-context wrapper around the generic dropdown.
+ * Adds the batch-run hint when multiple values are selected,
+ * that is Actions-form specific, not part of the dropdown's contract.
  */
 function MultiPickField({
   input,

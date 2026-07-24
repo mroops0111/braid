@@ -31,10 +31,11 @@ export interface ClassifyInput {
 }
 
 /**
- * Pure classifier extracted so the state-machine for "no token / loading
- * / 401 / network / ok" can be tested without standing up react-query.
- * A 401 collapses to `unauthenticated` because the user's recourse is
- * the same as having no token at all: sign in.
+ * Pure classifier, extracted so the state machine can be tested,
+ * without standing up react-query.
+ * It covers no-token, loading, 401, network error, and ok.
+ * A 401 collapses to `unauthenticated`,
+ * because the recourse is the same as having no token, to sign in.
  */
 export function classifyRemoteResult(remote: RemoteSummary, input: ClassifyInput): RemoteWorkspacesResult {
   if (!remote.isLocal && !input.hasToken)
@@ -51,10 +52,11 @@ export function classifyRemoteResult(remote: RemoteSummary, input: ClassifyInput
 }
 
 /**
- * Fetch `/workspaces` from every configured remote in parallel. Local is
- * always queried (X-Braid-User fallback covers the no-token sidecar
- * case); remotes without a stored token short-circuit to
- * `unauthenticated` so the sidebar can render a Sign in affordance
+ * Fetch `/workspaces` from every configured remote in parallel.
+ * Local is always queried,
+ * since the X-Braid-User fallback covers the no-token sidecar case.
+ * A remote without a stored token short-circuits to `unauthenticated`,
+ * so the sidebar renders a Sign in affordance,
  * without ever issuing a doomed request.
  */
 export function useAllRemoteWorkspaces(): RemoteWorkspacesResult[] {
@@ -83,9 +85,9 @@ export function useAllRemoteWorkspaces(): RemoteWorkspacesResult[] {
 }
 
 /**
- * Clears the react-query cache whenever the active remote flips. Without
- * this every workspace-scoped query (proposals, clarifications, history…) would
- * return stale data from the previous server until its own TTL expired.
+ * Clears the react-query cache whenever the active remote flips.
+ * Without this, a switch leaves every workspace-scoped query stale.
+ * It serves data from the previous server until its own TTL expires.
  */
 export function useResetOnRemoteChange(): void {
   const queryClient = useQueryClient()

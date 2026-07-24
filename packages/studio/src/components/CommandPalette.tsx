@@ -90,9 +90,10 @@ export function CommandPalette({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Linear / Gmail / GitHub-style `g`-chord navigation. Press `g`, then
-  // within 1s press the second key (e.g. `g s` for Settings). Ignored
-  // while typing into a form so it doesn't hijack normal text input.
+  // Linear, Gmail, and GitHub-style `g`-chord navigation.
+  // Press `g`, then within 1s press the second key,
+  // e.g. `g s` for Settings.
+  // Ignored while typing into a form so it does not hijack text input.
   const armedRef = useRef<number | null>(null)
   useEffect(() => {
     function onKey(event: KeyboardEvent) {

@@ -44,10 +44,10 @@ const components: NonNullable<Parameters<typeof ReactMarkdown>[0]['components']>
     )
   },
   pre: ({ children }) => {
-    // react-markdown passes the single `<code>` child here. We sniff its
-    // className to peel mermaid blocks out of the normal <pre> rendering
-    // and route them to the Mermaid component, which lazy-loads the
-    // mermaid library and renders to SVG.
+    // react-markdown passes the single `<code>` child here.
+    // We sniff its className to peel mermaid blocks out of the normal <pre>,
+    // and route them to the Mermaid component,
+    // which lazy-loads the mermaid library and renders to SVG.
     const child = Array.isArray(children) ? children[0] : children
     if (isValidElement(child)) {
       const props = child.props as { className?: string, children?: unknown }
@@ -79,10 +79,12 @@ const components: NonNullable<Parameters<typeof ReactMarkdown>[0]['components']>
 }
 
 /**
- * Renders a SkillEvent message body as GitHub-flavored markdown. Uses the
- * transcript's surrounding `font-mono text-xs` only for inline code / pre
- * blocks; the prose itself switches to the app sans font so headings, lists
- * and tables read naturally inside the otherwise terminal-style transcript.
+ * Renders a SkillEvent message body as GitHub-flavored markdown.
+ * Uses the transcript's surrounding `font-mono text-xs`,
+ * only for inline code and pre blocks.
+ * The prose itself switches to the app sans font,
+ * so headings, lists, and tables read naturally,
+ * inside the otherwise terminal-style transcript.
  */
 export function Markdown({ text }: MarkdownProps) {
   return (

@@ -1,14 +1,16 @@
 /**
- * Shared className overrides for the in-surface status filter pattern
- * (Proposals `Pending | Applied | Rejected`, Clarification `Pending |
- * Answered | Applied | Skipped`). Renders as a segmented control: a
- * subtle outer container wraps the triggers so they read as "options
- * for ONE decision" rather than three independent nav items.
+ * Shared className overrides for the in-surface status filter pattern.
+ * Proposals filters by Pending, Applied, and Rejected.
+ * Clarification filters by Pending, Answered, Applied, and Skipped.
+ * Renders as a segmented control.
+ * A subtle outer container wraps the triggers,
+ * so they read as options for one decision,
+ * rather than three independent nav items.
  *
- * Atom-level scale (h-7 base, text-xs, rounded-md) matches the
- * workspace surface dock in `WorkspaceHeader`; the visual difference
- * is composition (container vs no container), reflecting the
- * semantic difference (filter vs primary nav).
+ * Atom-level scale, h-7 base, text-xs, rounded-md,
+ * matches the workspace surface dock in `WorkspaceHeader`.
+ * The visual difference is composition, container vs no container,
+ * reflecting the semantic difference, filter vs primary nav.
  */
 export const FILTER_TABS_LIST
   = 'inline-flex h-7 items-center gap-0.5 rounded-md border border-border bg-muted/40 p-0.5'

@@ -237,10 +237,10 @@ function WorkspaceList({ workspaces }: { workspaces: AdminUser['workspaces'] }) 
   )
 }
 
-// Self pinned at the top so the admin always sees their own row first
-// (they need it to know they can't demote themselves). Admins next so
-// the privileged accounts cluster. Within each tier sort by displayName
-// for a predictable scan.
+// Self pinned at the top so the admin always sees their own row first,
+// they need it to know they cannot demote themselves.
+// Admins come next so the privileged accounts cluster.
+// Within each tier, sort by displayName for a predictable scan.
 function sortUsers(users: AdminUser[], myId: string | undefined): AdminUser[] {
   return [...users].sort((a, b) => {
     if (myId) {

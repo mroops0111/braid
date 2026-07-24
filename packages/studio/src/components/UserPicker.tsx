@@ -18,10 +18,9 @@ import { Input } from './ui/input'
 import { Label } from './ui/label'
 
 /**
- * Title-bar identity readout. Local mode has exactly one account
- * (`local-user`); this picker shows its current displayName and lets
- * the user rename it. Phase B (Google OAuth) will replace the picker
- * with a "Sign in" / "Sign out" surface for remote servers.
+ * Title-bar identity readout.
+ * Local mode has exactly one account, `local-user`.
+ * This picker shows its current displayName and lets the user rename it.
  */
 export function UserPicker() {
   const [open, setOpen] = useState(false)
@@ -96,8 +95,9 @@ function RenameDialog({
       await api.logout()
     }
     catch {
-      // Logout is best-effort: a network error shouldn't trap a user
-      // in a session they want to leave. We still clear locally.
+      // Logout is best-effort.
+      // A network error should not trap a user in a session they want to leave.
+      // We still clear locally.
     }
     clearAuthToken()
     queryClient.clear()

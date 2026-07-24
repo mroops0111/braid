@@ -16,10 +16,11 @@ import { WorkspaceSwatch, WorkspaceSwatchWithPending } from './WorkspaceSwatch'
 
 const COLLAPSED_KEY = 'braid-sidebar-collapsed'
 
-// Server-stripe palette mirrors the workspace swatch palette but with
-// a stronger left-edge bar tone so it reads as identity even at 2-3px.
-// Local always uses the muted token so the embedded sidecar never
-// competes with named remotes for attention.
+// Server-stripe palette mirrors the workspace swatch palette,
+// but with a stronger left-edge bar tone,
+// so it reads as identity even at 2-3px.
+// Local always uses the muted token,
+// so the embedded sidecar never competes with named remotes for attention.
 const REMOTE_STRIPE_PALETTE = [
   'bg-sky-500',
   'bg-emerald-500',
@@ -437,8 +438,9 @@ function WorkspaceRow({
   onClick: () => void
   onOpenDetails: () => void
 }) {
-  // Inactive remotes get a dimmer stripe so the active server still
-  // reads first while server identity stays visible across all rows.
+  // Inactive remotes get a dimmer stripe,
+  // so the active server still reads first,
+  // while server identity stays visible across all rows.
   return (
     <ListRow
       variant="sidebar"

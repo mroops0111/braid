@@ -24,9 +24,9 @@ export interface OpsSummary {
 }
 
 /**
- * Walk a candidate's proposed operations and count adds / updates /
- * removes, fanning batch ops out into their element counts so a
- * single `addNodes` of three nodes reads as +3, not +1.
+ * Walk a candidate's proposed operations and count adds, updates,
+ * and removes, fanning batch ops out into their element counts,
+ * so a single `addNodes` of three nodes reads as +3, not +1.
  */
 export function summarizeOps(operations: readonly GraphOperation[]): OpsSummary {
   let adds = 0
@@ -70,9 +70,9 @@ export function summarizeOps(operations: readonly GraphOperation[]): OpsSummary 
 }
 
 /**
- * Short rendering of an OpsSummary for inline use: `+2 / ~1`.
- * Returns the empty-impact phrase when total is 0 so callers can
- * display it as-is.
+ * Short rendering of an OpsSummary for inline use, like `+2 / ~1`.
+ * Returns the empty-impact phrase when total is 0,
+ * so callers can display it as-is.
  */
 export function formatOpsSummary(summary: OpsSummary): string {
   if (summary.total === 0)
@@ -126,20 +126,23 @@ const EMPTY_COPY: Record<StatusFilter, { title: string, description: string }> =
 }
 
 export function ClarificationPage({ workspaceId }: ClarificationPageProps) {
-  // Same shape as Proposals: status drives the list query, and the
-  // detail pane reads only from the selected ticket so it can't show
-  // an item that no longer matches the active filter.
+  // Same shape as Proposals. Status drives the list query,
+  // and the detail pane reads only from the selected ticket,
+  // so it cannot show an item that no longer matches the active filter.
   const [status, setStatus] = useState<StatusFilter>('pending')
   const [showAll, setShowAll] = useState(false)
   const [selected, setSelected] = useState<Clarification | null>(null)
-  // When `true`, the detail pane renders the inline SubmitIssueForm
-  // instead of the selected ticket. Mutually exclusive with `selected`
-  // — the compose surface fills the same area so the reviewer is
-  // never doing two things at once.
+  // When `true`, the detail pane renders the inline SubmitIssueForm,
+  // instead of the selected ticket.
+  // Mutually exclusive with `selected`,
+  // the compose surface fills the same area,
+  // so the reviewer is never doing two things at once.
   const [composing, setComposing] = useState(false)
   const { data, isLoading } = useClarificationByStatus(workspaceId, status, showAll)
 
-  // Auto-select the first ticket when entering a list with no current selection (initial mount, after status switch, or after answer/skip clears the detail pane).
+  // Auto-select the first ticket when entering a list with no selection,
+  // on initial mount, after a status switch,
+  // or after answer or skip clears the detail pane.
   // Saves the reviewer one click per ticket when working through a queue.
   useEffect(() => {
     if (composing || selected || isLoading || !data?.items.length)
@@ -158,10 +161,10 @@ export function ClarificationPage({ workspaceId }: ClarificationPageProps) {
     setComposing(true)
   }
 
-  // The "submit an issue" affordance is meaningful only on the Pending
-  // tab — the other statuses are post-resolution archives. Keeping it
-  // pending-only also reduces user surprise (you'd never expect to
-  // file a new issue while browsing rejected ones).
+  // The "submit an issue" affordance is meaningful only on the Pending tab,
+  // the other statuses are post-resolution archives.
+  // Keeping it pending-only also reduces surprise,
+  // you would never expect to file a new issue while browsing rejected ones.
   const canSubmitIssue = status === 'pending'
 
   return (
@@ -227,10 +230,9 @@ export function ClarificationPage({ workspaceId }: ClarificationPageProps) {
                   workspaceId={workspaceId}
                   onCancel={() => setComposing(false)}
                   onSubmitted={(ticket) => {
-                    // SSE clarification.created already invalidates the list;
-                    // selecting the new ticket also dismisses compose
-                    // mode so the reviewer lands on the freshly filed
-                    // issue.
+                    // SSE clarification.created already invalidates the list.
+                    // Selecting the new ticket also dismisses compose mode,
+                    // so the reviewer lands on the freshly filed issue.
                     setComposing(false)
                     setStatus('pending')
                     setSelected(ticket)
@@ -266,10 +268,10 @@ export function ClarificationPage({ workspaceId }: ClarificationPageProps) {
 }
 
 /**
- * Header strip: status filter with a live badge on pending. The
- * "submit a question" affordance lives inline at the bottom of the
- * list panel rather than here, so the header stays focused on
- * navigation.
+ * Header strip: status filter with a live badge on pending.
+ * The "submit a question" affordance lives inline,
+ * at the bottom of the list panel rather than here,
+ * so the header stays focused on navigation.
  */
 function ClarificationShowAllToggle({
   workspaceId,
@@ -375,10 +377,11 @@ function ClarificationDetail({
   const queryClient = useQueryClient()
   const canWrite = useWorkspacePolicy(workspaceId).can('clarification.write')
   const isPending = ticket.status === 'pending'
-  // The two answer paths are mutually exclusive: picking an existing
-  // candidate closes the custom-answer form, and vice versa. Keeping
-  // them separated avoids a hidden "you picked B but also typed text"
-  // state where the user can't tell what will be submitted.
+  // The two answer paths are mutually exclusive.
+  // Picking an existing candidate closes the custom-answer form,
+  // and vice versa.
+  // Keeping them separated avoids a hidden "picked B but also typed" state,
+  // where the user cannot tell what will be submitted.
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null)
   const [customOpen, setCustomOpen] = useState(false)
   const [customDescription, setCustomDescription] = useState('')
@@ -387,9 +390,9 @@ function ClarificationDetail({
   const [skipReason, setSkipReason] = useState('')
 
   function invalidateClarification(): void {
-    // The 3-element prefix matches every status sub-key, so the
-    // freshly-moved ticket disappears from the current list and
-    // re-appears in its new tab without manual reconciliation.
+    // The 3-element prefix matches every status sub-key,
+    // so the freshly-moved ticket disappears from the current list,
+    // and re-appears in its new tab without manual reconciliation.
     queryClient.invalidateQueries({ queryKey: queryKeys.clarifications(workspaceId) })
   }
 
@@ -417,10 +420,11 @@ function ClarificationDetail({
   const existingReady = !customOpen && selectedCandidateId !== null
   const canAnswer = (customReady || existingReady) && !answer.isPending
 
-  // For terminal states, fetch the projected answerNote / skipReason
-  // once and thread them down. Lets the answered candidate row show
-  // the rationale inline (same anchor as the editable rationale on
-  // pending), instead of dumping it in the footer.
+  // For terminal states, fetch the projected answerNote and skipReason,
+  // once, and thread them down.
+  // Lets the answered candidate row show the rationale inline,
+  // the same anchor as the editable rationale on pending,
+  // instead of dumping it in the footer.
   const detail = useClarificationDetail(workspaceId, isPending ? null : ticket.id)
   const terminalAnswerNote = !isPending ? detail.data?.answerNote : undefined
   const projectedSkipReason = ticket.status === 'skipped' ? detail.data?.skipReason : undefined
@@ -562,10 +566,11 @@ function ClarificationDetail({
 }
 
 /**
- * Inline "+ Add my own answer" form. When the reviewer's actual answer
- * doesn't match any candidate the skill produced, they author one
- * here; the server appends it to the ticket on submit so it shows up
- * in the candidates list of the answered/applied ticket afterwards.
+ * Inline "+ Add my own answer" form.
+ * When the reviewer's actual answer matches no candidate,
+ * they author one here.
+ * The server appends it to the ticket on submit,
+ * so it shows up in the candidates list afterwards.
  */
 function CustomAnswerSection({
   open,
@@ -691,9 +696,9 @@ function CandidatesList({
   note: string
   onNoteChange: (next: string) => void
   /**
-   * Read-only rationale from the GET projection. Surfaced inline under
-   * the answered candidate so the visual anchor matches the editable
-   * rationale shown during the pending state.
+   * Read-only rationale from the GET projection.
+   * Surfaced inline under the answered candidate,
+   * so the visual anchor matches the editable rationale on pending.
    */
   terminalAnswerNote: string | null
 }) {
@@ -710,9 +715,9 @@ function CandidatesList({
         const isSelected = isPending
           ? selectedCandidateId === candidate.id
           : appliedCandidateId === candidate.id
-        // Editable on pending+active, read-only on terminal+active (if
-        // a note exists), null otherwise. The card layout stays the
-        // same; only the inner control changes.
+        // Editable on pending and active, read-only on terminal and active,
+        // if a note exists, null otherwise.
+        // The card layout stays the same, only the inner control changes.
         const inlineNote = isPending && isSelected
           ? { mode: 'edit' as const, value: note, onChange: onNoteChange }
           : !isPending && isSelected && terminalAnswerNote
@@ -756,10 +761,11 @@ function CandidateRow({
   dimmed: boolean
   onSelect: () => void
   /**
-   * Anchored rationale slot, identical visual position across all
-   * statuses. `edit` renders a textarea (pending + selected), `view`
-   * renders a read-only quote (answered/applied + selected when a
-   * projection note exists), `null` hides the slot entirely.
+   * Anchored rationale slot, identical visual position across statuses.
+   * `edit` renders a textarea when pending and selected.
+   * `view` renders a read-only quote,
+   * when answered or applied and selected and a projection note exists.
+   * `null` hides the slot entirely.
    */
   inlineNote: InlineNote
 }) {
@@ -775,9 +781,9 @@ function CandidateRow({
         : 'border-border'
   } ${dimmed ? 'opacity-60' : ''}`
 
-  // Inner row layout: letter chip + (description / impact / node refs).
-  // Always rendered; only the wrapping element flips between an
-  // interactive <button> (pending) and a passive <div> (terminal).
+  // Inner row layout: letter chip, then description, impact, and node refs.
+  // Always rendered, only the wrapping element flips,
+  // between an interactive <button> (pending) and a passive <div> (terminal).
   const innerRow = (
     <div className="flex w-full items-start gap-3 px-3 py-2 text-left">
       <span
@@ -818,9 +824,10 @@ function CandidateRow({
     </div>
   )
 
-  // Rationale lives in the same card as the row but as a sibling of
-  // the click target, so it isn't a textarea-inside-button (invalid
-  // HTML) and clicks inside it don't bubble to the radio.
+  // Rationale lives in the same card as the row,
+  // but as a sibling of the click target,
+  // so it is not a textarea-inside-button, which is invalid HTML,
+  // and clicks inside it do not bubble to the radio.
   const rationale = inlineNote !== null
     ? (
         <div className="border-t border-primary/20 px-3 py-2">
@@ -850,11 +857,11 @@ function CandidateRow({
 }
 
 /**
- * Rationale slot rendered inline under the active candidate. Same
- * position and label whether the row is editable (pending + selected)
- * or read-only (answered/applied with a projection note) — the
- * consistency lets reviewers form one mental model for "rationale
- * lives under the chosen answer" across the ticket's lifetime.
+ * Rationale slot rendered inline under the active candidate.
+ * Same position and label whether the row is editable,
+ * pending and selected, or read-only with a projection note.
+ * The consistency lets reviewers form one mental model,
+ * that rationale lives under the chosen answer across the lifetime.
  */
 function InlineRationale({
   slot,
@@ -924,9 +931,10 @@ function collectNodeIds(candidate: ClarificationCandidate): NodeId[] {
         for (const u of op.updates)
           ids.add(u.nodeId)
         break
-      // Edge ops are intentionally no-ops here — GraphNavigation has
-      // no edge-side selection yet. Enumerating them keeps the switch
-      // exhaustive so adding a 13th discriminant compile-errors.
+      // Edge ops are intentionally no-ops here,
+      // GraphNavigation has no edge-side selection yet.
+      // Enumerating them keeps the switch exhaustive,
+      // so adding a 13th discriminant compile-errors.
       case 'addEdge':
       case 'addEdges':
       case 'removeEdge':
@@ -975,12 +983,12 @@ function SkipForm({ value, onChange, onCancel, onSubmit, isPending }: {
 }
 
 function TerminalFooter({ ticket, skipReason }: { ticket: Clarification, skipReason: string | null }) {
-  // The reviewer's rationale (answerNote) for answered/applied tickets
-  // is rendered inline under the selected candidate, not here, so the
-  // visual anchor matches the editable rationale shown during pending.
-  // Footer is reserved for status-action info only (e.g. "Run
-  // /ddd:clarify", "→ Proposal #abc", skip reason — which has no
-  // candidate to anchor to).
+  // The reviewer's rationale (answerNote) for answered or applied tickets,
+  // is rendered inline under the selected candidate, not here,
+  // so the visual anchor matches the editable rationale on pending.
+  // The footer is reserved for status-action info only,
+  // such as "Run /ddd:clarify", "to Proposal #abc", or a skip reason,
+  // which has no candidate to anchor to.
   if (ticket.status === 'answered') {
     return (
       <footer className="shrink-0 border-t border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
@@ -1010,8 +1018,8 @@ function TerminalFooter({ ticket, skipReason }: { ticket: Clarification, skipRea
       </footer>
     )
   }
-  // skipped — no selectedCandidate to anchor the reason under, so the
-  // footer is the right home for it.
+  // Skipped tickets have no selectedCandidate to anchor the reason under,
+  // so the footer is the right home for it.
   return (
     <footer className="shrink-0 space-y-1 border-t border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
       <div>
@@ -1029,9 +1037,10 @@ function TerminalFooter({ ticket, skipReason }: { ticket: Clarification, skipRea
 }
 
 /**
- * Click-through chip linking an applied ticket to the Proposal it
- * materialised. Switches to the Proposals tab and asks it to focus
- * the target; ProposalsPage handles the cross-status lookup.
+ * Click-through chip linking an applied ticket to the Proposal,
+ * it materialised.
+ * Switches to the Proposals tab and asks it to focus the target.
+ * ProposalsPage handles the cross-status lookup.
  */
 function AppliedProposalChip({ proposalId }: { proposalId: ProposalId }) {
   const nav = useTabNavigation()

@@ -7,18 +7,21 @@ import { Button } from './ui/button'
 
 interface ReactorBannerProps {
   workspaceId: string | null
-  /** Surface activation hook; clicking the "Open Activity" link drops the user on the Activity page. */
+  /** Clicking the "Open Activity" link drops the user on the Activity page. */
   onOpenActivity: () => void
 }
 
 /**
  * Top-of-app banner surfacing the active reactor cycle.
- * Reads the active cycle from the same `reactor-cycles` query the Activity page uses.
+ * Reads the active cycle from the same `reactor-cycles` query,
+ * that the Activity page uses.
  * `useWorkspaceEvents` invalidates that query on every reactor SSE event,
  * so the banner stays live without its own EventSource.
- * Mid-cycle mount works because the query returns the in-flight cycle from the API.
+ * Mid-cycle mount works,
+ * because the query returns the in-flight cycle from the API.
  *
- * The throttle notice still listens to SSE directly: a throttled cycle is a transient event,
+ * The throttle notice still listens to SSE directly.
+ * A throttled cycle is a transient event,
  * with no persisted "in-flight" state to query,
  * and it auto-dismisses after a few seconds.
  */

@@ -10,11 +10,14 @@ const nextId = () => `mermaid-${++counter}`
 let mermaidPromise: Promise<typeof import('mermaid').default> | null = null
 
 function resolveColor(cssVar: string): string {
-  // Mermaid (via khroma) doesn't parse oklch() — it understands hex / rgb /
-  // hsl / named colors only. Modern browsers keep oklch in computed style
-  // (don't auto-convert to rgb), so we push the value through a 1x1 canvas:
-  // the canvas always quantises to sRGB rgba, so reading imageData back
-  // gives us integer rgb regardless of the input colour space.
+  // Mermaid (via khroma) does not parse oklch().
+  // It understands hex, rgb, hsl, and named colors only.
+  // Modern browsers keep oklch in computed style,
+  // and do not auto-convert to rgb,
+  // so we push the value through a 1x1 canvas.
+  // The canvas always quantises to sRGB rgba,
+  // so reading imageData back gives integer rgb,
+  // regardless of the input colour space.
   const raw = getComputedStyle(document.documentElement)
     .getPropertyValue(cssVar)
     .trim()

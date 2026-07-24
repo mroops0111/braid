@@ -9,9 +9,9 @@ export interface MultiSelectOption {
   description?: string | undefined
   /**
    * Optional informational chip rendered next to the option label.
-   * Used by the source-intent picker to mark per-unit freshness
-   * ("extracted Nm ago" / "stale"); leave unset for plain options.
-   * The chip is purely informational — it does NOT disable selection.
+   * Used by the source-intent picker to mark per-unit freshness,
+   * such as "extracted Nm ago" or "stale". Leave unset for plain options.
+   * The chip is purely informational, it does not disable selection.
    */
   badge?: {
     readonly text: string
@@ -21,7 +21,7 @@ export interface MultiSelectOption {
 }
 
 interface MultiSelectDropdownProps {
-  /** id assigned to the trigger button — pair with an upstream `<label htmlFor>` for a11y. */
+  /** id assigned to the trigger button, pair with an upstream `<label htmlFor>` for a11y. */
   id?: string
   /** Used in the closed-state summary when nothing is selected ("Select {label}…"). */
   label: string
@@ -32,11 +32,12 @@ interface MultiSelectDropdownProps {
 }
 
 /**
- * Generic multi-select with a search filter and selected-as-chips
- * overflow line. Decoupled from any specific data shape — callers
- * pass plain `{ value, label, description? }` options. Built on
- * Radix Popover so click-outside and Escape close the menu without
- * extra wiring.
+ * Generic multi-select with a search filter,
+ * and a selected-as-chips overflow line.
+ * Decoupled from any specific data shape,
+ * callers pass plain `{ value, label, description? }` options.
+ * Built on Radix Popover,
+ * so click-outside and Escape close the menu without extra wiring.
  */
 export function MultiSelectDropdown({
   id,

@@ -12,18 +12,19 @@ export type AuthGate = GateLoading | GateLogin | GateAuthenticated
 /**
  * Decide whether the main app or the Login page should render.
  *
- * The logic chains:
- *   1. Read `/auth/config` to learn the server's mode (local-trust /
- *      remote / Google-configured).
- *   2. If the server doesn't require auth → `authenticated` (the
- *      embedded sidecar / local install path).
- *   3. If auth is required AND no Bearer token in localStorage →
- *      `login`. Any error message stashed by the OAuth redirect is
- *      passed through to the page so it surfaces above the button.
- *   4. Otherwise the token is present and we proceed; the actual
- *      validation happens when api calls fire — a 401 from a real
- *      route is what triggers the user to re-login. (We could probe
- *      `/auth/whoami` here, but that's a second round-trip per boot.)
+ * The logic chains through four steps.
+ *   1. Read `/auth/config` to learn the server's mode,
+ *      local-trust, remote, or Google-configured.
+ *   2. If the server does not require auth the gate is `authenticated`,
+ *      the embedded sidecar and local-install path.
+ *   3. If auth is required and no Bearer token is stored,
+ *      the gate is `login`.
+ *      Any error stashed by the OAuth redirect is passed through,
+ *      so the page surfaces it above the button.
+ *   4. Otherwise the token is present and we proceed.
+ *      The real validation happens when api calls fire,
+ *      and a 401 from a live route is what triggers a re-login.
+ *      Probing `/auth/whoami` here would cost a second round-trip per boot.
  */
 export function useAuthGate(): AuthGate {
   const token = useAuthToken()

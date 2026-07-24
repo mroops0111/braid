@@ -210,9 +210,10 @@ function BatchHeader({ workspaceId, plan, terminal }: {
   terminal: boolean
 }) {
   const queryClient = useQueryClient()
-  // Every header action mutates the plan server-side, so they all need
-  // to refetch the same query. Sharing the callback keeps each mutation
-  // declaration to a single responsibility (its mutationFn).
+  // Every header action mutates the plan server-side,
+  // so they all need to refetch the same query.
+  // Sharing the callback keeps each mutation declaration,
+  // to a single responsibility, its mutationFn.
   const refreshBatch = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.batch(workspaceId) })
   }
@@ -353,14 +354,15 @@ interface UnitChunk {
 }
 
 /**
- * Build the visual chunks. For each committed checkpoint phase we
- * group the units it consumed. Remaining units are split into
- * anticipated chunks using `batchPolicy.checkpointChunkSize` so the
- * reviewer sees the structure before any checkpoint fires.
+ * Build the visual chunks.
+ * For each committed checkpoint phase we group the units it consumed.
+ * Remaining units are split into anticipated chunks,
+ * using `batchPolicy.checkpointChunkSize`,
+ * so the reviewer sees the structure before any checkpoint fires.
  *
- * When `checkpointRunAtEnd` is true we also surface the mandatory
- * final pass even if units happen to divide evenly — the orchestrator
- * will fire one more checkpoint with an empty unit list in that case.
+ * When `checkpointRunAtEnd` is true we also surface the mandatory final pass,
+ * even if units happen to divide evenly.
+ * The orchestrator fires one more checkpoint with an empty unit list.
  */
 function groupUnitsByCheckpoint(plan: BatchPlan): UnitChunk[] {
   const unitsById = new Map(plan.units.map(u => [u.id, u]))
@@ -675,7 +677,8 @@ function summarise(plan: BatchPlan): { completed: number, failed: number, applie
   return { completed, failed, applied }
 }
 
-// Selected unit follows the active running unit; manual clicks override until the next active change.
+// Selected unit follows the active running unit.
+// Manual clicks override until the next active change.
 function useTrackedRunId(initial: SkillRunId | null, activeRunId: SkillRunId | null): [SkillRunId | null, (id: SkillRunId | null) => void] {
   const [selected, setSelected] = useState<SkillRunId | null>(initial)
   useEffect(() => {

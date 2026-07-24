@@ -10,15 +10,15 @@ import { useMemo } from 'react'
 import { useModelSnapshot } from '@/lib/queries'
 
 /**
- * Uniform view shape consumed by the graph visualization + table.
+ * Uniform view shape consumed by the graph visualization and table.
  *
- * Decoupling rendering from data acquisition lets us reuse the same
- * components for the live workspace graph, proposal previews, and
- * future read-only / historical views without conditionals leaking into
- * the renderer.
+ * Decoupling rendering from data acquisition lets us reuse the same components,
+ * for the live workspace graph, proposal previews,
+ * and future read-only or historical views,
+ * without conditionals leaking into the renderer.
  *
- * `diff` is an optional overlay: when present, nodes and edges in the
- * map get tinted with a change-kind ring/badge.
+ * `diff` is an optional overlay.
+ * When present, nodes and edges in the map get a change-kind ring or badge.
  */
 export interface GraphDataSource {
   readonly nodes: readonly GraphNode[]
@@ -46,14 +46,16 @@ export function useLiveGraphDataSource(workspaceId: string): GraphDataSource {
 
 /**
  * Derive a preview by applying `operations` to the live snapshot.
- * Returns the projected nodes/edges plus a `diff` map for UI overlays.
+ * Returns the projected nodes and edges,
+ * plus a `diff` map for UI overlays.
  *
- * **`operations` must be referentially stable.** This hook memoises on
- * `data`, `isLoading`, and `operations` — if the caller rebuilds the
- * array each render, `previewProposal` re-runs every time. Real call
- * sites pass `proposal.operations` straight from a React-Query result,
- * which is stable across renders. Don't construct an inline array
- * literal at the call site.
+ * `operations` must be referentially stable.
+ * This hook memoises on `data`, `isLoading`, and `operations`.
+ * If the caller rebuilds the array each render,
+ * `previewProposal` re-runs every time.
+ * Real call sites pass `proposal.operations` from a React-Query result,
+ * which is stable across renders.
+ * Do not construct an inline array literal at the call site.
  */
 export function useProposalGraphDataSource(
   workspaceId: string,

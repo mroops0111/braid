@@ -6,21 +6,21 @@ import { resolveViewer } from './resolveViewer'
 
 export interface ViewerPolicy {
   /**
-   * The role used by `can()` checks. Admins always land as `'owner'`
-   * regardless of whether they hold an explicit member row; null when
-   * the viewer is not a member and not a server admin.
+   * The role used by `can()` checks. Admins always land as `'owner'`,
+   * regardless of whether they hold an explicit member row.
+   * Null when the viewer is not a member and not a server admin.
    */
   readonly effectiveRole: WorkspaceRole | null
   /**
-   * The viewer's stored member row, if any. Useful for rendering
-   * (e.g. show the actual stored role as a chip) but does NOT
-   * determine effectiveRole. Admins have effectiveRole=owner even
-   * when their stored member.role is something else.
+   * The viewer's stored member row, if any.
+   * Useful for rendering, such as showing the stored role as a chip,
+   * but it does not determine effectiveRole.
+   * Admins have effectiveRole=owner even when member.role is something else.
    */
   readonly actualMember: WorkspaceMember | undefined
   /** Server-level admin flag, surfaced for server-scope UI (e.g. Admin Settings tab). */
   readonly isServerAdmin: boolean
-  /** Inverse of resolved data: true while either /users/me or /members is loading. */
+  /** True while either /users/me or /members is still loading. */
   readonly loading: boolean
   /** Capability check. Pass a resource object when the capability needs one (e.g. skill.run). */
   can: (capability: Capability, resource?: { skill?: SkillFrontmatter, skillId?: string }) => boolean
@@ -28,8 +28,6 @@ export interface ViewerPolicy {
 
 /**
  * Single hook every component reaches for to ask permission questions.
- * Replaces the previously scattered useMyWorkspaceRole /
- * resolveMyMembership / inline `serverRole === 'admin'` checks.
  */
 export function useWorkspacePolicy(workspaceId: string | null): ViewerPolicy {
   const { data: me, isLoading: meLoading } = useMe()
@@ -46,9 +44,10 @@ export function useWorkspacePolicy(workspaceId: string | null): ViewerPolicy {
         can: () => false,
       }
     }
-    // No workspace context: we still expose the server-admin flag for
-    // server-scope surfaces (Settings > Users), but workspace-scoped
-    // capability checks have nothing to evaluate against.
+    // No workspace context here.
+    // We still expose the server-admin flag for server-scope surfaces,
+    // such as Settings and Users.
+    // But workspace-scoped capability checks have nothing to evaluate against.
     if (!workspaceId) {
       return {
         effectiveRole: null,

@@ -19,35 +19,36 @@ interface GraphTablePageProps {
   workspaceId: string
   /**
    * Optional data source. Defaults to the live workspace snapshot.
-   * Proposal previews pass a derived source carrying a `diff` map so
-   * the Change column lights up.
+   * Proposal previews pass a derived source carrying a `diff` map,
+   * so the Change column lights up.
    */
   source?: GraphDataSource
   /**
-   * Controlled selection. When both `selectedNodeId` and
-   * `onSelectNode` are provided the table defers ownership to the
-   * parent so the sibling canvas shares the highlight.
+   * Controlled selection.
+   * When both `selectedNodeId` and `onSelectNode` are provided,
+   * the table defers ownership to the parent,
+   * so the sibling canvas shares the highlight.
    */
   selectedNodeId?: NodeId | null
   onSelectNode?: (id: NodeId | null) => void
   /**
-   * Controlled edge selection. Mirrors `selectedNodeId`. Mutual
-   * exclusion is the parent's responsibility; when uncontrolled the
-   * table maintains the invariant internally.
+   * Controlled edge selection. Mirrors `selectedNodeId`.
+   * Mutual exclusion is the parent's responsibility.
+   * When uncontrolled the table maintains the invariant internally.
    */
   selectedEdgeId?: EdgeId | null
   onSelectEdge?: (id: EdgeId | null) => void
   /**
-   * Controlled focus mode. When provided, the parent owns on/off so
-   * the same toggle drives both canvas and table from a page-level
-   * toolbar.
+   * Controlled focus mode. When provided, the parent owns on and off,
+   * so the same toggle drives both canvas and table,
+   * from a page-level toolbar.
    */
   focusMode?: boolean
   /**
-   * Mirrors Canvas's `emphasizeAdded`. When `true`, `added` rows
-   * carry a green ring (in addition to the Change badge) so a small
-   * diff against a large graph still draws the eye in the Table
-   * view. Has no effect outside proposal preview.
+   * Mirrors Canvas's `emphasizeAdded`. When `true`,
+   * `added` rows carry a green ring on top of the Change badge,
+   * so a small diff against a large graph still draws the eye.
+   * Has no effect outside proposal preview.
    */
   emphasizeAdded?: boolean
 }
@@ -78,9 +79,9 @@ function GraphTableInner({
   const [selectedId, setSelectedId] = useControllableState<NodeId | null>(controlledSelected, onSelectNode, null)
   const [selectedEdgeId, setSelectedEdgeId] = useControllableState<EdgeId | null>(controlledEdgeSelected, onSelectEdge, null)
 
-  // Mutual-exclusion helpers — match the Canvas's invariant so a user
-  // bouncing between the two views never lands on a state where both
-  // a node and an edge are highlighted at once.
+  // Mutual-exclusion helpers match the Canvas's invariant,
+  // so a user bouncing between the two views never lands,
+  // on a state where both a node and an edge are highlighted at once.
   const selectNode = (id: NodeId | null): void => {
     setSelectedId(id)
     setSelectedEdgeId(null)
@@ -112,9 +113,9 @@ function GraphTableInner({
   const selectedEdge = selectedEdgeId ? edges.find(e => e.id === selectedEdgeId) ?? null : null
   const selectedEdgeFromNode = selectedEdge ? nodes.find(n => n.id === selectedEdge.fromNodeId) : undefined
   const selectedEdgeToNode = selectedEdge ? nodes.find(n => n.id === selectedEdge.toNodeId) : undefined
-  // Visible set: in focus mode we hide non-neighbours entirely (table
-  // shrinks); otherwise everything stays in the list and non-neighbours
-  // are muted in-place.
+  // Visible set. In focus mode we hide non-neighbours entirely,
+  // so the table shrinks.
+  // Otherwise everything stays in the list, and non-neighbours are muted.
   const showAll = !focusMode || !selectedId
   const visibleNodes = showAll ? nodes : nodes.filter(n => neighborhood.neighbors.has(n.id))
   const visibleEdges = showAll ? edges : edges.filter(e => neighborhood.incidentEdges.has(e.id))
@@ -330,8 +331,9 @@ const CHANGE_BADGE_CLASS: Record<ChangeKind, string> = {
 }
 
 function EdgeTypePill({ type }: { type: GraphEdge['type'] }) {
-  // Edge palette uses CSS colour functions; we apply alpha at consume
-  // sites to match the canvas's edge stroke treatment (dim + tinted).
+  // Edge palette uses CSS colour functions.
+  // We apply alpha at consume sites,
+  // to match the canvas's edge stroke treatment (dim and tinted).
   const palette = usePaletteContext()
   const color = palette.edgeColor(type)
   return (

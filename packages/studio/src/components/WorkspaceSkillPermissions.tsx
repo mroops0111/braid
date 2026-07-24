@@ -42,9 +42,10 @@ export function WorkspaceSkillPermissions({ workspaceId }: { workspaceId: string
     )
   }
 
-  // Owners always pass the ACL gate regardless of overrides — showing
-  // a row for them would be misleading. Hidden skills (orchestration-only)
-  // are never user-runnable, so they're not actionable here either.
+  // Owners always pass the ACL gate regardless of overrides,
+  // so showing a row for them would be misleading.
+  // Hidden skills are orchestration-only and never user-runnable,
+  // so they are not actionable here either.
   const visibleMembers = (members?.items ?? []).filter(m => m.role !== 'owner')
   // Mirror the Actions page column order (ask, build by `order`, generate,
   // custom) so members map cells to the page they'll find the skill on.
@@ -114,7 +115,7 @@ function PermissionRow({ workspaceId, member, displayName, skills, isMe, isLast 
   const patch = useMutation({
     mutationFn: (nextOverrides: Record<string, SkillPermission>) =>
       api.patchWorkspaceMember(workspaceId, member.userId, {
-        // PATCH replaces skillOverrides wholesale; sending {} clears.
+        // PATCH replaces skillOverrides wholesale, sending {} clears.
         skillOverrides: Object.keys(nextOverrides).length > 0 ? nextOverrides : {},
       }),
     onSuccess: () => {
@@ -175,8 +176,8 @@ function CellIcon({ state, allowedByDefault }: { state: CellState, allowedByDefa
     return <Check className="size-3.5 text-emerald-500" />
   if (state === 'deny')
     return <X className="size-3.5 text-destructive" />
-  // Inherit: dim the icon, but reflect the underlying default so the
-  // cell still communicates effective access at a glance.
+  // Inherit, so dim the icon but reflect the underlying default,
+  // so the cell still communicates effective access at a glance.
   return (
     <Minus className={allowedByDefault ? 'size-3.5 text-emerald-500/40' : 'size-3.5 text-muted-foreground/40'} />
   )
