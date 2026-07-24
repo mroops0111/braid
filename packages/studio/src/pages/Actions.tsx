@@ -178,7 +178,7 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
         : (
             <EmptyState
               icon={Sparkles}
-              title="Pick an action"
+              title="Pick an Action"
               description="Choose an action on the left to start, or resume a recent conversation."
             />
           )}
@@ -535,7 +535,7 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
           {turnCount > 0 && (
             <Button variant="ghost" size="sm" onClick={reset} disabled={running}>
               <Plus />
-              New conversation
+              New Conversation
             </Button>
           )}
         </div>

@@ -67,7 +67,7 @@ export function ActivityPage({ workspaceId }: ActivityPageProps) {
         {!effectiveSelected && (
           <EmptyPanel
             icon={Activity}
-            title="No cycle selected"
+            title="No Cycle Selected"
             detail="Pick a cycle from the list to see its per-unit timeline."
           />
         )}
@@ -154,7 +154,7 @@ function CycleDetail({ cycle }: { cycle: ReactorCycle }) {
         </div>
       )}
       {cycle.units.length === 0 && cycle.status !== 'throttled' && (
-        <p className="text-2xs text-muted-foreground">No units required dispatch — the diff was empty.</p>
+        <p className="text-2xs text-muted-foreground">No units required dispatch. The diff was empty.</p>
       )}
       {cycle.units.length > 0 && (
         <section>

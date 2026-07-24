@@ -109,7 +109,7 @@ type StatusFilter = ClarificationStatus
 const EMPTY_COPY: Record<StatusFilter, { title: string, description: string }> = {
   pending: {
     title: 'No Pending Clarifications',
-    description: 'Run /ddd:extract or /ddd:reconcile to surface ambiguity — or open a new question yourself.',
+    description: 'Run /ddd:extract or /ddd:reconcile to surface ambiguity, or open a new question yourself.',
   },
   answered: {
     title: 'No Answered Tickets',
@@ -212,7 +212,7 @@ export function ClarificationPage({ workspaceId }: ClarificationPageProps) {
                       className="m-2 flex items-center justify-center gap-1.5 rounded-md border border-dashed border-border/60 py-2 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
                     >
                       <Plus className="size-3.5" />
-                      Submit a question for AI
+                      Submit a Question for AI
                     </button>
                   )}
                 </>
@@ -629,7 +629,7 @@ function CustomAnswerSection({
             className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
           />
           <p className="text-2xs text-muted-foreground">
-            No graph operations are attached — picking this resolves the ticket
+            No graph operations are attached, picking this resolves the ticket
             without mutating the graph (the same path /ddd:clarify uses for
             zero-impact resolutions).
           </p>
@@ -1009,7 +1009,7 @@ function TerminalFooter({ ticket, skipReason }: { ticket: Clarification, skipRea
                 .
               </>
             )
-          : <span>Applied — selected candidate had no graph impact, so no Proposal was created.</span>}
+          : <span>Applied. Selected candidate had no graph impact, so no Proposal was created.</span>}
       </footer>
     )
   }

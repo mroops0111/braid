@@ -99,11 +99,11 @@ export function ReactorBanner({ workspaceId, onOpenActivity }: ReactorBannerProp
               throttled (cap
               {' '}
               {throttled.limit}
-              /h reached) — sync on
+              /h reached), sync on
               {' '}
               <span className="font-mono">{throttled.sourceId}</span>
               {' '}
-              skipped; next dispatch unblocks once the rolling window slides.
+              skipped. Next dispatch unblocks once the rolling window slides.
             </>
           )}
         />

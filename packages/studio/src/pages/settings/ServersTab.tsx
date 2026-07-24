@@ -179,13 +179,13 @@ async function probeBraidServer(url: string): Promise<void> {
     throw new Error(`Could not reach ${url}: ${err instanceof Error ? err.message : 'network error'}`)
   }
   if (!response.ok)
-    throw new Error(`Server replied ${response.status} — is this a Braid instance?`)
+    throw new Error(`Server replied ${response.status}. Is this a Braid instance?`)
   let body: unknown
   try {
     body = await response.json()
   }
   catch {
-    throw new Error('Server replied with non-JSON — is this a Braid instance?')
+    throw new Error('Server replied with non-JSON. Is this a Braid instance?')
   }
   if (typeof body !== 'object' || body === null || !('requiresAuth' in body) || !('googleEnabled' in body))
     throw new Error('Response did not match a Braid `/auth/config` shape')

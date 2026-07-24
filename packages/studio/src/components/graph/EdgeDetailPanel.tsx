@@ -116,7 +116,7 @@ export function EdgeDetailPanel({
       {onCenterInGraph && (
         <div className="border-t border-border p-4">
           <Button variant="ghost" size="sm" className="w-full justify-center" onClick={onCenterInGraph}>
-            Center in graph
+            Center in Graph
           </Button>
         </div>
       )}

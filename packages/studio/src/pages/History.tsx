@@ -144,8 +144,8 @@ export function HistoryPage({ workspaceId }: HistoryPageProps) {
                 />
               )
             : commits.length === 0
-              ? <EmptyState icon={History} title="No commits yet" description="History records each applied proposal, clarify answer, and restore as a commit." />
-              : <EmptyState icon={History} title="Pick a commit" description="Select a commit on the left to see its diff, tag it, or restore the workspace to that point." />}
+              ? <EmptyState icon={History} title="No Commits Yet" description="History records each applied proposal, clarify answer, and restore as a commit." />
+              : <EmptyState icon={History} title="Pick a Commit" description="Select a commit on the left to see its diff, tag it, or restore the workspace to that point." />}
       </div>
     </div>
   )
@@ -746,7 +746,7 @@ function TagDialog({ open, onOpenChange, workspaceId, sha }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Tag this commit</DialogTitle>
+          <DialogTitle>Tag This Commit</DialogTitle>
           <DialogDescription>Give this point in history a memorable name.</DialogDescription>
         </DialogHeader>
         <form
