@@ -98,7 +98,7 @@ export function Mermaid({ definition }: MermaidProps) {
 
   if (error) {
     return (
-      <div className="my-2 rounded-md border border-rose-500/40 bg-rose-500/10 p-2 font-mono text-[11px] text-rose-300">
+      <div className="my-2 rounded-md border border-rose-500/40 bg-rose-500/10 p-2 font-mono text-2xs text-rose-300">
         <div className="mb-1 font-semibold">Mermaid render error</div>
         <pre className="whitespace-pre-wrap">{error}</pre>
         <pre className="mt-2 whitespace-pre-wrap opacity-70">{definition}</pre>

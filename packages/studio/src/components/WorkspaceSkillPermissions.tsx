@@ -21,7 +21,7 @@ interface SectionHeaderProps {
 
 function SectionHeader({ title }: SectionHeaderProps) {
   return (
-    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
       {title}
     </h3>
   )
@@ -37,7 +37,7 @@ export function WorkspaceSkillPermissions({ workspaceId }: { workspaceId: string
     return (
       <section>
         <SectionHeader title="Skill Permissions" />
-        <p className="mt-2 text-[11px] text-muted-foreground">Loading…</p>
+        <p className="mt-2 text-2xs text-muted-foreground">Loading…</p>
       </section>
     )
   }
@@ -55,7 +55,7 @@ export function WorkspaceSkillPermissions({ workspaceId }: { workspaceId: string
     return (
       <section>
         <SectionHeader title="Skill Permissions" />
-        <p className="mt-2 text-[11px] text-muted-foreground">
+        <p className="mt-2 text-2xs text-muted-foreground">
           {visibleMembers.length === 0
             ? 'No Maintainers or Guests to manage. Owners always have full access.'
             : 'No skills available in this workspace.'}
@@ -67,13 +67,13 @@ export function WorkspaceSkillPermissions({ workspaceId }: { workspaceId: string
   return (
     <section>
       <SectionHeader title="Skill Permissions" />
-      <p className="mt-1 text-[11px] text-muted-foreground">
+      <p className="mt-1 text-2xs text-muted-foreground">
         Click a cell to cycle inherit, allow, deny. Inherit uses the skill's role default.
       </p>
       <div className="mt-2 overflow-x-auto rounded-md border border-border">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-border bg-card/40 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <tr className="border-b border-border bg-card/40 text-left text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
               <th className="sticky left-0 bg-card/40 px-3 py-1.5">Member</th>
               {visibleSkills.map(skill => (
                 <th key={skill.id} className="px-2 py-1.5 text-center" title={skillTooltip(skill)}>
@@ -141,11 +141,11 @@ function PermissionRow({ workspaceId, member, displayName, skills, isMe, isLast 
         <div className="flex items-center gap-1.5">
           <span className="truncate text-foreground/90">{displayName}</span>
           {isMe && (
-            <span className="rounded bg-primary/15 px-1 py-0.5 text-[11px] uppercase tracking-wider text-primary">
+            <span className="rounded bg-primary/15 px-1 py-0.5 text-2xs uppercase tracking-wider text-primary">
               You
             </span>
           )}
-          <span className="rounded bg-muted/60 px-1 py-0.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+          <span className="rounded bg-muted/60 px-1 py-0.5 text-2xs uppercase tracking-wider text-muted-foreground">
             {member.role}
           </span>
         </div>

@@ -82,7 +82,7 @@ export function ReactorBanner({ workspaceId, onOpenActivity }: ReactorBannerProp
             </>
           )}
           actions={(
-            <Button variant="ghost" size="sm" className="h-6 gap-1 text-[11px]" onClick={onOpenActivity}>
+            <Button variant="ghost" size="sm" className="h-6 gap-1 text-2xs" onClick={onOpenActivity}>
               <ArrowRight className="size-3" />
               Open Activity
             </Button>

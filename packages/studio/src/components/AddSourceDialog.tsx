@@ -147,7 +147,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
           </div>
           <Field label="Name">
             <Input value={name} onChange={e => setName(e.target.value)} placeholder={role === 'intent' ? 'intent-name' : 'repo-name'} autoFocus />
-            <p className="font-mono text-[11px] text-muted-foreground">
+            <p className="font-mono text-2xs text-muted-foreground">
               ./
               {rolePathSegment(role)}
               /
@@ -180,7 +180,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
               <Field label="Google Drive folder ID">
                 <Input value={gdriveFolderId} onChange={e => setGdriveFolderId(e.target.value)} placeholder="1abc…" />
                 {gdriveFolderId.trim() === 'root' && (
-                  <p className="text-[11px] text-destructive">
+                  <p className="text-2xs text-destructive">
                     "root" mirrors your entire My Drive (rejected by the loader). Create a dedicated subfolder and paste its ID.
                   </p>
                 )}
@@ -197,7 +197,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <p className="text-xs font-medium">Google Account</p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-2xs text-muted-foreground">
                       {oauthConnected
                         ? `Connected for source "${sourceId}". Re-renaming will require re-connecting.`
                         : 'Connect a Google account that has read access to the folder above.'}
@@ -213,7 +213,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
                   </Button>
                 </div>
                 {startOauth.error && (
-                  <p className="mt-2 text-[11px] text-destructive">{humaniseApiError(startOauth.error)}</p>
+                  <p className="mt-2 text-2xs text-destructive">{humaniseApiError(startOauth.error)}</p>
                 )}
               </div>
             </>
@@ -245,12 +245,12 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
                 </Field>
               </div>
               <div className="flex flex-col gap-1 rounded-md border border-border p-2">
-                <label className="flex items-center gap-2 text-[11px]">
+                <label className="flex items-center gap-2 text-2xs">
                   <input type="checkbox" checked={githubIncludeComments} onChange={e => setGithubIncludeComments(e.target.checked)} />
                   Include comments
                 </label>
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 Auth: server reads
                 {' '}
                 <code className="font-mono">$GH_TOKEN</code>
@@ -293,7 +293,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
 function Field({ label, children, className }: { label: string, children: React.ReactNode, className?: string }) {
   return (
     <div className={`space-y-1${className ? ` ${className}` : ''}`}>
-      <Label className="text-[11px]">{label}</Label>
+      <Label className="text-2xs">{label}</Label>
       {children}
     </div>
   )

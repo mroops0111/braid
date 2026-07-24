@@ -88,11 +88,11 @@ export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
       />
       <div className="flex items-center gap-1.5">
         <NodeTypeBadge type={node.type} />
-        <span className="text-[11px] text-muted-foreground">{node.status}</span>
+        <span className="text-2xs text-muted-foreground">{node.status}</span>
       </div>
       <div className="mt-1 truncate text-sm font-medium text-foreground">{node.name}</div>
       {firstParagraph && (
-        <div className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground [&_p]:!my-0 [&_p]:!text-[11px] [&_p]:!leading-snug">
+        <div className="mt-0.5 line-clamp-2 text-2xs leading-snug text-muted-foreground [&_p]:!my-0 [&_p]:!text-2xs [&_p]:!leading-snug">
           <Markdown text={firstParagraph} />
         </div>
       )}

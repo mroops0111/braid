@@ -75,7 +75,7 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
       <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
         <div>
           <div className="text-sm font-medium text-foreground">Submit an issue for AI to clarify</div>
-          <div className="text-[11px] text-muted-foreground">
+          <div className="text-2xs text-muted-foreground">
             File a concern; AI fills in candidate answers on its next clarify run.
           </div>
         </div>
@@ -162,7 +162,7 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
           </div>
         </div>
 
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {AMBIGUITY_TYPES.find(t => t.value === ambiguityType)?.hint}
         </p>
 

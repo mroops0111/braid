@@ -32,13 +32,13 @@ const components: NonNullable<Parameters<typeof ReactMarkdown>[0]['components']>
     const isBlock = className?.startsWith('language-')
     if (isBlock) {
       return (
-        <code className={cn('font-mono text-[11px] leading-relaxed', className)}>
+        <code className={cn('font-mono text-2xs leading-relaxed', className)}>
           {children}
         </code>
       )
     }
     return (
-      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-[11px] text-foreground">
+      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-2xs text-foreground">
         {children}
       </code>
     )
@@ -57,7 +57,7 @@ const components: NonNullable<Parameters<typeof ReactMarkdown>[0]['components']>
       }
     }
     return (
-      <pre className="my-2 overflow-x-auto rounded-md border border-border bg-card p-2 font-mono text-[11px] leading-relaxed text-foreground/90">
+      <pre className="my-2 overflow-x-auto rounded-md border border-border bg-card p-2 font-mono text-2xs leading-relaxed text-foreground/90">
         {children}
       </pre>
     )
@@ -71,7 +71,7 @@ const components: NonNullable<Parameters<typeof ReactMarkdown>[0]['components']>
   tbody: ({ children }) => <tbody>{children}</tbody>,
   tr: ({ children }) => <tr className="border-b border-border/40">{children}</tr>,
   th: ({ children, style }) => (
-    <th style={style} className="px-2 py-1 text-left text-[11px] font-semibold uppercase tracking-wider">
+    <th style={style} className="px-2 py-1 text-left text-2xs font-semibold uppercase tracking-wider">
       {children}
     </th>
   ),

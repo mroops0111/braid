@@ -35,14 +35,14 @@ function InvitesSection() {
   const { data, isLoading, error } = useAdminInvites(true)
   return (
     <section className="space-y-2">
-      <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <h2 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
         Pending Invites
       </h2>
-      {error && <p className="text-[11px] text-destructive">{humaniseApiError(error)}</p>}
+      {error && <p className="text-2xs text-destructive">{humaniseApiError(error)}</p>}
       {isLoading
-        ? <p className="text-[11px] text-muted-foreground">Loading…</p>
+        ? <p className="text-2xs text-muted-foreground">Loading…</p>
         : data && data.items.length === 0
-          ? <p className="text-[11px] text-muted-foreground">No pending invites.</p>
+          ? <p className="text-2xs text-muted-foreground">No pending invites.</p>
           : (
               <ul className="space-y-1">
                 {data?.items.map(invite => (
@@ -67,19 +67,19 @@ function InviteRow({ email, role }: { email: string, role: 'admin' | 'user' }) {
   return (
     <li className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs">
       <span className="truncate font-mono">{email}</span>
-      <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+      <span className="rounded bg-muted/60 px-1.5 py-0.5 text-2xs uppercase tracking-wider text-muted-foreground">
         {role}
       </span>
       <div className="ml-auto flex items-center gap-1">
         {armed
           ? (
               <>
-                <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setArmed(false)}>
+                <Button variant="ghost" size="sm" className="h-7 text-2xs" onClick={() => setArmed(false)}>
                   Cancel
                 </Button>
                 <Button
                   size="sm"
-                  className="h-7 text-[11px] bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  className="h-7 text-2xs bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   onClick={() => revoke.mutate()}
                   disabled={revoke.isPending}
                 >
@@ -139,14 +139,14 @@ function AddInviteForm() {
 
   if (!open) {
     return (
-      <Button variant="ghost" size="sm" onClick={() => setOpen(true)} className="h-7 text-[11px]">
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)} className="h-7 text-2xs">
         + Add Invite
       </Button>
     )
   }
   return (
     <section className="space-y-3 rounded-md border border-border p-3">
-      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">New Invite</h3>
+      <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">New Invite</h3>
       <div className="space-y-2">
         <Label htmlFor="invite-email" className="text-xs">Email</Label>
         <Input
@@ -169,7 +169,7 @@ function AddInviteForm() {
           <option value="admin">admin</option>
         </select>
       </div>
-      {error && <p className="text-[11px] text-destructive">{error}</p>}
+      {error && <p className="text-2xs text-destructive">{error}</p>}
       <div className="flex gap-2">
         <Button variant="ghost" size="sm" onClick={reset} className="flex-1" disabled={add.isPending}>Cancel</Button>
         <Button size="sm" onClick={submit} className="flex-1" disabled={add.isPending}>
@@ -186,16 +186,16 @@ function UsersSection() {
   const sorted = data ? sortUsers(data.items, me?.id) : []
   return (
     <section className="space-y-2">
-      <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <h2 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
         Users
       </h2>
       {isLoading
-        ? <p className="text-[11px] text-muted-foreground">Loading…</p>
+        ? <p className="text-2xs text-muted-foreground">Loading…</p>
         : (
             <div className="overflow-hidden rounded-md border border-border">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-border bg-card/40 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <tr className="border-b border-border bg-card/40 text-left text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
                     <th className="px-3 py-1.5">User</th>
                     <th className="px-3 py-1.5">Role</th>
                     <th className="px-3 py-1.5">Workspaces</th>
@@ -221,13 +221,13 @@ function UsersSection() {
 
 function WorkspaceList({ workspaces }: { workspaces: AdminUser['workspaces'] }) {
   if (workspaces.length === 0)
-    return <span className="text-[11px] text-muted-foreground/60">none</span>
+    return <span className="text-2xs text-muted-foreground/60">none</span>
   return (
     <ul className="flex flex-wrap gap-1">
       {workspaces.map(w => (
         <li
           key={w.workspaceId}
-          className="inline-flex items-center gap-1 rounded bg-muted/60 px-1.5 py-0.5 text-[11px]"
+          className="inline-flex items-center gap-1 rounded bg-muted/60 px-1.5 py-0.5 text-2xs"
         >
           <span className="font-mono text-foreground/80">{w.workspaceId}</span>
           <span className="uppercase tracking-wider text-muted-foreground/70">{w.role}</span>
@@ -285,15 +285,15 @@ function UserRow({ user, isMe, isLast }: { user: AdminUser, isMe: boolean, isLas
           <div className="flex items-center gap-1.5">
             <span className="font-medium">{user.displayName}</span>
             {isMe && (
-              <span className="rounded bg-primary/15 px-1 py-0.5 text-[11px] uppercase tracking-wider text-primary">
+              <span className="rounded bg-primary/15 px-1 py-0.5 text-2xs uppercase tracking-wider text-primary">
                 You
               </span>
             )}
           </div>
-          <div className="truncate font-mono text-[11px] text-muted-foreground">{secondary}</div>
+          <div className="truncate font-mono text-2xs text-muted-foreground">{secondary}</div>
         </td>
         <td className="px-3 py-2">
-          <span className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] uppercase tracking-wider ${
+          <span className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-2xs uppercase tracking-wider ${
             user.serverRole === 'admin'
               ? 'bg-primary/15 text-primary'
               : 'bg-muted/60 text-muted-foreground'

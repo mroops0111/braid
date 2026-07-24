@@ -142,12 +142,12 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
             <button
               type="button"
               onClick={() => setConversationsOpen(o => !o)}
-              className="flex w-full items-center gap-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent/40"
+              className="flex w-full items-center gap-2 px-3 py-2 text-2xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent/40"
             >
               <MessageSquare className="size-3" />
               <span>Conversations</span>
               {groups.length > 0 && (
-                <span className="rounded bg-muted px-1.5 py-0.5 font-mono normal-case text-[11px] text-muted-foreground">
+                <span className="rounded bg-muted px-1.5 py-0.5 font-mono normal-case text-2xs text-muted-foreground">
                   {groups.length}
                 </span>
               )}
@@ -280,12 +280,12 @@ function ConversationRow({ workspaceId, group, onResume }: {
         className="group/row flex-col items-start gap-1"
       >
         <div className="flex w-full items-center justify-between gap-2">
-          <span className="truncate font-mono text-[11px] text-muted-foreground">
+          <span className="truncate font-mono text-2xs text-muted-foreground">
             /
             {group.skillId}
           </span>
           <div className="flex items-center gap-1">
-            <Badge variant="outline" className="text-[11px] uppercase">
+            <Badge variant="outline" className="text-2xs uppercase">
               {group.records.length}
               {' '}
               turn
@@ -320,7 +320,7 @@ function ConversationRow({ workspaceId, group, onResume }: {
         <div className="break-words text-xs text-foreground/90">
           {group.title ?? group.firstPrompt}
         </div>
-        <div className="text-[11px] text-muted-foreground">{formatTimestamp(group.lastStartedAt)}</div>
+        <div className="text-2xs text-muted-foreground">{formatTimestamp(group.lastStartedAt)}</div>
       </ListRow>
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
@@ -362,7 +362,7 @@ function SidebarSection({ icon: Icon, title, children }: {
 }) {
   return (
     <section>
-      <header className="flex items-center gap-1.5 px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <header className="flex items-center gap-1.5 px-3 pt-3 pb-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
         <Icon className="size-3" />
         {title}
       </header>
@@ -372,7 +372,7 @@ function SidebarSection({ icon: Icon, title, children }: {
 }
 
 function SidebarEmpty({ children }: { children: React.ReactNode }) {
-  return <li className="px-3 py-1.5 text-[11px] text-muted-foreground/70">{children}</li>
+  return <li className="px-3 py-1.5 text-2xs text-muted-foreground/70">{children}</li>
 }
 
 function SkillRow({ skill, active, onClick, step, locked }: {
@@ -385,7 +385,7 @@ function SkillRow({ skill, active, onClick, step, locked }: {
   return (
     <ListRow active={active} onClick={onClick} className="items-start gap-2">
       {step !== undefined && (
-        <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-foreground/70">
+        <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-muted text-2xs font-semibold text-foreground/70">
           {step}
         </span>
       )}
@@ -395,10 +395,10 @@ function SkillRow({ skill, active, onClick, step, locked }: {
             /
             {skill.frontmatter.name}
           </span>
-          <Badge variant="outline" className="text-[11px] uppercase">{originLabel(skill)}</Badge>
+          <Badge variant="outline" className="text-2xs uppercase">{originLabel(skill)}</Badge>
           {locked && (
             <span
-              className="inline-flex items-center gap-1 rounded bg-muted/60 px-1 py-0.5 text-[11px] uppercase tracking-wider text-muted-foreground"
+              className="inline-flex items-center gap-1 rounded bg-muted/60 px-1 py-0.5 text-2xs uppercase tracking-wider text-muted-foreground"
               title="Your role cannot run this skill. Ask an Owner to grant access."
             >
               <Lock className="size-2.5" />
@@ -542,7 +542,7 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
       </div>
       <SkillTranscript events={[...conversation.events]} error={transcriptError} running={running} />
       {locked && (
-        <div className="flex items-start gap-2 border-t border-border bg-muted/40 px-4 py-2 text-[11px] text-muted-foreground">
+        <div className="flex items-start gap-2 border-t border-border bg-muted/40 px-4 py-2 text-2xs text-muted-foreground">
           <Lock className="mt-0.5 size-3 shrink-0" />
           <span>
             Your role cannot run this skill. Ask an Owner to grant access via Workspace Settings, Skill Permissions.

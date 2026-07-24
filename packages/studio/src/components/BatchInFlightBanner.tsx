@@ -38,7 +38,7 @@ export function BatchInFlightBanner({ workspaceId, onOpenBatch, suppress }: Batc
     mode = { kind: 'completed', completed, total }
 
   const actions = (label: string) => (
-    <Button variant="ghost" size="sm" className="h-6 gap-1 text-[11px]" onClick={onOpenBatch}>
+    <Button variant="ghost" size="sm" className="h-6 gap-1 text-2xs" onClick={onOpenBatch}>
       <Sparkles className="size-3" />
       {label}
     </Button>

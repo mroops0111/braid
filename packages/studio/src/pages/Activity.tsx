@@ -34,7 +34,7 @@ export function ActivityPage({ workspaceId }: ActivityPageProps) {
   return (
     <div className="flex flex-1 overflow-hidden">
       <aside className="flex w-80 shrink-0 flex-col border-r border-border bg-card/30">
-        <header className="border-b border-border px-3 py-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        <header className="border-b border-border px-3 py-2 text-2xs font-medium uppercase tracking-wider text-muted-foreground">
           Reactor passes
         </header>
         {list.isLoading && <p className="px-3 py-2 text-xs text-muted-foreground">Loading…</p>}
@@ -95,12 +95,12 @@ function CycleListItem({ cycle, selected, onSelect }: {
       >
         <span className="flex items-center gap-2">
           <CycleStatusIcon cycle={cycle} />
-          <span className="font-mono text-[11px] text-foreground">{cycle.sourceId}</span>
-          <span className="ml-auto text-[11px] text-muted-foreground">
+          <span className="font-mono text-2xs text-foreground">{cycle.sourceId}</span>
+          <span className="ml-auto text-2xs text-muted-foreground">
             {timeAgo(cycle.startedAt)}
           </span>
         </span>
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-2xs text-muted-foreground">
           {cycle.status === 'throttled'
             ? (cycle.throttledReason ?? 'throttled')
             : `${counts.success}/${cycle.units.length} units · ${cycle.status}`}
@@ -123,7 +123,7 @@ function CycleDetail({ cycle }: { cycle: ReactorCycle }) {
             <span className="font-mono">{cycle.sourceId}</span>
           </h2>
         </div>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           Started
           {' '}
           {new Date(cycle.startedAt).toLocaleString()}
@@ -134,7 +134,7 @@ function CycleDetail({ cycle }: { cycle: ReactorCycle }) {
             </>
           )}
         </p>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {counts.success}
           {' success · '}
           {counts.failure}
@@ -146,7 +146,7 @@ function CycleDetail({ cycle }: { cycle: ReactorCycle }) {
         </p>
       </header>
       {cycle.status === 'throttled' && (
-        <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-2 text-[11px] text-foreground">
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-2 text-2xs text-foreground">
           Dropped:
           {' '}
           {cycle.throttledReason ?? 'rolling 1h cap reached'}
@@ -154,11 +154,11 @@ function CycleDetail({ cycle }: { cycle: ReactorCycle }) {
         </div>
       )}
       {cycle.units.length === 0 && cycle.status !== 'throttled' && (
-        <p className="text-[11px] text-muted-foreground">No units required dispatch — the diff was empty.</p>
+        <p className="text-2xs text-muted-foreground">No units required dispatch — the diff was empty.</p>
       )}
       {cycle.units.length > 0 && (
         <section>
-          <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Units</h3>
+          <h3 className="mb-2 text-2xs font-medium uppercase tracking-wider text-muted-foreground">Units</h3>
           <ol className="space-y-1">
             {cycle.units.map((unit, idx) => (
               <UnitRow key={`${unit.path}-${idx}`} unit={unit} index={idx + 1} />
@@ -168,7 +168,7 @@ function CycleDetail({ cycle }: { cycle: ReactorCycle }) {
       )}
       {cycle.checkpoint && (
         <section>
-          <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Checkpoint</h3>
+          <h3 className="mb-2 text-2xs font-medium uppercase tracking-wider text-muted-foreground">Checkpoint</h3>
           <CheckpointRow checkpoint={cycle.checkpoint} />
         </section>
       )}
@@ -178,14 +178,14 @@ function CycleDetail({ cycle }: { cycle: ReactorCycle }) {
 
 function UnitRow({ unit, index }: { unit: ReactorUnit, index: number }) {
   return (
-    <li className="flex items-center gap-2 rounded-md border border-border/60 px-2 py-1 text-[11px]">
+    <li className="flex items-center gap-2 rounded-md border border-border/60 px-2 py-1 text-2xs">
       <UnitStatusIcon status={unit.status} />
       <span className="font-mono text-foreground">
         {index}
         .
       </span>
       <span className="truncate font-mono">{unit.path}</span>
-      <span className="ml-auto text-[11px] text-muted-foreground">
+      <span className="ml-auto text-2xs text-muted-foreground">
         {unit.startedAt && unit.completedAt
           ? `${secondsBetween(unit.startedAt, unit.completedAt)}s`
           : unit.startedAt ? 'running…' : ''}
@@ -196,10 +196,10 @@ function UnitRow({ unit, index }: { unit: ReactorUnit, index: number }) {
 
 function CheckpointRow({ checkpoint }: { checkpoint: ReactorCheckpoint }) {
   return (
-    <div className="flex items-center gap-2 rounded-md border border-border/60 px-2 py-1 text-[11px]">
+    <div className="flex items-center gap-2 rounded-md border border-border/60 px-2 py-1 text-2xs">
       <CheckpointStatusIcon status={checkpoint.status} />
       <span className="font-mono text-foreground">{checkpoint.skillId}</span>
-      <span className="ml-auto text-[11px] text-muted-foreground">
+      <span className="ml-auto text-2xs text-muted-foreground">
         {checkpoint.startedAt && checkpoint.completedAt
           ? `${secondsBetween(checkpoint.startedAt, checkpoint.completedAt)}s`
           : checkpoint.startedAt ? 'running…' : checkpoint.status}

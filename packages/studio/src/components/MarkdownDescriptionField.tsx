@@ -41,7 +41,7 @@ export function MarkdownDescriptionField({
         disabled={disabled}
         className="resize-y"
       />
-      {helperText && <p className="text-[11px] text-muted-foreground">{helperText}</p>}
+      {helperText && <p className="text-2xs text-muted-foreground">{helperText}</p>}
     </div>
   )
 }

@@ -54,7 +54,7 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
     case 'started':
       return (
         <div className="my-3 rounded-r border-l-2 border-primary bg-primary/5 py-1.5 pl-3 pr-2 font-sans first:mt-0">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground/70">
             {event.resumed ? 'Follow-up' : 'Prompt'}
           </div>
           <div className="mt-0.5 text-sm text-foreground">{event.args}</div>
@@ -103,7 +103,7 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
       // but available when a reviewer wants the why.
       return (
         <details className="my-1 font-sans text-muted-foreground/70">
-          <summary className="cursor-pointer select-none text-[11px] font-semibold uppercase tracking-wider">
+          <summary className="cursor-pointer select-none text-2xs font-semibold uppercase tracking-wider">
             Thinking
           </summary>
           <div className="mt-1 whitespace-pre-wrap border-l-2 border-muted pl-3 italic">

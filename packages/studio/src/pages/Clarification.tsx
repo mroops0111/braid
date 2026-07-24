@@ -286,7 +286,7 @@ function ClarificationShowAllToggle({
     <Button
       variant={showAll ? 'default' : 'ghost'}
       size="sm"
-      className="h-7 text-[11px]"
+      className="h-7 text-2xs"
       onClick={() => onToggle(!showAll)}
       title={showAll ? 'Showing pending questions from every member' : 'Showing only your own pending questions'}
     >
@@ -312,7 +312,7 @@ function ClarificationHeaderActions({
         <TabsTrigger value="pending" className={FILTER_TAB_TRIGGER}>
           Pending
           {pendingCount > 0 && (
-            <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-[11px] font-medium leading-none text-primary">
+            <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-2xs font-medium leading-none text-primary">
               {pendingCount}
             </span>
           )}
@@ -342,7 +342,7 @@ function ClarificationListItem({
         </span>
         <StatusBadge status={ticket.status} />
       </div>
-      <div className="flex w-full items-center justify-between gap-2 text-[11px] text-muted-foreground">
+      <div className="flex w-full items-center justify-between gap-2 text-2xs text-muted-foreground">
         <span>
           {ticket.candidates.length}
           {' '}
@@ -470,7 +470,7 @@ function ClarificationDetail({
     <div className="flex h-full flex-col overflow-hidden">
       <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0 flex-1">
-          <div className="font-mono text-[11px] text-muted-foreground">{ticket.id}</div>
+          <div className="font-mono text-2xs text-muted-foreground">{ticket.id}</div>
           <p className="mt-0.5 text-sm leading-relaxed text-foreground" title={ticket.question}>
             {ticket.question}
           </p>
@@ -605,7 +605,7 @@ function CustomAnswerSection({
       <div className="rounded-md border border-primary/40 bg-primary/5">
         <div className="space-y-2 px-3 py-2">
           <div className="flex items-center justify-between">
-            <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <span className="flex items-center gap-2 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
               <span className="flex size-5 items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground">
                 {letter}
               </span>
@@ -628,7 +628,7 @@ function CustomAnswerSection({
             placeholder="Describe your answer. Appended to the ticket's candidates list as a new option and selected as the answer."
             className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
           />
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             No graph operations are attached — picking this resolves the ticket
             without mutating the graph (the same path /ddd:clarify uses for
             zero-impact resolutions).
@@ -648,13 +648,13 @@ function CustomAnswerSection({
 function ExternalRefs({ refs }: { refs: readonly ExternalReference[] }) {
   return (
     <div className="shrink-0 border-b border-border/60 bg-muted/20 px-4 py-2">
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
         External Sources
       </div>
       <ul className="mt-1.5 space-y-1">
         {refs.map((ref, i) => (
           <li key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wider">
+            <span className="rounded bg-muted px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider">
               {ref.kind}
             </span>
             <a
@@ -782,7 +782,7 @@ function CandidateRow({
   const innerRow = (
     <div className="flex w-full items-start gap-3 px-3 py-2 text-left">
       <span
-        className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold ${
+        className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border text-2xs font-semibold ${
           active ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40 text-muted-foreground'
         }`}
       >
@@ -790,8 +790,8 @@ function CandidateRow({
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm text-foreground">{candidate.description}</p>
-        <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+        <p className="mt-1.5 flex items-center gap-1.5 text-2xs text-muted-foreground">
+          <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground/70">
             Impact
           </span>
           <span>{formatOpsSummary(summary)}</span>
@@ -807,7 +807,7 @@ function CandidateRow({
                   e.stopPropagation()
                   nav.focusNode(id)
                 }}
-                className="rounded bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="rounded bg-muted/50 px-1.5 py-0.5 font-mono text-2xs text-muted-foreground hover:bg-muted hover:text-foreground"
                 title="Open in Graph"
               >
                 {id}
@@ -868,7 +868,7 @@ function InlineRationale({
   if (slot.mode === 'view') {
     return (
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
           Rationale
         </div>
         <p className="mt-1 whitespace-pre-wrap rounded-md border border-border bg-card px-2 py-1.5 text-xs text-foreground/85">
@@ -881,7 +881,7 @@ function InlineRationale({
     <div>
       <label
         htmlFor={`clarification-rationale-${candidateLetter}`}
-        className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+        className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground"
       >
         Rationale
         <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">(optional)</span>
@@ -956,7 +956,7 @@ function SkipForm({ value, onChange, onCancel, onSubmit, isPending }: {
   const hasReason = value.trim().length > 0
   return (
     <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2">
-      <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <label className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
         Skip Reason
       </label>
       <textarea
@@ -991,7 +991,7 @@ function TerminalFooter({ ticket, skipReason }: { ticket: Clarification, skipRea
         {ticket.answeredBy ? ` by ${ticket.answeredBy}` : ''}
         . Run
         {' '}
-        <code className="rounded bg-muted px-1 font-mono text-[11px] text-foreground/90">/ddd:clarify</code>
+        <code className="rounded bg-muted px-1 font-mono text-2xs text-foreground/90">/ddd:clarify</code>
         {' '}
         from the Actions tab to materialise the resolution as a Proposal.
       </footer>
@@ -1041,7 +1041,7 @@ function AppliedProposalChip({ proposalId }: { proposalId: ProposalId }) {
   const nav = useTabNavigation()
   if (!nav) {
     return (
-      <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground/90">
+      <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 font-mono text-2xs text-foreground/90">
         →
         {' '}
         {proposalId}
@@ -1052,7 +1052,7 @@ function AppliedProposalChip({ proposalId }: { proposalId: ProposalId }) {
     <button
       type="button"
       onClick={() => nav.focusProposal(proposalId)}
-      className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground/90 transition-colors hover:bg-accent hover:text-foreground"
+      className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 font-mono text-2xs text-foreground/90 transition-colors hover:bg-accent hover:text-foreground"
       title="Open in Proposals"
     >
       →

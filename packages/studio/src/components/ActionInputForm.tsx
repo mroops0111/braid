@@ -136,7 +136,7 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
   return (
     <div className="space-y-3 border-t border-border px-4 py-3">
       {tooManyMultiPicks && (
-        <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-[11px] text-rose-300">
+        <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-2xs text-rose-300">
           This skill declares more than one multi-pick input. Only one is supported per skill.
         </div>
       )}
@@ -182,11 +182,11 @@ interface ControlProps<T extends SkillInputDescriptor> extends InputControlShare
 function InputControl({ input, ...rest }: ControlProps<SkillInputDescriptor>) {
   return (
     <div>
-      <label htmlFor={`input-${input.name}`} className="block text-[11px] font-medium text-foreground">
+      <label htmlFor={`input-${input.name}`} className="block text-2xs font-medium text-foreground">
         {input.label}
         {!input.optional && <span className="ml-0.5 text-rose-400">*</span>}
       </label>
-      {input.description && <p className="mt-0.5 text-[11px] text-muted-foreground">{input.description}</p>}
+      {input.description && <p className="mt-0.5 text-2xs text-muted-foreground">{input.description}</p>}
       {input.kind === 'text'
         ? <TextField input={input} {...rest} />
         : <PickField input={input} {...rest} />}
@@ -432,7 +432,7 @@ function DynamicPick({ workspaceId, input, scalarValue, onScalarChange, multiVal
     return <div className="mt-1 h-7 animate-pulse rounded-md bg-muted/40" />
   if (query.error) {
     return (
-      <div className="mt-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-[11px] text-rose-300">
+      <div className="mt-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-2xs text-rose-300">
         Failed to load options:
         {' '}
         {(query.error as Error).message}
@@ -443,7 +443,7 @@ function DynamicPick({ workspaceId, input, scalarValue, onScalarChange, multiVal
   if (options.length === 0) {
     if (input.fallback === 'disabled') {
       return (
-        <div className="mt-1 rounded-md border border-input bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+        <div className="mt-1 rounded-md border border-input bg-muted/30 px-2.5 py-1.5 text-2xs text-muted-foreground">
           No options available. This skill needs at least one match to run.
         </div>
       )
@@ -510,7 +510,7 @@ function MultiPickField({
         disabled={disabled}
       />
       {selected.length > 1 && (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           Will fire
           {' '}
           {selected.length}

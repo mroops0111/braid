@@ -56,7 +56,7 @@ function ActiveBanner({ workspaceId, runId, skillId, startedAt }: {
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 gap-1 text-[11px]"
+          className="h-6 gap-1 text-2xs"
           disabled={cancel.isPending}
           onClick={() => cancel.mutate()}
         >

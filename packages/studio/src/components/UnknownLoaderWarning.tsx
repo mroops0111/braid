@@ -13,7 +13,7 @@ import type { ReactNode } from 'react'
  */
 export function UnknownLoaderWarning({ kind, hint }: { kind: string, hint: ReactNode }) {
   return (
-    <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-[11px] text-amber-700 dark:text-amber-300">
+    <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-2xs text-amber-700 dark:text-amber-300">
       <p className="font-medium">
         Loader "
         {kind}

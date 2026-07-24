@@ -245,14 +245,14 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
 function StepIndicator({ step }: { step: StepKey }) {
   const current = STEP_ORDER.indexOf(step)
   return (
-    <ol className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider">
+    <ol className="flex items-center gap-1.5 text-2xs font-medium uppercase tracking-wider">
       {STEP_ORDER.slice(0, -1).map((key, index) => {
         const active = index === current
         const done = index < current
         return (
           <li key={key} className="flex items-center gap-1.5 whitespace-nowrap">
             <span
-              className={`flex size-5 items-center justify-center rounded-full border text-[11px] ${
+              className={`flex size-5 items-center justify-center rounded-full border text-2xs ${
                 done ? 'border-primary bg-primary text-primary-foreground' : active ? 'border-primary text-primary' : 'border-border text-muted-foreground'
               }`}
             >
@@ -287,13 +287,13 @@ function BasicsStep({ name, description, onName, onDescription }: {
           value={name}
           onChange={e => onName(e.target.value)}
         />
-        <p className="text-[11px] text-muted-foreground">Lowercase letters, digits, and dashes. Name conflicts are rejected; delete the existing workspace first to reuse a name.</p>
-        <code className="block truncate rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">Lowercase letters, digits, and dashes. Name conflicts are rejected; delete the existing workspace first to reuse a name.</p>
+        <code className="block truncate rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
           ~/.braid/workspaces/
           {name || '<name>'}
         </code>
         {invalid && (
-          <p className="text-[11px] text-destructive">Name must start with a letter or digit and use only lowercase letters, digits, or dashes.</p>
+          <p className="text-2xs text-destructive">Name must start with a letter or digit and use only lowercase letters, digits, or dashes.</p>
         )}
       </div>
       <MarkdownDescriptionField
@@ -325,7 +325,7 @@ function SourcesStep({ workspaceName, sources, oauthConnectedFor, onChange, onOa
 
   return (
     <div className="space-y-3">
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         Intent sources hold the rules / specs / docs (default loader:
         {' '}
         <code className="rounded bg-muted px-1">gdrive</code>
@@ -378,7 +378,7 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
   return (
     <div className="space-y-2 rounded-md border border-border p-3">
       <div className="flex items-center gap-2">
-        <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wider">{draft.role}</span>
+        <span className="rounded bg-muted px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider">{draft.role}</span>
         <Input
           placeholder={draft.role === 'intent' ? 'intent-name' : 'repo-name'}
           value={draft.name}
@@ -391,7 +391,7 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
         </Button>
       </div>
 
-      <p className="font-mono text-[11px] text-muted-foreground">{targetPath}</p>
+      <p className="font-mono text-2xs text-muted-foreground">{targetPath}</p>
 
       <MarkdownDescriptionField
         id={`src-desc-${draft.uiId}`}
@@ -518,7 +518,7 @@ function GdriveOauthBlock({ workspaceName, sourceName, connected, onConnected }:
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-xs font-medium">Google Account</p>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             {!canStart
               ? 'Set workspace name and source name first.'
               : connected
@@ -536,7 +536,7 @@ function GdriveOauthBlock({ workspaceName, sourceName, connected, onConnected }:
         </Button>
       </div>
       {startOauth.error && (
-        <p className="mt-2 text-[11px] text-destructive">{humaniseApiError(startOauth.error)}</p>
+        <p className="mt-2 text-2xs text-destructive">{humaniseApiError(startOauth.error)}</p>
       )}
     </div>
   )
@@ -558,7 +558,7 @@ function McpStep({ servers, onChange }: {
 
   return (
     <div className="space-y-3">
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         Optional. MCP endpoints the agent can call during extract / validate (e.g. Linear, Redmine, Jira) to fill gaps in your intent / code sources; they are not provisioned as content sources themselves. Only Streamable HTTP transport is supported. Use
         {' '}
         <code className="rounded bg-muted px-1">
@@ -624,7 +624,7 @@ function AdvancedStep({ ontologyId, storageKind, onOntologyId, onStorageKind }: 
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-[11px] text-muted-foreground">Defaults work for most projects. Change these only if you've registered a custom ontology or storage plugin.</p>
+      <p className="text-2xs text-muted-foreground">Defaults work for most projects. Change these only if you've registered a custom ontology or storage plugin.</p>
       <div className="space-y-1.5">
         <Label htmlFor="ws-ontology">Ontology</Label>
         <Input id="ws-ontology" value={ontologyId} onChange={e => onOntologyId(e.target.value)} />
@@ -653,7 +653,7 @@ function ConfirmStep({ name, description, sources, mcpServers, ontologyId, stora
       <Field label="Ontology" value={ontologyId} />
       <Field label="Storage" value={storageKind} />
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Sources</div>
+        <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">Sources</div>
         {sources.length === 0
           ? <p className="text-muted-foreground/70">None. You can add sources later from the workspace panel.</p>
           : (
@@ -677,7 +677,7 @@ function ConfirmStep({ name, description, sources, mcpServers, ontologyId, stora
             )}
       </div>
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">MCP Servers</div>
+        <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">MCP Servers</div>
         {mcpServers.length === 0
           ? <p className="text-muted-foreground/70">None.</p>
           : (
@@ -702,7 +702,7 @@ function ConfirmStep({ name, description, sources, mcpServers, ontologyId, stora
 function Field({ label, value, mono }: { label: string, value: string, mono?: boolean }) {
   return (
     <div>
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
         :
         {' '}
@@ -757,7 +757,7 @@ function ProgressStep({ workspaceName, status, error, provision, expectedSources
           …
         </div>
         {expectedSources.length > 0 && (
-          <ul className="space-y-1 rounded-md border border-border p-2 text-[11px]">
+          <ul className="space-y-1 rounded-md border border-border p-2 text-2xs">
             {expectedSources.map(s => (
               <li key={s.id} className="flex items-center gap-2 font-mono">
                 {syncedIds.has(s.id)
@@ -773,7 +773,7 @@ function ProgressStep({ workspaceName, status, error, provision, expectedSources
             ))}
           </ul>
         )}
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           Don't close this window. Gdrive sources can take a few minutes for the first provision.
         </p>
       </div>
@@ -783,7 +783,7 @@ function ProgressStep({ workspaceName, status, error, provision, expectedSources
     return (
       <div className="space-y-3 py-2">
         <p className="text-sm text-destructive">Workspace creation failed.</p>
-        <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-muted p-2 text-[11px]">{humaniseApiError(error, WIZARD_ERROR_CASES)}</pre>
+        <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-muted p-2 text-2xs">{humaniseApiError(error, WIZARD_ERROR_CASES)}</pre>
         <div className="flex justify-end">
           <Button size="sm" onClick={onClose}>Close</Button>
         </div>
@@ -795,7 +795,7 @@ function ProgressStep({ workspaceName, status, error, provision, expectedSources
       <div className="space-y-3 py-2">
         <p className="text-sm text-foreground">Workspace created.</p>
         {provision.length > 0 && (
-          <ul className="space-y-1 text-[11px]">
+          <ul className="space-y-1 text-2xs">
             {provision.map(entry => (
               <li key={entry.sourceId} className="flex items-center gap-2 font-mono">
                 <span className={`size-1.5 rounded-full ${entry.changed ? 'bg-green-500' : 'bg-muted-foreground'}`} />

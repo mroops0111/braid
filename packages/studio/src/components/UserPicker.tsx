@@ -128,7 +128,7 @@ function RenameDialog({
             }}
             placeholder={me?.displayName ?? ''}
           />
-          {error && <p className="text-[11px] text-destructive">{error}</p>}
+          {error && <p className="text-2xs text-destructive">{error}</p>}
         </div>
         <DialogFooter className="sm:justify-between">
           {token

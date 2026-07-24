@@ -62,7 +62,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
     <div className="flex h-full flex-col overflow-hidden">
       <SheetHeader className="border-b border-border">
         <SheetTitle className="font-mono">{workspace.id}</SheetTitle>
-        <SheetDescription className="font-mono text-[11px]">{workspace.rootPath}</SheetDescription>
+        <SheetDescription className="font-mono text-2xs">{workspace.rootPath}</SheetDescription>
       </SheetHeader>
 
       <div className="flex-1 space-y-6 overflow-y-auto p-4 scrollbar-thin">
@@ -77,7 +77,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
         <section>
           <SectionHeader title="Sources" onAdd={() => setAddSourceOpen(true)} addLabel="Add Source" />
           {workspace.productManifest.sources.length === 0
-            ? <p className="mt-2 text-[11px] text-muted-foreground">None yet. Click "Add Source" to provision from git, gdrive, or a manual directory.</p>
+            ? <p className="mt-2 text-2xs text-muted-foreground">None yet. Click "Add Source" to provision from git, gdrive, or a manual directory.</p>
             : (
                 <ul className="mt-2 space-y-1.5">
                   {workspace.productManifest.sources.map(source => (
@@ -95,7 +95,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
         <section>
           <SectionHeader title="MCP Servers" />
           {workspace.productManifest.mcpServers.length === 0
-            ? <p className="mt-2 text-[11px] text-muted-foreground">None.</p>
+            ? <p className="mt-2 text-2xs text-muted-foreground">None.</p>
             : (
                 <ul className="mt-2 space-y-1.5">
                   {workspace.productManifest.mcpServers.map(server => (
@@ -138,9 +138,9 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
 function SectionHeader({ title, onAdd, addLabel }: { title: string, onAdd?: (() => void) | undefined, addLabel?: string | undefined }) {
   return (
     <div className="flex items-center justify-between">
-      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
+      <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
       {onAdd && (
-        <Button variant="ghost" size="sm" onClick={onAdd} className="h-6 text-[11px]">
+        <Button variant="ghost" size="sm" onClick={onAdd} className="h-6 text-2xs">
           {addLabel}
         </Button>
       )}
@@ -175,7 +175,7 @@ function RenameSection({ workspace, onRenamed }: { workspace: Workspace, onRenam
         onChange={setDescription}
         placeholder="What is this workspace about? Markdown supported."
       />
-      {patch.error && <p className="text-[11px] text-destructive">{humaniseApiError(patch.error)}</p>}
+      {patch.error && <p className="text-2xs text-destructive">{humaniseApiError(patch.error)}</p>}
       <div className="flex justify-end">
         <Button size="sm" disabled={!dirty || patch.isPending} onClick={() => patch.mutate()}>
           {patch.isPending ? 'Saving…' : 'Save'}
@@ -215,10 +215,10 @@ function SourceRow({ workspaceId, source, onChange }: {
   return (
     <li className="rounded-md border border-border p-2">
       <div className="flex items-center gap-2">
-        <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wider">{source.role}</span>
+        <span className="rounded bg-muted px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider">{source.role}</span>
         <span className="font-mono text-xs">{source.name}</span>
         {loaderKind && (
-          <span className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-0.5 text-2xs text-muted-foreground">
             <GitBranch className="size-2.5" />
             {loaderKind}
           </span>
@@ -234,7 +234,7 @@ function SourceRow({ workspaceId, source, onChange }: {
           </Button>
         </div>
       </div>
-      <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">{detail}</p>
+      <p className="mt-1 break-all font-mono text-2xs text-muted-foreground">{detail}</p>
       <InlineDescriptionEditor
         idPrefix={`src-${source.id}`}
         stored={source.description}
@@ -255,14 +255,14 @@ function SourceRow({ workspaceId, source, onChange }: {
         emptyHint="Add description"
       />
       {sync.data && (
-        <p className="mt-1 text-[11px] text-muted-foreground">
+        <p className="mt-1 text-2xs text-muted-foreground">
           <SyncSummary report={sync.data} />
           {' · '}
           {new Date(sync.data.fetchedAt ?? Date.now()).toLocaleTimeString()}
         </p>
       )}
       {(sync.error || remove.error) && (
-        <p className="mt-1 text-[11px] text-destructive">{humaniseApiError(sync.error ?? remove.error)}</p>
+        <p className="mt-1 text-2xs text-destructive">{humaniseApiError(sync.error ?? remove.error)}</p>
       )}
       <WebhookPanelGate workspaceId={workspaceId} source={source} />
     </li>
@@ -325,7 +325,7 @@ function GithubWebhookPanel({ workspaceId, sourceId }: { workspaceId: string, so
   }
 
   return (
-    <div className="mt-2 rounded border border-dashed border-border/60 p-2 text-[11px]">
+    <div className="mt-2 rounded border border-dashed border-border/60 p-2 text-2xs">
       <button
         type="button"
         className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
@@ -341,8 +341,8 @@ function GithubWebhookPanel({ workspaceId, sourceId }: { workspaceId: string, so
           {status.data && (
             <>
               <div>
-                <Label className="text-[11px] uppercase text-muted-foreground">Payload URL</Label>
-                <code className="mt-1 block break-all rounded bg-muted px-1.5 py-1 font-mono text-[11px]">
+                <Label className="text-2xs uppercase text-muted-foreground">Payload URL</Label>
+                <code className="mt-1 block break-all rounded bg-muted px-1.5 py-1 font-mono text-2xs">
                   {status.data.url}
                 </code>
               </div>
@@ -359,7 +359,7 @@ function GithubWebhookPanel({ workspaceId, sourceId }: { workspaceId: string, so
               {revealedSecret && (
                 <div className="rounded border border-amber-500/60 bg-amber-50 p-2 text-foreground dark:bg-amber-950/40">
                   <p className="font-medium">Copy this secret into GitHub now. It is shown once.</p>
-                  <code className="mt-1 block break-all rounded bg-background px-1.5 py-1 font-mono text-[11px]">
+                  <code className="mt-1 block break-all rounded bg-background px-1.5 py-1 font-mono text-2xs">
                     {revealedSecret}
                   </code>
                 </div>
@@ -410,7 +410,7 @@ function McpRow({ workspaceId, server, onChange }: {
         <Plug className="size-3 text-muted-foreground" />
         <span className="font-mono text-xs">{server.id}</span>
       </div>
-      <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+      <p className="mt-1 break-all font-mono text-2xs text-muted-foreground">
         {server.transport === 'stdio' ? `${server.command}${server.args ? ` ${server.args.join(' ')}` : ''}` : server.url}
       </p>
       <InlineDescriptionEditor
@@ -466,7 +466,7 @@ function InlineDescriptionEditor({
       <button
         type="button"
         onClick={onEdit}
-        className="mt-1 w-full rounded text-left text-[11px] text-muted-foreground/90 hover:bg-accent/40"
+        className="mt-1 w-full rounded text-left text-2xs text-muted-foreground/90 hover:bg-accent/40"
       >
         {stored
           ? <span className="block whitespace-pre-wrap py-0.5">{stored}</span>
@@ -487,13 +487,13 @@ function InlineDescriptionEditor({
         rows={2}
       />
       {error !== null && error !== undefined && (
-        <p className="text-[11px] text-destructive">{humaniseApiError(error)}</p>
+        <p className="text-2xs text-destructive">{humaniseApiError(error)}</p>
       )}
       <div className="flex justify-end gap-1.5">
-        <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={onCancel} disabled={saving}>
+        <Button variant="ghost" size="sm" className="h-7 text-2xs" onClick={onCancel} disabled={saving}>
           Cancel
         </Button>
-        <Button size="sm" className="h-7 text-[11px]" onClick={onSave} disabled={!dirty || saving}>
+        <Button size="sm" className="h-7 text-2xs" onClick={onSave} disabled={!dirty || saving}>
           {saving ? 'Saving…' : 'Save'}
         </Button>
       </div>
@@ -504,7 +504,7 @@ function InlineDescriptionEditor({
 function MetaField({ icon: Icon, label, value }: { icon: typeof Database, label: string, value: string }) {
   return (
     <div className="rounded-md border border-border p-2">
-      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+      <div className="flex items-center gap-1.5 text-2xs font-medium uppercase tracking-wider text-muted-foreground">
         <Icon className="size-3" />
         {label}
       </div>
@@ -566,7 +566,7 @@ function MembersSection({ workspaceId }: { workspaceId: string }) {
     return (
       <section>
         <SectionHeader title="Members" />
-        <p className="mt-2 text-[11px] text-muted-foreground">Loading…</p>
+        <p className="mt-2 text-2xs text-muted-foreground">Loading…</p>
       </section>
     )
   }
@@ -574,7 +574,7 @@ function MembersSection({ workspaceId }: { workspaceId: string }) {
     return (
       <section>
         <SectionHeader title="Members" />
-        <p className="mt-2 text-[11px] text-destructive">{humaniseApiError(error)}</p>
+        <p className="mt-2 text-2xs text-destructive">{humaniseApiError(error)}</p>
       </section>
     )
   }
@@ -591,7 +591,7 @@ function MembersSection({ workspaceId }: { workspaceId: string }) {
     <section>
       <SectionHeader title="Members" />
       {sortedMembers.length === 0
-        ? <p className="mt-2 text-[11px] text-muted-foreground">Nobody listed yet.</p>
+        ? <p className="mt-2 text-2xs text-muted-foreground">Nobody listed yet.</p>
         : (
             <ul className="mt-2 space-y-1.5">
               {sortedMembers.map(member => (
@@ -675,13 +675,13 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="truncate text-xs">{displayName}</span>
-            {isMe && <span className="text-[11px] text-muted-foreground">(you)</span>}
-            <span className="ml-auto shrink-0 rounded bg-muted/60 px-1.5 py-0.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+            {isMe && <span className="text-2xs text-muted-foreground">(you)</span>}
+            <span className="ml-auto shrink-0 rounded bg-muted/60 px-1.5 py-0.5 text-2xs uppercase tracking-wider text-muted-foreground">
               {member.role}
             </span>
           </div>
           {user?.email && (
-            <p className="truncate font-mono text-[11px] text-muted-foreground">{user.email}</p>
+            <p className="truncate font-mono text-2xs text-muted-foreground">{user.email}</p>
           )}
         </div>
         {showKebab && (
@@ -839,7 +839,7 @@ function AddMemberControl({ workspaceId, candidates, onAdded }: {
 
   if (!open) {
     return (
-      <Button variant="ghost" size="sm" onClick={() => setOpen(true)} className="mt-2 h-6 text-[11px]">
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)} className="mt-2 h-6 text-2xs">
         + Add Member
       </Button>
     )
@@ -867,7 +867,7 @@ function AddMemberControl({ workspaceId, candidates, onAdded }: {
         <option value="guest">Guest</option>
         <option value="maintainer">Maintainer</option>
       </select>
-      {add.error && <p className="text-[11px] text-destructive">{humaniseApiError(add.error)}</p>}
+      {add.error && <p className="text-2xs text-destructive">{humaniseApiError(add.error)}</p>}
       <div className="flex gap-2">
         <Button variant="ghost" size="sm" className="flex-1" onClick={() => setOpen(false)}>Cancel</Button>
         <Button size="sm" className="flex-1" disabled={!selectedUserId || add.isPending} onClick={() => add.mutate()}>
@@ -894,10 +894,10 @@ function UnregisterButton({ workspaceId, onUnregistered }: { workspaceId: string
   }
   return (
     <div className="space-y-2">
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         Removes PRODUCT.md, all provisioned files, and the workspace folder. You can re-create with the same name afterwards.
       </p>
-      {action.error && <p className="text-[11px] text-destructive">{humaniseApiError(action.error)}</p>}
+      {action.error && <p className="text-2xs text-destructive">{humaniseApiError(action.error)}</p>}
       <div className="flex gap-2">
         <Button variant="ghost" size="sm" className="flex-1" onClick={() => setArmed(false)}>Cancel</Button>
         <Button size="sm" className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => action.mutate()} disabled={action.isPending}>

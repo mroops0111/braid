@@ -157,7 +157,7 @@ function AppInner() {
                         />
                         {activeId
                           ? (
-                              <div className="relative flex-1 overflow-hidden">
+                              <div key={activeSurface ?? 'graph'} className="relative flex-1 overflow-hidden duration-150 animate-in fade-in-0">
                                 {activeSurface === null && (
                                   <GraphHomeView
                                     workspaceId={activeId}
