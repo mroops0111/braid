@@ -1,11 +1,10 @@
 import type { Workspace } from '@braidhq/schema'
 import type { Surface } from './CommandPalette'
-import { Activity, ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, LogIn, Moon, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles, Sun } from 'lucide-react'
+import { Activity, ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, LogIn, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import braidLogo from '@/assets/braid-logo.svg'
 import { usePendingClarification, usePendingProposals, useRuns, useSkills } from '@/lib/queries'
 import { setActiveRemoteId, useActiveRemoteId } from '@/lib/remotes'
-import { useTheme } from '@/lib/theme'
 import { type RemoteSummary, type RemoteWorkspacesResult, useAllRemoteWorkspaces } from '@/lib/useRemoteWorkspaces'
 import { cn } from '@/lib/utils'
 import { useWorkspacePolicy } from '@/policy'
@@ -120,16 +119,24 @@ export function Sidebar({
         collapsed ? 'w-12' : 'w-60',
       )}
     >
-      <div className={cn('flex h-11 shrink-0 items-center', collapsed ? 'justify-center px-2' : 'px-4')}>
-        <div className="flex items-center gap-2">
-          <img src={braidLogo} alt="" className="size-5 shrink-0" />
-          {!collapsed && (
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold tracking-tight">Braid</span>
-              <span className="text-2xs italic text-sidebar-foreground/60">braiding intent &amp; code</span>
-            </div>
-          )}
-        </div>
+      <div className={cn('flex h-11 shrink-0 items-center border-b border-sidebar-border', collapsed ? 'justify-center px-2' : 'justify-between px-4')}>
+        {collapsed
+          ? (
+              <SidebarIconButton onClick={() => setCollapsed(false)} title="Expand sidebar (⌘\\)">
+                <PanelLeftOpen className="size-3.5" />
+              </SidebarIconButton>
+            )
+          : (
+              <>
+                <div className="flex items-center gap-2">
+                  <img src={braidLogo} alt="" className="size-5 shrink-0" />
+                  <span className="text-sm font-semibold tracking-tight">Braid</span>
+                </div>
+                <SidebarIconButton onClick={() => setCollapsed(true)} title="Collapse sidebar (⌘\\)">
+                  <PanelLeftClose className="size-3.5" />
+                </SidebarIconButton>
+              </>
+            )}
       </div>
 
       {activeWorkspaceId && (
@@ -164,41 +171,6 @@ export function Sidebar({
         collapsed={collapsed}
         onSelectSurface={onSelectSurface}
       />
-
-      <div className={cn(
-        'flex shrink-0 border-t border-sidebar-border',
-        collapsed
-          ? 'flex-col items-center gap-0.5 py-1.5'
-          : 'h-10 items-center justify-between px-3',
-      )}
-      >
-        {collapsed
-          ? (
-              <>
-                <ThemeToggle />
-                <SidebarIconButton
-                  onClick={() => setCollapsed(false)}
-                  title="Expand sidebar (⌘\\)"
-                >
-                  <PanelLeftOpen className="size-3.5" />
-                </SidebarIconButton>
-              </>
-            )
-          : (
-              <>
-                <div className="flex-1" />
-                <div className="flex items-center gap-0.5">
-                  <ThemeToggle />
-                  <SidebarIconButton
-                    onClick={() => setCollapsed(true)}
-                    title="Collapse sidebar (⌘\\)"
-                  >
-                    <PanelLeftClose className="size-3.5" />
-                  </SidebarIconButton>
-                </div>
-              </>
-            )}
-      </div>
 
       <CreateWorkspaceWizard open={wizardOpen} onOpenChange={setWizardOpen} onCreated={onSelect} />
     </aside>
@@ -522,19 +494,6 @@ function SidebarIconButton({ onClick, title, children }: {
   )
 }
 
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme()
-  const Icon = theme === 'dark' ? Moon : Sun
-  return (
-    <SidebarIconButton
-      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-    >
-      <Icon className="size-3.5" />
-    </SidebarIconButton>
-  )
-}
-
 function HereSection({
   workspaceId,
   activeSurface,
@@ -562,7 +521,7 @@ function HereSection({
   const canSeeHistory = policy.effectiveRole !== null && policy.effectiveRole !== 'guest'
 
   return (
-    <div className={cn('shrink-0 border-t border-sidebar-border px-2 pb-2', collapsed ? 'pt-1.5' : 'pt-2')}>
+    <div className={cn('shrink-0 px-2 pb-2', collapsed ? 'pt-1.5' : 'pt-2')}>
       {!collapsed && (
         <div className="px-2 pb-1">
           <span className="text-2xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">Here</span>
@@ -705,7 +664,7 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, on
               )}
               {shortcut && (
                 <kbd
-                  className="rounded bg-sidebar-accent/40 px-1.5 py-0.5 text-2xs font-mono text-sidebar-foreground/50"
+                  className="hidden rounded bg-sidebar-accent/40 px-1.5 py-0.5 text-2xs font-mono text-sidebar-foreground/50 group-hover:inline-flex"
                   aria-hidden
                 >
                   {shortcut}

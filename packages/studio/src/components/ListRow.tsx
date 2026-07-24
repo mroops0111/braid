@@ -36,7 +36,7 @@ export function ListRow({ active, onClick, variant = 'content', className, title
     ? {
         bar: 'inset-y-1',
         button: cn(
-          'flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors duration-150',
+          'group flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors duration-150',
           'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground',
           active && 'bg-sidebar-accent text-sidebar-foreground',
         ),
