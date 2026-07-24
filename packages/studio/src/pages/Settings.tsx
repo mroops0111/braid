@@ -17,7 +17,7 @@ export function SettingsPage() {
       <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border px-4 text-sm">
         <div className="flex items-center gap-1.5">
           <SettingsIcon className="size-3.5 text-muted-foreground" />
-          <span className="font-mono text-foreground">Settings</span>
+          <span className="font-medium text-foreground">Settings</span>
         </div>
         <UserPicker />
       </header>

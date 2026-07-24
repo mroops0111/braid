@@ -70,10 +70,10 @@
 
 @theme inline {
   --font-sans:
-    "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Geist Variable", "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Text",
     system-ui, sans-serif;
   --font-mono:
-    "JetBrains Mono Variable", "JetBrains Mono", "SF Mono", "Menlo", "Consolas",
+    "Geist Mono Variable", "Geist Mono", "SF Mono", "Menlo", "Consolas",
     monospace;
 
   --radius-sm: calc(var(--radius) - 2px);
@@ -121,10 +121,6 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
-    font-feature-settings:
-      "cv11",
-      "ss01",
-      "ss03";
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
   }

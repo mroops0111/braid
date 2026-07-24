@@ -148,7 +148,7 @@ function ServerRow({ id, name, url, isLocal, isActive }: ServerRowProps) {
           <p className="text-[11px] text-muted-foreground">
             Remove
             {' '}
-            <span className="font-mono">{name}</span>
+            <span className="font-medium">{name}</span>
             ? Stored token is cleared. Workspaces on the remote stay
             untouched; you can add this server back later.
           </p>

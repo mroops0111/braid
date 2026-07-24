@@ -132,11 +132,22 @@ export function Sidebar({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin px-2 pb-2">
+      {activeWorkspaceId && (
+        <HereSection
+          workspaceId={activeWorkspaceId}
+          activeSurface={activeSurface}
+          collapsed={collapsed}
+          onGoHome={onGoHome}
+          onSelectSurface={onSelectSurface}
+        />
+      )}
+
+      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin border-t border-sidebar-border px-2 pb-2 pt-1">
         {remoteResults.map(result => (
           <RemoteSection
             key={result.remote.id}
             result={result}
+            showStripe={remoteResults.length > 1}
             collapsed={collapsed}
             activeWorkspaceId={activeWorkspaceId}
             activeRemoteId={activeRemoteId}
@@ -147,16 +158,6 @@ export function Sidebar({
           />
         ))}
       </div>
-
-      {activeWorkspaceId && (
-        <HereSection
-          workspaceId={activeWorkspaceId}
-          activeSurface={activeSurface}
-          collapsed={collapsed}
-          onGoHome={onGoHome}
-          onSelectSurface={onSelectSurface}
-        />
-      )}
 
       <AccountSection
         activeSurface={activeSurface}
@@ -206,6 +207,7 @@ export function Sidebar({
 
 function RemoteSection({
   result,
+  showStripe,
   collapsed,
   activeWorkspaceId,
   activeRemoteId,
@@ -215,6 +217,7 @@ function RemoteSection({
   onSignIn,
 }: {
   result: RemoteWorkspacesResult
+  showStripe: boolean
   collapsed: boolean
   activeWorkspaceId: string | null
   activeRemoteId: string
@@ -225,7 +228,9 @@ function RemoteSection({
 }) {
   const { remote, state } = result
   const isActiveRemote = remote.id === activeRemoteId
-  const stripe = remoteStripeClass(remote)
+  // Server identity stripe only earns its keep with more than one remote.
+  // A single local server needs no per-row colour bar.
+  const stripe = showStripe ? remoteStripeClass(remote) : ''
   const Icon = remote.isLocal ? Laptop : Globe
 
   return (

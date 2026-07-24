@@ -659,7 +659,7 @@ function ExternalRefs({ refs }: { refs: readonly ExternalReference[] }) {
       <ul className="mt-1.5 space-y-1">
         {refs.map((ref, i) => (
           <li key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase">
+            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider">
               {ref.kind}
             </span>
             <a

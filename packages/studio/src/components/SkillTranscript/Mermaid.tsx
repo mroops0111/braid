@@ -45,7 +45,7 @@ function loadMermaid() {
       startOnLoad: false,
       securityLevel: 'strict',
       theme: 'base',
-      fontFamily: '"Inter Variable", system-ui, sans-serif',
+      fontFamily: '"Geist Variable", system-ui, sans-serif',
       themeVariables: {
         background: 'transparent',
         primaryColor: v('--card'),

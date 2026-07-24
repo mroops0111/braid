@@ -149,7 +149,7 @@ function EdgeList({ title, icon: Icon, edges, getOther, nodesById, onSelectNode 
                 className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] hover:bg-accent"
               >
                 <Icon className="size-3 shrink-0 text-muted-foreground" />
-                <span className="font-mono text-[10px] text-muted-foreground">{edge.type}</span>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{edge.type}</span>
                 <span className="truncate text-foreground">{other?.name ?? otherId}</span>
               </button>
             </li>

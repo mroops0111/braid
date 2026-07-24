@@ -356,7 +356,7 @@ function UserRow({ user, isMe, isLast }: { user: AdminUser, isMe: boolean, isLas
                         <span className="font-medium">{user.displayName}</span>
                         's server role to
                         {' '}
-                        <span className="font-mono">{nextRole}</span>
+                        <span className="font-medium">{nextRole}</span>
                         ?
                       </>
                     )}

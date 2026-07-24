@@ -6,8 +6,8 @@ import { consumeOAuthRedirect, setAuthToken } from './lib/authToken'
 import { listAllRemoteIds, setActiveRemoteId } from './lib/remotes'
 import { initServerUrl } from './lib/serverUrl'
 import { hydrateTokens } from './lib/tokenStore'
-import '@fontsource-variable/inter'
-import '@fontsource-variable/jetbrains-mono'
+import '@fontsource-variable/geist'
+import '@fontsource-variable/geist-mono'
 import './styles.css'
 
 const queryClient = new QueryClient({
