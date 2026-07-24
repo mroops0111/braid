@@ -61,7 +61,7 @@ function makeGitSource(branch?: string) {
 }
 
 // Stand-in loader plugins for the receiver's plugin-registry lookup.
-// We deliberately bypass `defineSourceLoader` and construct the plugin
+// We deliberately bypass `defineSourceLoaderPlugin` and construct the plugin
 // object literal so the test stays loader-agnostic: it only exercises
 // the receiver's contract (delegate to `plugin.webhook.{repoIdentity,
 // shouldDispatch}`) and does NOT reproduce production loader semantics.

@@ -2,7 +2,7 @@ import type { SourceLoaderContext, SourceLoaderPlugin } from '@braidhq/core'
 import { Buffer } from 'node:buffer'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { defineSourceLoader } from '@braidhq/sdk'
+import { defineSourceLoaderPlugin } from '@braidhq/sdk'
 import { z } from 'zod'
 import { DriveClient, type DriveFileMetadata, type FetchFn } from './driveClient.js'
 import { type Manifest, type ManifestEntry, readManifest, writeManifest } from './Manifest.js'
@@ -110,7 +110,7 @@ interface CandidateDoc {
  * source-loader plugin.
  */
 export function createGoogleDriveLoader(deps: GoogleDriveLoaderDeps): SourceLoaderPlugin {
-  return defineSourceLoader({
+  return defineSourceLoaderPlugin({
     kind: 'gdrive',
     configSchema: GoogleDriveLoaderConfig,
     provision: async (config, destination, context) => {

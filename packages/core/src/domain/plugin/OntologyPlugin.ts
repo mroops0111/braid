@@ -61,7 +61,7 @@ export interface EdgeTypeDescriptor {
  * type checks, structural rules, and future ontology-specific invariants,
  * instead of separate plugins that cross-reference the ontology at runtime.
  *
- * `defineOntology()` auto-binds the two generic engines,
+ * `defineOntologyPlugin()` auto-binds the two generic engines,
  * `OntologyTypeValidator` and `StructuralValidator`.
  * Ontology authors pass `extraValidators` for anything beyond declarative checks.
  */
@@ -116,7 +116,7 @@ export interface OntologyPlugin extends Plugin {
   /**
    * Validators that run against the model,
    * whenever the workspace is configured to use this ontology.
-   * Populated by `defineOntology()`.
+   * Populated by `defineOntologyPlugin()`.
    */
   readonly validators: readonly OntologyValidator[]
   /**

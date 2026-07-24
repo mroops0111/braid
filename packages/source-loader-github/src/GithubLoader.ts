@@ -3,7 +3,7 @@ import type { Timestamp } from '@braidhq/schema'
 import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import process from 'node:process'
-import { defineSourceLoader } from '@braidhq/sdk'
+import { defineSourceLoaderPlugin } from '@braidhq/sdk'
 import { stringify as stringifyYaml } from 'yaml'
 import { z } from 'zod'
 
@@ -100,7 +100,7 @@ const CURSOR_FILENAME = '.braid-github-cursor.json'
 export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlugin {
   const fetchFn: FetchFn = deps.fetchFn ?? globalThis.fetch
 
-  return defineSourceLoader({
+  return defineSourceLoaderPlugin({
     kind: 'github',
     configSchema: GithubLoaderConfig,
     provision: async (config, destination) => {

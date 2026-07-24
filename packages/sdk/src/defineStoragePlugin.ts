@@ -10,7 +10,7 @@ import { assertNonEmpty } from './validation.js'
 
 export interface DefineStoragePluginInput<TSchema extends z.ZodTypeAny> {
   readonly kind: string
-  /** Zod schema for the storage descriptor's config; parsed before `createModelRepository` runs. */
+  /** Zod schema for the storage descriptor's config, parsed before `createModelRepository` runs. */
   readonly configSchema: TSchema
   /** Required. Construct the per-process repository for this kind. */
   readonly createModelRepository: (
@@ -18,20 +18,21 @@ export interface DefineStoragePluginInput<TSchema extends z.ZodTypeAny> {
     descriptor: StorageDescriptor,
     context: StoragePluginContext,
   ) => Promise<ModelRepository>
-  /** Skills this plugin ships (rare for storage; possible for migration walkthroughs). */
+  /** Skills this plugin ships, rare for storage but possible for migration walkthroughs. */
   readonly skills?: readonly PluginSkillRef[]
-  /** Optional explicit plugin id; defaults to `storage.<kind>`. */
+  /** Optional explicit plugin id, defaults to `storage.<kind>`. */
   readonly pluginId?: string
 }
 
 /**
  * Build a StoragePlugin from a declarative spec.
  *
- * The wrapper parses `descriptor.config` against `configSchema` before
- * each call to `createModelRepository`, so the plugin body always
- * receives a statically-typed config object without having to validate
- * it itself. Mirrors `defineOntology` / `defineSourceLoader` so plugin
- * authors find a uniform entry point across every axis.
+ * The wrapper parses `descriptor.config` against `configSchema`
+ * before each call to `createModelRepository`,
+ * so the plugin body always receives a statically-typed config object,
+ * without having to validate it itself.
+ * Mirrors the other `defineXxx` builders,
+ * so plugin authors find a uniform entry point across every axis.
  */
 export function defineStoragePlugin<TSchema extends z.ZodTypeAny>(
   input: DefineStoragePluginInput<TSchema>,

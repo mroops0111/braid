@@ -1,5 +1,5 @@
 import { EdgeTypeId, NodeTypeId, SkillId } from '@braidhq/schema'
-import { defineOntology } from '@braidhq/sdk'
+import { defineOntologyPlugin } from '@braidhq/sdk'
 
 // The default DDD ontology, consolidating Strategic DDD (Evans),
 // Tactical DDD (Vernon), EventStorming (Brandolini), and CQRS (Young),
@@ -9,7 +9,7 @@ import { defineOntology } from '@braidhq/sdk'
 // Editing a type here flows through the ontology contract to Studio,
 // the structural and ontology-type validators, and the ontology API,
 // with no change needed on those sides.
-export const dddOntology = defineOntology({
+export const dddOntology = defineOntologyPlugin({
   ontologyId: 'ddd',
 
   // DDD models a domain through intent and code convergence.

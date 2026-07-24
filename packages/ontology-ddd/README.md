@@ -16,7 +16,7 @@ The package is flat. The ontology and its enums sit under `src/`, the prompts un
 
 ```
 src/
-├── DDDOntology.ts   the defineOntology value: types, skills, batch binding
+├── DDDOntology.ts   the defineOntologyPlugin value: types, skills, batch binding
 ├── types.ts         the DDDNodeType and DDDEdgeType enums
 └── index.ts
 skills/
@@ -26,7 +26,7 @@ skills/
 └── shared/     reference docs every prompt consults
 ```
 
-- **DDDOntology**: The single `defineOntology` call. Node and edge types with their labels, colors, and render hints, the required source roles, the skills, and the batch binding.
+- **DDDOntology**: The single `defineOntologyPlugin` call. Node and edge types with their labels, colors, and render hints, the required source roles, the skills, and the batch binding.
 - **types**: The closed `DDDNodeType` and `DDDEdgeType` enums, the type-level mirror of the ids declared in the ontology.
 - **skills**: The SKILL.md prompts. DDD-specific reasoning lives here rather than in core, so a different worldview cannot inherit it.
 
@@ -39,11 +39,11 @@ Editing a type here flows through the ontology contract to Studio's palette and 
 ## Boundaries
 
 - **DDD Lives Here**: The vocabulary and its reasoning are confined to this package. Core stays worldview-agnostic, and a generative or narrative ontology is a sibling package.
-- **Definition, Not Behavior**: The package is a pure `defineOntology` value. It reads no files and runs nothing, the validators and services in core act on it.
+- **Definition, Not Behavior**: The package is a pure `defineOntologyPlugin` value. It reads no files and runs nothing, the validators and services in core act on it.
 - **Single Schema Source**: Node and edge ids are branded through `@braidhq/schema`. The `types.ts` enums mirror those ids, they do not redeclare a shape.
 - **Wiring Elsewhere**: The composition root registers the plugin. Nothing here reaches into server or studio.
 
 ## Dependencies
 
-- **Depends On**: `@braidhq/schema` for branded ids, `@braidhq/core` for the plugin port, and `@braidhq/sdk` for `defineOntology`.
+- **Depends On**: `@braidhq/schema` for branded ids, `@braidhq/core` for the plugin port, and `@braidhq/sdk` for `defineOntologyPlugin`.
 - **Consumed By**: `server`, at its composition root, as the default ontology bundle.

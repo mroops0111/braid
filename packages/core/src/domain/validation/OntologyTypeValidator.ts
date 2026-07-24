@@ -10,7 +10,7 @@ import type { OntologyPlugin, OntologyValidator } from '../plugin/OntologyPlugin
  * and rejects nodes or edges whose `type` field isn't in the allow-list.
  *
  * Not a plugin: callers construct an instance bound to their ontology,
- * typically `defineOntology()` in the SDK,
+ * typically `defineOntologyPlugin()` in the SDK,
  * and expose it via `OntologyPlugin.validators[]`.
  * Other ontologies reuse the same engine without importing the ddd package,
  * e.g. c4 or event-modeling.

@@ -2,14 +2,14 @@ import type { ModelSnapshot, ViewArtifact, ViewKind } from '@braidhq/schema'
 import { ValidationError } from '@braidhq/core'
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import { defineViewGenerator } from '../src/defineViewGenerator.js'
+import { defineViewGeneratorPlugin } from '../src/defineViewGeneratorPlugin.js'
 
 const stubSnapshot = {} as ModelSnapshot
 const stubArtifact = { format: 'markdown', content: 'ok' } as unknown as ViewArtifact
 
-describe('defineViewGenerator', () => {
+describe('defineViewGeneratorPlugin', () => {
   it('builds a frozen plugin with view-generator.<viewKind> as the default id', () => {
-    const plugin = defineViewGenerator({
+    const plugin = defineViewGeneratorPlugin({
       viewKind: 'mermaid',
       configSchema: z.object({}),
       render: async () => stubArtifact,
@@ -22,7 +22,7 @@ describe('defineViewGenerator', () => {
 
   it('parses config through the schema before calling render', async () => {
     const renderSpy = vi.fn(async () => stubArtifact)
-    const plugin = defineViewGenerator({
+    const plugin = defineViewGeneratorPlugin({
       viewKind: 'mermaid',
       configSchema: z.object({ direction: z.enum(['LR', 'TB']) }),
       render: renderSpy,
@@ -36,7 +36,7 @@ describe('defineViewGenerator', () => {
   })
 
   it('rejects render calls whose config fails the schema', async () => {
-    const plugin = defineViewGenerator({
+    const plugin = defineViewGeneratorPlugin({
       viewKind: 'mermaid',
       configSchema: z.object({ direction: z.enum(['LR', 'TB']) }),
       render: async () => stubArtifact,
@@ -48,7 +48,7 @@ describe('defineViewGenerator', () => {
   })
 
   it('throws ValidationError on empty viewKind at build time', () => {
-    expect(() => defineViewGenerator({
+    expect(() => defineViewGeneratorPlugin({
       viewKind: '',
       configSchema: z.object({}),
       render: async () => stubArtifact,
@@ -56,7 +56,7 @@ describe('defineViewGenerator', () => {
   })
 
   it('honours an explicit pluginId override', () => {
-    const plugin = defineViewGenerator({
+    const plugin = defineViewGeneratorPlugin({
       viewKind: 'mermaid',
       pluginId: 'view-generator.acme-mermaid',
       configSchema: z.object({}),

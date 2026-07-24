@@ -23,41 +23,49 @@ import {
 
 export interface DefineOntologyInput {
   readonly ontologyId: string
-  /** Optional base ontology to extend. Node and edge types compose by concatenation; duplicates throw. */
+  /** Optional base ontology to extend. Node and edge types concatenate, and duplicates throw. */
   readonly extends?: OntologyPlugin
-  /** Node types this ontology contributes. Required `id`, `label`, `description`. */
+  /** Node types this ontology contributes. Each needs an `id`, a `label`, and a `description`. */
   readonly nodeTypes: readonly NodeTypeDescriptor[]
-  /** Edge types this ontology contributes. Endpoints must resolve in the combined node-type set; `description` is required so LLMs and reviewers can tell the edges apart. */
+  /**
+   * Edge types this ontology contributes.
+   * Endpoints must resolve in the combined node-type set,
+   * and a `description` is required so an LLM or reviewer can tell them apart.
+   */
   readonly edgeTypes: readonly EdgeTypeDescriptor[]
   /**
-   * Extra validators bundled with this ontology, on top of the framework's
-   * `OntologyTypeValidator` + `StructuralValidator` which are auto-attached
-   * (you don't need to list them here). Use this for ontology-specific
-   * invariants that can't be expressed via the declarative `nodeTypes` /
-   * `edgeTypes` / `cardinality` (e.g. "every aggregate has ≥1 command").
+   * Extra validators bundled with this ontology,
+   * on top of the framework's OntologyTypeValidator and StructuralValidator,
+   * which are auto-attached.
+   * Use this for ontology-specific invariants the declarative nodeTypes,
+   * edgeTypes, and cardinality cannot express,
+   * such as an aggregate that needs at least one command.
    */
   readonly extraValidators?: readonly OntologyValidator[]
   /** Skills this plugin ships alongside the ontology (see PluginSkillRef). */
   readonly skills?: readonly PluginSkillRef[]
-  /** Reference directories (concept docs, shared rules) this plugin ships for its skills to Read at run time (see PluginReferenceDirRef). */
+  /**
+   * Reference directories, such as concept docs or shared rules, this plugin
+   * ships for its skills to Read at run time (see PluginReferenceDirRef).
+   */
   readonly referenceDirs?: readonly PluginReferenceDirRef[]
-  /** Optional config-schema override; defaults to an empty object schema. */
+  /** Optional config-schema override, defaults to an empty object schema. */
   readonly configSchema?: z.ZodTypeAny
-  /** Optional explicit plugin id; defaults to `ontology.<ontologyId>`. */
+  /** Optional explicit plugin id, defaults to `ontology.<ontologyId>`. */
   readonly pluginId?: string
   /**
-   * Optional batch / reactor binding. Declare which skill processes a
-   * single intent unit, the (optional) checkpoint configuration, and
-   * the (optional) derive-units skill. Without this binding the
-   * workspace cannot start a batch under this ontology.
+   * Optional batch and reactor binding. Declare which skill processes one
+   * intent unit, the optional checkpoint configuration, and the optional
+   * derive-units skill. Without it the workspace cannot start a batch under
+   * this ontology.
    */
   readonly batch?: OntologyBatchBinding
   /**
-   * Source roles a workspace MUST have for this ontology to be usable.
+   * Source roles a workspace must have for this ontology to be usable.
    * The scaffold endpoint validates the manifest against this list and
-   * rejects misses with 422 so the wizard can prompt for missing
-   * roles. DDD declares `['intent', 'code']`; a generative ontology
-   * with no code dimension declares `['intent']`.
+   * rejects a miss with 422, so the wizard can prompt for the missing roles.
+   * DDD declares `['intent', 'code']`,
+   * a generative ontology with no code dimension declares `['intent']`.
    */
   readonly requiredSourceRoles?: readonly ('code' | 'intent')[]
 }
@@ -65,19 +73,20 @@ export interface DefineOntologyInput {
 /**
  * Build a fully-validated OntologyPlugin from a declarative spec.
  *
- * Composes with another ontology via `extends`: node and edge types
- * concatenate, duplicates are an error so an extension can't silently
- * mask a base type.
+ * Composes with another ontology via `extends`,
+ * so node and edge types concatenate, and a duplicate is an error,
+ * so an extension cannot silently mask a base type.
  *
- * Auto-attaches the framework's two generic validation engines
- * (`OntologyTypeValidator` for type allow-list, `StructuralValidator` for
- * topology + cardinality). Plugin authors don't need to wire them.
+ * Auto-attaches the framework's two generic validation engines,
+ * OntologyTypeValidator for the type allow-list,
+ * and StructuralValidator for topology and cardinality.
+ * Plugin authors do not need to wire them.
  *
- * Validation is builder-time, not runtime: bad input throws before the
- * plugin ever reaches the PluginRegistry, so the offending line in the
- * plugin's own source code is in the stack trace.
+ * Validation is builder-time, not runtime,
+ * so bad input throws before it reaches the PluginRegistry,
+ * and the offending line in the plugin's own source is in the stack trace.
  */
-export function defineOntology(input: DefineOntologyInput): OntologyPlugin {
+export function defineOntologyPlugin(input: DefineOntologyInput): OntologyPlugin {
   assertNonEmpty('ontologyId', input.ontologyId)
 
   const baseNodes = input.extends?.nodeTypes ?? []
@@ -105,13 +114,13 @@ export function defineOntology(input: DefineOntologyInput): OntologyPlugin {
       assertColorString(`${label} color`, edge.color)
   }
 
-  // We assemble the plugin in two passes: build the base shape so the
-  // type+structural validators have something to bind to, then attach the
-  // validators array referencing that same instance. This keeps validators
-  // looking up live `nodeTypes/edgeTypes` even if someone mutates the
-  // returned ontology before freeze (the freeze below makes that impossible
-  // in practice, but the late-binding pattern is the standard one for
-  // ontology + bundled-validator setups).
+  // We assemble the plugin in two passes.
+  // Build the base shape first,
+  // so the type and structural validators have something to bind to,
+  // then attach the validators array referencing that same instance.
+  // The freeze below makes later mutation impossible,
+  // but for an ontology that ships its own validators,
+  // binding them to the live instance is the standard pattern.
   const ontology: OntologyPlugin = {
     id: (input.pluginId ?? `ontology.${input.ontologyId}`) as PluginId,
     type: 'ontology' as const,

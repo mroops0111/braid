@@ -1,11 +1,12 @@
 import { ConflictError, ValidationError } from '@braidhq/core'
 
 /**
- * SDK-internal builder-time assertions. They run when a plugin author
- * calls a `define*` factory, before the plugin reaches the registry.
- * Failing here gives a stack trace at the offending line in plugin
- * code, which is more actionable than a runtime ConflictError thrown
- * later from `PluginRegistry.register`.
+ * SDK-internal builder-time assertions.
+ * They run when a plugin author calls a `define*` factory,
+ * before the plugin reaches the registry.
+ * Failing here gives a stack trace at the offending line in plugin code,
+ * which is more actionable than a runtime ConflictError,
+ * thrown later from `PluginRegistry.register`.
  */
 
 export function assertNoDuplicateIds(label: string, ids: readonly string[]): void {
@@ -29,11 +30,13 @@ export function assertEndpointsResolve(
 }
 
 /**
- * Permissive CSS colour check. We accept the four forms Studio renders
- * without surprises (`oklch(...)`, `oklab(...)`, `#xxx`/`#xxxxxx`,
- * `rgb(...)` / `rgba(...)`, `hsl(...)` / `hsla(...)`). Named CSS colours
- * are intentionally rejected so plugin authors don't ship `"red"` and
- * then discover Studio's dark theme has no contrast token for it.
+ * Permissive CSS colour check.
+ * We accept the forms Studio renders without surprises,
+ * `oklch(...)`, `oklab(...)`, `#xxx` or `#xxxxxx`,
+ * `rgb(...)` or `rgba(...)`, and `hsl(...)` or `hsla(...)`.
+ * Named CSS colours are intentionally rejected,
+ * so a plugin author does not ship `"red"`,
+ * then find Studio's dark theme has no contrast token for it.
  */
 const COLOR_PATTERN = /^(?:oklch|oklab|rgb|rgba|hsl|hsla)\([^)]+\)$|^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i
 

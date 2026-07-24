@@ -16,7 +16,7 @@ import { readJson } from '../helpers/readJson.js'
  * 1. Workspace scaffold, writes PRODUCT.md, registers workspace,
  * binds the active OntologyPlugin's validators.
  * 2. Proposal submission, HITLService.assertOperationsValid runs framework invariants (Evidence/OrphanEdge) inline,
- * plus the active OntologyPlugin's validators (OntologyType + Structural, auto-bound by `defineOntology`).
+ * plus the active OntologyPlugin's validators (OntologyType + Structural, auto-bound by `defineOntologyPlugin`).
  * 3. Apply proposal, StoragePlugin to ModelRepository write,
  * status transitions to `applied`.
  *

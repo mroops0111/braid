@@ -1,7 +1,7 @@
 import type { SourceLoaderPlugin } from '@braidhq/core'
 import { mkdir, rm } from 'node:fs/promises'
 import process from 'node:process'
-import { defineSourceLoader } from '@braidhq/sdk'
+import { defineSourceLoaderPlugin } from '@braidhq/sdk'
 import { simpleGit } from 'simple-git'
 import { z } from 'zod'
 
@@ -29,7 +29,7 @@ export type GitLoaderConfig = z.infer<typeof GitLoaderConfig>
  * `${VAR}` interpolation against the server's process env. Tokens never
  * land in PRODUCT.md.
  */
-export const gitLoader: SourceLoaderPlugin = defineSourceLoader({
+export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
   kind: 'git',
   configSchema: GitLoaderConfig,
   provision: async (config, destination) => {

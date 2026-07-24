@@ -354,7 +354,7 @@ export function createSourceWebhooksAdminRouter(deps: SourceWebhooksAdminDeps): 
 // Shared admin precondition check.
 // Returns undefined when the source is a webhook-capable github source,
 // otherwise returns the 4xx the caller should surface.
-// We never throw. On schema drift defineSourceLoader's wrapper,
+// We never throw. On schema drift defineSourceLoaderPlugin's wrapper,
 // may throw ZodError, which we catch and translate to 400.
 async function guardWebhookSource(
   deps: SourceWebhooksAdminDeps,

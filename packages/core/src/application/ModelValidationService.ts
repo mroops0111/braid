@@ -18,7 +18,7 @@ export interface ModelValidationServiceDeps {
  *
  *  2. **Active ontology's validators**.
  *     Each `OntologyPlugin` ships its own `validators[]`,
- *     the type and structural engines auto-bound by `defineOntology()`,
+ *     the type and structural engines auto-bound by `defineOntologyPlugin()`,
  *     plus any the ontology author adds.
  *     Looked up by `workspace.productManifest.ontologyId` at validate-time,
  *     so switching a workspace's ontology immediately changes which rules apply.

@@ -1,7 +1,7 @@
 import type { EdgeTypeId, NodeTypeId } from '@braidhq/schema'
 import { ConflictError, ValidationError } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
-import { defineOntology } from '../src/defineOntology.js'
+import { defineOntologyPlugin } from '../src/defineOntologyPlugin.js'
 
 function minimalNode(id: string, description = `${id} description`): { id: NodeTypeId, label: string, description: string } {
   return {
@@ -20,9 +20,9 @@ function minimalEdge(id: string, from: string[], to: string[]): { id: EdgeTypeId
   }
 }
 
-describe('defineOntology', () => {
+describe('defineOntologyPlugin', () => {
   it('builds a frozen ontology with the declared types', () => {
-    const ontology = defineOntology({
+    const ontology = defineOntologyPlugin({
       ontologyId: 'tiny',
       nodeTypes: [minimalNode('a'), minimalNode('b')],
       edgeTypes: [minimalEdge('connects', ['a'], ['b'])],
@@ -34,7 +34,7 @@ describe('defineOntology', () => {
   })
 
   it('uses ontology.<id> as the default plugin id', () => {
-    const ontology = defineOntology({
+    const ontology = defineOntologyPlugin({
       ontologyId: 'tiny',
       nodeTypes: [minimalNode('a')],
       edgeTypes: [],
@@ -43,14 +43,14 @@ describe('defineOntology', () => {
   })
 
   describe('extends', () => {
-    const base = defineOntology({
+    const base = defineOntologyPlugin({
       ontologyId: 'base',
       nodeTypes: [minimalNode('a'), minimalNode('b')],
       edgeTypes: [minimalEdge('connects', ['a'], ['b'])],
     })
 
     it('concatenates node and edge types from the base', () => {
-      const extended = defineOntology({
+      const extended = defineOntologyPlugin({
         ontologyId: 'extended',
         extends: base,
         nodeTypes: [minimalNode('c')],
@@ -61,7 +61,7 @@ describe('defineOntology', () => {
     })
 
     it('lets edges in the extension reference base-ontology node types', () => {
-      expect(() => defineOntology({
+      expect(() => defineOntologyPlugin({
         ontologyId: 'extended',
         extends: base,
         nodeTypes: [minimalNode('c')],
@@ -70,7 +70,7 @@ describe('defineOntology', () => {
     })
 
     it('throws ConflictError when extension duplicates a base node id', () => {
-      expect(() => defineOntology({
+      expect(() => defineOntologyPlugin({
         ontologyId: 'extended',
         extends: base,
         nodeTypes: [minimalNode('a')],
@@ -81,7 +81,7 @@ describe('defineOntology', () => {
 
   describe('validation', () => {
     it('throws ValidationError when an edge endpoint references unknown node type', () => {
-      expect(() => defineOntology({
+      expect(() => defineOntologyPlugin({
         ontologyId: 'tiny',
         nodeTypes: [minimalNode('a')],
         edgeTypes: [minimalEdge('broken', ['a'], ['missing'])],
@@ -89,7 +89,7 @@ describe('defineOntology', () => {
     })
 
     it('throws ValidationError when a node descriptor lacks description', () => {
-      expect(() => defineOntology({
+      expect(() => defineOntologyPlugin({
         ontologyId: 'tiny',
         nodeTypes: [{ id: 'a' as NodeTypeId, label: 'a', description: '' }],
         edgeTypes: [],
@@ -97,7 +97,7 @@ describe('defineOntology', () => {
     })
 
     it('throws ValidationError for an unrecognised CSS colour string', () => {
-      expect(() => defineOntology({
+      expect(() => defineOntologyPlugin({
         ontologyId: 'tiny',
         nodeTypes: [{ ...minimalNode('a'), color: 'tomato' }],
         edgeTypes: [],
@@ -105,7 +105,7 @@ describe('defineOntology', () => {
     })
 
     it('accepts oklch, hex, rgb, and hsl colours', () => {
-      expect(() => defineOntology({
+      expect(() => defineOntologyPlugin({
         ontologyId: 'tiny',
         nodeTypes: [
           { ...minimalNode('a'), color: 'oklch(0.7 0.15 155)' },
@@ -119,7 +119,7 @@ describe('defineOntology', () => {
   })
 
   it('exposes plugin skills declared in the spec', () => {
-    const ontology = defineOntology({
+    const ontology = defineOntologyPlugin({
       ontologyId: 'tiny',
       nodeTypes: [minimalNode('a')],
       edgeTypes: [],

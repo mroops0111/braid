@@ -6,25 +6,25 @@ import { assertNonEmpty } from './validation.js'
 
 export interface DefineViewGeneratorInput<TSchema extends z.ZodTypeAny> {
   readonly viewKind: string
-  /** Zod schema for the per-render config; parsed before `render` runs. */
+  /** Zod schema for the per-render config, parsed before `render` runs. */
   readonly configSchema: TSchema
   /** Required. Project a model snapshot into a view artifact. */
   readonly render: (config: z.infer<TSchema>, input: RenderInput) => Promise<ViewArtifact>
   /** Skills this plugin ships (e.g. a template-walkthrough skill). */
   readonly skills?: readonly PluginSkillRef[]
-  /** Optional explicit plugin id; defaults to `view-generator.<viewKind>`. */
+  /** Optional explicit plugin id, defaults to `view-generator.<viewKind>`. */
   readonly pluginId?: string
 }
 
 /**
  * Build a ViewGeneratorPlugin from a declarative spec.
  *
- * The wrapper parses `input.config` against `configSchema` before
- * `render` runs, so the plugin body always receives a statically-typed
- * config object. Mirrors the other `defineXxx` builders so plugin
- * authors find a uniform entry point across every axis.
+ * The wrapper parses `input.config` against `configSchema` before `render` runs,
+ * so the plugin body always receives a statically-typed config object.
+ * Mirrors the other `defineXxx` builders,
+ * so plugin authors find a uniform entry point across every axis.
  */
-export function defineViewGenerator<TSchema extends z.ZodTypeAny>(
+export function defineViewGeneratorPlugin<TSchema extends z.ZodTypeAny>(
   input: DefineViewGeneratorInput<TSchema>,
 ): ViewGeneratorPlugin {
   assertNonEmpty('view-generator viewKind', input.viewKind)
