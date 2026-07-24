@@ -140,6 +140,24 @@
   ::selection {
     background: color-mix(in oklch, var(--primary) 35%, transparent);
   }
+  /* Tailwind v4 drops the default button cursor, restore it for controls. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  label[for],
+  summary,
+  a[href] {
+    cursor: pointer;
+  }
+}
+
+/* Respect reduced-motion, neutralise enter animations but keep colour fades. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
 @layer utilities {
