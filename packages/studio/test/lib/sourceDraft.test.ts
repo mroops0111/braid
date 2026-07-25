@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nameToId, type SourceDraft, toSourceDescriptor } from '../../src/lib/sourceDraft'
+import { loaderKindLabel, nameToId, rolePathSegment, type SourceDraft, toSourceDescriptor } from '../../src/lib/sourceDraft'
 
 const blank: SourceDraft = {
   role: 'intent',
@@ -34,7 +34,29 @@ describe('nameToId', () => {
   })
 })
 
-describe('toSourceDescriptor — filesystem', () => {
+describe('loaderKindLabel', () => {
+  it('labels the empty kind as manual', () => {
+    expect(loaderKindLabel('')).toBe('manual (no auto-sync)')
+  })
+
+  it('spells out github as issues', () => {
+    expect(loaderKindLabel('github')).toBe('github (issues)')
+  })
+
+  it('falls back to the raw kind for an unknown loader', () => {
+    expect(loaderKindLabel('git')).toBe('git')
+    expect(loaderKindLabel('gdrive')).toBe('gdrive')
+  })
+})
+
+describe('rolePathSegment', () => {
+  it('maps intent to intents and code to codebases', () => {
+    expect(rolePathSegment('intent')).toBe('intents')
+    expect(rolePathSegment('code')).toBe('codebases')
+  })
+})
+
+describe('toSourceDescriptor: filesystem', () => {
   it('groups intent sources under `intents/<id>` and derives path automatically', () => {
     const descriptor = toSourceDescriptor({ ...blank, role: 'intent', name: 'prd' })
     expect(descriptor).toEqual({

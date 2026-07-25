@@ -15,7 +15,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run --coverage",
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {
