@@ -1,4 +1,4 @@
-import type { Clarification, ClarificationAmbiguityType, NodeId } from '@braidhq/schema'
+import type { Clarification, ClarificationAmbiguityType } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, Send, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
+import { asNodeId } from '@/lib/brands'
 import { queryKeys } from '@/lib/queries'
 
 interface SubmitIssueFormProps {
@@ -58,7 +59,7 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
         candidates: [],
         origin: 'human',
         ...(trimmedContext ? { context: trimmedContext } : {}),
-        ...(trimmedRelatedNode ? { relatedNode: trimmedRelatedNode as NodeId } : {}),
+        ...(trimmedRelatedNode ? { relatedNode: asNodeId(trimmedRelatedNode) } : {}),
         ambiguityType,
       })
     },

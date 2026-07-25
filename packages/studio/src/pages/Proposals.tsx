@@ -506,12 +506,13 @@ function IssueTarget({ issue }: { issue: ValidationIssue }) {
     return null
   const linkClass = 'rounded font-mono text-2xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline'
   if (issue.nodeId && nav) {
+    const nodeId = issue.nodeId
     return (
       <span className="ml-1 inline-flex items-center gap-1 text-muted-foreground">
         →
         <button
           type="button"
-          onClick={() => nav.focusNode(issue.nodeId as NodeId)}
+          onClick={() => nav.focusNode(nodeId)}
           className={linkClass}
           title="Open in Graph"
         >
@@ -521,12 +522,13 @@ function IssueTarget({ issue }: { issue: ValidationIssue }) {
     )
   }
   if (issue.edgeId && nav) {
+    const edgeId = issue.edgeId
     return (
       <span className="ml-1 inline-flex items-center gap-1 text-muted-foreground">
         →
         <button
           type="button"
-          onClick={() => nav.focusEdge(issue.edgeId as EdgeId)}
+          onClick={() => nav.focusEdge(edgeId)}
           className={linkClass}
           title="Open in Graph"
         >

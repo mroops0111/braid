@@ -240,7 +240,7 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(patch),
     }),
-  /** Unregister AND `rm -rf` the workspace folder. Server only accepts purge for canonical-root workspaces. */
+  /** Unregister and `rm -rf` the workspace folder. Server only accepts purge for canonical-root workspaces. */
   deleteWorkspace: (workspaceId: string) =>
     fetchJson<void>(`/workspaces/${workspaceId}?purge=true`, { method: 'DELETE' }),
 
@@ -426,7 +426,7 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ title }),
     }),
-  /** Deletes the cwd AND drops every RunRecord + event log for the session. */
+  /** Deletes the cwd and drops every RunRecord + event log for the session. */
   deleteSession: (workspaceId: string, sessionId: string) =>
     fetchJson<void>(`/workspaces/${workspaceId}/runs/sessions/${sessionId}?purge=true`, { method: 'DELETE' }),
   /** Orphan-row delete: single RunRecord by runId. */

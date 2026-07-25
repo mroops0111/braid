@@ -7,6 +7,7 @@ import { GitBranch, PanelLeftClose, PanelLeftOpen, Sparkles } from 'lucide-react
 import { useCallback, useMemo, useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
 import { Button } from '@/components/ui/button'
+import { asEdgeId } from '@/lib/brands'
 import { optional } from '@/lib/optional'
 import { useOntology } from '@/lib/queries'
 import { useTheme } from '@/lib/theme'
@@ -387,7 +388,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
                 edges={reactFlowEdges}
                 nodeTypes={NODE_TYPES}
                 onNodeClick={(_event, n) => selectNode((n as NodeCardNode).data.node.id)}
-                onEdgeClick={(_event, e) => selectEdge(e.id as EdgeId)}
+                onEdgeClick={(_event, e) => selectEdge(asEdgeId(e.id))}
                 onPaneClick={clearSelection}
                 onNodesChange={handleNodesChange}
                 fitView

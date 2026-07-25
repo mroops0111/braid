@@ -217,8 +217,8 @@ function NodeTable({
         </thead>
         <tbody>
           {nodes.map((node) => {
-            const muted = dim && !neighbors.has(node.id as NodeId)
-            const change = diff?.nodes.get(node.id as NodeId)
+            const muted = dim && !neighbors.has(node.id)
+            const change = diff?.nodes.get(node.id)
             const added = change === 'added' && emphasizeAdded
             return (
               <tr
@@ -291,8 +291,8 @@ function EdgeTable({
         </thead>
         <tbody>
           {edges.map((edge) => {
-            const muted = dim && !incidentEdges.has(edge.id as EdgeId)
-            const change = diff?.edges.get(edge.id as EdgeId)
+            const muted = dim && !incidentEdges.has(edge.id)
+            const change = diff?.edges.get(edge.id)
             const added = change === 'added' && emphasizeAdded
             return (
               <tr

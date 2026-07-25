@@ -19,7 +19,7 @@ interface LoginPageProps {
  * Single-button flow. Click "Sign in with Google",
  * the server returns a consent URL, and the browser navigates there.
  * Google calls the server callback, which redirects back here,
- * with `#token=…` or `#auth-error=…`.
+ * with `#token=<value>` or `#auth-error=<value>`.
  * The hash is consumed by `consumeOAuthRedirect` in App.tsx,
  * before this page is rendered.
  */

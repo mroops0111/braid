@@ -23,7 +23,7 @@ export interface MultiSelectOption {
 interface MultiSelectDropdownProps {
   /** id assigned to the trigger button, pair with an upstream `<label htmlFor>` for a11y. */
   id?: string
-  /** Used in the closed-state summary when nothing is selected ("Select {label}…"). */
+  /** Used in the closed-state summary when nothing is selected. */
   label: string
   options: readonly MultiSelectOption[]
   selected: readonly string[]

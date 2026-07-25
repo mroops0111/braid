@@ -89,7 +89,7 @@ export function formatOpsSummary(summary: OpsSummary): string {
   return parts.join(' / ')
 }
 
-/** Letter prefix A / B / C … for a candidate option index. */
+/** Letter prefix (A, B, C, and so on) for a candidate option index. */
 export function candidateLetter(index: number): string {
   return String.fromCharCode(65 + index)
 }

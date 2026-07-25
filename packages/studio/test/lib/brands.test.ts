@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   asAbsolutePath,
+  asEdgeId,
   asLoaderKind,
   asMcpServerId,
+  asNodeId,
   asOntologyId,
   asSourceId,
   asStorageKind,
@@ -18,6 +20,8 @@ describe('brand constructors', () => {
     expect(asAbsolutePath('/tmp/repo')).toBe('/tmp/repo')
     expect(asStorageKind('filesystem')).toBe('filesystem')
     expect(asOntologyId('ddd')).toBe('ddd')
+    expect(asNodeId('ctx.cart')).toBe('ctx.cart')
+    expect(asEdgeId('e1')).toBe('e1')
   })
 
   it('throws on an empty string', () => {
@@ -27,5 +31,7 @@ describe('brand constructors', () => {
     expect(() => asAbsolutePath('')).toThrow()
     expect(() => asStorageKind('')).toThrow()
     expect(() => asOntologyId('')).toThrow()
+    expect(() => asNodeId('')).toThrow()
+    expect(() => asEdgeId('')).toThrow()
   })
 })

@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
+import { asEdgeId, asNodeId } from '@/lib/brands'
 import { queryKeys, useCommitModelDiff, useHistory, useHistoryCommit, useHistoryTags } from '@/lib/queries'
 import { cn } from '@/lib/utils'
 import { useWorkspacePolicy } from '@/policy'
@@ -540,11 +541,11 @@ function buildDiffGroups(envelope: ModelDiffEnvelope | null): DiffGroupModel[] {
   const edgesById = indexById([...envelope.snapshot.edges, ...envelope.removed.edges])
 
   const nodeEntry = (id: string): DiffEntry => {
-    const node = nodesById.get(id as NodeId)
+    const node = nodesById.get(asNodeId(id))
     return { id, label: node?.name ?? id, type: node?.type ?? '?' }
   }
   const edgeEntry = (id: string): DiffEntry => {
-    const edge = edgesById.get(id as EdgeId)
+    const edge = edgesById.get(asEdgeId(id))
     if (!edge)
       return { id, label: id, type: '?' }
     const fromName = nodesById.get(edge.fromNodeId)?.name ?? edge.fromNodeId
