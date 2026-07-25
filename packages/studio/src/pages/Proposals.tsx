@@ -799,6 +799,10 @@ function flattenOperations(operations: readonly GraphOperation[]): FlatOp[] {
       case 'updateEdges':
         for (const u of op.updates) out.push(flatUpdateEdge(u.edgeId, u.patch))
         break
+      default: {
+        const exhaustive: never = op
+        throw new Error(`Unhandled operation: ${JSON.stringify(exhaustive)}`)
+      }
     }
   }
   return out

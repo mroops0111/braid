@@ -128,7 +128,9 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
         ? <div className="mt-1 text-muted-foreground/60">{parts.join(' · ')}</div>
         : null
     }
-    default:
-      return null
+    default: {
+      const exhaustive: never = event
+      throw new Error(`Unhandled skill event: ${JSON.stringify(exhaustive)}`)
+    }
   }
 }
