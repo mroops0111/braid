@@ -239,23 +239,6 @@ function GraphHomeView({ workspaceId, state, onStartBootstrap }: {
 }) {
   const { view, setView, selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode } = state
 
-  useEffect(() => {
-    function handler(event: KeyboardEvent): void {
-      if (!(event.metaKey || event.ctrlKey))
-        return
-      if (event.key === '1') {
-        event.preventDefault()
-        setView('visualization')
-      }
-      else if (event.key === '2') {
-        event.preventDefault()
-        setView('table')
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [setView])
-
   return (
     <div className="relative flex h-full flex-col overflow-hidden">
       <PageActions>

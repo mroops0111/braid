@@ -75,14 +75,14 @@ export function ViewToggle({ view, onChange }: { view: GraphView, onChange: (vie
       <ToggleButton
         active={view === 'visualization'}
         onClick={() => onChange('visualization')}
-        ariaLabel="Visualization view (Cmd+1)"
+        ariaLabel="Visualization view"
       >
         <Network className="size-3.5" />
       </ToggleButton>
       <ToggleButton
         active={view === 'table'}
         onClick={() => onChange('table')}
-        ariaLabel="Table view (Cmd+2)"
+        ariaLabel="Table view"
       >
         <LayoutGrid className="size-3.5" />
       </ToggleButton>
