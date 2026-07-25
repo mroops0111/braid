@@ -1,10 +1,10 @@
 import type { ReactorCheckpoint, ReactorCycle, ReactorCycleId, ReactorUnit } from '@braidhq/schema'
-import { useQuery } from '@tanstack/react-query'
 import { Activity, AlertCircle, CheckCircle2, CircleDashed, Loader2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
-import { api } from '@/lib/api'
-import { cn } from '@/lib/utils'
+import { ListRow } from '@/components/ListRow'
+import { SurfaceLayout } from '@/components/SurfaceLayout'
+import { useReactorCycle, useReactorCycles } from '@/lib/queries'
 
 interface ActivityPageProps {
   workspaceId: string
@@ -18,62 +18,60 @@ interface ActivityPageProps {
  * so the page stays current without its own SSE wiring.
  */
 export function ActivityPage({ workspaceId }: ActivityPageProps) {
-  const list = useQuery({
-    queryKey: ['reactor-cycles', workspaceId],
-    queryFn: () => api.listReactorCycles(workspaceId),
-  })
+  const list = useReactorCycles(workspaceId)
   const [selectedId, setSelectedId] = useState<ReactorCycleId | null>(null)
   const passes = list.data?.items ?? []
   const effectiveSelected = selectedId ?? passes[0]?.id ?? null
-
-  const detail = useQuery({
-    queryKey: ['reactor-cycles', workspaceId, effectiveSelected],
-    queryFn: () => api.getReactorCycle(workspaceId, effectiveSelected!),
-    enabled: effectiveSelected !== null,
-  })
+  const detail = useReactorCycle(workspaceId, effectiveSelected)
 
   return (
-    <div className="flex flex-1 overflow-hidden">
-      <aside className="flex w-72 shrink-0 flex-col border-r border-border bg-card/30">
-        <header className="border-b border-border px-3 py-2 text-2xs font-medium uppercase tracking-wider text-muted-foreground">
-          Reactor passes
-        </header>
-        {list.isLoading && <p className="px-3 py-2 text-xs text-muted-foreground">Loading…</p>}
-        {list.error && <p className="px-3 py-2 text-xs text-destructive">Failed to load.</p>}
-        {!list.isLoading && passes.length === 0 && (
-          <p className="px-3 py-3 text-xs text-muted-foreground">
-            No reactor passes yet. Enable
-            {' '}
-            <code className="font-mono">reactor.enabled</code>
-            {' '}
-            in
-            {' '}
-            <code className="font-mono">PRODUCT.md</code>
-            {' '}
-            and sync a source.
-          </p>
+    <div className="flex h-full flex-col">
+      <SurfaceLayout
+        listClassName="bg-card/30"
+        list={(
+          <>
+            <header className="border-b border-border px-3 py-2 text-2xs font-medium uppercase tracking-wider text-muted-foreground">
+              Reactor passes
+            </header>
+            {list.isLoading && <p className="px-3 py-2 text-xs text-muted-foreground">Loading…</p>}
+            {list.error && <p className="px-3 py-2 text-xs text-destructive">Failed to load.</p>}
+            {!list.isLoading && passes.length === 0 && (
+              <p className="px-3 py-3 text-xs text-muted-foreground">
+                No reactor passes yet. Enable
+                {' '}
+                <code className="font-mono">reactor.enabled</code>
+                {' '}
+                in
+                {' '}
+                <code className="font-mono">PRODUCT.md</code>
+                {' '}
+                and sync a source.
+              </p>
+            )}
+            <ul className="flex-1 overflow-y-auto">
+              {passes.map(cycle => (
+                <CycleListItem
+                  key={cycle.id}
+                  cycle={cycle}
+                  selected={cycle.id === effectiveSelected}
+                  onSelect={() => setSelectedId(cycle.id)}
+                />
+              ))}
+            </ul>
+          </>
         )}
-        <ul className="flex-1 overflow-y-auto">
-          {passes.map(p => (
-            <CycleListItem
-              key={p.id}
-              cycle={p}
-              selected={p.id === effectiveSelected}
-              onSelect={() => setSelectedId(p.id)}
+      >
+        <div className="flex flex-1 flex-col overflow-y-auto">
+          {!effectiveSelected && (
+            <EmptyState
+              icon={Activity}
+              title="No Cycle Selected"
+              description="Pick a cycle from the list to see its per-unit timeline."
             />
-          ))}
-        </ul>
-      </aside>
-      <main className="flex flex-1 flex-col overflow-y-auto">
-        {!effectiveSelected && (
-          <EmptyState
-            icon={Activity}
-            title="No Cycle Selected"
-            description="Pick a cycle from the list to see its per-unit timeline."
-          />
-        )}
-        {effectiveSelected && detail.data && <CycleDetail cycle={detail.data} />}
-      </main>
+          )}
+          {effectiveSelected && detail.data && <CycleDetail cycle={detail.data} />}
+        </div>
+      </SurfaceLayout>
     </div>
   )
 }
@@ -85,29 +83,20 @@ function CycleListItem({ cycle, selected, onSelect }: {
 }) {
   const counts = useUnitCounts(cycle.units)
   return (
-    <li>
-      <button
-        type="button"
-        onClick={onSelect}
-        className={cn(
-          'flex w-full flex-col items-stretch gap-1 border-b border-border/60 px-3 py-2 text-left text-xs hover:bg-accent/40',
-          selected && 'bg-accent/60',
-        )}
-      >
-        <span className="flex items-center gap-2">
-          <CycleStatusIcon cycle={cycle} />
-          <span className="font-mono text-2xs text-foreground">{cycle.sourceId}</span>
-          <span className="ml-auto text-2xs text-muted-foreground">
-            {timeAgo(cycle.startedAt)}
-          </span>
+    <ListRow active={selected} onClick={onSelect} className="flex-col gap-1 text-xs">
+      <span className="flex items-center gap-2">
+        <CycleStatusIcon cycle={cycle} />
+        <span className="font-mono text-2xs text-foreground">{cycle.sourceId}</span>
+        <span className="ml-auto text-2xs text-muted-foreground">
+          {timeAgo(cycle.startedAt)}
         </span>
-        <span className="text-2xs text-muted-foreground">
-          {cycle.status === 'throttled'
-            ? (cycle.throttledReason ?? 'throttled')
-            : `${counts.success}/${cycle.units.length} units · ${cycle.status}`}
-        </span>
-      </button>
-    </li>
+      </span>
+      <span className="text-2xs text-muted-foreground">
+        {cycle.status === 'throttled'
+          ? (cycle.throttledReason ?? 'throttled')
+          : `${counts.success}/${cycle.units.length} units · ${cycle.status}`}
+      </span>
+    </ListRow>
   )
 }
 

@@ -8,6 +8,7 @@ import { FocusToggle, OnlyChangesToggle } from '@/components/graph/GraphToolbar'
 import { ListRow } from '@/components/ListRow'
 import { PageActions } from '@/components/PageActions'
 import { StatusBadge } from '@/components/StatusBadge'
+import { SurfaceLayout } from '@/components/SurfaceLayout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs'
@@ -117,39 +118,42 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
         <ProposalsStatusFilter workspaceId={workspaceId} status={status} onChange={changeStatus} />
         <ShowAllToggle workspaceId={workspaceId} status={status} showAll={showAll} onToggle={setShowAll} />
       </PageActions>
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex w-72 shrink-0 flex-col border-r border-border">
-          {isLoading
-            ? (
-                <div className="p-4 text-sm text-muted-foreground">Loading…</div>
-              )
-            : !data || data.items.length === 0
-                ? null
-                : (
-                    <ul className="flex-1 overflow-y-auto scrollbar-thin">
-                      {data.items.map(proposal => (
-                        <ListRow
-                          key={proposal.id}
-                          active={selected?.id === proposal.id}
-                          onClick={() => setSelected(proposal)}
-                          className="flex-col gap-1"
-                        >
-                          <div className="flex w-full items-center justify-between gap-2">
-                            <span className="break-all font-mono text-xs text-foreground">{proposal.id}</span>
-                            <StatusBadge status={proposal.status} />
-                          </div>
-                          <div className="text-2xs text-muted-foreground">
-                            {proposal.operations.length}
-                            {' '}
-                            ops · by
-                            {' '}
-                            {proposal.generatedBy}
-                          </div>
-                        </ListRow>
-                      ))}
-                    </ul>
-                  )}
-        </div>
+      <SurfaceLayout
+        list={(
+          <>
+            {isLoading
+              ? (
+                  <div className="p-4 text-sm text-muted-foreground">Loading…</div>
+                )
+              : !data || data.items.length === 0
+                  ? null
+                  : (
+                      <ul className="flex-1 overflow-y-auto scrollbar-thin">
+                        {data.items.map(proposal => (
+                          <ListRow
+                            key={proposal.id}
+                            active={selected?.id === proposal.id}
+                            onClick={() => setSelected(proposal)}
+                            className="flex-col gap-1"
+                          >
+                            <div className="flex w-full items-center justify-between gap-2">
+                              <span className="break-all font-mono text-xs text-foreground">{proposal.id}</span>
+                              <StatusBadge status={proposal.status} />
+                            </div>
+                            <div className="text-2xs text-muted-foreground">
+                              {proposal.operations.length}
+                              {' '}
+                              ops · by
+                              {' '}
+                              {proposal.generatedBy}
+                            </div>
+                          </ListRow>
+                        ))}
+                      </ul>
+                    )}
+          </>
+        )}
+      >
         <div className="flex-1 overflow-hidden">
           {selected
             ? (
@@ -174,7 +178,7 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
                 />
               )}
         </div>
-      </div>
+      </SurfaceLayout>
     </div>
   )
 }

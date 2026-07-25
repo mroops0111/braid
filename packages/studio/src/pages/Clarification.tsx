@@ -7,6 +7,7 @@ import { ListRow } from '@/components/ListRow'
 import { PageActions } from '@/components/PageActions'
 import { StatusBadge } from '@/components/StatusBadge'
 import { SubmitIssueForm } from '@/components/SubmitIssueForm'
+import { SurfaceLayout } from '@/components/SurfaceLayout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs'
@@ -183,42 +184,45 @@ export function ClarificationPage({ workspaceId }: ClarificationPageProps) {
           onToggle={setShowAll}
         />
       </PageActions>
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex w-72 shrink-0 flex-col border-r border-border">
-          {isLoading
-            ? (
-                <div className="p-4 text-sm text-muted-foreground">Loading…</div>
-              )
-            : (
-                <>
-                  {data && data.items.length > 0 && (
-                    <ul className="flex-1 overflow-y-auto scrollbar-thin">
-                      {data.items.map(ticket => (
-                        <ClarificationListItem
-                          key={ticket.id}
-                          ticket={ticket}
-                          active={selected?.id === ticket.id}
-                          onSelect={() => {
-                            setComposing(false)
-                            setSelected(ticket)
-                          }}
-                        />
-                      ))}
-                    </ul>
-                  )}
-                  {canSubmitIssue && (
-                    <button
-                      type="button"
-                      onClick={startComposing}
-                      className="m-2 flex items-center justify-center gap-1.5 rounded-md border border-dashed border-border/60 py-2 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
-                    >
-                      <Plus className="size-3.5" />
-                      Submit a Question for AI
-                    </button>
-                  )}
-                </>
-              )}
-        </div>
+      <SurfaceLayout
+        list={(
+          <>
+            {isLoading
+              ? (
+                  <div className="p-4 text-sm text-muted-foreground">Loading…</div>
+                )
+              : (
+                  <>
+                    {data && data.items.length > 0 && (
+                      <ul className="flex-1 overflow-y-auto scrollbar-thin">
+                        {data.items.map(ticket => (
+                          <ClarificationListItem
+                            key={ticket.id}
+                            ticket={ticket}
+                            active={selected?.id === ticket.id}
+                            onSelect={() => {
+                              setComposing(false)
+                              setSelected(ticket)
+                            }}
+                          />
+                        ))}
+                      </ul>
+                    )}
+                    {canSubmitIssue && (
+                      <button
+                        type="button"
+                        onClick={startComposing}
+                        className="m-2 flex items-center justify-center gap-1.5 rounded-md border border-dashed border-border/60 py-2 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                      >
+                        <Plus className="size-3.5" />
+                        Submit a Question for AI
+                      </button>
+                    )}
+                  </>
+                )}
+          </>
+        )}
+      >
         <div className="flex-1 overflow-hidden">
           {composing
             ? (
@@ -258,7 +262,7 @@ export function ClarificationPage({ workspaceId }: ClarificationPageProps) {
                   />
                 )}
         </div>
-      </div>
+      </SurfaceLayout>
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
 import { GraphCanvas } from '@/components/graph/GraphCanvas'
 import { ListRow } from '@/components/ListRow'
+import { SurfaceLayout } from '@/components/SurfaceLayout'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -85,69 +86,74 @@ export function HistoryPage({ workspaceId }: HistoryPageProps) {
   }
 
   return (
-    <div className="flex h-full">
-      <div className="flex w-72 shrink-0 flex-col border-r border-border">
-        {pickingCompare && (
-          <div className="flex shrink-0 items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-2xs text-muted-foreground">
-            <ArrowLeftRight className="size-3" />
-            <span>Pick a commit to compare against</span>
-            <button
-              type="button"
-              onClick={() => setPickingCompare(false)}
-              className="ml-auto rounded p-0.5 hover:bg-background/80"
-              title="Cancel"
-              aria-label="Cancel"
-            >
-              <X className="size-3" />
-            </button>
-          </div>
+    <div className="flex h-full flex-col">
+      <SurfaceLayout
+        list={(
+          <>
+            {pickingCompare && (
+              <div className="flex shrink-0 items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-2xs text-muted-foreground">
+                <ArrowLeftRight className="size-3" />
+                <span>Pick a commit to compare against</span>
+                <button
+                  type="button"
+                  onClick={() => setPickingCompare(false)}
+                  className="ml-auto rounded p-0.5 hover:bg-background/80"
+                  title="Cancel"
+                  aria-label="Cancel"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            )}
+            {isLoading
+              ? <div className="p-4 text-sm text-muted-foreground">Loading…</div>
+              : commits.length === 0
+                ? null
+                : (
+                    <ul className="flex-1 overflow-y-auto scrollbar-thin">
+                      {commits.map(commit => (
+                        <CommitRow
+                          key={commit.sha}
+                          commit={commit}
+                          tags={tagsBySha.get(commit.sha) ?? []}
+                          active={selectedSha === commit.sha}
+                          compareActive={compareSha === commit.sha}
+                          dimmed={pickingCompare && commit.sha === selectedSha}
+                          onSelect={() => handleRowClick(commit.sha)}
+                        />
+                      ))}
+                    </ul>
+                  )}
+          </>
         )}
-        {isLoading
-          ? <div className="p-4 text-sm text-muted-foreground">Loading…</div>
-          : commits.length === 0
-            ? null
-            : (
-                <ul className="flex-1 overflow-y-auto scrollbar-thin">
-                  {commits.map(commit => (
-                    <CommitRow
-                      key={commit.sha}
-                      commit={commit}
-                      tags={tagsBySha.get(commit.sha) ?? []}
-                      active={selectedSha === commit.sha}
-                      compareActive={compareSha === commit.sha}
-                      dimmed={pickingCompare && commit.sha === selectedSha}
-                      onSelect={() => handleRowClick(commit.sha)}
-                    />
-                  ))}
-                </ul>
-              )}
-      </div>
-      <div className="flex-1 overflow-hidden">
-        {selectedSha && compareSha
-          ? (
-              <CompareDetail
-                workspaceId={workspaceId}
-                selectedSha={selectedSha}
-                compareSha={compareSha}
-                commits={commits}
-                onExit={exitCompare}
-                key={`${selectedSha}:${compareSha}`}
-              />
-            )
-          : selectedSha
+      >
+        <div className="flex-1 overflow-hidden">
+          {selectedSha && compareSha
             ? (
-                <CommitDetail
+                <CompareDetail
                   workspaceId={workspaceId}
-                  sha={selectedSha}
-                  tags={tagsBySha.get(selectedSha) ?? []}
-                  onStartCompare={() => setPickingCompare(true)}
-                  key={selectedSha}
+                  selectedSha={selectedSha}
+                  compareSha={compareSha}
+                  commits={commits}
+                  onExit={exitCompare}
+                  key={`${selectedSha}:${compareSha}`}
                 />
               )
-            : commits.length === 0
-              ? <EmptyState icon={History} title="No Commits Yet" description="History records each applied proposal, clarify answer, and restore as a commit." />
-              : <EmptyState icon={History} title="Pick a Commit" description="Select a commit on the left to see its diff, tag it, or restore the workspace to that point." />}
-      </div>
+            : selectedSha
+              ? (
+                  <CommitDetail
+                    workspaceId={workspaceId}
+                    sha={selectedSha}
+                    tags={tagsBySha.get(selectedSha) ?? []}
+                    onStartCompare={() => setPickingCompare(true)}
+                    key={selectedSha}
+                  />
+                )
+              : commits.length === 0
+                ? <EmptyState icon={History} title="No Commits Yet" description="History records each applied proposal, clarify answer, and restore as a commit." />
+                : <EmptyState icon={History} title="Pick a Commit" description="Select a commit on the left to see its diff, tag it, or restore the workspace to that point." />}
+        </div>
+      </SurfaceLayout>
     </div>
   )
 }

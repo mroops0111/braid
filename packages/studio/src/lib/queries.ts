@@ -1,3 +1,4 @@
+import type { ReactorCycleId } from '@braidhq/schema'
 import { useQuery } from '@tanstack/react-query'
 import { api } from './api'
 
@@ -215,5 +216,13 @@ export function useReactorCycles(workspaceId: string | null | undefined) {
     queryKey: ['reactor-cycles', workspaceId ?? null],
     queryFn: () => api.listReactorCycles(workspaceId!),
     enabled: !!workspaceId,
+  })
+}
+
+export function useReactorCycle(workspaceId: string | null | undefined, cycleId: ReactorCycleId | null) {
+  return useQuery({
+    queryKey: ['reactor-cycles', workspaceId ?? null, cycleId],
+    queryFn: () => api.getReactorCycle(workspaceId!, cycleId!),
+    enabled: !!workspaceId && cycleId !== null,
   })
 }

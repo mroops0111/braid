@@ -103,89 +103,91 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
   const buckets = bucketByGroup(skills)
 
   return (
-    <SurfaceLayout
-      list={(
-        <>
-          {/* Skills take the full sidebar height. Conversations live in a
+    <div className="flex h-full flex-col">
+      <SurfaceLayout
+        list={(
+          <>
+            {/* Skills take the full sidebar height. Conversations live in a
               bottom drawer that opens when there are any to show,
               so the runner list isn't competing for vertical space. */}
-          <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
-            {skills.length === 0
-              ? (
-                  <SidebarSection icon={Sparkles} title="Actions">
-                    <SidebarEmpty>No actions available.</SidebarEmpty>
-                  </SidebarSection>
-                )
-              : GROUP_ORDER.map((group) => {
-                  const bucket = buckets[group]
-                  if (!bucket || bucket.length === 0)
-                    return null
-                  const meta = GROUP_META[group]
-                  return (
-                    <SidebarSection key={group} icon={meta.icon} title={meta.title}>
-                      {bucket.map((skill, index) => (
-                        <SkillRow
-                          key={skill.id}
-                          skill={skill}
-                          // Only the Build group gets explicit step numbers,
-                          // because it is the only group,
-                          // where the order between skills is semantically meaningful,
-                          // extract, then clarify, then model.
-                          step={group === 'build' ? index + 1 : undefined}
-                          active={selectedSkillId === skill.id}
-                          locked={!policy.can('skill.run', { skill: skill.frontmatter, skillId: skill.id })}
-                          onClick={() => startFresh(skill)}
-                        />
-                      ))}
+            <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+              {skills.length === 0
+                ? (
+                    <SidebarSection icon={Sparkles} title="Actions">
+                      <SidebarEmpty>No actions available.</SidebarEmpty>
                     </SidebarSection>
                   )
-                })}
-          </div>
-          <div className="shrink-0 border-t border-border">
-            <button
-              type="button"
-              onClick={() => setConversationsOpen(!showConversations)}
-              className="flex w-full items-center gap-2 px-3 py-2 text-2xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent/40"
-            >
-              <MessageSquare className="size-3" />
-              <span>Conversations</span>
-              {groups.length > 0 && (
-                <span className="rounded bg-muted px-1.5 py-0.5 font-mono normal-case text-2xs text-muted-foreground">
-                  {groups.length}
-                </span>
+                : GROUP_ORDER.map((group) => {
+                    const bucket = buckets[group]
+                    if (!bucket || bucket.length === 0)
+                      return null
+                    const meta = GROUP_META[group]
+                    return (
+                      <SidebarSection key={group} icon={meta.icon} title={meta.title}>
+                        {bucket.map((skill, index) => (
+                          <SkillRow
+                            key={skill.id}
+                            skill={skill}
+                            // Only the Build group gets explicit step numbers,
+                            // because it is the only group,
+                            // where the order between skills is semantically meaningful,
+                            // extract, then clarify, then model.
+                            step={group === 'build' ? index + 1 : undefined}
+                            active={selectedSkillId === skill.id}
+                            locked={!policy.can('skill.run', { skill: skill.frontmatter, skillId: skill.id })}
+                            onClick={() => startFresh(skill)}
+                          />
+                        ))}
+                      </SidebarSection>
+                    )
+                  })}
+            </div>
+            <div className="shrink-0 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setConversationsOpen(!showConversations)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-2xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent/40"
+              >
+                <MessageSquare className="size-3" />
+                <span>Conversations</span>
+                {groups.length > 0 && (
+                  <span className="rounded bg-muted px-1.5 py-0.5 font-mono normal-case text-2xs text-muted-foreground">
+                    {groups.length}
+                  </span>
+                )}
+                {showConversations
+                  ? <ChevronDown className="ml-auto size-3" />
+                  : <ChevronUp className="ml-auto size-3" />}
+              </button>
+              {showConversations && (
+                <ul className="max-h-[30vh] overflow-y-auto scrollbar-thin border-t border-border">
+                  {groups.length === 0
+                    ? <SidebarEmpty>Past conversations will appear here.</SidebarEmpty>
+                    : groups.map(group => (
+                        <ConversationRow
+                          key={group.groupId}
+                          workspaceId={workspaceId}
+                          group={group}
+                          onResume={() => resume(group)}
+                        />
+                      ))}
+                </ul>
               )}
-              {showConversations
-                ? <ChevronDown className="ml-auto size-3" />
-                : <ChevronUp className="ml-auto size-3" />}
-            </button>
-            {showConversations && (
-              <ul className="max-h-[30vh] overflow-y-auto scrollbar-thin border-t border-border">
-                {groups.length === 0
-                  ? <SidebarEmpty>Past conversations will appear here.</SidebarEmpty>
-                  : groups.map(group => (
-                      <ConversationRow
-                        key={group.groupId}
-                        workspaceId={workspaceId}
-                        group={group}
-                        onResume={() => resume(group)}
-                      />
-                    ))}
-              </ul>
+            </div>
+          </>
+        )}
+      >
+        {selected
+          ? <Conversation workspaceId={workspaceId} skill={selected} locked={!policy.can('skill.run', { skill: selected.frontmatter, skillId: selected.id })} key={selected.id} />
+          : (
+              <EmptyState
+                icon={Sparkles}
+                title="Pick an Action"
+                description="Choose an action on the left to start, or resume a recent conversation."
+              />
             )}
-          </div>
-        </>
-      )}
-    >
-      {selected
-        ? <Conversation workspaceId={workspaceId} skill={selected} locked={!policy.can('skill.run', { skill: selected.frontmatter, skillId: selected.id })} key={selected.id} />
-        : (
-            <EmptyState
-              icon={Sparkles}
-              title="Pick an Action"
-              description="Choose an action on the left to start, or resume a recent conversation."
-            />
-          )}
-    </SurfaceLayout>
+      </SurfaceLayout>
+    </div>
   )
 }
 
