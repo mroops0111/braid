@@ -449,7 +449,7 @@ function WorkspaceRow({
         : (
             <>
               <WorkspaceSwatch workspaceId={workspace.id} size="sm" />
-              <span className="truncate font-medium">{workspace.id}</span>
+              <span className="flex-1 truncate text-left font-medium">{workspace.id}</span>
               {isActiveRemote && <WorkspaceBadges workspaceId={workspace.id} />}
               <span
                 role="button"
@@ -464,7 +464,7 @@ function WorkspaceRow({
                     onOpenDetails()
                   }
                 }}
-                className="ml-1 hidden rounded p-0.5 text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-foreground group-hover:inline-flex"
+                className="ml-1 flex size-5 shrink-0 items-center justify-center rounded text-sidebar-foreground/40 opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-foreground group-hover:opacity-100"
                 title="Details"
                 aria-label="Details"
               >
