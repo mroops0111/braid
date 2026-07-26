@@ -42,6 +42,6 @@
   "devDependencies": {
     "@braidhq/test-utils": "workspace:*",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.10"
   }
 }
