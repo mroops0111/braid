@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module'
 import process from 'node:process'
 import { cac } from 'cac'
 import pc from 'picocolors'
@@ -6,7 +7,8 @@ import { initCommand } from './commands/init.js'
 import { serveCommand } from './commands/serve.js'
 import { workspaceListCommand } from './commands/workspace.js'
 
-const VERSION = '0.0.0'
+// Read from package.json so `braid --version` never drifts from the release.
+const { version: VERSION } = createRequire(import.meta.url)('../package.json') as { version: string }
 
 const cli = cac('braid')
 
@@ -53,7 +55,7 @@ try {
   await cli.runMatchedCommand()
 }
 catch (error) {
-  // Surface user-facing errors without stack traces; reserve stacks for bugs.
+  // Surface user-facing errors without stack traces. Reserve stacks for bugs.
   const message = error instanceof Error ? error.message : String(error)
   process.stderr.write(`${pc.red('error')} ${message}\n`)
   process.exit(1)
