@@ -14,14 +14,14 @@ The drive loader walks a Drive folder, exports every Google Doc it finds as mark
 
 ```
 src/
-├── GoogleDriveLoader.ts   the gdrive loader, config, walk, export, manifest-diff sync
-├── driveClient.ts         the Drive REST client, list children and export a doc
-├── Manifest.ts            the on-disk sync-state manifest, read and write
-└── index.ts               re-exports the factory and its config type
+├── GoogleDriveSourceLoaderPlugin.ts   the gdrive loader, config, walk, export, manifest-diff sync
+├── DriveClient.ts                     the Drive REST client, list children and export a doc
+├── Manifest.ts                        the on-disk sync-state manifest, read and write
+└── index.ts                           re-exports the factory and its config type
 ```
 
-- **GoogleDriveLoader**: The `createGoogleDriveLoader` factory. It walks the folder, filters by title, exports each doc, extracts inline images, and diffs against the manifest on sync.
-- **driveClient**: The thin Drive REST wrapper, listing folder children and exporting a doc to a given mime type.
+- **GoogleDriveSourceLoaderPlugin**: The `createGoogleDriveLoader` factory. It walks the folder, filters by title, exports each doc, extracts inline images, and diffs against the manifest on sync.
+- **DriveClient**: The thin Drive REST wrapper, listing folder children and exporting a doc to a given mime type.
 - **Manifest**: The read and write of `.braid-gdrive-manifest.json`, the record sync diffs against.
 
 ## Export and Layout

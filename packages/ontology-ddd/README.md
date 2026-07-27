@@ -16,8 +16,8 @@ The package is flat. The ontology and its enums sit under `src/`, the prompts un
 
 ```
 src/
-├── DDDOntology.ts   the defineOntologyPlugin value: types, skills, batch binding
-├── types.ts         the DDDNodeType and DDDEdgeType enums
+├── DDDOntologyPlugin.ts   the defineOntologyPlugin value: types, skills, batch binding
+├── types.ts               the DDDNodeType and DDDEdgeType enums
 └── index.ts
 skills/
 ├── extract/    per-unit extraction prompt

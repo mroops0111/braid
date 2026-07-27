@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parse as parseYaml } from 'yaml'
-import { createGithubLoader } from '../src/GithubLoader.js'
+import { createGithubLoader } from '../src/GithubSourceLoaderPlugin.js'
 
 const ctx: SourceLoaderContext = {
   workspaceId: 'ws-test' as WorkspaceId,

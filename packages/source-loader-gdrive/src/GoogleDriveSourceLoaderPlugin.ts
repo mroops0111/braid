@@ -4,7 +4,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { defineSourceLoaderPlugin } from '@braidhq/sdk'
 import { z } from 'zod'
-import { DriveClient, type DriveFileMetadata, type FetchFn } from './driveClient.js'
+import { DriveClient, type DriveFileMetadata, type FetchFn } from './DriveClient.js'
 import { type Manifest, type ManifestEntry, readManifest, writeManifest } from './Manifest.js'
 
 const FOLDER_MIME = 'application/vnd.google-apps.folder'

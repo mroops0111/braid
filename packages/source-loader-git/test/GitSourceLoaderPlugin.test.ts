@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { simpleGit } from 'simple-git'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { gitLoader } from '../src/GitLoader.js'
+import { gitLoader } from '../src/GitSourceLoaderPlugin.js'
 
 const ctx: SourceLoaderContext = {
   workspaceId: 'ws-test' as WorkspaceId,

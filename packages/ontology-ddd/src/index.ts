@@ -1,2 +1,2 @@
-export * from './DDDOntology.js'
+export * from './DDDOntologyPlugin.js'
 export * from './types.js'

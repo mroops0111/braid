@@ -14,11 +14,11 @@ The github loader turns a repo's Issues into a directory of markdown files, one 
 
 ```
 src/
-├── GithubLoader.ts   the github loader, config, provision, sync, realized-intent filter, webhook
-└── index.ts          re-exports the factory and its config type
+├── GithubSourceLoaderPlugin.ts   the github loader, config, provision, sync, realized-intent filter, webhook
+└── index.ts                      re-exports the factory and its config type
 ```
 
-- **GithubLoader**: The `createGithubLoader` factory built through the sdk plugin builder. It holds the config schema, the REST issue and comment fetches, the GraphQL realized-intent check, the markdown renderer, the cursor read and write, and the webhook rules.
+- **GithubSourceLoaderPlugin**: The `createGithubLoader` factory built through the sdk plugin builder. It holds the config schema, the REST issue and comment fetches, the GraphQL realized-intent check, the markdown renderer, the cursor read and write, and the webhook rules.
 
 ## Realized-intent filter
 

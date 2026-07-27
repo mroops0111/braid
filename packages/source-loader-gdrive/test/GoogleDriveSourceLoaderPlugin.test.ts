@@ -5,7 +5,7 @@ import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createGoogleDriveLoader } from '../src/GoogleDriveLoader.js'
+import { createGoogleDriveLoader } from '../src/GoogleDriveSourceLoaderPlugin.js'
 
 const FOLDER_MIME = 'application/vnd.google-apps.folder'
 const DOC_MIME = 'application/vnd.google-apps.document'

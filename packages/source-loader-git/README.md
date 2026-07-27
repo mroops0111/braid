@@ -14,11 +14,11 @@ The git loader owns a source directory and keeps it equal to a remote branch. It
 
 ```
 src/
-├── GitLoader.ts    the gitLoader plugin, config schema, provision, sync, webhook
-└── index.ts        re-exports the plugin and its config type
+├── GitSourceLoaderPlugin.ts    the gitLoader plugin, config schema, provision, sync, webhook
+└── index.ts                    re-exports the plugin and its config type
 ```
 
-- **GitLoader**: The `gitLoader` plugin built through the sdk factory. It holds the zod config schema, the provision and sync passes over `simple-git`, the change-count diff, and the webhook `repoIdentity` and `shouldDispatch` rules.
+- **GitSourceLoaderPlugin**: The `gitLoader` plugin built through the sdk factory. It holds the zod config schema, the provision and sync passes over `simple-git`, the change-count diff, and the webhook `repoIdentity` and `shouldDispatch` rules.
 
 ## Provision and Sync
 

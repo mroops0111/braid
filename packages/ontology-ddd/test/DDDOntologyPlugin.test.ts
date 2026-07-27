@@ -1,7 +1,7 @@
 import type { BatchUnit } from '@braidhq/schema'
 import { BatchUnit as BatchUnitSchema } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
-import { dddOntology } from '../src/DDDOntology.js'
+import { dddOntology } from '../src/DDDOntologyPlugin.js'
 
 describe('dddOntology configuration', () => {
   it('declares the ddd ontology id and reuses it as the skill namespace', () => {

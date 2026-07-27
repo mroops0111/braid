@@ -2,7 +2,7 @@ import type { ModelSnapshot } from '@braidhq/schema'
 import { StructuralValidator } from '@braidhq/core'
 import { EdgeId, EdgeTypeId, NodeId, NodeStatus, NodeTypeId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
-import { dddOntology } from '../src/DDDOntology.js'
+import { dddOntology } from '../src/DDDOntologyPlugin.js'
 
 const draft = NodeStatus.parse('draft')
 

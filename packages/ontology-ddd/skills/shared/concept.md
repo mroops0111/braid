@@ -140,4 +140,4 @@ Worked contrast (same underlying ambiguity, two ways of writing it):
 
 This file is shipped by `@braidhq/ontology-ddd` via its `Plugin.referenceDirs[]`. The runner symlinks it into every spawned skill session under `<session>/.claude/skills/ontology-ddd/`. Any DDD-resident skill consults it; non-DDD ontologies would ship their own equivalent under their own plugin name.
 
-When the DDD ontology evolves (new types, new wiring rules, refined ID conventions), update this file and the corresponding `NodeTypeDescriptor.description` / `EdgeTypeDescriptor.description` in `DDDOntology.ts` together. The descriptors are the runtime contract; this doc is the prose explanation.
+When the DDD ontology evolves (new types, new wiring rules, refined ID conventions), update this file and the corresponding `NodeTypeDescriptor.description` / `EdgeTypeDescriptor.description` in `DDDOntologyPlugin.ts` together. The descriptors are the runtime contract; this doc is the prose explanation.
