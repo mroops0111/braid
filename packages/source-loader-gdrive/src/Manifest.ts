@@ -2,7 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 /** Filename written inside `destination` to track per-file sync state. */
-export const MANIFEST_FILENAME = '.braid-manifest.json'
+export const MANIFEST_FILENAME = '.braid-gdrive-manifest.json'
 
 export interface ManifestEntry {
   /** Posix relative dir under `destination`, the per-doc package. */

@@ -101,7 +101,7 @@ interface CandidateDoc {
  *       <image-label>.png       (one per inlined image)
  *     <sanitised-doc-title-2>/
  *       index.md
- *     .braid-manifest.json      (sync state)
+ *     .braid-gdrive-manifest.json      (sync state)
  *
  * Drive folder hierarchy is not preserved on disk.
  * Every matched doc is flattened into a sibling directory under `destination/`.

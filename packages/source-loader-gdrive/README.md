@@ -7,7 +7,7 @@ Braid keeps a product's intent and its code aligned in one knowledge graph, and 
 The drive loader walks a Drive folder, exports every Google Doc it finds as markdown, and keeps a manifest so later syncs touch only what changed.
 
 - **The Export**: Each doc is exported to `<destination>/<sanitised-title>/index.md`, and its inlined base64 images are decoded into sibling files, so the markdown stays readable for humans and models.
-- **The Manifest**: A `.braid-manifest.json` records each doc's id, title, and modified time, so sync can add, update, rename, or remove docs against the prior state instead of re-downloading everything.
+- **The Manifest**: A `.braid-gdrive-manifest.json` records each doc's id, title, and modified time, so sync can add, update, rename, or remove docs against the prior state instead of re-downloading everything.
 - **The Auth**: A fresh OAuth access token is resolved per workspace and source through an injected callback, so credentials stay in the composition root, never in config.
 
 ## Structure
@@ -22,7 +22,7 @@ src/
 
 - **GoogleDriveLoader**: The `createGoogleDriveLoader` factory. It walks the folder, filters by title, exports each doc, extracts inline images, and diffs against the manifest on sync.
 - **driveClient**: The thin Drive REST wrapper, listing folder children and exporting a doc to a given mime type.
-- **Manifest**: The read and write of `.braid-manifest.json`, the record sync diffs against.
+- **Manifest**: The read and write of `.braid-gdrive-manifest.json`, the record sync diffs against.
 
 ## Export and Layout
 

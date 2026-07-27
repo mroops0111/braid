@@ -341,20 +341,14 @@ interface TimelineQueryResponse {
   errors?: Array<{ message: string }>
 }
 
-async function fetchLinkedMergedPRs(
-  fetchFn: FetchFn,
-  config: GithubLoaderConfig,
-  headers: Record<string, string>,
-  issueNumber: number,
-): Promise<readonly MergedPRRef[]> {
-  // CROSS_REFERENCED_EVENT covers every PR that mentions the issue.
-  // Closing-keyword PRs ("Closes #N"), in-flight "WIP for #N" PRs,
-  // and follow-ups that just reference the issue all generate this event.
-  // That is broader than `closedByPullRequestsReferences`,
-  // which only returns PRs with a closing keyword.
-  // The realized-intent semantic is "any merged PR is associated with this closed issue",
-  // not "the PR that closed it".
-  const query = `query($owner: String!, $repo: String!, $number: Int!) {
+// CROSS_REFERENCED_EVENT covers every PR that mentions the issue.
+// Closing-keyword PRs ("Closes #N"), in-flight "WIP for #N" PRs,
+// and follow-ups that just reference the issue all generate this event.
+// That is broader than `closedByPullRequestsReferences`,
+// which only returns PRs with a closing keyword.
+// The realized-intent semantic is "any merged PR is associated with this closed issue",
+// not "the PR that closed it".
+const LINKED_MERGED_PRS_QUERY = `query($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) {
     issue(number: $number) {
       timelineItems(first: 100, itemTypes: [CROSS_REFERENCED_EVENT]) {
@@ -374,12 +368,19 @@ async function fetchLinkedMergedPRs(
     }
   }
 }`
+
+async function fetchLinkedMergedPRs(
+  fetchFn: FetchFn,
+  config: GithubLoaderConfig,
+  headers: Record<string, string>,
+  issueNumber: number,
+): Promise<readonly MergedPRRef[]> {
   const url = config.graphqlUrl ?? `${config.apiBaseUrl}/graphql`
   const response = await fetchFn(url, {
     method: 'POST',
     headers: { ...headers, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      query,
+      query: LINKED_MERGED_PRS_QUERY,
       variables: { owner: config.owner, repo: config.repo, number: issueNumber },
     }),
   })

@@ -53,7 +53,7 @@ function jsonResponse(body: unknown): Response {
 
 async function readdirNoManifest(path: string): Promise<string[]> {
   const entries = await readdir(path)
-  return entries.filter(name => name !== '.braid-manifest.json')
+  return entries.filter(name => name !== '.braid-gdrive-manifest.json')
 }
 
 interface PersistedManifest {
@@ -64,7 +64,7 @@ interface PersistedManifest {
 }
 
 async function readManifestFile(path: string): Promise<PersistedManifest> {
-  return JSON.parse(await readFile(join(path, '.braid-manifest.json'), 'utf-8')) as PersistedManifest
+  return JSON.parse(await readFile(join(path, '.braid-gdrive-manifest.json'), 'utf-8')) as PersistedManifest
 }
 
 /** Tiny 1x1 transparent PNG, base64-encoded. Mirrors what Drive embeds. */
