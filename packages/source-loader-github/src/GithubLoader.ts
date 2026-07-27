@@ -8,7 +8,7 @@ import { stringify as stringifyYaml } from 'yaml'
 import { z } from 'zod'
 
 /**
- * Inject `fetchFn` for tests; real callers use globalThis.fetch.
+ * Inject `fetchFn` for tests. Real callers use globalThis.fetch.
  */
 export type FetchFn = typeof globalThis.fetch
 
@@ -19,20 +19,21 @@ export const GithubLoaderConfig = z.object({
   labels: z.array(z.string().min(1)).optional(),
   includeComments: z.boolean().default(true),
   /**
-   * Deprecated. Originally controlled whether PR-shaped entries leaked
-   * into the issue list. Now hard-wired to `false`: the loader's
-   * "realized intent" semantics (see below) treat PRs themselves as
-   * the code-side artefact, not as intent. Setting this to `true` is
-   * silently ignored after a one-time warn so existing configs do not
-   * break — drop the field at your next config edit.
+   * Deprecated. Once controlled whether PR-shaped entries leaked into the issue list.
+   * Now hard-wired to `false`,
+   * since the loader's "realized intent" semantics (see below) treat PRs as the code-side artefact,
+   * not as intent.
+   * Setting this to `true` is silently ignored after a one-time warn,
+   * so existing configs do not break. Drop the field at your next config edit.
    */
   includePullRequests: z.boolean().default(false),
   /**
-   * Auth token. Supports `${VAR}` interpolation against the server's process
-   * env. Defaults to `${GH_TOKEN}`. An empty string after interpolation
-   * means anonymous (60 req/h rate limit, public repos only).
+   * Auth token. Supports `${VAR}` interpolation against the server's process env.
+   * Defaults to `${GH_TOKEN}`.
+   * An empty string after interpolation means anonymous,
+   * with a 60 req/h rate limit and public repos only.
    */
-  // eslint-disable-next-line no-template-curly-in-string -- literal `${VAR}` placeholder for env interpolation, NOT a template string
+  // eslint-disable-next-line no-template-curly-in-string -- literal `${VAR}` placeholder for env interpolation, not a template string
   token: z.string().default('${GH_TOKEN}'),
   /** REST base URL. Override for GitHub Enterprise. */
   apiBaseUrl: z.string().default('https://api.github.com'),
@@ -76,26 +77,25 @@ interface CursorFile {
 const CURSOR_FILENAME = '.braid-github-cursor.json'
 
 /**
- * Build a SourceLoader for a GitHub repository's Issues. The `destination`
- * is owned by the loader: each issue is written as
- * `<destination>/issues/<number>.md` with a deterministic YAML frontmatter
- * + body + `## Comments` section. Untouched issues stay byte-identical
- * across `sync` so downstream sha-based fingerprints don't churn.
+ * Build a SourceLoader for a GitHub repository's Issues.
+ * The `destination` is owned by the loader.
+ * Each issue is written as `<destination>/issues/<number>.md`,
+ * with a deterministic YAML frontmatter, body, and `## Comments` section.
+ * Untouched issues stay byte-identical across `sync`,
+ * so downstream sha-based fingerprints don't churn.
  *
- * **Realized-intent filter (always on)**: an issue is written to disk
- * only when its state is `closed` AND at least one merged pull request
- * is cross-referenced from it (via `CROSS_REFERENCED_EVENT` timeline
- * items, which covers PRs that link the issue with or without closing
- * keywords). This implements Braid's stated "intent + code convergence"
- * contract — pure speculative intent (open issues, abandoned issues,
- * docs-only closes) does not pollute the ledger, and the same workspace
- * re-provision is idempotent. The check uses GitHub's GraphQL API; setups
- * behind an enterprise proxy that only exposes REST can override
- * `graphqlUrl`.
+ * **Realized-intent filter (always on)**: an issue is written to disk only when its state is `closed`,
+ * and at least one merged pull request is cross-referenced from it via `CROSS_REFERENCED_EVENT` timeline items,
+ * which cover PRs that link the issue with or without closing keywords.
+ * This implements Braid's stated "intent + code convergence" contract.
+ * Pure speculative intent (open issues, abandoned issues, docs-only closes) does not pollute the ledger,
+ * and the same workspace re-provision is idempotent.
+ * The check uses GitHub's GraphQL API.
+ * Setups behind an enterprise proxy that only exposes REST can override `graphqlUrl`.
  *
- * Auth: pass the token via `${GH_TOKEN}` (or any other env var) in
- * `config.token`. Tokens are never persisted on disk; only the rendered
- * markdown lands in `destination`.
+ * Auth: pass the token via `${GH_TOKEN}` (or any other env var) in `config.token`.
+ * Tokens are never persisted on disk.
+ * Only the rendered markdown lands in `destination`.
  */
 export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlugin {
   const fetchFn: FetchFn = deps.fetchFn ?? globalThis.fetch
@@ -110,8 +110,9 @@ export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlu
       const headers = buildHeaders(config)
       const rawIssues = await fetchIssues(fetchFn, config, headers, undefined)
       const issues = await filterAndAnnotateRealizedIntent(fetchFn, config, headers, rawIssues)
-      // Cursor advances over every raw issue we examined, not just
-      // survivors of the realized-intent filter — see same comment in `sync`.
+      // Cursor advances over every raw issue we examined,
+      // not just survivors of the realized-intent filter.
+      // See the same comment in `sync`.
       let mostRecent = ''
       for (const raw of rawIssues) {
         if (raw.updated_at > mostRecent)
@@ -150,10 +151,10 @@ export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlu
       let added = 0
       let updated = 0
       // Advance the cursor across every raw issue we examined this sync,
-      // not just survivors. Otherwise an issue that's filtered out (no
-      // merged PR yet) keeps appearing in every subsequent `since=` query
-      // and re-burns one GraphQL probe per sync until it eventually
-      // merges, which on a chatty repo can starve the rate budget.
+      // not just survivors.
+      // Otherwise an issue that is filtered out (no merged PR yet) keeps appearing in every subsequent `since=` query,
+      // and re-burns one GraphQL probe per sync until it eventually merges,
+      // which on a chatty repo can starve the rate budget.
       let mostRecent = cursor?.since ?? ''
       for (const raw of rawIssues) {
         if (raw.updated_at > mostRecent)
@@ -169,13 +170,12 @@ export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlu
         else if (result === 'updated')
           updated++
       }
-      // Reactive orphan delete: any issue that came back via `since=` but
-      // failed the realized-intent filter (re-opened, PR unmerged, label
-      // removed, etc.) gets its on-disk file removed. This keeps the
-      // intent dir aligned with the current filter without a separate
-      // full-scan path. Issues that haven't been touched since the last
-      // cursor don't show up in `rawIssues` — those need a manual / full
-      // reconcile, not in scope for incremental sync.
+      // Reactive orphan delete: any issue that came back via `since=`,
+      // but failed the realized-intent filter (re-opened, PR unmerged, label removed, and so on),
+      // gets its on-disk file removed.
+      // This keeps the intent dir aligned with the current filter without a separate full-scan path.
+      // Issues that have not been touched since the last cursor do not show up in `rawIssues`.
+      // Those need a manual full reconcile, not in scope for incremental sync.
       const survivors = new Set(issues.map(i => i.issue.number))
       let removed = 0
       for (const raw of rawIssues) {
@@ -205,10 +205,10 @@ export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlu
     },
     webhook: {
       repoIdentity: config => ({ provider: 'github', owner: config.owner, repo: config.repo }),
-      // This loader pulls issues + (optionally) comments. Push and other
-      // code-side events do not change what we'd re-fetch; accept but
-      // skip so the receiver returns 202 (preserving GitHub's retry
-      // posture) without spending an API call.
+      // This loader pulls issues and (optionally) comments.
+      // Push and other code-side events do not change what we would re-fetch,
+      // so accept but skip them.
+      // The receiver returns 202 (preserving GitHub's retry posture) without spending an API call.
       shouldDispatch: (_config, delivery) =>
         delivery.event === 'issues'
         || delivery.event === 'issue_comment'
@@ -254,9 +254,9 @@ async function fetchIssues(
     }
     const page = (await response.json()) as RawIssue[]
     for (const issue of page) {
-      // PR-shaped entries are the code-side artefact (their merged
-      // state is what gates issue inclusion in the realized-intent
-      // filter); they never become intent units themselves.
+      // PR-shaped entries are the code-side artefact.
+      // Their merged state is what gates issue inclusion in the realized-intent filter.
+      // They never become intent units themselves.
       if (issue.pull_request !== undefined)
         continue
       out.push(issue)
@@ -267,10 +267,10 @@ async function fetchIssues(
 }
 
 /**
- * Per-issue snapshot of merged PRs that closed it. Empty list means the
- * issue is filtered out by the realized-intent gate; a non-empty list
- * means the issue both passes the gate AND carries provenance bundles
- * the markdown frontmatter ships to readers.
+ * Per-issue snapshot of merged PRs that closed it.
+ * An empty list means the issue is filtered out by the realized-intent gate.
+ * A non-empty list means the issue passes the gate,
+ * and carries provenance bundles the markdown frontmatter ships to readers.
  */
 interface MergedPRRef {
   readonly number: number
@@ -283,17 +283,16 @@ interface RealizedIntentIssue {
 }
 
 /**
- * Apply the "realized intent" filter: keep only issues that have at
- * least one merged PR in their `closedByPullRequestsReferences`
- * association, and annotate each surviving issue with the merged-PR
- * refs so the markdown frontmatter can carry the provenance.
+ * Apply the "realized intent" filter.
+ * Keep only issues that have at least one merged PR in their `closedByPullRequestsReferences` association,
+ * and annotate each surviving issue with the merged-PR refs,
+ * so the markdown frontmatter can carry the provenance.
  *
- * Implementation note: GitHub REST does not expose closed-by-PR
- * directly (only `commit_id` on closed events, which is set for
- * PR merges but also for plain `git commit --close ...` references).
+ * Implementation note: GitHub REST does not expose closed-by-PR directly.
+ * It gives only `commit_id` on closed events, which is set for PR merges but also for plain commit-close references.
  * GraphQL's `closedByPullRequestsReferences` is the canonical source.
- * One round-trip per issue keeps the code simple; batching with
- * aliased subqueries is a future optimisation if rate limits bite.
+ * One round-trip per issue keeps the code simple.
+ * Batching with aliased subqueries is a future optimisation if rate limits bite.
  */
 async function filterAndAnnotateRealizedIntent(
   fetchFn: FetchFn,
@@ -303,13 +302,14 @@ async function filterAndAnnotateRealizedIntent(
 ): Promise<readonly RealizedIntentIssue[]> {
   const out: RealizedIntentIssue[] = []
   for (const issue of issues) {
-    // PRs (which REST returns alongside issues) are the code-side
-    // artefact, not the intent. Always skip them irrespective of the
-    // deprecated `includePullRequests` knob.
+    // PRs (which REST returns alongside issues) are the code-side artefact,
+    // not the intent.
+    // Always skip them irrespective of the deprecated `includePullRequests` knob.
     if (issue.pull_request !== undefined)
       continue
-    // Only closed issues count. Open issues — even ones with a merged
-    // PR already linked — are still in flight and may need more work.
+    // Only closed issues count.
+    // Open issues, even ones with a merged PR already linked,
+    // are still in flight and may need more work.
     if (issue.state !== 'closed')
       continue
     const mergedPRs = await fetchLinkedMergedPRs(fetchFn, config, headers, issue.number)
@@ -347,13 +347,13 @@ async function fetchLinkedMergedPRs(
   headers: Record<string, string>,
   issueNumber: number,
 ): Promise<readonly MergedPRRef[]> {
-  // CROSS_REFERENCED_EVENT covers every PR that mentions the issue —
-  // closing-keyword PRs ("Closes #N"), in-flight "WIP for #N" PRs,
-  // and follow-ups that just reference the issue all generate this
-  // event. That's broader than `closedByPullRequestsReferences`,
-  // which only returns PRs with a closing keyword. The realized-
-  // intent semantic is "any merged PR is associated with this
-  // closed issue", not "the PR that closed it".
+  // CROSS_REFERENCED_EVENT covers every PR that mentions the issue.
+  // Closing-keyword PRs ("Closes #N"), in-flight "WIP for #N" PRs,
+  // and follow-ups that just reference the issue all generate this event.
+  // That is broader than `closedByPullRequestsReferences`,
+  // which only returns PRs with a closing keyword.
+  // The realized-intent semantic is "any merged PR is associated with this closed issue",
+  // not "the PR that closed it".
   const query = `query($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) {
     issue(number: $number) {
@@ -387,11 +387,11 @@ async function fetchLinkedMergedPRs(
     const body = await response.text().catch(() => '')
     if (response.status === 401) {
       throw new Error(
-        // GitHub's GraphQL endpoint rejects anonymous requests — the
-        // realized-intent filter needs `GH_TOKEN` (or any other env var
-        // referenced via ${VAR} in config.token). The REST issue list
-        // works anonymously, so this only bites when the loader reaches
-        // the linked-PR check; surface it actionably.
+        // GitHub's GraphQL endpoint rejects anonymous requests.
+        // The realized-intent filter needs `GH_TOKEN` (or any other env var referenced via `${VAR}` in config.token).
+        // The REST issue list works anonymously,
+        // so this only bites when the loader reaches the linked-PR check.
+        // Surface it actionably.
         `githubLoader: realized-intent filter requires an authenticated token (set GH_TOKEN or override config.token). GitHub GraphQL returned 401 for issue ${issueNumber}.`,
       )
     }
@@ -472,9 +472,9 @@ function renderIssueMarkdown(
     createdAt: issue.created_at,
     updatedAt: issue.updated_at,
     url: issue.html_url,
-    // The merged PRs linked to this closed issue. Drives the realized-
-    // intent semantics: an issue only lands here when state is `closed`
-    // and at least one linked merged PR exists.
+    // The merged PRs linked to this closed issue.
+    // Drives the realized-intent semantics,
+    // an issue only lands here when state is `closed` and at least one linked merged PR exists.
     linkedMergedPRs: mergedPRs.map(p => ({ number: p.number, mergeCommit: p.mergeCommit })),
   }
   const yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd()

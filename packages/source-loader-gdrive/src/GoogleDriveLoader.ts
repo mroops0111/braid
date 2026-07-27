@@ -11,32 +11,34 @@ const FOLDER_MIME = 'application/vnd.google-apps.folder'
 const DOC_MIME = 'application/vnd.google-apps.document'
 
 /**
- * Drive auto-creates duplicates named "Copy of …" (English) or "…的副本"
- * (Chinese) when users use the Make a Copy menu. They almost always carry
- * stale content that would conflict with the canonical doc, so we skip
- * them silently. Same rule as redoc.
+ * Drive auto-creates duplicates named "Copy of" (English) or ending in "的副本" (Chinese),
+ * when users use the Make a Copy menu.
+ * They almost always carry stale content that would conflict with the canonical doc,
+ * so we skip them silently. Same rule as redoc.
  */
 const COPY_PATTERNS = [/^Copy of /, /的副本$/]
 
 /**
- * Drive's `text/markdown` export inlines images as base64 data URIs in
- * reference-style link form:
+ * Drive's `text/markdown` export inlines images as base64 data URIs,
+ * in reference-style link form:
  *
- *   [image0]: <data:image/png;base64,iVBORw0KG…>
+ *   [image0]: <data:image/png;base64,iVBORw0KG...>
  *
- * Leaving those base64 blobs in the markdown bloats the file by ~33 % per
- * image and is unreadable for both humans and LLMs. This regex matches one
- * such reference line so we can extract the image to its own file and
- * rewrite the link to a relative path. Same approach as redoc.
+ * Leaving those base64 blobs in the markdown bloats the file by ~33 % per image,
+ * and is unreadable for both humans and LLMs.
+ * This regex matches one such reference line,
+ * so we can extract the image to its own file and rewrite the link to a relative path.
+ * Same approach as redoc.
  */
 const INLINE_IMAGE_RE = /^\[([^\]]+)\]:\s*<data:image\/([\w+]+);base64,([^>]+)>$/gm
 
 export const GoogleDriveLoaderConfig = z.object({
   /**
-   * Drive folder id (the long alphanumeric in the URL). Reject the alias
-   * `root` outright: it expands to the user's entire My Drive and would
-   * mirror every file they own, which is almost never what someone wants
-   * from an "intent docs" source and easily costs gigabytes + minutes.
+   * Drive folder id (the long alphanumeric in the URL).
+   * Reject the alias `root` outright,
+   * since it expands to the user's entire My Drive and would mirror every file they own,
+   * which is almost never what someone wants from an "intent docs" source,
+   * and easily costs gigabytes and minutes.
    * Make people pick a specific subfolder.
    */
   folderId: z.string()
@@ -45,20 +47,22 @@ export const GoogleDriveLoaderConfig = z.object({
       message: 'folderId "root" refers to the entire My Drive and is rejected. Create a dedicated subfolder and use its id instead.',
     }),
   /**
-   * Whether to traverse subfolders. Default true. Subfolder hierarchy
-   * is NOT preserved on disk; every matching doc lives in its own dir
-   * directly under `destination/`. Disable to limit to immediate
-   * children of `folderId`.
+   * Whether to traverse subfolders. Default true.
+   * Subfolder hierarchy is not preserved on disk.
+   * Every matching doc lives in its own dir directly under `destination/`.
+   * Disable to limit to immediate children of `folderId`.
    */
   recursive: z.boolean().default(true),
   /**
-   * Optional regex (string). When set, only docs whose *Drive title*
-   * matches this pattern are downloaded. Subfolders are still traversed.
+   * Optional regex (string).
+   * When set, only docs whose *Drive title* matches this pattern are downloaded.
+   * Subfolders are still traversed.
    */
   include: z.string().optional(),
   /**
-   * Optional regex (string). When set, docs whose title matches are
-   * skipped. Evaluated after `include`, so exclude takes priority.
+   * Optional regex (string).
+   * When set, docs whose title matches are skipped.
+   * Evaluated after `include`, so exclude takes priority.
    */
   exclude: z.string().optional(),
 })
@@ -67,8 +71,8 @@ export type GoogleDriveLoaderConfig = z.infer<typeof GoogleDriveLoaderConfig>
 export interface GoogleDriveLoaderDeps {
   /**
    * Resolve a fresh access token for a given `(workspaceId, sourceId)`.
-   * The composition root implements this against its OAuth refresh-token
-   * store; tests can return a static token regardless of context.
+   * The composition root implements this against its OAuth refresh-token store.
+   * Tests can return a static token regardless of context.
    */
   resolveAccessToken: (context: SourceLoaderContext) => Promise<string>
   /** Inject for tests. Real callers use globalThis.fetch. */
@@ -99,15 +103,14 @@ interface CandidateDoc {
  *       index.md
  *     .braid-manifest.json      (sync state)
  *
- * Drive folder hierarchy is NOT preserved on disk; every matched doc
- * is flattened into a sibling directory under `destination/`. Two docs
- * with the same sanitised title will collide; rename one in Drive to
- * disambiguate.
+ * Drive folder hierarchy is not preserved on disk.
+ * Every matched doc is flattened into a sibling directory under `destination/`.
+ * Two docs with the same sanitised title will collide,
+ * so rename one in Drive to disambiguate.
  *
- * Out of scope (intentional): Google Sheets, Slides, Drawings, Forms,
- * and standalone binaries. Mirrors redoc's PRD-focused workflow. If you
- * need spreadsheets / slide decks, provision them through a different
- * source-loader plugin.
+ * Out of scope (intentional): Google Sheets, Slides, Drawings, Forms, and standalone binaries.
+ * Mirrors redoc's PRD-focused workflow.
+ * When you need spreadsheets or slide decks, provision them through a different source-loader plugin.
  */
 export function createGoogleDriveLoader(deps: GoogleDriveLoaderDeps): SourceLoaderPlugin {
   return defineSourceLoaderPlugin({
@@ -138,8 +141,8 @@ export function createGoogleDriveLoader(deps: GoogleDriveLoaderDeps): SourceLoad
     sync: async (config, destination, context) => {
       const cached = await readManifest(destination)
       if (!cached) {
-        // No manifest yet (first sync after upgrade / cache wiped). Fall
-        // back to a clean provision so we end up in a known-good state.
+        // No manifest yet (first sync after upgrade or cache wiped).
+        // Fall back to a clean provision so we end up in a known-good state.
         const client = await buildClient(deps, context)
         await rm(destination, { recursive: true, force: true })
         await mkdir(destination, { recursive: true })
@@ -187,8 +190,8 @@ export function createGoogleDriveLoader(deps: GoogleDriveLoaderDeps): SourceLoad
           added++
         }
         else if (prior.localDir !== doc.localDir || prior.modifiedTime !== doc.modifiedTime) {
-          // Either content updated or the doc was renamed in Drive. Both
-          // cases: re-download to the new dir, then rm the old dir.
+          // Either content updated or the doc was renamed in Drive.
+          // Both cases re-download to the new dir, then rm the old dir.
           if (prior.localDir !== doc.localDir)
             await rm(join(destination, prior.localDir), { recursive: true, force: true })
           await downloadOne(client, doc, destination)
@@ -255,9 +258,10 @@ async function walk(
       const localDir = sanitiseName(child.name)
       const collides = seenDirs.get(localDir)
       if (collides && collides !== child.id) {
-        // Two distinct Drive docs sanitise to the same dir name. Keep
-        // the first one we walked into; skipping the second is safer
-        // than silently overwriting. User can rename in Drive.
+        // Two distinct Drive docs sanitise to the same dir name.
+        // Keep the first one we walked into.
+        // Skipping the second is safer than silently overwriting.
+        // User can rename in Drive.
         continue
       }
       seenDirs.set(localDir, child.id)
@@ -289,10 +293,10 @@ async function downloadOne(
 }
 
 /**
- * Pull every `[label]: <data:image/ext;base64,...>` reference out of the
- * markdown, write the decoded bytes as `<label>.<ext>` in `docDir`, and
- * rewrite the reference to point at the new local file. Returns the
- * cleaned markdown. Matches redoc's behaviour.
+ * Pull every `[label]: <data:image/ext;base64,...>` reference out of the markdown,
+ * write the decoded bytes as `<label>.<ext>` in `docDir`,
+ * and rewrite the reference to point at the new local file.
+ * Returns the cleaned markdown. Matches redoc's behaviour.
  */
 async function extractInlineImages(markdown: string, docDir: string): Promise<string> {
   const writes: Promise<void>[] = []
@@ -325,9 +329,9 @@ function entryOf(doc: CandidateDoc): ManifestEntry {
 }
 
 function sanitiseName(name: string): string {
-  // Replace path separators, control chars, and common shell-hostile
-  // characters with `_`. Spaces stay so human-readable titles survive
-  // ("Roadmap Q3 2026" → "Roadmap Q3 2026").
+  // Replace path separators, control chars, and common shell-hostile characters with `_`.
+  // Spaces stay so human-readable titles survive,
+  // for example "Roadmap Q3 2026" stays "Roadmap Q3 2026".
   return name.replace(/[/\\:*?"<>|]/g, '_')
 }
 

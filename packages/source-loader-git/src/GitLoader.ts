@@ -18,16 +18,17 @@ export const GitLoaderConfig = z.object({
 export type GitLoaderConfig = z.infer<typeof GitLoaderConfig>
 
 /**
- * Source loader for git remotes. The `destination` is treated as the full
- * git working tree: an initial `provision` does a shallow clone there; `sync`
- * does fetch + reset --hard so the user's local edits don't drift the
- * source content silently. If that's not the behaviour you want, pick the
- * `manual` loader and manage the directory yourself.
+ * Source loader for git remotes.
+ * The `destination` is the full git working tree,
+ * so an initial `provision` shallow-clones there and `sync` does fetch plus reset --hard,
+ * so the user's local edits never drift the source content silently.
+ * When that is not the behaviour you want,
+ * pick the `manual` loader and manage the directory yourself.
  *
  * Auth: the loader does not handle credential helpers or SSH agent set-up.
- * Use a token in the URL (`https://x-access-token:${GH_TOKEN}@...`) with
- * `${VAR}` interpolation against the server's process env. Tokens never
- * land in PRODUCT.md.
+ * Use a token in the URL (`https://x-access-token:${GH_TOKEN}@...`),
+ * with `${VAR}` interpolation against the server's process env.
+ * Tokens never land in PRODUCT.md.
  */
 export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
   kind: 'git',
@@ -67,28 +68,30 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
     }
   },
   webhook: {
-    // owner/repo live in the literal host/path segment, not in the
-    // credential portion of the URL. We deliberately do NOT interpolate
-    // ${VAR} placeholders here: that would couple webhook identity to
-    // credential rotation (a missing env var would throw 500 on every
-    // anonymous probe and leak the env var name) for zero benefit.
+    // owner/repo live in the literal host and path segment,
+    // not in the credential portion of the URL.
+    // We deliberately do not interpolate `${VAR}` placeholders here,
+    // since that would couple webhook identity to credential rotation.
+    // A missing env var would throw 500 on every anonymous probe,
+    // and leak the env var name, for zero benefit.
     repoIdentity: (config) => {
       const parsed = parseGithubUrl(config.url)
       return parsed ? { provider: 'github', owner: parsed.owner, repo: parsed.repo } : undefined
     },
-    // We track a single ref. `push` events on other refs are guaranteed
-    // no-ops for `git fetch && reset --hard origin/<branch>`; skip them
-    // so we don't waste a network round-trip. `ping` always dispatches
+    // We track a single ref.
+    // `push` events on other refs are guaranteed no-ops for `git fetch && reset --hard origin/<branch>`,
+    // so skip them to avoid wasting a network round-trip.
+    // `ping` always dispatches,
     // so the user sees `lastObservedSha` populate on first wire-up.
-    // Other event types (issues, deploy, …) are unrelated to the code
-    // mirror and are skipped.
+    // Other event types (issues, deploy, and so on) are unrelated to the code mirror and are skipped.
     //
-    // Default-branch heuristic: when `config.branch` is unset we accept
-    // pushes to both `main` (the GitHub default since 2020) and
-    // `master` (the historical default). The git loader's sync follows
-    // remote HEAD; we cannot read HEAD from a push payload, so we
-    // dispatch on either common default and let `git fetch` no-op
-    // when the pushed ref happens not to be HEAD.
+    // Default-branch heuristic: when `config.branch` is unset,
+    // we accept pushes to both `main` (the GitHub default since 2020),
+    // and `master` (the historical default).
+    // The git loader's sync follows remote HEAD.
+    // We cannot read HEAD from a push payload,
+    // so we dispatch on either common default,
+    // and let `git fetch` no-op when the pushed ref is not HEAD.
     shouldDispatch: (config, delivery) => {
       if (delivery.event === 'ping')
         return true
@@ -107,9 +110,9 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
 })
 
 /**
- * Pull `owner/repo` out of a GitHub clone URL. Returns undefined for
- * non-github hosts so the receiver rejects the delivery instead of
- * pretending it matches.
+ * Pull `owner/repo` out of a GitHub clone URL.
+ * Returns undefined for non-github hosts,
+ * so the receiver rejects the delivery instead of pretending it matches.
  *
  * Accepts the URL shapes git itself accepts:
  *   - `https://github.com/owner/repo`
@@ -120,13 +123,13 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
  *   - `git+https://github.com/owner/repo` (npm-style)
  *   - `git@github.com:owner/repo[.git]` (ssh)
  *
- * Host comparison is case-insensitive (`GitHub.com` etc.) and query /
- * fragment portions on the URL are tolerated (we ignore them — they
- * never affect the repo identity).
+ * Host comparison is case-insensitive (`GitHub.com` and similar).
+ * Query and fragment portions on the URL are tolerated,
+ * since we ignore them and they never affect the repo identity.
  */
 function parseGithubUrl(url: string): { owner: string, repo: string } | undefined {
-  // Strip an optional `git+` prefix, trim, drop query / fragment, and
-  // normalise a trailing slash + .git suffix.
+  // Strip an optional `git+` prefix, trim, drop query or fragment,
+  // and normalise a trailing slash plus .git suffix.
   let trimmed = url.trim().replace(/^git\+/, '')
   const queryAt = trimmed.search(/[?#]/)
   if (queryAt >= 0)
@@ -142,10 +145,11 @@ function parseGithubUrl(url: string): { owner: string, repo: string } | undefine
 }
 
 /**
- * Parse `git diff --name-status <before>..<after>` into add / update /
- * remove counts. Status letters: A=added, M=modified, D=deleted,
- * R=renamed (treated as 1 update), C=copied (treated as 1 add). Anything
- * else we conservatively classify as updated.
+ * Parse `git diff --name-status <before>..<after>` into add, update,
+ * and remove counts.
+ * Status letters: A=added, M=modified, D=deleted,
+ * R=renamed (treated as 1 update), C=copied (treated as 1 add).
+ * Anything else we conservatively classify as updated.
  */
 async function countChangedFiles(
   git: ReturnType<typeof simpleGit>,
