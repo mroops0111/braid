@@ -54,9 +54,10 @@ export function edgeToParams(edge: GraphEdge): EdgeRow {
   }
 }
 
-// updateEdge intentionally does not touch endpoints (changing fromId /
-// toId means a different edge). The prepared statement only binds id /
-// type / metadata, and Kùzu rejects extra params at execute time.
+// updateEdge intentionally does not touch endpoints,
+// since changing fromId or toId means a different edge.
+// The prepared statement binds only id, type, and metadata,
+// and Kùzu rejects extra params at execute time.
 export function edgeToUpdateParams(edge: GraphEdge): Pick<EdgeRow, 'id' | 'type' | 'metadata'> {
   return {
     id: edge.id,

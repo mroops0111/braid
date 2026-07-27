@@ -10,16 +10,16 @@ const KUZU_KIND = 'kuzu' as StorageKind
 const KuzuStorageConfig = z.object({}).passthrough()
 
 /**
- * StoragePlugin for the embedded Kuzu adapter. The composition root
- * registers this against `PluginRegistry`; `composeFsApp` then looks up
- * the active storage by `kind` rather than `import`-ing the concrete
- * repository class. Other storage backends (Neo4j, Memgraph, ...)
- * register the same way under their own `kind`.
+ * StoragePlugin for the embedded Kuzu adapter.
+ * The composition root registers this against `PluginRegistry`,
+ * then `composeFsApp` looks up the active storage by `kind`,
+ * rather than importing the concrete repository class.
+ * Other storage backends such as Neo4j or Memgraph register the same way,
+ * under their own `kind`.
  *
- * The per-workspace path scheme `<workspace>/.braid/model.kuzu` is
- * Kuzu-specific (a directory of native files, not a hostname). Other
- * storage plugins compute their own location from the descriptor's
- * `config`.
+ * The per-workspace path scheme `<workspace>/.braid/model.kuzu`,
+ * is Kuzu-specific, a directory of native files rather than a hostname.
+ * Other storage plugins compute their own location from the descriptor's `config`.
  */
 export const kuzuStoragePlugin: StoragePlugin = defineStoragePlugin({
   kind: KUZU_KIND,

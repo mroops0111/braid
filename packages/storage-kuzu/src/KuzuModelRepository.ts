@@ -21,7 +21,8 @@ import { DDL_CREATE_EDGE_TABLE, DDL_CREATE_NODE_TABLE } from './schema.js'
 export interface KuzuModelRepositoryOptions {
   /**
    * Resolve the absolute Kuzu DB file path for a workspace id.
-   * Composition roots typically look this up via the `WorkspaceRepository`. The parent directory is created on demand.
+   * Composition roots typically look this up via the `WorkspaceRepository`.
+   * The parent directory is created on demand.
    * Called once per workspace per process and cached.
    */
   readonly resolveDbPath: (workspaceId: WorkspaceId) => Promise<string> | string
@@ -43,14 +44,16 @@ interface PreparedStatementCache {
 }
 
 /**
- * Embedded graph storage for Braid. Each workspace gets its own Kuzu DB directory.
- * The schema is shared (one generic `Node` / `Edge` table,
- * since Braid ontology is dynamic and lives in the `type` property).
+ * Embedded graph storage for Braid.
+ * Each workspace gets its own Kuzu DB directory.
+ * The schema is shared, one generic `Node` and `Edge` table,
+ * since the Braid ontology is dynamic and lives in the `type` property.
  *
- * Writes use diff-against-snapshot semantics. Load, preview ops via the domain `Model` (which validates and mints ids),
+ * Writes use diff-against-snapshot semantics.
+ * Load, preview the ops via the domain `Model` which validates and mints ids,
  * then translate the diff into Cypher mutations.
  * That keeps domain invariants in one place,
- * and lets us stay non-transactional at the Kuzu layer until we actually need it.
+ * and lets us stay non-transactional at the Kuzu layer until we need it.
  */
 export class KuzuModelRepository implements ModelRepository {
   private readonly cache = new Map<WorkspaceId, CachedConnection>()
@@ -67,8 +70,9 @@ export class KuzuModelRepository implements ModelRepository {
     const previous = await readSnapshot(cached.conn)
     const next = Model.preview(previous, operations)
     await writeDiff(cached, previous, next)
-    // Kuzu auto-checkpoint is lazy, force it so the WAL is merged into model.kuzu before we return. A dirty shutdown,
-    // a SIGKILL or tsx-watch reload, otherwise drops an unmerged WAL on the floor.
+    // Kuzu auto-checkpoint is lazy, so force it before we return,
+    // to merge the WAL into model.kuzu. Otherwise a dirty shutdown,
+    // a SIGKILL, or a tsx-watch reload drops an unmerged WAL on the floor.
     await cached.conn.query('CHECKPOINT;')
   }
 
