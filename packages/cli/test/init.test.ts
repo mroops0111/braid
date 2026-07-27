@@ -9,7 +9,7 @@ describe('initCommand', () => {
 
   beforeEach(async () => {
     workDir = await mkdtemp(join(tmpdir(), 'braid-cli-init-'))
-    // initCommand writes stdout; silence it so test output stays clean.
+    // initCommand writes stdout, silence it so test output stays clean.
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
   })
 
