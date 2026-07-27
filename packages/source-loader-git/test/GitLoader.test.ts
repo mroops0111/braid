@@ -69,7 +69,7 @@ describe('GitLoader', () => {
 
     const first = await loader.sync!({ url: remoteUrl, branch: 'main' }, dest, ctx)
     expect(first.changed).toBe(true)
-    // README modified, no adds/removes → updated=1, added=0, removed=0.
+    // README modified, no adds or removes, so updated=1, added=0, removed=0.
     expect(first).toMatchObject({ added: 0, updated: 1, removed: 0 })
     const readme = await readFile(join(dest, 'README.md'), 'utf-8')
     expect(readme).toBe('# v2\n')

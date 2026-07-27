@@ -93,7 +93,7 @@ describe('GoogleDriveLoader', () => {
     expect(report.localPath).toBe(dest)
     expect((report.metadata as { fileCount?: number }).fileCount).toBe(2)
 
-    // Both docs live as siblings under destination; no `subdir/` mirror.
+    // Both docs live as siblings under destination, no `subdir/` mirror.
     const top = (await readdirNoManifest(dest)).sort()
     expect(top).toEqual(['Notes', 'Roadmap'])
 
@@ -137,7 +137,7 @@ describe('GoogleDriveLoader', () => {
     expect(await readdirNoManifest(dest)).toEqual(['Keep'])
   })
 
-  it('silently skips "Copy of …" and "…的副本" duplicates', async () => {
+  it('silently skips "Copy of" and "的副本" duplicate docs', async () => {
     const fetchFn = buildMockFetch([
       { id: 'doc-1', name: 'Original', mimeType: DOC_MIME, modifiedTime: 't', parents: ['demo'], markdown: 'o' },
       { id: 'doc-2', name: 'Copy of Original', mimeType: DOC_MIME, modifiedTime: 't', parents: ['demo'], markdown: 'c' },

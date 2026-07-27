@@ -214,9 +214,9 @@ describe('GithubLoader', () => {
     }
     const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
     await loader.provision({ owner: 'o', repo: 'r', includePullRequests: true }, dest, ctx)
-    // PR (#2) is filtered out regardless of the deprecated flag; only #1
-    // survives, and it passes the realized-intent gate via the mock's
-    // default "one merged PR per issue" stub.
+    // PR (#2) is filtered out regardless of the deprecated flag.
+    // Only #1 survives, and it passes the realized-intent gate,
+    // via the mock's default "one merged PR per issue" stub.
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md'])
   })
 
@@ -239,8 +239,8 @@ describe('GithubLoader', () => {
   })
 
   it('excludes open issues even when they already have a linked merged PR', async () => {
-    // A merged PR mentioning an open issue does not yet represent
-    // realized intent — more work may still be needed. Wait for close.
+    // A merged PR mentioning an open issue is not yet realized intent,
+    // more work may still be needed, so wait for the issue to close.
     const router: MockRouter = {
       issues: [
         { number: 5, title: 'open-with-partial-pr', state: 'open', created_at: 't', updated_at: 't' },
@@ -262,7 +262,7 @@ describe('GithubLoader', () => {
       linkedPRs: {
         7: [
           { number: 70, merged: true, mergeCommit: 'sha-70' },
-          { number: 71, merged: false }, // not merged; should be excluded
+          { number: 71, merged: false }, // not merged, so it is excluded
           { number: 72, merged: true, mergeCommit: 'sha-72' },
         ],
       },
@@ -348,7 +348,7 @@ describe('GithubLoader', () => {
     const beforeStat1 = await stat(join(dest, 'issues', '1.md'))
     const beforeContent1 = await readFile(join(dest, 'issues', '1.md'), 'utf-8')
 
-    // Bump issue 2 only; issue 1 stays as-is.
+    // Bump issue 2 only, issue 1 stays as-is.
     const router2: MockRouter = {
       issues: [
         { number: 1, title: 'One', body: 'one', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-02-01T00:00:00Z' },
@@ -387,9 +387,9 @@ describe('GithubLoader', () => {
     await loader1.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md', '2.md'])
 
-    // Issue #2 gets re-opened. `since=` returns it because updated_at
-    // moved; the filter drops it (state !== closed); the loader must
-    // delete the orphan file.
+    // Issue #2 gets re-opened, so `since=` returns it,
+    // the filter drops it because its state is not closed,
+    // and the loader must delete the orphan file.
     const after: MockRouter = {
       issues: [
         { number: 2, title: 'will-be-reopened', state: 'open', created_at: 't', updated_at: '2026-02-01T00:00:00Z' },
@@ -421,6 +421,50 @@ describe('GithubLoader', () => {
     const loader2 = createGithubLoader({ fetchFn: buildMockFetch({ issues: [] }, recorder2) })
     await loader2.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect(recorder2.lastHeaders?.get('Authorization')).toBeNull()
+  })
+
+  it('sync without a prior cursor fetches every issue', async () => {
+    const router: MockRouter = {
+      issues: [{ number: 1, title: 'One', body: 'one', created_at: 't', updated_at: '2026-02-01T00:00:00Z' }],
+    }
+    const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    // No provision first, so no cursor file exists on disk.
+    const report = await loader.sync!({ owner: 'o', repo: 'r' }, dest, ctx)
+    expect(report.added).toBe(1)
+    expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md'])
+  })
+
+  it('includeComments: false skips the comments section even when an issue has comments', async () => {
+    const router: MockRouter = {
+      issues: [{ number: 7, title: 'Discussion', body: 'Original.', created_at: 't', updated_at: 't', comments: 2 }],
+      comments: { 7: [{ user: { login: 'bob' }, body: 'hi', created_at: 't', updated_at: 't' }] },
+    }
+    const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    await loader.provision({ owner: 'o', repo: 'r', includeComments: false }, dest, ctx)
+    const content = await readFile(join(dest, 'issues', '7.md'), 'utf-8')
+    expect(content).not.toContain('## Comments')
+  })
+
+  it('throws when the issues list request fails', async () => {
+    const fetchFn: typeof globalThis.fetch = async () => new Response('boom', { status: 500 })
+    const loader = createGithubLoader({ fetchFn })
+    await expect(loader.provision({ owner: 'o', repo: 'r' }, dest, ctx))
+      .rejects
+      .toThrow(/GET .* failed \(500\)/)
+  })
+
+  it('throws an actionable error when the realized-intent GraphQL check is unauthorized', async () => {
+    const fetchFn: typeof globalThis.fetch = async (input) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (new URL(url).pathname === '/graphql')
+        return new Response('unauthorized', { status: 401 })
+      const oneClosed = [{ number: 1, title: 'x', state: 'closed', created_at: 't', updated_at: 't', comments: 0 }]
+      return new Response(JSON.stringify(oneClosed), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
+    const loader = createGithubLoader({ fetchFn })
+    await expect(loader.provision({ owner: 'o', repo: 'r' }, dest, ctx))
+      .rejects
+      .toThrow(/realized-intent filter requires an authenticated token/)
   })
 })
 
