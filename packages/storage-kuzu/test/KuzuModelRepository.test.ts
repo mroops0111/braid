@@ -4,6 +4,7 @@ import type {
   NodeId,
   NodeStatus,
   NodeTypeId,
+  Timestamp,
   WorkspaceId,
 } from '@braidhq/schema'
 import { mkdtemp, rm } from 'node:fs/promises'
@@ -17,8 +18,9 @@ const wsId = 'ws-test' as WorkspaceId
 const aggregateType = 'Aggregate' as NodeTypeId
 const entityType = 'Entity' as NodeTypeId
 const containsType = 'contains' as EdgeTypeId
+const relatesType = 'relates' as EdgeTypeId
 const draft = 'draft' as NodeStatus
-const finalStatus = 'final' as NodeStatus
+const completedStatus = 'completed' as NodeStatus
 
 describe('KuzuModelRepository', () => {
   let tmp: string
@@ -96,10 +98,10 @@ describe('KuzuModelRepository', () => {
       } },
     ])
     await repo.applyOperations(wsId, [
-      { operation: 'updateNode', nodeId: 'n1' as NodeId, patch: { status: finalStatus, description: 'new desc' } },
+      { operation: 'updateNode', nodeId: 'n1' as NodeId, patch: { status: completedStatus, description: 'new desc' } },
     ])
     const n = await repo.getNode(wsId, 'n1' as NodeId)
-    expect(n.status).toBe('final')
+    expect(n.status).toBe('completed')
     expect(n.description).toBe('new desc')
     expect(n.name).toBe('Cart')
   })
@@ -165,13 +167,46 @@ describe('KuzuModelRepository', () => {
     await repo.applyOperations(wsId, [
       { operation: 'addNodes', payloads: [
         { id: 'a' as NodeId, type: aggregateType, name: 'Cart', status: draft },
-        { id: 'b' as NodeId, type: entityType, name: 'CartItem', status: finalStatus },
+        { id: 'b' as NodeId, type: entityType, name: 'CartItem', status: completedStatus },
         { id: 'c' as NodeId, type: entityType, name: 'Order', status: draft },
       ] },
     ])
     expect((await repo.listNodes(wsId, { types: [entityType] })).map(n => n.id).sort()).toEqual(['b', 'c'])
-    expect((await repo.listNodes(wsId, { statuses: [finalStatus] })).map(n => n.id)).toEqual(['b'])
+    expect((await repo.listNodes(wsId, { statuses: [completedStatus] })).map(n => n.id)).toEqual(['b'])
     expect((await repo.listNodes(wsId, { nameContains: 'cart' })).map(n => n.id).sort()).toEqual(['a', 'b'])
+  })
+
+  it('listEdges filters by type, fromNodeId, and toNodeId', async () => {
+    await repo.applyOperations(wsId, [
+      { operation: 'addNodes', payloads: [
+        { id: 'a' as NodeId, type: aggregateType, name: 'A', status: draft },
+        { id: 'b' as NodeId, type: entityType, name: 'B', status: draft },
+        { id: 'c' as NodeId, type: entityType, name: 'C', status: draft },
+      ] },
+      { operation: 'addEdges', payloads: [
+        { id: 'e1' as EdgeId, type: containsType, fromNodeId: 'a' as NodeId, toNodeId: 'b' as NodeId },
+        { id: 'e2' as EdgeId, type: relatesType, fromNodeId: 'a' as NodeId, toNodeId: 'c' as NodeId },
+        { id: 'e3' as EdgeId, type: containsType, fromNodeId: 'b' as NodeId, toNodeId: 'c' as NodeId },
+      ] },
+    ])
+    expect((await repo.listEdges(wsId, { types: [containsType] })).map(e => e.id).sort()).toEqual(['e1', 'e3'])
+    expect((await repo.listEdges(wsId, { fromNodeId: 'a' as NodeId })).map(e => e.id).sort()).toEqual(['e1', 'e2'])
+    expect((await repo.listEdges(wsId, { toNodeId: 'c' as NodeId })).map(e => e.id).sort()).toEqual(['e2', 'e3'])
+  })
+
+  it('round-trips a node embedding', async () => {
+    await repo.applyOperations(wsId, [
+      { operation: 'addNode', payload: {
+        id: 'emb' as NodeId,
+        type: aggregateType,
+        name: 'E',
+        status: draft,
+        embedding: { vector: [0.1, 0.2, 0.3], modelId: 'test-model', createdAt: '2026-01-01T00:00:00.000Z' as Timestamp },
+      } },
+    ])
+    const n = await repo.getNode(wsId, 'emb' as NodeId)
+    expect(n.embedding?.vector).toEqual([0.1, 0.2, 0.3])
+    expect(n.embedding?.modelId).toBe('test-model')
   })
 
   it('getNode throws NotFoundError for unknown id', async () => {
