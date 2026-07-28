@@ -1,4 +1,7 @@
+export * from './batch.js'
+export * from './clarification.js'
 export * from './clock.js'
+export * from './graph.js'
 export * from './ids.js'
 export * from './ontology.js'
 export * from './proposal.js'

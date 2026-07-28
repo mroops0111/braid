@@ -8,7 +8,7 @@ The package hands tests three things: a deterministic clock, readable ids, and f
 
 - **The Clock and Time**: `FixedClock` is a mutable `Clock` seeded at the anchor `T0`, and `at(seconds)` mints timestamps at a fixed offset from it. Tests assert on the injected timestamp instead of `Date.now()`, and read ordering off `T0`, `T_PLUS_1_MIN`, and `T_PLUS_1_HOUR`.
 - **The Ids**: `mintTestId` returns a fresh per-prefix counter value like `p-1` or `n-2`, and `resetTestIds` clears the counters from a `beforeEach`. Failures print readable ids rather than UUIDs.
-- **The Factories**: `makeWorkspace`, `makeProposal`, `makeSkillManifest`, and `makeOntology` construct real core aggregates with happy-path defaults, each taking an options object to override one field per test.
+- **The Factories**: `makeWorkspace`, `makeProposal`, `makeClarification`, `makeSkillManifest`, `makeOntology`, `makeNode` / `makeEdge`, and `makePlan` / `makeUnit` construct real core aggregates and graph pieces with happy-path defaults, each taking an options object to override one field per test.
 
 ## Structure
 
@@ -16,18 +16,21 @@ The package is flat. Each file owns one fixture concern, and the barrel re-expor
 
 ```
 src/
-├── index.ts       barrel, re-exports every fixture
-├── time.ts        at(seconds) plus the T0 / T_PLUS_1_MIN / T_PLUS_1_HOUR anchors
-├── clock.ts       FixedClock, a mutable Clock seeded at T0
-├── ids.ts         mintTestId and resetTestIds, deterministic counter ids
-├── ontology.ts    makeOntology, a bare OntologyPlugin
-├── proposal.ts    makeProposal, a pending Proposal
-├── skill.ts       makeSkillManifest and its raw data payload
-└── workspace.ts   makeWorkspace plus the DEFAULT_AGENT_BINDING sample
+├── index.ts           barrel, re-exports every fixture
+├── batch.ts           makePlan and makeUnit, a BatchPlan and its units
+├── clarification.ts   makeClarification, a pending or answered ticket
+├── clock.ts           FixedClock, a mutable Clock seeded at T0
+├── graph.ts           makeNode and makeEdge, GraphNode and GraphEdge fixtures
+├── ids.ts             mintTestId and resetTestIds, deterministic counter ids
+├── ontology.ts        makeOntology, a bare OntologyPlugin
+├── proposal.ts        makeProposal, a pending Proposal
+├── skill.ts           makeSkillManifest and its raw data payload
+├── time.ts            at(seconds) plus the T0 / T_PLUS_1_MIN / T_PLUS_1_HOUR anchors
+└── workspace.ts       makeWorkspace plus the DEFAULT_AGENT_BINDING sample
 ```
 
 - **time / clock / ids**: The deterministic primitives. Time and ids are pure, so a test that pins one gets stable output across runs.
-- **ontology / proposal / skill / workspace**: The aggregate factories. Each default returns a shape that passes the real invariants, so overriding one axis never forces a test to rebuild the whole object.
+- **batch / clarification / graph / ontology / proposal / skill / workspace**: The aggregate and graph factories. Each default returns a shape that passes the real invariants, so overriding one axis never forces a test to rebuild the whole object.
 
 ## Boundaries
 

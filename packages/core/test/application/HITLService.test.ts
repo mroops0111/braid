@@ -1,7 +1,5 @@
 import type {
-  ClarificationCandidate,
   ClarificationCandidateId,
-  ClarificationId,
   NodeId,
   NodeStatus,
   NodeTypeId,
@@ -11,7 +9,7 @@ import type {
   WorkspaceId,
 } from '@braidhq/schema'
 import type { Workspace } from '../../src/index.js'
-import { FixedClock, makeOntology, makeProposal, makeWorkspace, mintTestId, resetTestIds } from '@braidhq/test-utils'
+import { FixedClock, makeClarification, makeOntology, makeProposal, makeWorkspace, mintTestId, resetTestIds } from '@braidhq/test-utils'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   InMemoryClarificationRepository,
@@ -20,7 +18,6 @@ import {
   InMemoryWorkspaceRepository,
 } from '../../src/in-memory.js'
 import {
-  Clarification,
   ConflictError,
   HITLService,
   ModelValidationService,
@@ -77,31 +74,6 @@ async function setupFixture(options: {
     workspaceId: workspace.id,
     service,
   }
-}
-
-function makeClarification(workspaceId: WorkspaceId, overrides: {
-  id?: ClarificationId
-  status?: 'pending' | 'answered'
-  candidates?: readonly ClarificationCandidate[]
-  selectedCandidateId?: ClarificationCandidateId
-} = {}): Clarification {
-  const status = overrides.status ?? 'pending'
-  return new Clarification({
-    id: overrides.id ?? (mintTestId('ct') as ClarificationId),
-    workspaceId,
-    question: 'q?',
-    candidates: [...(overrides.candidates ?? [])],
-    status,
-    owner: 'system',
-    origin: 'skill',
-    ...(status === 'answered' && overrides.selectedCandidateId
-      ? {
-          selectedCandidateId: overrides.selectedCandidateId,
-          resolution: [],
-          answeredBy: userId,
-        }
-      : {}),
-  })
 }
 
 describe('HITLService', () => {

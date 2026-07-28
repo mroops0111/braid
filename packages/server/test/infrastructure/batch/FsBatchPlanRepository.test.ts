@@ -1,39 +1,14 @@
-import type { AbsolutePath, BatchPlanId, BatchUnit, BatchUnitId, ProposalId, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, BatchUnitId, ProposalId } from '@braidhq/schema'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { BatchPlan } from '@braidhq/core'
+import { makePlan } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { FsBatchPlanRepository } from '../../../src/infrastructure/batch/FsBatchPlanRepository.js'
 import { makeWorkspace } from '../../helpers/fakes.js'
 
 async function makeRoot(): Promise<AbsolutePath> {
   return (await mkdtemp(join(tmpdir(), 'braid-batch-plan-'))) as AbsolutePath
-}
-
-function makeUnit(id: string): BatchUnit {
-  return {
-    id: id as BatchUnitId,
-    name: id,
-    description: `walk ${id}`,
-    status: 'pending',
-    proposalIds: [],
-    clarificationIds: [],
-  }
-}
-
-function makePlan(): BatchPlan {
-  return new BatchPlan({
-    id: 'bp-2026-06-03-aaaa' as BatchPlanId,
-    workspaceId: 'w-1' as WorkspaceId,
-    createdAt: '2026-06-03T00:00:00.000Z' as never,
-    updatedAt: '2026-06-03T00:00:00.000Z' as never,
-    mode: 'intent',
-    status: 'running',
-    autoApply: true,
-    units: [makeUnit('pu-a'), makeUnit('pu-b')],
-    checkpointPhases: [],
-  })
 }
 
 describe('FsBatchPlanRepository', () => {
@@ -47,7 +22,7 @@ describe('FsBatchPlanRepository', () => {
     const root = await makeRoot()
     const ws = makeWorkspace({ rootPath: root })
     const repo = new FsBatchPlanRepository()
-    await repo.save(ws, makePlan())
+    await repo.save(ws, makePlan({ status: 'running', autoApply: true }))
     const loaded = await repo.load(ws)
     expect(loaded?.units.map(u => u.id)).toEqual(['pu-a', 'pu-b'])
     expect(loaded?.mode).toBe('intent')
@@ -58,8 +33,8 @@ describe('FsBatchPlanRepository', () => {
     const root = await makeRoot()
     const ws = makeWorkspace({ rootPath: root })
     const repo = new FsBatchPlanRepository()
-    await repo.save(ws, makePlan())
-    const next = makePlan().markUnitCompleted(
+    await repo.save(ws, makePlan({ status: 'running', autoApply: true }))
+    const next = makePlan({ status: 'running', autoApply: true }).markUnitCompleted(
       '2026-06-03T00:00:01.000Z' as never,
       'pu-a' as BatchUnitId,
       { proposalIds: ['p-1' as ProposalId], clarificationIds: [] },
@@ -73,7 +48,7 @@ describe('FsBatchPlanRepository', () => {
     const root = await makeRoot()
     const ws = makeWorkspace({ rootPath: root })
     const repo = new FsBatchPlanRepository()
-    await repo.save(ws, makePlan())
+    await repo.save(ws, makePlan({ status: 'running', autoApply: true }))
     expect(await repo.load(ws)).not.toBeNull()
     await repo.clear(ws)
     expect(await repo.load(ws)).toBeNull()

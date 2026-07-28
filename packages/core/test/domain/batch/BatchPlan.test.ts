@@ -1,51 +1,13 @@
-import type {
-  BatchPlan as BatchPlanData,
-  BatchPlanId,
-  BatchUnit,
-  BatchUnitId,
-  ProposalId,
-  SkillRunId,
-  SourceId,
-  WorkspaceId,
-} from '@braidhq/schema'
-import { at, T0 } from '@braidhq/test-utils'
+import type { BatchUnitId, ProposalId, SkillRunId } from '@braidhq/schema'
+import { at, makePlan, makeUnit, T0 } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
-import { BatchPlan, ConflictError } from '../../../src/index.js'
+import { ConflictError } from '../../../src/index.js'
 
 const T1 = at(1)
 const T2 = at(2)
 
-const workspaceId = 'w-1' as WorkspaceId
-const planId = 'bp-2026-06-03-aaaa' as BatchPlanId
 const unitA = 'pu-a' as BatchUnitId
 const unitB = 'pu-b' as BatchUnitId
-
-function makeUnit(id: BatchUnitId, name: string): BatchUnit {
-  return {
-    id,
-    name,
-    description: `walk ${name}`,
-    sourceId: name as SourceId,
-    status: 'pending',
-    proposalIds: [],
-    clarificationIds: [],
-  }
-}
-
-function makePlan(overrides: Partial<BatchPlanData> = {}): BatchPlan {
-  return new BatchPlan({
-    id: planId,
-    workspaceId,
-    createdAt: T0,
-    updatedAt: T0,
-    mode: 'intent',
-    status: 'idle',
-    autoApply: false,
-    units: [makeUnit(unitA, 'prd'), makeUnit(unitB, 'design')],
-    checkpointPhases: [],
-    ...overrides,
-  })
-}
 
 describe('BatchPlan', () => {
   describe('beginRun', () => {
@@ -70,7 +32,7 @@ describe('BatchPlan', () => {
   describe('promoteToRunning', () => {
     it('replaces units and moves deriving → running', () => {
       const plan = makePlan({ mode: 'derive', status: 'deriving', units: [] })
-      const promoted = plan.promoteToRunning(T1, [makeUnit(unitA, 'orders')])
+      const promoted = plan.promoteToRunning(T1, [makeUnit(unitA)])
       expect(promoted.status).toBe('running')
       expect(promoted.units.map(u => u.id)).toEqual([unitA])
     })
@@ -192,8 +154,8 @@ describe('BatchPlan', () => {
   })
 
   describe('resumeRun', () => {
-    const failedUnit = { ...makeUnit(unitA, 'prd'), status: 'failed' as const, error: 'boom' }
-    const doneUnit = { ...makeUnit(unitB, 'design'), status: 'completed' as const, proposalIds: ['p-1' as ProposalId] }
+    const failedUnit = { ...makeUnit(unitA), status: 'failed' as const, error: 'boom' }
+    const doneUnit = { ...makeUnit(unitB), status: 'completed' as const, proposalIds: ['p-1' as ProposalId] }
 
     it('resets failed units to pending, keeps completed units, and re-enters running', () => {
       const resumed = makePlan({ status: 'failed', units: [failedUnit, doneUnit] }).resumeRun(T1)

@@ -1,33 +1,13 @@
-import type { EdgeId, GraphEdge, GraphNode, ModelSnapshot, NodeId, NodeTypeId, WorkspaceId } from '@braidhq/schema'
+import type { ModelSnapshot, WorkspaceId } from '@braidhq/schema'
 import type { ModelSerializer } from '../../src/domain/model/ModelSerializer.js'
 import type { Workspace } from '../../src/index.js'
-import { makeWorkspace } from '@braidhq/test-utils'
+import { makeEdge, makeNode, makeWorkspace } from '@braidhq/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { InMemoryModelRepository } from '../../src/in-memory.js'
 import { WorkspaceBootstrapService } from '../../src/index.js'
 import { SpyWorkspaceHistory } from '../helpers/doubles.js'
 
 const WORKSPACE_ID = 'ws-1' as WorkspaceId
-
-function makeNode(id: string): GraphNode {
-  return {
-    id: id as NodeId,
-    type: 'aggregate' as NodeTypeId,
-    name: id,
-    status: 'draft',
-    metadata: { sourceReferences: [] },
-  }
-}
-
-function makeEdge(id: string, from: string, to: string): GraphEdge {
-  return {
-    id: id as EdgeId,
-    type: 'contains' as never,
-    fromNodeId: from as NodeId,
-    toNodeId: to as NodeId,
-    metadata: { sourceReferences: [] },
-  }
-}
 
 class FakeModelSerializer implements ModelSerializer {
   private stored: ModelSnapshot | null = null

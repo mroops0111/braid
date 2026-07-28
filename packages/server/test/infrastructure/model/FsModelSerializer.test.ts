@@ -1,7 +1,8 @@
-import type { AbsolutePath, EdgeId, EdgeTypeId, GraphEdge, GraphNode, NodeId, NodeTypeId } from '@braidhq/schema'
+import type { AbsolutePath } from '@braidhq/schema'
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { makeEdge, makeNode } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { graphJsonPath, workspaceArtifactsDir } from '../../../src/infrastructure/_shared/paths.js'
 import { FsModelSerializer } from '../../../src/infrastructure/model/FsModelSerializer.js'
@@ -9,27 +10,6 @@ import { makeWorkspace } from '../../helpers/fakes.js'
 
 async function makeRoot(): Promise<AbsolutePath> {
   return (await mkdtemp(join(tmpdir(), 'braid-graph-json-'))) as AbsolutePath
-}
-
-function makeNode(id: string, overrides: Partial<GraphNode> = {}): GraphNode {
-  return {
-    id: id as NodeId,
-    type: 'aggregate' as NodeTypeId,
-    name: id,
-    status: 'draft',
-    metadata: { sourceReferences: [] },
-    ...overrides,
-  }
-}
-
-function makeEdge(id: string, from: string, to: string): GraphEdge {
-  return {
-    id: id as EdgeId,
-    type: 'contains' as EdgeTypeId,
-    fromNodeId: from as NodeId,
-    toNodeId: to as NodeId,
-    metadata: { sourceReferences: [] },
-  }
 }
 
 describe('FsModelSerializer', () => {

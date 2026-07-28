@@ -9,8 +9,8 @@ import type {
   UserId,
   WorkspaceId,
 } from '@braidhq/schema'
-import { Clarification, Proposal } from '@braidhq/core'
-import { T0 } from '@braidhq/test-utils'
+import { Proposal } from '@braidhq/core'
+import { makeClarification, T0 } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { buildTestApp } from './helpers/buildApp.js'
 import { readJson } from './helpers/readJson.js'
@@ -46,22 +46,6 @@ function makeProposal(overrides: {
     generatedAt: T0,
     rationale: 'r',
     owner: 'system',
-  })
-}
-
-function makeClarification(overrides: {
-  id: string
-  status?: 'pending' | 'answered'
-  candidates?: readonly ClarificationCandidate[]
-}): Clarification {
-  return new Clarification({
-    id: overrides.id as ClarificationId,
-    workspaceId,
-    question: 'q?',
-    candidates: [...(overrides.candidates ?? [])],
-    status: overrides.status ?? 'pending',
-    owner: 'system',
-    origin: 'skill',
   })
 }
 
@@ -274,7 +258,7 @@ describe('POST /workspaces/:ws/clarifications/:id/answer', () => {
 
   it('appends a custom candidate to the ticket and answers with it in one round-trip', async () => {
     const { app, deps } = await buildTestApp()
-    await deps.clarificationRepository.save(makeClarification({
+    await deps.clarificationRepository.save(makeClarification(workspaceId, {
       id: 'ct-custom',
       candidates: [{ id: 'cc-1' as ClarificationCandidate['id'], description: 'pre', sourceReferences: [], proposedOperations: [] }],
     }))
@@ -301,7 +285,7 @@ describe('POST /workspaces/:ws/clarifications/:id/answer', () => {
 describe('PATCH /workspaces/:ws/clarifications/:id', () => {
   it('moves an answered ticket to applied and stamps proposalId', async () => {
     const { app, deps } = await buildTestApp()
-    await deps.clarificationRepository.save(makeClarification({ id: 'ct-link', status: 'answered' }))
+    await deps.clarificationRepository.save(makeClarification(workspaceId, { id: 'ct-link', status: 'answered' }))
 
     const response = await app.request(`/workspaces/${workspaceId}/clarifications/ct-link`, {
       method: 'PATCH',
@@ -321,7 +305,7 @@ describe('PATCH /workspaces/:ws/clarifications/:id', () => {
 
   it('moves an answered ticket to applied without proposalId for no-impact resolutions', async () => {
     const { app, deps } = await buildTestApp()
-    await deps.clarificationRepository.save(makeClarification({ id: 'ct-noop', status: 'answered' }))
+    await deps.clarificationRepository.save(makeClarification(workspaceId, { id: 'ct-noop', status: 'answered' }))
 
     const response = await app.request(`/workspaces/${workspaceId}/clarifications/ct-noop`, {
       method: 'PATCH',
@@ -341,7 +325,7 @@ describe('PATCH /workspaces/:ws/clarifications/:id', () => {
 
   it('returns 400 when status is missing', async () => {
     const { app, deps } = await buildTestApp()
-    await deps.clarificationRepository.save(makeClarification({ id: 'ct-link', status: 'answered' }))
+    await deps.clarificationRepository.save(makeClarification(workspaceId, { id: 'ct-link', status: 'answered' }))
 
     const response = await app.request(`/workspaces/${workspaceId}/clarifications/ct-link`, {
       method: 'PATCH',
@@ -354,7 +338,7 @@ describe('PATCH /workspaces/:ws/clarifications/:id', () => {
 
   it('returns 409 when ticket has not been answered yet', async () => {
     const { app, deps } = await buildTestApp()
-    await deps.clarificationRepository.save(makeClarification({ id: 'ct-pending', status: 'pending' }))
+    await deps.clarificationRepository.save(makeClarification(workspaceId, { id: 'ct-pending', status: 'pending' }))
 
     const response = await app.request(`/workspaces/${workspaceId}/clarifications/ct-pending`, {
       method: 'PATCH',
@@ -369,7 +353,7 @@ describe('PATCH /workspaces/:ws/clarifications/:id', () => {
 describe('POST /workspaces/:ws/clarifications/:id/skip', () => {
   it('marks the ticket as skipped', async () => {
     const { app, deps } = await buildTestApp()
-    await deps.clarificationRepository.save(makeClarification({ id: 'ct-1', status: 'pending' }))
+    await deps.clarificationRepository.save(makeClarification(workspaceId, { id: 'ct-1', status: 'pending' }))
 
     const response = await app.request(`/workspaces/${workspaceId}/clarifications/ct-1/skip`, {
       method: 'POST',
