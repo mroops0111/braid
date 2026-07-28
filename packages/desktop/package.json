@@ -12,12 +12,14 @@
   },
   "scripts": {
     "dev": "tauri dev",
+    "dev:remote": "BRAID_DESKTOP_REMOTE_ONLY=1 tauri dev --config src-tauri/tauri.remote.conf.json",
     "build": "echo 'skipped (run `pnpm --filter @braidhq/desktop bundle` for an installer)'",
     "bundle": "tauri build",
+    "bundle:remote": "tauri build --config src-tauri/tauri.remote.conf.json",
     "tauri": "tauri",
     "prepare-sidecar": "node scripts/prepare-sidecar.mjs",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "clean": "rm -rf .turbo src-tauri/target src-tauri/binaries src-tauri/resources"
   },
   "dependencies": {

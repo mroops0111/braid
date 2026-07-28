@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error - .mjs source has no .d.ts; signature is exercised by callers.
-import { nodeDistInfo, rustTargetTriple } from '../../scripts/lib/platform.mjs'
+import { nodeDistInfo, rustTargetTriple } from '../../../scripts/lib/platform.mjs'
 
 describe('rustTargetTriple', () => {
   it.each([
@@ -34,7 +34,23 @@ describe('nodeDistInfo', () => {
     })
   })
 
-  it('returns a linux .tar.xz with the same binary layout', () => {
+  it('returns the macOS x64 tarball', () => {
+    expect(nodeDistInfo('x86_64-apple-darwin', v)).toEqual({
+      file: `node-v${v}-darwin-x64.tar.gz`,
+      format: 'tgz',
+      binPath: 'bin/node',
+    })
+  })
+
+  it('returns the linux arm64 .tar.xz', () => {
+    expect(nodeDistInfo('aarch64-unknown-linux-gnu', v)).toEqual({
+      file: `node-v${v}-linux-arm64.tar.xz`,
+      format: 'txz',
+      binPath: 'bin/node',
+    })
+  })
+
+  it('returns the linux x64 .tar.xz', () => {
     expect(nodeDistInfo('x86_64-unknown-linux-gnu', v)).toEqual({
       file: `node-v${v}-linux-x64.tar.xz`,
       format: 'txz',
