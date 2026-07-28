@@ -11,8 +11,10 @@ export interface IntentItem {
   readonly sourceName: string
 }
 
-// Shared by the Studio source picker and BatchService,
-// so both see the same per-doc granularity.
+/**
+ * Shared by the Studio source picker and BatchService,
+ * so both see the same per-doc granularity.
+ */
 export async function listIntentItems(workspace: Workspace): Promise<IntentItem[]> {
   const items: IntentItem[] = []
   for (const source of workspace.sources) {

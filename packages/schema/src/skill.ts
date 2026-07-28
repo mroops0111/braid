@@ -7,9 +7,11 @@ import { WorkspaceRole } from './workspace.js'
 export const SkillOrigin = z.enum(['builtin', 'plugin', 'workspace', 'extension'])
 export type SkillOrigin = z.infer<typeof SkillOrigin>
 
-// A SkillId is `<namespace>:<verb>`, such as `ddd:extract` or `braid:scan`.
-// The namespace is the contributing plugin, the verb the bare action.
-// Split on the first colon, so a hyphenated verb like `generate-doc` survives.
+/**
+ * A SkillId is `<namespace>:<verb>`, such as `ddd:extract` or `braid:scan`.
+ * The namespace is the contributing plugin, the verb the bare action.
+ * Split on the first colon, so a hyphenated verb like `generate-doc` survives.
+ */
 export function splitSkillId(id: SkillId): { namespace: string, verb: string } {
   const colon = id.indexOf(':')
   if (colon <= 0 || colon === id.length - 1)
@@ -17,8 +19,10 @@ export function splitSkillId(id: SkillId): { namespace: string, verb: string } {
   return { namespace: id.slice(0, colon), verb: id.slice(colon + 1) }
 }
 
-// Frontmatter the Claude Code CLI reads to register the slash command, plus its invocation rules. camelCase in TS,
-// emitted as kebab-case in YAML.
+/**
+ * Frontmatter the Claude Code CLI reads to register the slash command, plus its invocation rules. camelCase in TS,
+ * emitted as kebab-case in YAML.
+ */
 export const ClaudeCodeSkillFrontmatter = z.object({
   name: z.string().min(1),
   description: z.string().min(1),
@@ -29,12 +33,14 @@ export const ClaudeCodeSkillFrontmatter = z.object({
 })
 export type ClaudeCodeSkillFrontmatter = z.infer<typeof ClaudeCodeSkillFrontmatter>
 
-// Studio sidebar section, mapped 1:1. ask: read-only Q&A. build: mutate the graph. generate: produce artifacts.
+/** Studio sidebar section, mapped 1:1. ask: read-only Q&A. build: mutate the graph. generate: produce artifacts. */
 export const SkillCategory = z.enum(['ask', 'build', 'generate'])
 export type SkillCategory = z.infer<typeof SkillCategory>
 
-// Declarative form schema rendered by Studio's Actions page.
-// Skills without an inputs block fall back to the legacy argumentHint textarea.
+/**
+ * Declarative form schema rendered by Studio's Actions page.
+ * Skills without an inputs block fall back to the legacy argumentHint textarea.
+ */
 export const SkillInputStaticOption = z.object({
   value: z.string(),
   label: z.string().min(1),
@@ -48,7 +54,7 @@ export const SkillInputStaticProvider = z.object({
 })
 export type SkillInputStaticProvider = z.infer<typeof SkillInputStaticProvider>
 
-// Pulls graph nodes, optionally filtered by type / status / renderHint. value = node.id.
+/** Pulls graph nodes, optionally filtered by type / status / renderHint. value = node.id. */
 export const SkillInputGraphNodeProvider = z.object({
   kind: z.literal('graph-node'),
   filter: z.object({
@@ -60,7 +66,7 @@ export const SkillInputGraphNodeProvider = z.object({
 })
 export type SkillInputGraphNodeProvider = z.infer<typeof SkillInputGraphNodeProvider>
 
-// Enumerates items from every role:intent source. value is the loader-relative path.
+/** Enumerates items from every role:intent source. value is the loader-relative path. */
 export const SkillInputSourceIntentProvider = z.object({
   kind: z.literal('source-intent'),
   filter: z.object({
@@ -70,7 +76,7 @@ export const SkillInputSourceIntentProvider = z.object({
 })
 export type SkillInputSourceIntentProvider = z.infer<typeof SkillInputSourceIntentProvider>
 
-// Clarification tickets, filtered by status. Defaults to all statuses.
+/** Clarification tickets, filtered by status. Defaults to all statuses. */
 export const SkillInputClarificationProvider = z.object({
   kind: z.literal('clarify'),
   filter: z.object({
@@ -87,7 +93,7 @@ export const SkillInputProvider = z.discriminatedUnion('kind', [
 ])
 export type SkillInputProvider = z.infer<typeof SkillInputProvider>
 
-// What the form does on zero options. text: swap to free-text (default). disabled: for server-required selections.
+/** What the form does on zero options. text: swap to free-text (default). disabled: for server-required selections. */
 export const SkillInputFallback = z.enum(['text', 'disabled']).default('text')
 export type SkillInputFallback = z.infer<typeof SkillInputFallback>
 
@@ -132,7 +138,7 @@ export type SkillInputMultiPick = z.infer<typeof SkillInputMultiPick>
 export const SkillInputDescriptor = z.discriminatedUnion('kind', [SkillInputText, SkillInputPick, SkillInputMultiPick])
 export type SkillInputDescriptor = z.infer<typeof SkillInputDescriptor>
 
-// One options-endpoint option. value is submitted, label/description are display only.
+/** One options-endpoint option. value is submitted, label/description are display only. */
 export const SkillInputDynamicOption = z.object({
   value: z.string(),
   label: z.string().min(1),
@@ -148,8 +154,10 @@ export const SkillInputOptionsResponse = z.object({
 })
 export type SkillInputOptionsResponse = z.infer<typeof SkillInputOptionsResponse>
 
-// Per-skill agent selection. Every field is optional, unset ones fall back to the server agent,
-// which defaults to claude-code.
+/**
+ * Per-skill agent selection. Every field is optional, unset ones fall back to the server agent,
+ * which defaults to claude-code.
+ */
 export const SkillAgentOverride = z.object({
   kind: AgentKind.optional(),
   model: z.string().min(1).optional(),
@@ -157,8 +165,10 @@ export const SkillAgentOverride = z.object({
 })
 export type SkillAgentOverride = z.infer<typeof SkillAgentOverride>
 
-// Braid-specific fields under the braid: key, so they never collide with Claude Code's own.
-// Read by SubprocessSkillRunner for preflight (env / path / MCP) before spawning.
+/**
+ * Braid-specific fields under the braid: key, so they never collide with Claude Code's own.
+ * Read by SubprocessSkillRunner for preflight (env / path / MCP) before spawning.
+ */
 export const BraidSkillExtension = z.object({
   requiredEnv: z.array(z.string()).default([]),
   requiredMcpServers: z.array(McpServerId).default([]),
@@ -210,7 +220,7 @@ export const SkillEventStarted = z.object({
   at: Timestamp,
 })
 
-// The claude session id, passed to the next run to resume via claude --resume.
+/** The claude session id, passed to the next run to resume via claude --resume. */
 export const SkillEventSessionStarted = z.object({
   type: z.literal('session-started'),
   sessionId: z.string().min(1),
@@ -259,15 +269,19 @@ export const SkillEventError = z.object({
   at: Timestamp,
 })
 
-// The agent's private reasoning, surfaced so a reviewer can see why a skill
-// proposed what it did. Studio renders it collapsed, it is not the output.
+/**
+ * The agent's private reasoning, surfaced so a reviewer can see why a skill
+ * proposed what it did. Studio renders it collapsed, it is not the output.
+ */
 export const SkillEventThinking = z.object({
   type: z.literal('thinking'),
   text: z.string(),
 })
 
-// The agent hit a usage limit. Only emitted when the run is actually
-// throttled, so a stalled transcript reads as waiting rather than frozen.
+/**
+ * The agent hit a usage limit. Only emitted when the run is actually
+ * throttled, so a stalled transcript reads as waiting rather than frozen.
+ */
 export const SkillEventRateLimit = z.object({
   type: z.literal('rate-limit'),
   status: z.string(),
@@ -275,8 +289,10 @@ export const SkillEventRateLimit = z.object({
   resetsAt: z.number().optional(),
 })
 
-// Cost and effort of a finished run, surfaced so the reviewer sees what each
-// skill run spent. Every field is optional, agents report a different subset.
+/**
+ * Cost and effort of a finished run, surfaced so the reviewer sees what each
+ * skill run spent. Every field is optional, agents report a different subset.
+ */
 export const SkillEventUsage = z.object({
   type: z.literal('usage'),
   costUsd: z.number().optional(),
@@ -301,8 +317,10 @@ export const SkillEvent = z.discriminatedUnion('type', [
 ])
 export type SkillEvent = z.infer<typeof SkillEvent>
 
-// Append-only run summary in artifacts/runs/index.jsonl, reader keeps the last line per runId.
-// The full event stream lives at artifacts/runs/<runId>.jsonl.
+/**
+ * Append-only run summary in artifacts/runs/index.jsonl, reader keeps the last line per runId.
+ * The full event stream lives at artifacts/runs/<runId>.jsonl.
+ */
 export const RunRecord = z.object({
   runId: SkillRunId,
   workspaceId: WorkspaceId,
@@ -317,8 +335,10 @@ export const RunRecord = z.object({
 })
 export type RunRecord = z.infer<typeof RunRecord>
 
-// Per-session user metadata, separate from RunRecord. The reviewer owns it (rename).
-// Append-only at artifacts/runs/sessions.jsonl, last-wins per sessionId.
+/**
+ * Per-session user metadata, separate from RunRecord. The reviewer owns it (rename).
+ * Append-only at artifacts/runs/sessions.jsonl, last-wins per sessionId.
+ */
 export const SessionMetadata = z.object({
   sessionId: z.string().min(1),
   title: z.string().min(1).nullable(),

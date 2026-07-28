@@ -5,12 +5,14 @@ import { ReactorConfig } from './reactor.js'
 import { SourceDescriptor } from './source.js'
 import { StorageDescriptor } from './storage.js'
 
-// owner: settings + members. maintainer: HITL gate + skills. guest: read-only by default. admin is deliberately absent.
-// Server-wide Admin lives on User.serverRole.
+/**
+ * owner: settings + members. maintainer: HITL gate + skills. guest: read-only by default. admin is deliberately absent.
+ * Server-wide Admin lives on User.serverRole.
+ */
 export const WorkspaceRole = z.enum(['owner', 'maintainer', 'guest'])
 export type WorkspaceRole = z.infer<typeof WorkspaceRole>
 
-// Per-member skill override: allow opens, deny closes, absent inherits the manifest.
+/** Per-member skill override: allow opens, deny closes, absent inherits the manifest. */
 export const SkillPermission = z.enum(['allow', 'deny'])
 export type SkillPermission = z.infer<typeof SkillPermission>
 
@@ -37,7 +39,7 @@ export type ProductManifest = z.infer<typeof ProductManifest>
 export const ProductManifestUpdate = ProductManifest.partial()
 export type ProductManifestUpdate = z.infer<typeof ProductManifestUpdate>
 
-// Scaffold subset: user gives name/sources/mcpServers, server defaults the rest.
+/** Scaffold subset: user gives name/sources/mcpServers, server defaults the rest. */
 export const ProductManifestCreate = z.object({
   name: z.string().min(1),
   version: z.string().optional(),

@@ -4,16 +4,18 @@ import { SkillEvent as SkillEventSchema } from '@braidhq/schema'
 interface RawEvent { readonly type: string, readonly [key: string]: unknown }
 interface RawContentPart { readonly type?: string, readonly [key: string]: unknown }
 
-// Map one `claude --output-format stream-json` line into zero or more
-// SkillEvents. Claude emits these envelope shapes:
-//   - `system` subtype `init`: session metadata, only `session_id` is kept.
-//   - `assistant`: content parts, `text`, `tool_use`, and `thinking` surface.
-//   - `user`: echoes a `tool_result`, only its `is_error` flag surfaces.
-//   - `result`: the outcome, `is_error` picks a message or error, plus usage.
-//   - `rate_limit_event`: surfaced only when the run is actually throttled.
-//
-// Legacy flat shapes are kept for tests and older tools,
-// `text`, `tool_use`, `artifact-written`, and `error`.
+/**
+ * Map one `claude --output-format stream-json` line into zero or more
+ * SkillEvents. Claude emits these envelope shapes:
+ *   - `system` subtype `init`: session metadata, only `session_id` is kept.
+ *   - `assistant`: content parts, `text`, `tool_use`, and `thinking` surface.
+ *   - `user`: echoes a `tool_result`, only its `is_error` flag surfaces.
+ *   - `result`: the outcome, `is_error` picks a message or error, plus usage.
+ *   - `rate_limit_event`: surfaced only when the run is actually throttled.
+ *
+ * Legacy flat shapes are kept for tests and older tools,
+ * `text`, `tool_use`, `artifact-written`, and `error`.
+ */
 export function parseClaudeLine(line: string, now: string): SkillEvent[] {
   const trimmed = line.trim()
   if (trimmed.length === 0)

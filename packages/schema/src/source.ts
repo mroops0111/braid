@@ -8,11 +8,11 @@ export type SourceRole = z.infer<typeof SourceRole>
 export const SourceKind = z.enum(['filesystem', 'mcp'])
 export type SourceKind = z.infer<typeof SourceKind>
 
-// Picks the SourceLoader plugin. Branded so new loaders need no edit here.
+/** Picks the SourceLoader plugin. Branded so new loaders need no edit here. */
 export const LoaderKind = z.string().min(1).brand<'LoaderKind'>()
 export type LoaderKind = z.infer<typeof LoaderKind>
 
-// kind picks the loader. config is opaque, validated by the loader at runtime.
+/** kind picks the loader. config is opaque, validated by the loader at runtime. */
 export const SourceLoaderDescriptor = z.object({
   kind: LoaderKind,
   config: z.unknown(),
@@ -56,7 +56,7 @@ export const SourceDescriptor = z.discriminatedUnion('kind', [
 ])
 export type SourceDescriptor = z.infer<typeof SourceDescriptor>
 
-// Projection for the source-loaders endpoint, minus the client-side config schema.
+/** Projection for the source-loaders endpoint, minus the client-side config schema. */
 export const SourceLoaderEntry = z.object({
   kind: LoaderKind,
   pluginId: PluginId,

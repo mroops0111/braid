@@ -149,5 +149,5 @@ export function defineOntologyPlugin(input: DefineOntologyInput): OntologyPlugin
   return Object.freeze(ontology)
 }
 
-// Re-export branded id helpers so plugin authors can cast without importing schema directly.
+/** Re-export branded id helpers so plugin authors can cast without importing schema directly. */
 export type { EdgeTypeId, NodeTypeId, OntologyId }

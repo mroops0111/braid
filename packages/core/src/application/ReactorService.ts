@@ -529,5 +529,5 @@ async function waitForCompletion(runner: SkillRunner, runId: SkillRunId): Promis
   })
 }
 
-// Re-export Timestamp shape so type-only consumers don't have to dig.
+/** Re-export Timestamp shape so type-only consumers don't have to dig. */
 export type { Timestamp }

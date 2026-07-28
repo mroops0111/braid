@@ -3,8 +3,10 @@ import type { ChildProcess } from 'node:child_process'
 import { SkillEvent as SkillEventSchema } from '@braidhq/schema'
 import { LineBuffer } from './lineBuffer.js'
 
-// Maps one stdout line to zero or more SkillEvents.
-// The agent binding owns this, since the line format is the agent's own.
+/**
+ * Maps one stdout line to zero or more SkillEvents.
+ * The agent binding owns this, since the line format is the agent's own.
+ */
 export type LineParser = (line: string, now: string) => SkillEvent[]
 
 /**

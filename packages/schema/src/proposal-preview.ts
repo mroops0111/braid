@@ -19,8 +19,10 @@ export interface ProposalPreview {
   readonly diff: ProposalDiff
 }
 
-// Lenient apply: invalid ops are no-op'd so preview never throws. Real apply is strict. Diffs by comparing snapshots,
-// so cascade-deleted edges still show as removed.
+/**
+ * Lenient apply: invalid ops are no-op'd so preview never throws. Real apply is strict. Diffs by comparing snapshots,
+ * so cascade-deleted edges still show as removed.
+ */
 export function previewProposal(
   current: ModelSnapshot,
   operations: readonly GraphOperation[],

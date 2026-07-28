@@ -1,10 +1,12 @@
 import { z } from 'zod'
 
-// The closed catalog of capability ids the platform gates on. The server is the
-// authoritative check, Studio reads the same list to show locked affordances.
-// Each resource has at most one read and one write, write means change anything
-// mutable in that resource. Plugins register their own checks under custom string
-// ids, this list is the first-party set.
+/**
+ * The closed catalog of capability ids the platform gates on. The server is the
+ * authoritative check, Studio reads the same list to show locked affordances.
+ * Each resource has at most one read and one write, write means change anything
+ * mutable in that resource. Plugins register their own checks under custom string
+ * ids, this list is the first-party set.
+ */
 export const Capability = z.enum([
   // Server scope, no workspace member required.
   'workspace.create', // scaffold a new workspace or register a path

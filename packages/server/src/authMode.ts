@@ -34,8 +34,10 @@ export interface AuthMode {
   provision: (context: AuthContext) => Promise<void>
 }
 
-// A local desktop or sidecar. One implicit user owns everything,
-// so provision seeds that `local-user` admin account, idempotently.
+/**
+ * A local desktop or sidecar. One implicit user owns everything,
+ * so provision seeds that `local-user` admin account, idempotently.
+ */
 export const localTrust: AuthMode = {
   defaultPrincipal: LOCAL_USER_ID,
   requiresAuth: false,
@@ -51,8 +53,10 @@ export const localTrust: AuthMode = {
   },
 }
 
-// A remote server. Real users authenticate against an allowlist,
-// so provision back-fills `approvedEmails` from the roster, idempotently.
+/**
+ * A remote server. Real users authenticate against an allowlist,
+ * so provision back-fills `approvedEmails` from the roster, idempotently.
+ */
 export const authenticated: AuthMode = {
   defaultPrincipal: null,
   requiresAuth: true,

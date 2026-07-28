@@ -99,10 +99,12 @@ export function runSessionsMetadataPath(workspaceRoot: AbsolutePath): string {
   return join(runsDir(workspaceRoot), 'sessions.jsonl')
 }
 
-// claude stores conversation memory keyed by cwd,
-// so resume must spawn from the same dir as the first turn.
-// Keeping it in the workspace, not /tmp, stays derivable from runId,
-// and survives a server restart.
+/**
+ * claude stores conversation memory keyed by cwd,
+ * so resume must spawn from the same dir as the first turn.
+ * Keeping it in the workspace, not /tmp, stays derivable from runId,
+ * and survives a server restart.
+ */
 export function sessionsDir(workspaceRoot: AbsolutePath): string {
   return join(workspaceRoot, '.braid-sessions')
 }

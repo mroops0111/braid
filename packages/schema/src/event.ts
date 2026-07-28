@@ -166,8 +166,10 @@ export const BatchCheckpointFailedEvent = WorkspaceEventBase.extend({
 })
 export type BatchCheckpointFailedEvent = z.infer<typeof BatchCheckpointFailedEvent>
 
-// Reactor finished partitioning a synced source, about to dispatch per-unit runs sequentially.
-// totalUnits is the count of new plus changed units. cycleId keys into the ReactorCycle record.
+/**
+ * Reactor finished partitioning a synced source, about to dispatch per-unit runs sequentially.
+ * totalUnits is the count of new plus changed units. cycleId keys into the ReactorCycle record.
+ */
 export const ReactorDispatchedEvent = WorkspaceEventBase.extend({
   type: z.literal('reactor.dispatched'),
   cycleId: ReactorCycleId,
@@ -176,8 +178,10 @@ export const ReactorDispatchedEvent = WorkspaceEventBase.extend({
 })
 export type ReactorDispatchedEvent = z.infer<typeof ReactorDispatchedEvent>
 
-// The full reactor cycle is over. checkpointRan distinguishes the "0 changed units,
-// no checkpoint needed" case from the normal flow.
+/**
+ * The full reactor cycle is over. checkpointRan distinguishes the "0 changed units,
+ * no checkpoint needed" case from the normal flow.
+ */
 export const ReactorCompletedEvent = WorkspaceEventBase.extend({
   type: z.literal('reactor.completed'),
   cycleId: ReactorCycleId,
@@ -187,8 +191,10 @@ export const ReactorCompletedEvent = WorkspaceEventBase.extend({
 })
 export type ReactorCompletedEvent = z.infer<typeof ReactorCompletedEvent>
 
-// Reactor refused to dispatch, the rolling 1h window already hit maxRunsPerHour.
-// The triggering source.synced is acknowledged and dropped.
+/**
+ * Reactor refused to dispatch, the rolling 1h window already hit maxRunsPerHour.
+ * The triggering source.synced is acknowledged and dropped.
+ */
 export const ReactorThrottledEvent = WorkspaceEventBase.extend({
   type: z.literal('reactor.throttled'),
   cycleId: ReactorCycleId,
@@ -197,7 +203,7 @@ export const ReactorThrottledEvent = WorkspaceEventBase.extend({
 })
 export type ReactorThrottledEvent = z.infer<typeof ReactorThrottledEvent>
 
-// Per-unit start signal. processed/total render the "3/15" progress text.
+/** Per-unit start signal. processed/total render the "3/15" progress text. */
 export const ReactorUnitStartedEvent = WorkspaceEventBase.extend({
   type: z.literal('reactor.unit.started'),
   cycleId: ReactorCycleId,
@@ -208,7 +214,7 @@ export const ReactorUnitStartedEvent = WorkspaceEventBase.extend({
 })
 export type ReactorUnitStartedEvent = z.infer<typeof ReactorUnitStartedEvent>
 
-// Per-unit completion. A failure does NOT abort the loop, the next unit still starts.
+/** Per-unit completion. A failure does NOT abort the loop, the next unit still starts. */
 export const ReactorUnitCompletedEvent = WorkspaceEventBase.extend({
   type: z.literal('reactor.unit.completed'),
   cycleId: ReactorCycleId,
@@ -219,8 +225,10 @@ export const ReactorUnitCompletedEvent = WorkspaceEventBase.extend({
 })
 export type ReactorUnitCompletedEvent = z.infer<typeof ReactorUnitCompletedEvent>
 
-// Checkpoint skill about to start, fires only when at least one per-unit dispatch succeeded
-// and the ontology declares a checkpoint binding.
+/**
+ * Checkpoint skill about to start, fires only when at least one per-unit dispatch succeeded
+ * and the ontology declares a checkpoint binding.
+ */
 export const ReactorCheckpointStartedEvent = WorkspaceEventBase.extend({
   type: z.literal('reactor.checkpoint.started'),
   cycleId: ReactorCycleId,
@@ -229,8 +237,10 @@ export const ReactorCheckpointStartedEvent = WorkspaceEventBase.extend({
 })
 export type ReactorCheckpointStartedEvent = z.infer<typeof ReactorCheckpointStartedEvent>
 
-// Checkpoint skill finished. status='skipped' means the cycle chose not to run the checkpoint,
-// kept so the Activity timeline always has a terminal entry for the checkpoint row.
+/**
+ * Checkpoint skill finished. status='skipped' means the cycle chose not to run the checkpoint,
+ * kept so the Activity timeline always has a terminal entry for the checkpoint row.
+ */
 export const ReactorCheckpointCompletedEvent = WorkspaceEventBase.extend({
   type: z.literal('reactor.checkpoint.completed'),
   cycleId: ReactorCycleId,

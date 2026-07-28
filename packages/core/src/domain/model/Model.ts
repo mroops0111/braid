@@ -16,8 +16,10 @@ interface MutableModelState {
   edges: Map<EdgeId, GraphEdge>
 }
 
-// The knowledge graph as one consistency boundary.
-// Parts are Graph* like GraphNode and GraphEdge, the whole and its handlers are Model*.
+/**
+ * The knowledge graph as one consistency boundary.
+ * Parts are Graph* like GraphNode and GraphEdge, the whole and its handlers are Model*.
+ */
 export class Model {
   private state: MutableModelState
 

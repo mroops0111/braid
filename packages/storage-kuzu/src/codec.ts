@@ -41,10 +41,12 @@ export function edgeToParams(edge: GraphEdge): EdgeRow {
   }
 }
 
-// updateEdge intentionally does not touch endpoints,
-// since changing fromId or toId means a different edge.
-// The prepared statement binds only id, type, and metadata,
-// and Kùzu rejects extra params at execute time.
+/**
+ * updateEdge intentionally does not touch endpoints,
+ * since changing fromId or toId means a different edge.
+ * The prepared statement binds only id, type, and metadata,
+ * and Kùzu rejects extra params at execute time.
+ */
 export function edgeToUpdateParams(edge: GraphEdge): Pick<EdgeRow, 'id' | 'type' | 'metadata'> {
   return {
     id: edge.id,
@@ -53,9 +55,11 @@ export function edgeToUpdateParams(edge: GraphEdge): Pick<EdgeRow, 'id' | 'type'
   }
 }
 
-// A row is persisted, but still a boundary. Parse it through the schema,
-// so a branded id, an unknown status, or a corrupt row fails loudly here,
-// the same way the filesystem serializer validates what it reads back.
+/**
+ * A row is persisted, but still a boundary. Parse it through the schema,
+ * so a branded id, an unknown status, or a corrupt row fails loudly here,
+ * the same way the filesystem serializer validates what it reads back.
+ */
 export function rowToNode(row: Record<string, KuzuValue>): GraphNode {
   const description = asString(row.description, 'description')
   const embedding = asString(row.embedding, 'embedding')

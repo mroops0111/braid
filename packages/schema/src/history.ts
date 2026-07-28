@@ -2,9 +2,11 @@ import { z } from 'zod'
 import { ClarificationId, CommitSha, ProposalId, SourceId, Timestamp, UserId, WorkspaceId } from './common.js'
 import { GraphEdge, GraphNode, ModelSnapshot } from './model.js'
 
-// Every commit is stamped by one system operation, so this is the closed catalog of what writes to the workspace repo.
-// HITL flows get granular `entity-verb` kinds, each a distinct transition. Everything else is one kind per operation,
-// detail lives in the subject.
+/**
+ * Every commit is stamped by one system operation, so this is the closed catalog of what writes to the workspace repo.
+ * HITL flows get granular `entity-verb` kinds, each a distinct transition. Everything else is one kind per operation,
+ * detail lives in the subject.
+ */
 export const CommitKind = z.enum([
   'proposal-submit',
   'proposal-apply',
@@ -63,7 +65,7 @@ export const FileDiff = z.object({
 })
 export type FileDiff = z.infer<typeof FileDiff>
 
-// Record instead of Map so an HTTP envelope round-trips without custom JSON.
+/** Record instead of Map so an HTTP envelope round-trips without custom JSON. */
 export const ChangeKind = z.enum(['added', 'updated', 'removed'])
 export type ChangeKind = z.infer<typeof ChangeKind>
 
@@ -73,7 +75,7 @@ export const ModelDiffChanges = z.object({
 })
 export type ModelDiffChanges = z.infer<typeof ModelDiffChanges>
 
-// from-state for entities gone in snapshot, sparing the UI a round-trip.
+/** from-state for entities gone in snapshot, sparing the UI a round-trip. */
 export const ModelDiffEnvelope = z.object({
   from: CommitSha,
   to: CommitSha,

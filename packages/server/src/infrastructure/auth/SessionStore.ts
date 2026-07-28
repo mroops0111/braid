@@ -36,8 +36,10 @@ export interface ResolvedSession {
   readonly expiresAt?: string
 }
 
-// The port. A hosted deployment swaps the file-backed impl for a shared store,
-// such as Redis or Postgres, behind this interface.
+/**
+ * The port. A hosted deployment swaps the file-backed impl for a shared store,
+ * such as Redis or Postgres, behind this interface.
+ */
 export interface SessionStore {
   issue: (userId: UserId, options?: { ttlSeconds?: number }) => Promise<IssuedSession>
   resolve: (token: string) => Promise<ResolvedSession | null>

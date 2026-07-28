@@ -1,9 +1,11 @@
 import { z } from 'zod'
 import { ValidationIssues } from './graph-validation.js'
 
-// The closed set of machine-readable error codes, one per HTTP failure class.
-// Carried on every error response so clients branch on the code,
-// not on parsed status text.
+/**
+ * The closed set of machine-readable error codes, one per HTTP failure class.
+ * Carried on every error response so clients branch on the code,
+ * not on parsed status text.
+ */
 export const BraidErrorCode = z.enum([
   'BRAID-VALIDATION',
   'BRAID-UNAUTHORIZED',

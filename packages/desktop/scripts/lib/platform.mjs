@@ -1,7 +1,9 @@
-// Map the running host, or the BRAID_RUST_TARGET override,
-// to the Rust target triple Tauri expects in sidecar filenames.
-// Tauri's externalBin keys on Rust naming,
-// which is distinct from the npm-style triple kuzu prebuilts use.
+/**
+ * Map the running host, or the BRAID_RUST_TARGET override,
+ * to the Rust target triple Tauri expects in sidecar filenames.
+ * Tauri's externalBin keys on Rust naming,
+ * which is distinct from the npm-style triple kuzu prebuilts use.
+ */
 export function rustTargetTriple({ platform, arch, override } = {}) {
   if (override)
     return override
@@ -18,8 +20,10 @@ export function rustTargetTriple({ platform, arch, override } = {}) {
   throw new Error(`Unsupported host: ${platform}-${arch}`)
 }
 
-// For each supported Rust target, return the nodejs.org tarball filename,
-// its archive format, and the path to the node binary in the extracted folder.
+/**
+ * For each supported Rust target, return the nodejs.org tarball filename,
+ * its archive format, and the path to the node binary in the extracted folder.
+ */
 export function nodeDistInfo(triple, version) {
   switch (triple) {
     case 'aarch64-apple-darwin':

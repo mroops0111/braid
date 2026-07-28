@@ -10,9 +10,11 @@ import { createApp } from './app.js'
 import { composeFsApp } from './composeFsApp.js'
 import { startupAfterServe } from './startup.js'
 
-// Walk up from the working directory to the first `.env`, and load it,
-// before anything reads process.env.
-// A missing file is silent, production boots from real env, not dotfiles.
+/**
+ * Walk up from the working directory to the first `.env`, and load it,
+ * before anything reads process.env.
+ * A missing file is silent, production boots from real env, not dotfiles.
+ */
 export function loadRootEnv(): void {
   let dir = process.cwd()
   for (;;) {
@@ -44,9 +46,11 @@ export interface StartServerOptions {
   readonly onListen?: (url: string) => void
 }
 
-// Boot the coding-preset app and start serving, shared by the standalone
-// entry and the cli `serve` command so both wire identically.
-// Resolves once the socket is listening, then keeps running under signal handlers.
+/**
+ * Boot the coding-preset app and start serving, shared by the standalone
+ * entry and the cli `serve` command so both wire identically.
+ * Resolves once the socket is listening, then keeps running under signal handlers.
+ */
 export async function startServer(options: StartServerOptions): Promise<void> {
   const apiUrl = `http://localhost:${options.port}`
   const deps = await composeFsApp({ apiUrl, ...fsOptionsFromEnv() })

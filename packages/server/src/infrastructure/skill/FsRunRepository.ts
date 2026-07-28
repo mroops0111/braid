@@ -172,5 +172,5 @@ function safeParseSessionMetadata(line: string): SessionMetadata | undefined {
   }
 }
 
-// Re-exported so callers don't need to thread AbsolutePath types around.
+/** Re-exported so callers don't need to thread AbsolutePath types around. */
 export type { AbsolutePath }

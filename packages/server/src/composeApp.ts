@@ -56,10 +56,12 @@ import {
 } from '@braidhq/core/in-memory'
 import { localTrust } from './authMode.js'
 
-// The assembled application, what routes and middleware consume.
-// A required field is always present.
-// An optional field is a capability slot,
-// absent under in-memory or test wiring, filled by `composeFsApp`.
+/**
+ * The assembled application, what routes and middleware consume.
+ * A required field is always present.
+ * An optional field is a capability slot,
+ * absent under in-memory or test wiring, filled by `composeFsApp`.
+ */
 export interface AppDependencies {
   // Core services, always present.
   workspaceService: WorkspaceService
@@ -126,8 +128,10 @@ export interface AppDependencies {
   studioUrl?: string
 }
 
-// Every field is optional, an unset one falls to an in-memory default.
-// `composeFsApp` passes the fs, git, and vendor adapters through here.
+/**
+ * Every field is optional, an unset one falls to an in-memory default.
+ * `composeFsApp` passes the fs, git, and vendor adapters through here.
+ */
 export interface ComposeOptions {
   // Infrastructure singletons.
   clock?: Clock

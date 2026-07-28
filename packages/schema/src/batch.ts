@@ -13,8 +13,10 @@ export type BatchUnitStatus = z.infer<typeof BatchUnitStatus>
 export const BatchStatus = z.enum(['idle', 'deriving', 'running', 'completed', 'failed', 'stopped', 'archived'])
 export type BatchStatus = z.infer<typeof BatchStatus>
 
-// intent mode walks intent sources directly. derive mode seeds units via the ontology's deriveUnits skill,
-// for code-only workspaces.
+/**
+ * intent mode walks intent sources directly. derive mode seeds units via the ontology's deriveUnits skill,
+ * for code-only workspaces.
+ */
 export const BatchInputMode = z.enum(['intent', 'derive'])
 export type BatchInputMode = z.infer<typeof BatchInputMode>
 
@@ -46,7 +48,7 @@ export type BatchRunning = z.infer<typeof BatchRunning>
 export const BatchCheckpointPhaseStatus = z.enum(['running', 'completed', 'failed'])
 export type BatchCheckpointPhaseStatus = z.infer<typeof BatchCheckpointPhaseStatus>
 
-// unitIds records which units this run consumed, for chunk accounting.
+/** unitIds records which units this run consumed, for chunk accounting. */
 export const BatchCheckpointPhase = z.object({
   status: BatchCheckpointPhaseStatus,
   unitIds: z.array(BatchUnitId),

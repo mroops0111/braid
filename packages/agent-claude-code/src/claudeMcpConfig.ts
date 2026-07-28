@@ -27,7 +27,7 @@ export interface ClaudeMcpConfig {
   readonly mcpServers: Readonly<Record<string, McpServerEntry>>
 }
 
-// Later entries win on id, so a workspace server overrides a built-in of the same id.
+/** Later entries win on id, so a workspace server overrides a built-in of the same id. */
 export function buildClaudeMcpConfig(servers: readonly McpServerConfig[]): ClaudeMcpConfig {
   const entries: Record<string, McpServerEntry> = {}
   for (const server of servers)
@@ -35,7 +35,7 @@ export function buildClaudeMcpConfig(servers: readonly McpServerConfig[]): Claud
   return { mcpServers: entries }
 }
 
-// Write the config claude reads and return its path.
+/** Write the config claude reads and return its path. */
 export async function writeClaudeMcpConfig(
   sessionDir: string,
   workspaceId: string,

@@ -18,11 +18,11 @@ const clarificationQuestion = z.string().min(1).max(400).describe('The single qu
 export const ClarificationStatus = z.enum(['pending', 'answered', 'applied', 'skipped'])
 export type ClarificationStatus = z.infer<typeof ClarificationStatus>
 
-// 'skill' = AI-emitted with candidates. 'human' = filed via Studio.
+/** 'skill' = AI-emitted with candidates. 'human' = filed via Studio. */
 export const ClarificationOrigin = z.enum(['skill', 'human'])
 export type ClarificationOrigin = z.infer<typeof ClarificationOrigin>
 
-// Human picks this when filing to steer the AI. Skill tickets leave it unset.
+/** Human picks this when filing to steer the AI. Skill tickets leave it unset. */
 export const ClarificationAmbiguityType = z.enum(['gap', 'contradiction', 'ambiguous', 'assumption'])
 export type ClarificationAmbiguityType = z.infer<typeof ClarificationAmbiguityType>
 
@@ -71,8 +71,10 @@ export const ClarificationCreate = z.object({
 })
 export type ClarificationCreate = z.infer<typeof ClarificationCreate>
 
-// The POST body for creating a ticket. Workspace comes from the path,
-// and human-authored candidates omit their id for the server to mint.
+/**
+ * The POST body for creating a ticket. Workspace comes from the path,
+ * and human-authored candidates omit their id for the server to mint.
+ */
 export const ClarificationCreateBody = ClarificationCreate
   .omit({ workspaceId: true })
   .extend({ candidates: z.array(ClarificationCandidate.partial({ id: true })) })
