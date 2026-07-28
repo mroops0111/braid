@@ -1,21 +1,19 @@
 #!/usr/bin/env node
-/**
- * Wrap `vitest run --coverage` in a retry loop.
- * The kuzu NAPI binding crashes the worker fork on Node 22 during teardown,
- * producing a bare "Worker exited unexpectedly" from tinypool.
- * Each individual test is deterministic, only the worker lifecycle is flaky.
- * Coverage instrumentation makes the teardown crash near-certain,
- * so a nonzero exit after a green run is not a real failure.
- * This wrapper accepts a run whose tests passed and coverage met thresholds,
- * even when the process then crashes on shutdown,
- * and retries only genuinely ambiguous exits.
- * A real test or coverage failure still fails.
- *
- * vitest runs via the package-local `node_modules/.bin/vitest`, not `npx`,
- * because pnpm's strict hoisting hides binaries deep in the pnpm store.
- * The local .bin symlink is the same one `pnpm exec vitest` resolves to,
- * spawned directly to avoid a recursive pnpm invocation.
- */
+// Wrap `vitest run --coverage` in a retry loop.
+// The kuzu NAPI binding crashes the worker fork on Node 22 during teardown,
+// producing a bare "Worker exited unexpectedly" from tinypool.
+// Each individual test is deterministic, only the worker lifecycle is flaky.
+// Coverage instrumentation makes the teardown crash near-certain,
+// so a nonzero exit after a green run is not a real failure.
+// This wrapper accepts a run whose tests passed and coverage met thresholds,
+// even when the process then crashes on shutdown,
+// and retries only genuinely ambiguous exits.
+// A real test or coverage failure still fails.
+//
+// vitest runs via the package-local `node_modules/.bin/vitest`, not `npx`,
+// because pnpm's strict hoisting hides binaries deep in the pnpm store.
+// The local .bin symlink is the same one `pnpm exec vitest` resolves to,
+// spawned directly to avoid a recursive pnpm invocation.
 
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'

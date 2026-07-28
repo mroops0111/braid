@@ -1,15 +1,12 @@
 #!/usr/bin/env node
-/**
- * Produce a self-contained server bundle for the Tauri desktop shell.
- *
- *  1. esbuild bundles dist/server.js into bundle/server.mjs (kuzu external).
- *  2. The platform-specific kuzu .node, the kuzu JS dispatcher, and a
- *     trimmed package.json are copied to bundle/node_modules/kuzu/ so
- *     require('kuzu') inside the bundle resolves at runtime.
- *
- * The bundle runs with `node bundle/server.mjs`. The desktop shell ships
- * the Node runtime as a Tauri sidecar binary.
- */
+// Produce a self-contained server bundle for the Tauri desktop shell.
+// 1. esbuild bundles dist/server.js into bundle/server.mjs, kuzu external.
+// 2. The platform kuzu .node, the kuzu JS dispatcher,
+//    and a trimmed package.json land in bundle/node_modules/kuzu/,
+//    so require('kuzu') inside the bundle resolves at runtime.
+// The bundle runs standalone with `node bundle/server.mjs`.
+// In the desktop app it is a Tauri resource,
+// run by the Node sidecar that prepare-sidecar downloads.
 
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { cp, readFile, writeFile } from 'node:fs/promises'
@@ -48,8 +45,8 @@ async function bundleServerJs() {
     external: ['kuzu'],
     banner: {
       // CommonJS shim. Bundled CJS deps (pino/thread-stream) reference
-      // `require`, `__dirname`, and `__filename` at module-eval time;
-      // none exist in ESM output without these definitions.
+      // `require`, `__dirname`, and `__filename` at module-eval time,
+      // none of which exist in ESM output without these definitions.
       js: [
         'import { createRequire as __braidCreateRequire } from \'node:module\';',
         'import { fileURLToPath as __braidFileURLToPath } from \'node:url\';',
