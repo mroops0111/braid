@@ -13,7 +13,7 @@ import type {
 } from '@braidhq/schema'
 import { Workspace } from '@braidhq/core'
 
-// Sample binding for tests that construct a ClaudeCodeAgentBinding directly.
+/** Sample binding for tests that construct a ClaudeCodeAgentBinding directly. */
 export const DEFAULT_AGENT_BINDING: AgentBindingDescriptor = {
   id: 'claude-code' as AgentId,
   kind: 'claude-code' as AgentKind,
@@ -38,10 +38,11 @@ export interface MakeWorkspaceOptions {
 }
 
 /**
- * Construct a `Workspace` aggregate for tests. Defaults give the happy-path shape (DDD ontology, in-memory storage,
- * one filesystem code source), override per test for the specific axis under test.
- *
- * The `id` and `manifest.name` are kept aligned so the production invariant `WorkspaceId === manifest.name` holds.
+ * Construct a Workspace aggregate for tests.
+ * Defaults give the happy-path shape, a DDD ontology, in-memory storage,
+ * and one filesystem code source. Override per test for the axis under test.
+ * The id and manifest.name are kept aligned,
+ * so the production invariant WorkspaceId === manifest.name holds.
  */
 export function makeWorkspace(opts: MakeWorkspaceOptions = {}): Workspace {
   const id = opts.id ?? 'ws-1'

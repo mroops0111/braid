@@ -10,10 +10,11 @@ export interface MakeProposalOptions {
 }
 
 /**
- * Construct a pending `Proposal` for tests. Defaults to a single `addNode`
- * with `implementationMissing`, the intent-side shape that satisfies the
- * EvidenceValidator framework invariant. Override `id` when a test asserts
- * on it, otherwise a fresh minted id keeps calls collision-free.
+ * Construct a pending Proposal for tests.
+ * Defaults to a single addNode with implementationMissing,
+ * the intent-side shape that satisfies the EvidenceValidator invariant.
+ * Override id when a test asserts on it,
+ * otherwise a fresh minted id keeps calls collision-free.
  */
 export function makeProposal(workspaceId: WorkspaceId, opts: MakeProposalOptions = {}): Proposal {
   const name = opts.name ?? 'voidTask'

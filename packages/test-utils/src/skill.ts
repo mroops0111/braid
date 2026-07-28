@@ -18,8 +18,8 @@ export interface MakeSkillManifestOptions {
 }
 
 /**
- * Construct the raw `SkillManifestData` payload. Use `makeSkillManifest`
- * when you want the wrapped `SkillManifest` aggregate.
+ * Construct the raw SkillManifestData payload.
+ * Use makeSkillManifest when you want the wrapped SkillManifest aggregate.
  */
 export function makeSkillManifestData(opts: MakeSkillManifestOptions = {}): SkillManifestData {
   const id = opts.id ?? 'braid:ask'
@@ -42,9 +42,9 @@ export function makeSkillManifestData(opts: MakeSkillManifestOptions = {}): Skil
 }
 
 /**
- * Construct a wrapped `SkillManifest`. Defaults to a `braid:ask`
- * builtin manifest with no env / path / mcp requirements; override
- * for readiness-check tests.
+ * Construct a wrapped SkillManifest.
+ * Defaults to a braid:ask builtin manifest with no env, path,
+ * or mcp requirements. Override for readiness-check tests.
  */
 export function makeSkillManifest(opts: MakeSkillManifestOptions = {}): SkillManifest {
   return new SkillManifest(makeSkillManifestData(opts))

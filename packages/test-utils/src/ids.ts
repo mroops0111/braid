@@ -1,12 +1,9 @@
-/**
- * Minted test IDs. Each call returns a fresh string with a stable
- * counter scoped to the prefix; restart per test by calling `reset()`
- * (typically from a `beforeEach`). The counter exists so failed tests
- * print readable ids (`p-1`, `p-2`) rather than UUIDs.
- *
- * Use these instead of `'p-1' as ProposalId` literals so a test can
- * mint as many ids as it needs without naming conflicts.
- */
+// Minted test ids, each a fresh string from a per-prefix counter.
+// Reset the counters per test via resetTestIds() in a beforeEach.
+// The counter keeps failed-test output readable,
+// printing p-1 and p-2 rather than UUIDs.
+// Prefer these over `'p-1' as ProposalId` literals,
+// so a test can mint as many ids as it needs without conflicts.
 const counters = new Map<string, number>()
 
 export function mintTestId(prefix: string): string {
@@ -15,7 +12,7 @@ export function mintTestId(prefix: string): string {
   return `${prefix}-${next}`
 }
 
-/** Reset all minted-id counters. Call from `beforeEach` for deterministic test ids. */
+/** Reset all minted-id counters. Call from a beforeEach for deterministic ids. */
 export function resetTestIds(): void {
   counters.clear()
 }
