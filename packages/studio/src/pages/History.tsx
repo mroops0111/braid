@@ -1,4 +1,4 @@
-import type { ChangeKind, CommitKind, CommitMeta, CommitSha, EdgeId, FileDiff, GraphDiffEnvelope, NodeId, TagMeta } from '@braidhq/schema'
+import type { ChangeKind, CommitKind, CommitMeta, CommitSha, EdgeId, FileDiff, ModelDiffEnvelope, NodeId, TagMeta } from '@braidhq/schema'
 import type { GraphDataSource } from '@/components/graph/GraphDataSource'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeftRight, Check, GitCommit, History, Plus, RotateCcw, Tag, Trash2, X } from 'lucide-react'
@@ -6,13 +6,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { EmptyState } from '@/components/EmptyState'
 import { GraphCanvas } from '@/components/graph/GraphCanvas'
 import { ListRow } from '@/components/ListRow'
+import { SurfaceLayout } from '@/components/SurfaceLayout'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
-import { queryKeys, useCommitGraphDiff, useHistory, useHistoryCommit, useHistoryTags } from '@/lib/queries'
+import { asEdgeId, asNodeId } from '@/lib/brands'
+import { queryKeys, useCommitModelDiff, useHistory, useHistoryCommit, useHistoryTags } from '@/lib/queries'
 import { cn } from '@/lib/utils'
 import { useWorkspacePolicy } from '@/policy'
 
@@ -24,12 +26,11 @@ const KIND_LABEL: Record<CommitKind, string> = {
   'proposal-submit': 'Propose',
   'proposal-apply': 'Apply',
   'proposal-reject': 'Reject',
-  'clarify-submit': 'Ask',
-  'clarify-answer': 'Answer',
-  'clarify-apply': 'Closed',
-  'clarify-skip': 'Skip',
-  'source-sync': 'Sync',
-  'bootstrap': 'Bootstrap',
+  'clarification-submit': 'Ask',
+  'clarification-answer': 'Answer',
+  'clarification-apply': 'Closed',
+  'clarification-skip': 'Skip',
+  'config': 'Config',
   'restore': 'Restore',
   'snapshot': 'Snapshot',
   'initial': 'Initial',
@@ -40,12 +41,11 @@ const KIND_TONE: Record<CommitKind, string> = {
   'proposal-submit': 'border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300',
   'proposal-apply': 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
   'proposal-reject': 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300',
-  'clarify-submit': 'border-sky-500/30 bg-sky-500/5 text-sky-700 dark:text-sky-300',
-  'clarify-answer': 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300',
-  'clarify-apply': 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300',
-  'clarify-skip': 'border-zinc-400/40 bg-zinc-400/10 text-zinc-600 dark:text-zinc-400',
-  'source-sync': 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300',
-  'bootstrap': 'border-violet-500/40 bg-violet-500/10 text-violet-700 dark:text-violet-300',
+  'clarification-submit': 'border-sky-500/30 bg-sky-500/5 text-sky-700 dark:text-sky-300',
+  'clarification-answer': 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300',
+  'clarification-apply': 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300',
+  'clarification-skip': 'border-zinc-400/40 bg-zinc-400/10 text-zinc-600 dark:text-zinc-400',
+  'config': 'border-teal-500/40 bg-teal-500/10 text-teal-700 dark:text-teal-300',
   'restore': 'border-orange-500/40 bg-orange-500/10 text-orange-700 dark:text-orange-300',
   'snapshot': 'border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300',
   'initial': 'border-zinc-400/40 bg-zinc-400/10 text-zinc-600 dark:text-zinc-400',
@@ -62,7 +62,7 @@ export function HistoryPage({ workspaceId }: HistoryPageProps) {
   const commits = data?.items ?? []
   const tagsBySha = groupTagsBySha(tags?.items ?? [])
 
-  // Mirror Proposals / Clarify: land the reviewer on the most recent row.
+  // Mirror Proposals / Clarification: land the reviewer on the most recent row.
   useEffect(() => {
     if (selectedSha || isLoading || commits.length === 0)
       return
@@ -87,66 +87,74 @@ export function HistoryPage({ workspaceId }: HistoryPageProps) {
   }
 
   return (
-    <div className="flex h-full">
-      <div className="flex w-72 shrink-0 flex-col border-r border-border">
-        {pickingCompare && (
-          <div className="flex shrink-0 items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
-            <ArrowLeftRight className="size-3" />
-            <span>Pick a commit to compare against</span>
-            <button
-              type="button"
-              onClick={() => setPickingCompare(false)}
-              className="ml-auto rounded p-0.5 hover:bg-background/80"
-              title="Cancel"
-            >
-              <X className="size-3" />
-            </button>
-          </div>
+    <div className="flex h-full flex-col">
+      <SurfaceLayout
+        list={(
+          <>
+            {pickingCompare && (
+              <div className="flex shrink-0 items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-2xs text-muted-foreground">
+                <ArrowLeftRight className="size-3" />
+                <span>Pick a commit to compare against</span>
+                <button
+                  type="button"
+                  onClick={() => setPickingCompare(false)}
+                  className="ml-auto rounded p-0.5 hover:bg-background/80"
+                  title="Cancel"
+                  aria-label="Cancel"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            )}
+            {isLoading
+              ? <div className="p-4 text-sm text-muted-foreground">Loading…</div>
+              : commits.length === 0
+                ? null
+                : (
+                    <ul className="flex-1 overflow-y-auto scrollbar-thin">
+                      {commits.map(commit => (
+                        <CommitRow
+                          key={commit.sha}
+                          commit={commit}
+                          tags={tagsBySha.get(commit.sha) ?? []}
+                          active={selectedSha === commit.sha}
+                          compareActive={compareSha === commit.sha}
+                          dimmed={pickingCompare && commit.sha === selectedSha}
+                          onSelect={() => handleRowClick(commit.sha)}
+                        />
+                      ))}
+                    </ul>
+                  )}
+          </>
         )}
-        {isLoading
-          ? <div className="p-4 text-sm text-muted-foreground">Loading…</div>
-          : commits.length === 0
-            ? <div className="flex flex-1 items-center justify-center p-4 text-center text-xs text-muted-foreground">No commits yet.</div>
-            : (
-                <ul className="flex-1 overflow-y-auto scrollbar-thin">
-                  {commits.map(commit => (
-                    <CommitRow
-                      key={commit.sha}
-                      commit={commit}
-                      tags={tagsBySha.get(commit.sha) ?? []}
-                      active={selectedSha === commit.sha}
-                      compareActive={compareSha === commit.sha}
-                      dimmed={pickingCompare && commit.sha === selectedSha}
-                      onSelect={() => handleRowClick(commit.sha)}
-                    />
-                  ))}
-                </ul>
-              )}
-      </div>
-      <div className="flex-1 overflow-hidden">
-        {selectedSha && compareSha
-          ? (
-              <CompareDetail
-                workspaceId={workspaceId}
-                selectedSha={selectedSha}
-                compareSha={compareSha}
-                commits={commits}
-                onExit={exitCompare}
-                key={`${selectedSha}:${compareSha}`}
-              />
-            )
-          : selectedSha
+      >
+        <div className="flex-1 overflow-hidden">
+          {selectedSha && compareSha
             ? (
-                <CommitDetail
+                <CompareDetail
                   workspaceId={workspaceId}
-                  sha={selectedSha}
-                  tags={tagsBySha.get(selectedSha) ?? []}
-                  onStartCompare={() => setPickingCompare(true)}
-                  key={selectedSha}
+                  selectedSha={selectedSha}
+                  compareSha={compareSha}
+                  commits={commits}
+                  onExit={exitCompare}
+                  key={`${selectedSha}:${compareSha}`}
                 />
               )
-            : <EmptyState icon={History} title="Pick a commit" description="Select a commit on the left to see its diff, tag it, or restore the workspace to that point." />}
-      </div>
+            : selectedSha
+              ? (
+                  <CommitDetail
+                    workspaceId={workspaceId}
+                    sha={selectedSha}
+                    tags={tagsBySha.get(selectedSha) ?? []}
+                    onStartCompare={() => setPickingCompare(true)}
+                    key={selectedSha}
+                  />
+                )
+              : commits.length === 0
+                ? <EmptyState icon={History} title="No Commits Yet" description="History records each applied proposal, clarify answer, and restore as a commit." />
+                : <EmptyState icon={History} title="Pick a Commit" description="Select a commit on the left to see its diff, tag it, or restore the workspace to that point." />}
+        </div>
+      </SurfaceLayout>
     </div>
   )
 }
@@ -170,20 +178,20 @@ function CommitRow({ commit, tags, active, compareActive, dimmed, onSelect }: {
       )}
     >
       <div className="flex w-full items-center gap-1.5">
-        <span className={cn('rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider', KIND_TONE[commit.message.kind])}>
+        <span className={cn('rounded border px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider', KIND_TONE[commit.message.kind])}>
           {KIND_LABEL[commit.message.kind]}
         </span>
         {compareActive && (
-          <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-700 dark:text-amber-300">
+          <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider text-amber-700 dark:text-amber-300">
             Compare
           </span>
         )}
-        <span className="ml-auto truncate font-mono text-[10px] text-muted-foreground">
+        <span className="ml-auto truncate font-mono text-2xs text-muted-foreground">
           {commit.sha.slice(0, 7)}
         </span>
       </div>
       <div className="break-words text-xs text-foreground/90">{commit.message.subject}</div>
-      <div className="flex w-full items-center gap-1.5 text-[10px] text-muted-foreground">
+      <div className="flex w-full items-center gap-1.5 text-2xs text-muted-foreground">
         <span>{commit.author.name}</span>
         <span>·</span>
         <span>{relativeTime(commit.committedAt)}</span>
@@ -191,7 +199,7 @@ function CommitRow({ commit, tags, active, compareActive, dimmed, onSelect }: {
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {tags.map(tag => (
-            <span key={tag.name} className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+            <span key={tag.name} className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-2xs text-primary">
               <Tag className="size-2.5" />
               {tag.name}
             </span>
@@ -219,11 +227,11 @@ function CommitDetail({ workspaceId, sha, tags, onStartCompare }: {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
+      <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
         <div className="flex min-w-0 items-center gap-2">
           <GitCommit className="size-4 shrink-0 text-muted-foreground" />
           <span className="truncate font-mono text-sm text-foreground">{sha.slice(0, 12)}</span>
-          <span className={cn('rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider', KIND_TONE[data.message.kind])}>
+          <span className={cn('rounded border px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider', KIND_TONE[data.message.kind])}>
             {KIND_LABEL[data.message.kind]}
           </span>
         </div>
@@ -273,7 +281,7 @@ function CommitDetail({ workspaceId, sha, tags, onStartCompare }: {
             <TrailerRow label="Kind" value={data.message.kind} />
             <TrailerRow label="Author" value={data.message.userId} />
             {data.message.proposalId && <TrailerRow label="Proposal" value={data.message.proposalId} mono />}
-            {data.message.clarifyTicketId && <TrailerRow label="Clarify ticket" value={data.message.clarifyTicketId} mono />}
+            {data.message.clarificationId && <TrailerRow label="Clarification" value={data.message.clarificationId} mono />}
             {data.message.sourceId && <TrailerRow label="Source" value={data.message.sourceId} mono />}
             {data.message.revertedFrom && <TrailerRow label="Reverted from" value={data.message.revertedFrom.slice(0, 12)} mono />}
             {data.message.revertedTo && <TrailerRow label="Reverted to" value={data.message.revertedTo.slice(0, 12)} mono />}
@@ -283,7 +291,7 @@ function CommitDetail({ workspaceId, sha, tags, onStartCompare }: {
         <section>
           <SectionHeader title={`Files changed (${data.diff.length})`} />
           {data.diff.length === 0
-            ? <p className="mt-2 text-[11px] text-muted-foreground">No file changes (empty commit).</p>
+            ? <p className="mt-2 text-2xs text-muted-foreground">No file changes (empty commit).</p>
             : (
                 <ul className="mt-2 space-y-1">
                   {data.diff.map(file => (
@@ -318,7 +326,7 @@ function CompareDetail({ workspaceId, selectedSha, compareSha, commits, onExit }
   onExit: () => void
 }) {
   const { from, to } = useMemo(() => orderByAge(commits, selectedSha, compareSha), [selectedSha, compareSha, commits])
-  const { data, isLoading, error } = useCommitGraphDiff(workspaceId, from, to)
+  const { data, isLoading, error } = useCommitModelDiff(workspaceId, from, to)
 
   const groups = useMemo(() => buildDiffGroups(data ?? null), [data])
   const source = useMemo(() => envelopeToSource(data ?? null, isLoading), [data, isLoading])
@@ -362,7 +370,7 @@ function CompareHeader({ from, to, groups, onExit }: {
   onExit: () => void
 }) {
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
+    <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
       <div className="flex min-w-0 items-center gap-2 text-sm">
         <ArrowLeftRight className="size-4 shrink-0 text-muted-foreground" />
         <span className="font-mono text-xs text-muted-foreground">{from.slice(0, 7)}</span>
@@ -383,7 +391,7 @@ function CompareSubjectBar({ fromCommit, toCommit }: {
   toCommit: CommitMeta | undefined
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-3 border-b border-border bg-muted/30 px-4 py-2 text-[11px] text-muted-foreground">
+    <div className="flex shrink-0 items-center gap-3 border-b border-border bg-muted/30 px-4 py-2 text-2xs text-muted-foreground">
       {fromCommit && toCommit
         ? (
             <>
@@ -450,7 +458,7 @@ function DiffSummary({ groups, hasEnvelope, isLoading }: {
   const empty = hasEnvelope && groups.every(g => g.entries.length === 0)
   return (
     <aside className="flex h-full w-96 shrink-0 flex-col border-l border-border bg-card/40">
-      <div className="flex h-9 shrink-0 items-center border-b border-border px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="flex h-9 shrink-0 items-center border-b border-border px-3 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
         Changes
       </div>
       <div className="flex-1 space-y-3 overflow-y-auto p-3 scrollbar-thin">
@@ -494,7 +502,7 @@ function DiffGroup({ group }: { group: DiffGroupModel }) {
     <section>
       <div className="flex items-center gap-1.5">
         <span className={cn('size-1.5 rounded-full', KIND_DOT[group.kind])} />
-        <h4 className={cn('text-[11px] font-semibold uppercase tracking-wider', KIND_TEXT[group.kind])}>
+        <h4 className={cn('text-2xs font-semibold uppercase tracking-wider', KIND_TEXT[group.kind])}>
           {group.title}
           <span className="ml-1 text-muted-foreground/70">
             (
@@ -508,7 +516,7 @@ function DiffGroup({ group }: { group: DiffGroupModel }) {
           <li key={entry.id} className="rounded-md px-1.5 py-1 text-xs hover:bg-muted/50">
             <div className="flex items-center gap-1.5">
               <span className="truncate text-foreground/90">{entry.label}</span>
-              <span className="ml-auto shrink-0 rounded border border-border/60 bg-background/60 px-1 py-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+              <span className="ml-auto shrink-0 rounded border border-border/60 bg-background/60 px-1 py-0.5 text-2xs font-medium uppercase tracking-wider text-muted-foreground">
                 {entry.type}
               </span>
             </div>
@@ -526,18 +534,18 @@ function orderByAge(commits: readonly CommitMeta[], a: CommitSha, b: CommitSha):
   return aIdx > bIdx ? { from: a, to: b } : { from: b, to: a }
 }
 
-function buildDiffGroups(envelope: GraphDiffEnvelope | null): DiffGroupModel[] {
+function buildDiffGroups(envelope: ModelDiffEnvelope | null): DiffGroupModel[] {
   if (!envelope)
     return []
   const nodesById = indexById([...envelope.snapshot.nodes, ...envelope.removed.nodes])
   const edgesById = indexById([...envelope.snapshot.edges, ...envelope.removed.edges])
 
   const nodeEntry = (id: string): DiffEntry => {
-    const node = nodesById.get(id as NodeId)
+    const node = nodesById.get(asNodeId(id))
     return { id, label: node?.name ?? id, type: node?.type ?? '?' }
   }
   const edgeEntry = (id: string): DiffEntry => {
-    const edge = edgesById.get(id as EdgeId)
+    const edge = edgesById.get(asEdgeId(id))
     if (!edge)
       return { id, label: id, type: '?' }
     const fromName = nodesById.get(edge.fromNodeId)?.name ?? edge.fromNodeId
@@ -576,7 +584,7 @@ function countByKind(groups: readonly DiffGroupModel[]): { added: number, update
   return { added, updated, removed, total: added + updated + removed }
 }
 
-function envelopeToSource(envelope: GraphDiffEnvelope | null, isLoading: boolean): GraphDataSource {
+function envelopeToSource(envelope: ModelDiffEnvelope | null, isLoading: boolean): GraphDataSource {
   if (!envelope) {
     return {
       nodes: [],
@@ -607,7 +615,7 @@ function indexById<T extends { id: K }, K extends string>(items: readonly T[]): 
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
+    <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
   )
 }
 
@@ -630,12 +638,12 @@ function FileDiffRow({ file }: { file: FileDiff }) {
         : 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300'
   return (
     <li className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2 py-1.5">
-      <span className={cn('rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider', badge)}>
+      <span className={cn('rounded border px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider', badge)}>
         {file.status[0]}
       </span>
       <span className="truncate font-mono text-xs text-foreground/90">{file.path}</span>
       {file.previousPath && (
-        <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+        <span className="ml-auto font-mono text-2xs text-muted-foreground">
           from
           {' '}
           {file.previousPath}
@@ -665,6 +673,7 @@ function TagRow({ workspaceId, tag }: { workspaceId: string, tag: TagMeta }) {
           onClick={() => remove.mutate()}
           disabled={remove.isPending}
           title="Remove tag"
+          aria-label="Remove tag"
           className="ml-auto hidden rounded p-0.5 text-muted-foreground/60 hover:bg-destructive/15 hover:text-destructive group-hover/tag:inline-flex"
         >
           <Trash2 className="size-3" />
@@ -695,11 +704,11 @@ function RestoreDialog({ open, onOpenChange, workspaceId, sha, subject }: {
         <DialogHeader>
           <DialogTitle>Restore workspace to this commit?</DialogTitle>
           <DialogDescription>
-            The graph, proposals, clarify tickets, and decisions will all roll back to "
+            The graph, proposals, clarifications, and decisions will all roll back to "
             {subject}
             ". A new
             {' '}
-            <code className="rounded bg-muted px-1 font-mono text-[11px]">restore</code>
+            <code className="rounded bg-muted px-1 font-mono text-2xs">restore</code>
             {' '}
             commit will be appended to history. Nothing is lost, but everything after this point will no longer apply.
           </DialogDescription>
@@ -746,7 +755,7 @@ function TagDialog({ open, onOpenChange, workspaceId, sha }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Tag this commit</DialogTitle>
+          <DialogTitle>Tag This Commit</DialogTitle>
           <DialogDescription>Give this point in history a memorable name.</DialogDescription>
         </DialogHeader>
         <form
@@ -781,7 +790,7 @@ function TagDialog({ open, onOpenChange, workspaceId, sha }: {
             </Button>
             <Button type="submit" disabled={!name.trim() || create.isPending}>
               <Plus />
-              {create.isPending ? 'Tagging…' : 'Create tag'}
+              {create.isPending ? 'Tagging…' : 'Create Tag'}
             </Button>
           </DialogFooter>
         </form>

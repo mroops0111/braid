@@ -2,10 +2,9 @@ import { checks } from './checks.js'
 import { PermissionRegistry } from './PermissionRegistry.js'
 
 /**
- * Default registry preloaded with the platform's first-party
- * capabilities. Plugins that want to register their own checks should
- * call `register()` on this instance; tests can build a fresh registry
- * via `new PermissionRegistry()` to inject mocks.
+ * Default registry preloaded with the first-party capabilities.
+ * Plugins register their own checks, calling `register()` on this instance.
+ * Tests build a fresh `PermissionRegistry` instead, to inject mocks.
  */
 export function buildDefaultPermissionRegistry(): PermissionRegistry {
   const registry = new PermissionRegistry()

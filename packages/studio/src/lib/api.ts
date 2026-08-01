@@ -1,26 +1,21 @@
 import type {
   BatchPlan,
-  ClarifyAmbiguityType,
-  ClarifyCandidate,
-  ClarifyOrigin,
-  ClarifyTicket,
+  Clarification,
+  ClarificationCreateBody,
   CommitMeta,
   CommitSha,
-  Decision,
-  ExternalReference,
   FileDiff,
-  GraphDiffEnvelope,
   GraphEdge,
   GraphNode,
   ListSourceLoadersResponse,
   McpServerConfig,
+  ModelDiffEnvelope,
   ModelSnapshot,
-  NodeId,
   OntologyResponse,
-  ProductManifestDraft,
+  ProductManifestCreate,
   Proposal,
-  ReactorPass,
-  ReactorPassId,
+  ReactorCycle,
+  ReactorCycleId,
   RunRecord,
   SessionMetadata,
   SkillInputOptionsResponse,
@@ -28,11 +23,10 @@ import type {
   SourceDescriptor,
   SourceId,
   SourceUnitDiff,
-  SourceUnitState,
+  SourceUnitObservation,
   TagMeta,
   User,
-  UserDraft,
-  UserPatch,
+  UserUpdate,
   ValidationResult,
   Workspace,
   WorkspaceMember,
@@ -44,9 +38,8 @@ import { getTokenFor } from './remotes.js'
 import { getServerUrl, getServerUrlFor } from './serverUrl.js'
 
 export function workspaceEventsUrl(workspaceId: string): string {
-  // EventSource cannot send custom headers, so the Bearer token is
-  // appended as `?token=...` and matched server-side by the auth
-  // middleware for SSE paths only.
+  // EventSource cannot send custom headers, so the Bearer token is appended as `?token=...`,
+  // matched server-side by the auth middleware for SSE paths only.
   const base = `${getServerUrl()}/workspaces/${workspaceId}/events`
   const token = getAuthToken()
   return token ? `${base}?token=${encodeURIComponent(token)}` : base
@@ -68,30 +61,12 @@ export interface AdminUserWorkspace {
 export type AdminUser = User & { workspaces: AdminUserWorkspace[] }
 
 /**
- * GET /workspaces/:ws/clarify/:id response — the canonical ticket plus
- * server-side projections derived from the Decision log so the detail
- * pane can render the reviewer's rationale without a second fetch.
- * `skipReason` is set on `skipped` tickets, `answerNote` on
- * `answered` / `applied` tickets.
+ * GET /workspaces/:ws/clarifications/:id response. `skipReason` / `answerNote` are no longer populated,
+ * the reviewer's rationale lives in git history now, but kept optional until the detail pane resurfaces them.
  */
-export type ClarifyTicketDetail = ClarifyTicket & { skipReason?: string, answerNote?: string }
+export type ClarificationDetail = Clarification & { skipReason?: string, answerNote?: string }
 
-/**
- * POST /workspaces/:ws/clarify body shape — mirrors the server's
- * `CreateBodySchema`. Candidate `id` is optional so the server can
- * mint via `newClarifyCandidateId` for human-authored questions.
- */
-export interface ClarifySubmitBody {
-  question: string
-  candidates: ReadonlyArray<Omit<ClarifyCandidate, 'id'> & { id?: ClarifyCandidate['id'] }>
-  externalReferences?: ReadonlyArray<ExternalReference>
-  origin?: ClarifyOrigin
-  context?: string
-  relatedNode?: NodeId
-  ambiguityType?: ClarifyAmbiguityType
-}
-
-export interface IngestSummary {
+export interface ProvisionSummary {
   sourceId: string
   changed: boolean
   /** Per-file counts populated by loaders that can compute them cheaply (gdrive, git). */
@@ -106,12 +81,12 @@ export interface IngestSummary {
 
 export interface ScaffoldResult {
   workspace: Workspace
-  ingest: IngestSummary[]
+  provision: ProvisionSummary[]
 }
 
 export interface AddSourceResult {
   workspace: Workspace
-  ingest?: IngestSummary
+  provision?: ProvisionSummary
 }
 
 export interface PatchWorkspaceResult {
@@ -122,9 +97,8 @@ export interface PatchWorkspaceResult {
 }
 
 /**
- * Caller-friendly error: carries the original status code so the UI can
- * map known cases (404, 409, 400 with specific text) to suggested actions
- * rather than dumping raw `application/problem+json` on the user.
+ * Caller-friendly error: carries the original status code so the UI can map known cases (404, 409,
+ * 400 with specific text) to suggested actions rather than dumping raw `application/problem+json` on the user.
  */
 export class ApiError extends Error {
   constructor(
@@ -144,10 +118,9 @@ async function rawFetch<T>(baseUrl: string, token: string | null, path: string, 
     headers: {
       'Content-Type': 'application/json',
       // Remote mode (Bearer) takes precedence over local mode (X-Braid-User).
-      // The server's `authMiddleware` resolves the Bearer token to a userId
-      // and stamps c.set('userId'); userIdMiddleware then falls through
-      // (already set). Local trust mode leaves c.get('userId') empty so
-      // `X-Braid-User` becomes authoritative.
+      // The server's `authMiddleware` resolves the Bearer token to a userId, and stamps c.set('userId').
+      // userIdMiddleware then falls through, already set. Local trust mode leaves c.get('userId') empty,
+      // so `X-Braid-User` becomes authoritative.
       ...(token
         ? { Authorization: `Bearer ${token}` }
         : { 'X-Braid-User': getCurrentUserId() }),
@@ -174,9 +147,8 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 /**
- * Like `fetchJson` but targets an explicit remote regardless of the active
- * one. The sidebar uses this to enumerate workspaces across every
- * configured server without disturbing the active singleton.
+ * Like `fetchJson` but targets an explicit remote regardless of the active one.
+ * The sidebar uses this to enumerate workspaces across every configured server without disturbing the active singleton.
  */
 async function fetchJsonAt<T>(remoteId: string, path: string, init?: RequestInit): Promise<T> {
   return rawFetch<T>(getServerUrlFor(remoteId), getTokenFor(remoteId), path, init)
@@ -204,9 +176,7 @@ export const api = {
 
   listUsers: () => fetchJson<ItemList<User>>('/users'),
   getMe: () => fetchJson<User>('/users/me'),
-  createUser: (draft: UserDraft) =>
-    fetchJson<User>('/users', { method: 'POST', body: JSON.stringify(draft) }),
-  updateUser: (userId: string, patch: UserPatch) =>
+  updateUser: (userId: string, patch: UserUpdate) =>
     fetchJson<User>(`/users/${userId}`, { method: 'PATCH', body: JSON.stringify(patch) }),
 
   listInvites: () => fetchJson<ItemList<Invite>>('/admin/invites'),
@@ -251,12 +221,11 @@ export const api = {
   listWorkspacesAt: (remoteId: string) =>
     fetchJsonAt<ItemList<Workspace>>(remoteId, '/workspaces'),
   // Server-level: what source-loader plugins are registered on this server.
-  // Studio uses this to populate its loader dropdown without hardcoding
-  // `git / github / gdrive`.
+  // Studio uses this to populate its loader dropdown, without hardcoding `git / github / gdrive`.
   listSourceLoaders: () => fetchJson<ListSourceLoadersResponse>('/source-loaders'),
   getWorkspace: (workspaceId: string) =>
     fetchJson<Workspace>(`/workspaces/${workspaceId}`),
-  scaffoldWorkspace: (name: string, manifest: ProductManifestDraft) =>
+  scaffoldWorkspace: (name: string, manifest: ProductManifestCreate) =>
     fetchJson<ScaffoldResult>('/workspaces/scaffold', {
       method: 'POST',
       body: JSON.stringify({ name, manifest }),
@@ -271,7 +240,7 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(patch),
     }),
-  /** Unregister AND `rm -rf` the workspace folder. Server only accepts purge for canonical-root workspaces. */
+  /** Unregister and `rm -rf` the workspace folder. Server only accepts purge for canonical-root workspaces. */
   deleteWorkspace: (workspaceId: string) =>
     fetchJson<void>(`/workspaces/${workspaceId}?purge=true`, { method: 'DELETE' }),
 
@@ -283,7 +252,7 @@ export const api = {
   removeSource: (workspaceId: string, sourceId: string) =>
     fetchJson<{ workspace: Workspace }>(`/workspaces/${workspaceId}/sources/${sourceId}`, { method: 'DELETE' }),
   syncSource: (workspaceId: string, sourceId: string) =>
-    fetchJson<IngestSummary>(`/workspaces/${workspaceId}/sources/${sourceId}/sync`, { method: 'POST' }),
+    fetchJson<ProvisionSummary>(`/workspaces/${workspaceId}/sources/${sourceId}/sync`, { method: 'POST' }),
   patchSource: (workspaceId: string, sourceId: string, patch: { description?: string }) =>
     fetchJson<{ workspace: Workspace }>(`/workspaces/${workspaceId}/sources/${sourceId}`, {
       method: 'PATCH',
@@ -312,22 +281,20 @@ export const api = {
     ),
 
   /**
-   * Diff a source's current units on disk against the recorded ledger.
-   * Reactor consumes this internally; Studio uses it to render
-   * per-option badges ("extracted Nm ago" / "stale" / never seen) on
-   * the source-intent picker.
+   * Diff a source's current units on disk against the recorded ledger. Reactor consumes this internally,
+   * Studio uses it to render per-option badges ("extracted Nm ago" / "stale" / never seen) on the source-intent picker.
    */
   getSourceUnitDiff: (workspaceId: string, sourceId: string) =>
     fetchJson<SourceUnitDiff>(`/workspaces/${workspaceId}/source-unit-states/${sourceId}/diff`),
-  listSourceUnitStates: (workspaceId: string, sourceId?: string) => {
+  listSourceUnitObservations: (workspaceId: string, sourceId?: string) => {
     const qs = sourceId ? `?sourceId=${encodeURIComponent(sourceId)}` : ''
-    return fetchJson<{ items: SourceUnitState[] }>(`/workspaces/${workspaceId}/source-unit-states${qs}`)
+    return fetchJson<{ items: SourceUnitObservation[] }>(`/workspaces/${workspaceId}/source-unit-states${qs}`)
   },
 
-  listReactorPasses: (workspaceId: string) =>
-    fetchJson<{ items: ReactorPass[] }>(`/workspaces/${workspaceId}/reactor-passes`),
-  getReactorPass: (workspaceId: string, passId: ReactorPassId) =>
-    fetchJson<ReactorPass>(`/workspaces/${workspaceId}/reactor-passes/${passId}`),
+  listReactorCycles: (workspaceId: string) =>
+    fetchJson<{ items: ReactorCycle[] }>(`/workspaces/${workspaceId}/reactor-cycles`),
+  getReactorCycle: (workspaceId: string, cycleId: ReactorCycleId) =>
+    fetchJson<ReactorCycle>(`/workspaces/${workspaceId}/reactor-cycles/${cycleId}`),
 
   listSkills: (workspaceId: string) =>
     fetchJson<ItemList<SkillManifest>>(`/workspaces/${workspaceId}/skills`),
@@ -354,73 +321,65 @@ export const api = {
     return fetchJson<ItemList<Proposal>>(`/workspaces/${workspaceId}/proposals${query}`)
   },
   applyProposal: (workspaceId: string, proposalId: string) =>
-    fetchJson<Decision>(`/workspaces/${workspaceId}/proposals/${proposalId}/apply`, {
+    fetchJson<Proposal>(`/workspaces/${workspaceId}/proposals/${proposalId}/apply`, {
       method: 'POST',
       body: JSON.stringify({}),
     }),
   rejectProposal: (workspaceId: string, proposalId: string, reason: string) =>
-    fetchJson<Decision>(`/workspaces/${workspaceId}/proposals/${proposalId}/reject`, {
+    fetchJson<Proposal>(`/workspaces/${workspaceId}/proposals/${proposalId}/reject`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
     }),
   validateProposal: (workspaceId: string, proposalId: string) =>
     fetchJson<ValidationResult>(`/workspaces/${workspaceId}/proposals/${proposalId}/validate`),
 
-  listClarify: (workspaceId: string, status?: string, showAll?: boolean) => {
+  listClarification: (workspaceId: string, status?: string, showAll?: boolean) => {
     const params = new URLSearchParams()
     if (status)
       params.set('status', status)
     if (showAll)
       params.set('showAll', 'true')
     const query = params.toString() ? `?${params.toString()}` : ''
-    return fetchJson<ItemList<ClarifyTicket>>(`/workspaces/${workspaceId}/clarify${query}`)
+    return fetchJson<ItemList<Clarification>>(`/workspaces/${workspaceId}/clarifications${query}`)
   },
   /**
-   * Returns the ticket plus a `skipReason` projection when the ticket
-   * is in `skipped` status — derived server-side from the most recent
-   * skipClarifyTicket Decision so the UI doesn't need a second call.
+   * Fetch a single clarification.
    */
-  getClarify: (workspaceId: string, ticketId: string) =>
-    fetchJson<ClarifyTicketDetail>(`/workspaces/${workspaceId}/clarify/${ticketId}`),
+  getClarification: (workspaceId: string, ticketId: string) =>
+    fetchJson<ClarificationDetail>(`/workspaces/${workspaceId}/clarifications/${ticketId}`),
   /**
-   * Server mints any omitted candidate ids — skills supply them
-   * deterministically (cc-1 etc.), human-authored "New question"
-   * candidates leave them out and let `newClarifyCandidateId` fill in.
+   * Server mints any omitted candidate ids, skills supply them deterministically (cc-1 etc.),
+   * human-authored "New question" candidates leave them out and let `newClarificationCandidateId` fill in.
    */
-  submitClarify: (workspaceId: string, draft: ClarifySubmitBody) =>
-    fetchJson<ClarifyTicket>(`/workspaces/${workspaceId}/clarify`, {
+  submitClarification: (workspaceId: string, draft: ClarificationCreateBody) =>
+    fetchJson<Clarification>(`/workspaces/${workspaceId}/clarifications`, {
       method: 'POST',
       body: JSON.stringify(draft),
     }),
   /**
-   * Answer a clarify ticket. `selection` is either picking an existing
-   * candidate or supplying a freshly-written description that the
-   * server appends to the ticket and answers in one transaction.
-   * `note` is the reviewer's free-form rationale; the server stores
-   * it on the Decision and projects it back as `answerNote` on the
-   * GET /clarify/:id response.
+   * Answer a clarification.
+   * `selection` is either picking an existing candidate or supplying a freshly-written description,
+   * that the server appends to the ticket and answers in one transaction.
+   * `note` is the reviewer's free-form rationale, saved on the answer commit.
    */
-  answerClarify: (
+  answerClarification: (
     workspaceId: string,
     ticketId: string,
     selection: { candidateId: string } | { customCandidate: { description: string } },
     note?: string,
   ) =>
-    fetchJson<Decision>(`/workspaces/${workspaceId}/clarify/${ticketId}/answer`, {
+    fetchJson<Clarification>(`/workspaces/${workspaceId}/clarifications/${ticketId}/answer`, {
       method: 'POST',
       body: JSON.stringify({
         ...selection,
         ...(note ? { note } : {}),
       }),
     }),
-  skipClarify: (workspaceId: string, ticketId: string, reason: string) =>
-    fetchJson<Decision>(`/workspaces/${workspaceId}/clarify/${ticketId}/skip`, {
+  skipClarification: (workspaceId: string, ticketId: string, reason: string) =>
+    fetchJson<Clarification>(`/workspaces/${workspaceId}/clarifications/${ticketId}/skip`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
     }),
-
-  listDecisions: (workspaceId: string) =>
-    fetchJson<ItemList<Decision>>(`/workspaces/${workspaceId}/decisions`),
 
   skillRunUrl: (workspaceId: string, skillId: string) =>
     `${getServerUrl()}/workspaces/${workspaceId}/skills/${skillId}/run`,
@@ -467,7 +426,7 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ title }),
     }),
-  /** Deletes the cwd AND drops every RunRecord + event log for the session. */
+  /** Deletes the cwd and drops every RunRecord + event log for the session. */
   deleteSession: (workspaceId: string, sessionId: string) =>
     fetchJson<void>(`/workspaces/${workspaceId}/runs/sessions/${sessionId}?purge=true`, { method: 'DELETE' }),
   /** Orphan-row delete: single RunRecord by runId. */
@@ -485,8 +444,8 @@ export const api = {
   },
   getCommit: (workspaceId: string, sha: CommitSha) =>
     fetchJson<CommitMeta & { diff: FileDiff[] }>(`/workspaces/${workspaceId}/history/${sha}`),
-  getCommitGraphDiff: (workspaceId: string, fromSha: CommitSha, toSha: CommitSha) =>
-    fetchJson<GraphDiffEnvelope>(`/workspaces/${workspaceId}/history/graph-diff?from=${fromSha}&to=${toSha}`),
+  getCommitModelDiff: (workspaceId: string, fromSha: CommitSha, toSha: CommitSha) =>
+    fetchJson<ModelDiffEnvelope>(`/workspaces/${workspaceId}/history/graph-diff?from=${fromSha}&to=${toSha}`),
   restoreCommit: (workspaceId: string, sha: CommitSha) =>
     fetchJson<{ newCommit: CommitSha, restoredTo: CommitSha }>(
       `/workspaces/${workspaceId}/history/${sha}/restore`,
@@ -524,8 +483,8 @@ export const api = {
   archiveBatch: (workspaceId: string) =>
     fetchJson<BatchPlan>(`/workspaces/${workspaceId}/batch/archive`, { method: 'POST' }),
 
-  listSkillInputOptions: (workspaceId: string, type: string, filter?: unknown) => {
-    const params = new URLSearchParams({ type })
+  listSkillInputOptions: (workspaceId: string, kind: string, filter?: unknown) => {
+    const params = new URLSearchParams({ kind })
     if (filter !== undefined)
       params.set('filter', JSON.stringify(filter))
     return fetchJson<SkillInputOptionsResponse>(`/workspaces/${workspaceId}/skill-input-options?${params.toString()}`)

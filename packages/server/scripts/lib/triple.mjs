@@ -1,10 +1,8 @@
 /**
- * Map the running host (or BRAID_BUNDLE_TARGET override) to the npm-style
- * triple kuzu uses for its prebuilt binaries.
- *
- * Separate from the Rust target triple used by the Tauri sidecar download
- * (e.g. aarch64-apple-darwin). Two mappings exist because kuzu publishes
- * binaries with the npm convention and Tauri expects the Rust convention.
+ * Map the running host, or the BRAID_BUNDLE_TARGET override,
+ * to the npm-style triple kuzu uses for its prebuilt binaries.
+ * This is separate from the Rust triple the Tauri sidecar download uses,
+ * since kuzu publishes with npm naming while Tauri expects Rust naming.
  */
 export function targetTriple({ platform, arch, override } = {}) {
   if (override)

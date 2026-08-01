@@ -1,11 +1,11 @@
 import type { OpenAPIHono } from '@hono/zod-openapi'
-import type { AppDependencies } from '../../src/composition.js'
+import type { AppDependencies } from '../../src/composeApp.js'
 import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app.js'
-import { composeFsApp } from '../../src/composeFs.js'
+import { composeFsApp } from '../../src/composeFsApp.js'
 import { readJson } from '../helpers/readJson.js'
 
 /**
@@ -13,18 +13,15 @@ import { readJson } from '../helpers/readJson.js'
  *
  * Exercises the full data flow through the running server:
  *
- *   1. Workspace scaffold — writes PRODUCT.md, registers workspace,
- *      binds the active OntologyPlugin's validators.
- *   2. Proposal submission — HITLService.assertOperationsValid runs
- *      framework invariants (Evidence/OrphanEdge) inline + active
- *      OntologyPlugin's validators (OntologyType + Structural,
- *      auto-bound by `defineOntology`).
- *   3. Apply proposal — StoragePlugin → ModelRepository write,
- *      Decision recorded, status transitions to `applied`.
+ * 1. Workspace scaffold, writes PRODUCT.md, registers workspace,
+ * binds the active OntologyPlugin's validators.
+ * 2. Proposal submission, HITLService.assertOperationsValid runs framework invariants (Evidence/OrphanEdge) inline,
+ * plus the active OntologyPlugin's validators (OntologyType + Structural, auto-bound by `defineOntologyPlugin`).
+ * 3. Apply proposal, StoragePlugin to ModelRepository write,
+ * status transitions to `applied`.
  *
- * Does NOT spawn the `claude` subprocess; agent path is tested
- * separately with mockSpawn. This test pins the registry-routed
- * wiring + the validator orchestration.
+ * Does NOT spawn the `claude` subprocess, agent path is tested separately with mockSpawn.
+ * This test pins the registry-routed wiring + the validator orchestration.
  */
 
 /** Minimal valid node payload satisfying EvidenceValidator. */
@@ -33,8 +30,8 @@ function validNode(opts: { type: string, name: string, id: string }): unknown {
     type: opts.type,
     name: opts.name,
     id: opts.id,
-    // implementationMissing satisfies EvidenceValidator: the node is intent
-    // for code that hasn't shipped yet, so no sourceReferences are required.
+    // implementationMissing satisfies EvidenceValidator, the node is intent for code not yet shipped,
+    // so no sourceReferences needed.
     metadata: { sourceReferences: [], implementationMissing: true },
   }
 }
@@ -54,7 +51,6 @@ function proposalBody(opts: {
 
 interface ProposalRef { id: string }
 interface ProblemBody { code: string, issues?: Array<{ code: string }> }
-interface DecisionBody { action: string, references: { proposalId: string } }
 interface NodesBody { items: Array<{ id: string, name: string, type: string }> }
 interface OntologyBody {
   ontologyId: string
@@ -74,16 +70,14 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
   })
 
   afterEach(async () => {
-    // Kuzu cleanup: release any cached connections before nuking the dir
-    // to avoid lock errors. The KuzuModelRepository owns the cache; in
-    // production composeFsApp doesn't dispose at process exit either.
+    // Kuzu cleanup: release cached connections before nuking the dir, to avoid lock errors.
+    // The KuzuModelRepository owns the cache, production composeFsApp doesn't dispose at process exit either.
     await rm(braidHome, { recursive: true, force: true }).catch(() => {})
   })
 
   async function scaffold(name: string): Promise<string> {
-    // Seed a stray file so we exercise the "scaffold writes into a dir
-    // that may already exist" path. Server's writeProductManifest does
-    // `mkdir -p` so this is just defensive realism, not a precondition.
+    // Seed a stray file so we exercise the scaffold-into-existing-dir path.
+    // Server's writeProductManifest does `mkdir -p`, so this is just defensive realism, not a precondition.
     const workspaceRoot = join(braidHome, 'workspaces', name)
     await mkdir(workspaceRoot, { recursive: true })
     await writeFile(join(workspaceRoot, 'NOTES.md'), '# notes\n')
@@ -117,10 +111,10 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
   it('routes a valid proposal through both framework and ontology validators', async () => {
     const wsId = await scaffold('e2e-valid')
 
-    // boundedContext → aggregate via `contains`. Three validators must pass:
-    //   - EvidenceValidator (framework): implementationMissing satisfies it
-    //   - OntologyTypeValidator (ontology): both types declared in ddd
-    //   - StructuralValidator (ontology): contains direction matches descriptor
+    // boundedContext to aggregate via `contains`. Three validators must pass:
+    // - EvidenceValidator (framework): implementationMissing satisfies it
+    // - OntologyTypeValidator (ontology): both types declared in ddd
+    // - StructuralValidator (ontology): contains direction matches descriptor
     const response = await submitProposal(wsId, proposalBody({
       operations: [
         { operation: 'addNode', payload: validNode({ type: 'boundedContext', name: 'Billing', id: 'ctx-billing' }) },
@@ -145,7 +139,7 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
     const response = await submitProposal(wsId, proposalBody({
       operations: [{
         operation: 'addNode',
-        // No metadata at all → EvidenceValidator fires.
+        // No metadata at all, so EvidenceValidator fires.
         payload: { type: 'command', name: 'placeOrder', id: 'cmd-1' },
       }],
       rationale: 'e2e: missing evidence',
@@ -174,7 +168,7 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
   it('rejects a proposal that violates the ontology StructuralValidator (edge endpoints reversed)', async () => {
     const wsId = await scaffold('e2e-structural')
 
-    // Contains is boundedContext → aggregate. Reversing endpoints trips StructuralValidator.
+    // Contains runs boundedContext to aggregate. Reversing the endpoints trips StructuralValidator.
     const response = await submitProposal(wsId, proposalBody({
       operations: [
         { operation: 'addNode', payload: validNode({ type: 'boundedContext', name: 'X', id: 'ctx-x' }) },
@@ -210,9 +204,9 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
       body: JSON.stringify({ userId: 'tester' }),
     })
     expect(applyResponse.status).toBe(200)
-    const decision = await readJson<DecisionBody>(applyResponse)
-    expect(decision.action).toBe('applyProposal')
-    expect(decision.references.proposalId).toBe(proposal.id)
+    const applied = await readJson<{ id: string, status: string }>(applyResponse)
+    expect(applied.status).toBe('applied')
+    expect(applied.id).toBe(proposal.id)
 
     // StoragePlugin-routed ModelRepository should now expose the node.
     const nodesResponse = await app.request(`/workspaces/${wsId}/nodes`)
@@ -221,10 +215,6 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
     const placed = nodesBody.items.find(n => n.id === 'cmd-place')
     expect(placed?.name).toBe('placeOrder')
     expect(placed?.type).toBe('command')
-
-    const decisionsResponse = await app.request(`/workspaces/${wsId}/decisions`)
-    const decisionsBody = await readJson<{ items: Array<{ action: string }> }>(decisionsResponse)
-    expect(decisionsBody.items.some(d => d.action === 'applyProposal')).toBe(true)
 
     const proposalRead = await app.request(`/workspaces/${wsId}/proposals/${proposal.id}`)
     const reread = await readJson<{ status: string }>(proposalRead)

@@ -9,7 +9,7 @@ import { SkillRunId } from '@braidhq/schema'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { z } from 'zod'
-import { createAsyncQueue } from '../infrastructure/agent/asyncQueue.js'
+import { createAsyncQueue } from '../infrastructure/skill/asyncQueue.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { loadWorkspaceById } from './helpers.js'
 
@@ -28,9 +28,10 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
     return context.json({ items })
   })
 
-  // Replay the persisted JSONL log and, if the run is still active, tail new
-  // events as they arrive. Clients can open / close / reopen this stream
-  // freely; the underlying subprocess and event log are not affected.
+  // Replay the persisted JSONL log,
+  // and if the run is still active, tail new events as they arrive.
+  // Clients can open, close, and reopen this stream freely,
+  // the underlying subprocess and event log are untouched.
   router.get('/:runId/events', async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const runId = SkillRunId.parse(context.req.param('runId'))
@@ -43,9 +44,10 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
         return
       }
 
-      // Subscribe BEFORE reading JSONL. positionAtSubscribe is the snapshot of
-      // how many events were already persisted, so we read exactly that many
-      // from disk and rely on the live listener for everything from there on.
+      // Subscribe BEFORE reading JSONL.
+      // The positionAtSubscribe count snapshots how many events were persisted,
+      // so we read exactly that many from disk,
+      // and rely on the live listener for everything after.
       const queue = createAsyncQueue<SkillEvent>()
       const { unsubscribe, positionAtSubscribe } = deps.skillRunner.subscribe(runId, (event) => {
         queue.push(event)
@@ -74,9 +76,9 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
     })
   })
 
-  // SIGTERM the underlying claude subprocess. The drain loop emits a
-  // `completed` event with the actual exit code, which the SSE tailers
-  // receive normally. 404 if the run already finished.
+  // SIGTERM the underlying claude subprocess.
+  // The drain loop emits a `completed` event with the real exit code,
+  // which the SSE tailers receive normally. 404 if the run already finished.
   router.post('/:runId/cancel', async (context) => {
     const runId = SkillRunId.parse(context.req.param('runId'))
     await deps.skillRunner.cancel(runId)
@@ -86,13 +88,13 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
   router.delete('/sessions/:sessionId', async (context) => {
     const sessionId = context.req.param('sessionId')
     if (!sessionId)
-      throw new NotFoundError('sessionId is required')
+      throw new NotFoundError('Query parameter sessionId is required')
     await deps.skillRunner.forgetSession(sessionId)
-    // `?purge=true` also drops the persisted run records and event
-    // logs, matching the workspace-level `?purge=true` pattern. Used
-    // by the Studio's per-conversation Delete action; the default
-    // (no purge) is the lightweight `forgetSession` semantics that
-    // "New conversation" leans on.
+    // `?purge=true` also drops the persisted run records and event logs,
+    // matching the workspace-level `?purge=true` pattern.
+    // Used by the Studio's per-conversation Delete action.
+    // Without purge it keeps the lightweight `forgetSession` semantics,
+    // which "New conversation" relies on.
     if (context.req.query('purge') === 'true') {
       const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
       const all = await deps.runRepository.listRecords(workspace)
@@ -105,8 +107,9 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
     return context.body(null, 204)
   })
 
-  // Single-run delete, used by orphan rows in Conversations that have
-  // no sessionId to anchor against. Refuses to touch an in-flight run.
+  // Single-run delete, used by orphan Conversations rows,
+  // that have no sessionId to anchor against.
+  // Refuses to touch an in-flight run.
   router.delete('/:runId', async (context) => {
     const runId = SkillRunId.parse(context.req.param('runId'))
     if (deps.skillRunner.isActive(runId))
@@ -130,7 +133,7 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
   router.patch('/sessions/:sessionId', async (context) => {
     const sessionId = context.req.param('sessionId')
     if (!sessionId)
-      throw new NotFoundError('sessionId is required')
+      throw new NotFoundError('Query parameter sessionId is required')
     const body = await context.req.json().catch(() => null)
     const parsed = SessionPatchBody.safeParse(body)
     if (!parsed.success)

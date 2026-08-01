@@ -1,43 +1,80 @@
-import type { AbsolutePath, AgentId, OntologyId, ProductManifest, StorageKind, Workspace as WorkspaceData, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, WorkspaceId } from '@braidhq/schema'
+import { makeOntology, makeWorkspace } from '@braidhq/test-utils'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { NotFoundError, PluginRegistry, Workspace, WorkspaceService } from '../../src/index.js'
-import { InMemoryWorkspaceRepository } from '../../src/testing.js'
+import { InMemoryWorkspaceRepository } from '../../src/in-memory.js'
+import { NotFoundError, PluginRegistry, ValidationError, WorkspaceService } from '../../src/index.js'
 
-const rootPath = '/abs/path' as AbsolutePath
-
-const productManifest: ProductManifest = {
-  name: 'demo',
-  version: '0.0.0',
-  ontologyId: 'ddd' as OntologyId,
-  agents: { default: 'claudeCode' as AgentId, tasks: {} },
-  agentBindings: [],
-  sources: [],
-  mcpServers: [],
-  storage: { kind: 'in-memory' as StorageKind, config: {} },
-}
-
-const workspaceData: WorkspaceData = {
-  id: 'w-1' as WorkspaceId,
-  rootPath,
-  productManifest,
-}
+const rootPath = '/abs/ws' as AbsolutePath
 
 describe('WorkspaceService', () => {
   let repository: InMemoryWorkspaceRepository
+  let pluginRegistry: PluginRegistry
   let service: WorkspaceService
 
   beforeEach(() => {
     repository = new InMemoryWorkspaceRepository()
-    service = new WorkspaceService({ workspaceRepository: repository, pluginRegistry: new PluginRegistry() })
+    pluginRegistry = new PluginRegistry()
+    service = new WorkspaceService({ workspaceRepository: repository, pluginRegistry })
   })
 
   it('saves a workspace and reloads identical data', async () => {
-    await service.save(new Workspace(workspaceData))
+    await service.save(makeWorkspace({ id: 'ws-1', rootPath }))
     const loaded = await service.load(rootPath)
-    expect(loaded.id).toBe('w-1')
+    expect(loaded.id).toBe('ws-1')
   })
 
   it('throws NotFoundError when loading an unsaved root path', async () => {
     await expect(service.load(rootPath)).rejects.toThrow(NotFoundError)
+  })
+
+  it('lists every saved workspace', async () => {
+    await service.save(makeWorkspace({ id: 'ws-1', rootPath }))
+    await service.save(makeWorkspace({ id: 'ws-2', rootPath: '/abs/ws2' as AbsolutePath }))
+    expect(await service.list()).toHaveLength(2)
+  })
+
+  it('removes a workspace so a later load fails', async () => {
+    await service.save(makeWorkspace({ id: 'ws-1', rootPath }))
+    await service.remove(rootPath)
+    await expect(service.load(rootPath)).rejects.toThrow(NotFoundError)
+  })
+
+  it('invalidate is a no-op when the repository has no cache', () => {
+    expect(() => service.invalidate(rootPath)).not.toThrow()
+  })
+
+  describe('findById', () => {
+    it('returns the workspace with the matching id', async () => {
+      await service.save(makeWorkspace({ id: 'ws-1', rootPath }))
+      const found = await service.findById('ws-1' as WorkspaceId)
+      expect(found.id).toBe('ws-1')
+    })
+
+    it('throws NotFoundError for an unregistered id', async () => {
+      await expect(service.findById('ghost' as WorkspaceId)).rejects.toThrow(NotFoundError)
+    })
+  })
+
+  describe('assertRequiredSourceRoles', () => {
+    it('passes when the ontology declares no required roles', () => {
+      expect(() => service.assertRequiredSourceRoles(makeWorkspace())).not.toThrow()
+    })
+
+    it('passes when every required role is present', () => {
+      pluginRegistry.register(makeOntology({ requiredSourceRoles: ['code'] }))
+      expect(() => service.assertRequiredSourceRoles(makeWorkspace())).not.toThrow()
+    })
+
+    it('throws naming the single missing role', () => {
+      pluginRegistry.register(makeOntology({ requiredSourceRoles: ['code', 'intent'] }))
+      const assert = () => service.assertRequiredSourceRoles(makeWorkspace())
+      expect(assert).toThrow(ValidationError)
+      expect(assert).toThrow(/"intent"/)
+    })
+
+    it('lists every missing role when several are absent', () => {
+      pluginRegistry.register(makeOntology({ requiredSourceRoles: ['code', 'intent'] }))
+      expect(() => service.assertRequiredSourceRoles(makeWorkspace({ sources: [] }))).toThrow(/roles/)
+    })
   })
 })

@@ -13,18 +13,11 @@ export interface DevCommandInput {
 
 /**
  * Boot Braid for interactive development.
- *
- * Two modes, chosen automatically:
- *
- *   - **Monorepo mode** (a `pnpm-workspace.yaml` exists at CWD or any
- *     ancestor): spawn `pnpm --filter @braidhq/server dev` and
- *     `pnpm --filter @braidhq/studio dev` as child processes so changes
- *     to either reload live. Logs are prefixed `[server]` / `[studio]`
- *     and routed to this CLI's stdout. Ctrl+C kills both.
- *
- *   - **Standalone mode** (no pnpm workspace context): just runs
- *     `serveCommand`. Studio is not started; v0.1 doesn't ship a
- *     bundled Studio dist for standalone installs yet (see roadmap).
+ * In a monorepo checkout (a pnpm-workspace.yaml at the cwd or an ancestor),
+ * spawn the server and Studio dev processes so edits to either reload live,
+ * prefix their logs, and stop both on Ctrl+C.
+ * Standalone, with no workspace context, run the server only.
+ * v0.1 ships no bundled Studio dist for standalone installs yet.
  */
 export async function devCommand(input: DevCommandInput): Promise<void> {
   const monorepoRoot = await findMonorepoRoot(process.cwd())

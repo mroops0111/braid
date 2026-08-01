@@ -9,11 +9,12 @@ function isTheme(value: unknown): value is Theme {
 }
 
 /**
- * Theme to apply on first paint. Returns the user's stored pick if they
- * have ever clicked the toggle; otherwise falls back to the OS
- * preference. Once the user picks a theme it sticks and no longer
- * follows OS day / night changes. That's the trade for a simple
- * two-state toggle without a `system` mode.
+ * Theme to apply on first paint.
+ * Returns the user's stored pick if they have ever clicked the toggle,
+ * otherwise the OS preference.
+ * Once the user picks a theme it sticks,
+ * and no longer follows OS day-night changes.
+ * That is the trade for a simple two-state toggle without a `system` mode.
  */
 function initialTheme(): Theme {
   try {
@@ -41,10 +42,6 @@ function applyTheme(theme: Theme): void {
   document.documentElement.classList.toggle('dark', theme === 'dark')
 }
 
-/**
- * React hook that reads / persists the theme preference and keeps the
- * `<html class="dark">` toggle in sync. Two states only: light and dark.
- */
 export function useTheme(): { theme: Theme, setTheme: (t: Theme) => void } {
   const [theme, setThemeState] = useState<Theme>(initialTheme)
 

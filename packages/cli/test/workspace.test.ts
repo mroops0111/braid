@@ -39,4 +39,30 @@ describe('workspaceListCommand', () => {
     const out = stdoutSpy.mock.calls.map(args => String(args[0])).join('')
     expect(out).toMatch(/No workspaces registered\. Create one via Studio\./)
   })
+
+  it('throws a serve hint when the server is unreachable', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('ECONNREFUSED'))
+    await expect(workspaceListCommand({ apiUrl: 'http://localhost:4321' }))
+      .rejects
+      .toThrow(/could not reach http:\/\/localhost:4321.*braid serve.*ECONNREFUSED/)
+  })
+
+  it('surfaces the problem detail on a non-ok response', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      JSON.stringify({ detail: 'workspaces root not writable' }),
+      { status: 500, headers: { 'content-type': 'application/json' } },
+    ))
+    await expect(workspaceListCommand({ apiUrl: 'http://localhost:4321' }))
+      .rejects
+      .toThrow(/server returned 500: workspaces root not writable/)
+  })
+
+  it('falls back to the status text when the error body is not json', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('not json', { status: 503, statusText: 'Service Unavailable' }),
+    )
+    await expect(workspaceListCommand({ apiUrl: 'http://localhost:4321' }))
+      .rejects
+      .toThrow(/server returned 503: Service Unavailable/)
+  })
 })

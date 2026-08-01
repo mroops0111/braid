@@ -4,8 +4,8 @@ import type { UserRegistryFile } from './UserRegistryFile.js'
 
 /**
  * Adapt the file-backed user roster to the core `UserDirectory` port.
- * Returns `null` for unknown ids (bootstrap / `braid-skill` etc.) so
- * the git layer falls back to its synthetic author for those rows.
+ * Returns `null` for unknown ids (such as bootstrap or `braid-skill`),
+ * so the git layer falls back to its synthetic author for those rows.
  */
 export class UserDirectoryFromRegistry implements UserDirectory {
   constructor(private readonly registry: UserRegistryFile) {}

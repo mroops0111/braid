@@ -1,11 +1,11 @@
 import type { OpenAPIHono } from '@hono/zod-openapi'
-import type { AppDependencies } from '../../src/composition.js'
+import type { AppDependencies } from '../../src/composeApp.js'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app.js'
-import { composeFsApp } from '../../src/composeFs.js'
+import { composeFsApp } from '../../src/composeFsApp.js'
 import { readJson } from '../helpers/readJson.js'
 
 interface CommitItem { sha: string, message: { kind: string, subject: string, proposalId?: string } }
@@ -73,6 +73,19 @@ describe('history REST routes', () => {
     expect(items[0]!.message.kind).toBe('proposal-apply')
   })
 
+  it('records a config commit when the manifest is edited', async () => {
+    const patch = await app.request(`/workspaces/${workspaceId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description: 'edited in test' }),
+    })
+    expect(patch.status).toBe(200)
+
+    const { items } = await readJson<{ items: CommitItem[] }>(await app.request(`/workspaces/${workspaceId}/history`))
+    const config = items.find(commit => commit.message.kind === 'config')
+    expect(config?.message.subject).toBe('updated workspace config')
+  })
+
   it('GET /history/:sha returns commit detail plus diff', async () => {
     await applyOne('placeOrder', 'cmd-a')
     const list = await readJson<{ items: CommitItem[] }>(await app.request(`/workspaces/${workspaceId}/history`))
@@ -81,13 +94,14 @@ describe('history REST routes', () => {
     const detail = await app.request(`/workspaces/${workspaceId}/history/${head.sha}`)
     const body = await readJson<{ sha: string, diff: Array<{ path: string, status: string }> }>(detail)
     expect(body.sha).toBe(head.sha)
-    expect(body.diff.some(d => d.path === 'artifacts/graph.json')).toBe(true)
+    expect(body.diff.some(d => d.path === 'artifacts/model.json')).toBe(true)
   })
 
   it('POST /history/:sha/restore rolls back graph and produces a forward commit', async () => {
     await applyOne('placeOrder', 'cmd-a')
     const beforeList = await readJson<{ items: CommitItem[] }>(await app.request(`/workspaces/${workspaceId}/history`))
-    const v1Sha = beforeList.items[beforeList.items.length - 1]!.sha // the initial commit
+    // the initial commit
+    const v1Sha = beforeList.items[beforeList.items.length - 1]!.sha
     await applyOne('ackOrder', 'cmd-b')
     // Sanity: cmd-b is now in the graph.
     const before = await readJson<{ items: Array<{ id: string }> }>(await app.request(`/workspaces/${workspaceId}/nodes`))

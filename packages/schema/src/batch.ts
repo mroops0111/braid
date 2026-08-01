@@ -1,48 +1,46 @@
 import { z } from 'zod'
-import { ClarifyTicketId, ProposalId, SkillId, SkillRunId, SourceId, Timestamp, WorkspaceId } from './common.js'
+import { ClarificationId, ProposalId, SkillId, SkillRunId, SourceId, Timestamp, WorkspaceId } from './common.js'
 
-export const PlanUnitId = z.string().min(1).brand<'PlanUnitId'>()
-export type PlanUnitId = z.infer<typeof PlanUnitId>
+export const BatchUnitId = z.string().min(1).brand<'BatchUnitId'>()
+export type BatchUnitId = z.infer<typeof BatchUnitId>
 
 export const BatchPlanId = z.string().min(1).brand<'BatchPlanId'>()
 export type BatchPlanId = z.infer<typeof BatchPlanId>
 
-export const UnitStatus = z.enum(['pending', 'running', 'completed', 'failed', 'skipped'])
-export type UnitStatus = z.infer<typeof UnitStatus>
+export const BatchUnitStatus = z.enum(['pending', 'running', 'completed', 'failed', 'skipped'])
+export type BatchUnitStatus = z.infer<typeof BatchUnitStatus>
 
 export const BatchStatus = z.enum(['idle', 'deriving', 'running', 'completed', 'failed', 'stopped', 'archived'])
 export type BatchStatus = z.infer<typeof BatchStatus>
 
-// `intent` walks each intent source directly. `derive` first runs the
-// ontology's `deriveUnits` skill to populate the unit list from a
-// code-only workspace.
+/**
+ * intent mode walks intent sources directly. derive mode seeds units via the ontology's deriveUnits skill,
+ * for code-only workspaces.
+ */
 export const BatchInputMode = z.enum(['intent', 'derive'])
 export type BatchInputMode = z.infer<typeof BatchInputMode>
 
-export const PlanUnit = z.object({
-  id: PlanUnitId,
+export const BatchUnit = z.object({
+  id: BatchUnitId,
   name: z.string().min(1),
   description: z.string(),
-  // Source this unit was derived from (mode='intent' = the intent source it belongs to).
-  // Omitted in mode='derive' because units come from the ontology's discovery skill.
+  // The intent source this unit belongs to. Absent in derive mode.
   sourceId: SourceId.optional(),
-  // What to pass to braid-extract as scope-hint. For intent mode this is the
-  // doc / folder name within the source (e.g. "TSK00010 文字欄位.../"); empty
-  // falls back to `name`.
+  // Scope hint for ddd:extract (doc/folder name). Empty falls back to name.
   scopeHint: z.string().optional(),
-  status: UnitStatus,
-  // Stamped at startUnit so the UI can replay the skill log for completed / failed units.
+  status: BatchUnitStatus,
+  // Stamped at markUnitRunning so the UI can replay the run's log.
   skillRunId: SkillRunId.optional(),
   startedAt: Timestamp.optional(),
   completedAt: Timestamp.optional(),
   proposalIds: z.array(ProposalId).default([]),
-  clarifyTicketIds: z.array(ClarifyTicketId).default([]),
+  clarificationIds: z.array(ClarificationId).default([]),
   error: z.string().optional(),
 })
-export type PlanUnit = z.infer<typeof PlanUnit>
+export type BatchUnit = z.infer<typeof BatchUnit>
 
 export const BatchRunning = z.object({
-  unitId: PlanUnitId,
+  unitId: BatchUnitId,
   skillRunId: SkillRunId,
 })
 export type BatchRunning = z.infer<typeof BatchRunning>
@@ -50,14 +48,10 @@ export type BatchRunning = z.infer<typeof BatchRunning>
 export const BatchCheckpointPhaseStatus = z.enum(['running', 'completed', 'failed'])
 export type BatchCheckpointPhaseStatus = z.infer<typeof BatchCheckpointPhaseStatus>
 
-/**
- * One execution of the ontology-provided checkpoint skill. Append-only
- * inside `BatchPlan.checkpointPhases`; `unitIds` records which units
- * this run consumed so chunk accounting knows what's still pending.
- */
+/** unitIds records which units this run consumed, for chunk accounting. */
 export const BatchCheckpointPhase = z.object({
   status: BatchCheckpointPhaseStatus,
-  unitIds: z.array(PlanUnitId),
+  unitIds: z.array(BatchUnitId),
   startedAt: Timestamp.optional(),
   completedAt: Timestamp.optional(),
   skillRunId: SkillRunId.optional(),
@@ -73,22 +67,14 @@ export const BatchPlan = z.object({
   mode: BatchInputMode,
   status: BatchStatus,
   autoApply: z.boolean(),
-  // The git tag created at start so a botched batch can be rolled back via Restore.
+  // Git tag from start(), lets Restore roll back a botched batch.
   baselineTag: z.string().optional(),
-  units: z.array(PlanUnit),
+  units: z.array(BatchUnit),
   running: BatchRunning.optional(),
   error: z.string().optional(),
-  /**
-   * Append-only history of checkpoint skill runs. Failed phases are
-   * dropped by `resumeRun` so a re-run starts chunk accounting fresh.
-   */
+  // resumeRun drops failed phases so a re-run starts accounting fresh.
   checkpointPhases: z.array(BatchCheckpointPhase).default([]),
-  /**
-   * Frozen snapshot of the ontology's batch binding taken at start().
-   * UI reads it to label steps and pre-split anticipated chunks;
-   * resume reads it so chunk accounting survives ontology config
-   * changes mid-plan.
-   */
+  // Frozen at start() so accounting survives ontology config changes mid-plan.
   batchPolicy: z.object({
     perUnitSkillId: SkillId,
     perUnitLabel: z.string().optional(),

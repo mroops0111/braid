@@ -4,14 +4,17 @@ import { describe, expect, it } from 'vitest'
 import {
   BraidError,
   ConflictError,
+  ForbiddenError,
   NotFoundError,
+  ServiceUnavailableError,
+  UnauthorizedError,
   ValidationError,
 } from '../../src/index.js'
 
 describe('BraidError base', () => {
   it('carries code + message + name', () => {
-    const error = new BraidError('BRAID-X', 'something broke')
-    expect(error.code).toBe('BRAID-X')
+    const error = new BraidError('BRAID-INTERNAL', 'something broke')
+    expect(error.code).toBe('BRAID-INTERNAL')
     expect(error.message).toBe('something broke')
     expect(error.name).toBe('BraidError')
     expect(error).toBeInstanceOf(Error)
@@ -19,18 +22,18 @@ describe('BraidError base', () => {
 
   it('preserves cause via standard Error options', () => {
     const cause = new Error('underlying')
-    const error = new BraidError('BRAID-X', 'wrapped', { cause })
+    const error = new BraidError('BRAID-INTERNAL', 'wrapped', { cause })
     expect(error.cause).toBe(cause)
   })
 })
 
 describe('ValidationError', () => {
-  it('uses BRAID-VAL code and reports issues', () => {
+  it('uses BRAID-VALIDATION code and reports issues', () => {
     const issues: ValidationIssue[] = [
       { code: ValidationCode.parse('x-required'), severity: 'error', message: 'x is required' },
     ]
     const error = new ValidationError('bad input', issues)
-    expect(error.code).toBe('BRAID-VAL')
+    expect(error.code).toBe('BRAID-VALIDATION')
     expect(error.name).toBe('ValidationError')
     expect(error.issues).toEqual(issues)
     expect(error).toBeInstanceOf(BraidError)
@@ -55,5 +58,32 @@ describe('ConflictError', () => {
     const error = new ConflictError('duplicate id')
     expect(error.code).toBe('BRAID-CONFLICT')
     expect(error.name).toBe('ConflictError')
+  })
+})
+
+describe('ForbiddenError', () => {
+  it('uses BRAID-FORBIDDEN code', () => {
+    const error = new ForbiddenError('You can only update your own profile.')
+    expect(error.code).toBe('BRAID-FORBIDDEN')
+    expect(error.name).toBe('ForbiddenError')
+    expect(error).toBeInstanceOf(BraidError)
+  })
+})
+
+describe('UnauthorizedError', () => {
+  it('uses BRAID-UNAUTHORIZED code', () => {
+    const error = new UnauthorizedError('Sign in to continue.')
+    expect(error.code).toBe('BRAID-UNAUTHORIZED')
+    expect(error.name).toBe('UnauthorizedError')
+    expect(error).toBeInstanceOf(BraidError)
+  })
+})
+
+describe('ServiceUnavailableError', () => {
+  it('uses BRAID-UNAVAILABLE code', () => {
+    const error = new ServiceUnavailableError('Google sign-in is not configured.')
+    expect(error.code).toBe('BRAID-UNAVAILABLE')
+    expect(error.name).toBe('ServiceUnavailableError')
+    expect(error).toBeInstanceOf(BraidError)
   })
 })

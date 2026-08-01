@@ -1,19 +1,14 @@
 #!/usr/bin/env node
-/**
- * Make the server sidecar available to Tauri before `tauri dev` /
- * `tauri build` runs:
- *
- *   1. Force `@braidhq/server` to rebuild + rebundle so a stale turbo
- *      cache cannot leak into the desktop installer.
- *   2. Copy bundle/ into src-tauri/resources/server/ so Tauri ships it
- *      inside the .app bundle.
- *   3. Download the official Node runtime for the current target triple
- *      into src-tauri/binaries/node-<rust-triple>. Tauri's `externalBin`
- *      config picks it up as a sidecar binary.
- *
- * Node version is pinned in NODE_VERSION below. Bump deliberately: the
- * Tauri bundle ships exactly this binary to end users.
- */
+// Prepare the two things a Tauri build embeds, before dev or build runs.
+// The server bundle is a resource, the Node runtime is the sidecar.
+// 1. Force `@braidhq/server` to rebuild and rebundle,
+//    so a stale turbo cache cannot leak into the installer.
+// 2. Copy bundle/ into src-tauri/resources/server/,
+//    so Tauri ships it as a resource inside the .app bundle.
+// 3. Download the official Node runtime into src-tauri/binaries/,
+//    keyed by target triple, where Tauri's externalBin picks up the sidecar.
+// Node version is pinned in NODE_VERSION below. Bump it deliberately,
+// the Tauri bundle ships exactly this binary to end users.
 
 import { spawnSync } from 'node:child_process'
 import { createWriteStream, existsSync, mkdirSync, rmSync } from 'node:fs'
@@ -46,10 +41,8 @@ function logStep(message) {
   console.log(`[prepare-sidecar] ${message}`)
 }
 
-/**
- * Run a child process with array-form args so paths with spaces stay safe,
- * and throw if it exits non-zero so failures surface immediately.
- */
+// Run a child process with array-form args so paths with spaces stay safe,
+// and throw if it exits non-zero so failures surface immediately.
 function run(cmd, args, cwd) {
   const result = spawnSync(cmd, args, { cwd, stdio: 'inherit' })
   if (result.status !== 0) {

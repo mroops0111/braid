@@ -1,9 +1,10 @@
-import type { McpServerConfig, ProductManifestDraft } from '@braidhq/schema'
-import type { IngestSummary } from '@/lib/api'
+import type { McpServerConfig, ProductManifestCreate } from '@braidhq/schema'
+import type { ProvisionSummary } from '@/lib/api'
 import type { SourceDraft as SourceDraftBase } from '@/lib/sourceDraft'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { api, workspaceEventsUrl } from '@/lib/api'
 import { asMcpServerId, asOntologyId, asStorageKind } from '@/lib/brands'
 import { type ErrorCase, humaniseApiError } from '@/lib/errors'
@@ -62,11 +63,11 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
   const [mcpServers, setMcpServers] = useState<McpDraft[]>([])
   const [ontologyId, setOntologyId] = useState('ddd')
   const [storageKind, setStorageKind] = useState('kuzu')
-  const [ingestResults, setIngestResults] = useState<IngestSummary[]>([])
+  const [provisionResults, setProvisionResults] = useState<ProvisionSummary[]>([])
   // sourceIds whose Google OAuth flow completed in this wizard session.
-  // The server stores tokens keyed by `${workspaceId}--${sourceId}` and
-  // since `workspaceId === name` (PRODUCT.md name == folder name) we can
-  // run OAuth before the workspace actually exists.
+  // The server stores tokens keyed by `${workspaceId}--${sourceId}`.
+  // Since `workspaceId === name` (PRODUCT.md name == folder name),
+  // we can run OAuth before the workspace actually exists.
   const [oauthConnectedFor, setOauthConnectedFor] = useState<Set<string>>(new Set())
 
   const scaffold = useMutation({
@@ -75,9 +76,9 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
       return api.scaffoldWorkspace(name, draft)
     },
     onSuccess: (result) => {
-      setIngestResults(result.ingest)
+      setProvisionResults(result.provision)
       queryClient.invalidateQueries({ queryKey: queryKeys.workspaces() })
-      // Sidebar reads per-remote via `['workspaces-at', remoteId]`, which is
+      // Sidebar reads per-remote via `['workspaces-at', remoteId]`,
       // a different cache entry from the single-server `['workspaces']` key.
       // Without this the newly-scaffolded workspace doesn't appear until reload.
       queryClient.invalidateQueries({ queryKey: ['workspaces-at'], exact: false })
@@ -93,7 +94,7 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
     setMcpServers([])
     setOntologyId('ddd')
     setStorageKind('kuzu')
-    setIngestResults([])
+    setProvisionResults([])
     setOauthConnectedFor(new Set())
     scaffold.reset()
   }
@@ -121,9 +122,9 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
       open={open}
       onOpenChange={(o) => {
         if (!o) {
-          // Don't let outside-click / Escape kill the wizard mid-flight.
-          // Scaffold + ingest can take minutes for gdrive sources; closing
-          // would orphan the request and lose the progress we're showing.
+          // Don't let an outside-click or Escape kill the wizard mid-flight.
+          // Scaffold and provision can take minutes for gdrive sources.
+          // Closing would orphan the request and lose the progress shown.
           if (scaffold.isPending)
             return
           close()
@@ -193,7 +194,7 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
               workspaceName={name}
               status={scaffold.status}
               error={scaffold.error}
-              ingest={ingestResults}
+              provision={provisionResults}
               expectedSources={sources
                 .filter(s => s.loaderKind !== '')
                 .map(s => ({ id: nameToId(s.name), name: s.name, loaderKind: s.loaderKind }))}
@@ -245,14 +246,14 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
 function StepIndicator({ step }: { step: StepKey }) {
   const current = STEP_ORDER.indexOf(step)
   return (
-    <ol className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider">
+    <ol className="flex items-center gap-1.5 text-2xs font-medium uppercase tracking-wider">
       {STEP_ORDER.slice(0, -1).map((key, index) => {
         const active = index === current
         const done = index < current
         return (
           <li key={key} className="flex items-center gap-1.5 whitespace-nowrap">
             <span
-              className={`flex size-5 items-center justify-center rounded-full border text-[10px] ${
+              className={`flex size-5 items-center justify-center rounded-full border text-2xs ${
                 done ? 'border-primary bg-primary text-primary-foreground' : active ? 'border-primary text-primary' : 'border-border text-muted-foreground'
               }`}
             >
@@ -287,13 +288,13 @@ function BasicsStep({ name, description, onName, onDescription }: {
           value={name}
           onChange={e => onName(e.target.value)}
         />
-        <p className="text-[11px] text-muted-foreground">Lowercase letters, digits, and dashes. Name conflicts are rejected; delete the existing workspace first to reuse a name.</p>
-        <code className="block truncate rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">Lowercase letters, digits, and dashes. Name conflicts are rejected; delete the existing workspace first to reuse a name.</p>
+        <code className="block truncate rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
           ~/.braid/workspaces/
           {name || '<name>'}
         </code>
         {invalid && (
-          <p className="text-[11px] text-destructive">Name must start with a letter or digit and use only lowercase letters, digits, or dashes.</p>
+          <p className="text-2xs text-destructive">Name must start with a letter or digit and use only lowercase letters, digits, or dashes.</p>
         )}
       </div>
       <MarkdownDescriptionField
@@ -325,7 +326,7 @@ function SourcesStep({ workspaceName, sources, oauthConnectedFor, onChange, onOa
 
   return (
     <div className="space-y-3">
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         Intent sources hold the rules / specs / docs (default loader:
         {' '}
         <code className="rounded bg-muted px-1">gdrive</code>
@@ -378,7 +379,7 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
   return (
     <div className="space-y-2 rounded-md border border-border p-3">
       <div className="flex items-center gap-2">
-        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider">{draft.role}</span>
+        <Badge variant="outline" className="text-2xs uppercase tracking-wider text-muted-foreground">{draft.role}</Badge>
         <Input
           placeholder={draft.role === 'intent' ? 'intent-name' : 'repo-name'}
           value={draft.name}
@@ -391,7 +392,7 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
         </Button>
       </div>
 
-      <p className="font-mono text-[10px] text-muted-foreground">{targetPath}</p>
+      <p className="font-mono text-2xs text-muted-foreground">{targetPath}</p>
 
       <MarkdownDescriptionField
         id={`src-desc-${draft.uiId}`}
@@ -473,10 +474,12 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
 }
 
 /**
- * Loader dropdown for the wizard. Reads the server's `/source-loaders` list
+ * Loader dropdown for the wizard.
+ * Reads the server's `/source-loaders` list,
  * so any newly-registered plugin appears here without a Studio code change.
- * The `manual` option is always offered first because it is not backed by a
- * plugin (it just tells the workspace "this source has no auto-sync").
+ * The `manual` option is always offered first,
+ * because it is not backed by a plugin.
+ * It just tells the workspace the source has no auto-sync.
  */
 function LoaderSelect({ value, onChange }: { value: string, onChange: (kind: string) => void }) {
   const { data } = useSourceLoaders()
@@ -500,10 +503,11 @@ function GdriveOauthBlock({ workspaceName, sourceName, connected, onConnected }:
   connected: boolean
   onConnected: (sourceId: string) => void
 }) {
-  // Token storage key is `${workspaceId}--${sourceId}`. Workspace id is
-  // the typed workspace name (PRODUCT.md name); source id is derived from
-  // source name. Both come from the wizard's current state so we can
-  // authorise *before* scaffold runs.
+  // Token storage key is `${workspaceId}--${sourceId}`.
+  // Workspace id is the typed name, the PRODUCT.md name,
+  // source id is derived from the source name.
+  // Both come from the wizard's current state,
+  // so we authorise before scaffold.
   const workspaceId = workspaceName.trim()
   const sourceId = nameToId(sourceName)
   const canStart = workspaceId.length > 0 && sourceId.length > 0
@@ -515,7 +519,7 @@ function GdriveOauthBlock({ workspaceName, sourceName, connected, onConnected }:
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-xs font-medium">Google Account</p>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             {!canStart
               ? 'Set workspace name and source name first.'
               : connected
@@ -533,7 +537,7 @@ function GdriveOauthBlock({ workspaceName, sourceName, connected, onConnected }:
         </Button>
       </div>
       {startOauth.error && (
-        <p className="mt-2 text-[11px] text-destructive">{humaniseApiError(startOauth.error)}</p>
+        <p className="mt-2 text-2xs text-destructive">{humaniseApiError(startOauth.error)}</p>
       )}
     </div>
   )
@@ -555,8 +559,8 @@ function McpStep({ servers, onChange }: {
 
   return (
     <div className="space-y-3">
-      <p className="text-[11px] text-muted-foreground">
-        Optional. MCP endpoints the agent can call during extract / validate (e.g. Linear, Redmine, Jira) to fill gaps in your intent / code sources; they are not ingested as content sources themselves. Only Streamable HTTP transport is supported. Use
+      <p className="text-2xs text-muted-foreground">
+        Optional. MCP endpoints the agent can call during extract / validate (e.g. Linear, Redmine, Jira) to fill gaps in your intent / code sources; they are not provisioned as content sources themselves. Only Streamable HTTP transport is supported. Use
         {' '}
         <code className="rounded bg-muted px-1">
           $
@@ -621,7 +625,7 @@ function AdvancedStep({ ontologyId, storageKind, onOntologyId, onStorageKind }: 
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-[11px] text-muted-foreground">Defaults work for most projects. Change these only if you've registered a custom ontology or storage plugin.</p>
+      <p className="text-2xs text-muted-foreground">Defaults work for most projects. Change these only if you've registered a custom ontology or storage plugin.</p>
       <div className="space-y-1.5">
         <Label htmlFor="ws-ontology">Ontology</Label>
         <Input id="ws-ontology" value={ontologyId} onChange={e => onOntologyId(e.target.value)} />
@@ -650,7 +654,7 @@ function ConfirmStep({ name, description, sources, mcpServers, ontologyId, stora
       <Field label="Ontology" value={ontologyId} />
       <Field label="Storage" value={storageKind} />
       <div>
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Sources</div>
+        <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">Sources</div>
         {sources.length === 0
           ? <p className="text-muted-foreground/70">None. You can add sources later from the workspace panel.</p>
           : (
@@ -674,7 +678,7 @@ function ConfirmStep({ name, description, sources, mcpServers, ontologyId, stora
             )}
       </div>
       <div>
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">MCP Servers</div>
+        <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">MCP Servers</div>
         {mcpServers.length === 0
           ? <p className="text-muted-foreground/70">None.</p>
           : (
@@ -699,7 +703,7 @@ function ConfirmStep({ name, description, sources, mcpServers, ontologyId, stora
 function Field({ label, value, mono }: { label: string, value: string, mono?: boolean }) {
   return (
     <div>
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
         :
         {' '}
@@ -715,19 +719,18 @@ interface ExpectedSource {
   loaderKind: SourceDraft['loaderKind']
 }
 
-function ProgressStep({ workspaceName, status, error, ingest, expectedSources, onClose }: {
+function ProgressStep({ workspaceName, status, error, provision, expectedSources, onClose }: {
   workspaceName: string
   status: 'idle' | 'pending' | 'success' | 'error'
   error: unknown
-  ingest: IngestSummary[]
+  provision: ProvisionSummary[]
   expectedSources: readonly ExpectedSource[]
   onClose: () => void
 }) {
-  // Live per-source progress via SSE. The workspace doesn't exist in the
-  // registry when we open this stream. `source.synced` events flow
-  // straight off the event bus by string key, so subscribing on the
-  // wizard's typed name catches every event ingestAll publishes during
-  // scaffold.
+  // Live per-source progress via SSE.
+  // The workspace is not in the registry yet when we open this stream.
+  // `source.synced` events flow off the event bus by string key,
+  // so the wizard's typed name catches every event provisionAll fires.
   const [syncedIds, setSyncedIds] = useState<Set<string>>(new Set())
   useEffect(() => {
     if (status !== 'pending' || !workspaceName)
@@ -751,11 +754,11 @@ function ProgressStep({ workspaceName, status, error, ingest, expectedSources, o
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <div className="size-4 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           Creating workspace
-          {expectedSources.length > 0 && ` (ingesting ${expectedSources.length} source${expectedSources.length === 1 ? '' : 's'})`}
+          {expectedSources.length > 0 && ` (provisioning ${expectedSources.length} source${expectedSources.length === 1 ? '' : 's'})`}
           …
         </div>
         {expectedSources.length > 0 && (
-          <ul className="space-y-1 rounded-md border border-border p-2 text-[11px]">
+          <ul className="space-y-1 rounded-md border border-border p-2 text-2xs">
             {expectedSources.map(s => (
               <li key={s.id} className="flex items-center gap-2 font-mono">
                 {syncedIds.has(s.id)
@@ -771,8 +774,8 @@ function ProgressStep({ workspaceName, status, error, ingest, expectedSources, o
             ))}
           </ul>
         )}
-        <p className="text-[11px] text-muted-foreground">
-          Don't close this window. Gdrive sources can take a few minutes for the first ingest.
+        <p className="text-2xs text-muted-foreground">
+          Don't close this window. Gdrive sources can take a few minutes for the first provision.
         </p>
       </div>
     )
@@ -781,7 +784,7 @@ function ProgressStep({ workspaceName, status, error, ingest, expectedSources, o
     return (
       <div className="space-y-3 py-2">
         <p className="text-sm text-destructive">Workspace creation failed.</p>
-        <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-muted p-2 text-[11px]">{humaniseApiError(error, WIZARD_ERROR_CASES)}</pre>
+        <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-muted p-2 text-2xs">{humaniseApiError(error, WIZARD_ERROR_CASES)}</pre>
         <div className="flex justify-end">
           <Button size="sm" onClick={onClose}>Close</Button>
         </div>
@@ -792,13 +795,13 @@ function ProgressStep({ workspaceName, status, error, ingest, expectedSources, o
     return (
       <div className="space-y-3 py-2">
         <p className="text-sm text-foreground">Workspace created.</p>
-        {ingest.length > 0 && (
-          <ul className="space-y-1 text-[11px]">
-            {ingest.map(entry => (
+        {provision.length > 0 && (
+          <ul className="space-y-1 text-2xs">
+            {provision.map(entry => (
               <li key={entry.sourceId} className="flex items-center gap-2 font-mono">
                 <span className={`size-1.5 rounded-full ${entry.changed ? 'bg-green-500' : 'bg-muted-foreground'}`} />
                 {entry.sourceId}
-                <span className="text-muted-foreground">{entry.changed ? 'ingested' : 'no change'}</span>
+                <span className="text-muted-foreground">{entry.changed ? 'provisioned' : 'no change'}</span>
               </li>
             ))}
           </ul>
@@ -825,9 +828,9 @@ function canAdvanceFrom(
       if (source.loaderKind === 'gdrive') {
         if (source.gdriveFolderId.trim().length === 0)
           return false
-        // OAuth is mandatory for gdrive; otherwise scaffold's ingestAll
-        // will fail server-side with "not connected" and the user gets
-        // an opaque error after walking through all remaining steps.
+        // OAuth is mandatory for gdrive.
+        // Otherwise provisionAll fails server-side with "not connected",
+        // and the user gets an opaque error after the remaining steps.
         if (!state.oauthConnectedFor.has(nameToId(source.name)))
           return false
       }
@@ -868,7 +871,7 @@ function buildDraft(input: {
   mcpServers: McpDraft[]
   ontologyId: string
   storageKind: string
-}): ProductManifestDraft {
+}): ProductManifestCreate {
   const sources = input.sources.map(toSourceDescriptor)
   const mcpServers = input.mcpServers.map(toMcpServerConfig)
   return {

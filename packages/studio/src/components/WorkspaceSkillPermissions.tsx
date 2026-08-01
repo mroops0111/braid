@@ -1,6 +1,7 @@
 import type { SkillManifest, SkillPermission, WorkspaceMember } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, Minus, X } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { api } from '@/lib/api'
 import { queryKeys, useMe, useSkills, useUsers, useWorkspaceMembers } from '@/lib/queries'
 import { bucketByGroup } from '@/pages/Actions'
@@ -21,7 +22,7 @@ interface SectionHeaderProps {
 
 function SectionHeader({ title }: SectionHeaderProps) {
   return (
-    <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
       {title}
     </h3>
   )
@@ -37,14 +38,15 @@ export function WorkspaceSkillPermissions({ workspaceId }: { workspaceId: string
     return (
       <section>
         <SectionHeader title="Skill Permissions" />
-        <p className="mt-2 text-[11px] text-muted-foreground">Loading…</p>
+        <p className="mt-2 text-2xs text-muted-foreground">Loading…</p>
       </section>
     )
   }
 
-  // Owners always pass the ACL gate regardless of overrides — showing
-  // a row for them would be misleading. Hidden skills (orchestration-only)
-  // are never user-runnable, so they're not actionable here either.
+  // Owners always pass the ACL gate regardless of overrides,
+  // so showing a row for them would be misleading.
+  // Hidden skills are orchestration-only and never user-runnable,
+  // so they are not actionable here either.
   const visibleMembers = (members?.items ?? []).filter(m => m.role !== 'owner')
   // Mirror the Actions page column order (ask, build by `order`, generate,
   // custom) so members map cells to the page they'll find the skill on.
@@ -54,7 +56,7 @@ export function WorkspaceSkillPermissions({ workspaceId }: { workspaceId: string
     return (
       <section>
         <SectionHeader title="Skill Permissions" />
-        <p className="mt-2 text-[11px] text-muted-foreground">
+        <p className="mt-2 text-2xs text-muted-foreground">
           {visibleMembers.length === 0
             ? 'No Maintainers or Guests to manage. Owners always have full access.'
             : 'No skills available in this workspace.'}
@@ -66,13 +68,13 @@ export function WorkspaceSkillPermissions({ workspaceId }: { workspaceId: string
   return (
     <section>
       <SectionHeader title="Skill Permissions" />
-      <p className="mt-1 text-[10px] text-muted-foreground">
+      <p className="mt-1 text-2xs text-muted-foreground">
         Click a cell to cycle inherit, allow, deny. Inherit uses the skill's role default.
       </p>
       <div className="mt-2 overflow-x-auto rounded-md border border-border">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-border bg-card/40 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <tr className="border-b border-border bg-card/40 text-left text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
               <th className="sticky left-0 bg-card/40 px-3 py-1.5">Member</th>
               {visibleSkills.map(skill => (
                 <th key={skill.id} className="px-2 py-1.5 text-center" title={skillTooltip(skill)}>
@@ -114,7 +116,7 @@ function PermissionRow({ workspaceId, member, displayName, skills, isMe, isLast 
   const patch = useMutation({
     mutationFn: (nextOverrides: Record<string, SkillPermission>) =>
       api.patchWorkspaceMember(workspaceId, member.userId, {
-        // PATCH replaces skillOverrides wholesale; sending {} clears.
+        // PATCH replaces skillOverrides wholesale, sending {} clears.
         skillOverrides: Object.keys(nextOverrides).length > 0 ? nextOverrides : {},
       }),
     onSuccess: () => {
@@ -140,13 +142,13 @@ function PermissionRow({ workspaceId, member, displayName, skills, isMe, isLast 
         <div className="flex items-center gap-1.5">
           <span className="truncate text-foreground/90">{displayName}</span>
           {isMe && (
-            <span className="rounded bg-primary/15 px-1 py-0.5 text-[9px] uppercase tracking-wider text-primary">
+            <span className="rounded bg-primary/15 px-1 py-0.5 text-2xs uppercase tracking-wider text-primary">
               You
             </span>
           )}
-          <span className="rounded bg-muted/60 px-1 py-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
+          <Badge variant="outline" className="text-2xs uppercase tracking-wider text-muted-foreground">
             {member.role}
-          </span>
+          </Badge>
         </div>
       </td>
       {skills.map((skill) => {
@@ -175,8 +177,8 @@ function CellIcon({ state, allowedByDefault }: { state: CellState, allowedByDefa
     return <Check className="size-3.5 text-emerald-500" />
   if (state === 'deny')
     return <X className="size-3.5 text-destructive" />
-  // Inherit: dim the icon, but reflect the underlying default so the
-  // cell still communicates effective access at a glance.
+  // Inherit, so dim the icon but reflect the underlying default,
+  // so the cell still communicates effective access at a glance.
   return (
     <Minus className={allowedByDefault ? 'size-3.5 text-emerald-500/40' : 'size-3.5 text-muted-foreground/40'} />
   )

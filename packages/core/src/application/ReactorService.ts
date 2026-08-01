@@ -1,31 +1,32 @@
 import type {
-  ReactorPass,
-  ReactorPassCheckpoint,
-  ReactorPassUnit,
+  ReactorCheckpoint,
+  ReactorCycle,
+  ReactorUnit,
   SkillEvent,
   SkillId,
   SkillRunId,
   SourceDescriptor,
   SourceId,
+  SourceSyncedEvent,
   Timestamp,
+  WorkspaceEvent,
   WorkspaceId,
 } from '@braidhq/schema'
 import type { Clock } from '../domain/Clock.js'
-import type { SourceSyncedEvent, WorkspaceEvent } from '../domain/events/WorkspaceEvent.js'
-import type { OntologyBatchBinding, OntologyPerUnitBinding } from '../domain/plugin/Ontology.js'
+import type { Logger } from '../domain/Logger.js'
+import type { OntologyBatchBinding, OntologyPerUnitBinding } from '../domain/plugin/OntologyPlugin.js'
 import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
-import type { Reactor } from '../domain/reactor/Reactor.js'
-import type { ReactorPassRepository } from '../domain/reactor/ReactorPassRepository.js'
+import type { ReactorCycleRepository } from '../domain/reactor/ReactorCycleRepository.js'
+import type { ScheduledTask, Scheduler } from '../domain/Scheduler.js'
 import type { SkillRunner } from '../domain/skill/SkillRunner.js'
 import type { SourceUnitDigest } from '../domain/source/SourceUnitDigest.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
 import type { IntentLister } from './BatchService.js'
-import type { PerWorkspaceLock } from './PerWorkspaceLock.js'
-import type { SourceUnitStateService } from './SourceUnitStateService.js'
+import type { SourceUnitObservationService } from './SourceUnitObservationService.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
+import type { WorkspaceLock } from './WorkspaceLock.js'
 import type { WorkspaceService } from './WorkspaceService.js'
-import { newReactorPassId } from '../domain/ids.js'
-import { createLogger } from '../infrastructure/logger.js'
+import { newReactorCycleId } from '../domain/ids.js'
 import { computeSourceDiff } from './computeSourceDiff.js'
 
 export interface ReactorServiceDeps {
@@ -33,31 +34,31 @@ export interface ReactorServiceDeps {
   readonly workspaceService: WorkspaceService
   readonly pluginRegistry: PluginRegistry
   readonly skillRunner: SkillRunner
-  readonly sourceUnitStateService: SourceUnitStateService
+  readonly sourceUnitObservationService: SourceUnitObservationService
   readonly intentLister: IntentLister
   readonly digest: SourceUnitDigest
-  readonly reactorPassRepository: ReactorPassRepository
+  readonly reactorCycleRepository: ReactorCycleRepository
   readonly clock: Clock
   /**
-   * Required. Two `source.synced` events for the same workspace
-   * arriving simultaneously must not both bypass the throttle — the
-   * lock serialises pass execution per workspace. The same lock
-   * instance HITLService / HistoryService use is fine; the reactor
-   * holds its own critical section so it does not block their writes.
+   * Required. Two `source.synced` events for one workspace arriving at once,
+   * must not both bypass the throttle.
+   * The lock serialises cycle execution per workspace.
+   * Sharing the HITLService or HistoryService lock instance is fine,
+   * the reactor holds its own critical section and never blocks writes.
    */
-  readonly workspaceLock: PerWorkspaceLock
+  readonly workspaceLock: WorkspaceLock
+  readonly logger: Logger
+  readonly scheduler: Scheduler
 }
-
-const reactorLogger = createLogger('reactor')
 
 const HOUR_MS = 60 * 60 * 1000
 const DEFAULT_MAX_RUNS_PER_HOUR = 5
 
 /**
- * Rolling 1h sliding-window counter of reactor dispatches. Encapsulates
- * the "is this workspace over its cap right now" question and the
- * accompanying clock-based pruning so the service code does not mix a
- * predicate with a mutating side effect.
+ * Rolling 1h sliding-window counter of reactor dispatches.
+ * Wraps the "is this workspace over its cap right now" question,
+ * and the clock-based pruning that goes with it,
+ * so the service code does not mix a predicate with a mutating side effect.
  */
 class ThrottleWindow {
   private readonly timestamps: number[] = []
@@ -73,6 +74,15 @@ class ThrottleWindow {
     this.timestamps.push(Date.parse(this.clock.now()))
   }
 
+  // Milliseconds until the oldest dispatch ages out and frees one slot.
+  // Zero when already under the limit.
+  msUntilSlotFrees(): number {
+    this.prune()
+    if (this.timestamps.length < this.limit)
+      return 0
+    return this.timestamps[0]! + HOUR_MS - Date.parse(this.clock.now())
+  }
+
   private prune(): void {
     const cutoff = Date.parse(this.clock.now()) - HOUR_MS
     let firstFresh = 0
@@ -84,46 +94,46 @@ class ThrottleWindow {
 }
 
 /**
- * Per-pass context the orchestrator threads through its substeps. The
- * `pass` reference is the authoritative state object — every helper
- * mutates it through small `update*` methods and `persist()` saves the
- * latest snapshot so Studio's Activity page can render the live pass
- * without re-deriving anything.
+ * Per-cycle context the orchestrator threads through its substeps.
+ * The `cycle` field is the authoritative state,
+ * each step reassigns it to a new immutable snapshot,
+ * and `persistAndEmit()` saves the latest so the Activity page stays live.
  */
-interface PassContext {
+interface CycleContext {
   readonly workspace: Workspace
   readonly sourceId: SourceId
   readonly batchBinding: OntologyBatchBinding
-  pass: ReactorPass
+  cycle: ReactorCycle
 }
 
 /**
- * Reactor implementation. Listens to `source.synced` events on the
- * `WorkspaceEventBus` and, for intent-role sources, runs the active
- * ontology's per-unit skill against the diff between current units on
- * disk and the recorded `SourceUnitState` ledger. After all per-unit
- * dispatches settle, runs one ontology checkpoint pass when at least
- * one per-unit succeeded.
+ * Reactor implementation.
+ * Listens to `source.synced` on the `WorkspaceEventBus`, and for intent-role sources,
+ * runs the active ontology's per-unit skill against the diff,
+ * between the current units on disk and the recorded `SourceUnitObservation` ledger.
+ * After all per-unit dispatches settle,
+ * runs one ontology checkpoint when at least one per-unit succeeded.
  *
- * Two outputs per pass: a `ReactorPass` record persisted via
- * `ReactorPassRepository` (queryable via REST + the Studio Activity
- * page), and a stream of SSE events on the workspace bus the page
- * subscribes to for live updates. The two surfaces agree by
- * construction — every event corresponds to a save.
+ * Two outputs per cycle. A `ReactorCycle` record persisted via `ReactorCycleRepository`,
+ * queryable via REST and the Studio Activity page.
+ * A stream of SSE events on the workspace bus the page subscribes to for live updates.
+ * The two surfaces agree by construction, every event corresponds to a save.
  *
- * Locked decisions (per #29):
- *   - per-unit dispatch (not batched), sequential (no concurrency)
- *   - intent-role only; `role: 'code'` sources fall through
- *   - first-ingest does NOT fire reactor; the operator runs
- *     `cmd.runBatch` for the initial corpus
- *   - throttle: rolling 1h window per workspace; the (N+1)th dispatch
- *     emits `reactor.throttled` and drops
- *   - no gate assumption: emits `reactor.completed` and stops; apply
- *     stays with upstream layers
+ * Locked decisions.
+ * - Per-unit dispatch, not batched, and sequential with no concurrency.
+ * - Intent-role only, `role: 'code'` sources fall through.
+ * - First-provision does NOT fire the reactor,
+ *   the operator runs `cmd.runBatch` for the initial corpus.
+ * - Throttle on a rolling 1h window per workspace,
+ *   the (N+1)th dispatch emits `reactor.throttled` and drops.
+ * - No gate assumption, emits `reactor.completed` and stops,
+ *   apply stays with upstream layers.
  */
-export class ReactorService implements Reactor {
+export class ReactorService {
   private readonly subscriptions = new Map<WorkspaceId, () => void>()
   private readonly throttles = new Map<WorkspaceId, ThrottleWindow>()
+  // Keyed by `${workspaceId}:${sourceId}`. One pending catch-up per throttled source.
+  private readonly retries = new Map<string, ScheduledTask>()
 
   constructor(private readonly deps: ReactorServiceDeps) {}
 
@@ -147,58 +157,65 @@ export class ReactorService implements Reactor {
     unsub()
     this.subscriptions.delete(workspaceId)
     this.throttles.delete(workspaceId)
+    for (const [key, task] of this.retries) {
+      if (key.startsWith(`${workspaceId}:`)) {
+        task.cancel()
+        this.retries.delete(key)
+      }
+    }
   }
 
   /**
-   * Entry point for every qualifying delivery. Serialised per workspace
-   * via `workspaceLock` so two events arriving in the same tick cannot
-   * both bypass the throttle, and so a sync arriving while a previous
-   * pass is mid-flight waits its turn rather than interleaving
-   * per-unit dispatches.
+   * Entry point for every qualifying delivery.
+   * Serialised per workspace via `workspaceLock`,
+   * so two events arriving in the same tick cannot both bypass the throttle,
+   * and so a sync arriving while a previous cycle is mid-flight waits its turn,
+   * rather than interleaving per-unit dispatches.
    */
   private async handleSourceSynced(event: SourceSyncedEvent): Promise<void> {
     try {
-      await this.deps.workspaceLock.run(event.workspaceId, () => this.runPassFor(event))
+      await this.deps.workspaceLock.run(event.workspaceId, () => this.runCycle(event))
     }
     catch (err) {
-      reactorLogger.error(
+      this.deps.logger.error(
         {
           workspaceId: event.workspaceId,
           sourceId: event.sourceId,
           err: err instanceof Error ? err.message : String(err),
         },
-        'reactor: pass failed',
+        'reactor: cycle failed',
       )
     }
   }
 
-  private async runPassFor(event: SourceSyncedEvent): Promise<void> {
-    const resolved = await this.resolveContext(event)
+  private async runCycle(event: SourceSyncedEvent): Promise<void> {
+    const resolved = await this.prepareCycle(event)
     if (!resolved)
       return
-    const changedPaths = await this.changedPathsForPass(resolved)
+    const changedPaths = await this.changedUnitPaths(resolved)
     if (changedPaths.length === 0) {
-      // No-op pass: still persist + emit so the Activity page records
-      // every delivered event consistently and the operator can see
-      // "reactor ran but had nothing to do".
-      await this.recordTerminal(resolved, 'completed', 0, false)
+      // No-op cycle. Still persist and emit,
+      // so the Activity page records every delivered event consistently,
+      // and the operator can see the reactor ran but had nothing to do.
+      await this.recordCompleted(resolved, 0, false)
       return
     }
     const throttle = this.throttleFor(resolved.workspace.id)
     if (throttle.isOverLimit()) {
       await this.recordThrottled(resolved)
+      this.scheduleRetry(resolved, throttle.msUntilSlotFrees())
       return
     }
     throttle.recordDispatch()
-    resolved.pass = withUnits(resolved.pass, changedPaths.map(makeQueuedUnit))
-    await this.persistAndEmit(resolved, this.dispatched(resolved, changedPaths.length))
-    const checkpointRan = await this.runDispatchLoop(resolved)
-    await this.recordTerminal(resolved, 'completed', changedPaths.length, checkpointRan)
+    resolved.cycle = startRunning(resolved.cycle, changedPaths.map(makeQueuedUnit))
+    await this.persistAndEmit(resolved, this.dispatchedEvent(resolved, changedPaths.length))
+    const checkpointRan = await this.dispatchUnitsThenCheckpoint(resolved)
+    await this.recordCompleted(resolved, changedPaths.length, checkpointRan)
   }
 
-  private async resolveContext(event: SourceSyncedEvent): Promise<PassContext | undefined> {
+  private async prepareCycle(event: SourceSyncedEvent): Promise<CycleContext | undefined> {
     const workspace = await this.deps.workspaceService.findById(event.workspaceId)
-    const source = workspace.sources.find(s => s.id === event.sourceId)
+    const source = workspace.sources.find(candidate => candidate.id === event.sourceId)
     if (!isIntentSource(source))
       return undefined
     const ontology = this.deps.pluginRegistry.findOntology(workspace.productManifest.ontologyId)
@@ -206,141 +223,141 @@ export class ReactorService implements Reactor {
     if (!batchBinding?.perUnit?.skillId)
       return undefined
     const startedAt = this.deps.clock.now()
-    const pass: ReactorPass = {
-      id: newReactorPassId(startedAt),
+    const cycle: ReactorCycle = {
+      id: newReactorCycleId(),
       workspaceId: workspace.id,
       sourceId: event.sourceId,
       startedAt,
       status: 'dispatched',
       units: [],
     }
-    return { workspace, sourceId: event.sourceId, batchBinding, pass }
+    return { workspace, sourceId: event.sourceId, batchBinding, cycle }
   }
 
-  private async changedPathsForPass(context: PassContext): Promise<readonly string[]> {
+  private async changedUnitPaths(context: CycleContext): Promise<readonly string[]> {
     const diff = await computeSourceDiff(this.deps, context.workspace, context.sourceId)
-    return [...diff.new, ...diff.changed].map(u => u.path)
+    return [...diff.new, ...diff.changed].map(unit => unit.path)
   }
 
   /**
-   * Sequentially dispatch the per-unit skill against each queued unit
-   * then, iff at least one per-unit succeeded, dispatch the checkpoint
-   * skill. A per-unit failure does NOT abort the loop; the failed
-   * unit stays out of the ledger so the next sync retries it.
+   * Sequentially dispatch the per-unit skill against each queued unit,
+   * then dispatch the checkpoint skill iff at least one per-unit succeeded.
+   * A per-unit failure does NOT abort the loop,
+   * the failed unit stays out of the ledger so the next sync retries it.
    */
-  private async runDispatchLoop(context: PassContext): Promise<boolean> {
+  private async dispatchUnitsThenCheckpoint(context: CycleContext): Promise<boolean> {
     let anySucceeded = false
-    for (let i = 0; i < context.pass.units.length; i++) {
-      const ok = await this.dispatchPerUnit(context, i)
+    for (let i = 0; i < context.cycle.units.length; i++) {
+      const ok = await this.dispatchUnit(context, i)
       anySucceeded = anySucceeded || ok
     }
     const checkpointSkillId = context.batchBinding.checkpoint?.skillId
     if (anySucceeded && checkpointSkillId)
       return this.dispatchCheckpoint(context, checkpointSkillId)
-    // No per-unit succeeded (or no checkpoint configured) — there is no
-    // checkpoint pass to report. The terminal `reactor.completed` event
-    // carries `checkpointRan: false`; no separate `checkpoint.completed`
-    // event is emitted, keeping persisted state and event stream in sync.
+    // No per-unit succeeded, or no checkpoint configured,
+    // so there is no checkpoint run to report.
+    // The terminal `reactor.completed` event carries `checkpointRan: false`.
+    // No separate `checkpoint.completed` event is emitted,
+    // keeping persisted state and event stream in sync.
     return false
   }
 
-  private async dispatchPerUnit(context: PassContext, index: number): Promise<boolean> {
-    const { workspace, sourceId, batchBinding, pass } = context
-    const path = pass.units[index]!.path
-    const total = pass.units.length
+  private async dispatchUnit(context: CycleContext, index: number): Promise<boolean> {
+    const { workspace, sourceId, batchBinding, cycle } = context
+    const path = cycle.units[index]!.path
+    const total = cycle.units.length
     let runId: SkillRunId
     try {
       const args = argsForPath(batchBinding.perUnit, path)
       runId = await this.deps.skillRunner.start(workspace, batchBinding.perUnit.skillId, args)
-      context.pass = updateUnit(pass, index, { status: 'running', skillRunId: runId, startedAt: this.deps.clock.now() })
-      await this.persistAndEmit(context, this.unitStarted(context, index, runId, total))
+      context.cycle = updateUnit(cycle, index, { status: 'running', skillRunId: runId, startedAt: this.deps.clock.now() })
+      await this.persistAndEmit(context, this.unitStartedEvent(context, index, runId, total))
       await waitForCompletion(this.deps.skillRunner, runId)
     }
     catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      reactorLogger.warn(
+      this.deps.logger.warn(
         { workspaceId: workspace.id, sourceId, path, err: message },
         'reactor: per-unit dispatch failed; continuing to next unit',
       )
-      context.pass = updateUnit(context.pass, index, {
+      context.cycle = updateUnit(context.cycle, index, {
         status: 'failure',
         completedAt: this.deps.clock.now(),
         error: message,
       })
-      await this.persistAndEmit(context, this.unitCompleted(context, index, 'failure', total))
+      await this.persistAndEmit(context, this.unitCompletedEvent(context, index, 'failure', total))
       return false
     }
-    // The skill ran cleanly. Recording the observation and persisting the
-    // success state are best-effort follow-ups: if either fails, the unit
-    // is still semantically successful (the skill's side effects have
-    // already happened). Marking it as failure here would cause a
-    // duplicate dispatch on the next sync since the ledger may already
-    // have the new sha, which would silently re-run the skill.
+    // The skill ran cleanly.
+    // Recording the observation and persisting success are best-effort.
+    // If either fails, the unit is still semantically successful,
+    // its side effects already happened.
+    // Marking it a failure here would cause a duplicate dispatch next sync,
+    // since the ledger may already hold the new sha, silently re-running the skill.
     try {
-      await this.deps.sourceUnitStateService.recordObservation(workspace.id, sourceId, path, runId)
+      await this.deps.sourceUnitObservationService.recordObservation(workspace.id, sourceId, path, runId)
     }
     catch (err) {
-      reactorLogger.warn(
+      this.deps.logger.warn(
         { workspaceId: workspace.id, sourceId, path, err: err instanceof Error ? err.message : String(err) },
         'reactor: skill succeeded but recordObservation failed; unit remains success',
       )
     }
-    context.pass = updateUnit(context.pass, index, { status: 'success', completedAt: this.deps.clock.now() })
-    await this.persistAndEmit(context, this.unitCompleted(context, index, 'success', total))
+    context.cycle = updateUnit(context.cycle, index, { status: 'success', completedAt: this.deps.clock.now() })
+    await this.persistAndEmit(context, this.unitCompletedEvent(context, index, 'success', total))
     return true
   }
 
-  private async dispatchCheckpoint(context: PassContext, skillId: SkillId): Promise<boolean> {
+  private async dispatchCheckpoint(context: CycleContext, skillId: SkillId): Promise<boolean> {
     const { workspace } = context
     const startedAt = this.deps.clock.now()
     try {
       const runId = await this.deps.skillRunner.start(workspace, skillId, '')
-      context.pass = withCheckpoint(context.pass, { skillId, status: 'running', skillRunId: runId, startedAt })
-      await this.persistAndEmit(context, this.checkpointStarted(context, skillId, runId))
+      context.cycle = updateCheckpoint(context.cycle, { skillId, status: 'running', skillRunId: runId, startedAt })
+      await this.persistAndEmit(context, this.checkpointStartedEvent(context, skillId, runId))
       await waitForCompletion(this.deps.skillRunner, runId)
-      context.pass = withCheckpoint(context.pass, {
-        ...context.pass.checkpoint!,
+      context.cycle = updateCheckpoint(context.cycle, {
+        ...context.cycle.checkpoint!,
         status: 'success',
         completedAt: this.deps.clock.now(),
       })
-      await this.persistAndEmit(context, this.checkpointCompleted(context, 'success'))
+      await this.persistAndEmit(context, this.checkpointCompletedEvent(context, 'success'))
       return true
     }
     catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      reactorLogger.warn({ workspaceId: workspace.id, skillId, err: message }, 'reactor: checkpoint dispatch failed')
-      context.pass = withCheckpoint(context.pass, {
+      this.deps.logger.warn({ workspaceId: workspace.id, skillId, err: message }, 'reactor: checkpoint dispatch failed')
+      context.cycle = updateCheckpoint(context.cycle, {
         skillId,
         status: 'failure',
         startedAt,
         completedAt: this.deps.clock.now(),
         error: message,
       })
-      await this.persistAndEmit(context, this.checkpointCompleted(context, 'failure'))
+      await this.persistAndEmit(context, this.checkpointCompletedEvent(context, 'failure'))
       return false
     }
   }
 
-  /** Persist final pass state + emit terminal event. */
-  private async recordTerminal(
-    context: PassContext,
-    status: 'completed',
+  /** Persist the completed cycle and emit its terminal event. */
+  private async recordCompleted(
+    context: CycleContext,
     totalUnits: number,
     checkpointRan: boolean,
   ): Promise<void> {
-    context.pass = { ...context.pass, status, completedAt: this.deps.clock.now() }
-    await this.persistAndEmit(context, this.completed(context, totalUnits, checkpointRan))
+    context.cycle = { ...context.cycle, status: 'completed', completedAt: this.deps.clock.now() }
+    await this.persistAndEmit(context, this.completedEvent(context, totalUnits, checkpointRan))
   }
 
-  private async recordThrottled(context: PassContext): Promise<void> {
+  private async recordThrottled(context: CycleContext): Promise<void> {
     const limit = this.throttleFor(context.workspace.id).limit
-    context.pass = {
-      ...context.pass,
+    context.cycle = {
+      ...context.cycle,
       status: 'throttled',
       completedAt: this.deps.clock.now(),
       throttledReason: `maxRunsPerHour=${limit}`,
     }
-    await this.persistAndEmit(context, this.throttled(context, limit))
+    await this.persistAndEmit(context, this.throttledEvent(context, limit))
   }
 
   private throttleFor(workspaceId: WorkspaceId): ThrottleWindow {
@@ -350,29 +367,48 @@ export class ReactorService implements Reactor {
     return window
   }
 
-  private async persistAndEmit(context: PassContext, event: WorkspaceEvent): Promise<void> {
-    await this.deps.reactorPassRepository.save(context.pass)
+  // A throttled cycle drops its delivery, so schedule one catch-up when a slot frees.
+  // It re-enters the locked path, re-derives the diff, and re-checks the throttle,
+  // so it no-ops if the changes were already handled, or reschedules if still full.
+  // At most one pending catch-up per source.
+  private scheduleRetry(context: CycleContext, delayMs: number): void {
+    const key = `${context.workspace.id}:${context.sourceId}`
+    if (this.retries.has(key))
+      return
+    const task = this.deps.scheduler.schedule(delayMs, () => {
+      this.retries.delete(key)
+      void this.handleSourceSynced({
+        type: 'source.synced',
+        workspaceId: context.workspace.id,
+        sourceId: context.sourceId,
+        changed: true,
+        at: this.deps.clock.now(),
+      })
+    })
+    this.retries.set(key, task)
+  }
+
+  private async persistAndEmit(context: CycleContext, event: WorkspaceEvent): Promise<void> {
+    await this.deps.reactorCycleRepository.save(context.cycle)
     this.deps.eventBus.publish(event)
   }
 
-  // === event builders ====================================================
-
-  private dispatched(context: PassContext, totalUnits: number): WorkspaceEvent {
+  private dispatchedEvent(context: CycleContext, totalUnits: number): WorkspaceEvent {
     return {
       type: 'reactor.dispatched',
       workspaceId: context.workspace.id,
-      passId: context.pass.id,
+      cycleId: context.cycle.id,
       sourceId: context.sourceId,
       totalUnits,
       at: this.deps.clock.now(),
     }
   }
 
-  private completed(context: PassContext, totalUnits: number, checkpointRan: boolean): WorkspaceEvent {
+  private completedEvent(context: CycleContext, totalUnits: number, checkpointRan: boolean): WorkspaceEvent {
     return {
       type: 'reactor.completed',
       workspaceId: context.workspace.id,
-      passId: context.pass.id,
+      cycleId: context.cycle.id,
       sourceId: context.sourceId,
       totalUnits,
       checkpointRan,
@@ -380,23 +416,23 @@ export class ReactorService implements Reactor {
     }
   }
 
-  private throttled(context: PassContext, limit: number): WorkspaceEvent {
+  private throttledEvent(context: CycleContext, limit: number): WorkspaceEvent {
     return {
       type: 'reactor.throttled',
       workspaceId: context.workspace.id,
-      passId: context.pass.id,
+      cycleId: context.cycle.id,
       sourceId: context.sourceId,
       limit,
       at: this.deps.clock.now(),
     }
   }
 
-  private unitStarted(context: PassContext, index: number, skillRunId: SkillRunId, total: number): WorkspaceEvent {
+  private unitStartedEvent(context: CycleContext, index: number, skillRunId: SkillRunId, total: number): WorkspaceEvent {
     return {
       type: 'reactor.unit.started',
       workspaceId: context.workspace.id,
-      passId: context.pass.id,
-      unitPath: context.pass.units[index]!.path,
+      cycleId: context.cycle.id,
+      unitPath: context.cycle.units[index]!.path,
       skillRunId,
       processed: index,
       total,
@@ -404,12 +440,12 @@ export class ReactorService implements Reactor {
     }
   }
 
-  private unitCompleted(context: PassContext, index: number, status: 'success' | 'failure', total: number): WorkspaceEvent {
+  private unitCompletedEvent(context: CycleContext, index: number, status: 'success' | 'failure', total: number): WorkspaceEvent {
     return {
       type: 'reactor.unit.completed',
       workspaceId: context.workspace.id,
-      passId: context.pass.id,
-      unitPath: context.pass.units[index]!.path,
+      cycleId: context.cycle.id,
+      unitPath: context.cycle.units[index]!.path,
       status,
       processed: index + 1,
       total,
@@ -417,46 +453,44 @@ export class ReactorService implements Reactor {
     }
   }
 
-  private checkpointStarted(context: PassContext, skillId: SkillId, skillRunId: SkillRunId): WorkspaceEvent {
+  private checkpointStartedEvent(context: CycleContext, skillId: SkillId, skillRunId: SkillRunId): WorkspaceEvent {
     return {
       type: 'reactor.checkpoint.started',
       workspaceId: context.workspace.id,
-      passId: context.pass.id,
+      cycleId: context.cycle.id,
       skillId,
       skillRunId,
       at: this.deps.clock.now(),
     }
   }
 
-  private checkpointCompleted(context: PassContext, status: 'success' | 'failure' | 'skipped'): WorkspaceEvent {
+  private checkpointCompletedEvent(context: CycleContext, status: 'success' | 'failure' | 'skipped'): WorkspaceEvent {
     return {
       type: 'reactor.checkpoint.completed',
       workspaceId: context.workspace.id,
-      passId: context.pass.id,
+      cycleId: context.cycle.id,
       status,
       at: this.deps.clock.now(),
     }
   }
 }
 
-// === ReactorPass mutation helpers =========================================
-
-function makeQueuedUnit(path: string): ReactorPassUnit {
+function makeQueuedUnit(path: string): ReactorUnit {
   return { path, status: 'queued' }
 }
 
-function withUnits(pass: ReactorPass, units: readonly ReactorPassUnit[]): ReactorPass {
-  return { ...pass, units: [...units], status: 'running' }
+function startRunning(cycle: ReactorCycle, units: readonly ReactorUnit[]): ReactorCycle {
+  return { ...cycle, units: [...units], status: 'running' }
 }
 
-function updateUnit(pass: ReactorPass, index: number, patch: Partial<ReactorPassUnit>): ReactorPass {
-  const units = pass.units.slice()
+function updateUnit(cycle: ReactorCycle, index: number, patch: Partial<ReactorUnit>): ReactorCycle {
+  const units = cycle.units.slice()
   units[index] = { ...units[index]!, ...patch }
-  return { ...pass, units }
+  return { ...cycle, units }
 }
 
-function withCheckpoint(pass: ReactorPass, checkpoint: ReactorPassCheckpoint): ReactorPass {
-  return { ...pass, checkpoint }
+function updateCheckpoint(cycle: ReactorCycle, checkpoint: ReactorCheckpoint): ReactorCycle {
+  return { ...cycle, checkpoint }
 }
 
 function isIntentSource(source: SourceDescriptor | undefined): source is SourceDescriptor & { role: 'intent' } {
@@ -464,11 +498,11 @@ function isIntentSource(source: SourceDescriptor | undefined): source is SourceD
 }
 
 /**
- * Compute the per-unit skill args for a path. The ontology's `argsFor`
- * is typed against `PlanUnit` (BatchService's domain), but it only
- * reads `name` + `scopeHint`; we honour that contract by passing a
- * minimal synthetic. Keeping the cast in one helper means the rest of
- * the reactor stays free of `as unknown as` casts.
+ * Compute the per-unit skill args for a path.
+ * The ontology's `argsFor` is typed against `BatchUnit`, BatchService's domain,
+ * but it only reads `name` and `scopeHint`,
+ * so we honour that contract by passing a minimal synthetic.
+ * Keeping the cast in one helper leaves the rest of the reactor free of casts.
  */
 function argsForPath(binding: OntologyPerUnitBinding, path: string): string {
   if (!binding.argsFor)
@@ -495,5 +529,5 @@ async function waitForCompletion(runner: SkillRunner, runId: SkillRunId): Promis
   })
 }
 
-// Re-export Timestamp shape so type-only consumers don't have to dig.
+/** Re-export Timestamp shape so type-only consumers don't have to dig. */
 export type { Timestamp }

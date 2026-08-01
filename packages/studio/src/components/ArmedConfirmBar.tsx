@@ -12,9 +12,10 @@ interface ArmedConfirmBarProps {
 }
 
 /**
- * Two-step destructive confirm pattern used across Settings / Workspace
- * Details. The first click arms the action elsewhere; this bar renders
- * the explanatory message and the [Cancel] + confirm pair.
+ * Two-step destructive confirm pattern used across Settings,
+ * and Workspace Details.
+ * The first click arms the action elsewhere,
+ * and this bar renders the message and the [Cancel] plus confirm pair.
  */
 export function ArmedConfirmBar({
   message,
@@ -27,17 +28,17 @@ export function ArmedConfirmBar({
 }: ArmedConfirmBarProps) {
   return (
     <div className="space-y-2">
-      <p className="text-[11px] text-muted-foreground">{message}</p>
-      {errorMessage && <p className="text-[11px] text-destructive">{errorMessage}</p>}
+      <p className="text-2xs text-muted-foreground">{message}</p>
+      {errorMessage && <p className="text-2xs text-destructive">{errorMessage}</p>}
       <div className="flex justify-end gap-2">
-        <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={onCancel} disabled={disabled}>
+        <Button variant="ghost" size="sm" className="h-7 text-2xs" onClick={onCancel} disabled={disabled}>
           Cancel
         </Button>
         <Button
           size="sm"
           className={confirmTone === 'destructive'
-            ? 'h-7 text-[11px] bg-destructive text-destructive-foreground hover:bg-destructive/90'
-            : 'h-7 text-[11px]'}
+            ? 'h-7 text-2xs bg-destructive text-destructive-foreground hover:bg-destructive/90'
+            : 'h-7 text-2xs'}
           onClick={onConfirm}
           disabled={disabled}
         >

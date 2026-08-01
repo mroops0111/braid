@@ -4,13 +4,15 @@ import { invoke } from '@tauri-apps/api/core'
  * Per-remote Bearer token store.
  *
  * Web build: tokens live in localStorage under `braid:tokens`.
- * Tauri build: tokens live in the OS keyring (Keychain/Credential
- * Manager/libsecret) via Rust commands; an in-memory cache mirrors them
+ * Tauri build: tokens live in the OS keyring,
+ * Keychain, Credential Manager, or libsecret, via Rust commands.
+ * An in-memory cache mirrors them,
  * so reads stay synchronous for `fetchJson` and friends.
  *
- * Callers go through `getToken` / `setToken` rather than touching
- * localStorage directly. `hydrate()` is awaited once at boot to load
- * the keyring snapshot into cache (no-op on web).
+ * Callers go through `getToken` and `setToken`,
+ * rather than touching localStorage directly.
+ * `hydrateTokens()` is awaited once at boot,
+ * to load the keyring snapshot into cache, a no-op on web.
  */
 
 const LS_KEY = 'braid:tokens'
@@ -46,9 +48,10 @@ function writeLocalStorageTokens(map: Record<string, string>): void {
 }
 
 /**
- * Populate the in-memory cache. On web this reads localStorage; on
- * Tauri this iterates a known set of remote IDs (LOCAL + caller-supplied)
- * against the keyring and migrates any leftover localStorage entries.
+ * Populate the in-memory cache. On web this reads localStorage,
+ * on Tauri it iterates a known set of remote ids,
+ * LOCAL plus any the caller supplies, against the keyring,
+ * and migrates any leftover localStorage entries.
  */
 export async function hydrateTokens(remoteIds: string[]): Promise<void> {
   if (hydrated)
@@ -111,9 +114,11 @@ export function setToken(remoteId: string, token: string | null): void {
     return
   }
 
-  // Fire-and-forget keyring write; the in-memory cache already reflects
-  // the new state so subsequent sync reads are correct. A failed persist
-  // means the user re-authenticates after restart, which is recoverable.
+  // Fire-and-forget keyring write.
+  // The in-memory cache already reflects the new state,
+  // so subsequent sync reads are correct.
+  // A failed persist means the user re-authenticates after restart,
+  // which is recoverable.
   if (token && token.length > 0) {
     void invoke('keyring_set_token', { remoteId, token }).catch((err) => {
       console.warn('[tokenStore] keyring_set_token failed', err)

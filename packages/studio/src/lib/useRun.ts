@@ -25,13 +25,15 @@ const EMPTY_CONVERSATION: ConversationView = Object.freeze({
 })
 
 /**
- * Aggregated view of the conversation currently displayed in the Skills
- * panel for `(workspaceId, skillId)`. Concatenates events across every turn
+ * Aggregated view of the conversation shown in the Skills panel,
+ * for `(workspaceId, skillId)`.
+ * It concatenates events across every turn,
  * so the transcript reads top-to-bottom like a normal chat.
  *
- * Snapshots are cached so `useSyncExternalStore` sees a stable reference
- * when nothing relevant changed; otherwise React 19 treats every render as
- * a state change and warns about infinite re-renders.
+ * Snapshots are cached,
+ * so `useSyncExternalStore` sees a stable reference when nothing changed.
+ * Otherwise React 19 treats every render as a state change,
+ * and warns about infinite re-renders.
  */
 export function useConversation(workspaceId: string | null, skillId: string | null): ConversationView {
   return useSyncExternalStore(

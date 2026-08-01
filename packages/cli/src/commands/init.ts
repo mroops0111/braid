@@ -11,10 +11,10 @@ export interface InitCommandInput {
 }
 
 /**
- * Scaffold a new workspace at `dir`. Writes PRODUCT.md, .gitignore, and
- * an empty `intent/` so the directory has the shape of a Braid workspace.
- * Does not register with a running server (registration is a Studio
- * Wizard flow), so this is mostly useful for inspecting the template.
+ * Scaffold a new workspace at `dir`. Writes PRODUCT.md, .gitignore,
+ * and an empty `intent/` so the directory has the shape of a Braid workspace.
+ * Does not register with a running server (registration is a Studio Wizard flow),
+ * so this is mostly useful for inspecting the template.
  */
 export async function initCommand(input: InitCommandInput): Promise<void> {
   const absoluteDir = resolve(process.cwd(), input.dir)
@@ -45,9 +45,10 @@ async function fileExists(path: string): Promise<boolean> {
 }
 
 /**
- * Workspace template. Mirrors `examples/example-workspace/PRODUCT.md`
- * but parametrised so `braid init` users start with their chosen name
- * and ontology id, not the literal string "example".
+ * Workspace template.
+ * Mirrors `examples/example-workspace/PRODUCT.md` but parametrised,
+ * so `braid init` users start with their chosen name and ontology id,
+ * not the literal string "example".
  */
 function renderProductManifest({ name, ontologyId }: { name: string, ontologyId: string }): string {
   return `---
@@ -64,18 +65,6 @@ sources:
     path: ./intent
 
 mcpServers: []
-
-agents:
-  default: claude-default
-  tasks: {}
-
-agentBindings:
-  - id: claude-default
-    kind: claude-code
-    model: opus
-    effort: high
-    extraArgs: []
-    env: {}
 
 storage:
   kind: kuzu

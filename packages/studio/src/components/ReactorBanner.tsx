@@ -1,30 +1,33 @@
 import { AlertTriangle, ArrowRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { workspaceEventsUrl } from '@/lib/api'
-import { useReactorPasses } from '@/lib/queries'
+import { useReactorCycles } from '@/lib/queries'
 import { TopBanner } from './TopBanner'
 import { Button } from './ui/button'
 
 interface ReactorBannerProps {
   workspaceId: string | null
-  /** Surface activation hook; clicking the "Open Activity" link drops the user on the Activity page. */
+  /** Clicking the "Open Activity" link drops the user on the Activity page. */
   onOpenActivity: () => void
 }
 
 /**
- * Top-of-app banner surfacing the active reactor pass. Reads the active
- * pass from the same `reactor-passes` query the Activity page uses;
+ * Top-of-app banner surfacing the active reactor cycle.
+ * Reads the active cycle from the same `reactor-cycles` query,
+ * that the Activity page uses.
  * `useWorkspaceEvents` invalidates that query on every reactor SSE event,
- * so the banner stays live without its own EventSource. Mid-pass mount
- * works because the query returns the in-flight pass from the API.
+ * so the banner stays live without its own EventSource.
+ * Mid-cycle mount works,
+ * because the query returns the in-flight cycle from the API.
  *
- * The throttle notice still listens to SSE directly: a throttled pass is
- * a transient event (no persisted "in-flight" state to query), and it
- * auto-dismisses after a few seconds.
+ * The throttle notice still listens to SSE directly.
+ * A throttled cycle is a transient event,
+ * with no persisted "in-flight" state to query,
+ * and it auto-dismisses after a few seconds.
  */
 export function ReactorBanner({ workspaceId, onOpenActivity }: ReactorBannerProps) {
-  const { data: passes } = useReactorPasses(workspaceId)
-  const active = (passes?.items ?? []).find(p => p.status === 'dispatched' || p.status === 'running')
+  const { data: cycles } = useReactorCycles(workspaceId)
+  const active = (cycles?.items ?? []).find(c => c.status === 'dispatched' || c.status === 'running')
 
   const [throttled, setThrottled] = useState<{ sourceId: string, limit: number } | null>(null)
 
@@ -79,7 +82,7 @@ export function ReactorBanner({ workspaceId, onOpenActivity }: ReactorBannerProp
             </>
           )}
           actions={(
-            <Button variant="ghost" size="sm" className="h-6 gap-1 text-[11px]" onClick={onOpenActivity}>
+            <Button variant="ghost" size="sm" className="h-6 gap-1 text-2xs" onClick={onOpenActivity}>
               <ArrowRight className="size-3" />
               Open Activity
             </Button>
@@ -96,11 +99,11 @@ export function ReactorBanner({ workspaceId, onOpenActivity }: ReactorBannerProp
               throttled (cap
               {' '}
               {throttled.limit}
-              /h reached) — sync on
+              /h reached), sync on
               {' '}
               <span className="font-mono">{throttled.sourceId}</span>
               {' '}
-              skipped; next dispatch unblocks once the rolling window slides.
+              skipped. Next dispatch unblocks once the rolling window slides.
             </>
           )}
         />

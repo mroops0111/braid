@@ -2,10 +2,10 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 /** Filename written inside `destination` to track per-file sync state. */
-export const MANIFEST_FILENAME = '.braid-manifest.json'
+export const MANIFEST_FILENAME = '.braid-gdrive-manifest.json'
 
 export interface ManifestEntry {
-  /** Posix relative dir under `destination`: the per-doc package. */
+  /** Posix relative dir under `destination`, the per-doc package. */
   localDir: string
   modifiedTime: string
   /** Drive title at the time of the last sync, for debugging only. */
@@ -20,9 +20,10 @@ export interface Manifest {
 }
 
 /**
- * Read the manifest file from `destination`. Returns `undefined` if the
- * file is missing or unparseable; callers should fall back to a clean
- * ingest in that case (no manifest = no incremental state to diff against).
+ * Read the manifest file from `destination`.
+ * Returns `undefined` when the file is missing or unparseable.
+ * Callers fall back to a clean provision in that case,
+ * since no manifest means no incremental state to diff against.
  */
 export async function readManifest(destination: string): Promise<Manifest | undefined> {
   try {

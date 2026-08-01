@@ -5,19 +5,19 @@ interface ListRowProps {
   active: boolean
   onClick: () => void
   /**
-   * `sidebar`: dense rounded row with sidebar-* tokens (used for navigation).
-   * `content`: full-width bordered row with accent hover (used for primary
-   *            content lists like Skills / Proposals).
+   * `sidebar`: dense rounded row with sidebar-* tokens, for navigation.
+   * `content`: full-width bordered row with accent hover,
+   * for primary content lists like Skills or Proposals.
    */
   variant?: 'sidebar' | 'content'
   className?: string
-  /** Forwarded to the native `title` attribute; useful for tooltip text when the row is icon-only. */
+  /** Forwarded to the native `title` attribute, for tooltip text when the row is icon-only. */
   title?: string | undefined
   /**
-   * Optional left-edge identity stripe. Used by the multi-server sidebar
-   * to mark which remote a workspace belongs to. Sits inside the row's
-   * `<li>` alongside the active indicator so server identity stays
-   * visible even when the row isn't selected.
+   * Optional left-edge identity stripe.
+   * Used by the multi-server sidebar to mark a workspace's remote.
+   * Sits inside the row's `<li>` alongside the active indicator,
+   * so server identity stays visible even when the row is not selected.
    */
   stripeClassName?: string
   stripeDim?: boolean
@@ -25,16 +25,18 @@ interface ListRowProps {
 }
 
 /**
- * Standard list-row pattern with a 3px purple active bar flush against the
- * left edge. Used by every selectable list in Studio so the visual language
- * (hover transition, active bg, bar position) stays consistent.
+ * Standard list-row pattern,
+ * with a 3px purple active bar flush against the left edge.
+ * Used by every selectable list in Studio,
+ * so the visual language stays consistent,
+ * across hover transition, active bg, and bar position.
  */
 export function ListRow({ active, onClick, variant = 'content', className, title, stripeClassName, stripeDim, children }: ListRowProps) {
   const tokens = variant === 'sidebar'
     ? {
         bar: 'inset-y-1',
         button: cn(
-          'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors duration-150',
+          'group flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors duration-150',
           'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground',
           active && 'bg-sidebar-accent text-sidebar-foreground',
         ),

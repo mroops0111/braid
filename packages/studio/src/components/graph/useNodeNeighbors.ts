@@ -8,9 +8,10 @@ export interface NodeNeighbors {
 }
 
 /**
- * Derived data used by the shared `NodeDetailPanel`. Memoised on
- * `(nodes, edges, selectedNodeId)` so big snapshots don't rebuild the
- * id map per render and the canvas / table consumers stay in sync.
+ * Derived data used by the shared `NodeDetailPanel`.
+ * Memoised on `(nodes, edges, selectedNodeId)`,
+ * so big snapshots do not rebuild the id map per render,
+ * and the canvas and table consumers stay in sync.
  */
 export function useNodeNeighbors(
   nodes: readonly GraphNode[],

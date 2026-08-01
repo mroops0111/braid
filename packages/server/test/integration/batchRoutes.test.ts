@@ -1,11 +1,11 @@
 import type { OpenAPIHono } from '@hono/zod-openapi'
-import type { AppDependencies } from '../../src/composition.js'
+import type { AppDependencies } from '../../src/composeApp.js'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app.js'
-import { composeFsApp } from '../../src/composeFs.js'
+import { composeFsApp } from '../../src/composeFsApp.js'
 import { readJson } from '../helpers/readJson.js'
 
 describe('batch REST routes', () => {
@@ -23,7 +23,7 @@ describe('batch REST routes', () => {
       headers: { 'Content-Type': 'application/json' },
       // DDD ontology requires both intent + code roles. Use minimal
       // filesystem sources so the scaffold passes its role check; the
-      // batch tests don't exercise loader-driven ingest.
+      // batch tests don't exercise loader-driven provision.
       body: JSON.stringify({
         name: 'bt',
         manifest: {

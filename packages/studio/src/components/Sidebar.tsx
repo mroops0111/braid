@@ -1,11 +1,10 @@
 import type { Workspace } from '@braidhq/schema'
 import type { Surface } from './CommandPalette'
-import { Activity, ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, LogIn, Moon, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles, Sun } from 'lucide-react'
+import { Activity, ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, LogIn, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import braidLogo from '@/assets/braid-logo.svg'
-import { usePendingClarify, usePendingProposals, useRuns, useSkills } from '@/lib/queries'
+import { usePendingClarification, usePendingProposals, useRuns, useSkills } from '@/lib/queries'
 import { setActiveRemoteId, useActiveRemoteId } from '@/lib/remotes'
-import { useTheme } from '@/lib/theme'
 import { type RemoteSummary, type RemoteWorkspacesResult, useAllRemoteWorkspaces } from '@/lib/useRemoteWorkspaces'
 import { cn } from '@/lib/utils'
 import { useWorkspacePolicy } from '@/policy'
@@ -16,10 +15,11 @@ import { WorkspaceSwatch, WorkspaceSwatchWithPending } from './WorkspaceSwatch'
 
 const COLLAPSED_KEY = 'braid-sidebar-collapsed'
 
-// Server-stripe palette mirrors the workspace swatch palette but with
-// a stronger left-edge bar tone so it reads as identity even at 2-3px.
-// Local always uses the muted token so the embedded sidecar never
-// competes with named remotes for attention.
+// Server-stripe palette mirrors the workspace swatch palette,
+// but with a stronger left-edge bar tone,
+// so it reads as identity even at 2-3px.
+// Local always uses the muted token,
+// so the embedded sidecar never competes with named remotes for attention.
 const REMOTE_STRIPE_PALETTE = [
   'bg-sky-500',
   'bg-emerald-500',
@@ -119,32 +119,24 @@ export function Sidebar({
         collapsed ? 'w-12' : 'w-60',
       )}
     >
-      <div className={cn('flex h-11 shrink-0 items-center', collapsed ? 'justify-center px-2' : 'px-4')}>
-        <div className="flex items-center gap-2">
-          <img src={braidLogo} alt="" className="size-5 shrink-0" />
-          {!collapsed && (
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold tracking-tight">Braid</span>
-              <span className="text-[10px] italic text-sidebar-foreground/60">braiding intent &amp; code</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto scrollbar-thin px-2 pb-2">
-        {remoteResults.map(result => (
-          <RemoteSection
-            key={result.remote.id}
-            result={result}
-            collapsed={collapsed}
-            activeWorkspaceId={activeWorkspaceId}
-            activeRemoteId={activeRemoteId}
-            onSelectWorkspace={selectWorkspace}
-            onOpenDetails={onOpenDetails}
-            onOpenAdd={openAddWorkspace}
-            onSignIn={startRemoteSignIn}
-          />
-        ))}
+      <div className={cn('flex h-11 shrink-0 items-center border-b border-sidebar-border', collapsed ? 'justify-center px-2' : 'justify-between px-4')}>
+        {collapsed
+          ? (
+              <SidebarIconButton onClick={() => setCollapsed(false)} title="Expand sidebar (⌘\\)">
+                <PanelLeftOpen className="size-3.5" />
+              </SidebarIconButton>
+            )
+          : (
+              <>
+                <div className="flex items-center gap-2">
+                  <img src={braidLogo} alt="" className="size-5 shrink-0" />
+                  <span className="text-sm font-semibold tracking-tight">Braid</span>
+                </div>
+                <SidebarIconButton onClick={() => setCollapsed(true)} title="Collapse sidebar (⌘\\)">
+                  <PanelLeftClose className="size-3.5" />
+                </SidebarIconButton>
+              </>
+            )}
       </div>
 
       {activeWorkspaceId && (
@@ -157,46 +149,28 @@ export function Sidebar({
         />
       )}
 
+      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin border-t border-sidebar-border px-2 pb-2 pt-1">
+        {remoteResults.map(result => (
+          <RemoteSection
+            key={result.remote.id}
+            result={result}
+            showStripe={remoteResults.length > 1}
+            collapsed={collapsed}
+            activeWorkspaceId={activeWorkspaceId}
+            activeRemoteId={activeRemoteId}
+            onSelectWorkspace={selectWorkspace}
+            onOpenDetails={onOpenDetails}
+            onOpenAdd={openAddWorkspace}
+            onSignIn={startRemoteSignIn}
+          />
+        ))}
+      </div>
+
       <AccountSection
         activeSurface={activeSurface}
         collapsed={collapsed}
         onSelectSurface={onSelectSurface}
       />
-
-      <div className={cn(
-        'flex shrink-0 border-t border-sidebar-border',
-        collapsed
-          ? 'flex-col items-center gap-0.5 py-1.5'
-          : 'h-10 items-center justify-between px-3',
-      )}
-      >
-        {collapsed
-          ? (
-              <>
-                <ThemeToggle />
-                <SidebarIconButton
-                  onClick={() => setCollapsed(false)}
-                  title="Expand sidebar (⌘\\)"
-                >
-                  <PanelLeftOpen className="size-3.5" />
-                </SidebarIconButton>
-              </>
-            )
-          : (
-              <>
-                <div className="flex-1" />
-                <div className="flex items-center gap-0.5">
-                  <ThemeToggle />
-                  <SidebarIconButton
-                    onClick={() => setCollapsed(true)}
-                    title="Collapse sidebar (⌘\\)"
-                  >
-                    <PanelLeftClose className="size-3.5" />
-                  </SidebarIconButton>
-                </div>
-              </>
-            )}
-      </div>
 
       <CreateWorkspaceWizard open={wizardOpen} onOpenChange={setWizardOpen} onCreated={onSelect} />
     </aside>
@@ -205,6 +179,7 @@ export function Sidebar({
 
 function RemoteSection({
   result,
+  showStripe,
   collapsed,
   activeWorkspaceId,
   activeRemoteId,
@@ -214,6 +189,7 @@ function RemoteSection({
   onSignIn,
 }: {
   result: RemoteWorkspacesResult
+  showStripe: boolean
   collapsed: boolean
   activeWorkspaceId: string | null
   activeRemoteId: string
@@ -224,7 +200,9 @@ function RemoteSection({
 }) {
   const { remote, state } = result
   const isActiveRemote = remote.id === activeRemoteId
-  const stripe = remoteStripeClass(remote)
+  // Server identity stripe only earns its keep with more than one remote.
+  // A single local server needs no per-row colour bar.
+  const stripe = showStripe ? remoteStripeClass(remote) : ''
   const Icon = remote.isLocal ? Laptop : Globe
 
   return (
@@ -235,7 +213,7 @@ function RemoteSection({
             <Icon className={cn('size-3 shrink-0', isActiveRemote ? 'text-sidebar-foreground/70' : 'text-sidebar-foreground/40')} />
             <span
               className={cn(
-                'truncate text-[10px] font-semibold uppercase tracking-wider',
+                'truncate text-2xs font-semibold uppercase tracking-wider',
                 isActiveRemote ? 'text-sidebar-foreground/70' : 'text-sidebar-foreground/45',
               )}
               title={remote.url}
@@ -248,6 +226,7 @@ function RemoteSection({
               type="button"
               onClick={() => onOpenAdd(remote)}
               title="Open workspace"
+              aria-label="Open workspace"
               className="flex size-5 items-center justify-center rounded text-sidebar-foreground/40 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
             >
               <Plus className="size-3.5" />
@@ -310,7 +289,7 @@ function RemoteContent({
     if (collapsed)
       return null
     return (
-      <div className="px-2 py-1 text-[11px] text-sidebar-foreground/40">Loading…</div>
+      <div className="px-2 py-1 text-2xs text-sidebar-foreground/40">Loading…</div>
     )
   }
 
@@ -324,6 +303,7 @@ function RemoteContent({
                 type="button"
                 onClick={() => onSignIn(remote)}
                 title={`Sign in to ${remote.name}`}
+                aria-label={`Sign in to ${remote.name}`}
                 className="flex size-7 items-center justify-center rounded text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
               >
                 <LogIn className="size-3.5" />
@@ -350,7 +330,7 @@ function RemoteContent({
     if (collapsed)
       return null
     return (
-      <div className="px-2 py-1 text-[11px] text-destructive" title={state.message}>
+      <div className="px-2 py-1 text-2xs text-destructive" title={state.message}>
         Unreachable
       </div>
     )
@@ -367,6 +347,7 @@ function RemoteContent({
                 type="button"
                 onClick={() => onOpenAdd(remote)}
                 title={`Open workspace on ${remote.name}`}
+                aria-label={`Open workspace on ${remote.name}`}
                 className="flex size-7 items-center justify-center rounded text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
               >
                 <Plus className="size-3.5" />
@@ -378,7 +359,7 @@ function RemoteContent({
       )
     }
     return (
-      <div className="px-2 py-1 text-[11px] text-sidebar-foreground/40">No workspace yet.</div>
+      <div className="px-2 py-1 text-2xs text-sidebar-foreground/40">No workspace yet.</div>
     )
   }
 
@@ -405,6 +386,7 @@ function RemoteContent({
                 type="button"
                 onClick={() => onOpenAdd(remote)}
                 title={`Open workspace on ${remote.name}`}
+                aria-label={`Open workspace on ${remote.name}`}
                 className="flex size-7 items-center justify-center rounded text-sidebar-foreground/40 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
               >
                 <Plus className="size-3.5" />
@@ -437,12 +419,13 @@ function WorkspaceRow({
   onClick: () => void
   onOpenDetails: () => void
 }) {
-  // Inactive remotes get a dimmer stripe so the active server still
-  // reads first while server identity stays visible across all rows.
+  // Inactive remotes get a dimmer stripe,
+  // so the active server still reads first,
+  // while server identity stays visible across all rows.
   return (
     <ListRow
       variant="sidebar"
-      active={active}
+      active={collapsed ? false : active}
       onClick={onClick}
       stripeClassName={stripe}
       stripeDim={!isActiveRemote}
@@ -466,7 +449,7 @@ function WorkspaceRow({
         : (
             <>
               <WorkspaceSwatch workspaceId={workspace.id} size="sm" />
-              <span className="truncate font-medium">{workspace.id}</span>
+              <span className="flex-1 truncate text-left font-medium">{workspace.id}</span>
               {isActiveRemote && <WorkspaceBadges workspaceId={workspace.id} />}
               <span
                 role="button"
@@ -481,8 +464,9 @@ function WorkspaceRow({
                     onOpenDetails()
                   }
                 }}
-                className="ml-1 hidden rounded p-0.5 text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-foreground group-hover:inline-flex"
+                className="ml-1 flex size-5 shrink-0 items-center justify-center rounded text-sidebar-foreground/40 opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-foreground group-hover:opacity-100"
                 title="Details"
+                aria-label="Details"
               >
                 ⋯
               </span>
@@ -502,23 +486,11 @@ function SidebarIconButton({ onClick, title, children }: {
       type="button"
       onClick={onClick}
       title={title}
+      aria-label={title}
       className="flex size-7 items-center justify-center rounded text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
     >
       {children}
     </button>
-  )
-}
-
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme()
-  const Icon = theme === 'dark' ? Moon : Sun
-  return (
-    <SidebarIconButton
-      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-    >
-      <Icon className="size-3.5" />
-    </SidebarIconButton>
   )
 }
 
@@ -536,23 +508,23 @@ function HereSection({
   onSelectSurface: (next: Surface) => void
 }) {
   const { data: proposals } = usePendingProposals(workspaceId)
-  const { data: clarify } = usePendingClarify(workspaceId)
+  const { data: clarifications } = usePendingClarification(workspaceId)
   const policy = useWorkspacePolicy(workspaceId)
   const { data: skills } = useSkills(workspaceId)
   const pendingProposals = proposals?.items.length ?? 0
-  const pendingClarify = clarify?.items.length ?? 0
+  const pendingClarification = clarifications?.items.length ?? 0
   const canSeeProposals = policy.can('proposal.read')
-  const canSeeClarify = policy.can('clarify.read')
+  const canSeeClarification = policy.can('clarification.read')
   const canRunActions = (skills?.items ?? []).some(s =>
     !s.frontmatter.braid.hidden && policy.can('skill.run', { skill: s.frontmatter, skillId: s.id }),
   )
   const canSeeHistory = policy.effectiveRole !== null && policy.effectiveRole !== 'guest'
 
   return (
-    <div className={cn('shrink-0 border-t border-sidebar-border px-2 pb-2', collapsed ? 'pt-1.5' : 'pt-2')}>
+    <div className={cn('shrink-0 px-2 pb-2', collapsed ? 'pt-1.5' : 'pt-2')}>
       {!collapsed && (
         <div className="px-2 pb-1">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">Here</span>
+          <span className="text-2xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">Here</span>
         </div>
       )}
       <ul className="space-y-px">
@@ -574,15 +546,15 @@ function HereSection({
             onClick={() => onSelectSurface('actions')}
           />
         )}
-        {canSeeClarify && (
+        {canSeeClarification && (
           <HereRow
             collapsed={collapsed}
             icon={HelpCircle}
-            label="Clarify"
-            active={activeSurface === 'clarify'}
-            count={pendingClarify}
+            label="Clarifications"
+            active={activeSurface === 'clarifications'}
+            count={pendingClarification}
             shortcut="G C"
-            onClick={() => onSelectSurface('clarify')}
+            onClick={() => onSelectSurface('clarifications')}
           />
         )}
         {canSeeProposals && (
@@ -679,12 +651,12 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, on
         : (
             <>
               <div className="flex size-5 shrink-0 items-center justify-center text-sidebar-foreground/70">
-                <Icon className="size-3.5" />
+                <Icon className="size-4" />
               </div>
               <span className="flex-1 truncate text-left font-medium">{label}</span>
               {count > 0 && (
                 <span
-                  className="rounded bg-sidebar-accent px-1.5 py-0.5 text-[10px] font-medium text-sidebar-foreground/80"
+                  className="rounded bg-sidebar-accent px-1.5 py-0.5 text-2xs font-medium text-sidebar-foreground/80"
                   title={`${count} pending`}
                 >
                   {count}
@@ -692,7 +664,7 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, on
               )}
               {shortcut && (
                 <kbd
-                  className="rounded bg-sidebar-accent/40 px-1.5 py-0.5 text-[10px] font-mono text-sidebar-foreground/50"
+                  className="hidden rounded bg-sidebar-accent/40 px-1.5 py-0.5 text-2xs font-mono text-sidebar-foreground/50 group-hover:inline-flex"
                   aria-hidden
                 >
                   {shortcut}
@@ -706,24 +678,24 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, on
 
 function WorkspaceBadges({ workspaceId }: { workspaceId: string }) {
   const { data: proposals } = usePendingProposals(workspaceId)
-  const { data: clarify } = usePendingClarify(workspaceId)
+  const { data: clarifications } = usePendingClarification(workspaceId)
   const { data: runs } = useRuns(workspaceId)
   const pendingProposals = proposals?.items.length ?? 0
-  const pendingClarify = clarify?.items.length ?? 0
+  const pendingClarification = clarifications?.items.length ?? 0
   const running = runs?.items.filter(r => !r.completedAt).length ?? 0
-  const total = pendingProposals + pendingClarify + running
+  const total = pendingProposals + pendingClarification + running
   if (total === 0)
     return null
   const breakdown = [
     running > 0 ? `${running} run${running === 1 ? '' : 's'} in flight` : null,
-    pendingClarify > 0 ? `${pendingClarify} pending clarification${pendingClarify === 1 ? '' : 's'}` : null,
+    pendingClarification > 0 ? `${pendingClarification} pending clarification${pendingClarification === 1 ? '' : 's'}` : null,
     pendingProposals > 0 ? `${pendingProposals} pending proposal${pendingProposals === 1 ? '' : 's'}` : null,
   ].filter(Boolean)
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <span
-          className="ml-auto rounded bg-sidebar-accent px-1.5 py-0.5 text-[10px] font-medium text-sidebar-foreground/80"
+          className="ml-auto rounded bg-sidebar-accent px-1.5 py-0.5 text-2xs font-medium text-sidebar-foreground/80"
         >
           {total}
         </span>

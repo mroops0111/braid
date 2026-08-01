@@ -5,7 +5,7 @@ import type { AccessPolicy } from '../infrastructure/auth/AccessPolicy.js'
 import type { SessionStore } from '../infrastructure/auth/SessionStore.js'
 import type { GoogleOAuth } from '../infrastructure/oauth/GoogleOAuth.js'
 import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
-import { newUserId, NotFoundError } from '@braidhq/core'
+import { newUserId, NotFoundError, ServiceUnavailableError, ValidationError } from '@braidhq/core'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { createOAuthState, createPkceVerifier } from '../infrastructure/oauth/GoogleOAuth.js'
@@ -24,24 +24,26 @@ export interface AuthRouterDeps {
   accessPolicy: AccessPolicy
   userRegistry: UserRegistryFile
   /**
-   * When undefined, `/auth/google/*` respond with 503 so the operator
-   * knows the server is missing OAuth env config rather than failing
-   * silently mid-flow.
+   * When undefined, `/auth/google/*` respond with 503,
+   * so the operator knows the server is missing OAuth env config,
+   * rather than failing silently mid-flow.
    */
   googleOAuth?: GoogleOAuth
   /**
-   * Where the Studio bundle is served from. Login redirects land here
-   * with `#token=...` in the fragment; Studio reads, stores, navigates.
+   * Where the Studio bundle is served from.
+   * Login redirects land here, with `#token=...` in the fragment.
+   * Studio reads, stores, navigates.
    * Defaults to the Vite dev server origin when unset.
    */
   studioUrl: string
   /**
-   * Mirrored into `/auth/config.requiresAuth` so the Studio knows
-   * whether to gate behind the Login page. `true` means anonymous
-   * sessions fall through to `local-user` — fine for embedded
-   * sidecar / dev; `false` means the Login page is mandatory.
+   * Whether a caller must authenticate.
+   * Mirrored into `/auth/config.requiresAuth`,
+   * telling the Studio whether to gate behind the Login page.
+   * When false, anonymous sessions fall through, fine for a sidecar or dev.
+   * When true, the Login page is mandatory.
    */
-  localTrust: boolean
+  requiresAuth: boolean
 }
 
 const StartQuery = z.object({
@@ -57,9 +59,10 @@ const CallbackQuery = z.object({
 
 export function createAuthRouter(deps: AuthRouterDeps): Hono {
   const router = new Hono()
-  // In-memory pending flows. A single-process server is the only
-  // supported topology in v0.2; HA / multi-process would need this in
-  // a shared store, but that's well past current scope.
+  // In-memory pending flows.
+  // A single-process server is the only supported topology in v0.2.
+  // HA or multi-process would need a shared store,
+  // but that's well past current scope.
   const pending = new Map<string, PendingFlow>()
 
   function reapExpired(): void {
@@ -71,21 +74,14 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
   }
 
   router.get('/google/start', async (context) => {
-    if (!deps.googleOAuth) {
-      return context.json(
-        {
-          title: 'Google sign-in unavailable',
-          detail: 'Server is missing BRAID_GOOGLE_CLIENT_ID / BRAID_GOOGLE_CLIENT_SECRET; ask the admin to configure them.',
-        },
-        503,
-      )
-    }
+    if (!deps.googleOAuth)
+      throw new ServiceUnavailableError('Server is missing BRAID_GOOGLE_CLIENT_ID / BRAID_GOOGLE_CLIENT_SECRET. Ask the admin to configure them.')
     reapExpired()
     const parsed = StartQuery.safeParse({
       returnTo: context.req.query('returnTo'),
     })
     if (!parsed.success)
-      return context.json({ title: 'Invalid returnTo' }, 400)
+      throw new ValidationError('Invalid returnTo query parameter.')
     const state = createOAuthState()
     const codeVerifier = createPkceVerifier()
     pending.set(state, {
@@ -99,7 +95,7 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
 
   router.get('/google/callback', async (context) => {
     if (!deps.googleOAuth)
-      return context.text('Google sign-in is not configured on this server.', 503)
+      throw new ServiceUnavailableError('Google sign-in is not configured on this server.')
     const parsed = CallbackQuery.safeParse({
       code: context.req.query('code'),
       state: context.req.query('state'),
@@ -107,7 +103,7 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
       error_description: context.req.query('error_description'),
     })
     if (!parsed.success)
-      return context.text('Invalid callback parameters.', 400)
+      throw new ValidationError('Invalid callback parameters.')
     const { code, state, error, error_description: errorDescription } = parsed.data
     if (error || !code || !state)
       return redirectWithError(context, deps.studioUrl, error_description_or_default(error, errorDescription))
@@ -129,9 +125,9 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
     if (!decision.allow)
       return redirectWithError(context, flow.returnTo, decision.reason ?? 'Not authorized.')
 
-    // Resolve / create the user record. Google `sub` is stable across
-    // email changes; prefer it as the join key, fall back to email
-    // for invited users who haven't logged in before.
+    // Resolve or create the user record. Google `sub` survives an email change,
+    // so prefer it as the join key,
+    // falling back to email for invited users new to login.
     const isAdmin = deps.accessPolicy.isAdmin(profile.email)
     let user = await deps.userRegistry.getByGoogleSub(profile.sub)
     if (!user) {
@@ -149,8 +145,8 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
     }
     else if (isAdmin && user.serverRole !== 'admin') {
       // BRAID_ADMIN_EMAILS was edited after this user was created.
-      // Promote on next login so re-deploying with new admin emails
-      // doesn't require manual user-table surgery.
+      // Promote on next login, so re-deploying with a new admin list,
+      // never needs manual user-table surgery.
       user = await deps.userRegistry.update(user.id, { serverRole: 'admin' })
     }
 
@@ -168,11 +164,12 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
   })
 
   router.get('/whoami', async (context) => {
-    // `/auth/*` is in the auth middleware's PUBLIC_PREFIXES, so the
-    // Bearer header isn't validated upstream. Whoami exists precisely
-    // to identify the caller, so resolve the Bearer token here
-    // directly rather than trusting `userIdMiddleware`'s local-user
-    // fallback. Absent / invalid token → `{ user: null }`.
+    // `/auth/*` is in the auth middleware's PUBLIC_PATH_PREFIXES,
+    // so the Bearer header isn't validated upstream.
+    // Whoami exists precisely to identify the caller,
+    // so resolve the Bearer token here directly,
+    // rather than trusting the auth middleware's local-user fallback.
+    // An absent or invalid token yields `{ user: null }`.
     const header = context.req.header('Authorization')
     const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length).trim() : null
     let userId: UserId | undefined
@@ -180,10 +177,10 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
       const session = await deps.sessionStore.resolve(token)
       userId = session?.userId
     }
-    // Local-trust deployments don't issue tokens — fall back to the
-    // context userId so /whoami still works there. authMiddleware
-    // wouldn't have rejected the request anyway.
-    if (!userId && deps.localTrust)
+    // A deployment without enforced auth doesn't issue tokens,
+    // so fall back to the context userId, keeping /whoami working there.
+    // authMiddleware wouldn't have rejected the request anyway.
+    if (!userId && !deps.requiresAuth)
       userId = context.get('userId') as UserId | undefined
     if (!userId)
       return context.json({ user: null })
@@ -198,15 +195,15 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
     }
   })
 
-  // Hint at the configured studio URL + auth mode so the Login page
-  // can decide whether to gate at all (local trust skips), and
-  // whether Google is actually configured (otherwise the Sign-in
-  // button leads to a 503).
+  // Hint at the configured studio URL and auth mode,
+  // so the Login page can decide whether to gate at all,
+  // single-tenant skips it, and whether Google is configured,
+  // since otherwise the Sign-in button leads to a 503.
   router.get('/config', (context) => {
     return context.json({
       googleEnabled: deps.googleOAuth !== undefined,
       studioUrl: deps.studioUrl,
-      requiresAuth: !deps.localTrust,
+      requiresAuth: deps.requiresAuth,
     })
   })
 
@@ -214,8 +211,8 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
 }
 
 function redirectWithError(context: Context, target: string, reason: string): Response {
-  // Use a clearly named hash key so the Studio side knows to pull the
-  // error out and surface it on the Login page.
+  // Use a clearly named hash key.
+  // The Studio side pulls the error out and shows it on the Login page.
   const url = `${target}#auth-error=${encodeURIComponent(reason)}`
   return context.redirect(url, 302)
 }

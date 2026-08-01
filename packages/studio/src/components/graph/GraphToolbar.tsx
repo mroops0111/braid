@@ -1,16 +1,18 @@
-import { Focus as FocusIcon, LayoutGrid, Network, SquareDashed } from 'lucide-react'
+import { Focus as FocusIcon, GitCompare, LayoutGrid, Network } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export type GraphView = 'visualization' | 'table'
 
 /**
- * Page-actions toolbar atoms shared by the Graph page and the
- * Proposals preview. Live here (not in any page) so neither page
- * imports the other — both consume a common toolkit.
+ * Page-actions toolbar atoms shared by the Graph page,
+ * and the Proposals preview.
+ * They live here, not in any page,
+ * so neither page imports the other, both consume a common toolkit.
  *
- * Visual language matches the sibling icon group: same border, same
- * card background; active state uses the `accent` token so Focus and
- * the active view chip read as members of the same cluster.
+ * Visual language matches the sibling icon group.
+ * Same border, same card background,
+ * and the active state uses the `accent` token,
+ * so Focus and the active view chip read as members of one cluster.
  */
 
 export function FocusToggle({ active, onChange }: { active: boolean, onChange: (next: boolean) => void }) {
@@ -21,7 +23,7 @@ export function FocusToggle({ active, onChange }: { active: boolean, onChange: (
       aria-pressed={active}
       title={active ? 'Show full graph' : 'Focus on neighbourhood'}
       className={cn(
-        'flex h-7 items-center gap-1 rounded-md border border-border px-2 text-[11px] shadow-sm transition-colors',
+        'flex h-7 items-center gap-1 rounded-md border border-border px-2 text-2xs shadow-sm transition-colors',
         active
           ? 'bg-accent text-foreground'
           : 'bg-card text-muted-foreground hover:bg-accent/50 hover:text-foreground',
@@ -34,12 +36,14 @@ export function FocusToggle({ active, onChange }: { active: boolean, onChange: (
 }
 
 /**
- * Toggle for proposal preview: dim every node / edge that this proposal
- * does not touch. Restores the "I only want to see what changed"
- * experience for incremental proposals where adds / updates / removes
- * make up a small fraction of the total snapshot. Unaffected nodes
- * stay visible (faded) so reviewers retain topology context — see
- * `DIMMED_NODE_OPACITY` in `styleTokens.ts`.
+ * Toggle for proposal preview.
+ * Dims every node and edge that this proposal does not touch.
+ * Restores the "I only want to see what changed" experience,
+ * for incremental proposals where adds, updates, and removes,
+ * make up a small fraction of the total snapshot.
+ * Unaffected nodes stay visible and faded,
+ * so reviewers retain topology context.
+ * See `DIMMED_NODE_OPACITY` in `styleTokens.ts`.
  */
 export function OnlyChangesToggle({ active, onChange }: { active: boolean, onChange: (next: boolean) => void }) {
   return (
@@ -49,13 +53,13 @@ export function OnlyChangesToggle({ active, onChange }: { active: boolean, onCha
       aria-pressed={active}
       title={active ? 'Show full graph' : 'Dim unchanged nodes & edges'}
       className={cn(
-        'flex h-7 items-center gap-1 rounded-md border border-border px-2 text-[11px] shadow-sm transition-colors',
+        'flex h-7 items-center gap-1 rounded-md border border-border px-2 text-2xs shadow-sm transition-colors',
         active
           ? 'bg-accent text-foreground'
           : 'bg-card text-muted-foreground hover:bg-accent/50 hover:text-foreground',
       )}
     >
-      <SquareDashed className="size-3.5" />
+      <GitCompare className="size-3.5" />
       Only changes
     </button>
   )
@@ -71,14 +75,14 @@ export function ViewToggle({ view, onChange }: { view: GraphView, onChange: (vie
       <ToggleButton
         active={view === 'visualization'}
         onClick={() => onChange('visualization')}
-        ariaLabel="Visualization view (Cmd+1)"
+        ariaLabel="Visualization view"
       >
         <Network className="size-3.5" />
       </ToggleButton>
       <ToggleButton
         active={view === 'table'}
         onClick={() => onChange('table')}
-        ariaLabel="Table view (Cmd+2)"
+        ariaLabel="Table view"
       >
         <LayoutGrid className="size-3.5" />
       </ToggleButton>

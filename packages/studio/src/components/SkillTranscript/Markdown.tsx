@@ -32,22 +32,22 @@ const components: NonNullable<Parameters<typeof ReactMarkdown>[0]['components']>
     const isBlock = className?.startsWith('language-')
     if (isBlock) {
       return (
-        <code className={cn('font-mono text-[11px] leading-relaxed', className)}>
+        <code className={cn('font-mono text-2xs leading-relaxed', className)}>
           {children}
         </code>
       )
     }
     return (
-      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-[11px] text-foreground">
+      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-2xs text-foreground">
         {children}
       </code>
     )
   },
   pre: ({ children }) => {
-    // react-markdown passes the single `<code>` child here. We sniff its
-    // className to peel mermaid blocks out of the normal <pre> rendering
-    // and route them to the Mermaid component, which lazy-loads the
-    // mermaid library and renders to SVG.
+    // react-markdown passes the single `<code>` child here.
+    // We sniff its className to peel mermaid blocks out of the normal <pre>,
+    // and route them to the Mermaid component,
+    // which lazy-loads the mermaid library and renders to SVG.
     const child = Array.isArray(children) ? children[0] : children
     if (isValidElement(child)) {
       const props = child.props as { className?: string, children?: unknown }
@@ -57,7 +57,7 @@ const components: NonNullable<Parameters<typeof ReactMarkdown>[0]['components']>
       }
     }
     return (
-      <pre className="my-2 overflow-x-auto rounded-md border border-border bg-card p-2 font-mono text-[11px] leading-relaxed text-foreground/90">
+      <pre className="my-2 overflow-x-auto rounded-md border border-border bg-card p-2 font-mono text-2xs leading-relaxed text-foreground/90">
         {children}
       </pre>
     )
@@ -71,7 +71,7 @@ const components: NonNullable<Parameters<typeof ReactMarkdown>[0]['components']>
   tbody: ({ children }) => <tbody>{children}</tbody>,
   tr: ({ children }) => <tr className="border-b border-border/40">{children}</tr>,
   th: ({ children, style }) => (
-    <th style={style} className="px-2 py-1 text-left text-[10px] font-semibold uppercase tracking-wider">
+    <th style={style} className="px-2 py-1 text-left text-2xs font-semibold uppercase tracking-wider">
       {children}
     </th>
   ),
@@ -79,10 +79,12 @@ const components: NonNullable<Parameters<typeof ReactMarkdown>[0]['components']>
 }
 
 /**
- * Renders a SkillEvent message body as GitHub-flavored markdown. Uses the
- * transcript's surrounding `font-mono text-xs` only for inline code / pre
- * blocks; the prose itself switches to the app sans font so headings, lists
- * and tables read naturally inside the otherwise terminal-style transcript.
+ * Renders a SkillEvent message body as GitHub-flavored markdown.
+ * Uses the transcript's surrounding `font-mono text-xs`,
+ * only for inline code and pre blocks.
+ * The prose itself switches to the app sans font,
+ * so headings, lists, and tables read naturally,
+ * inside the otherwise terminal-style transcript.
  */
 export function Markdown({ text }: MarkdownProps) {
   return (

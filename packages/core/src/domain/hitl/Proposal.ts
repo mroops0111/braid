@@ -1,4 +1,5 @@
 import type {
+  Actor,
   ExternalReference,
   GraphOperation,
   Proposal as ProposalData,
@@ -22,15 +23,14 @@ export class Proposal {
   get generatedAt(): Timestamp { return this.data.generatedAt }
   get rationale(): string { return this.data.rationale }
   get reviewedBy(): UserId | undefined { return this.data.reviewedBy }
-  get ownerId(): UserId | undefined { return this.data.ownerId }
+  get owner(): Actor { return this.data.owner }
   get ownerDisplayName(): string | undefined { return this.data.ownerDisplayName }
   get externalReferences(): readonly ExternalReference[] | undefined { return this.data.externalReferences }
 
-  // Returns a new Proposal in 'applied' state. Caller is responsible for
-  // persisting the new instance + actually running operations against the
-  // model (we keep entity pure, no side effects).
+  // Returns a new Proposal in 'applied' state. Caller must persist the new instance and run the operations,
+  // we keep the entity pure with no side effects.
   markApplied(userId: UserId, reviewedAt: Timestamp): Proposal {
-    this.requirePending('apply')
+    this.requireStatus('pending')
     return new Proposal({
       ...this.data,
       status: 'applied',
@@ -40,7 +40,7 @@ export class Proposal {
   }
 
   markRejected(userId: UserId, reviewedAt: Timestamp): Proposal {
-    this.requirePending('reject')
+    this.requireStatus('pending')
     return new Proposal({
       ...this.data,
       status: 'rejected',
@@ -53,11 +53,9 @@ export class Proposal {
     return this.data
   }
 
-  private requirePending(action: string): void {
-    if (this.data.status !== 'pending') {
-      throw new ConflictError(
-        `Cannot ${action} proposal "${this.data.id}": current status is "${this.data.status}", expected "pending"`,
-      )
+  private requireStatus(expectedStatus: ProposalStatus): void {
+    if (this.data.status !== expectedStatus) {
+      throw new ConflictError(`Proposal "${this.data.id}" is ${this.data.status}, not ${expectedStatus}`)
     }
   }
 }

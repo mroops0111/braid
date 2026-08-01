@@ -5,13 +5,13 @@ import { cn } from '@/lib/utils'
 export type TopBannerTone = 'reactor' | 'run' | 'batch' | 'warning'
 
 interface TopBannerProps {
-  /** Visual / colour palette. Each tone matches one of the three live surfaces. */
+  /** Colour palette. Each tone matches one of the three live surfaces. */
   tone: TopBannerTone
-  /** Bold prefix label, e.g. "Reactor" / "Batch" / `/braid-extract`. */
+  /** Bold prefix label, e.g. "Reactor", "Batch", or `/ddd:extract`. */
   label: string
   /** Description text rendered next to the label in `text-muted-foreground`. */
   detail: ReactNode
-  /** Optional icon override; defaults to a spinner appropriate for the tone. */
+  /** Optional icon override, defaults to a spinner suited to the tone. */
   icon?: ComponentType<{ className?: string }>
   /** Opt out of the spin animation for non-spinning icons (e.g. CheckCircle2). Defaults true. */
   spin?: boolean
@@ -20,20 +20,22 @@ interface TopBannerProps {
 }
 
 /**
- * Single source of truth for the top-of-app status banner. Reactor /
- * Batch / InFlightRun banners all funnel through this so the three
- * never disagree on height, padding, or typography when they stack
- * during a busy session.
+ * Single source of truth for the top-of-app status banner.
+ * The Reactor, Batch, and InFlightRun banners all funnel through this,
+ * so the three never disagree on height, padding, or typography,
+ * when they stack during a busy session.
  */
 export function TopBanner({ tone, label, detail, icon: Icon, spin = true, actions }: TopBannerProps): ReactNode {
   const ResolvedIcon = Icon ?? Loader2
   return (
     <div
       className={cn(
-        // Fixed height (h-9 = 36px) so Reactor / Batch / Run banners
-        // stack visually identical even when one carries an `h-6` Button
-        // in `actions` and another a plain text link. py is removed in
-        // favour of an explicit height so the container never shrinks.
+        // Fixed height (h-9 = 36px),
+        // so the Reactor, Batch, and Run banners stack identically,
+        // even when one carries an `h-6` Button in `actions`,
+        // and another a plain text link.
+        // py is removed in favour of an explicit height,
+        // so the container never shrinks.
         'flex h-9 items-center gap-3 border-b px-4 text-xs',
         tone === 'reactor' && 'border-emerald-500/30 bg-emerald-500/5',
         tone === 'run' && 'border-primary/30 bg-primary/5',

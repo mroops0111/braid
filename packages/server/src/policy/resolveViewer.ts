@@ -2,16 +2,16 @@ import type { User, WorkspaceMember } from '@braidhq/schema'
 import type { ViewerContext, ViewerResource } from './ViewerContext.js'
 
 /**
- * The sole place server-admin promotion happens. Every other layer
- * (middleware, capability checks, Studio mirror) consumes the resulting
- * `effectiveRole` and never re-derives it.
+ * The sole place server-admin promotion happens. Every other layer,
+ * including middleware, capability checks, and the Studio mirror,
+ * consumes the resulting `effectiveRole` and never re-derives it.
  *
- * Resolution:
- *   1. user.serverRole === 'admin'  → effectiveRole = 'owner'
- *      (the stored member.role, if any, is kept on `member` for
- *      display, but ignored by gates)
- *   2. member present                → effectiveRole = member.role
- *   3. otherwise                     → effectiveRole = null (no access)
+ * Resolution runs in order:
+ *   1. An admin serverRole yields an owner effectiveRole.
+ *      The stored member.role, if any, stays on `member` for display,
+ *      yet gates ignore it.
+ *   2. A present member yields effectiveRole = member.role.
+ *   3. Otherwise effectiveRole is null, meaning no access.
  */
 export function resolveViewer(
   user: User,

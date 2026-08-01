@@ -7,9 +7,10 @@ export interface RunRepository {
   listRecords: (workspace: Workspace) => Promise<readonly RunRecord[]>
   readEvents: (workspace: Workspace, runId: SkillRunId) => AsyncIterable<SkillEvent>
   /**
-   * Hard-delete the given run records: drop them from the index and rm
-   * their per-run event files. Caller is expected to refuse deletion
-   * for in-flight runs (no record-level lock exists at this layer).
+   * Hard-delete the given run records,
+   * drop them from the index and rm their per-run event files.
+   * Caller is expected to refuse deletion for in-flight runs,
+   * no record-level lock exists at this layer.
    */
   deleteRecords: (workspace: Workspace, runIds: readonly SkillRunId[]) => Promise<void>
   /**

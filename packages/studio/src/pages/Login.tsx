@@ -5,20 +5,23 @@ import { api, ApiError } from '@/lib/api'
 
 interface LoginPageProps {
   /**
-   * Surfaced when the redirect from `/auth/google/callback` lands with
-   * `#auth-error=…`. Shown above the Sign-in button so the user knows
-   * why they're back on the Login page (e.g. "Not in allowlist").
+   * Surfaced when the callback redirect lands with `#auth-error=…`.
+   * Shown above the Sign-in button,
+   * so the user knows why they are back on the Login page.
    */
   initialError?: string | null
 }
 
 /**
- * Gate shown when the remote server requires authentication and the
- * Studio has no Bearer token. Single-button flow: click "Sign in with
- * Google" → server returns the consent URL → window.location.href →
- * Google → server callback → redirect back here with `#token=…` (or
- * `#auth-error=…`). The hash is consumed by `consumeOAuthRedirect`
- * up in App.tsx before this page is rendered.
+ * Gate shown when the remote server requires authentication,
+ * and the Studio has no Bearer token.
+ *
+ * Single-button flow. Click "Sign in with Google",
+ * the server returns a consent URL, and the browser navigates there.
+ * Google calls the server callback, which redirects back here,
+ * with `#token=<value>` or `#auth-error=<value>`.
+ * The hash is consumed by `consumeOAuthRedirect` in App.tsx,
+ * before this page is rendered.
  */
 export function LoginPage({ initialError }: LoginPageProps) {
   const [error, setError] = useState<string | null>(initialError ?? null)

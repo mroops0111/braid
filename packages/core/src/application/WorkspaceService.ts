@@ -25,23 +25,24 @@ export class WorkspaceService {
   }
 
   /**
-   * Throw if the workspace's sources don't cover every role the registered
-   * ontology declares as required. Route handlers that mutate `sources`
-   * (add/patch/delete) call this before `save()`. `save()` itself doesn't
-   * enforce so that discovery can re-load pre-existing workspaces whose
-   * manifests pre-date the rule.
+   * Throw if the workspace's sources don't cover every role,
+   * that the registered ontology declares as required.
+   * Route handlers that mutate `sources` call this before `save()`,
+   * on add, patch, or delete.
+   * `save()` itself doesn't enforce the rule,
+   * so discovery can re-load pre-existing workspaces whose manifests pre-date it.
    */
   assertRequiredSourceRoles(workspace: Workspace): void {
     const ontology = this.deps.pluginRegistry.findOntology(workspace.productManifest.ontologyId)
     const required = ontology?.requiredSourceRoles ?? []
     if (required.length === 0)
       return
-    const present = new Set(workspace.sources.map(s => s.role))
-    const missing = required.filter(r => !present.has(r))
+    const present = new Set(workspace.sources.map(source => source.role))
+    const missing = required.filter(role => !present.has(role))
     if (missing.length === 0)
       return
     throw new ValidationError(
-      `Workspace requires source role${missing.length === 1 ? '' : 's'} ${missing.map(r => `"${r}"`).join(', ')} `
+      `Workspace requires source role${missing.length === 1 ? '' : 's'} ${missing.map(role => `"${role}"`).join(', ')} `
       + `for ontology "${workspace.productManifest.ontologyId}".`,
     )
   }
@@ -59,8 +60,8 @@ export class WorkspaceService {
   }
 
   /**
-   * Discard any cached parse so the next `load` re-reads from disk. Call
-   * after rewriting PRODUCT.md so subsequent reads pick up the new manifest.
+   * Discard any cached parse so the next `load` re-reads from disk.
+   * Call after rewriting PRODUCT.md, so subsequent reads pick up the new manifest.
    */
   invalidate(rootPath: AbsolutePath): void {
     this.deps.workspaceRepository.invalidate?.(rootPath)

@@ -4,10 +4,11 @@ import { ListRow } from '@/components/ListRow'
 import { UserPicker } from '@/components/UserPicker'
 import { useWorkspacePolicy } from '@/policy'
 import { AboutTab } from './settings/AboutTab'
+import { AppearanceTab } from './settings/AppearanceTab'
 import { ServersTab } from './settings/ServersTab'
 import { UsersTab } from './settings/UsersTab'
 
-type SettingsTab = 'servers' | 'users' | 'about'
+type SettingsTab = 'servers' | 'users' | 'appearance' | 'about'
 
 export function SettingsPage() {
   const [tab, setTab] = useState<SettingsTab>('servers')
@@ -17,7 +18,7 @@ export function SettingsPage() {
       <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border px-4 text-sm">
         <div className="flex items-center gap-1.5">
           <SettingsIcon className="size-3.5 text-muted-foreground" />
-          <span className="font-mono text-foreground">Settings</span>
+          <span className="font-medium text-foreground">Settings</span>
         </div>
         <UserPicker />
       </header>
@@ -27,12 +28,14 @@ export function SettingsPage() {
           {isAdmin && (
             <SettingsNavRow label="Users" value="users" active={tab === 'users'} onClick={setTab} />
           )}
+          <SettingsNavRow label="Appearance" value="appearance" active={tab === 'appearance'} onClick={setTab} />
           <SettingsNavRow label="About" value="about" active={tab === 'about'} onClick={setTab} />
         </ul>
         <div className="flex-1 overflow-y-auto scrollbar-thin">
           <div className="max-w-2xl px-6 py-6">
             {tab === 'servers' && <ServersTab />}
             {tab === 'users' && isAdmin && <UsersTab />}
+            {tab === 'appearance' && <AppearanceTab />}
             {tab === 'about' && <AboutTab />}
           </div>
         </div>

@@ -1,5 +1,6 @@
-import { Check, CircleDashed, Globe, Laptop, LogIn, LogOut, Trash2 } from 'lucide-react'
+import { Check, Globe, Laptop, Loader2, LogIn, LogOut, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,7 +15,6 @@ import {
   useRemotes,
 } from '@/lib/remotes'
 import { DEFAULT_SERVER_URL, getServerUrlFor } from '@/lib/serverUrl'
-import { cn } from '@/lib/utils'
 
 export function ServersTab() {
   const remotes = useRemotes()
@@ -22,7 +22,7 @@ export function ServersTab() {
   return (
     <div className="space-y-6">
       <section className="space-y-2">
-        <h2 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Connections</h2>
+        <h2 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">Connections</h2>
         <ul className="space-y-2">
           <ServerRow
             id={LOCAL_REMOTE_ID}
@@ -92,39 +92,39 @@ function ServerRow({ id, name, url, isLocal, isActive }: ServerRowProps) {
           <div className="flex items-center gap-2">
             <span className="truncate text-sm">{name}</span>
             {isActive && (
-              <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-primary">
+              <Badge variant="outline" className="bg-primary/15 text-2xs uppercase tracking-wider text-primary">
                 Active
-              </span>
+              </Badge>
             )}
             {!isActive && connected && (
-              <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-emerald-400">
+              <Badge variant="outline" className="bg-emerald-500/15 text-2xs uppercase tracking-wider text-emerald-400">
                 Connected
-              </span>
+              </Badge>
             )}
             {!connected && (
-              <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+              <Badge variant="outline" className="text-2xs uppercase tracking-wider text-muted-foreground">
                 Not signed in
-              </span>
+              </Badge>
             )}
           </div>
-          <p className="truncate font-mono text-[11px] text-muted-foreground">{url}</p>
+          <p className="truncate font-mono text-2xs text-muted-foreground">{url}</p>
         </div>
         {!armedForRemove && (
           <div className="flex shrink-0 items-center gap-1">
             {!isActive && connected && (
-              <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={activate}>
+              <Button variant="ghost" size="sm" className="h-7 text-2xs" onClick={activate}>
                 <Check className="mr-1 size-3" />
                 Use This
               </Button>
             )}
             {!isLocal && !connected && (
-              <Button variant="default" size="sm" className="h-7 text-[11px]" onClick={startSignIn}>
+              <Button variant="default" size="sm" className="h-7 text-2xs" onClick={startSignIn}>
                 <LogIn className="mr-1 size-3" />
                 Sign In
               </Button>
             )}
             {!isLocal && connected && (
-              <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={disconnect}>
+              <Button variant="ghost" size="sm" className="h-7 text-2xs" onClick={disconnect}>
                 <LogOut className="mr-1 size-3" />
                 Sign Out
               </Button>
@@ -135,6 +135,7 @@ function ServerRow({ id, name, url, isLocal, isActive }: ServerRowProps) {
                 size="icon"
                 onClick={() => setArmedForRemove(true)}
                 title="Remove server"
+                aria-label="Remove server"
                 className="text-destructive hover:text-destructive"
               >
                 <Trash2 />
@@ -145,10 +146,10 @@ function ServerRow({ id, name, url, isLocal, isActive }: ServerRowProps) {
       </div>
       {armedForRemove && (
         <div className="mt-2 space-y-2 border-t border-border pt-2">
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             Remove
             {' '}
-            <span className="font-mono">{name}</span>
+            <span className="font-medium">{name}</span>
             ? Stored token is cleared. Workspaces on the remote stay
             untouched; you can add this server back later.
           </p>
@@ -179,13 +180,13 @@ async function probeBraidServer(url: string): Promise<void> {
     throw new Error(`Could not reach ${url}: ${err instanceof Error ? err.message : 'network error'}`)
   }
   if (!response.ok)
-    throw new Error(`Server replied ${response.status} — is this a Braid instance?`)
+    throw new Error(`Server replied ${response.status}. Is this a Braid instance?`)
   let body: unknown
   try {
     body = await response.json()
   }
   catch {
-    throw new Error('Server replied with non-JSON — is this a Braid instance?')
+    throw new Error('Server replied with non-JSON. Is this a Braid instance?')
   }
   if (typeof body !== 'object' || body === null || !('requiresAuth' in body) || !('googleEnabled' in body))
     throw new Error('Response did not match a Braid `/auth/config` shape')
@@ -240,14 +241,15 @@ function AddRemoteForm() {
 
   if (!open) {
     return (
-      <Button variant="ghost" size="sm" onClick={() => setOpen(true)} className="h-7 text-[11px]">
-        + Add Remote
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)} className="h-7 text-2xs">
+        <Plus className="mr-1 size-3" />
+        Add Remote
       </Button>
     )
   }
   return (
     <section className="space-y-3 rounded-md border border-border p-3">
-      <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">New Server</h3>
+      <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">New Server</h3>
       <div className="space-y-2">
         <Label htmlFor="add-remote-url" className="text-xs">URL</Label>
         <Input
@@ -267,11 +269,11 @@ function AddRemoteForm() {
           onChange={e => setName(e.target.value)}
         />
       </div>
-      {error && <p className="text-[11px] text-destructive">{error}</p>}
+      {error && <p className="text-2xs text-destructive">{error}</p>}
       <div className="flex gap-2">
         <Button variant="ghost" size="sm" onClick={reset} className="flex-1" disabled={validating}>Cancel</Button>
         <Button size="sm" onClick={save} className="flex-1" disabled={validating}>
-          <CircleDashed className={cn('mr-1 size-3', validating && 'animate-spin')} />
+          {validating && <Loader2 className="mr-1 size-3 animate-spin" />}
           {validating ? 'Verifying…' : 'Save'}
         </Button>
       </div>

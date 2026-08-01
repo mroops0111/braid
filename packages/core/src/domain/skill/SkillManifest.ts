@@ -34,7 +34,7 @@ export class SkillManifest {
     return this.data.frontmatter
   }
 
-  /** Claude Code-recognised frontmatter fields (name, description, argument-hint, …). */
+  /** Claude Code-recognised frontmatter fields, e.g. name, description, argument-hint. */
   get claudeCodeFields(): ClaudeCodeSkillFrontmatter {
     const { braid: _braid, ...claudeFields } = this.data.frontmatter
     return claudeFields

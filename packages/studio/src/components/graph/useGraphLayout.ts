@@ -4,24 +4,26 @@ import dagre from '@dagrejs/dagre'
 import { useMemo } from 'react'
 
 const NODE_WIDTH = 200
-// Card height varies with the description subtitle. Reserve enough
-// vertical space for the longer case so edges going around cards have
-// room. Real cards may render shorter; that just makes the gap larger,
-// which is fine for readability.
+// Card height varies with the description subtitle.
+// Reserve enough vertical space for the longer case,
+// so edges going around cards have room.
+// Real cards may render shorter, which just makes the gap larger,
+// and that is fine for readability.
 const NODE_HEIGHT = 92
 
 export interface NodeCardData extends Record<string, unknown> {
   node: GraphNode
   /**
-   * Optional diff annotation populated when the source carries a
-   * proposal preview. Drives the ring color around the card.
+   * Optional diff annotation populated when the source carries a preview.
+   * Drives the ring color around the card.
    */
   change?: ChangeKind
   /**
-   * Set by `GraphCanvas` when the parent passes `emphasizeAdded`. When
-   * paired with `change === 'added'` the card adds a green ring + shadow
-   * so incremental proposals (where only a small fraction of the graph
-   * changes) don't bury the diff in a sea of unmarked context.
+   * Set by `GraphCanvas` when the parent passes `emphasizeAdded`.
+   * When paired with `change === 'added'`,
+   * the card adds a green ring and shadow,
+   * so incremental proposals do not bury the diff in unmarked context,
+   * when only a small fraction of the graph changes.
    */
   emphasizeAdded?: boolean
 }
@@ -39,9 +41,11 @@ export interface LaidOutGraph {
 }
 
 /**
- * Memoised dagre layout. Recomputes when the node or edge ids change so an
- * in-place metadata edit (description, status) doesn't trigger a re-layout
- * and re-pan; adding / removing a node does.
+ * Memoised dagre layout.
+ * Recomputes when the node or edge ids change,
+ * so an in-place metadata edit, such as description or status,
+ * does not trigger a re-layout and re-pan.
+ * Adding or removing a node does.
  */
 export function useGraphLayout(nodes: readonly GraphNode[], edges: readonly GraphEdge[]): LaidOutGraph {
   const nodeKey = nodes.map(n => n.id).join('|')
@@ -53,11 +57,12 @@ export function useGraphLayout(nodes: readonly GraphNode[], edges: readonly Grap
 function layout(nodes: readonly GraphNode[], edges: readonly GraphEdge[]): LaidOutGraph {
   const graph = new dagre.graphlib.Graph()
   graph.setDefaultEdgeLabel(() => ({}))
-  // Top-down for DDD: boundedContext sits at the top; aggregates,
-  // commands, events, rules descend from it. Spacing tuned so edge
-  // labels (placed at the segment midpoint by react-flow) land in the
-  // gap between rows rather than overlapping the cards on either side.
-  //   ranksep: vertical gap between ranks  — wide enough to fit two
+  // Top-down for DDD, boundedContext sits at the top,
+  // and aggregates, commands, events, and rules descend from it.
+  // Spacing is tuned so edge labels land in the gap between rows,
+  // rather than overlapping the cards on either side.
+  // Labels are placed at the segment midpoint by react-flow.
+  //   ranksep: vertical gap between ranks, wide enough for two,
   //            stacked edge labels with their background pills.
   //   nodesep: horizontal gap between sibling cards on the same rank.
   //   edgesep: lateral gap between parallel edges that share endpoints.
@@ -67,8 +72,8 @@ function layout(nodes: readonly GraphNode[], edges: readonly GraphEdge[]): LaidO
     graph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT })
 
   for (const edge of edges) {
-    // Dagre throws on edges referencing missing nodes; skip them silently here
-    // since OrphanEdgeValidator surfaces them as a validation issue elsewhere.
+    // Dagre throws on edges referencing missing nodes, so skip them here.
+    // OrphanEdgeValidator surfaces them as a validation issue elsewhere.
     if (graph.node(edge.fromNodeId) && graph.node(edge.toNodeId))
       graph.setEdge(edge.fromNodeId, edge.toNodeId)
   }
@@ -84,21 +89,21 @@ function layout(nodes: readonly GraphNode[], edges: readonly GraphEdge[]): LaidO
         x: positioned.x - NODE_WIDTH / 2,
         y: positioned.y - NODE_HEIGHT / 2,
       },
-      // Explicit width/height let ReactFlow's MiniMap draw a
-      // rectangle for each node — without them it falls back to
-      // measuring the rendered DOM, which only happens for nodes
-      // currently inside the viewport, and the minimap ends up
-      // empty for off-screen / freshly-mounted nodes.
+      // Explicit width and height let ReactFlow's MiniMap draw a rectangle,
+      // for each node.
+      // Without them it falls back to measuring the rendered DOM,
+      // which only happens for nodes currently inside the viewport,
+      // and the minimap ends up empty for off-screen or fresh nodes.
       width: NODE_WIDTH,
       height: NODE_HEIGHT,
       data: { node },
     }
   })
 
-  // Default edge type (bezier) — the curve handles densely-fanned
-  // edges out of a single source much better than smoothstep's
-  // right-angle routing, which shared vertical segments and made the
-  // canvas read as overlapping pipes.
+  // Default edge type is bezier.
+  // The curve handles densely-fanned edges out of a single source,
+  // much better than smoothstep's right-angle routing,
+  // which shared vertical segments and made the canvas read as pipes.
   const flowEdges: Edge<EdgeCardData>[] = edges.map(edge => ({
     id: edge.id,
     source: edge.fromNodeId,

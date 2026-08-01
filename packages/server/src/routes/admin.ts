@@ -1,13 +1,13 @@
 import type { WorkspaceService } from '@braidhq/core'
 import type { WorkspaceId as WorkspaceIdType, WorkspaceRole as WorkspaceRoleType } from '@braidhq/schema'
 import type { AccessPolicy } from '../infrastructure/auth/AccessPolicy.js'
-import type { WorkspaceRegistryFile } from '../infrastructure/fs/WorkspaceRegistryFile.js'
 import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
+import type { WorkspaceRegistryFile } from '../infrastructure/workspace/WorkspaceRegistryFile.js'
 import { NotFoundError } from '@braidhq/core'
 import { ServerRole, User, UserId, WorkspaceId, WorkspaceRole } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
-import { requireAdmin } from '../middleware/requireAdmin.js'
-import { getUserId } from '../middleware/userId.js'
+import { getUserId } from '../middleware/auth.js'
+import { requireServerCapability } from '../middleware/workspaceAccess.js'
 import { NotFoundResponse, ValidationFailureResponse } from './_shared.js'
 
 const Invite = z.object({
@@ -156,7 +156,7 @@ const deleteUserRoute = createRoute({
   method: 'delete',
   path: '/users/{userId}',
   operationId: 'deleteUserAdmin',
-  summary: 'Delete a user record. Admin only. Idempotent. Does NOT clean up workspace memberships referencing this userId; those rows become orphans.',
+  summary: 'Delete a user record. Admin only. Idempotent. Does NOT clean up workspace memberships referencing this userId. Those rows become orphans.',
   tags: ['admin'],
   request: { params: UserIdParam },
   responses: {
@@ -174,7 +174,7 @@ const deleteUserRoute = createRoute({
 
 export function createAdminRouter(deps: AdminRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
-  router.use('*', requireAdmin(deps.userRegistry))
+  router.use('*', requireServerCapability('server.admin', deps.userRegistry))
 
   router.openapi(listInvitesRoute, async (context) => {
     const items = await deps.accessPolicy.listInvites()
@@ -202,8 +202,8 @@ export function createAdminRouter(deps: AdminRouterDeps): OpenAPIHono {
       deps.workspaceService.list(),
       deps.workspaceRegistry.listAllWithMembers(),
     ])
-    // Build rootPath → workspaceId so we can attach a human id to each
-    // membership without exposing rootPath to the client.
+    // Map rootPath to workspaceId so each membership carries a human id,
+    // without exposing rootPath to the client.
     const idByRoot = new Map(workspaces.map(w => [w.rootPath, w.id]))
     const membershipByUser = new Map<string, Array<{ workspaceId: WorkspaceIdType, role: WorkspaceRoleType }>>()
     for (const entry of entries) {
@@ -236,8 +236,8 @@ export function createAdminRouter(deps: AdminRouterDeps): OpenAPIHono {
   router.openapi(deleteUserRoute, async (context) => {
     const { userId } = context.req.valid('param')
     const callerId = getUserId(context)
-    // Don't let an admin delete themselves; a single-admin server
-    // would lock itself out otherwise.
+    // Don't let an admin delete themselves,
+    // a single-admin server would lock itself out otherwise.
     if (userId === callerId) {
       return context.json(
         {
@@ -250,10 +250,11 @@ export function createAdminRouter(deps: AdminRouterDeps): OpenAPIHono {
         { 'Content-Type': 'application/problem+json' },
       )
     }
-    // Revoke persistent sign-in approval alongside the user record so
-    // the same email can't sneak back in next time they hit /auth/google.
-    // (They'd need a fresh invite from an admin.) Read the user first to
-    // grab their email; tolerated when missing for idempotency.
+    // Revoke persistent sign-in approval alongside the user record,
+    // so the same email can't sneak back in at the next /auth/google,
+    // without a fresh invite from an admin.
+    // Read the user first to grab their email,
+    // tolerated when missing for idempotency.
     const existing = await deps.userRegistry.get(userId)
     if (existing?.email)
       await deps.accessPolicy.revokeApproval(existing.email)

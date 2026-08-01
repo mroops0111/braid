@@ -13,9 +13,9 @@ interface NodeDetailPanelProps {
   onClose: () => void
   onSelectNode: (nodeId: NodeId) => void
   /**
-   * Canvas-only affordance. When present, a "Center in graph" footer
-   * button calls it. The table view omits this prop since centering
-   * has no meaning there.
+   * Canvas-only affordance.
+   * When present, a "Center in graph" footer button calls it.
+   * The table view omits this prop since centering has no meaning there.
    */
   onCenterInGraph?: () => void
 }
@@ -23,10 +23,9 @@ interface NodeDetailPanelProps {
 /**
  * Shared right-side detail panel for both Canvas and Table views.
  *
- * Lives in-flow as a flex sibling (not a modal Sheet) so the height
- * matches the surrounding page chrome — the previous Sheet-based
- * canvas detail was viewport-fixed and ran past the page's top/bottom,
- * which made it visually inconsistent with the table's in-flow aside.
+ * Lives in-flow as a flex sibling, not a modal Sheet,
+ * so its height matches the surrounding page chrome,
+ * and stays consistent with the table's in-flow aside.
  */
 export function NodeDetailPanel({
   node,
@@ -54,7 +53,7 @@ export function NodeDetailPanel({
           <StatusBadge status={node.status} />
         </div>
         <h2 className="text-sm font-semibold text-foreground">{node.name}</h2>
-        <p className="font-mono text-[10px] text-muted-foreground">{node.id}</p>
+        <p className="font-mono text-2xs text-muted-foreground">{node.id}</p>
       </header>
 
       <div className="flex-1 space-y-5 overflow-y-auto p-4 scrollbar-thin">
@@ -90,20 +89,20 @@ export function NodeDetailPanel({
         <section>
           <SectionTitle>Sources</SectionTitle>
           {sources.length === 0
-            ? <p className="mt-1 text-[11px] text-muted-foreground">No sourceReferences declared.</p>
+            ? <p className="mt-1 text-2xs text-muted-foreground">No sourceReferences declared.</p>
             : (
                 <ul className="mt-1 space-y-1.5">
                   {sources.map((reference, index) => (
                     <li key={`${reference.sourceId}-${index}`} className="rounded-md border border-border p-2">
-                      <div className="flex items-center gap-1.5 text-[11px]">
+                      <div className="flex items-center gap-1.5 text-2xs">
                         <FileText className="size-3 text-muted-foreground" />
                         <span className="font-mono text-foreground">{reference.sourceId}</span>
                       </div>
-                      <p className="mt-0.5 break-all font-mono text-[10px] text-muted-foreground">
+                      <p className="mt-0.5 break-all font-mono text-2xs text-muted-foreground">
                         {formatLocation(reference.location.uri, reference.location.startLine, reference.location.endLine)}
                       </p>
                       {reference.snippet && (
-                        <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-sm bg-muted/40 p-1.5 text-[10px] text-foreground/80">
+                        <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-sm bg-muted/40 p-1.5 text-2xs text-foreground/80">
                           {reference.snippet}
                         </pre>
                       )}
@@ -117,7 +116,7 @@ export function NodeDetailPanel({
       {onCenterInGraph && (
         <div className="border-t border-border p-4">
           <Button variant="ghost" size="sm" className="w-full justify-center" onClick={onCenterInGraph}>
-            Center in graph
+            Center in Graph
           </Button>
         </div>
       )}
@@ -147,10 +146,10 @@ function EdgeList({ title, icon: Icon, edges, getOther, nodesById, onSelectNode 
               <button
                 type="button"
                 onClick={() => onSelectNode(otherId)}
-                className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] hover:bg-accent"
+                className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-2xs hover:bg-accent"
               >
                 <Icon className="size-3 shrink-0 text-muted-foreground" />
-                <span className="font-mono text-[10px] text-muted-foreground">{edge.type}</span>
+                <span className="text-2xs uppercase tracking-wider text-muted-foreground">{edge.type}</span>
                 <span className="truncate text-foreground">{other?.name ?? otherId}</span>
               </button>
             </li>
@@ -178,7 +177,7 @@ function FlagsSection({ node }: { node: GraphNode }) {
         {flags.map(flag => (
           <li
             key={flag.label}
-            className={`inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[10px] uppercase tracking-wider ${
+            className={`inline-flex items-center rounded-sm border px-1.5 py-0.5 text-2xs uppercase tracking-wider ${
               flag.tone === 'amber'
                 ? 'border-amber-500/30 bg-amber-500/15 text-amber-400'
                 : 'border-rose-500/30 bg-rose-500/15 text-rose-400'
@@ -194,7 +193,7 @@ function FlagsSection({ node }: { node: GraphNode }) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{children}</h3>
+    <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{children}</h3>
   )
 }
 

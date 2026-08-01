@@ -3,7 +3,7 @@ import type {
   CommitMeta,
   CommitSha,
   FileDiff,
-  GraphDiffEnvelope,
+  ModelDiffEnvelope,
   TagMeta,
   UserId,
   WorkspaceId,
@@ -13,9 +13,9 @@ import type { ListCommitsOptions, WorkspaceHistory } from '../domain/history/Wor
 import type { RunRepository } from '../domain/skill/RunRepository.js'
 import type { SkillRunner } from '../domain/skill/SkillRunner.js'
 import type { UserDirectory } from '../domain/users/UserDirectory.js'
-import type { PerWorkspaceLock } from './PerWorkspaceLock.js'
-import type { WorkspaceBootstrap } from './WorkspaceBootstrap.js'
+import type { WorkspaceBootstrapService } from './WorkspaceBootstrapService.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
+import type { WorkspaceLock } from './WorkspaceLock.js'
 import type { WorkspaceService } from './WorkspaceService.js'
 import { diffSnapshots } from '@braidhq/schema'
 import { ConflictError } from '../domain/errors.js'
@@ -25,16 +25,16 @@ import { enrichCommitAuthor } from './enrichCommitAuthor.js'
 export interface HistoryServiceDeps {
   history: WorkspaceHistory
   workspaceService: WorkspaceService
-  workspaceLock: PerWorkspaceLock
-  bootstrap: WorkspaceBootstrap
+  workspaceLock: WorkspaceLock
+  bootstrap: WorkspaceBootstrapService
   runRepository: RunRepository
   skillRunner?: SkillRunner
   eventBus?: WorkspaceEventBus
   clock: Clock
   /**
-   * Snapshots displayName + email into the `restore` commit so git
-   * stores the human's identity. Defaults to a no-op directory (the
-   * git layer falls back to `userId@braid.local`).
+   * Snapshots displayName + email into the `restore` commit,
+   * so git stores the human's identity.
+   * Defaults to a no-op directory, the git layer falls back to `userId@braid.local`.
    */
   userDirectory?: UserDirectory
 }
@@ -61,15 +61,15 @@ export class HistoryService {
     return this.deps.history.getCommitDiff(workspace, sha)
   }
 
-  async getGraphDiff(workspaceId: WorkspaceId, fromSha: CommitSha, toSha: CommitSha): Promise<GraphDiffEnvelope> {
+  async getModelDiff(workspaceId: WorkspaceId, fromSha: CommitSha, toSha: CommitSha): Promise<ModelDiffEnvelope> {
     const workspace = await this.deps.workspaceService.findById(workspaceId)
     const [prev, next] = await Promise.all([
       this.deps.history.readGraphAtCommit(workspace, fromSha),
       this.deps.history.readGraphAtCommit(workspace, toSha),
     ])
     const diff = diffSnapshots(prev, next)
-    const removedNodes = prev.nodes.filter(n => diff.nodes.get(n.id) === 'removed')
-    const removedEdges = prev.edges.filter(e => diff.edges.get(e.id) === 'removed')
+    const removedNodes = prev.nodes.filter(node => diff.nodes.get(node.id) === 'removed')
+    const removedEdges = prev.edges.filter(edge => diff.edges.get(edge.id) === 'removed')
     return {
       from: fromSha,
       to: toSha,
@@ -95,7 +95,7 @@ export class HistoryService {
         ...(author?.email ? { authorEmail: author.email } : {}),
       }
       const newSha = await this.deps.history.restore(workspace, targetSha, message)
-      await this.deps.bootstrap.reloadFromDisk(workspace)
+      await this.deps.bootstrap.reloadStoreFromFile(workspace)
       this.deps.eventBus?.publish({
         type: 'workspace.restored',
         workspaceId,
@@ -113,11 +113,12 @@ export class HistoryService {
   }
 
   /**
-   * Commit whatever artifact changes a caller has just persisted to
-   * disk, with the supplied commit message. The caller is responsible
-   * for holding the per-workspace lock (so the commit isn't racing a
-   * concurrent restore) and for having already written its file
-   * changes. `userId` is snapshotted into the git author line.
+   * Commit whatever artifact changes a caller has just persisted to disk,
+   * with the supplied commit message.
+   * The caller is responsible for holding the per-workspace lock,
+   * so the commit isn't racing a concurrent restore,
+   * and for having already written its file changes.
+   * `userId` is snapshotted into the git author line.
    */
   async commitWorkspaceChange(workspaceId: WorkspaceId, message: CommitMessage): Promise<CommitSha> {
     const workspace = await this.deps.workspaceService.findById(workspaceId)
@@ -148,10 +149,10 @@ export class HistoryService {
       return
     const workspace = await this.deps.workspaceService.findById(workspaceId)
     const records = await this.deps.runRepository.listRecords(workspace)
-    const live = records.find(r => !r.completedAt && this.deps.skillRunner!.isActive(r.runId))
-    if (live) {
+    const activeRun = records.find(record => !record.completedAt && this.deps.skillRunner!.isActive(record.runId))
+    if (activeRun) {
       throw new ConflictError(
-        `Cannot restore workspace "${workspaceId}" while run "${live.runId}" is still active`,
+        `Cannot restore workspace "${workspaceId}" while run "${activeRun.runId}" is still active`,
       )
     }
   }

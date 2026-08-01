@@ -15,41 +15,36 @@ import type {
 } from '@braidhq/schema'
 import type { BatchPlan, BatchPlanRepository, HistoryService, HITLService, SkillEventListener, SkillRunner, SkillRunOptions, SkillRunSubscription, SourceUnitDigest, Workspace } from '../../src/index.js'
 import { SkillId as SkillIdSchema } from '@braidhq/schema'
-import { FixedClock, makeOntology, makeWorkspace, mintTestId, resetTestIds, T0 } from '@braidhq/test-utils'
+import { FixedClock, makeOntology, makeProposal, makeWorkspace, mintTestId, resetTestIds, T0 } from '@braidhq/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  InMemoryClarificationRepository,
+  InMemoryProposalRepository,
+  InMemorySourceUnitObservationRepository,
+  InMemoryWorkspaceRepository,
+} from '../../src/in-memory.js'
 import {
   BatchService,
   ConflictError,
-  PerWorkspaceLock,
   PluginRegistry,
-  Proposal,
-  SourceUnitStateService,
+  SourceUnitObservationService,
   ValidationError,
+  WorkspaceLock,
   WorkspaceService,
 } from '../../src/index.js'
-import {
-  InMemoryClarifyTicketRepository,
-  InMemoryProposalRepository,
-  InMemorySourceUnitStateRepository,
-  InMemoryWorkspaceRepository,
-} from '../../src/testing.js'
-
-// Minimal fakes for the ports we need beyond the existing in-memory ones.
 
 class FakeSkillRunner implements SkillRunner {
   readonly startCalls: Array<{ skillId: SkillId, args: string, options?: SkillRunOptions }> = []
   // Per-call exit code (default 0). Override by pushing to `exitCodes`.
   exitCodes: number[] = []
-  // Hook fired AFTER start resolves, BEFORE completed event — lets tests
-  // synthesise side effects (creating proposals) that the orchestrator
-  // attributes to this unit via set-difference.
+  // Fires after start resolves and before the completed event.
+  // Lets a test create proposals the orchestrator attributes by set difference.
   onStart?: (skillId: SkillId, runId: SkillRunId) => Promise<void>
 
   async start(_workspace: Workspace, skillId: SkillId, args: string, options?: SkillRunOptions): Promise<SkillRunId> {
     const runId = `r-${this.startCalls.length}` as SkillRunId
     this.startCalls.push({ skillId, args, ...(options ? { options } : {}) })
-    // Defer via setTimeout so the orchestrator's subsequent `subscribe`
-    // registers before `completed` fires (queueMicrotask is too eager).
+    // Defer via setTimeout so `subscribe` registers before `completed`, queueMicrotask is too eager.
     setTimeout(async () => {
       await this.onStart?.(skillId, runId)
       const listener = this.listeners.get(runId)
@@ -70,8 +65,11 @@ class FakeSkillRunner implements SkillRunner {
     }
   }
 
-  isActive(): boolean { return false }
-  async cancel(): Promise<void> {}
+  // Whether a live subprocess backs the current run, toggled per test.
+  active = false
+  readonly cancelCalls: SkillRunId[] = []
+  isActive(_runId: SkillRunId): boolean { return this.active }
+  async cancel(runId: SkillRunId): Promise<void> { this.cancelCalls.push(runId) }
   async forgetSession(): Promise<void> {}
 }
 
@@ -82,8 +80,7 @@ class InMemoryBatchPlanRepository implements BatchPlanRepository {
   async clear(): Promise<void> { this.plan = null }
 }
 
-function fakeHistoryService(): HistoryService & { tagCalls: TagMeta[] } {
-  const tagCalls: TagMeta[] = []
+function stubHistoryService(): HistoryService {
   return {
     listCommits: vi.fn(async (): Promise<readonly CommitMeta[]> => [{
       sha: '0'.repeat(40) as CommitSha,
@@ -94,17 +91,12 @@ function fakeHistoryService(): HistoryService & { tagCalls: TagMeta[] } {
       parents: [],
       stats: null,
     }]),
-    createTag: vi.fn(async (_workspaceId: WorkspaceId, sha: CommitSha, name: string): Promise<TagMeta> => {
-      const tag: TagMeta = { name, sha, createdAt: T0 }
-      tagCalls.push(tag)
-      return tag
-    }),
+    createTag: vi.fn(async (_workspaceId: WorkspaceId, sha: CommitSha, name: string): Promise<TagMeta> => ({ name, sha, createdAt: T0 })),
     commitWorkspaceChange: vi.fn(async (): Promise<CommitSha> => '1'.repeat(40) as CommitSha),
-    tagCalls,
-  } as unknown as HistoryService & { tagCalls: TagMeta[] }
+  } as unknown as HistoryService
 }
 
-function fakeHitlService(): HITLService & { applyCalls: ProposalId[] } {
+function spyHitlService(): HITLService & { applyCalls: ProposalId[] } {
   const applyCalls: ProposalId[] = []
   return {
     applyProposal: vi.fn(async (proposalId: ProposalId): Promise<unknown> => {
@@ -156,17 +148,17 @@ async function setup(options: {
   })
   await workspaceRepo.save(workspace)
 
-  // Register a DDD-like ontology with the batch binding the production
-  // ontology declares. Tests assert on the resulting skill ids.
+  // Register a DDD-like ontology, with the batch binding the production ontology declares.
+  // Tests assert on the resulting skill ids.
   const pluginRegistry = new PluginRegistry()
   const workspaceService = new WorkspaceService({ workspaceRepository: workspaceRepo, pluginRegistry })
 
   await pluginRegistry.register(makeOntology({
     ontologyId: 'ddd',
     batch: {
-      perUnit: { skillId: SkillIdSchema.parse('braid-extract') },
+      perUnit: { skillId: SkillIdSchema.parse('ddd:extract') },
       checkpoint: {
-        skillId: SkillIdSchema.parse('braid-model'),
+        skillId: SkillIdSchema.parse('ddd:reconcile'),
         chunkSize: 5,
         runAtEnd: true,
         extraEnv: (units) => {
@@ -174,23 +166,23 @@ async function setup(options: {
           return hint ? { BRAID_CHANGED_UNITS: hint } : {}
         },
       },
-      deriveUnits: { skillId: SkillIdSchema.parse('braid-scan') },
+      deriveUnits: { skillId: SkillIdSchema.parse('braid:scan') },
     },
   }))
 
   const proposalRepository = new InMemoryProposalRepository()
-  const clarifyRepository = new InMemoryClarifyTicketRepository()
+  const clarificationRepository = new InMemoryClarificationRepository()
   const planRepository = new InMemoryBatchPlanRepository()
   const skillRunner = new FakeSkillRunner()
-  const history = fakeHistoryService()
-  const hitl = fakeHitlService()
+  const history = stubHistoryService()
+  const hitl = spyHitlService()
   const clock = new FixedClock()
 
-  const sourceUnitStateRepository = new InMemorySourceUnitStateRepository()
+  const sourceUnitObservationRepository = new InMemorySourceUnitObservationRepository()
   const sourceUnitDigest = new FakeSourceUnitDigest()
-  const sourceUnitStateService = options.withObservations
-    ? new SourceUnitStateService({
-      repository: sourceUnitStateRepository,
+  const sourceUnitObservationService = options.withObservations
+    ? new SourceUnitObservationService({
+      repository: sourceUnitObservationRepository,
       digest: sourceUnitDigest,
       workspaceService,
       clock,
@@ -201,12 +193,12 @@ async function setup(options: {
     workspaceService,
     skillRunner,
     proposalRepository,
-    clarifyRepository,
+    clarificationRepository,
     historyService: history,
     hitlService: hitl,
     batchPlanRepository: planRepository,
     intentLister: async (ws) => {
-      // Fake one intent item per intent source so tests can keep asserting unit count by source count.
+      // Fake one intent item per intent source, so tests can keep asserting unit count by source count.
       return ws.intentSources().map(source => ({
         value: `${source.name}/`,
         label: source.name,
@@ -214,10 +206,10 @@ async function setup(options: {
         sourceName: source.name,
       }))
     },
-    workspaceLock: new PerWorkspaceLock(),
+    workspaceLock: new WorkspaceLock(),
     clock,
     pluginRegistry,
-    ...(sourceUnitStateService ? { sourceUnitStateService } : {}),
+    ...(sourceUnitObservationService ? { sourceUnitObservationService } : {}),
   })
 
   return {
@@ -229,13 +221,13 @@ async function setup(options: {
     history,
     hitl,
     clock,
-    sourceUnitStateRepository,
+    sourceUnitObservationRepository,
     sourceUnitDigest,
   }
 }
 
 async function flushBatch(planRepository: InMemoryBatchPlanRepository): Promise<BatchPlan> {
-  // The run loop is fire-and-forget; poll the in-memory plan until terminal.
+  // The run loop is fire-and-forget. Poll the in-memory plan until terminal.
   for (let i = 0; i < 200; i++) {
     const plan = await planRepository.load()
     if (plan && (plan.status === 'completed' || plan.status === 'failed' || plan.status === 'stopped'))
@@ -243,27 +235,6 @@ async function flushBatch(planRepository: InMemoryBatchPlanRepository): Promise<
     await new Promise(r => setTimeout(r, 5))
   }
   throw new Error('batch never reached terminal state')
-}
-
-function freshProposal(workspaceId: WorkspaceId, id: string): Proposal {
-  return new Proposal({
-    id: id as ProposalId,
-    workspaceId,
-    status: 'pending',
-    operations: [{
-      operation: 'addNode',
-      payload: {
-        type: 'command' as never,
-        name: id,
-        id: id as never,
-        status: 'draft' as never,
-        metadata: { sourceReferences: [], implementationMissing: true },
-      },
-    }],
-    generatedBy: 'extract' as SkillId,
-    generatedAt: T0,
-    rationale: 'r',
-  })
 }
 
 describe('BatchService', () => {
@@ -274,7 +245,7 @@ describe('BatchService', () => {
     let counter = 0
     skillRunner.onStart = async () => {
       counter += 1
-      await proposalRepository.save(freshProposal(workspace.id, `p-${counter}`))
+      await proposalRepository.save(makeProposal(workspace.id, { id: `p-${counter}` }))
     }
 
     await service.start(workspace.id, { autoApply: false })
@@ -285,9 +256,9 @@ describe('BatchService', () => {
     expect(final.units).toHaveLength(2)
     expect(final.units.every(u => u.status === 'completed')).toBe(true)
     expect(skillRunner.startCalls.map(c => c.skillId)).toEqual([
-      'braid-extract',
-      'braid-extract',
-      'braid-model',
+      'ddd:extract',
+      'ddd:extract',
+      'ddd:reconcile',
     ])
     expect(final.units[0]!.proposalIds).toEqual(['p-1'])
     expect(final.units[1]!.proposalIds).toEqual(['p-2'])
@@ -298,14 +269,14 @@ describe('BatchService', () => {
     let counter = 0
     skillRunner.onStart = async () => {
       counter += 1
-      await proposalRepository.save(freshProposal(workspace.id, `p-${counter}`))
+      await proposalRepository.save(makeProposal(workspace.id, { id: `p-${counter}` }))
     }
 
     await service.start(workspace.id, { autoApply: true })
     await flushBatch(planRepository)
 
-    // 2 extracts + 1 final checkpoint = 3 skill runs, each produces a
-    // fresh proposal; with autoApply on, all three get applied.
+    // 2 extracts and 1 final checkpoint make 3 skill runs, each produces a fresh proposal. With autoApply on,
+    // all three get applied.
     expect(hitl.applyCalls).toEqual(['p-1', 'p-2', 'p-3'])
   })
 
@@ -342,14 +313,15 @@ describe('BatchService', () => {
       sources: [codeSource('codebase')],
     })
     await service.start(workspace.id, { autoApply: false })
-    // The orchestrator runs the derive skill in the background; assert the kick-off and mode without driving the loop to completion.
-    expect(skillRunner.startCalls[0]?.skillId).toBe('braid-scan')
+    // The orchestrator runs the derive skill in the background.
+    // Assert the kick-off and mode without driving the loop to completion.
+    expect(skillRunner.startCalls[0]?.skillId).toBe('braid:scan')
     expect((await planRepository.load())?.mode).toBe('derive')
   })
 
   it('archive moves a completed plan to archived status', async () => {
     const { service, workspace, proposalRepository, planRepository, skillRunner } = await setup()
-    skillRunner.onStart = async () => proposalRepository.save(freshProposal(workspace.id, 'p-1'))
+    skillRunner.onStart = async () => proposalRepository.save(makeProposal(workspace.id, { id: 'p-1' }))
     await service.start(workspace.id, { autoApply: false })
     await flushBatch(planRepository)
 
@@ -363,13 +335,13 @@ describe('BatchService', () => {
     await expect(service.archive(workspace.id)).rejects.toThrow(ValidationError)
   })
 
-  it('runs braid-model once after the extract loop and passes BRAID_CHANGED_UNITS', async () => {
+  it('runs ddd:reconcile once after the extract loop and passes BRAID_CHANGED_UNITS', async () => {
     const { service, workspace, planRepository, skillRunner } = await setup()
     await service.start(workspace.id, { autoApply: false })
     const final = await flushBatch(planRepository)
 
     expect(final.status).toBe('completed')
-    const modelCalls = skillRunner.startCalls.filter(c => c.skillId === 'braid-model')
+    const modelCalls = skillRunner.startCalls.filter(c => c.skillId === 'ddd:reconcile')
     expect(modelCalls).toHaveLength(1)
     expect(modelCalls[0]!.args).toBe('')
     const env = modelCalls[0]!.options?.extraEnv
@@ -386,16 +358,16 @@ describe('BatchService', () => {
     const final = await flushBatch(planRepository)
 
     expect(final.status).toBe('failed')
-    expect(final.error).toMatch(/checkpoint "braid-model" failed/)
+    expect(final.error).toMatch(/checkpoint "ddd:reconcile" failed/)
     expect(final.units.every(u => u.status === 'completed')).toBe(true)
   })
 
-  it('records a SourceUnitState observation per completed unit when service is wired', async () => {
-    const { service, workspace, planRepository, sourceUnitStateRepository, sourceUnitDigest } = await setup({ withObservations: true })
+  it('records a SourceUnitObservation observation per completed unit when service is wired', async () => {
+    const { service, workspace, planRepository, sourceUnitObservationRepository, sourceUnitDigest } = await setup({ withObservations: true })
     await service.start(workspace.id, { autoApply: false })
     await flushBatch(planRepository)
 
-    const states = await sourceUnitStateRepository.listByWorkspace(workspace.id)
+    const states = await sourceUnitObservationRepository.listByWorkspace(workspace.id)
     expect(states).toHaveLength(2)
     const paths = states.map(s => s.path).sort()
     expect(paths).toEqual(['design/', 'prd/'])
@@ -413,10 +385,10 @@ describe('BatchService', () => {
     await service.start(workspace.id, { autoApply: false })
     const final = await flushBatch(planRepository)
     expect(final.status).toBe('completed')
-    // Nothing to assert on the state store — the service was not wired.
+    // Nothing to assert on the state store, the service was not wired.
   })
 
-  it('chunks braid-model every 5 successful extracts and runs a final partial chunk', async () => {
+  it('chunks ddd:reconcile every 5 successful extracts and runs a final partial chunk', async () => {
     // 7 intent sources => 7 units => one full chunk (5) + one partial (2).
     const sources = Array.from({ length: 7 }, (_, i) => intentSource(`src-${i}`))
     const { service, workspace, planRepository, skillRunner } = await setup({ sources })
@@ -428,15 +400,15 @@ describe('BatchService', () => {
     expect(final.units).toHaveLength(7)
     const skillIds = skillRunner.startCalls.map(c => c.skillId)
     expect(skillIds).toEqual([
-      'braid-extract',
-      'braid-extract',
-      'braid-extract',
-      'braid-extract',
-      'braid-extract',
-      'braid-model',
-      'braid-extract',
-      'braid-extract',
-      'braid-model',
+      'ddd:extract',
+      'ddd:extract',
+      'ddd:extract',
+      'ddd:extract',
+      'ddd:extract',
+      'ddd:reconcile',
+      'ddd:extract',
+      'ddd:extract',
+      'ddd:reconcile',
     ])
     expect(final.checkpointPhases).toHaveLength(2)
     expect(final.checkpointPhases[0]!.unitIds).toHaveLength(5)
@@ -453,7 +425,7 @@ describe('BatchService', () => {
     const final = await flushBatch(planRepository)
 
     expect(final.status).toBe('completed')
-    const modelCount = skillRunner.startCalls.filter(c => c.skillId === 'braid-model').length
+    const modelCount = skillRunner.startCalls.filter(c => c.skillId === 'ddd:reconcile').length
     expect(modelCount).toBe(2)
     expect(final.checkpointPhases).toHaveLength(2)
     expect(final.checkpointPhases[0]!.unitIds).toHaveLength(5)
@@ -472,5 +444,100 @@ describe('BatchService', () => {
     expect(phase.startedAt).toBeDefined()
     expect(phase.completedAt).toBeDefined()
     expect(phase.unitIds).toHaveLength(2)
+  })
+
+  it('getStatus returns null before a batch and the plan once running', async () => {
+    const { service, workspace, skillRunner } = await setup()
+    expect(await service.getStatus(workspace.id)).toBeNull()
+
+    skillRunner.onStart = async () => new Promise(() => {})
+    void service.start(workspace.id, { autoApply: false })
+    await new Promise(r => setTimeout(r, 20))
+
+    expect((await service.getStatus(workspace.id))?.status).toBe('running')
+  })
+
+  describe('stop', () => {
+    it('is a no-op when no plan exists', async () => {
+      const { service, workspace } = await setup()
+      await expect(service.stop(workspace.id)).resolves.toBeUndefined()
+    })
+
+    it('cancels the run when a live subprocess backs it', async () => {
+      const { service, workspace, skillRunner } = await setup()
+      skillRunner.active = true
+      skillRunner.onStart = async () => new Promise(() => {})
+      void service.start(workspace.id, { autoApply: false })
+      await new Promise(r => setTimeout(r, 20))
+
+      await service.stop(workspace.id)
+
+      expect(skillRunner.cancelCalls).toHaveLength(1)
+    })
+
+    it('fails the plan inline when the run id is orphaned', async () => {
+      const { service, workspace, skillRunner, planRepository } = await setup()
+      skillRunner.active = false
+      skillRunner.onStart = async () => new Promise(() => {})
+      void service.start(workspace.id, { autoApply: false })
+      await new Promise(r => setTimeout(r, 20))
+
+      await service.stop(workspace.id)
+
+      expect((await planRepository.load())?.status).toBe('failed')
+    })
+  })
+
+  describe('reconcileAfterBoot', () => {
+    it('is a no-op when there is no plan', async () => {
+      const { service, workspace, planRepository } = await setup()
+      await service.reconcileAfterBoot(workspace.id)
+      expect(await planRepository.load()).toBeNull()
+    })
+
+    it('leaves a terminal plan untouched', async () => {
+      const { service, workspace, proposalRepository, planRepository, skillRunner } = await setup()
+      skillRunner.onStart = async () => proposalRepository.save(makeProposal(workspace.id, { id: 'p-1' }))
+      await service.start(workspace.id, { autoApply: false })
+      await flushBatch(planRepository)
+
+      await service.reconcileAfterBoot(workspace.id)
+
+      expect((await planRepository.load())?.status).toBe('completed')
+    })
+
+    it('fails a running plan whose run is no longer active', async () => {
+      const { service, workspace, skillRunner, planRepository } = await setup()
+      skillRunner.active = false
+      skillRunner.onStart = async () => new Promise(() => {})
+      void service.start(workspace.id, { autoApply: false })
+      await new Promise(r => setTimeout(r, 20))
+
+      await service.reconcileAfterBoot(workspace.id)
+
+      expect((await planRepository.load())?.status).toBe('failed')
+    })
+  })
+
+  describe('resume', () => {
+    it('throws when there is no plan to resume', async () => {
+      const { service, workspace } = await setup()
+      await expect(service.resume(workspace.id)).rejects.toThrow(ValidationError)
+    })
+
+    it('re-runs a failed plan, skipping already-completed units', async () => {
+      const { service, workspace, proposalRepository, planRepository, skillRunner } = await setup()
+      // First pass fails the checkpoint, so every unit completes but the plan lands failed.
+      skillRunner.exitCodes = [0, 0, 1]
+      skillRunner.onStart = async () => proposalRepository.save(makeProposal(workspace.id, { id: `p-${skillRunner.startCalls.length}` }))
+      await service.start(workspace.id, { autoApply: false })
+      expect((await flushBatch(planRepository)).status).toBe('failed')
+
+      await service.resume(workspace.id)
+      const final = await flushBatch(planRepository)
+
+      expect(final.status).toBe('completed')
+      expect(final.units.every(u => u.status === 'completed')).toBe(true)
+    })
   })
 })

@@ -1,17 +1,16 @@
-import type { PluginRegistry, SourceLoaderRunner, WorkspaceBootstrap, WorkspaceService } from '@braidhq/core'
-import type { AbsolutePath, ProductManifest, SourceDescriptor, Timestamp } from '@braidhq/schema'
+import type { HistoryService, PluginRegistry, SourceLoaderRunner, WorkspaceBootstrapService, WorkspaceService } from '@braidhq/core'
+import type { AbsolutePath, ProductManifest, SourceDescriptor, SourceId as SourceIdType, Timestamp, UserId, WorkspaceId } from '@braidhq/schema'
 import type { Context, MiddlewareHandler } from 'hono'
-import type { WorkspaceRegistryFile } from '../infrastructure/fs/WorkspaceRegistryFile.js'
 import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
+import type { WorkspaceRegistryFile } from '../infrastructure/workspace/WorkspaceRegistryFile.js'
 import { rm } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
 import { NotFoundError, ValidationError, Workspace } from '@braidhq/core'
 import {
-  AgentRoutingConfig,
   McpServerConfig,
   McpServerId,
   OntologyId,
-  ProductManifestDraft,
+  ProductManifestCreate,
   SourceDescriptor as SourceDescriptorSchema,
   SourceId,
   StorageDescriptor,
@@ -19,15 +18,16 @@ import {
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { isUnder, pathExists } from '../infrastructure/fs/paths.js'
-import { fillManifestDefaults, updateProductManifest, writeProductManifest } from '../infrastructure/fs/productManifestWriter.js'
-import { getUserId } from '../middleware/userId.js'
+import { isUnder, pathExists } from '../infrastructure/_shared/paths.js'
+import { fillManifestDefaults, updateProductManifest, writeProductManifest } from '../infrastructure/workspace/productManifestWriter.js'
+import { getUserId } from '../middleware/auth.js'
 import { requirePermission, requireServerCapability, workspaceAccessMiddleware } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId, workspaceIdMiddleware } from '../middleware/workspaceId.js'
 
-// Folder name resolved under the server-managed `workspacesRoot` (default
-// `~/.braid/workspaces/`). Slug-only so name == folder == workspace id;
-// rejects `/`, `..` and other path-traversal cases.
+// Folder name resolved under the server-managed `workspacesRoot`,
+// default `~/.braid/workspaces/`.
+// Slug-only so name == folder == workspace id.
+// Rejects `/`, `..` and other path-traversal cases.
 const WorkspaceFolderName = z.string().min(1).regex(
   /^[a-z0-9][a-z0-9-]*$/,
   'Workspace name must be lowercase letters, digits, or dashes; must start with a letter or digit.',
@@ -35,7 +35,7 @@ const WorkspaceFolderName = z.string().min(1).regex(
 
 const ScaffoldBodySchema = z.object({
   name: WorkspaceFolderName,
-  manifest: ProductManifestDraft,
+  manifest: ProductManifestCreate,
 })
 
 const PatchWorkspaceBodySchema = z.object({
@@ -43,12 +43,11 @@ const PatchWorkspaceBodySchema = z.object({
   description: z.string().optional(),
   ontologyId: OntologyId.optional(),
   storage: StorageDescriptor.optional(),
-  agents: AgentRoutingConfig.optional(),
   mcpServers: z.array(McpServerConfig).optional(),
 }).refine(body => Object.keys(body).length > 0, { message: 'PATCH body must contain at least one field' })
 
-// Per-item PATCH bodies. Empty string for `description` is the explicit
-// "clear it" signal; absent means leave as-is.
+// Per-item PATCH bodies. An empty string for `description` clears the field,
+// absent means leave as-is.
 const PatchSourceBodySchema = z.object({
   description: z.string().optional(),
 }).refine(body => Object.keys(body).length > 0, { message: 'PATCH body must contain at least one field' })
@@ -62,37 +61,60 @@ export interface WorkspacesRouterDeps {
   sourceLoaderRunner: SourceLoaderRunner
   workspacesRoot: AbsolutePath
   /**
-   * Used at scaffold time to look up the chosen ontology and validate
-   * that the manifest carries every role the ontology requires.
+   * Used at scaffold time to look up the chosen ontology,
+   * and validate that the manifest carries every role it requires.
    */
   pluginRegistry: PluginRegistry
-  bootstrap?: WorkspaceBootstrap
+  bootstrap?: WorkspaceBootstrapService
   /**
-   * Optional: when present, `GET /workspaces` filters to ones the
-   * current user is a member of, and newly registered workspaces
-   * stamp the caller as owner. Absent in tests that don't exercise
-   * membership.
+   * Optional. When present, `GET /workspaces` filters to member ones,
+   * and newly registered workspaces stamp the caller as owner.
+   * Absent in tests that don't exercise membership.
    */
   workspaceRegistry?: WorkspaceRegistryFile
   /**
-   * Optional: when present, server admins see every workspace
-   * regardless of membership. Without this, only direct membership
-   * controls visibility.
+   * Optional. When present, server admins see every workspace,
+   * regardless of membership.
+   * Without this, only direct membership controls visibility.
    */
   userRegistry?: UserRegistryFile
+  /**
+   * Optional. When present, manifest edits (sources, mcp servers,
+   * workspace fields) commit as their own `config` entry,
+   * instead of riding along on the next unrelated commit.
+   * Absent in tests without git.
+   */
+  historyService?: HistoryService
+}
+
+// Commit a PRODUCT.md edit as its own `config` history entry.
+// No-op without a wired historyService, as in in-memory tests.
+async function commitConfigChange(
+  deps: WorkspacesRouterDeps,
+  workspaceId: WorkspaceId,
+  userId: UserId,
+  subject: string,
+  sourceId?: SourceIdType,
+): Promise<void> {
+  await deps.historyService?.commitWorkspaceChange(workspaceId, {
+    kind: 'config',
+    subject: subject.slice(0, 120),
+    userId,
+    ...(sourceId ? { sourceId } : {}),
+  })
 }
 
 export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   const router = new Hono()
 
-  // Server-scope gate (creation): admin-only. Skips when userRegistry
-  // isn't provided so in-memory test compositions stay open.
+  // Server-scope gate for creation, admin-only.
+  // Skips without userRegistry, so in-memory tests stay open.
   const serverCreate = requireServerCapability('workspace.create', deps.userRegistry)
 
   // Workspace-scope gate composed inline per :workspaceId route below.
-  // `workspaceIdMiddleware` resolves the path param onto the context
-  // before `workspaceAccessMiddleware` reads it; skipping when the
-  // registries are absent keeps in-memory test compositions open.
+  // `workspaceIdMiddleware` resolves the path param onto the context,
+  // before `workspaceAccessMiddleware` reads it.
+  // Skipping without the registries keeps in-memory tests open.
   const wsAccess = (deps.workspaceRegistry && deps.userRegistry)
     ? workspaceAccessMiddleware({
         registry: deps.workspaceRegistry,
@@ -105,10 +127,10 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     const all = await deps.workspaceService.list()
     if (!deps.workspaceRegistry)
       return context.json({ items: all.map(workspace => workspace.toData()) })
-    // Server admins see every workspace for support / oversight. Other
-    // users get filtered to direct membership. Single-tenant local
-    // installs see everything because (a) local-user has serverRole
-    // 'admin' and (b) the migration seeded local-user as owner.
+    // Server admins see every workspace for support and oversight.
+    // Other users get filtered to direct membership.
+    // Single-tenant local installs see everything,
+    // local-user is an admin owner seeded by the migration.
     const userId = getUserId(context)
     const me = await deps.userRegistry?.get(userId)
     if (me?.serverRole === 'admin')
@@ -128,17 +150,16 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     return context.json(workspace.toData())
   })
 
-  // Create-only entrypoint. Existing canonical workspaces are surfaced
-  // via the sidebar (auto-discovered on boot), so the wizard never has
-  // to double-purpose as "open". Conflict on submit means "pick a
-  // different name or delete the existing one first". The response is
-  // a 400 the UI can humanise.
+  // Create-only entrypoint. Existing workspaces are auto-discovered on boot,
+  // surfaced in the sidebar, so the wizard never doubles as "open".
+  // A conflict on submit is a 400 the UI can humanise,
+  // "pick a different name, or delete the existing one first".
   //
-  // Writes PRODUCT.md with server-filled defaults, runs every
-  // loader-backed source's `ingest`, then registers. If ingest fails
-  // (wrong git branch, missing OAuth scope, etc.) we delete the
-  // PRODUCT.md we just wrote and drop the parse cache, so the user's
-  // retry sees a clean slate instead of a stale half-created workspace.
+  // Writes PRODUCT.md with server-filled defaults,
+  // runs every loader-backed source's `provision`, then registers.
+  // If provisioning fails, for example a bad git branch or scope,
+  // we delete the PRODUCT.md just written and drop the parse cache,
+  // so the retry sees a clean slate, not a stale half-created workspace.
   router.post('/scaffold', serverCreate, zValidator('json', ScaffoldBodySchema), async (context) => {
     const { name, manifest: draft } = context.req.valid('json')
     const rootPath = join(deps.workspacesRoot, name) as AbsolutePath
@@ -151,12 +172,12 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     }
 
     const manifest = fillManifestDefaults(draft)
-    // Each ontology declares which source roles it needs to function
-    // (DDD requires both `intent` and `code`; a generative ontology may
-    // require only `intent`). Reject scaffolds that omit any required
-    // role here, before any filesystem writes, so the wizard can show
-    // a precise "you also need a code source" prompt instead of a
-    // post-scaffold validation error.
+    // Each ontology declares which source roles it needs to function.
+    // DDD requires both `intent` and `code`,
+    // a generative ontology may need only `intent`.
+    // Reject scaffolds that omit a required role before any writes,
+    // so the wizard can show a precise "you also need a code source",
+    // rather than a post-scaffold validation error.
     const ontology = deps.pluginRegistry.findOntology(manifest.ontologyId)
     const requiredRoles = ontology?.requiredSourceRoles ?? []
     if (requiredRoles.length > 0) {
@@ -172,13 +193,13 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     await writeProductManifest(rootPath, manifest, manifest.description)
     try {
       const workspace = await deps.workspaceService.load(rootPath)
-      const ingestOutcomes = await deps.sourceLoaderRunner.ingestAll(workspace)
+      const provisionOutcomes = await deps.sourceLoaderRunner.provisionAll(workspace)
       await deps.workspaceService.save(workspace)
       await deps.bootstrap?.ensure(workspace)
       await ensureCallerOwner(deps.workspaceRegistry, workspace.rootPath, getUserId(context))
       return context.json({
         workspace: workspace.toData(),
-        ingest: ingestOutcomes.map(o => ({ sourceId: o.sourceId, ...o.report })),
+        provision: provisionOutcomes.map(o => ({ sourceId: o.sourceId, ...o.report })),
       }, 201)
     }
     catch (error) {
@@ -188,9 +209,9 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     }
   })
 
-  // Add a source to an existing workspace. Rewrites PRODUCT.md and runs
-  // `ingest` if the source is loader-backed so the local filesystem is
-  // populated before the user runs a skill against it.
+  // Add a source to an existing workspace. Rewrites PRODUCT.md,
+  // and runs `provision` if the source is loader-backed,
+  // so the local filesystem is populated before a skill runs on it.
   router.post('/:workspaceId/sources', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), zValidator('json', SourceDescriptorSchema), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const source = context.req.valid('json') as SourceDescriptor
@@ -200,22 +221,23 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
 
     const nextManifest = withSources(workspace.productManifest, [...workspace.sources, source])
     await updateProductManifest(workspace.rootPath, nextManifest)
+    await commitConfigChange(deps, workspaceId, getUserId(context), `added source ${source.name}`, source.id)
     const updated = await reload(deps.workspaceService, workspace.rootPath)
 
-    let ingest: IngestSummary | undefined
+    let provision: ProvisionSummary | undefined
     if (source.kind === 'filesystem' && source.loader) {
       const report = await deps.sourceLoaderRunner.syncOne(updated, source.id)
-      ingest = { sourceId: source.id, ...report }
+      provision = { sourceId: source.id, ...report }
     }
-    return context.json({ workspace: updated.toData(), ...(ingest ? { ingest } : {}) }, 201)
+    return context.json({ workspace: updated.toData(), ...(provision ? { provision } : {}) }, 201)
   })
 
-  // Remove a source from the manifest AND rm its local files when the
-  // resolved path is inside the workspace folder (typical case: relative
-  // `./intent` etc.: safe to wipe, the loader was their author). If the
-  // source's path is absolute and points outside the workspace, files
-  // are kept and an explanatory note returned; we won't nuke a
-  // directory the user could plausibly own outside Braid's scope.
+  // Remove a source from the manifest,
+  // and rm its local files when the resolved path is inside the folder.
+  // A relative path like `./intent` is safe to wipe, the loader made it.
+  // An absolute path outside the workspace keeps its files,
+  // returning a note instead.
+  // We won't nuke a directory the user could plausibly own outside Braid.
   router.delete('/:workspaceId/sources/:sourceId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const sourceId = SourceId.parse(context.req.param('sourceId'))
@@ -227,6 +249,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     const nextManifest = withSources(workspace.productManifest, workspace.sources.filter(entry => entry.id !== sourceId))
     deps.workspaceService.assertRequiredSourceRoles(new Workspace({ ...workspace.toData(), productManifest: nextManifest }))
     await updateProductManifest(workspace.rootPath, nextManifest)
+    await commitConfigChange(deps, workspaceId, getUserId(context), `removed source ${source.name}`, sourceId)
 
     let filesRemoved = false
     if (source.kind === 'filesystem') {
@@ -241,10 +264,10 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     return context.json({ workspace: updated.toData(), filesRemoved })
   })
 
-  // Edit a source's editable metadata (description for now). Structural
-  // fields (id, kind, path, role) are immutable to keep cross-references
-  // and on-disk layout stable; rename / loader-change flows would need
-  // their own migration story.
+  // Edit a source's editable metadata, description for now.
+  // Structural fields (id, kind, path, role) are immutable,
+  // to keep cross-references and on-disk layout stable.
+  // A rename or loader-change flow would need its own migration story.
   router.patch('/:workspaceId/sources/:sourceId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), zValidator('json', PatchSourceBodySchema), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const sourceId = SourceId.parse(context.req.param('sourceId'))
@@ -259,14 +282,16 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
       : { ...existing, ...(patch.description !== undefined ? { description: patch.description } : {}) }
     const nextManifest = withSources(workspace.productManifest, workspace.sources.map(s => (s.id === sourceId ? patched : s)))
     await updateProductManifest(workspace.rootPath, nextManifest)
+    await commitConfigChange(deps, workspaceId, getUserId(context), `updated source ${existing.name}`, sourceId)
     const updated = await reload(deps.workspaceService, workspace.rootPath)
     return context.json({ workspace: updated.toData() })
   })
 
-  // Edit an MCP server's editable metadata. URL / transport / headers
-  // stay editable via the workspace-level PATCH which expects the whole
-  // mcpServers[] array; this endpoint is specifically for the per-server
-  // description field so Studio doesn't need to send the whole list.
+  // Edit an MCP server's editable metadata.
+  // URL, transport, and headers stay editable via the workspace PATCH,
+  // which expects the whole mcpServers[] array.
+  // This endpoint is only for the per-server description field,
+  // so Studio doesn't need to send the whole list.
   router.patch('/:workspaceId/mcpServers/:mcpServerId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), zValidator('json', PatchMcpServerBodySchema), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const mcpServerId = McpServerId.parse(context.req.param('mcpServerId'))
@@ -284,12 +309,13 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
       mcpServers: workspace.productManifest.mcpServers.map(s => (s.id === mcpServerId ? patched : s)),
     }
     await updateProductManifest(workspace.rootPath, nextManifest)
+    await commitConfigChange(deps, workspaceId, getUserId(context), `updated mcp server ${mcpServerId}`)
     const updated = await reload(deps.workspaceService, workspace.rootPath)
     return context.json({ workspace: updated.toData() })
   })
 
-  // Per-source sync. Looks up the source's loader and invokes `sync` (or
-  // falls back to `ingest` if the destination doesn't exist yet).
+  // Per-source sync. Looks up the source's loader and invokes `sync`,
+  // or falls back to `provision` if the destination doesn't exist yet.
   router.post('/:workspaceId/sources/:sourceId/sync', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const sourceId = SourceId.parse(context.req.param('sourceId'))
@@ -298,9 +324,9 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     return context.json(report)
   })
 
-  // Update workspace-level manifest fields. Renaming changes the
-  // WorkspaceId (derived from `manifest.name`) so callers should re-fetch
-  // the workspace list after a successful rename.
+  // Update workspace-level manifest fields.
+  // Renaming changes the WorkspaceId, derived from `manifest.name`,
+  // so callers should re-fetch the workspace list after a rename.
   router.patch('/:workspaceId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), zValidator('json', PatchWorkspaceBodySchema), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const patch = context.req.valid('json')
@@ -311,11 +337,11 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
       ...(patch.description !== undefined ? { description: patch.description } : {}),
       ...(patch.ontologyId !== undefined ? { ontologyId: patch.ontologyId } : {}),
       ...(patch.storage !== undefined ? { storage: patch.storage } : {}),
-      ...(patch.agents !== undefined ? { agents: patch.agents } : {}),
       ...(patch.mcpServers !== undefined ? { mcpServers: patch.mcpServers } : {}),
     }
     await updateProductManifest(workspace.rootPath, nextManifest)
     const renamed = patch.name !== undefined && patch.name !== workspace.productManifest.name
+    await commitConfigChange(deps, workspaceId, getUserId(context), renamed ? `renamed to ${patch.name}` : 'updated workspace config')
     const updated = await reload(deps.workspaceService, workspace.rootPath)
     return context.json({
       workspace: updated.toData(),
@@ -323,7 +349,8 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     })
   })
 
-  // `purge=true` rm -rf's the folder; without it discoverCanonicalWorkspaces re-registers on next boot.
+  // `purge=true` rm -rf's the folder. Without it,
+  // discoverCanonicalWorkspaces re-registers on next boot.
   router.delete('/:workspaceId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const purge = context.req.query('purge') === 'true'
@@ -337,7 +364,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
   return router
 }
 
-interface IngestSummary {
+interface ProvisionSummary {
   readonly sourceId: SourceId
   readonly changed: boolean
   readonly bytes?: number
@@ -350,10 +377,8 @@ function withSources(manifest: ProductManifest, sources: readonly SourceDescript
   return { ...manifest, sources: [...sources] }
 }
 
-/**
- * Returns a copy of `entry` without the named optional field. Used to
- * honour the explicit "clear" signal in PATCH bodies (description='').
- */
+// Returns a copy of `entry` without the named optional field.
+// Honours the explicit "clear" signal in PATCH bodies (description='').
 function stripField<T extends Record<string, unknown>, K extends keyof T>(entry: T, field: K): T {
   const next = { ...entry }
   delete next[field]
@@ -367,11 +392,9 @@ async function reload(workspaceService: WorkspaceService, rootPath: AbsolutePath
   return reloaded
 }
 
-/**
- * Idempotently stamp the caller as owner of a freshly registered
- * workspace. If members[] already contains an owner (workspace was
- * re-registered, or the migration already touched it) this is a no-op.
- */
+// Idempotently stamp the caller as owner of a fresh workspace.
+// If members[] already contains an owner, this is a no-op.
+// That happens on a re-register, or when the migration already touched it.
 async function ensureCallerOwner(
   registry: WorkspaceRegistryFile | undefined,
   rootPath: AbsolutePath,

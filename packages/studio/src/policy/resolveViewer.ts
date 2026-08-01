@@ -2,8 +2,8 @@ import type { User, WorkspaceMember } from '@braidhq/schema'
 import type { ViewerContext, ViewerResource } from './ViewerContext'
 
 /**
- * Sole place admin → owner promotion happens on the client. Mirrors
- * the server's resolveViewer so the two stay in lock-step.
+ * The sole place an admin is promoted to owner on the client.
+ * Mirrors the server's resolveViewer so the two stay in lock-step.
  */
 export function resolveViewer(
   user: User,

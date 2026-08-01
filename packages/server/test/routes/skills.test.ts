@@ -6,14 +6,14 @@ import { join } from 'node:path'
 import { ClaudeCodeAgentBinding } from '@braidhq/agent-claude-code'
 import { describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app.js'
-import { composeApp } from '../../src/composition.js'
-import { SubprocessSkillRunner } from '../../src/infrastructure/agent/SubprocessSkillRunner.js'
-import { FsRunRepository } from '../../src/infrastructure/fs/FsRunRepository.js'
+import { composeApp } from '../../src/composeApp.js'
+import { FsRunRepository } from '../../src/infrastructure/skill/FsRunRepository.js'
+import { SubprocessSkillRunner } from '../../src/infrastructure/skill/SubprocessSkillRunner.js'
 import { DEFAULT_AGENT_BINDING, makeSkillManifest, makeWorkspace } from '../helpers/fakes.js'
 import { createMockSpawn } from '../helpers/mockSpawn.js'
 
 function makeSkillRegistry(): SkillRegistry {
-  const manifest = makeSkillManifest({ id: 'ask', path: '/abs/SKILL.md' as AbsolutePath })
+  const manifest = makeSkillManifest({ id: 'braid:ask', path: '/abs/SKILL.md' as AbsolutePath })
   return {
     list: async () => [manifest],
     find: async () => manifest,
@@ -30,7 +30,8 @@ async function buildApp(stdoutLines: string[] = []) {
   const skillRegistry = makeSkillRegistry()
   const skillRunner = new SubprocessSkillRunner({
     skillRegistry,
-    agentBinding: new ClaudeCodeAgentBinding(DEFAULT_AGENT_BINDING),
+    buildAgentBinding: descriptor => new ClaudeCodeAgentBinding(descriptor),
+    defaultAgent: DEFAULT_AGENT_BINDING,
     apiUrl: 'http://localhost:4321',
     runRepository: new FsRunRepository(),
     spawn,
@@ -49,13 +50,13 @@ describe('skill routes', () => {
     expect(response.status).toBe(200)
     const body = await response.json() as { items: Array<{ id: string }> }
     expect(body.items).toHaveLength(1)
-    expect(body.items[0]?.id).toBe('ask')
+    expect(body.items[0]?.id).toBe('braid:ask')
   })
 
   it('POST /workspaces/:ws/skills/:id/run accepts the request and returns a fresh run id', async () => {
     const { app, workspace } = await buildApp([JSON.stringify({ type: 'text', text: 'hello' })])
 
-    const response = await app.request(`/workspaces/${workspace.id}/skills/ask/run`, {
+    const response = await app.request(`/workspaces/${workspace.id}/skills/braid:ask/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ args: 'what is voidTask' }),
@@ -72,7 +73,8 @@ describe('skill routes', () => {
     const { spawn } = createMockSpawn([])
     const skillRunner = new SubprocessSkillRunner({
       skillRegistry,
-      agentBinding: new ClaudeCodeAgentBinding(DEFAULT_AGENT_BINDING),
+      buildAgentBinding: descriptor => new ClaudeCodeAgentBinding(descriptor),
+      defaultAgent: DEFAULT_AGENT_BINDING,
       apiUrl: 'http://localhost:4321',
       runRepository: new FsRunRepository(),
       spawn,

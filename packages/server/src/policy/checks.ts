@@ -1,19 +1,22 @@
 import type { CapabilityCheck } from './CapabilityCheck.js'
 
 /**
- * First-party capability checks, mirrored byte-equivalent in
- * `packages/studio/src/policy/checks.ts`. The server is the
- * authoritative gate; the client copy lets Studio render Locked-style
- * affordances without hitting a 403.
+ * First-party capability checks,
+ * mirrored byte-equivalent in `packages/studio/src/policy/checks.ts`.
+ * The server is the authoritative gate.
+ * The client copy lets Studio render locked affordances, without hitting a 403.
  *
- * Workspace-scope verbs collapse to `read` + `write` per resource.
- * Workspace.create is server-scope (resolveViewer with no member).
- * Skill.run keeps its own verb because its three-step resolution
- * (owner short-circuit, per-member override, manifest allowedRoles)
- * doesn't fit a read/write pair.
+ * Workspace-scope verbs collapse to read and write per resource.
+ * `workspace.create` is server-scope, resolved with no member.
+ * `skill.run` keeps its own verb for its three-step resolution,
+ * covering owner short-circuit, per-member override, allowedRoles,
+ * which does not fit a read or write pair.
  */
 export const checks: readonly CapabilityCheck[] = [
   { id: 'workspace.create', evaluate: v => v.effectiveRole === 'owner' },
+  // Server admin reads serverRole directly, not effectiveRole,
+  // since a workspace owner also resolves to an owner effectiveRole.
+  { id: 'server.admin', evaluate: v => v.user.serverRole === 'admin' },
   { id: 'workspace.read', evaluate: v => v.effectiveRole !== null },
   { id: 'workspace.write', evaluate: v => v.effectiveRole === 'owner' },
   {
@@ -25,11 +28,11 @@ export const checks: readonly CapabilityCheck[] = [
     evaluate: v => v.effectiveRole === 'owner' || v.effectiveRole === 'maintainer',
   },
   {
-    id: 'clarify.read',
+    id: 'clarification.read',
     evaluate: v => v.effectiveRole === 'owner' || v.effectiveRole === 'maintainer',
   },
   {
-    id: 'clarify.write',
+    id: 'clarification.write',
     evaluate: v => v.effectiveRole === 'owner' || v.effectiveRole === 'maintainer',
   },
   { id: 'history.write', evaluate: v => v.effectiveRole === 'owner' },

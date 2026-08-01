@@ -1,1 +1,1 @@
-export * from './GitLoader.js'
+export * from './GitSourceLoaderPlugin.js'

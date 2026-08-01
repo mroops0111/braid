@@ -64,7 +64,7 @@ A node usually has more than one place it could cite: an intent doc plus one or 
 
 Intent vs code is **not** a fixed order. Lead with whichever genuinely defines the node today — a fresh PRD with no implementation leads with intent; long-running code with no spec leads with code; both-aligned cases lead with whichever is more concrete for that type. Apply the same principle inside one source kind too (e.g. backend handler before its tests; ORM model before its migrations).
 
-The order is consumed by Studio's detail panel and `braid-generate-doc` as "the link a reader should click first." Drift detection treats every entry equally regardless of order.
+The order is consumed by Studio's detail panel and `braid:generate-doc` as "the link a reader should click first." Drift detection treats every entry equally regardless of order.
 
 ## NewGraphEdge Payload
 

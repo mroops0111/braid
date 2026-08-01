@@ -1,6 +1,6 @@
 import type {
-  ClarifyCandidate,
-  ClarifyTicketId,
+  ClarificationCandidate,
+  ClarificationId,
   NodeId,
   NodeStatus,
   NodeTypeId,
@@ -9,8 +9,8 @@ import type {
   UserId,
   WorkspaceId,
 } from '@braidhq/schema'
-import { ClarifyTicket, Proposal } from '@braidhq/core'
-import { T0 } from '@braidhq/test-utils'
+import { Proposal } from '@braidhq/core'
+import { makeClarification, T0 } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { buildTestApp } from './helpers/buildApp.js'
 import { readJson } from './helpers/readJson.js'
@@ -45,20 +45,7 @@ function makeProposal(overrides: {
     generatedBy: 'extract' as SkillId,
     generatedAt: T0,
     rationale: 'r',
-  })
-}
-
-function makeClarifyTicket(overrides: {
-  id: string
-  status?: 'pending' | 'answered'
-  candidates?: readonly ClarifyCandidate[]
-}): ClarifyTicket {
-  return new ClarifyTicket({
-    id: overrides.id as ClarifyTicketId,
-    workspaceId,
-    question: 'q?',
-    candidates: [...(overrides.candidates ?? [])],
-    status: overrides.status ?? 'pending',
+    owner: 'system',
   })
 }
 
@@ -66,11 +53,6 @@ interface ProposalBody {
   id: string
   status: string
   generatedAt: string
-}
-
-interface DecisionBody {
-  action: string
-  references: { proposalId?: string }
 }
 
 interface ListBody<T> {
@@ -118,11 +100,11 @@ describe('POST /workspaces/:ws/proposals', () => {
   })
 })
 
-describe('POST /workspaces/:ws/clarify', () => {
-  it('creates a pending clarify ticket with a server-minted id', async () => {
+describe('POST /workspaces/:ws/clarifications', () => {
+  it('creates a pending clarification with a server-minted id', async () => {
     const { app } = await buildTestApp()
 
-    const response = await app.request(`/workspaces/${workspaceId}/clarify`, {
+    const response = await app.request(`/workspaces/${workspaceId}/clarifications`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -144,7 +126,7 @@ describe('POST /workspaces/:ws/clarify', () => {
   it('mints candidate ids server-side when the human-authored body omits them', async () => {
     const { app } = await buildTestApp()
 
-    const response = await app.request(`/workspaces/${workspaceId}/clarify`, {
+    const response = await app.request(`/workspaces/${workspaceId}/clarifications`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -159,14 +141,14 @@ describe('POST /workspaces/:ws/clarify', () => {
     expect(response.status).toBe(201)
     const body = await readJson<{ candidates: { id: string }[] }>(response)
     expect(body.candidates).toHaveLength(2)
-    expect(body.candidates[0]!.id).toMatch(/^cc-/)
-    expect(body.candidates[1]!.id).toMatch(/^cc-/)
+    expect(body.candidates[0]!.id).toMatch(/^clarification-candidate-/)
+    expect(body.candidates[1]!.id).toMatch(/^clarification-candidate-/)
     expect(body.candidates[0]!.id).not.toBe(body.candidates[1]!.id)
   })
 })
 
 describe('POST /workspaces/:ws/proposals/:id/apply', () => {
-  it('applies a seeded proposal and returns a decision', async () => {
+  it('applies a seeded proposal and returns the applied proposal', async () => {
     const { app, deps } = await buildTestApp()
     await deps.proposalRepository.save(makeProposal({
       operations: [{
@@ -188,8 +170,8 @@ describe('POST /workspaces/:ws/proposals/:id/apply', () => {
     })
 
     expect(response.status).toBe(200)
-    const body = await readJson<DecisionBody>(response)
-    expect(body.action).toBe('applyProposal')
+    const body = await readJson<{ id: string, status: string }>(response)
+    expect(body.status).toBe('applied')
   })
 
   it('returns 404 when the proposal does not exist', async () => {
@@ -217,10 +199,8 @@ describe('POST /workspaces/:ws/proposals/:id/apply', () => {
     expect(response.status).toBe(404)
   })
 
-  // Apply body has no required fields after Phase A — userId migrated
-  // to the `X-Braid-User` header (with body shim during the deprecation
-  // window). Body validation for reject still applies; see the
-  // /reject suite for the required-field path.
+  // Apply body has no required fields, userId comes from `X-Braid-User` now, with a body shim during deprecation.
+  // Reject still validates its body, see the /reject suite for the required-field path.
 })
 
 describe('GET /workspaces/:ws/proposals', () => {
@@ -239,11 +219,11 @@ describe('GET /workspaces/:ws/proposals', () => {
   })
 })
 
-describe('POST /workspaces/:ws/clarify/:id/answer', () => {
+describe('POST /workspaces/:ws/clarifications/:id/answer', () => {
   it('returns 404 when the ticket does not exist', async () => {
     const { app } = await buildTestApp()
 
-    const response = await app.request(`/workspaces/${workspaceId}/clarify/missing/answer`, {
+    const response = await app.request(`/workspaces/${workspaceId}/clarifications/missing/answer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ candidateId: 'c-1', userId }),
@@ -255,7 +235,7 @@ describe('POST /workspaces/:ws/clarify/:id/answer', () => {
   it('returns 400 when the body has neither candidateId nor customCandidate', async () => {
     const { app } = await buildTestApp()
 
-    const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-1/answer`, {
+    const response = await app.request(`/workspaces/${workspaceId}/clarifications/ct-1/answer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId }),
@@ -267,7 +247,7 @@ describe('POST /workspaces/:ws/clarify/:id/answer', () => {
   it('returns 400 when the body has both candidateId and customCandidate', async () => {
     const { app } = await buildTestApp()
 
-    const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-1/answer`, {
+    const response = await app.request(`/workspaces/${workspaceId}/clarifications/ct-1/answer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ candidateId: 'cc-1', customCandidate: { description: 'x' }, userId }),
@@ -278,12 +258,12 @@ describe('POST /workspaces/:ws/clarify/:id/answer', () => {
 
   it('appends a custom candidate to the ticket and answers with it in one round-trip', async () => {
     const { app, deps } = await buildTestApp()
-    await deps.clarifyRepository.save(makeClarifyTicket({
+    await deps.clarificationRepository.save(makeClarification(workspaceId, {
       id: 'ct-custom',
-      candidates: [{ id: 'cc-1' as ClarifyCandidate['id'], description: 'pre', sourceReferences: [], proposedOperations: [] }],
+      candidates: [{ id: 'cc-1' as ClarificationCandidate['id'], description: 'pre', sourceReferences: [], proposedOperations: [] }],
     }))
 
-    const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-custom/answer`, {
+    const response = await app.request(`/workspaces/${workspaceId}/clarifications/ct-custom/answer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -294,7 +274,7 @@ describe('POST /workspaces/:ws/clarify/:id/answer', () => {
     })
 
     expect(response.status).toBe(200)
-    const reloaded = await deps.clarifyRepository.load('ct-custom' as ClarifyTicketId)
+    const reloaded = await deps.clarificationRepository.load('ct-custom' as ClarificationId)
     expect(reloaded.status).toBe('answered')
     expect(reloaded.candidates).toHaveLength(2)
     expect(reloaded.candidates[1]!.description).toBe('actually it should be hybrid')
@@ -302,74 +282,52 @@ describe('POST /workspaces/:ws/clarify/:id/answer', () => {
   })
 })
 
-describe('GET /workspaces/:ws/clarify/:id', () => {
-  it('projects answerNote from the latest answer decision for answered tickets', async () => {
-    const { app, deps } = await buildTestApp()
-    await deps.clarifyRepository.save(makeClarifyTicket({
-      id: 'ct-note',
-      candidates: [{ id: 'cc-1' as ClarifyCandidate['id'], description: 'opt', sourceReferences: [], proposedOperations: [] }],
-    }))
-
-    await app.request(`/workspaces/${workspaceId}/clarify/ct-note/answer`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ candidateId: 'cc-1', userId, note: 'this is the note' }),
-    })
-
-    const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-note`)
-    expect(response.status).toBe(200)
-    const body = await readJson<{ answerNote?: string, skipReason?: string }>(response)
-    expect(body.answerNote).toBe('this is the note')
-    expect(body.skipReason).toBeUndefined()
-  })
-})
-
-describe('PATCH /workspaces/:ws/clarify/:id', () => {
+describe('PATCH /workspaces/:ws/clarifications/:id', () => {
   it('moves an answered ticket to applied and stamps proposalId', async () => {
     const { app, deps } = await buildTestApp()
-    await deps.clarifyRepository.save(makeClarifyTicket({ id: 'ct-link', status: 'answered' }))
+    await deps.clarificationRepository.save(makeClarification(workspaceId, { id: 'ct-link', status: 'answered' }))
 
-    const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-link`, {
+    const response = await app.request(`/workspaces/${workspaceId}/clarifications/ct-link`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'applied', proposalId: 'p-99', userId }),
     })
 
     expect(response.status).toBe(200)
-    const decision = await readJson<DecisionBody>(response)
-    expect(decision.action).toBe('applyClarifyTicket')
-    expect(decision.references.proposalId).toBe('p-99')
+    const body = await readJson<{ status: string, proposalId?: string }>(response)
+    expect(body.status).toBe('applied')
+    expect(body.proposalId).toBe('p-99')
 
-    const reloaded = await deps.clarifyRepository.load('ct-link' as ClarifyTicketId)
+    const reloaded = await deps.clarificationRepository.load('ct-link' as ClarificationId)
     expect(reloaded.status).toBe('applied')
     expect(reloaded.proposalId).toBe('p-99')
   })
 
   it('moves an answered ticket to applied without proposalId for no-impact resolutions', async () => {
     const { app, deps } = await buildTestApp()
-    await deps.clarifyRepository.save(makeClarifyTicket({ id: 'ct-noop', status: 'answered' }))
+    await deps.clarificationRepository.save(makeClarification(workspaceId, { id: 'ct-noop', status: 'answered' }))
 
-    const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-noop`, {
+    const response = await app.request(`/workspaces/${workspaceId}/clarifications/ct-noop`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'applied', userId }),
     })
 
     expect(response.status).toBe(200)
-    const decision = await readJson<DecisionBody>(response)
-    expect(decision.action).toBe('applyClarifyTicket')
-    expect(decision.references.proposalId).toBeUndefined()
+    const body = await readJson<{ status: string, proposalId?: string }>(response)
+    expect(body.status).toBe('applied')
+    expect(body.proposalId).toBeUndefined()
 
-    const reloaded = await deps.clarifyRepository.load('ct-noop' as ClarifyTicketId)
+    const reloaded = await deps.clarificationRepository.load('ct-noop' as ClarificationId)
     expect(reloaded.status).toBe('applied')
     expect(reloaded.proposalId).toBeUndefined()
   })
 
   it('returns 400 when status is missing', async () => {
     const { app, deps } = await buildTestApp()
-    await deps.clarifyRepository.save(makeClarifyTicket({ id: 'ct-link', status: 'answered' }))
+    await deps.clarificationRepository.save(makeClarification(workspaceId, { id: 'ct-link', status: 'answered' }))
 
-    const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-link`, {
+    const response = await app.request(`/workspaces/${workspaceId}/clarifications/ct-link`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ proposalId: 'p-99', userId }),
@@ -380,9 +338,9 @@ describe('PATCH /workspaces/:ws/clarify/:id', () => {
 
   it('returns 409 when ticket has not been answered yet', async () => {
     const { app, deps } = await buildTestApp()
-    await deps.clarifyRepository.save(makeClarifyTicket({ id: 'ct-pending', status: 'pending' }))
+    await deps.clarificationRepository.save(makeClarification(workspaceId, { id: 'ct-pending', status: 'pending' }))
 
-    const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-pending`, {
+    const response = await app.request(`/workspaces/${workspaceId}/clarifications/ct-pending`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'applied', proposalId: 'p-99', userId }),
@@ -392,12 +350,12 @@ describe('PATCH /workspaces/:ws/clarify/:id', () => {
   })
 })
 
-describe('POST /workspaces/:ws/clarify/:id/skip', () => {
+describe('POST /workspaces/:ws/clarifications/:id/skip', () => {
   it('marks the ticket as skipped', async () => {
     const { app, deps } = await buildTestApp()
-    await deps.clarifyRepository.save(makeClarifyTicket({ id: 'ct-1', status: 'pending' }))
+    await deps.clarificationRepository.save(makeClarification(workspaceId, { id: 'ct-1', status: 'pending' }))
 
-    const response = await app.request(`/workspaces/${workspaceId}/clarify/ct-1/skip`, {
+    const response = await app.request(`/workspaces/${workspaceId}/clarifications/ct-1/skip`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason: 'out of scope', userId }),
@@ -412,7 +370,6 @@ describe('list endpoints return their empty shape for a fresh workspace', () => 
     { path: `/workspaces/${workspaceId}/model/snapshot`, empty: { nodes: [], edges: [] } },
     { path: `/workspaces/${workspaceId}/nodes`, empty: { items: [] } },
     { path: `/workspaces/${workspaceId}/edges`, empty: { items: [] } },
-    { path: `/workspaces/${workspaceId}/decisions`, empty: { items: [] } },
     { path: `/workspaces/${workspaceId}/source-unit-states`, empty: { items: [] } },
   ] as const
 
@@ -455,16 +412,6 @@ describe('GET /workspaces/:ws/nodes filters and lookup', () => {
     const { app } = await buildTestApp()
 
     const response = await app.request(`/workspaces/${workspaceId}/nodes/missing`)
-
-    expect(response.status).toBe(404)
-  })
-})
-
-describe('GET /workspaces/:ws/decisions/:id', () => {
-  it('returns 404 when the decision id is missing', async () => {
-    const { app } = await buildTestApp()
-
-    const response = await app.request(`/workspaces/${workspaceId}/decisions/missing`)
 
     expect(response.status).toBe(404)
   })

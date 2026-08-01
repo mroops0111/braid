@@ -1,0 +1,11 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "build": {
+    "beforeDevCommand": "pnpm --filter @braidhq/studio dev",
+    "beforeBuildCommand": "pnpm --filter @braidhq/studio build"
+  },
+  "bundle": {
+    "externalBin": [],
+    "resources": []
+  }
+}

@@ -1,6 +1,8 @@
 import type { AgentBinding, AgentSpawnInput, SpawnInvocation } from '@braidhq/core'
-import type { AgentBindingDescriptor } from '@braidhq/schema'
+import type { AgentBindingDescriptor, SkillEvent } from '@braidhq/schema'
 import process from 'node:process'
+import { writeClaudeMcpConfig } from './claudeMcpConfig.js'
+import { parseClaudeLine } from './claudeStream.js'
 
 export class ClaudeCodeAgentBinding implements AgentBinding {
   constructor(readonly descriptor: AgentBindingDescriptor) {
@@ -9,12 +11,20 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
     }
   }
 
-  resolveSpawn(input: AgentSpawnInput): SpawnInvocation {
-    // When resuming, the prompt is just the user's follow-up text — claude
-    // already holds the conversation context and the original slash command.
+  async resolveSpawn(input: AgentSpawnInput): Promise<SpawnInvocation> {
+    // On resume the prompt is just the follow-up text,
+    // since claude still holds the conversation and slash command from earlier.
+    // A fresh run invokes the slash command, and for a skill with an EXTEND.md,
+    // point claude at that file rather than inline it so its *.md links resolve.
+    // The skill id is already `namespace:verb`,
+    // claude's plugin-skill invocation once `--plugin-dir` loads the bundles.
+    const slashCommand = `/${input.skillId} ${input.args}`
+    const extensionPath = input.manifest.extensionPath
     const promptArg = input.resumeSessionId
       ? input.args
-      : `/${input.manifest.frontmatter.name} ${input.args}`
+      : extensionPath
+        ? `${slashCommand}\n\nThis workspace extends this skill. Read and follow ${extensionPath} before you begin.`
+        : slashCommand
     const baseArgs: string[] = [
       '-p',
       promptArg,
@@ -31,8 +41,13 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
     if (this.descriptor.effort) {
       baseArgs.push('--effort', this.descriptor.effort)
     }
-    if (input.mcpConfigFile) {
-      baseArgs.push('--mcp-config', input.mcpConfigFile)
+    if (input.mcpServers.length > 0) {
+      const mcpConfigFile = await writeClaudeMcpConfig(input.sessionDir, input.workspace.id, input.mcpServers)
+      baseArgs.push('--mcp-config', mcpConfigFile)
+    }
+    // Load each namespace's skill bundle, so `/namespace:verb` resolves.
+    for (const bundleDir of input.skillBundleDirs) {
+      baseArgs.push('--plugin-dir', bundleDir)
     }
     for (const dir of input.workspace.resolveAddDirs()) {
       baseArgs.push('--add-dir', dir)
@@ -49,11 +64,11 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
       BRAID_API_URL: input.apiUrl,
     }
 
-    const invocation: SpawnInvocation = input.mcpConfigFile
-      ? { bin: 'claude', args: baseArgs, env, mcpConfigFile: input.mcpConfigFile }
-      : { bin: 'claude', args: baseArgs, env }
-    return invocation
+    return { bin: 'claude', args: baseArgs, env }
   }
+
+  // Claude streams newline-delimited JSON, so the runner hands each line here.
+  parseLine = (line: string, now: string): SkillEvent[] => parseClaudeLine(line, now)
 }
 
 function filterEnv(source: NodeJS.ProcessEnv): Record<string, string> {

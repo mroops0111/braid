@@ -9,16 +9,32 @@ import type {
   ViewKind,
 } from '@braidhq/schema'
 import type { AgentPlugin } from './AgentPlugin.js'
-import type { ViewGeneratorPlugin } from './Generator.js'
-import type { OntologyPlugin } from './Ontology.js'
+import type { OntologyPlugin } from './OntologyPlugin.js'
 import type { Plugin, PluginReferenceDirRef, PluginSkillRef } from './Plugin.js'
-import type { SourceLoaderPlugin } from './SourceLoader.js'
+import type { SourceLoaderPlugin } from './SourceLoaderPlugin.js'
 import type { StoragePlugin } from './StoragePlugin.js'
-import { ConflictError, NotFoundError } from '../errors.js'
+import type { ViewGeneratorPlugin } from './ViewGeneratorPlugin.js'
+import { SkillId as SkillIdSchema } from '@braidhq/schema'
+import { ConflictError, NotFoundError, ValidationError } from '../errors.js'
 
-/** PluginSkillRef enriched with the id of the plugin that contributed it. */
+/** PluginSkillRef enriched with its composed id and contributing plugin. */
 export interface PluginSourcedSkill extends PluginSkillRef {
+  readonly id: SkillId
   readonly contributedBy: PluginId
+}
+
+// Compose a plugin skill's id as `<skillNamespace>:<verb>`,
+// the verb being the skill directory's basename.
+// Fail loudly when a plugin ships skills but declares no namespace,
+// so the mistake surfaces at registration.
+function composePluginSkillId(plugin: Plugin, skill: PluginSkillRef): SkillId {
+  if (plugin.skillNamespace === undefined || plugin.skillNamespace.length === 0)
+    throw new ValidationError(`Plugin "${plugin.id}" ships skills but declares no skillNamespace`)
+  const path = typeof skill.directory === 'string' ? skill.directory : skill.directory.pathname
+  const verb = path.replace(/\/+$/, '').split('/').pop() ?? ''
+  if (verb.length === 0)
+    throw new ValidationError(`Plugin "${plugin.id}" skill directory "${String(skill.directory)}" has no name`)
+  return SkillIdSchema.parse(`${plugin.skillNamespace}:${verb}`)
 }
 
 /** PluginReferenceDirRef enriched with the id of the plugin that contributed it. */
@@ -34,38 +50,39 @@ export class PluginRegistry {
     if (this.plugins.has(plugin.id)) {
       throw new ConflictError(`Plugin "${plugin.id}" is already registered`)
     }
-    // Catch skill-id collisions across plugins at register time so the
-    // failure points at the second plugin to register, not at some
-    // later workspace.list() call.
+    // Catch skill-id collisions across plugins at register time,
+    // so the failure points at the second plugin to register,
+    // not at some later workspace.list() call.
     for (const skill of plugin.skills ?? []) {
-      const owner = this.skillContributors.get(skill.id)
+      const id = composePluginSkillId(plugin, skill)
+      const owner = this.skillContributors.get(id)
       if (owner !== undefined)
-        throw new ConflictError(`Skill "${skill.id}" already contributed by plugin "${owner}"`)
-      this.skillContributors.set(skill.id, plugin.id)
+        throw new ConflictError(`Skill "${id}" already contributed by plugin "${owner}"`)
+      this.skillContributors.set(id, plugin.id)
     }
     this.plugins.set(plugin.id, plugin)
   }
 
   /**
-   * All skills declared by registered plugins, tagged with the plugin
-   * id that contributed each. Consumers (FsSkillRegistry) mount these
-   * under the `plugin` skill origin.
+   * All skills declared by registered plugins,
+   * tagged with the plugin id that contributed each.
+   * Consumers like FsSkillRegistry mount these under the `plugin` skill origin.
    */
   pluginSkills(): readonly PluginSourcedSkill[] {
     const result: PluginSourcedSkill[] = []
     for (const plugin of this.plugins.values()) {
       for (const skill of plugin.skills ?? [])
-        result.push({ ...skill, contributedBy: plugin.id })
+        result.push({ ...skill, id: composePluginSkillId(plugin, skill), contributedBy: plugin.id })
     }
     return result
   }
 
   /**
-   * All reference directories declared by registered plugins, tagged
-   * with the plugin id that contributed each. Consumers
-   * (SubprocessSkillRunner) symlink these into every spawned skill
-   * session so SKILL.md authors can reference plugin-owned concept
-   * docs via a stable cwd-relative path.
+   * All reference directories declared by registered plugins,
+   * tagged with the plugin id that contributed each.
+   * Consumers like SubprocessSkillRunner symlink these into every session,
+   * so SKILL.md authors can reference plugin-owned concept docs,
+   * via a stable cwd-relative path.
    */
   pluginReferenceDirs(): readonly PluginSourcedReferenceDir[] {
     const result: PluginSourcedReferenceDir[] = []

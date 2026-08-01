@@ -1,34 +1,27 @@
 import { z } from 'zod'
-import { AbsolutePath, PluginId, SkillId, SkillRunId, SourceId, Timestamp, UserId, WorkspaceId } from './common.js'
+import { AgentEffort, AgentKind } from './agent.js'
+import { AbsolutePath, PluginId, SkillId, SkillRunId, SourceId, Timestamp, WorkspaceId } from './common.js'
 import { McpServerId } from './mcp.js'
 import { WorkspaceRole } from './workspace.js'
-
-export const SkillRunStatus = z.enum(['running', 'succeeded', 'failed', 'cancelled'])
-export type SkillRunStatus = z.infer<typeof SkillRunStatus>
-
-export const SkillRun = z.object({
-  id: SkillRunId,
-  skillId: SkillId,
-  startedAt: Timestamp,
-  finishedAt: Timestamp.optional(),
-  status: SkillRunStatus,
-  triggeredBy: UserId,
-  durationMs: z.number().int().nonnegative().optional(),
-  tokensUsed: z.number().int().nonnegative().optional(),
-  errorMessage: z.string().optional(),
-})
-export type SkillRun = z.infer<typeof SkillRun>
 
 export const SkillOrigin = z.enum(['builtin', 'plugin', 'workspace', 'extension'])
 export type SkillOrigin = z.infer<typeof SkillOrigin>
 
 /**
- * Frontmatter fields recognised by the Claude Code CLI itself. Anything in
- * this object lives at the top level of the YAML block; the CLI reads these
- * to register the slash command, enforce invocation rules, etc.
- *
- * Keep camelCase in TS but emit kebab-case in YAML (handled by the
- * frontmatter parser's key normaliser).
+ * A SkillId is `<namespace>:<verb>`, such as `ddd:extract` or `braid:scan`.
+ * The namespace is the contributing plugin, the verb the bare action.
+ * Split on the first colon, so a hyphenated verb like `generate-doc` survives.
+ */
+export function splitSkillId(id: SkillId): { namespace: string, verb: string } {
+  const colon = id.indexOf(':')
+  if (colon <= 0 || colon === id.length - 1)
+    throw new Error(`SkillId "${id}" is not in <namespace>:<verb> form`)
+  return { namespace: id.slice(0, colon), verb: id.slice(colon + 1) }
+}
+
+/**
+ * Frontmatter the Claude Code CLI reads to register the slash command, plus its invocation rules. camelCase in TS,
+ * emitted as kebab-case in YAML.
  */
 export const ClaudeCodeSkillFrontmatter = z.object({
   name: z.string().min(1),
@@ -40,32 +33,13 @@ export const ClaudeCodeSkillFrontmatter = z.object({
 })
 export type ClaudeCodeSkillFrontmatter = z.infer<typeof ClaudeCodeSkillFrontmatter>
 
-/**
- * Which sidebar group a skill belongs to. Maps 1:1 onto a Studio UI
- * section; no derivation layer in between.
- *
- *   ask      -> read-only Q&A / analysis (valid at any point)
- *   build    -> mutate the graph via proposals (extract / clarify / model)
- *   generate -> produce artifacts from the graph (docs, .feature, designs)
- *
- * Optional. Skills without a category land in the "Custom" bucket at the
- * end of the sidebar, which is a fine spot for one-off workspace skills
- * that don't fit the canonical workflow.
- */
+/** Studio sidebar section, mapped 1:1. ask: read-only Q&A. build: mutate the graph. generate: produce artifacts. */
 export const SkillCategory = z.enum(['ask', 'build', 'generate'])
 export type SkillCategory = z.infer<typeof SkillCategory>
 
 /**
- * Skill input descriptor — declarative form schema rendered by Studio's
- * Actions page. Phase 1 supports `text` and `pick` with the `static`
- * provider only; dynamic providers (graph-node / source-intent / clarify
- * / proposal) come in phase 2; `multi-pick` (for batch runs) in phase 3.
- *
- * Naming follows `docs/domain-vocabulary.md`: provider type ids are
- * `<domain>` or `<domain>-<sub>`, lowercase hyphen-separated, singular.
- *
- * Skills without an `inputs` block fall back to the legacy single
- * textarea driven by `argumentHint` on the parent frontmatter.
+ * Declarative form schema rendered by Studio's Actions page.
+ * Skills without an inputs block fall back to the legacy argumentHint textarea.
  */
 export const SkillInputStaticOption = z.object({
   value: z.string(),
@@ -75,137 +49,102 @@ export const SkillInputStaticOption = z.object({
 export type SkillInputStaticOption = z.infer<typeof SkillInputStaticOption>
 
 export const SkillInputStaticProvider = z.object({
-  type: z.literal('static'),
+  kind: z.literal('static'),
   options: z.array(SkillInputStaticOption).min(1),
 })
 export type SkillInputStaticProvider = z.infer<typeof SkillInputStaticProvider>
 
-/**
- * Dynamic provider: pulls graph nodes from the workspace, optionally
- * filtered by type / status / renderHint. Returns one option per node
- * with `value = node.id`. See `docs/domain-vocabulary.md` § Provider
- * Catalog for the naming rule (`<domain>-<sub>`).
- */
+/** Pulls graph nodes, optionally filtered by type / status / renderHint. value = node.id. */
 export const SkillInputGraphNodeProvider = z.object({
-  type: z.literal('graph-node'),
+  kind: z.literal('graph-node'),
   filter: z.object({
     types: z.array(z.string()).optional(),
     statuses: z.array(z.string()).optional(),
-    /**
-     * Filters by `NodeTypeDescriptor.renderHint`. `container: true`
-     * picks node types whose ontology metadata flags them as a
-     * top-level container (e.g. boundedContext in the DDD ontology).
-     */
+    // container: true picks node types flagged as top-level containers, e.g. boundedContext.
     renderHint: z.object({ container: z.boolean().optional() }).optional(),
   }).optional(),
 })
 export type SkillInputGraphNodeProvider = z.infer<typeof SkillInputGraphNodeProvider>
 
-/**
- * Dynamic provider: enumerates items from every `role: 'intent'`
- * source declared in the workspace's PRODUCT.md. Items are individual
- * documents the loader has synced onto disk; the value is the
- * loader-relative path so the skill can quote it directly.
- */
+/** Enumerates items from every role:intent source. value is the loader-relative path. */
 export const SkillInputSourceIntentProvider = z.object({
-  type: z.literal('source-intent'),
+  kind: z.literal('source-intent'),
   filter: z.object({
-    /** Restrict to sources whose loader.kind matches (e.g. `gdrive`). Omit to include all. */
+    // Restrict to sources whose loader.kind matches. Omit to include all.
     loaderKind: z.string().optional(),
   }).optional(),
 })
 export type SkillInputSourceIntentProvider = z.infer<typeof SkillInputSourceIntentProvider>
 
-/**
- * Dynamic provider: clarify tickets in the workspace, filtered by
- * status. Defaults to all statuses if no filter is given.
- */
-export const SkillInputClarifyProvider = z.object({
-  type: z.literal('clarify'),
+/** Clarification tickets, filtered by status. Defaults to all statuses. */
+export const SkillInputClarificationProvider = z.object({
+  kind: z.literal('clarify'),
   filter: z.object({
     status: z.enum(['pending', 'answered', 'applied', 'skipped']).optional(),
   }).optional(),
 })
-export type SkillInputClarifyProvider = z.infer<typeof SkillInputClarifyProvider>
+export type SkillInputClarificationProvider = z.infer<typeof SkillInputClarificationProvider>
 
-export const SkillInputProvider = z.discriminatedUnion('type', [
+export const SkillInputProvider = z.discriminatedUnion('kind', [
   SkillInputStaticProvider,
   SkillInputGraphNodeProvider,
   SkillInputSourceIntentProvider,
-  SkillInputClarifyProvider,
+  SkillInputClarificationProvider,
 ])
 export type SkillInputProvider = z.infer<typeof SkillInputProvider>
 
-/**
- * What the form does when a dynamic provider returns zero options.
- *   text     - swap the picker for a free-text input
- *   disabled - render the picker disabled with a "no options" message
- *
- * Defaults to `text`. Skills that strictly need a server-side
- * selection (e.g. clarify ticket id) should set `disabled`.
- */
+/** What the form does on zero options. text: swap to free-text (default). disabled: for server-required selections. */
 export const SkillInputFallback = z.enum(['text', 'disabled']).default('text')
 export type SkillInputFallback = z.infer<typeof SkillInputFallback>
 
 const SkillInputBaseShape = {
-  /** Identifier the form binds to. Composed into the skill's $ARGUMENTS at run-time. */
+  // Identifier the form binds to, composed into the skill's $ARGUMENTS at run time.
   name: z.string().regex(/^[a-z][a-zA-Z0-9]*$/, 'Input name must be a lowerCamelCase identifier'),
-  /** UI label shown above the control. */
   label: z.string().min(1),
-  /** Optional helper text shown under the control. */
   description: z.string().optional(),
-  /** When true, the input may be left empty and is not required to submit. Defaults to false (i.e. required). */
+  // When true the input may be empty. Defaults to false (required).
   optional: z.boolean().default(false),
-  /** Optional default value pre-filled into the control. */
   default: z.string().optional(),
-  /** Placeholder shown when empty. */
   placeholder: z.string().optional(),
 }
 
 export const SkillInputText = z.object({
   ...SkillInputBaseShape,
   kind: z.literal('text'),
-  /** When true, renders as a multi-line textarea instead of single-line input. */
+  // When true, renders as a multi-line textarea.
   multiline: z.boolean().default(false),
 })
 export type SkillInputText = z.infer<typeof SkillInputText>
 
-export const SkillInputPick = z.object({
+// pick and multi-pick differ only in their kind literal.
+const SkillInputPickShape = {
   ...SkillInputBaseShape,
-  kind: z.literal('pick'),
   provider: SkillInputProvider,
   fallback: SkillInputFallback,
+}
+
+export const SkillInputPick = z.object({
+  ...SkillInputPickShape,
+  kind: z.literal('pick'),
 })
 export type SkillInputPick = z.infer<typeof SkillInputPick>
 
 export const SkillInputMultiPick = z.object({
-  ...SkillInputBaseShape,
+  ...SkillInputPickShape,
   kind: z.literal('multi-pick'),
-  provider: SkillInputProvider,
-  fallback: SkillInputFallback,
 })
 export type SkillInputMultiPick = z.infer<typeof SkillInputMultiPick>
 
 export const SkillInputDescriptor = z.discriminatedUnion('kind', [SkillInputText, SkillInputPick, SkillInputMultiPick])
 export type SkillInputDescriptor = z.infer<typeof SkillInputDescriptor>
 
-/**
- * One option returned by the skill-input-options endpoint. Same shape
- * for all providers; the `value` field is what the form submits and
- * `label` / `description` are display only.
- */
+/** One options-endpoint option. value is submitted, label/description are display only. */
 export const SkillInputDynamicOption = z.object({
   value: z.string(),
   label: z.string().min(1),
   description: z.string().optional(),
-  /**
-   * Source id this option came from, when the option corresponds to a
-   * source unit (the `source-intent` provider populates it). Studio
-   * keeps the pair `{sourceId, value}` so the run-skill request can
-   * report which unit was processed and the server can record an
-   * observation against it. Empty for providers that don't speak in
-   * terms of source units (graph-node, clarify, ...).
-   */
+  // Set by the source-intent provider so a run can name its source unit.
+  // Empty for providers that don't speak in source units (graph-node, clarify).
   sourceId: SourceId.optional(),
 })
 export type SkillInputDynamicOption = z.infer<typeof SkillInputDynamicOption>
@@ -216,51 +155,36 @@ export const SkillInputOptionsResponse = z.object({
 export type SkillInputOptionsResponse = z.infer<typeof SkillInputOptionsResponse>
 
 /**
- * Braid-specific extension fields. Live under the `braid:` key of the YAML
- * frontmatter so they never collide with Claude Code's own fields, present
- * or future. Read by `SubprocessSkillRunner` for preflight validation
- * (env / path / MCP availability) before spawning.
+ * Per-skill agent selection. Every field is optional, unset ones fall back to the server agent,
+ * which defaults to claude-code.
+ */
+export const SkillAgentOverride = z.object({
+  kind: AgentKind.optional(),
+  model: z.string().min(1).optional(),
+  effort: AgentEffort.optional(),
+})
+export type SkillAgentOverride = z.infer<typeof SkillAgentOverride>
+
+/**
+ * Braid-specific fields under the braid: key, so they never collide with Claude Code's own.
+ * Read by SubprocessSkillRunner for preflight (env / path / MCP) before spawning.
  */
 export const BraidSkillExtension = z.object({
   requiredEnv: z.array(z.string()).default([]),
   requiredMcpServers: z.array(McpServerId).default([]),
+  // Picks agent/effort for this skill. Unset fields use the server default.
+  agent: SkillAgentOverride.optional(),
   category: SkillCategory.optional(),
-  /**
-   * Within the `build` category, the canonical step number (1, 2, 3, …).
-   * Studio sorts build skills by this. Ignored for ask / generate where
-   * inter-skill order is not semantically meaningful.
-   */
+  // Step number within build, Studio sorts by it. Ignored for ask / generate.
   order: z.number().int().positive().optional(),
-  /**
-   * One-line tagline (≤ 80 chars) for narrow Studio surfaces (sidebars,
-   * cards) where `description` is too long. When absent, Studio falls
-   * back to the first sentence of `description`.
-   *
-   * Lives under `braid:` because Claude Code itself doesn't recognise
-   * the field; keeping it out of the top-level frontmatter avoids
-   * polluting the CLI's namespace.
-   */
+  // One-line tagline for narrow Studio surfaces, else description's first sentence.
   summary: z.string().min(1).max(80).optional(),
-  /**
-   * Declarative form schema for the Studio Actions page. When omitted,
-   * Studio falls back to the legacy single textarea driven by
-   * `argumentHint`. See SkillInputDescriptor for the per-field shape and
-   * `docs/domain-vocabulary.md` for the provider naming taxonomy.
-   */
+  // Declarative form for the Actions page. Omitted falls back to the argumentHint textarea.
   inputs: z.array(SkillInputDescriptor).optional(),
-  // Skill exists for server-side orchestration only; Studio surfaces hide it from the Actions list.
+  // Server-side orchestration only, hidden from Studio's Actions list.
   hidden: z.boolean().optional(),
-  /**
-   * Workspace roles whose members may run this skill by default. Owner
-   * always implicitly allowed; this list applies to Maintainer / Guest.
-   * Omit (defaults to ['owner', 'maintainer']) for skills that mutate
-   * state or cost money. Set ['owner', 'maintainer', 'guest'] for
-   * read-only / customer-service-safe skills.
-   *
-   * Effective per-(member, skill) permission is computed by
-   * `requireSkillPermission` as:
-   *   member.skillOverrides[skillId] ?? allowedRoles.includes(member.role)
-   */
+  // Roles allowed to run this by default (owner implicit). Defaults to owner + maintainer.
+  // Add guest for read-only skills. Per-member skillOverrides take precedence.
   allowedRoles: z.array(WorkspaceRole).min(1).default(['owner', 'maintainer']),
 })
 export type BraidSkillExtension = z.infer<typeof BraidSkillExtension>
@@ -280,7 +204,7 @@ export const SkillManifest = z.object({
   path: AbsolutePath,
   frontmatter: SkillFrontmatter,
   extensionPath: AbsolutePath.optional(),
-  /** Set when `origin === 'plugin'`: which plugin contributed this skill. */
+  // Set when origin is plugin, naming which plugin contributed it.
   pluginId: PluginId.optional(),
 })
 export type SkillManifest = z.infer<typeof SkillManifest>
@@ -289,18 +213,14 @@ export const SkillEventStarted = z.object({
   type: z.literal('started'),
   runId: SkillRunId,
   skillId: SkillId,
-  /** The user-supplied argument string for this run (shown in the transcript). */
+  // The user-supplied argument string, shown in the transcript.
   args: z.string(),
-  /** True when this run resumed an existing claude session (follow-up turn). */
+  // True when this run resumed an existing claude session.
   resumed: z.boolean().default(false),
   at: Timestamp,
 })
 
-/**
- * Captured once claude reports its conversation session id. The frontend
- * keeps this and passes it back on the next run to continue the same
- * conversation via `claude --resume`.
- */
+/** The claude session id, passed to the next run to resume via claude --resume. */
 export const SkillEventSessionStarted = z.object({
   type: z.literal('session-started'),
   sessionId: z.string().min(1),
@@ -315,7 +235,7 @@ export const SkillEventToolCall = z.object({
   type: z.literal('tool-call'),
   tool: z.string().min(1),
   args: z.unknown(),
-  /** Stable id from the agent's stream, used to pair with a tool-result. */
+  // Stable id from the agent's stream, pairs with a tool-result.
   toolCallId: z.string().min(1).optional(),
 })
 
@@ -326,7 +246,7 @@ export const SkillEventToolResult = z.object({
   isError: z.boolean(),
 })
 
-export const SkillArtifactKind = z.enum(['proposal', 'clarify', 'decision', 'view'])
+export const SkillArtifactKind = z.enum(['proposal', 'clarify', 'view'])
 export type SkillArtifactKind = z.infer<typeof SkillArtifactKind>
 
 export const SkillEventArtifactWritten = z.object({
@@ -349,6 +269,39 @@ export const SkillEventError = z.object({
   at: Timestamp,
 })
 
+/**
+ * The agent's private reasoning, surfaced so a reviewer can see why a skill
+ * proposed what it did. Studio renders it collapsed, it is not the output.
+ */
+export const SkillEventThinking = z.object({
+  type: z.literal('thinking'),
+  text: z.string(),
+})
+
+/**
+ * The agent hit a usage limit. Only emitted when the run is actually
+ * throttled, so a stalled transcript reads as waiting rather than frozen.
+ */
+export const SkillEventRateLimit = z.object({
+  type: z.literal('rate-limit'),
+  status: z.string(),
+  // Unix seconds when the limit resets, when the agent reports it.
+  resetsAt: z.number().optional(),
+})
+
+/**
+ * Cost and effort of a finished run, surfaced so the reviewer sees what each
+ * skill run spent. Every field is optional, agents report a different subset.
+ */
+export const SkillEventUsage = z.object({
+  type: z.literal('usage'),
+  costUsd: z.number().optional(),
+  durationMs: z.number().optional(),
+  turns: z.number().optional(),
+  inputTokens: z.number().optional(),
+  outputTokens: z.number().optional(),
+})
+
 export const SkillEvent = z.discriminatedUnion('type', [
   SkillEventStarted,
   SkillEventSessionStarted,
@@ -358,17 +311,15 @@ export const SkillEvent = z.discriminatedUnion('type', [
   SkillEventArtifactWritten,
   SkillEventCompleted,
   SkillEventError,
+  SkillEventThinking,
+  SkillEventRateLimit,
+  SkillEventUsage,
 ])
 export type SkillEvent = z.infer<typeof SkillEvent>
 
 /**
- * Persisted summary of a single skill run, written to the workspace's
- * `artifacts/runs/index.jsonl` (append-only). The same runId can appear in
- * multiple lines as the run progresses (started, session-started, completed);
- * the reader keeps the last entry per runId.
- *
- * The full event stream for a run lives separately at
- * `artifacts/runs/<runId>.jsonl` (one SkillEvent per line).
+ * Append-only run summary in artifacts/runs/index.jsonl, reader keeps the last line per runId.
+ * The full event stream lives at artifacts/runs/<runId>.jsonl.
  */
 export const RunRecord = z.object({
   runId: SkillRunId,
@@ -376,7 +327,7 @@ export const RunRecord = z.object({
   skillId: SkillId,
   args: z.string(),
   resumed: z.boolean().default(false),
-  /** Set once claude reports its session id; absent for runs that errored before that point. */
+  // Set once claude reports its session id, absent if the run errored first.
   sessionId: z.string().min(1).optional(),
   startedAt: Timestamp,
   completedAt: Timestamp.optional(),
@@ -385,11 +336,8 @@ export const RunRecord = z.object({
 export type RunRecord = z.infer<typeof RunRecord>
 
 /**
- * Per-session user-facing metadata. Stored separately from `RunRecord`
- * because the lifecycle is owned by the reviewer (rename / future
- * pin / colour) rather than the run itself. Persists at
- * `artifacts/runs/sessions.jsonl` (append-only, last-wins per
- * `sessionId`).
+ * Per-session user metadata, separate from RunRecord. The reviewer owns it (rename).
+ * Append-only at artifacts/runs/sessions.jsonl, last-wins per sessionId.
  */
 export const SessionMetadata = z.object({
   sessionId: z.string().min(1),

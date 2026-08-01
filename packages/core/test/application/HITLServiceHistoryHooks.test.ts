@@ -1,55 +1,38 @@
 import type {
-  ClarifyTicketId,
-  CommitMessage,
-  CommitMeta,
-  CommitSha,
-  FileDiff,
+  ClarificationCandidateId,
+  ClarificationId,
   ModelSnapshot,
   NodeId,
   NodeStatus,
   NodeTypeId,
   ProposalId,
   SkillId,
-  TagMeta,
   UserId,
   WorkspaceId,
 } from '@braidhq/schema'
-import type { GraphSerializer } from '../../src/domain/model/GraphSerializer.js'
-import type { ListCommitsOptions, Workspace, WorkspaceHistory } from '../../src/index.js'
-import { FixedClock, makeWorkspace, mintTestId, resetTestIds, T0 } from '@braidhq/test-utils'
+import type { ModelSerializer } from '../../src/domain/model/ModelSerializer.js'
+import type { Workspace } from '../../src/index.js'
+import { FixedClock, makeProposal, makeWorkspace, mintTestId, resetTestIds } from '@braidhq/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  ClarifyTicket,
-  HITLService,
-  PluginRegistry,
-  Proposal,
-  ValidationService,
-  WorkspaceService,
-} from '../../src/index.js'
-import {
-  InMemoryClarifyTicketRepository,
-  InMemoryDecisionRepository,
+  InMemoryClarificationRepository,
   InMemoryModelRepository,
   InMemoryProposalRepository,
   InMemoryWorkspaceRepository,
-} from '../../src/testing.js'
+} from '../../src/in-memory.js'
+import {
+  Clarification,
+  HITLService,
+  ModelValidationService,
+  PluginRegistry,
+  WorkspaceService,
+} from '../../src/index.js'
+import { SpyWorkspaceHistory } from '../helpers/doubles.js'
 
 const userId = 'u-1' as UserId
+const candidateId = 'cc-1' as ClarificationCandidateId
 
-class SpyHistory implements WorkspaceHistory {
-  readonly commit = vi.fn(async (_workspace: Workspace, _message: CommitMessage): Promise<CommitSha> => '0'.repeat(40) as CommitSha)
-  readonly ensureInitialised = vi.fn(async (): Promise<void> => {})
-  readonly listCommits = vi.fn(async (_ws: Workspace, _opts?: ListCommitsOptions): Promise<readonly CommitMeta[]> => [])
-  readonly getCommit = vi.fn(async (): Promise<CommitMeta | null> => null)
-  readonly getCommitDiff = vi.fn(async (): Promise<readonly FileDiff[]> => [])
-  readonly readGraphAtCommit = vi.fn(async (): Promise<ModelSnapshot> => ({ nodes: [], edges: [] }))
-  readonly restore = vi.fn(async (): Promise<CommitSha> => '0'.repeat(40) as CommitSha)
-  readonly tag = vi.fn(async (): Promise<TagMeta> => ({ name: '', sha: '0'.repeat(40) as CommitSha, createdAt: T0 }))
-  readonly listTags = vi.fn(async (): Promise<readonly TagMeta[]> => [])
-  readonly deleteTag = vi.fn(async (): Promise<void> => {})
-}
-
-class SpySerializer implements GraphSerializer {
+class SpySerializer implements ModelSerializer {
   readonly write = vi.fn(async (_workspace: Workspace, _snapshot: ModelSnapshot): Promise<void> => {})
   readonly read = vi.fn(async (): Promise<ModelSnapshot | null> => null)
   readonly exists = vi.fn(async (): Promise<boolean> => false)
@@ -61,74 +44,55 @@ async function setupWithHistory(options: { withHistory?: boolean } = {}) {
   await workspaceRepo.save(workspace)
   const workspaceService = new WorkspaceService({ workspaceRepository: workspaceRepo, pluginRegistry: new PluginRegistry() })
   const proposalRepository = new InMemoryProposalRepository()
-  const clarifyRepository = new InMemoryClarifyTicketRepository()
-  const decisionRepository = new InMemoryDecisionRepository()
+  const clarificationRepository = new InMemoryClarificationRepository()
   const modelRepository = new InMemoryModelRepository()
   const clock = new FixedClock()
-  const validationService = new ValidationService({ pluginRegistry: new PluginRegistry() })
+  const modelValidationService = new ModelValidationService({ pluginRegistry: new PluginRegistry() })
 
-  const history = new SpyHistory()
+  const history = new SpyWorkspaceHistory()
   const serializer = new SpySerializer()
   const service = new HITLService({
     proposalRepository,
-    clarifyRepository,
-    decisionRepository,
+    clarificationRepository,
     modelRepository,
-    validationService,
+    modelValidationService,
     workspaceService,
     clock,
-    ...(options.withHistory === false ? {} : { history, graphSerializer: serializer }),
+    ...(options.withHistory === false ? {} : { history, modelSerializer: serializer }),
   })
 
-  return { service, history, serializer, workspaceId: workspace.id, workspace, proposalRepository, clarifyRepository, clock }
+  return { service, history, serializer, workspaceId: workspace.id, workspace, proposalRepository, clarificationRepository, clock }
 }
 
-function makeProposal(workspaceId: WorkspaceId, overrides: { id?: ProposalId } = {}): Proposal {
-  return new Proposal({
-    id: overrides.id ?? (mintTestId('p') as ProposalId),
-    workspaceId,
-    status: 'pending',
-    operations: [{
-      operation: 'addNode',
-      payload: {
-        type: 'command' as NodeTypeId,
-        name: 'voidTask',
-        id: mintTestId('n') as NodeId,
-        status: 'draft' as NodeStatus,
-        metadata: { sourceReferences: [], implementationMissing: true },
-      },
-    }],
-    generatedBy: 'extract' as SkillId,
-    generatedAt: T0,
-    rationale: 'add voidTask',
-  })
-}
-
-function makeAnsweredTicket(workspaceId: WorkspaceId): ClarifyTicket {
-  return new ClarifyTicket({
-    id: mintTestId('ct') as ClarifyTicketId,
+function makeAnsweredTicket(workspaceId: WorkspaceId): Clarification {
+  return new Clarification({
+    id: mintTestId('ct') as ClarificationId,
     workspaceId,
     question: 'q?',
     candidates: [],
     status: 'answered',
-    selectedCandidateId: 'cc-1' as never,
+    selectedCandidateId: candidateId,
     resolution: [],
     answeredBy: userId,
+    owner: 'system',
+    origin: 'skill',
   })
 }
 
-function makePendingTicket(workspaceId: WorkspaceId): ClarifyTicket {
-  return new ClarifyTicket({
-    id: mintTestId('ct') as ClarifyTicketId,
+function makePendingTicket(workspaceId: WorkspaceId): Clarification {
+  return new Clarification({
+    id: mintTestId('ct') as ClarificationId,
     workspaceId,
     question: 'q?',
     candidates: [{
-      id: 'cc-1' as never,
+      id: candidateId,
       description: 'option A',
       sourceReferences: [],
       proposedOperations: [],
     }],
     status: 'pending',
+    owner: 'system',
+    origin: 'skill',
   })
 }
 
@@ -137,7 +101,7 @@ describe('HITLService — workspace history hooks', () => {
     resetTestIds()
   })
 
-  it('submitProposal commits with kind=proposal-submit so the artefact is visible to collaborators', async () => {
+  it('submitProposal commits with kind proposal-submit', async () => {
     const { service, history, workspaceId } = await setupWithHistory()
     const proposal = await service.submitProposal({
       workspaceId,
@@ -160,20 +124,20 @@ describe('HITLService — workspace history hooks', () => {
     expect(message.proposalId).toBe(proposal.id)
   })
 
-  it('submitClarifyTicket commits with kind=clarify-submit', async () => {
+  it('submitClarification commits with kind=clarification-submit', async () => {
     const { service, history, workspaceId } = await setupWithHistory()
-    const ticket = await service.submitClarifyTicket({
+    const ticket = await service.submitClarification({
       workspaceId,
       question: 'agg or entity?',
       candidates: [],
     })
     expect(history.commit).toHaveBeenCalledTimes(1)
     const message = history.commit.mock.calls[0]![1]
-    expect(message.kind).toBe('clarify-submit')
-    expect(message.clarifyTicketId).toBe(ticket.id)
+    expect(message.kind).toBe('clarification-submit')
+    expect(message.clarificationId).toBe(ticket.id)
   })
 
-  it('applyProposal serialises the post-mutation graph then commits with kind=apply', async () => {
+  it('applyProposal serialises the post-mutation graph then commits with kind proposal-apply', async () => {
     const { service, history, serializer, workspaceId, proposalRepository } = await setupWithHistory()
     const proposal = makeProposal(workspaceId)
     await proposalRepository.save(proposal)
@@ -186,8 +150,7 @@ describe('HITLService — workspace history hooks', () => {
     expect(message.kind).toBe('proposal-apply')
     expect(message.proposalId).toBe(proposal.id)
     expect(message.userId).toBe(userId)
-    // Write must precede commit so the commit's tree captures the new
-    // graph state.
+    // Write must precede commit, so the commit's tree captures the new graph state.
     expect(serializer.write.mock.invocationCallOrder[0]!)
       .toBeLessThan(history.commit.mock.invocationCallOrder[0]!)
   })
@@ -205,48 +168,48 @@ describe('HITLService — workspace history hooks', () => {
     expect(history.commit.mock.calls[0]![1].proposalId).toBe(proposal.id)
   })
 
-  it('answerClarifyTicket commits with kind=clarify-answer', async () => {
-    const { service, history, workspaceId, clarifyRepository } = await setupWithHistory()
+  it('answerClarification commits with kind=clarification-answer', async () => {
+    const { service, history, workspaceId, clarificationRepository } = await setupWithHistory()
     const ticket = makePendingTicket(workspaceId)
-    await clarifyRepository.save(ticket)
+    await clarificationRepository.save(ticket)
 
-    await service.answerClarifyTicket({
-      clarifyTicketId: ticket.id,
-      selection: { kind: 'existing', candidateId: 'cc-1' as never },
+    await service.answerClarification({
+      clarificationId: ticket.id,
+      selection: { kind: 'existing', candidateId },
       userId,
     })
 
     expect(history.commit).toHaveBeenCalledTimes(1)
     const message = history.commit.mock.calls[0]![1]
-    expect(message.kind).toBe('clarify-answer')
-    expect(message.clarifyTicketId).toBe(ticket.id)
+    expect(message.kind).toBe('clarification-answer')
+    expect(message.clarificationId).toBe(ticket.id)
   })
 
-  it('markClarifyTicketApplied commits with kind=clarify-applied and stamps proposalId when present', async () => {
-    const { service, history, workspaceId, clarifyRepository } = await setupWithHistory()
+  it('markClarificationApplied commits with kind=clarification-apply and stamps proposalId when present', async () => {
+    const { service, history, workspaceId, clarificationRepository } = await setupWithHistory()
     const ticket = makeAnsweredTicket(workspaceId)
-    await clarifyRepository.save(ticket)
+    await clarificationRepository.save(ticket)
     const proposalId = mintTestId('p') as ProposalId
 
-    await service.markClarifyTicketApplied(ticket.id, userId, proposalId)
+    await service.markClarificationApplied(ticket.id, userId, proposalId)
 
     expect(history.commit).toHaveBeenCalledTimes(1)
     const message = history.commit.mock.calls[0]![1]
-    expect(message.kind).toBe('clarify-apply')
-    expect(message.clarifyTicketId).toBe(ticket.id)
+    expect(message.kind).toBe('clarification-apply')
+    expect(message.clarificationId).toBe(ticket.id)
     expect(message.proposalId).toBe(proposalId)
   })
 
-  it('skipClarifyTicket commits with kind=clarify-skip', async () => {
-    const { service, history, workspaceId, clarifyRepository } = await setupWithHistory()
+  it('skipClarification commits with kind=clarification-skip', async () => {
+    const { service, history, workspaceId, clarificationRepository } = await setupWithHistory()
     const ticket = makePendingTicket(workspaceId)
-    await clarifyRepository.save(ticket)
+    await clarificationRepository.save(ticket)
 
-    await service.skipClarifyTicket(ticket.id, 'not relevant', userId)
+    await service.skipClarification(ticket.id, 'not relevant', userId)
 
     expect(history.commit).toHaveBeenCalledTimes(1)
-    expect(history.commit.mock.calls[0]![1].kind).toBe('clarify-skip')
-    expect(history.commit.mock.calls[0]![1].clarifyTicketId).toBe(ticket.id)
+    expect(history.commit.mock.calls[0]![1].kind).toBe('clarification-skip')
+    expect(history.commit.mock.calls[0]![1].clarificationId).toBe(ticket.id)
   })
 
   it('skips git hooks entirely when deps are absent (in-process / test mode)', async () => {

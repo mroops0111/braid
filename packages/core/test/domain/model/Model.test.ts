@@ -1,4 +1,4 @@
-import type { EdgeId, EdgeTypeId, GraphOperation, NewGraphEdge, NewGraphNode, NodeId, NodeStatus, NodeTypeId } from '@braidhq/schema'
+import type { EdgeId, EdgeTypeId, GraphEdgeCreate, GraphNodeCreate, GraphOperation, NodeId, NodeStatus, NodeTypeId } from '@braidhq/schema'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { ConflictError, Model, NotFoundError } from '../../../src/index.js'
 
@@ -8,7 +8,7 @@ const EMITS = 'emits' as EdgeTypeId
 const TRIGGERS = 'triggers' as EdgeTypeId
 const DRAFT = 'draft' as NodeStatus
 
-function newNode(overrides: Partial<NewGraphNode> = {}): NewGraphNode {
+function newNode(overrides: Partial<GraphNodeCreate> = {}): GraphNodeCreate {
   return {
     type: COMMAND,
     name: 'voidTask',
@@ -17,7 +17,7 @@ function newNode(overrides: Partial<NewGraphNode> = {}): NewGraphNode {
   }
 }
 
-function newEdge(from: NodeId, to: NodeId, overrides: Partial<NewGraphEdge> = {}): NewGraphEdge {
+function newEdge(from: NodeId, to: NodeId, overrides: Partial<GraphEdgeCreate> = {}): GraphEdgeCreate {
   return {
     type: CONTAINS,
     fromNodeId: from,

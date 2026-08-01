@@ -16,7 +16,7 @@ function started(): SkillEvent {
   return {
     type: 'started',
     runId: 'sr-1' as SkillRunId,
-    skillId: 'braid-ask' as SkillId,
+    skillId: 'braid:ask' as SkillId,
     args: '',
     resumed: false,
     at: now,
@@ -27,6 +27,20 @@ describe('groupTranscript', () => {
   it('passes through non-tool events as their own items', () => {
     const items = groupTranscript([started(), message('hi')])
     expect(items.map(i => i.kind)).toEqual(['event', 'event'])
+  })
+
+  it('passes the surfacing events (thinking, usage, rate-limit) through as items', () => {
+    const events: SkillEvent[] = [
+      { type: 'thinking', text: 'reasoning' },
+      { type: 'usage', costUsd: 0.1 },
+      { type: 'rate-limit', status: 'rejected' },
+    ]
+    const items = groupTranscript(events)
+    expect(items.map(item => (item.kind === 'event' ? item.event.type : 'group'))).toEqual([
+      'thinking',
+      'usage',
+      'rate-limit',
+    ])
   })
 
   it('merges consecutive tool-call + tool-result into one group', () => {

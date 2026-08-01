@@ -1,6 +1,6 @@
 import type { Clock, WorkspaceService } from '@braidhq/core'
 import type { SkillId, Timestamp, WorkspaceMember as WorkspaceMemberType } from '@braidhq/schema'
-import type { WorkspaceRegistryFile } from '../infrastructure/fs/WorkspaceRegistryFile.js'
+import type { WorkspaceRegistryFile } from '../infrastructure/workspace/WorkspaceRegistryFile.js'
 import { NotFoundError } from '@braidhq/core'
 import { SkillPermission, UserId, WorkspaceRole } from '@braidhq/schema'
 import { zValidator } from '@hono/zod-validator'
@@ -35,8 +35,8 @@ export function createWorkspaceMembersRouter(deps: WorkspaceMembersRouterDeps): 
   const router = new Hono()
   const ownerOnly = requirePermission('workspace.write')
 
-  // List is open to every member of the workspace. The access
-  // middleware upstream already enforced membership.
+  // List is open to every member of the workspace.
+  // The access middleware upstream already enforced membership.
   router.get('/', async (context) => {
     const workspaceId = getWorkspaceId(context)
     const workspace = await deps.workspaceService.findById(workspaceId)

@@ -1,24 +1,26 @@
-import type { HITLService, ModelRepository, ProposalRepository, ValidationService, WorkspaceService } from '@braidhq/core'
-import { Decision, Proposal, ProposalDraft, ProposalId, ProposalStatus, UserId, ValidationResult } from '@braidhq/schema'
+import type { HITLService, ModelRepository, ModelValidationService, ProposalRepository, WorkspaceService } from '@braidhq/core'
+import { Proposal, ProposalCreate, ProposalId, ProposalStatus, UserId, ValidationResult } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
-import { getUserId } from '../middleware/userId.js'
+import { getUserId } from '../middleware/auth.js'
 import { getViewerContext, requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 import { assertEntityInWorkspace } from './helpers.js'
 
 const ListQuery = z.object({
-  status: z.union([ProposalStatus, z.array(ProposalStatus)]).optional().openapi({ description: 'Filter by proposal status; pass one or many.' }),
+  status: z.union([ProposalStatus, z.array(ProposalStatus)]).optional().openapi({ description: 'Filter by proposal status. Pass one or many.' }),
   limit: z.coerce.number().int().positive().optional(),
   offset: z.coerce.number().int().nonnegative().optional(),
   showAll: z.coerce.boolean().optional().openapi({ description: 'Owner-only: bypass the personal-pending filter so every member\'s drafts are visible.' }),
 })
 
-// Body `userId` is a back-compat shim for API consumers that haven't
-// migrated to the `X-Braid-User` header / Bearer-token flow. When
-// present it overrides the middleware-derived id; when omitted the
-// handler falls back to `getUserId(c)`. Studio sends it via header
-// only; the path will be removed once the deprecation window closes.
+// Body `userId` is a back-compat shim.
+// It serves API consumers still on neither the `X-Braid-User` header,
+// nor the Bearer-token flow.
+// When present it overrides the middleware-derived id.
+// When omitted the handler falls back to `getUserId(c)`.
+// Studio sends it via header only.
+// The path will be removed once the deprecation window closes.
 const ApplyBody = z.object({
   userId: UserId.optional(),
 }).openapi('ProposalApplyBody')
@@ -28,10 +30,10 @@ const RejectBody = z.object({
   userId: UserId.optional(),
 }).openapi('ProposalRejectBody')
 
-// Skill-facing create. Body must carry `workspaceId` matching the route
-// param; we let zod parse the rest of the ProposalDraft fields and let
-// HITLService.submitProposal validate ops against the live graph.
-const CreateBody = ProposalDraft.omit({ workspaceId: true }).openapi('ProposalCreateBody')
+// Skill-facing create. Body must carry `workspaceId` matching the route param.
+// Zod parses the rest of the ProposalCreate fields,
+// and HITLService.submitProposal validates ops against the live graph.
+const CreateBody = ProposalCreate.omit({ workspaceId: true }).openapi('ProposalCreateBody')
 
 const ProposalIdParam = WorkspaceIdParam.extend({
   proposalId: ProposalId.openapi({ param: { name: 'proposalId', in: 'path' } }),
@@ -45,7 +47,7 @@ export interface ProposalsRouterDeps {
   hitlService: HITLService
   proposalRepository: ProposalRepository
   modelRepository: ModelRepository
-  validationService: ValidationService
+  modelValidationService: ModelValidationService
   workspaceService: WorkspaceService
 }
 
@@ -107,7 +109,7 @@ const validateProposalRoute = createRoute({
   method: 'get',
   path: '/{proposalId}/validate',
   operationId: 'validateProposal',
-  summary: 'Pre-apply check; returns the validation issues a proposal would hit if applied now.',
+  summary: 'Pre-apply check that returns the validation issues a proposal would hit if applied now.',
   tags: ['proposals'],
   request: { params: ProposalIdParam },
   responses: {
@@ -131,8 +133,8 @@ const applyProposalRoute = createRoute({
   },
   responses: {
     200: {
-      description: 'The recorded Decision.',
-      content: { 'application/json': { schema: Decision } },
+      description: 'The updated proposal.',
+      content: { 'application/json': { schema: Proposal } },
     },
     404: NotFoundResponse,
   },
@@ -150,8 +152,8 @@ const rejectProposalRoute = createRoute({
   },
   responses: {
     200: {
-      description: 'The recorded Decision.',
-      content: { 'application/json': { schema: Decision } },
+      description: 'The updated proposal.',
+      content: { 'application/json': { schema: Proposal } },
     },
     404: NotFoundResponse,
   },
@@ -159,9 +161,9 @@ const rejectProposalRoute = createRoute({
 
 export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
-  // Apply / reject are HITL decisions — Owner + Maintainer only. Guests
-  // never see the buttons (UI hides the tab) but defence-in-depth here
-  // means a direct curl from a Guest token still 403s.
+  // Apply and reject are HITL decisions, Owner and Maintainer only.
+  // Guests never see the buttons, the UI hides the tab.
+  // Defence-in-depth here means a direct curl from a Guest still 403s.
   router.use('/:proposalId/apply', requirePermission('proposal.write'))
   router.use('/:proposalId/reject', requirePermission('proposal.write'))
 
@@ -177,9 +179,9 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     const workspaceId = getWorkspaceId(context)
     const { status, limit, offset, showAll } = context.req.valid('query')
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
-    // Show All bypass is gated to the workspace owner; everyone else
-    // is forced through the personal-pending filter regardless of
-    // what they send.
+    // Show All bypass is gated to the workspace owner.
+    // Everyone else is forced through the personal-pending filter,
+    // whatever they send.
     const viewer = getViewerContext(context)
     const viewerId = (showAll && viewer?.effectiveRole === 'owner') ? undefined : getUserId(context)
     const proposals = await deps.proposalRepository.list({
@@ -207,7 +209,7 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     assertEntityInWorkspace(workspaceId, proposal.workspaceId, 'Proposal', proposalId)
     const workspace = await deps.workspaceService.findById(workspaceId)
     const snapshot = await deps.modelRepository.load(workspaceId)
-    const result = await deps.validationService.validateOperations(snapshot, proposal.operations, workspace)
+    const result = await deps.modelValidationService.validateOperations(snapshot, proposal.operations, workspace)
     return context.json(result, 200)
   })
 
@@ -218,8 +220,8 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     const userId = body.userId ?? getUserId(context)
     const proposal = await deps.proposalRepository.load(proposalId)
     assertEntityInWorkspace(workspaceId, proposal.workspaceId, 'Proposal', proposalId)
-    const decision = await deps.hitlService.applyProposal(proposalId, userId)
-    return context.json(decision, 200)
+    const applied = await deps.hitlService.applyProposal(proposalId, userId)
+    return context.json(applied.toData(), 200)
   })
 
   router.openapi(rejectProposalRoute, async (context) => {
@@ -229,8 +231,8 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     const userId = bodyUserId ?? getUserId(context)
     const proposal = await deps.proposalRepository.load(proposalId)
     assertEntityInWorkspace(workspaceId, proposal.workspaceId, 'Proposal', proposalId)
-    const decision = await deps.hitlService.rejectProposal(proposalId, reason, userId)
-    return context.json(decision, 200)
+    const rejected = await deps.hitlService.rejectProposal(proposalId, reason, userId)
+    return context.json(rejected.toData(), 200)
   })
 
   return router

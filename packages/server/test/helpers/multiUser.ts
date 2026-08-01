@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { UserId, WorkspaceId } from '@braidhq/schema'
 import { createApp } from '../../src/app.js'
-import { composeFsApp } from '../../src/composeFs.js'
+import { composeFsApp } from '../../src/composeFsApp.js'
 
 const TEST_TIMESTAMP = '2026-01-01T00:00:00.000Z' as Timestamp
 
@@ -19,8 +19,8 @@ function makeUser(id: string, displayName: string, serverRole: 'admin' | 'user')
 }
 
 /**
- * Fixed test users covering every permission axis. Reused across
- * route tests so assertions can speak in terms of `users.owner`
+ * Fixed test users covering every permission axis.
+ * Reused across route tests so assertions can speak in terms of `users.owner`,
  * rather than freshly-minted ids per test file.
  */
 export const TEST_USERS = {
@@ -44,10 +44,8 @@ export interface MultiUserAppHandle {
 
 export interface BuildMultiUserAppOptions {
   /**
-   * Members seeded into the workspace registry. The `owner` user is
-   * always included as owner unless `omitOwner` is set; `maintainer`
-   * and `guest` are optional convenience flags. Pass `extra` for any
-   * other shape.
+   * Members seeded into the workspace registry. The `owner` user is always included as owner unless `omitOwner` is set,
+   * `maintainer` and `guest` are optional convenience flags. Pass `extra` for any other shape.
    */
   readonly members?: {
     omitOwner?: boolean
@@ -58,10 +56,9 @@ export interface BuildMultiUserAppOptions {
 }
 
 /**
- * Build a server app backed by a real `~/.braid`-style filesystem
- * layout with seeded users + a canonical workspace. composeFsApp
- * defaults `localTrust: true`, so callers pass `X-Braid-User`
- * (see `asUser`) to act as a specific identity.
+ * Build a server app backed by a real `~/.braid`-style filesystem layout with seeded users + a canonical workspace.
+ * composeFsApp defaults to single-tenant,
+ * so callers pass `X-Braid-User` (see `asUser`) to act as a specific identity.
  */
 export async function buildMultiUserApp(
   options: BuildMultiUserAppOptions = {},
@@ -82,9 +79,8 @@ export async function buildMultiUserApp(
 }
 
 /**
- * Request init that acts as the given user via `X-Braid-User`. Use
- * with `app.request(path, asUser(users.owner.id))` for GETs, or spread
- * into a larger init via `{ ...asUser(id), method: 'POST', ... }`.
+ * Request init that acts as the given user via `X-Braid-User`. Use with `app.request(path,
+ * asUser(users.owner.id))` for GETs, or spread into a larger init via `{ ...asUser(id), method: 'POST', ... }`.
  */
 export function asUser(userId: User['id']): { headers: Record<string, string> } {
   return { headers: { 'X-Braid-User': userId } }
@@ -115,8 +111,6 @@ async function seedCanonicalWorkspace(braidHome: string, name: string): Promise<
   await mkdir(dir, { recursive: true })
   const manifest = `---
 name: ${name}
-agents:
-  default: claude-default
 storage:
   kind: in-memory
   config: {}

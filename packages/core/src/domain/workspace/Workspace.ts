@@ -1,7 +1,5 @@
 import type {
   AbsolutePath,
-  AgentBindingDescriptor,
-  AgentRoutingConfig,
   FilesystemSourceDescriptor,
   McpServerConfig,
   McpServerId,
@@ -35,14 +33,6 @@ export class Workspace {
 
   get mcpServers(): readonly McpServerConfig[] {
     return this.data.productManifest.mcpServers
-  }
-
-  get agentBindings(): readonly AgentBindingDescriptor[] {
-    return this.data.productManifest.agentBindings
-  }
-
-  get agentRouting(): AgentRoutingConfig {
-    return this.data.productManifest.agents
   }
 
   get storage(): StorageDescriptor {
@@ -89,11 +79,6 @@ export class Workspace {
     if (!source)
       throw new NotFoundError(`Source "${name}" not found in workspace`)
     return source
-  }
-
-  resolveAgentForTask(taskName: string): string {
-    const tasks = this.data.productManifest.agents.tasks
-    return tasks[taskName] ?? this.data.productManifest.agents.default
   }
 
   toData(): WorkspaceData {

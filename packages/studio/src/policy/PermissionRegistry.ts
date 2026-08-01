@@ -1,4 +1,4 @@
-import type { Capability } from './Capability'
+import type { Capability } from '@braidhq/schema'
 import type { CapabilityCheck } from './CapabilityCheck'
 import type { ViewerContext } from './ViewerContext'
 

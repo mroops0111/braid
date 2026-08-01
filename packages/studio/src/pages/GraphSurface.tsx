@@ -13,16 +13,16 @@ export type { GraphView } from '@/components/graph/GraphToolbar'
 export interface GraphSurfaceProps {
   workspaceId: string
   /**
-   * Optional preview source (proposal diff overlay). Omit to render
-   * the live workspace snapshot via the components' internal fetch.
+   * Optional preview source (proposal diff overlay).
+   * Omit to render the live workspace snapshot via the internal fetch.
    */
   source?: GraphDataSource
   /**
-   * The surface is fully controlled — the parent owns `view`,
-   * `selectedNodeId`, `selectedEdgeId`, and `focusMode` so a
-   * page-level toolbar (or section header) can drive them.
-   * Node and edge selection are mutually exclusive; setting one
-   * should clear the other in the parent's setter pair.
+   * The surface is fully controlled. The parent owns `view`,
+   * `selectedNodeId`, `selectedEdgeId`, and `focusMode`,
+   * so a page-level toolbar or section header can drive them.
+   * Node and edge selection are mutually exclusive,
+   * so setting one should clear the other in the parent's setter pair.
    */
   view: GraphView
   selectedNodeId: NodeId | null
@@ -38,12 +38,13 @@ export interface GraphSurfaceProps {
 }
 
 /**
- * Renders either the Canvas or the Table for the same shared
- * (node selection, edge selection, focus, diff overlay) state.
- * Consumed by the Graph page (live snapshot) and the Proposals
- * preview (diff source). Toolbar placement is left to the consumer;
- * see {@link GraphSurfaceActions} for the canonical Focus +
- * ViewToggle pair when defaults suffice.
+ * Renders either the Canvas or the Table,
+ * for the same shared node, edge, focus, and diff-overlay state.
+ * Consumed by the Graph page for a live snapshot,
+ * and by the Proposals preview for a diff source.
+ * Toolbar placement is left to the consumer.
+ * See {@link GraphSurfaceActions} for the canonical Focus and ViewToggle pair,
+ * when defaults suffice.
  */
 export function GraphSurface({
   workspaceId,
@@ -103,10 +104,11 @@ export function useGraphSurfaceState(initialView: GraphView = 'visualization') {
 }
 
 /**
- * Canonical Focus + ViewToggle pair. Focus is hidden when no node is
- * selected (a no-op chord shouldn't sit in the toolbar). Pages with
- * extra views (e.g. Proposals' "list") can ignore this helper and
- * compose `FocusToggle` / `ViewToggle` directly.
+ * Canonical Focus and ViewToggle pair.
+ * Focus is hidden when no node is selected,
+ * since a no-op chord should not sit in the toolbar.
+ * Pages with extra views, such as Proposals' "list",
+ * can ignore this helper and compose `FocusToggle` and `ViewToggle` directly.
  */
 export function GraphSurfaceActions({
   view,

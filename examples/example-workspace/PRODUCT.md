@@ -1,7 +1,7 @@
 ---
 name: example
 version: 0.1.0
-description: Minimal Braid workspace template. Copy this directory, edit the source paths, and point Braid at it.
+description: A demo online store that models the shopping-cart bounded context.
 ontologyId: ddd
 
 sources:
@@ -19,72 +19,11 @@ sources:
 
 mcpServers: []
 
-agents:
-  default: claude-default
-  tasks: {}
-
-agentBindings:
-  - id: claude-default
-    kind: claude-code
-    model: opus
-    effort: high
-    extraArgs: []
-    env: {}
-
 storage:
   kind: kuzu
   config: {}
-
-channels:
-  - kind: http
-    config:
-      port: 4321
 ---
 
-# Example Workspace
+# Example Store
 
-A minimal Braid workspace you can copy and adapt. Edit the `sources:` paths
-above to point at your own intent (PRD / RFC) directories and codebases.
-
-## Usage
-
-```bash
-WORKSPACE_DIR="$(pwd)/examples/example-workspace"
-
-# Boot the server (uses embedded Kuzu storage; data lives at .braid/model.kuzu)
-pnpm --filter @braidhq/server dev
-```
-
-In another terminal:
-
-```bash
-# Register the workspace
-curl -X POST http://localhost:4321/workspaces \
-  -H 'Content-Type: application/json' \
-  -d "{\"rootPath\":\"$WORKSPACE_DIR\"}"
-
-# List installed skills
-curl http://localhost:4321/workspaces/example-workspace/skills
-
-# Run extract (requires `claude` CLI on PATH)
-curl -X POST http://localhost:4321/workspaces/example-workspace/skills/braid-extract/run \
-  -H 'Content-Type: application/json' \
-  -d '{"args":"signup"}'
-```
-
-## Directory layout
-
-```
-example-workspace/
-├── PRODUCT.md                    ← this file (frontmatter is the workspace SSoT)
-├── intent/                       ← put PRD markdown here
-├── code/                         ← symlink or path to real repos
-│   └── app -> ../../path/to/your/app
-├── skills/                       ← workspace-only custom skills
-├── skill-extensions/             ← extend built-in skills via EXTEND.md
-└── artifacts/                    ← produced by skills (gitignored)
-    ├── proposals/{pending,applied,rejected}/
-    ├── clarify/{pending,answered,applied,skipped}/
-    ├── decisions/
-    └── views/{docs,features}/
-```
+A small online store, modelled down to a single bounded context, the shopping cart. A customer assembles items in a cart until checkout hands the order off to a separate order context. A cart holds at most 99 distinct items, rejects non-positive quantities, and is discarded after 30 days of inactivity.

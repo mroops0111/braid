@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { LogOut, UserRound } from 'lucide-react'
+import { Loader2, LogOut, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { clearAuthToken } from '@/lib/authToken'
@@ -18,10 +18,9 @@ import { Input } from './ui/input'
 import { Label } from './ui/label'
 
 /**
- * Title-bar identity readout. Local mode has exactly one account
- * (`local-user`); this picker shows its current displayName and lets
- * the user rename it. Phase B (Google OAuth) will replace the picker
- * with a "Sign in" / "Sign out" surface for remote servers.
+ * Title-bar identity readout.
+ * Local mode has exactly one account, `local-user`.
+ * This picker shows its current displayName and lets the user rename it.
  */
 export function UserPicker() {
   const [open, setOpen] = useState(false)
@@ -96,8 +95,9 @@ function RenameDialog({
       await api.logout()
     }
     catch {
-      // Logout is best-effort: a network error shouldn't trap a user
-      // in a session they want to leave. We still clear locally.
+      // Logout is best-effort.
+      // A network error should not trap a user in a session they want to leave.
+      // We still clear locally.
     }
     clearAuthToken()
     queryClient.clear()
@@ -128,7 +128,7 @@ function RenameDialog({
             }}
             placeholder={me?.displayName ?? ''}
           />
-          {error && <p className="text-[11px] text-destructive">{error}</p>}
+          {error && <p className="text-2xs text-destructive">{error}</p>}
         </div>
         <DialogFooter className="sm:justify-between">
           {token
@@ -148,6 +148,7 @@ function RenameDialog({
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button size="sm" onClick={save} disabled={saving || !value.trim() || value.trim() === me?.displayName}>
+              {saving && <Loader2 className="mr-1 size-3 animate-spin" />}
               {saving ? 'Saving…' : 'Save'}
             </Button>
           </div>

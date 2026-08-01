@@ -1,16 +1,14 @@
-import type { AppDependencies } from './composition.js'
+import type { AppDependencies } from './composeApp.js'
 import { OpenAPIHono } from '@hono/zod-openapi'
 import { authMiddleware } from './middleware/auth.js'
 import { corsMiddleware } from './middleware/cors.js'
 import { errorHandler } from './middleware/error.js'
-import { userIdMiddleware } from './middleware/userId.js'
 import { workspaceAccessMiddleware } from './middleware/workspaceAccess.js'
 import { workspaceIdMiddleware } from './middleware/workspaceId.js'
 import { createAdminRouter } from './routes/admin.js'
 import { createAuthRouter } from './routes/auth.js'
 import { createBatchRouter } from './routes/batch.js'
-import { createClarifyRouter } from './routes/clarify.js'
-import { createDecisionsRouter } from './routes/decisions.js'
+import { createClarificationRouter } from './routes/clarifications.js'
 import { createEdgesRouter } from './routes/edges.js'
 import { healthRouter } from './routes/health.js'
 import { createHistoryRouter } from './routes/history.js'
@@ -19,12 +17,12 @@ import { createNodesRouter } from './routes/nodes.js'
 import { createOAuthRouter } from './routes/oauth.js'
 import { createOntologyRouter } from './routes/ontology.js'
 import { createProposalsRouter } from './routes/proposals.js'
-import { createReactorPassesRouter } from './routes/reactorPasses.js'
+import { createReactorCyclesRouter } from './routes/reactorCycles.js'
 import { createRunsRouter } from './routes/runs.js'
 import { createSkillInputOptionsRouter } from './routes/skillInputOptions.js'
 import { createSkillsRouter } from './routes/skills.js'
 import { createSourceLoadersRouter } from './routes/sourceLoaders.js'
-import { createSourceUnitStatesRouter } from './routes/sourceUnitStates.js'
+import { createSourceUnitObservationsRouter } from './routes/sourceUnitObservations.js'
 import { createGithubWebhookReceiver, createSourceWebhooksAdminRouter } from './routes/sourceWebhooks.js'
 import { createUsersRouter } from './routes/users.js'
 import { createWorkspaceEventsRouter } from './routes/workspaceEvents.js'
@@ -34,51 +32,37 @@ import { createWorkspacesRouter } from './routes/workspaces.js'
 export interface AppOptions {
   readonly corsOrigins?: readonly string[]
   /**
-   * Base URL the OpenAPI spec advertises in its `servers[]` block. This
-   * is what downstream consumers (openapi-mcp-gateway, Swagger UI, code
-   * generators, …) use to dispatch REST calls. When unset, the spec is
-   * emitted without `servers[]`, which leaves the consumer to guess.
-   * composeFsApp threads its `apiUrl` through here so the gateway can
-   * route REST calls back to this server without an explicit
-   * `--base-url` flag.
+   * Base URL the OpenAPI spec advertises in its `servers[]` block.
+   * Downstream consumers use it to dispatch REST calls,
+   * openapi-mcp-gateway, Swagger UI, and code generators among them.
+   * When unset, the spec omits `servers[]` and leaves the consumer to guess.
+   * `composeFsApp` threads its `apiUrl` here,
+   * so the gateway routes calls back without an explicit base-url flag.
    */
   readonly apiUrl?: string
-  /**
-   * When true (or `BRAID_LOCAL_TRUST=true`), the auth middleware lets
-   * every request through and the embedded `userIdMiddleware` falls
-   * back to `local-user`. Set by `composeFs` for the Tauri sidecar;
-   * production remote servers leave it `false`.
-   */
-  readonly localTrust?: boolean
 }
 
 export function createApp(deps: AppDependencies, options: AppOptions = {}): OpenAPIHono {
   const app = new OpenAPIHono()
+
+  // Global middleware, every request passes these in order.
   app.use(
     '*',
     options.corsOrigins
       ? corsMiddleware({ allowedOrigins: options.corsOrigins })
       : corsMiddleware(),
   )
-  // Phase B auth gate. In local-trust mode it short-circuits and lets
-  // the unauthenticated request through; otherwise a Bearer token is
-  // required (Google OAuth-issued session). Public routes — `/auth/*`,
-  // `/health` — are excluded inside the middleware so the login flow
-  // itself isn't gated.
-  if (deps.sessionStore) {
-    const localTrust = options.localTrust ?? deps.localTrust
-    app.use('*', authMiddleware({
-      sessionStore: deps.sessionStore,
-      localTrust,
-    }))
-  }
-  // Phase A identity. Stamps `c.set('userId', ...)` from `X-Braid-User`
-  // when the auth layer left it empty — i.e. local-trust mode, or any
-  // public route. Bearer-authenticated requests already have a userId
-  // by the time this runs and pass through untouched.
-  app.use('*', userIdMiddleware)
+  // Identity and auth gate. Resolves the caller's `userId` from a Bearer session
+  // when auth is enforced, else the `X-Braid-User` header or the default principal.
+  // Non-public routes that lack a required Bearer token are rejected.
+  app.use('*', authMiddleware({
+    ...(deps.sessionStore ? { sessionStore: deps.sessionStore } : {}),
+    requireAuth: deps.authMode.requiresAuth,
+    defaultPrincipal: deps.authMode.defaultPrincipal,
+  }))
   app.onError(errorHandler)
 
+  // Host-level routes, not scoped to a single workspace.
   app.route('/health', healthRouter)
   if (deps.sessionStore && deps.accessPolicy && deps.userRegistry) {
     app.route('/auth', createAuthRouter({
@@ -88,13 +72,12 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       userRegistry: deps.userRegistry,
       ...(deps.googleOAuth ? { googleOAuth: deps.googleOAuth } : {}),
       studioUrl: deps.studioUrl ?? 'http://localhost:5173',
-      localTrust: options.localTrust ?? deps.localTrust,
+      requiresAuth: deps.authMode.requiresAuth,
     }))
   }
   if (deps.userRegistry) {
     app.route('/users', createUsersRouter({
       userRegistry: deps.userRegistry,
-      clock: deps.clock,
     }))
   }
   if (deps.userRegistry && deps.accessPolicy && deps.workspaceRegistry) {
@@ -113,18 +96,19 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     ...(deps.bootstrap ? { bootstrap: deps.bootstrap } : {}),
     ...(deps.workspaceRegistry ? { workspaceRegistry: deps.workspaceRegistry } : {}),
     ...(deps.userRegistry ? { userRegistry: deps.userRegistry } : {}),
+    ...(deps.historyService ? { historyService: deps.historyService } : {}),
   }))
   app.route('/workspaces', createWorkspaceEventsRouter({ eventBus: deps.eventBus }))
-  // Server-level plugin discovery: lets Studio render its loader dropdown
-  // from the active PluginRegistry rather than hardcoded strings. Not
-  // workspace-scoped because the answer is "what does this server have
-  // installed", which is identical across workspaces.
+  // Server-level plugin discovery for Studio's loader dropdown,
+  // sourced from the active PluginRegistry, not hardcoded strings.
+  // Installed loaders are identical across workspaces, not scoped to one.
   app.route('/source-loaders', createSourceLoadersRouter({ pluginRegistry: deps.pluginRegistry }))
 
-  // Public webhook receivers. Authenticated via per-source HMAC secrets
-  // inside the handler (not via Bearer token), so the auth middleware
-  // exempts the `/webhooks/` prefix. Mounted only when a SecretStore is
-  // wired — without it we have nowhere to read secrets from.
+  // Public webhook receivers, authenticated by per-source HMAC secrets,
+  // inside the handler, not by a Bearer token.
+  // The auth middleware exempts the `/webhooks/` prefix.
+  // Mounted only when a SecretStore is wired,
+  // without one there is nowhere to read the secrets.
   if (deps.secretStore) {
     app.route('/webhooks', createGithubWebhookReceiver({
       workspaceService: deps.workspaceService,
@@ -134,12 +118,13 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     }))
   }
 
+  // Workspace-scoped sub-app, mounted under `/workspaces/:workspaceId` below.
   const workspaceScoped = new OpenAPIHono()
   workspaceScoped.use('*', workspaceIdMiddleware)
-  // Workspace membership gate. Mounted only when both the workspace
-  // registry and user registry are present (i.e. composeFsApp);
-  // in-memory tests that compose without these stay open so existing
-  // routes keep behaving.
+  // Workspace membership gate, present only in composeFsApp,
+  // which wires both the workspace registry and the user registry.
+  // In-memory tests compose without these and stay open,
+  // so existing routes keep behaving.
   if (deps.workspaceRegistry && deps.userRegistry) {
     workspaceScoped.use('*', workspaceAccessMiddleware({
       registry: deps.workspaceRegistry,
@@ -154,17 +139,15 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     hitlService: deps.hitlService,
     proposalRepository: deps.proposalRepository,
     modelRepository: deps.modelRepository,
-    validationService: deps.validationService,
+    modelValidationService: deps.modelValidationService,
     workspaceService: deps.workspaceService,
   }))
-  workspaceScoped.route('/clarify', createClarifyRouter({
+  workspaceScoped.route('/clarifications', createClarificationRouter({
     hitlService: deps.hitlService,
-    clarifyRepository: deps.clarifyRepository,
-    decisionRepository: deps.decisionRepository,
+    clarificationRepository: deps.clarificationRepository,
   }))
-  workspaceScoped.route('/decisions', createDecisionsRouter({ decisionRepository: deps.decisionRepository }))
-  workspaceScoped.route('/source-unit-states', createSourceUnitStatesRouter({
-    sourceUnitStateService: deps.sourceUnitStateService,
+  workspaceScoped.route('/source-unit-states', createSourceUnitObservationsRouter({
+    sourceUnitObservationService: deps.sourceUnitObservationService,
     ...(deps.intentLister && deps.sourceUnitDigest
       ? {
           diffSupport: {
@@ -185,7 +168,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       skillRegistry: deps.skillRegistry,
       skillRunner: deps.skillRunner,
       workspaceRepository: deps.workspaceRepository,
-      sourceUnitStateService: deps.sourceUnitStateService,
+      sourceUnitObservationService: deps.sourceUnitObservationService,
       runRepository: deps.runRepository,
       pluginRegistry: deps.pluginRegistry,
     }))
@@ -201,8 +184,8 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   if (deps.batchService) {
     workspaceScoped.route('/batch', createBatchRouter({ batchService: deps.batchService }))
   }
-  workspaceScoped.route('/reactor-passes', createReactorPassesRouter({
-    reactorPassRepository: deps.reactorPassRepository,
+  workspaceScoped.route('/reactor-cycles', createReactorCyclesRouter({
+    reactorCycleRepository: deps.reactorCycleRepository,
   }))
   if (deps.secretStore) {
     workspaceScoped.route('/source-webhooks', createSourceWebhooksAdminRouter({
@@ -214,7 +197,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   }
   workspaceScoped.route('/skill-input-options', createSkillInputOptionsRouter({
     modelRepository: deps.modelRepository,
-    clarifyRepository: deps.clarifyRepository,
+    clarificationRepository: deps.clarificationRepository,
     workspaceRepository: deps.workspaceRepository,
     pluginRegistry: deps.pluginRegistry,
   }))
@@ -240,12 +223,11 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     }))
   }
 
-  // OpenAPI 3 spec; consumed by openapi-mcp-gateway to surface REST
-  // operations as MCP tools. SSE routes and the OAuth HTML callback
-  // are intentionally absent — they're mounted via app.route() with
-  // plain Hono sub-routers so they don't register with the OpenAPI
-  // registry. The `servers[]` block lets the gateway resolve the
-  // upstream API base URL without an explicit --base-url flag.
+  // OpenAPI 3 spec, consumed by openapi-mcp-gateway, to surface REST operations as MCP tools.
+  // SSE routes and the OAuth HTML callback are intentionally absent,
+  // they mount plain Hono sub-routers, so they never register with the doc.
+  // The `servers[]` block lets the gateway resolve the upstream base URL,
+  // without an explicit --base-url flag.
   app.doc('/openapi.json', {
     openapi: '3.0.0',
     info: {
