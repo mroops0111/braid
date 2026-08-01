@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { AbsolutePath, SourceId } from './common.js'
+import { AbsolutePath, PluginId, SourceId } from './common.js'
 import { McpServerId } from './mcp.js'
 
 export const SourceRole = z.enum(['code', 'intent'])
@@ -8,23 +8,11 @@ export type SourceRole = z.infer<typeof SourceRole>
 export const SourceKind = z.enum(['filesystem', 'mcp'])
 export type SourceKind = z.infer<typeof SourceKind>
 
-/**
- * Provisioning kind for a filesystem source. Identifies which `SourceLoader`
- * plugin populates the local path before claude reads it. Branded so users
- * can register custom loaders without editing this file.
- */
+/** Picks the SourceLoader plugin. Branded so new loaders need no edit here. */
 export const LoaderKind = z.string().min(1).brand<'LoaderKind'>()
 export type LoaderKind = z.infer<typeof LoaderKind>
 
-/**
- * Per-source loader config. `kind` selects the loader plugin; `config` is
- * opaque here and validated by the loader's own `configSchema` at runtime.
- *
- * Omitting `loader` on a `FilesystemSourceDescriptor` means "manual": the
- * user manages the directory themselves; Braid performs no ingestion or
- * sync. That's the default and preserves backwards compatibility with
- * existing workspaces.
- */
+/** kind picks the loader. config is opaque, validated by the loader at runtime. */
 export const SourceLoaderDescriptor = z.object({
   kind: LoaderKind,
   config: z.unknown(),
@@ -38,13 +26,9 @@ export const FilesystemSourceDescriptor = z.object({
   name: z.string().min(1),
   path: AbsolutePath,
   language: z.string().optional(),
+  // Omitted means manual. The user manages the directory, Braid does no provisioning.
   loader: SourceLoaderDescriptor.optional(),
-  /**
-   * Free-form markdown describing this source's role and authority.
-   * Read verbatim by skills via $BRAID_WORKSPACE/PRODUCT.md so the
-   * agent can prioritise / cite correctly. Multi-line is fine; the
-   * YAML writer emits a literal block (`|`) when newlines are present.
-   */
+  // Read verbatim by skills so the agent can prioritise and cite this source.
   description: z.string().optional(),
 })
 export type FilesystemSourceDescriptor = z.infer<typeof FilesystemSourceDescriptor>
@@ -71,3 +55,17 @@ export const SourceDescriptor = z.discriminatedUnion('kind', [
   McpSourceDescriptor,
 ])
 export type SourceDescriptor = z.infer<typeof SourceDescriptor>
+
+/** Projection for the source-loaders endpoint, minus the client-side config schema. */
+export const SourceLoaderEntry = z.object({
+  kind: LoaderKind,
+  pluginId: PluginId,
+  // Studio gates the webhook panel on this flag, not kind, so new loaders need no UI change.
+  webhook: z.boolean().default(false),
+})
+export type SourceLoaderEntry = z.infer<typeof SourceLoaderEntry>
+
+export const ListSourceLoadersResponse = z.object({
+  loaders: z.array(SourceLoaderEntry),
+})
+export type ListSourceLoadersResponse = z.infer<typeof ListSourceLoadersResponse>

@@ -4,12 +4,13 @@ import { CommitSha, UserId } from '@braidhq/schema'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { getUserId } from '../middleware/userId.js'
+import { getUserId } from '../middleware/auth.js'
 import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 
-// `userId` accepted for backwards compat; the authoritative value
-// comes from the request context (set by `userIdMiddleware`).
+// `userId` accepted for backwards compat,
+// the authoritative value comes from the request context,
+// set by the auth middleware.
 const RestoreBody = z.object({
   userId: UserId.optional(),
 })
@@ -25,7 +26,7 @@ const ListQuery = z.object({
   limit: z.coerce.number().int().positive().max(200).optional(),
 })
 
-const GraphDiffQuery = z.object({
+const ModelDiffQuery = z.object({
   from: CommitSha,
   to: CommitSha,
 })
@@ -36,8 +37,9 @@ export interface HistoryRouterDeps {
 
 export function createHistoryRouter(deps: HistoryRouterDeps): Hono {
   const router = new Hono()
-  // Restore is destructive — Owner only. Tag CRUD is workspace
-  // metadata management; Owner only as well to keep ACL coherent.
+  // Restore is destructive, Owner only.
+  // Tag CRUD is workspace metadata management,
+  // Owner only as well to keep ACL coherent.
   router.use('/:sha/restore', requirePermission('history.write'))
   router.use('/tags', requirePermission('history.write'))
   router.use('/tags/*', requirePermission('history.write'))
@@ -53,10 +55,10 @@ export function createHistoryRouter(deps: HistoryRouterDeps): Hono {
   })
 
   // Must be registered before `/:sha` so `graph-diff` isn't matched as a sha.
-  router.get('/graph-diff', zValidator('query', GraphDiffQuery), async (context) => {
+  router.get('/graph-diff', zValidator('query', ModelDiffQuery), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const { from, to } = context.req.valid('query')
-    const envelope = await deps.historyService.getGraphDiff(workspaceId, from, to)
+    const envelope = await deps.historyService.getModelDiff(workspaceId, from, to)
     return context.json(envelope)
   })
 
@@ -77,7 +79,7 @@ export function createHistoryRouter(deps: HistoryRouterDeps): Hono {
     const workspaceId = getWorkspaceId(context)
     const name = context.req.param('name')
     if (!name)
-      throw new NotFoundError('tag name is required')
+      throw new NotFoundError('Tag name is required')
     await deps.historyService.deleteTag(workspaceId, name)
     return context.body(null, 204)
   })
@@ -96,7 +98,7 @@ export function createHistoryRouter(deps: HistoryRouterDeps): Hono {
     const sha = CommitSha.parse(context.req.param('sha'))
     const commit = await deps.historyService.getCommit(workspaceId, sha)
     if (!commit)
-      throw new NotFoundError(`commit ${sha} not found in workspace ${workspaceId}`)
+      throw new NotFoundError(`Commit ${sha} not found in workspace ${workspaceId}`)
     const diff = await deps.historyService.getCommitDiff(workspaceId, sha)
     return context.json({ ...commit, diff })
   })

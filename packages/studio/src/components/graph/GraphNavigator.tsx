@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { usePaletteContext } from './usePalette'
 
 export interface GraphFilters {
-  /** Free-text query against node `name` + `description`. */
+  /** Free-text query against node `name` and `description`. */
   search: string
   /** Whitelist of node types to keep. Empty = none shown. */
   types: NodeTypeId[]
@@ -46,9 +46,9 @@ export function GraphNavigator({ workspaceId, nodes, orphanIds, filters, onFilte
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin">
-        <div className="flex items-center justify-between px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+        <div className="flex items-center justify-between px-3 pb-1 pt-3 text-2xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
           <span>Filter By Type</span>
-          <div className="flex gap-2 text-[10px] normal-case tracking-normal">
+          <div className="flex gap-2 text-2xs normal-case tracking-normal">
             <button
               type="button"
               disabled={everyTypeSelected}
@@ -63,7 +63,7 @@ export function GraphNavigator({ workspaceId, nodes, orphanIds, filters, onFilte
               onClick={() => onFiltersChange({ ...filters, types: [] })}
               className="text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground disabled:opacity-30"
             >
-              Clear
+              None
             </button>
           </div>
         </div>
@@ -80,7 +80,7 @@ export function GraphNavigator({ workspaceId, nodes, orphanIds, filters, onFilte
         </ul>
 
         {orphanIds.size > 0 && (
-          <label className="mx-1 mt-2 flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-[11px] hover:bg-accent">
+          <label className="mx-1 mt-2 flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-2xs hover:bg-accent">
             <input
               type="checkbox"
               checked={filters.orphansOnly}
@@ -106,7 +106,7 @@ function SearchInput({ value, onChange }: { value: string, onChange: (value: str
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder="Search name / description…"
-        className="w-full rounded-md border border-sidebar-border bg-background pl-7 pr-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+        className="w-full rounded-md border border-sidebar-border bg-background pl-7 pr-2 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
       />
     </div>
   )
@@ -128,7 +128,7 @@ function TypeFilterRow({ type, count, active, onToggle }: {
         type="button"
         onClick={onToggle}
         className={cn(
-          'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[11px] transition-colors duration-150',
+          'flex w-full items-center gap-2.5 rounded-sm px-2.5 py-2 text-left text-2xs transition-colors duration-150',
           active
             ? 'bg-accent text-foreground'
             : 'text-sidebar-foreground/80 hover:bg-accent hover:text-foreground',
@@ -136,7 +136,7 @@ function TypeFilterRow({ type, count, active, onToggle }: {
         aria-pressed={active}
       >
         <span className="size-2 rounded-full" style={palette.nodeDotStyle(type)} />
-        <span className="flex-1 font-mono uppercase tracking-wider">{type}</span>
+        <span className="flex-1 font-medium uppercase tracking-wider">{type}</span>
         <span className="text-sidebar-foreground/40">{count}</span>
         {active && <Check className="size-3 text-primary" />}
       </button>
@@ -152,20 +152,20 @@ function Legend({ ontology }: { ontology: OntologyResponse | undefined }) {
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="flex w-full items-center justify-between px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50 hover:text-sidebar-foreground"
+        className="flex w-full items-center justify-between px-3 py-2 text-2xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 hover:text-sidebar-foreground"
       >
         <span>Legend</span>
         {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
       </button>
       {open && ontology && (
-        <div className="space-y-3 px-3 pb-3 text-[10px]">
+        <div className="space-y-3 px-3 pb-3 text-2xs">
           <section>
             <div className="mb-1 text-sidebar-foreground/50">Node types</div>
             <ul className="space-y-0.5">
               {ontology.nodeTypes.map(descriptor => (
                 <li key={descriptor.id} className="flex items-center gap-2">
                   <span className="size-2 rounded-full" style={palette.nodeDotStyle(descriptor.id)} />
-                  <span className="font-mono text-sidebar-foreground/80">{descriptor.id}</span>
+                  <span className="text-sidebar-foreground/80">{descriptor.id}</span>
                 </li>
               ))}
             </ul>
@@ -176,7 +176,7 @@ function Legend({ ontology }: { ontology: OntologyResponse | undefined }) {
               {ontology.edgeTypes.map(descriptor => (
                 <li key={descriptor.id} className="flex items-center gap-2">
                   <span className="inline-block h-[2px] w-4" style={{ backgroundColor: palette.edgeColor(descriptor.id) }} />
-                  <span className="font-mono text-sidebar-foreground/80">{descriptor.id}</span>
+                  <span className="text-sidebar-foreground/80">{descriptor.label ?? descriptor.id}</span>
                 </li>
               ))}
             </ul>

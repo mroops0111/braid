@@ -76,29 +76,29 @@ describe('PermissionRegistry (default)', () => {
 
   it('owners get read + write on everything', () => {
     const v = resolveViewer(makeUser('user'), makeMember('owner'))
-    const all: Capability[] = ['workspace.read', 'workspace.write', 'proposal.read', 'proposal.write', 'clarify.read', 'clarify.write', 'history.write']
+    const all: Capability[] = ['workspace.read', 'workspace.write', 'proposal.read', 'proposal.write', 'clarification.read', 'clarification.write', 'history.write']
     for (const cap of all)
       expect(registry.can(cap, v)).toBe(true)
   })
 
-  it('maintainers get reads + proposal/clarify write, no workspace.write or history.write', () => {
+  it('maintainers get reads + proposal/clarifications write, no workspace.write or history.write', () => {
     const v = resolveViewer(makeUser('user'), makeMember('maintainer'))
     expect(registry.can('workspace.read', v)).toBe(true)
     expect(registry.can('proposal.read', v)).toBe(true)
     expect(registry.can('proposal.write', v)).toBe(true)
-    expect(registry.can('clarify.read', v)).toBe(true)
-    expect(registry.can('clarify.write', v)).toBe(true)
+    expect(registry.can('clarification.read', v)).toBe(true)
+    expect(registry.can('clarification.write', v)).toBe(true)
     expect(registry.can('workspace.write', v)).toBe(false)
     expect(registry.can('history.write', v)).toBe(false)
   })
 
-  it('guests get workspace.read but no proposal/clarify access', () => {
+  it('guests get workspace.read but no proposal/clarifications access', () => {
     const v = resolveViewer(makeUser('user'), makeMember('guest'))
     expect(registry.can('workspace.read', v)).toBe(true)
     expect(registry.can('proposal.read', v)).toBe(false)
     expect(registry.can('proposal.write', v)).toBe(false)
-    expect(registry.can('clarify.read', v)).toBe(false)
-    expect(registry.can('clarify.write', v)).toBe(false)
+    expect(registry.can('clarification.read', v)).toBe(false)
+    expect(registry.can('clarification.write', v)).toBe(false)
     expect(registry.can('workspace.write', v)).toBe(false)
     expect(registry.can('history.write', v)).toBe(false)
   })

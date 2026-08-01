@@ -1,14 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AgentBindingDescriptor, AgentEffort, AgentKind, AgentRoutingConfig, TaskName } from '../src/index.js'
-
-describe('TaskName', () => {
-  it('accepts non-empty string', () => {
-    expect(TaskName.parse('extract')).toBe('extract')
-  })
-  it('rejects empty', () => {
-    expect(TaskName.safeParse('').success).toBe(false)
-  })
-})
+import { AgentBindingDescriptor, AgentEffort, AgentKind } from '../src/index.js'
 
 describe('AgentKind (open brand)', () => {
   it('accepts claude-code', () => {
@@ -34,7 +25,7 @@ describe('AgentEffort', () => {
 describe('AgentBindingDescriptor', () => {
   it('parses minimal binding', () => {
     const binding = AgentBindingDescriptor.parse({
-      id: 'claude-default',
+      id: 'claude-code',
       kind: 'claude-code',
       model: 'opus',
     })
@@ -44,7 +35,7 @@ describe('AgentBindingDescriptor', () => {
 
   it('parses full binding', () => {
     const binding = AgentBindingDescriptor.parse({
-      id: 'claude-default',
+      id: 'claude-code',
       kind: 'claude-code',
       model: 'opus',
       effort: 'high',
@@ -59,24 +50,5 @@ describe('AgentBindingDescriptor', () => {
     expect(
       AgentBindingDescriptor.safeParse({ id: 'a', kind: 'claude-code', model: '' }).success,
     ).toBe(false)
-  })
-})
-
-describe('AgentRoutingConfig', () => {
-  it('parses default + tasks map', () => {
-    const config = AgentRoutingConfig.parse({
-      default: 'claude-default',
-      tasks: { extract: 'claude-default', ask: 'claude-fast' },
-    })
-    expect(config.tasks.ask).toBe('claude-fast')
-  })
-
-  it('tasks defaults to empty map', () => {
-    const config = AgentRoutingConfig.parse({ default: 'claude-default' })
-    expect(config.tasks).toEqual({})
-  })
-
-  it('rejects empty default', () => {
-    expect(AgentRoutingConfig.safeParse({ default: '' }).success).toBe(false)
   })
 })

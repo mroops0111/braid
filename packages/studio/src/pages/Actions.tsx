@@ -1,11 +1,12 @@
 import type { RunRecord, SessionMetadata, SkillCategory, SkillManifest, SourceId } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, Check, ChevronDown, ChevronUp, Lock, MessageCircleQuestion, MessageSquare, Pencil, Plus, Send, Sparkles, Trash2, Wand2, Wrench, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Lock, MessageCircleQuestion, MessageSquare, Pencil, Plus, Puzzle, Send, Sparkles, Trash2, Wand2, Wrench, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { ActionInputForm } from '@/components/ActionInputForm'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
 import { SkillTranscript } from '@/components/SkillTranscript'
+import { SurfaceLayout } from '@/components/SurfaceLayout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -17,9 +18,10 @@ import { useConversation } from '@/lib/useRun'
 import { useWorkspacePolicy } from '@/policy'
 
 /**
- * Schema `SkillCategory` maps 1:1 to a sidebar group. Skills with no
- * category land in "Custom", which is for workspace one-offs and plugin
- * skills that don't fit the canonical workflow.
+ * Schema `SkillCategory` maps 1:1 to a sidebar group.
+ * Skills with no category land in "Custom",
+ * which is for workspace one-offs and plugin skills,
+ * that do not fit the canonical workflow.
  */
 type Group = SkillCategory | 'custom'
 
@@ -29,7 +31,7 @@ const GROUP_META: Record<Group, { title: string, icon: typeof Sparkles }> = {
   ask: { title: 'Ask anytime', icon: MessageCircleQuestion },
   build: { title: 'Build the graph', icon: Wrench },
   generate: { title: 'Generate', icon: Wand2 },
-  custom: { title: 'Custom', icon: BookOpen },
+  custom: { title: 'Custom', icon: Puzzle },
 }
 
 interface ActionsPageProps {
@@ -44,23 +46,24 @@ export interface SessionGroup {
   firstPrompt: string
   skillId: string
   lastStartedAt: string
-  /** Reviewer-set title via SessionMetadata; null falls back to firstPrompt. */
+  /** Reviewer-set title via SessionMetadata, null falls back to firstPrompt. */
   title: string | null
 }
 
 /**
- * The single tab for everything skill-related. The left panel is split
- * into two independent scroll areas:
+ * The single tab for everything skill-related.
+ * The left panel is split into two independent scroll areas.
  *
- *   - "Skills": the available skill manifests (start a new conversation
- *     by clicking one). Caps at ~45vh; scrolls internally.
- *   - "Conversations": past conversations grouped by session, with
- *     per-row rename (pencil) and delete (trash). Fills remaining
- *     height; scrolls independently of the Skills section.
+ *   - "Skills": the available skill manifests.
+ *     Start a new conversation by clicking one.
+ *     Caps at ~45vh, scrolls internally.
+ *   - "Conversations": past conversations grouped by session,
+ *     with per-row rename (pencil) and delete (trash).
+ *     Fills the remaining height, scrolls independently of Skills.
  *
- * The right pane always renders the conversation runner. The internal
- * `runStore` decides whether it's an empty new chat or a hydrated past
- * one based on the per-skill turn list.
+ * The right pane always renders the conversation runner.
+ * The internal `runStore` decides whether it is an empty new chat,
+ * or a hydrated past one, based on the per-skill turn list.
  */
 export function ActionsPage({ workspaceId }: ActionsPageProps) {
   const { data: skillsData } = useSkills(workspaceId)
@@ -70,12 +73,16 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null)
 
   const skills = (skillsData?.items ?? []).filter(s => !s.frontmatter.braid.hidden)
-  // Cap visible conversations to keep the bottom drawer compact. groupBySession
-  // already orders by recency (newest first), so slicing keeps the most
-  // recent N — older ones live in History if anyone really needs them.
+  // Cap visible conversations to keep the bottom drawer compact.
+  // groupBySession already orders by recency, newest first,
+  // so slicing keeps the most recent N.
+  // Older ones live in History if anyone really needs them.
   const groups = groupBySession(runsData?.items ?? [], titleData?.items ?? []).slice(0, 10)
   const selected = skills.find(s => s.id === selectedSkillId) ?? null
-  const [conversationsOpen, setConversationsOpen] = useState(false)
+  // null means follow the default, open when there are conversations.
+  // A boolean means the user has taken explicit control.
+  const [conversationsOpen, setConversationsOpen] = useState<boolean | null>(null)
+  const showConversations = conversationsOpen ?? groups.length > 0
 
   function startFresh(skill: SkillManifest): void {
     runStore.clearTurns(workspaceId, skill.id)
@@ -96,86 +103,90 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
   const buckets = bucketByGroup(skills)
 
   return (
-    <div className="flex h-full">
-      <div className="flex w-72 shrink-0 flex-col border-r border-border">
-        {/* Skills take the full sidebar height; conversations live as a
-            collapsed-by-default drawer pinned to the bottom so the runner
-            list isn't competing for vertical space. */}
-        <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
-          {skills.length === 0
-            ? (
-                <SidebarSection icon={Sparkles} title="Actions">
-                  <SidebarEmpty>No actions available.</SidebarEmpty>
-                </SidebarSection>
-              )
-            : GROUP_ORDER.map((group) => {
-                const bucket = buckets[group]
-                if (!bucket || bucket.length === 0)
-                  return null
-                const meta = GROUP_META[group]
-                return (
-                  <SidebarSection key={group} icon={meta.icon} title={meta.title}>
-                    {bucket.map((skill, index) => (
-                      <SkillRow
-                        key={skill.id}
-                        skill={skill}
-                        // Only the Build group gets explicit step numbers,
-                        // because it's the only group where the order between
-                        // skills is semantically meaningful (extract -> clarify -> model).
-                        step={group === 'build' ? index + 1 : undefined}
-                        active={selectedSkillId === skill.id}
-                        locked={!policy.can('skill.run', { skill: skill.frontmatter, skillId: skill.id })}
-                        onClick={() => startFresh(skill)}
-                      />
-                    ))}
-                  </SidebarSection>
-                )
-              })}
-        </div>
-        <div className="shrink-0 border-t border-border">
-          <button
-            type="button"
-            onClick={() => setConversationsOpen(o => !o)}
-            className="flex w-full items-center gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent/40"
-          >
-            <MessageSquare className="size-3" />
-            <span>Conversations</span>
-            {groups.length > 0 && (
-              <span className="rounded bg-muted px-1.5 py-0.5 font-mono normal-case text-[10px] text-muted-foreground">
-                {groups.length}
-              </span>
-            )}
-            {conversationsOpen
-              ? <ChevronDown className="ml-auto size-3" />
-              : <ChevronUp className="ml-auto size-3" />}
-          </button>
-          {conversationsOpen && (
-            <ul className="max-h-[30vh] overflow-y-auto scrollbar-thin border-t border-border">
-              {groups.length === 0
-                ? <SidebarEmpty>Past conversations will appear here.</SidebarEmpty>
-                : groups.map(group => (
-                    <ConversationRow
-                      key={group.groupId}
-                      workspaceId={workspaceId}
-                      group={group}
-                      onResume={() => resume(group)}
-                    />
-                  ))}
-            </ul>
-          )}
-        </div>
-      </div>
-      {selected
-        ? <Conversation workspaceId={workspaceId} skill={selected} locked={!policy.can('skill.run', { skill: selected.frontmatter, skillId: selected.id })} key={selected.id} />
-        : (
-            <div className="flex-1">
+    <div className="flex h-full flex-col">
+      <SurfaceLayout
+        list={(
+          <>
+            {/* Skills take the full sidebar height. Conversations live in a
+              bottom drawer that opens when there are any to show,
+              so the runner list isn't competing for vertical space. */}
+            <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+              {skills.length === 0
+                ? (
+                    <SidebarSection icon={Sparkles} title="Actions">
+                      <SidebarEmpty>No actions available.</SidebarEmpty>
+                    </SidebarSection>
+                  )
+                : GROUP_ORDER.map((group) => {
+                    const bucket = buckets[group]
+                    if (!bucket || bucket.length === 0)
+                      return null
+                    const meta = GROUP_META[group]
+                    return (
+                      <SidebarSection key={group} icon={meta.icon} title={meta.title}>
+                        {bucket.map((skill, index) => (
+                          <SkillRow
+                            key={skill.id}
+                            skill={skill}
+                            // Only the Build group gets explicit step numbers,
+                            // because it is the only group,
+                            // where the order between skills is semantically meaningful,
+                            // extract, then clarify, then model.
+                            step={group === 'build' ? index + 1 : undefined}
+                            active={selectedSkillId === skill.id}
+                            locked={!policy.can('skill.run', { skill: skill.frontmatter, skillId: skill.id })}
+                            onClick={() => startFresh(skill)}
+                          />
+                        ))}
+                      </SidebarSection>
+                    )
+                  })}
+            </div>
+            <div className="shrink-0 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setConversationsOpen(!showConversations)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-2xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent/40"
+              >
+                <MessageSquare className="size-3" />
+                <span>Conversations</span>
+                {groups.length > 0 && (
+                  <span className="rounded bg-muted px-1.5 py-0.5 font-mono normal-case text-2xs text-muted-foreground">
+                    {groups.length}
+                  </span>
+                )}
+                {showConversations
+                  ? <ChevronDown className="ml-auto size-3" />
+                  : <ChevronUp className="ml-auto size-3" />}
+              </button>
+              {showConversations && (
+                <ul className="max-h-[30vh] overflow-y-auto scrollbar-thin border-t border-border">
+                  {groups.length === 0
+                    ? <SidebarEmpty>Past conversations will appear here.</SidebarEmpty>
+                    : groups.map(group => (
+                        <ConversationRow
+                          key={group.groupId}
+                          workspaceId={workspaceId}
+                          group={group}
+                          onResume={() => resume(group)}
+                        />
+                      ))}
+                </ul>
+              )}
+            </div>
+          </>
+        )}
+      >
+        {selected
+          ? <Conversation workspaceId={workspaceId} skill={selected} locked={!policy.can('skill.run', { skill: selected.frontmatter, skillId: selected.id })} key={selected.id} />
+          : (
               <EmptyState
                 icon={Sparkles}
-                title="Pick an action"
+                title="Pick an Action"
                 description="Choose an action on the left to start, or resume a recent conversation."
               />
-            </div>
-          )}
+            )}
+      </SurfaceLayout>
     </div>
   )
 }
@@ -274,12 +285,12 @@ function ConversationRow({ workspaceId, group, onResume }: {
         className="group/row flex-col items-start gap-1"
       >
         <div className="flex w-full items-center justify-between gap-2">
-          <span className="truncate font-mono text-[11px] text-muted-foreground">
+          <span className="truncate font-mono text-2xs text-muted-foreground">
             /
             {group.skillId}
           </span>
           <div className="flex items-center gap-1">
-            <Badge variant="outline" className="text-[10px] uppercase">
+            <Badge variant="outline" className="text-2xs uppercase">
               {group.records.length}
               {' '}
               turn
@@ -293,6 +304,7 @@ function ConversationRow({ workspaceId, group, onResume }: {
                   setEditing(true)
                 }}
                 title="Rename"
+                aria-label="Rename"
                 className="hidden rounded p-0.5 text-muted-foreground/60 hover:bg-accent hover:text-foreground group-hover/row:inline-flex"
               >
                 <Pencil className="size-3" />
@@ -305,6 +317,7 @@ function ConversationRow({ workspaceId, group, onResume }: {
                 setConfirmOpen(true)
               }}
               title="Delete conversation"
+              aria-label="Delete conversation"
               className="hidden rounded p-0.5 text-muted-foreground/60 hover:bg-destructive/15 hover:text-destructive group-hover/row:inline-flex"
             >
               <Trash2 className="size-3" />
@@ -314,7 +327,7 @@ function ConversationRow({ workspaceId, group, onResume }: {
         <div className="break-words text-xs text-foreground/90">
           {group.title ?? group.firstPrompt}
         </div>
-        <div className="text-[10px] text-muted-foreground">{formatTimestamp(group.lastStartedAt)}</div>
+        <div className="text-2xs text-muted-foreground">{formatTimestamp(group.lastStartedAt)}</div>
       </ListRow>
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
@@ -356,7 +369,7 @@ function SidebarSection({ icon: Icon, title, children }: {
 }) {
   return (
     <section>
-      <header className="flex items-center gap-1.5 px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <header className="flex items-center gap-1.5 px-3 pt-3 pb-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
         <Icon className="size-3" />
         {title}
       </header>
@@ -366,7 +379,7 @@ function SidebarSection({ icon: Icon, title, children }: {
 }
 
 function SidebarEmpty({ children }: { children: React.ReactNode }) {
-  return <li className="px-3 py-1.5 text-[11px] text-muted-foreground/70">{children}</li>
+  return <li className="px-3 py-1.5 text-2xs text-muted-foreground/70">{children}</li>
 }
 
 function SkillRow({ skill, active, onClick, step, locked }: {
@@ -379,7 +392,7 @@ function SkillRow({ skill, active, onClick, step, locked }: {
   return (
     <ListRow active={active} onClick={onClick} className="items-start gap-2">
       {step !== undefined && (
-        <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-foreground/70">
+        <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-muted text-2xs font-semibold text-foreground/70">
           {step}
         </span>
       )}
@@ -389,15 +402,16 @@ function SkillRow({ skill, active, onClick, step, locked }: {
             /
             {skill.frontmatter.name}
           </span>
-          <Badge variant="outline" className="text-[10px] uppercase">{originLabel(skill)}</Badge>
+          <Badge variant="outline" className="text-2xs uppercase">{originLabel(skill)}</Badge>
           {locked && (
-            <span
-              className="inline-flex items-center gap-1 rounded bg-muted/60 px-1 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground"
+            <Badge
+              variant="outline"
+              className="text-2xs uppercase tracking-wider text-muted-foreground"
               title="Your role cannot run this skill. Ask an Owner to grant access."
             >
               <Lock className="size-2.5" />
               Locked
-            </span>
+            </Badge>
           )}
         </div>
         <div className="mt-1 break-words text-xs text-muted-foreground">
@@ -414,11 +428,13 @@ export function bucketByGroup(skills: readonly SkillManifest[]): Record<Group, S
     const category = skill.frontmatter.braid?.category
     out[category ?? 'custom'].push(skill)
   }
-  // Sort the Build group by `order` so the numbered steps line up with
-  // the workflow. Sparse numbering (100, 200, 300 by convention) lets
-  // plugins slot between built-ins by picking e.g. 150 without anyone
-  // renumbering. The UI displays sequential rank (1, 2, 3) so users
-  // never see the raw sort keys.
+  // Sort the Build group by `order` so the numbered steps line up,
+  // with the workflow.
+  // Sparse numbering (100, 200, 300 by convention),
+  // lets plugins slot between built-ins by picking e.g. 150,
+  // without anyone renumbering.
+  // The UI displays sequential rank (1, 2, 3),
+  // so users never see the raw sort keys.
   out.build.sort((a, b) => {
     const ao = a.frontmatter.braid?.order ?? Number.POSITIVE_INFINITY
     const bo = b.frontmatter.braid?.order ?? Number.POSITIVE_INFINITY
@@ -442,9 +458,10 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
   const running = conversation.phase === 'streaming' || submitting
   const isFollowUp = conversation.sessionId !== null
   const turnCount = conversation.events.filter(e => e.type === 'started').length
-  // Cancel targets the in-flight turn (the last runId), only meaningful
-  // while the runner is actively streaming. During `submitting` we don't
-  // have a runId yet, so the button is hidden in that window.
+  // Cancel targets the in-flight turn (the last runId),
+  // only meaningful while the runner is actively streaming.
+  // During `submitting` we do not have a runId yet,
+  // so the button is hidden in that window.
   const activeRunId = conversation.phase === 'streaming' ? conversation.turnIds.at(-1) ?? null : null
   const cancel = useMutation({
     mutationFn: () => {
@@ -503,7 +520,7 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
+      <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
         <div className="flex items-center gap-2 min-w-0">
           <span className="font-mono text-sm text-foreground">
             /
@@ -526,14 +543,14 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
           {turnCount > 0 && (
             <Button variant="ghost" size="sm" onClick={reset} disabled={running}>
               <Plus />
-              New conversation
+              New Conversation
             </Button>
           )}
         </div>
       </div>
       <SkillTranscript events={[...conversation.events]} error={transcriptError} running={running} />
       {locked && (
-        <div className="flex items-start gap-2 border-t border-border bg-muted/40 px-4 py-2 text-[11px] text-muted-foreground">
+        <div className="flex items-start gap-2 border-t border-border bg-muted/40 px-4 py-2 text-2xs text-muted-foreground">
           <Lock className="mt-0.5 size-3 shrink-0" />
           <span>
             Your role cannot run this skill. Ask an Owner to grant access via Workspace Settings, Skill Permissions.
@@ -547,10 +564,10 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
               inputs={skill.frontmatter.braid.inputs}
               disabled={running || locked}
               onSubmit={(runs) => {
-                // Fire all batch runs in parallel; each becomes its own
-                // runId / turn under the same conversation key. The
-                // transcript will interleave them. `sourceUnit` is set
-                // for runs whose value came from a source-intent picker.
+                // Fire all batch runs in parallel.
+                // Each becomes its own runId and turn under one conversation key,
+                // so the transcript will interleave them.
+                // `sourceUnit` is set for runs from a source-intent picker.
                 for (const run of runs) void sendWith(run.args, run.sourceUnit)
               }}
             />
@@ -568,11 +585,12 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
                 value={prompt}
                 onChange={e => setPrompt(e.target.value)}
                 onKeyDown={(e) => {
-                  // While the user is composing CJK / accented input through an
-                  // IME, Enter confirms the candidate character and must not
-                  // submit the message. `nativeEvent.isComposing` is the only
-                  // reliable signal across browsers; `e.keyCode === 229` is the
-                  // legacy fallback for older Safari that we no longer support.
+                  // While the user composes CJK or accented input through an IME,
+                  // Enter confirms the candidate character and must not submit.
+                  // `nativeEvent.isComposing` is the only reliable signal,
+                  // across browsers.
+                  // `e.keyCode === 229` is the legacy fallback,
+                  // for older Safari that we no longer support.
                   if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !running && !locked) {
                     e.preventDefault()
                     void send()
@@ -600,8 +618,9 @@ export function groupBySession(
   const titleMap = new Map<string, string | null>(sessionTitles.map(m => [m.sessionId, m.title]))
   const groups = new Map<string, SessionGroup>()
   const orphans: SessionGroup[] = []
-  // records arrive newest-first from the API; we want oldest-first inside a
-  // session so the replay reads top-to-bottom in chronological order.
+  // Records arrive newest-first from the API.
+  // We want oldest-first inside a session,
+  // so the replay reads top-to-bottom in chronological order.
   for (const rec of [...records].reverse()) {
     if (!rec.sessionId) {
       orphans.push({
@@ -636,18 +655,20 @@ export function groupBySession(
 }
 
 export function originLabel(skill: SkillManifest): string {
-  // Plugin skills surface their plugin id (e.g. `redoc-ddd`) so the user
-  // can tell at a glance which plugin shipped the action; everything else
-  // shows the origin value directly (`builtin` / `workspace` / `extension`).
+  // Plugin skills surface their plugin id, such as `ontology-ddd`,
+  // so the user can tell at a glance which plugin shipped the action.
+  // Everything else shows the origin value directly,
+  // `builtin`, `workspace`, or `extension`.
   if (skill.origin === 'plugin' && skill.pluginId)
     return skill.pluginId
   return skill.origin
 }
 
 export function formatTimestamp(value: string): string {
-  // ISO 8601: `YYYY-MM-DDTHH:mm` local time. T-separator (not space) is
-  // the distinguishing ISO marker. Seconds dropped because the sidebar
-  // is narrow; full precision lives in the run record itself.
+  // ISO 8601: `YYYY-MM-DDTHH:mm` local time.
+  // The T-separator, not a space, is the distinguishing ISO marker.
+  // Seconds dropped because the sidebar is narrow.
+  // Full precision lives in the run record itself.
   try {
     const d = new Date(value)
     if (Number.isNaN(d.getTime()))

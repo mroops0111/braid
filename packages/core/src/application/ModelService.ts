@@ -20,8 +20,8 @@ export class ModelService {
     return this.deps.modelRepository.load(workspaceId)
   }
 
-  async findNodes(workspaceId: WorkspaceId, filter?: GraphNodeFilter): Promise<GraphNode[]> {
-    return this.deps.modelRepository.findNodes(workspaceId, filter)
+  async listNodes(workspaceId: WorkspaceId, filter?: GraphNodeFilter): Promise<GraphNode[]> {
+    return this.deps.modelRepository.listNodes(workspaceId, filter)
   }
 
   async getNode(workspaceId: WorkspaceId, nodeId: NodeId): Promise<GraphNode> {

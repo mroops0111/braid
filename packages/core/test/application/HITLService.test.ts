@@ -1,44 +1,37 @@
 import type {
-  ClarifyCandidate,
-  ClarifyCandidateId,
-  ClarifyTicketId,
+  ClarificationCandidateId,
   NodeId,
   NodeStatus,
   NodeTypeId,
   ProposalId,
-  SkillId,
   UserId,
   ValidationCode,
   WorkspaceId,
 } from '@braidhq/schema'
 import type { Workspace } from '../../src/index.js'
-import { at, FixedClock, makeOntology, makeWorkspace, mintTestId, resetTestIds, T0 } from '@braidhq/test-utils'
+import { FixedClock, makeClarification, makeOntology, makeProposal, makeWorkspace, mintTestId, resetTestIds } from '@braidhq/test-utils'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
-  ClarifyTicket,
-  ConflictError,
-  HITLService,
-  NotFoundError,
-  PluginRegistry,
-  Proposal,
-  ValidationError,
-  ValidationService,
-  WorkspaceService,
-} from '../../src/index.js'
-import {
-  InMemoryClarifyTicketRepository,
-  InMemoryDecisionRepository,
+  InMemoryClarificationRepository,
   InMemoryModelRepository,
   InMemoryProposalRepository,
   InMemoryWorkspaceRepository,
-} from '../../src/testing.js'
+} from '../../src/in-memory.js'
+import {
+  ConflictError,
+  HITLService,
+  ModelValidationService,
+  NotFoundError,
+  PluginRegistry,
+  ValidationError,
+  WorkspaceService,
+} from '../../src/index.js'
 
 const userId = 'u-1' as UserId
 
 interface HITLFixture {
   proposalRepository: InMemoryProposalRepository
-  clarifyRepository: InMemoryClarifyTicketRepository
-  decisionRepository: InMemoryDecisionRepository
+  clarificationRepository: InMemoryClarificationRepository
   modelRepository: InMemoryModelRepository
   workspaceService: WorkspaceService
   pluginRegistry: PluginRegistry
@@ -57,26 +50,23 @@ async function setupFixture(options: {
   const workspaceService = new WorkspaceService({ workspaceRepository: workspaceRepo, pluginRegistry })
 
   const proposalRepository = new InMemoryProposalRepository()
-  const clarifyRepository = new InMemoryClarifyTicketRepository()
-  const decisionRepository = new InMemoryDecisionRepository()
+  const clarificationRepository = new InMemoryClarificationRepository()
   const modelRepository = new InMemoryModelRepository()
   const clock = new FixedClock()
-  const validationService = new ValidationService({ pluginRegistry })
+  const modelValidationService = new ModelValidationService({ pluginRegistry })
 
   const service = new HITLService({
     proposalRepository,
-    clarifyRepository,
-    decisionRepository,
+    clarificationRepository,
     modelRepository,
-    validationService,
+    modelValidationService,
     workspaceService,
     clock,
   })
 
   return {
     proposalRepository,
-    clarifyRepository,
-    decisionRepository,
+    clarificationRepository,
     modelRepository,
     workspaceService,
     pluginRegistry,
@@ -86,70 +76,23 @@ async function setupFixture(options: {
   }
 }
 
-function makeProposal(workspaceId: WorkspaceId, overrides: { id?: ProposalId } = {}): Proposal {
-  return new Proposal({
-    id: overrides.id ?? (mintTestId('p') as ProposalId),
-    workspaceId,
-    status: 'pending',
-    operations: [{
-      operation: 'addNode',
-      payload: {
-        type: 'command' as NodeTypeId,
-        name: 'voidTask',
-        id: mintTestId('n') as NodeId,
-        status: 'draft' as NodeStatus,
-        // implementationMissing satisfies EvidenceValidator (framework invariant):
-        // intent-side proposal where code hasn't shipped yet.
-        metadata: { sourceReferences: [], implementationMissing: true },
-      },
-    }],
-    generatedBy: 'extract' as SkillId,
-    generatedAt: T0,
-    rationale: 'add voidTask',
-  })
-}
-
-function makeClarifyTicket(workspaceId: WorkspaceId, overrides: {
-  id?: ClarifyTicketId
-  status?: 'pending' | 'answered'
-  candidates?: readonly ClarifyCandidate[]
-  selectedCandidateId?: ClarifyCandidateId
-} = {}): ClarifyTicket {
-  const status = overrides.status ?? 'pending'
-  return new ClarifyTicket({
-    id: overrides.id ?? (mintTestId('ct') as ClarifyTicketId),
-    workspaceId,
-    question: 'q?',
-    candidates: [...(overrides.candidates ?? [])],
-    status,
-    ...(status === 'answered' && overrides.selectedCandidateId
-      ? {
-          selectedCandidateId: overrides.selectedCandidateId,
-          resolution: [],
-          answeredBy: userId,
-        }
-      : {}),
-  })
-}
-
 describe('HITLService', () => {
   beforeEach(() => {
     resetTestIds()
   })
 
   describe('applyProposal', () => {
-    it('applies operations to model and records decision', async () => {
+    it('applies operations to model and returns the applied proposal', async () => {
       const fixture = await setupFixture()
       const proposal = makeProposal(fixture.workspaceId)
       await fixture.proposalRepository.save(proposal)
 
-      const decision = await fixture.service.applyProposal(proposal.id, userId)
+      const applied = await fixture.service.applyProposal(proposal.id, userId)
 
-      expect(decision.action).toBe('applyProposal')
-      expect(decision.references.proposalId).toBe(proposal.id)
-      expect(decision.workspaceId).toBe(fixture.workspaceId)
+      expect(applied.status).toBe('applied')
+      expect(applied.id).toBe(proposal.id)
+      expect(applied.workspaceId).toBe(fixture.workspaceId)
       expect((await fixture.modelRepository.load(fixture.workspaceId)).nodes).toHaveLength(1)
-      expect(await fixture.decisionRepository.list()).toHaveLength(1)
     })
 
     it('marks proposal as applied', async () => {
@@ -183,21 +126,10 @@ describe('HITLService', () => {
       ).rejects.toThrow(ConflictError)
     })
 
-    it('records the decision with the clock-injected timestamp', async () => {
-      const fixture = await setupFixture()
-      const proposal = makeProposal(fixture.workspaceId)
-      await fixture.proposalRepository.save(proposal)
-
-      fixture.clock.set(at(3600))
-      const decision = await fixture.service.applyProposal(proposal.id, userId)
-
-      expect(decision.timestamp).toBe(at(3600))
-    })
-
     it('throws ValidationError when the active ontology blocks and leaves proposal pending', async () => {
       // Active ontology ships a validator that always reports an error.
-      // HITLService looks up workspace.ontologyId at validate-time and
-      // runs `ontology.validators[]`, so the proposal gets rejected.
+      // HITLService looks up workspace.ontologyId at validate-time, and runs `ontology.validators[]`,
+      // so the proposal gets rejected.
       const pluginRegistry = new PluginRegistry()
       pluginRegistry.register(makeOntology({
         ontologyId: 'ddd',
@@ -222,11 +154,9 @@ describe('HITLService', () => {
     })
 
     it('serialises concurrent applyProposal calls per workspace', async () => {
-      // Without per-workspace locking both calls read the same empty
-      // snapshot, both pass validation, both try to write, and one
-      // surfaces a misleading "node already exists" from the underlying
-      // store. With the lock the second caller sees the proposal already
-      // applied and gets a clean ConflictError.
+      // Without per-workspace locking both calls read the same empty snapshot, both pass validation, both try to write,
+      // and one surfaces a misleading "node already exists" from the store.
+      // With the lock the second caller sees the proposal already applied, and gets a clean ConflictError.
       const fixture = await setupFixture()
       const proposal = makeProposal(fixture.workspaceId)
       await fixture.proposalRepository.save(proposal)
@@ -248,48 +178,46 @@ describe('HITLService', () => {
   })
 
   describe('rejectProposal', () => {
-    it('marks proposal rejected and records decision', async () => {
+    it('marks proposal rejected', async () => {
       const fixture = await setupFixture()
       const proposal = makeProposal(fixture.workspaceId)
       await fixture.proposalRepository.save(proposal)
 
-      const decision = await fixture.service.rejectProposal(
+      const rejected = await fixture.service.rejectProposal(
         proposal.id,
         'conflicts with existing aggregate',
         userId,
       )
 
-      expect(decision.action).toBe('rejectProposal')
-      expect(decision.rationale).toContain('conflicts')
+      expect(rejected.status).toBe('rejected')
 
       const reloaded = await fixture.proposalRepository.load(proposal.id)
       expect(reloaded.status).toBe('rejected')
     })
   })
 
-  describe('skipClarifyTicket', () => {
-    it('marks ticket as skipped + records decision with rationale', async () => {
+  describe('skipClarification', () => {
+    it('marks ticket as skipped', async () => {
       const fixture = await setupFixture()
-      const ticket = makeClarifyTicket(fixture.workspaceId)
-      await fixture.clarifyRepository.save(ticket)
+      const ticket = makeClarification(fixture.workspaceId)
+      await fixture.clarificationRepository.save(ticket)
 
-      const decision = await fixture.service.skipClarifyTicket(
+      const skipped = await fixture.service.skipClarification(
         ticket.id,
         'out of scope for this milestone',
         userId,
       )
 
-      expect(decision.action).toBe('skipClarifyTicket')
-      expect(decision.rationale).toContain('out of scope')
-      const reloaded = await fixture.clarifyRepository.load(ticket.id)
+      expect(skipped.status).toBe('skipped')
+      const reloaded = await fixture.clarificationRepository.load(ticket.id)
       expect(reloaded.status).toBe('skipped')
     })
   })
 
-  describe('answerClarifyTicket', () => {
+  describe('answerClarification', () => {
     it('records the chosen candidate as answered without mutating the graph', async () => {
-      // The user's answer is just a selection signal: graph writes go
-      // through the braid-clarify skill's Proposal path, not here.
+      // The user's answer is just a selection signal, graph writes go through the ddd:clarify skill's Proposal path,
+      // not here.
       const fixture = await setupFixture()
       const nodeId = mintTestId('n') as NodeId
       await fixture.modelRepository.applyOperations(fixture.workspaceId, [
@@ -298,8 +226,8 @@ describe('HITLService', () => {
           payload: { type: 'command' as NodeTypeId, name: 'x', id: nodeId, status: 'draft' as NodeStatus },
         },
       ])
-      const candidateId = mintTestId('cc') as ClarifyCandidateId
-      const ticket = makeClarifyTicket(fixture.workspaceId, {
+      const candidateId = mintTestId('cc') as ClarificationCandidateId
+      const ticket = makeClarification(fixture.workspaceId, {
         candidates: [{
           id: candidateId,
           description: 'yes',
@@ -307,72 +235,47 @@ describe('HITLService', () => {
           proposedOperations: [{ operation: 'removeNode', nodeId }],
         }],
       })
-      await fixture.clarifyRepository.save(ticket)
+      await fixture.clarificationRepository.save(ticket)
 
-      const decision = await fixture.service.answerClarifyTicket({
-        clarifyTicketId: ticket.id,
+      const answered = await fixture.service.answerClarification({
+        clarificationId: ticket.id,
         selection: { kind: 'existing', candidateId },
         userId,
       })
 
-      expect(decision.action).toBe('answerClarifyTicket')
-      expect(decision.workspaceId).toBe(fixture.workspaceId)
+      expect(answered.status).toBe('answered')
+      expect(answered.workspaceId).toBe(fixture.workspaceId)
       const snapshot = await fixture.modelRepository.load(fixture.workspaceId)
       expect(snapshot.nodes).toHaveLength(1)
 
-      const reloaded = await fixture.clarifyRepository.load(ticket.id)
+      const reloaded = await fixture.clarificationRepository.load(ticket.id)
       expect(reloaded.status).toBe('answered')
       expect(reloaded.selectedCandidateId).toBe(candidateId)
       expect(reloaded.resolution).toEqual([{ operation: 'removeNode', nodeId }])
     })
 
-    it('captures the reviewer note on the decision rationale', async () => {
-      const fixture = await setupFixture()
-      const candidateId = mintTestId('cc') as ClarifyCandidateId
-      const ticket = makeClarifyTicket(fixture.workspaceId, {
-        candidates: [{
-          id: candidateId,
-          description: 'yes',
-          sourceReferences: [],
-          proposedOperations: [],
-        }],
-      })
-      await fixture.clarifyRepository.save(ticket)
-
-      const decision = await fixture.service.answerClarifyTicket({
-        clarifyTicketId: ticket.id,
-        selection: { kind: 'existing', candidateId },
-        userId,
-        note: 'org-scoped per the security review',
-      })
-
-      expect(decision.rationale).toBe('org-scoped per the security review')
-    })
-
     it('appends a custom candidate, marks it answered, and stamps the resolution', async () => {
-      // The reviewer's own answer flows through the same lifecycle as
-      // a skill-emitted candidate: the new one shows up in the
-      // ticket's candidates list with zero ops, and selectedCandidateId
-      // points at it.
+      // The reviewer's answer uses the same lifecycle as a skill candidate.
+      // The new one shows up in the ticket's candidates with zero ops, and selectedCandidateId points at it.
       const fixture = await setupFixture()
-      const ticket = makeClarifyTicket(fixture.workspaceId, {
+      const ticket = makeClarification(fixture.workspaceId, {
         candidates: [{
-          id: mintTestId('cc') as ClarifyCandidateId,
+          id: mintTestId('cc') as ClarificationCandidateId,
           description: 'pre-existing',
           sourceReferences: [],
           proposedOperations: [],
         }],
       })
-      await fixture.clarifyRepository.save(ticket)
+      await fixture.clarificationRepository.save(ticket)
 
-      const decision = await fixture.service.answerClarifyTicket({
-        clarifyTicketId: ticket.id,
+      const answered = await fixture.service.answerClarification({
+        clarificationId: ticket.id,
         selection: { kind: 'custom', description: 'actually it should be hybrid' },
         userId,
       })
 
-      expect(decision.action).toBe('answerClarifyTicket')
-      const reloaded = await fixture.clarifyRepository.load(ticket.id)
+      expect(answered.status).toBe('answered')
+      const reloaded = await fixture.clarificationRepository.load(ticket.id)
       expect(reloaded.status).toBe('answered')
       expect(reloaded.candidates).toHaveLength(2)
       const appended = reloaded.candidates[1]
@@ -383,12 +286,12 @@ describe('HITLService', () => {
     })
 
     it('rejects answers whose resolution ops fail validation', async () => {
-      // Removing a node that doesn't exist trips the structural validator
-      // — surface the error here rather than letting the skill blow up
-      // later trying to wrap it into a Proposal.
+      // Removing a node that doesn't exist trips the structural validator.
+      // Surface the error here rather than letting the skill blow up later,
+      // when it tries to wrap the failure into a Proposal.
       const fixture = await setupFixture()
-      const candidateId = mintTestId('cc') as ClarifyCandidateId
-      const ticket = makeClarifyTicket(fixture.workspaceId, {
+      const candidateId = mintTestId('cc') as ClarificationCandidateId
+      const ticket = makeClarification(fixture.workspaceId, {
         candidates: [{
           id: candidateId,
           description: 'yes',
@@ -396,26 +299,26 @@ describe('HITLService', () => {
           proposedOperations: [{ operation: 'removeNode', nodeId: 'ghost' as NodeId }],
         }],
       })
-      await fixture.clarifyRepository.save(ticket)
+      await fixture.clarificationRepository.save(ticket)
 
       await expect(
-        fixture.service.answerClarifyTicket({
-          clarifyTicketId: ticket.id,
+        fixture.service.answerClarification({
+          clarificationId: ticket.id,
           selection: { kind: 'existing', candidateId },
           userId,
         }),
       ).rejects.toThrow()
 
-      const reloaded = await fixture.clarifyRepository.load(ticket.id)
+      const reloaded = await fixture.clarificationRepository.load(ticket.id)
       expect(reloaded.status).toBe('pending')
     })
   })
 
-  describe('markClarifyTicketApplied', () => {
+  describe('markClarificationApplied', () => {
     it('moves an answered ticket to applied and stamps proposalId', async () => {
       const fixture = await setupFixture()
-      const candidateId = mintTestId('cc') as ClarifyCandidateId
-      const ticket = makeClarifyTicket(fixture.workspaceId, {
+      const candidateId = mintTestId('cc') as ClarificationCandidateId
+      const ticket = makeClarification(fixture.workspaceId, {
         status: 'answered',
         selectedCandidateId: candidateId,
         candidates: [{
@@ -425,23 +328,23 @@ describe('HITLService', () => {
           proposedOperations: [],
         }],
       })
-      await fixture.clarifyRepository.save(ticket)
+      await fixture.clarificationRepository.save(ticket)
       const proposalId = mintTestId('p') as ProposalId
 
-      const decision = await fixture.service.markClarifyTicketApplied(ticket.id, userId, proposalId)
+      const applied = await fixture.service.markClarificationApplied(ticket.id, userId, proposalId)
 
-      expect(decision.action).toBe('applyClarifyTicket')
-      expect(decision.references.proposalId).toBe(proposalId)
+      expect(applied.status).toBe('applied')
+      expect(applied.proposalId).toBe(proposalId)
 
-      const reloaded = await fixture.clarifyRepository.load(ticket.id)
+      const reloaded = await fixture.clarificationRepository.load(ticket.id)
       expect(reloaded.status).toBe('applied')
       expect(reloaded.proposalId).toBe(proposalId)
     })
 
     it('moves an answered ticket to applied with no proposalId when resolution had no graph impact', async () => {
       const fixture = await setupFixture()
-      const candidateId = mintTestId('cc') as ClarifyCandidateId
-      const ticket = makeClarifyTicket(fixture.workspaceId, {
+      const candidateId = mintTestId('cc') as ClarificationCandidateId
+      const ticket = makeClarification(fixture.workspaceId, {
         status: 'answered',
         selectedCandidateId: candidateId,
         candidates: [{
@@ -451,22 +354,22 @@ describe('HITLService', () => {
           proposedOperations: [],
         }],
       })
-      await fixture.clarifyRepository.save(ticket)
+      await fixture.clarificationRepository.save(ticket)
 
-      const decision = await fixture.service.markClarifyTicketApplied(ticket.id, userId)
+      const applied = await fixture.service.markClarificationApplied(ticket.id, userId)
 
-      expect(decision.action).toBe('applyClarifyTicket')
-      expect(decision.references.proposalId).toBeUndefined()
+      expect(applied.status).toBe('applied')
+      expect(applied.proposalId).toBeUndefined()
 
-      const reloaded = await fixture.clarifyRepository.load(ticket.id)
+      const reloaded = await fixture.clarificationRepository.load(ticket.id)
       expect(reloaded.status).toBe('applied')
       expect(reloaded.proposalId).toBeUndefined()
     })
 
     it('refuses to apply a ticket that has not been answered yet', async () => {
       const fixture = await setupFixture()
-      const candidateId = mintTestId('cc') as ClarifyCandidateId
-      const ticket = makeClarifyTicket(fixture.workspaceId, {
+      const candidateId = mintTestId('cc') as ClarificationCandidateId
+      const ticket = makeClarification(fixture.workspaceId, {
         candidates: [{
           id: candidateId,
           description: 'a',
@@ -474,11 +377,11 @@ describe('HITLService', () => {
           proposedOperations: [],
         }],
       })
-      await fixture.clarifyRepository.save(ticket)
+      await fixture.clarificationRepository.save(ticket)
       const proposalId = mintTestId('p') as ProposalId
 
       await expect(
-        fixture.service.markClarifyTicketApplied(ticket.id, userId, proposalId),
+        fixture.service.markClarificationApplied(ticket.id, userId, proposalId),
       ).rejects.toThrow(ConflictError)
     })
   })

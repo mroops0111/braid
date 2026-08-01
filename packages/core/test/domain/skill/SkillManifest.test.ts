@@ -1,7 +1,7 @@
 import type { AbsolutePath, McpServerId } from '@braidhq/schema'
+import { makeSkillManifest, makeSkillManifestData, makeWorkspace } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { SkillManifest } from '../../../src/index.js'
-import { makeSkillManifest, makeSkillManifestData, makeWorkspace } from '../../helpers/fakes.js'
 
 const REDMINE_MCP = {
   id: 'redmine' as McpServerId,
@@ -45,10 +45,10 @@ describe('SkillManifest.requiresMcpServer', () => {
 
 describe('SkillManifest claude / braid field projections', () => {
   it('claudeCodeFields drops the braid namespace', () => {
-    const manifest = makeSkillManifest({ id: 'ask', name: 'braid-ask', description: 'answer questions' })
+    const manifest = makeSkillManifest({ id: 'braid:ask', name: 'ask', description: 'answer questions' })
 
     expect(manifest.claudeCodeFields).toEqual({
-      name: 'braid-ask',
+      name: 'ask',
       description: 'answer questions',
       disableModelInvocation: false,
     })

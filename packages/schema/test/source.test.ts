@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   FilesystemSourceDescriptor,
+  ListSourceLoadersResponse,
+  LoaderKind,
   McpSourceDescriptor,
+  McpSourceScope,
   SourceDescriptor,
   SourceKind,
+  SourceLoaderDescriptor,
+  SourceLoaderEntry,
   SourceRole,
 } from '../src/index.js'
 
@@ -101,5 +106,58 @@ describe('SourceDescriptor (discriminated union)', () => {
     expect(
       SourceDescriptor.safeParse({ kind: 'http', id: 'a', role: 'code', name: 'a' }).success,
     ).toBe(false)
+  })
+})
+
+describe('LoaderKind (open brand)', () => {
+  it('accepts any non-empty loader kind', () => {
+    expect(LoaderKind.parse('git')).toBe('git')
+    expect(LoaderKind.parse('gdrive')).toBe('gdrive')
+  })
+  it('rejects empty', () => {
+    expect(LoaderKind.safeParse('').success).toBe(false)
+  })
+})
+
+describe('SourceLoaderDescriptor', () => {
+  it('pairs a loader kind with opaque config', () => {
+    const descriptor = SourceLoaderDescriptor.parse({ kind: 'git', config: { url: 'https://github.com/x/y' } })
+    expect(descriptor.kind).toBe('git')
+  })
+})
+
+describe('FilesystemSourceDescriptor with a loader', () => {
+  it('carries the provisioning loader', () => {
+    const source = FilesystemSourceDescriptor.parse({
+      kind: 'filesystem',
+      id: 'src-app',
+      role: 'code',
+      name: 'app',
+      path: '/abs/code/app',
+      loader: { kind: 'git', config: { url: 'https://github.com/x/y' } },
+    })
+    expect(source.loader?.kind).toBe('git')
+  })
+})
+
+describe('McpSourceScope', () => {
+  it('defaults tags and paths to empty lists', () => {
+    expect(McpSourceScope.parse({})).toEqual({ tags: [], paths: [] })
+  })
+})
+
+describe('SourceLoaderEntry', () => {
+  it('defaults the webhook flag to false', () => {
+    const entry = SourceLoaderEntry.parse({ kind: 'filesystem', pluginId: 'source-loader.filesystem' })
+    expect(entry.webhook).toBe(false)
+  })
+})
+
+describe('ListSourceLoadersResponse', () => {
+  it('wraps the loader list', () => {
+    const res = ListSourceLoadersResponse.parse({
+      loaders: [{ kind: 'git', pluginId: 'source-loader.git', webhook: true }],
+    })
+    expect(res.loaders[0]?.webhook).toBe(true)
   })
 })

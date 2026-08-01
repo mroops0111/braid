@@ -1,11 +1,12 @@
 /**
- * Pick the most informative single line from a tool-call args object so a
- * collapsed row can be scanned without expanding. Examples:
+ * Pick the most informative single line from a tool-call args object,
+ * so a collapsed row can be scanned without expanding.
+ * Examples:
  *
- *   { command: "ls" }            → "ls"
- *   { file_path: "/x" }          → "/x"
- *   { url: "https://..." }       → "https://..."
- *   { foo: 1, bar: 2 }           → '{"foo":1,"bar":2}'
+ *   { command: "ls" }            becomes "ls"
+ *   { file_path: "/x" }          becomes "/x"
+ *   { url: "https://..." }       becomes "https://..."
+ *   { foo: 1, bar: 2 }           becomes '{"foo":1,"bar":2}'
  *
  * Output is always truncated to 80 chars.
  */

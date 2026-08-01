@@ -1,5 +1,5 @@
-import type { ClarifyCandidate, ClarifyTicketId, NodeId, NodeStatus, NodeTypeId, WorkspaceId } from '@braidhq/schema'
-import { ClarifyTicket } from '@braidhq/core'
+import type { ClarificationCandidate, ClarificationId, NodeId, NodeStatus, NodeTypeId, WorkspaceId } from '@braidhq/schema'
+import { Clarification } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { buildTestApp } from '../helpers/buildApp.js'
 import { readJson } from '../helpers/readJson.js'
@@ -38,7 +38,7 @@ describe('GET /workspaces/:ws/skill-input-options', () => {
 
     const filter = JSON.stringify({ types: ['command'] })
     const response = await app.request(
-      `/workspaces/${workspaceId}/skill-input-options?type=graph-node&filter=${encodeURIComponent(filter)}`,
+      `/workspaces/${workspaceId}/skill-input-options?kind=graph-node&filter=${encodeURIComponent(filter)}`,
     )
     expect(response.status).toBe(200)
     const body = await readJson<OptionsBody>(response)
@@ -49,31 +49,35 @@ describe('GET /workspaces/:ws/skill-input-options', () => {
 
   it('clarify returns tickets filtered by status', async () => {
     const { app, deps } = await buildTestApp()
-    const candidate: ClarifyCandidate = {
+    const candidate: ClarificationCandidate = {
       id: 'cc-1' as never,
       description: 'Merge',
       sourceReferences: [],
       proposedOperations: [],
     }
-    await deps.clarifyRepository.save(new ClarifyTicket({
-      id: 'ct-pending' as ClarifyTicketId,
+    await deps.clarificationRepository.save(new Clarification({
+      id: 'ct-pending' as ClarificationId,
       workspaceId,
       question: 'merge or split?',
       candidates: [candidate],
       status: 'pending',
+      owner: 'system',
+      origin: 'skill',
     }))
-    await deps.clarifyRepository.save(new ClarifyTicket({
-      id: 'ct-answered' as ClarifyTicketId,
+    await deps.clarificationRepository.save(new Clarification({
+      id: 'ct-answered' as ClarificationId,
       workspaceId,
       question: 'alias or distinct?',
       candidates: [candidate],
       status: 'answered',
       selectedCandidateId: candidate.id,
+      owner: 'system',
+      origin: 'skill',
     }))
 
     const filter = JSON.stringify({ status: 'answered' })
     const response = await app.request(
-      `/workspaces/${workspaceId}/skill-input-options?type=clarify&filter=${encodeURIComponent(filter)}`,
+      `/workspaces/${workspaceId}/skill-input-options?kind=clarify&filter=${encodeURIComponent(filter)}`,
     )
     expect(response.status).toBe(200)
     const body = await readJson<OptionsBody>(response)
@@ -85,7 +89,7 @@ describe('GET /workspaces/:ws/skill-input-options', () => {
   it('source-intent returns empty list when no intent sources are configured', async () => {
     const { app } = await buildTestApp()
     const response = await app.request(
-      `/workspaces/${workspaceId}/skill-input-options?type=source-intent`,
+      `/workspaces/${workspaceId}/skill-input-options?kind=source-intent`,
     )
     expect(response.status).toBe(200)
     const body = await readJson<OptionsBody>(response)
@@ -95,7 +99,7 @@ describe('GET /workspaces/:ws/skill-input-options', () => {
   it('rejects an unknown provider type with 400', async () => {
     const { app } = await buildTestApp()
     const response = await app.request(
-      `/workspaces/${workspaceId}/skill-input-options?type=bogus`,
+      `/workspaces/${workspaceId}/skill-input-options?kind=bogus`,
     )
     expect(response.status).toBe(400)
   })

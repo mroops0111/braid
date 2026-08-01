@@ -1,7 +1,7 @@
-import type { BatchPlan, BatchStatus, PlanUnit, SkillInputOptionsResponse, SkillRunId, UnitStatus } from '@braidhq/schema'
+import type { BatchPlan, BatchStatus, BatchUnit, BatchUnitStatus, SkillInputOptionsResponse, SkillRunId } from '@braidhq/schema'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Archive, CheckCircle2, CircleDot, FastForward, FileText, Loader2, Play, PlayCircle, Search, Sparkles, StopCircle, Terminal, XCircle } from 'lucide-react'
+import { Archive, CheckCircle2, CircleDot, ClipboardCheck, FastForward, FileText, HelpCircle, Loader2, Play, PlayCircle, Search, Sparkles, StopCircle, Terminal, XCircle } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { SkillTranscript } from '@/components/SkillTranscript'
 import { Button } from '@/components/ui/button'
@@ -15,7 +15,7 @@ interface BatchPageProps {
   workspaceId: string
 }
 
-const EXTRACT_SKILL_ID = 'braid-extract'
+const EXTRACT_SKILL_ID = 'ddd:extract'
 
 const STATUS_TONE: Record<BatchStatus, string> = {
   idle: 'border-zinc-400/40 bg-zinc-400/10 text-zinc-700 dark:text-zinc-300',
@@ -27,7 +27,7 @@ const STATUS_TONE: Record<BatchStatus, string> = {
   archived: 'border-zinc-400/40 bg-zinc-400/10 text-zinc-700 dark:text-zinc-300',
 }
 
-const UNIT_ICON: Record<UnitStatus, ReactNode> = {
+const UNIT_ICON: Record<BatchUnitStatus, ReactNode> = {
   pending: <CircleDot className="size-4 text-muted-foreground" />,
   running: <Loader2 className="size-4 animate-spin text-sky-500" />,
   completed: <CheckCircle2 className="size-4 text-emerald-500" />,
@@ -75,9 +75,9 @@ function PreStart({ workspaceId, previousPlan }: { workspaceId: string, previous
       <section className="rounded-lg border border-border bg-card/40 p-4 text-sm leading-relaxed text-foreground/90 [text-wrap:pretty]">
         <div className="font-medium">What Happens</div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Confident proposals are applied straight to the graph. Ambiguous ones queue in Clarify for you to decide. If you want to review every single proposal by hand, run a single
+          Confident proposals are applied straight to the graph. Ambiguous ones queue in Clarification for you to decide. If you want to review every single proposal by hand, run a single
           {' '}
-          <code className="rounded bg-muted px-1 font-mono">/braid-extract</code>
+          <code className="rounded bg-muted px-1 font-mono">/ddd:extract</code>
           {' '}
           from Actions instead.
         </p>
@@ -161,7 +161,7 @@ function BatchPreviewList({ query }: { query: ReturnType<typeof useQuery<SkillIn
           {items.length}
           {items.length === 1 ? ' Intent Will Be Processed' : ' Intents Will Be Processed'}
         </div>
-        <span className="text-[11px] text-muted-foreground">one extract job per row</span>
+        <span className="text-2xs text-muted-foreground">one extract job per row</span>
       </div>
       <ul className="mt-3 space-y-1">
         {items.map(item => (
@@ -170,7 +170,7 @@ function BatchPreviewList({ query }: { query: ReturnType<typeof useQuery<SkillIn
             <div className="min-w-0 flex-1">
               <div className="truncate text-foreground/90">{item.label}</div>
               {item.description && (
-                <div className="truncate text-[10px] text-muted-foreground">{item.description}</div>
+                <div className="truncate text-2xs text-muted-foreground">{item.description}</div>
               )}
             </div>
           </li>
@@ -210,9 +210,10 @@ function BatchHeader({ workspaceId, plan, terminal }: {
   terminal: boolean
 }) {
   const queryClient = useQueryClient()
-  // Every header action mutates the plan server-side, so they all need
-  // to refetch the same query. Sharing the callback keeps each mutation
-  // declaration to a single responsibility (its mutationFn).
+  // Every header action mutates the plan server-side,
+  // so they all need to refetch the same query.
+  // Sharing the callback keeps each mutation declaration,
+  // to a single responsibility, its mutationFn.
   const refreshBatch = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.batch(workspaceId) })
   }
@@ -233,13 +234,13 @@ function BatchHeader({ workspaceId, plan, terminal }: {
         : 'Processing Units…'
 
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-4">
+    <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-4">
       <div className="flex min-w-0 items-center gap-3">
         {terminal
           ? <Sparkles className="size-4 shrink-0 text-primary" />
           : <Loader2 className="size-4 shrink-0 animate-spin text-sky-500" />}
         <h1 className="truncate text-sm font-semibold">{headerLabel}</h1>
-        <span className={cn('rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider', STATUS_TONE[plan.status])}>
+        <span className={cn('rounded border px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider', STATUS_TONE[plan.status])}>
           {plan.status}
         </span>
         <span className="text-xs text-muted-foreground">
@@ -347,27 +348,28 @@ function UnitList({ plan, selectedRunId, activeRunId, onSelect }: {
 }
 
 interface UnitChunk {
-  units: readonly PlanUnit[]
+  units: readonly BatchUnit[]
   phase: BatchPlan['checkpointPhases'][number] | undefined
   isFinal: boolean
 }
 
 /**
- * Build the visual chunks. For each committed checkpoint phase we
- * group the units it consumed. Remaining units are split into
- * anticipated chunks using `batchPolicy.checkpointChunkSize` so the
- * reviewer sees the structure before any checkpoint fires.
+ * Build the visual chunks.
+ * For each committed checkpoint phase we group the units it consumed.
+ * Remaining units are split into anticipated chunks,
+ * using `batchPolicy.checkpointChunkSize`,
+ * so the reviewer sees the structure before any checkpoint fires.
  *
- * When `checkpointRunAtEnd` is true we also surface the mandatory
- * final pass even if units happen to divide evenly — the orchestrator
- * will fire one more checkpoint with an empty unit list in that case.
+ * When `checkpointRunAtEnd` is true we also surface the mandatory final pass,
+ * even if units happen to divide evenly.
+ * The orchestrator fires one more checkpoint with an empty unit list.
  */
 function groupUnitsByCheckpoint(plan: BatchPlan): UnitChunk[] {
   const unitsById = new Map(plan.units.map(u => [u.id, u]))
   const consumed = new Set<string>()
   const chunks: UnitChunk[] = []
   for (const phase of plan.checkpointPhases) {
-    const units: PlanUnit[] = []
+    const units: BatchUnit[] = []
     for (const id of phase.unitIds) {
       const unit = unitsById.get(id)
       if (unit) {
@@ -397,7 +399,7 @@ function groupUnitsByCheckpoint(plan: BatchPlan): UnitChunk[] {
 
 type PhaseTone = 'completed' | 'failed' | 'running' | 'idle'
 
-function aggregateUnitsTone(units: readonly PlanUnit[]): PhaseTone {
+function aggregateUnitsTone(units: readonly BatchUnit[]): PhaseTone {
   if (units.length === 0)
     return 'idle'
   if (units.some(u => u.status === 'failed'))
@@ -460,7 +462,7 @@ function ChunkSection({ chunkIndex, chunk, isTerminal, perUnitLabel, checkpointL
               />
             )
           : (
-              <li className="rounded-md border border-dashed border-border/60 px-2.5 py-2 text-[10px] text-muted-foreground">
+              <li className="rounded-md border border-dashed border-border/60 px-2.5 py-2 text-2xs text-muted-foreground">
                 {isTerminal
                   ? 'No checkpoint recorded for these units.'
                   : chunk.units.length === 0
@@ -480,10 +482,10 @@ function PhaseSectionHeader({ title, badge, tone = 'idle' }: {
 }) {
   return (
     <div className="sticky top-0 z-10 flex items-center justify-between border-y border-border/60 bg-card/80 px-3 py-1.5 backdrop-blur">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
+      <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
       {badge && (
         <span className={cn(
-          'rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider',
+          'rounded border px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider',
           tone === 'running' && 'border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-300',
           tone === 'completed' && 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
           tone === 'failed' && 'border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-300',
@@ -499,7 +501,7 @@ function PhaseSectionHeader({ title, badge, tone = 'idle' }: {
 
 const CHECKPOINT_PHASE_ICON: Record<BatchPlan['checkpointPhases'][number]['status'], ReactNode> = {
   running: <Loader2 className="size-3.5 animate-spin text-sky-500" />,
-  completed: <Sparkles className="size-3.5 text-emerald-500" />,
+  completed: <CheckCircle2 className="size-3.5 text-emerald-500" />,
   failed: <StopCircle className="size-3.5 text-rose-500" />,
 }
 
@@ -530,15 +532,15 @@ function CheckpointPhaseRow({ phase, label, active, selected, onSelect }: {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             {label && (
-              <span className="rounded border border-border bg-transparent px-1 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="rounded border border-border bg-transparent px-1 py-0.5 text-2xs font-medium uppercase tracking-wider text-muted-foreground">
                 {label}
               </span>
             )}
             <span className="truncate text-xs font-medium text-foreground">Checkpoint</span>
           </div>
-          <p className="mt-0.5 text-[10px] text-muted-foreground">{`Covers ${phase.unitIds.length} unit${phase.unitIds.length === 1 ? '' : 's'}`}</p>
+          <p className="mt-0.5 text-2xs text-muted-foreground">{`Covers ${phase.unitIds.length} unit${phase.unitIds.length === 1 ? '' : 's'}`}</p>
           {phase.error && (
-            <p className="mt-0.5 line-clamp-2 text-[10px] text-rose-600 dark:text-rose-300">{phase.error}</p>
+            <p className="mt-0.5 line-clamp-2 text-2xs text-rose-600 dark:text-rose-300">{phase.error}</p>
           )}
         </div>
       </button>
@@ -547,7 +549,7 @@ function CheckpointPhaseRow({ phase, label, active, selected, onSelect }: {
 }
 
 function UnitRow({ unit, actionLabel, active, selected, onSelect }: {
-  unit: PlanUnit
+  unit: BatchUnit
   actionLabel: string | undefined
   active: boolean
   selected: boolean
@@ -573,30 +575,30 @@ function UnitRow({ unit, actionLabel, active, selected, onSelect }: {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             {actionLabel && (
-              <span className="rounded border border-border bg-transparent px-1 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="rounded border border-border bg-transparent px-1 py-0.5 text-2xs font-medium uppercase tracking-wider text-muted-foreground">
                 {actionLabel}
               </span>
             )}
             <span className="truncate text-xs font-medium text-foreground">{unit.name}</span>
           </div>
-          {(unit.proposalIds.length > 0 || unit.clarifyTicketIds.length > 0) && (
-            <div className="mt-0.5 flex gap-2 text-[10px] text-muted-foreground">
+          {(unit.proposalIds.length > 0 || unit.clarificationIds.length > 0) && (
+            <div className="mt-0.5 flex gap-2 text-2xs text-muted-foreground">
               {unit.proposalIds.length > 0 && (
-                <span>
+                <span className="flex items-center gap-0.5" title={`${unit.proposalIds.length} proposals`}>
+                  <ClipboardCheck className="size-3" />
                   {unit.proposalIds.length}
-                  {' p'}
                 </span>
               )}
-              {unit.clarifyTicketIds.length > 0 && (
-                <span>
-                  {unit.clarifyTicketIds.length}
-                  {' c'}
+              {unit.clarificationIds.length > 0 && (
+                <span className="flex items-center gap-0.5" title={`${unit.clarificationIds.length} clarifications`}>
+                  <HelpCircle className="size-3" />
+                  {unit.clarificationIds.length}
                 </span>
               )}
             </div>
           )}
           {unit.error && (
-            <p className="mt-0.5 line-clamp-2 text-[10px] text-rose-600 dark:text-rose-300">{unit.error}</p>
+            <p className="mt-0.5 line-clamp-2 text-2xs text-rose-600 dark:text-rose-300">{unit.error}</p>
           )}
         </div>
       </button>
@@ -635,7 +637,7 @@ function LogPane({ workspaceId, plan, selectedRunId }: {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-card">
-      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-3 text-[11px] text-muted-foreground">
+      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-3 text-2xs text-muted-foreground">
         <Terminal className="size-3" />
         <span className="font-medium text-foreground">
           {selectedUnit?.name ?? 'Unit log'}
@@ -651,7 +653,7 @@ function isTerminal(status: BatchStatus): boolean {
   return status === 'completed' || status === 'failed' || status === 'stopped'
 }
 
-function lastFinishedRunId(units: readonly PlanUnit[]): SkillRunId | null {
+function lastFinishedRunId(units: readonly BatchUnit[]): SkillRunId | null {
   for (let i = units.length - 1; i >= 0; i--) {
     const unit = units[i]!
     if (unit.skillRunId && (unit.status === 'completed' || unit.status === 'failed'))
@@ -675,7 +677,8 @@ function summarise(plan: BatchPlan): { completed: number, failed: number, applie
   return { completed, failed, applied }
 }
 
-// Selected unit follows the active running unit; manual clicks override until the next active change.
+// Selected unit follows the active running unit.
+// Manual clicks override until the next active change.
 function useTrackedRunId(initial: SkillRunId | null, activeRunId: SkillRunId | null): [SkillRunId | null, (id: SkillRunId | null) => void] {
   const [selected, setSelected] = useState<SkillRunId | null>(initial)
   useEffect(() => {

@@ -51,12 +51,12 @@ function writeJson<T>(key: string, value: T): void {
 }
 
 /**
- * Idempotent migration from the pre-Phase-D single-server keys
- * (`braid:serverUrl` + `braid:authToken`) to the per-remote layout.
+ * Idempotent migration to the per-remote layout,
+ * from the old single-server keys `braid:serverUrl` and `braid:authToken`.
  * Without this an upgrade silently bounces the user to Login.
  *
- * Legacy keys are left in place so a downgrade still works; a later
- * major version can sweep them up.
+ * Legacy keys are left in place so a downgrade still works,
+ * and a later major version can sweep them up.
  */
 let legacyMigrationDone = false
 

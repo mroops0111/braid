@@ -7,7 +7,7 @@ import { makeWorkspace } from '@braidhq/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { createApp } from '../../src/app.js'
-import { composeApp } from '../../src/composition.js'
+import { composeApp } from '../../src/composeApp.js'
 
 const SOURCE_ID = 'issues' as SourceId
 const OWNER = 'mroops0111'
@@ -61,7 +61,7 @@ function makeGitSource(branch?: string) {
 }
 
 // Stand-in loader plugins for the receiver's plugin-registry lookup.
-// We deliberately bypass `defineSourceLoader` and construct the plugin
+// We deliberately bypass `defineSourceLoaderPlugin` and construct the plugin
 // object literal so the test stays loader-agnostic: it only exercises
 // the receiver's contract (delegate to `plugin.webhook.{repoIdentity,
 // shouldDispatch}`) and does NOT reproduce production loader semantics.
@@ -82,7 +82,7 @@ function makeFakeLoader(opts: FakeLoaderOptions): SourceLoaderPlugin {
     type: 'source-loader',
     kind: opts.kind as LoaderKind,
     configSchema: z.unknown(),
-    ingest: async () => ({ localPath: '/abs/x' as AbsolutePath, fetchedAt: FAKE_FETCHED_AT }),
+    provision: async () => ({ localPath: '/abs/x' as AbsolutePath, fetchedAt: FAKE_FETCHED_AT }),
     webhook: {
       repoIdentity: opts.repoIdentity,
       ...(opts.shouldDispatch ? { shouldDispatch: opts.shouldDispatch } : {}),
@@ -235,8 +235,8 @@ describe('POST /webhooks/github/:workspaceId/:sourceId (issue #30)', () => {
       body,
     })
     expect(response.status).toBe(400)
-    const json = await response.json() as { error?: string }
-    expect(json.error).toContain('X-GitHub-Event')
+    const json = await response.json() as { detail?: string }
+    expect(json.detail).toContain('X-GitHub-Event')
     await new Promise(resolve => setTimeout(resolve, 10))
     expect(syncOne).not.toHaveBeenCalled()
   })
@@ -399,10 +399,10 @@ describe('POST /webhooks/github/:workspaceId/:sourceId (issue #30)', () => {
     })
 
     expect(response.status).toBe(401)
-    const json = await response.json() as { error?: string }
+    const json = await response.json() as { detail?: string }
     // Anonymous callers learn nothing about which (ws, source) pairs
     // exist or are webhook-armed.
-    expect(json.error).toBe('invalid signature')
+    expect(json.detail).toBe('Invalid webhook signature.')
   })
 
   it('returns uniform 401 for an unknown workspace + source so attackers cannot enumerate ids', async () => {
@@ -418,8 +418,8 @@ describe('POST /webhooks/github/:workspaceId/:sourceId (issue #30)', () => {
       body,
     })
     expect(response.status).toBe(401)
-    const json = await response.json() as { error?: string }
-    expect(json.error).toBe('invalid signature')
+    const json = await response.json() as { detail?: string }
+    expect(json.detail).toBe('Invalid webhook signature.')
   })
 })
 

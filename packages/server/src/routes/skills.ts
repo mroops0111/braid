@@ -3,7 +3,7 @@ import type {
   RunRepository,
   SkillRegistry,
   SkillRunner,
-  SourceUnitStateService,
+  SourceUnitObservationService,
   Workspace,
   WorkspaceRepository,
 } from '@braidhq/core'
@@ -24,15 +24,12 @@ const SourceUnitRef = z.object({
 
 const RunBody = z.object({
   args: z.string().default(''),
-  /** Continue an existing claude conversation (from a prior session-started event). */
+  // Continue a prior claude conversation from a session-started event.
   resumeSessionId: z.string().min(1).optional(),
-  /**
-   * Identifies the source unit this run will process so the server can
-   * record an observation against it after the run completes
-   * successfully. Studio sends this when the user picks an option from
-   * the `source-intent` provider. Only `braid-extract` consumes it
-   * today; other skills ignore it.
-   */
+  // Identifies the source unit this run will process,
+  // so the server records an observation against it after a clean run.
+  // Studio sends this when the user picks a `source-intent` option.
+  // Only `ddd:extract` consumes it today, other skills ignore it.
   sourceUnit: SourceUnitRef.optional(),
 }).openapi('SkillRunBody')
 
@@ -53,22 +50,21 @@ export interface SkillsRouterDeps {
   readonly skillRunner: SkillRunner
   readonly workspaceRepository: WorkspaceRepository
   /**
-   * Used to record a SourceUnitState observation after a successful
-   * per-unit skill run (the one named by the active ontology's
-   * `OntologyBatchBinding.perUnit.skillId`).
+   * Records a SourceUnitObservation after a successful per-unit run,
+   * named by the active ontology's `perUnit.skillId` binding.
    */
-  readonly sourceUnitStateService: SourceUnitStateService
+  readonly sourceUnitObservationService: SourceUnitObservationService
   /**
-   * Used to backfill terminal exit state for runs that finished between
-   * `skillRunner.start` returning and the observation hook subscribing;
-   * without it the hook would only listen for future events and races
-   * would become silent leaks.
+   * Backfills a run's terminal exit state.
+   * A run can finish after `skillRunner.start` returns,
+   * but before the hook subscribes, missing the terminal event.
+   * Without it the hook only listens forward, so that race leaks silently.
    */
   readonly runRepository: RunRepository
   /**
-   * Resolves the active ontology for the workspace so the route can
-   * read its `batch.perUnit.skillId` instead of hard-coding the DDD
-   * extract skill name.
+   * Resolves the active ontology for the workspace,
+   * so the route reads its `batch.perUnit.skillId`,
+   * instead of hard-coding the extract skill.
    */
   readonly pluginRegistry: PluginRegistry
 }
@@ -109,7 +105,7 @@ const runSkillRoute = createRoute({
   path: '/{skillId}/run',
   operationId: 'runSkill',
   summary: 'Fire-and-forget run of a skill. Returns the runId to subscribe to via SSE.',
-  description: 'The subprocess + event drain runs in the background; events are persisted to JSONL and broadcast to subscribers regardless of whether the client stays connected. Tail progress via GET /workspaces/{workspaceId}/runs/{runId}/events.',
+  description: 'The subprocess + event drain runs in the background. Events are persisted to JSONL and broadcast to subscribers regardless of whether the client stays connected. Tail progress via GET /workspaces/{workspaceId}/runs/{runId}/events.',
   tags: ['skills'],
   request: {
     params: SkillIdParam,
@@ -131,9 +127,10 @@ const runSkillRoute = createRoute({
 export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
 
-  // skill.run is the only capability that needs a per-request resource
-  // (the skill manifest). The resource builder fetches the workspace +
-  // manifest once and hands the result to the policy check.
+  // skill.run is the only capability needing a per-request resource,
+  // the skill manifest.
+  // The builder fetches workspace and manifest once,
+  // then hands the result to the policy check.
   router.use('/:skillId/run', requirePermission('skill.run', async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const skillId = SkillIdSchema.parse(context.req.param('skillId'))
@@ -168,36 +165,36 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
     const perUnitSkillId = resolvePerUnitSkillId(deps.pluginRegistry, workspace)
 
     if (sourceUnit) {
-      // Reject sourceUnit for skills the active ontology does not
-      // dispatch as its per-unit step. The shared run-skill route
-      // would otherwise advertise sourceUnit support uniformly while
-      // silently dropping it for everything except the extract skill.
+      // The sourceUnit applies only to the ontology's per-unit step,
+      // so reject it for any other skill.
+      // Otherwise the run-skill route advertises support uniformly,
+      // then silently drops it for every skill except extract.
       if (!perUnitSkillId || skillId !== perUnitSkillId) {
         throw new ValidationError(
           perUnitSkillId
-            ? `sourceUnit is only accepted for "${perUnitSkillId}" (the active ontology's per-unit skill)`
-            : `sourceUnit is not accepted: the active ontology declares no per-unit skill`,
+            ? `The \`sourceUnit\` field is only accepted for "${perUnitSkillId}", the active ontology's per-unit skill.`
+            : `The \`sourceUnit\` field is not accepted, the active ontology declares no per-unit skill.`,
         )
       }
-      // Reject sourceUnit references that name a sourceId not present
-      // in the workspace as an intent source. Recording against a
-      // ghost sourceId would pollute the ledger and confuse the
-      // Reactor and BatchService diff.
+      // Reject a sourceUnit whose sourceId is not an intent source here.
+      // Recording against a ghost sourceId would pollute the ledger,
+      // and confuse the Reactor and BatchService diff.
       const known = workspace.sources.find(s => s.id === sourceUnit.sourceId && s.role === 'intent')
       if (!known)
-        throw new ValidationError(`sourceUnit.sourceId "${sourceUnit.sourceId}" does not name an intent source in workspace "${workspace.id}"`)
+        throw new ValidationError(`Source-unit id "${sourceUnit.sourceId}" does not name an intent source in workspace "${workspace.id}"`)
     }
 
     const runId = await deps.skillRunner.start(workspace, skillId, args, options)
 
-    // The observation hook runs in the background so the route still
-    // returns 202 promptly; failures (skill error, cancel, repository
-    // write) are logged but do not bubble up to the client.
+    // The observation hook runs in the background,
+    // so the route still returns 202 promptly.
+    // Any failure (skill error, cancel, repository write) is logged,
+    // but does not bubble up to the client.
     if (sourceUnit && perUnitSkillId && skillId === perUnitSkillId) {
       void recordObservationOnSuccess({
         runner: deps.skillRunner,
         runRepository: deps.runRepository,
-        sourceUnitStateService: deps.sourceUnitStateService,
+        sourceUnitObservationService: deps.sourceUnitObservationService,
         workspace,
         runId,
         sourceUnit,
@@ -217,44 +214,40 @@ function resolvePerUnitSkillId(pluginRegistry: PluginRegistry, workspace: Worksp
 
 const recordLogger = createLogger('skills.recordObservation')
 
-// Stop waiting after this many ms even if the runner never produces a
-// terminal event. Real braid-extract runs settle in seconds to minutes;
-// this is a backstop against orphan subscriptions on crashed runners or
-// upstream queues that quietly drop events.
+// Stop waiting after this many ms, even if no terminal event arrives.
+// Real ddd:extract runs settle in seconds to minutes.
+// This backstops orphan subscriptions on crashed runners,
+// or upstream queues that quietly drop events.
 const OBSERVATION_TIMEOUT_MS = 60 * 60 * 1000
 
 interface RecordObservationParams {
   readonly runner: SkillRunner
   readonly runRepository: RunRepository
-  readonly sourceUnitStateService: SourceUnitStateService
+  readonly sourceUnitObservationService: SourceUnitObservationService
   readonly workspace: Workspace
   readonly runId: SkillRunIdType
   readonly sourceUnit: { sourceId: SourceId, path: string }
 }
 
-/**
- * Subscribe to a run, wait for it to terminate, and record a
- * SourceUnitState observation iff the run finished cleanly (exit code
- * 0). Cancellation, non-zero exit, error event, or timeout all leave
- * the previously recorded state untouched.
- *
- * Two race-safety measures matter here. First, the subscription is
- * attached before checking `isActive`: if the run finished between
- * those two operations, the subscription would have missed the
- * terminal event, so we backfill by reading the persisted RunRecord
- * for its exit code. Second, the Promise has a hard timeout so a run
- * that never emits a terminal event (orphaned subprocess, restarted
- * server, queue corruption) does not leak the subscription closure
- * indefinitely.
- */
+// Subscribe to a run and wait for it to terminate.
+// Record a SourceUnitObservation only if it exits cleanly (code 0).
+// On cancellation, non-zero exit, error, or timeout,
+// the previously recorded state is left untouched.
+//
+// Two race-safety measures matter here.
+// First, we subscribe before checking `isActive`.
+// A run finishing between those steps would miss the terminal event,
+// so we backfill from the persisted RunRecord exit code.
+// Second, the Promise has a hard timeout.
+// A run that never emits a terminal event cannot leak the closure.
 async function recordObservationOnSuccess(params: RecordObservationParams): Promise<void> {
-  const { runner, runRepository, sourceUnitStateService, workspace, runId, sourceUnit } = params
+  const { runner, runRepository, sourceUnitObservationService, workspace, runId, sourceUnit } = params
   const workspaceId = workspace.id
   try {
     const outcome = await waitForTerminalOutcome(runner, runRepository, workspace, runId)
     if (outcome !== 'success')
       return
-    await sourceUnitStateService.recordObservation(
+    await sourceUnitObservationService.recordObservation(
       workspaceId,
       sourceUnit.sourceId,
       sourceUnit.path,
@@ -268,7 +261,7 @@ async function recordObservationOnSuccess(params: RecordObservationParams): Prom
       sourceId: sourceUnit.sourceId,
       path: sourceUnit.path,
       err: err instanceof Error ? err.message : String(err),
-    }, 'failed to record observation after braid-extract run')
+    }, 'failed to record observation after ddd:extract run')
   }
 }
 
@@ -284,9 +277,9 @@ async function waitForTerminalOutcome(
     let settled = false
     let timeout: ReturnType<typeof setTimeout> | undefined
 
-    // Subscribe first so future events from a still-active run reach
-    // us. If we checked `isActive` first and the run finished between
-    // the two operations we would silently miss the terminal event.
+    // Subscribe first, so future events from a still-active run reach us.
+    // Checking `isActive` first would race.
+    // A run finishing between the two steps would miss the terminal event.
     const sub = runner.subscribe(runId, (event: SkillEvent) => {
       if (event.type === 'completed')
         settle(event.exitCode === 0 ? 'success' : 'failure')
@@ -304,10 +297,10 @@ async function waitForTerminalOutcome(
       resolve(outcome)
     }
 
-    // Backfill: if the run already finished, the subscription will
-    // never receive a terminal event because the runner clears its
-    // subscriber set when drain exits. Read the persisted RunRecord
-    // instead.
+    // Backfill for an already-finished run.
+    // Its subscription never receives a terminal event,
+    // because the runner clears subscribers when drain exits.
+    // Read the persisted RunRecord instead.
     if (!runner.isActive(runId)) {
       ;(async () => {
         try {
@@ -324,9 +317,9 @@ async function waitForTerminalOutcome(
       })()
     }
 
-    // Timeout backstop. .unref() so Node can exit while the timer is
-    // pending — observation recording is best-effort, not a reason to
-    // hold the process open.
+    // Timeout backstop. .unref() lets Node exit while the timer pends.
+    // Observation recording is best-effort,
+    // not a reason to hold the process open.
     timeout = setTimeout(() => settle('failure'), OBSERVATION_TIMEOUT_MS)
     timeout.unref?.()
   })

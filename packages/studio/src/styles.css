@@ -40,41 +40,49 @@
 }
 
 .dark {
-  --background: oklch(0.2 0.005 260);
+  --background: oklch(0.21 0.005 260);
   --foreground: oklch(0.96 0 0);
-  --card: oklch(0.23 0.005 260);
+  --card: oklch(0.26 0.005 260);
   --card-foreground: oklch(0.96 0 0);
-  --popover: oklch(0.23 0.005 260);
+  --popover: oklch(0.27 0.005 260);
   --popover-foreground: oklch(0.96 0 0);
   --primary: oklch(0.62 0.13 274);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.24 0.005 260);
+  --secondary: oklch(0.26 0.005 260);
   --secondary-foreground: oklch(0.96 0 0);
-  --muted: oklch(0.24 0.005 260);
-  --muted-foreground: oklch(0.68 0 0);
-  --accent: oklch(0.27 0.005 260);
+  --muted: oklch(0.25 0.005 260);
+  --muted-foreground: oklch(0.7 0 0);
+  --accent: oklch(0.3 0.005 260);
   --accent-foreground: oklch(0.96 0 0);
   --destructive: oklch(0.6 0.22 25);
-  --border: oklch(0.28 0.005 260);
-  --input: oklch(0.27 0.005 260);
+  --border: oklch(0.3 0.005 260);
+  --input: oklch(0.29 0.005 260);
   --ring: oklch(0.62 0.13 274);
-  --sidebar: oklch(0.185 0.005 260);
+  --sidebar: oklch(0.19 0.005 260);
   --sidebar-foreground: oklch(0.9 0 0);
   --sidebar-primary: oklch(0.62 0.13 274);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.26 0.005 260);
+  --sidebar-accent: oklch(0.28 0.005 260);
   --sidebar-accent-foreground: oklch(0.96 0 0);
-  --sidebar-border: oklch(0.28 0.005 260);
+  --sidebar-border: oklch(0.3 0.005 260);
   --sidebar-ring: oklch(0.62 0.13 274);
 }
 
 @theme inline {
   --font-sans:
-    "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Geist Variable", "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Text",
     system-ui, sans-serif;
   --font-mono:
-    "JetBrains Mono Variable", "JetBrains Mono", "SF Mono", "Menlo", "Consolas",
+    "Geist Mono Variable", "Geist Mono", "SF Mono", "Menlo", "Consolas",
     monospace;
+
+  /* Linear-tuned type scale, no arbitrary px in components.
+     text-2xs 11px for micro labels, badges, kbd, and metadata.
+     text-xs lifts to 13px so body and secondary copy read at Linear's body size. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.2rem;
 
   --radius-sm: calc(var(--radius) - 2px);
   --radius-md: var(--radius);
@@ -121,10 +129,6 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
-    font-feature-settings:
-      "cv11",
-      "ss01",
-      "ss03";
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
   }
@@ -135,6 +139,24 @@
   }
   ::selection {
     background: color-mix(in oklch, var(--primary) 35%, transparent);
+  }
+  /* Tailwind v4 drops the default button cursor, restore it for controls. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  label[for],
+  summary,
+  a[href] {
+    cursor: pointer;
+  }
+}
+
+/* Respect reduced-motion, neutralise enter animations but keep colour fades. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
 

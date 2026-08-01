@@ -1,2 +1,2 @@
-export * from './driveClient.js'
-export * from './GoogleDriveLoader.js'
+export * from './DriveClient.js'
+export * from './GoogleDriveSourceLoaderPlugin.js'

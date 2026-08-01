@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   GraphOperation,
   Proposal,
-  ProposalDraft,
+  ProposalCreate,
   ProposalFilter,
   ProposalStatus,
 } from '../src/index.js'
@@ -81,6 +81,7 @@ describe('Proposal', () => {
       generatedBy: 'extract',
       generatedAt: isoTimestamp,
       rationale: 'Adds 2 commands and removes 3 stale edges',
+      owner: 'system',
     })
     expect(proposal.operations).toHaveLength(2)
   })
@@ -94,6 +95,7 @@ describe('Proposal', () => {
       generatedBy: 'extract',
       generatedAt: isoTimestamp,
       rationale: 'x',
+      owner: 'system',
       reviewedBy: 'u-1',
       reviewedAt: isoTimestamp,
     })
@@ -109,6 +111,7 @@ describe('Proposal', () => {
       generatedBy: 'extract',
       generatedAt: isoTimestamp,
       rationale: 'x',
+      owner: 'system',
       externalReferences: [{ kind: 'github', url: 'https://github.com/x/y/issues/1' }],
     })
     expect(proposal.externalReferences?.[0]?.kind).toBe('github')
@@ -128,9 +131,9 @@ describe('Proposal', () => {
   })
 })
 
-describe('ProposalDraft', () => {
+describe('ProposalCreate', () => {
   it('does not require id / status / generatedAt', () => {
-    const draft = ProposalDraft.parse({
+    const draft = ProposalCreate.parse({
       workspaceId: 'w-1',
       operations: [],
       generatedBy: 'extract',

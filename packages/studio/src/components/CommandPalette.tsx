@@ -1,5 +1,5 @@
 import type { SkillManifest, Workspace } from '@braidhq/schema'
-import { Activity, Boxes, ClipboardCheck, GitGraph, HelpCircle, Network, Settings2, SlidersHorizontal, Sparkles } from 'lucide-react'
+import { Activity, ClipboardCheck, GitGraph, HelpCircle, Network, Settings, Settings2, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import {
   CommandDialog,
@@ -22,7 +22,7 @@ interface CommandPaletteProps {
   onOpenWorkspaceDetails: () => void
 }
 
-export type Surface = 'actions' | 'activity' | 'batch' | 'clarify' | 'history' | 'proposals' | 'settings'
+export type Surface = 'actions' | 'activity' | 'batch' | 'clarifications' | 'history' | 'proposals' | 'settings'
 
 interface SurfaceItem {
   id: Surface | null
@@ -37,7 +37,7 @@ function chordSecondKey(key: string): ChordTarget | undefined {
   switch (key) {
     case 'g': return { kind: 'surface', surface: null }
     case 'a': return { kind: 'surface', surface: 'actions' }
-    case 'c': return { kind: 'surface', surface: 'clarify' }
+    case 'c': return { kind: 'surface', surface: 'clarifications' }
     case 'p': return { kind: 'surface', surface: 'proposals' }
     case 'b': return { kind: 'surface', surface: 'activity' }
     case 'h': return { kind: 'surface', surface: 'history' }
@@ -50,11 +50,11 @@ function chordSecondKey(key: string): ChordTarget | undefined {
 const SURFACE_ITEMS: SurfaceItem[] = [
   { id: null, label: 'Graph (home)', Icon: Network, shortcut: 'G G' },
   { id: 'actions', label: 'Actions', Icon: Sparkles, shortcut: 'G A' },
-  { id: 'clarify', label: 'Clarify', Icon: HelpCircle, shortcut: 'G C' },
+  { id: 'clarifications', label: 'Clarifications', Icon: HelpCircle, shortcut: 'G C' },
   { id: 'proposals', label: 'Proposals', Icon: ClipboardCheck, shortcut: 'G P' },
   { id: 'activity', label: 'Activity', Icon: Activity, shortcut: 'G B' },
   { id: 'history', label: 'History', Icon: GitGraph, shortcut: 'G H' },
-  { id: 'settings', label: 'Settings', Icon: SlidersHorizontal, shortcut: 'G S' },
+  { id: 'settings', label: 'Settings', Icon: Settings, shortcut: 'G S' },
 ]
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -90,9 +90,10 @@ export function CommandPalette({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Linear / Gmail / GitHub-style `g`-chord navigation. Press `g`, then
-  // within 1s press the second key (e.g. `g s` for Settings). Ignored
-  // while typing into a form so it doesn't hijack normal text input.
+  // Linear, Gmail, and GitHub-style `g`-chord navigation.
+  // Press `g`, then within 1s press the second key,
+  // e.g. `g s` for Settings.
+  // Ignored while typing into a form so it does not hijack text input.
   const armedRef = useRef<number | null>(null)
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -195,7 +196,7 @@ export function CommandPalette({
                   setOpen(false)
                 }}
               >
-                <Boxes />
+                <Sparkles />
                 <span className="font-mono">
                   /
                   {skill.frontmatter.name}

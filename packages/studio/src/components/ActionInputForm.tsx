@@ -1,4 +1,4 @@
-import type { SkillInputDescriptor, SkillInputDynamicOption, SourceId, SourceUnit, SourceUnitState } from '@braidhq/schema'
+import type { SkillInputDescriptor, SkillInputDynamicOption, SourceId, SourceUnit, SourceUnitObservation } from '@braidhq/schema'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -13,9 +13,9 @@ export interface SkillRunSpec {
   readonly args: string
   /**
    * Set when the run's value originated from a `source-intent` picker.
-   * Plumbing it through lets the server record an observation against
-   * the unit on successful completion (issue #31). Other run kinds
-   * leave it undefined.
+   * Plumbing it through lets the server record an observation,
+   * against the unit on successful completion.
+   * Other run kinds leave it undefined.
    */
   readonly sourceUnit?: {
     readonly sourceId: SourceId
@@ -28,22 +28,24 @@ interface ActionInputFormProps {
   inputs: readonly SkillInputDescriptor[]
   disabled: boolean
   /**
-   * Submit handler. Receives one run spec per run to fire. A single-value
-   * form yields a one-element array; a multi-pick with N selected values
-   * fans out to N elements so the parent can spawn N parallel skill runs
-   * sharing the same per-skill conversation key. When the input came
-   * from a `source-intent` picker the spec carries `sourceUnit`.
+   * Submit handler. Receives one run spec per run to fire.
+   * A single-value form yields a one-element array,
+   * a multi-pick with N selected values fans out to N elements,
+   * so the parent can spawn N parallel skill runs,
+   * sharing the same per-skill conversation key.
+   * When the input came from a `source-intent` picker,
+   * the spec carries `sourceUnit`.
    */
   onSubmit: (runs: readonly SkillRunSpec[]) => void
   submitLabel?: string
 }
 
 /**
- * Renders a typed form driven by a skill's `braid.inputs` frontmatter
- * declaration. Static-provider picks render inline; dynamic-provider
- * picks (graph-node / source-intent / clarify) fetch options via the
- * server's `/skill-input-options` endpoint and apply the declared
- * `fallback` when the workspace has nothing matching.
+ * Renders a typed form driven by a skill's `braid.inputs` frontmatter.
+ * Static-provider picks render inline.
+ * Dynamic-provider picks, graph-node, source-intent, or clarify,
+ * fetch options via the server's `/skill-input-options` endpoint,
+ * and apply the declared `fallback` when the workspace has nothing matching.
  */
 export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submitLabel = 'Start' }: ActionInputFormProps) {
   const queryClient = useQueryClient()
@@ -54,8 +56,9 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
     () => Object.fromEntries(inputs.filter(i => i.kind === 'multi-pick').map(input => [input.name, []])),
   )
 
-  // Required inputs must be filled. Multi-pick required = at least one
-  // selected; scalar required = non-empty value.
+  // Required inputs must be filled.
+  // Multi-pick required = one selection,
+  // scalar required = a non-empty value.
   const missingRequired = inputs.filter((input) => {
     if (input.optional)
       return false
@@ -63,9 +66,10 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
       return (multiValues[input.name]?.length ?? 0) === 0
     return (scalarValues[input.name] ?? '').trim() === ''
   })
-  // Refuse > 1 multi-pick per skill: the cartesian product gets too big
-  // and the agent transcript becomes unreadable. The validator could
-  // enforce this at load time too; this is the runtime backstop.
+  // Refuse more than one multi-pick per skill.
+  // The cartesian product gets too big and the transcript unreadable.
+  // The validator could enforce this at load time too,
+  // this is the backstop.
   const multiPickInputs = inputs.filter(i => i.kind === 'multi-pick')
   const tooManyMultiPicks = multiPickInputs.length > 1
   const canSubmit = !disabled && missingRequired.length === 0 && !tooManyMultiPicks
@@ -93,11 +97,11 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
     }
 
     function sourceUnitFor(input: PickInput | undefined, value: string) {
-      if (!input || input.provider.type !== 'source-intent' || !value)
+      if (!input || input.provider.kind !== 'source-intent' || !value)
         return undefined
       const filter = 'filter' in input.provider ? input.provider.filter : undefined
       const cached = queryClient.getQueryData<{ items: SkillInputDynamicOption[] }>(
-        ['skill-input-options', workspaceId, input.provider.type, filter],
+        ['skill-input-options', workspaceId, input.provider.kind, filter],
       )
       const option = cached?.items.find(item => item.value === value)
       if (!option?.sourceId)
@@ -108,7 +112,7 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
     if (!multiPick) {
       const args = compose(name => scalarValues[name] ?? '')
       const sourcePick = inputs.find(
-        (i): i is PickInput => i.kind === 'pick' && i.provider.type === 'source-intent',
+        (i): i is PickInput => i.kind === 'pick' && i.provider.kind === 'source-intent',
       )
       const sourceUnit = sourcePick ? sourceUnitFor(sourcePick, scalarValues[sourcePick.name] ?? '') : undefined
       onSubmit([{ args, ...(sourceUnit ? { sourceUnit } : {}) }])
@@ -116,8 +120,8 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
     }
     const selected = multiValues[multiPick.name] ?? []
     if (selected.length === 0) {
-      // Optional multi-pick with nothing chosen → one run with the
-      // remaining fields, mirroring "leave empty for full pass" intent.
+      // Optional multi-pick with nothing chosen, one run with the remaining fields,
+      // mirroring "leave empty for full pass".
       onSubmit([{ args: compose(name => (name === multiPick.name ? '' : scalarValues[name] ?? '')) }])
       return
     }
@@ -132,7 +136,7 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
   return (
     <div className="space-y-3 border-t border-border px-4 py-3">
       {tooManyMultiPicks && (
-        <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-[10px] text-rose-300">
+        <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-2xs text-rose-300">
           This skill declares more than one multi-pick input. Only one is supported per skill.
         </div>
       )}
@@ -178,11 +182,11 @@ interface ControlProps<T extends SkillInputDescriptor> extends InputControlShare
 function InputControl({ input, ...rest }: ControlProps<SkillInputDescriptor>) {
   return (
     <div>
-      <label htmlFor={`input-${input.name}`} className="block text-[11px] font-medium text-foreground">
+      <label htmlFor={`input-${input.name}`} className="block text-2xs font-medium text-foreground">
         {input.label}
         {!input.optional && <span className="ml-0.5 text-rose-400">*</span>}
       </label>
-      {input.description && <p className="mt-0.5 text-[10px] text-muted-foreground">{input.description}</p>}
+      {input.description && <p className="mt-0.5 text-2xs text-muted-foreground">{input.description}</p>}
       {input.kind === 'text'
         ? <TextField input={input} {...rest} />
         : <PickField input={input} {...rest} />}
@@ -219,7 +223,7 @@ function TextField({ input, scalarValue, onScalarChange, disabled }: ControlProp
 
 function PickField({ workspaceId, input, scalarValue, onScalarChange, multiValue, onMultiToggle, disabled }: ControlProps<PickInput>) {
   const isMulti = input.kind === 'multi-pick'
-  if (input.provider.type === 'static') {
+  if (input.provider.kind === 'static') {
     if (isMulti) {
       return (
         <MultiPickField input={input} options={input.provider.options} selected={multiValue} onToggle={onMultiToggle} disabled={disabled} />
@@ -249,26 +253,27 @@ function PickField({ workspaceId, input, scalarValue, onScalarChange, multiValue
 }
 
 /**
- * Decorate source-intent picker options with per-unit freshness
- * badges. For each distinct sourceId carried by the options:
- *   - "fresh" badge when the on-disk sha matches the recorded
- *     `lastObservedSha` (option appears in `diff.unchanged`)
- *   - "stale" badge when the recorded sha differs (option appears in
- *     `diff.changed`)
- *   - no badge when the unit has never been observed (option appears
- *     in `diff.new`)
+ * Decorate source-intent picker options with per-unit freshness badges.
+ * For each distinct sourceId carried by the options:
+ * - "fresh" badge when the on-disk sha matches the recorded `lastObservedSha`,
+ *   the option appears in `diff.unchanged`.
+ * - "stale" badge when the recorded sha differs,
+ *   the option appears in `diff.changed`.
+ * - no badge when the unit has never been observed,
+ *   the option appears in `diff.new`.
  *
- * Returns the input options unchanged for any provider other than
- * `source-intent`. The hook is always called with stable order so it
- * is safe under the rules of hooks even when `rawOptions` is empty
- * (loading / error pre-resolution).
+ * Returns the input options unchanged for any provider,
+ * other than `source-intent`.
+ * The hook is always called with stable order,
+ * so it is safe under the rules of hooks,
+ * even when `rawOptions` is empty during loading or error pre-resolution.
  */
 function useSourceIntentBadges(
   workspaceId: string,
-  providerType: string,
+  providerKind: string,
   rawOptions: readonly SkillInputDynamicOption[],
 ): readonly DynamicOptionWithBadge[] {
-  const isSourceIntent = providerType === 'source-intent'
+  const isSourceIntent = providerKind === 'source-intent'
   const sourceIds = useMemo(() => {
     if (!isSourceIntent)
       return [] as readonly string[]
@@ -289,7 +294,7 @@ function useSourceIntentBadges(
   const ledgerQueries = useQueries({
     queries: sourceIds.map(sourceId => ({
       queryKey: ['source-unit-states', workspaceId, sourceId] as const,
-      queryFn: () => api.listSourceUnitStates(workspaceId, sourceId),
+      queryFn: () => api.listSourceUnitObservations(workspaceId, sourceId),
     })),
   })
 
@@ -310,7 +315,7 @@ function useSourceIntentBadges(
       const fresh = new Set(diff.unchanged.map((u: SourceUnit) => u.path))
       const stale = new Set(diff.changed.map((u: SourceUnit) => u.path))
       const observedAt = new Map<string, string>()
-      for (const state of ledger.items as SourceUnitState[])
+      for (const state of ledger.items as SourceUnitObservation[])
         observedAt.set(state.path, state.lastObservedAt)
       perSource.set(sourceId, { fresh, stale, observedAt })
     })
@@ -359,8 +364,8 @@ interface DynamicOptionWithBadge extends SkillInputDynamicOption {
 }
 
 /**
- * Compact "Nm ago" / "Nh ago" / "Nd ago" formatter for the freshness
- * chip. Avoids pulling in a date library for one badge.
+ * Compact "Nm ago", "Nh ago", or "Nd ago" formatter for the freshness chip.
+ * Avoids pulling in a date library for one badge.
  */
 function relativeAgo(now: number, iso: string): string {
   const then = Date.parse(iso)
@@ -411,23 +416,23 @@ function SelectControl({
 }
 
 function DynamicPick({ workspaceId, input, scalarValue, onScalarChange, multiValue, onMultiToggle, disabled }: ControlProps<PickInput>) {
-  const providerType = input.provider.type
+  const providerKind = input.provider.kind
   const filter = 'filter' in input.provider ? input.provider.filter : undefined
   const query = useQuery({
-    queryKey: ['skill-input-options', workspaceId, providerType, filter],
-    queryFn: () => api.listSkillInputOptions(workspaceId, providerType, filter),
+    queryKey: ['skill-input-options', workspaceId, providerKind, filter],
+    queryFn: () => api.listSkillInputOptions(workspaceId, providerKind, filter),
   })
   const rawOptions = query.data?.items ?? []
-  // Hook is always called (even with []) so the rules-of-hooks order
-  // stays stable across the loading / error early returns below.
-  const options = useSourceIntentBadges(workspaceId, providerType, rawOptions)
+  // Hook is always called even with [],
+  // so the rules-of-hooks order stays stable across the early returns below.
+  const options = useSourceIntentBadges(workspaceId, providerKind, rawOptions)
   const isMulti = input.kind === 'multi-pick'
 
   if (query.isLoading)
     return <div className="mt-1 h-7 animate-pulse rounded-md bg-muted/40" />
   if (query.error) {
     return (
-      <div className="mt-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-[10px] text-rose-300">
+      <div className="mt-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-2xs text-rose-300">
         Failed to load options:
         {' '}
         {(query.error as Error).message}
@@ -438,14 +443,14 @@ function DynamicPick({ workspaceId, input, scalarValue, onScalarChange, multiVal
   if (options.length === 0) {
     if (input.fallback === 'disabled') {
       return (
-        <div className="mt-1 rounded-md border border-input bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+        <div className="mt-1 rounded-md border border-input bg-muted/30 px-2.5 py-1.5 text-2xs text-muted-foreground">
           No options available. This skill needs at least one match to run.
         </div>
       )
     }
-    // fallback === 'text' (default). Render a free-text field so the
-    // user can still drive the skill manually (e.g. a fresh workspace
-    // with no graph yet still letting `braid-extract` accept a scope).
+    // fallback === 'text' (default). Render a free-text field,
+    // so the user can still drive the skill manually,
+    // e.g. a fresh workspace letting `ddd:extract` still take a scope.
     return (
       <input
         id={`input-${input.name}`}
@@ -477,9 +482,9 @@ function DynamicPick({ workspaceId, input, scalarValue, onScalarChange, multiVal
 }
 
 /**
- * Form-context wrapper around the generic dropdown. Adds the
- * batch-run hint when multiple values are selected — that's
- * Actions-form specific, not part of the dropdown's contract.
+ * Form-context wrapper around the generic dropdown.
+ * Adds the batch-run hint when multiple values are selected,
+ * that is Actions-form specific, not part of the dropdown's contract.
  */
 function MultiPickField({
   input,
@@ -505,7 +510,7 @@ function MultiPickField({
         disabled={disabled}
       />
       {selected.length > 1 && (
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           Will fire
           {' '}
           {selected.length}

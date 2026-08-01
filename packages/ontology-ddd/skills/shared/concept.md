@@ -1,6 +1,6 @@
 # DDD Ontology Concept
 
-The shared concept document for `@braidhq/ontology-ddd`. Every DDD-resident skill (`braid-extract`, `braid-clarify`, `braid-model`) consults this file before authoring nodes / edges, so the vocabulary, wiring rules, and authoring conventions live in one place instead of being duplicated in each Procedure.
+The shared concept document for `@braidhq/ontology-ddd`. Every DDD-resident skill (`ddd:extract`, `ddd:clarify`, `ddd:reconcile`) consults this file before authoring nodes / edges, so the vocabulary, wiring rules, and authoring conventions live in one place instead of being duplicated in each Procedure.
 
 Skills read this at `<cwd>/.claude/skills/ontology-ddd/concept.md`, where `<cwd>` is the working directory each SKILL.md captures in its Initialization step.
 
@@ -118,7 +118,7 @@ Skip any of these the source doesn't ground. A trivial event might be one line; 
 
 ## ClarifyTickets: Reviewer Pool and Vocabulary
 
-`braid-extract` and `braid-model` emit ClarifyTickets when an extraction or global-pass decision is genuinely ambiguous. For DDD workspaces, the reviewer pool that answers those tickets is the **cross-functional team that owns the domain**: PM, RD, QA, designer, and anyone whose work touches the affected concept. Engineers can read graph topology; the others cannot, and the workflow is broken when they cannot answer.
+`ddd:extract` and `ddd:reconcile` emit ClarifyTickets when an extraction or global-pass decision is genuinely ambiguous. For DDD workspaces, the reviewer pool that answers those tickets is the **cross-functional team that owns the domain**: PM, RD, QA, designer, and anyone whose work touches the affected concept. Engineers can read graph topology; the others cannot, and the workflow is broken when they cannot answer.
 
 Two rules apply to the ticket's `question` and each `candidate.description` (the fields the reviewer reads):
 
@@ -140,4 +140,4 @@ Worked contrast (same underlying ambiguity, two ways of writing it):
 
 This file is shipped by `@braidhq/ontology-ddd` via its `Plugin.referenceDirs[]`. The runner symlinks it into every spawned skill session under `<session>/.claude/skills/ontology-ddd/`. Any DDD-resident skill consults it; non-DDD ontologies would ship their own equivalent under their own plugin name.
 
-When the DDD ontology evolves (new types, new wiring rules, refined ID conventions), update this file and the corresponding `NodeTypeDescriptor.description` / `EdgeTypeDescriptor.description` in `DDDOntology.ts` together. The descriptors are the runtime contract; this doc is the prose explanation.
+When the DDD ontology evolves (new types, new wiring rules, refined ID conventions), update this file and the corresponding `NodeTypeDescriptor.description` / `EdgeTypeDescriptor.description` in `DDDOntologyPlugin.ts` together. The descriptors are the runtime contract; this doc is the prose explanation.

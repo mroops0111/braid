@@ -14,10 +14,10 @@ export const User = z.object({
 })
 export type User = z.infer<typeof User>
 
-export const UserDraft = User.omit({ id: true, createdAt: true }).partial({
+export const UserCreate = User.omit({ id: true, createdAt: true }).partial({
   serverRole: true,
 })
-export type UserDraft = z.infer<typeof UserDraft>
+export type UserCreate = z.infer<typeof UserCreate>
 
-export const UserPatch = User.omit({ id: true, createdAt: true, googleSub: true }).partial()
-export type UserPatch = z.infer<typeof UserPatch>
+export const UserUpdate = User.omit({ id: true, createdAt: true, googleSub: true }).partial()
+export type UserUpdate = z.infer<typeof UserUpdate>

@@ -2,11 +2,12 @@ import type { Node, ReactFlowInstance } from '@xyflow/react'
 import { useEffect, useMemo, useRef } from 'react'
 
 /**
- * Re-fit the ReactFlow viewport whenever the laid-out node set
- * changes. Tracks a sorted-id key so unrelated re-renders (selection,
- * diff state, edge highlights) don't trigger a fit. The very first
- * render is skipped because ReactFlow's own `fitView` prop handles
- * the mount case.
+ * Re-fit the ReactFlow viewport whenever the laid-out node set changes.
+ * Tracks a sorted-id key,
+ * so unrelated re-renders do not trigger a fit,
+ * such as selection, diff state, or edge highlights.
+ * The very first render is skipped,
+ * because ReactFlow's own `fitView` prop handles the mount case.
  */
 export function useFitOnLayoutChange<T extends Record<string, unknown>>(
   reactFlow: ReactFlowInstance<Node<T>>,

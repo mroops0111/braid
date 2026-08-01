@@ -62,9 +62,9 @@ export interface SseReadOptions {
 }
 
 /**
- * Read-only counterpart to `runSkillStream`: GETs an SSE endpoint and
- * delivers each parsed SkillEvent. Used by the Runs tab to replay a
- * persisted event log.
+ * Read-only counterpart to `runSkillStream`.
+ * GETs an SSE endpoint and delivers each parsed SkillEvent.
+ * Used by the Runs tab to replay a persisted event log.
  */
 export async function readSkillEventStream(options: SseReadOptions): Promise<void> {
   const init: RequestInit = { method: 'GET' }

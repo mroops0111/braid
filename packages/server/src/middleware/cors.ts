@@ -1,8 +1,11 @@
 import type { MiddlewareHandler } from 'hono'
 
+// Vite dev (5173) and preview (4173) ports, on both loopback hostnames,
+// which browsers treat as distinct origins.
 const DEFAULT_DEV_ORIGINS = [
-  'http://localhost:5173',
   'http://localhost:4173',
+  'http://localhost:5173',
+  'http://127.0.0.1:4173',
   'http://127.0.0.1:5173',
 ]
 

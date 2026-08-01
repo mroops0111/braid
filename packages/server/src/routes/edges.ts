@@ -5,13 +5,11 @@ import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 
 const ListQuery = z.object({
-  type: z.union([EdgeTypeId, z.array(EdgeTypeId)]).optional().openapi({ description: 'Filter by edge type id; pass one or many.' }),
+  type: z.union([EdgeTypeId, z.array(EdgeTypeId)]).optional().openapi({ description: 'Filter by edge type id. Pass one or many.' }),
   fromNodeId: NodeId.optional()
     .openapi({ description: 'Filter to edges originating from this node.' }),
   toNodeId: NodeId.optional()
     .openapi({ description: 'Filter to edges terminating at this node.' }),
-  limit: z.coerce.number().int().positive().optional().openapi({ description: 'Maximum number of edges to return.' }),
-  offset: z.coerce.number().int().nonnegative().optional().openapi({ description: 'Number of edges to skip before returning.' }),
 })
 
 const EdgeListResponse = z.object({
@@ -46,14 +44,12 @@ export function createEdgesRouter(deps: EdgesRouterDeps): OpenAPIHono {
 
   router.openapi(listEdgesRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
-    const { type, fromNodeId, toNodeId, limit, offset } = context.req.valid('query')
+    const { type, fromNodeId, toNodeId } = context.req.valid('query')
     const types = type === undefined ? undefined : Array.isArray(type) ? type : [type]
     const edges = await deps.modelService.listEdges(workspaceId, {
       types,
       fromNodeId,
       toNodeId,
-      limit,
-      offset,
     })
     return context.json({ items: edges }, 200)
   })

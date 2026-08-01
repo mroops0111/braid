@@ -3,7 +3,6 @@ import type {
   AgentBindingDescriptor,
   AgentId,
   AgentKind,
-  AgentRoutingConfig,
   McpServerConfig,
   ProductManifest,
   SourceDescriptor,
@@ -14,8 +13,9 @@ import type {
 } from '@braidhq/schema'
 import { Workspace } from '@braidhq/core'
 
+/** Sample binding for tests that construct a ClaudeCodeAgentBinding directly. */
 export const DEFAULT_AGENT_BINDING: AgentBindingDescriptor = {
-  id: 'claude-default' as AgentId,
+  id: 'claude-code' as AgentId,
   kind: 'claude-code' as AgentKind,
   model: 'opus',
   effort: 'high',
@@ -28,30 +28,21 @@ const DEFAULT_STORAGE: StorageDescriptor = {
   config: {},
 }
 
-const DEFAULT_AGENTS: AgentRoutingConfig = {
-  default: 'claude-default' as AgentId,
-  tasks: {},
-}
-
 export interface MakeWorkspaceOptions {
   readonly id?: string
   readonly rootPath?: AbsolutePath
   readonly sources?: readonly SourceDescriptor[]
   readonly mcpServers?: readonly McpServerConfig[]
-  readonly agentBindings?: readonly AgentBindingDescriptor[]
-  readonly agents?: AgentRoutingConfig
   readonly storage?: StorageDescriptor
   readonly ontologyId?: string
 }
 
 /**
- * Construct a `Workspace` aggregate for tests. Defaults give the
- * happy-path shape (DDD ontology, claude-code agent binding, in-memory
- * storage, one filesystem code source); override per test for the
- * specific axis under test.
- *
- * The `id` and `manifest.name` are kept aligned so the production
- * invariant `WorkspaceId === manifest.name` holds.
+ * Construct a Workspace aggregate for tests.
+ * Defaults give the happy-path shape, a DDD ontology, in-memory storage,
+ * and one filesystem code source. Override per test for the axis under test.
+ * The id and manifest.name are kept aligned,
+ * so the production invariant WorkspaceId === manifest.name holds.
  */
 export function makeWorkspace(opts: MakeWorkspaceOptions = {}): Workspace {
   const id = opts.id ?? 'ws-1'
@@ -60,8 +51,6 @@ export function makeWorkspace(opts: MakeWorkspaceOptions = {}): Workspace {
     name: id,
     version: '0.0.0',
     ontologyId: (opts.ontologyId ?? 'ddd') as never,
-    agents: opts.agents ?? DEFAULT_AGENTS,
-    agentBindings: [...(opts.agentBindings ?? [DEFAULT_AGENT_BINDING])],
     sources: [...(opts.sources ?? [defaultCodeSource(rootPath)])],
     mcpServers: [...(opts.mcpServers ?? [])],
     storage: opts.storage ?? DEFAULT_STORAGE,

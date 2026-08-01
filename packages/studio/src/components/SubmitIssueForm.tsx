@@ -1,4 +1,4 @@
-import type { ClarifyAmbiguityType, ClarifyTicket, NodeId } from '@braidhq/schema'
+import type { Clarification, ClarificationAmbiguityType } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, Send, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -6,16 +6,17 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
+import { asNodeId } from '@/lib/brands'
 import { queryKeys } from '@/lib/queries'
 
 interface SubmitIssueFormProps {
   workspaceId: string
   /** Caller closes the compose surface and may auto-select the new ticket. */
-  onSubmitted: (ticket: ClarifyTicket) => void
+  onSubmitted: (ticket: Clarification) => void
   onCancel: () => void
 }
 
-const AMBIGUITY_TYPES: { value: ClarifyAmbiguityType, label: string, hint: string }[] = [
+const AMBIGUITY_TYPES: { value: ClarificationAmbiguityType, label: string, hint: string }[] = [
   { value: 'gap', label: 'Gap', hint: 'something missing from the model' },
   { value: 'contradiction', label: 'Contradiction', hint: 'two parts of the model disagree' },
   { value: 'ambiguous', label: 'Ambiguous', hint: 'the model is unclear or open to interpretation' },
@@ -23,24 +24,23 @@ const AMBIGUITY_TYPES: { value: ClarifyAmbiguityType, label: string, hint: strin
 ]
 
 /**
- * Compose surface for a human-filed ClarifyTicket. Fields mirror the
- * ReDoc SubmitIssueForm shape (question + context + relatedNode +
- * ambiguityType). The ticket is persisted with `origin: 'human'` and
- * empty `candidates: []`; the next braid-clarify run is expected to
- * append candidates so the standard pending → answered → applied
- * pipeline can resume.
+ * Compose surface for a human-filed Clarification.
+ * Fields are question, context, relatedNode, and ambiguityType.
+ * The ticket is persisted with `origin: 'human'` and empty `candidates: []`.
+ * The next ddd:clarify run is expected to append candidates,
+ * so the standard pending, answered, applied pipeline can resume.
  *
- * Rendered in-place (no modal) in the Clarify page's detail pane when
- * the reviewer chooses to compose a new issue. The form takes the
- * full pane width so multi-line fields breathe — narrower call sites
- * (e.g. a dropdown) would crowd the textareas.
+ * Rendered in-place with no modal, in the Clarification page's detail pane,
+ * when the reviewer chooses to compose a new issue.
+ * The form takes the full pane width so multi-line fields breathe.
+ * A narrower call site such as a dropdown would crowd the textareas.
  */
 export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIssueFormProps) {
   const queryClient = useQueryClient()
   const [question, setQuestion] = useState('')
   const [context, setContext] = useState('')
   const [relatedNode, setRelatedNode] = useState('')
-  const [ambiguityType, setAmbiguityType] = useState<ClarifyAmbiguityType>('gap')
+  const [ambiguityType, setAmbiguityType] = useState<ClarificationAmbiguityType>('gap')
 
   useEffect(() => {
     setQuestion('')
@@ -54,17 +54,17 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
       const trimmedQuestion = question.trim()
       const trimmedContext = context.trim()
       const trimmedRelatedNode = relatedNode.trim()
-      return api.submitClarify(workspaceId, {
+      return api.submitClarification(workspaceId, {
         question: trimmedQuestion,
         candidates: [],
         origin: 'human',
         ...(trimmedContext ? { context: trimmedContext } : {}),
-        ...(trimmedRelatedNode ? { relatedNode: trimmedRelatedNode as NodeId } : {}),
+        ...(trimmedRelatedNode ? { relatedNode: asNodeId(trimmedRelatedNode) } : {}),
         ambiguityType,
       })
     },
     onSuccess: (ticket) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.clarify(workspaceId) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.clarifications(workspaceId) })
       onSubmitted(ticket)
     },
   })
@@ -73,10 +73,10 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
+      <header className="flex h-11 shrink-0 items-center justify-between border-b border-border px-4">
         <div>
           <div className="text-sm font-medium text-foreground">Submit an issue for AI to clarify</div>
-          <div className="text-[11px] text-muted-foreground">
+          <div className="text-2xs text-muted-foreground">
             File a concern; AI fills in candidate answers on its next clarify run.
           </div>
         </div>
@@ -84,6 +84,7 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
           type="button"
           onClick={onCancel}
           title="Cancel"
+          aria-label="Cancel"
           className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
         >
           <X className="size-4" />
@@ -153,7 +154,7 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
             <select
               id="issue-type"
               value={ambiguityType}
-              onChange={e => setAmbiguityType(e.target.value as ClarifyAmbiguityType)}
+              onChange={e => setAmbiguityType(e.target.value as ClarificationAmbiguityType)}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring/40"
             >
               {AMBIGUITY_TYPES.map(opt => (
@@ -163,7 +164,7 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
           </div>
         </div>
 
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {AMBIGUITY_TYPES.find(t => t.value === ambiguityType)?.hint}
         </p>
 

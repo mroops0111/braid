@@ -1,8 +1,8 @@
 import type { WorkspaceId } from '@braidhq/schema'
-import type { AppDependencies } from '../../src/composition.js'
+import type { AppDependencies } from '../../src/composeApp.js'
 import { makeWorkspace } from '@braidhq/test-utils'
 import { createApp } from '../../src/app.js'
-import { composeApp } from '../../src/composition.js'
+import { composeApp } from '../../src/composeApp.js'
 
 const DEFAULT_WORKSPACE_ID = 'w-1' as WorkspaceId
 

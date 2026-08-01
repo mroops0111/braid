@@ -42,7 +42,7 @@ fn get_server_info(state: State<'_, EmbeddedServer>) -> Result<ServerInfo, Strin
 /// dynamic (`pick_free_port`) would force users to register every
 /// random ephemeral port in their Google Console, which is impossible.
 /// 4321 matches `pnpm dev` (web) so desktop and web share the same
-/// registration; the trade-off is they can't run simultaneously.
+/// registration. The trade-off is they can't run simultaneously.
 const SIDECAR_PORT: u16 = 4321;
 
 /// Probe the pinned port up-front so we fail with a clear error before
@@ -51,6 +51,21 @@ fn ensure_port_free() -> std::io::Result<()> {
     let listener = TcpListener::bind(("127.0.0.1", SIDECAR_PORT))?;
     drop(listener);
     Ok(())
+}
+
+// Two packaging modes share this binary.
+// The full build bundles the server resource and runs it as a sidecar.
+// The remote-only build ships neither,
+// and talks to a remote server chosen in Studio settings.
+// Detect remote-only by the missing resource, or an env opt-out for dev.
+fn embedded_server_enabled(app: &AppHandle) -> bool {
+    if matches!(std::env::var("BRAID_DESKTOP_REMOTE_ONLY").as_deref(), Ok("1") | Ok("true")) {
+        return false;
+    }
+    app.path()
+        .resolve(SERVER_SCRIPT_RESOURCE, tauri::path::BaseDirectory::Resource)
+        .map(|path| path.exists())
+        .unwrap_or(false)
 }
 
 fn start_embedded_server(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
@@ -128,7 +143,7 @@ fn stop_embedded_server(app: &AppHandle) {
 /// Load `.env` from the monorepo root in dev builds so the sidecar
 /// inherits BRAID_* config (Google OAuth creds, allowed emails,
 /// BRAID_LOCAL_TRUST overrides). In a production .app bundle CARGO
-/// paths don't resolve and no .env is loaded; users configure via OS
+/// paths don't resolve and no .env is loaded. Users configure via OS
 /// env vars or future settings UI.
 #[cfg(debug_assertions)]
 fn load_monorepo_dotenv() {
@@ -166,8 +181,12 @@ pub fn run() {
         ])
         .setup(|app| {
             let handle = app.handle().clone();
-            if let Err(err) = start_embedded_server(&handle) {
-                log::error!("failed to start embedded server: {err}");
+            if embedded_server_enabled(&handle) {
+                if let Err(err) = start_embedded_server(&handle) {
+                    log::error!("failed to start embedded server: {err}");
+                }
+            } else {
+                log::info!("remote-only mode, skipping embedded server");
             }
             Ok(())
         })

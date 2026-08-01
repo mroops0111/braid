@@ -1,1 +1,1 @@
-export * from './GithubLoader.js'
+export * from './GithubSourceLoaderPlugin.js'

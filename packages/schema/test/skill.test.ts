@@ -3,69 +3,38 @@ import { describe, expect, it } from 'vitest'
 
 import {
   RunRecord,
+  SessionMetadata,
+  SkillAgentOverride,
   SkillArtifactKind,
+  SkillCategory,
   SkillEvent,
   SkillFrontmatter,
+  SkillInputDescriptor,
+  SkillInputFallback,
+  SkillInputOptionsResponse,
   SkillManifest,
   SkillOrigin,
-  SkillRun,
 } from '../src/index.js'
 
-describe('SkillRun (audit record)', () => {
-  it('parses a running skill', () => {
-    const run = SkillRun.parse({
-      id: 'sr-1',
-      skillId: 'extract',
-      startedAt: isoTimestamp,
-      status: 'running',
-      triggeredBy: 'u-1',
-    })
-    expect(run.status).toBe('running')
-  })
-
-  it('parses a finished skill with metrics', () => {
-    const run = SkillRun.parse({
-      id: 'sr-1',
-      skillId: 'extract',
-      startedAt: isoTimestamp,
-      finishedAt: isoTimestamp,
-      status: 'succeeded',
-      triggeredBy: 'u-1',
-      durationMs: 12_345,
-      tokensUsed: 8_192,
-    })
-    expect(run.tokensUsed).toBe(8_192)
-  })
-
-  it('parses a failed skill with error', () => {
-    const run = SkillRun.parse({
-      id: 'sr-1',
-      skillId: 'extract',
-      startedAt: isoTimestamp,
-      finishedAt: isoTimestamp,
-      status: 'failed',
-      triggeredBy: 'u-1',
-      errorMessage: 'agent timeout',
-    })
-    expect(run.errorMessage).toBe('agent timeout')
-  })
-})
-
 describe('SkillOrigin', () => {
-  it('accepts builtin / workspace / extension', () => {
-    expect(SkillOrigin.parse('builtin')).toBe('builtin')
-    expect(SkillOrigin.parse('workspace')).toBe('workspace')
-    expect(SkillOrigin.parse('extension')).toBe('extension')
+  it('accepts builtin, plugin, workspace, extension', () => {
+    expect(SkillOrigin.options).toEqual(['builtin', 'plugin', 'workspace', 'extension'])
   })
   it('rejects unknown origin', () => {
     expect(SkillOrigin.safeParse('marketplace').success).toBe(false)
   })
 })
 
+describe('SkillCategory', () => {
+  it('maps to the Studio sidebar sections', () => {
+    expect(SkillCategory.options).toEqual(['ask', 'build', 'generate'])
+  })
+})
+
 describe('SkillFrontmatter', () => {
   it('parses minimal frontmatter with defaults (no braid extension)', () => {
     const fm = SkillFrontmatter.parse({
-      name: 'braid-ask',
+      name: 'ask',
       description: 'answer questions',
     })
     expect(fm.disableModelInvocation).toBe(false)
@@ -91,7 +60,7 @@ describe('SkillFrontmatter', () => {
 
   it('does not mix Claude Code fields with braid extension fields', () => {
     const fm = SkillFrontmatter.parse({
-      name: 'braid-ask',
+      name: 'ask',
       description: 'a',
       braid: { requiredEnv: ['X'] },
     })
@@ -101,7 +70,7 @@ describe('SkillFrontmatter', () => {
 
   it('parses inputs[] with text and pick + static provider', () => {
     const fm = SkillFrontmatter.parse({
-      name: 'braid-ask',
+      name: 'ask',
       description: 'answer questions',
       braid: {
         inputs: [
@@ -111,7 +80,7 @@ describe('SkillFrontmatter', () => {
             label: 'Mode',
             kind: 'pick',
             provider: {
-              type: 'static',
+              kind: 'static',
               options: [
                 { value: '', label: 'Detailed' },
                 { value: 'concise', label: 'Concise' },
@@ -128,7 +97,7 @@ describe('SkillFrontmatter', () => {
     const picked = inputs[1]
     expect(picked?.kind).toBe('pick')
     if (picked && picked.kind === 'pick')
-      expect(picked.provider.type).toBe('static')
+      expect(picked.provider.kind).toBe('static')
   })
 
   it('rejects pick input without provider', () => {
@@ -156,6 +125,55 @@ describe('SkillFrontmatter', () => {
       SkillFrontmatter.safeParse({ name: '', description: 'x' }).success,
     ).toBe(false)
   })
+
+  it('accepts a per-skill braid.agent override', () => {
+    const fm = SkillFrontmatter.parse({
+      name: 'extract',
+      description: 'x',
+      braid: { agent: { kind: 'claude-code', effort: 'low' } },
+    })
+    expect(fm.braid.agent?.effort).toBe('low')
+    expect(fm.braid.agent?.kind).toBe('claude-code')
+  })
+})
+
+describe('SkillAgentOverride', () => {
+  it('allows every field to be omitted', () => {
+    expect(SkillAgentOverride.parse({})).toEqual({})
+  })
+  it('rejects an unknown effort', () => {
+    expect(SkillAgentOverride.safeParse({ effort: 'ultra' }).success).toBe(false)
+  })
+})
+
+describe('SkillInputFallback', () => {
+  it('defaults to text so an empty option set swaps to free-text', () => {
+    expect(SkillInputFallback.parse(undefined)).toBe('text')
+  })
+  it('rejects an unknown fallback', () => {
+    expect(SkillInputFallback.safeParse('hide').success).toBe(false)
+  })
+})
+
+describe('SkillInputDescriptor multi-pick', () => {
+  it('parses a multi-pick backed by a static provider', () => {
+    const input = SkillInputDescriptor.parse({
+      name: 'tags',
+      label: 'Tags',
+      kind: 'multi-pick',
+      provider: { kind: 'static', options: [{ value: 'a', label: 'A' }] },
+    })
+    expect(input.kind).toBe('multi-pick')
+  })
+})
+
+describe('SkillInputOptionsResponse', () => {
+  it('carries dynamic options with an optional sourceId', () => {
+    const res = SkillInputOptionsResponse.parse({
+      items: [{ value: 'intent/cart.md', label: 'cart.md', sourceId: 'src-prd' }],
+    })
+    expect(res.items[0]?.sourceId).toBe('src-prd')
+  })
 })
 
 describe('SkillManifest', () => {
@@ -165,7 +183,7 @@ describe('SkillManifest', () => {
       origin: 'builtin',
       path: '/abs/path/to/SKILL.md',
       frontmatter: {
-        name: 'braid-ask',
+        name: 'ask',
         description: 'answer questions',
       },
     })
@@ -178,8 +196,8 @@ describe('SkillManifest', () => {
       id: 'extract',
       origin: 'builtin',
       path: '/abs/SKILL.md',
-      frontmatter: { name: 'braid-extract', description: 'extract' },
-      extensionPath: '/abs/skill-extensions/braid-extract/EXTEND.md',
+      frontmatter: { name: 'extract', description: 'extract' },
+      extensionPath: '/abs/skill-extensions/ddd-extract/EXTEND.md',
     })
     expect(manifest.extensionPath).toBeTruthy()
   })
@@ -201,7 +219,7 @@ describe('SkillManifest', () => {
       origin: 'builtin',
       path: '/abs/SKILL.md',
       frontmatter: {
-        name: 'braid-extract',
+        name: 'extract',
         description: 'extract',
         braid: { category: 'build', order: 100 },
       },
@@ -223,11 +241,13 @@ describe('SkillManifest', () => {
 })
 
 describe('SkillArtifactKind', () => {
-  it('accepts proposal / clarify / decision / view', () => {
+  it('accepts proposal / clarify / view', () => {
     expect(SkillArtifactKind.parse('proposal')).toBe('proposal')
     expect(SkillArtifactKind.parse('clarify')).toBe('clarify')
-    expect(SkillArtifactKind.parse('decision')).toBe('decision')
     expect(SkillArtifactKind.parse('view')).toBe('view')
+  })
+  it('rejects the removed decision kind', () => {
+    expect(SkillArtifactKind.safeParse('decision').success).toBe(false)
   })
 })
 
@@ -344,7 +364,7 @@ describe('RunRecord', () => {
     const record = RunRecord.parse({
       runId: 'sr-1',
       workspaceId: 'demo',
-      skillId: 'braid-ask',
+      skillId: 'braid:ask',
       args: 'hi',
       startedAt: isoTimestamp,
     })
@@ -358,7 +378,7 @@ describe('RunRecord', () => {
     const record = RunRecord.parse({
       runId: 'sr-2',
       workspaceId: 'demo',
-      skillId: 'braid-ask',
+      skillId: 'braid:ask',
       args: 'hi',
       resumed: true,
       sessionId: 'sess-abc',
@@ -369,5 +389,27 @@ describe('RunRecord', () => {
 
     expect(record.sessionId).toBe('sess-abc')
     expect(record.exitCode).toBe(0)
+  })
+})
+
+describe('SessionMetadata', () => {
+  it('allows a null title, the reviewer has not named the session yet', () => {
+    const meta = SessionMetadata.parse({ sessionId: 'sess-1', title: null, updatedAt: isoTimestamp })
+    expect(meta.title).toBeNull()
+  })
+  it('rejects an empty sessionId', () => {
+    expect(SessionMetadata.safeParse({ sessionId: '', title: null, updatedAt: isoTimestamp }).success).toBe(false)
+  })
+})
+
+describe('SkillEvent surfacing variants', () => {
+  it('accepts the thinking, rate-limit, and usage events', () => {
+    expect(SkillEvent.parse({ type: 'thinking', text: 'why' })).toMatchObject({ type: 'thinking', text: 'why' })
+    expect(SkillEvent.parse({ type: 'rate-limit', status: 'rejected', resetsAt: 1 })).toMatchObject({ type: 'rate-limit', status: 'rejected' })
+    expect(SkillEvent.parse({ type: 'usage', costUsd: 0.1, turns: 2 })).toMatchObject({ type: 'usage', costUsd: 0.1, turns: 2 })
+  })
+
+  it('lets usage omit every optional metric', () => {
+    expect(SkillEvent.parse({ type: 'usage' })).toEqual({ type: 'usage' })
   })
 })

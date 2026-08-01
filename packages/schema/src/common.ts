@@ -3,6 +3,13 @@ import { z } from 'zod'
 export const Timestamp = z.string().datetime({ offset: true })
 export type Timestamp = z.infer<typeof Timestamp>
 
+export const CommitSha = z.string().regex(/^[0-9a-f]{40}$/, 'CommitSha must be 40 hex chars').brand<'CommitSha'>()
+export type CommitSha = z.infer<typeof CommitSha>
+
+export const AbsolutePath = z.string().min(1).brand<'AbsolutePath'>()
+export type AbsolutePath = z.infer<typeof AbsolutePath>
+
+/** Branded: a distinct type per ID at compile time, a plain string at runtime. */
 export const WorkspaceId = z.string().min(1).brand<'WorkspaceId'>()
 export type WorkspaceId = z.infer<typeof WorkspaceId>
 
@@ -18,23 +25,14 @@ export type SourceId = z.infer<typeof SourceId>
 export const ProposalId = z.string().min(1).brand<'ProposalId'>()
 export type ProposalId = z.infer<typeof ProposalId>
 
-export const ClarifyTicketId = z.string().min(1).brand<'ClarifyTicketId'>()
-export type ClarifyTicketId = z.infer<typeof ClarifyTicketId>
+export const ClarificationId = z.string().min(1).brand<'ClarificationId'>()
+export type ClarificationId = z.infer<typeof ClarificationId>
 
-export const ClarifyCandidateId = z.string().min(1).brand<'ClarifyCandidateId'>()
-export type ClarifyCandidateId = z.infer<typeof ClarifyCandidateId>
-
-export const DecisionId = z.string().min(1).brand<'DecisionId'>()
-export type DecisionId = z.infer<typeof DecisionId>
+export const ClarificationCandidateId = z.string().min(1).brand<'ClarificationCandidateId'>()
+export type ClarificationCandidateId = z.infer<typeof ClarificationCandidateId>
 
 export const DriftIssueId = z.string().min(1).brand<'DriftIssueId'>()
 export type DriftIssueId = z.infer<typeof DriftIssueId>
-
-export const QuestionId = z.string().min(1).brand<'QuestionId'>()
-export type QuestionId = z.infer<typeof QuestionId>
-
-export const AnswerId = z.string().min(1).brand<'AnswerId'>()
-export type AnswerId = z.infer<typeof AnswerId>
 
 export const SkillId = z.string().min(1).brand<'SkillId'>()
 export type SkillId = z.infer<typeof SkillId>
@@ -48,17 +46,15 @@ export type PluginId = z.infer<typeof PluginId>
 export const AgentId = z.string().min(1).brand<'AgentId'>()
 export type AgentId = z.infer<typeof AgentId>
 
-export const CommitSha = z.string().regex(/^[0-9a-f]{40}$/, 'CommitSha must be 40 hex chars').brand<'CommitSha'>()
-export type CommitSha = z.infer<typeof CommitSha>
-
 export const OntologyId = z.string().min(1).brand<'OntologyId'>()
 export type OntologyId = z.infer<typeof OntologyId>
 
 export const UserId = z.string().min(1).brand<'UserId'>()
 export type UserId = z.infer<typeof UserId>
 
-export const AbsolutePath = z.string().min(1).brand<'AbsolutePath'>()
-export type AbsolutePath = z.infer<typeof AbsolutePath>
+/** Whoever acted, a user or 'system' for autonomous reactor / bootstrap actions. */
+export const Actor = z.union([UserId, z.literal('system')])
+export type Actor = z.infer<typeof Actor>
 
 export const SourceLocation = z.object({
   uri: z.string().min(1),
@@ -75,6 +71,7 @@ export const SourceReference = z.object({
 })
 export type SourceReference = z.infer<typeof SourceReference>
 
+/** Branded, not an enum, so callers register new kinds without editing schema. */
 export const ExternalReferenceKind = z.string().min(1).brand<'ExternalReferenceKind'>()
 export type ExternalReferenceKind = z.infer<typeof ExternalReferenceKind>
 

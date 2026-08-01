@@ -1,6 +1,8 @@
 import type {
+  AbsolutePath,
   AgentBindingDescriptor,
   AgentKind,
+  LoaderKind,
   ModelSnapshot,
   OntologyId,
   PluginId,
@@ -10,6 +12,7 @@ import type {
   ViewArtifactFormat,
   ViewKind,
 } from '@braidhq/schema'
+import { T0 } from '@braidhq/test-utils'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   type AgentBinding,
@@ -20,7 +23,10 @@ import {
   type OntologyPlugin,
   type Plugin,
   PluginRegistry,
+  type ProvisionReport,
+  type SourceLoaderPlugin,
   type StoragePlugin,
+  ValidationError,
   type ViewGeneratorPlugin,
 } from '../../../src/index.js'
 
@@ -59,7 +65,20 @@ function fakeAgentPlugin(id: string, kind: string): AgentPlugin {
     kind: kind as AgentKind,
     createBinding: (descriptor: AgentBindingDescriptor): AgentBinding => ({
       descriptor,
-      resolveSpawn: () => ({ bin: '/usr/bin/true', args: [], env: {} }),
+      resolveSpawn: async () => ({ bin: '/usr/bin/true', args: [], env: {} }),
+      parseLine: () => [],
+    }),
+  }
+}
+
+function fakeSourceLoader(id: string, kind: string): SourceLoaderPlugin {
+  return {
+    ...fakePlugin(id, 'source-loader'),
+    type: 'source-loader',
+    kind: kind as LoaderKind,
+    provision: async (): Promise<ProvisionReport> => ({
+      localPath: '/abs/dest' as AbsolutePath,
+      fetchedAt: T0,
     }),
   }
 }
@@ -68,7 +87,7 @@ function fakeStoragePlugin(id: string, kind: string): StoragePlugin {
   const emptyRepository: ModelRepository = {
     load: async (): Promise<ModelSnapshot> => ({ nodes: [], edges: [] }),
     applyOperations: async () => {},
-    findNodes: async () => [],
+    listNodes: async () => [],
     getNode: async () => { throw new NotFoundError('not found') },
     scopeOf: async (): Promise<ModelSnapshot> => ({ nodes: [], edges: [] }),
     listEdges: async () => [],
@@ -110,10 +129,13 @@ describe('PluginRegistry', () => {
   })
 
   describe('pluginSkills', () => {
-    function fakePluginWithSkills(id: string, skillIds: readonly string[]): Plugin {
+    // The verb comes from the directory basename, the namespace from the
+    // plugin. The loader composes `<skillNamespace>:<verb>`.
+    function fakePluginWithSkills(id: string, verbs: readonly string[]): Plugin {
       return {
         ...fakePlugin(id, 'ontology'),
-        skills: skillIds.map(s => ({ id: s as never, directory: `/abs/${s}` })),
+        skillNamespace: 'test',
+        skills: verbs.map(v => ({ directory: `/abs/${v}` })),
       }
     }
 
@@ -121,13 +143,18 @@ describe('PluginRegistry', () => {
       registry.register(fakePluginWithSkills('p1', ['extract-foo']))
       registry.register(fakePluginWithSkills('p2', ['extract-bar', 'fix-baz']))
       const skills = registry.pluginSkills()
-      expect(skills.map(s => s.id)).toEqual(['extract-foo', 'extract-bar', 'fix-baz'])
-      expect(skills.find(s => s.id === 'fix-baz' as never)?.contributedBy).toBe('p2')
+      expect(skills.map(s => s.id)).toEqual(['test:extract-foo', 'test:extract-bar', 'test:fix-baz'])
+      expect(skills.find(s => s.id === 'test:fix-baz' as never)?.contributedBy).toBe('p2')
     })
 
     it('throws ConflictError when two plugins declare the same skill id', () => {
       registry.register(fakePluginWithSkills('p1', ['shared-skill']))
       expect(() => registry.register(fakePluginWithSkills('p2', ['shared-skill']))).toThrow(ConflictError)
+    })
+
+    it('throws when a plugin ships skills but declares no skillNamespace', () => {
+      const noNamespace: Plugin = { ...fakePlugin('p1', 'ontology'), skills: [{ directory: '/abs/extract' }] }
+      expect(() => registry.register(noNamespace)).toThrow(ValidationError)
     })
 
     it('returns an empty array when no plugin contributes skills', () => {
@@ -158,6 +185,11 @@ describe('PluginRegistry', () => {
       expect(registry.findViewGenerator('docs' as ViewKind)).toBeUndefined()
     })
 
+    it('requireViewGenerator returns the generator when viewKind matches', () => {
+      registry.register(fakeViewGenerator('gen-docs', 'docs'))
+      expect(registry.requireViewGenerator('docs' as ViewKind).id).toBe('gen-docs')
+    })
+
     it('requireViewGenerator throws NotFoundError when no match', () => {
       expect(() => registry.requireViewGenerator('docs' as ViewKind)).toThrow(NotFoundError)
     })
@@ -184,6 +216,36 @@ describe('PluginRegistry', () => {
 
     it('requireStoragePlugin throws when missing', () => {
       expect(() => registry.requireStoragePlugin('memgraph' as StorageKind)).toThrow(NotFoundError)
+    })
+  })
+
+  describe('source-loader', () => {
+    it('findSourceLoader / requireSourceLoader', () => {
+      registry.register(fakeSourceLoader('sl-git', 'git'))
+      expect(registry.findSourceLoader('git' as LoaderKind)?.id).toBe('sl-git')
+      expect(registry.requireSourceLoader('git' as LoaderKind).id).toBe('sl-git')
+    })
+
+    it('requireSourceLoader throws when missing', () => {
+      expect(() => registry.requireSourceLoader('gdrive' as LoaderKind)).toThrow(NotFoundError)
+    })
+  })
+
+  describe('pluginReferenceDirs', () => {
+    it('aggregates reference dirs across plugins and tags the contributor id', () => {
+      registry.register({
+        ...fakePlugin('p1', 'ontology'),
+        referenceDirs: [{ name: 'ddd-concepts', directory: '/abs/ddd' }],
+      })
+      const dirs = registry.pluginReferenceDirs()
+      expect(dirs).toHaveLength(1)
+      expect(dirs[0]!.name).toBe('ddd-concepts')
+      expect(dirs[0]!.contributedBy).toBe('p1')
+    })
+
+    it('returns an empty array when no plugin contributes reference dirs', () => {
+      registry.register(fakePlugin('a', 'ontology'))
+      expect(registry.pluginReferenceDirs()).toEqual([])
     })
   })
 })

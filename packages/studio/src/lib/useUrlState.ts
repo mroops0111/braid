@@ -1,7 +1,7 @@
 import type { Surface } from '@/components/CommandPalette'
 import { useEffect } from 'react'
 
-const SURFACE_VALUES: readonly Surface[] = ['actions', 'batch', 'clarify', 'history', 'proposals', 'settings']
+const SURFACE_VALUES: readonly Surface[] = ['actions', 'batch', 'clarifications', 'history', 'proposals', 'settings']
 
 export interface UrlState {
   readonly workspaceId: string | null
@@ -9,14 +9,14 @@ export interface UrlState {
 }
 
 /**
- * Two URL shapes, depending on whether the surface is workspace-scoped:
- *   #/ws/<id>            — workspace home (Graph)
- *   #/ws/<id>/<surface>  — Proposals / Clarify / Actions / Batch / History
- *   #/settings           — account-level Settings (no workspace context)
+ * The hash encodes the active workspace and surface.
+ *   #/ws/<id>            workspace home (Graph)
+ *   #/ws/<id>/<surface>  a workspace surface, Proposals, Clarification, Actions, Batch, History
+ *   #/settings           account-level Settings, no workspace context
  *
- * Settings sits at the root because it's not workspace-scoped: editing
- * the server connection list has the same meaning regardless of which
- * workspace you were last looking at.
+ * Settings sits at the root because it is not workspace-scoped.
+ * Editing the server connection list means the same thing,
+ * regardless of which workspace you were last looking at.
  */
 export function readUrl(): UrlState {
   const hash = typeof window === 'undefined' ? '' : window.location.hash
@@ -29,9 +29,9 @@ export function readUrl(): UrlState {
     return { workspaceId: null, surface: null }
   const workspaceId = parts[1] ?? null
   const candidate = parts[2]
-  // 'settings' isn't a workspace-scoped surface; reject it here even
-  // if someone hand-types #/ws/foo/settings — we'd rather drop them at
-  // workspace home than render a confused mix.
+  // 'settings' is not a workspace-scoped surface, so reject it here.
+  // If someone hand-types #/ws/foo/settings,
+  // we drop them at workspace home rather than render a confused mix.
   const surface = candidate
     && candidate !== 'settings'
     && (SURFACE_VALUES as readonly string[]).includes(candidate)

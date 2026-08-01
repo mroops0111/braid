@@ -29,12 +29,12 @@ The `proposedOperations` of a candidate are **not validated at create time**. Th
 
 - `pending`: created by a skill; waiting for human selection.
 - `answered`: human picked a candidate via Studio; `selectedCandidateId` + `resolution` are set, but no Proposal has been materialised yet.
-- `applied`: `braid-clarify` wrapped the resolution into a Proposal (or determined the chosen candidate has no graph impact) and called the `braid-core` clarify-apply capability.
+- `applied`: `ddd:clarify` wrapped the resolution into a Proposal (or determined the chosen candidate has no graph impact) and called the `braid-core` clarify-apply capability.
 - `skipped`: human dismissed the ticket via Studio.
 
 Only the chains `pending` to `answered` to `applied`, and `pending` to `skipped`, are legal. Skills do not write to the `artifacts/clarify/` tree directly; the server holds the state machine.
 
-The `pending` to `answered` transition is human-driven (Studio UI). The `answered` to `applied` transition is what `braid-clarify` calls via the clarify-apply capability after materialising the resolution.
+The `pending` to `answered` transition is human-driven (Studio UI). The `answered` to `applied` transition is what `ddd:clarify` calls via the clarify-apply capability after materialising the resolution.
 
 ## Don't Guess
 

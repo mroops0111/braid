@@ -33,6 +33,6 @@ coverage
 # Docs
 docs/
 
-# Example
-examples/
+# Example: only the reference workspace is tracked, local experiments are not.
+examples/*
 !examples/example-workspace/

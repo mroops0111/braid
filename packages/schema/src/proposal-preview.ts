@@ -1,11 +1,10 @@
 import type { EdgeId, ExternalReference, NodeId, SourceReference } from './common.js'
 import type { ChangeKind } from './history.js'
-import type { GraphEdge, GraphNode, ModelSnapshot, NewGraphEdge, NewGraphNode } from './model.js'
+import type { GraphEdge, GraphEdgeCreate, GraphNode, GraphNodeCreate, ModelSnapshot } from './model.js'
 import type { GraphOperation } from './proposal.js'
 
-// schema runs in both Node and browser, so reach for the Web Crypto
-// global rather than `node:crypto`. TS 6 dropped the implicit global,
-// so we narrow `globalThis` ourselves.
+// schema runs in Node and browser, so use the Web Crypto global, not node:crypto.
+// TS 6 dropped the implicit global type, so we narrow globalThis here.
 function randomUUID(): string {
   return (globalThis as unknown as { crypto: { randomUUID: () => string } }).crypto.randomUUID()
 }
@@ -21,19 +20,8 @@ export interface ProposalPreview {
 }
 
 /**
- * Pure shape transform: given the current snapshot and a list of proposed
- * operations, return the projected snapshot plus a per-id change
- * classification suitable for UI overlays.
- *
- * This is a *lenient* apply: invalid operations (e.g. removing a node
- * that does not exist) are silently no-op'd so the preview never throws
- * mid-render. The server's `Model` enforces strict semantics at the
- * point the proposal is actually applied; that's where rejection
- * surfaces to the user.
- *
- * The diff is derived by comparing snapshots, not by walking ops, so
- * cascade-deleted edges from a `removeNode` are correctly classified as
- * `removed` even though no explicit edge op was issued.
+ * Lenient apply: invalid ops are no-op'd so preview never throws. Real apply is strict. Diffs by comparing snapshots,
+ * so cascade-deleted edges still show as removed.
  */
 export function previewProposal(
   current: ModelSnapshot,
@@ -128,20 +116,8 @@ function applyOperations(snapshot: ModelSnapshot, operations: readonly GraphOper
   return { nodes: [...nodes.values()], edges: [...edges.values()] }
 }
 
-// NewGraphNode/Edge payloads carry optional id/metadata fields. For
-// preview we must produce concrete GraphNode/Edge values; missing ids
-// degrade to a synthetic placeholder so the preview doesn't collide
-// with real ids.
-/**
- * Apply a patch object to an existing entity. `undefined` keys in the
- * patch are skipped so the merge matches the server's "undefined =
- * leave unchanged" semantics — a plain `{ ...existing, ...patch }`
- * spread would overwrite the existing value with `undefined`.
- *
- * The entity's `id` is always preserved regardless of what the patch
- * carries; allowing a patch to rename an id would break the map keys
- * the caller is updating in place.
- */
+// undefined patch keys are skipped ("undefined = leave unchanged"), unlike a plain spread. id is never patched,
+// since renaming it would break the caller's map keys.
 function applyPatch<T extends { id: unknown }>(existing: T, patch: Record<string, unknown>): T {
   const next: Record<string, unknown> = { ...existing }
   for (const [key, value] of Object.entries(patch)) {
@@ -152,7 +128,8 @@ function applyPatch<T extends { id: unknown }>(existing: T, patch: Record<string
   return next as T
 }
 
-function materializeNode(payload: NewGraphNode): GraphNode {
+// A missing id gets a synthetic placeholder so it can't collide with a real id.
+function materializeNode(payload: GraphNodeCreate): GraphNode {
   const node: GraphNode = {
     id: (payload.id ?? `preview:${randomUUID()}`) as NodeId,
     type: payload.type,
@@ -167,7 +144,7 @@ function materializeNode(payload: NewGraphNode): GraphNode {
   return node
 }
 
-function materializeEdge(payload: NewGraphEdge): GraphEdge {
+function materializeEdge(payload: GraphEdgeCreate): GraphEdge {
   return {
     id: (payload.id ?? `preview:${randomUUID()}`) as EdgeId,
     type: payload.type,
@@ -230,10 +207,8 @@ function edgesEqual(a: GraphEdge, b: GraphEdge): boolean {
     && externalRefsEqual(a.metadata.externalReferences, b.metadata.externalReferences)
 }
 
-// Structural comparisons keep the diff classification stable across
-// object-key ordering and avoid the O(n) JSON.stringify cost on large
-// snapshots. Order within an array is treated as significant since
-// skills typically append to the end.
+// Structural comparison, not JSON.stringify. Stable across key order, no stringify cost. Array order matters,
+// since skills typically append.
 function sourceRefsEqual(a: readonly SourceReference[], b: readonly SourceReference[]): boolean {
   if (a.length !== b.length)
     return false

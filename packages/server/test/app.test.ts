@@ -57,19 +57,16 @@ describe('GET /openapi.json', () => {
       'getProposal',
       'createProposal',
       'validateProposal',
-      'listClarifyTickets',
-      'getClarifyTicket',
-      'createClarifyTicket',
-      'markClarifyTicketApplied',
-      'listDecisions',
-      'getDecision',
+      'listClarifications',
+      'getClarification',
+      'createClarification',
+      'markClarificationApplied',
     ]) {
       expect(operationIds, `missing operationId: ${expected}`).toContain(expected)
     }
 
-    // SSE streams, the OAuth HTML callback, and workspace-management
-    // routes (CLI / Studio admin surface) are intentionally NOT in the
-    // spec — they aren't invocable as MCP tools.
+    // SSE streams, the OAuth HTML callback, and workspace-management routes, the CLI and Studio admin surface,
+    // are intentionally absent from the spec, they aren't invocable as MCP tools.
     const allPaths = Object.keys(doc.paths)
     for (const excluded of [
       '/workspaces/{workspaceId}/runs/{runId}/events',
@@ -91,7 +88,7 @@ describe('error middleware', () => {
     expect(response.status).toBe(400)
     expect(response.headers.get('Content-Type')).toContain('application/problem+json')
     const body = await readJson<ProblemBody>(response)
-    expect(body.code).toBe('BRAID-VAL')
+    expect(body.code).toBe('BRAID-VALIDATION')
     expect(body.title).toBe('ValidationError')
   })
 

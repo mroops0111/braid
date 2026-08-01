@@ -15,16 +15,15 @@ export interface MakeOntologyOptions {
   readonly edgeTypes?: readonly EdgeTypeDescriptor[]
   readonly validators?: readonly OntologyValidator[]
   readonly batch?: OntologyBatchBinding
+  readonly requiredSourceRoles?: readonly ('code' | 'intent')[]
 }
 
 /**
- * Construct a bare `OntologyPlugin` for tests. Defaults to an empty
- * ontology (no nodes / edges / validators); pass per-test overrides
- * to exercise a specific path.
- *
- * Use this instead of inlining a Plugin-typed object literal — `register()`
- * expects `Plugin` so excess-property checks on inline `OntologyPlugin`
- * literals would fail typecheck.
+ * Construct a bare OntologyPlugin for tests.
+ * Defaults to an empty ontology with no nodes, edges, or validators.
+ * Pass per-test overrides to exercise a specific path.
+ * Use this rather than an inline literal,
+ * which fails the excess-property check because register() takes Plugin.
  */
 export function makeOntology(opts: MakeOntologyOptions = {}): OntologyPlugin {
   const ontologyId = (opts.ontologyId ?? 'ddd') as OntologyId
@@ -37,5 +36,6 @@ export function makeOntology(opts: MakeOntologyOptions = {}): OntologyPlugin {
     edgeTypes: opts.edgeTypes ?? [],
     validators: opts.validators ?? [],
     ...(opts.batch ? { batch: opts.batch } : {}),
+    ...(opts.requiredSourceRoles ? { requiredSourceRoles: [...opts.requiredSourceRoles] } : {}),
   }
 }

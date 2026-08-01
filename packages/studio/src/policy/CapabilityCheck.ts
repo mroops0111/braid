@@ -1,4 +1,4 @@
-import type { Capability } from './Capability'
+import type { Capability } from '@braidhq/schema'
 import type { ViewerContext } from './ViewerContext'
 
 export interface CapabilityCheck {

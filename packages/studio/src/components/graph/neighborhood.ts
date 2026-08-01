@@ -1,7 +1,7 @@
 import type { EdgeId, GraphEdge, NodeId } from '@braidhq/schema'
 
 export interface Neighborhood {
-  /** Selected node + every node connected to it by one edge. Includes the selection itself. */
+  /** Selected node and every node connected to it by one edge. Includes the selection itself. */
   readonly neighbors: ReadonlySet<NodeId>
   /** Edges that touch the selection (either endpoint). */
   readonly incidentEdges: ReadonlySet<EdgeId>
@@ -13,13 +13,14 @@ const EMPTY: Neighborhood = {
 }
 
 /**
- * One-hop neighborhood around `selectedNodeId`. Pure: same inputs always
- * yield equivalent sets. Returns empty sets when no node is selected so
- * consumers don't have to null-check.
+ * One-hop neighborhood around `selectedNodeId`.
+ * Pure, the same inputs always yield equivalent sets.
+ * Returns empty sets when no node is selected,
+ * so consumers do not have to null-check.
  *
  * Consumers use this to dim or hide elements outside the neighborhood.
- * The selected node is included in `neighbors` so callers can write
- * `neighbors.has(id)` without special-casing the selection.
+ * The selected node is included in `neighbors`,
+ * so callers can write `neighbors.has(id)` without special-casing it.
  */
 export function computeNeighborhood(
   selectedNodeId: NodeId | null,

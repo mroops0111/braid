@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "io.braidhq.desktop",
   "build": {
-    "frontendDist": "../studio/dist",
+    "frontendDist": "../../studio/dist",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "pnpm --filter @braidhq/desktop prepare-sidecar && pnpm --filter @braidhq/studio dev",
     "beforeBuildCommand": "pnpm --filter @braidhq/desktop prepare-sidecar && pnpm --filter @braidhq/studio build"

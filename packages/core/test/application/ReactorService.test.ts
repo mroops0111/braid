@@ -1,33 +1,32 @@
-import type { AbsolutePath, SkillEvent, SkillId, SkillRunId, SourceDescriptor, SourceId, SourceUnitSha, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, SkillEvent, SkillId, SkillRunId, SourceDescriptor, SourceId, SourceUnitSha, Timestamp, WorkspaceEvent, WorkspaceId } from '@braidhq/schema'
 import type {
   IntentLister,
   SkillEventListener,
   SkillRunner,
   SkillRunSubscription,
   SourceUnitDigest,
-  WorkspaceEvent,
   WorkspaceEventBus,
 } from '../../src/index.js'
 import { SkillId as SkillIdSchema } from '@braidhq/schema'
 import { FixedClock, makeOntology, makeWorkspace, mintTestId, resetTestIds, T0 } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import {
-  PerWorkspaceLock,
-  PluginRegistry,
-  ReactorService,
-  SourceUnitStateService,
-  Workspace,
-  WorkspaceService,
-} from '../../src/index.js'
-import {
-  InMemoryReactorPassRepository,
-  InMemorySourceUnitStateRepository,
+  InMemoryReactorCycleRepository,
+  InMemorySourceUnitObservationRepository,
   InMemoryWorkspaceEventBus,
   InMemoryWorkspaceRepository,
-} from '../../src/testing.js'
+} from '../../src/in-memory.js'
+import {
+  PluginRegistry,
+  ReactorService,
+  SourceUnitObservationService,
+  Workspace,
+  WorkspaceLock,
+  WorkspaceService,
+} from '../../src/index.js'
 
-const PER_UNIT_SKILL = SkillIdSchema.parse('braid-extract')
-const CHECKPOINT_SKILL = SkillIdSchema.parse('braid-model')
+const PER_UNIT_SKILL = SkillIdSchema.parse('ddd:extract')
+const CHECKPOINT_SKILL = SkillIdSchema.parse('ddd:reconcile')
 
 function intentSource(id: string): SourceDescriptor {
   return {
@@ -52,9 +51,9 @@ function codeSource(id: string): SourceDescriptor {
 class FakeSkillRunner implements SkillRunner {
   readonly startCalls: Array<{ skillId: SkillId, args: string }> = []
   private readonly listeners = new Map<SkillRunId, SkillEventListener>()
-  /** Settle the runner on `start` synchronously? Default: true (deferred via setTimeout). */
+  // When set, start() defers completion until flushOne fires it.
   controlled = false
-  /** When `controlled` is true, stores callbacks the test triggers manually. */
+  // Pending completions the test fires manually while controlled.
   private readonly pending: Array<() => void> = []
   exitCodes: number[] = []
 
@@ -74,7 +73,7 @@ class FakeSkillRunner implements SkillRunner {
     return runId
   }
 
-  /** Manually flush one pending completion. Used by the sequential-ordering test. */
+  // Fire one pending completion, for the sequential-ordering test.
   flushOne(): void {
     const fire = this.pending.shift()
     fire?.()
@@ -132,16 +131,16 @@ async function setup(opts: {
   const eventBus = new InMemoryWorkspaceEventBus()
   const clock = new FixedClock()
   const skillRunner = new FakeSkillRunner()
-  const sourceUnitStateRepository = new InMemorySourceUnitStateRepository()
+  const sourceUnitObservationRepository = new InMemorySourceUnitObservationRepository()
   const digest = new FakeSourceUnitDigest()
-  const sourceUnitStateService = new SourceUnitStateService({
-    repository: sourceUnitStateRepository,
+  const sourceUnitObservationService = new SourceUnitObservationService({
+    repository: sourceUnitObservationRepository,
     digest,
     workspaceService,
     clock,
   })
 
-  // Tracks captured events so tests can assert on what the reactor emitted
+  // Tracks captured events, so tests can assert on what the reactor emitted,
   // without subscribing to a workspace they don't have a handle on.
   const captured: WorkspaceEvent[] = []
   const originalPublish = eventBus.publish.bind(eventBus)
@@ -161,8 +160,8 @@ async function setup(opts: {
     intentItems = items
   }
 
-  // Throttle limit is read at start() time, so update the workspace
-  // BEFORE constructing the reactor when a custom cap is requested.
+  // Throttle limit is read at start() time, so update the workspace BEFORE constructing the reactor,
+  // when a custom cap is requested.
   if (opts.maxRunsPerHour) {
     const updated = new Workspace({
       id: workspace.id,
@@ -175,18 +174,34 @@ async function setup(opts: {
     await workspaceRepo.save(updated)
   }
 
-  const reactorPassRepository = new InMemoryReactorPassRepository()
+  const reactorCycleRepository = new InMemoryReactorCycleRepository()
+  const scheduled: Array<{ delayMs: number, run: () => void }> = []
+  const scheduler = {
+    schedule(delayMs: number, run: () => void) {
+      const entry = { delayMs, run }
+      scheduled.push(entry)
+      return {
+        cancel: () => {
+          const index = scheduled.indexOf(entry)
+          if (index >= 0)
+            scheduled.splice(index, 1)
+        },
+      }
+    },
+  }
   const reactor = new ReactorService({
     eventBus,
     workspaceService,
     pluginRegistry,
     skillRunner,
-    sourceUnitStateService,
+    sourceUnitObservationService,
     intentLister,
     digest,
-    reactorPassRepository,
-    workspaceLock: new PerWorkspaceLock(),
+    reactorCycleRepository,
+    workspaceLock: new WorkspaceLock(),
     clock,
+    logger: { info() {}, warn() {}, error() {} },
+    scheduler,
   })
 
   await reactor.start(workspace.id)
@@ -198,9 +213,11 @@ async function setup(opts: {
     skillRunner,
     digest,
     captured,
-    sourceUnitStateService,
-    reactorPassRepository,
+    sourceUnitObservationService,
+    reactorCycleRepository,
     setUnits,
+    clock,
+    scheduled,
   }
 }
 
@@ -247,7 +264,7 @@ describe('ReactorService', () => {
     expect(completed.checkpointRan).toBe(true)
   })
 
-  it('skips checkpoint when no per-unit succeeded', async () => {
+  it('skips the checkpoint entirely when no per-unit dispatch succeeded', async () => {
     const { workspace, eventBus, skillRunner, captured } = await setup({ hasCheckpoint: true })
     skillRunner.exitCodes = [1, 1, 1]
     emitSync(eventBus, workspace.id, 'issues')
@@ -255,14 +272,16 @@ describe('ReactorService', () => {
 
     const checkpoint = skillRunner.startCalls.filter(c => c.skillId === CHECKPOINT_SKILL)
     expect(checkpoint).toHaveLength(0)
+    const checkpointEvents = captured.filter(e => e.type === 'reactor.checkpoint.started' || e.type === 'reactor.checkpoint.completed')
+    expect(checkpointEvents).toHaveLength(0)
     const completed = captured.find(e => e.type === 'reactor.completed')
     expect((completed as { checkpointRan: boolean }).checkpointRan).toBe(false)
   })
 
   it('runs the checkpoint when SOME per-unit dispatches succeed and others fail', async () => {
     const { workspace, eventBus, skillRunner, captured } = await setup({ hasCheckpoint: true })
-    // First unit fails, second succeeds, third fails — the loop must not
-    // abort on the first failure, and the checkpoint must still run.
+    // First unit fails, second succeeds, third fails, the loop must not abort on the first failure,
+    // and the checkpoint must still run.
     skillRunner.exitCodes = [1, 0, 1]
     emitSync(eventBus, workspace.id, 'issues')
     await tick(100)
@@ -291,7 +310,7 @@ describe('ReactorService', () => {
     expect(skillRunner.startCalls).toHaveLength(3)
     skillRunner.flushOne()
     await tick(50)
-    // All three done; no more started since there's no checkpoint here.
+    // All three done. No more started since there's no checkpoint here.
     expect(skillRunner.startCalls).toHaveLength(3)
   })
 
@@ -307,10 +326,8 @@ describe('ReactorService', () => {
 
   it('throttles after maxRunsPerHour dispatches in a rolling 1h window', async () => {
     const { workspace, eventBus, digest, captured } = await setup({ maxRunsPerHour: 2 })
-    // Each sync brings a "changed" sha so the diff has something to
-    // dispatch on. Without rotating, after the first sync's ledger
-    // writes catch up to the digest's default, subsequent syncs see
-    // unchanged units and emit completed{0} instead of dispatched.
+    // Each sync brings a "changed" sha, so the diff has something to dispatch on. Without rotating,
+    // once the ledger catches up to the digest default, subsequent syncs see unchanged units and emit completed{0}.
     const shas: SourceUnitSha[] = [
       ('a'.repeat(64)) as SourceUnitSha,
       ('b'.repeat(64)) as SourceUnitSha,
@@ -330,7 +347,7 @@ describe('ReactorService', () => {
 
   it('emits a completed event with totalUnits=0 when the diff has no changes', async () => {
     const { workspace, eventBus, skillRunner, captured, setUnits } = await setup()
-    // No units → diff returns 0 in all partitions → reactor emits completed{0}
+    // No units, diff returns 0 in all partitions, reactor emits completed{0}
     setUnits([])
     emitSync(eventBus, workspace.id, 'issues')
     await tick(50)
@@ -350,22 +367,22 @@ describe('ReactorService', () => {
     expect(runner.startCalls).toHaveLength(0)
   })
 
-  it('persists a ReactorPass record with units in terminal status after a normal pass', async () => {
-    const { workspace, eventBus, reactorPassRepository, captured } = await setup({ hasCheckpoint: true })
+  it('persists a ReactorCycle record with units in terminal status after a normal cycle', async () => {
+    const { workspace, eventBus, reactorCycleRepository, captured } = await setup({ hasCheckpoint: true })
     emitSync(eventBus, workspace.id, 'issues')
     await tick(150)
-    const passes = await reactorPassRepository.listByWorkspace(workspace.id)
+    const passes = await reactorCycleRepository.listByWorkspace(workspace.id)
     expect(passes).toHaveLength(1)
-    const pass = passes[0]!
-    expect(pass.status).toBe('completed')
-    expect(pass.units).toHaveLength(3)
-    expect(pass.units.every(u => u.status === 'success')).toBe(true)
-    expect(pass.checkpoint?.status).toBe('success')
-    // Every emitted reactor.* event refers to the same passId.
+    const cycle = passes[0]!
+    expect(cycle.status).toBe('completed')
+    expect(cycle.units).toHaveLength(3)
+    expect(cycle.units.every(u => u.status === 'success')).toBe(true)
+    expect(cycle.checkpoint?.status).toBe('success')
+    // Every emitted reactor.* event refers to the same cycleId.
     const reactorEvents = captured.filter(e => e.type.startsWith('reactor.'))
     expect(reactorEvents.every((e) => {
-      const eventWithPass = e as { passId?: string }
-      return eventWithPass.passId === pass.id
+      const eventWithCycle = e as { cycleId?: string }
+      return eventWithCycle.cycleId === cycle.id
     })).toBe(true)
   })
 
@@ -388,19 +405,8 @@ describe('ReactorService', () => {
     expect(completedProcessed).toEqual([1, 2, 3])
   })
 
-  it('does NOT emit reactor.checkpoint.* when no per-unit succeeded; the terminal reactor.completed already says checkpointRan=false', async () => {
-    const { workspace, eventBus, skillRunner, captured } = await setup({ hasCheckpoint: true })
-    skillRunner.exitCodes = [1, 1, 1]
-    emitSync(eventBus, workspace.id, 'issues')
-    await tick(200)
-    const checkpointEvents = captured.filter(e => e.type === 'reactor.checkpoint.started' || e.type === 'reactor.checkpoint.completed')
-    expect(checkpointEvents).toHaveLength(0)
-    const completed = captured.find(e => e.type === 'reactor.completed')
-    expect((completed as { checkpointRan: boolean }).checkpointRan).toBe(false)
-  })
-
-  it('persists a throttled pass with status=throttled so the Activity page can surface it', async () => {
-    const { workspace, eventBus, digest, reactorPassRepository } = await setup({ maxRunsPerHour: 1 })
+  it('persists a throttled cycle with status=throttled so the Activity page can surface it', async () => {
+    const { workspace, eventBus, digest, reactorCycleRepository } = await setup({ maxRunsPerHour: 1 })
     const shas: SourceUnitSha[] = [
       ('a'.repeat(64)) as SourceUnitSha,
       ('b'.repeat(64)) as SourceUnitSha,
@@ -410,9 +416,37 @@ describe('ReactorService', () => {
       emitSync(eventBus, workspace.id, 'issues')
       await tick(150)
     }
-    const passes = await reactorPassRepository.listByWorkspace(workspace.id)
+    const passes = await reactorCycleRepository.listByWorkspace(workspace.id)
     const throttled = passes.filter(p => p.status === 'throttled')
     expect(throttled).toHaveLength(1)
     expect(throttled[0]!.throttledReason).toBe('maxRunsPerHour=1')
+  })
+
+  it('schedules a catch-up when throttled, and it runs once a slot frees', async () => {
+    const { workspace, eventBus, digest, reactorCycleRepository, skillRunner, clock, scheduled } = await setup({ maxRunsPerHour: 1 })
+    // First sync spends the single hourly slot.
+    digest.defaultSha = ('a'.repeat(64)) as SourceUnitSha
+    emitSync(eventBus, workspace.id, 'issues')
+    await tick(150)
+    // Second sync changes the units again but is throttled, which schedules one retry.
+    digest.defaultSha = ('b'.repeat(64)) as SourceUnitSha
+    emitSync(eventBus, workspace.id, 'issues')
+    await tick(150)
+
+    expect(scheduled).toHaveLength(1)
+    expect(scheduled[0]!.delayMs).toBeGreaterThan(0)
+    const throttledBefore = (await reactorCycleRepository.listByWorkspace(workspace.id)).filter(c => c.status === 'throttled')
+    expect(throttledBefore).toHaveLength(1)
+
+    // Advance past the rolling window so the slot frees, then fire the scheduled retry.
+    clock.set(new Date(Date.parse(T0) + 60 * 60 * 1000 + 1000).toISOString() as Timestamp)
+    const runsBefore = skillRunner.startCalls.length
+    scheduled[0]!.run()
+    await tick(150)
+
+    // The retry re-derived the diff and processed the still-changed units.
+    expect(skillRunner.startCalls.length).toBeGreaterThan(runsBefore)
+    const completed = (await reactorCycleRepository.listByWorkspace(workspace.id)).filter(c => c.status === 'completed')
+    expect(completed.length).toBeGreaterThan(0)
   })
 })

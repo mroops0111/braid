@@ -1,11 +1,12 @@
-import { usePendingClarify, usePendingProposals, useRuns } from '@/lib/queries'
+import { usePendingClarification, usePendingProposals, useRuns } from '@/lib/queries'
 import { cn } from '@/lib/utils'
 
-// Muted tint palette: low-saturation background + accented foreground
-// so multiple swatches stacked in the sidebar don't compete for
-// attention. Identification comes from the monogram letters first,
-// colour only as a secondary cue. Tailwind needs each class as a static
-// literal to make it into the final CSS bundle.
+// Muted tint palette, a low-saturation background with accented foreground,
+// so multiple swatches stacked in the sidebar do not compete for attention.
+// Identification comes from the monogram letters first,
+// colour only as a secondary cue.
+// Tailwind needs each class as a static literal,
+// to make it into the final CSS bundle.
 const SWATCH_PALETTE = [
   'bg-sky-500/15 text-sky-700 dark:text-sky-300',
   'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
@@ -39,7 +40,7 @@ interface WorkspaceSwatchProps {
 export function WorkspaceSwatch({ workspaceId, size = 'md', active, pendingDot }: WorkspaceSwatchProps) {
   const letters = monogramLetters(workspaceId)
   const color = colorClass(workspaceId)
-  const dims = size === 'md' ? 'size-7 text-[11px]' : 'size-5 text-[9px]'
+  const dims = size === 'md' ? 'size-7 text-2xs' : 'size-5 text-2xs'
   return (
     <div className={cn('relative shrink-0', size === 'md' ? 'size-7' : 'size-5')}>
       <div
@@ -60,9 +61,9 @@ export function WorkspaceSwatch({ workspaceId, size = 'md', active, pendingDot }
 }
 
 /**
- * Variant that drives `pendingDot` from the workspace's queue counts so
- * the collapsed sidebar can hint "something needs attention" without
- * rendering the numeric badges that only fit when expanded.
+ * Variant that drives `pendingDot` from the workspace's queue counts,
+ * so the collapsed sidebar can hint "something needs attention",
+ * without rendering the numeric badges that only fit when expanded.
  */
 export function WorkspaceSwatchWithPending({ workspaceId, size = 'md', active = false }: {
   workspaceId: string
@@ -70,11 +71,11 @@ export function WorkspaceSwatchWithPending({ workspaceId, size = 'md', active = 
   active?: boolean
 }) {
   const { data: proposals } = usePendingProposals(workspaceId)
-  const { data: clarify } = usePendingClarify(workspaceId)
+  const { data: clarifications } = usePendingClarification(workspaceId)
   const { data: runs } = useRuns(workspaceId)
   const hasPending
     = (proposals?.items.length ?? 0) > 0
-      || (clarify?.items.length ?? 0) > 0
+      || (clarifications?.items.length ?? 0) > 0
       || (runs?.items.some(r => !r.completedAt) ?? false)
   return <WorkspaceSwatch workspaceId={workspaceId} size={size} active={active} pendingDot={hasPending} />
 }

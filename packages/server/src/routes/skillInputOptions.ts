@@ -1,39 +1,35 @@
-import type { ClarifyTicketRepository, ModelRepository, PluginRegistry, Workspace, WorkspaceRepository } from '@braidhq/core'
+import type { ClarificationRepository, ModelRepository, PluginRegistry, Workspace, WorkspaceRepository } from '@braidhq/core'
 import type { SkillInputDynamicOption } from '@braidhq/schema'
 import { SkillInputOptionsResponse, SourceId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
-import { listIntentItems } from '../infrastructure/fs/intentScan.js'
+import { listIntentItems } from '../infrastructure/source/intentScan.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
 
 /**
- * Studio-facing endpoint that resolves a skill input provider type
- * (declared in a SKILL.md frontmatter) to the current option list for
- * a given workspace. Used by the typed Actions form to populate
- * pickers backed by `graph-node` / `source-intent` / `clarify` /
- * `proposal` rather than static options.
- *
- * The endpoint is intentionally read-only and lives alongside other
- * Studio-metadata routes; it's mounted under
- * `/workspaces/:workspaceId/skill-input-options`.
+ * Studio-facing endpoint that resolves a skill input provider kind,
+ * declared in a SKILL.md frontmatter, to the current option list,
+ * for a given workspace.
+ * The typed Actions form uses it to populate pickers,
+ * backed by `graph-node`, `source-intent`, or `clarify` (not static).
+ * Read-only, and lives alongside other Studio-metadata routes.
+ * Mounted under `/workspaces/:workspaceId/skill-input-options`.
  */
 
-const ProviderType = z.enum(['graph-node', 'source-intent', 'clarify', 'proposal'])
+const ProviderKind = z.enum(['graph-node', 'source-intent', 'clarify'])
 
 const QuerySchema = z.object({
-  type: ProviderType.openapi({ param: { name: 'type', in: 'query' } }),
-  /**
-   * JSON-encoded filter object. Shape depends on the provider:
-   * graph-node    -> { types?: string[]; statuses?: string[]; renderHint?: { container?: boolean } }
-   * source-intent -> { loaderKind?: string }
-   * clarify       -> { status?: 'pending' | 'answered' | 'applied' | 'skipped' }
-   * proposal      -> { status?: 'pending' | 'applied' | 'rejected' }
-   *
-   * Query-string-encoded JSON keeps the schema simple while letting
-   * each provider have a different filter shape. Studio is the only
-   * intended caller; humans drafting URLs by hand will rarely need it.
-   */
+  kind: ProviderKind.openapi({ param: { name: 'kind', in: 'query' } }),
+  // JSON-encoded filter object whose shape depends on the provider.
+  // graph-node uses `{ types?, statuses?, renderHint?: { container? } }`,
+  // source-intent uses `{ loaderKind? }`,
+  // and clarify uses `{ status?: pending | answered | applied | skipped }`.
+  //
+  // Query-string-encoded JSON keeps the schema simple,
+  // while letting each provider carry a different filter shape.
+  // Studio is the only intended caller.
+  // Humans drafting URLs by hand will rarely need it.
   filter: z.string().optional().openapi({ param: { name: 'filter', in: 'query' } }),
 })
 
@@ -57,7 +53,7 @@ const route = createRoute({
 
 export interface SkillInputOptionsRouterDeps {
   readonly modelRepository: ModelRepository
-  readonly clarifyRepository: ClarifyTicketRepository
+  readonly clarificationRepository: ClarificationRepository
   readonly workspaceRepository: WorkspaceRepository
   readonly pluginRegistry: PluginRegistry
 }
@@ -68,12 +64,12 @@ export function createSkillInputOptionsRouter(deps: SkillInputOptionsRouterDeps)
   router.openapi(route, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const workspace = await loadWorkspaceById(workspaceId, deps.workspaceRepository)
-    const { type, filter } = context.req.valid('query')
+    const { kind, filter } = context.req.valid('query')
     const parsedFilter: Record<string, unknown> = filter
       ? safeParseJson(filter)
       : {}
 
-    const items = await resolveProvider(type, parsedFilter, workspace, deps)
+    const items = await resolveProvider(kind, parsedFilter, workspace, deps)
     return context.json({ items }, 200)
   })
 
@@ -81,24 +77,18 @@ export function createSkillInputOptionsRouter(deps: SkillInputOptionsRouterDeps)
 }
 
 async function resolveProvider(
-  type: z.infer<typeof ProviderType>,
+  kind: z.infer<typeof ProviderKind>,
   filter: Record<string, unknown>,
   workspace: Workspace,
   deps: SkillInputOptionsRouterDeps,
 ): Promise<SkillInputDynamicOption[]> {
-  switch (type) {
+  switch (kind) {
     case 'graph-node':
       return resolveGraphNode(filter, workspace, deps)
     case 'source-intent':
       return resolveSourceIntent(filter, workspace)
     case 'clarify':
-      return resolveClarify(filter, workspace.id, deps.clarifyRepository)
-    case 'proposal':
-      // Phase 2 leaves the proposal provider as a stub; no SKILL.md
-      // wires it yet. Returning empty keeps the endpoint contract
-      // stable while signalling "implement when a skill actually
-      // declares it".
-      return []
+      return resolveClarification(filter, workspace.id, deps.clarificationRepository)
   }
 }
 
@@ -114,9 +104,9 @@ async function resolveGraphNode(
 
   let typesToInclude = types
   if (wantContainerOnly) {
-    // Container-ness is an ontology concern: the ontology's node-type
-    // descriptors carry `renderHint.container`. Intersect with any
-    // explicit `types` filter so both axes compose.
+    // Container-ness is an ontology concern.
+    // Its node-type descriptors carry `renderHint.container`.
+    // Intersect with any explicit `types` filter so both axes compose.
     const ontology = deps.pluginRegistry.requireOntology(workspace.productManifest.ontologyId)
     const containerTypeIds = ontology.nodeTypes
       .filter(descriptor => descriptor.renderHint?.container === true)
@@ -155,9 +145,10 @@ async function resolveSourceIntent(
       return source?.kind === 'filesystem' && source.loader?.kind === loaderKindFilter
     })
     .map((item) => {
-      // Use safeParse: an invalid sourceId in a hand-edited PRODUCT.md
-      // should not 500 the whole dropdown. Drop the field on parse
-      // failure so the option still shows up without source tracking.
+      // Use safeParse here.
+      // A hand-edited PRODUCT.md may carry an invalid sourceId,
+      // which should not 500 the whole dropdown.
+      // Drop the field on parse failure so the option still shows up.
       const parsed = SourceId.safeParse(item.sourceId)
       return {
         value: item.value,
@@ -168,13 +159,13 @@ async function resolveSourceIntent(
     })
 }
 
-async function resolveClarify(
+async function resolveClarification(
   filter: Record<string, unknown>,
   workspaceId: Workspace['id'],
-  clarifyRepository: ClarifyTicketRepository,
+  clarificationRepository: ClarificationRepository,
 ): Promise<SkillInputDynamicOption[]> {
   const status = typeof filter.status === 'string' ? filter.status : undefined
-  const tickets = await clarifyRepository.list({
+  const tickets = await clarificationRepository.list({
     workspaceId,
     ...(status ? { statuses: [status] as never } : {}),
   })

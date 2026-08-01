@@ -20,7 +20,10 @@ export interface WorkspaceHistory {
   listCommits: (workspace: Workspace, options?: ListCommitsOptions) => Promise<readonly CommitMeta[]>
   getCommit: (workspace: Workspace, sha: CommitSha) => Promise<CommitMeta | null>
   getCommitDiff: (workspace: Workspace, sha: CommitSha) => Promise<readonly FileDiff[]>
-  /** Hydrates `artifacts/graph.json` from the given commit; empty snapshot when missing (pre-bootstrap commits). */
+  /**
+   * Hydrates `artifacts/model.json` from the given commit.
+   * Returns an empty snapshot when missing, e.g. pre-bootstrap commits.
+   */
   readGraphAtCommit: (workspace: Workspace, sha: CommitSha) => Promise<ModelSnapshot>
   /** Forward-only: produces a new commit rather than rewriting history, so push/pull stays sane. */
   restore: (workspace: Workspace, targetSha: CommitSha, message: CommitMessage) => Promise<CommitSha>

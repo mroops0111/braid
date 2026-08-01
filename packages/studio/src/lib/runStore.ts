@@ -22,25 +22,26 @@ function turnsKey(workspaceId: string, skillId: string): string {
 }
 
 /**
- * Centralised, App-level state for in-flight + completed skill runs.
+ * Centralised, app-level state for in-flight and completed skill runs.
  *
- * Why a module-level store rather than per-component React state: tab and
- * skill switches unmount the Skills page, which would otherwise tear down
- * the SSE consumer and stop appending events even though the subprocess
- * keeps running server-side. Hoisting state out of the React tree means a
- * remount picks up exactly where it left off.
+ * It is a module-level store rather than per-component React state,
+ * because a tab or skill switch unmounts the Skills page,
+ * which would otherwise tear down the SSE consumer,
+ * and stop appending events even though the subprocess runs server-side.
+ * Hoisting state out of the React tree survives a remount.
+ * The transcript picks up exactly where it left off.
  *
- * One stream per `(workspaceId, runId)`. Components subscribe via
- * `useSyncExternalStore`; the store itself owns the `fetch` lifecycle.
+ * One stream per `(workspaceId, runId)`.
+ * Components subscribe via `useSyncExternalStore`,
+ * and the store itself owns the `fetch` lifecycle.
  */
 class RunStore {
   private readonly runs = new Map<string, RunState>()
   private readonly streams = new Map<string, AbortController>()
   private readonly listeners = new Set<() => void>()
   /**
-   * Per (workspaceId, skillId): ordered list of run ids that make up the
-   *  currently-displayed conversation. Multi-turn resume appends, "New
-   *  Conversation" clears.
+   * Per (workspaceId, skillId), the ordered run ids in the conversation.
+   * A multi-turn resume appends, and "New Conversation" clears.
    */
   private readonly currentTurns = new Map<string, readonly string[]>()
 
@@ -64,8 +65,8 @@ class RunStore {
   }
 
   /**
-   * Replace the current turn list for `(workspaceId, skillId)`. Used when
-   * the user clicks "Continue Conversation" from the Runs tab and we want
+   * Replace the current turn list for `(workspaceId, skillId)`.
+   * Used when the user clicks "Continue Conversation" from the Runs tab,
    * to hydrate a past session.
    */
   setTurns(workspaceId: string, skillId: string, runIds: readonly string[]): void {
@@ -75,8 +76,8 @@ class RunStore {
   }
 
   /**
-   * Append a new turn id to the current conversation. Called when the
-   * user submits a new turn via POST /skills/:id/run.
+   * Append a new turn id to the current conversation.
+   * Called when the user submits a new turn via POST /skills/:id/run.
    */
   pushTurn(workspaceId: string, skillId: string, runId: string): void {
     const existing = this.currentTurns.get(turnsKey(workspaceId, skillId)) ?? []
@@ -86,9 +87,9 @@ class RunStore {
   }
 
   /**
-   * Reset the current conversation slot. The persisted runs stay in
-   * `artifacts/runs/`; only the in-memory display state for this skill is
-   * cleared.
+   * Reset the current conversation slot.
+   * The persisted runs stay in `artifacts/runs/`,
+   * only the in-memory display state for this skill is cleared.
    */
   clearTurns(workspaceId: string, skillId: string): void {
     this.currentTurns.delete(turnsKey(workspaceId, skillId))
@@ -96,17 +97,19 @@ class RunStore {
   }
 
   /**
-   * Idempotently ensure a run is loaded into the store. Used by the Runs
-   * tab to replay past runs without touching the Skills tab's current
-   * conversation slot. No-op if already loaded.
+   * Idempotently ensure a run is loaded into the store.
+   * Used by the Runs tab to replay past runs,
+   * without touching the Skills tab's current conversation slot.
+   * No-op if already loaded.
    */
   loadRun(workspaceId: string, runId: string, skillId: string): void {
     this.openStream(workspaceId, runId, skillId)
   }
 
   /**
-   * Tear down everything tied to a workspace. Used when the user removes a
-   * workspace; we don't keep stale streams or display state around.
+   * Tear down everything tied to a workspace.
+   * Used when the user removes a workspace,
+   * so no stale streams or display state are kept around.
    */
   resetWorkspace(workspaceId: string): void {
     for (const [key, controller] of this.streams) {
@@ -162,8 +165,9 @@ class RunStore {
             this.appendEvent(workspaceId, runId, event)
         }
       }
-      // If we exit the loop without an explicit `completed`/`error` event the
-      // server closed the stream early — treat as done so the UI unblocks.
+      // If the loop exits without an explicit completed or error event,
+      // the server closed the stream early,
+      // so treat it as done and the UI unblocks.
       const state = this.runs.get(key)
       if (state && state.phase === 'streaming')
         this.markPhase(workspaceId, runId, 'done')

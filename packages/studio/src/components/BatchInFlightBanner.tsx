@@ -14,7 +14,8 @@ type Mode =
   | { kind: 'resumable', completed: number, total: number }
   | { kind: 'completed', completed: number, total: number }
 
-// Cross-surface entry to the Batch view; hidden on the Batch surface itself and when no plan exists.
+// Cross-surface entry to the Batch view.
+// Hidden on the Batch surface itself, and when no plan exists.
 export function BatchInFlightBanner({ workspaceId, onOpenBatch, suppress }: BatchInFlightBannerProps) {
   const { data: plan } = useBatchStatus(workspaceId ?? undefined)
   // `archived` is the user's explicit "I'm done seeing this" signal,
@@ -37,7 +38,7 @@ export function BatchInFlightBanner({ workspaceId, onOpenBatch, suppress }: Batc
     mode = { kind: 'completed', completed, total }
 
   const actions = (label: string) => (
-    <Button variant="ghost" size="sm" className="h-6 gap-1 text-[11px]" onClick={onOpenBatch}>
+    <Button variant="ghost" size="sm" className="h-6 gap-1 text-2xs" onClick={onOpenBatch}>
       <Sparkles className="size-3" />
       {label}
     </Button>

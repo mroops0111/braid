@@ -37,9 +37,9 @@ describe('paginate', () => {
   })
 
   it('treats a negative limit as a "drop last N" via Array.slice semantics', () => {
-    // Pinned behavior: end becomes (offset + limit) which is below offset,
-    // so slice(start, negative-end) treats end as `length + end`. Production
-    // routes filter to non-negative via zod; this just documents reality.
+    // Pinned behavior: end becomes (offset + limit), which is below offset,
+    // so slice(start, negativeEnd) treats end as length plus end.
+    // Production routes filter to non-negative via zod, this documents reality.
     expect(paginate(items, -3, 1)).toEqual([2, 3])
   })
 

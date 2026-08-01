@@ -3,12 +3,20 @@ import type { GraphFilters } from './GraphNavigator'
 import { useEffect, useRef } from 'react'
 
 /**
- * Seed the type-filter whitelist from the ontology, once per workspace and mode.
+ * Seed the type-filter whitelist from the ontology,
+ * once per workspace and mode.
  * Two seeding strategies:
- *   - `defaultVisible` (graph tab): only the high-level structural types the ontology marks `defaultVisible`. Falls back to all types when the ontology declares no defaults so the strict whitelist filter does not render an empty graph.
- *   - `all` (proposal preview): every declared type, so the reviewer sees the full diff impact without having to click chips.
+ *   - `defaultVisible` (graph tab): only the high-level structural types,
+ *     the ontology marks `defaultVisible`.
+ *     Falls back to all types when the ontology declares no defaults,
+ *     so the strict whitelist filter does not render an empty graph.
+ *   - `all` (proposal preview): every declared type,
+ *     so the reviewer sees the full diff impact without clicking chips.
  *
- * The composite ref key (`workspaceId:mode`) lets the seed re-run when the user switches between the tab and a proposal preview but stays sticky against refetches inside the same mode (so manual filter edits are not clobbered).
+ * The composite ref key `workspaceId:mode` lets the seed re-run,
+ * when the user switches between the tab and a proposal preview.
+ * It stays sticky against refetches inside the same mode,
+ * so manual filter edits are not clobbered.
  */
 export function useFilterSeed(
   ontology: OntologyResponse | undefined,

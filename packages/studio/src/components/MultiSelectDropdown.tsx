@@ -9,9 +9,9 @@ export interface MultiSelectOption {
   description?: string | undefined
   /**
    * Optional informational chip rendered next to the option label.
-   * Used by the source-intent picker to mark per-unit freshness
-   * ("extracted Nm ago" / "stale"); leave unset for plain options.
-   * The chip is purely informational — it does NOT disable selection.
+   * Used by the source-intent picker to mark per-unit freshness,
+   * such as "extracted Nm ago" or "stale". Leave unset for plain options.
+   * The chip is purely informational, it does not disable selection.
    */
   badge?: {
     readonly text: string
@@ -21,9 +21,9 @@ export interface MultiSelectOption {
 }
 
 interface MultiSelectDropdownProps {
-  /** id assigned to the trigger button — pair with an upstream `<label htmlFor>` for a11y. */
+  /** id assigned to the trigger button, pair with an upstream `<label htmlFor>` for a11y. */
   id?: string
-  /** Used in the closed-state summary when nothing is selected ("Select {label}…"). */
+  /** Used in the closed-state summary when nothing is selected. */
   label: string
   options: readonly MultiSelectOption[]
   selected: readonly string[]
@@ -32,11 +32,12 @@ interface MultiSelectDropdownProps {
 }
 
 /**
- * Generic multi-select with a search filter and selected-as-chips
- * overflow line. Decoupled from any specific data shape — callers
- * pass plain `{ value, label, description? }` options. Built on
- * Radix Popover so click-outside and Escape close the menu without
- * extra wiring.
+ * Generic multi-select with a search filter,
+ * and a selected-as-chips overflow line.
+ * Decoupled from any specific data shape,
+ * callers pass plain `{ value, label, description? }` options.
+ * Built on Radix Popover,
+ * so click-outside and Escape close the menu without extra wiring.
  */
 export function MultiSelectDropdown({
   id,
@@ -98,7 +99,7 @@ export function MultiSelectDropdown({
             />
             <ul className="max-h-64 space-y-0.5 overflow-y-auto pr-1 scrollbar-thin">
               {filtered.length === 0 && (
-                <li className="px-1 py-2 text-[11px] text-muted-foreground">No matches.</li>
+                <li className="px-1 py-2 text-2xs text-muted-foreground">No matches.</li>
               )}
               {filtered.map((option) => {
                 const checked = selectedSet.has(option.value)
@@ -123,12 +124,12 @@ export function MultiSelectDropdown({
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-1.5">
-                          <span className="block truncate font-mono text-[11px]">{option.label}</span>
+                          <span className="block truncate font-mono text-2xs">{option.label}</span>
                           {option.badge && (
                             <span
                               title={option.badge.title}
                               className={cn(
-                                'shrink-0 rounded-full px-1.5 py-px text-[9px] font-medium uppercase tracking-wider',
+                                'shrink-0 rounded-full px-1.5 py-px text-2xs font-medium uppercase tracking-wider',
                                 option.badge.tone === 'stale'
                                   ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
                                   : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
@@ -139,7 +140,7 @@ export function MultiSelectDropdown({
                           )}
                         </span>
                         {option.description && (
-                          <span className="block truncate text-[10px] text-muted-foreground">{option.description}</span>
+                          <span className="block truncate text-2xs text-muted-foreground">{option.description}</span>
                         )}
                       </span>
                     </button>
@@ -148,7 +149,7 @@ export function MultiSelectDropdown({
               })}
             </ul>
             {selected.length > 0 && (
-              <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-[10px] text-muted-foreground">
+              <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-2xs text-muted-foreground">
                 <span>
                   {selected.length}
                   {' '}
@@ -193,7 +194,7 @@ function SelectedChips({
         const option = optionsByValue.get(value)
         return (
           <li key={value}>
-            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[10px] text-foreground">
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-2xs text-foreground">
               <span className="max-w-[12rem] truncate font-mono">{option?.label ?? value}</span>
               <button
                 type="button"

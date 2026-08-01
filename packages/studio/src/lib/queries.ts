@@ -1,3 +1,4 @@
+import type { ReactorCycleId } from '@braidhq/schema'
 import { useQuery } from '@tanstack/react-query'
 import { api } from './api'
 
@@ -17,15 +18,14 @@ export const queryKeys = {
   edges: (workspaceId: string) => ['workspaces', workspaceId, 'edges'] as const,
   proposals: (workspaceId: string, status?: string) => ['workspaces', workspaceId, 'proposals', status ?? 'all'] as const,
   proposalValidation: (workspaceId: string, proposalId: string) => ['workspaces', workspaceId, 'proposals', proposalId, 'validate'] as const,
-  clarify: (workspaceId: string) => ['workspaces', workspaceId, 'clarify'] as const,
-  clarifyByStatus: (workspaceId: string, status: string) => ['workspaces', workspaceId, 'clarify', status] as const,
-  clarifyDetail: (workspaceId: string, ticketId: string) => ['workspaces', workspaceId, 'clarify', 'detail', ticketId] as const,
-  decisions: (workspaceId: string) => ['workspaces', workspaceId, 'decisions'] as const,
+  clarifications: (workspaceId: string) => ['workspaces', workspaceId, 'clarifications'] as const,
+  clarificationByStatus: (workspaceId: string, status: string) => ['workspaces', workspaceId, 'clarifications', status] as const,
+  clarificationDetail: (workspaceId: string, ticketId: string) => ['workspaces', workspaceId, 'clarifications', 'detail', ticketId] as const,
   runs: (workspaceId: string) => ['workspaces', workspaceId, 'runs'] as const,
   sessionMetadata: (workspaceId: string) => ['workspaces', workspaceId, 'runs', 'sessions'] as const,
   history: (workspaceId: string) => ['workspaces', workspaceId, 'history'] as const,
   historyCommit: (workspaceId: string, sha: string) => ['workspaces', workspaceId, 'history', sha] as const,
-  historyGraphDiff: (workspaceId: string, fromSha: string, toSha: string) =>
+  historyModelDiff: (workspaceId: string, fromSha: string, toSha: string) =>
     ['workspaces', workspaceId, 'history', 'graph-diff', fromSha, toSha] as const,
   historyTags: (workspaceId: string) => ['workspaces', workspaceId, 'history', 'tags'] as const,
   batch: (workspaceId: string) => ['workspaces', workspaceId, 'batch'] as const,
@@ -68,15 +68,15 @@ export function useWorkspaces() {
 }
 
 /**
- * Source-loader plugins registered on the active server. Reflects whatever
- * `composeFsApp` registered plus any extras the host passed in; updates
- * automatically when a new plugin ships without Studio code changes.
+ * Source-loader plugins registered on the active server.
+ * Reflects whatever `composeFsApp` registered plus any extras the host passed in,
+ * updates automatically when a new plugin ships without Studio code changes.
  */
 export function useSourceLoaders() {
   return useQuery({
     queryKey: queryKeys.sourceLoaders(),
     queryFn: () => api.listSourceLoaders(),
-    // Server-level static data; refetch only on tab focus, not on every mount.
+    // Server-level static data. Refetch only on tab focus, not on every mount.
     staleTime: 5 * 60 * 1000,
   })
 }
@@ -118,9 +118,8 @@ export function useOntology(workspaceId: string | undefined) {
     queryKey: workspaceId ? queryKeys.ontology(workspaceId) : ['ontology', 'none'],
     queryFn: () => api.getOntology(workspaceId!),
     enabled: !!workspaceId,
-    // The ontology is plugin-bound and only changes if the workspace
-    // switches `ontologyId` in its PRODUCT.md (rare). Avoid refetching
-    // on every focus.
+    // The ontology is plugin-bound. It only changes if the workspace switches `ontologyId` in PRODUCT.md,
+    // which is rare, so avoid refetching on every focus.
     staleTime: 60_000,
   })
 }
@@ -145,22 +144,22 @@ export function useProposalValidation(workspaceId: string, proposalId: string | 
   })
 }
 
-export function useClarifyByStatus(workspaceId: string | undefined, status: string, showAll?: boolean) {
+export function useClarificationByStatus(workspaceId: string | undefined, status: string, showAll?: boolean) {
   return useQuery({
-    queryKey: workspaceId ? [...queryKeys.clarifyByStatus(workspaceId, status), showAll ? 'all' : 'mine'] : ['clarify', 'none'],
-    queryFn: () => api.listClarify(workspaceId!, status, showAll),
+    queryKey: workspaceId ? [...queryKeys.clarificationByStatus(workspaceId, status), showAll ? 'all' : 'mine'] : ['clarifications', 'none'],
+    queryFn: () => api.listClarification(workspaceId!, status, showAll),
     enabled: !!workspaceId,
   })
 }
 
-export function usePendingClarify(workspaceId: string | undefined) {
-  return useClarifyByStatus(workspaceId, 'pending')
+export function usePendingClarification(workspaceId: string | undefined) {
+  return useClarificationByStatus(workspaceId, 'pending')
 }
 
-export function useClarifyTicketDetail(workspaceId: string, ticketId: string | null) {
+export function useClarificationDetail(workspaceId: string, ticketId: string | null) {
   return useQuery({
-    queryKey: ticketId ? queryKeys.clarifyDetail(workspaceId, ticketId) : ['clarify-detail', 'none'],
-    queryFn: () => api.getClarify(workspaceId, ticketId!),
+    queryKey: ticketId ? queryKeys.clarificationDetail(workspaceId, ticketId) : ['clarifications-detail', 'none'],
+    queryFn: () => api.getClarification(workspaceId, ticketId!),
     enabled: !!ticketId,
   })
 }
@@ -181,13 +180,13 @@ export function useHistoryCommit(workspaceId: string, sha: string | null) {
   })
 }
 
-export function useCommitGraphDiff(workspaceId: string, fromSha: string | null, toSha: string | null) {
+export function useCommitModelDiff(workspaceId: string, fromSha: string | null, toSha: string | null) {
   const enabled = !!fromSha && !!toSha && fromSha !== toSha
   return useQuery({
     queryKey: enabled
-      ? queryKeys.historyGraphDiff(workspaceId, fromSha, toSha)
+      ? queryKeys.historyModelDiff(workspaceId, fromSha, toSha)
       : ['history-graph-diff', 'none'],
-    queryFn: () => api.getCommitGraphDiff(workspaceId, fromSha as never, toSha as never),
+    queryFn: () => api.getCommitModelDiff(workspaceId, fromSha as never, toSha as never),
     enabled,
   })
 }
@@ -209,14 +208,21 @@ export function useBatchStatus(workspaceId: string | undefined) {
 }
 
 /**
- * Shared with `ReactorBanner` and the Activity page via React Query's
- * dedup-by-key. `useWorkspaceEvents` invalidates this on every reactor
- * SSE event, so consumers stay live.
+ * Shared with `ReactorBanner` and the Activity page via React Query's dedup-by-key.
+ * `useWorkspaceEvents` invalidates this on every reactor SSE event, so consumers stay live.
  */
-export function useReactorPasses(workspaceId: string | null | undefined) {
+export function useReactorCycles(workspaceId: string | null | undefined) {
   return useQuery({
-    queryKey: ['reactor-passes', workspaceId ?? null],
-    queryFn: () => api.listReactorPasses(workspaceId!),
+    queryKey: ['reactor-cycles', workspaceId ?? null],
+    queryFn: () => api.listReactorCycles(workspaceId!),
     enabled: !!workspaceId,
+  })
+}
+
+export function useReactorCycle(workspaceId: string | null | undefined, cycleId: ReactorCycleId | null) {
+  return useQuery({
+    queryKey: ['reactor-cycles', workspaceId ?? null, cycleId],
+    queryFn: () => api.getReactorCycle(workspaceId!, cycleId!),
+    enabled: !!workspaceId && cycleId !== null,
   })
 }

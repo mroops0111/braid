@@ -1,4 +1,4 @@
-import type { EdgeId, GraphOperation, NewGraphEdge, NewGraphNode, NodeId, Proposal, ProposalId, ProposalStatus, ValidationIssue, ValidationSeverity } from '@braidhq/schema'
+import type { EdgeId, GraphEdgeCreate, GraphNodeCreate, GraphOperation, NodeId, Proposal, ProposalId, ProposalStatus, ValidationIssue, ValidationSeverity } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, AlertTriangle, Check, ChevronDown, ChevronRight, Inbox, Info, MinusCircle, PencilLine, PlusCircle, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -8,11 +8,13 @@ import { FocusToggle, OnlyChangesToggle } from '@/components/graph/GraphToolbar'
 import { ListRow } from '@/components/ListRow'
 import { PageActions } from '@/components/PageActions'
 import { StatusBadge } from '@/components/StatusBadge'
+import { SurfaceLayout } from '@/components/SurfaceLayout'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
-import { queryKeys, useProposalsByStatus, useProposalValidation } from '@/lib/queries'
+import { queryKeys, useProposalsByStatus, useProposalValidation, useWorkspaceMembers } from '@/lib/queries'
 import { useGraphNavigation } from '@/lib/useGraphNavigation'
 import { useMutualExclusionPair } from '@/lib/useMutualExclusionPair'
 import { useWorkspacePolicy } from '@/policy'
@@ -21,11 +23,12 @@ import { GraphSurface } from './GraphSurface'
 interface ProposalsPageProps {
   workspaceId: string
   /**
-   * One-shot deep-link target. When set (e.g. clicking "→ Proposal #abc"
-   * on an applied ClarifyTicket), the page scans its current list for
-   * the matching proposal. If found in the current status filter, it's
-   * selected; otherwise the page sweeps the other statuses and switches
-   * the filter to wherever the proposal actually lives.
+   * One-shot deep-link target.
+   * When set, such as clicking "Proposal #abc" on an applied Clarification,
+   * the page scans its current list for the matching proposal.
+   * If found in the current status filter, it is selected,
+   * otherwise the page sweeps the other statuses,
+   * and switches the filter to wherever the proposal actually lives.
    */
   focusedProposalId?: ProposalId | null
   onFocusConsumed?: () => void
@@ -36,7 +39,7 @@ type StatusFilter = Extract<ProposalStatus, 'pending' | 'applied' | 'rejected'>
 const EMPTY_COPY: Record<StatusFilter, { title: string, description: string }> = {
   pending: {
     title: 'No Pending Proposals',
-    description: 'Run /braid-extract or /braid-clarify to produce graph mutations awaiting HITL review.',
+    description: 'Run /ddd:extract or /ddd:clarify to produce graph mutations awaiting HITL review.',
   },
   applied: {
     title: 'No Applied Proposals',
@@ -49,16 +52,15 @@ const EMPTY_COPY: Record<StatusFilter, { title: string, description: string }> =
 }
 
 export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed }: ProposalsPageProps) {
-  // Status filter doubles as both the list query and the "is this
-  // read-only?" signal for the detail pane. Switching status clears the
-  // selected proposal so the right pane doesn't show an item that no
-  // longer matches the active filter.
+  // Status filter is both the list query and the detail pane's read-only cue.
+  // Switching status clears the selected proposal,
+  // so the right pane cannot show an item that no longer matches.
   const [status, setStatus] = useState<StatusFilter>('pending')
   const [showAll, setShowAll] = useState(false)
   const { data, isLoading } = useProposalsByStatus(workspaceId, status, showAll)
   const [selected, setSelected] = useState<Proposal | null>(null)
   // Tracks an in-progress sweep across statuses for a deep-link focus.
-  // Each entry remembers which status filters we've already checked
+  // Each entry remembers which status filters we've already checked,
   // so we don't loop on an id that doesn't exist in any list.
   const [focusSweep, setFocusSweep] = useState<{ proposalId: ProposalId, attempted: Set<StatusFilter> } | null>(null)
 
@@ -67,18 +69,18 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
     setSelected(null)
   }
 
-  // Seed the sweep when a new focusedProposalId arrives. Status is
-  // intentionally excluded from deps — this effect must fire only on
-  // the externally driven id change, not when the user is mid-sweep
-  // switching filters.
+  // Seed the sweep when a new focusedProposalId arrives.
+  // Status is intentionally excluded from deps,
+  // this effect must fire only on the externally driven id change,
+  // not when the user is mid-sweep switching filters.
   useEffect(() => {
     if (focusedProposalId)
       setFocusSweep(prev => prev?.proposalId === focusedProposalId ? prev : { proposalId: focusedProposalId, attempted: new Set([status]) })
   }, [focusedProposalId, status])
 
-  // Drive the sweep: try the current list; if no match, advance to the
-  // next unchecked status. Consumes the focus once we either select
-  // the proposal or exhaust the status set.
+  // Drive the sweep. Try the current list,
+  // if no match advance to the next unchecked status.
+  // Consumes the focus once we select the proposal or exhaust the statuses.
   useEffect(() => {
     if (!focusSweep || isLoading || !data)
       return
@@ -100,8 +102,10 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
     setFocusSweep({ proposalId: focusSweep.proposalId, attempted: new Set([...focusSweep.attempted, next]) })
   }, [focusSweep, data, isLoading, onFocusConsumed])
 
-  // Auto-select the first item when entering a list with no current selection (initial mount, after status switch, or after a complete-and-clear from the detail pane).
-  // Skip while a deep-link focus sweep is in flight so we do not race the sweep's setSelected call.
+  // Auto-select the first item when entering a list with no selection.
+  // Covers initial mount, status switch, and complete-and-clear from detail.
+  // Skip while a deep-link focus sweep is in flight,
+  // so we do not race the sweep's setSelected call.
   useEffect(() => {
     if (focusSweep || selected || isLoading || !data?.items.length)
       return
@@ -114,43 +118,42 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
         <ProposalsStatusFilter workspaceId={workspaceId} status={status} onChange={changeStatus} />
         <ShowAllToggle workspaceId={workspaceId} status={status} showAll={showAll} onToggle={setShowAll} />
       </PageActions>
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex w-72 shrink-0 flex-col border-r border-border">
-          {isLoading
-            ? (
-                <div className="p-4 text-sm text-muted-foreground">Loading…</div>
-              )
-            : !data || data.items.length === 0
-                ? (
-                    <div className="flex flex-1 items-center justify-center p-4 text-center text-xs text-muted-foreground">
-                      {EMPTY_COPY[status].title}
-                    </div>
-                  )
-                : (
-                    <ul className="flex-1 overflow-y-auto scrollbar-thin">
-                      {data.items.map(proposal => (
-                        <ListRow
-                          key={proposal.id}
-                          active={selected?.id === proposal.id}
-                          onClick={() => setSelected(proposal)}
-                          className="flex-col gap-1"
-                        >
-                          <div className="flex w-full items-center justify-between gap-2">
-                            <span className="break-all font-mono text-xs text-foreground">{proposal.id}</span>
-                            <StatusBadge status={proposal.status} />
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            {proposal.operations.length}
-                            {' '}
-                            ops · by
-                            {' '}
-                            {proposal.generatedBy}
-                          </div>
-                        </ListRow>
-                      ))}
-                    </ul>
-                  )}
-        </div>
+      <SurfaceLayout
+        list={(
+          <>
+            {isLoading
+              ? (
+                  <div className="p-4 text-sm text-muted-foreground">Loading…</div>
+                )
+              : !data || data.items.length === 0
+                  ? null
+                  : (
+                      <ul className="flex-1 overflow-y-auto scrollbar-thin">
+                        {data.items.map(proposal => (
+                          <ListRow
+                            key={proposal.id}
+                            active={selected?.id === proposal.id}
+                            onClick={() => setSelected(proposal)}
+                            className="flex-col gap-1"
+                          >
+                            <div className="flex w-full items-center justify-between gap-2">
+                              <span className="break-all font-mono text-xs text-foreground">{proposal.id}</span>
+                              <StatusBadge status={proposal.status} />
+                            </div>
+                            <div className="text-2xs text-muted-foreground">
+                              {proposal.operations.length}
+                              {' '}
+                              ops · by
+                              {' '}
+                              {proposal.generatedBy}
+                            </div>
+                          </ListRow>
+                        ))}
+                      </ul>
+                    )}
+          </>
+        )}
+      >
         <div className="flex-1 overflow-hidden">
           {selected
             ? (
@@ -175,16 +178,17 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
                 />
               )}
         </div>
-      </div>
+      </SurfaceLayout>
     </div>
   )
 }
 
 /**
- * Owner-only toggle that flips the personal-pending filter to "everyone's"
- * mode. Only rendered on the pending tab — applied / rejected lists are
- * shared by definition, so a toggle there would do nothing. Cmd-click
- * suppression keeps it small + tucked next to the status tabs.
+ * Owner-only toggle that flips the personal-pending filter to "everyone's".
+ * Only rendered on the pending tab,
+ * applied and rejected lists are shared by definition,
+ * so a toggle there would do nothing.
+ * Cmd-click suppression keeps it small and tucked next to the status tabs.
  */
 function ShowAllToggle({
   workspaceId,
@@ -198,13 +202,16 @@ function ShowAllToggle({
   onToggle: (next: boolean) => void
 }) {
   const { effectiveRole } = useWorkspacePolicy(workspaceId)
-  if (effectiveRole !== 'owner' || status !== 'pending')
+  const { data: members } = useWorkspaceMembers(workspaceId)
+  // Nothing to disambiguate on a solo workspace, every proposal is yours.
+  const multiMember = (members?.items.length ?? 0) > 1
+  if (effectiveRole !== 'owner' || status !== 'pending' || !multiMember)
     return null
   return (
     <Button
       variant={showAll ? 'default' : 'ghost'}
       size="sm"
-      className="h-7 text-[11px]"
+      className="h-7 text-2xs"
       onClick={() => onToggle(!showAll)}
       title={showAll ? 'Showing pending proposals from every member' : 'Showing only your own pending proposals'}
     >
@@ -213,10 +220,11 @@ function ShowAllToggle({
   )
 }
 
-// Pending / Applied / Rejected segment. Rendered via PageActions into
-// the top tab row so it doesn't take a row of its own. Pending wears
-// a live count badge — the only one worth surfacing, since applied /
-// rejected lists grow monotonically and a count there is noise.
+// Pending, Applied, Rejected segment.
+// Rendered via PageActions into the top tab row,
+// so it takes no row of its own.
+// Pending wears a live count badge, the only one worth surfacing.
+// Applied and rejected lists grow monotonically, a count there is noise.
 function ProposalsStatusFilter({
   workspaceId,
   status,
@@ -234,7 +242,7 @@ function ProposalsStatusFilter({
         <TabsTrigger value="pending" className={FILTER_TAB_TRIGGER}>
           Pending
           {pendingCount > 0 && (
-            <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-medium leading-none text-primary">
+            <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-2xs font-medium leading-none text-primary">
               {pendingCount}
             </span>
           )}
@@ -259,8 +267,8 @@ function ProposalDetail({
   const [rejectReason, setRejectReason] = useState('')
   const [rejectOpen, setRejectOpen] = useState(false)
 
-  // Apply / Reject are only meaningful while the proposal is still
-  // pending. Applied / rejected entries are read-only history.
+  // Apply and Reject are only meaningful while the proposal is pending.
+  // Applied and rejected entries are read-only history.
   const isPending = proposal.status === 'pending'
   const canWrite = useWorkspacePolicy(workspaceId).can('proposal.write')
 
@@ -268,9 +276,9 @@ function ProposalDetail({
   const errorCount = validation.data?.issues.filter(issue => issue.severity === 'error').length ?? 0
   const blockedByErrors = errorCount > 0
 
-  // Invalidate the whole proposals namespace for this workspace so the
-  // entry moves from the Pending list into Applied / Rejected without
-  // a manual refresh.
+  // Invalidate the whole proposals namespace for this workspace,
+  // so the entry moves from Pending into Applied or Rejected,
+  // without a manual refresh.
   function invalidateProposals(): void {
     queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId, 'proposals'] })
   }
@@ -303,7 +311,7 @@ function ProposalDetail({
     <div className="flex h-full flex-col overflow-hidden">
       <header className="flex items-start justify-between gap-2 border-b border-border px-4 py-3">
         <div className="min-w-0 flex-1">
-          <div className="font-mono text-[10px] text-muted-foreground">{proposal.id}</div>
+          <div className="font-mono text-2xs text-muted-foreground">{proposal.id}</div>
           <div className="truncate text-sm font-medium text-foreground" title={proposal.rationale}>
             {title}
           </div>
@@ -374,8 +382,8 @@ function ProposalDetail({
 }
 
 function firstSentence(text: string): string {
-  // Cut at the first period followed by space or newline. Keeps the
-  // header compact when an LLM writes a multi-sentence rationale.
+  // Cut at the first period followed by space or newline.
+  // Keeps the header compact when an LLM writes a multi-sentence rationale.
   const match = text.trim().match(/^.+?[.。!?](?:\s|$)/s)
   return (match ? match[0] : text.trim()).trim()
 }
@@ -390,7 +398,7 @@ function RationaleSection({ text, firstSentence: shown }: { text: string, firstS
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+        className="flex items-center gap-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
       >
         {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
         Rationale
@@ -411,11 +419,11 @@ function ValidationPanel({ isLoading, error, issues, ok }: {
   ok: boolean | null
 }) {
   if (isLoading) {
-    return <p className="px-4 pt-3 text-[11px] text-muted-foreground">Validating against the current graph…</p>
+    return <p className="px-4 pt-3 text-2xs text-muted-foreground">Validating against the current graph…</p>
   }
   if (error) {
     return (
-      <p className="mx-4 mt-3 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
+      <p className="mx-4 mt-3 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-2xs text-destructive">
         Validation request failed:
         {' '}
         {error instanceof Error ? error.message : String(error)}
@@ -463,7 +471,7 @@ function IssueGroup({ severity, issues }: { severity: ValidationSeverity, issues
   const Icon = palette.icon
   return (
     <div className={`rounded-md border ${palette.border} ${palette.bg} px-3 py-2`}>
-      <div className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider ${palette.text}`}>
+      <div className={`flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider ${palette.text}`}>
         <Icon className="size-3" />
         {severity}
         {' '}
@@ -473,7 +481,7 @@ function IssueGroup({ severity, issues }: { severity: ValidationSeverity, issues
       </div>
       <ul className="mt-1.5 space-y-1">
         {issues.map((issue, index) => (
-          <li key={`${issue.code}-${index}`} className="text-[11px] text-foreground/90">
+          <li key={`${issue.code}-${index}`} className="text-2xs text-foreground/90">
             <span className="font-mono text-foreground/60">
               [
               {issue.code}
@@ -489,21 +497,22 @@ function IssueGroup({ severity, issues }: { severity: ValidationSeverity, issues
   )
 }
 
-// Renders the trailing "→ nodeId" pointer on a validation issue.
-// When a GraphNavigation context is in scope, nodeId / edgeId become
-// buttons that switch to the Graph tab focused on the target.
+// Renders the trailing arrow pointer to nodeId on a validation issue.
+// When a GraphNavigation context is in scope,
+// nodeId and edgeId become buttons that switch to the Graph tab.
 function IssueTarget({ issue }: { issue: ValidationIssue }) {
   const nav = useGraphNavigation()
   if (!issue.nodeId && !issue.edgeId && !issue.path)
     return null
-  const linkClass = 'rounded font-mono text-[10px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline'
+  const linkClass = 'rounded font-mono text-2xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline'
   if (issue.nodeId && nav) {
+    const nodeId = issue.nodeId
     return (
       <span className="ml-1 inline-flex items-center gap-1 text-muted-foreground">
         →
         <button
           type="button"
-          onClick={() => nav.focusNode(issue.nodeId as NodeId)}
+          onClick={() => nav.focusNode(nodeId)}
           className={linkClass}
           title="Open in Graph"
         >
@@ -513,12 +522,13 @@ function IssueTarget({ issue }: { issue: ValidationIssue }) {
     )
   }
   if (issue.edgeId && nav) {
+    const edgeId = issue.edgeId
     return (
       <span className="ml-1 inline-flex items-center gap-1 text-muted-foreground">
         →
         <button
           type="button"
-          onClick={() => nav.focusEdge(issue.edgeId as EdgeId)}
+          onClick={() => nav.focusEdge(edgeId)}
           className={linkClass}
           title="Open in Graph"
         >
@@ -528,7 +538,7 @@ function IssueTarget({ issue }: { issue: ValidationIssue }) {
     )
   }
   return (
-    <span className="ml-1 font-mono text-[10px] text-muted-foreground">
+    <span className="ml-1 font-mono text-2xs text-muted-foreground">
       →
       {' '}
       {issue.nodeId ?? issue.edgeId ?? issue.path}
@@ -546,7 +556,7 @@ function RejectForm({ value, onChange, onCancel, onSubmit, isPending }: {
   const hasReason = value.trim().length > 0
   return (
     <div className="mx-4 mt-3 space-y-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2">
-      <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <label className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
         Reject Reason
       </label>
       <textarea
@@ -572,32 +582,31 @@ function RejectForm({ value, onChange, onCancel, onSubmit, isPending }: {
   )
 }
 
-type PreviewView = 'graph' | 'table' | 'list'
+type PreviewView = 'graph' | 'list'
 
 /**
- * Tri-view preview for the proposal's effect on the graph:
- * - **List**: grouped add / update / remove rows (default; densest summary).
- * - **Graph**: reuses the workspace `GraphCanvas` fed with a derived
- *   data source that applies the proposal's operations and annotates
- *   nodes/edges with their change kind.
- * - **Table**: same data source piped through `GraphTablePage`, gaining a
- *   `Change` column for diff readout in tabular form.
+ * Dual-view preview for the proposal's effect on the graph.
+ * - **List**: grouped add, update, and remove rows, the densest summary.
+ * - **Graph**: reuses the workspace `GraphCanvas`,
+ * fed with a derived data source that applies the proposal's operations,
+ * and annotates nodes and edges with their change kind.
  *
- * The proposal source is computed once via `useProposalGraphDataSource`
+ * The source is computed once via `useProposalGraphDataSource`,
  * and shared across views so toggling is cheap.
  */
 /**
- * Threshold for auto-flipping `emphasizeAdded`. A proposal that touches
- * less than this fraction of the live graph counts as "incremental" —
- * the diff would otherwise be a handful of small green dots in a sea
- * of unmarked context, which user feedback showed is easy to miss.
+ * Threshold for auto-flipping `emphasizeAdded`.
+ * A proposal touching less than this fraction of the live graph,
+ * counts as "incremental".
+ * The diff would otherwise be a handful of small green dots,
+ * in a sea of unmarked context, which is easy to miss.
  */
 const INCREMENTAL_RATIO_THRESHOLD = 0.3
 
 function ProposalPreview({ workspaceId, operations }: { workspaceId: string, operations: readonly GraphOperation[] }) {
-  // Proposal-preview adds a `list` view to the surface's normal
-  // graph/table pair, so we manage `view` here and only delegate to
-  // GraphSurface for the two graph-derived views.
+  // Proposal preview pairs the graph visualization with a flat list view.
+  // We manage `view` here,
+  // and delegate the graph view to GraphSurface.
   const [view, setView] = useState<PreviewView>('graph')
   const [selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId]
     = useMutualExclusionPair<NodeId, EdgeId>()
@@ -610,12 +619,13 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
   const updateCount = flat.filter(op => op.kind === 'update').length
   const removeCount = flat.filter(op => op.kind === 'remove').length
 
-  // Incremental proposals dilute their own visual: a few green dots in
-  // a sea of unmarked context. When the diff touches <30% of the
-  // preview snapshot, automatically beef up the `added` treatment
-  // (green ring + shadow instead of just a corner dot). The
-  // fresh-extract case (close to 100% touched) keeps the subtle
-  // markers so the type colour isn't drowned in green.
+  // Incremental proposals dilute their own visual,
+  // a few green dots in a sea of unmarked context.
+  // When the diff touches under 30% of the preview snapshot,
+  // beef up the `added` treatment with a green ring and shadow,
+  // not a corner dot.
+  // The fresh-extract case, close to 100% touched, keeps the subtle markers,
+  // so the type colour is not drowned in green.
   const changedCount = (source.diff?.nodes.size ?? 0) + (source.diff?.edges.size ?? 0)
   const totalCount = source.nodes.length + source.edges.length
   const incrementalRatio = totalCount > 0 ? changedCount / totalCount : 1
@@ -625,7 +635,7 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
     <section className="flex min-h-0 flex-1 flex-col border-t border-border">
       <div className="flex shrink-0 items-center justify-between px-4 pt-3 pb-2">
         <div className="flex items-baseline gap-2">
-          <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
             Preview (
             {flat.length}
             {' '}
@@ -642,7 +652,6 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
           )}
           <div role="tablist" aria-label="Preview view" className="inline-flex items-center gap-0.5 rounded border border-border bg-card p-0.5">
             <ViewTab active={view === 'graph'} onClick={() => setView('graph')}>Graph</ViewTab>
-            <ViewTab active={view === 'table'} onClick={() => setView('table')}>Table</ViewTab>
             <ViewTab active={view === 'list'} onClick={() => setView('list')}>List</ViewTab>
           </div>
         </div>
@@ -654,7 +663,7 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
               <GraphSurface
                 workspaceId={workspaceId}
                 source={source}
-                view={view === 'graph' ? 'visualization' : 'table'}
+                view="visualization"
                 selectedNodeId={selectedNodeId}
                 onSelectNode={setSelectedNodeId}
                 selectedEdgeId={selectedEdgeId}
@@ -671,15 +680,17 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
 
 /**
  * Compact `+N / ~M / -K` chip set rendered next to the preview title.
- * Makes the impact of small incremental proposals visible without forcing the reviewer to scan the canvas for thin stroke differences (e.g. a model audit fix that adds 4 edges and changes nothing else).
+ * Makes the impact of small incremental proposals visible,
+ * without forcing the reviewer to scan the canvas for thin stroke differences,
+ * such as a model audit fix that adds 4 edges and changes nothing else.
  */
 function ProposalImpactSummary({ adds, updates, removes }: { adds: number, updates: number, removes: number }) {
   const total = adds + updates + removes
   if (total === 0) {
-    return <span className="text-[10px] text-muted-foreground/70">empty</span>
+    return <span className="text-2xs text-muted-foreground/70">empty</span>
   }
   return (
-    <span className="flex items-baseline gap-1.5 text-[11px] font-mono">
+    <span className="flex items-baseline gap-1.5 text-2xs font-mono">
       {adds > 0 && (
         <span className="text-emerald-600 dark:text-emerald-400" title={`${adds} added`}>
           +
@@ -708,7 +719,7 @@ function OperationList({ flat }: { flat: readonly FlatOp[] }) {
   const removes = flat.filter(op => op.kind === 'remove')
   if (flat.length === 0) {
     return (
-      <p className="mx-4 mt-2 rounded-md border border-border bg-card px-3 py-2 text-[11px] text-muted-foreground">
+      <p className="mx-4 mt-2 rounded-md border border-border bg-card px-3 py-2 text-2xs text-muted-foreground">
         No operations in this proposal.
       </p>
     )
@@ -729,7 +740,7 @@ function ViewTab({ active, onClick, children }: { active: boolean, onClick: () =
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`rounded-sm px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider transition-colors ${
+      className={`rounded-sm px-2 py-0.5 text-2xs font-medium uppercase tracking-wider transition-colors ${
         active ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
       }`}
     >
@@ -744,16 +755,17 @@ interface FlatOp {
   id: string
   /** Type id when known (node type or edge type). */
   type?: string
-  /** Short human label, e.g. node name or edge from→to. */
+  /** Short human label, e.g. node name or edge from-to. */
   label: string
-  /** Optional detail, e.g. "status: draft → completed". */
+  /** Optional detail, e.g. "status: draft to completed". */
   detail?: string
 }
 
 function flattenOperations(operations: readonly GraphOperation[]): FlatOp[] {
-  // Each schema operation collapses to one FlatOp; batch operations
-  // (addNodes / removeEdges / updateNodes / ...) fan out into one
-  // FlatOp per item. Keeps the list view scannable: one row per change.
+  // Each schema operation collapses to one FlatOp.
+  // Batch operations such as addNodes, removeEdges, or updateNodes,
+  // fan out into one FlatOp per item.
+  // Keeps the list view scannable, one row per change.
   const out: FlatOp[] = []
   for (const op of operations) {
     switch (op.operation) {
@@ -793,12 +805,16 @@ function flattenOperations(operations: readonly GraphOperation[]): FlatOp[] {
       case 'updateEdges':
         for (const u of op.updates) out.push(flatUpdateEdge(u.edgeId, u.patch))
         break
+      default: {
+        const exhaustive: never = op
+        throw new Error(`Unhandled operation: ${JSON.stringify(exhaustive)}`)
+      }
     }
   }
   return out
 }
 
-function flatAddNode(payload: NewGraphNode): FlatOp {
+function flatAddNode(payload: GraphNodeCreate): FlatOp {
   const id = payload.id ?? '(server-minted)'
   return {
     kind: 'add',
@@ -821,7 +837,7 @@ function flatUpdateNode(id: string, patch: Record<string, unknown>): FlatOp {
   }
 }
 
-function flatAddEdge(payload: NewGraphEdge): FlatOp {
+function flatAddEdge(payload: GraphEdgeCreate): FlatOp {
   const id = payload.id ?? '(server-minted)'
   return {
     kind: 'add',
@@ -854,7 +870,7 @@ function OperationGroup({ kind, ops }: { kind: FlatOp['kind'], ops: readonly Fla
   const Icon = palette.icon
   return (
     <div className={`rounded-md border ${palette.ring}`}>
-      <div className={`flex items-center gap-1.5 border-b border-border/50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider ${palette.text}`}>
+      <div className={`flex items-center gap-1.5 border-b border-border/50 px-3 py-1.5 text-2xs font-semibold uppercase tracking-wider ${palette.text}`}>
         <Icon className="size-3" />
         {palette.label}
         {' '}
@@ -864,14 +880,14 @@ function OperationGroup({ kind, ops }: { kind: FlatOp['kind'], ops: readonly Fla
       </div>
       <ul className="divide-y divide-border/50">
         {ops.map((op, idx) => (
-          <li key={`${op.id}-${idx}`} className="flex items-baseline gap-2 px-3 py-1.5 text-[11px]">
-            <span className="rounded bg-muted/40 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
+          <li key={`${op.id}-${idx}`} className="flex items-baseline gap-2 px-3 py-1.5 text-2xs">
+            <Badge variant="outline" className="text-2xs uppercase tracking-wider text-muted-foreground">
               {op.target}
               {op.type ? `:${op.type}` : ''}
-            </span>
+            </Badge>
             <span className="truncate font-mono text-foreground">{op.label}</span>
             {op.detail && <span className="truncate text-muted-foreground">{op.detail}</span>}
-            <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground/70">{op.id}</span>
+            <span className="ml-auto shrink-0 font-mono text-2xs text-muted-foreground/70">{op.id}</span>
           </li>
         ))}
       </ul>

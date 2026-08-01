@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import { Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { humaniseApiError } from '@/lib/errors'
@@ -10,6 +11,7 @@ import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { UnknownLoaderWarning } from './UnknownLoaderWarning'
 
 interface AddSourceDialogProps {
@@ -37,18 +39,18 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
   const [githubLabels, setGithubLabels] = useState('')
   const [githubIncludeComments, setGithubIncludeComments] = useState(true)
   /**
-   * Set once the user successfully completes the Google OAuth popup. Keyed to
-   * the sourceId derived from `name` at the time of consent. If the user
-   * changes the name after connecting we invalidate and re-prompt, because
-   * tokens are stored under `${workspaceId}--${sourceId}`.
+   * Set once the user successfully completes the Google OAuth popup.
+   * Keyed to the sourceId derived from `name` at the time of consent.
+   * If the user changes the name after connecting we invalidate and re-prompt,
+   * because tokens are stored under `${workspaceId}--${sourceId}`.
    */
   const [oauthConnectedFor, setOauthConnectedFor] = useState<string | null>(null)
 
   const sourceId = nameToId(name)
   const oauthConnected = !!oauthConnectedFor && oauthConnectedFor === sourceId
 
-  // Invalidate the OAuth flag if the user edits name after connecting, since
-  // tokens were stored under the previous sourceId.
+  // Invalidate the OAuth flag if the user edits name after connecting,
+  // since tokens were stored under the previous sourceId.
   useEffect(() => {
     if (oauthConnectedFor && oauthConnectedFor !== sourceId)
       setOauthConnectedFor(null)
@@ -126,28 +128,35 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add Source</DialogTitle>
-          <DialogDescription>Source rows are appended to PRODUCT.md and ingested if a loader is set.</DialogDescription>
+          <DialogDescription>Source rows are appended to PRODUCT.md and provisioned if a loader is set.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <Field label="Role">
-              <select value={role} onChange={e => setRole(e.target.value as typeof role)} className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs">
-                <option value="intent">intent</option>
-                <option value="code">code</option>
-              </select>
+              <Select value={role} onValueChange={v => setRole(v as typeof role)}>
+                <SelectTrigger size="sm" className="w-full text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="intent">intent</SelectItem>
+                  <SelectItem value="code">code</SelectItem>
+                </SelectContent>
+              </Select>
             </Field>
             <Field label="Loader">
-              <select value={loaderKind} onChange={e => setLoaderKind(e.target.value)} className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs">
-                <option value="">{loaderKindLabel('')}</option>
-                {(sourceLoaders.data?.loaders ?? []).map(loader => (
-                  <option key={loader.kind} value={loader.kind}>{loaderKindLabel(loader.kind)}</option>
-                ))}
-              </select>
+              {/* Radix reserves the empty value, so a "none" sentinel maps to "". */}
+              <Select value={loaderKind || 'none'} onValueChange={v => setLoaderKind(v === 'none' ? '' : v)}>
+                <SelectTrigger size="sm" className="w-full text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{loaderKindLabel('')}</SelectItem>
+                  {(sourceLoaders.data?.loaders ?? []).map(loader => (
+                    <SelectItem key={loader.kind} value={loader.kind}>{loaderKindLabel(loader.kind)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
           </div>
           <Field label="Name">
             <Input value={name} onChange={e => setName(e.target.value)} placeholder={role === 'intent' ? 'intent-name' : 'repo-name'} autoFocus />
-            <p className="font-mono text-[10px] text-muted-foreground">
+            <p className="font-mono text-2xs text-muted-foreground">
               ./
               {rolePathSegment(role)}
               /
@@ -180,7 +189,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
               <Field label="Google Drive folder ID">
                 <Input value={gdriveFolderId} onChange={e => setGdriveFolderId(e.target.value)} placeholder="1abc…" />
                 {gdriveFolderId.trim() === 'root' && (
-                  <p className="text-[11px] text-destructive">
+                  <p className="text-2xs text-destructive">
                     "root" mirrors your entire My Drive (rejected by the loader). Create a dedicated subfolder and paste its ID.
                   </p>
                 )}
@@ -197,7 +206,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <p className="text-xs font-medium">Google Account</p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-2xs text-muted-foreground">
                       {oauthConnected
                         ? `Connected for source "${sourceId}". Re-renaming will require re-connecting.`
                         : 'Connect a Google account that has read access to the folder above.'}
@@ -209,11 +218,12 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
                     disabled={!name.trim() || startOauth.isPending}
                     onClick={() => startOauth.mutate()}
                   >
+                    {startOauth.isPending && <Loader2 className="mr-1 size-3 animate-spin" />}
                     {startOauth.isPending ? 'Opening…' : oauthConnected ? 'Reconnect' : 'Connect Google'}
                   </Button>
                 </div>
                 {startOauth.error && (
-                  <p className="mt-2 text-[11px] text-destructive">{humaniseApiError(startOauth.error)}</p>
+                  <p className="mt-2 text-2xs text-destructive">{humaniseApiError(startOauth.error)}</p>
                 )}
               </div>
             </>
@@ -230,27 +240,26 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Field label="State">
-                  <select
-                    value={githubState}
-                    onChange={e => setGithubState(e.target.value as typeof githubState)}
-                    className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
-                  >
-                    <option value="all">all</option>
-                    <option value="open">open</option>
-                    <option value="closed">closed</option>
-                  </select>
+                  <Select value={githubState} onValueChange={v => setGithubState(v as typeof githubState)}>
+                    <SelectTrigger size="sm" className="w-full text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">all</SelectItem>
+                      <SelectItem value="open">open</SelectItem>
+                      <SelectItem value="closed">closed</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </Field>
                 <Field label="Labels (csv, optional)">
                   <Input value={githubLabels} onChange={e => setGithubLabels(e.target.value)} placeholder="bug, p1" />
                 </Field>
               </div>
               <div className="flex flex-col gap-1 rounded-md border border-border p-2">
-                <label className="flex items-center gap-2 text-[11px]">
+                <label className="flex items-center gap-2 text-2xs">
                   <input type="checkbox" checked={githubIncludeComments} onChange={e => setGithubIncludeComments(e.target.checked)} />
                   Include comments
                 </label>
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 Auth: server reads
                 {' '}
                 <code className="font-mono">$GH_TOKEN</code>
@@ -282,6 +291,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
         <DialogFooter>
           <Button variant="ghost" size="sm" onClick={close}>Cancel</Button>
           <Button size="sm" disabled={!valid || add.isPending} onClick={() => add.mutate()}>
+            {add.isPending && <Loader2 className="mr-1 size-3 animate-spin" />}
             {add.isPending ? 'Adding…' : 'Add'}
           </Button>
         </DialogFooter>
@@ -293,7 +303,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
 function Field({ label, children, className }: { label: string, children: React.ReactNode, className?: string }) {
   return (
     <div className={`space-y-1${className ? ` ${className}` : ''}`}>
-      <Label className="text-[11px]">{label}</Label>
+      <Label className="text-2xs">{label}</Label>
       {children}
     </div>
   )
