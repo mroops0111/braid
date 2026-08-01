@@ -119,7 +119,7 @@ export class HITLService {
     return this.withLockedWorkspace(draft.workspaceId, async (workspace) => {
       await this.deps.clarificationRepository.save(ticket)
       await this.commitWorkspaceChange(workspace, {
-        kind: 'clarify-submit',
+        kind: 'clarification-submit',
         subject: `submitted ${ticket.id}`,
         userId: SUBMIT_USER_ID,
         clarificationId: ticket.id,
@@ -211,7 +211,7 @@ export class HITLService {
       const answered = ticket.markAnswered(candidateId, userId)
       await this.deps.clarificationRepository.save(answered)
       await this.commitWorkspaceChange(workspace, {
-        kind: 'clarify-answer',
+        kind: 'clarification-answer',
         subject: `answered ${clarificationId}${note ? `: ${note}` : ''}`,
         userId,
         clarificationId,
@@ -237,7 +237,7 @@ export class HITLService {
       const applied = ticket.markApplied(proposalId)
       await this.deps.clarificationRepository.save(applied)
       await this.commitWorkspaceChange(workspace, {
-        kind: 'clarify-apply',
+        kind: 'clarification-apply',
         subject: `closed ${clarificationId}`,
         userId,
         clarificationId,
@@ -264,7 +264,7 @@ export class HITLService {
       const skipped = ticket.markSkipped(userId)
       await this.deps.clarificationRepository.save(skipped)
       await this.commitWorkspaceChange(workspace, {
-        kind: 'clarify-skip',
+        kind: 'clarification-skip',
         subject: `skipped ${clarificationId}: ${reason}`,
         userId,
         clarificationId,

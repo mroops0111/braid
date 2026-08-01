@@ -33,7 +33,7 @@ function problemFromBraidError(error: BraidError): BraidProblemJson {
 
 function problemFromZodError(error: ZodError): BraidProblemJson {
   return {
-    type: `${PROBLEM_BASE_URL}/braid-val` as BraidProblemJson['type'],
+    type: `${PROBLEM_BASE_URL}/braid-validation` as BraidProblemJson['type'],
     title: 'ValidationError',
     status: 400,
     code: 'BRAID-VALIDATION',

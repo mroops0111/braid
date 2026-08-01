@@ -124,7 +124,7 @@ describe('HITLService — workspace history hooks', () => {
     expect(message.proposalId).toBe(proposal.id)
   })
 
-  it('submitClarification commits with kind=clarify-submit', async () => {
+  it('submitClarification commits with kind=clarification-submit', async () => {
     const { service, history, workspaceId } = await setupWithHistory()
     const ticket = await service.submitClarification({
       workspaceId,
@@ -133,7 +133,7 @@ describe('HITLService — workspace history hooks', () => {
     })
     expect(history.commit).toHaveBeenCalledTimes(1)
     const message = history.commit.mock.calls[0]![1]
-    expect(message.kind).toBe('clarify-submit')
+    expect(message.kind).toBe('clarification-submit')
     expect(message.clarificationId).toBe(ticket.id)
   })
 
@@ -168,7 +168,7 @@ describe('HITLService — workspace history hooks', () => {
     expect(history.commit.mock.calls[0]![1].proposalId).toBe(proposal.id)
   })
 
-  it('answerClarification commits with kind=clarify-answer', async () => {
+  it('answerClarification commits with kind=clarification-answer', async () => {
     const { service, history, workspaceId, clarificationRepository } = await setupWithHistory()
     const ticket = makePendingTicket(workspaceId)
     await clarificationRepository.save(ticket)
@@ -181,11 +181,11 @@ describe('HITLService — workspace history hooks', () => {
 
     expect(history.commit).toHaveBeenCalledTimes(1)
     const message = history.commit.mock.calls[0]![1]
-    expect(message.kind).toBe('clarify-answer')
+    expect(message.kind).toBe('clarification-answer')
     expect(message.clarificationId).toBe(ticket.id)
   })
 
-  it('markClarificationApplied commits with kind=clarify-applied and stamps proposalId when present', async () => {
+  it('markClarificationApplied commits with kind=clarification-apply and stamps proposalId when present', async () => {
     const { service, history, workspaceId, clarificationRepository } = await setupWithHistory()
     const ticket = makeAnsweredTicket(workspaceId)
     await clarificationRepository.save(ticket)
@@ -195,12 +195,12 @@ describe('HITLService — workspace history hooks', () => {
 
     expect(history.commit).toHaveBeenCalledTimes(1)
     const message = history.commit.mock.calls[0]![1]
-    expect(message.kind).toBe('clarify-apply')
+    expect(message.kind).toBe('clarification-apply')
     expect(message.clarificationId).toBe(ticket.id)
     expect(message.proposalId).toBe(proposalId)
   })
 
-  it('skipClarification commits with kind=clarify-skip', async () => {
+  it('skipClarification commits with kind=clarification-skip', async () => {
     const { service, history, workspaceId, clarificationRepository } = await setupWithHistory()
     const ticket = makePendingTicket(workspaceId)
     await clarificationRepository.save(ticket)
@@ -208,7 +208,7 @@ describe('HITLService — workspace history hooks', () => {
     await service.skipClarification(ticket.id, 'not relevant', userId)
 
     expect(history.commit).toHaveBeenCalledTimes(1)
-    expect(history.commit.mock.calls[0]![1].kind).toBe('clarify-skip')
+    expect(history.commit.mock.calls[0]![1].kind).toBe('clarification-skip')
     expect(history.commit.mock.calls[0]![1].clarificationId).toBe(ticket.id)
   })
 
