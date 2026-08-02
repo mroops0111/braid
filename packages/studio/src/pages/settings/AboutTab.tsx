@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
-import { Bug, Github } from 'lucide-react'
+import { Bug } from 'lucide-react'
+import { GithubIcon } from '@/components/icons/GithubIcon'
 
 const REPOSITORY_URL = 'https://github.com/mroops0111/braid'
 
@@ -17,7 +18,7 @@ export function AboutTab() {
         <p>Braid keeps intent and code as one reviewable domain model that your team and the AI both read.</p>
       </div>
       <div className="flex flex-col gap-1">
-        <AboutLink href={REPOSITORY_URL} icon={Github} label="GitHub Repository" />
+        <AboutLink href={REPOSITORY_URL} icon={GithubIcon} label="GitHub Repository" />
         <AboutLink href={`${REPOSITORY_URL}/issues`} icon={Bug} label="Report an Issue" />
       </div>
       <p className="text-2xs text-muted-foreground">MIT License</p>
