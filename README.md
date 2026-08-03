@@ -75,18 +75,19 @@ Once `braid dev` is running, work the loop in Studio at `http://localhost:5173`.
 
 ### Workspace Manifest
 
-Workspace shape lives in one `PRODUCT.md` manifest. The minimum is just sources.
+Workspace shape lives in one `PRODUCT.md` manifest. It names the workspace, points at the sources, and picks a graph store.
 
 ```yaml
 ---
 name: my-product
 sources:
-  - {kind: filesystem, role: intent, path: ./intent}
-  - {kind: filesystem, role: code, path: ./code/app, language: typescript}
+  - {kind: filesystem, id: src-intent, name: intent, role: intent, path: ./intent}
+  - {kind: filesystem, id: src-code, name: app, role: code, path: ./code/app, language: typescript}
+storage: {kind: kuzu, config: {}}
 ---
 ```
 
-Defaults fill in the rest, the built-in ontology, the Claude Code agent on opus, and embedded Kuzu storage. Declare `ontologyId`, `agents` with `agentBindings`, or `storage` blocks only to override a default. Swap `kind: filesystem` for `git` or `gdrive` to load remote sources.
+`version`, `ontologyId` (DDD by default), and `mcpServers` fill in when omitted. Swap a source's `kind: filesystem` for `git` or `gdrive` to load remote sources.
 
 ## Packages
 
@@ -154,12 +155,11 @@ argumentHint: <ctx-name>
 model: opus
 braid:
   requiredEnv: [GITHUB_TOKEN]
-  requiredPaths: [./intent, ./code]
 ---
 Walk `intent/` and `code/`. Emit proposals that add boundedContext, aggregate, and command nodes. Cite the source file or doc each claim came from.
 ```
 
-Top-level keys follow the Claude Code skill frontmatter format (`name`, `description`, `argumentHint`, `model`). The Braid-specific `braid:` block is preflighted before the agent spawns, so a missing env var, path, or MCP server fails fast with a clear error instead of derailing the conversation halfway through.
+Top-level keys follow the Claude Code skill frontmatter format (`name`, `description`, `argumentHint`, `model`). The Braid-specific `braid:` block is preflighted before the agent spawns, so a missing env var or MCP server fails fast with a clear error instead of derailing the conversation halfway through.
 
 ## License
 
