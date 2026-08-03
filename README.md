@@ -9,11 +9,7 @@
 
 Braid braids them back into one domain model that engineers and PMs can both read. The default ontology is Domain-Driven Design (DDD), so people and the AI both speak the ubiquitous language of the domain instead of class names and package paths.
 
-```bash
-pnpm dlx @braidhq/cli init my-product
-cd my-product && pnpm dlx @braidhq/cli dev
-# Studio at http://localhost:5173, server at :4321
-```
+![Braid architecture](architecture.png)
 
 ## Features
 
@@ -44,14 +40,22 @@ Braid is a framework, not a managed service. Every axis is a plugin, and the def
 
 The server is the composition root. Sources feed an event-driven engine that produces reviewable changes, a human gate lands them in one canonical model, and every write is versioned in Git.
 
-![Braid architecture](architecture.png)
-
 - **Surfaces**: Studio (web UI), Desktop, CLI, and MCP clients all talk to one server over REST and SSE.
 - **Sources**: Intent (PRDs, RFCs, issues) and Code (repositories) are pulled in by Source Loader plugins for git, github, and gdrive.
 - **Engine (The HITL Loop)**: the Agent runs Skills as subprocesses. Skills analyze the sources and generate two human-in-the-loop artifacts, a Proposal (a proposed change to the model) and a Clarification (a question to resolve ambiguity).
 - **Model**: an Ontology types the graph, the Graph is the single source of truth, and a Storage plugin such as Kuzu persists it.
 - **Reads**: Ask answers a one-off question over the graph, and View Generators project docs and other Views off it.
 - **History**: every human-gated write commits to Git. The graph state travels alongside the code as a `model.json` snapshot, so any commit is restorable.
+
+## Quick Start
+
+Scaffold a workspace and start the dev server.
+
+```bash
+pnpm dlx @braidhq/cli init my-product
+cd my-product && pnpm dlx @braidhq/cli dev
+# Studio at http://localhost:5173, server at :4321
+```
 
 ## The Loop
 
