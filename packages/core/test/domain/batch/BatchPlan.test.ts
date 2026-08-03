@@ -18,8 +18,8 @@ describe('BatchPlan', () => {
       expect(plan.updatedAt).toBe(T1)
     })
 
-    it('derive-mode goes idle → deriving', () => {
-      const plan = makePlan({ mode: 'derive', units: [] }).beginRun(T1, 'tag')
+    it('derived-mode goes idle → deriving', () => {
+      const plan = makePlan({ mode: 'derived', units: [] }).beginRun(T1, 'tag')
       expect(plan.status).toBe('deriving')
     })
 
@@ -31,7 +31,7 @@ describe('BatchPlan', () => {
 
   describe('promoteToRunning', () => {
     it('replaces units and moves deriving → running', () => {
-      const plan = makePlan({ mode: 'derive', status: 'deriving', units: [] })
+      const plan = makePlan({ mode: 'derived', status: 'deriving', units: [] })
       const promoted = plan.promoteToRunning(T1, [makeUnit(unitA)])
       expect(promoted.status).toBe('running')
       expect(promoted.units.map(u => u.id)).toEqual([unitA])

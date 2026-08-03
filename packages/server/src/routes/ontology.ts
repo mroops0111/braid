@@ -14,7 +14,7 @@ const getOntologyRoute = createRoute({
   method: 'get',
   path: '/',
   operationId: 'getOntology',
-  summary: 'Return the active ontology (node types + edge types) for a workspace.',
+  summary: 'Return the active ontology (node types, edge types, source roles) for a workspace.',
   tags: ['ontology'],
   request: { params: WorkspaceIdParam },
   responses: {
@@ -40,6 +40,7 @@ export function createOntologyRouter(deps: OntologyRouterDeps): OpenAPIHono {
       ontologyId: ontology.ontologyId,
       nodeTypes: ontology.nodeTypes,
       edgeTypes: ontology.edgeTypes,
+      sourceRoles: ontology.sourceRoles,
     }), 200)
   })
 

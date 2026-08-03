@@ -33,14 +33,14 @@ describe('ProductManifest', () => {
         {
           kind: 'filesystem',
           id: 'src-api',
-          role: 'code',
+          role: 'secondary',
           name: 'api',
           path: '/abs/code',
         },
         {
           kind: 'mcp',
           id: 'src-redmine',
-          role: 'intent',
+          role: 'primary',
           name: 'redmine',
           mcpServerId: 'redmine',
         },

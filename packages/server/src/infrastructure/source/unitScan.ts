@@ -1,38 +1,40 @@
-import type { Workspace } from '@braidhq/core'
+import type { PluginRegistry, SourceUnitItem, Workspace } from '@braidhq/core'
+import type { SourceRole } from '@braidhq/schema'
 import { readdir } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
+import { unitBearingRoleIds } from '@braidhq/core'
 
-const INTENT_FILE_EXTENSIONS = new Set(['.md', '.mdx', '.markdown', '.txt', '.rst'])
+const UNIT_FILE_EXTENSIONS = new Set(['.md', '.mdx', '.markdown', '.txt', '.rst'])
 
-export interface IntentItem {
-  readonly value: string
-  readonly label: string
-  readonly sourceId: string
-  readonly sourceName: string
+/** The unit-bearing role ids the workspace's active ontology declares. */
+export function unitBearingRolesOf(registry: PluginRegistry, workspace: Workspace): readonly SourceRole[] {
+  const ontology = registry.findOntology(workspace.productManifest.ontologyId)
+  return ontology ? unitBearingRoleIds(ontology) : []
 }
 
 /**
  * Shared by the Studio source picker and BatchService,
  * so both see the same per-doc granularity.
+ * Walks sources whose role is in `roles`, the ontology's unit-bearing roles.
  */
-export async function listIntentItems(workspace: Workspace): Promise<IntentItem[]> {
-  const items: IntentItem[] = []
+export async function listUnitItems(workspace: Workspace, roles: readonly SourceRole[]): Promise<SourceUnitItem[]> {
+  const items: SourceUnitItem[] = []
   for (const source of workspace.sources) {
-    if (source.role !== 'intent')
+    if (!roles.includes(source.role))
       continue
     if (source.kind !== 'filesystem')
-      // MCP intent sources aren't directory-listable, future enhancement.
+      // MCP sources aren't directory-listable, future enhancement.
       continue
     const absoluteRoot = isAbsolute(source.path)
       ? source.path
       : join(workspace.rootPath, source.path)
-    items.push(...await listIntentEntries(absoluteRoot, source.id, source.name))
+    items.push(...await listUnitEntries(absoluteRoot, source.id, source.name))
   }
   return items
 }
 
-async function listIntentEntries(root: string, sourceId: string, sourceName: string): Promise<IntentItem[]> {
-  const items: IntentItem[] = []
+async function listUnitEntries(root: string, sourceId: string, sourceName: string): Promise<SourceUnitItem[]> {
+  const items: SourceUnitItem[] = []
   let topEntries
   try {
     topEntries = await readdir(root, { withFileTypes: true })
@@ -73,7 +75,7 @@ async function listIntentEntries(root: string, sourceId: string, sourceName: str
       }
       continue
     }
-    if (entry.isFile() && isIntentDocument(entry.name)) {
+    if (entry.isFile() && isUnitDocument(entry.name)) {
       items.push({
         value: entry.name,
         label: stripExtension(entry.name),
@@ -108,7 +110,7 @@ async function listFlatDocumentFiles(dir: string): Promise<string[] | undefined>
       return undefined
     if (!entry.isFile())
       continue
-    if (!isIntentDocument(entry.name))
+    if (!isUnitDocument(entry.name))
       return undefined
     docs.push(entry.name)
   }
@@ -130,7 +132,7 @@ async function containsDocument(dir: string, maxDepth: number): Promise<boolean>
   for (const entry of entries) {
     if (entry.name.startsWith('.'))
       continue
-    if (entry.isFile() && isIntentDocument(entry.name))
+    if (entry.isFile() && isUnitDocument(entry.name))
       return true
     if (entry.isDirectory() && await containsDocument(join(dir, entry.name), maxDepth - 1))
       return true
@@ -138,11 +140,11 @@ async function containsDocument(dir: string, maxDepth: number): Promise<boolean>
   return false
 }
 
-function isIntentDocument(filename: string): boolean {
+function isUnitDocument(filename: string): boolean {
   const dot = filename.lastIndexOf('.')
   if (dot < 0)
     return false
-  return INTENT_FILE_EXTENSIONS.has(filename.slice(dot).toLowerCase())
+  return UNIT_FILE_EXTENSIONS.has(filename.slice(dot).toLowerCase())
 }
 
 function stripExtension(filename: string): string {

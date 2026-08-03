@@ -9,7 +9,7 @@ export interface MultiSelectOption {
   description?: string | undefined
   /**
    * Optional informational chip rendered next to the option label.
-   * Used by the source-intent picker to mark per-unit freshness,
+   * Used by the source picker to mark per-unit freshness,
    * such as "extracted Nm ago" or "stale". Leave unset for plain options.
    * The chip is purely informational, it does not disable selection.
    */

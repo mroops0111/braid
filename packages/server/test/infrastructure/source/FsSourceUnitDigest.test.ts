@@ -1,4 +1,4 @@
-import type { AbsolutePath, SourceId } from '@braidhq/schema'
+import type { AbsolutePath, SourceId, SourceRole } from '@braidhq/schema'
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -10,11 +10,11 @@ async function makeRoot(): Promise<AbsolutePath> {
   return (await mkdtemp(join(tmpdir(), 'braid-source-digest-'))) as AbsolutePath
 }
 
-function intentSource(id: string, path: AbsolutePath) {
+function unitSource(id: string, path: AbsolutePath) {
   return {
     kind: 'filesystem' as const,
     id: id as SourceId,
-    role: 'intent' as const,
+    role: 'primary' as SourceRole,
     name: id,
     path,
   }
@@ -24,24 +24,24 @@ describe('FsSourceUnitDigest', () => {
   it('hashes a single file by content; identical content yields identical sha', async () => {
     const sourcePath = await makeRoot()
     await writeFile(join(sourcePath, 'a.md'), 'hello braid\n', 'utf-8')
-    const ws = makeWorkspace({ rootPath: sourcePath, sources: [intentSource('intent', sourcePath)] })
+    const ws = makeWorkspace({ rootPath: sourcePath, sources: [unitSource('unit', sourcePath)] })
     const digest = new FsSourceUnitDigest()
 
-    const sha1 = await digest.computeSha(ws, 'intent' as SourceId, 'a.md')
-    const sha2 = await digest.computeSha(ws, 'intent' as SourceId, 'a.md')
+    const sha1 = await digest.computeSha(ws, 'unit' as SourceId, 'a.md')
+    const sha2 = await digest.computeSha(ws, 'unit' as SourceId, 'a.md')
     expect(sha1).toMatch(/^[a-f0-9]{64}$/)
     expect(sha1).toBe(sha2)
   })
 
   it('different content yields different sha', async () => {
     const sourcePath = await makeRoot()
-    const ws = makeWorkspace({ rootPath: sourcePath, sources: [intentSource('intent', sourcePath)] })
+    const ws = makeWorkspace({ rootPath: sourcePath, sources: [unitSource('unit', sourcePath)] })
     const digest = new FsSourceUnitDigest()
 
     await writeFile(join(sourcePath, 'a.md'), 'first\n', 'utf-8')
-    const before = await digest.computeSha(ws, 'intent' as SourceId, 'a.md')
+    const before = await digest.computeSha(ws, 'unit' as SourceId, 'a.md')
     await writeFile(join(sourcePath, 'a.md'), 'second\n', 'utf-8')
-    const after = await digest.computeSha(ws, 'intent' as SourceId, 'a.md')
+    const after = await digest.computeSha(ws, 'unit' as SourceId, 'a.md')
     expect(before).not.toBe(after)
   })
 
@@ -51,11 +51,11 @@ describe('FsSourceUnitDigest', () => {
     await writeFile(join(sourcePath, 'feature', 'a.md'), 'A\n', 'utf-8')
     await writeFile(join(sourcePath, 'feature', 'b.md'), 'B\n', 'utf-8')
 
-    const ws = makeWorkspace({ rootPath: sourcePath, sources: [intentSource('intent', sourcePath)] })
+    const ws = makeWorkspace({ rootPath: sourcePath, sources: [unitSource('unit', sourcePath)] })
     const digest = new FsSourceUnitDigest()
 
-    const withSlash = await digest.computeSha(ws, 'intent' as SourceId, 'feature/')
-    const withoutSlash = await digest.computeSha(ws, 'intent' as SourceId, 'feature')
+    const withSlash = await digest.computeSha(ws, 'unit' as SourceId, 'feature/')
+    const withoutSlash = await digest.computeSha(ws, 'unit' as SourceId, 'feature')
     expect(withSlash).toBe(withoutSlash)
     expect(withSlash).toMatch(/^[a-f0-9]{64}$/)
   })
@@ -64,12 +64,12 @@ describe('FsSourceUnitDigest', () => {
     const sourcePath = await makeRoot()
     await mkdir(join(sourcePath, 'feature'), { recursive: true })
     await writeFile(join(sourcePath, 'feature', 'a.md'), 'A\n', 'utf-8')
-    const ws = makeWorkspace({ rootPath: sourcePath, sources: [intentSource('intent', sourcePath)] })
+    const ws = makeWorkspace({ rootPath: sourcePath, sources: [unitSource('unit', sourcePath)] })
     const digest = new FsSourceUnitDigest()
 
-    const before = await digest.computeSha(ws, 'intent' as SourceId, 'feature/')
+    const before = await digest.computeSha(ws, 'unit' as SourceId, 'feature/')
     await writeFile(join(sourcePath, 'feature', 'a.md'), 'A changed\n', 'utf-8')
-    const after = await digest.computeSha(ws, 'intent' as SourceId, 'feature/')
+    const after = await digest.computeSha(ws, 'unit' as SourceId, 'feature/')
     expect(before).not.toBe(after)
   })
 
@@ -78,7 +78,7 @@ describe('FsSourceUnitDigest', () => {
       sources: [{
         kind: 'mcp',
         id: 'mcp-src' as SourceId,
-        role: 'intent',
+        role: 'primary' as SourceRole,
         name: 'mcp',
         mcpServerId: 'srv' as never,
       }],

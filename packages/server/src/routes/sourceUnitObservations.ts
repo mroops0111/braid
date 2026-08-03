@@ -1,4 +1,4 @@
-import type { IntentLister, SourceUnitDigest, SourceUnitObservationService, WorkspaceService } from '@braidhq/core'
+import type { SourceUnitDigest, SourceUnitObservationService, UnitLister, WorkspaceService } from '@braidhq/core'
 import { computeSourceDiff } from '@braidhq/core'
 import { SourceId, SourceUnitDiff, SourceUnitObservation } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
@@ -22,7 +22,7 @@ const DiffResponse = SourceUnitDiff.openapi('SourceUnitDiffResponse')
 export interface SourceUnitObservationsRouterDeps {
   sourceUnitObservationService: SourceUnitObservationService
   /**
-   * Optional `(workspaceService, intentLister, digest)` triple.
+   * Optional `(workspaceService, unitLister, digest)` triple.
    * When all three are present, the router exposes the `:sourceId/diff` route.
    * When any is missing, the route is simply not registered,
    * so callers see a 404 from Hono's router.
@@ -31,7 +31,7 @@ export interface SourceUnitObservationsRouterDeps {
    */
   diffSupport?: {
     workspaceService: WorkspaceService
-    intentLister: IntentLister
+    unitLister: UnitLister
     digest: SourceUnitDigest
   }
 }
@@ -64,7 +64,7 @@ const diffRoute = createRoute({
   path: '/{sourceId}/diff',
   operationId: 'getSourceUnitDiff',
   summary: 'Diff a source\'s current units on disk against the recorded ledger.',
-  description: 'Returns the partition (`new`, `changed`, `unchanged`, `orphaned`) the Reactor uses internally to decide what to re-extract. Studio\'s Actions form consumes the same shape to render per-option badges on the source-intent picker.',
+  description: 'Returns the partition (`new`, `changed`, `unchanged`, `orphaned`) the Reactor uses internally to decide what to re-extract. Studio\'s Actions form consumes the same shape to render per-option badges on the source picker.',
   tags: ['source-unit-states'],
   request: { params: SourceIdParam },
   responses: {
@@ -89,14 +89,14 @@ export function createSourceUnitObservationsRouter(deps: SourceUnitObservationsR
   })
 
   if (deps.diffSupport) {
-    const { workspaceService, intentLister, digest } = deps.diffSupport
+    const { workspaceService, unitLister, digest } = deps.diffSupport
     router.openapi(diffRoute, async (context) => {
       const workspaceId = getWorkspaceId(context)
       const { sourceId } = context.req.valid('param')
       const workspace = await workspaceService.findById(workspaceId)
       const diff = await computeSourceDiff(
         {
-          intentLister,
+          unitLister,
           digest,
           sourceUnitObservationService: deps.sourceUnitObservationService,
         },

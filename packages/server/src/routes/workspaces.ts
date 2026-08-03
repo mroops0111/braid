@@ -173,13 +173,11 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
 
     const manifest = fillManifestDefaults(draft)
     // Each ontology declares which source roles it needs to function.
-    // DDD requires both `intent` and `code`,
-    // a generative ontology may need only `intent`.
-    // Reject scaffolds that omit a required role before any writes,
-    // so the wizard can show a precise "you also need a code source",
-    // rather than a post-scaffold validation error.
+    // Reject scaffolds that omit a role the ontology declares required,
+    // before any writes, so the wizard can show a precise "you also need
+    // a source of role x", rather than a post-scaffold validation error.
     const ontology = deps.pluginRegistry.findOntology(manifest.ontologyId)
-    const requiredRoles = ontology?.requiredSourceRoles ?? []
+    const requiredRoles = (ontology?.sourceRoles ?? []).filter(role => role.required).map(role => role.id)
     if (requiredRoles.length > 0) {
       const presentRoles = new Set(manifest.sources.map(s => s.role))
       const missing = requiredRoles.filter(r => !presentRoles.has(r))

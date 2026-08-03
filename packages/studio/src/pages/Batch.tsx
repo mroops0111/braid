@@ -59,7 +59,7 @@ function PreStart({ workspaceId, previousPlan }: { workspaceId: string, previous
 
   const preview = useQuery({
     queryKey: ['batch-preview', workspaceId],
-    queryFn: () => api.listSkillInputOptions(workspaceId, 'source-intent'),
+    queryFn: () => api.listSkillInputOptions(workspaceId, 'source'),
   })
 
   return (
@@ -69,17 +69,13 @@ function PreStart({ workspaceId, previousPlan }: { workspaceId: string, previous
         <h1 className="text-xl font-semibold">Bootstrap Workspace From Sources</h1>
       </header>
       <p className="text-sm leading-relaxed text-muted-foreground [text-wrap:pretty]">
-        Reads every registered intent doc and proposes graph updates. When the workspace has only code, AI breaks the codebase into business units first. A safety snapshot is taken before anything starts. You can roll back from History if something looks wrong.
+        Reads every unit-bearing source and proposes graph updates. When the workspace has none, AI derives units from its other sources first. A safety snapshot is taken before anything starts. You can roll back from History if something looks wrong.
       </p>
 
       <section className="rounded-lg border border-border bg-card/40 p-4 text-sm leading-relaxed text-foreground/90 [text-wrap:pretty]">
         <div className="font-medium">What Happens</div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Confident proposals are applied straight to the graph. Ambiguous ones queue in Clarification for you to decide. If you want to review every single proposal by hand, run a single
-          {' '}
-          <code className="rounded bg-muted px-1 font-mono">/ddd:extract</code>
-          {' '}
-          from Actions instead.
+          Confident proposals are applied straight to the graph. Ambiguous ones queue in Clarification for you to decide. If you want to review every single proposal by hand, run a single per-unit skill from Actions instead.
         </p>
       </section>
 
@@ -127,7 +123,7 @@ function BatchPreviewList({ query }: { query: ReturnType<typeof useQuery<SkillIn
   if (query.isLoading) {
     return (
       <section className="rounded-lg border border-border bg-card/40 p-4 text-xs text-muted-foreground">
-        Loading intents…
+        Loading units…
       </section>
     )
   }
@@ -145,10 +141,10 @@ function BatchPreviewList({ query }: { query: ReturnType<typeof useQuery<SkillIn
       <section className="rounded-lg border border-border bg-card/40 p-4">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground">
           <Search className="size-4 text-muted-foreground" />
-          Will Scan Codebases
+          Will Derive Units
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          No intent docs found in this workspace. AI will scan each registered codebase and split it into business units first, then propose graph updates per unit.
+          No unit-bearing sources found in this workspace. AI will derive units from the workspace's other sources first, then propose graph updates per unit.
         </p>
       </section>
     )
@@ -159,9 +155,9 @@ function BatchPreviewList({ query }: { query: ReturnType<typeof useQuery<SkillIn
       <div className="flex items-center justify-between">
         <div className="text-sm font-medium text-foreground">
           {items.length}
-          {items.length === 1 ? ' Intent Will Be Processed' : ' Intents Will Be Processed'}
+          {items.length === 1 ? ' Unit Will Be Processed' : ' Units Will Be Processed'}
         </div>
-        <span className="text-2xs text-muted-foreground">one extract job per row</span>
+        <span className="text-2xs text-muted-foreground">one job per row</span>
       </div>
       <ul className="mt-3 space-y-1">
         {items.map(item => (

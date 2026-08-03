@@ -8,6 +8,7 @@ import type {
   SkillRunId,
   SourceDescriptor,
   SourceId,
+  SourceRole,
   SourceUnitSha,
   TagMeta,
   UserId,
@@ -107,21 +108,21 @@ function spyHitlService(): HITLService & { applyCalls: ProposalId[] } {
   } as unknown as HITLService & { applyCalls: ProposalId[] }
 }
 
-function intentSource(id: string): SourceDescriptor {
+function primarySource(id: string): SourceDescriptor {
   return {
     kind: 'filesystem',
     id: id as SourceId,
-    role: 'intent',
+    role: 'primary' as SourceRole,
     name: id,
     path: `/abs/${id}` as AbsolutePath,
   }
 }
 
-function codeSource(id: string): SourceDescriptor {
+function secondarySource(id: string): SourceDescriptor {
   return {
     kind: 'filesystem',
     id: id as SourceId,
-    role: 'code',
+    role: 'secondary' as SourceRole,
     name: id,
     path: `/abs/${id}` as AbsolutePath,
   }
@@ -144,7 +145,7 @@ async function setup(options: {
   const workspaceRepo = new InMemoryWorkspaceRepository()
   const workspace = makeWorkspace({
     id: mintTestId('ws'),
-    sources: options.sources ?? [intentSource('prd'), intentSource('design')],
+    sources: options.sources ?? [primarySource('prd'), primarySource('design')],
   })
   await workspaceRepo.save(workspace)
 
@@ -155,6 +156,10 @@ async function setup(options: {
 
   await pluginRegistry.register(makeOntology({
     ontologyId: 'ddd',
+    sourceRoles: [
+      { id: 'primary', unitBearing: true },
+      { id: 'secondary' },
+    ],
     batch: {
       perUnit: { skillId: SkillIdSchema.parse('ddd:extract') },
       checkpoint: {
@@ -197,9 +202,9 @@ async function setup(options: {
     historyService: history,
     hitlService: hitl,
     batchPlanRepository: planRepository,
-    intentLister: async (ws) => {
-      // Fake one intent item per intent source, so tests can keep asserting unit count by source count.
-      return ws.intentSources().map(source => ({
+    unitLister: async (ws) => {
+      // Fake one unit item per unit-bearing source, so tests keep asserting unit count by source count.
+      return ws.sourcesWithRole('primary' as SourceRole).map(source => ({
         value: `${source.name}/`,
         label: source.name,
         sourceId: source.id as string,
@@ -240,7 +245,7 @@ async function flushBatch(planRepository: InMemoryBatchPlanRepository): Promise<
 describe('BatchService', () => {
   beforeEach(() => resetTestIds())
 
-  it('intent mode walks one unit per intent source, completes the plan', async () => {
+  it('direct mode walks one unit per unit-bearing source, completes the plan', async () => {
     const { service, workspace, proposalRepository, planRepository, skillRunner } = await setup()
     let counter = 0
     skillRunner.onStart = async () => {
@@ -252,7 +257,7 @@ describe('BatchService', () => {
     const final = await flushBatch(planRepository)
 
     expect(final.status).toBe('completed')
-    expect(final.mode).toBe('intent')
+    expect(final.mode).toBe('direct')
     expect(final.units).toHaveLength(2)
     expect(final.units.every(u => u.status === 'completed')).toBe(true)
     expect(skillRunner.startCalls.map(c => c.skillId)).toEqual([
@@ -293,7 +298,7 @@ describe('BatchService', () => {
     expect(final.units[1]!.status).toBe('completed')
   })
 
-  it('refuses when workspace has no intent or code sources', async () => {
+  it('refuses when workspace has no sources', async () => {
     const { service, workspace } = await setup({ sources: [] })
     await expect(service.start(workspace.id, { autoApply: false })).rejects.toThrow(ValidationError)
   })
@@ -308,15 +313,15 @@ describe('BatchService', () => {
     await expect(service.start(workspace.id, { autoApply: false })).rejects.toThrow(ConflictError)
   })
 
-  it('chooses derive mode when no intent sources exist and runs the ontology deriveUnits skill', async () => {
+  it('chooses derive mode when no unit-bearing sources exist and runs the ontology deriveUnits skill', async () => {
     const { service, workspace, planRepository, skillRunner } = await setup({
-      sources: [codeSource('codebase')],
+      sources: [secondarySource('codebase')],
     })
     await service.start(workspace.id, { autoApply: false })
     // The orchestrator runs the derive skill in the background.
     // Assert the kick-off and mode without driving the loop to completion.
     expect(skillRunner.startCalls[0]?.skillId).toBe('braid:scan')
-    expect((await planRepository.load())?.mode).toBe('derive')
+    expect((await planRepository.load())?.mode).toBe('derived')
   })
 
   it('archive moves a completed plan to archived status', async () => {
@@ -390,7 +395,7 @@ describe('BatchService', () => {
 
   it('chunks ddd:reconcile every 5 successful extracts and runs a final partial chunk', async () => {
     // 7 intent sources => 7 units => one full chunk (5) + one partial (2).
-    const sources = Array.from({ length: 7 }, (_, i) => intentSource(`src-${i}`))
+    const sources = Array.from({ length: 7 }, (_, i) => primarySource(`src-${i}`))
     const { service, workspace, planRepository, skillRunner } = await setup({ sources })
 
     await service.start(workspace.id, { autoApply: false })
@@ -418,7 +423,7 @@ describe('BatchService', () => {
 
   it('always runs a final model pass even when chunks divide evenly', async () => {
     // Exactly 5 units = one full chunk. We still want a final model.
-    const sources = Array.from({ length: 5 }, (_, i) => intentSource(`src-${i}`))
+    const sources = Array.from({ length: 5 }, (_, i) => primarySource(`src-${i}`))
     const { service, workspace, planRepository, skillRunner } = await setup({ sources })
 
     await service.start(workspace.id, { autoApply: false })

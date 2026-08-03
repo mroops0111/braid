@@ -36,12 +36,12 @@ export class BatchPlan {
   get createdAt(): Timestamp { return this.data.createdAt }
   get updatedAt(): Timestamp { return this.data.updatedAt }
 
-  // mode='derive' goes idle to deriving to running. mode='intent' goes idle to running.
+  // mode='derived' goes idle to deriving to running. mode='direct' goes idle to running.
   beginRun(now: Timestamp, baselineTag: string): BatchPlan {
     if (this.data.status !== 'idle')
       throw new ConflictError(`Batch plan ${this.data.id} is already ${this.data.status}`)
     return this.with({
-      status: this.data.mode === 'derive' ? 'deriving' : 'running',
+      status: this.data.mode === 'derived' ? 'deriving' : 'running',
       baselineTag,
       updatedAt: now,
     })

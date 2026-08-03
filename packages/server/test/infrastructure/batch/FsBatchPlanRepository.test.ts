@@ -25,7 +25,7 @@ describe('FsBatchPlanRepository', () => {
     await repo.save(ws, makePlan({ status: 'running', autoApply: true }))
     const loaded = await repo.load(ws)
     expect(loaded?.units.map(u => u.id)).toEqual(['pu-a', 'pu-b'])
-    expect(loaded?.mode).toBe('intent')
+    expect(loaded?.mode).toBe('direct')
     expect(loaded?.autoApply).toBe(true)
   })
 

@@ -4,6 +4,7 @@ import type {
   McpServerId,
   SourceDescriptor,
   SourceId,
+  SourceRole,
   StorageDescriptor,
   StorageKind,
 } from '@braidhq/schema'
@@ -15,7 +16,7 @@ const MCP_SOURCES: readonly SourceDescriptor[] = [
   {
     kind: 'filesystem',
     id: 'src-api' as SourceId,
-    role: 'code',
+    role: 'secondary' as SourceRole,
     name: 'api',
     path: '/abs/code/a' as AbsolutePath,
     language: 'typescript',
@@ -23,14 +24,14 @@ const MCP_SOURCES: readonly SourceDescriptor[] = [
   {
     kind: 'filesystem',
     id: 'src-prd' as SourceId,
-    role: 'intent',
+    role: 'primary' as SourceRole,
     name: 'prd',
     path: '/abs/intent' as AbsolutePath,
   },
   {
     kind: 'mcp',
     id: 'src-redmine' as SourceId,
-    role: 'intent',
+    role: 'primary' as SourceRole,
     name: 'redmine',
     mcpServerId: 'redmine' as McpServerId,
   },
@@ -58,10 +59,10 @@ function buildWorkspace(overrides: { mcpServers?: readonly McpServerConfig[] } =
 }
 
 describe('Workspace source partitions', () => {
-  it('splits sources by role into codeSources / intentSources', () => {
+  it('splits sources by role via sourcesWithRole', () => {
     const workspace = buildWorkspace()
-    expect(workspace.codeSources()).toHaveLength(1)
-    expect(workspace.intentSources()).toHaveLength(2)
+    expect(workspace.sourcesWithRole('secondary' as SourceRole)).toHaveLength(1)
+    expect(workspace.sourcesWithRole('primary' as SourceRole)).toHaveLength(2)
   })
 
   it('splits sources by kind into filesystemSources / mcpSources', () => {

@@ -17,10 +17,14 @@ export const dddOntology = defineOntologyPlugin({
   // DDD models a domain through intent and code convergence.
   // Extracting from intent alone ships speculation into the graph,
   // and from code alone drags implementation accidents into the language.
-  // The scaffold endpoint requires both roles,
-  // so a workspace cannot start in a state where this value prop fails.
-  // A generative ontology, such as everstory's story, sets other roles.
-  requiredSourceRoles: ['intent', 'code'],
+  // Both roles are required, so a workspace cannot start in a state where
+  // this value prop fails. Intent docs are the unit-bearing role, each doc
+  // is one extraction unit and its sync drives the Reactor. Code is context
+  // the per-unit skill reads, and seeds derived mode when no intent exists.
+  sourceRoles: [
+    { id: 'intent', label: 'Intent', required: true, unitBearing: true, pathSegment: 'intents' },
+    { id: 'code', label: 'Code', required: true, pathSegment: 'codebases' },
+  ],
 
   // SKILL.md prompts shipped with this ontology.
   // They encode DDD-specific reasoning, like the Context Mapping edges,

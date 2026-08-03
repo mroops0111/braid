@@ -1,4 +1,4 @@
-import type { AbsolutePath, PluginId, SkillRunId, SourceId, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, PluginId, SkillRunId, SourceId, SourceRole, WorkspaceId } from '@braidhq/schema'
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -51,7 +51,7 @@ function makeWorkspace(rootPath: AbsolutePath): Workspace {
     sources: [{
       kind: 'filesystem',
       id: 'src-a' as SourceId,
-      role: 'code',
+      role: 'secondary' as SourceRole,
       name: 'a',
       path: '/abs/code' as AbsolutePath,
     }],

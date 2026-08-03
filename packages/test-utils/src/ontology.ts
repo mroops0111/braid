@@ -4,9 +4,20 @@ import type {
   OntologyBatchBinding,
   OntologyPlugin,
   OntologyValidator,
+  SourceRoleDescriptor,
 } from '@braidhq/core'
 import type { OntologyId, PluginId } from '@braidhq/schema'
+import { SourceRole } from '@braidhq/schema'
 import { z } from 'zod'
+
+/** Loose source-role input for tests. `id` is branded and `label` defaults to `id`. */
+export interface SourceRoleInput {
+  readonly id: string
+  readonly label?: string
+  readonly required?: boolean
+  readonly unitBearing?: boolean
+  readonly pathSegment?: string
+}
 
 export interface MakeOntologyOptions {
   readonly ontologyId?: string
@@ -15,7 +26,17 @@ export interface MakeOntologyOptions {
   readonly edgeTypes?: readonly EdgeTypeDescriptor[]
   readonly validators?: readonly OntologyValidator[]
   readonly batch?: OntologyBatchBinding
-  readonly requiredSourceRoles?: readonly ('code' | 'intent')[]
+  readonly sourceRoles?: readonly SourceRoleInput[]
+}
+
+function toRoleDescriptor(role: SourceRoleInput): SourceRoleDescriptor {
+  return {
+    id: SourceRole.parse(role.id),
+    label: role.label ?? role.id,
+    ...(role.required !== undefined ? { required: role.required } : {}),
+    ...(role.unitBearing !== undefined ? { unitBearing: role.unitBearing } : {}),
+    ...(role.pathSegment !== undefined ? { pathSegment: role.pathSegment } : {}),
+  }
 }
 
 /**
@@ -35,7 +56,7 @@ export function makeOntology(opts: MakeOntologyOptions = {}): OntologyPlugin {
     nodeTypes: opts.nodeTypes ?? [],
     edgeTypes: opts.edgeTypes ?? [],
     validators: opts.validators ?? [],
+    sourceRoles: (opts.sourceRoles ?? []).map(toRoleDescriptor),
     ...(opts.batch ? { batch: opts.batch } : {}),
-    ...(opts.requiredSourceRoles ? { requiredSourceRoles: [...opts.requiredSourceRoles] } : {}),
   }
 }

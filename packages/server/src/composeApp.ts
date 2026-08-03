@@ -2,7 +2,6 @@ import type {
   BatchPlanRepository,
   ClarificationRepository,
   Clock,
-  IntentLister,
   ModelRepository,
   ModelSerializer,
   ProposalRepository,
@@ -12,6 +11,7 @@ import type {
   SkillRunner,
   SourceUnitDigest,
   SourceUnitObservationRepository,
+  UnitLister,
   UserDirectory,
   WorkspaceBootstrapService,
   WorkspaceEventBus,
@@ -88,7 +88,7 @@ export interface AppDependencies {
 
   // Source-unit extraction, the filesystem walk and content digest,
   // threaded into the source-unit-states diff endpoint.
-  intentLister?: IntentLister
+  unitLister?: UnitLister
   sourceUnitDigest?: SourceUnitDigest
 
   // Skills, the registry and the subprocess runner.
@@ -154,7 +154,7 @@ export interface ComposeOptions {
   // Source-unit extraction.
   // Without a real digest the observation service falls back,
   // to a no-op stub that throws, fine unless a batch or reactor runs.
-  intentLister?: IntentLister
+  unitLister?: UnitLister
   sourceUnitDigest?: SourceUnitDigest
 
   // Skills.
@@ -229,7 +229,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
 
   // Batch needs SkillRunner, HistoryService, BatchPlanRepository, and a lister.
   // Without them there is no batch surface.
-  const batchService = historyService && options.skillRunner && options.batchPlanRepository && options.intentLister
+  const batchService = historyService && options.skillRunner && options.batchPlanRepository && options.unitLister
     ? new BatchService({
       workspaceService,
       skillRunner: options.skillRunner,
@@ -238,7 +238,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
       historyService,
       hitlService,
       batchPlanRepository: options.batchPlanRepository,
-      intentLister: options.intentLister,
+      unitLister: options.unitLister,
       pluginRegistry,
       eventBus,
       workspaceLock,
@@ -247,7 +247,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     })
     : undefined
 
-  // Reactor shares Batch's dependency footprint of skillRunner, intentLister,
+  // Reactor shares Batch's dependency footprint of skillRunner, unitLister,
   // and sourceUnitObservationService, plus the event bus.
   // We construct it whenever those are present.
   // The service stays inert until something calls `start(workspaceId)`.
@@ -255,14 +255,14 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   // whose ProductManifest.reactor.enabled is true.
   const reactorCycleRepository: ReactorCycleRepository
     = options.reactorCycleRepository ?? new InMemoryReactorCycleRepository()
-  const reactorService = options.skillRunner && options.intentLister && sourceUnitDigest && !(sourceUnitDigest instanceof FailingSourceUnitDigest)
+  const reactorService = options.skillRunner && options.unitLister && sourceUnitDigest && !(sourceUnitDigest instanceof FailingSourceUnitDigest)
     ? new ReactorService({
       eventBus,
       workspaceService,
       pluginRegistry,
       skillRunner: options.skillRunner,
       sourceUnitObservationService,
-      intentLister: options.intentLister,
+      unitLister: options.unitLister,
       digest: sourceUnitDigest,
       reactorCycleRepository,
       workspaceLock,
@@ -279,7 +279,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     ...(batchService ? { batchService } : {}),
     ...(reactorService ? { reactorService } : {}),
     reactorCycleRepository,
-    ...(options.intentLister ? { intentLister: options.intentLister } : {}),
+    ...(options.unitLister ? { unitLister: options.unitLister } : {}),
     ...(options.sourceUnitDigest ? { sourceUnitDigest: options.sourceUnitDigest } : {}),
     ...(options.bootstrap ? { bootstrap: options.bootstrap } : {}),
     sourceUnitObservationService,

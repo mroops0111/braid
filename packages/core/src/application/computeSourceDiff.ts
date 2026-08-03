@@ -1,7 +1,7 @@
 import type { SourceId, SourceUnitDiff } from '@braidhq/schema'
 import type { SourceUnitDigest } from '../domain/source/SourceUnitDigest.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
-import type { IntentLister } from './BatchService.js'
+import type { UnitLister } from './BatchService.js'
 import type { SourceUnitObservationService } from './SourceUnitObservationService.js'
 
 /**
@@ -14,7 +14,7 @@ import type { SourceUnitObservationService } from './SourceUnitObservationServic
  * no digest computation), the orchestrator composes the pieces.
  */
 export interface ComputeSourceDiffDeps {
-  readonly intentLister: IntentLister
+  readonly unitLister: UnitLister
   readonly digest: SourceUnitDigest
   readonly sourceUnitObservationService: SourceUnitObservationService
 }
@@ -24,7 +24,7 @@ export async function computeSourceDiff(
   workspace: Workspace,
   sourceId: SourceId,
 ): Promise<SourceUnitDiff> {
-  const allItems = await deps.intentLister(workspace)
+  const allItems = await deps.unitLister(workspace)
   const sourceItems = allItems.filter(item => item.sourceId === sourceId)
   const withSha = await Promise.all(
     sourceItems.map(async item => ({
