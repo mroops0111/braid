@@ -9,11 +9,7 @@
 
 Braid braids them back into one domain model that engineers and PMs can both read. The default ontology is Domain-Driven Design (DDD), so people and the AI both speak the ubiquitous language of the domain instead of class names and package paths.
 
-```bash
-pnpm dlx @braidhq/cli init my-product
-cd my-product && pnpm dlx @braidhq/cli dev
-# Studio at http://localhost:5173, server at :4321
-```
+![Braid architecture](architecture.png)
 
 ## Features
 
@@ -32,7 +28,11 @@ Braid is built against two failure modes.
 - **Code-Only Graphs**: tools that pull a graph straight from source are honest about what runs, but the result is a class-and-call-site graph. It cannot tell you why a feature exists, who asked for it, or what trade-off shaped its rules. PMs cannot read it.
 - **Doc-Only Knowledge**: PRDs, design docs, Notion, and Confluence speak the domain, but nobody keeps them in sync once the code lands. Six months later, nobody trusts them.
 
-## Framework
+## Design
+
+Braid is a pluggable framework over a fixed runtime shape. The axes are swappable, the review loop and the human gate are not.
+
+### Framework
 
 Braid is a framework, not a managed service. Every axis is a plugin, and the defaults are a starting point rather than a built-in assumption.
 
@@ -40,11 +40,9 @@ Braid is a framework, not a managed service. Every axis is a plugin, and the def
 - **Framework Invariants**: the human-in-the-loop gate, the evidence requirement, and the branded type discipline are enforced by the type system and cannot be swapped out.
 - **Braid Anything**: the domain lives in the ontology, not the engine, so the same loop, gate, and provenance carry over whether you braid a codebase or a research corpus.
 
-## Architecture
+### Architecture
 
 The server is the composition root. Sources feed an event-driven engine that produces reviewable changes, a human gate lands them in one canonical model, and every write is versioned in Git.
-
-![Braid architecture](architecture.png)
 
 - **Surfaces**: Studio (web UI), Desktop, CLI, and MCP clients all talk to one server over REST and SSE.
 - **Sources**: Intent (PRDs, RFCs, issues) and Code (repositories) are pulled in by Source Loader plugins for git, github, and gdrive.
@@ -53,7 +51,21 @@ The server is the composition root. Sources feed an event-driven engine that pro
 - **Reads**: Ask answers a one-off question over the graph, and View Generators project docs and other Views off it.
 - **History**: every human-gated write commits to Git. The graph state travels alongside the code as a `model.json` snapshot, so any commit is restorable.
 
-## The Loop
+## Usage
+
+Get a workspace running, then work the review loop and tune it through the manifest.
+
+### Quick Start
+
+Scaffold a workspace and start the dev server.
+
+```bash
+pnpm dlx @braidhq/cli init my-product
+cd my-product && pnpm dlx @braidhq/cli dev
+# Studio at http://localhost:5173, server at :4321
+```
+
+### The Loop
 
 Once `braid dev` is running, work the loop in Studio at `http://localhost:5173`.
 
@@ -61,20 +73,21 @@ Once `braid dev` is running, work the loop in Studio at `http://localhost:5173`.
 - **Review**: open each Proposal, inspect the diff, and pre-validate it. Answer any Clarification the agent raised.
 - **Apply**: land the change when it is green, or reject it with a reason.
 
-## Workspace Manifest
+### Workspace Manifest
 
-Workspace shape lives in one `PRODUCT.md` manifest. The minimum is just sources.
+Workspace shape lives in one `PRODUCT.md` manifest. It names the workspace, points at the sources, and picks a graph store.
 
 ```yaml
 ---
 name: my-product
 sources:
-  - {kind: filesystem, role: intent, path: ./intent}
-  - {kind: filesystem, role: code, path: ./code/app, language: typescript}
+  - {kind: filesystem, id: src-intent, name: intent, role: intent, path: ./intent}
+  - {kind: filesystem, id: src-code, name: app, role: code, path: ./code/app, language: typescript}
+storage: {kind: kuzu, config: {}}
 ---
 ```
 
-Defaults fill in the rest, the built-in ontology, the Claude Code agent on opus, and embedded Kuzu storage. Declare `ontologyId`, `agents` with `agentBindings`, or `storage` blocks only to override a default. Swap `kind: filesystem` for `git` or `gdrive` to load remote sources.
+`version`, `ontologyId` (DDD by default), and `mcpServers` fill in when omitted. Swap a source's `kind: filesystem` for `git` or `gdrive` to load remote sources.
 
 ## Packages
 
@@ -142,12 +155,11 @@ argumentHint: <ctx-name>
 model: opus
 braid:
   requiredEnv: [GITHUB_TOKEN]
-  requiredPaths: [./intent, ./code]
 ---
 Walk `intent/` and `code/`. Emit proposals that add boundedContext, aggregate, and command nodes. Cite the source file or doc each claim came from.
 ```
 
-Top-level keys follow the Claude Code skill frontmatter format (`name`, `description`, `argumentHint`, `model`). The Braid-specific `braid:` block is preflighted before the agent spawns, so a missing env var, path, or MCP server fails fast with a clear error instead of derailing the conversation halfway through.
+Top-level keys follow the Claude Code skill frontmatter format (`name`, `description`, `argumentHint`, `model`). The Braid-specific `braid:` block is preflighted before the agent spawns, so a missing env var or MCP server fails fast with a clear error instead of derailing the conversation halfway through.
 
 ## License
 
