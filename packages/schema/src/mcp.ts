@@ -22,7 +22,7 @@ export const McpStreamableHttpServerConfig = McpServerBase.extend({
   transport: z.literal('streamable-http'),
   url: z.string().url(),
   // ${VAR} interpolation keeps secrets out of PRODUCT.md, resolved at write time.
-  headers: z.record(z.string()).optional(),
+  headers: z.record(z.string(), z.string()).optional(),
 })
 export type McpStreamableHttpServerConfig = z.infer<typeof McpStreamableHttpServerConfig>
 
@@ -32,7 +32,7 @@ export const McpStdioServerConfig = McpServerBase.extend({
   command: z.string().min(1),
   args: z.array(z.string()).optional(),
   // ${VAR} interpolation against the parent env, same as headers.
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
 })
 export type McpStdioServerConfig = z.infer<typeof McpStdioServerConfig>
 

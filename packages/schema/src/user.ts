@@ -19,5 +19,9 @@ export const UserCreate = User.omit({ id: true, createdAt: true }).partial({
 })
 export type UserCreate = z.infer<typeof UserCreate>
 
-export const UserUpdate = User.omit({ id: true, createdAt: true, googleSub: true }).partial()
+// `.extend` strips serverRole's default, zod 4 keeps defaults through `.partial()`.
+// A patch must leave absent fields absent, not reset serverRole to 'user'.
+export const UserUpdate = User.omit({ id: true, createdAt: true, googleSub: true }).partial().extend({
+  serverRole: ServerRole.optional(),
+})
 export type UserUpdate = z.infer<typeof UserUpdate>
