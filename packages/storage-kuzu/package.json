@@ -1,7 +1,7 @@
 {
   "name": "@braidhq/storage-kuzu",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Embedded Kuzu graph-storage plugin for Braid. Zero-infra single-binary alternative to Neo4j.",
   "license": "MIT",
   "repository": {

@@ -1,7 +1,7 @@
 {
   "name": "@braidhq/source-loader-gdrive",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Google Drive source-loader plugin for Braid. Export docs from Google Drive, requires OAuth on first use.",
   "license": "MIT",
   "repository": {
