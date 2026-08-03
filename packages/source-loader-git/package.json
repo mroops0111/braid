@@ -29,7 +29,7 @@
     "@braidhq/schema": "workspace:*",
     "@braidhq/sdk": "workspace:*",
     "simple-git": "^3.36.0",
-    "zod": "^3.24.0"
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@braidhq/test-utils": "workspace:*",

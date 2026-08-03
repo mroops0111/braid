@@ -15,6 +15,6 @@ export const AgentBindingDescriptor = z.object({
   model: z.string().min(1),
   effort: AgentEffort.optional(),
   extraArgs: z.array(z.string()).default([]),
-  env: z.record(z.string()).default({}),
+  env: z.record(z.string(), z.string()).default({}),
 })
 export type AgentBindingDescriptor = z.infer<typeof AgentBindingDescriptor>

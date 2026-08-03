@@ -36,7 +36,14 @@ export const ProductManifest = z.object({
 })
 export type ProductManifest = z.infer<typeof ProductManifest>
 
-export const ProductManifestUpdate = ProductManifest.partial()
+// `.extend` strips the defaults, zod 4 keeps defaults through `.partial()`.
+// A patch must leave absent fields absent, not reset them to their defaults.
+export const ProductManifestUpdate = ProductManifest.partial().extend({
+  version: z.string().optional(),
+  ontologyId: OntologyId.optional(),
+  sources: z.array(SourceDescriptor).optional(),
+  mcpServers: z.array(McpServerConfig).optional(),
+})
 export type ProductManifestUpdate = z.infer<typeof ProductManifestUpdate>
 
 /** Scaffold subset: user gives name/sources/mcpServers, server defaults the rest. */

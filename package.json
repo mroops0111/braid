@@ -40,7 +40,10 @@
     "onlyBuiltDependencies": [
       "kuzu",
       "simple-git-hooks"
-    ]
+    ],
+    "overrides": {
+      "zod": "^4.2.1"
+    }
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm exec lint-staged"
