@@ -23,7 +23,7 @@
   "dependencies": {
     "@braidhq/core": "workspace:*",
     "@braidhq/schema": "workspace:*",
-    "zod": "^3.24.0"
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "typescript": "^6.0.3",
