@@ -28,7 +28,11 @@ Braid is built against two failure modes.
 - **Code-Only Graphs**: tools that pull a graph straight from source are honest about what runs, but the result is a class-and-call-site graph. It cannot tell you why a feature exists, who asked for it, or what trade-off shaped its rules. PMs cannot read it.
 - **Doc-Only Knowledge**: PRDs, design docs, Notion, and Confluence speak the domain, but nobody keeps them in sync once the code lands. Six months later, nobody trusts them.
 
-## Framework
+## Design
+
+Braid is a pluggable framework over a fixed runtime shape. The axes are swappable, the review loop and the human gate are not.
+
+### Framework
 
 Braid is a framework, not a managed service. Every axis is a plugin, and the defaults are a starting point rather than a built-in assumption.
 
@@ -36,7 +40,7 @@ Braid is a framework, not a managed service. Every axis is a plugin, and the def
 - **Framework Invariants**: the human-in-the-loop gate, the evidence requirement, and the branded type discipline are enforced by the type system and cannot be swapped out.
 - **Braid Anything**: the domain lives in the ontology, not the engine, so the same loop, gate, and provenance carry over whether you braid a codebase or a research corpus.
 
-## Architecture
+### Architecture
 
 The server is the composition root. Sources feed an event-driven engine that produces reviewable changes, a human gate lands them in one canonical model, and every write is versioned in Git.
 
@@ -47,7 +51,11 @@ The server is the composition root. Sources feed an event-driven engine that pro
 - **Reads**: Ask answers a one-off question over the graph, and View Generators project docs and other Views off it.
 - **History**: every human-gated write commits to Git. The graph state travels alongside the code as a `model.json` snapshot, so any commit is restorable.
 
-## Quick Start
+## Usage
+
+Get a workspace running, then work the review loop and tune it through the manifest.
+
+### Quick Start
 
 Scaffold a workspace and start the dev server.
 
@@ -57,7 +65,7 @@ cd my-product && pnpm dlx @braidhq/cli dev
 # Studio at http://localhost:5173, server at :4321
 ```
 
-## The Loop
+### The Loop
 
 Once `braid dev` is running, work the loop in Studio at `http://localhost:5173`.
 
@@ -65,7 +73,7 @@ Once `braid dev` is running, work the loop in Studio at `http://localhost:5173`.
 - **Review**: open each Proposal, inspect the diff, and pre-validate it. Answer any Clarification the agent raised.
 - **Apply**: land the change when it is green, or reject it with a reason.
 
-## Workspace Manifest
+### Workspace Manifest
 
 Workspace shape lives in one `PRODUCT.md` manifest. The minimum is just sources.
 
