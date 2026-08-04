@@ -77,6 +77,16 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
     const path = context.req.path
 
     if (!options.requireAuth) {
+      // A presented, valid Bearer session wins even under local trust, so an
+      // internal caller like the reactor is identified as its service account.
+      // Studio under local trust sends no Bearer, so this never shadows it.
+      const token = extractBearerToken(context)
+      const session = token ? await options.sessionStore?.resolve(token) : undefined
+      if (session) {
+        context.set('userId', session.userId)
+        await next()
+        return undefined
+      }
       const header = context.req.header(USER_HEADER)
       const fromHeader = header && header.length > 0 ? UserId.parse(header) : null
       const resolved = fromHeader ?? options.defaultPrincipal

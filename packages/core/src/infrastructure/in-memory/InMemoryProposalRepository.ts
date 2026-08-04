@@ -1,6 +1,7 @@
 import type { ProposalFilter, ProposalId } from '@braidhq/schema'
 import type { Proposal } from '../../domain/hitl/Proposal.js'
 import type { ProposalRepository } from '../../domain/hitl/ProposalRepository.js'
+import { isServiceAccount } from '@braidhq/schema'
 import { paginate } from '../../domain/paginate.js'
 import { InMemoryKeyedStore } from './InMemoryKeyedStore.js'
 
@@ -24,7 +25,7 @@ export class InMemoryProposalRepository implements ProposalRepository {
     if (filter?.viewerId !== undefined) {
       const viewerId = filter.viewerId
       proposals = proposals.filter(proposal =>
-        proposal.status !== 'pending' || proposal.owner === 'system' || proposal.owner === viewerId,
+        proposal.status !== 'pending' || isServiceAccount(proposal.owner) || proposal.owner === viewerId,
       )
     }
     return paginate(proposals, filter?.limit, filter?.offset)

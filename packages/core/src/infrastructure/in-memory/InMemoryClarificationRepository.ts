@@ -1,6 +1,7 @@
 import type { ClarificationFilter, ClarificationId } from '@braidhq/schema'
 import type { Clarification } from '../../domain/hitl/Clarification.js'
 import type { ClarificationRepository } from '../../domain/hitl/ClarificationRepository.js'
+import { isServiceAccount } from '@braidhq/schema'
 import { paginate } from '../../domain/paginate.js'
 import { InMemoryKeyedStore } from './InMemoryKeyedStore.js'
 
@@ -20,7 +21,7 @@ export class InMemoryClarificationRepository implements ClarificationRepository 
     if (filter?.viewerId !== undefined) {
       const viewerId = filter.viewerId
       tickets = tickets.filter(ticket =>
-        ticket.status !== 'pending' || ticket.owner === 'system' || ticket.owner === viewerId,
+        ticket.status !== 'pending' || isServiceAccount(ticket.owner) || ticket.owner === viewerId,
       )
     }
     return paginate(tickets, filter?.limit, filter?.offset)

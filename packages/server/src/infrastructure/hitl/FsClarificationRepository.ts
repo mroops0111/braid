@@ -5,7 +5,7 @@ import type {
   WorkspaceId,
 } from '@braidhq/schema'
 import { Clarification, type ClarificationRepository, paginate } from '@braidhq/core'
-import { Clarification as ClarificationSchema } from '@braidhq/schema'
+import { Clarification as ClarificationSchema, isServiceAccount } from '@braidhq/schema'
 import { clarificationDir, CLARIFY_STATUSES } from '../_shared/paths.js'
 import { StatusedJsonStore } from './StatusedJsonStore.js'
 
@@ -42,7 +42,7 @@ export class FsClarificationRepository implements ClarificationRepository {
     if (filter?.viewerId !== undefined) {
       const viewerId = filter.viewerId
       tickets = tickets.filter(ticket =>
-        ticket.status !== 'pending' || ticket.owner === 'system' || ticket.owner === viewerId,
+        ticket.status !== 'pending' || isServiceAccount(ticket.owner) || ticket.owner === viewerId,
       )
     }
     return paginate(tickets, filter?.limit, filter?.offset)

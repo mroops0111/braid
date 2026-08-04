@@ -16,12 +16,12 @@ import {
 } from '@braidhq/core'
 import { InMemoryWorkspaceEventBus } from '@braidhq/core/in-memory'
 import { dddOntology } from '@braidhq/ontology-ddd'
-import { AgentId, AgentKind, StorageKind as StorageKindSchema } from '@braidhq/schema'
+import { AgentId, AgentKind, REACTOR_USER_ID, StorageKind as StorageKindSchema } from '@braidhq/schema'
 import { createGoogleDriveLoader } from '@braidhq/source-loader-gdrive'
 import { gitLoader } from '@braidhq/source-loader-git'
 import { createGithubLoader } from '@braidhq/source-loader-github'
 import { kuzuStoragePlugin } from '@braidhq/storage-kuzu'
-import { authenticated, localTrust } from './authMode.js'
+import { authenticated, localTrust, provisionServiceAccounts } from './authMode.js'
 import { composeApp } from './composeApp.js'
 import { parseBoolEnv } from './infrastructure/_shared/env.js'
 import { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
@@ -144,6 +144,8 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   const authMode = parseBoolEnv(process.env.BRAID_LOCAL_TRUST, true) ? localTrust : authenticated
   // Local trust seeds `local-user`, authenticated mode syncs the login allowlist.
   await authMode.provision({ userRegistry, accessPolicy })
+  // Service accounts exist in every mode, independent of the auth strategy.
+  await provisionServiceAccounts({ userRegistry, accessPolicy })
   const studioUrl = process.env.BRAID_STUDIO_URL ?? 'http://localhost:5173'
   const workspaceRoots = async (): Promise<ReadonlyMap<WorkspaceId, AbsolutePath>> => {
     const workspaces = await workspaceRepository.list()
@@ -325,6 +327,9 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     bootstrap,
     batchPlanRepository: new FsBatchPlanRepository(),
     unitLister: workspace => listUnitItems(workspace, unitBearingRolesOf(pluginRegistry, workspace)),
+    // The reactor has no human caller, so it acts as the `reactor` service
+    // account, minting a short-lived session so its API calls authenticate.
+    reactorToken: async () => (await sessionStore.issue(REACTOR_USER_ID, { ttlSeconds: 3600 })).token,
     sourceUnitObservationRepository: new FsSourceUnitObservationRepository({ workspaceRoots }),
     reactorCycleRepository: new FsReactorCycleRepository({ workspaceRoots }),
     sourceUnitDigest: new FsSourceUnitDigest(),

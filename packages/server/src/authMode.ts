@@ -3,7 +3,7 @@ import type { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
 import type { UserRegistryFile } from './infrastructure/users/UserRegistryFile.js'
 import { userInfo } from 'node:os'
 import process from 'node:process'
-import { UserId as UserIdSchema } from '@braidhq/schema'
+import { SERVICE_ACCOUNTS, UserId as UserIdSchema } from '@braidhq/schema'
 
 export const LOCAL_USER_ID = UserIdSchema.parse('local-user')
 
@@ -66,6 +66,25 @@ export const authenticated: AuthMode = {
         await accessPolicy.approveEmail(user.email)
     }
   },
+}
+
+/**
+ * Seed the built-in service accounts, idempotently, in every mode.
+ * They act as admins so an autonomous component's calls clear the same
+ * membership gate a workspace owner does, via the admin-to-owner rule,
+ * with no service-account special-case in the access middleware.
+ */
+export async function provisionServiceAccounts({ userRegistry }: AuthContext): Promise<void> {
+  for (const account of SERVICE_ACCOUNTS) {
+    if (await userRegistry.get(account.id))
+      continue
+    await userRegistry.create({
+      id: account.id,
+      displayName: account.displayName,
+      serverRole: 'admin',
+      createdAt: new Date().toISOString() as Timestamp,
+    })
+  }
 }
 
 // Default display name from the OS account.
