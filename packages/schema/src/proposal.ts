@@ -76,5 +76,7 @@ export const ProposalFilter = z.object({
   offset: z.number().int().nonnegative().optional(),
   // When set, hides others' pending proposals. Non-pending stay visible, absent shows all.
   viewerId: UserId.optional(),
+  // Whether the viewer also sees service-account-owned pending. Owners only.
+  includeServiceAccounts: z.boolean().optional(),
 })
 export type ProposalFilter = z.infer<typeof ProposalFilter>

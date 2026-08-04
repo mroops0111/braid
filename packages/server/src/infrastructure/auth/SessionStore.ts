@@ -64,10 +64,13 @@ export class FsSessionStore implements SessionStore {
     const content = await this.read()
     const token = randomBytes(32).toString('base64url')
     const tokenHash = sha256Hex(token)
-    const createdAt = new Date().toISOString()
+    const now = Date.now()
+    const createdAt = new Date(now).toISOString()
     const expiresAt = options.ttlSeconds
-      ? new Date(Date.now() + options.ttlSeconds * 1000).toISOString()
+      ? new Date(now + options.ttlSeconds * 1000).toISOString()
       : undefined
+    // Drop already-expired rows so short-lived service tokens do not accumulate.
+    content.sessions = content.sessions.filter(s => !s.expiresAt || Date.parse(s.expiresAt) >= now)
     content.sessions.push({ tokenHash, userId, createdAt, ...(expiresAt ? { expiresAt } : {}) })
     await this.write(content)
     return { token, userId, ...(expiresAt ? { expiresAt } : {}) }

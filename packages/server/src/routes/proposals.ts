@@ -184,12 +184,15 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     // whatever they send.
     const viewer = getViewerContext(context)
     const viewerId = (showAll && viewer?.effectiveRole === 'owner') ? undefined : getUserId(context)
+    // Only owners see service-account (autonomous) pending, since only they can apply it.
+    // An absent viewer is an open composition (in-memory, headless), which stays open.
+    const includeServiceAccounts = !viewer || viewer.effectiveRole === 'owner'
     const proposals = await deps.proposalRepository.list({
       workspaceId,
       statuses,
       limit,
       offset,
-      ...(viewerId ? { viewerId } : {}),
+      ...(viewerId ? { viewerId, includeServiceAccounts } : {}),
     })
     return context.json({ items: proposals.map(proposal => proposal.toData()) }, 200)
   })

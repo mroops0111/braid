@@ -87,5 +87,7 @@ export const ClarificationFilter = z.object({
   offset: z.number().int().nonnegative().optional(),
   // When set, hides others' pending tickets. Non-pending stay visible, absent shows all.
   viewerId: UserId.optional(),
+  // Whether the viewer also sees service-account-owned pending. Owners only.
+  includeServiceAccounts: z.boolean().optional(),
 })
 export type ClarificationFilter = z.infer<typeof ClarificationFilter>

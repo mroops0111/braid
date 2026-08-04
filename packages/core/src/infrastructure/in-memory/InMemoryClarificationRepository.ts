@@ -20,8 +20,9 @@ export class InMemoryClarificationRepository implements ClarificationRepository 
     }
     if (filter?.viewerId !== undefined) {
       const viewerId = filter.viewerId
+      const includeServiceAccounts = filter.includeServiceAccounts ?? false
       tickets = tickets.filter(ticket =>
-        ticket.status !== 'pending' || isServiceAccount(ticket.owner) || ticket.owner === viewerId,
+        ticket.status !== 'pending' || (includeServiceAccounts && isServiceAccount(ticket.owner)) || ticket.owner === viewerId,
       )
     }
     return paginate(tickets, filter?.limit, filter?.offset)

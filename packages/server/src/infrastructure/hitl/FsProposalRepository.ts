@@ -41,8 +41,9 @@ export class FsProposalRepository implements ProposalRepository {
     // Absent viewerId means no filter, for Owner Show All and legacy callers.
     if (filter?.viewerId !== undefined) {
       const viewerId = filter.viewerId
+      const includeServiceAccounts = filter.includeServiceAccounts ?? false
       proposals = proposals.filter(proposal =>
-        proposal.status !== 'pending' || isServiceAccount(proposal.owner) || proposal.owner === viewerId,
+        proposal.status !== 'pending' || (includeServiceAccounts && isServiceAccount(proposal.owner)) || proposal.owner === viewerId,
       )
     }
     return paginate(proposals, filter?.limit, filter?.offset)
