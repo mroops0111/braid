@@ -1,9 +1,10 @@
 import type { AbsolutePath, BatchUnitId, ProposalId } from '@braidhq/schema'
-import { mkdtemp } from 'node:fs/promises'
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { makePlan } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
+import { batchPlanPath, workspaceArtifactsDir } from '../../../src/infrastructure/_shared/paths.js'
 import { FsBatchPlanRepository } from '../../../src/infrastructure/batch/FsBatchPlanRepository.js'
 import { makeWorkspace } from '../../helpers/fakes.js'
 
@@ -25,7 +26,7 @@ describe('FsBatchPlanRepository', () => {
     await repo.save(ws, makePlan({ status: 'running', autoApply: true }))
     const loaded = await repo.load(ws)
     expect(loaded?.units.map(u => u.id)).toEqual(['pu-a', 'pu-b'])
-    expect(loaded?.mode).toBe('intent')
+    expect(loaded?.mode).toBe('direct')
     expect(loaded?.autoApply).toBe(true)
   })
 
@@ -42,6 +43,19 @@ describe('FsBatchPlanRepository', () => {
     await repo.save(ws, next)
     const loaded = await repo.load(ws)
     expect(loaded?.units.find(u => u.id === 'pu-a')?.status).toBe('completed')
+  })
+
+  it('migrates a legacy v1 plan (mode=intent) to the current schema (mode=direct)', async () => {
+    const root = await makeRoot()
+    const ws = makeWorkspace({ rootPath: root })
+    // Hand-write a pre-rename v1 file, the shape older servers persisted.
+    const legacyPlan = { ...makePlan({ status: 'running', autoApply: true }).toData(), mode: 'intent' }
+    await mkdir(workspaceArtifactsDir(root), { recursive: true })
+    await writeFile(batchPlanPath(root), JSON.stringify({ version: 1, plan: legacyPlan }), 'utf-8')
+
+    const loaded = await new FsBatchPlanRepository().load(ws)
+    expect(loaded?.mode).toBe('direct')
+    expect(loaded?.units.map(u => u.id)).toEqual(['pu-a', 'pu-b'])
   })
 
   it('clear removes the file', async () => {

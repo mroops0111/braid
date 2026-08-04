@@ -3,8 +3,8 @@ import { Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { humaniseApiError } from '@/lib/errors'
-import { useSourceLoaders } from '@/lib/queries'
-import { loaderKindLabel, nameToId, rolePathSegment, type SourceDraft, STUDIO_KNOWN_LOADER_KINDS, toSourceDescriptor } from '@/lib/sourceDraft'
+import { useOntology, useSourceLoaders } from '@/lib/queries'
+import { loaderKindLabel, nameToId, type SourceDraft, STUDIO_KNOWN_LOADER_KINDS, toSourceDescriptor } from '@/lib/sourceDraft'
 import { useGoogleOAuth } from '@/lib/useGoogleOAuth'
 import { MarkdownDescriptionField } from './MarkdownDescriptionField'
 import { Button } from './ui/button'
@@ -23,10 +23,19 @@ interface AddSourceDialogProps {
 
 export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: AddSourceDialogProps) {
   const sourceLoaders = useSourceLoaders()
-  const [role, setRole] = useState<'intent' | 'code'>('intent')
+  const ontology = useOntology(workspaceId)
+  const roles = ontology.data?.sourceRoles ?? []
+  const [role, setRole] = useState<string>('')
+  // Default to the ontology's first declared role once it loads.
+  useEffect(() => {
+    if (!role && roles.length > 0)
+      setRole(roles[0]!.id)
+  }, [role, roles])
+  const selectedRole = roles.find(r => r.id === role)
+  const pathSegment = selectedRole?.pathSegment ?? role
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [loaderKind, setLoaderKind] = useState<SourceDraft['loaderKind']>(role === 'intent' ? 'gdrive' : 'git')
+  const [loaderKind, setLoaderKind] = useState<SourceDraft['loaderKind']>('')
   const loaderKnown = loaderKind === '' || STUDIO_KNOWN_LOADER_KINDS.has(loaderKind)
   const [gitUrl, setGitUrl] = useState('')
   const [gitBranch, setGitBranch] = useState('master')
@@ -64,6 +73,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
     mutationFn: () => {
       const source = toSourceDescriptor({
         role,
+        pathSegment,
         name,
         description,
         loaderKind,
@@ -90,7 +100,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
   function reset() {
     setName('')
     setDescription('')
-    setLoaderKind(role === 'intent' ? 'gdrive' : 'git')
+    setLoaderKind('')
     setGitUrl('')
     setGitBranch('master')
     setGdriveFolderId('')
@@ -112,6 +122,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
   }
 
   const valid = name.trim().length > 0
+    && role.length > 0
     && loaderKnown
     && (loaderKind !== 'git' || gitUrl.trim().length > 0)
     && (loaderKind !== 'gdrive' || (gdriveFolderId.trim().length > 0 && gdriveFolderId.trim() !== 'root' && oauthConnected))
@@ -133,11 +144,12 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <Field label="Role">
-              <Select value={role} onValueChange={v => setRole(v as typeof role)}>
+              <Select value={role} onValueChange={setRole}>
                 <SelectTrigger size="sm" className="w-full text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="intent">intent</SelectItem>
-                  <SelectItem value="code">code</SelectItem>
+                  {roles.map(r => (
+                    <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </Field>
@@ -155,10 +167,10 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
             </Field>
           </div>
           <Field label="Name">
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder={role === 'intent' ? 'intent-name' : 'repo-name'} autoFocus />
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder={`${role || 'source'}-name`} autoFocus />
             <p className="font-mono text-2xs text-muted-foreground">
               ./
-              {rolePathSegment(role)}
+              {pathSegment}
               /
               {nameToId(name) || '<name>'}
             </p>
@@ -168,9 +180,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
             value={description}
             onChange={setDescription}
             label="What is this source?"
-            placeholder={role === 'intent'
-              ? 'e.g. Authoritative billing RFC; updated weekly by design team.'
-              : 'e.g. Legacy Java monolith; read-only reference.'}
+            placeholder="e.g. what this source holds and how authoritative it is."
             helperText="Visible to skills via PRODUCT.md."
             rows={2}
           />

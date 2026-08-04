@@ -1,4 +1,4 @@
-import type { McpServerConfig, ProductManifestCreate } from '@braidhq/schema'
+import type { McpServerConfig, ProductManifestCreate, SourceRoleDescriptor } from '@braidhq/schema'
 import type { ProvisionSummary } from '@/lib/api'
 import type { SourceDraft as SourceDraftBase } from '@/lib/sourceDraft'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -8,8 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import { api, workspaceEventsUrl } from '@/lib/api'
 import { asMcpServerId, asOntologyId, asStorageKind } from '@/lib/brands'
 import { type ErrorCase, humaniseApiError } from '@/lib/errors'
-import { queryKeys, useSourceLoaders } from '@/lib/queries'
-import { loaderKindLabel, nameToId, rolePathSegment, STUDIO_KNOWN_LOADER_KINDS, toSourceDescriptor } from '@/lib/sourceDraft'
+import { queryKeys, useOntologies, useSourceLoaders } from '@/lib/queries'
+import { draftPathSegment, loaderKindLabel, nameToId, STUDIO_KNOWN_LOADER_KINDS, toSourceDescriptor } from '@/lib/sourceDraft'
 import { useGoogleOAuth } from '@/lib/useGoogleOAuth'
 import { MarkdownDescriptionField } from './MarkdownDescriptionField'
 import { Button } from './ui/button'
@@ -62,6 +62,8 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
   const [sources, setSources] = useState<SourceDraft[]>([])
   const [mcpServers, setMcpServers] = useState<McpDraft[]>([])
   const [ontologyId, setOntologyId] = useState('ddd')
+  const ontologies = useOntologies()
+  const sourceRoles = ontologies.data?.ontologies.find(o => o.ontologyId === ontologyId)?.sourceRoles ?? []
   const [storageKind, setStorageKind] = useState('kuzu')
   const [provisionResults, setProvisionResults] = useState<ProvisionSummary[]>([])
   // sourceIds whose Google OAuth flow completed in this wizard session.
@@ -156,6 +158,7 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
           {step === 'sources' && (
             <SourcesStep
               workspaceName={name}
+              roles={sourceRoles}
               sources={sources}
               oauthConnectedFor={oauthConnectedFor}
               onChange={setSources}
@@ -307,14 +310,15 @@ function BasicsStep({ name, description, onName, onDescription }: {
   )
 }
 
-function SourcesStep({ workspaceName, sources, oauthConnectedFor, onChange, onOauthConnected }: {
+function SourcesStep({ workspaceName, roles, sources, oauthConnectedFor, onChange, onOauthConnected }: {
   workspaceName: string
+  roles: readonly SourceRoleDescriptor[]
   sources: SourceDraft[]
   oauthConnectedFor: ReadonlySet<string>
   onChange: (sources: SourceDraft[]) => void
   onOauthConnected: (sourceId: string) => void
 }) {
-  function add(role: 'intent' | 'code') {
+  function add(role: SourceRoleDescriptor) {
     onChange([...sources, defaultSourceDraft(role)])
   }
   function update(uiId: string, patch: Partial<SourceDraft>) {
@@ -327,13 +331,8 @@ function SourcesStep({ workspaceName, sources, oauthConnectedFor, onChange, onOa
   return (
     <div className="space-y-3">
       <p className="text-2xs text-muted-foreground">
-        Intent sources hold the rules / specs / docs (default loader:
-        {' '}
-        <code className="rounded bg-muted px-1">gdrive</code>
-        ). Code sources are the implementation (default:
-        {' '}
-        <code className="rounded bg-muted px-1">git</code>
-        ). Loaders place files under the workspace folder; pick
+        Add a source for each role the ontology declares. A loader places files
+        under the workspace folder; pick
         {' '}
         <code className="rounded bg-muted px-1">manual</code>
         {' '}
@@ -352,15 +351,15 @@ function SourcesStep({ workspaceName, sources, oauthConnectedFor, onChange, onOa
           />
         ))}
       </div>
-      <div className="flex gap-2">
-        <Button variant="ghost" size="sm" onClick={() => add('intent')}>
-          <Plus />
-          Intent Source
-        </Button>
-        <Button variant="ghost" size="sm" onClick={() => add('code')}>
-          <Plus />
-          Code Source
-        </Button>
+      <div className="flex flex-wrap gap-2">
+        {roles.map(role => (
+          <Button key={role.id} variant="ghost" size="sm" onClick={() => add(role)}>
+            <Plus />
+            {role.label}
+            {' '}
+            Source
+          </Button>
+        ))}
       </div>
     </div>
   )
@@ -375,13 +374,13 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
   onOauthConnected: (sourceId: string) => void
 }) {
   const id = nameToId(draft.name)
-  const targetPath = `./${rolePathSegment(draft.role)}/${id || '<name>'}`
+  const targetPath = `./${draftPathSegment(draft)}/${id || '<name>'}`
   return (
     <div className="space-y-2 rounded-md border border-border p-3">
       <div className="flex items-center gap-2">
         <Badge variant="outline" className="text-2xs uppercase tracking-wider text-muted-foreground">{draft.role}</Badge>
         <Input
-          placeholder={draft.role === 'intent' ? 'intent-name' : 'repo-name'}
+          placeholder={`${draft.role}-name`}
           value={draft.name}
           onChange={e => onUpdate({ name: e.target.value })}
           className="flex-1"
@@ -399,9 +398,7 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
         value={draft.description}
         onChange={next => onUpdate({ description: next })}
         label="What is this source?"
-        placeholder={draft.role === 'intent'
-          ? 'e.g. Authoritative billing RFC; updated weekly by design team.'
-          : 'e.g. Legacy Java monolith; read-only reference.'}
+        placeholder="e.g. what this source holds and how authoritative it is."
         helperText="Visible to skills via PRODUCT.md."
         rows={2}
       />
@@ -844,13 +841,14 @@ function canAdvanceFrom(
   return true
 }
 
-function defaultSourceDraft(role: 'intent' | 'code'): SourceDraft {
+function defaultSourceDraft(role: SourceRoleDescriptor): SourceDraft {
   return {
     uiId: crypto.randomUUID(),
-    role,
+    role: role.id,
+    pathSegment: role.pathSegment ?? role.id,
     name: '',
     description: '',
-    loaderKind: role === 'intent' ? 'gdrive' : 'git',
+    loaderKind: '',
     gitUrl: '',
     gitBranch: 'master',
     gdriveFolderId: '',

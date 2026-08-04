@@ -16,8 +16,8 @@ describe('batch enums', () => {
   it('batch status covers the plan lifecycle', () => {
     expect(BatchStatus.options).toEqual(['idle', 'deriving', 'running', 'completed', 'failed', 'stopped', 'archived'])
   })
-  it('input mode is intent or derive', () => {
-    expect(BatchInputMode.options).toEqual(['intent', 'derive'])
+  it('input mode is direct or derived', () => {
+    expect(BatchInputMode.options).toEqual(['direct', 'derived'])
   })
   it('checkpoint phase status is a three-state run', () => {
     expect(BatchCheckpointPhaseStatus.options).toEqual(['running', 'completed', 'failed'])
@@ -43,7 +43,7 @@ describe('BatchPlan', () => {
     workspaceId: 'ws-1',
     createdAt: isoTimestamp,
     updatedAt: isoTimestamp,
-    mode: 'intent',
+    mode: 'direct',
     status: 'idle',
     autoApply: false,
     units: [],

@@ -9,6 +9,7 @@ import type {
   SkillId,
   SkillManifest as SkillManifestData,
   SourceId,
+  SourceRole,
   StorageKind,
   WorkspaceId,
 } from '@braidhq/schema'
@@ -37,7 +38,7 @@ function buildWorkspace(): Workspace {
     sources: [{
       kind: 'filesystem',
       id: 'code-api' as SourceId,
-      role: 'code',
+      role: 'secondary' as SourceRole,
       name: 'api',
       path: '/abs/code/api' as AbsolutePath,
     }],

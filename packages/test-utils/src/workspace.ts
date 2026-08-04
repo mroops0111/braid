@@ -12,6 +12,7 @@ import type {
   WorkspaceId,
 } from '@braidhq/schema'
 import { Workspace } from '@braidhq/core'
+import { SourceRole } from '@braidhq/schema'
 
 /** Sample binding for tests that construct a ClaudeCodeAgentBinding directly. */
 export const DEFAULT_AGENT_BINDING: AgentBindingDescriptor = {
@@ -51,7 +52,7 @@ export function makeWorkspace(opts: MakeWorkspaceOptions = {}): Workspace {
     name: id,
     version: '0.0.0',
     ontologyId: (opts.ontologyId ?? 'ddd') as never,
-    sources: [...(opts.sources ?? [defaultCodeSource(rootPath)])],
+    sources: [...(opts.sources ?? [defaultSource(rootPath)])],
     mcpServers: [...(opts.mcpServers ?? [])],
     storage: opts.storage ?? DEFAULT_STORAGE,
   }
@@ -62,11 +63,11 @@ export function makeWorkspace(opts: MakeWorkspaceOptions = {}): Workspace {
   })
 }
 
-function defaultCodeSource(rootPath: AbsolutePath): SourceDescriptor {
+function defaultSource(rootPath: AbsolutePath): SourceDescriptor {
   return {
     kind: 'filesystem',
-    id: 'code-default' as SourceId,
-    role: 'code',
+    id: 'source-default' as SourceId,
+    role: SourceRole.parse('primary'),
     name: 'default',
     path: rootPath,
   }

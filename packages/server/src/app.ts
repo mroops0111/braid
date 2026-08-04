@@ -15,6 +15,7 @@ import { createHistoryRouter } from './routes/history.js'
 import { createModelRouter } from './routes/model.js'
 import { createNodesRouter } from './routes/nodes.js'
 import { createOAuthRouter } from './routes/oauth.js'
+import { createOntologiesRouter } from './routes/ontologies.js'
 import { createOntologyRouter } from './routes/ontology.js'
 import { createProposalsRouter } from './routes/proposals.js'
 import { createReactorCyclesRouter } from './routes/reactorCycles.js'
@@ -103,6 +104,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   // sourced from the active PluginRegistry, not hardcoded strings.
   // Installed loaders are identical across workspaces, not scoped to one.
   app.route('/source-loaders', createSourceLoadersRouter({ pluginRegistry: deps.pluginRegistry }))
+  app.route('/ontologies', createOntologiesRouter({ pluginRegistry: deps.pluginRegistry }))
 
   // Public webhook receivers, authenticated by per-source HMAC secrets,
   // inside the handler, not by a Bearer token.
@@ -148,11 +150,11 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   }))
   workspaceScoped.route('/source-unit-states', createSourceUnitObservationsRouter({
     sourceUnitObservationService: deps.sourceUnitObservationService,
-    ...(deps.intentLister && deps.sourceUnitDigest
+    ...(deps.unitLister && deps.sourceUnitDigest
       ? {
           diffSupport: {
             workspaceService: deps.workspaceService,
-            intentLister: deps.intentLister,
+            unitLister: deps.unitLister,
             digest: deps.sourceUnitDigest,
           },
         }

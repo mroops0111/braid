@@ -12,7 +12,7 @@ type TextInput = Extract<SkillInputDescriptor, { kind: 'text' }>
 export interface SkillRunSpec {
   readonly args: string
   /**
-   * Set when the run's value originated from a `source-intent` picker.
+   * Set when the run's value originated from a `source` picker.
    * Plumbing it through lets the server record an observation,
    * against the unit on successful completion.
    * Other run kinds leave it undefined.
@@ -33,7 +33,7 @@ interface ActionInputFormProps {
    * a multi-pick with N selected values fans out to N elements,
    * so the parent can spawn N parallel skill runs,
    * sharing the same per-skill conversation key.
-   * When the input came from a `source-intent` picker,
+   * When the input came from a `source` picker,
    * the spec carries `sourceUnit`.
    */
   onSubmit: (runs: readonly SkillRunSpec[]) => void
@@ -43,7 +43,7 @@ interface ActionInputFormProps {
 /**
  * Renders a typed form driven by a skill's `braid.inputs` frontmatter.
  * Static-provider picks render inline.
- * Dynamic-provider picks, graph-node, source-intent, or clarify,
+ * Dynamic-provider picks, graph-node, source, or clarify,
  * fetch options via the server's `/skill-input-options` endpoint,
  * and apply the declared `fallback` when the workspace has nothing matching.
  */
@@ -97,7 +97,7 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
     }
 
     function sourceUnitFor(input: PickInput | undefined, value: string) {
-      if (!input || input.provider.kind !== 'source-intent' || !value)
+      if (!input || input.provider.kind !== 'source' || !value)
         return undefined
       const filter = 'filter' in input.provider ? input.provider.filter : undefined
       const cached = queryClient.getQueryData<{ items: SkillInputDynamicOption[] }>(
@@ -112,7 +112,7 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
     if (!multiPick) {
       const args = compose(name => scalarValues[name] ?? '')
       const sourcePick = inputs.find(
-        (i): i is PickInput => i.kind === 'pick' && i.provider.kind === 'source-intent',
+        (i): i is PickInput => i.kind === 'pick' && i.provider.kind === 'source',
       )
       const sourceUnit = sourcePick ? sourceUnitFor(sourcePick, scalarValues[sourcePick.name] ?? '') : undefined
       onSubmit([{ args, ...(sourceUnit ? { sourceUnit } : {}) }])
@@ -253,7 +253,7 @@ function PickField({ workspaceId, input, scalarValue, onScalarChange, multiValue
 }
 
 /**
- * Decorate source-intent picker options with per-unit freshness badges.
+ * Decorate source picker options with per-unit freshness badges.
  * For each distinct sourceId carried by the options:
  * - "fresh" badge when the on-disk sha matches the recorded `lastObservedSha`,
  *   the option appears in `diff.unchanged`.
@@ -263,19 +263,19 @@ function PickField({ workspaceId, input, scalarValue, onScalarChange, multiValue
  *   the option appears in `diff.new`.
  *
  * Returns the input options unchanged for any provider,
- * other than `source-intent`.
+ * other than `source`.
  * The hook is always called with stable order,
  * so it is safe under the rules of hooks,
  * even when `rawOptions` is empty during loading or error pre-resolution.
  */
-function useSourceIntentBadges(
+function useSourceBadges(
   workspaceId: string,
   providerKind: string,
   rawOptions: readonly SkillInputDynamicOption[],
 ): readonly DynamicOptionWithBadge[] {
-  const isSourceIntent = providerKind === 'source-intent'
+  const isSourceProvider = providerKind === 'source'
   const sourceIds = useMemo(() => {
-    if (!isSourceIntent)
+    if (!isSourceProvider)
       return [] as readonly string[]
     const set = new Set<string>()
     for (const opt of rawOptions) {
@@ -283,7 +283,7 @@ function useSourceIntentBadges(
         set.add(opt.sourceId as string)
     }
     return [...set].sort()
-  }, [isSourceIntent, rawOptions])
+  }, [isSourceProvider, rawOptions])
 
   const diffQueries = useQueries({
     queries: sourceIds.map(sourceId => ({
@@ -299,7 +299,7 @@ function useSourceIntentBadges(
   })
 
   return useMemo(() => {
-    if (!isSourceIntent)
+    if (!isSourceProvider)
       return rawOptions as readonly DynamicOptionWithBadge[]
     interface Lookup {
       readonly fresh: Set<string>
@@ -352,7 +352,7 @@ function useSourceIntentBadges(
       }
       return opt
     })
-  }, [isSourceIntent, rawOptions, sourceIds, diffQueries, ledgerQueries])
+  }, [isSourceProvider, rawOptions, sourceIds, diffQueries, ledgerQueries])
 }
 
 interface DynamicOptionWithBadge extends SkillInputDynamicOption {
@@ -425,7 +425,7 @@ function DynamicPick({ workspaceId, input, scalarValue, onScalarChange, multiVal
   const rawOptions = query.data?.items ?? []
   // Hook is always called even with [],
   // so the rules-of-hooks order stays stable across the early returns below.
-  const options = useSourceIntentBadges(workspaceId, providerKind, rawOptions)
+  const options = useSourceBadges(workspaceId, providerKind, rawOptions)
   const isMulti = input.kind === 'multi-pick'
 
   if (query.isLoading)

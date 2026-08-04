@@ -2,7 +2,8 @@ import { z } from 'zod'
 import { AbsolutePath, PluginId, SourceId } from './common.js'
 import { McpServerId } from './mcp.js'
 
-export const SourceRole = z.enum(['code', 'intent'])
+/** Open set. The active ontology declares its own roles, core stays agnostic. */
+export const SourceRole = z.string().min(1).brand<'SourceRole'>()
 export type SourceRole = z.infer<typeof SourceRole>
 
 export const SourceKind = z.enum(['filesystem', 'mcp'])

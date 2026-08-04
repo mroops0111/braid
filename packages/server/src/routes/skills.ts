@@ -8,7 +8,7 @@ import type {
   WorkspaceRepository,
 } from '@braidhq/core'
 import type { SkillEvent, SkillId, SkillRunId as SkillRunIdType } from '@braidhq/schema'
-import { createLogger, ValidationError } from '@braidhq/core'
+import { createLogger, unitBearingRoleIds, ValidationError } from '@braidhq/core'
 import { SkillId as SkillIdSchema, SkillManifest, SkillRunId, SourceId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { extractBearerToken } from '../middleware/auth.js'
@@ -28,7 +28,7 @@ const RunBody = z.object({
   resumeSessionId: z.string().min(1).optional(),
   // Identifies the source unit this run will process,
   // so the server records an observation against it after a clean run.
-  // Studio sends this when the user picks a `source-intent` option.
+  // Studio sends this when the user picks a `source` option.
   // Only `ddd:extract` consumes it today, other skills ignore it.
   sourceUnit: SourceUnitRef.optional(),
 }).openapi('SkillRunBody')
@@ -176,12 +176,14 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
             : `The \`sourceUnit\` field is not accepted, the active ontology declares no per-unit skill.`,
         )
       }
-      // Reject a sourceUnit whose sourceId is not an intent source here.
+      // Reject a sourceUnit whose sourceId is not a unit-bearing source here.
       // Recording against a ghost sourceId would pollute the ledger,
       // and confuse the Reactor and BatchService diff.
-      const known = workspace.sources.find(s => s.id === sourceUnit.sourceId && s.role === 'intent')
+      const ontology = deps.pluginRegistry.findOntology(workspace.productManifest.ontologyId)
+      const unitRoles = ontology ? unitBearingRoleIds(ontology) : []
+      const known = workspace.sources.find(s => s.id === sourceUnit.sourceId && unitRoles.includes(s.role))
       if (!known)
-        throw new ValidationError(`Source-unit id "${sourceUnit.sourceId}" does not name an intent source in workspace "${workspace.id}"`)
+        throw new ValidationError(`Source-unit id "${sourceUnit.sourceId}" does not name a unit-bearing source in workspace "${workspace.id}"`)
     }
 
     const runId = await deps.skillRunner.start(workspace, skillId, args, options)

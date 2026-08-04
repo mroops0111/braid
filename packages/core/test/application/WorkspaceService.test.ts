@@ -61,19 +61,19 @@ describe('WorkspaceService', () => {
     })
 
     it('passes when every required role is present', () => {
-      pluginRegistry.register(makeOntology({ requiredSourceRoles: ['code'] }))
+      pluginRegistry.register(makeOntology({ sourceRoles: [{ id: 'primary', required: true }] }))
       expect(() => service.assertRequiredSourceRoles(makeWorkspace())).not.toThrow()
     })
 
     it('throws naming the single missing role', () => {
-      pluginRegistry.register(makeOntology({ requiredSourceRoles: ['code', 'intent'] }))
+      pluginRegistry.register(makeOntology({ sourceRoles: [{ id: 'primary', required: true }, { id: 'secondary', required: true }] }))
       const assert = () => service.assertRequiredSourceRoles(makeWorkspace())
       expect(assert).toThrow(ValidationError)
-      expect(assert).toThrow(/"intent"/)
+      expect(assert).toThrow(/"secondary"/)
     })
 
     it('lists every missing role when several are absent', () => {
-      pluginRegistry.register(makeOntology({ requiredSourceRoles: ['code', 'intent'] }))
+      pluginRegistry.register(makeOntology({ sourceRoles: [{ id: 'primary', required: true }, { id: 'secondary', required: true }] }))
       expect(() => service.assertRequiredSourceRoles(makeWorkspace({ sources: [] }))).toThrow(/roles/)
     })
   })

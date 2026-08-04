@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { OntologyId } from './common.js'
+import { SourceRole } from './source.js'
 
 export const NodeTypeId = z.string().min(1).brand<'NodeTypeId'>()
 export type NodeTypeId = z.infer<typeof NodeTypeId>
@@ -43,10 +44,33 @@ export const EdgeTypeDescriptor = z.object({
 })
 export type EdgeTypeDescriptor = z.infer<typeof EdgeTypeDescriptor>
 
+/**
+ * A source role the ontology declares. The framework reads the capabilities
+ * here, never the id, so a new ontology adds roles without any core edit.
+ */
+export const SourceRoleDescriptor = z.object({
+  id: SourceRole,
+  label: z.string().min(1),
+  // Sources of this role must be present for the ontology to run.
+  required: z.boolean().optional(),
+  // Sources of this role enumerate into batch units, and their sync drives the Reactor.
+  unitBearing: z.boolean().optional(),
+  // Workspace subfolder these sources provision into.
+  pathSegment: z.string().min(1).optional(),
+})
+export type SourceRoleDescriptor = z.infer<typeof SourceRoleDescriptor>
+
 /** Ontology-endpoint response. Descriptor order matters, so Studio keeps the author's order. */
 export const OntologyResponse = z.object({
   ontologyId: OntologyId,
   nodeTypes: z.array(NodeTypeDescriptor),
   edgeTypes: z.array(EdgeTypeDescriptor),
+  sourceRoles: z.array(SourceRoleDescriptor),
 })
 export type OntologyResponse = z.infer<typeof OntologyResponse>
+
+/** Catalog of every registered ontology, for pre-workspace flows like the wizard. */
+export const OntologyListResponse = z.object({
+  ontologies: z.array(OntologyResponse),
+})
+export type OntologyListResponse = z.infer<typeof OntologyListResponse>

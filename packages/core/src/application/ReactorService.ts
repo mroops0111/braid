@@ -14,19 +14,20 @@ import type {
 } from '@braidhq/schema'
 import type { Clock } from '../domain/Clock.js'
 import type { Logger } from '../domain/Logger.js'
-import type { OntologyBatchBinding, OntologyPerUnitBinding } from '../domain/plugin/OntologyPlugin.js'
+import type { OntologyBatchBinding, OntologyPerUnitBinding, OntologyPlugin } from '../domain/plugin/OntologyPlugin.js'
 import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
 import type { ReactorCycleRepository } from '../domain/reactor/ReactorCycleRepository.js'
 import type { ScheduledTask, Scheduler } from '../domain/Scheduler.js'
 import type { SkillRunner } from '../domain/skill/SkillRunner.js'
 import type { SourceUnitDigest } from '../domain/source/SourceUnitDigest.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
-import type { IntentLister } from './BatchService.js'
+import type { UnitLister } from './BatchService.js'
 import type { SourceUnitObservationService } from './SourceUnitObservationService.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import type { WorkspaceLock } from './WorkspaceLock.js'
 import type { WorkspaceService } from './WorkspaceService.js'
 import { newReactorCycleId } from '../domain/ids.js'
+import { unitBearingRoleIds } from '../domain/plugin/OntologyPlugin.js'
 import { computeSourceDiff } from './computeSourceDiff.js'
 
 export interface ReactorServiceDeps {
@@ -35,7 +36,7 @@ export interface ReactorServiceDeps {
   readonly pluginRegistry: PluginRegistry
   readonly skillRunner: SkillRunner
   readonly sourceUnitObservationService: SourceUnitObservationService
-  readonly intentLister: IntentLister
+  readonly unitLister: UnitLister
   readonly digest: SourceUnitDigest
   readonly reactorCycleRepository: ReactorCycleRepository
   readonly clock: Clock
@@ -108,7 +109,7 @@ interface CycleContext {
 
 /**
  * Reactor implementation.
- * Listens to `source.synced` on the `WorkspaceEventBus`, and for intent-role sources,
+ * Listens to `source.synced` on the `WorkspaceEventBus`, and for unit-bearing sources,
  * runs the active ontology's per-unit skill against the diff,
  * between the current units on disk and the recorded `SourceUnitObservation` ledger.
  * After all per-unit dispatches settle,
@@ -121,7 +122,7 @@ interface CycleContext {
  *
  * Locked decisions.
  * - Per-unit dispatch, not batched, and sequential with no concurrency.
- * - Intent-role only, `role: 'code'` sources fall through.
+ * - Unit-bearing roles only, other roles fall through.
  * - First-provision does NOT fire the reactor,
  *   the operator runs `cmd.runBatch` for the initial corpus.
  * - Throttle on a rolling 1h window per workspace,
@@ -216,10 +217,10 @@ export class ReactorService {
   private async prepareCycle(event: SourceSyncedEvent): Promise<CycleContext | undefined> {
     const workspace = await this.deps.workspaceService.findById(event.workspaceId)
     const source = workspace.sources.find(candidate => candidate.id === event.sourceId)
-    if (!isIntentSource(source))
-      return undefined
     const ontology = this.deps.pluginRegistry.findOntology(workspace.productManifest.ontologyId)
-    const batchBinding = ontology?.batch
+    if (!source || !ontology || !isUnitBearingSource(source, ontology))
+      return undefined
+    const batchBinding = ontology.batch
     if (!batchBinding?.perUnit?.skillId)
       return undefined
     const startedAt = this.deps.clock.now()
@@ -493,8 +494,8 @@ function updateCheckpoint(cycle: ReactorCycle, checkpoint: ReactorCheckpoint): R
   return { ...cycle, checkpoint }
 }
 
-function isIntentSource(source: SourceDescriptor | undefined): source is SourceDescriptor & { role: 'intent' } {
-  return source?.role === 'intent'
+function isUnitBearingSource(source: SourceDescriptor, ontology: OntologyPlugin): boolean {
+  return unitBearingRoleIds(ontology).includes(source.role)
 }
 
 /**

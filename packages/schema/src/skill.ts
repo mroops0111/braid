@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { AgentEffort, AgentKind } from './agent.js'
 import { AbsolutePath, PluginId, SkillId, SkillRunId, SourceId, Timestamp, WorkspaceId } from './common.js'
 import { McpServerId } from './mcp.js'
+import { SourceRole } from './source.js'
 import { WorkspaceRole } from './workspace.js'
 
 export const SkillOrigin = z.enum(['builtin', 'plugin', 'workspace', 'extension'])
@@ -66,15 +67,17 @@ export const SkillInputGraphNodeProvider = z.object({
 })
 export type SkillInputGraphNodeProvider = z.infer<typeof SkillInputGraphNodeProvider>
 
-/** Enumerates items from every role:intent source. value is the loader-relative path. */
-export const SkillInputSourceIntentProvider = z.object({
-  kind: z.literal('source-intent'),
+/** Enumerates items from sources of the given role. value is the loader-relative path. */
+export const SkillInputSourceProvider = z.object({
+  kind: z.literal('source'),
   filter: z.object({
+    // Restrict to sources of this role. Omit to include the ontology's unit-bearing roles.
+    role: SourceRole.optional(),
     // Restrict to sources whose loader.kind matches. Omit to include all.
     loaderKind: z.string().optional(),
   }).optional(),
 })
-export type SkillInputSourceIntentProvider = z.infer<typeof SkillInputSourceIntentProvider>
+export type SkillInputSourceProvider = z.infer<typeof SkillInputSourceProvider>
 
 /** Clarification tickets, filtered by status. Defaults to all statuses. */
 export const SkillInputClarificationProvider = z.object({
@@ -88,7 +91,7 @@ export type SkillInputClarificationProvider = z.infer<typeof SkillInputClarifica
 export const SkillInputProvider = z.discriminatedUnion('kind', [
   SkillInputStaticProvider,
   SkillInputGraphNodeProvider,
-  SkillInputSourceIntentProvider,
+  SkillInputSourceProvider,
   SkillInputClarificationProvider,
 ])
 export type SkillInputProvider = z.infer<typeof SkillInputProvider>
@@ -143,7 +146,7 @@ export const SkillInputDynamicOption = z.object({
   value: z.string(),
   label: z.string().min(1),
   description: z.string().optional(),
-  // Set by the source-intent provider so a run can name its source unit.
+  // Set by the source provider so a run can name its source unit.
   // Empty for providers that don't speak in source units (graph-node, clarify).
   sourceId: SourceId.optional(),
 })

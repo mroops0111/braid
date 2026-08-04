@@ -5,6 +5,7 @@ import type {
   SkillId,
   SkillRunId,
   SourceId,
+  SourceRole,
   WorkspaceId,
 } from '@braidhq/schema'
 import { mkdtemp } from 'node:fs/promises'
@@ -33,7 +34,7 @@ async function setupWorkspace(): Promise<{
     sources: [{
       kind: 'filesystem',
       id: 'code' as SourceId,
-      role: 'code',
+      role: 'secondary' as SourceRole,
       name: 'a',
       path: rootPath,
     }],

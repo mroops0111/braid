@@ -1,5 +1,21 @@
-import type { BatchUnit, EdgeTypeId, ModelSnapshot, NodeStatus, NodeTypeId, OntologyId, SkillId, ValidationIssue } from '@braidhq/schema'
+import type { BatchUnit, EdgeTypeId, ModelSnapshot, NodeStatus, NodeTypeId, OntologyId, SkillId, SourceRole, ValidationIssue } from '@braidhq/schema'
 import type { Plugin } from './Plugin.js'
+
+/**
+ * A source role the ontology declares. The framework branches on the
+ * capabilities here, never on the id, so a new ontology adds roles with
+ * no core edit.
+ */
+export interface SourceRoleDescriptor {
+  readonly id: SourceRole
+  readonly label: string
+  /** Sources of this role must be present for the ontology to run. */
+  readonly required?: boolean
+  /** Sources of this role enumerate into batch units, and their sync drives the Reactor. */
+  readonly unitBearing?: boolean
+  /** Workspace subfolder these sources provision into. */
+  readonly pathSegment?: string
+}
 
 export interface NodeTypeDescriptor {
   readonly id: NodeTypeId
@@ -126,15 +142,15 @@ export interface OntologyPlugin extends Plugin {
    */
   readonly batch?: OntologyBatchBinding
   /**
-   * Source roles that MUST be present for this ontology to function.
-   * The scaffold endpoint validates the manifest against this list.
-   * A workspace that omits any required role is rejected with 422,
-   * so the wizard can prompt for it.
-   * The DDD ontology declares `['intent', 'code']`,
-   * because Braid's core value prop is intent and code convergence.
-   * Pure-intent or pure-code workspaces produce a polluted ubiquitous language.
-   * Generative ontologies with no code dimension declare only `['intent']`,
-   * for example the everstory `story` ontology.
+   * The source roles this ontology declares, with their capabilities.
+   * The scaffold endpoint rejects a manifest missing any `required` role
+   * with 422, so the wizard can prompt for it. `unitBearing` roles drive
+   * batch unit production and the Reactor. Core reads capabilities, not ids.
    */
-  readonly requiredSourceRoles?: readonly ('code' | 'intent')[]
+  readonly sourceRoles: readonly SourceRoleDescriptor[]
+}
+
+/** The ids of roles whose sources enumerate into batch units and drive the Reactor. */
+export function unitBearingRoleIds(ontology: OntologyPlugin): readonly SourceRole[] {
+  return ontology.sourceRoles.filter(role => role.unitBearing).map(role => role.id)
 }
