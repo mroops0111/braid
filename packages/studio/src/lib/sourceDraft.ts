@@ -1,8 +1,11 @@
 import type { SourceDescriptor } from '@braidhq/schema'
-import { asAbsolutePath, asLoaderKind, asSourceId } from './brands'
+import { asAbsolutePath, asLoaderKind, asSourceId, asSourceRole } from './brands'
 
 export interface SourceDraft {
-  role: 'intent' | 'code'
+  // An ontology-declared role id. Open set, so no literal union here.
+  role: string
+  // Workspace subfolder this role provisions into, from the role descriptor.
+  pathSegment: string
   name: string
   description: string
   // `''` is the "manual, no auto-sync" choice.
@@ -52,20 +55,20 @@ export function loaderKindLabel(kind: string): string {
 }
 
 /**
- * Fixed top-level grouping for each source role.
- * Not user-editable, so any tool can find sources by walking these dirs.
+ * Top-level grouping dir for a role, from its descriptor.
+ * Falls back to the role id, so a role that declares no pathSegment
+ * still provisions into a stable, walkable folder.
  */
-export function rolePathSegment(role: 'intent' | 'code'): 'intents' | 'codebases' {
-  return role === 'intent' ? 'intents' : 'codebases'
+export function draftPathSegment(draft: Pick<SourceDraft, 'role' | 'pathSegment'>): string {
+  return draft.pathSegment || draft.role
 }
 
 export function toSourceDescriptor(draft: SourceDraft): SourceDescriptor {
   const id = asSourceId(nameToId(draft.name))
-  // Path is fully derived. The role decides the grouping dir,
-  // and the source name decides the leaf.
-  // So `ls workspaces/x/intents/` lists all intent sources,
-  // without parsing PRODUCT.md. The user only ever names the leaf.
-  const path = asAbsolutePath(`./${rolePathSegment(draft.role)}/${id}`)
+  // Path is fully derived. The role's grouping dir decides the parent,
+  // and the source name decides the leaf, so any tool can walk
+  // `workspaces/x/<segment>/` without parsing PRODUCT.md.
+  const path = asAbsolutePath(`./${draftPathSegment(draft)}/${id}`)
   const loader = draft.loaderKind === 'git'
     ? { kind: asLoaderKind('git'), config: { url: draft.gitUrl, ...(draft.gitBranch ? { branch: draft.gitBranch } : {}) } }
     : draft.loaderKind === 'gdrive'
@@ -95,7 +98,7 @@ export function toSourceDescriptor(draft: SourceDraft): SourceDescriptor {
   return {
     kind: 'filesystem',
     id,
-    role: draft.role,
+    role: asSourceRole(draft.role),
     name: draft.name,
     path,
     ...(loader ? { loader } : {}),

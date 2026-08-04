@@ -1,5 +1,5 @@
 import type { SourceLoaderPlugin } from '@braidhq/core'
-import type { AbsolutePath, LoaderKind, PluginId, SourceId, Timestamp } from '@braidhq/schema'
+import type { AbsolutePath, LoaderKind, PluginId, SourceId, SourceRole, Timestamp } from '@braidhq/schema'
 import type { SecretStore } from '../../src/infrastructure/secrets/SecretStore.js'
 import { createHmac } from 'node:crypto'
 import { PluginRegistry } from '@braidhq/core'
@@ -33,7 +33,7 @@ function makeGithubSource() {
   return {
     kind: 'filesystem' as const,
     id: SOURCE_ID,
-    role: 'intent' as const,
+    role: 'primary' as SourceRole,
     name: 'issues',
     path: '/abs/ws/issues' as AbsolutePath,
     loader: {
@@ -47,7 +47,7 @@ function makeGitSource(branch?: string) {
   return {
     kind: 'filesystem' as const,
     id: SOURCE_ID,
-    role: 'code' as const,
+    role: 'secondary' as SourceRole,
     name: 'code',
     path: '/abs/ws/code' as AbsolutePath,
     loader: {

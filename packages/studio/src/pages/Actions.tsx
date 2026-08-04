@@ -567,7 +567,7 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
                 // Fire all batch runs in parallel.
                 // Each becomes its own runId and turn under one conversation key,
                 // so the transcript will interleave them.
-                // `sourceUnit` is set for runs from a source-intent picker.
+                // `sourceUnit` is set for runs from a source picker.
                 for (const run of runs) void sendWith(run.args, run.sourceUnit)
               }}
             />

@@ -39,7 +39,7 @@ import { FsSkillRegistry } from './infrastructure/skill/FsSkillRegistry.js'
 import { SubprocessSkillRunner } from './infrastructure/skill/SubprocessSkillRunner.js'
 import { FsSourceUnitDigest } from './infrastructure/source/FsSourceUnitDigest.js'
 import { FsSourceUnitObservationRepository } from './infrastructure/source/FsSourceUnitObservationRepository.js'
-import { listIntentItems } from './infrastructure/source/intentScan.js'
+import { listUnitItems, unitBearingRolesOf } from './infrastructure/source/unitScan.js'
 import { ensureWorkspaceOwners } from './infrastructure/users/ensureWorkspaceOwners.js'
 import { UserDirectoryFromRegistry } from './infrastructure/users/UserDirectoryFromRegistry.js'
 import { UserRegistryFile } from './infrastructure/users/UserRegistryFile.js'
@@ -324,7 +324,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     modelSerializer,
     bootstrap,
     batchPlanRepository: new FsBatchPlanRepository(),
-    intentLister: listIntentItems,
+    unitLister: workspace => listUnitItems(workspace, unitBearingRolesOf(pluginRegistry, workspace)),
     sourceUnitObservationRepository: new FsSourceUnitObservationRepository({ workspaceRoots }),
     reactorCycleRepository: new FsReactorCycleRepository({ workspaceRoots }),
     sourceUnitDigest: new FsSourceUnitDigest(),

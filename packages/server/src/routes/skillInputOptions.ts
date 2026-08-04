@@ -1,8 +1,8 @@
 import type { ClarificationRepository, ModelRepository, PluginRegistry, Workspace, WorkspaceRepository } from '@braidhq/core'
 import type { SkillInputDynamicOption } from '@braidhq/schema'
-import { SkillInputOptionsResponse, SourceId } from '@braidhq/schema'
+import { SkillInputOptionsResponse, SourceId, SourceRole } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
-import { listIntentItems } from '../infrastructure/source/intentScan.js'
+import { listUnitItems, unitBearingRolesOf } from '../infrastructure/source/unitScan.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
@@ -12,18 +12,18 @@ import { loadWorkspaceById } from './helpers.js'
  * declared in a SKILL.md frontmatter, to the current option list,
  * for a given workspace.
  * The typed Actions form uses it to populate pickers,
- * backed by `graph-node`, `source-intent`, or `clarify` (not static).
+ * backed by `graph-node`, `source`, or `clarify` (not static).
  * Read-only, and lives alongside other Studio-metadata routes.
  * Mounted under `/workspaces/:workspaceId/skill-input-options`.
  */
 
-const ProviderKind = z.enum(['graph-node', 'source-intent', 'clarify'])
+const ProviderKind = z.enum(['graph-node', 'source', 'clarify'])
 
 const QuerySchema = z.object({
   kind: ProviderKind.openapi({ param: { name: 'kind', in: 'query' } }),
   // JSON-encoded filter object whose shape depends on the provider.
   // graph-node uses `{ types?, statuses?, renderHint?: { container? } }`,
-  // source-intent uses `{ loaderKind? }`,
+  // source uses `{ role?, loaderKind? }`,
   // and clarify uses `{ status?: pending | answered | applied | skipped }`.
   //
   // Query-string-encoded JSON keeps the schema simple,
@@ -85,8 +85,8 @@ async function resolveProvider(
   switch (kind) {
     case 'graph-node':
       return resolveGraphNode(filter, workspace, deps)
-    case 'source-intent':
-      return resolveSourceIntent(filter, workspace)
+    case 'source':
+      return resolveSource(filter, workspace, deps)
     case 'clarify':
       return resolveClarification(filter, workspace.id, deps.clarificationRepository)
   }
@@ -131,12 +131,15 @@ async function resolveGraphNode(
   }))
 }
 
-async function resolveSourceIntent(
+async function resolveSource(
   filter: Record<string, unknown>,
   workspace: Workspace,
+  deps: SkillInputOptionsRouterDeps,
 ): Promise<SkillInputDynamicOption[]> {
   const loaderKindFilter = typeof filter.loaderKind === 'string' ? filter.loaderKind : undefined
-  const items = await listIntentItems(workspace)
+  const roleFilter = typeof filter.role === 'string' ? SourceRole.parse(filter.role) : undefined
+  const roles = roleFilter ? [roleFilter] : unitBearingRolesOf(deps.pluginRegistry, workspace)
+  const items = await listUnitItems(workspace, roles)
   return items
     .filter((item) => {
       if (!loaderKindFilter)

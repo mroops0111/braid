@@ -11,6 +11,7 @@ import type {
   McpServerConfig,
   ModelDiffEnvelope,
   ModelSnapshot,
+  OntologyListResponse,
   OntologyResponse,
   ProductManifestCreate,
   Proposal,
@@ -282,7 +283,7 @@ export const api = {
 
   /**
    * Diff a source's current units on disk against the recorded ledger. Reactor consumes this internally,
-   * Studio uses it to render per-option badges ("extracted Nm ago" / "stale" / never seen) on the source-intent picker.
+   * Studio uses it to render per-option badges ("extracted Nm ago" / "stale" / never seen) on the source picker.
    */
   getSourceUnitDiff: (workspaceId: string, sourceId: string) =>
     fetchJson<SourceUnitDiff>(`/workspaces/${workspaceId}/source-unit-states/${sourceId}/diff`),
@@ -310,6 +311,9 @@ export const api = {
 
   getOntology: (workspaceId: string) =>
     fetchJson<OntologyResponse>(`/workspaces/${workspaceId}/ontology`),
+
+  getOntologies: () =>
+    fetchJson<OntologyListResponse>(`/ontologies`),
 
   listProposals: (workspaceId: string, status?: string, showAll?: boolean) => {
     const params = new URLSearchParams()

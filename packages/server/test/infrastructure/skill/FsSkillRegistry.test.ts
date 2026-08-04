@@ -1,5 +1,5 @@
 import type { Plugin, Workspace } from '@braidhq/core'
-import type { AbsolutePath, PluginId, SkillId, SourceId } from '@braidhq/schema'
+import type { AbsolutePath, PluginId, SkillId, SourceId, SourceRole } from '@braidhq/schema'
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -18,7 +18,7 @@ async function makeWorkspace(): Promise<{ workspace: Workspace, root: AbsolutePa
     sources: [{
       kind: 'filesystem',
       id: 'src-a' as SourceId,
-      role: 'code',
+      role: 'secondary' as SourceRole,
       name: 'a',
       path: '/abs/code' as AbsolutePath,
     }],

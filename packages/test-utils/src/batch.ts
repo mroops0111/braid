@@ -15,14 +15,14 @@ export function makeUnit(id: string, overrides: Partial<BatchUnit> = {}): BatchU
   }
 }
 
-/** Construct a BatchPlan fixture, an idle intent-mode plan of two pending units. Override any field per test. */
+/** Construct a BatchPlan fixture, an idle direct-mode plan of two pending units. Override any field per test. */
 export function makePlan(overrides: Partial<BatchPlanData> = {}): BatchPlan {
   return new BatchPlan({
     id: 'bp-2026-06-03-aaaa' as BatchPlanId,
     workspaceId: 'w-1' as WorkspaceId,
     createdAt: T0,
     updatedAt: T0,
-    mode: 'intent',
+    mode: 'direct',
     status: 'idle',
     autoApply: false,
     units: [makeUnit('pu-a'), makeUnit('pu-b')],

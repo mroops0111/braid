@@ -1,10 +1,10 @@
-import type { AbsolutePath, SkillEvent, SkillId, SkillRunId, SourceDescriptor, SourceId, SourceUnitSha, Timestamp, WorkspaceEvent, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, SkillEvent, SkillId, SkillRunId, SourceDescriptor, SourceId, SourceRole, SourceUnitSha, Timestamp, WorkspaceEvent, WorkspaceId } from '@braidhq/schema'
 import type {
-  IntentLister,
   SkillEventListener,
   SkillRunner,
   SkillRunSubscription,
   SourceUnitDigest,
+  UnitLister,
   WorkspaceEventBus,
 } from '../../src/index.js'
 import { SkillId as SkillIdSchema } from '@braidhq/schema'
@@ -28,21 +28,21 @@ import {
 const PER_UNIT_SKILL = SkillIdSchema.parse('ddd:extract')
 const CHECKPOINT_SKILL = SkillIdSchema.parse('ddd:reconcile')
 
-function intentSource(id: string): SourceDescriptor {
+function primarySource(id: string): SourceDescriptor {
   return {
     kind: 'filesystem',
     id: id as SourceId,
-    role: 'intent',
+    role: 'primary' as SourceRole,
     name: id,
     path: `/abs/${id}` as AbsolutePath,
   }
 }
 
-function codeSource(id: string): SourceDescriptor {
+function secondarySource(id: string): SourceDescriptor {
   return {
     kind: 'filesystem',
     id: id as SourceId,
-    role: 'code',
+    role: 'secondary' as SourceRole,
     name: id,
     path: `/abs/${id}` as AbsolutePath,
   }
@@ -114,7 +114,7 @@ async function setup(opts: {
   const workspaceRepo = new InMemoryWorkspaceRepository()
   const workspace = makeWorkspace({
     id: mintTestId('ws') as WorkspaceId,
-    sources: opts.sources ?? [intentSource('issues')],
+    sources: opts.sources ?? [primarySource('issues')],
   })
   await workspaceRepo.save(workspace)
 
@@ -126,7 +126,11 @@ async function setup(opts: {
   } = { perUnit: { skillId: PER_UNIT_SKILL } }
   if (opts.hasCheckpoint)
     batchBinding.checkpoint = { skillId: CHECKPOINT_SKILL, chunkSize: 100, runAtEnd: true }
-  await pluginRegistry.register(makeOntology({ ontologyId: 'ddd', batch: batchBinding }))
+  await pluginRegistry.register(makeOntology({
+    ontologyId: 'ddd',
+    sourceRoles: [{ id: 'primary', unitBearing: true }, { id: 'secondary' }],
+    batch: batchBinding,
+  }))
 
   const eventBus = new InMemoryWorkspaceEventBus()
   const clock = new FixedClock()
@@ -149,15 +153,15 @@ async function setup(opts: {
     originalPublish(event)
   }
 
-  // Default intentLister returns three units in source `issues`.
-  let intentItems: ReadonlyArray<{ value: string, label: string, sourceId: string, sourceName: string }> = [
+  // Default unitLister returns three units in source `issues`.
+  let unitItems: ReadonlyArray<{ value: string, label: string, sourceId: string, sourceName: string }> = [
     { value: 'issues/1.md', label: '1', sourceId: 'issues', sourceName: 'issues' },
     { value: 'issues/2.md', label: '2', sourceId: 'issues', sourceName: 'issues' },
     { value: 'issues/3.md', label: '3', sourceId: 'issues', sourceName: 'issues' },
   ]
-  const intentLister: IntentLister = async () => [...intentItems]
-  function setUnits(items: typeof intentItems): void {
-    intentItems = items
+  const unitLister: UnitLister = async () => [...unitItems]
+  function setUnits(items: typeof unitItems): void {
+    unitItems = items
   }
 
   // Throttle limit is read at start() time, so update the workspace BEFORE constructing the reactor,
@@ -195,7 +199,7 @@ async function setup(opts: {
     pluginRegistry,
     skillRunner,
     sourceUnitObservationService,
-    intentLister,
+    unitLister,
     digest,
     reactorCycleRepository,
     workspaceLock: new WorkspaceLock(),
@@ -314,9 +318,9 @@ describe('ReactorService', () => {
     expect(skillRunner.startCalls).toHaveLength(3)
   })
 
-  it('ignores source.synced for `role: code` sources entirely', async () => {
+  it('ignores source.synced for non-unit-bearing sources entirely', async () => {
     const { workspace, eventBus, skillRunner, captured } = await setup({
-      sources: [intentSource('issues'), codeSource('repo-main')],
+      sources: [primarySource('issues'), secondarySource('repo-main')],
     })
     emitSync(eventBus, workspace.id, 'repo-main')
     await tick(50)

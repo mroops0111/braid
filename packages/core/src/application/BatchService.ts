@@ -29,17 +29,19 @@ import { UserId } from '@braidhq/schema'
 import { BatchPlan } from '../domain/batch/BatchPlan.js'
 import { ConflictError, ValidationError } from '../domain/errors.js'
 import { newBatchPlanId, newBatchUnitId } from '../domain/ids.js'
+import { unitBearingRoleIds } from '../domain/plugin/OntologyPlugin.js'
 
 const BATCH_USER_ID = UserId.parse('braid-batch')
 
-export interface IntentItem {
+export interface SourceUnitItem {
   readonly value: string
   readonly label: string
   readonly sourceId: string
   readonly sourceName: string
 }
 
-export type IntentLister = (workspace: Workspace) => Promise<readonly IntentItem[]>
+/** Enumerates the current units on disk from a workspace's unit-bearing sources. */
+export type UnitLister = (workspace: Workspace) => Promise<readonly SourceUnitItem[]>
 
 export interface BatchServiceDeps {
   workspaceService: WorkspaceService
@@ -50,7 +52,7 @@ export interface BatchServiceDeps {
   hitlService: HITLService
   batchPlanRepository: BatchPlanRepository
   // Filesystem walk happens in infrastructure. The orchestrator just consumes the list.
-  intentLister: IntentLister
+  unitLister: UnitLister
   /**
    * Resolves the workspace's ontology plugin so the service can read its batch binding (per-unit skill,
    * checkpoint config, derive skill).
@@ -92,13 +94,13 @@ export class BatchService {
       await this.assertNoActiveBatch(workspace)
       const ontology = this.resolveOntology(workspace)
       const binding = this.requireBinding(ontology)
-      const mode = this.resolveMode(workspace, binding)
+      const mode = this.resolveMode(workspace, ontology, binding)
       const now = this.deps.clock.now()
       const baselineTag = `batch-baseline-${tagSuffix(now)}`
-      const initialUnits = mode === 'intent' ? await this.buildIntentUnits(workspace) : []
-      if (mode === 'intent' && initialUnits.length === 0) {
+      const initialUnits = mode === 'direct' ? await this.buildDirectUnits(workspace) : []
+      if (mode === 'direct' && initialUnits.length === 0) {
         throw new ValidationError(
-          `Workspace "${workspace.id}" has intent sources registered but no intent documents inside them.`,
+          `Workspace "${workspace.id}" has unit-bearing sources registered but no documents inside them.`,
         )
       }
 
@@ -236,7 +238,7 @@ export class BatchService {
   private async runLoop(workspace: Workspace, initial: BatchPlan, callerToken?: string): Promise<void> {
     let plan = initial
     const binding = this.requireBinding(this.resolveOntology(workspace))
-    if (plan.mode === 'derive') {
+    if (plan.mode === 'derived') {
       plan = await this.runDerivePhase(workspace, plan, binding, callerToken)
       if (plan.status !== 'running')
         return
@@ -393,7 +395,7 @@ export class BatchService {
   ): Promise<BatchPlan> {
     if (!binding.deriveUnits) {
       throw new ValidationError(
-        `Workspace "${workspace.id}" has no intent source and the ontology "${this.resolveOntology(workspace).ontologyId}" provides no deriveUnits skill.`,
+        `Workspace "${workspace.id}" has no unit-bearing source and the ontology "${this.resolveOntology(workspace).ontologyId}" provides no deriveUnits skill.`,
       )
     }
     const skillId = binding.deriveUnits.skillId
@@ -559,20 +561,18 @@ export class BatchService {
     }
   }
 
-  private resolveMode(workspace: Workspace, binding: OntologyBatchBinding): BatchInputMode {
-    if (workspace.intentSources().length > 0)
-      return 'intent'
-    if (workspace.codeSources().length > 0) {
-      if (!binding.deriveUnits) {
-        throw new ValidationError(
-          `Workspace "${workspace.id}" has no intent source; ontology "${workspace.productManifest.ontologyId}" must provide a deriveUnits skill to batch from code.`,
-        )
-      }
-      return 'derive'
+  private resolveMode(workspace: Workspace, ontology: OntologyPlugin, binding: OntologyBatchBinding): BatchInputMode {
+    const unitRoles = unitBearingRoleIds(ontology)
+    if (unitRoles.some(role => workspace.sourcesWithRole(role).length > 0))
+      return 'direct'
+    if (workspace.sources.length === 0)
+      throw new ValidationError(`Workspace "${workspace.id}" has no sources to bootstrap from`)
+    if (!binding.deriveUnits) {
+      throw new ValidationError(
+        `Workspace "${workspace.id}" has no unit-bearing source; ontology "${ontology.ontologyId}" must provide a deriveUnits skill to batch from its other sources.`,
+      )
     }
-    throw new ValidationError(
-      `Workspace "${workspace.id}" has no intent or code sources to bootstrap from`,
-    )
+    return 'derived'
   }
 
   private resolveOntology(workspace: Workspace): OntologyPlugin {
@@ -588,12 +588,12 @@ export class BatchService {
     return ontology.batch
   }
 
-  private async buildIntentUnits(workspace: Workspace): Promise<BatchUnit[]> {
-    const items = await this.deps.intentLister(workspace)
+  private async buildDirectUnits(workspace: Workspace): Promise<BatchUnit[]> {
+    const items = await this.deps.unitLister(workspace)
     return items.map(item => ({
       id: newBatchUnitId(),
       name: item.label,
-      description: `Intent doc from ${item.sourceName}`,
+      description: `Unit from ${item.sourceName}`,
       sourceId: item.sourceId as never,
       scopeHint: item.value,
       status: 'pending' as const,

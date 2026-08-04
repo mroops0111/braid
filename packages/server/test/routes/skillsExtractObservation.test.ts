@@ -1,5 +1,5 @@
 import type { SkillRegistry } from '@braidhq/core'
-import type { AbsolutePath, SkillId, SkillRunId, SourceId, SourceUnitSha, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, SkillId, SkillRunId, SourceId, SourceRole, SourceUnitSha, WorkspaceId } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { mkdtemp } from 'node:fs/promises'
@@ -37,6 +37,7 @@ function makeMultiSkillRegistry(skillIds: readonly string[]): SkillRegistry {
 
 function ontologyWithPerUnit(skillId: string) {
   return makeOntology({
+    sourceRoles: [{ id: 'primary', unitBearing: true }],
     batch: {
       perUnit: { skillId: skillId as SkillId, label: 'Extract' },
     },
@@ -50,7 +51,7 @@ async function buildAppForExtract(opts: { exitCode: number, perUnitSkillId?: str
     sources: [{
       kind: 'filesystem',
       id: SOURCE_ID,
-      role: 'intent',
+      role: 'primary' as SourceRole,
       name: 'issues',
       path: rootPath,
     }],
@@ -196,7 +197,7 @@ describe('POST /skills/ddd:extract/run with sourceUnit (issue #31)', () => {
       sources: [{
         kind: 'filesystem',
         id: SOURCE_ID,
-        role: 'intent',
+        role: 'primary' as SourceRole,
         name: 'issues',
         path: rootPath,
       }],

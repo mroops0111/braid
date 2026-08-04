@@ -68,7 +68,18 @@ describe('OntologyResponse', () => {
       ontologyId: 'ddd',
       nodeTypes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
       edgeTypes: [],
+      sourceRoles: [],
     })
     expect(res.nodeTypes.map(t => t.id)).toEqual(['a', 'b'])
+  })
+
+  it('carries the ontology-declared source roles and their capabilities', () => {
+    const res = OntologyResponse.parse({
+      ontologyId: 'ddd',
+      nodeTypes: [],
+      edgeTypes: [],
+      sourceRoles: [{ id: 'intent', label: 'Intent', required: true, unitBearing: true, pathSegment: 'intents' }],
+    })
+    expect(res.sourceRoles).toEqual([{ id: 'intent', label: 'Intent', required: true, unitBearing: true, pathSegment: 'intents' }])
   })
 })

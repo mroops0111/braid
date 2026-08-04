@@ -124,6 +124,15 @@ export function useOntology(workspaceId: string | undefined) {
   })
 }
 
+export function useOntologies() {
+  return useQuery({
+    queryKey: ['ontologies'] as const,
+    queryFn: () => api.getOntologies(),
+    // Registered plugins are fixed for a server process, so this rarely changes.
+    staleTime: 60_000,
+  })
+}
+
 export function useProposalsByStatus(workspaceId: string | undefined, status: string, showAll?: boolean) {
   return useQuery({
     queryKey: workspaceId ? [...queryKeys.proposals(workspaceId, status), showAll ? 'all' : 'mine'] : ['proposals', 'none'],

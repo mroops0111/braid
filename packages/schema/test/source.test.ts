@@ -13,12 +13,13 @@ import {
 } from '../src/index.js'
 
 describe('SourceRole', () => {
-  it('accepts code / intent', () => {
+  it('accepts any non-empty role, so an ontology declares its own set', () => {
     expect(SourceRole.parse('code')).toBe('code')
     expect(SourceRole.parse('intent')).toBe('intent')
+    expect(SourceRole.parse('canon')).toBe('canon')
   })
-  it('rejects unknown role', () => {
-    expect(SourceRole.safeParse('external').success).toBe(false)
+  it('rejects an empty role', () => {
+    expect(SourceRole.safeParse('').success).toBe(false)
   })
 })
 

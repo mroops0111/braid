@@ -86,10 +86,10 @@ describe('GET /workspaces/:ws/skill-input-options', () => {
     ])
   })
 
-  it('source-intent returns empty list when no intent sources are configured', async () => {
+  it('source returns empty list when no unit-bearing sources are configured', async () => {
     const { app } = await buildTestApp()
     const response = await app.request(
-      `/workspaces/${workspaceId}/skill-input-options?kind=source-intent`,
+      `/workspaces/${workspaceId}/skill-input-options?kind=source`,
     )
     expect(response.status).toBe(200)
     const body = await readJson<OptionsBody>(response)

@@ -1,3 +1,6 @@
+// Must stay first: extends zod with `.openapi()` before any schema below is built.
+import './zod-openapi.js'
+
 export * from './agent.js'
 export * from './batch.js'
 export * from './capability.js'

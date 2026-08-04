@@ -10,9 +10,11 @@ import type {
   NodeTypeId,
   OntologyId,
   PluginId,
+  SourceRole,
 } from '@braidhq/schema'
 import type { PluginReferenceDirRef, PluginSkillRef } from './types.js'
 import { OntologyTypeValidator, StructuralValidator } from '@braidhq/core'
+import { SourceRole as SourceRoleSchema } from '@braidhq/schema'
 import { z } from 'zod'
 import {
   assertColorString,
@@ -20,6 +22,15 @@ import {
   assertNoDuplicateIds,
   assertNonEmpty,
 } from './validation.js'
+
+/** Declarative source role an ontology contributes. `id` is branded on build. */
+export interface SourceRoleInput {
+  readonly id: string
+  readonly label: string
+  readonly required?: boolean
+  readonly unitBearing?: boolean
+  readonly pathSegment?: string
+}
 
 export interface DefineOntologyInput {
   readonly ontologyId: string
@@ -61,13 +72,11 @@ export interface DefineOntologyInput {
    */
   readonly batch?: OntologyBatchBinding
   /**
-   * Source roles a workspace must have for this ontology to be usable.
-   * The scaffold endpoint validates the manifest against this list and
-   * rejects a miss with 422, so the wizard can prompt for the missing roles.
-   * DDD declares `['intent', 'code']`,
-   * a generative ontology with no code dimension declares `['intent']`.
+   * The source roles this ontology declares, with their capabilities.
+   * A `required` role missing from a manifest is rejected with 422, so the
+   * wizard can prompt for it. `unitBearing` roles feed batch and the Reactor.
    */
-  readonly requiredSourceRoles?: readonly ('code' | 'intent')[]
+  readonly sourceRoles?: readonly SourceRoleInput[]
 }
 
 /**
@@ -135,8 +144,14 @@ export function defineOntologyPlugin(input: DefineOntologyInput): OntologyPlugin
     skillNamespace: input.ontologyId,
     referenceDirs: input.referenceDirs ?? [],
     validators: [],
+    sourceRoles: [
+      ...(input.extends?.sourceRoles ?? []),
+      ...(input.sourceRoles ?? []).map(role => ({
+        ...role,
+        id: SourceRoleSchema.parse(role.id),
+      })),
+    ],
     ...(input.batch ? { batch: input.batch } : {}),
-    ...(input.requiredSourceRoles ? { requiredSourceRoles: input.requiredSourceRoles } : {}),
   }
 
   const validators: OntologyValidator[] = [
@@ -150,4 +165,4 @@ export function defineOntologyPlugin(input: DefineOntologyInput): OntologyPlugin
 }
 
 /** Re-export branded id helpers so plugin authors can cast without importing schema directly. */
-export type { EdgeTypeId, NodeTypeId, OntologyId }
+export type { EdgeTypeId, NodeTypeId, OntologyId, SourceRole }

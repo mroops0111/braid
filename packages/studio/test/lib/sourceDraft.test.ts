@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { loaderKindLabel, nameToId, rolePathSegment, type SourceDraft, toSourceDescriptor } from '../../src/lib/sourceDraft'
+import { draftPathSegment, loaderKindLabel, nameToId, type SourceDraft, toSourceDescriptor } from '../../src/lib/sourceDraft'
 
 const blank: SourceDraft = {
-  role: 'intent',
+  role: 'primary',
+  pathSegment: 'primaries',
   name: '',
   description: '',
   loaderKind: '',
@@ -49,39 +50,42 @@ describe('loaderKindLabel', () => {
   })
 })
 
-describe('rolePathSegment', () => {
-  it('maps intent to intents and code to codebases', () => {
-    expect(rolePathSegment('intent')).toBe('intents')
-    expect(rolePathSegment('code')).toBe('codebases')
+describe('draftPathSegment', () => {
+  it('uses the declared pathSegment', () => {
+    expect(draftPathSegment({ role: 'primary', pathSegment: 'primaries' })).toBe('primaries')
+  })
+
+  it('falls back to the role id when no pathSegment is declared', () => {
+    expect(draftPathSegment({ role: 'primary', pathSegment: '' })).toBe('primary')
   })
 })
 
 describe('toSourceDescriptor: filesystem', () => {
-  it('groups intent sources under `intents/<id>` and derives path automatically', () => {
-    const descriptor = toSourceDescriptor({ ...blank, role: 'intent', name: 'prd' })
+  it('groups sources under `<pathSegment>/<id>` and derives path automatically', () => {
+    const descriptor = toSourceDescriptor({ ...blank, pathSegment: 'primaries', name: 'prd' })
     expect(descriptor).toEqual({
       kind: 'filesystem',
       id: 'prd',
-      role: 'intent',
+      role: 'primary',
       name: 'prd',
-      path: './intents/prd',
+      path: './primaries/prd',
     })
   })
 
-  it('groups code sources under `codebases/<id>`', () => {
-    const descriptor = toSourceDescriptor({ ...blank, role: 'code', name: 'frontend' })
-    expect(descriptor).toMatchObject({ id: 'frontend', role: 'code', path: './codebases/frontend' })
+  it('groups a differently-typed source under its own segment', () => {
+    const descriptor = toSourceDescriptor({ ...blank, role: 'secondary', pathSegment: 'secondaries', name: 'frontend' })
+    expect(descriptor).toMatchObject({ id: 'frontend', role: 'secondary', path: './secondaries/frontend' })
   })
 
   it('derives path from the slugified id, not the raw display name', () => {
-    const descriptor = toSourceDescriptor({ ...blank, role: 'intent', name: 'My Source' })
-    expect(descriptor).toMatchObject({ id: 'my-source', name: 'My Source', path: './intents/my-source' })
+    const descriptor = toSourceDescriptor({ ...blank, pathSegment: 'primaries', name: 'My Source' })
+    expect(descriptor).toMatchObject({ id: 'my-source', name: 'My Source', path: './primaries/my-source' })
   })
 
   it('attaches a git loader when loaderKind=git, keeping both url and branch', () => {
     const descriptor = toSourceDescriptor({
       ...blank,
-      role: 'code',
+      role: 'secondary',
       name: 'src',
       loaderKind: 'git',
       gitUrl: 'https://example.com/repo.git',

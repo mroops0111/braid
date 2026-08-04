@@ -34,7 +34,7 @@ export class WorkspaceService {
    */
   assertRequiredSourceRoles(workspace: Workspace): void {
     const ontology = this.deps.pluginRegistry.findOntology(workspace.productManifest.ontologyId)
-    const required = ontology?.requiredSourceRoles ?? []
+    const required = (ontology?.sourceRoles ?? []).filter(role => role.required).map(role => role.id)
     if (required.length === 0)
       return
     const present = new Set(workspace.sources.map(source => source.role))

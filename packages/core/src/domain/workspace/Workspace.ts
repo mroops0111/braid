@@ -6,6 +6,7 @@ import type {
   McpSourceDescriptor,
   ProductManifest,
   SourceDescriptor,
+  SourceRole,
   StorageDescriptor,
   Workspace as WorkspaceData,
   WorkspaceId,
@@ -39,12 +40,8 @@ export class Workspace {
     return this.data.productManifest.storage
   }
 
-  codeSources(): readonly SourceDescriptor[] {
-    return this.sources.filter(source => source.role === 'code')
-  }
-
-  intentSources(): readonly SourceDescriptor[] {
-    return this.sources.filter(source => source.role === 'intent')
+  sourcesWithRole(role: SourceRole): readonly SourceDescriptor[] {
+    return this.sources.filter(source => source.role === role)
   }
 
   filesystemSources(): readonly FilesystemSourceDescriptor[] {

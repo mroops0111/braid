@@ -55,6 +55,7 @@ function fakeOntology(id: string, ontologyId: string): OntologyPlugin {
     nodeTypes: [],
     edgeTypes: [],
     validators: [],
+    sourceRoles: [],
   }
 }
 

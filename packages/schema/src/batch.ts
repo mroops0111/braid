@@ -14,19 +14,19 @@ export const BatchStatus = z.enum(['idle', 'deriving', 'running', 'completed', '
 export type BatchStatus = z.infer<typeof BatchStatus>
 
 /**
- * intent mode walks intent sources directly. derive mode seeds units via the ontology's deriveUnits skill,
- * for code-only workspaces.
+ * direct mode enumerates unit-bearing sources into units. derived mode seeds
+ * units via the ontology's deriveUnits skill, when no unit-bearing source exists.
  */
-export const BatchInputMode = z.enum(['intent', 'derive'])
+export const BatchInputMode = z.enum(['direct', 'derived'])
 export type BatchInputMode = z.infer<typeof BatchInputMode>
 
 export const BatchUnit = z.object({
   id: BatchUnitId,
   name: z.string().min(1),
   description: z.string(),
-  // The intent source this unit belongs to. Absent in derive mode.
+  // The unit-bearing source this unit belongs to. Absent in derived mode.
   sourceId: SourceId.optional(),
-  // Scope hint for ddd:extract (doc/folder name). Empty falls back to name.
+  // Scope hint for the per-unit skill (doc/folder name). Empty falls back to name.
   scopeHint: z.string().optional(),
   status: BatchUnitStatus,
   // Stamped at markUnitRunning so the UI can replay the run's log.

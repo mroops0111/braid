@@ -10,7 +10,13 @@ describe('dddOntology configuration', () => {
   })
 
   it('requires both an intent and a code source', () => {
-    expect(dddOntology.requiredSourceRoles).toEqual(['intent', 'code'])
+    const required = dddOntology.sourceRoles.filter(role => role.required).map(role => role.id)
+    expect(required).toEqual(['intent', 'code'])
+  })
+
+  it('declares intent as the unit-bearing role', () => {
+    const unitBearing = dddOntology.sourceRoles.filter(role => role.unitBearing).map(role => role.id)
+    expect(unitBearing).toEqual(['intent'])
   })
 
   it('ships three skills whose directories are the bare verbs', () => {
