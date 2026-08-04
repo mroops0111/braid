@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
-import { queryKeys, useProposalsByStatus, useProposalValidation, useWorkspaceMembers } from '@/lib/queries'
+import { queryKeys, useProposalsByStatus, useProposalValidation } from '@/lib/queries'
 import { useGraphNavigation } from '@/lib/useGraphNavigation'
 import { useMutualExclusionPair } from '@/lib/useMutualExclusionPair'
 import { useWorkspacePolicy } from '@/policy'
@@ -202,10 +202,9 @@ function ShowAllToggle({
   onToggle: (next: boolean) => void
 }) {
   const { effectiveRole } = useWorkspacePolicy(workspaceId)
-  const { data: members } = useWorkspaceMembers(workspaceId)
-  // Nothing to disambiguate on a solo workspace, every proposal is yours.
-  const multiMember = (members?.items.length ?? 0) > 1
-  if (effectiveRole !== 'owner' || status !== 'pending' || !multiMember)
+  // A solo workspace still holds proposals owned by no member, automation and
+  // agents submit as `system`, so the owner needs the toggle whatever the size.
+  if (effectiveRole !== 'owner' || status !== 'pending')
     return null
   return (
     <Button
