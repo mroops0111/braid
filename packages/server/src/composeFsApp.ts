@@ -327,8 +327,8 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     bootstrap,
     batchPlanRepository: new FsBatchPlanRepository(),
     unitLister: workspace => listUnitItems(workspace, unitBearingRolesOf(pluginRegistry, workspace)),
-    // The reactor has no human caller, so it acts as the `reactor` service
-    // account, minting a short-lived session so its API calls authenticate.
+    // The reactor has no human caller, so it acts as the `reactor` service account,
+    // minting a short-lived session so its API calls authenticate.
     reactorToken: async () => (await sessionStore.issue(REACTOR_USER_ID, { ttlSeconds: 3600 })).token,
     sourceUnitObservationRepository: new FsSourceUnitObservationRepository({ workspaceRoots }),
     reactorCycleRepository: new FsReactorCycleRepository({ workspaceRoots }),

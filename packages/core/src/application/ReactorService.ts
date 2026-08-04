@@ -39,8 +39,8 @@ export interface ReactorServiceDeps {
   readonly unitLister: UnitLister
   /**
    * Yields the caller token the reactor's autonomous skill runs act under.
-   * The reactor has no human caller, so it runs as the `reactor` service
-   * account, and its proposals are owned by it. Absent means run tokenless,
+   * The reactor has no human caller, so it runs as the `reactor` service account,
+   * and its proposals are owned by it. Absent means run tokenless,
    * which falls back to the deployment's default principal.
    */
   readonly reactorToken?: () => Promise<string | undefined>
@@ -111,7 +111,7 @@ interface CycleContext {
   readonly workspace: Workspace
   readonly sourceId: SourceId
   readonly batchBinding: OntologyBatchBinding
-  // Token the per-unit and checkpoint skill runs act under, resolved once per cycle.
+  // Token the skill runs act under, resolved once per cycle.
   readonly callerToken?: string
   cycle: ReactorCycle
 }

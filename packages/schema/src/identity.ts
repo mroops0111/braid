@@ -13,8 +13,8 @@ export const SYSTEM_USER_ID = UserId.parse('system')
  * Built-in service accounts. An autonomous component acts as one of these,
  * carrying its session token so its API calls authenticate as a known,
  * non-human principal rather than an anonymous caller. Seeding, auth,
- * workspace access, and pending-item visibility all read this set, so adding
- * a new autonomous component here needs no change to any of them.
+ * workspace access, and pending-item visibility all read this set,
+ * so adding a new autonomous component here needs no change to any of them.
  * `system` is the generic autonomous principal, `reactor` the source-sync one.
  */
 export const SERVICE_ACCOUNTS: readonly ServiceAccount[] = [

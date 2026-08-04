@@ -70,9 +70,8 @@ export const authenticated: AuthMode = {
 
 /**
  * Seed the built-in service accounts, idempotently, in every mode.
- * They act as admins so an autonomous component's calls clear the same
- * membership gate a workspace owner does, via the admin-to-owner rule,
- * with no service-account special-case in the access middleware.
+ * They are admins, so an autonomous component's calls clear the workspace gate,
+ * via the admin-to-owner rule, and no service-account special-case is needed.
  */
 export async function provisionServiceAccounts({ userRegistry }: AuthContext): Promise<void> {
   for (const account of SERVICE_ACCOUNTS) {

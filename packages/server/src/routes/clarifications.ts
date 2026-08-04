@@ -209,8 +209,8 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
     const viewer = getViewerContext(context)
     const viewerId = (showAll && viewer?.effectiveRole === 'owner') ? undefined : getUserId(context)
-    // Only owners see service-account (autonomous) pending, since only they can act on it.
-    // An absent viewer is an open composition (in-memory, headless), which stays open.
+    // Only owners see service-account (autonomous) pending, only they can act on it.
+    // An absent viewer means an open composition (in-memory), which stays open.
     const includeServiceAccounts = !viewer || viewer.effectiveRole === 'owner'
     const tickets = await deps.clarificationRepository.list({
       workspaceId,
