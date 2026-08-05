@@ -1,6 +1,6 @@
 import type { AbsolutePath, ProposalFilter, ProposalId, WorkspaceId } from '@braidhq/schema'
 import { paginate, Proposal, type ProposalRepository } from '@braidhq/core'
-import { isServiceAccount, Proposal as ProposalSchema } from '@braidhq/schema'
+import { Proposal as ProposalSchema } from '@braidhq/schema'
 import { PROPOSAL_STATUSES, proposalsDir } from '../_shared/paths.js'
 import { StatusedJsonStore } from './StatusedJsonStore.js'
 
@@ -41,9 +41,9 @@ export class FsProposalRepository implements ProposalRepository {
     // Absent viewerId means no filter, for Owner Show All and legacy callers.
     if (filter?.viewerId !== undefined) {
       const viewerId = filter.viewerId
-      const includeServiceAccounts = filter.includeServiceAccounts ?? false
+      const includeServiceOwned = filter.includeServiceOwned ?? false
       proposals = proposals.filter(proposal =>
-        proposal.status !== 'pending' || (includeServiceAccounts && isServiceAccount(proposal.owner)) || proposal.owner === viewerId,
+        proposal.status !== 'pending' || proposal.owner === viewerId || (includeServiceOwned && proposal.ownerKind === 'service'),
       )
     }
     return paginate(proposals, filter?.limit, filter?.offset)

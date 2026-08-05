@@ -16,12 +16,12 @@ import {
 } from '@braidhq/core'
 import { InMemoryWorkspaceEventBus } from '@braidhq/core/in-memory'
 import { dddOntology } from '@braidhq/ontology-ddd'
-import { AgentId, AgentKind, REACTOR_USER_ID, StorageKind as StorageKindSchema } from '@braidhq/schema'
+import { AgentId, AgentKind, StorageKind as StorageKindSchema } from '@braidhq/schema'
 import { createGoogleDriveLoader } from '@braidhq/source-loader-gdrive'
 import { gitLoader } from '@braidhq/source-loader-git'
 import { createGithubLoader } from '@braidhq/source-loader-github'
 import { kuzuStoragePlugin } from '@braidhq/storage-kuzu'
-import { authenticated, localTrust, provisionServiceAccounts } from './authMode.js'
+import { authenticated, localTrust } from './authMode.js'
 import { composeApp } from './composeApp.js'
 import { parseBoolEnv } from './infrastructure/_shared/env.js'
 import { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
@@ -46,6 +46,7 @@ import { UserRegistryFile } from './infrastructure/users/UserRegistryFile.js'
 import { FsWorkspaceRepository } from './infrastructure/workspace/FsWorkspaceRepository.js'
 import { discoverCanonicalWorkspaces } from './infrastructure/workspace/WorkspaceDiscovery.js'
 import { WorkspaceRegistryFile } from './infrastructure/workspace/WorkspaceRegistryFile.js'
+import { ensureServiceAccount, REACTOR_USER_ID } from './serviceAccounts.js'
 import { startupBeforeServe } from './startup.js'
 
 // The coding preset's default plugin identities, its worldview in one place.
@@ -144,8 +145,10 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   const authMode = parseBoolEnv(process.env.BRAID_LOCAL_TRUST, true) ? localTrust : authenticated
   // Local trust seeds `local-user`, authenticated mode syncs the login allowlist.
   await authMode.provision({ userRegistry, accessPolicy })
-  // Service accounts exist in every mode, independent of the auth strategy.
-  await provisionServiceAccounts({ userRegistry, accessPolicy })
+  // The reactor is an autonomous component, so it seeds its own service account.
+  // Its kind=service rides onto every proposal it submits,
+  // so the HITL views classify it without a read-time lookup.
+  await ensureServiceAccount(userRegistry, REACTOR_USER_ID, 'Reactor')
   const studioUrl = process.env.BRAID_STUDIO_URL ?? 'http://localhost:5173'
   const workspaceRoots = async (): Promise<ReadonlyMap<WorkspaceId, AbsolutePath>> => {
     const workspaces = await workspaceRepository.list()

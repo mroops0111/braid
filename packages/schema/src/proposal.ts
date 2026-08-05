@@ -18,6 +18,7 @@ import {
   GraphNodeCreate,
   GraphNodeUpdate,
 } from './model.js'
+import { UserKind } from './user.js'
 
 // Only the hard contract here. Authoring rules (length, tone, language) live in the skill layer.
 const proposalRationale = z.string().min(1).max(1500).describe('One-paragraph plain-text summary of what changed and why.')
@@ -56,6 +57,9 @@ export const Proposal = z.object({
   owner: Actor,
   // Name at submit time, survives renames. Absent for the 'system' owner.
   ownerDisplayName: z.string().min(1).optional(),
+  // Owner's kind snapshotted at submit time.
+  // Absent means a human's private draft, 'service' is autonomous and owner-visible.
+  ownerKind: UserKind.optional(),
 })
 export type Proposal = z.infer<typeof Proposal>
 
@@ -76,7 +80,7 @@ export const ProposalFilter = z.object({
   offset: z.number().int().nonnegative().optional(),
   // When set, hides others' pending proposals. Non-pending stay visible, absent shows all.
   viewerId: UserId.optional(),
-  // Whether the viewer also sees service-account-owned pending. Owners only.
-  includeServiceAccounts: z.boolean().optional(),
+  // Owner-only, also shows service-owned (autonomous) pending to this viewer.
+  includeServiceOwned: z.boolean().optional(),
 })
 export type ProposalFilter = z.infer<typeof ProposalFilter>

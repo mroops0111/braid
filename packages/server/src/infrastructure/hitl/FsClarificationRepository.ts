@@ -5,7 +5,7 @@ import type {
   WorkspaceId,
 } from '@braidhq/schema'
 import { Clarification, type ClarificationRepository, paginate } from '@braidhq/core'
-import { Clarification as ClarificationSchema, isServiceAccount } from '@braidhq/schema'
+import { Clarification as ClarificationSchema } from '@braidhq/schema'
 import { clarificationDir, CLARIFY_STATUSES } from '../_shared/paths.js'
 import { StatusedJsonStore } from './StatusedJsonStore.js'
 
@@ -41,9 +41,9 @@ export class FsClarificationRepository implements ClarificationRepository {
     // Answered, applied, and skipped tickets stay workspace-shared.
     if (filter?.viewerId !== undefined) {
       const viewerId = filter.viewerId
-      const includeServiceAccounts = filter.includeServiceAccounts ?? false
+      const includeServiceOwned = filter.includeServiceOwned ?? false
       tickets = tickets.filter(ticket =>
-        ticket.status !== 'pending' || (includeServiceAccounts && isServiceAccount(ticket.owner)) || ticket.owner === viewerId,
+        ticket.status !== 'pending' || ticket.owner === viewerId || (includeServiceOwned && ticket.ownerKind === 'service'),
       )
     }
     return paginate(tickets, filter?.limit, filter?.offset)

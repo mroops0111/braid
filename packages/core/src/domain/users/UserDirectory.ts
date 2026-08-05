@@ -1,4 +1,4 @@
-import type { UserId } from '@braidhq/schema'
+import type { UserId, UserKind } from '@braidhq/schema'
 
 /**
  * Read-only lookup of a userId's human-facing fields.
@@ -17,6 +17,9 @@ export interface UserDirectory {
 export interface UserAuthor {
   readonly displayName: string
   readonly email?: string
+  // Snapshotted onto proposals and tickets at submit time,
+  // so the HITL views classify an autonomous owner without a read-time lookup.
+  readonly kind?: UserKind
 }
 
 /** Drop-in directory that always returns null. Used by tests and the in-memory composition. */

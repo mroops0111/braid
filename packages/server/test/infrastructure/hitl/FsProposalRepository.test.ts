@@ -12,7 +12,7 @@ async function makeWorkspaceRoot(): Promise<AbsolutePath> {
   return await mkdtemp(join(tmpdir(), 'braid-fs-prop-')) as AbsolutePath
 }
 
-function makeProposal(id: string, workspaceId: WorkspaceId, status: 'pending' | 'applied' | 'rejected' = 'pending', owner: UserId | 'system' = 'system'): Proposal {
+function makeProposal(id: string, workspaceId: WorkspaceId, status: 'pending' | 'applied' | 'rejected' = 'pending', owner: UserId | 'system' = 'system', ownerKind?: 'human' | 'service'): Proposal {
   return new Proposal({
     id: id as ProposalId,
     workspaceId,
@@ -22,6 +22,7 @@ function makeProposal(id: string, workspaceId: WorkspaceId, status: 'pending' | 
     generatedAt: isoTimestamp,
     rationale: 'r',
     owner,
+    ...(ownerKind ? { ownerKind } : {}),
   })
 }
 
@@ -65,7 +66,7 @@ describe('FsProposalRepository', () => {
     expect(pending.map(p => p.id)).toEqual(['p-1'])
   })
 
-  it('shows service-account pending only when includeServiceAccounts is set (owner view)', async () => {
+  it('shows service-owned pending only when includeServiceOwned is set (owner view)', async () => {
     const root = await makeWorkspaceRoot()
     const workspaceId = 'ws-1' as WorkspaceId
     const repository = new FsProposalRepository({
@@ -73,13 +74,13 @@ describe('FsProposalRepository', () => {
     })
     const alice = 'alice' as UserId
     await repository.save(makeProposal('p-mine', workspaceId, 'pending', alice))
-    await repository.save(makeProposal('p-reactor', workspaceId, 'pending', 'reactor' as UserId))
+    await repository.save(makeProposal('p-reactor', workspaceId, 'pending', 'reactor' as UserId, 'service'))
     await repository.save(makeProposal('p-bob', workspaceId, 'pending', 'bob' as UserId))
 
     const personal = await repository.list({ workspaceId, viewerId: alice })
     expect(personal.map(p => p.id).sort()).toEqual(['p-mine'])
 
-    const asOwner = await repository.list({ workspaceId, viewerId: alice, includeServiceAccounts: true })
+    const asOwner = await repository.list({ workspaceId, viewerId: alice, includeServiceOwned: true })
     expect(asOwner.map(p => p.id).sort()).toEqual(['p-mine', 'p-reactor'])
   })
 

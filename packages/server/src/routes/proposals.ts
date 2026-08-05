@@ -183,16 +183,16 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     // Everyone else is forced through the personal-pending filter,
     // whatever they send.
     const viewer = getViewerContext(context)
-    const viewerId = (showAll && viewer?.effectiveRole === 'owner') ? undefined : getUserId(context)
-    // Only owners see service-account (autonomous) pending, only they can apply it.
-    // An absent viewer means an open composition (in-memory), which stays open.
-    const includeServiceAccounts = !viewer || viewer.effectiveRole === 'owner'
+    const isOwner = viewer?.effectiveRole === 'owner'
+    // No viewer is an open composition (in-memory), which applies no personal filter.
+    const viewerId = (!viewer || (showAll && isOwner)) ? undefined : getUserId(context)
+    // Owners also see service-owned (autonomous) pending, since only they can apply it.
     const proposals = await deps.proposalRepository.list({
       workspaceId,
       statuses,
       limit,
       offset,
-      ...(viewerId ? { viewerId, includeServiceAccounts } : {}),
+      ...(viewerId ? { viewerId, includeServiceOwned: isOwner } : {}),
     })
     return context.json({ items: proposals.map(proposal => proposal.toData()) }, 200)
   })
