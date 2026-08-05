@@ -52,7 +52,7 @@ describe('e2e history hooks: applying a proposal writes a commit', () => {
   })
 
   it('appends an apply commit with Kind / Proposal-Id / Author trailers and updates model.json', async () => {
-    // Submit a minimal valid proposal, a command node with implementationMissing.
+    // Submit a minimal valid proposal, a command node with a missing role.
     // That flag satisfies EvidenceValidator without faking sourceReferences.
     const submit = await app.request(`/workspaces/${workspaceId}/proposals`, {
       method: 'POST',
@@ -64,7 +64,7 @@ describe('e2e history hooks: applying a proposal writes a commit', () => {
             type: 'command',
             name: 'placeOrder',
             id: 'cmd-place',
-            metadata: { sourceReferences: [], implementationMissing: true },
+            metadata: { sourceReferences: [], missingRoles: ['code'] },
           },
         }],
         rationale: 'history hook e2e',
@@ -111,7 +111,7 @@ describe('e2e history hooks: applying a proposal writes a commit', () => {
             type: 'command',
             name: 'rejectMe',
             id: 'cmd-rej',
-            metadata: { sourceReferences: [], implementationMissing: true },
+            metadata: { sourceReferences: [], missingRoles: ['code'] },
           },
         }],
         rationale: 'will be rejected',

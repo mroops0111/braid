@@ -16,10 +16,10 @@ describe('GET /ontologies', () => {
   it('lists each registered ontology with its declared source roles', async () => {
     const { app, deps } = await buildTestApp()
     await deps.pluginRegistry.register(makeOntology({
-      ontologyId: 'ddd',
+      ontologyId: 'test',
       sourceRoles: [
-        { id: 'intent', label: 'Intent', required: true, unitBearing: true, pathSegment: 'intents' },
-        { id: 'code', label: 'Code', required: true, pathSegment: 'codebases' },
+        { id: 'alpha', label: 'Alpha', required: true, unitBearing: true, pathSegment: 'alphas' },
+        { id: 'beta', label: 'Beta', required: true, pathSegment: 'betas' },
       ],
     }))
 
@@ -27,8 +27,8 @@ describe('GET /ontologies', () => {
     expect(response.status).toBe(200)
     const body = await readJson<OntologyListResponse>(response)
     expect(body.ontologies).toHaveLength(1)
-    expect(body.ontologies[0]?.ontologyId).toBe('ddd')
-    expect(body.ontologies[0]?.sourceRoles.map(role => role.id)).toEqual(['intent', 'code'])
-    expect(body.ontologies[0]?.sourceRoles.find(role => role.id === 'intent')?.unitBearing).toBe(true)
+    expect(body.ontologies[0]?.ontologyId).toBe('test')
+    expect(body.ontologies[0]?.sourceRoles.map(role => role.id)).toEqual(['alpha', 'beta'])
+    expect(body.ontologies[0]?.sourceRoles.find(role => role.id === 'alpha')?.unitBearing).toBe(true)
   })
 })

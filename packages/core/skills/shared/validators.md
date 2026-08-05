@@ -45,8 +45,7 @@ Reads cardinality "one-to-many" left-to-right: `1:N` means each target accepts a
 **What it checks.** Every node carries an evidence trail:
 
 - At least one `metadata.sourceReferences[]` entry, **OR**
-- `metadata.implementationMissing: true` (intent-only, code not built yet), **OR**
-- `metadata.intentMissing: true` (code-only, intent not written yet).
+- a non-empty `metadata.missingRoles[]`, the declared source roles whose evidence is missing.
 
 Also: a node with `status: 'completed'` must have at least one `sourceReferences` entry (completion is a claim of fact and requires a citation).
 
@@ -56,11 +55,11 @@ And: every `DriftIssue` attached to a node's `metadata.driftIssues[]` is surface
 
 | Code | When |
 |---|---|
-| `evidence.no-source-or-flag` | Node has no sources AND no `intentMissing`/`implementationMissing` flag |
+| `evidence.no-source-or-missing-roles` | Node has no sources AND no `missingRoles` |
 | `evidence.completed-no-source` | Node is `status: completed` but `sourceReferences[]` is empty |
 | `evidence.drift` | A DriftIssue on the node's metadata (severity passed through; `error` blocks apply) |
 
-**How to self-check.** Treat `metadata` as required on every node you emit. If you have nothing, decide which flag applies (extract from code only means `intentMissing`; extract from PRD only means `implementationMissing`). Never emit empty `metadata`.
+**How to self-check.** Treat `metadata` as required on every node you emit. If a node has no source yet, list the declared roles whose evidence is missing in `metadata.missingRoles`. Never emit empty `metadata`.
 
 ## 4. OrphanEdgeValidator
 

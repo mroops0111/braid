@@ -48,7 +48,7 @@ Don't raise a `DriftIssue` for:
 
 - Style differences (camelCase vs snake_case, English vs Chinese phrasing). Names mean the same thing.
 - High-level intent vs low-level implementation detail (intent says "compute total price", code has 12 lines of arithmetic; that's expected, not drift).
-- Code-only or intent-only existence at the *whole-node* level: that's already covered by `metadata.intentMissing` / `metadata.implementationMissing` flags on the node. Use `DriftIssue` for field-level drift on a shared concept.
+- A role missing at the *whole-node* level (only some roles have evidence so far): that's already covered by `metadata.missingRoles` on the node. Use `DriftIssue` for field-level drift on a shared concept.
 - Vague suspicions ("I think these might differ but couldn't verify"). Either confirm with a specific cite or skip. Drift is structured evidence, not impressions.
 
 If the disagreement makes you unsure which concept these even *are* (two different `cancelOrder` candidates? same? distinct?), you don't have field-level drift; you have an identity question. Emit a `ClarifyTicket`, not a `DriftIssue`.
@@ -139,5 +139,5 @@ Before attaching a `DriftIssue`:
 - [ ] Two specific source citations (file + line / anchor)
 - [ ] Description names both sides and the impact in one sentence
 - [ ] Severity matches the contradiction-vs-gap distinction above
-- [ ] Not duplicating an `intentMissing` / `implementationMissing` flag at the whole-node level
+- [ ] Not duplicating a `missingRoles` entry at the whole-node level
 - [ ] If multiple dimensions disagree, one `DriftIssue` per dimension

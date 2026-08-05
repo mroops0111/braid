@@ -48,7 +48,7 @@ describe('history REST routes', () => {
       body: JSON.stringify({
         operations: [{
           operation: 'addNode',
-          payload: { type: 'command', name, id, metadata: { sourceReferences: [], implementationMissing: true } },
+          payload: { type: 'command', name, id, metadata: { sourceReferences: [], missingRoles: ['code'] } },
         }],
         rationale: name,
         generatedBy: 'extract',

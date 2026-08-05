@@ -6,6 +6,7 @@ import type {
   NodeTypeId,
   ProposalId,
   SkillId,
+  SourceRole,
   UserId,
   WorkspaceId,
 } from '@braidhq/schema'
@@ -27,7 +28,7 @@ function validNodePayload(overrides: { type?: NodeTypeId, name?: string, id?: st
     type: overrides.type ?? COMMAND,
     name: overrides.name ?? 'x',
     id: overrides.id ?? 'n-1',
-    metadata: { sourceReferences: [], implementationMissing: true },
+    metadata: { sourceReferences: [], missingRoles: ['alpha' as SourceRole] },
   }
 }
 
@@ -158,7 +159,7 @@ describe('POST /workspaces/:ws/proposals/:id/apply', () => {
           name: 'x',
           id: 'n-1' as NodeId,
           status: DRAFT,
-          metadata: { sourceReferences: [], implementationMissing: true },
+          metadata: { sourceReferences: [], missingRoles: ['alpha' as SourceRole] },
         },
       }],
     }))
