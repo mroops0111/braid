@@ -70,6 +70,14 @@ describe('FsSessionStore', () => {
     expect(await store.resolve(token)).toBeNull()
   })
 
+  it('issue prunes already-expired sessions so short-lived tokens do not accumulate', async () => {
+    await store.issue(alice, { ttlSeconds: -1 }) // stamps expiresAt in the past
+    await store.issue(bob) // triggers the prune, then adds bob's own row
+
+    const content = JSON.parse(await readFile(filePath, 'utf-8')) as { sessions: Array<{ userId: string }> }
+    expect(content.sessions.map(s => s.userId)).toEqual([bob])
+  })
+
   it('revoke invalidates a single token', async () => {
     const { token } = await store.issue(alice)
     await store.revoke(token)

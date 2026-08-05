@@ -38,6 +38,7 @@ export class Clarification {
   get proposalId(): ProposalId | undefined { return this.data.proposalId }
   get owner(): Actor { return this.data.owner }
   get ownerDisplayName(): string | undefined { return this.data.ownerDisplayName }
+  get ownerKind(): ClarificationData['ownerKind'] { return this.data.ownerKind }
   get externalReferences(): readonly ExternalReference[] | undefined { return this.data.externalReferences }
 
   resolveCandidate(candidateId: ClarificationCandidateId): readonly GraphOperation[] {

@@ -25,6 +25,7 @@ export class Proposal {
   get reviewedBy(): UserId | undefined { return this.data.reviewedBy }
   get owner(): Actor { return this.data.owner }
   get ownerDisplayName(): string | undefined { return this.data.ownerDisplayName }
+  get ownerKind(): ProposalData['ownerKind'] { return this.data.ownerKind }
   get externalReferences(): readonly ExternalReference[] | undefined { return this.data.externalReferences }
 
   // Returns a new Proposal in 'applied' state. Caller must persist the new instance and run the operations,
