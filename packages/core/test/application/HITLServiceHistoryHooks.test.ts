@@ -7,6 +7,7 @@ import type {
   NodeTypeId,
   ProposalId,
   SkillId,
+  SourceRole,
   UserId,
   WorkspaceId,
 } from '@braidhq/schema'
@@ -112,7 +113,7 @@ describe('HITLService — workspace history hooks', () => {
           name: 'voidTask',
           id: mintTestId('n') as NodeId,
           status: 'draft' as NodeStatus,
-          metadata: { sourceReferences: [], implementationMissing: true },
+          metadata: { sourceReferences: [], missingRoles: ['alpha' as SourceRole] },
         },
       }],
       generatedBy: 'extract' as SkillId,

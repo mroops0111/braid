@@ -6,8 +6,9 @@ import type {
 import type { OntologyPlugin, OntologyValidator } from '../plugin/OntologyPlugin.js'
 
 /**
- * Generic engine. Reads `nodeTypes` / `edgeTypes` from an `OntologyPlugin`,
- * and rejects nodes or edges whose `type` field isn't in the allow-list.
+ * Generic engine reading an `OntologyPlugin`'s declared vocabulary.
+ * Rejects any graph reference outside it, a node or edge `type`,
+ * or a node's `metadata.missingRoles` entry.
  *
  * Not a plugin: callers construct an instance bound to their ontology,
  * typically `defineOntologyPlugin()` in the SDK,
@@ -18,10 +19,12 @@ import type { OntologyPlugin, OntologyValidator } from '../plugin/OntologyPlugin
 export class OntologyTypeValidator implements OntologyValidator {
   private readonly knownNodeTypes: ReadonlySet<string>
   private readonly knownEdgeTypes: ReadonlySet<string>
+  private readonly knownSourceRoles: ReadonlySet<string>
 
   constructor(private readonly ontology: OntologyPlugin) {
     this.knownNodeTypes = new Set(ontology.nodeTypes.map(nodeType => nodeType.id))
     this.knownEdgeTypes = new Set(ontology.edgeTypes.map(edgeType => edgeType.id))
+    this.knownSourceRoles = new Set(ontology.sourceRoles.map(role => role.id))
   }
 
   async validate(snapshot: ModelSnapshot): Promise<readonly ValidationIssue[]> {
@@ -34,6 +37,16 @@ export class OntologyTypeValidator implements OntologyValidator {
           message: `Node "${node.name}" has type "${node.type}" which is not in the ${this.ontology.ontologyId} ontology. Valid types: ${[...this.knownNodeTypes].join(', ')}.`,
           nodeId: node.id,
         })
+      }
+      for (const role of node.metadata.missingRoles ?? []) {
+        if (!this.knownSourceRoles.has(role)) {
+          issues.push({
+            code: 'ontology.unknown-source-role' as ValidationCode,
+            severity: 'error',
+            message: `Node "${node.name}" declares a missing role "${role}" which is not a source role in the ${this.ontology.ontologyId} ontology. Valid roles: ${[...this.knownSourceRoles].join(', ')}.`,
+            nodeId: node.id,
+          })
+        }
       }
     }
     for (const edge of snapshot.edges) {

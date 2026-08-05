@@ -1,4 +1,4 @@
-import type { ClarificationCandidate, ClarificationId, NodeId, NodeStatus, NodeTypeId, WorkspaceId } from '@braidhq/schema'
+import type { ClarificationCandidate, ClarificationId, NodeId, NodeStatus, NodeTypeId, SourceRole, WorkspaceId } from '@braidhq/schema'
 import { Clarification } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { buildTestApp } from '../helpers/buildApp.js'
@@ -21,7 +21,7 @@ describe('GET /workspaces/:ws/skill-input-options', () => {
           type: 'command' as NodeTypeId,
           name: 'CreateOrder',
           status: 'draft' as NodeStatus,
-          metadata: { sourceReferences: [], intentMissing: true },
+          metadata: { sourceReferences: [], missingRoles: ['alpha' as SourceRole] },
         },
       },
       {
@@ -31,7 +31,7 @@ describe('GET /workspaces/:ws/skill-input-options', () => {
           type: 'event' as NodeTypeId,
           name: 'OrderPlaced',
           status: 'draft' as NodeStatus,
-          metadata: { sourceReferences: [], intentMissing: true },
+          metadata: { sourceReferences: [], missingRoles: ['alpha' as SourceRole] },
         },
       },
     ])

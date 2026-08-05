@@ -6,28 +6,14 @@ import { BatchPlan as BatchPlanData } from '@braidhq/schema'
 import { z } from 'zod'
 import { batchPlanPath, workspaceArtifactsDir } from '../_shared/paths.js'
 
-// v2 renamed BatchInputMode from intent|derive to direct|derived.
+// On-disk envelope version. Bumped only when the plan payload shape changes.
 export const BATCH_PLAN_VERSION = 2
 
-// Envelope only. The plan is validated after migration, not at this layer.
+// Envelope only. The plan itself is validated by its schema below.
 export const BatchPlanFile = z.object({
   version: z.number().int(),
   plan: z.unknown(),
 })
-
-// v1 named the batch input mode intent|derive, v2 renamed it direct|derived.
-function migrateModeV1ToV2(plan: unknown): unknown {
-  if (!plan || typeof plan !== 'object' || !('mode' in plan))
-    return plan
-  const legacy = (plan as { mode: unknown }).mode
-  const mode = legacy === 'intent' ? 'direct' : legacy === 'derive' ? 'derived' : legacy
-  return { ...(plan as Record<string, unknown>), mode }
-}
-
-/** Upgrade a persisted plan payload from its on-disk version to the current schema. */
-function migratePlan(fromVersion: number, plan: unknown): unknown {
-  return fromVersion < 2 ? migrateModeV1ToV2(plan) : plan
-}
 
 export class FsBatchPlanRepository implements BatchPlanRepository {
   async load(workspace: Workspace): Promise<BatchPlan | null> {
@@ -46,8 +32,7 @@ export class FsBatchPlanRepository implements BatchPlanRepository {
         `batch-plan.json in ${workspace.rootPath} is version ${file.version}, newer than supported ${BATCH_PLAN_VERSION}`,
       )
     }
-    const migrated = migratePlan(file.version, file.plan)
-    return new BatchPlan(BatchPlanData.parse(migrated))
+    return new BatchPlan(BatchPlanData.parse(file.plan))
   }
 
   async save(workspace: Workspace, plan: BatchPlan): Promise<void> {

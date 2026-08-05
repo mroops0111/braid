@@ -30,9 +30,9 @@ function validNode(opts: { type: string, name: string, id: string }): unknown {
     type: opts.type,
     name: opts.name,
     id: opts.id,
-    // implementationMissing satisfies EvidenceValidator, the node is intent for code not yet shipped,
-    // so no sourceReferences needed.
-    metadata: { sourceReferences: [], implementationMissing: true },
+    // missingRoles satisfies EvidenceValidator,
+    // the node is still missing a role's evidence, so no sourceReferences needed.
+    metadata: { sourceReferences: [], missingRoles: ['code'] },
   }
 }
 
@@ -112,7 +112,7 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
     const wsId = await scaffold('e2e-valid')
 
     // boundedContext to aggregate via `contains`. Three validators must pass:
-    // - EvidenceValidator (framework): implementationMissing satisfies it
+    // - EvidenceValidator (framework): missingRoles satisfies it
     // - OntologyTypeValidator (ontology): both types declared in ddd
     // - StructuralValidator (ontology): contains direction matches descriptor
     const response = await submitProposal(wsId, proposalBody({
@@ -147,7 +147,7 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
 
     expect(response.status).toBe(400)
     const problem = await readJson<ProblemBody>(response)
-    expect(problem.issues?.some(issue => issue.code === 'evidence.no-source-or-flag')).toBe(true)
+    expect(problem.issues?.some(issue => issue.code === 'evidence.no-source-or-missing-roles')).toBe(true)
   })
 
   it('rejects a proposal whose node type is not in the active ontology', async () => {

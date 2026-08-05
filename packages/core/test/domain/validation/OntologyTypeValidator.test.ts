@@ -1,4 +1,4 @@
-import type { EdgeId, EdgeTypeId, ModelSnapshot, NodeId, NodeStatus, NodeTypeId } from '@braidhq/schema'
+import type { EdgeId, EdgeTypeId, ModelSnapshot, NodeId, NodeStatus, NodeTypeId, SourceRole } from '@braidhq/schema'
 import { makeOntology } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { OntologyTypeValidator } from '../../../src/domain/validation/OntologyTypeValidator.js'
@@ -23,6 +23,7 @@ const tinyOntology = makeOntology({
   edgeTypes: [
     { id: 'mounts' as EdgeTypeId, fromTypes: ['page'] as NodeTypeId[], toTypes: ['widget'] as NodeTypeId[] },
   ],
+  sourceRoles: [{ id: 'spec', label: 'Spec' }],
 })
 
 describe('OntologyTypeValidator', () => {
@@ -39,6 +40,25 @@ describe('OntologyTypeValidator', () => {
       ],
     ))
     expect(issues).toEqual([])
+  })
+
+  it('accepts a node whose missingRoles are declared source roles', async () => {
+    const issues = await validator.validate(snapshot([
+      { id: 'n1' as NodeId, type: 'page' as NodeTypeId, name: 'home', status: draft, metadata: { sourceReferences: [], missingRoles: ['spec' as SourceRole] } },
+    ]))
+    expect(issues).toEqual([])
+  })
+
+  it('rejects a missingRoles entry not declared by the ontology', async () => {
+    const issues = await validator.validate(snapshot([
+      { id: 'n1' as NodeId, type: 'page' as NodeTypeId, name: 'home', status: draft, metadata: { sourceReferences: [], missingRoles: ['bogus' as SourceRole] } },
+    ]))
+    expect(issues).toHaveLength(1)
+    expect(issues[0]).toMatchObject({
+      code: 'ontology.unknown-source-role',
+      severity: 'error',
+      nodeId: 'n1',
+    })
   })
 
   it('rejects unknown node types with namespaced code', async () => {

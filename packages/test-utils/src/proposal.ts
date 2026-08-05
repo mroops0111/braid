@@ -1,4 +1,4 @@
-import type { NodeStatus, NodeTypeId, ProposalId, SkillId, WorkspaceId } from '@braidhq/schema'
+import type { NodeStatus, NodeTypeId, ProposalId, SkillId, SourceRole, WorkspaceId } from '@braidhq/schema'
 import { Proposal } from '@braidhq/core'
 import { mintTestId } from './ids.js'
 import { T0 } from './time.js'
@@ -11,8 +11,9 @@ export interface MakeProposalOptions {
 
 /**
  * Construct a pending Proposal for tests.
- * Defaults to a single addNode with implementationMissing,
- * the intent-side shape that satisfies the EvidenceValidator invariant.
+ * Defaults to a single sourceless addNode with a neutral missing role,
+ * a shape that satisfies the EvidenceValidator invariant,
+ * without naming an ontology's roles.
  * Override id when a test asserts on it,
  * otherwise a fresh minted id keeps calls collision-free.
  */
@@ -29,7 +30,7 @@ export function makeProposal(workspaceId: WorkspaceId, opts: MakeProposalOptions
         name,
         id: mintTestId('n') as never,
         status: 'draft' as NodeStatus,
-        metadata: { sourceReferences: [], implementationMissing: true },
+        metadata: { sourceReferences: [], missingRoles: ['alpha' as SourceRole] },
       },
     }],
     generatedBy: 'extract' as SkillId,
