@@ -41,8 +41,9 @@ export class FsClarificationRepository implements ClarificationRepository {
     // Answered, applied, and skipped tickets stay workspace-shared.
     if (filter?.viewerId !== undefined) {
       const viewerId = filter.viewerId
+      const includeServiceOwned = filter.includeServiceOwned ?? false
       tickets = tickets.filter(ticket =>
-        ticket.status !== 'pending' || ticket.owner === 'system' || ticket.owner === viewerId,
+        ticket.status !== 'pending' || ticket.owner === viewerId || (includeServiceOwned && ticket.ownerKind === 'service'),
       )
     }
     return paginate(tickets, filter?.limit, filter?.offset)

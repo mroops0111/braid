@@ -11,6 +11,7 @@ import {
   WorkspaceId,
 } from './common.js'
 import { GraphOperation } from './proposal.js'
+import { UserKind } from './user.js'
 
 // Only the hard contract here. Authoring rules (length, tone, language) live in the skill layer.
 const clarificationQuestion = z.string().min(1).max(400).describe('The single question shown to the reviewer.')
@@ -47,6 +48,9 @@ export const Clarification = z.object({
   owner: Actor,
   // Display-name snapshot at submit time. Absent for the 'system' owner.
   ownerDisplayName: z.string().min(1).optional(),
+  // Owner's kind snapshotted at submit time.
+  // Absent means a human's private ticket, 'service' is autonomous and owner-visible.
+  ownerKind: UserKind.optional(),
   // Set when the resolution becomes a Proposal, so the UI can link the two.
   proposalId: ProposalId.optional(),
   externalReferences: z.array(ExternalReference).optional(),
@@ -87,5 +91,7 @@ export const ClarificationFilter = z.object({
   offset: z.number().int().nonnegative().optional(),
   // When set, hides others' pending tickets. Non-pending stay visible, absent shows all.
   viewerId: UserId.optional(),
+  // Owner-only, also shows service-owned (autonomous) pending to this viewer.
+  includeServiceOwned: z.boolean().optional(),
 })
 export type ClarificationFilter = z.infer<typeof ClarificationFilter>

@@ -1,4 +1,4 @@
-import type { AbsolutePath, ProposalId, SkillId, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, ProposalId, SkillId, UserId, WorkspaceId } from '@braidhq/schema'
 import { mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -12,7 +12,7 @@ async function makeWorkspaceRoot(): Promise<AbsolutePath> {
   return await mkdtemp(join(tmpdir(), 'braid-fs-prop-')) as AbsolutePath
 }
 
-function makeProposal(id: string, workspaceId: WorkspaceId, status: 'pending' | 'applied' | 'rejected' = 'pending'): Proposal {
+function makeProposal(id: string, workspaceId: WorkspaceId, status: 'pending' | 'applied' | 'rejected' = 'pending', owner: UserId | 'system' = 'system', ownerKind?: 'human' | 'service'): Proposal {
   return new Proposal({
     id: id as ProposalId,
     workspaceId,
@@ -21,7 +21,8 @@ function makeProposal(id: string, workspaceId: WorkspaceId, status: 'pending' | 
     generatedBy: 'extract' as SkillId,
     generatedAt: isoTimestamp,
     rationale: 'r',
-    owner: 'system',
+    owner,
+    ...(ownerKind ? { ownerKind } : {}),
   })
 }
 
@@ -63,6 +64,24 @@ describe('FsProposalRepository', () => {
 
     const pending = await repository.list({ workspaceId, statuses: ['pending'] })
     expect(pending.map(p => p.id)).toEqual(['p-1'])
+  })
+
+  it('shows service-owned pending only when includeServiceOwned is set (owner view)', async () => {
+    const root = await makeWorkspaceRoot()
+    const workspaceId = 'ws-1' as WorkspaceId
+    const repository = new FsProposalRepository({
+      workspaceRoots: async () => new Map([[workspaceId, root]]),
+    })
+    const alice = 'alice' as UserId
+    await repository.save(makeProposal('p-mine', workspaceId, 'pending', alice))
+    await repository.save(makeProposal('p-reactor', workspaceId, 'pending', 'reactor' as UserId, 'service'))
+    await repository.save(makeProposal('p-bob', workspaceId, 'pending', 'bob' as UserId))
+
+    const personal = await repository.list({ workspaceId, viewerId: alice })
+    expect(personal.map(p => p.id).sort()).toEqual(['p-mine'])
+
+    const asOwner = await repository.list({ workspaceId, viewerId: alice, includeServiceOwned: true })
+    expect(asOwner.map(p => p.id).sort()).toEqual(['p-mine', 'p-reactor'])
   })
 
   it('load throws NotFoundError when proposal missing', async () => {

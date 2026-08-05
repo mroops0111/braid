@@ -37,6 +37,13 @@ export interface ReactorServiceDeps {
   readonly skillRunner: SkillRunner
   readonly sourceUnitObservationService: SourceUnitObservationService
   readonly unitLister: UnitLister
+  /**
+   * Yields the caller token the reactor's autonomous skill runs act under.
+   * The reactor has no human caller, so it runs as the `reactor` service account,
+   * and its proposals are owned by it. Absent means run tokenless,
+   * which falls back to the deployment's default principal.
+   */
+  readonly reactorToken?: () => Promise<string | undefined>
   readonly digest: SourceUnitDigest
   readonly reactorCycleRepository: ReactorCycleRepository
   readonly clock: Clock
@@ -104,6 +111,8 @@ interface CycleContext {
   readonly workspace: Workspace
   readonly sourceId: SourceId
   readonly batchBinding: OntologyBatchBinding
+  // Token the skill runs act under, resolved once per cycle.
+  readonly callerToken?: string
   cycle: ReactorCycle
 }
 
@@ -224,6 +233,7 @@ export class ReactorService {
     if (!batchBinding?.perUnit?.skillId)
       return undefined
     const startedAt = this.deps.clock.now()
+    const callerToken = await this.deps.reactorToken?.()
     const cycle: ReactorCycle = {
       id: newReactorCycleId(),
       workspaceId: workspace.id,
@@ -232,7 +242,7 @@ export class ReactorService {
       status: 'dispatched',
       units: [],
     }
-    return { workspace, sourceId: event.sourceId, batchBinding, cycle }
+    return { workspace, sourceId: event.sourceId, batchBinding, cycle, ...(callerToken ? { callerToken } : {}) }
   }
 
   private async changedUnitPaths(context: CycleContext): Promise<readonly string[]> {
@@ -270,7 +280,7 @@ export class ReactorService {
     let runId: SkillRunId
     try {
       const args = argsForPath(batchBinding.perUnit, path)
-      runId = await this.deps.skillRunner.start(workspace, batchBinding.perUnit.skillId, args)
+      runId = await this.deps.skillRunner.start(workspace, batchBinding.perUnit.skillId, args, context.callerToken ? { callerToken: context.callerToken } : undefined)
       context.cycle = updateUnit(cycle, index, { status: 'running', skillRunId: runId, startedAt: this.deps.clock.now() })
       await this.persistAndEmit(context, this.unitStartedEvent(context, index, runId, total))
       await waitForCompletion(this.deps.skillRunner, runId)
@@ -313,7 +323,7 @@ export class ReactorService {
     const { workspace } = context
     const startedAt = this.deps.clock.now()
     try {
-      const runId = await this.deps.skillRunner.start(workspace, skillId, '')
+      const runId = await this.deps.skillRunner.start(workspace, skillId, '', context.callerToken ? { callerToken: context.callerToken } : undefined)
       context.cycle = updateCheckpoint(context.cycle, { skillId, status: 'running', skillRunId: runId, startedAt })
       await this.persistAndEmit(context, this.checkpointStartedEvent(context, skillId, runId))
       await waitForCompletion(this.deps.skillRunner, runId)

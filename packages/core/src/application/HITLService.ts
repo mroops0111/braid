@@ -78,6 +78,7 @@ export class HITLService {
       ...(draft.externalReferences ? { externalReferences: draft.externalReferences } : {}),
       owner: draft.submitterId ?? 'system',
       ...(submitter?.displayName ? { ownerDisplayName: submitter.displayName } : {}),
+      ...(submitter?.kind ? { ownerKind: submitter.kind } : {}),
     })
     return this.withLockedWorkspace(draft.workspaceId, async (workspace) => {
       await this.deps.proposalRepository.save(proposal)
@@ -115,6 +116,7 @@ export class HITLService {
       ...(draft.ambiguityType ? { ambiguityType: draft.ambiguityType } : {}),
       owner: draft.submitterId ?? 'system',
       ...(submitter?.displayName ? { ownerDisplayName: submitter.displayName } : {}),
+      ...(submitter?.kind ? { ownerKind: submitter.kind } : {}),
     })
     return this.withLockedWorkspace(draft.workspaceId, async (workspace) => {
       await this.deps.clarificationRepository.save(ticket)
