@@ -208,13 +208,16 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
     const { status, limit, offset, showAll } = context.req.valid('query')
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
     const viewer = getViewerContext(context)
-    const viewerId = (showAll && viewer?.effectiveRole === 'owner') ? undefined : getUserId(context)
+    const isOwner = viewer?.effectiveRole === 'owner'
+    // No viewer is an open composition (in-memory), which applies no personal filter.
+    const viewerId = (!viewer || (showAll && isOwner)) ? undefined : getUserId(context)
+    // Owners also see service-owned (autonomous) pending, since only they can act on it.
     const tickets = await deps.clarificationRepository.list({
       workspaceId,
       statuses,
       limit,
       offset,
-      ...(viewerId ? { viewerId } : {}),
+      ...(viewerId ? { viewerId, includeServiceOwned: isOwner } : {}),
     })
     return context.json({ items: tickets.map(ticket => ticket.toData()) }, 200)
   })

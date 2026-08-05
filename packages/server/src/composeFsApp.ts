@@ -46,6 +46,7 @@ import { UserRegistryFile } from './infrastructure/users/UserRegistryFile.js'
 import { FsWorkspaceRepository } from './infrastructure/workspace/FsWorkspaceRepository.js'
 import { discoverCanonicalWorkspaces } from './infrastructure/workspace/WorkspaceDiscovery.js'
 import { WorkspaceRegistryFile } from './infrastructure/workspace/WorkspaceRegistryFile.js'
+import { ensureServiceAccount, REACTOR_USER_ID } from './serviceAccounts.js'
 import { startupBeforeServe } from './startup.js'
 
 // The coding preset's default plugin identities, its worldview in one place.
@@ -144,6 +145,10 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   const authMode = parseBoolEnv(process.env.BRAID_LOCAL_TRUST, true) ? localTrust : authenticated
   // Local trust seeds `local-user`, authenticated mode syncs the login allowlist.
   await authMode.provision({ userRegistry, accessPolicy })
+  // The reactor is an autonomous component, so it seeds its own service account.
+  // Its kind=service rides onto every proposal it submits,
+  // so the HITL views classify it without a read-time lookup.
+  await ensureServiceAccount(userRegistry, REACTOR_USER_ID, 'Reactor')
   const studioUrl = process.env.BRAID_STUDIO_URL ?? 'http://localhost:5173'
   const workspaceRoots = async (): Promise<ReadonlyMap<WorkspaceId, AbsolutePath>> => {
     const workspaces = await workspaceRepository.list()
@@ -325,6 +330,9 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     bootstrap,
     batchPlanRepository: new FsBatchPlanRepository(),
     unitLister: workspace => listUnitItems(workspace, unitBearingRolesOf(pluginRegistry, workspace)),
+    // The reactor has no human caller, so it acts as the `reactor` service account,
+    // minting a short-lived session so its API calls authenticate.
+    reactorToken: async () => (await sessionStore.issue(REACTOR_USER_ID, { ttlSeconds: 3600 })).token,
     sourceUnitObservationRepository: new FsSourceUnitObservationRepository({ workspaceRoots }),
     reactorCycleRepository: new FsReactorCycleRepository({ workspaceRoots }),
     sourceUnitDigest: new FsSourceUnitDigest(),

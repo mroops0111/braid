@@ -156,6 +156,9 @@ export interface ComposeOptions {
   // to a no-op stub that throws, fine unless a batch or reactor runs.
   unitLister?: UnitLister
   sourceUnitDigest?: SourceUnitDigest
+  // Yields the caller token the reactor's autonomous runs act under.
+  // Absent means the reactor runs tokenless, falling back to the default principal.
+  reactorToken?: () => Promise<string | undefined>
 
   // Skills.
   skillRegistry?: SkillRegistry
@@ -263,6 +266,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
       skillRunner: options.skillRunner,
       sourceUnitObservationService,
       unitLister: options.unitLister,
+      ...(options.reactorToken ? { reactorToken: options.reactorToken } : {}),
       digest: sourceUnitDigest,
       reactorCycleRepository,
       workspaceLock,

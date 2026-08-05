@@ -49,7 +49,7 @@ function secondarySource(id: string): SourceDescriptor {
 }
 
 class FakeSkillRunner implements SkillRunner {
-  readonly startCalls: Array<{ skillId: SkillId, args: string }> = []
+  readonly startCalls: Array<{ skillId: SkillId, args: string, callerToken?: string }> = []
   private readonly listeners = new Map<SkillRunId, SkillEventListener>()
   // When set, start() defers completion until flushOne fires it.
   controlled = false
@@ -57,9 +57,9 @@ class FakeSkillRunner implements SkillRunner {
   private readonly pending: Array<() => void> = []
   exitCodes: number[] = []
 
-  async start(_workspace: unknown, skillId: SkillId, args: string): Promise<SkillRunId> {
+  async start(_workspace: unknown, skillId: SkillId, args: string, options?: { callerToken?: string }): Promise<SkillRunId> {
     const runId = `r-${this.startCalls.length}` as SkillRunId
-    this.startCalls.push({ skillId, args })
+    this.startCalls.push({ skillId, args, ...(options?.callerToken ? { callerToken: options.callerToken } : {}) })
     const code = this.exitCodes.shift() ?? 0
     const fire = () => {
       const listener = this.listeners.get(runId)
@@ -109,6 +109,7 @@ async function setup(opts: {
   hasPerUnit?: boolean
   hasCheckpoint?: boolean
   maxRunsPerHour?: number
+  reactorToken?: string
 } = {}) {
   resetTestIds()
   const workspaceRepo = new InMemoryWorkspaceRepository()
@@ -200,6 +201,7 @@ async function setup(opts: {
     skillRunner,
     sourceUnitObservationService,
     unitLister,
+    ...(opts.reactorToken ? { reactorToken: async () => opts.reactorToken } : {}),
     digest,
     reactorCycleRepository,
     workspaceLock: new WorkspaceLock(),
@@ -240,6 +242,25 @@ async function tick(ms = 20): Promise<void> {
 }
 
 describe('ReactorService', () => {
+  it('runs its skills under the reactor caller token, so proposals are owned by it', async () => {
+    const { workspace, eventBus, skillRunner } = await setup({ hasCheckpoint: true, reactorToken: 'reactor-token' })
+    emitSync(eventBus, workspace.id, 'issues')
+    await tick(100)
+
+    // Every dispatched run, per-unit and checkpoint, carries the token.
+    expect(skillRunner.startCalls.length).toBeGreaterThan(0)
+    expect(skillRunner.startCalls.every(c => c.callerToken === 'reactor-token')).toBe(true)
+  })
+
+  it('runs tokenless when no reactor token is provided', async () => {
+    const { workspace, eventBus, skillRunner } = await setup()
+    emitSync(eventBus, workspace.id, 'issues')
+    await tick(100)
+
+    expect(skillRunner.startCalls.length).toBeGreaterThan(0)
+    expect(skillRunner.startCalls.every(c => c.callerToken === undefined)).toBe(true)
+  })
+
   it('dispatches one per-unit run for each of three new units, then one checkpoint', async () => {
     const { workspace, eventBus, skillRunner, captured } = await setup({ hasCheckpoint: true })
     emitSync(eventBus, workspace.id, 'issues')

@@ -17,6 +17,7 @@ export class UserDirectoryFromRegistry implements UserDirectory {
     return {
       displayName: user.displayName,
       ...(user.email ? { email: user.email } : {}),
+      ...(user.kind ? { kind: user.kind } : {}),
     }
   }
 }
