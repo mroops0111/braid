@@ -162,12 +162,8 @@ function EdgeList({ title, icon: Icon, edges, getOther, nodesById, onSelectNode 
 
 function FlagsSection({ node }: { node: GraphNode }) {
   const flags: Array<{ label: string, tone: 'amber' | 'rose' }> = []
-  if (node.metadata.intentMissing)
-    flags.push({ label: 'intent missing', tone: 'amber' })
-  if (node.metadata.intentConflict)
-    flags.push({ label: 'intent conflict', tone: 'rose' })
-  if (node.metadata.implementationMissing)
-    flags.push({ label: 'implementation missing', tone: 'amber' })
+  for (const role of node.metadata.missingRoles ?? [])
+    flags.push({ label: `missing ${role}`, tone: 'amber' })
   if (flags.length === 0)
     return null
   return (

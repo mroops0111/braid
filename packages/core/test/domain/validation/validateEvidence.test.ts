@@ -1,4 +1,4 @@
-import type { DriftIssueId, ModelSnapshot, NodeId, NodeStatus, NodeTypeId, SourceId } from '@braidhq/schema'
+import type { DriftIssueId, ModelSnapshot, NodeId, NodeStatus, NodeTypeId, SourceId, SourceRole } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { validateEvidence } from '../../../src/domain/validation/validateEvidence.js'
 
@@ -15,7 +15,7 @@ function snapshot(nodes: ModelSnapshot['nodes'], edges: ModelSnapshot['edges'] =
 }
 
 describe('validateEvidence', () => {
-  it('emits error when node has no sources and no missing-evidence flag', () => {
+  it('emits error when node has no sources and no missingRoles', () => {
     const issues = validateEvidence(snapshot([
       {
         id: 'n1' as NodeId,
@@ -27,26 +27,26 @@ describe('validateEvidence', () => {
     ]))
     expect(issues).toHaveLength(1)
     expect(issues[0]).toMatchObject({
-      code: 'evidence.no-source-or-flag',
+      code: 'evidence.no-source-or-missing-roles',
       severity: 'error',
       nodeId: 'n1',
     })
   })
 
-  it('accepts node with implementationMissing flag', () => {
+  it('accepts sourceless node that declares a missing role', () => {
     const issues = validateEvidence(snapshot([
       {
         id: 'n1' as NodeId,
         type: aggregate,
         name: 'Cart',
         status: draft,
-        metadata: { sourceReferences: [], implementationMissing: true },
+        metadata: { sourceReferences: [], missingRoles: ['alpha' as SourceRole] },
       },
     ]))
     expect(issues).toEqual([])
   })
 
-  it('accepts node with intentMissing flag', () => {
+  it('accepts a sourced node that also declares a missing role', () => {
     const issues = validateEvidence(snapshot([
       {
         id: 'n1' as NodeId,
@@ -58,7 +58,7 @@ describe('validateEvidence', () => {
             sourceId: 'code-a' as SourceId,
             location: { uri: 'apps/api/cart.ts' },
           }],
-          intentMissing: true,
+          missingRoles: ['alpha' as SourceRole],
         },
       },
     ]))
@@ -72,10 +72,10 @@ describe('validateEvidence', () => {
         type: aggregate,
         name: 'Cart',
         status: completed,
-        metadata: { sourceReferences: [], implementationMissing: true },
+        metadata: { sourceReferences: [], missingRoles: ['alpha' as SourceRole] },
       },
     ]))
-    // implementationMissing clears the no-source rule,
+    // missingRoles clears the no-source rule,
     // but completed-no-source still fires.
     expect(issues.map(i => i.code)).toEqual(['evidence.completed-no-source'])
   })

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { DriftIssueId, EdgeId, ExternalReference, NodeId, SkillId, SourceReference, Timestamp } from './common.js'
 import { EdgeTypeId, NodeStatus, NodeTypeId } from './ontology.js'
+import { SourceRole } from './source.js'
 
 export const DriftSeverity = z.enum(['error', 'warning', 'info'])
 export type DriftSeverity = z.infer<typeof DriftSeverity>
@@ -31,9 +32,10 @@ export const Embedding = z.object({
 export type Embedding = z.infer<typeof Embedding>
 
 export const GraphNodeMetadata = z.object({
-  intentMissing: z.boolean().optional(),
-  intentConflict: z.boolean().optional(),
-  implementationMissing: z.boolean().optional(),
+  // Declared source roles whose evidence is missing on this node.
+  // Role-agnostic, an ontology names its own roles, absent means none missing.
+  // A node with no sources stays valid while a role is still missing.
+  missingRoles: z.array(SourceRole).optional(),
   sourceReferences: z.array(SourceReference).default([]),
   lastTouchedBy: SkillId.optional(),
   externalReferences: z.array(ExternalReference).optional(),

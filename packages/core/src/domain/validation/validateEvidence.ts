@@ -9,11 +9,12 @@ import type {
  * Framework invariant: every node must declare some evidence trail.
  * One of these must hold:
  *   - at least one `metadata.sourceReferences[]` entry,
- *   - `metadata.implementationMissing: true`, intent-only, code not built yet,
- *   - `metadata.intentMissing: true`, code-only, intent not written yet.
+ *   - a non-empty `metadata.missingRoles[]`, declared roles whose evidence is missing.
  *
+ * The rule is role-agnostic. It never names a role,
+ * it only asks for a source or an explicit list of roles not yet evidenced.
  * Without this, the graph silently accepts wishful thinking,
- * intent claimed as done with no code and no explicit "not yet" flag.
+ * a node claimed with no source and no explicit missing-roles list.
  *
  * Also catches the contradiction of `status: 'completed'` with zero references,
  * completion is a claim of fact, and needs at least one source citation.
@@ -33,14 +34,13 @@ function checkNode(node: GraphNode): ValidationIssue[] {
   const issues: ValidationIssue[] = []
   const refs = node.metadata.sourceReferences
   const hasSources = refs.length > 0
-  const intentMissing = node.metadata.intentMissing === true
-  const implementationMissing = node.metadata.implementationMissing === true
+  const hasMissingRoles = (node.metadata.missingRoles?.length ?? 0) > 0
 
-  if (!hasSources && !intentMissing && !implementationMissing) {
+  if (!hasSources && !hasMissingRoles) {
     issues.push({
-      code: 'evidence.no-source-or-flag' as ValidationCode,
+      code: 'evidence.no-source-or-missing-roles' as ValidationCode,
       severity: 'error',
-      message: `Node "${node.name}" has no sourceReferences and neither intentMissing nor implementationMissing is set. Every node must declare evidence (a source) or an explicit "not yet" flag.`,
+      message: `Node "${node.name}" has no sourceReferences and no missingRoles. Every node must declare evidence (a source) or the roles whose evidence is missing.`,
       nodeId: node.id,
     })
   }

@@ -43,14 +43,13 @@ Each entry in `operations[]` is one of:
     "sourceReferences": [
       { "sourceId": "src-intent", "location": { "uri": "...", "anchor": "..." } }
     ],
-    "intentMissing": false,          // optional; true means "code exists, no spec yet"
-    "implementationMissing": false,  // optional; true means "spec exists, no code yet"
+    "missingRoles": [],             // optional list of roles not yet evidenced
     "driftIssues": [ /* DriftIssue[]; see drift-detection.md */ ]
   }
 }
 ```
 
-`EvidenceValidator` (in `validators.md`) requires *some* evidence: at least one `sourceReferences` entry, or `intentMissing: true`, or `implementationMissing: true`.
+`EvidenceValidator` (in `validators.md`) requires *some* evidence: at least one `sourceReferences` entry, or a non-empty `missingRoles`.
 
 ### Picking sourceReferences
 

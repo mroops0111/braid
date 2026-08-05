@@ -75,11 +75,11 @@ describe('OntologyResponse', () => {
 
   it('carries the ontology-declared source roles and their capabilities', () => {
     const res = OntologyResponse.parse({
-      ontologyId: 'ddd',
+      ontologyId: 'test',
       nodeTypes: [],
       edgeTypes: [],
-      sourceRoles: [{ id: 'intent', label: 'Intent', required: true, unitBearing: true, pathSegment: 'intents' }],
+      sourceRoles: [{ id: 'alpha', label: 'Alpha', required: true, unitBearing: true, pathSegment: 'alphas' }],
     })
-    expect(res.sourceRoles).toEqual([{ id: 'intent', label: 'Intent', required: true, unitBearing: true, pathSegment: 'intents' }])
+    expect(res.sourceRoles).toEqual([{ id: 'alpha', label: 'Alpha', required: true, unitBearing: true, pathSegment: 'alphas' }])
   })
 })

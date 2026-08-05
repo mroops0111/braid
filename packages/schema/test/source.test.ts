@@ -14,9 +14,9 @@ import {
 
 describe('SourceRole', () => {
   it('accepts any non-empty role, so an ontology declares its own set', () => {
-    expect(SourceRole.parse('code')).toBe('code')
-    expect(SourceRole.parse('intent')).toBe('intent')
-    expect(SourceRole.parse('canon')).toBe('canon')
+    expect(SourceRole.parse('alpha')).toBe('alpha')
+    expect(SourceRole.parse('beta')).toBe('beta')
+    expect(SourceRole.parse('gamma')).toBe('gamma')
   })
   it('rejects an empty role', () => {
     expect(SourceRole.safeParse('').success).toBe(false)
@@ -35,7 +35,7 @@ describe('FilesystemSourceDescriptor', () => {
     const source = FilesystemSourceDescriptor.parse({
       kind: 'filesystem',
       id: 'src-api',
-      role: 'code',
+      role: 'alpha',
       name: 'api',
       path: '/abs/code/api',
     })
@@ -47,7 +47,7 @@ describe('FilesystemSourceDescriptor', () => {
     const source = FilesystemSourceDescriptor.parse({
       kind: 'filesystem',
       id: 'src-api',
-      role: 'code',
+      role: 'alpha',
       name: 'api',
       path: '/abs/code/api',
       language: 'typescript',
@@ -61,7 +61,7 @@ describe('McpSourceDescriptor', () => {
     const source = McpSourceDescriptor.parse({
       kind: 'mcp',
       id: 'src-redmine',
-      role: 'intent',
+      role: 'beta',
       name: 'redmine',
       mcpServerId: 'redmine',
     })
@@ -73,7 +73,7 @@ describe('McpSourceDescriptor', () => {
     const source = McpSourceDescriptor.parse({
       kind: 'mcp',
       id: 'src-redmine',
-      role: 'intent',
+      role: 'beta',
       name: 'redmine',
       mcpServerId: 'redmine',
       scope: { tags: ['project:DS'], paths: [] },
@@ -87,7 +87,7 @@ describe('SourceDescriptor (discriminated union)', () => {
     const fs = SourceDescriptor.parse({
       kind: 'filesystem',
       id: 'a',
-      role: 'code',
+      role: 'alpha',
       name: 'a',
       path: '/abs',
     })
@@ -96,7 +96,7 @@ describe('SourceDescriptor (discriminated union)', () => {
     const mcp = SourceDescriptor.parse({
       kind: 'mcp',
       id: 'b',
-      role: 'intent',
+      role: 'beta',
       name: 'b',
       mcpServerId: 'srv',
     })
@@ -105,7 +105,7 @@ describe('SourceDescriptor (discriminated union)', () => {
 
   it('rejects unknown kind', () => {
     expect(
-      SourceDescriptor.safeParse({ kind: 'http', id: 'a', role: 'code', name: 'a' }).success,
+      SourceDescriptor.safeParse({ kind: 'http', id: 'a', role: 'alpha', name: 'a' }).success,
     ).toBe(false)
   })
 })
@@ -132,7 +132,7 @@ describe('FilesystemSourceDescriptor with a loader', () => {
     const source = FilesystemSourceDescriptor.parse({
       kind: 'filesystem',
       id: 'src-app',
-      role: 'code',
+      role: 'alpha',
       name: 'app',
       path: '/abs/code/app',
       loader: { kind: 'git', config: { url: 'https://github.com/x/y' } },

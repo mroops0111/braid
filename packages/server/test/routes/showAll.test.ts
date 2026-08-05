@@ -25,7 +25,7 @@ async function submitProposal(
           type: COMMAND,
           name: nodeId,
           id: nodeId,
-          metadata: { sourceReferences: [], implementationMissing: true },
+          metadata: { sourceReferences: [], missingRoles: ['code'] },
         },
       }],
       generatedBy: 'extract',

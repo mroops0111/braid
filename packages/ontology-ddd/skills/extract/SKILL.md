@@ -75,12 +75,12 @@ For each candidate node compared to the current graph:
 
 For each candidate node, set `metadata` according to where the evidence lives:
 
-- Intent source only (no code yet, e.g. a fresh PRD): set `metadata.sourceReferences = [intent ref]` plus `metadata.implementationMissing = true`. Status stays `draft`.
-- Code source only (running code with no spec): set `metadata.sourceReferences = [code ref]` plus `metadata.intentMissing = true`. Status `draft`.
+- Intent source only (no code yet, e.g. a fresh PRD): set `metadata.sourceReferences = [intent ref]` plus `metadata.missingRoles = ['code']`. Status stays `draft`.
+- Code source only (running code with no spec): set `metadata.sourceReferences = [code ref]` plus `metadata.missingRoles = ['intent']`. Status `draft`.
 - Both sources agree: set `metadata.sourceReferences = [intent ref, code ref]`. Status `draft` (only the human can promote to `completed` on apply).
 - Both sources disagree: distinguish identity-level disagreement from field-level drift (see below).
 
-Every node you emit MUST have `metadata` set. A node with `metadata.sourceReferences: []` AND no `implementationMissing` AND no `intentMissing` will be rejected by the server validator.
+Every node you emit MUST have `metadata` set. A node with `metadata.sourceReferences: []` AND an empty `metadata.missingRoles` will be rejected by the server validator.
 
 When a node has multiple sources to cite (intent plus one or more code files, or several layers of code), order them by representativeness: see `proposal-format.md` § Picking sourceReferences.
 
@@ -125,7 +125,7 @@ Produced N proposals + M clarify tickets:
 
 - [ ] Ontology fetched from `braid-core` before any operation was drafted; every `node.type` / `edge.type` matches an id in the response.
 - [ ] Wiring rules in `ontology-ddd/concept.md` followed (parent edges, no Context Mapping auto-emit, policy has both edges, `dependsOn` is aggregate-to-aggregate).
-- [ ] Every node has `metadata.sourceReferences` and / or an `implementationMissing` / `intentMissing` flag.
+- [ ] Every node has `metadata.sourceReferences` and / or a non-empty `metadata.missingRoles`.
 - [ ] Field-level disagreement between sources surfaces as a `DriftIssue` on the node (see `drift-detection.md`), not a ClarifyTicket.
 - [ ] Each proposal was submitted via `braid-core` proposal-create and the final response was 201 (not 4xx).
 - [ ] No `removeNode` of a node still referenced elsewhere; deprecate instead.

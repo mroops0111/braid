@@ -190,9 +190,7 @@ function nodesEqual(a: GraphNode, b: GraphNode): boolean {
     && a.name === b.name
     && a.description === b.description
     && a.status === b.status
-    && a.metadata.intentMissing === b.metadata.intentMissing
-    && a.metadata.intentConflict === b.metadata.intentConflict
-    && a.metadata.implementationMissing === b.metadata.implementationMissing
+    && stringArraysEqual(a.metadata.missingRoles, b.metadata.missingRoles)
     && a.metadata.lastTouchedBy === b.metadata.lastTouchedBy
     && sourceRefsEqual(a.metadata.sourceReferences, b.metadata.sourceReferences)
     && externalRefsEqual(a.metadata.externalReferences, b.metadata.externalReferences)
@@ -209,6 +207,16 @@ function edgesEqual(a: GraphEdge, b: GraphEdge): boolean {
 
 // Structural comparison, not JSON.stringify. Stable across key order, no stringify cost. Array order matters,
 // since skills typically append.
+function stringArraysEqual(a: readonly string[] | undefined, b: readonly string[] | undefined): boolean {
+  if (a === undefined && b === undefined)
+    return true
+  if (a === undefined || b === undefined)
+    return false
+  if (a.length !== b.length)
+    return false
+  return a.every((value, index) => value === b[index])
+}
+
 function sourceRefsEqual(a: readonly SourceReference[], b: readonly SourceReference[]): boolean {
   if (a.length !== b.length)
     return false
