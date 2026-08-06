@@ -1,5 +1,6 @@
 import { AlertTriangle, ArrowRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { workspaceEventsUrl } from '@/lib/api'
 import { useReactorCycles } from '@/lib/queries'
 import { TopBanner } from './TopBanner'
@@ -26,6 +27,7 @@ interface ReactorBannerProps {
  * and it auto-dismisses after a few seconds.
  */
 export function ReactorBanner({ workspaceId, onOpenActivity }: ReactorBannerProps) {
+  const { t } = useTranslation()
   const { data: cycles } = useReactorCycles(workspaceId)
   const active = (cycles?.items ?? []).find(c => c.status === 'dispatched' || c.status === 'running')
 
@@ -68,23 +70,20 @@ export function ReactorBanner({ workspaceId, onOpenActivity }: ReactorBannerProp
       {active && (
         <TopBanner
           tone="reactor"
-          label="Reactor"
+          label={t('review.banners.reactor')}
           detail={(
             <>
-              processing
+              {t('review.banners.reactorProcessingPrefix')}
               {' '}
               <span className="font-mono">{active.sourceId}</span>
               {' · '}
-              {processed}
-              /
-              {totalUnits}
-              {' units'}
+              {t('review.banners.reactorUnits', { processed, total: totalUnits })}
             </>
           )}
           actions={(
             <Button variant="ghost" size="sm" className="h-6 gap-1 text-2xs" onClick={onOpenActivity}>
               <ArrowRight className="size-3" />
-              Open Activity
+              {t('review.banners.openActivityButton')}
             </Button>
           )}
         />
@@ -92,18 +91,15 @@ export function ReactorBanner({ workspaceId, onOpenActivity }: ReactorBannerProp
       {throttled && !active && (
         <TopBanner
           tone="warning"
-          label="Reactor"
+          label={t('review.banners.reactor')}
           icon={AlertTriangle}
           detail={(
             <>
-              throttled (cap
-              {' '}
-              {throttled.limit}
-              /h reached), sync on
+              {t('review.banners.reactorThrottledPrefix', { limit: throttled.limit })}
               {' '}
               <span className="font-mono">{throttled.sourceId}</span>
               {' '}
-              skipped. Next dispatch unblocks once the rolling window slides.
+              {t('review.banners.reactorThrottledSuffix')}
             </>
           )}
         />

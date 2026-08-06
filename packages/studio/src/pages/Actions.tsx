@@ -2,6 +2,7 @@ import type { RunRecord, SessionMetadata, SkillCategory, SkillManifest, SourceId
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, ChevronDown, ChevronUp, Lock, MessageCircleQuestion, MessageSquare, Pencil, Plus, Puzzle, Send, Sparkles, Trash2, Wand2, Wrench, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ActionInputForm } from '@/components/ActionInputForm'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
+import { useLocaleFormat } from '@/lib/i18n'
 import { queryKeys, useRuns, useSessionMetadata, useSkills } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
 import { useConversation } from '@/lib/useRun'
@@ -27,11 +29,12 @@ type Group = SkillCategory | 'custom'
 
 const GROUP_ORDER: readonly Group[] = ['ask', 'build', 'generate', 'custom']
 
-const GROUP_META: Record<Group, { title: string, icon: typeof Sparkles }> = {
-  ask: { title: 'Ask anytime', icon: MessageCircleQuestion },
-  build: { title: 'Build the graph', icon: Wrench },
-  generate: { title: 'Generate', icon: Wand2 },
-  custom: { title: 'Custom', icon: Puzzle },
+// Group titles live in the catalog under review.actions.groups.<group>.
+const GROUP_ICON: Record<Group, typeof Sparkles> = {
+  ask: MessageCircleQuestion,
+  build: Wrench,
+  generate: Wand2,
+  custom: Puzzle,
 }
 
 interface ActionsPageProps {
@@ -66,6 +69,7 @@ export interface SessionGroup {
  * or a hydrated past one, based on the per-skill turn list.
  */
 export function ActionsPage({ workspaceId }: ActionsPageProps) {
+  const { t } = useTranslation()
   const { data: skillsData } = useSkills(workspaceId)
   const { data: runsData } = useRuns(workspaceId)
   const { data: titleData } = useSessionMetadata(workspaceId)
@@ -98,7 +102,7 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
   }
 
   if (!skillsData)
-    return <div className="p-4 text-sm text-muted-foreground">Loading actions…</div>
+    return <div className="p-4 text-sm text-muted-foreground">{t('review.actions.loadingActions')}</div>
 
   const buckets = bucketByGroup(skills)
 
@@ -113,17 +117,16 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
             <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
               {skills.length === 0
                 ? (
-                    <SidebarSection icon={Sparkles} title="Actions">
-                      <SidebarEmpty>No actions available.</SidebarEmpty>
+                    <SidebarSection icon={Sparkles} title={t('review.actions.actionsTitle')}>
+                      <SidebarEmpty>{t('review.actions.noActions')}</SidebarEmpty>
                     </SidebarSection>
                   )
                 : GROUP_ORDER.map((group) => {
                     const bucket = buckets[group]
                     if (!bucket || bucket.length === 0)
                       return null
-                    const meta = GROUP_META[group]
                     return (
-                      <SidebarSection key={group} icon={meta.icon} title={meta.title}>
+                      <SidebarSection key={group} icon={GROUP_ICON[group]} title={t(`review.actions.groups.${group}`)}>
                         {bucket.map((skill, index) => (
                           <SkillRow
                             key={skill.id}
@@ -149,7 +152,7 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
                 className="flex w-full items-center gap-2 px-3 py-2 text-2xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent/40"
               >
                 <MessageSquare className="size-3" />
-                <span>Conversations</span>
+                <span>{t('review.actions.conversations')}</span>
                 {groups.length > 0 && (
                   <span className="rounded bg-muted px-1.5 py-0.5 font-mono normal-case text-2xs text-muted-foreground">
                     {groups.length}
@@ -162,7 +165,7 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
               {showConversations && (
                 <ul className="max-h-[30vh] overflow-y-auto scrollbar-thin border-t border-border">
                   {groups.length === 0
-                    ? <SidebarEmpty>Past conversations will appear here.</SidebarEmpty>
+                    ? <SidebarEmpty>{t('review.actions.pastConversations')}</SidebarEmpty>
                     : groups.map(group => (
                         <ConversationRow
                           key={group.groupId}
@@ -182,8 +185,8 @@ export function ActionsPage({ workspaceId }: ActionsPageProps) {
           : (
               <EmptyState
                 icon={Sparkles}
-                title="Pick an Action"
-                description="Choose an action on the left to start, or resume a recent conversation."
+                title={t('review.actions.pickTitle')}
+                description={t('review.actions.pickDescription')}
               />
             )}
       </SurfaceLayout>
@@ -196,6 +199,8 @@ function ConversationRow({ workspaceId, group, onResume }: {
   group: SessionGroup
   onResume: () => void
 }) {
+  const { t } = useTranslation()
+  const { formatDateTime } = useLocaleFormat()
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(group.title ?? group.firstPrompt)
@@ -291,10 +296,7 @@ function ConversationRow({ workspaceId, group, onResume }: {
           </span>
           <div className="flex items-center gap-1">
             <Badge variant="outline" className="text-2xs uppercase">
-              {group.records.length}
-              {' '}
-              turn
-              {group.records.length === 1 ? '' : 's'}
+              {t('review.actions.turnCount', { count: group.records.length })}
             </Badge>
             {canRename && (
               <button
@@ -303,8 +305,8 @@ function ConversationRow({ workspaceId, group, onResume }: {
                   e.stopPropagation()
                   setEditing(true)
                 }}
-                title="Rename"
-                aria-label="Rename"
+                title={t('review.actions.rename')}
+                aria-label={t('review.actions.rename')}
                 className="hidden rounded p-0.5 text-muted-foreground/60 hover:bg-accent hover:text-foreground group-hover/row:inline-flex"
               >
                 <Pencil className="size-3" />
@@ -316,8 +318,8 @@ function ConversationRow({ workspaceId, group, onResume }: {
                 e.stopPropagation()
                 setConfirmOpen(true)
               }}
-              title="Delete conversation"
-              aria-label="Delete conversation"
+              title={t('review.actions.deleteConversation')}
+              aria-label={t('review.actions.deleteConversation')}
               className="hidden rounded p-0.5 text-muted-foreground/60 hover:bg-destructive/15 hover:text-destructive group-hover/row:inline-flex"
             >
               <Trash2 className="size-3" />
@@ -327,21 +329,19 @@ function ConversationRow({ workspaceId, group, onResume }: {
         <div className="break-words text-xs text-foreground/90">
           {group.title ?? group.firstPrompt}
         </div>
-        <div className="text-2xs text-muted-foreground">{formatTimestamp(group.lastStartedAt)}</div>
+        <div className="text-2xs text-muted-foreground">{formatDateTime(group.lastStartedAt)}</div>
       </ListRow>
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete this conversation?</DialogTitle>
+            <DialogTitle>{t('review.actions.deleteDialogTitle')}</DialogTitle>
             <DialogDescription>
-              {group.records.length === 1
-                ? 'One run will be permanently removed, including its transcript.'
-                : `${group.records.length} turns will be permanently removed, including transcripts. This cannot be undone.`}
+              {t('review.actions.deleteDialogDescription', { count: group.records.length })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={deleteSession.isPending}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               variant="destructive"
@@ -353,7 +353,7 @@ function ConversationRow({ workspaceId, group, onResume }: {
               disabled={deleteSession.isPending}
             >
               <Check />
-              {deleteSession.isPending ? 'Deleting…' : 'Delete'}
+              {deleteSession.isPending ? t('review.actions.deleting') : t('common.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -389,6 +389,7 @@ function SkillRow({ skill, active, onClick, step, locked }: {
   step?: number | undefined
   locked?: boolean
 }) {
+  const { t } = useTranslation()
   return (
     <ListRow active={active} onClick={onClick} className="items-start gap-2">
       {step !== undefined && (
@@ -407,10 +408,10 @@ function SkillRow({ skill, active, onClick, step, locked }: {
             <Badge
               variant="outline"
               className="text-2xs uppercase tracking-wider text-muted-foreground"
-              title="Your role cannot run this skill. Ask an Owner to grant access."
+              title={t('review.actions.lockedTitle')}
             >
               <Lock className="size-2.5" />
-              Locked
+              {t('review.actions.locked')}
             </Badge>
           )}
         </div>
@@ -450,6 +451,7 @@ interface ConversationProps {
 }
 
 function Conversation({ workspaceId, skill, locked = false }: ConversationProps) {
+  const { t } = useTranslation()
   const conversation = useConversation(workspaceId, skill.id)
   const [prompt, setPrompt] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -537,13 +539,13 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
               onClick={() => cancel.mutate()}
             >
               <X />
-              {cancel.isPending ? 'Cancelling…' : 'Cancel'}
+              {cancel.isPending ? t('common.cancelling') : t('common.cancel')}
             </Button>
           )}
           {turnCount > 0 && (
             <Button variant="ghost" size="sm" onClick={reset} disabled={running}>
               <Plus />
-              New Conversation
+              {t('review.actions.newConversation')}
             </Button>
           )}
         </div>
@@ -553,7 +555,7 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
         <div className="flex items-start gap-2 border-t border-border bg-muted/40 px-4 py-2 text-2xs text-muted-foreground">
           <Lock className="mt-0.5 size-3 shrink-0" />
           <span>
-            Your role cannot run this skill. Ask an Owner to grant access via Workspace Settings, Skill Permissions.
+            {t('review.actions.lockedNotice')}
           </span>
         </div>
       )}
@@ -577,10 +579,10 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
               <Textarea
                 placeholder={
                   locked
-                    ? 'Locked for your role.'
+                    ? t('review.actions.promptLockedPlaceholder')
                     : isFollowUp
-                      ? 'Ask a follow-up… (Enter to send, Shift+Enter for newline)'
-                      : (skill.frontmatter.argumentHint ?? 'Describe what you want… (Enter to send, Shift+Enter for newline)')
+                      ? t('review.actions.promptFollowUpPlaceholder')
+                      : (skill.frontmatter.argumentHint ?? t('review.actions.promptDefaultPlaceholder'))
                 }
                 value={prompt}
                 onChange={e => setPrompt(e.target.value)}
@@ -603,7 +605,7 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
               />
               <Button size="sm" onClick={send} disabled={running || locked || !prompt.trim()}>
                 <Send />
-                {running ? 'Sending…' : isFollowUp ? 'Send' : 'Start'}
+                {running ? t('review.actions.sending') : isFollowUp ? t('review.actions.send') : t('review.actions.start')}
               </Button>
             </div>
           )}

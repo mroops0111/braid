@@ -1,10 +1,13 @@
 import type { SkillInputDescriptor, SkillInputDynamicOption, SourceId, SourceUnit, SourceUnitObservation } from '@braidhq/schema'
+import type { TFunction } from 'i18next'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { MultiSelectDropdown } from '@/components/MultiSelectDropdown'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
+import { formatDateTimeIn } from '@/lib/i18n'
 
 type PickInput = Extract<SkillInputDescriptor, { kind: 'pick' | 'multi-pick' }>
 type TextInput = Extract<SkillInputDescriptor, { kind: 'text' }>
@@ -47,7 +50,9 @@ interface ActionInputFormProps {
  * fetch options via the server's `/skill-input-options` endpoint,
  * and apply the declared `fallback` when the workspace has nothing matching.
  */
-export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submitLabel = 'Start' }: ActionInputFormProps) {
+export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submitLabel }: ActionInputFormProps) {
+  const { t } = useTranslation()
+  const resolvedSubmitLabel = submitLabel ?? t('actionInput.submitDefaultButton')
   const queryClient = useQueryClient()
   const [scalarValues, setScalarValues] = useState<Record<string, string>>(
     () => Object.fromEntries(inputs.filter(i => i.kind !== 'multi-pick').map(input => [input.name, input.default ?? ''])),
@@ -156,10 +161,10 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
         <Button size="sm" onClick={handleSubmit} disabled={!canSubmit}>
           <Send />
           {disabled
-            ? 'Sending…'
+            ? t('common.sending')
             : multiPickInputs[0] && (multiValues[multiPickInputs[0].name]?.length ?? 0) > 1
-              ? `${submitLabel} (${multiValues[multiPickInputs[0].name]!.length} runs)`
-              : submitLabel}
+              ? t('actionInput.runsSuffix', { label: resolvedSubmitLabel, count: multiValues[multiPickInputs[0].name]!.length })
+              : resolvedSubmitLabel}
         </Button>
       </div>
     </div>
@@ -273,6 +278,7 @@ function useSourceBadges(
   providerKind: string,
   rawOptions: readonly SkillInputDynamicOption[],
 ): readonly DynamicOptionWithBadge[] {
+  const { t, i18n } = useTranslation()
   const isSourceProvider = providerKind === 'source'
   const sourceIds = useMemo(() => {
     if (!isSourceProvider)
@@ -332,9 +338,9 @@ function useSourceBadges(
         return {
           ...opt,
           badge: {
-            text: relativeAgo(now, lastAt),
+            text: relativeAgo(now, lastAt, t),
             tone: 'fresh' as const,
-            title: `Last extracted ${new Date(lastAt).toLocaleString()}`,
+            title: t('actionInput.lastProcessed', { date: formatDateTimeIn(i18n.language, lastAt) }),
           },
         }
       }
@@ -342,17 +348,17 @@ function useSourceBadges(
         return {
           ...opt,
           badge: {
-            text: 'stale',
+            text: t('actionInput.staleBadge'),
             tone: 'stale' as const,
             title: lastAt
-              ? `Changed since last extract ${new Date(lastAt).toLocaleString()}`
-              : 'Changed since last extract',
+              ? t('actionInput.changedSinceWithDate', { date: formatDateTimeIn(i18n.language, lastAt) })
+              : t('actionInput.changedSinceLabel'),
           },
         }
       }
       return opt
     })
-  }, [isSourceProvider, rawOptions, sourceIds, diffQueries, ledgerQueries])
+  }, [isSourceProvider, rawOptions, sourceIds, diffQueries, ledgerQueries, t, i18n.language])
 }
 
 interface DynamicOptionWithBadge extends SkillInputDynamicOption {
@@ -364,24 +370,25 @@ interface DynamicOptionWithBadge extends SkillInputDynamicOption {
 }
 
 /**
- * Compact "Nm ago", "Nh ago", or "Nd ago" formatter for the freshness chip.
- * Avoids pulling in a date library for one badge.
+ * Compact freshness chip label.
+ * Keeps the terse "Nm ago" form rather than the long Intl phrasing,
+ * then resolves the words through the catalog so it localizes.
  */
-function relativeAgo(now: number, iso: string): string {
+function relativeAgo(now: number, iso: string, t: TFunction): string {
   const then = Date.parse(iso)
   if (Number.isNaN(then))
-    return 'recent'
+    return t('actionInput.freshness.recent')
   const delta = Math.max(0, now - then)
-  const m = Math.floor(delta / 60_000)
-  if (m < 1)
-    return 'just now'
-  if (m < 60)
-    return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24)
-    return `${h}h ago`
-  const d = Math.floor(h / 24)
-  return `${d}d ago`
+  const minutes = Math.floor(delta / 60_000)
+  if (minutes < 1)
+    return t('actionInput.freshness.justNow')
+  if (minutes < 60)
+    return t('actionInput.freshness.minutesAgo', { count: minutes })
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24)
+    return t('actionInput.freshness.hoursAgo', { count: hours })
+  const days = Math.floor(hours / 24)
+  return t('actionInput.freshness.daysAgo', { count: days })
 }
 
 function SelectControl({

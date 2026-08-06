@@ -1,0 +1,63 @@
+export const graph = {
+  // Shown while the workspace graph snapshot is still loading.
+  loadingGraph: 'Loading graph…',
+  empty: {
+    title: 'Graph Is Empty',
+    tableDescription: 'Run a build action from Actions, or bootstrap it from your sources.',
+    canvasDescription: 'Bootstrap from every registered {unitRole}. If none exist, AI scans your other sources instead.',
+    bootstrapButton: 'Bootstrap From Sources',
+  },
+  filteredEmpty: {
+    description: 'No nodes match the current filter.',
+    resetButton: 'Reset Filters',
+  },
+  table: {
+    nodesTitle: 'Nodes ({count})',
+    edgesTitle: 'Edges ({count})',
+    columnChange: 'Change',
+    columnId: 'ID',
+    columnFrom: 'From',
+    columnTo: 'To',
+  },
+  navigator: {
+    searchPlaceholder: 'Search name / description…',
+    filterByType: 'Filter By Type',
+    orphansOnly: 'Orphans Only ({count})',
+    collapseButton: 'Collapse navigator',
+    showButton: 'Show navigator',
+    legend: 'Legend',
+    nodeTypes: 'Node types',
+    edgeTypes: 'Edge types',
+  },
+  detail: {
+    closeDetailButton: 'Close detail',
+    edgeTitle: 'Edge',
+    endpoints: 'Endpoints',
+    fromLabel: 'From',
+    toLabel: 'To',
+    sources: 'Sources',
+    noSources: 'No sourceReferences declared.',
+    centerInGraphButton: 'Center in Graph',
+    flags: 'Flags',
+    missingRole: 'missing {role}',
+    incoming: 'Incoming ({count})',
+    outgoing: 'Outgoing ({count})',
+  },
+  nodeCard: {
+    addedTooltip: 'Added by this proposal',
+    updatedTooltip: 'Updated by this proposal',
+    removedTooltip: 'Removed by this proposal',
+  },
+  toolbar: {
+    showFullGraphTooltip: 'Show full graph',
+    focusNeighbourhoodTooltip: 'Focus on neighbourhood',
+    focusButton: 'Focus',
+    dimUnchangedTooltip: 'Dim unchanged nodes & edges',
+    onlyChangesButton: 'Only changes',
+    graphView: 'Graph view',
+    visualizationViewButton: 'Visualization view',
+    tableViewButton: 'Table view',
+  },
+}
+
+export default graph

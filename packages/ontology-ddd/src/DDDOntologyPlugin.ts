@@ -1,5 +1,30 @@
+import type { EdgeTypeDescriptor, NodeTypeDescriptor } from '@braidhq/core'
+import type { LocalizedText } from '@braidhq/schema'
+import type { SourceRoleInput } from '@braidhq/sdk'
 import { EdgeTypeId, NodeTypeId, SkillId } from '@braidhq/schema'
 import { defineOntologyPlugin } from '@braidhq/sdk'
+import enLabels from './locales/en/labels.js'
+import zhHantLabels from './locales/zh-Hant/labels.js'
+
+type LabelKind = keyof typeof enLabels
+
+/** Build a descriptor label from the per-locale label files, keyed by id. */
+function localeLabel(kind: LabelKind, id: string): LocalizedText {
+  const en = (enLabels[kind] as Record<string, string>)[id] ?? id
+  const zhHant = (zhHantLabels[kind] as Record<string, string | undefined>)[id]
+  return zhHant ? { 'en': en, 'zh-Hant': zhHant } : en
+}
+
+// Attach labels from the locales folder to label-less descriptors, keyed by id.
+function localeRoles(roles: readonly Omit<SourceRoleInput, 'label'>[]): SourceRoleInput[] {
+  return roles.map(role => ({ ...role, label: localeLabel('sourceRoles', role.id) }))
+}
+function localeNodes(nodes: readonly Omit<NodeTypeDescriptor, 'label'>[]): NodeTypeDescriptor[] {
+  return nodes.map(node => ({ ...node, label: localeLabel('nodeTypes', node.id) }))
+}
+function localeEdges(edges: readonly Omit<EdgeTypeDescriptor, 'label'>[]): EdgeTypeDescriptor[] {
+  return edges.map(edge => ({ ...edge, label: localeLabel('edgeTypes', edge.id) }))
+}
 
 /**
  * The default DDD ontology, consolidating Strategic DDD (Evans),
@@ -21,10 +46,10 @@ export const dddOntology = defineOntologyPlugin({
   // this value prop fails. Intent docs are the unit-bearing role, each doc
   // is one extraction unit and its sync drives the Reactor. Code is context
   // the per-unit skill reads, and seeds derived mode when no intent exists.
-  sourceRoles: [
-    { id: 'intent', label: 'Intent', required: true, unitBearing: true, pathSegment: 'intents' },
-    { id: 'code', label: 'Code', required: true, pathSegment: 'codebases' },
-  ],
+  sourceRoles: localeRoles([
+    { id: 'intent', required: true, unitBearing: true, pathSegment: 'intents' },
+    { id: 'code', required: true, pathSegment: 'codebases' },
+  ]),
 
   // SKILL.md prompts shipped with this ontology.
   // They encode DDD-specific reasoning, like the Context Mapping edges,
@@ -48,10 +73,9 @@ export const dddOntology = defineOntologyPlugin({
     },
   ],
 
-  nodeTypes: [
+  nodeTypes: localeNodes([
     {
       id: NodeTypeId.parse('boundedContext'),
-      label: 'Bounded Context',
       description: 'A subsystem with its own ubiquitous language; everything inside is one consistency boundary. Strategic DDD primitive (Evans Blue Book Part IV; Khononov 2021 ch. 3).',
       color: 'oklch(0.7 0.035 260)',
       defaultVisible: true,
@@ -59,7 +83,6 @@ export const dddOntology = defineOntologyPlugin({
     },
     {
       id: NodeTypeId.parse('aggregate'),
-      label: 'Aggregate',
       description: 'Cluster of domain objects treated as a unit for data changes; has a single root entity that controls access. Tactical DDD primitive (Evans Blue Book Part II; Vernon IDDD ch. 10; Khononov 2021 ch. 6).',
       color: 'oklch(0.7 0.12 155)',
       defaultVisible: true,
@@ -67,52 +90,45 @@ export const dddOntology = defineOntologyPlugin({
     },
     {
       id: NodeTypeId.parse('command'),
-      label: 'Command',
       description: 'Imperative request that asks the system to change state; names use verbs (placeOrder, cancelOrder). CQRS primitive (Young 2010; Khononov 2021 ch. 11). The blue sticky in EventStorming.',
       color: 'oklch(0.65 0.14 250)',
       renderHint: { expandedUnder: NodeTypeId.parse('aggregate') },
     },
     {
       id: NodeTypeId.parse('query'),
-      label: 'Query',
       description: 'Read-only request that returns state without modifying it. CQRS primitive (Young 2010; Khononov 2021 ch. 11). Strict CQRS routes queries to a dedicated read-model node; in the absence of that node type, queries attach to the aggregate.',
       color: 'oklch(0.7 0.11 220)',
       renderHint: { expandedUnder: NodeTypeId.parse('aggregate') },
     },
     {
       id: NodeTypeId.parse('event'),
-      label: 'Domain Event',
       description: 'Past-tense fact about something that has already happened (OrderPlaced, ItemAdded). Tactical DDD primitive (Vernon IDDD ch. 8) and the orange sticky in EventStorming.',
       color: 'oklch(0.76 0.13 80)',
       renderHint: { expandedUnder: NodeTypeId.parse('command') },
     },
     {
       id: NodeTypeId.parse('rule'),
-      label: 'Business Rule',
       description: 'Invariant that must hold (MaxItemsRule, PositiveQuantityRule). Tactical DDD (Evans Specification pattern; Vernon IDDD invariants). Per-operation rules attach to a command or query; aggregate-wide invariants attach to the aggregate itself.',
       color: 'oklch(0.65 0.15 20)',
       renderHint: { expandedUnder: NodeTypeId.parse('command') },
     },
     {
       id: NodeTypeId.parse('actor'),
-      label: 'Actor',
       description: 'External role that triggers a command or query (Customer, Admin, BillingService). EventStorming primitive (Brandolini; the yellow stick-figure sticky) and Khononov 2021. Not in strict Evans / Vernon canon, where the issuer lives on the command\'s metadata.',
       color: 'oklch(0.72 0.11 310)',
       renderHint: { section: 'Actors' },
     },
     {
       id: NodeTypeId.parse('policy'),
-      label: 'Policy',
       description: 'Automatic reaction: "when event X happens, do Y". EventStorming primitive (Brandolini; the purple sticky) and Khononov 2021. Materialises Vernon\'s Process Manager / Saga pattern when the reaction crosses aggregates or has its own naming.',
       color: 'oklch(0.62 0.15 310)',
       renderHint: { section: 'Reactions' },
     },
-  ],
+  ]),
 
-  edgeTypes: [
+  edgeTypes: localeEdges([
     {
       id: EdgeTypeId.parse('contains'),
-      label: 'contains',
       description: 'A BoundedContext contains aggregates. Commands, queries, events, and rules belong to an aggregate and are reached via accepts, emits, or constrainedBy. Strategic DDD (Evans Blue Book Part IV).',
       fromTypes: [NodeTypeId.parse('boundedContext')],
       toTypes: [NodeTypeId.parse('aggregate')],
@@ -121,7 +137,6 @@ export const dddOntology = defineOntologyPlugin({
     },
     {
       id: EdgeTypeId.parse('accepts'),
-      label: 'accepts',
       description: 'Aggregate is the entry point for operations against its state; commands modify the aggregate and queries read it. Tactical DDD with CQRS (Khononov 2021 ch. 11). Strict CQRS would route queries to a dedicated read-model node; this ontology routes both through the aggregate.',
       fromTypes: [NodeTypeId.parse('aggregate')],
       toTypes: [NodeTypeId.parse('command'), NodeTypeId.parse('query')],
@@ -130,7 +145,6 @@ export const dddOntology = defineOntologyPlugin({
     },
     {
       id: EdgeTypeId.parse('emits'),
-      label: 'emits',
       description: 'A command produces an event as the result of executing on its aggregate. Either source is valid in this ontology: command-source (CQRS / EventStorming visual reading: cmd to evt) and aggregate-source (Vernon IDDD structural reading: agg to evt). Khononov 2021 illustrates both; prefer the command-source form when extracting from PRD/spec language and the aggregate-source form when describing state ownership.',
       fromTypes: [NodeTypeId.parse('command'), NodeTypeId.parse('aggregate')],
       toTypes: [NodeTypeId.parse('event')],
@@ -139,7 +153,6 @@ export const dddOntology = defineOntologyPlugin({
     },
     {
       id: EdgeTypeId.parse('triggers'),
-      label: 'triggers',
       description: 'Process-manager / saga flow: an event drives a downstream command or policy, often in a different aggregate. EventStorming flow notation (Brandolini); CQRS saga pattern (Khononov 2021 ch. 11).',
       fromTypes: [NodeTypeId.parse('event')],
       toTypes: [NodeTypeId.parse('command'), NodeTypeId.parse('policy')],
@@ -148,7 +161,6 @@ export const dddOntology = defineOntologyPlugin({
     },
     {
       id: EdgeTypeId.parse('enacts'),
-      label: 'enacts',
       description: 'A policy issues a command as its reaction. The "do Y" half of EventStorming\'s "when X then Y" / Vernon\'s Process Manager (Brandolini; Vernon IDDD ch. 13; Khononov 2021).',
       fromTypes: [NodeTypeId.parse('policy')],
       toTypes: [NodeTypeId.parse('command')],
@@ -157,7 +169,6 @@ export const dddOntology = defineOntologyPlugin({
     },
     {
       id: EdgeTypeId.parse('constrainedBy'),
-      label: 'constrained by',
       description: 'Per-operation rule: a command or query is constrained by a specific rule. Aggregate-wide invariant: an aggregate is constrained by a rule that must hold across all of its operations. Tactical DDD (Evans Specification pattern; Vernon IDDD invariants).',
       fromTypes: [NodeTypeId.parse('command'), NodeTypeId.parse('query'), NodeTypeId.parse('aggregate')],
       toTypes: [NodeTypeId.parse('rule')],
@@ -166,7 +177,6 @@ export const dddOntology = defineOntologyPlugin({
     },
     {
       id: EdgeTypeId.parse('dependsOn'),
-      label: 'depends on',
       description: 'Aggregates reference other aggregates by id only. Tactical DDD (Vernon IDDD "Reference Other Aggregates by Identity" rule; Khononov 2021 ch. 6). Cross-aggregate command or query coupling is expressed through triggers rather than direct references.',
       fromTypes: [NodeTypeId.parse('aggregate')],
       toTypes: [NodeTypeId.parse('aggregate')],
@@ -175,7 +185,6 @@ export const dddOntology = defineOntologyPlugin({
     },
     {
       id: EdgeTypeId.parse('performedBy'),
-      label: 'performed by',
       description: 'A command or query is triggered by an actor. EventStorming convention (Brandolini) and Khononov 2021. Not in strict Evans / Vernon canon, where the issuer lives on the command\'s metadata rather than as a graph edge.',
       fromTypes: [NodeTypeId.parse('command'), NodeTypeId.parse('query')],
       toTypes: [NodeTypeId.parse('actor')],
@@ -190,7 +199,6 @@ export const dddOntology = defineOntologyPlugin({
     // not derivable from individual feature slices.
     {
       id: EdgeTypeId.parse('partnership'),
-      label: 'partnership',
       description: 'Symmetric: two BoundedContexts are committed to succeed or fail together; coordinated planning and joint releases. Strategic DDD Context Mapping (Evans Blue Book Part IV; Khononov 2021 ch. 4).',
       fromTypes: [NodeTypeId.parse('boundedContext')],
       toTypes: [NodeTypeId.parse('boundedContext')],
@@ -199,7 +207,6 @@ export const dddOntology = defineOntologyPlugin({
     },
     {
       id: EdgeTypeId.parse('customerSupplier'),
-      label: 'customer-supplier',
       description: 'Asymmetric (customer downstream, supplier upstream): the customer BoundedContext depends on the supplier and has political pull to ask for changes. Strategic DDD Context Mapping (Evans Blue Book Part IV; Khononov 2021 ch. 4).',
       fromTypes: [NodeTypeId.parse('boundedContext')],
       toTypes: [NodeTypeId.parse('boundedContext')],
@@ -208,7 +215,6 @@ export const dddOntology = defineOntologyPlugin({
     },
     {
       id: EdgeTypeId.parse('conformist'),
-      label: 'conformist',
       description: 'Asymmetric (conformist downstream, upstream uncooperative): the downstream BoundedContext depends on an upstream it has no political pull over and adopts the upstream\'s model as-is. Strategic DDD Context Mapping (Evans Blue Book Part IV; Khononov 2021 ch. 4).',
       fromTypes: [NodeTypeId.parse('boundedContext')],
       toTypes: [NodeTypeId.parse('boundedContext')],
@@ -217,7 +223,6 @@ export const dddOntology = defineOntologyPlugin({
     },
     {
       id: EdgeTypeId.parse('sharedKernel'),
-      label: 'shared kernel',
       description: 'Symmetric: two BoundedContexts intentionally share a small piece of model (often a value object). Any change to the shared part requires coordination between both teams. Strategic DDD Context Mapping (Evans Blue Book Part IV; Khononov 2021 ch. 4).',
       fromTypes: [NodeTypeId.parse('boundedContext')],
       toTypes: [NodeTypeId.parse('boundedContext')],
@@ -226,7 +231,6 @@ export const dddOntology = defineOntologyPlugin({
     },
     {
       id: EdgeTypeId.parse('anticorruptionLayer'),
-      label: 'anticorruption layer',
       description: 'Asymmetric (acl-owner downstream, upstream isolated from): the downstream BoundedContext isolates itself from the upstream by building a translation layer so its internal model is not corrupted by the upstream\'s shape. Strategic DDD Context Mapping (Evans Blue Book Part IV; Khononov 2021 ch. 4).',
       fromTypes: [NodeTypeId.parse('boundedContext')],
       toTypes: [NodeTypeId.parse('boundedContext')],
@@ -235,7 +239,6 @@ export const dddOntology = defineOntologyPlugin({
     },
     {
       id: EdgeTypeId.parse('openHostService'),
-      label: 'open host service',
       description: 'Asymmetric (host upstream, consumer downstream): the upstream BoundedContext offers a well-defined open protocol any downstream can consume without bespoke negotiation. Strategic DDD Context Mapping (Evans Blue Book Part IV; Khononov 2021 ch. 4).',
       fromTypes: [NodeTypeId.parse('boundedContext')],
       toTypes: [NodeTypeId.parse('boundedContext')],
@@ -244,14 +247,13 @@ export const dddOntology = defineOntologyPlugin({
     },
     {
       id: EdgeTypeId.parse('publishedLanguage'),
-      label: 'published language',
       description: 'Asymmetric (publisher upstream, consumer downstream): the upstream BoundedContext publishes a documented schema or format; downstreams consume it as-is. Often combined with openHostService. Strategic DDD Context Mapping (Evans Blue Book Part IV; Khononov 2021 ch. 4).',
       fromTypes: [NodeTypeId.parse('boundedContext')],
       toTypes: [NodeTypeId.parse('boundedContext')],
       cardinality: '1:N',
       color: 'oklch(0.7 0.15 100)',
     },
-  ],
+  ]),
 
   // Batch and reactor binding.
   // The per-unit skill is ddd:extract.

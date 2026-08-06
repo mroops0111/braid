@@ -1,12 +1,15 @@
-import type { EdgeTypeId, NodeTypeId, OntologyResponse } from '@braidhq/schema'
+import type { EdgeTypeId, Locale, NodeTypeId, OntologyResponse } from '@braidhq/schema'
 import type { CSSProperties } from 'react'
+import { localize } from '@braidhq/schema'
 
 export interface OntologyPalette {
   /** Raw CSS colour for a node type's stroke, dot, or accent. */
   nodeColor: (type: NodeTypeId) => string
   /** Raw CSS colour for an edge type's stroke. */
   edgeColor: (type: EdgeTypeId) => string
-  /** Human label for an edge type, the descriptor's label, or the id when none was authored. */
+  /** Localized label for a node type, or the id when unknown. */
+  nodeLabel: (type: NodeTypeId) => string
+  /** Localized label for an edge type, or the id when unauthored. */
   edgeLabel: (type: EdgeTypeId) => string
   /** Inline `style` object for the type badge background, border, or text. */
   nodeBadgeStyle: (type: NodeTypeId) => CSSProperties
@@ -35,15 +38,17 @@ const FALLBACK_COLOR = 'oklch(0.55 0 0)'
  * `bg-[${color}]` only produces a class when that literal is in the source,
  * which it is not for runtime palette values.
  */
-export function buildPalette(ontology: OntologyResponse | undefined): OntologyPalette {
+export function buildPalette(ontology: OntologyResponse | undefined, locale: Locale): OntologyPalette {
   const nodeColorById = new Map<NodeTypeId, string>()
   const edgeColorById = new Map<EdgeTypeId, string>()
+  const nodeLabelById = new Map<NodeTypeId, string>()
   const edgeLabelById = new Map<EdgeTypeId, string>()
   const nodeOrder = new Map<NodeTypeId, number>()
 
   if (ontology) {
     ontology.nodeTypes.forEach((descriptor, index) => {
       nodeOrder.set(descriptor.id, index)
+      nodeLabelById.set(descriptor.id, localize(descriptor.label, locale))
       if (descriptor.color)
         nodeColorById.set(descriptor.id, descriptor.color)
     })
@@ -51,7 +56,7 @@ export function buildPalette(ontology: OntologyResponse | undefined): OntologyPa
       if (descriptor.color)
         edgeColorById.set(descriptor.id, descriptor.color)
       if (descriptor.label)
-        edgeLabelById.set(descriptor.id, descriptor.label)
+        edgeLabelById.set(descriptor.id, localize(descriptor.label, locale))
     }
   }
 
@@ -61,6 +66,10 @@ export function buildPalette(ontology: OntologyResponse | undefined): OntologyPa
 
   function edgeColor(type: EdgeTypeId): string {
     return edgeColorById.get(type) ?? (ontology ? hashColor(type) : FALLBACK_COLOR)
+  }
+
+  function nodeLabel(type: NodeTypeId): string {
+    return nodeLabelById.get(type) ?? type
   }
 
   function edgeLabel(type: EdgeTypeId): string {
@@ -83,6 +92,7 @@ export function buildPalette(ontology: OntologyResponse | undefined): OntologyPa
   return {
     nodeColor,
     edgeColor,
+    nodeLabel,
     edgeLabel,
     nodeBadgeStyle,
     nodeDotStyle,

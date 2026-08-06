@@ -2,6 +2,7 @@ import type { Workspace } from '@braidhq/schema'
 import type { Surface } from './CommandPalette'
 import { Activity, ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, LogIn, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import braidLogo from '@/assets/braid-logo.svg'
 import { usePendingClarification, usePendingProposals, useRuns, useSkills } from '@/lib/queries'
 import { setActiveRemoteId, useActiveRemoteId } from '@/lib/remotes'
@@ -72,6 +73,7 @@ export function Sidebar({
   onGoHome,
   onSelectSurface,
 }: SidebarProps) {
+  const { t } = useTranslation()
   const [wizardOpen, setWizardOpen] = useState(false)
   const [collapsed, setCollapsedState] = useState<boolean>(readStoredCollapsed)
   const activeRemoteId = useActiveRemoteId()
@@ -122,7 +124,7 @@ export function Sidebar({
       <div className={cn('flex h-11 shrink-0 items-center border-b border-sidebar-border', collapsed ? 'justify-center px-2' : 'justify-between px-4')}>
         {collapsed
           ? (
-              <SidebarIconButton onClick={() => setCollapsed(false)} title="Expand sidebar (⌘\\)">
+              <SidebarIconButton onClick={() => setCollapsed(false)} title={t('shell.sidebar.expandTooltip')}>
                 <PanelLeftOpen className="size-3.5" />
               </SidebarIconButton>
             )
@@ -132,7 +134,7 @@ export function Sidebar({
                   <img src={braidLogo} alt="" className="size-5 shrink-0" />
                   <span className="text-sm font-semibold tracking-tight">Braid</span>
                 </div>
-                <SidebarIconButton onClick={() => setCollapsed(true)} title="Collapse sidebar (⌘\\)">
+                <SidebarIconButton onClick={() => setCollapsed(true)} title={t('shell.sidebar.collapseTooltip')}>
                   <PanelLeftClose className="size-3.5" />
                 </SidebarIconButton>
               </>
@@ -198,6 +200,7 @@ function RemoteSection({
   onOpenAdd: (remote: RemoteSummary) => void
   onSignIn: (remote: RemoteSummary) => void
 }) {
+  const { t } = useTranslation()
   const { remote, state } = result
   const isActiveRemote = remote.id === activeRemoteId
   // Server identity stripe only earns its keep with more than one remote.
@@ -225,8 +228,8 @@ function RemoteSection({
             <button
               type="button"
               onClick={() => onOpenAdd(remote)}
-              title="Open workspace"
-              aria-label="Open workspace"
+              title={t('shell.sidebar.openWorkspace')}
+              aria-label={t('shell.sidebar.openWorkspace')}
               className="flex size-5 items-center justify-center rounded text-sidebar-foreground/40 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
             >
               <Plus className="size-3.5" />
@@ -285,11 +288,12 @@ function RemoteContent({
   onOpenAdd: (remote: RemoteSummary) => void
   onSignIn: (remote: RemoteSummary) => void
 }) {
+  const { t } = useTranslation()
   if (state.kind === 'loading') {
     if (collapsed)
       return null
     return (
-      <div className="px-2 py-1 text-2xs text-sidebar-foreground/40">Loading…</div>
+      <div className="px-2 py-1 text-2xs text-sidebar-foreground/40">{t('common.loading')}</div>
     )
   }
 
@@ -302,14 +306,14 @@ function RemoteContent({
               <button
                 type="button"
                 onClick={() => onSignIn(remote)}
-                title={`Sign in to ${remote.name}`}
-                aria-label={`Sign in to ${remote.name}`}
+                title={t('shell.sidebar.signInTo', { name: remote.name })}
+                aria-label={t('shell.sidebar.signInTo', { name: remote.name })}
                 className="flex size-7 items-center justify-center rounded text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
               >
                 <LogIn className="size-3.5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">{`Sign in to ${remote.name}`}</TooltipContent>
+            <TooltipContent side="right">{t('shell.sidebar.signInTo', { name: remote.name })}</TooltipContent>
           </Tooltip>
         </div>
       )
@@ -321,7 +325,7 @@ function RemoteContent({
         className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
       >
         <LogIn className="size-3.5" />
-        <span>Sign In</span>
+        <span>{t('common.signIn')}</span>
       </button>
     )
   }
@@ -331,7 +335,7 @@ function RemoteContent({
       return null
     return (
       <div className="px-2 py-1 text-2xs text-destructive" title={state.message}>
-        Unreachable
+        {t('shell.sidebar.unreachable')}
       </div>
     )
   }
@@ -346,20 +350,20 @@ function RemoteContent({
               <button
                 type="button"
                 onClick={() => onOpenAdd(remote)}
-                title={`Open workspace on ${remote.name}`}
-                aria-label={`Open workspace on ${remote.name}`}
+                title={t('shell.sidebar.openWorkspaceOn', { name: remote.name })}
+                aria-label={t('shell.sidebar.openWorkspaceOn', { name: remote.name })}
                 className="flex size-7 items-center justify-center rounded text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
               >
                 <Plus className="size-3.5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">{`Open workspace on ${remote.name}`}</TooltipContent>
+            <TooltipContent side="right">{t('shell.sidebar.openWorkspaceOn', { name: remote.name })}</TooltipContent>
           </Tooltip>
         </div>
       )
     }
     return (
-      <div className="px-2 py-1 text-2xs text-sidebar-foreground/40">No workspace yet.</div>
+      <div className="px-2 py-1 text-2xs text-sidebar-foreground/40">{t('shell.sidebar.noWorkspaceYet')}</div>
     )
   }
 
@@ -385,14 +389,14 @@ function RemoteContent({
               <button
                 type="button"
                 onClick={() => onOpenAdd(remote)}
-                title={`Open workspace on ${remote.name}`}
-                aria-label={`Open workspace on ${remote.name}`}
+                title={t('shell.sidebar.openWorkspaceOn', { name: remote.name })}
+                aria-label={t('shell.sidebar.openWorkspaceOn', { name: remote.name })}
                 className="flex size-7 items-center justify-center rounded text-sidebar-foreground/40 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
               >
                 <Plus className="size-3.5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">{`Open workspace on ${remote.name}`}</TooltipContent>
+            <TooltipContent side="right">{t('shell.sidebar.openWorkspaceOn', { name: remote.name })}</TooltipContent>
           </Tooltip>
         </li>
       )}
@@ -419,6 +423,7 @@ function WorkspaceRow({
   onClick: () => void
   onOpenDetails: () => void
 }) {
+  const { t } = useTranslation()
   // Inactive remotes get a dimmer stripe,
   // so the active server still reads first,
   // while server identity stays visible across all rows.
@@ -465,8 +470,8 @@ function WorkspaceRow({
                   }
                 }}
                 className="ml-1 flex size-5 shrink-0 items-center justify-center rounded text-sidebar-foreground/40 opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-foreground group-hover:opacity-100"
-                title="Details"
-                aria-label="Details"
+                title={t('shell.sidebar.detailsLabel')}
+                aria-label={t('shell.sidebar.detailsLabel')}
               >
                 ⋯
               </span>
@@ -507,6 +512,7 @@ function HereSection({
   onGoHome: () => void
   onSelectSurface: (next: Surface) => void
 }) {
+  const { t } = useTranslation()
   const { data: proposals } = usePendingProposals(workspaceId)
   const { data: clarifications } = usePendingClarification(workspaceId)
   const policy = useWorkspacePolicy(workspaceId)
@@ -524,14 +530,14 @@ function HereSection({
     <div className={cn('shrink-0 px-2 pb-2', collapsed ? 'pt-1.5' : 'pt-2')}>
       {!collapsed && (
         <div className="px-2 pb-1">
-          <span className="text-2xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">Here</span>
+          <span className="text-2xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">{t('shell.sidebar.hereTitle')}</span>
         </div>
       )}
       <ul className="space-y-px">
         <HereRow
           collapsed={collapsed}
           icon={Network}
-          label="Graph"
+          label={t('shell.surfaces.graph')}
           active={activeSurface === null}
           shortcut="G G"
           onClick={onGoHome}
@@ -540,7 +546,7 @@ function HereSection({
           <HereRow
             collapsed={collapsed}
             icon={Sparkles}
-            label="Actions"
+            label={t('shell.surfaces.actions')}
             active={activeSurface === 'actions'}
             shortcut="G A"
             onClick={() => onSelectSurface('actions')}
@@ -550,7 +556,7 @@ function HereSection({
           <HereRow
             collapsed={collapsed}
             icon={HelpCircle}
-            label="Clarifications"
+            label={t('shell.surfaces.clarifications')}
             active={activeSurface === 'clarifications'}
             count={pendingClarification}
             shortcut="G C"
@@ -561,7 +567,7 @@ function HereSection({
           <HereRow
             collapsed={collapsed}
             icon={ClipboardCheck}
-            label="Proposals"
+            label={t('shell.surfaces.proposals')}
             active={activeSurface === 'proposals'}
             count={pendingProposals}
             shortcut="G P"
@@ -571,7 +577,7 @@ function HereSection({
         <HereRow
           collapsed={collapsed}
           icon={Activity}
-          label="Activity"
+          label={t('shell.surfaces.activity')}
           active={activeSurface === 'activity'}
           shortcut="G B"
           onClick={() => onSelectSurface('activity')}
@@ -580,7 +586,7 @@ function HereSection({
           <HereRow
             collapsed={collapsed}
             icon={GitGraph}
-            label="History"
+            label={t('shell.surfaces.history')}
             active={activeSurface === 'history'}
             shortcut="G H"
             onClick={() => onSelectSurface('history')}
@@ -600,13 +606,14 @@ function AccountSection({
   collapsed: boolean
   onSelectSurface: (next: Surface) => void
 }) {
+  const { t } = useTranslation()
   return (
     <div className={cn('shrink-0 border-t border-sidebar-border px-2 pb-2', collapsed ? 'pt-1.5' : 'pt-2')}>
       <ul className="space-y-px">
         <HereRow
           collapsed={collapsed}
           icon={Settings}
-          label="Settings"
+          label={t('shell.surfaces.settings')}
           active={activeSurface === 'settings'}
           shortcut="G S"
           onClick={() => onSelectSurface('settings')}
@@ -625,6 +632,7 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, on
   shortcut?: string
   onClick: () => void
 }) {
+  const { t } = useTranslation()
   const collapsedTitle = [label, count > 0 ? `(${count})` : null, shortcut].filter(Boolean).join(' ')
   return (
     <ListRow
@@ -657,7 +665,7 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, on
               {count > 0 && (
                 <span
                   className="rounded bg-sidebar-accent px-1.5 py-0.5 text-2xs font-medium text-sidebar-foreground/80"
-                  title={`${count} pending`}
+                  title={t('shell.sidebar.pendingCount', { count })}
                 >
                   {count}
                 </span>
@@ -677,6 +685,7 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, on
 }
 
 function WorkspaceBadges({ workspaceId }: { workspaceId: string }) {
+  const { t } = useTranslation()
   const { data: proposals } = usePendingProposals(workspaceId)
   const { data: clarifications } = usePendingClarification(workspaceId)
   const { data: runs } = useRuns(workspaceId)
@@ -687,9 +696,9 @@ function WorkspaceBadges({ workspaceId }: { workspaceId: string }) {
   if (total === 0)
     return null
   const breakdown = [
-    running > 0 ? `${running} run${running === 1 ? '' : 's'} in flight` : null,
-    pendingClarification > 0 ? `${pendingClarification} pending clarification${pendingClarification === 1 ? '' : 's'}` : null,
-    pendingProposals > 0 ? `${pendingProposals} pending proposal${pendingProposals === 1 ? '' : 's'}` : null,
+    running > 0 ? t('shell.sidebar.runsInFlight', { count: running }) : null,
+    pendingClarification > 0 ? t('shell.sidebar.pendingClarifications', { count: pendingClarification }) : null,
+    pendingProposals > 0 ? t('shell.sidebar.pendingProposals', { count: pendingProposals }) : null,
   ].filter(Boolean)
   return (
     <Tooltip>

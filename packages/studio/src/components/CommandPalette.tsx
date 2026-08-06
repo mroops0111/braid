@@ -1,6 +1,7 @@
 import type { SkillManifest, Workspace } from '@braidhq/schema'
 import { Activity, ClipboardCheck, GitGraph, HelpCircle, Network, Settings, Settings2, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   CommandDialog,
   CommandEmpty,
@@ -24,13 +25,6 @@ interface CommandPaletteProps {
 
 export type Surface = 'actions' | 'activity' | 'batch' | 'clarifications' | 'history' | 'proposals' | 'settings'
 
-interface SurfaceItem {
-  id: Surface | null
-  label: string
-  Icon: typeof Sparkles
-  shortcut: string
-}
-
 type ChordTarget = { kind: 'surface', surface: Surface | null } | { kind: 'workspace-details' }
 
 function chordSecondKey(key: string): ChordTarget | undefined {
@@ -47,15 +41,16 @@ function chordSecondKey(key: string): ChordTarget | undefined {
   }
 }
 
-const SURFACE_ITEMS: SurfaceItem[] = [
-  { id: null, label: 'Graph (home)', Icon: Network, shortcut: 'G G' },
-  { id: 'actions', label: 'Actions', Icon: Sparkles, shortcut: 'G A' },
-  { id: 'clarifications', label: 'Clarifications', Icon: HelpCircle, shortcut: 'G C' },
-  { id: 'proposals', label: 'Proposals', Icon: ClipboardCheck, shortcut: 'G P' },
-  { id: 'activity', label: 'Activity', Icon: Activity, shortcut: 'G B' },
-  { id: 'history', label: 'History', Icon: GitGraph, shortcut: 'G H' },
-  { id: 'settings', label: 'Settings', Icon: Settings, shortcut: 'G S' },
-]
+// `as const` keeps labelKey literal so t() validates each against the typed catalog.
+const SURFACE_ITEMS = [
+  { id: null, labelKey: 'shell.commandPalette.graphHome', Icon: Network, shortcut: 'G G' },
+  { id: 'actions', labelKey: 'shell.surfaces.actions', Icon: Sparkles, shortcut: 'G A' },
+  { id: 'clarifications', labelKey: 'shell.surfaces.clarifications', Icon: HelpCircle, shortcut: 'G C' },
+  { id: 'proposals', labelKey: 'shell.surfaces.proposals', Icon: ClipboardCheck, shortcut: 'G P' },
+  { id: 'activity', labelKey: 'shell.surfaces.activity', Icon: Activity, shortcut: 'G B' },
+  { id: 'history', labelKey: 'shell.surfaces.history', Icon: GitGraph, shortcut: 'G H' },
+  { id: 'settings', labelKey: 'shell.surfaces.settings', Icon: Settings, shortcut: 'G S' },
+] as const satisfies readonly { id: Surface | null, labelKey: string, Icon: typeof Sparkles, shortcut: string }[]
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement))
@@ -76,6 +71,7 @@ export function CommandPalette({
   onSelectSurface,
   onOpenWorkspaceDetails,
 }: CommandPaletteProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const { data: skillData } = useSkills(activeWorkspaceId ?? undefined)
 
@@ -133,13 +129,13 @@ export function CommandPalette({
   const skills = (skillData?.items ?? []).filter((s: SkillManifest) => !s.frontmatter.braid.hidden)
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Type a command or search…" />
+    <CommandDialog open={open} onOpenChange={setOpen} title={t('shell.commandPalette.accessibilityTitle')} description={t('shell.commandPalette.accessibilityDescription')}>
+      <CommandInput placeholder={t('shell.commandPalette.searchPlaceholder')} />
       <CommandList>
-        <CommandEmpty>No results.</CommandEmpty>
+        <CommandEmpty>{t('shell.commandPalette.noMatches')}</CommandEmpty>
 
-        <CommandGroup heading="Go To">
-          {SURFACE_ITEMS.map(({ id, label, Icon, shortcut }) => (
+        <CommandGroup heading={t('shell.commandPalette.goToTitle')}>
+          {SURFACE_ITEMS.map(({ id, labelKey, Icon, shortcut }) => (
             <CommandItem
               key={id ?? 'home'}
               onSelect={() => {
@@ -149,7 +145,7 @@ export function CommandPalette({
               disabled={(id !== 'settings' && !activeWorkspaceId) || activeSurface === id}
             >
               <Icon />
-              <span>{label}</span>
+              <span>{t(labelKey)}</span>
               <CommandShortcut>{shortcut}</CommandShortcut>
             </CommandItem>
           ))}
@@ -162,14 +158,14 @@ export function CommandPalette({
               }}
             >
               <Settings2 />
-              <span>Workspace Settings</span>
+              <span>{t('shell.commandPalette.workspaceSettings')}</span>
               <CommandShortcut>G W</CommandShortcut>
             </CommandItem>
           )}
         </CommandGroup>
 
         {workspaces.length > 0 && (
-          <CommandGroup heading="Workspaces">
+          <CommandGroup heading={t('shell.commandPalette.workspacesTitle')}>
             {workspaces.map(ws => (
               <CommandItem
                 key={ws.id}
@@ -187,7 +183,7 @@ export function CommandPalette({
         )}
 
         {skills.length > 0 && (
-          <CommandGroup heading="Actions">
+          <CommandGroup heading={t('shell.commandPalette.actionsTitle')}>
             {skills.map((skill: SkillManifest) => (
               <CommandItem
                 key={skill.id}

@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, Loader2, MoreHorizontal, Plus, Shield, Trash2 } from 'lucide-react'
 import { DropdownMenu as DropdownPrimitive } from 'radix-ui'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ArmedConfirmBar } from '@/components/ArmedConfirmBar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -33,17 +34,18 @@ export function UsersTab() {
 }
 
 function InvitesSection() {
+  const { t } = useTranslation()
   const { data, isLoading, error } = useAdminInvites(true)
   return (
     <section className="space-y-2">
       <h2 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Pending Invites
+        {t('admin.users.pendingInvitations')}
       </h2>
       {error && <p className="text-2xs text-destructive">{humaniseApiError(error)}</p>}
       {isLoading
-        ? <p className="text-2xs text-muted-foreground">Loading…</p>
+        ? <p className="text-2xs text-muted-foreground">{t('common.loading')}</p>
         : data && data.items.length === 0
-          ? <p className="text-2xs text-muted-foreground">No pending invites.</p>
+          ? <p className="text-2xs text-muted-foreground">{t('admin.users.emptyDescription')}</p>
           : (
               <ul className="space-y-1">
                 {data?.items.map(invite => (
@@ -57,6 +59,7 @@ function InvitesSection() {
 }
 
 function InviteRow({ email, role }: { email: string, role: 'admin' | 'user' }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const [armed, setArmed] = useState(false)
   const revoke = useMutation({
@@ -76,7 +79,7 @@ function InviteRow({ email, role }: { email: string, role: 'admin' | 'user' }) {
           ? (
               <>
                 <Button variant="ghost" size="sm" className="h-7 text-2xs" onClick={() => setArmed(false)}>
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   size="sm"
@@ -84,7 +87,7 @@ function InviteRow({ email, role }: { email: string, role: 'admin' | 'user' }) {
                   onClick={() => revoke.mutate()}
                   disabled={revoke.isPending}
                 >
-                  Revoke
+                  {t('admin.users.revokeButton')}
                 </Button>
               </>
             )
@@ -92,8 +95,8 @@ function InviteRow({ email, role }: { email: string, role: 'admin' | 'user' }) {
               <Button
                 variant="ghost"
                 size="icon"
-                title="Revoke invite"
-                aria-label="Revoke invite"
+                title={t('admin.users.revokeInvitation')}
+                aria-label={t('admin.users.revokeInvitation')}
                 className="text-destructive hover:text-destructive"
                 onClick={() => setArmed(true)}
               >
@@ -106,6 +109,7 @@ function InviteRow({ email, role }: { email: string, role: 'admin' | 'user' }) {
 }
 
 function AddInviteForm() {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
@@ -133,7 +137,7 @@ function AddInviteForm() {
     setError(null)
     const trimmed = email.trim()
     if (!isPlausibleEmail(trimmed)) {
-      setError('Enter a valid email address.')
+      setError(t('admin.users.invalidEmail'))
       return
     }
     add.mutate()
@@ -143,25 +147,25 @@ function AddInviteForm() {
     return (
       <Button variant="ghost" size="sm" onClick={() => setOpen(true)} className="h-7 text-2xs">
         <Plus className="mr-1 size-3" />
-        Add Invite
+        {t('admin.users.addInvitationButton')}
       </Button>
     )
   }
   return (
     <section className="space-y-3 rounded-md border border-border p-3">
-      <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">New Invite</h3>
+      <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{t('admin.users.newInvitation')}</h3>
       <div className="space-y-2">
-        <Label htmlFor="invite-email" className="text-xs">Email</Label>
+        <Label htmlFor="invite-email" className="text-xs">{t('admin.users.email')}</Label>
         <Input
           id="invite-email"
           autoFocus
-          placeholder="someone@example.com"
+          placeholder={t('admin.users.invitationEmailPlaceholder')}
           value={email}
           onChange={e => setEmail(e.target.value)}
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="invite-role" className="text-xs">Initial Server Role</Label>
+        <Label htmlFor="invite-role" className="text-xs">{t('admin.users.initialServerRole')}</Label>
         <select
           id="invite-role"
           value={role}
@@ -174,10 +178,10 @@ function AddInviteForm() {
       </div>
       {error && <p className="text-2xs text-destructive">{error}</p>}
       <div className="flex gap-2">
-        <Button variant="ghost" size="sm" onClick={reset} className="flex-1" disabled={add.isPending}>Cancel</Button>
+        <Button variant="ghost" size="sm" onClick={reset} className="flex-1" disabled={add.isPending}>{t('common.cancel')}</Button>
         <Button size="sm" onClick={submit} className="flex-1" disabled={add.isPending}>
           {add.isPending && <Loader2 className="mr-1 size-3 animate-spin" />}
-          {add.isPending ? 'Saving…' : 'Save'}
+          {add.isPending ? t('common.saving') : t('common.save')}
         </Button>
       </div>
     </section>
@@ -185,24 +189,25 @@ function AddInviteForm() {
 }
 
 function UsersSection() {
+  const { t } = useTranslation()
   const { data, isLoading } = useAdminUsers(true)
   const { data: me } = useMe()
   const sorted = data ? sortUsers(data.items, me?.id) : []
   return (
     <section className="space-y-2">
       <h2 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Users
+        {t('admin.users.title')}
       </h2>
       {isLoading
-        ? <p className="text-2xs text-muted-foreground">Loading…</p>
+        ? <p className="text-2xs text-muted-foreground">{t('common.loading')}</p>
         : (
             <div className="overflow-hidden rounded-md border border-border">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-border bg-card/40 text-left text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    <th className="px-3 py-1.5">User</th>
-                    <th className="px-3 py-1.5">Role</th>
-                    <th className="px-3 py-1.5">Workspaces</th>
+                    <th className="px-3 py-1.5">{t('admin.users.columnUser')}</th>
+                    <th className="px-3 py-1.5">{t('common.role')}</th>
+                    <th className="px-3 py-1.5">{t('admin.users.columnWorkspaces')}</th>
                     <th className="px-3 py-1.5" />
                   </tr>
                 </thead>
@@ -224,8 +229,9 @@ function UsersSection() {
 }
 
 function WorkspaceList({ workspaces }: { workspaces: AdminUser['workspaces'] }) {
+  const { t } = useTranslation()
   if (workspaces.length === 0)
-    return <span className="text-2xs text-muted-foreground/60">none</span>
+    return <span className="text-2xs text-muted-foreground/60">{t('common.none')}</span>
   return (
     <ul className="flex flex-wrap gap-1">
       {workspaces.map(w => (
@@ -260,6 +266,7 @@ function sortUsers(users: AdminUser[], myId: string | undefined): AdminUser[] {
 }
 
 function UserRow({ user, isMe, isLast }: { user: AdminUser, isMe: boolean, isLast: boolean }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const [armedAction, setArmedAction] = useState<'role' | 'delete' | null>(null)
   const flip = useMutation({
@@ -279,7 +286,7 @@ function UserRow({ user, isMe, isLast }: { user: AdminUser, isMe: boolean, isLas
     },
   })
   const nextRole = user.serverRole === 'admin' ? 'user' : 'admin'
-  const nextRoleLabel = nextRole === 'admin' ? 'Make Admin' : 'Make User'
+  const nextRoleLabel = nextRole === 'admin' ? t('admin.users.makeAdminButton') : t('admin.users.makeUserButton')
   const secondary = user.email ?? user.id
   const rowClass = isLast ? 'align-top' : 'border-b border-border align-top'
   return (
@@ -290,7 +297,7 @@ function UserRow({ user, isMe, isLast }: { user: AdminUser, isMe: boolean, isLas
             <span className="font-medium">{user.displayName}</span>
             {isMe && (
               <Badge variant="outline" className="bg-primary/15 text-2xs uppercase tracking-wider text-primary">
-                You
+                {t('admin.users.currentUserLabel')}
               </Badge>
             )}
           </div>
@@ -316,7 +323,7 @@ function UserRow({ user, isMe, isLast }: { user: AdminUser, isMe: boolean, isLas
             : (
                 <DropdownPrimitive.Root>
                   <DropdownPrimitive.Trigger asChild>
-                    <Button variant="ghost" size="icon" className="size-7" title="User actions" aria-label="User actions">
+                    <Button variant="ghost" size="icon" className="size-7" title={t('admin.users.userActions')} aria-label={t('admin.users.userActions')}>
                       <MoreHorizontal className="size-3.5" />
                     </Button>
                   </DropdownPrimitive.Trigger>
@@ -339,7 +346,7 @@ function UserRow({ user, isMe, isLast }: { user: AdminUser, isMe: boolean, isLas
                         onSelect={() => setArmedAction('delete')}
                       >
                         <Trash2 className="size-3" />
-                        Delete User
+                        {t('admin.users.deleteUserButton')}
                       </DropdownPrimitive.Item>
                     </DropdownPrimitive.Content>
                   </DropdownPrimitive.Portal>
@@ -353,18 +360,8 @@ function UserRow({ user, isMe, isLast }: { user: AdminUser, isMe: boolean, isLas
             {armedAction === 'role'
               ? (
                   <ArmedConfirmBar
-                    message={(
-                      <>
-                        Set
-                        {' '}
-                        <span className="font-medium">{user.displayName}</span>
-                        's server role to
-                        {' '}
-                        <span className="font-medium">{nextRole}</span>
-                        ?
-                      </>
-                    )}
-                    confirmLabel={flip.isPending ? 'Saving…' : nextRoleLabel}
+                    message={t('admin.users.setRoleConfirm', { name: user.displayName, role: nextRole })}
+                    confirmLabel={flip.isPending ? t('common.saving') : nextRoleLabel}
                     confirmTone="primary"
                     disabled={flip.isPending}
                     onCancel={() => setArmedAction(null)}
@@ -374,15 +371,8 @@ function UserRow({ user, isMe, isLast }: { user: AdminUser, isMe: boolean, isLas
                 )
               : (
                   <ArmedConfirmBar
-                    message={(
-                      <>
-                        Delete
-                        {' '}
-                        <span className="font-medium">{user.displayName}</span>
-                        ? Workspace memberships referencing this user are left in place as orphans.
-                      </>
-                    )}
-                    confirmLabel={remove.isPending ? 'Deleting…' : 'Delete Permanently'}
+                    message={t('admin.users.deleteConfirm', { name: user.displayName })}
+                    confirmLabel={remove.isPending ? t('admin.users.deleting') : t('admin.users.deletePermanentlyButton')}
                     confirmTone="destructive"
                     disabled={remove.isPending}
                     onCancel={() => setArmedAction(null)}

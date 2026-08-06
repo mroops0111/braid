@@ -1,4 +1,4 @@
-import type { BatchUnit, EdgeTypeId, ModelSnapshot, NodeStatus, NodeTypeId, OntologyId, SkillId, SourceRole, ValidationIssue } from '@braidhq/schema'
+import type { BatchUnit, EdgeTypeId, LocalizedText, ModelSnapshot, NodeStatus, NodeTypeId, OntologyId, SkillId, SourceRole, ValidationIssue } from '@braidhq/schema'
 import type { Plugin } from './Plugin.js'
 
 /**
@@ -8,7 +8,7 @@ import type { Plugin } from './Plugin.js'
  */
 export interface SourceRoleDescriptor {
   readonly id: SourceRole
-  readonly label: string
+  readonly label: LocalizedText
   /** Sources of this role must be present for the ontology to run. */
   readonly required?: boolean
   /** Sources of this role enumerate into batch units, and their sync drives the Reactor. */
@@ -19,7 +19,7 @@ export interface SourceRoleDescriptor {
 
 export interface NodeTypeDescriptor {
   readonly id: NodeTypeId
-  readonly label: string
+  readonly label: LocalizedText
   readonly description?: string
   readonly allowedStatuses?: readonly NodeStatus[]
   /**
@@ -57,7 +57,7 @@ export interface NodeTypeDescriptor {
 
 export interface EdgeTypeDescriptor {
   readonly id: EdgeTypeId
-  readonly label?: string
+  readonly label?: LocalizedText
   /**
    * Short prose explaining what this edge means and when to emit it.
    * Surfaced to LLMs through the `/ontology` API,

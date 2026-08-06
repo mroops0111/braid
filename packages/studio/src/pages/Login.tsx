@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { api, ApiError } from '@/lib/api'
 
@@ -24,6 +25,7 @@ interface LoginPageProps {
  * before this page is rendered.
  */
 export function LoginPage({ initialError }: LoginPageProps) {
+  const { t } = useTranslation()
   const [error, setError] = useState<string | null>(initialError ?? null)
   const [starting, setStarting] = useState(false)
   const { data: config, isLoading } = useQuery({
@@ -50,10 +52,9 @@ export function LoginPage({ initialError }: LoginPageProps) {
     <div className="flex h-screen flex-col items-center justify-center bg-background px-6 text-foreground">
       <div className="w-full max-w-sm space-y-6">
         <header className="space-y-2 text-center">
-          <h1 className="text-xl font-semibold">Sign In to Braid</h1>
+          <h1 className="text-xl font-semibold">{t('shell.login.title')}</h1>
           <p className="text-sm text-muted-foreground">
-            This server requires authentication. Sign in with a Google
-            account whose email is on the allowlist or has an invite.
+            {t('shell.login.description')}
           </p>
         </header>
         {error && (
@@ -62,7 +63,7 @@ export function LoginPage({ initialError }: LoginPageProps) {
           </div>
         )}
         {isLoading
-          ? <p className="text-center text-xs text-muted-foreground">Checking server…</p>
+          ? <p className="text-center text-xs text-muted-foreground">{t('shell.login.checkingServer')}</p>
           : config?.googleEnabled
             ? (
                 <Button
@@ -72,13 +73,12 @@ export function LoginPage({ initialError }: LoginPageProps) {
                   onClick={startSignIn}
                   disabled={starting}
                 >
-                  {starting ? 'Redirecting…' : 'Sign In with Google'}
+                  {starting ? t('shell.login.redirecting') : t('shell.login.signInWithGoogle')}
                 </Button>
               )
             : (
                 <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                  Google Sign-in isn't configured on this server. Ask the
-                  admin to set
+                  {t('shell.login.googleNotConfigured')}
                   {' '}
                   <code className="font-mono">BRAID_GOOGLE_CLIENT_ID</code>
                   {' / '}

@@ -2,6 +2,7 @@ import type { Clarification, ClarificationCandidate, ClarificationStatus, Extern
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, ExternalLink, Inbox, Pencil, Plus, SkipForward, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
 import { PageActions } from '@/components/PageActions'
@@ -108,26 +109,8 @@ interface ClarificationPageProps {
 
 type StatusFilter = ClarificationStatus
 
-const EMPTY_COPY: Record<StatusFilter, { title: string, description: string }> = {
-  pending: {
-    title: 'No Pending Clarifications',
-    description: 'Run /ddd:extract or /ddd:reconcile to surface ambiguity, or open a new question yourself.',
-  },
-  answered: {
-    title: 'No Answered Tickets',
-    description: 'Tickets you answer wait here until /ddd:clarify materialises them into a Proposal.',
-  },
-  applied: {
-    title: 'No Applied Tickets',
-    description: 'Closed clarifications appear here, linked to the Proposal they produced (when any).',
-  },
-  skipped: {
-    title: 'No Skipped Tickets',
-    description: 'Tickets you skip land here so the reason stays auditable.',
-  },
-}
-
 export function ClarificationPage({ workspaceId }: ClarificationPageProps) {
+  const { t } = useTranslation()
   // Same shape as Proposals. Status drives the list query,
   // and the detail pane reads only from the selected ticket,
   // so it cannot show an item that no longer matches the active filter.
@@ -189,7 +172,7 @@ export function ClarificationPage({ workspaceId }: ClarificationPageProps) {
           <>
             {isLoading
               ? (
-                  <div className="p-4 text-sm text-muted-foreground">Loading…</div>
+                  <div className="p-4 text-sm text-muted-foreground">{t('common.loading')}</div>
                 )
               : (
                   <>
@@ -215,7 +198,7 @@ export function ClarificationPage({ workspaceId }: ClarificationPageProps) {
                         className="m-2 flex items-center justify-center gap-1.5 rounded-md border border-dashed border-border/60 py-2 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
                       >
                         <Plus className="size-3.5" />
-                        Submit a Question for AI
+                        {t('review.clarify.submitQuestionButton')}
                       </button>
                     )}
                   </>
@@ -251,13 +234,13 @@ export function ClarificationPage({ workspaceId }: ClarificationPageProps) {
               : (
                   <EmptyState
                     icon={Inbox}
-                    title={data?.items.length ? 'Pick a Clarification' : EMPTY_COPY[status].title}
+                    title={data?.items.length ? t('review.clarify.pickTitle') : t(`review.clarify.empty.${status}.title`)}
                     description={
                       data?.items.length
                         ? status === 'pending'
-                          ? 'Select a ticket on the left to review candidates and answer or skip it.'
-                          : 'Select a ticket on the left to inspect its resolution.'
-                        : EMPTY_COPY[status].description
+                          ? t('review.clarify.pickPendingDescription')
+                          : t('review.clarify.pickTerminalDescription')
+                        : t(`review.clarify.empty.${status}.description`)
                     }
                   />
                 )}
@@ -284,6 +267,7 @@ function ClarificationShowAllToggle({
   showAll: boolean
   onToggle: (next: boolean) => void
 }) {
+  const { t } = useTranslation()
   const { effectiveRole } = useWorkspacePolicy(workspaceId)
   const { data: members } = useWorkspaceMembers(workspaceId)
   // Nothing to disambiguate on a solo workspace, every question is yours.
@@ -296,9 +280,9 @@ function ClarificationShowAllToggle({
       size="sm"
       className="h-7 text-2xs"
       onClick={() => onToggle(!showAll)}
-      title={showAll ? 'Showing pending questions from every member' : 'Showing only your own pending questions'}
+      title={showAll ? t('review.clarify.showingAllTooltip') : t('review.clarify.mineOnlyTooltip')}
     >
-      {showAll ? 'Showing All' : 'Mine Only'}
+      {showAll ? t('review.clarify.showingAll') : t('review.clarify.mineOnly')}
     </Button>
   )
 }
@@ -312,22 +296,23 @@ function ClarificationHeaderActions({
   status: StatusFilter
   onChange: (next: StatusFilter) => void
 }) {
+  const { t } = useTranslation()
   const { data: pending } = usePendingClarification(workspaceId)
   const pendingCount = pending?.items.length ?? 0
   return (
     <Tabs value={status} onValueChange={value => onChange(value as StatusFilter)}>
       <TabsList className={FILTER_TABS_LIST}>
         <TabsTrigger value="pending" className={FILTER_TAB_TRIGGER}>
-          Pending
+          {t('review.clarify.tabPending')}
           {pendingCount > 0 && (
             <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-2xs font-medium leading-none text-primary">
               {pendingCount}
             </span>
           )}
         </TabsTrigger>
-        <TabsTrigger value="answered" className={FILTER_TAB_TRIGGER}>Answered</TabsTrigger>
-        <TabsTrigger value="applied" className={FILTER_TAB_TRIGGER}>Applied</TabsTrigger>
-        <TabsTrigger value="skipped" className={FILTER_TAB_TRIGGER}>Skipped</TabsTrigger>
+        <TabsTrigger value="answered" className={FILTER_TAB_TRIGGER}>{t('review.clarify.tabAnswered')}</TabsTrigger>
+        <TabsTrigger value="applied" className={FILTER_TAB_TRIGGER}>{t('review.clarify.tabApplied')}</TabsTrigger>
+        <TabsTrigger value="skipped" className={FILTER_TAB_TRIGGER}>{t('review.clarify.tabSkipped')}</TabsTrigger>
       </TabsList>
     </Tabs>
   )
@@ -342,6 +327,7 @@ function ClarificationListItem({
   active: boolean
   onSelect: () => void
 }) {
+  const { t } = useTranslation()
   return (
     <ListRow active={active} onClick={onSelect} className="flex-col gap-1">
       <div className="flex w-full items-start justify-between gap-2">
@@ -352,12 +338,10 @@ function ClarificationListItem({
       </div>
       <div className="flex w-full items-center justify-between gap-2 text-2xs text-muted-foreground">
         <span>
-          {ticket.candidates.length}
-          {' '}
-          {ticket.candidates.length === 1 ? 'candidate' : 'candidates'}
+          {t('review.clarify.candidateCount', { count: ticket.candidates.length })}
         </span>
         {ticket.proposalId && (
-          <span className="font-mono text-muted-foreground/80" title={`Linked to proposal ${ticket.proposalId}`}>
+          <span className="font-mono text-muted-foreground/80" title={t('review.clarify.linkedToProposal', { id: ticket.proposalId })}>
             →
             {' '}
             {ticket.proposalId}
@@ -377,6 +361,7 @@ function ClarificationDetail({
   ticket: Clarification
   onComplete: () => void
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const canWrite = useWorkspacePolicy(workspaceId).can('clarification.write')
   const isPending = ticket.status === 'pending'
@@ -465,13 +450,13 @@ function ClarificationDetail({
 
   const answerButtonLabel = (() => {
     if (customReady)
-      return 'Answer with custom'
+      return t('review.clarify.answerWithCustomButton')
     if (selectedCandidateId !== null) {
       const idx = ticket.candidates.findIndex(c => c.id === selectedCandidateId)
       if (idx >= 0)
-        return `Answer with ${candidateLetter(idx)}`
+        return t('review.clarify.answerWithButton', { letter: candidateLetter(idx) })
     }
-    return 'Answer'
+    return t('review.clarify.answerButton')
   })()
 
   return (
@@ -529,7 +514,7 @@ function ClarificationDetail({
                     disabled={answer.isPending}
                   >
                     <SkipForward />
-                    Skip…
+                    {t('review.clarify.skipButton')}
                   </Button>
                   <Button
                     size="sm"
@@ -594,6 +579,7 @@ function CustomAnswerSection({
   note: string
   onNoteChange: (next: string) => void
 }) {
+  const { t } = useTranslation()
   if (!open) {
     return (
       <div className="px-3 pb-3">
@@ -603,7 +589,7 @@ function CustomAnswerSection({
           className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border/70 px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
         >
           <Pencil className="size-3" />
-          Add my own answer
+          {t('review.clarify.addOwnAnswer')}
         </button>
       </div>
     )
@@ -617,13 +603,13 @@ function CustomAnswerSection({
               <span className="flex size-5 items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground">
                 {letter}
               </span>
-              Custom answer
+              {t('review.clarify.customAnswer')}
             </span>
             <button
               type="button"
               onClick={onClose}
-              title="Discard"
-              aria-label="Discard"
+              title={t('review.clarify.discardButton')}
+              aria-label={t('review.clarify.discardButton')}
               className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
             >
               <X className="size-3.5" />
@@ -634,13 +620,11 @@ function CustomAnswerSection({
             value={value}
             onChange={e => onChange(e.target.value)}
             rows={3}
-            placeholder="Describe your answer. Appended to the ticket's candidates list as a new option and selected as the answer."
+            placeholder={t('review.clarify.customAnswerPlaceholder')}
             className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
           />
           <p className="text-2xs text-muted-foreground">
-            No graph operations are attached, picking this resolves the ticket
-            without mutating the graph (the same path /ddd:clarify uses for
-            zero-impact resolutions).
+            {t('review.clarify.customAnswerHint')}
           </p>
         </div>
         <div className="border-t border-primary/20 px-3 py-2">
@@ -655,10 +639,11 @@ function CustomAnswerSection({
 }
 
 function ExternalRefs({ refs }: { refs: readonly ExternalReference[] }) {
+  const { t } = useTranslation()
   return (
     <div className="shrink-0 border-b border-border/60 bg-muted/20 px-4 py-2">
       <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-        External Sources
+        {t('review.clarify.externalSources')}
       </div>
       <ul className="mt-1.5 space-y-1">
         {refs.map((ref, i) => (
@@ -706,10 +691,11 @@ function CandidatesList({
    */
   terminalAnswerNote: string | null
 }) {
+  const { t } = useTranslation()
   if (candidates.length === 0) {
     return (
       <p className="m-4 rounded-md border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
-        No candidates were attached to this ticket.
+        {t('review.clarify.noCandidates')}
       </p>
     )
   }
@@ -773,6 +759,7 @@ function CandidateRow({
    */
   inlineNote: InlineNote
 }) {
+  const { t } = useTranslation()
   const summary = summarizeOps(candidate.proposedOperations)
   const nav = useGraphNavigation()
   const nodeIds = collectNodeIds(candidate)
@@ -801,9 +788,9 @@ function CandidateRow({
         <p className="text-sm text-foreground">{candidate.description}</p>
         <p className="mt-1.5 flex items-center gap-1.5 text-2xs text-muted-foreground">
           <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-            Impact
+            {t('review.clarify.impact')}
           </span>
-          <span>{formatOpsSummary(summary)}</span>
+          <span>{summary.total === 0 ? t('review.clarify.noGraphImpact') : formatOpsSummary(summary)}</span>
         </p>
         {nav && nodeIds.length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1">
@@ -817,7 +804,7 @@ function CandidateRow({
                   nav.focusNode(id)
                 }}
                 className="rounded bg-muted/50 px-1.5 py-0.5 font-mono text-2xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                title="Open in Graph"
+                title={t('review.clarify.openInGraphButton')}
               >
                 {id}
               </button>
@@ -874,11 +861,12 @@ function InlineRationale({
   slot: Exclude<InlineNote, null>
   candidateLetter: string
 }) {
+  const { t } = useTranslation()
   if (slot.mode === 'view') {
     return (
       <div>
         <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Rationale
+          {t('review.clarify.rationale')}
         </div>
         <p className="mt-1 whitespace-pre-wrap rounded-md border border-border bg-card px-2 py-1.5 text-xs text-foreground/85">
           {slot.value}
@@ -892,15 +880,15 @@ function InlineRationale({
         htmlFor={`clarification-rationale-${candidateLetter}`}
         className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground"
       >
-        Rationale
-        <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">(optional)</span>
+        {t('review.clarify.rationale')}
+        <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">{t('review.clarify.optionalLabel')}</span>
       </label>
       <textarea
         id={`clarification-rationale-${candidateLetter}`}
         value={slot.value}
         onChange={e => slot.onChange(e.target.value)}
         rows={2}
-        placeholder={`Why ${candidateLetter}? Saved on the decision log; surfaced under this answer once submitted.`}
+        placeholder={t('review.clarify.rationalePlaceholder', { letter: candidateLetter })}
         className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
       />
     </div>
@@ -962,24 +950,25 @@ function SkipForm({ value, onChange, onCancel, onSubmit, isPending }: {
   onSubmit: () => void
   isPending: boolean
 }) {
+  const { t } = useTranslation()
   const hasReason = value.trim().length > 0
   return (
     <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2">
       <label className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Skip Reason
+        {t('review.clarify.skipReasonLabel')}
       </label>
       <textarea
         autoFocus
         value={value}
         onChange={e => onChange(e.target.value)}
         rows={3}
-        placeholder="Why are you skipping this clarification? Recorded on the decision log."
+        placeholder={t('review.clarify.skipReasonPlaceholder')}
         className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
       />
       <div className="flex justify-end gap-2">
-        <Button variant="ghost" size="sm" onClick={onCancel} disabled={isPending}>Cancel</Button>
+        <Button variant="ghost" size="sm" onClick={onCancel} disabled={isPending}>{t('common.cancel')}</Button>
         <Button size="sm" disabled={!hasReason || isPending} onClick={onSubmit}>
-          {isPending ? 'Skipping…' : 'Confirm Skip'}
+          {isPending ? t('review.clarify.skipping') : t('review.clarify.confirmSkipButton')}
         </Button>
       </div>
     </div>
@@ -987,6 +976,7 @@ function SkipForm({ value, onChange, onCancel, onSubmit, isPending }: {
 }
 
 function TerminalFooter({ ticket, skipReason }: { ticket: Clarification, skipReason: string | null }) {
+  const { t } = useTranslation()
   // The reviewer's rationale (answerNote) for answered or applied tickets,
   // is rendered inline under the selected candidate, not here,
   // so the visual anchor matches the editable rationale on pending.
@@ -996,13 +986,13 @@ function TerminalFooter({ ticket, skipReason }: { ticket: Clarification, skipRea
   if (ticket.status === 'answered') {
     return (
       <footer className="shrink-0 border-t border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
-        Answered
-        {ticket.answeredBy ? ` by ${ticket.answeredBy}` : ''}
-        . Run
+        {ticket.answeredBy ? t('review.clarify.answeredActor', { name: ticket.answeredBy }) : t('review.clarify.answeredNoActor')}
+        {' '}
+        {t('review.clarify.answeredRunPrefix')}
         {' '}
         <code className="rounded bg-muted px-1 font-mono text-2xs text-foreground/90">/ddd:clarify</code>
         {' '}
-        from the Actions tab to materialise the resolution as a Proposal.
+        {t('review.clarify.answeredRunSuffix')}
       </footer>
     )
   }
@@ -1012,13 +1002,13 @@ function TerminalFooter({ ticket, skipReason }: { ticket: Clarification, skipRea
         {ticket.proposalId
           ? (
               <>
-                Applied. Materialised as
+                {t('review.clarify.appliedMaterialisedPrefix')}
                 {' '}
                 <AppliedProposalChip proposalId={ticket.proposalId} />
-                .
+                {t('review.clarify.appliedMaterialisedSuffix')}
               </>
             )
-          : <span>Applied. Selected candidate had no graph impact, so no Proposal was created.</span>}
+          : <span>{t('review.clarify.appliedNoProposal')}</span>}
       </footer>
     )
   }
@@ -1027,9 +1017,7 @@ function TerminalFooter({ ticket, skipReason }: { ticket: Clarification, skipRea
   return (
     <footer className="shrink-0 space-y-1 border-t border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
       <div>
-        Skipped
-        {ticket.answeredBy ? ` by ${ticket.answeredBy}` : ''}
-        .
+        {ticket.answeredBy ? t('review.clarify.skippedActor', { name: ticket.answeredBy }) : t('review.clarify.skippedNoActor')}
       </div>
       {skipReason && (
         <p className="whitespace-pre-wrap rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-amber-700 dark:text-amber-300">
@@ -1047,6 +1035,7 @@ function TerminalFooter({ ticket, skipReason }: { ticket: Clarification, skipRea
  * ProposalsPage handles the cross-status lookup.
  */
 function AppliedProposalChip({ proposalId }: { proposalId: ProposalId }) {
+  const { t } = useTranslation()
   const nav = useTabNavigation()
   if (!nav) {
     return (
@@ -1062,7 +1051,7 @@ function AppliedProposalChip({ proposalId }: { proposalId: ProposalId }) {
       type="button"
       onClick={() => nav.focusProposal(proposalId)}
       className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 font-mono text-2xs text-foreground/90 transition-colors hover:bg-accent hover:text-foreground"
-      title="Open in Proposals"
+      title={t('review.clarify.openInProposalsButton')}
     >
       →
       {' '}
