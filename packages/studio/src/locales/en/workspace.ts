@@ -46,7 +46,7 @@ export const workspace = {
     mcpDescriptionSuffix: 'in header values for secrets (resolved at runtime, never written to PRODUCT.md).',
     mcpServerIdPlaceholder: 'Server ID (e.g. linear)',
     mcpDescriptionLabel: 'What does this MCP serve?',
-    mcpDescriptionPlaceholder: 'e.g. Linear, source of truth for tickets.',
+    mcpDescriptionPlaceholder: 'e.g. Linear, source of truth for issues.',
     addMcpServer: 'Add MCP Server',
     // Advanced step.
     advancedDescription: 'Defaults work for most projects. Change these only if you\'ve registered a custom ontology or storage plugin.',

@@ -20,7 +20,7 @@ export const queryKeys = {
   proposalValidation: (workspaceId: string, proposalId: string) => ['workspaces', workspaceId, 'proposals', proposalId, 'validate'] as const,
   clarifications: (workspaceId: string) => ['workspaces', workspaceId, 'clarifications'] as const,
   clarificationByStatus: (workspaceId: string, status: string) => ['workspaces', workspaceId, 'clarifications', status] as const,
-  clarificationDetail: (workspaceId: string, ticketId: string) => ['workspaces', workspaceId, 'clarifications', 'detail', ticketId] as const,
+  clarificationDetail: (workspaceId: string, clarificationId: string) => ['workspaces', workspaceId, 'clarifications', 'detail', clarificationId] as const,
   runs: (workspaceId: string) => ['workspaces', workspaceId, 'runs'] as const,
   sessionMetadata: (workspaceId: string) => ['workspaces', workspaceId, 'runs', 'sessions'] as const,
   history: (workspaceId: string) => ['workspaces', workspaceId, 'history'] as const,
@@ -165,11 +165,11 @@ export function usePendingClarification(workspaceId: string | undefined) {
   return useClarificationByStatus(workspaceId, 'pending')
 }
 
-export function useClarificationDetail(workspaceId: string, ticketId: string | null) {
+export function useClarificationDetail(workspaceId: string, clarificationId: string | null) {
   return useQuery({
-    queryKey: ticketId ? queryKeys.clarificationDetail(workspaceId, ticketId) : ['clarifications-detail', 'none'],
-    queryFn: () => api.getClarification(workspaceId, ticketId!),
-    enabled: !!ticketId,
+    queryKey: clarificationId ? queryKeys.clarificationDetail(workspaceId, clarificationId) : ['clarifications-detail', 'none'],
+    queryFn: () => api.getClarification(workspaceId, clarificationId!),
+    enabled: !!clarificationId,
   })
 }
 

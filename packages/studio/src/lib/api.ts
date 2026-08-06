@@ -349,8 +349,8 @@ export const api = {
   /**
    * Fetch a single clarification.
    */
-  getClarification: (workspaceId: string, ticketId: string) =>
-    fetchJson<ClarificationDetail>(`/workspaces/${workspaceId}/clarifications/${ticketId}`),
+  getClarification: (workspaceId: string, clarificationId: string) =>
+    fetchJson<ClarificationDetail>(`/workspaces/${workspaceId}/clarifications/${clarificationId}`),
   /**
    * Server mints any omitted candidate ids, skills supply them deterministically (cc-1 etc.),
    * human-authored "New question" candidates leave them out and let `newClarificationCandidateId` fill in.
@@ -363,24 +363,24 @@ export const api = {
   /**
    * Answer a clarification.
    * `selection` is either picking an existing candidate or supplying a freshly-written description,
-   * that the server appends to the ticket and answers in one transaction.
+   * that the server appends to the clarification and answers in one transaction.
    * `note` is the reviewer's free-form rationale, saved on the answer commit.
    */
   answerClarification: (
     workspaceId: string,
-    ticketId: string,
+    clarificationId: string,
     selection: { candidateId: string } | { customCandidate: { description: string } },
     note?: string,
   ) =>
-    fetchJson<Clarification>(`/workspaces/${workspaceId}/clarifications/${ticketId}/answer`, {
+    fetchJson<Clarification>(`/workspaces/${workspaceId}/clarifications/${clarificationId}/answer`, {
       method: 'POST',
       body: JSON.stringify({
         ...selection,
         ...(note ? { note } : {}),
       }),
     }),
-  skipClarification: (workspaceId: string, ticketId: string, reason: string) =>
-    fetchJson<Clarification>(`/workspaces/${workspaceId}/clarifications/${ticketId}/skip`, {
+  skipClarification: (workspaceId: string, clarificationId: string, reason: string) =>
+    fetchJson<Clarification>(`/workspaces/${workspaceId}/clarifications/${clarificationId}/skip`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
     }),

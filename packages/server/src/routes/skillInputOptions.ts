@@ -168,14 +168,14 @@ async function resolveClarification(
   clarificationRepository: ClarificationRepository,
 ): Promise<SkillInputDynamicOption[]> {
   const status = typeof filter.status === 'string' ? filter.status : undefined
-  const tickets = await clarificationRepository.list({
+  const clarifications = await clarificationRepository.list({
     workspaceId,
     ...(status ? { statuses: [status] as never } : {}),
   })
-  return tickets.map(ticket => ({
-    value: ticket.id,
-    label: truncate(ticket.question, 80),
-    description: ticket.status,
+  return clarifications.map(clarification => ({
+    value: clarification.id,
+    label: truncate(clarification.question, 80),
+    description: clarification.status,
   }))
 }
 

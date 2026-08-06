@@ -36,8 +36,8 @@ describe('ClarificationCandidate', () => {
 })
 
 describe('Clarification', () => {
-  it('parses pending ticket with candidates', () => {
-    const ticket = Clarification.parse({
+  it('parses pending clarification with candidates', () => {
+    const clarification = Clarification.parse({
       id: 'ct-1',
       workspaceId: 'w-1',
       question: 'voidTask vs cancelTask: same command?',
@@ -49,7 +49,7 @@ describe('Clarification', () => {
       owner: 'system',
       origin: 'skill',
     })
-    expect(ticket.candidates).toHaveLength(2)
+    expect(clarification.candidates).toHaveLength(2)
   })
 
   it('rejects empty question', () => {
@@ -64,8 +64,8 @@ describe('Clarification', () => {
     ).toBe(false)
   })
 
-  it('accepts answered ticket with selection + resolution', () => {
-    const ticket = Clarification.parse({
+  it('accepts answered clarification with selection + resolution', () => {
+    const clarification = Clarification.parse({
       id: 'ct-1',
       workspaceId: 'w-1',
       question: 'x?',
@@ -77,11 +77,11 @@ describe('Clarification', () => {
       selectedCandidateId: 'cc-1',
       resolution: [{ operation: 'removeNode', nodeId: 'n-1' }],
     })
-    expect(ticket.selectedCandidateId).toBe('cc-1')
+    expect(clarification.selectedCandidateId).toBe('cc-1')
   })
 
   it('accepts externalReferences (v2 forward-compat)', () => {
-    const ticket = Clarification.parse({
+    const clarification = Clarification.parse({
       id: 'ct-1',
       workspaceId: 'w-1',
       question: 'x?',
@@ -91,7 +91,7 @@ describe('Clarification', () => {
       origin: 'skill',
       externalReferences: [{ kind: 'redmine', url: 'https://redmine.example.com/issues/1' }],
     })
-    expect(ticket.externalReferences?.[0]?.kind).toBe('redmine')
+    expect(clarification.externalReferences?.[0]?.kind).toBe('redmine')
   })
 })
 
@@ -131,7 +131,7 @@ describe('ClarificationCreate', () => {
     })
     expect(created.origin).toBeUndefined()
   })
-  it('accepts a human-filed ticket with context and ambiguityType', () => {
+  it('accepts a human-filed clarification with context and ambiguityType', () => {
     const created = ClarificationCreate.parse({
       workspaceId: 'w-1',
       question: 'is the cap 50 or 99?',

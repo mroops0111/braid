@@ -42,7 +42,7 @@ const workspace: typeof en = {
     mcpDescriptionSuffix: '來帶入密鑰 (於執行期解析，絕不寫入 PRODUCT.md)。',
     mcpServerIdPlaceholder: '伺服器 ID (例如 linear)',
     mcpDescriptionLabel: '這個 MCP 提供什麼？',
-    mcpDescriptionPlaceholder: '例如：Linear，工單的真實來源。',
+    mcpDescriptionPlaceholder: '例如：Linear，議題的真實來源。',
     addMcpServer: '新增 MCP 伺服器',
     advancedDescription: '預設值適用於大多數專案。只有在你已註冊自訂本體論或儲存外掛時，才需要變更這些設定。',
     ontologyLabel: '本體論',

@@ -103,7 +103,7 @@ export class HITLService {
   // Candidates are only validated at answer time, since each picks a different op set.
   async submitClarification(draft: ClarificationCreate & { submitterId?: UserId }): Promise<Clarification> {
     const submitter = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
-    const ticket = new Clarification({
+    const clarification = new Clarification({
       id: newClarificationId(),
       workspaceId: draft.workspaceId,
       question: draft.question,
@@ -119,20 +119,20 @@ export class HITLService {
       ...(submitter?.kind ? { ownerKind: submitter.kind } : {}),
     })
     return this.withLockedWorkspace(draft.workspaceId, async (workspace) => {
-      await this.deps.clarificationRepository.save(ticket)
+      await this.deps.clarificationRepository.save(clarification)
       await this.commitWorkspaceChange(workspace, {
         kind: 'clarification-submit',
-        subject: `submitted ${ticket.id}`,
+        subject: `submitted ${clarification.id}`,
         userId: SUBMIT_USER_ID,
-        clarificationId: ticket.id,
+        clarificationId: clarification.id,
       })
       this.deps.eventBus?.publish({
         type: 'clarification.created',
-        workspaceId: ticket.workspaceId,
-        ticketId: ticket.id,
+        workspaceId: clarification.workspaceId,
+        clarificationId: clarification.id,
         at: this.deps.clock.now(),
       })
-      return ticket
+      return clarification
     })
   }
 
@@ -191,7 +191,7 @@ export class HITLService {
     note?: string
   }): Promise<Clarification> {
     const { clarificationId, selection, userId, note } = options
-    let ticket = await this.deps.clarificationRepository.load(clarificationId)
+    let clarification = await this.deps.clarificationRepository.load(clarificationId)
     let candidateId: ClarificationCandidateId
     if (selection.kind === 'existing') {
       candidateId = selection.candidateId
@@ -203,14 +203,14 @@ export class HITLService {
         sourceReferences: [],
         proposedOperations: [],
       }
-      ticket = ticket.appendCandidate(newCandidate)
+      clarification = clarification.appendCandidate(newCandidate)
       candidateId = newCandidate.id
     }
-    const operations = [...ticket.resolveCandidate(candidateId)]
-    await this.assertOperationsValid(ticket.workspaceId, operations)
+    const operations = [...clarification.resolveCandidate(candidateId)]
+    await this.assertOperationsValid(clarification.workspaceId, operations)
 
-    return this.withLockedWorkspace(ticket.workspaceId, async (workspace) => {
-      const answered = ticket.markAnswered(candidateId, userId)
+    return this.withLockedWorkspace(clarification.workspaceId, async (workspace) => {
+      const answered = clarification.markAnswered(candidateId, userId)
       await this.deps.clarificationRepository.save(answered)
       await this.commitWorkspaceChange(workspace, {
         kind: 'clarification-answer',
@@ -220,8 +220,8 @@ export class HITLService {
       })
       this.deps.eventBus?.publish({
         type: 'clarification.answered',
-        workspaceId: ticket.workspaceId,
-        ticketId: ticket.id,
+        workspaceId: clarification.workspaceId,
+        clarificationId: clarification.id,
         at: this.deps.clock.now(),
       })
       return answered
@@ -234,9 +234,9 @@ export class HITLService {
     userId: UserId,
     proposalId?: ProposalId,
   ): Promise<Clarification> {
-    const ticket = await this.deps.clarificationRepository.load(clarificationId)
-    return this.withLockedWorkspace(ticket.workspaceId, async (workspace) => {
-      const applied = ticket.markApplied(proposalId)
+    const clarification = await this.deps.clarificationRepository.load(clarificationId)
+    return this.withLockedWorkspace(clarification.workspaceId, async (workspace) => {
+      const applied = clarification.markApplied(proposalId)
       await this.deps.clarificationRepository.save(applied)
       await this.commitWorkspaceChange(workspace, {
         kind: 'clarification-apply',
@@ -247,8 +247,8 @@ export class HITLService {
       })
       this.deps.eventBus?.publish({
         type: 'clarification.applied',
-        workspaceId: ticket.workspaceId,
-        ticketId: ticket.id,
+        workspaceId: clarification.workspaceId,
+        clarificationId: clarification.id,
         ...(proposalId ? { proposalId } : {}),
         at: this.deps.clock.now(),
       })
@@ -261,9 +261,9 @@ export class HITLService {
     reason: string,
     userId: UserId,
   ): Promise<Clarification> {
-    const ticket = await this.deps.clarificationRepository.load(clarificationId)
-    return this.withLockedWorkspace(ticket.workspaceId, async (workspace) => {
-      const skipped = ticket.markSkipped(userId)
+    const clarification = await this.deps.clarificationRepository.load(clarificationId)
+    return this.withLockedWorkspace(clarification.workspaceId, async (workspace) => {
+      const skipped = clarification.markSkipped(userId)
       await this.deps.clarificationRepository.save(skipped)
       await this.commitWorkspaceChange(workspace, {
         kind: 'clarification-skip',
@@ -273,8 +273,8 @@ export class HITLService {
       })
       this.deps.eventBus?.publish({
         type: 'clarification.skipped',
-        workspaceId: ticket.workspaceId,
-        ticketId: ticket.id,
+        workspaceId: clarification.workspaceId,
+        clarificationId: clarification.id,
         at: this.deps.clock.now(),
       })
       return skipped
