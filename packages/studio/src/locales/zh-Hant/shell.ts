@@ -58,7 +58,7 @@ const shell: typeof en = {
   userPicker: {
     renameAccount: '重新命名帳號',
     dialogTitle: '帳號名稱',
-    dialogDescription: '顯示名稱會出現在稽核紀錄與 HITL 決策中。本機安裝時，這是這台機器上的唯一帳號，預設為你的作業系統使用者名稱。',
+    dialogDescription: '顯示名稱會出現在稽核紀錄與 HITL 審核中。本機安裝時，這是這台機器上的唯一帳號，預設為你的作業系統使用者名稱。',
     displayNameLabel: '顯示名稱',
   },
   multiSelect: {

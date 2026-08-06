@@ -65,7 +65,7 @@ export const shell = {
   userPicker: {
     renameAccount: 'Rename Account',
     dialogTitle: 'Account Name',
-    dialogDescription: 'Display name shown in audit trails and HITL decisions. Local install: this is the single account on this machine; defaults to your OS username.',
+    dialogDescription: 'Display name shown in audit trails and HITL reviews. Local install: this is the single account on this machine; defaults to your OS username.',
     displayNameLabel: 'Display name',
   },
   // Generic multi-select dropdown.

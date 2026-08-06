@@ -64,7 +64,7 @@ export const history = {
   restore: {
     title: 'Restore workspace to this commit?',
     // Split around an inline `restore` code chip in the dialog copy.
-    descriptionPrefix: 'The graph, proposals, clarifications, and decisions will all roll back to "{subject}". A new',
+    descriptionPrefix: 'The graph, proposals, and clarifications will all roll back to "{subject}". A new',
     descriptionSuffix: 'commit will be appended to history. Nothing is lost, but everything after this point will no longer apply.',
     failed: 'Restore failed.',
   },

@@ -23,7 +23,7 @@ const common: typeof en = {
   copied: '已複製',
   run: '執行',
   open: '開啟',
-  dismiss: '略過',
+  dismiss: '忽略',
   search: '搜尋',
   signIn: '登入',
   signOut: '登出',

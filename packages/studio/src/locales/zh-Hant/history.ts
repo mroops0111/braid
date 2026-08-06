@@ -15,7 +15,7 @@ const history: typeof en = {
   toLabel: '到',
   empty: {
     noCommitsTitle: '尚無 Commit',
-    noCommitsDescription: '歷史紀錄會把每一次套用的提案、釐清回覆與還原都記為一筆 commit。',
+    noCommitsDescription: '歷史紀錄會把每一次套用的提案、釐清回答與還原都記為一筆 commit。',
     pickTitle: '選擇一筆 Commit',
     pickDescription: '在左側選擇一筆 commit，即可檢視其差異、加上標籤，或將工作區還原到該時間點。',
   },
@@ -31,7 +31,7 @@ const history: typeof en = {
     apply: '套用',
     reject: '駁回',
     ask: '詢問',
-    answer: '回覆',
+    answer: '回答',
     closed: '已結束',
     skip: '略過',
     config: '設定',
@@ -64,7 +64,7 @@ const history: typeof en = {
   },
   restore: {
     title: '要將工作區還原到這筆 commit 嗎？',
-    descriptionPrefix: '圖譜、提案、釐清與決策都會回滾到 {subject}。系統會附加一筆新的',
+    descriptionPrefix: '圖譜、提案與釐清都會回滾到 {subject}。系統會附加一筆新的',
     descriptionSuffix: 'commit 到歷史紀錄。不會遺失任何內容，但此時間點之後的所有變更都將不再套用。',
     failed: '還原失敗。',
   },
