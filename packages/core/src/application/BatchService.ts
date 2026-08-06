@@ -482,7 +482,7 @@ export class BatchService {
     ])
     return {
       proposals: new Set(proposals.map(proposal => proposal.id)),
-      clarifications: new Set(clarifications.map(ticket => ticket.id)),
+      clarifications: new Set(clarifications.map(clarification => clarification.id)),
     }
   }
 

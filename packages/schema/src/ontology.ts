@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { OntologyId } from './common.js'
+import { localizedText } from './locale.js'
 import { SourceRole } from './source.js'
 
 export const NodeTypeId = z.string().min(1).brand<'NodeTypeId'>()
@@ -21,7 +22,7 @@ export type NodeTypeRenderHint = z.infer<typeof NodeTypeRenderHint>
 
 export const NodeTypeDescriptor = z.object({
   id: NodeTypeId,
-  label: z.string().min(1).max(40),
+  label: localizedText(z.string().min(1).max(40)),
   description: z.string().optional(),
   allowedStatuses: z.array(NodeStatus).optional(),
   color: z.string().optional(),
@@ -35,7 +36,7 @@ export type EdgeCardinality = z.infer<typeof EdgeCardinality>
 
 export const EdgeTypeDescriptor = z.object({
   id: EdgeTypeId,
-  label: z.string().min(1).max(40),
+  label: localizedText(z.string().min(1).max(40)),
   description: z.string().optional(),
   fromTypes: z.array(NodeTypeId),
   toTypes: z.array(NodeTypeId),
@@ -50,7 +51,7 @@ export type EdgeTypeDescriptor = z.infer<typeof EdgeTypeDescriptor>
  */
 export const SourceRoleDescriptor = z.object({
   id: SourceRole,
-  label: z.string().min(1),
+  label: localizedText(z.string().min(1)),
   // Sources of this role must be present for the ontology to run.
   required: z.boolean().optional(),
   // Sources of this role enumerate into batch units, and their sync drives the Reactor.

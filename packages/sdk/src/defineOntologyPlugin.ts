@@ -7,6 +7,7 @@ import type {
 } from '@braidhq/core'
 import type {
   EdgeTypeId,
+  LocalizedText,
   NodeTypeId,
   OntologyId,
   PluginId,
@@ -26,7 +27,7 @@ import {
 /** Declarative source role an ontology contributes. `id` is branded on build. */
 export interface SourceRoleInput {
   readonly id: string
-  readonly label: string
+  readonly label: LocalizedText
   readonly required?: boolean
   readonly unitBearing?: boolean
   readonly pathSegment?: string

@@ -3,9 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Crown, Database, GitBranch, HardDrive, MoreHorizontal, Plug, RefreshCw, Trash2, UserMinus, UserRound, UserRoundCheck, UserRoundCog, Webhook } from 'lucide-react'
 import { DropdownMenu as DropdownPrimitive } from 'radix-ui'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import { api } from '@/lib/api'
 import { humaniseApiError } from '@/lib/errors'
+import { useLocaleFormat } from '@/lib/i18n'
 import { queryKeys, useMe, useSourceLoaders, useUsers, useWorkspaceMembers } from '@/lib/queries'
 import { useWorkspacePolicy } from '@/policy'
 import { AddSourceDialog } from './AddSourceDialog'
@@ -26,12 +28,13 @@ interface WorkspaceDetailsSheetProps {
 }
 
 export function WorkspaceDetailsSheet({ workspaceId, open, onOpenChange, onUnregistered, onRenamed }: WorkspaceDetailsSheetProps) {
+  const { t } = useTranslation()
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:!max-w-xl">
         {workspaceId
           ? <Body workspaceId={workspaceId} onUnregistered={onUnregistered} onRenamed={onRenamed} />
-          : <p className="p-6 text-sm text-muted-foreground">No workspace selected.</p>}
+          : <p className="p-6 text-sm text-muted-foreground">{t('workspace.details.noWorkspaceSelected')}</p>}
       </SheetContent>
     </Sheet>
   )
@@ -42,6 +45,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
   onUnregistered: () => void
   onRenamed: (newId: string) => void
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { data: workspace, isLoading, error } = useQuery({
     queryKey: queryKeys.workspaceDetail(workspaceId),
@@ -55,9 +59,9 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
   }
 
   if (isLoading)
-    return <p className="p-6 text-sm text-muted-foreground">Loading…</p>
+    return <p className="p-6 text-sm text-muted-foreground">{t('common.loading')}</p>
   if (error || !workspace)
-    return <p className="p-6 text-sm text-destructive">{error instanceof Error ? error.message : 'Failed to load workspace'}</p>
+    return <p className="p-6 text-sm text-destructive">{error instanceof Error ? error.message : t('workspace.details.loadFailed')}</p>
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -76,9 +80,9 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
         />
 
         <section>
-          <SectionHeader title="Sources" onAdd={() => setAddSourceOpen(true)} addLabel="Add Source" />
+          <SectionHeader title={t('workspace.details.sourcesTitle')} onAdd={() => setAddSourceOpen(true)} addLabel={t('workspace.details.addSource')} />
           {workspace.productManifest.sources.length === 0
-            ? <p className="mt-2 text-2xs text-muted-foreground">None yet. Click "Add Source" to provision from git, gdrive, or a manual directory.</p>
+            ? <p className="mt-2 text-2xs text-muted-foreground">{t('workspace.details.sourcesEmpty')}</p>
             : (
                 <ul className="mt-2 space-y-1.5">
                   {workspace.productManifest.sources.map(source => (
@@ -94,9 +98,9 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
         </section>
 
         <section>
-          <SectionHeader title="MCP Servers" />
+          <SectionHeader title={t('workspace.details.mcpServersTitle')} />
           {workspace.productManifest.mcpServers.length === 0
-            ? <p className="mt-2 text-2xs text-muted-foreground">None.</p>
+            ? <p className="mt-2 text-2xs text-muted-foreground">{t('workspace.details.mcpEmpty')}</p>
             : (
                 <ul className="mt-2 space-y-1.5">
                   {workspace.productManifest.mcpServers.map(server => (
@@ -111,8 +115,8 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
         <SkillPermissionsForOwners workspaceId={workspaceId} />
 
         <section className="grid grid-cols-2 gap-3 text-xs">
-          <MetaField icon={Database} label="Ontology" value={workspace.productManifest.ontologyId} />
-          <MetaField icon={HardDrive} label="Storage" value={workspace.productManifest.storage.kind} />
+          <MetaField icon={Database} label={t('workspace.details.ontologyLabel')} value={workspace.productManifest.ontologyId} />
+          <MetaField icon={HardDrive} label={t('workspace.details.storageLabel')} value={workspace.productManifest.storage.kind} />
         </section>
       </div>
 
@@ -150,6 +154,7 @@ function SectionHeader({ title, onAdd, addLabel }: { title: string, onAdd?: (() 
 }
 
 function RenameSection({ workspace, onRenamed }: { workspace: Workspace, onRenamed: (newId: string) => void }) {
+  const { t } = useTranslation()
   const [name, setName] = useState(workspace.productManifest.name)
   const [description, setDescription] = useState(workspace.productManifest.description ?? '')
   const dirty = name !== workspace.productManifest.name || description !== (workspace.productManifest.description ?? '')
@@ -167,19 +172,19 @@ function RenameSection({ workspace, onRenamed }: { workspace: Workspace, onRenam
   return (
     <section className="space-y-2">
       <div className="space-y-1.5">
-        <Label htmlFor="rename">Name</Label>
+        <Label htmlFor="rename">{t('common.name')}</Label>
         <Input id="rename" value={name} onChange={e => setName(e.target.value)} />
       </div>
       <MarkdownDescriptionField
         id="desc"
         value={description}
         onChange={setDescription}
-        placeholder="What is this workspace about? Markdown supported."
+        placeholder={t('workspace.aboutPlaceholder')}
       />
       {patch.error && <p className="text-2xs text-destructive">{humaniseApiError(patch.error)}</p>}
       <div className="flex justify-end">
         <Button size="sm" disabled={!dirty || patch.isPending} onClick={() => patch.mutate()}>
-          {patch.isPending ? 'Saving…' : 'Save'}
+          {patch.isPending ? t('common.saving') : t('common.save')}
         </Button>
       </div>
     </section>
@@ -191,6 +196,8 @@ function SourceRow({ workspaceId, source, onChange }: {
   source: SourceDescriptor
   onChange: () => void
 }) {
+  const { t } = useTranslation()
+  const { formatTime } = useLocaleFormat()
   const [editingDescription, setEditingDescription] = useState(false)
   const [draftDescription, setDraftDescription] = useState(source.description ?? '')
   const sync = useMutation({
@@ -226,11 +233,11 @@ function SourceRow({ workspaceId, source, onChange }: {
         )}
         <div className="ml-auto flex items-center gap-1">
           {canSync && (
-            <Button variant="ghost" size="icon" onClick={() => sync.mutate()} disabled={sync.isPending} title="Sync" aria-label="Sync">
+            <Button variant="ghost" size="icon" onClick={() => sync.mutate()} disabled={sync.isPending} title={t('workspace.details.syncButton')} aria-label={t('workspace.details.syncButton')}>
               <RefreshCw className={sync.isPending ? 'animate-spin' : ''} />
             </Button>
           )}
-          <Button variant="ghost" size="icon" onClick={() => remove.mutate()} disabled={remove.isPending} title="Remove" aria-label="Remove">
+          <Button variant="ghost" size="icon" onClick={() => remove.mutate()} disabled={remove.isPending} title={t('common.remove')} aria-label={t('common.remove')}>
             <Trash2 />
           </Button>
         </div>
@@ -253,13 +260,13 @@ function SourceRow({ workspaceId, source, onChange }: {
         onSave={() => patch.mutate()}
         saving={patch.isPending}
         error={patch.error}
-        emptyHint="Add description"
+        emptyHint={t('workspace.details.addDescription')}
       />
       {sync.data && (
         <p className="mt-1 text-2xs text-muted-foreground">
           <SyncSummary report={sync.data} />
           {' · '}
-          {new Date(sync.data.fetchedAt ?? Date.now()).toLocaleTimeString()}
+          {formatTime(sync.data.fetchedAt ?? Date.now())}
         </p>
       )}
       {(sync.error || remove.error) && (
@@ -289,6 +296,8 @@ function WebhookPanelGate({ workspaceId, source }: { workspaceId: string, source
 }
 
 function GithubWebhookPanel({ workspaceId, sourceId }: { workspaceId: string, sourceId: string }) {
+  const { t } = useTranslation()
+  const { formatDateTime } = useLocaleFormat()
   const [open, setOpen] = useState(false)
   const [revealedSecret, setRevealedSecret] = useState<string | null>(null)
   const queryClient = useQueryClient()
@@ -333,33 +342,33 @@ function GithubWebhookPanel({ workspaceId, sourceId }: { workspaceId: string, so
         onClick={togglePanel}
       >
         <Webhook className="size-3" />
-        {open ? 'Hide GitHub webhook' : 'GitHub webhook'}
+        {open ? t('workspace.details.hideGithubWebhook') : t('workspace.details.githubWebhook')}
       </button>
       {open && (
         <div className="mt-2 space-y-2">
-          {status.isLoading && <p className="text-muted-foreground">Loading…</p>}
+          {status.isLoading && <p className="text-muted-foreground">{t('common.loading')}</p>}
           {status.error && <p className="text-destructive">{humaniseApiError(status.error)}</p>}
           {status.data && (
             <>
               <div>
-                <Label className="text-2xs uppercase text-muted-foreground">Payload URL</Label>
+                <Label className="text-2xs uppercase text-muted-foreground">{t('workspace.details.payloadUrl')}</Label>
                 <code className="mt-1 block break-all rounded bg-muted px-1.5 py-1 font-mono text-2xs">
                   {status.data.url}
                 </code>
               </div>
               <p className="text-muted-foreground">
                 {status.data.hasSecret
-                  ? `Secret last rotated ${status.data.createdAt ? new Date(status.data.createdAt).toLocaleString() : 'unknown'}.`
-                  : 'No secret configured yet. Generate one below and paste it into GitHub.'}
+                  ? t('workspace.details.secretLastRotated', { date: status.data.createdAt ? formatDateTime(status.data.createdAt) : t('common.unknown') })
+                  : t('workspace.details.noSecretConfigured')}
               </p>
               <div className="flex items-center gap-2">
                 <Button size="sm" variant="outline" disabled={rotate.isPending} onClick={() => rotate.mutate()}>
-                  {rotate.isPending ? 'Rotating…' : status.data.hasSecret ? 'Rotate secret' : 'Generate secret'}
+                  {rotate.isPending ? t('workspace.details.rotating') : status.data.hasSecret ? t('workspace.details.rotateSecret') : t('workspace.details.generateSecret')}
                 </Button>
               </div>
               {revealedSecret && (
                 <div className="rounded border border-amber-500/60 bg-amber-50 p-2 text-foreground dark:bg-amber-950/40">
-                  <p className="font-medium">Copy this secret into GitHub now. It is shown once.</p>
+                  <p className="font-medium">{t('workspace.details.copySecretOnce')}</p>
                   <code className="mt-1 block break-all rounded bg-background px-1.5 py-1 font-mono text-2xs">
                     {revealedSecret}
                   </code>
@@ -375,12 +384,13 @@ function GithubWebhookPanel({ workspaceId, sourceId }: { workspaceId: string, so
 }
 
 function SyncSummary({ report }: { report: { changed: boolean, added?: number, updated?: number, removed?: number } }) {
+  const { t } = useTranslation()
   // When the loader reports structured counts,
   // use the unified `+a ~u -r` format.
   // Otherwise fall back to a plain changed or unchanged label.
   const hasCounts = report.added !== undefined || report.updated !== undefined || report.removed !== undefined
   if (!hasCounts)
-    return <span>{report.changed ? 'updated' : 'no change'}</span>
+    return <span>{report.changed ? t('workspace.details.updatedLabel') : t('workspace.details.noChangeLabel')}</span>
   const parts: string[] = []
   if ((report.added ?? 0) > 0)
     parts.push(`+${report.added}`)
@@ -388,7 +398,7 @@ function SyncSummary({ report }: { report: { changed: boolean, added?: number, u
     parts.push(`~${report.updated}`)
   if ((report.removed ?? 0) > 0)
     parts.push(`-${report.removed}`)
-  return <span className="font-mono">{parts.length === 0 ? 'no change' : parts.join(' ')}</span>
+  return <span className="font-mono">{parts.length === 0 ? t('workspace.details.noChangeLabel') : parts.join(' ')}</span>
 }
 
 function McpRow({ workspaceId, server, onChange }: {
@@ -396,6 +406,7 @@ function McpRow({ workspaceId, server, onChange }: {
   server: McpServerConfig
   onChange: () => void
 }) {
+  const { t } = useTranslation()
   const [editingDescription, setEditingDescription] = useState(false)
   const [draftDescription, setDraftDescription] = useState(server.description ?? '')
   const patch = useMutation({
@@ -431,7 +442,7 @@ function McpRow({ workspaceId, server, onChange }: {
         onSave={() => patch.mutate()}
         saving={patch.isPending}
         error={patch.error}
-        emptyHint="Add description"
+        emptyHint={t('workspace.details.addDescription')}
       />
     </li>
   )
@@ -462,6 +473,7 @@ function InlineDescriptionEditor({
   error: unknown
   emptyHint: string
 }) {
+  const { t } = useTranslation()
   if (!editing) {
     return (
       <button
@@ -484,7 +496,7 @@ function InlineDescriptionEditor({
         onChange={onDraftChange}
         label=""
         helperText=""
-        placeholder="Markdown supported."
+        placeholder={t('workspace.details.markdownSupported')}
         rows={2}
       />
       {error !== null && error !== undefined && (
@@ -492,10 +504,10 @@ function InlineDescriptionEditor({
       )}
       <div className="flex justify-end gap-1.5">
         <Button variant="ghost" size="sm" className="h-7 text-2xs" onClick={onCancel} disabled={saving}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button size="sm" className="h-7 text-2xs" onClick={onSave} disabled={!dirty || saving}>
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? t('common.saving') : t('common.save')}
         </Button>
       </div>
     </div>
@@ -552,6 +564,7 @@ function sortMembers(
 }
 
 function MembersSection({ workspaceId }: { workspaceId: string }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { data: members, isLoading, error } = useWorkspaceMembers(workspaceId)
   const { data: allUsers } = useUsers()
@@ -566,15 +579,15 @@ function MembersSection({ workspaceId }: { workspaceId: string }) {
   if (isLoading) {
     return (
       <section>
-        <SectionHeader title="Members" />
-        <p className="mt-2 text-2xs text-muted-foreground">Loading…</p>
+        <SectionHeader title={t('workspace.details.membersTitle')} />
+        <p className="mt-2 text-2xs text-muted-foreground">{t('common.loading')}</p>
       </section>
     )
   }
   if (error) {
     return (
       <section>
-        <SectionHeader title="Members" />
+        <SectionHeader title={t('workspace.details.membersTitle')} />
         <p className="mt-2 text-2xs text-destructive">{humaniseApiError(error)}</p>
       </section>
     )
@@ -590,9 +603,9 @@ function MembersSection({ workspaceId }: { workspaceId: string }) {
 
   return (
     <section>
-      <SectionHeader title="Members" />
+      <SectionHeader title={t('workspace.details.membersTitle')} />
       {sortedMembers.length === 0
-        ? <p className="mt-2 text-2xs text-muted-foreground">Nobody listed yet.</p>
+        ? <p className="mt-2 text-2xs text-muted-foreground">{t('workspace.details.membersEmpty')}</p>
         : (
             <ul className="mt-2 space-y-1.5">
               {sortedMembers.map(member => (
@@ -625,6 +638,7 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
   isMe: boolean
   onChange: () => void
 }) {
+  const { t } = useTranslation()
   const [armed, setArmed] = useState<ArmedKind | null>(null)
   const remove = useMutation({
     mutationFn: () => api.removeWorkspaceMember(workspaceId, member.userId),
@@ -676,7 +690,7 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="truncate text-xs">{displayName}</span>
-            {isMe && <span className="text-2xs text-muted-foreground">(you)</span>}
+            {isMe && <span className="text-2xs text-muted-foreground">{t('workspace.details.currentUserLabel')}</span>}
             <Badge variant="outline" className="ml-auto shrink-0 text-2xs uppercase tracking-wider text-muted-foreground">
               {member.role}
             </Badge>
@@ -688,7 +702,7 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
         {showKebab && (
           <DropdownPrimitive.Root>
             <DropdownPrimitive.Trigger asChild>
-              <Button variant="ghost" size="icon" className="size-6 shrink-0" title="Member actions" aria-label="Member actions">
+              <Button variant="ghost" size="icon" className="size-6 shrink-0" title={t('workspace.details.memberActions')} aria-label={t('workspace.details.memberActions')}>
                 <MoreHorizontal className="size-3" />
               </Button>
             </DropdownPrimitive.Trigger>
@@ -704,7 +718,7 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
                     onSelect={() => startArmed('promote')}
                   >
                     <UserRoundCog className="size-3" />
-                    Promote to Maintainer
+                    {t('workspace.details.promoteToMaintainer')}
                   </DropdownPrimitive.Item>
                 )}
                 {canChangeRole && member.role === 'maintainer' && (
@@ -713,7 +727,7 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
                     onSelect={() => startArmed('demote')}
                   >
                     <UserRound className="size-3" />
-                    Demote to Guest
+                    {t('workspace.details.demoteToGuest')}
                   </DropdownPrimitive.Item>
                 )}
                 {canTransfer && (
@@ -722,7 +736,7 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
                     onSelect={() => startArmed('transfer')}
                   >
                     <Crown className="size-3" />
-                    Transfer Ownership
+                    {t('workspace.details.transferOwnership')}
                   </DropdownPrimitive.Item>
                 )}
                 {canRemove && (
@@ -733,7 +747,7 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
                       onSelect={() => startArmed('remove')}
                     >
                       <UserMinus className="size-3" />
-                      Remove from Workspace
+                      {t('workspace.details.removeFromWorkspace')}
                     </DropdownPrimitive.Item>
                   </>
                 )}
@@ -748,13 +762,14 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
             <ArmedConfirmBar
               message={(
                 <>
-                  Promote
+                  {t('workspace.details.promoteConfirmPrefix')}
+                  {' '}
                   <span className="font-medium">{displayName}</span>
                   {' '}
-                  to Maintainer? They will be able to submit proposals and apply / reject pending ones.
+                  {t('workspace.details.promoteConfirmSuffix')}
                 </>
               )}
-              confirmLabel={promote.isPending ? 'Saving…' : 'Promote to Maintainer'}
+              confirmLabel={promote.isPending ? t('common.saving') : t('workspace.details.promoteToMaintainer')}
               confirmTone="primary"
               disabled={promote.isPending}
               onCancel={() => setArmed(null)}
@@ -766,13 +781,14 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
             <ArmedConfirmBar
               message={(
                 <>
-                  Demote
+                  {t('workspace.details.demoteConfirmPrefix')}
+                  {' '}
                   <span className="font-medium">{displayName}</span>
                   {' '}
-                  to Guest? They will lose Proposals / Clarification access and can only run skills explicitly granted to them.
+                  {t('workspace.details.demoteConfirmSuffix')}
                 </>
               )}
-              confirmLabel={promote.isPending ? 'Saving…' : 'Demote to Guest'}
+              confirmLabel={promote.isPending ? t('common.saving') : t('workspace.details.demoteToGuest')}
               confirmTone="primary"
               disabled={promote.isPending}
               onCancel={() => setArmed(null)}
@@ -784,12 +800,13 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
             <ArmedConfirmBar
               message={(
                 <>
-                  Transfer workspace ownership to
+                  {t('workspace.details.transferConfirmPrefix')}
+                  {' '}
                   <span className="font-medium">{displayName}</span>
-                  ? The current Owner becomes a Maintainer. This is irreversible by the previous Owner.
+                  {t('workspace.details.transferConfirmSuffix')}
                 </>
               )}
-              confirmLabel={transfer.isPending ? 'Saving…' : 'Transfer Ownership'}
+              confirmLabel={transfer.isPending ? t('common.saving') : t('workspace.details.transferOwnership')}
               confirmTone="destructive"
               disabled={transfer.isPending}
               onCancel={() => setArmed(null)}
@@ -801,13 +818,14 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
             <ArmedConfirmBar
               message={(
                 <>
-                  Remove
+                  {t('workspace.details.removeConfirmPrefix')}
+                  {' '}
                   <span className="font-medium">{displayName}</span>
                   {' '}
-                  from this workspace? Their stored member row is deleted; their server account is untouched.
+                  {t('workspace.details.removeConfirmSuffix')}
                 </>
               )}
-              confirmLabel={remove.isPending ? 'Removing…' : 'Remove from Workspace'}
+              confirmLabel={remove.isPending ? t('common.removing') : t('workspace.details.removeFromWorkspace')}
               confirmTone="destructive"
               disabled={remove.isPending}
               onCancel={() => setArmed(null)}
@@ -826,6 +844,7 @@ function AddMemberControl({ workspaceId, candidates, onAdded }: {
   candidates: readonly User[]
   onAdded: () => void
 }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string>('')
   const [role, setRole] = useState<WorkspaceRole>('guest')
@@ -841,7 +860,7 @@ function AddMemberControl({ workspaceId, candidates, onAdded }: {
   if (!open) {
     return (
       <Button variant="ghost" size="sm" onClick={() => setOpen(true)} className="mt-2 h-6 text-2xs">
-        + Add Member
+        {t('workspace.details.addMember')}
       </Button>
     )
   }
@@ -852,7 +871,7 @@ function AddMemberControl({ workspaceId, candidates, onAdded }: {
         value={selectedUserId}
         onChange={e => setSelectedUserId(e.target.value)}
       >
-        <option value="">Select user…</option>
+        <option value="">{t('workspace.details.selectUser')}</option>
         {candidates.map(user => (
           <option key={user.id} value={user.id}>
             {user.displayName}
@@ -865,14 +884,14 @@ function AddMemberControl({ workspaceId, candidates, onAdded }: {
         value={role}
         onChange={e => setRole(e.target.value as WorkspaceRole)}
       >
-        <option value="guest">Guest</option>
-        <option value="maintainer">Maintainer</option>
+        <option value="guest">{t('workspace.details.roleGuest')}</option>
+        <option value="maintainer">{t('workspace.details.roleMaintainer')}</option>
       </select>
       {add.error && <p className="text-2xs text-destructive">{humaniseApiError(add.error)}</p>}
       <div className="flex gap-2">
-        <Button variant="ghost" size="sm" className="flex-1" onClick={() => setOpen(false)}>Cancel</Button>
+        <Button variant="ghost" size="sm" className="flex-1" onClick={() => setOpen(false)}>{t('common.cancel')}</Button>
         <Button size="sm" className="flex-1" disabled={!selectedUserId || add.isPending} onClick={() => add.mutate()}>
-          {add.isPending ? 'Adding…' : 'Add'}
+          {add.isPending ? t('common.adding') : t('common.add')}
         </Button>
       </div>
     </div>
@@ -880,6 +899,7 @@ function AddMemberControl({ workspaceId, candidates, onAdded }: {
 }
 
 function UnregisterButton({ workspaceId, onUnregistered }: { workspaceId: string, onUnregistered: () => void }) {
+  const { t } = useTranslation()
   const [armed, setArmed] = useState(false)
   const action = useMutation({
     mutationFn: () => api.deleteWorkspace(workspaceId),
@@ -889,20 +909,20 @@ function UnregisterButton({ workspaceId, onUnregistered }: { workspaceId: string
   if (!armed) {
     return (
       <Button variant="ghost" size="sm" onClick={() => setArmed(true)} className="w-full text-destructive">
-        Delete Workspace
+        {t('workspace.details.deleteWorkspace')}
       </Button>
     )
   }
   return (
     <div className="space-y-2">
       <p className="text-2xs text-muted-foreground">
-        Removes PRODUCT.md, all provisioned files, and the workspace folder. You can re-create with the same name afterwards.
+        {t('workspace.details.deleteWarning')}
       </p>
       {action.error && <p className="text-2xs text-destructive">{humaniseApiError(action.error)}</p>}
       <div className="flex gap-2">
-        <Button variant="ghost" size="sm" className="flex-1" onClick={() => setArmed(false)}>Cancel</Button>
+        <Button variant="ghost" size="sm" className="flex-1" onClick={() => setArmed(false)}>{t('common.cancel')}</Button>
         <Button size="sm" className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => action.mutate()} disabled={action.isPending}>
-          {action.isPending ? 'Deleting…' : 'Delete permanently'}
+          {action.isPending ? t('workspace.details.deleting') : t('workspace.details.deletePermanently')}
         </Button>
       </div>
     </div>

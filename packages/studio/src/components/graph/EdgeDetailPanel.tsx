@@ -1,5 +1,6 @@
 import type { GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
 import { ArrowDownToDot, ArrowUpFromDot, FileText, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { NodeTypeBadge } from './NodeTypeBadge'
 import { usePaletteContext } from './usePalette'
@@ -38,6 +39,7 @@ export function EdgeDetailPanel({
   onSelectNode,
   onCenterInGraph,
 }: EdgeDetailPanelProps) {
+  const { t } = useTranslation()
   const sources = edge.metadata.sourceReferences ?? []
   const palette = usePaletteContext()
   const typeColor = palette.edgeColor(edge.type)
@@ -47,7 +49,7 @@ export function EdgeDetailPanel({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close detail"
+          aria-label={t('graph.detail.closeDetailButton')}
           className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <X className="size-3.5" />
@@ -61,24 +63,24 @@ export function EdgeDetailPanel({
             {palette.edgeLabel(edge.type)}
           </span>
         </div>
-        <h2 className="text-sm font-semibold text-foreground">Edge</h2>
+        <h2 className="text-sm font-semibold text-foreground">{t('graph.detail.edgeTitle')}</h2>
         <p className="font-mono text-2xs text-muted-foreground">{edge.id}</p>
       </header>
 
       <div className="flex-1 space-y-5 overflow-y-auto p-4 scrollbar-thin">
         <section>
-          <SectionTitle>Endpoints</SectionTitle>
+          <SectionTitle>{t('graph.detail.endpoints')}</SectionTitle>
           <ul className="mt-1 space-y-1">
             <EndpointRow
               icon={ArrowUpFromDot}
-              label="From"
+              label={t('graph.detail.fromLabel')}
               nodeId={edge.fromNodeId}
               node={fromNode}
               onSelect={onSelectNode}
             />
             <EndpointRow
               icon={ArrowDownToDot}
-              label="To"
+              label={t('graph.detail.toLabel')}
               nodeId={edge.toNodeId}
               node={toNode}
               onSelect={onSelectNode}
@@ -87,9 +89,9 @@ export function EdgeDetailPanel({
         </section>
 
         <section>
-          <SectionTitle>Sources</SectionTitle>
+          <SectionTitle>{t('graph.detail.sources')}</SectionTitle>
           {sources.length === 0
-            ? <p className="mt-1 text-2xs text-muted-foreground">No sourceReferences declared.</p>
+            ? <p className="mt-1 text-2xs text-muted-foreground">{t('graph.detail.noSources')}</p>
             : (
                 <ul className="mt-1 space-y-1.5">
                   {sources.map((reference, index) => (
@@ -116,7 +118,7 @@ export function EdgeDetailPanel({
       {onCenterInGraph && (
         <div className="border-t border-border p-4">
           <Button variant="ghost" size="sm" className="w-full justify-center" onClick={onCenterInGraph}>
-            Center in Graph
+            {t('graph.detail.centerInGraphButton')}
           </Button>
         </div>
       )}

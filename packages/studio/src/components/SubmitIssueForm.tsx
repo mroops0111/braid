@@ -2,6 +2,7 @@ import type { Clarification, ClarificationAmbiguityType } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, Send, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -16,12 +17,9 @@ interface SubmitIssueFormProps {
   onCancel: () => void
 }
 
-const AMBIGUITY_TYPES: { value: ClarificationAmbiguityType, label: string, hint: string }[] = [
-  { value: 'gap', label: 'Gap', hint: 'something missing from the model' },
-  { value: 'contradiction', label: 'Contradiction', hint: 'two parts of the model disagree' },
-  { value: 'ambiguous', label: 'Ambiguous', hint: 'the model is unclear or open to interpretation' },
-  { value: 'assumption', label: 'Assumption', hint: 'verify an implicit assumption the model relies on' },
-]
+// Ambiguity kinds the reviewer can tag. Labels and hints are translated at
+// render via `sources.issueForm.ambiguity.<value>`.
+const AMBIGUITY_TYPES: ClarificationAmbiguityType[] = ['gap', 'contradiction', 'ambiguous', 'assumption']
 
 /**
  * Compose surface for a human-filed Clarification.
@@ -36,6 +34,7 @@ const AMBIGUITY_TYPES: { value: ClarificationAmbiguityType, label: string, hint:
  * A narrower call site such as a dropdown would crowd the textareas.
  */
 export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIssueFormProps) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [question, setQuestion] = useState('')
   const [context, setContext] = useState('')
@@ -75,16 +74,16 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
     <div className="flex h-full flex-col overflow-y-auto">
       <header className="flex h-11 shrink-0 items-center justify-between border-b border-border px-4">
         <div>
-          <div className="text-sm font-medium text-foreground">Submit an issue for AI to clarify</div>
+          <div className="text-sm font-medium text-foreground">{t('sources.issueForm.title')}</div>
           <div className="text-2xs text-muted-foreground">
-            File a concern; AI fills in candidate answers on its next clarify run.
+            {t('sources.issueForm.subtitle')}
           </div>
         </div>
         <button
           type="button"
           onClick={onCancel}
-          title="Cancel"
-          aria-label="Cancel"
+          title={t('common.cancel')}
+          aria-label={t('common.cancel')}
           className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
         >
           <X className="size-4" />
@@ -100,7 +99,7 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
       >
         <div className="space-y-1.5">
           <Label htmlFor="issue-question">
-            Question
+            {t('sources.issueForm.questionLabel')}
             {' '}
             <span className="text-destructive">*</span>
           </Label>
@@ -108,7 +107,7 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
             id="issue-question"
             value={question}
             onChange={e => setQuestion(e.target.value)}
-            placeholder="Describe what looks wrong or what you want AI to clarify…"
+            placeholder={t('sources.issueForm.questionPlaceholder')}
             rows={5}
             className="resize-y"
             autoFocus
@@ -118,15 +117,15 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
 
         <div className="space-y-1.5">
           <Label htmlFor="issue-context">
-            Context
+            {t('sources.issueForm.contextLabel')}
             {' '}
-            <span className="text-xs text-muted-foreground">optional</span>
+            <span className="text-xs text-muted-foreground">{t('sources.issueForm.optionalLabel')}</span>
           </Label>
           <Textarea
             id="issue-context"
             value={context}
             onChange={e => setContext(e.target.value)}
-            placeholder="Additional background, references, or where you noticed this…"
+            placeholder={t('sources.issueForm.contextPlaceholder')}
             rows={3}
             className="resize-y text-xs"
             maxLength={2000}
@@ -136,51 +135,51 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_180px]">
           <div className="space-y-1.5">
             <Label htmlFor="issue-related">
-              Related node
+              {t('sources.issueForm.relatedNodeLabel')}
               {' '}
-              <span className="text-xs text-muted-foreground">optional</span>
+              <span className="text-xs text-muted-foreground">{t('sources.issueForm.optionalLabel')}</span>
             </Label>
             <input
               id="issue-related"
               type="text"
               value={relatedNode}
               onChange={e => setRelatedNode(e.target.value)}
-              placeholder="e.g. cmd.place_order"
+              placeholder={t('sources.issueForm.relatedNodePlaceholder')}
               className="w-full rounded-md border border-input bg-background px-3 py-1.5 font-mono text-xs text-foreground outline-none focus:ring-2 focus:ring-ring/40"
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="issue-type">Type</Label>
+            <Label htmlFor="issue-type">{t('common.type')}</Label>
             <select
               id="issue-type"
               value={ambiguityType}
               onChange={e => setAmbiguityType(e.target.value as ClarificationAmbiguityType)}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring/40"
             >
-              {AMBIGUITY_TYPES.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              {AMBIGUITY_TYPES.map(value => (
+                <option key={value} value={value}>{t(`sources.issueForm.ambiguity.${value}.label`)}</option>
               ))}
             </select>
           </div>
         </div>
 
         <p className="text-2xs text-muted-foreground">
-          {AMBIGUITY_TYPES.find(t => t.value === ambiguityType)?.hint}
+          {t(`sources.issueForm.ambiguity.${ambiguityType}.hint`)}
         </p>
 
         {submit.isError && (
           <p className="text-xs text-destructive">
-            {submit.error instanceof Error ? submit.error.message : 'Failed to submit.'}
+            {submit.error instanceof Error ? submit.error.message : t('sources.issueForm.submitFailed')}
           </p>
         )}
 
         <div className="mt-auto flex items-center justify-end gap-2 border-t border-border pt-4">
           <Button type="button" variant="outline" onClick={onCancel} disabled={submit.isPending}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" disabled={!canSubmit}>
             {submit.isPending ? <Loader2 className="animate-spin" /> : <Send />}
-            {submit.isPending ? 'Submitting…' : 'Submit'}
+            {submit.isPending ? t('common.submitting') : t('common.submit')}
           </Button>
         </div>
       </form>

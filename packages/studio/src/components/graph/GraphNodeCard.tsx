@@ -1,6 +1,7 @@
 import type { NodeProps } from '@xyflow/react'
 import type { NodeCardNode } from './useGraphLayout'
 import { Handle, Position } from '@xyflow/react'
+import { useTranslation } from 'react-i18next'
 import { Markdown } from '@/components/SkillTranscript/Markdown'
 import { cn } from '@/lib/utils'
 import { NodeTypeBadge } from './NodeTypeBadge'
@@ -20,6 +21,7 @@ import { NodeTypeBadge } from './NodeTypeBadge'
  * Graph mutations stay HITL-gated via Proposals.
  */
 export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
+  const { t } = useTranslation()
   const { node, change, emphasizeAdded } = data
   const firstParagraph = node.description?.split(/\n\s*\n/, 1)[0]?.trim() ?? ''
   // Diff signals layer without fighting the type and topology layer.
@@ -64,7 +66,7 @@ export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
       {changeDotColor && (
         <span
           className={cn('absolute right-1.5 top-1.5 size-2 rounded-full', changeDotColor)}
-          title={change === 'added' ? 'Added by this proposal' : change === 'updated' ? 'Updated by this proposal' : 'Removed by this proposal'}
+          title={change === 'added' ? t('graph.nodeCard.addedTooltip') : change === 'updated' ? t('graph.nodeCard.updatedTooltip') : t('graph.nodeCard.removedTooltip')}
         />
       )}
       <Handle

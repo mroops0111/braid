@@ -1,5 +1,7 @@
 import type { SkillEvent } from '@braidhq/schema'
 import { useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useLocaleFormat } from '@/lib/i18n'
 import { groupTranscript } from './groupTranscript'
 import { Markdown } from './Markdown'
 import { ToolGroup } from './ToolGroup'
@@ -11,6 +13,7 @@ interface SkillTranscriptProps {
 }
 
 export function SkillTranscript({ events, error, running }: SkillTranscriptProps) {
+  const { t } = useTranslation()
   const items = groupTranscript(events)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -30,14 +33,20 @@ export function SkillTranscript({ events, error, running }: SkillTranscriptProps
   return (
     <div ref={containerRef} className="flex-1 overflow-y-auto scrollbar-thin px-4 py-3 font-mono text-xs leading-relaxed">
       {events.length === 0 && !running && !error && (
-        <div className="text-muted-foreground/60">Output appears here.</div>
+        <div className="text-muted-foreground/60">{t('transcript.emptyDescription')}</div>
       )}
       {items.map(item =>
         item.kind === 'tool-group'
           ? <ToolGroup key={item.key} calls={item.calls} />
           : <TranscriptLine key={item.key} event={item.event} />,
       )}
-      {running && <div className="text-muted-foreground">▶ running…</div>}
+      {running && (
+        <div className="text-muted-foreground">
+          ▶
+          {' '}
+          {t('transcript.runningStatus')}
+        </div>
+      )}
       {error && (
         <div className="text-destructive">
           !
@@ -50,12 +59,14 @@ export function SkillTranscript({ events, error, running }: SkillTranscriptProps
 }
 
 function TranscriptLine({ event }: { event: SkillEvent }) {
+  const { t } = useTranslation()
+  const { formatTime } = useLocaleFormat()
   switch (event.type) {
     case 'started':
       return (
         <div className="my-3 rounded-r border-l-2 border-primary bg-primary/5 py-1.5 pl-3 pr-2 font-sans first:mt-0">
           <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-            {event.resumed ? 'Follow-up' : 'Prompt'}
+            {event.resumed ? t('transcript.followUpLabel') : t('transcript.promptLabel')}
           </div>
           <div className="mt-0.5 text-sm text-foreground">{event.args}</div>
         </div>
@@ -71,30 +82,23 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
     case 'artifact-written':
       return (
         <div className="text-emerald-400">
-          [artifact]
-          {' '}
-          {event.artifactKind}
-          {' '}
-          {event.artifactId}
-          {' '}
-          →
-          {' '}
-          {event.path}
+          {t('transcript.artifactLine', {
+            kind: event.artifactKind,
+            id: event.artifactId,
+            path: event.path,
+          })}
         </div>
       )
     case 'completed':
       return (
         <div className="text-muted-foreground">
-          [completed] exit=
-          {event.exitCode}
+          {t('transcript.completedLine', { code: event.exitCode })}
         </div>
       )
     case 'error':
       return (
         <div className="text-destructive">
-          [error]
-          {' '}
-          {event.message}
+          {t('transcript.errorLine', { message: event.message })}
         </div>
       )
     case 'thinking':
@@ -104,7 +108,7 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
       return (
         <details className="my-1 font-sans text-muted-foreground/70">
           <summary className="cursor-pointer select-none text-2xs font-semibold uppercase tracking-wider">
-            Thinking
+            {t('transcript.thinkingTitle')}
           </summary>
           <div className="mt-1 whitespace-pre-wrap border-l-2 border-muted pl-3 italic">
             {event.text}
@@ -114,15 +118,17 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
     case 'rate-limit':
       return (
         <div className="text-amber-400">
-          ⏳ waiting on rate limit
-          {event.resetsAt ? ` (resets ${new Date(event.resetsAt * 1000).toLocaleTimeString()})` : ''}
+          ⏳
+          {' '}
+          {t('transcript.rateLimitWaiting')}
+          {event.resetsAt ? ` ${t('transcript.rateLimitReset', { time: formatTime(event.resetsAt * 1000) })}` : ''}
         </div>
       )
     case 'usage': {
       const parts = [
         event.costUsd != null ? `$${event.costUsd.toFixed(3)}` : null,
         event.durationMs != null ? `${(event.durationMs / 1000).toFixed(1)}s` : null,
-        event.turns != null ? `${event.turns} turns` : null,
+        event.turns != null ? t('transcript.turnCount', { count: event.turns }) : null,
       ].filter(Boolean)
       return parts.length > 0
         ? <div className="mt-1 text-muted-foreground/60">{parts.join(' · ')}</div>

@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next'
 import { describe, expect, it } from 'vitest'
 import { draftPathSegment, loaderKindLabel, nameToId, type SourceDraft, toSourceDescriptor } from '../../src/lib/sourceDraft'
 
@@ -36,17 +37,22 @@ describe('nameToId', () => {
 })
 
 describe('loaderKindLabel', () => {
-  it('labels the empty kind as manual', () => {
-    expect(loaderKindLabel('')).toBe('manual (no auto-sync)')
+  // Stub t returns the key it is given, so we assert on the catalog key.
+  const t = ((key: string) => key) as unknown as TFunction
+
+  it('maps the empty kind to the manual catalog key', () => {
+    expect(loaderKindLabel('', t)).toBe('sources.loaderKind.manual')
   })
 
-  it('spells out github as issues', () => {
-    expect(loaderKindLabel('github')).toBe('github (issues)')
+  it('maps the known loader kinds to their catalog keys', () => {
+    expect(loaderKindLabel('github', t)).toBe('sources.loaderKind.github')
+    expect(loaderKindLabel('git', t)).toBe('sources.loaderKind.git')
+    expect(loaderKindLabel('gdrive', t)).toBe('sources.loaderKind.gdrive')
   })
 
   it('falls back to the raw kind for an unknown loader', () => {
-    expect(loaderKindLabel('git')).toBe('git')
-    expect(loaderKindLabel('gdrive')).toBe('gdrive')
+    expect(loaderKindLabel('notion', t)).toBe('notion')
+    expect(loaderKindLabel('slack', t)).toBe('slack')
   })
 })
 

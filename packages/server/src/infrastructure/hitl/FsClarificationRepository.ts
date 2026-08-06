@@ -33,27 +33,27 @@ export class FsClarificationRepository implements ClarificationRepository {
   }
 
   async list(filter?: ClarificationFilter): Promise<Clarification[]> {
-    let tickets = await this.base.list({
+    let clarifications = await this.base.list({
       ...(filter?.workspaceId !== undefined ? { workspaceId: filter.workspaceId } : {}),
       ...(filter?.statuses !== undefined ? { statuses: filter.statuses } : {}),
     })
-    // Pending tickets are personal, only the owner sees them.
-    // Answered, applied, and skipped tickets stay workspace-shared.
+    // Pending clarifications are personal, only the owner sees them.
+    // Answered, applied, and skipped clarifications stay workspace-shared.
     if (filter?.viewerId !== undefined) {
       const viewerId = filter.viewerId
       const includeServiceOwned = filter.includeServiceOwned ?? false
-      tickets = tickets.filter(ticket =>
-        ticket.status !== 'pending' || ticket.owner === viewerId || (includeServiceOwned && ticket.ownerKind === 'service'),
+      clarifications = clarifications.filter(clarification =>
+        clarification.status !== 'pending' || clarification.owner === viewerId || (includeServiceOwned && clarification.ownerKind === 'service'),
       )
     }
-    return paginate(tickets, filter?.limit, filter?.offset)
+    return paginate(clarifications, filter?.limit, filter?.offset)
   }
 
   load(clarificationId: ClarificationId): Promise<Clarification> {
     return this.base.load(clarificationId)
   }
 
-  save(ticket: Clarification): Promise<void> {
-    return this.base.save(ticket)
+  save(clarification: Clarification): Promise<void> {
+    return this.base.save(clarification)
   }
 }

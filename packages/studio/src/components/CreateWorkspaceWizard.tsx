@@ -1,13 +1,17 @@
 import type { McpServerConfig, ProductManifestCreate, SourceRoleDescriptor } from '@braidhq/schema'
 import type { ProvisionSummary } from '@/lib/api'
+import type { TranslationKey } from '@/lib/i18n'
 import type { SourceDraft as SourceDraftBase } from '@/lib/sourceDraft'
+import { localize } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import { api, workspaceEventsUrl } from '@/lib/api'
 import { asMcpServerId, asOntologyId, asStorageKind } from '@/lib/brands'
 import { type ErrorCase, humaniseApiError } from '@/lib/errors'
+import { useLocale } from '@/lib/i18n'
 import { queryKeys, useOntologies, useSourceLoaders } from '@/lib/queries'
 import { draftPathSegment, loaderKindLabel, nameToId, STUDIO_KNOWN_LOADER_KINDS, toSourceDescriptor } from '@/lib/sourceDraft'
 import { useGoogleOAuth } from '@/lib/useGoogleOAuth'
@@ -37,24 +41,18 @@ interface CreateWorkspaceWizardProps {
   onCreated?: (workspaceId: string) => void
 }
 
-const WIZARD_ERROR_CASES: readonly ErrorCase[] = [
-  {
-    match: e => e.status === 400 && e.message.includes('already exists'),
-    message: 'A workspace with that name already exists. Open it from the sidebar, or delete it first to recreate.',
-  },
-]
-
 const STEP_ORDER: StepKey[] = ['basics', 'sources', 'mcp', 'advanced', 'confirm', 'progress']
-const STEP_LABELS: Record<StepKey, string> = {
-  basics: 'Basics',
-  sources: 'Sources',
-  mcp: 'MCP Servers',
-  advanced: 'Advanced',
-  confirm: 'Review',
-  progress: 'Creating',
+const STEP_LABEL_KEYS: Record<StepKey, TranslationKey> = {
+  basics: 'workspace.wizard.stepBasics',
+  sources: 'workspace.wizard.stepSources',
+  mcp: 'workspace.wizard.stepMcp',
+  advanced: 'workspace.wizard.stepAdvanced',
+  confirm: 'workspace.wizard.stepConfirm',
+  progress: 'workspace.wizard.stepProgress',
 }
 
 export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateWorkspaceWizardProps) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [step, setStep] = useState<StepKey>('basics')
   const [name, setName] = useState('')
@@ -135,12 +133,12 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
     >
       <DialogContent className="sm:max-w-[720px]">
         <DialogHeader>
-          <DialogTitle>Create Workspace</DialogTitle>
+          <DialogTitle>{t('workspace.wizard.createTitle')}</DialogTitle>
           <DialogDescription>
-            Scaffolds a fresh workspace under
+            {t('workspace.wizard.createDescriptionPrefix')}
             {' '}
             <code className="rounded bg-muted px-1">~/.braid/workspaces/</code>
-            . To open an existing one, pick it from the sidebar.
+            {t('workspace.wizard.createDescriptionSuffix')}
           </DialogDescription>
         </DialogHeader>
 
@@ -215,10 +213,10 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
               disabled={STEP_ORDER.indexOf(step) === 0}
             >
               <ChevronLeft />
-              Back
+              {t('common.back')}
             </Button>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={close}>Cancel</Button>
+              <Button variant="ghost" size="sm" onClick={close}>{t('common.cancel')}</Button>
               {step === 'confirm'
                 ? (
                     <Button
@@ -229,12 +227,12 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
                         scaffold.mutate()
                       }}
                     >
-                      Create
+                      {t('common.create')}
                     </Button>
                   )
                 : (
                     <Button size="sm" disabled={!canAdvance} onClick={next}>
-                      Next
+                      {t('common.next')}
                       <ChevronRight />
                     </Button>
                   )}
@@ -247,6 +245,7 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
 }
 
 function StepIndicator({ step }: { step: StepKey }) {
+  const { t } = useTranslation()
   const current = STEP_ORDER.indexOf(step)
   return (
     <ol className="flex items-center gap-1.5 text-2xs font-medium uppercase tracking-wider">
@@ -262,7 +261,7 @@ function StepIndicator({ step }: { step: StepKey }) {
             >
               {index + 1}
             </span>
-            <span className={active ? 'text-foreground' : 'text-muted-foreground/70'}>{STEP_LABELS[key]}</span>
+            <span className={active ? 'text-foreground' : 'text-muted-foreground/70'}>{t(STEP_LABEL_KEYS[key])}</span>
             {index < STEP_ORDER.length - 2 && <span className="text-muted-foreground/30">›</span>}
           </li>
         )
@@ -279,32 +278,33 @@ function BasicsStep({ name, description, onName, onDescription }: {
   onName: (v: string) => void
   onDescription: (v: string) => void
 }) {
+  const { t } = useTranslation()
   const invalid = name.length > 0 && !WORKSPACE_NAME_PATTERN.test(name)
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <Label htmlFor="ws-name">Workspace Name</Label>
+        <Label htmlFor="ws-name">{t('workspace.wizard.nameLabel')}</Label>
         <Input
           id="ws-name"
           autoFocus
-          placeholder="my-product"
+          placeholder={t('workspace.wizard.namePlaceholder')}
           value={name}
           onChange={e => onName(e.target.value)}
         />
-        <p className="text-2xs text-muted-foreground">Lowercase letters, digits, and dashes. Name conflicts are rejected; delete the existing workspace first to reuse a name.</p>
+        <p className="text-2xs text-muted-foreground">{t('workspace.wizard.nameHint')}</p>
         <code className="block truncate rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
           ~/.braid/workspaces/
           {name || '<name>'}
         </code>
         {invalid && (
-          <p className="text-2xs text-destructive">Name must start with a letter or digit and use only lowercase letters, digits, or dashes.</p>
+          <p className="text-2xs text-destructive">{t('workspace.wizard.nameInvalid')}</p>
         )}
       </div>
       <MarkdownDescriptionField
         id="ws-desc"
         value={description}
         onChange={onDescription}
-        placeholder="What is this workspace about? Markdown supported."
+        placeholder={t('workspace.aboutPlaceholder')}
       />
     </div>
   )
@@ -318,6 +318,8 @@ function SourcesStep({ workspaceName, roles, sources, oauthConnectedFor, onChang
   onChange: (sources: SourceDraft[]) => void
   onOauthConnected: (sourceId: string) => void
 }) {
+  const { t } = useTranslation()
+  const { locale } = useLocale()
   function add(role: SourceRoleDescriptor) {
     onChange([...sources, defaultSourceDraft(role)])
   }
@@ -331,12 +333,11 @@ function SourcesStep({ workspaceName, roles, sources, oauthConnectedFor, onChang
   return (
     <div className="space-y-3">
       <p className="text-2xs text-muted-foreground">
-        Add a source for each role the ontology declares. A loader places files
-        under the workspace folder; pick
+        {t('workspace.wizard.sourcesDescriptionPrefix')}
         {' '}
         <code className="rounded bg-muted px-1">manual</code>
         {' '}
-        to manage that path yourself. You can also skip this step and add sources later.
+        {t('workspace.wizard.sourcesDescriptionSuffix')}
       </p>
       <div className="space-y-2">
         {sources.map(source => (
@@ -355,9 +356,7 @@ function SourcesStep({ workspaceName, roles, sources, oauthConnectedFor, onChang
         {roles.map(role => (
           <Button key={role.id} variant="ghost" size="sm" onClick={() => add(role)}>
             <Plus />
-            {role.label}
-            {' '}
-            Source
+            {t('workspace.wizard.sourceRoleButton', { label: localize(role.label, locale) })}
           </Button>
         ))}
       </div>
@@ -373,6 +372,7 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
   onRemove: () => void
   onOauthConnected: (sourceId: string) => void
 }) {
+  const { t } = useTranslation()
   const id = nameToId(draft.name)
   const targetPath = `./${draftPathSegment(draft)}/${id || '<name>'}`
   return (
@@ -380,7 +380,7 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
       <div className="flex items-center gap-2">
         <Badge variant="outline" className="text-2xs uppercase tracking-wider text-muted-foreground">{draft.role}</Badge>
         <Input
-          placeholder={`${draft.role}-name`}
+          placeholder={t('workspace.wizard.sourceNamePlaceholder', { role: draft.role })}
           value={draft.name}
           onChange={e => onUpdate({ name: e.target.value })}
           className="flex-1"
@@ -397,9 +397,9 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
         id={`src-desc-${draft.uiId}`}
         value={draft.description}
         onChange={next => onUpdate({ description: next })}
-        label="What is this source?"
-        placeholder="e.g. what this source holds and how authoritative it is."
-        helperText="Visible to skills via PRODUCT.md."
+        label={t('workspace.wizard.sourceDescriptionLabel')}
+        placeholder={t('workspace.wizard.sourceDescriptionPlaceholder')}
+        helperText={t('workspace.wizard.sourceDescriptionHint')}
         rows={2}
       />
 
@@ -413,7 +413,7 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
               className="flex-1"
             />
             <Input
-              placeholder="branch"
+              placeholder={t('workspace.wizard.gitBranchPlaceholder')}
               value={draft.gitBranch}
               onChange={e => onUpdate({ gitBranch: e.target.value })}
               className="w-28"
@@ -423,18 +423,18 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
         {draft.loaderKind === 'gdrive' && (
           <>
             <Input
-              placeholder="Google Drive Folder ID"
+              placeholder={t('workspace.wizard.googleDriveFolderPlaceholder')}
               value={draft.gdriveFolderId}
               onChange={e => onUpdate({ gdriveFolderId: e.target.value })}
             />
             <div className="grid grid-cols-2 gap-2">
               <Input
-                placeholder="Include regex (optional, e.g. ^docs/)"
+                placeholder={t('workspace.wizard.googleDriveIncludePlaceholder')}
                 value={draft.gdriveInclude}
                 onChange={e => onUpdate({ gdriveInclude: e.target.value })}
               />
               <Input
-                placeholder="Exclude regex (optional)"
+                placeholder={t('workspace.wizard.googleDriveExcludePlaceholder')}
                 value={draft.gdriveExclude}
                 onChange={e => onUpdate({ gdriveExclude: e.target.value })}
               />
@@ -452,15 +452,15 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
             kind={draft.loaderKind}
             hint={(
               <>
-                This loader plugin is registered on the server but Studio does not ship a per-field config for it. Scaffold the workspace with this source set to
+                {t('workspace.wizard.unknownLoaderHintBefore')}
                 {' '}
                 <code className="rounded bg-muted px-1 font-mono">manual</code>
                 {' '}
-                and add the
+                {t('workspace.wizard.unknownLoaderHintMiddle')}
                 {' '}
                 <code className="rounded bg-muted px-1 font-mono">{draft.loaderKind}</code>
                 {' '}
-                config to PRODUCT.md afterwards.
+                {t('workspace.wizard.unknownLoaderHintAfter')}
               </>
             )}
           />
@@ -479,6 +479,7 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
  * It just tells the workspace the source has no auto-sync.
  */
 function LoaderSelect({ value, onChange }: { value: string, onChange: (kind: string) => void }) {
+  const { t } = useTranslation()
   const { data } = useSourceLoaders()
   return (
     <select
@@ -486,9 +487,9 @@ function LoaderSelect({ value, onChange }: { value: string, onChange: (kind: str
       onChange={e => onChange(e.target.value)}
       className="rounded-md border border-border bg-background px-2 py-1 text-xs"
     >
-      <option value="">{loaderKindLabel('')}</option>
+      <option value="">{loaderKindLabel('', t)}</option>
       {(data?.loaders ?? []).map(loader => (
-        <option key={loader.kind} value={loader.kind}>{loaderKindLabel(loader.kind)}</option>
+        <option key={loader.kind} value={loader.kind}>{loaderKindLabel(loader.kind, t)}</option>
       ))}
     </select>
   )
@@ -500,6 +501,7 @@ function GdriveOauthBlock({ workspaceName, sourceName, connected, onConnected }:
   connected: boolean
   onConnected: (sourceId: string) => void
 }) {
+  const { t } = useTranslation()
   // Token storage key is `${workspaceId}--${sourceId}`.
   // Workspace id is the typed name, the PRODUCT.md name,
   // source id is derived from the source name.
@@ -515,13 +517,13 @@ function GdriveOauthBlock({ workspaceName, sourceName, connected, onConnected }:
     <div className="rounded-md border border-border p-3">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-xs font-medium">Google Account</p>
+          <p className="text-xs font-medium">{t('workspace.wizard.googleAccount')}</p>
           <p className="text-2xs text-muted-foreground">
             {!canStart
-              ? 'Set workspace name and source name first.'
+              ? t('workspace.wizard.googleAccountSetNames')
               : connected
-                ? `Connected for "${workspaceId}/${sourceId}".`
-                : 'Authorise read access to the folder above. Required before the workspace is created.'}
+                ? t('workspace.wizard.googleAccountConnected', { workspaceId, sourceId })
+                : t('workspace.wizard.googleAccountAuthorise')}
           </p>
         </div>
         <Button
@@ -530,7 +532,7 @@ function GdriveOauthBlock({ workspaceName, sourceName, connected, onConnected }:
           disabled={!canStart || startOauth.isPending}
           onClick={() => startOauth.mutate()}
         >
-          {startOauth.isPending ? 'Opening…' : connected ? 'Reconnect' : 'Connect Google'}
+          {startOauth.isPending ? t('workspace.wizard.opening') : connected ? t('workspace.wizard.reconnect') : t('workspace.wizard.connectGoogle')}
         </Button>
       </div>
       {startOauth.error && (
@@ -544,6 +546,7 @@ function McpStep({ servers, onChange }: {
   servers: McpDraft[]
   onChange: (servers: McpDraft[]) => void
 }) {
+  const { t } = useTranslation()
   function add() {
     onChange([...servers, { uiId: crypto.randomUUID(), id: '', url: '', description: '', headersText: '' }])
   }
@@ -557,21 +560,21 @@ function McpStep({ servers, onChange }: {
   return (
     <div className="space-y-3">
       <p className="text-2xs text-muted-foreground">
-        Optional. MCP endpoints the agent can call during extract / validate (e.g. Linear, Redmine, Jira) to fill gaps in your intent / code sources; they are not provisioned as content sources themselves. Only Streamable HTTP transport is supported. Use
+        {t('workspace.wizard.mcpDescriptionPrefix')}
         {' '}
         <code className="rounded bg-muted px-1">
           $
           {'{ENV_VAR}'}
         </code>
         {' '}
-        in header values for secrets (resolved at runtime, never written to PRODUCT.md).
+        {t('workspace.wizard.mcpDescriptionSuffix')}
       </p>
       <div className="space-y-2">
         {servers.map(server => (
           <div key={server.uiId} className="space-y-2 rounded-md border border-border p-3">
             <div className="flex gap-2">
               <Input
-                placeholder="Server ID (e.g. linear)"
+                placeholder={t('workspace.wizard.mcpServerIdPlaceholder')}
                 value={server.id}
                 onChange={e => update(server.uiId, { id: e.target.value })}
                 className="w-40"
@@ -590,9 +593,9 @@ function McpStep({ servers, onChange }: {
               id={`mcp-desc-${server.uiId}`}
               value={server.description}
               onChange={next => update(server.uiId, { description: next })}
-              label="What does this MCP serve?"
-              placeholder="e.g. Linear, source of truth for tickets."
-              helperText="Visible to skills via PRODUCT.md."
+              label={t('workspace.wizard.mcpDescriptionLabel')}
+              placeholder={t('workspace.wizard.mcpDescriptionPlaceholder')}
+              helperText={t('workspace.wizard.sourceDescriptionHint')}
               rows={2}
             />
             <textarea
@@ -608,7 +611,7 @@ function McpStep({ servers, onChange }: {
       </div>
       <Button variant="ghost" size="sm" onClick={add}>
         <Plus />
-        Add MCP Server
+        {t('workspace.wizard.addMcpServer')}
       </Button>
     </div>
   )
@@ -620,15 +623,16 @@ function AdvancedStep({ ontologyId, storageKind, onOntologyId, onStorageKind }: 
   onOntologyId: (v: string) => void
   onStorageKind: (v: string) => void
 }) {
+  const { t } = useTranslation()
   return (
     <div className="space-y-4">
-      <p className="text-2xs text-muted-foreground">Defaults work for most projects. Change these only if you've registered a custom ontology or storage plugin.</p>
+      <p className="text-2xs text-muted-foreground">{t('workspace.wizard.advancedDescription')}</p>
       <div className="space-y-1.5">
-        <Label htmlFor="ws-ontology">Ontology</Label>
+        <Label htmlFor="ws-ontology">{t('workspace.wizard.ontologyLabel')}</Label>
         <Input id="ws-ontology" value={ontologyId} onChange={e => onOntologyId(e.target.value)} />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="ws-storage">Storage Kind</Label>
+        <Label htmlFor="ws-storage">{t('workspace.wizard.storageKindLabel')}</Label>
         <Input id="ws-storage" value={storageKind} onChange={e => onStorageKind(e.target.value)} />
       </div>
     </div>
@@ -643,17 +647,18 @@ function ConfirmStep({ name, description, sources, mcpServers, ontologyId, stora
   ontologyId: string
   storageKind: string
 }) {
+  const { t } = useTranslation()
   return (
     <div className="space-y-3 text-xs">
-      <Field label="Name" value={name} />
-      <Field label="Folder" value={`~/.braid/workspaces/${name}`} mono />
-      {description && <Field label="Description" value={description} />}
-      <Field label="Ontology" value={ontologyId} />
-      <Field label="Storage" value={storageKind} />
+      <Field label={t('common.name')} value={name} />
+      <Field label={t('workspace.wizard.folderLabel')} value={`~/.braid/workspaces/${name}`} mono />
+      {description && <Field label={t('common.description')} value={description} />}
+      <Field label={t('workspace.wizard.ontologyLabel')} value={ontologyId} />
+      <Field label={t('workspace.wizard.storageLabel')} value={storageKind} />
       <div>
-        <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">Sources</div>
+        <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{t('workspace.wizard.sourcesTitle')}</div>
         {sources.length === 0
-          ? <p className="text-muted-foreground/70">None. You can add sources later from the workspace panel.</p>
+          ? <p className="text-muted-foreground/70">{t('workspace.wizard.sourcesEmpty')}</p>
           : (
               <ul className="mt-1 space-y-1">
                 {sources.map(source => (
@@ -675,19 +680,16 @@ function ConfirmStep({ name, description, sources, mcpServers, ontologyId, stora
             )}
       </div>
       <div>
-        <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">MCP Servers</div>
+        <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{t('workspace.wizard.mcpServersTitle')}</div>
         {mcpServers.length === 0
-          ? <p className="text-muted-foreground/70">None.</p>
+          ? <p className="text-muted-foreground/70">{t('workspace.wizard.mcpEmpty')}</p>
           : (
               <ul className="mt-1 space-y-1">
                 {mcpServers.map(server => (
                   <li key={server.uiId} className="font-mono">
                     {server.id}
                     {' '}
-                    <span className="text-muted-foreground">
-                      →
-                      {server.url}
-                    </span>
+                    <span className="text-muted-foreground">{server.url}</span>
                   </li>
                 ))}
               </ul>
@@ -724,6 +726,13 @@ function ProgressStep({ workspaceName, status, error, provision, expectedSources
   expectedSources: readonly ExpectedSource[]
   onClose: () => void
 }) {
+  const { t } = useTranslation()
+  const errorCases: readonly ErrorCase[] = [
+    {
+      match: e => e.status === 400 && e.message.includes('already exists'),
+      message: t('workspace.wizard.nameConflict'),
+    },
+  ]
   // Live per-source progress via SSE.
   // The workspace is not in the registry yet when we open this stream.
   // `source.synced` events flow off the event bus by string key,
@@ -750,8 +759,8 @@ function ProgressStep({ workspaceName, status, error, provision, expectedSources
       <div className="space-y-3 py-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <div className="size-4 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          Creating workspace
-          {expectedSources.length > 0 && ` (provisioning ${expectedSources.length} source${expectedSources.length === 1 ? '' : 's'})`}
+          {t('workspace.wizard.creatingWorkspace')}
+          {expectedSources.length > 0 && t('workspace.wizard.provisioningSources', { count: expectedSources.length })}
           …
         </div>
         {expectedSources.length > 0 && (
@@ -772,7 +781,7 @@ function ProgressStep({ workspaceName, status, error, provision, expectedSources
           </ul>
         )}
         <p className="text-2xs text-muted-foreground">
-          Don't close this window. Gdrive sources can take a few minutes for the first provision.
+          {t('workspace.wizard.progressWarning')}
         </p>
       </div>
     )
@@ -780,10 +789,10 @@ function ProgressStep({ workspaceName, status, error, provision, expectedSources
   if (status === 'error') {
     return (
       <div className="space-y-3 py-2">
-        <p className="text-sm text-destructive">Workspace creation failed.</p>
-        <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-muted p-2 text-2xs">{humaniseApiError(error, WIZARD_ERROR_CASES)}</pre>
+        <p className="text-sm text-destructive">{t('workspace.wizard.creationFailed')}</p>
+        <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-muted p-2 text-2xs">{humaniseApiError(error, errorCases)}</pre>
         <div className="flex justify-end">
-          <Button size="sm" onClick={onClose}>Close</Button>
+          <Button size="sm" onClick={onClose}>{t('common.close')}</Button>
         </div>
       </div>
     )
@@ -791,20 +800,20 @@ function ProgressStep({ workspaceName, status, error, provision, expectedSources
   if (status === 'success') {
     return (
       <div className="space-y-3 py-2">
-        <p className="text-sm text-foreground">Workspace created.</p>
+        <p className="text-sm text-foreground">{t('workspace.wizard.creationSucceeded')}</p>
         {provision.length > 0 && (
           <ul className="space-y-1 text-2xs">
             {provision.map(entry => (
               <li key={entry.sourceId} className="flex items-center gap-2 font-mono">
                 <span className={`size-1.5 rounded-full ${entry.changed ? 'bg-green-500' : 'bg-muted-foreground'}`} />
                 {entry.sourceId}
-                <span className="text-muted-foreground">{entry.changed ? 'provisioned' : 'no change'}</span>
+                <span className="text-muted-foreground">{entry.changed ? t('workspace.wizard.provisionedLabel') : t('workspace.wizard.noChangeLabel')}</span>
               </li>
             ))}
           </ul>
         )}
         <div className="flex justify-end">
-          <Button size="sm" onClick={onClose}>Done</Button>
+          <Button size="sm" onClick={onClose}>{t('common.done')}</Button>
         </div>
       </div>
     )

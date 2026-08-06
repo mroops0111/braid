@@ -197,19 +197,19 @@ describe('HITLService', () => {
   })
 
   describe('skipClarification', () => {
-    it('marks ticket as skipped', async () => {
+    it('marks clarification as skipped', async () => {
       const fixture = await setupFixture()
-      const ticket = makeClarification(fixture.workspaceId)
-      await fixture.clarificationRepository.save(ticket)
+      const clarification = makeClarification(fixture.workspaceId)
+      await fixture.clarificationRepository.save(clarification)
 
       const skipped = await fixture.service.skipClarification(
-        ticket.id,
+        clarification.id,
         'out of scope for this milestone',
         userId,
       )
 
       expect(skipped.status).toBe('skipped')
-      const reloaded = await fixture.clarificationRepository.load(ticket.id)
+      const reloaded = await fixture.clarificationRepository.load(clarification.id)
       expect(reloaded.status).toBe('skipped')
     })
   })
@@ -227,7 +227,7 @@ describe('HITLService', () => {
         },
       ])
       const candidateId = mintTestId('cc') as ClarificationCandidateId
-      const ticket = makeClarification(fixture.workspaceId, {
+      const clarification = makeClarification(fixture.workspaceId, {
         candidates: [{
           id: candidateId,
           description: 'yes',
@@ -235,10 +235,10 @@ describe('HITLService', () => {
           proposedOperations: [{ operation: 'removeNode', nodeId }],
         }],
       })
-      await fixture.clarificationRepository.save(ticket)
+      await fixture.clarificationRepository.save(clarification)
 
       const answered = await fixture.service.answerClarification({
-        clarificationId: ticket.id,
+        clarificationId: clarification.id,
         selection: { kind: 'existing', candidateId },
         userId,
       })
@@ -248,7 +248,7 @@ describe('HITLService', () => {
       const snapshot = await fixture.modelRepository.load(fixture.workspaceId)
       expect(snapshot.nodes).toHaveLength(1)
 
-      const reloaded = await fixture.clarificationRepository.load(ticket.id)
+      const reloaded = await fixture.clarificationRepository.load(clarification.id)
       expect(reloaded.status).toBe('answered')
       expect(reloaded.selectedCandidateId).toBe(candidateId)
       expect(reloaded.resolution).toEqual([{ operation: 'removeNode', nodeId }])
@@ -256,9 +256,9 @@ describe('HITLService', () => {
 
     it('appends a custom candidate, marks it answered, and stamps the resolution', async () => {
       // The reviewer's answer uses the same lifecycle as a skill candidate.
-      // The new one shows up in the ticket's candidates with zero ops, and selectedCandidateId points at it.
+      // The new one shows up in the clarification's candidates with zero ops, and selectedCandidateId points at it.
       const fixture = await setupFixture()
-      const ticket = makeClarification(fixture.workspaceId, {
+      const clarification = makeClarification(fixture.workspaceId, {
         candidates: [{
           id: mintTestId('cc') as ClarificationCandidateId,
           description: 'pre-existing',
@@ -266,16 +266,16 @@ describe('HITLService', () => {
           proposedOperations: [],
         }],
       })
-      await fixture.clarificationRepository.save(ticket)
+      await fixture.clarificationRepository.save(clarification)
 
       const answered = await fixture.service.answerClarification({
-        clarificationId: ticket.id,
+        clarificationId: clarification.id,
         selection: { kind: 'custom', description: 'actually it should be hybrid' },
         userId,
       })
 
       expect(answered.status).toBe('answered')
-      const reloaded = await fixture.clarificationRepository.load(ticket.id)
+      const reloaded = await fixture.clarificationRepository.load(clarification.id)
       expect(reloaded.status).toBe('answered')
       expect(reloaded.candidates).toHaveLength(2)
       const appended = reloaded.candidates[1]
@@ -291,7 +291,7 @@ describe('HITLService', () => {
       // when it tries to wrap the failure into a Proposal.
       const fixture = await setupFixture()
       const candidateId = mintTestId('cc') as ClarificationCandidateId
-      const ticket = makeClarification(fixture.workspaceId, {
+      const clarification = makeClarification(fixture.workspaceId, {
         candidates: [{
           id: candidateId,
           description: 'yes',
@@ -299,26 +299,26 @@ describe('HITLService', () => {
           proposedOperations: [{ operation: 'removeNode', nodeId: 'ghost' as NodeId }],
         }],
       })
-      await fixture.clarificationRepository.save(ticket)
+      await fixture.clarificationRepository.save(clarification)
 
       await expect(
         fixture.service.answerClarification({
-          clarificationId: ticket.id,
+          clarificationId: clarification.id,
           selection: { kind: 'existing', candidateId },
           userId,
         }),
       ).rejects.toThrow()
 
-      const reloaded = await fixture.clarificationRepository.load(ticket.id)
+      const reloaded = await fixture.clarificationRepository.load(clarification.id)
       expect(reloaded.status).toBe('pending')
     })
   })
 
   describe('markClarificationApplied', () => {
-    it('moves an answered ticket to applied and stamps proposalId', async () => {
+    it('moves an answered clarification to applied and stamps proposalId', async () => {
       const fixture = await setupFixture()
       const candidateId = mintTestId('cc') as ClarificationCandidateId
-      const ticket = makeClarification(fixture.workspaceId, {
+      const clarification = makeClarification(fixture.workspaceId, {
         status: 'answered',
         selectedCandidateId: candidateId,
         candidates: [{
@@ -328,23 +328,23 @@ describe('HITLService', () => {
           proposedOperations: [],
         }],
       })
-      await fixture.clarificationRepository.save(ticket)
+      await fixture.clarificationRepository.save(clarification)
       const proposalId = mintTestId('p') as ProposalId
 
-      const applied = await fixture.service.markClarificationApplied(ticket.id, userId, proposalId)
+      const applied = await fixture.service.markClarificationApplied(clarification.id, userId, proposalId)
 
       expect(applied.status).toBe('applied')
       expect(applied.proposalId).toBe(proposalId)
 
-      const reloaded = await fixture.clarificationRepository.load(ticket.id)
+      const reloaded = await fixture.clarificationRepository.load(clarification.id)
       expect(reloaded.status).toBe('applied')
       expect(reloaded.proposalId).toBe(proposalId)
     })
 
-    it('moves an answered ticket to applied with no proposalId when resolution had no graph impact', async () => {
+    it('moves an answered clarification to applied with no proposalId when resolution had no graph impact', async () => {
       const fixture = await setupFixture()
       const candidateId = mintTestId('cc') as ClarificationCandidateId
-      const ticket = makeClarification(fixture.workspaceId, {
+      const clarification = makeClarification(fixture.workspaceId, {
         status: 'answered',
         selectedCandidateId: candidateId,
         candidates: [{
@@ -354,22 +354,22 @@ describe('HITLService', () => {
           proposedOperations: [],
         }],
       })
-      await fixture.clarificationRepository.save(ticket)
+      await fixture.clarificationRepository.save(clarification)
 
-      const applied = await fixture.service.markClarificationApplied(ticket.id, userId)
+      const applied = await fixture.service.markClarificationApplied(clarification.id, userId)
 
       expect(applied.status).toBe('applied')
       expect(applied.proposalId).toBeUndefined()
 
-      const reloaded = await fixture.clarificationRepository.load(ticket.id)
+      const reloaded = await fixture.clarificationRepository.load(clarification.id)
       expect(reloaded.status).toBe('applied')
       expect(reloaded.proposalId).toBeUndefined()
     })
 
-    it('refuses to apply a ticket that has not been answered yet', async () => {
+    it('refuses to apply a clarification that has not been answered yet', async () => {
       const fixture = await setupFixture()
       const candidateId = mintTestId('cc') as ClarificationCandidateId
-      const ticket = makeClarification(fixture.workspaceId, {
+      const clarification = makeClarification(fixture.workspaceId, {
         candidates: [{
           id: candidateId,
           description: 'a',
@@ -377,11 +377,11 @@ describe('HITLService', () => {
           proposedOperations: [],
         }],
       })
-      await fixture.clarificationRepository.save(ticket)
+      await fixture.clarificationRepository.save(clarification)
       const proposalId = mintTestId('p') as ProposalId
 
       await expect(
-        fixture.service.markClarificationApplied(ticket.id, userId, proposalId),
+        fixture.service.markClarificationApplied(clarification.id, userId, proposalId),
       ).rejects.toThrow(ConflictError)
     })
   })

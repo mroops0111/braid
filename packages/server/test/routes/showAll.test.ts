@@ -110,10 +110,10 @@ describe('GET /workspaces/:ws/proposals?showAll=', () => {
 })
 
 describe('GET /workspaces/:ws/clarifications?showAll=', () => {
-  it('filters owner to their own pending tickets by default', async () => {
+  it('filters owner to their own pending clarifications by default', async () => {
     const { app, workspaceId, users } = await buildMultiUserApp()
-    const ownerTicketId = await submitClarification(app, workspaceId, users.owner, 'owner question?')
-    const maintainerTicketId = await submitClarification(app, workspaceId, users.maintainer, 'maintainer question?')
+    const ownerClarificationId = await submitClarification(app, workspaceId, users.owner, 'owner question?')
+    const maintainerClarificationId = await submitClarification(app, workspaceId, users.maintainer, 'maintainer question?')
 
     const response = await app.request(
       `/workspaces/${workspaceId}/clarifications?status=pending`,
@@ -123,14 +123,14 @@ describe('GET /workspaces/:ws/clarifications?showAll=', () => {
     expect(response.status).toBe(200)
     const body = await readJson<PendingItemList>(response)
     const ids = body.items.map(t => t.id)
-    expect(ids).toContain(ownerTicketId)
-    expect(ids).not.toContain(maintainerTicketId)
+    expect(ids).toContain(ownerClarificationId)
+    expect(ids).not.toContain(maintainerClarificationId)
   })
 
-  it('shows every pending ticket when the owner sets showAll=true', async () => {
+  it('shows every pending clarification when the owner sets showAll=true', async () => {
     const { app, workspaceId, users } = await buildMultiUserApp()
-    const ownerTicketId = await submitClarification(app, workspaceId, users.owner, 'owner question?')
-    const maintainerTicketId = await submitClarification(app, workspaceId, users.maintainer, 'maintainer question?')
+    const ownerClarificationId = await submitClarification(app, workspaceId, users.owner, 'owner question?')
+    const maintainerClarificationId = await submitClarification(app, workspaceId, users.maintainer, 'maintainer question?')
 
     const response = await app.request(
       `/workspaces/${workspaceId}/clarifications?status=pending&showAll=true`,
@@ -140,13 +140,13 @@ describe('GET /workspaces/:ws/clarifications?showAll=', () => {
     expect(response.status).toBe(200)
     const body = await readJson<PendingItemList>(response)
     const ids = body.items.map(t => t.id).sort()
-    expect(ids).toEqual([ownerTicketId, maintainerTicketId].sort())
+    expect(ids).toEqual([ownerClarificationId, maintainerClarificationId].sort())
   })
 
   it('silently falls back to mine-only when a non-owner sets showAll=true', async () => {
     const { app, workspaceId, users } = await buildMultiUserApp()
     await submitClarification(app, workspaceId, users.owner, 'owner question?')
-    const maintainerTicketId = await submitClarification(app, workspaceId, users.maintainer, 'maintainer question?')
+    const maintainerClarificationId = await submitClarification(app, workspaceId, users.maintainer, 'maintainer question?')
 
     const response = await app.request(
       `/workspaces/${workspaceId}/clarifications?status=pending&showAll=true`,
@@ -156,6 +156,6 @@ describe('GET /workspaces/:ws/clarifications?showAll=', () => {
     expect(response.status).toBe(200)
     const body = await readJson<PendingItemList>(response)
     const ids = body.items.map(t => t.id)
-    expect(ids).toEqual([maintainerTicketId])
+    expect(ids).toEqual([maintainerClarificationId])
   })
 })

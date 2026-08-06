@@ -11,7 +11,7 @@ export interface MakeClarificationOptions {
 }
 
 /**
- * Construct a Clarification for tests, a pending ticket by default.
+ * Construct a Clarification for tests, a pending clarification by default.
  * Pass status 'answered' with a selectedCandidateId to resolve it.
  */
 export function makeClarification(workspaceId: WorkspaceId, overrides: MakeClarificationOptions = {}): Clarification {

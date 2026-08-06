@@ -14,11 +14,11 @@ import type {
 import { ConflictError, NotFoundError } from '../errors.js'
 
 /**
- * Lifecycle. From pending a ticket is either answered then applied, or skipped.
+ * Lifecycle. From pending a clarification is either answered then applied, or skipped.
  *
  * `markAnswered` records the user's choice but does NOT mutate the graph,
- * the resolution is snapshotted onto the ticket and the ddd:clarify skill is expected to wrap it into a Proposal.
- * Once that Proposal lands the ticket transitions to `applied` via `markApplied`,
+ * the resolution is snapshotted onto the clarification and the ddd:clarify skill is expected to wrap it into a Proposal.
+ * Once that Proposal lands the clarification transitions to `applied` via `markApplied`,
  * which only stamps the (optional) proposalId, the actual graph mutation happens inside `HITLService.applyProposal`.
  * proposalId is omitted when the chosen candidate's resolution had no graph impact, so no Proposal was produced.
  *
@@ -44,22 +44,22 @@ export class Clarification {
   resolveCandidate(candidateId: ClarificationCandidateId): readonly GraphOperation[] {
     const match = this.data.candidates.find(candidate => candidate.id === candidateId)
     if (!match) {
-      throw new NotFoundError(`Candidate "${candidateId}" not in ticket "${this.data.id}"`)
+      throw new NotFoundError(`Candidate "${candidateId}" not in clarification "${this.data.id}"`)
     }
     return match.proposedOperations
   }
 
   /**
-   * Append a candidate to a pending ticket.
+   * Append a candidate to a pending clarification.
    * Used when the reviewer's actual answer doesn't match any of the skill-supplied options and they author one inline.
-   * Refuses on non-pending tickets so an already-answered ticket can't grow new options retroactively,
+   * Refuses on non-pending clarifications so an already-answered clarification can't grow new options retroactively,
    * and rejects duplicate ids to keep `resolveCandidate` deterministic.
    */
   appendCandidate(candidate: ClarificationCandidate): Clarification {
     this.requireStatus('pending')
     if (this.data.candidates.some(existingCandidate => existingCandidate.id === candidate.id)) {
       throw new ConflictError(
-        `Candidate "${candidate.id}" already exists on ticket "${this.data.id}"`,
+        `Candidate "${candidate.id}" already exists on clarification "${this.data.id}"`,
       )
     }
     return new Clarification({
@@ -104,7 +104,7 @@ export class Clarification {
 
   private requireStatus(expectedStatus: ClarificationStatus): void {
     if (this.data.status !== expectedStatus) {
-      throw new ConflictError(`Clarification ticket "${this.data.id}" is ${this.data.status}, not ${expectedStatus}`)
+      throw new ConflictError(`Clarification "${this.data.id}" is ${this.data.status}, not ${expectedStatus}`)
     }
   }
 }

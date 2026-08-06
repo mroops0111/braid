@@ -1,6 +1,7 @@
 import type { ChangeKind, EdgeId, GraphEdge, GraphNode, NodeId, ProposalDiff } from '@braidhq/schema'
 import { GitBranch } from 'lucide-react'
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
 import { EdgeDetailPanel } from '@/components/graph/EdgeDetailPanel'
 import { type GraphDataSource, useLiveGraphDataSource } from '@/components/graph/GraphDataSource'
@@ -74,6 +75,7 @@ function GraphTableInner({
   focusMode = false,
   emphasizeAdded = false,
 }: GraphTablePageProps) {
+  const { t } = useTranslation()
   const liveSource = useLiveGraphDataSource(workspaceId)
   const effective = source ?? liveSource
   const [selectedId, setSelectedId] = useControllableState<NodeId | null>(controlledSelected, onSelectNode, null)
@@ -97,13 +99,13 @@ function GraphTableInner({
   )
 
   if (effective.isLoading)
-    return <div className="p-4 text-sm text-muted-foreground">Loading graph…</div>
+    return <div className="p-4 text-sm text-muted-foreground">{t('graph.loadingGraph')}</div>
   if (effective.nodes.length === 0) {
     return (
       <EmptyState
         icon={GitBranch}
-        title="Graph Is Empty"
-        description="Run /ddd:extract to populate it from your codebase and intent docs."
+        title={t('graph.empty.title')}
+        description={t('graph.empty.tableDescription')}
       />
     )
   }
@@ -197,22 +199,21 @@ function NodeTable({
   /** When true, `added` rows pick up the same emerald ring that the Canvas applies on incremental proposals. */
   emphasizeAdded: boolean
 }) {
+  const { t } = useTranslation()
   const showChange = diff !== undefined
   return (
     <section>
       <h3 className="px-4 pb-1 pt-3 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Nodes (
-        {nodes.length}
-        )
+        {t('graph.table.nodesTitle', { count: nodes.length })}
       </h3>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-y border-border text-2xs uppercase tracking-wider text-muted-foreground">
-            {showChange && <th className="w-24 px-4 py-2 text-left font-semibold">Change</th>}
-            <th className="w-32 px-4 py-2 text-left font-semibold">Type</th>
-            <th className="px-4 py-2 text-left font-semibold">ID</th>
-            <th className="px-4 py-2 text-left font-semibold">Name</th>
-            <th className="px-4 py-2 text-left font-semibold">Status</th>
+            {showChange && <th className="w-24 px-4 py-2 text-left font-semibold">{t('graph.table.columnChange')}</th>}
+            <th className="w-32 px-4 py-2 text-left font-semibold">{t('common.type')}</th>
+            <th className="px-4 py-2 text-left font-semibold">{t('graph.table.columnId')}</th>
+            <th className="px-4 py-2 text-left font-semibold">{t('common.name')}</th>
+            <th className="px-4 py-2 text-left font-semibold">{t('common.status')}</th>
           </tr>
         </thead>
         <tbody>
@@ -270,23 +271,22 @@ function EdgeTable({
   dim: boolean
   emphasizeAdded: boolean
 }) {
+  const { t } = useTranslation()
   if (edges.length === 0)
     return null
   const showChange = diff !== undefined
   return (
     <section>
       <h3 className="px-4 pb-1 pt-4 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Edges (
-        {edges.length}
-        )
+        {t('graph.table.edgesTitle', { count: edges.length })}
       </h3>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-y border-border text-2xs uppercase tracking-wider text-muted-foreground">
-            {showChange && <th className="w-24 px-4 py-2 text-left font-semibold">Change</th>}
-            <th className="px-4 py-2 text-left font-semibold">Type</th>
-            <th className="px-4 py-2 text-left font-semibold">From</th>
-            <th className="px-4 py-2 text-left font-semibold">To</th>
+            {showChange && <th className="w-24 px-4 py-2 text-left font-semibold">{t('graph.table.columnChange')}</th>}
+            <th className="px-4 py-2 text-left font-semibold">{t('common.type')}</th>
+            <th className="px-4 py-2 text-left font-semibold">{t('graph.table.columnFrom')}</th>
+            <th className="px-4 py-2 text-left font-semibold">{t('graph.table.columnTo')}</th>
           </tr>
         </thead>
         <tbody>

@@ -1,7 +1,10 @@
 import { Check, ChevronDown, X } from 'lucide-react'
 import { Popover } from 'radix-ui'
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
+
+type TranslateFn = ReturnType<typeof useTranslation>['t']
 
 export interface MultiSelectOption {
   value: string
@@ -10,7 +13,7 @@ export interface MultiSelectOption {
   /**
    * Optional informational chip rendered next to the option label.
    * Used by the source picker to mark per-unit freshness,
-   * such as "extracted Nm ago" or "stale". Leave unset for plain options.
+   * such as "processed Nm ago" or "stale". Leave unset for plain options.
    * The chip is purely informational, it does not disable selection.
    */
   badge?: {
@@ -47,6 +50,7 @@ export function MultiSelectDropdown({
   onToggle,
   disabled = false,
 }: MultiSelectDropdownProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const selectedSet = useMemo(() => new Set(selected), [selected])
@@ -61,7 +65,7 @@ export function MultiSelectDropdown({
     )
   }, [options, query])
 
-  const summary = summariseSelection(selected, options, label)
+  const summary = summariseSelection(selected, options, label, t)
 
   return (
     <div className="space-y-1.5">
@@ -94,12 +98,12 @@ export function MultiSelectDropdown({
               autoFocus
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Filter…"
+              placeholder={t('shell.multiSelect.filterPlaceholder')}
               className="mb-2 w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
             />
             <ul className="max-h-64 space-y-0.5 overflow-y-auto pr-1 scrollbar-thin">
               {filtered.length === 0 && (
-                <li className="px-1 py-2 text-2xs text-muted-foreground">No matches.</li>
+                <li className="px-1 py-2 text-2xs text-muted-foreground">{t('shell.multiSelect.noMatches')}</li>
               )}
               {filtered.map((option) => {
                 const checked = selectedSet.has(option.value)
@@ -151,16 +155,14 @@ export function MultiSelectDropdown({
             {selected.length > 0 && (
               <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-2xs text-muted-foreground">
                 <span>
-                  {selected.length}
-                  {' '}
-                  selected
+                  {t('shell.multiSelect.selectedCount', { count: selected.length })}
                 </span>
                 <button
                   type="button"
                   onClick={() => selected.forEach(v => onToggle(v, false))}
                   className="rounded px-1 py-0.5 hover:bg-accent hover:text-foreground"
                 >
-                  Clear all
+                  {t('shell.multiSelect.clearAllButton')}
                 </button>
               </div>
             )}
@@ -187,6 +189,7 @@ function SelectedChips({
   selected: readonly string[]
   onRemove: (value: string) => void
 }) {
+  const { t } = useTranslation()
   const optionsByValue = useMemo(() => new Map(options.map(o => [o.value, o])), [options])
   return (
     <ul className="flex flex-wrap gap-1">
@@ -199,7 +202,7 @@ function SelectedChips({
               <button
                 type="button"
                 onClick={() => onRemove(value)}
-                aria-label={`Remove ${option?.label ?? value}`}
+                aria-label={t('shell.multiSelect.removeLabel', { label: option?.label ?? value })}
                 className="text-muted-foreground hover:text-foreground"
               >
                 <X className="size-2.5" />
@@ -216,13 +219,14 @@ function summariseSelection(
   selected: readonly string[],
   options: readonly MultiSelectOption[],
   label: string,
+  t: TranslateFn,
 ): string {
   if (selected.length === 0)
-    return `Select ${label}…`
+    return t('shell.multiSelect.selectPlaceholder', { label })
   if (selected.length === 1) {
     const value = selected[0]!
     const option = options.find(o => o.value === value)
     return option?.label ?? value
   }
-  return `${selected.length} selected`
+  return t('shell.multiSelect.selectedCount', { count: selected.length })
 }

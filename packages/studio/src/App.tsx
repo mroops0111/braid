@@ -2,6 +2,7 @@ import type { EdgeId, NodeId, ProposalId } from '@braidhq/schema'
 import type { Surface } from './components/CommandPalette'
 import { Settings2, Sparkles } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { BatchInFlightBanner } from './components/BatchInFlightBanner'
 import { CommandPalette } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
@@ -39,9 +40,10 @@ export function App() {
 }
 
 function BootScreen() {
+  const { t } = useTranslation()
   return (
     <div className="flex h-screen items-center justify-center bg-background text-xs text-muted-foreground">
-      Loading…
+      {t('common.loading')}
     </div>
   )
 }
@@ -269,17 +271,18 @@ function WorkspaceHeader({ workspaceId, activeSurface, onOpenDetails }: {
   activeSurface: Surface | null
   onOpenDetails: () => void
 }) {
+  const { t } = useTranslation()
   // Surface nav lives in the Sidebar's HERE section now. The header reports where you are,
   // workspace name plus optional surface, and hosts page-specific tools on the right.
   const surfaceLabel
     = activeSurface === 'actions'
-      ? 'Actions'
+      ? t('shell.surfaces.actions')
       : activeSurface === 'clarifications'
-        ? 'Clarifications'
+        ? t('shell.surfaces.clarifications')
         : activeSurface === 'proposals'
-          ? 'Proposals'
+          ? t('shell.surfaces.proposals')
           : activeSurface === 'history'
-            ? 'History'
+            ? t('shell.surfaces.history')
             : null
 
   return (
@@ -291,7 +294,7 @@ function WorkspaceHeader({ workspaceId, activeSurface, onOpenDetails }: {
                 <button
                   type="button"
                   onClick={onOpenDetails}
-                  title="Workspace settings (G W)"
+                  title={t('shell.header.workspaceSettingsTooltip')}
                   className="group flex h-7 items-center gap-1.5 rounded-md border border-transparent px-2 font-mono text-foreground transition-colors hover:border-border hover:bg-accent"
                 >
                   <span>{workspaceId}</span>
@@ -307,8 +310,8 @@ function WorkspaceHeader({ workspaceId, activeSurface, onOpenDetails }: {
             )
           : (
               <>
-                <span className="text-muted-foreground">Workspace</span>
-                <span className="text-muted-foreground/60">(None Registered)</span>
+                <span className="text-muted-foreground">{t('shell.header.workspaceLabel')}</span>
+                <span className="text-muted-foreground/60">{t('shell.header.noneRegistered')}</span>
               </>
             )}
       </div>
@@ -323,14 +326,15 @@ function WorkspaceHeader({ workspaceId, activeSurface, onOpenDetails }: {
 }
 
 function NoWorkspaceState({ onSelect }: { onSelect: (id: string) => void }) {
+  const { t } = useTranslation()
   const [wizardOpen, setWizardOpen] = useState(false)
 
   return (
     <div className="flex h-full flex-col items-center justify-center px-6">
       <div className="max-w-2xl text-center">
-        <h1 className="text-base font-semibold">Welcome to Braid</h1>
+        <h1 className="text-base font-semibold">{t('shell.noWorkspace.title')}</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Open a workspace to begin. Workspaces live under
+          {t('shell.noWorkspace.description')}
           {' '}
           <code className="rounded bg-muted px-1">~/.braid/workspaces/</code>
           .
@@ -339,8 +343,8 @@ function NoWorkspaceState({ onSelect }: { onSelect: (id: string) => void }) {
       <div className="mt-6 grid w-full max-w-md grid-cols-1 gap-3">
         <ActionCard
           icon={Sparkles}
-          title="Open Workspace"
-          description="Type a name to create a new one or open an existing workspace under the canonical root."
+          title={t('shell.noWorkspace.openWorkspaceTitle')}
+          description={t('shell.noWorkspace.openWorkspaceDescription')}
           onClick={() => setWizardOpen(true)}
         />
       </div>

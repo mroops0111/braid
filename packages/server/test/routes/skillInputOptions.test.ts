@@ -47,7 +47,7 @@ describe('GET /workspaces/:ws/skill-input-options', () => {
     ])
   })
 
-  it('clarify returns tickets filtered by status', async () => {
+  it('clarify returns clarifications filtered by status', async () => {
     const { app, deps } = await buildTestApp()
     const candidate: ClarificationCandidate = {
       id: 'cc-1' as never,
