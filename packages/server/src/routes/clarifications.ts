@@ -9,7 +9,7 @@ import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from '.
 import { assertEntityInWorkspace } from './helpers.js'
 
 const ListQuery = z.object({
-  status: z.union([ClarificationStatus, z.array(ClarificationStatus)]).optional().openapi({ description: 'Filter by ticket status. Pass one or many.' }),
+  status: z.union([ClarificationStatus, z.array(ClarificationStatus)]).optional().openapi({ description: 'Filter by clarification status. Pass one or many.' }),
   limit: z.coerce.number().int().positive().optional(),
   offset: z.coerce.number().int().nonnegative().optional(),
   showAll: z.coerce.boolean().optional().openapi({ description: 'Owner-only: bypass the personal-pending filter so every member\'s open questions are visible.' }),
@@ -18,7 +18,7 @@ const ListQuery = z.object({
 // Reviewer-facing answer body.
 // The selection is either an existing `candidateId`,
 // or a freshly authored `customCandidate` (description only).
-// The server appends it to the ticket and answers in one transaction.
+// The server appends it to the clarification and answers in one transaction.
 // `note` is a free-text rationale saved on the answer commit.
 // `userId` is accepted for backwards compat,
 // the authoritative value is the request context set by middleware.
@@ -44,7 +44,7 @@ const SkipBody = z.object({
 // The only legal transition the skill drives is `answered` to `applied`.
 // The proposalId is optional, present when a Proposal was produced,
 // absent when the chosen candidate had no graph impact.
-// The skill then records the ticket as applied without a linking proposal.
+// The skill then records the clarification as applied without a linking proposal.
 const ApplyBody = z.object({
   status: z.literal('applied'),
   proposalId: ProposalId.optional(),
@@ -117,7 +117,7 @@ const getClarificationRoute = createRoute({
   request: { params: ClarificationIdParam },
   responses: {
     200: {
-      description: 'The requested ticket.',
+      description: 'The requested clarification.',
       content: { 'application/json': { schema: Clarification } },
     },
     404: NotFoundResponse,
@@ -136,7 +136,7 @@ const answerClarificationRoute = createRoute({
   },
   responses: {
     200: {
-      description: 'The updated ticket.',
+      description: 'The updated clarification.',
       content: { 'application/json': { schema: Clarification } },
     },
     404: NotFoundResponse,
@@ -156,7 +156,7 @@ const applyClarificationRoute = createRoute({
   },
   responses: {
     200: {
-      description: 'The updated ticket.',
+      description: 'The updated clarification.',
       content: { 'application/json': { schema: Clarification } },
     },
     404: NotFoundResponse,
@@ -175,7 +175,7 @@ const skipClarificationRoute = createRoute({
   },
   responses: {
     200: {
-      description: 'The updated ticket.',
+      description: 'The updated clarification.',
       content: { 'application/json': { schema: Clarification } },
     },
     404: NotFoundResponse,
@@ -199,8 +199,8 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
       ...c,
       id: c.id ?? newClarificationCandidateId(),
     }))
-    const ticket = await deps.hitlService.submitClarification({ ...body, workspaceId, candidates, submitterId })
-    return context.json(ticket.toData(), 201)
+    const clarification = await deps.hitlService.submitClarification({ ...body, workspaceId, candidates, submitterId })
+    return context.json(clarification.toData(), 201)
   })
 
   router.openapi(listClarificationRoute, async (context) => {
@@ -212,22 +212,22 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
     // No viewer is an open composition (in-memory), which applies no personal filter.
     const viewerId = (!viewer || (showAll && isOwner)) ? undefined : getUserId(context)
     // Owners also see service-owned (autonomous) pending, since only they can act on it.
-    const tickets = await deps.clarificationRepository.list({
+    const clarifications = await deps.clarificationRepository.list({
       workspaceId,
       statuses,
       limit,
       offset,
       ...(viewerId ? { viewerId, includeServiceOwned: isOwner } : {}),
     })
-    return context.json({ items: tickets.map(ticket => ticket.toData()) }, 200)
+    return context.json({ items: clarifications.map(clarification => clarification.toData()) }, 200)
   })
 
   router.openapi(getClarificationRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const { clarificationId } = context.req.valid('param')
-    const ticket = await deps.clarificationRepository.load(clarificationId)
-    assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'Clarification', clarificationId)
-    return context.json(ticket.toData(), 200)
+    const clarification = await deps.clarificationRepository.load(clarificationId)
+    assertEntityInWorkspace(workspaceId, clarification.workspaceId, 'Clarification', clarificationId)
+    return context.json(clarification.toData(), 200)
   })
 
   router.openapi(answerClarificationRoute, async (context) => {
@@ -235,8 +235,8 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
     const { clarificationId } = context.req.valid('param')
     const body = context.req.valid('json')
     const userId = body.userId ?? getUserId(context)
-    const ticket = await deps.clarificationRepository.load(clarificationId)
-    assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'Clarification', clarificationId)
+    const clarification = await deps.clarificationRepository.load(clarificationId)
+    assertEntityInWorkspace(workspaceId, clarification.workspaceId, 'Clarification', clarificationId)
     const selection = body.candidateId
       ? { kind: 'existing' as const, candidateId: body.candidateId }
       : { kind: 'custom' as const, description: body.customCandidate!.description }
@@ -254,8 +254,8 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
     const { clarificationId } = context.req.valid('param')
     const { proposalId, userId: bodyUserId } = context.req.valid('json')
     const userId = bodyUserId ?? getUserId(context)
-    const ticket = await deps.clarificationRepository.load(clarificationId)
-    assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'Clarification', clarificationId)
+    const clarification = await deps.clarificationRepository.load(clarificationId)
+    assertEntityInWorkspace(workspaceId, clarification.workspaceId, 'Clarification', clarificationId)
     const applied = await deps.hitlService.markClarificationApplied(clarificationId, userId, proposalId)
     return context.json(applied.toData(), 200)
   })
@@ -265,8 +265,8 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
     const { clarificationId } = context.req.valid('param')
     const { reason, userId: bodyUserId } = context.req.valid('json')
     const userId = bodyUserId ?? getUserId(context)
-    const ticket = await deps.clarificationRepository.load(clarificationId)
-    assertEntityInWorkspace(workspaceId, ticket.workspaceId, 'Clarification', clarificationId)
+    const clarification = await deps.clarificationRepository.load(clarificationId)
+    assertEntityInWorkspace(workspaceId, clarification.workspaceId, 'Clarification', clarificationId)
     const skipped = await deps.hitlService.skipClarification(clarificationId, reason, userId)
     return context.json(skipped.toData(), 200)
   })

@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
 import { useRuns } from '@/lib/queries'
 import { TopBanner } from './TopBanner'
@@ -42,6 +43,7 @@ function ActiveBanner({ workspaceId, runId, skillId, startedAt }: {
   skillId: string
   startedAt: string
 }) {
+  const { t } = useTranslation()
   const elapsed = useElapsed(startedAt)
   const cancel = useMutation({
     mutationFn: () => api.cancelRun(workspaceId, runId),
@@ -51,7 +53,7 @@ function ActiveBanner({ workspaceId, runId, skillId, startedAt }: {
     <TopBanner
       tone="run"
       label={`/${skillId}`}
-      detail={`running… ${elapsed}s elapsed`}
+      detail={t('review.banners.runningElapsed', { elapsed })}
       actions={(
         <Button
           variant="ghost"
@@ -61,7 +63,7 @@ function ActiveBanner({ workspaceId, runId, skillId, startedAt }: {
           onClick={() => cancel.mutate()}
         >
           <X className="size-3" />
-          {cancel.isPending ? 'Cancelling…' : 'Cancel'}
+          {cancel.isPending ? t('common.cancelling') : t('common.cancel')}
         </Button>
       )}
     />

@@ -1,4 +1,5 @@
 import { AlertCircle, CheckCircle2, Sparkles } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useBatchStatus } from '@/lib/queries'
 import { TopBanner } from './TopBanner'
 import { Button } from './ui/button'
@@ -17,6 +18,7 @@ type Mode =
 // Cross-surface entry to the Batch view.
 // Hidden on the Batch surface itself, and when no plan exists.
 export function BatchInFlightBanner({ workspaceId, onOpenBatch, suppress }: BatchInFlightBannerProps) {
+  const { t } = useTranslation()
   const { data: plan } = useBatchStatus(workspaceId ?? undefined)
   // `archived` is the user's explicit "I'm done seeing this" signal,
   // so the banner stays hidden until a new plan kicks off.
@@ -29,9 +31,9 @@ export function BatchInFlightBanner({ workspaceId, onOpenBatch, suppress }: Batc
 
   let mode: Mode
   if (plan.status === 'running')
-    mode = { kind: 'active', label: 'Bootstrap Running', completed, total }
+    mode = { kind: 'active', label: t('review.banners.bootstrapRunning'), completed, total }
   else if (plan.status === 'deriving')
-    mode = { kind: 'active', label: 'Deriving Units…', completed, total }
+    mode = { kind: 'active', label: t('review.banners.derivingUnits'), completed, total }
   else if ((plan.status === 'failed' || plan.status === 'stopped') && unfinished)
     mode = { kind: 'resumable', completed, total }
   else
@@ -50,16 +52,9 @@ export function BatchInFlightBanner({ workspaceId, onOpenBatch, suppress }: Batc
         tone="batch"
         label={mode.label}
         detail={mode.total > 0
-          ? (
-              <>
-                {mode.completed}
-                {' / '}
-                {mode.total}
-                {' units'}
-              </>
-            )
+          ? t('review.banners.unitsProgress', { completed: mode.completed, total: mode.total })
           : ''}
-        actions={actions('View Progress')}
+        actions={actions(t('review.banners.viewProgressButton'))}
       />
     )
   }
@@ -68,17 +63,10 @@ export function BatchInFlightBanner({ workspaceId, onOpenBatch, suppress }: Batc
     return (
       <TopBanner
         tone="warning"
-        label="Bootstrap Incomplete"
+        label={t('review.banners.bootstrapIncomplete')}
         icon={AlertCircle}
-        detail={(
-          <>
-            {mode.completed}
-            {' / '}
-            {mode.total}
-            {' units done'}
-          </>
-        )}
-        actions={actions('Resume')}
+        detail={t('review.banners.unitsDone', { completed: mode.completed, total: mode.total })}
+        actions={actions(t('review.banners.resumeButton'))}
       />
     )
   }
@@ -86,18 +74,11 @@ export function BatchInFlightBanner({ workspaceId, onOpenBatch, suppress }: Batc
   return (
     <TopBanner
       tone="reactor"
-      label="Bootstrap Complete"
+      label={t('review.banners.bootstrapComplete')}
       icon={CheckCircle2}
       spin={false}
-      detail={(
-        <>
-          {mode.completed}
-          {' / '}
-          {mode.total}
-          {' units'}
-        </>
-      )}
-      actions={actions('View Report')}
+      detail={t('review.banners.unitsProgress', { completed: mode.completed, total: mode.total })}
+      actions={actions(t('review.banners.viewReportButton'))}
     />
   )
 }

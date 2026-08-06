@@ -50,26 +50,26 @@ export type ProposalRejectedEvent = z.infer<typeof ProposalRejectedEvent>
 
 export const ClarificationCreatedEvent = WorkspaceEventBase.extend({
   type: z.literal('clarification.created'),
-  ticketId: ClarificationId,
+  clarificationId: ClarificationId,
 })
 export type ClarificationCreatedEvent = z.infer<typeof ClarificationCreatedEvent>
 
 export const ClarificationAnsweredEvent = WorkspaceEventBase.extend({
   type: z.literal('clarification.answered'),
-  ticketId: ClarificationId,
+  clarificationId: ClarificationId,
 })
 export type ClarificationAnsweredEvent = z.infer<typeof ClarificationAnsweredEvent>
 
 export const ClarificationAppliedEvent = WorkspaceEventBase.extend({
   type: z.literal('clarification.applied'),
-  ticketId: ClarificationId,
+  clarificationId: ClarificationId,
   proposalId: ProposalId.optional(),
 })
 export type ClarificationAppliedEvent = z.infer<typeof ClarificationAppliedEvent>
 
 export const ClarificationSkippedEvent = WorkspaceEventBase.extend({
   type: z.literal('clarification.skipped'),
-  ticketId: ClarificationId,
+  clarificationId: ClarificationId,
 })
 export type ClarificationSkippedEvent = z.infer<typeof ClarificationSkippedEvent>
 

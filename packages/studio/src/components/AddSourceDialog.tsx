@@ -1,8 +1,11 @@
+import { localize } from '@braidhq/schema'
 import { useMutation } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
 import { humaniseApiError } from '@/lib/errors'
+import { useLocale } from '@/lib/i18n'
 import { useOntology, useSourceLoaders } from '@/lib/queries'
 import { loaderKindLabel, nameToId, type SourceDraft, STUDIO_KNOWN_LOADER_KINDS, toSourceDescriptor } from '@/lib/sourceDraft'
 import { useGoogleOAuth } from '@/lib/useGoogleOAuth'
@@ -22,6 +25,8 @@ interface AddSourceDialogProps {
 }
 
 export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: AddSourceDialogProps) {
+  const { t } = useTranslation()
+  const { locale } = useLocale()
   const sourceLoaders = useSourceLoaders()
   const ontology = useOntology(workspaceId)
   const roles = ontology.data?.sourceRoles ?? []
@@ -138,36 +143,36 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Source</DialogTitle>
-          <DialogDescription>Source rows are appended to PRODUCT.md and provisioned if a loader is set.</DialogDescription>
+          <DialogTitle>{t('sources.addDialog.title')}</DialogTitle>
+          <DialogDescription>{t('sources.addDialog.description')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Role">
+            <Field label={t('common.role')}>
               <Select value={role} onValueChange={setRole}>
                 <SelectTrigger size="sm" className="w-full text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {roles.map(r => (
-                    <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
+                    <SelectItem key={r.id} value={r.id}>{localize(r.label, locale)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Loader">
+            <Field label={t('sources.addDialog.loaderLabel')}>
               {/* Radix reserves the empty value, so a "none" sentinel maps to "". */}
               <Select value={loaderKind || 'none'} onValueChange={v => setLoaderKind(v === 'none' ? '' : v)}>
                 <SelectTrigger size="sm" className="w-full text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">{loaderKindLabel('')}</SelectItem>
+                  <SelectItem value="none">{loaderKindLabel('', t)}</SelectItem>
                   {(sourceLoaders.data?.loaders ?? []).map(loader => (
-                    <SelectItem key={loader.kind} value={loader.kind}>{loaderKindLabel(loader.kind)}</SelectItem>
+                    <SelectItem key={loader.kind} value={loader.kind}>{loaderKindLabel(loader.kind, t)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </Field>
           </div>
-          <Field label="Name">
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder={`${role || 'source'}-name`} autoFocus />
+          <Field label={t('common.name')}>
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder={t('sources.addDialog.namePlaceholder', { role: role || 'source' })} autoFocus />
             <p className="font-mono text-2xs text-muted-foreground">
               ./
               {pathSegment}
@@ -179,47 +184,47 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
             id="add-source-desc"
             value={description}
             onChange={setDescription}
-            label="What is this source?"
-            placeholder="e.g. what this source holds and how authoritative it is."
-            helperText="Visible to skills via PRODUCT.md."
+            label={t('sources.addDialog.descriptionFieldLabel')}
+            placeholder={t('sources.addDialog.descriptionPlaceholder')}
+            helperText={t('sources.addDialog.descriptionHint')}
             rows={2}
           />
           {loaderKind === 'git' && (
             <div className="flex items-end gap-2">
-              <Field label="Git URL" className="flex-1">
+              <Field label={t('sources.addDialog.gitUrlLabel')} className="flex-1">
                 <Input value={gitUrl} onChange={e => setGitUrl(e.target.value)} placeholder="https://github.com/org/repo.git" />
               </Field>
-              <Field label="Branch" className="w-28 shrink-0">
+              <Field label={t('sources.addDialog.branchLabel')} className="w-28 shrink-0">
                 <Input value={gitBranch} onChange={e => setGitBranch(e.target.value)} placeholder="master" />
               </Field>
             </div>
           )}
           {loaderKind === 'gdrive' && (
             <>
-              <Field label="Google Drive folder ID">
+              <Field label={t('sources.addDialog.googleDriveFolderLabel')}>
                 <Input value={gdriveFolderId} onChange={e => setGdriveFolderId(e.target.value)} placeholder="1abc…" />
                 {gdriveFolderId.trim() === 'root' && (
                   <p className="text-2xs text-destructive">
-                    "root" mirrors your entire My Drive (rejected by the loader). Create a dedicated subfolder and paste its ID.
+                    {t('sources.addDialog.googleDriveRootWarning')}
                   </p>
                 )}
               </Field>
               <div className="grid grid-cols-2 gap-2">
-                <Field label="Include regex (optional)">
+                <Field label={t('sources.addDialog.includeRegexLabel')}>
                   <Input value={gdriveInclude} onChange={e => setGdriveInclude(e.target.value)} placeholder="^docs/" />
                 </Field>
-                <Field label="Exclude regex (optional)">
+                <Field label={t('sources.addDialog.excludeRegexLabel')}>
                   <Input value={gdriveExclude} onChange={e => setGdriveExclude(e.target.value)} placeholder="\\.tmp$" />
                 </Field>
               </div>
               <div className="rounded-md border border-border p-3">
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <p className="text-xs font-medium">Google Account</p>
+                    <p className="text-xs font-medium">{t('sources.addDialog.googleAccountTitle')}</p>
                     <p className="text-2xs text-muted-foreground">
                       {oauthConnected
-                        ? `Connected for source "${sourceId}". Re-renaming will require re-connecting.`
-                        : 'Connect a Google account that has read access to the folder above.'}
+                        ? t('sources.addDialog.googleDriveConnected', { sourceId })
+                        : t('sources.addDialog.googleDriveConnectHint')}
                     </p>
                   </div>
                   <Button
@@ -229,7 +234,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
                     onClick={() => startOauth.mutate()}
                   >
                     {startOauth.isPending && <Loader2 className="mr-1 size-3 animate-spin" />}
-                    {startOauth.isPending ? 'Opening…' : oauthConnected ? 'Reconnect' : 'Connect Google'}
+                    {startOauth.isPending ? t('sources.addDialog.opening') : oauthConnected ? t('sources.addDialog.reconnect') : t('sources.addDialog.connectGoogle')}
                   </Button>
                 </div>
                 {startOauth.error && (
@@ -241,15 +246,15 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
           {loaderKind === 'github' && (
             <>
               <div className="grid grid-cols-2 gap-2">
-                <Field label="Owner">
+                <Field label={t('sources.addDialog.ownerLabel')}>
                   <Input value={githubOwner} onChange={e => setGithubOwner(e.target.value)} placeholder="anthropics" />
                 </Field>
-                <Field label="Repo">
+                <Field label={t('sources.addDialog.repositoryLabel')}>
                   <Input value={githubRepo} onChange={e => setGithubRepo(e.target.value)} placeholder="claude-code" />
                 </Field>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Field label="State">
+                <Field label={t('sources.addDialog.stateLabel')}>
                   <Select value={githubState} onValueChange={v => setGithubState(v as typeof githubState)}>
                     <SelectTrigger size="sm" className="w-full text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -259,22 +264,22 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="Labels (csv, optional)">
+                <Field label={t('sources.addDialog.labelsLabel')}>
                   <Input value={githubLabels} onChange={e => setGithubLabels(e.target.value)} placeholder="bug, p1" />
                 </Field>
               </div>
               <div className="flex flex-col gap-1 rounded-md border border-border p-2">
                 <label className="flex items-center gap-2 text-2xs">
                   <input type="checkbox" checked={githubIncludeComments} onChange={e => setGithubIncludeComments(e.target.checked)} />
-                  Include comments
+                  {t('sources.addDialog.includeComments')}
                 </label>
               </div>
               <p className="text-2xs text-muted-foreground">
-                Auth: server reads
+                {t('sources.addDialog.githubAuthPrefix')}
                 {' '}
                 <code className="font-mono">$GH_TOKEN</code>
                 {' '}
-                at sync time. Without one you get GitHub's 60 req/h anonymous rate limit.
+                {t('sources.addDialog.githubAuthSuffix')}
               </p>
             </>
           )}
@@ -283,15 +288,15 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
               kind={loaderKind}
               hint={(
                 <>
-                  This loader plugin is registered on the server but Studio does not ship a per-field config for it. To use it, edit
+                  {t('sources.addDialog.unknownLoaderHintPrefix')}
                   {' '}
                   <code className="rounded bg-muted px-1 font-mono">PRODUCT.md</code>
                   {' '}
-                  directly and add the
+                  {t('sources.addDialog.unknownLoaderHintMiddle')}
                   {' '}
                   <code className="rounded bg-muted px-1 font-mono">{loaderKind}</code>
                   {' '}
-                  config under this source.
+                  {t('sources.addDialog.unknownLoaderHintSuffix')}
                 </>
               )}
             />
@@ -299,10 +304,10 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
           {add.error && <p className="text-xs text-destructive">{humaniseApiError(add.error)}</p>}
         </div>
         <DialogFooter>
-          <Button variant="ghost" size="sm" onClick={close}>Cancel</Button>
+          <Button variant="ghost" size="sm" onClick={close}>{t('common.cancel')}</Button>
           <Button size="sm" disabled={!valid || add.isPending} onClick={() => add.mutate()}>
             {add.isPending && <Loader2 className="mr-1 size-3 animate-spin" />}
-            {add.isPending ? 'Adding…' : 'Add'}
+            {add.isPending ? t('common.adding') : t('common.add')}
           </Button>
         </DialogFooter>
       </DialogContent>

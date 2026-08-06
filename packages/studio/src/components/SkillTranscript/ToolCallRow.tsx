@@ -1,5 +1,6 @@
 import type { PairedCall } from './groupTranscript'
 import { ChevronRight } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { formatArgsPreview } from './formatArgsPreview'
 
@@ -8,6 +9,7 @@ interface ToolCallRowProps {
 }
 
 export function ToolCallRow({ paired }: ToolCallRowProps) {
+  const { t } = useTranslation()
   const { call, result } = paired
   const isError = result?.isError === true
   const compact = formatArgsPreview(call.args)
@@ -25,27 +27,27 @@ export function ToolCallRow({ paired }: ToolCallRowProps) {
         {compact && <span className="truncate text-muted-foreground/80">{compact}</span>}
         {isError && (
           <span className="ml-auto rounded bg-red-500/15 px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider text-red-400">
-            error
+            {t('transcript.toolCall.errorBadge')}
           </span>
         )}
       </summary>
       <div className="border-t border-border/40 px-2 py-1.5">
         {argsJson && (
           <>
-            <SectionLabel>Args</SectionLabel>
+            <SectionLabel>{t('transcript.toolCall.arguments')}</SectionLabel>
             <pre className="overflow-x-auto text-2xs leading-relaxed text-muted-foreground">{argsJson}</pre>
           </>
         )}
         {result && (
           <>
-            <SectionLabel className="mt-2">{isError ? 'Error output' : 'Result'}</SectionLabel>
+            <SectionLabel className="mt-2">{isError ? t('transcript.toolCall.errorOutput') : t('transcript.toolCall.result')}</SectionLabel>
             <pre
               className={cn(
                 'overflow-x-auto whitespace-pre-wrap text-2xs leading-relaxed',
                 isError ? 'text-red-300' : 'text-muted-foreground',
               )}
             >
-              {result.output || '(empty)'}
+              {result.output || t('transcript.toolCall.emptyOutput')}
             </pre>
           </>
         )}

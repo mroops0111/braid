@@ -42,14 +42,14 @@ function data(overrides: Partial<ClarificationData> = {}): ClarificationData {
 describe('Clarification', () => {
   describe('resolveCandidate', () => {
     it('returns the candidate operations', () => {
-      const ticket = new Clarification(data())
-      const operations = ticket.resolveCandidate('cc-1' as ClarificationCandidateId)
+      const clarification = new Clarification(data())
+      const operations = clarification.resolveCandidate('cc-1' as ClarificationCandidateId)
       expect(operations).toHaveLength(1)
     })
 
     it('throws NotFoundError when candidate id missing', () => {
-      const ticket = new Clarification(data())
-      expect(() => ticket.resolveCandidate('missing' as ClarificationCandidateId)).toThrow(NotFoundError)
+      const clarification = new Clarification(data())
+      expect(() => clarification.resolveCandidate('missing' as ClarificationCandidateId)).toThrow(NotFoundError)
     })
   })
 
@@ -62,14 +62,14 @@ describe('Clarification', () => {
       expect(answered.resolution).toEqual([{ operation: 'removeNode', nodeId: 'n-x' }])
     })
 
-    it('throws ConflictError when ticket is not pending', () => {
-      const ticket = new Clarification(data({ status: 'answered' }))
-      expect(() => ticket.markAnswered('cc-1' as ClarificationCandidateId, userId)).toThrow(ConflictError)
+    it('throws ConflictError when clarification is not pending', () => {
+      const clarification = new Clarification(data({ status: 'answered' }))
+      expect(() => clarification.markAnswered('cc-1' as ClarificationCandidateId, userId)).toThrow(ConflictError)
     })
 
     it('throws NotFoundError when candidate id missing', () => {
-      const ticket = new Clarification(data())
-      expect(() => ticket.markAnswered('missing' as ClarificationCandidateId, userId)).toThrow(NotFoundError)
+      const clarification = new Clarification(data())
+      expect(() => clarification.markAnswered('missing' as ClarificationCandidateId, userId)).toThrow(NotFoundError)
     })
   })
 
@@ -90,40 +90,40 @@ describe('Clarification', () => {
       expect(applied.proposalId).toBeUndefined()
     })
 
-    it('throws ConflictError when ticket is not answered (must answer first)', () => {
-      const ticket = new Clarification(data())
-      expect(() => ticket.markApplied('p-1' as ProposalId)).toThrow(ConflictError)
+    it('throws ConflictError when clarification is not answered (must answer first)', () => {
+      const clarification = new Clarification(data())
+      expect(() => clarification.markApplied('p-1' as ProposalId)).toThrow(ConflictError)
     })
   })
 
   describe('markSkipped', () => {
-    it('returns a new ticket in skipped status', () => {
+    it('returns a new clarification in skipped status', () => {
       const skipped = new Clarification(data()).markSkipped(userId)
       expect(skipped.status).toBe('skipped')
     })
 
-    it('throws ConflictError when ticket is not pending', () => {
-      const ticket = new Clarification(data({ status: 'skipped' }))
-      expect(() => ticket.markSkipped(userId)).toThrow(ConflictError)
+    it('throws ConflictError when clarification is not pending', () => {
+      const clarification = new Clarification(data({ status: 'skipped' }))
+      expect(() => clarification.markSkipped(userId)).toThrow(ConflictError)
     })
   })
 
   describe('appendCandidate', () => {
-    it('appends a new candidate while the ticket is pending', () => {
-      const ticket = new Clarification(data())
-      const extended = ticket.appendCandidate(candidate('cc-custom'))
+    it('appends a new candidate while the clarification is pending', () => {
+      const clarification = new Clarification(data())
+      const extended = clarification.appendCandidate(candidate('cc-custom'))
       expect(extended.candidates.map(c => c.id)).toEqual(['cc-1', 'cc-2', 'cc-custom'])
       expect(extended.status).toBe('pending')
     })
 
     it('throws ConflictError on duplicate candidate id', () => {
-      const ticket = new Clarification(data())
-      expect(() => ticket.appendCandidate(candidate('cc-1'))).toThrow(ConflictError)
+      const clarification = new Clarification(data())
+      expect(() => clarification.appendCandidate(candidate('cc-1'))).toThrow(ConflictError)
     })
 
-    it('throws ConflictError when ticket is not pending', () => {
-      const ticket = new Clarification(data({ status: 'answered' }))
-      expect(() => ticket.appendCandidate(candidate('cc-custom'))).toThrow(ConflictError)
+    it('throws ConflictError when clarification is not pending', () => {
+      const clarification = new Clarification(data({ status: 'answered' }))
+      expect(() => clarification.appendCandidate(candidate('cc-custom'))).toThrow(ConflictError)
     })
   })
 })

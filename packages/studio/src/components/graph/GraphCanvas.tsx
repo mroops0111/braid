@@ -2,12 +2,15 @@ import type { EdgeId, GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
 import type { NodeChange } from '@xyflow/react'
 import type { GraphDataSource } from './GraphDataSource'
 import type { NodeCardNode } from './useGraphLayout'
+import { localize } from '@braidhq/schema'
 import { Background, BackgroundVariant, Controls, MarkerType, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react'
 import { GitBranch, PanelLeftClose, PanelLeftOpen, Sparkles } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
 import { Button } from '@/components/ui/button'
 import { asEdgeId } from '@/lib/brands'
+import { useLocale } from '@/lib/i18n'
 import { optional } from '@/lib/optional'
 import { useOntology } from '@/lib/queries'
 import { useTheme } from '@/lib/theme'
@@ -110,11 +113,16 @@ export function GraphCanvas({ workspaceId, source, selectedNodeId, onSelectNode,
 }
 
 function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, onSelectNode, selectedEdgeId: controlledEdgeSelected, onSelectEdge, focusMode = false, dimUnchanged = false, emphasizeAdded = false, onStartBootstrap }: GraphCanvasProps) {
+  const { t } = useTranslation()
   // React Query dedupes the live snapshot fetch by queryKey,
   // so it is effectively free when `source` is supplied.
   const liveSource = useLiveGraphDataSource(workspaceId)
   const effective = source ?? liveSource
   const { data: ontology } = useOntology(workspaceId)
+  const { locale } = useLocale()
+  // Name the bootstrap source by the ontology's unit-bearing role,
+  // so the empty-state copy reads right for any ontology, not just DDD.
+  const unitRole = localize(ontology?.sourceRoles.find(role => role.unitBearing)?.label ?? '', locale)
   const palette = usePalette(workspaceId)
   const { theme } = useTheme()
   const allNodes = effective.nodes
@@ -318,18 +326,18 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   }, [])
 
   if (isLoading)
-    return <div className="p-4 text-sm text-muted-foreground">Loading graph…</div>
+    return <div className="p-4 text-sm text-muted-foreground">{t('graph.loadingGraph')}</div>
   if (allNodes.length === 0) {
     return (
       <EmptyState
         icon={GitBranch}
-        title="Graph Is Empty"
-        description="Bootstrap from every registered intent. If none exist, AI scans your codebases instead."
+        title={t('graph.empty.title')}
+        description={t('graph.empty.canvasDescription', { unitRole })}
         action={onStartBootstrap
           ? (
               <Button size="sm" onClick={onStartBootstrap}>
                 <Sparkles className="size-3.5" />
-                Bootstrap From Sources
+                {t('graph.empty.bootstrapButton')}
               </Button>
             )
           : undefined}
@@ -364,7 +372,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
           <button
             type="button"
             onClick={() => setNavigatorOpen(open => !open)}
-            aria-label={navigatorOpen ? 'Collapse navigator' : 'Show navigator'}
+            aria-label={navigatorOpen ? t('graph.navigator.collapseButton') : t('graph.navigator.showButton')}
             className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
           >
             {navigatorOpen ? <PanelLeftClose className="size-3.5" /> : <PanelLeftOpen className="size-3.5" />}
@@ -459,11 +467,12 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
 }
 
 function FilteredEmpty({ onClear }: { onClear: () => void }) {
+  const { t } = useTranslation()
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-      <p className="text-sm text-muted-foreground">No nodes match the current filter.</p>
+      <p className="text-sm text-muted-foreground">{t('graph.filteredEmpty.description')}</p>
       <Button variant="ghost" size="sm" onClick={onClear}>
-        Reset Filters
+        {t('graph.filteredEmpty.resetButton')}
       </Button>
     </div>
   )
