@@ -3,9 +3,11 @@ import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Archive, CheckCircle2, CircleDot, ClipboardCheck, FastForward, FileText, HelpCircle, Loader2, Play, PlayCircle, Search, Sparkles, StopCircle, Terminal, XCircle } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { SkillTranscript } from '@/components/SkillTranscript'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
+import { useLocaleFormat } from '@/lib/i18n'
 import { queryKeys, useBatchStatus } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
 import { useRun } from '@/lib/useRun'
@@ -14,8 +16,6 @@ import { cn } from '@/lib/utils'
 interface BatchPageProps {
   workspaceId: string
 }
-
-const EXTRACT_SKILL_ID = 'ddd:extract'
 
 const STATUS_TONE: Record<BatchStatus, string> = {
   idle: 'border-zinc-400/40 bg-zinc-400/10 text-zinc-700 dark:text-zinc-300',
@@ -36,10 +36,11 @@ const UNIT_ICON: Record<BatchUnitStatus, ReactNode> = {
 }
 
 export function BatchPage({ workspaceId }: BatchPageProps) {
+  const { t } = useTranslation()
   const { data: plan, isLoading } = useBatchStatus(workspaceId)
 
   if (isLoading)
-    return <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+    return <div className="p-6 text-sm text-muted-foreground">{t('common.loading')}</div>
 
   if (!plan || plan.status === 'idle' || plan.status === 'archived')
     return <PreStart workspaceId={workspaceId} previousPlan={plan ?? null} />
@@ -48,6 +49,8 @@ export function BatchPage({ workspaceId }: BatchPageProps) {
 }
 
 function PreStart({ workspaceId, previousPlan }: { workspaceId: string, previousPlan: BatchPlan | null }) {
+  const { t } = useTranslation()
+  const { formatDateTime } = useLocaleFormat()
   const queryClient = useQueryClient()
 
   const start = useMutation({
@@ -66,16 +69,16 @@ function PreStart({ workspaceId, previousPlan }: { workspaceId: string, previous
     <div className="mx-auto flex h-full max-w-2xl flex-col gap-6 overflow-y-auto p-8 scrollbar-thin">
       <header className="flex items-center gap-3">
         <Sparkles className="size-6 text-primary" />
-        <h1 className="text-xl font-semibold">Bootstrap Workspace From Sources</h1>
+        <h1 className="text-xl font-semibold">{t('review.batch.bootstrapTitle')}</h1>
       </header>
       <p className="text-sm leading-relaxed text-muted-foreground [text-wrap:pretty]">
-        Reads every unit-bearing source and proposes graph updates. When the workspace has none, AI derives units from its other sources first. A safety snapshot is taken before anything starts. You can roll back from History if something looks wrong.
+        {t('review.batch.bootstrapDescription')}
       </p>
 
       <section className="rounded-lg border border-border bg-card/40 p-4 text-sm leading-relaxed text-foreground/90 [text-wrap:pretty]">
-        <div className="font-medium">What Happens</div>
+        <div className="font-medium">{t('review.batch.whatHappens')}</div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Confident proposals are applied straight to the graph. Ambiguous ones queue in Clarification for you to decide. If you want to review every single proposal by hand, run a single per-unit skill from Actions instead.
+          {t('review.batch.whatHappensDescription')}
         </p>
       </section>
 
@@ -83,24 +86,17 @@ function PreStart({ workspaceId, previousPlan }: { workspaceId: string, previous
 
       {previousPlan && (
         <section className="rounded-lg border border-border bg-card/40 p-4 text-xs text-muted-foreground">
-          Previous batch
+          {t('review.batch.previousBatchPrefix')}
           {' '}
           <span className={cn('rounded border px-1.5 py-0.5 font-medium uppercase tracking-wider', STATUS_TONE[previousPlan.status])}>{previousPlan.status}</span>
           {' '}
-          with
-          {' '}
-          {previousPlan.units.length}
-          {' '}
-          unit(s) on
-          {' '}
-          {new Date(previousPlan.createdAt).toLocaleString()}
-          .
+          {t('review.batch.previousBatchMiddle', { count: previousPlan.units.length, date: formatDateTime(previousPlan.createdAt) })}
         </section>
       )}
 
       {start.isError && (
         <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-          {start.error instanceof Error ? start.error.message : 'Failed to start.'}
+          {start.error instanceof Error ? start.error.message : t('review.batch.failedToStart')}
         </p>
       )}
 
@@ -112,7 +108,7 @@ function PreStart({ workspaceId, previousPlan }: { workspaceId: string, previous
           onClick={() => start.mutate()}
         >
           <PlayCircle className="size-4" />
-          {start.isPending ? 'Starting…' : 'Start Bootstrap'}
+          {start.isPending ? t('review.batch.starting') : t('review.batch.startBootstrapButton')}
         </Button>
       </div>
     </div>
@@ -120,10 +116,11 @@ function PreStart({ workspaceId, previousPlan }: { workspaceId: string, previous
 }
 
 function BatchPreviewList({ query }: { query: ReturnType<typeof useQuery<SkillInputOptionsResponse, Error>> }) {
+  const { t } = useTranslation()
   if (query.isLoading) {
     return (
       <section className="rounded-lg border border-border bg-card/40 p-4 text-xs text-muted-foreground">
-        Loading units…
+        {t('review.batch.loadingUnits')}
       </section>
     )
   }
@@ -141,10 +138,10 @@ function BatchPreviewList({ query }: { query: ReturnType<typeof useQuery<SkillIn
       <section className="rounded-lg border border-border bg-card/40 p-4">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground">
           <Search className="size-4 text-muted-foreground" />
-          Will Derive Units
+          {t('review.batch.willDeriveUnits')}
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          No unit-bearing sources found in this workspace. AI will derive units from the workspace's other sources first, then propose graph updates per unit.
+          {t('review.batch.willDeriveUnitsDescription')}
         </p>
       </section>
     )
@@ -154,10 +151,9 @@ function BatchPreviewList({ query }: { query: ReturnType<typeof useQuery<SkillIn
     <section className="rounded-lg border border-border bg-card/40 p-4">
       <div className="flex items-center justify-between">
         <div className="text-sm font-medium text-foreground">
-          {items.length}
-          {items.length === 1 ? ' Unit Will Be Processed' : ' Units Will Be Processed'}
+          {t('review.batch.unitsWillBeProcessed', { count: items.length })}
         </div>
-        <span className="text-2xs text-muted-foreground">one job per row</span>
+        <span className="text-2xs text-muted-foreground">{t('review.batch.oneJobPerRow')}</span>
       </div>
       <ul className="mt-3 space-y-1">
         {items.map(item => (
@@ -205,6 +201,7 @@ function BatchHeader({ workspaceId, plan, terminal }: {
   plan: BatchPlan
   terminal: boolean
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   // Every header action mutates the plan server-side,
   // so they all need to refetch the same query.
@@ -222,12 +219,12 @@ function BatchHeader({ workspaceId, plan, terminal }: {
   const latestCheckpointPhase = plan.checkpointPhases[plan.checkpointPhases.length - 1]
   const checkpointRunning = latestCheckpointPhase?.status === 'running'
   const headerLabel = plan.status === 'deriving'
-    ? 'Deriving Units…'
+    ? t('review.batch.derivingUnits')
     : terminal
-      ? 'Bootstrap Report'
+      ? t('review.batch.bootstrapReport')
       : checkpointRunning
-        ? 'Running Checkpoint…'
-        : 'Processing Units…'
+        ? t('review.batch.runningCheckpoint')
+        : t('review.batch.processingUnits')
 
   return (
     <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-4">
@@ -240,17 +237,14 @@ function BatchHeader({ workspaceId, plan, terminal }: {
           {plan.status}
         </span>
         <span className="text-xs text-muted-foreground">
-          {completed}
-          {' / '}
-          {plan.units.length}
-          {' units processed'}
+          {t('review.batch.unitsProcessed', { completed, total: plan.units.length })}
         </span>
         {plan.checkpointPhases.length > 0 && (
           <span className="text-xs text-muted-foreground">
-            {plan.checkpointPhases.filter(p => p.status === 'completed').length}
-            {' / '}
-            {plan.checkpointPhases.length}
-            {' checkpoints'}
+            {t('review.batch.checkpointsProgress', {
+              completed: plan.checkpointPhases.filter(p => p.status === 'completed').length,
+              total: plan.checkpointPhases.length,
+            })}
           </span>
         )}
       </div>
@@ -261,19 +255,19 @@ function BatchHeader({ workspaceId, plan, terminal }: {
                 {hasUnfinished && (
                   <Button size="sm" disabled={resume.isPending} onClick={() => resume.mutate()}>
                     <Play className="size-3.5" />
-                    {resume.isPending ? 'Resuming…' : 'Resume'}
+                    {resume.isPending ? t('review.batch.resuming') : t('review.batch.resumeButton')}
                   </Button>
                 )}
                 <Button size="sm" variant="outline" disabled={archive.isPending} onClick={() => archive.mutate()}>
                   <Archive className="size-3.5" />
-                  {archive.isPending ? 'Archiving…' : 'Archive'}
+                  {archive.isPending ? t('review.batch.archiving') : t('review.batch.archiveButton')}
                 </Button>
               </>
             )
           : (
               <Button size="sm" variant="outline" disabled={stop.isPending} onClick={() => stop.mutate()}>
                 <StopCircle className="size-3.5" />
-                {stop.isPending ? 'Stopping…' : 'Stop'}
+                {stop.isPending ? t('review.batch.stopping') : t('review.batch.stopButton')}
               </Button>
             )}
       </div>
@@ -282,30 +276,29 @@ function BatchHeader({ workspaceId, plan, terminal }: {
 }
 
 function ReportBar({ plan }: { plan: BatchPlan }) {
+  const { t } = useTranslation()
   const stats = useMemo(() => summarise(plan), [plan])
   return (
     <div className="flex shrink-0 items-center gap-4 border-b border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
       <span>
         <span className="text-emerald-700 dark:text-emerald-300">
-          {stats.completed}
-          {' completed'}
+          {t('review.batch.reportCompleted', { count: stats.completed })}
         </span>
       </span>
       <span>
         <span className="text-rose-700 dark:text-rose-300">
-          {stats.failed}
-          {' failed'}
+          {t('review.batch.reportFailed', { count: stats.failed })}
         </span>
       </span>
       <span>
         <span className="text-sky-700 dark:text-sky-300">
-          {stats.applied}
-          {' proposals applied'}
+          {t('review.batch.reportProposalsApplied', { count: stats.applied })}
         </span>
       </span>
       {plan.baselineTag && (
         <span className="ml-auto">
-          {'Baseline Tag: '}
+          {t('review.batch.baselineTagLabel')}
+          {' '}
           <code className="rounded bg-muted px-1 font-mono">{plan.baselineTag}</code>
         </span>
       )}
@@ -415,12 +408,15 @@ function ChunkSection({ chunkIndex, chunk, isTerminal, perUnitLabel, checkpointL
   activeRunId: SkillRunId | null
   onSelect: (runId: SkillRunId | null) => void
 }) {
+  const { t } = useTranslation()
   const completedUnits = chunk.units.filter(u => u.status === 'completed').length
   const groupTone = aggregateUnitsTone(chunk.units)
   return (
     <>
       <PhaseSectionHeader
-        title={perUnitLabel ? `${perUnitLabel} • Group ${chunkIndex + 1}` : `Group ${chunkIndex + 1}`}
+        title={perUnitLabel
+          ? t('review.batch.groupWithLabel', { label: perUnitLabel, index: chunkIndex + 1 })
+          : t('review.batch.group', { index: chunkIndex + 1 })}
         badge={`${completedUnits} / ${chunk.units.length}`}
         tone={groupTone}
       />
@@ -438,8 +434,10 @@ function ChunkSection({ chunkIndex, chunk, isTerminal, perUnitLabel, checkpointL
       </ul>
       <PhaseSectionHeader
         title={(() => {
-          const base = checkpointLabel ? `${checkpointLabel} • Checkpoint ${chunkIndex + 1}` : `Checkpoint ${chunkIndex + 1}`
-          return chunk.isFinal && !chunk.phase ? `${base} (final)` : base
+          const base = checkpointLabel
+            ? t('review.batch.checkpointWithLabel', { label: checkpointLabel, index: chunkIndex + 1 })
+            : t('review.batch.checkpoint', { index: chunkIndex + 1 })
+          return chunk.isFinal && !chunk.phase ? t('review.batch.checkpointFinal', { base }) : base
         })()}
         badge={chunk.phase?.status === 'completed' ? '1 / 1' : '0 / 1'}
         tone={chunk.phase
@@ -460,10 +458,10 @@ function ChunkSection({ chunkIndex, chunk, isTerminal, perUnitLabel, checkpointL
           : (
               <li className="rounded-md border border-dashed border-border/60 px-2.5 py-2 text-2xs text-muted-foreground">
                 {isTerminal
-                  ? 'No checkpoint recorded for these units.'
+                  ? t('review.batch.noCheckpointRecorded')
                   : chunk.units.length === 0
-                    ? 'Final validation pass; runs after the last unit checkpoint.'
-                    : 'Will run once these units finish.'}
+                    ? t('review.batch.finalValidationPass')
+                    : t('review.batch.willRunAfterUnits')}
               </li>
             )}
       </ul>
@@ -508,6 +506,7 @@ function CheckpointPhaseRow({ phase, label, active, selected, onSelect }: {
   selected: boolean
   onSelect: () => void
 }) {
+  const { t } = useTranslation()
   const inspectable = !!phase.skillRunId
   return (
     <li className="mt-1 border-t border-border/40 pt-1">
@@ -532,9 +531,9 @@ function CheckpointPhaseRow({ phase, label, active, selected, onSelect }: {
                 {label}
               </span>
             )}
-            <span className="truncate text-xs font-medium text-foreground">Checkpoint</span>
+            <span className="truncate text-xs font-medium text-foreground">{t('review.batch.checkpointTitle')}</span>
           </div>
-          <p className="mt-0.5 text-2xs text-muted-foreground">{`Covers ${phase.unitIds.length} unit${phase.unitIds.length === 1 ? '' : 's'}`}</p>
+          <p className="mt-0.5 text-2xs text-muted-foreground">{t('review.batch.checkpointCovers', { count: phase.unitIds.length })}</p>
           {phase.error && (
             <p className="mt-0.5 line-clamp-2 text-2xs text-rose-600 dark:text-rose-300">{phase.error}</p>
           )}
@@ -551,6 +550,7 @@ function UnitRow({ unit, actionLabel, active, selected, onSelect }: {
   selected: boolean
   onSelect: () => void
 }) {
+  const { t } = useTranslation()
   const inspectable = !!unit.skillRunId
   return (
     <li>
@@ -580,13 +580,13 @@ function UnitRow({ unit, actionLabel, active, selected, onSelect }: {
           {(unit.proposalIds.length > 0 || unit.clarificationIds.length > 0) && (
             <div className="mt-0.5 flex gap-2 text-2xs text-muted-foreground">
               {unit.proposalIds.length > 0 && (
-                <span className="flex items-center gap-0.5" title={`${unit.proposalIds.length} proposals`}>
+                <span className="flex items-center gap-0.5" title={t('review.batch.proposalsTooltip', { count: unit.proposalIds.length })}>
                   <ClipboardCheck className="size-3" />
                   {unit.proposalIds.length}
                 </span>
               )}
               {unit.clarificationIds.length > 0 && (
-                <span className="flex items-center gap-0.5" title={`${unit.clarificationIds.length} clarifications`}>
+                <span className="flex items-center gap-0.5" title={t('review.batch.clarificationsTooltip', { count: unit.clarificationIds.length })}>
                   <HelpCircle className="size-3" />
                   {unit.clarificationIds.length}
                 </span>
@@ -607,11 +607,15 @@ function LogPane({ workspaceId, plan, selectedRunId }: {
   plan: BatchPlan
   selectedRunId: SkillRunId | null
 }) {
+  const { t } = useTranslation()
   // Pull the run into the global store so SkillTranscript renders the stream.
+  // The per-unit skill id comes from the plan's frozen policy, not a literal,
+  // so a non-DDD ontology's per-unit skill works here too.
+  const perUnitSkillId = plan.batchPolicy?.perUnitSkillId
   useEffect(() => {
-    if (selectedRunId)
-      runStore.loadRun(workspaceId, selectedRunId, EXTRACT_SKILL_ID)
-  }, [workspaceId, selectedRunId])
+    if (selectedRunId && perUnitSkillId)
+      runStore.loadRun(workspaceId, selectedRunId, perUnitSkillId)
+  }, [workspaceId, selectedRunId, perUnitSkillId])
 
   const run = useRun(workspaceId, selectedRunId ?? undefined)
   const selectedUnit = plan.units.find(u => u.skillRunId === selectedRunId)
@@ -621,7 +625,7 @@ function LogPane({ workspaceId, plan, selectedRunId }: {
       <div className="flex flex-1 items-center justify-center bg-card/20 text-center">
         <div className="max-w-xs text-xs text-muted-foreground">
           <FileText className="mx-auto size-5 text-muted-foreground/40" />
-          <p className="mt-2">Pick a unit on the left to see its skill log.</p>
+          <p className="mt-2">{t('review.batch.pickUnit')}</p>
         </div>
       </div>
     )
@@ -636,7 +640,7 @@ function LogPane({ workspaceId, plan, selectedRunId }: {
       <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-3 text-2xs text-muted-foreground">
         <Terminal className="size-3" />
         <span className="font-medium text-foreground">
-          {selectedUnit?.name ?? 'Unit log'}
+          {selectedUnit?.name ?? t('review.batch.unitLog')}
         </span>
         <span className="ml-auto font-mono">{selectedRunId.slice(0, 8)}</span>
       </div>

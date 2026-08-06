@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Loader2, LogOut, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '@/lib/api'
 import { clearAuthToken } from '@/lib/authToken'
 import { queryKeys, useMe } from '@/lib/queries'
@@ -23,6 +24,7 @@ import { Label } from './ui/label'
  * This picker shows its current displayName and lets the user rename it.
  */
 export function UserPicker() {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const { data: me, isLoading } = useMe()
   const displayName = isLoading ? '…' : me?.displayName ?? 'unknown'
@@ -35,7 +37,7 @@ export function UserPicker() {
         size="sm"
         onClick={() => setOpen(true)}
         className="h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground hover:text-foreground"
-        title="Rename Account"
+        title={t('shell.userPicker.renameAccount')}
       >
         <UserRound className="size-3.5" />
         <span className="max-w-[10rem] truncate">{displayName}</span>
@@ -52,6 +54,7 @@ function RenameDialog({
   open: boolean
   onOpenChange: (value: boolean) => void
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { data: me } = useMe()
   const token = useAuthToken()
@@ -108,15 +111,13 @@ function RenameDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Account Name</DialogTitle>
+          <DialogTitle>{t('shell.userPicker.dialogTitle')}</DialogTitle>
           <DialogDescription>
-            Display name shown in audit trails and HITL decisions. Local
-            install: this is the single account on this machine; defaults
-            to your OS username.
+            {t('shell.userPicker.dialogDescription')}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2 py-2">
-          <Label htmlFor="user-display-name" className="text-xs">Display name</Label>
+          <Label htmlFor="user-display-name" className="text-xs">{t('shell.userPicker.displayNameLabel')}</Label>
           <Input
             id="user-display-name"
             autoFocus
@@ -141,15 +142,15 @@ function RenameDialog({
                   className="gap-1.5 text-muted-foreground"
                 >
                   <LogOut className="size-3.5" />
-                  Sign Out
+                  {t('common.signOut')}
                 </Button>
               )
             : <span />}
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
             <Button size="sm" onClick={save} disabled={saving || !value.trim() || value.trim() === me?.displayName}>
               {saving && <Loader2 className="mr-1 size-3 animate-spin" />}
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? t('common.saving') : t('common.save')}
             </Button>
           </div>
         </DialogFooter>

@@ -1,4 +1,5 @@
 import { Focus as FocusIcon, GitCompare, LayoutGrid, Network } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
 export type GraphView = 'visualization' | 'table'
@@ -16,12 +17,13 @@ export type GraphView = 'visualization' | 'table'
  */
 
 export function FocusToggle({ active, onChange }: { active: boolean, onChange: (next: boolean) => void }) {
+  const { t } = useTranslation()
   return (
     <button
       type="button"
       onClick={() => onChange(!active)}
       aria-pressed={active}
-      title={active ? 'Show full graph' : 'Focus on neighbourhood'}
+      title={active ? t('graph.toolbar.showFullGraphTooltip') : t('graph.toolbar.focusNeighbourhoodTooltip')}
       className={cn(
         'flex h-7 items-center gap-1 rounded-md border border-border px-2 text-2xs shadow-sm transition-colors',
         active
@@ -30,7 +32,7 @@ export function FocusToggle({ active, onChange }: { active: boolean, onChange: (
       )}
     >
       <FocusIcon className="size-3.5" />
-      Focus
+      {t('graph.toolbar.focusButton')}
     </button>
   )
 }
@@ -46,12 +48,13 @@ export function FocusToggle({ active, onChange }: { active: boolean, onChange: (
  * See `DIMMED_NODE_OPACITY` in `styleTokens.ts`.
  */
 export function OnlyChangesToggle({ active, onChange }: { active: boolean, onChange: (next: boolean) => void }) {
+  const { t } = useTranslation()
   return (
     <button
       type="button"
       onClick={() => onChange(!active)}
       aria-pressed={active}
-      title={active ? 'Show full graph' : 'Dim unchanged nodes & edges'}
+      title={active ? t('graph.toolbar.showFullGraphTooltip') : t('graph.toolbar.dimUnchangedTooltip')}
       className={cn(
         'flex h-7 items-center gap-1 rounded-md border border-border px-2 text-2xs shadow-sm transition-colors',
         active
@@ -60,29 +63,30 @@ export function OnlyChangesToggle({ active, onChange }: { active: boolean, onCha
       )}
     >
       <GitCompare className="size-3.5" />
-      Only changes
+      {t('graph.toolbar.onlyChangesButton')}
     </button>
   )
 }
 
 export function ViewToggle({ view, onChange }: { view: GraphView, onChange: (view: GraphView) => void }) {
+  const { t } = useTranslation()
   return (
     <div
       role="tablist"
-      aria-label="Graph view"
+      aria-label={t('graph.toolbar.graphView')}
       className="inline-flex items-center gap-0.5 rounded-md border border-border bg-card p-0.5 shadow-sm"
     >
       <ToggleButton
         active={view === 'visualization'}
         onClick={() => onChange('visualization')}
-        ariaLabel="Visualization view"
+        ariaLabel={t('graph.toolbar.visualizationViewButton')}
       >
         <Network className="size-3.5" />
       </ToggleButton>
       <ToggleButton
         active={view === 'table'}
         onClick={() => onChange('table')}
-        ariaLabel="Table view"
+        ariaLabel={t('graph.toolbar.tableViewButton')}
       >
         <LayoutGrid className="size-3.5" />
       </ToggleButton>

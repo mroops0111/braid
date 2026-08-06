@@ -17,7 +17,7 @@ export interface UserDirectory {
 export interface UserAuthor {
   readonly displayName: string
   readonly email?: string
-  // Snapshotted onto proposals and tickets at submit time,
+  // Snapshotted onto proposals and clarifications at submit time,
   // so the HITL views classify an autonomous owner without a read-time lookup.
   readonly kind?: UserKind
 }

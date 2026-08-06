@@ -1,9 +1,11 @@
 import type { ReactorCheckpoint, ReactorCycle, ReactorCycleId, ReactorUnit } from '@braidhq/schema'
 import { Activity, AlertCircle, CheckCircle2, CircleDashed, Loader2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
 import { SurfaceLayout } from '@/components/SurfaceLayout'
+import { useLocaleFormat } from '@/lib/i18n'
 import { useReactorCycle, useReactorCycles } from '@/lib/queries'
 
 interface ActivityPageProps {
@@ -18,6 +20,7 @@ interface ActivityPageProps {
  * so the page stays current without its own SSE wiring.
  */
 export function ActivityPage({ workspaceId }: ActivityPageProps) {
+  const { t } = useTranslation()
   const list = useReactorCycles(workspaceId)
   const [selectedId, setSelectedId] = useState<ReactorCycleId | null>(null)
   const passes = list.data?.items ?? []
@@ -31,21 +34,21 @@ export function ActivityPage({ workspaceId }: ActivityPageProps) {
         list={(
           <>
             <header className="border-b border-border px-3 py-2 text-2xs font-medium uppercase tracking-wider text-muted-foreground">
-              Reactor passes
+              {t('history.activity.reactorPasses')}
             </header>
-            {list.isLoading && <p className="px-3 py-2 text-xs text-muted-foreground">Loading…</p>}
-            {list.error && <p className="px-3 py-2 text-xs text-destructive">Failed to load.</p>}
+            {list.isLoading && <p className="px-3 py-2 text-xs text-muted-foreground">{t('common.loading')}</p>}
+            {list.error && <p className="px-3 py-2 text-xs text-destructive">{t('history.activity.failedToLoad')}</p>}
             {!list.isLoading && passes.length === 0 && (
               <p className="px-3 py-3 text-xs text-muted-foreground">
-                No reactor passes yet. Enable
+                {t('history.activity.emptyPrefix')}
                 {' '}
                 <code className="font-mono">reactor.enabled</code>
                 {' '}
-                in
+                {t('history.activity.emptyMiddle')}
                 {' '}
                 <code className="font-mono">PRODUCT.md</code>
                 {' '}
-                and sync a source.
+                {t('history.activity.emptySuffix')}
               </p>
             )}
             <ul className="flex-1 overflow-y-auto">
@@ -65,8 +68,8 @@ export function ActivityPage({ workspaceId }: ActivityPageProps) {
           {!effectiveSelected && (
             <EmptyState
               icon={Activity}
-              title="No Cycle Selected"
-              description="Pick a cycle from the list to see its per-unit timeline."
+              title={t('history.activity.noCycleTitle')}
+              description={t('history.activity.noCycleDescription')}
             />
           )}
           {effectiveSelected && detail.data && <CycleDetail cycle={detail.data} />}
@@ -81,6 +84,8 @@ function CycleListItem({ cycle, selected, onSelect }: {
   selected: boolean
   onSelect: () => void
 }) {
+  const { t } = useTranslation()
+  const { formatRelativeTime } = useLocaleFormat()
   const counts = useUnitCounts(cycle.units)
   return (
     <ListRow active={selected} onClick={onSelect} className="flex-col gap-1 text-xs">
@@ -88,19 +93,21 @@ function CycleListItem({ cycle, selected, onSelect }: {
         <CycleStatusIcon cycle={cycle} />
         <span className="font-mono text-2xs text-foreground">{cycle.sourceId}</span>
         <span className="ml-auto text-2xs text-muted-foreground">
-          {timeAgo(cycle.startedAt)}
+          {formatRelativeTime(cycle.startedAt)}
         </span>
       </span>
       <span className="text-2xs text-muted-foreground">
         {cycle.status === 'throttled'
           ? (cycle.throttledReason ?? 'throttled')
-          : `${counts.success}/${cycle.units.length} units · ${cycle.status}`}
+          : t('history.activity.cycleSummary', { success: counts.success, total: cycle.units.length, status: cycle.status })}
       </span>
     </ListRow>
   )
 }
 
 function CycleDetail({ cycle }: { cycle: ReactorCycle }) {
+  const { t } = useTranslation()
+  const { formatDateTime } = useLocaleFormat()
   const counts = useUnitCounts(cycle.units)
   return (
     <article className="flex flex-col gap-4 p-4">
@@ -108,47 +115,39 @@ function CycleDetail({ cycle }: { cycle: ReactorCycle }) {
         <div className="flex items-center gap-2">
           <CycleStatusIcon cycle={cycle} />
           <h2 className="font-medium text-foreground">
-            Reactor cycle on
+            {t('history.activity.cycleTitle')}
             {' '}
             <span className="font-mono">{cycle.sourceId}</span>
           </h2>
         </div>
         <p className="text-2xs text-muted-foreground">
-          Started
+          {t('history.activity.startedAt')}
           {' '}
-          {new Date(cycle.startedAt).toLocaleString()}
+          {formatDateTime(cycle.startedAt)}
           {cycle.completedAt && (
             <>
-              {' · finished '}
-              {new Date(cycle.completedAt).toLocaleString()}
+              {' · '}
+              {t('history.activity.finishedAt')}
+              {' '}
+              {formatDateTime(cycle.completedAt)}
             </>
           )}
         </p>
         <p className="text-2xs text-muted-foreground">
-          {counts.success}
-          {' success · '}
-          {counts.failure}
-          {' failed · '}
-          {counts.running}
-          {' running · '}
-          {counts.queued}
-          {' queued'}
+          {t('history.activity.countsSummary', { success: counts.success, failure: counts.failure, running: counts.running, queued: counts.queued })}
         </p>
       </header>
       {cycle.status === 'throttled' && (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-2 text-2xs text-foreground">
-          Dropped:
-          {' '}
-          {cycle.throttledReason ?? 'rolling 1h cap reached'}
-          .
+          {t('history.activity.dropped', { reason: cycle.throttledReason ?? t('history.activity.throttledCapReason') })}
         </div>
       )}
       {cycle.units.length === 0 && cycle.status !== 'throttled' && (
-        <p className="text-2xs text-muted-foreground">No units required dispatch. The diff was empty.</p>
+        <p className="text-2xs text-muted-foreground">{t('history.activity.noUnitsDispatched')}</p>
       )}
       {cycle.units.length > 0 && (
         <section>
-          <h3 className="mb-2 text-2xs font-medium uppercase tracking-wider text-muted-foreground">Units</h3>
+          <h3 className="mb-2 text-2xs font-medium uppercase tracking-wider text-muted-foreground">{t('history.activity.unitsTitle')}</h3>
           <ol className="space-y-1">
             {cycle.units.map((unit, idx) => (
               <UnitRow key={`${unit.path}-${idx}`} unit={unit} index={idx + 1} />
@@ -158,7 +157,7 @@ function CycleDetail({ cycle }: { cycle: ReactorCycle }) {
       )}
       {cycle.checkpoint && (
         <section>
-          <h3 className="mb-2 text-2xs font-medium uppercase tracking-wider text-muted-foreground">Checkpoint</h3>
+          <h3 className="mb-2 text-2xs font-medium uppercase tracking-wider text-muted-foreground">{t('history.activity.checkpointTitle')}</h3>
           <CheckpointRow checkpoint={cycle.checkpoint} />
         </section>
       )}
@@ -167,6 +166,7 @@ function CycleDetail({ cycle }: { cycle: ReactorCycle }) {
 }
 
 function UnitRow({ unit, index }: { unit: ReactorUnit, index: number }) {
+  const { t } = useTranslation()
   return (
     <li className="flex items-center gap-2 rounded-md border border-border/60 px-2 py-1 text-2xs">
       <UnitStatusIcon status={unit.status} />
@@ -178,13 +178,14 @@ function UnitRow({ unit, index }: { unit: ReactorUnit, index: number }) {
       <span className="ml-auto text-2xs text-muted-foreground">
         {unit.startedAt && unit.completedAt
           ? `${secondsBetween(unit.startedAt, unit.completedAt)}s`
-          : unit.startedAt ? 'running…' : ''}
+          : unit.startedAt ? t('history.activity.runningInline') : ''}
       </span>
     </li>
   )
 }
 
 function CheckpointRow({ checkpoint }: { checkpoint: ReactorCheckpoint }) {
+  const { t } = useTranslation()
   return (
     <div className="flex items-center gap-2 rounded-md border border-border/60 px-2 py-1 text-2xs">
       <CheckpointStatusIcon status={checkpoint.status} />
@@ -192,7 +193,7 @@ function CheckpointRow({ checkpoint }: { checkpoint: ReactorCheckpoint }) {
       <span className="ml-auto text-2xs text-muted-foreground">
         {checkpoint.startedAt && checkpoint.completedAt
           ? `${secondsBetween(checkpoint.startedAt, checkpoint.completedAt)}s`
-          : checkpoint.startedAt ? 'running…' : checkpoint.status}
+          : checkpoint.startedAt ? t('history.activity.runningInline') : checkpoint.status}
       </span>
     </div>
   )
@@ -244,22 +245,6 @@ function useUnitCounts(units: readonly ReactorUnit[]): {
       counts[unit.status]++
     return counts
   }, [units])
-}
-
-function timeAgo(iso: string): string {
-  const then = Date.parse(iso)
-  if (Number.isNaN(then))
-    return ''
-  const delta = Math.max(0, Date.now() - then)
-  const m = Math.floor(delta / 60_000)
-  if (m < 1)
-    return 'just now'
-  if (m < 60)
-    return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24)
-    return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
 }
 
 function secondsBetween(startIso: string, endIso: string): number {

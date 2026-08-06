@@ -79,7 +79,7 @@ export const SkillInputSourceProvider = z.object({
 })
 export type SkillInputSourceProvider = z.infer<typeof SkillInputSourceProvider>
 
-/** Clarification tickets, filtered by status. Defaults to all statuses. */
+/** Clarifications, filtered by status. Defaults to all statuses. */
 export const SkillInputClarificationProvider = z.object({
   kind: z.literal('clarify'),
   filter: z.object({

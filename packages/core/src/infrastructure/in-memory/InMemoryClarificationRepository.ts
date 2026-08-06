@@ -8,30 +8,30 @@ export class InMemoryClarificationRepository implements ClarificationRepository 
   private readonly store = new InMemoryKeyedStore<ClarificationId, Clarification>('Clarification')
 
   async list(filter?: ClarificationFilter): Promise<Clarification[]> {
-    let tickets = this.store.listAll()
+    let clarifications = this.store.listAll()
     if (filter?.workspaceId !== undefined) {
       const wsId = filter.workspaceId
-      tickets = tickets.filter(ticket => ticket.workspaceId === wsId)
+      clarifications = clarifications.filter(clarification => clarification.workspaceId === wsId)
     }
     if (filter?.statuses && filter.statuses.length > 0) {
       const statuses = filter.statuses
-      tickets = tickets.filter(ticket => statuses.includes(ticket.status))
+      clarifications = clarifications.filter(clarification => statuses.includes(clarification.status))
     }
     if (filter?.viewerId !== undefined) {
       const viewerId = filter.viewerId
       const includeServiceOwned = filter.includeServiceOwned ?? false
-      tickets = tickets.filter(ticket =>
-        ticket.status !== 'pending' || ticket.owner === viewerId || (includeServiceOwned && ticket.ownerKind === 'service'),
+      clarifications = clarifications.filter(clarification =>
+        clarification.status !== 'pending' || clarification.owner === viewerId || (includeServiceOwned && clarification.ownerKind === 'service'),
       )
     }
-    return paginate(tickets, filter?.limit, filter?.offset)
+    return paginate(clarifications, filter?.limit, filter?.offset)
   }
 
   async load(clarificationId: ClarificationId): Promise<Clarification> {
     return this.store.get(clarificationId)
   }
 
-  async save(ticket: Clarification): Promise<void> {
-    this.store.set(ticket.id, ticket)
+  async save(clarification: Clarification): Promise<void> {
+    this.store.set(clarification.id, clarification)
   }
 }

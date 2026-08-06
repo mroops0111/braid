@@ -1,5 +1,6 @@
 import type { PairedCall } from './groupTranscript'
 import { ChevronRight } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { ToolCallRow } from './ToolCallRow'
 
 interface ToolGroupProps {
@@ -7,6 +8,7 @@ interface ToolGroupProps {
 }
 
 export function ToolGroup({ calls }: ToolGroupProps) {
+  const { t } = useTranslation()
   if (calls.length === 1)
     return <ToolCallRow paired={calls[0]!} />
 
@@ -16,17 +18,13 @@ export function ToolGroup({ calls }: ToolGroupProps) {
       <summary className="flex cursor-pointer list-none items-center gap-1.5 px-2 py-1 marker:hidden hover:bg-accent/40">
         <ChevronRight className="size-3 shrink-0 text-muted-foreground transition-transform duration-150 group-open:rotate-90" />
         <span className="text-amber-400">
-          {calls.length}
-          {' '}
-          tool calls
+          {t('transcript.toolGroup.toolCallCount', { count: calls.length })}
         </span>
         {failed > 0 && (
           <span className="text-red-400">
             ·
             {' '}
-            {failed}
-            {' '}
-            failed
+            {t('transcript.toolGroup.failedCount', { count: failed })}
           </span>
         )}
       </summary>

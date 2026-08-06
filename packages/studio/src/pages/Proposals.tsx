@@ -2,6 +2,7 @@ import type { EdgeId, GraphEdgeCreate, GraphNodeCreate, GraphOperation, NodeId, 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, AlertTriangle, Check, ChevronDown, ChevronRight, Inbox, Info, MinusCircle, PencilLine, PlusCircle, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
 import { useProposalGraphDataSource } from '@/components/graph/GraphDataSource'
 import { FocusToggle, OnlyChangesToggle } from '@/components/graph/GraphToolbar'
@@ -36,22 +37,8 @@ interface ProposalsPageProps {
 
 type StatusFilter = Extract<ProposalStatus, 'pending' | 'applied' | 'rejected'>
 
-const EMPTY_COPY: Record<StatusFilter, { title: string, description: string }> = {
-  pending: {
-    title: 'No Pending Proposals',
-    description: 'Run /ddd:extract or /ddd:clarify to produce graph mutations awaiting HITL review.',
-  },
-  applied: {
-    title: 'No Applied Proposals',
-    description: 'Proposals you accept will land here as a permanent record.',
-  },
-  rejected: {
-    title: 'No Rejected Proposals',
-    description: 'Proposals you reject will land here so you can re-read the reason later.',
-  },
-}
-
 export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed }: ProposalsPageProps) {
+  const { t } = useTranslation()
   // Status filter is both the list query and the detail pane's read-only cue.
   // Switching status clears the selected proposal,
   // so the right pane cannot show an item that no longer matches.
@@ -123,7 +110,7 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
           <>
             {isLoading
               ? (
-                  <div className="p-4 text-sm text-muted-foreground">Loading…</div>
+                  <div className="p-4 text-sm text-muted-foreground">{t('common.loading')}</div>
                 )
               : !data || data.items.length === 0
                   ? null
@@ -141,11 +128,7 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
                               <StatusBadge status={proposal.status} />
                             </div>
                             <div className="text-2xs text-muted-foreground">
-                              {proposal.operations.length}
-                              {' '}
-                              ops · by
-                              {' '}
-                              {proposal.generatedBy}
+                              {t('review.proposals.operationsBy', { count: proposal.operations.length, name: proposal.generatedBy })}
                             </div>
                           </ListRow>
                         ))}
@@ -167,13 +150,13 @@ export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed 
             : (
                 <EmptyState
                   icon={Inbox}
-                  title={data?.items.length ? 'Pick a Proposal' : EMPTY_COPY[status].title}
+                  title={data?.items.length ? t('review.proposals.pickTitle') : t(`review.proposals.empty.${status}.title`)}
                   description={
                     data?.items.length
                       ? status === 'pending'
-                        ? 'Select a proposal on the left to review the operations and apply or reject it.'
-                        : 'Select a proposal on the left to review the operations and rationale.'
-                      : EMPTY_COPY[status].description
+                        ? t('review.proposals.pickPendingDescription')
+                        : t('review.proposals.pickTerminalDescription')
+                      : t(`review.proposals.empty.${status}.description`)
                   }
                 />
               )}
@@ -201,6 +184,7 @@ function ShowAllToggle({
   showAll: boolean
   onToggle: (next: boolean) => void
 }) {
+  const { t } = useTranslation()
   const { effectiveRole } = useWorkspacePolicy(workspaceId)
   const { data: members } = useWorkspaceMembers(workspaceId)
   // Nothing to disambiguate on a solo workspace, every proposal is yours.
@@ -213,9 +197,9 @@ function ShowAllToggle({
       size="sm"
       className="h-7 text-2xs"
       onClick={() => onToggle(!showAll)}
-      title={showAll ? 'Showing pending proposals from every member' : 'Showing only your own pending proposals'}
+      title={showAll ? t('review.proposals.showingAllTooltip') : t('review.proposals.mineOnlyTooltip')}
     >
-      {showAll ? 'Showing All' : 'Mine Only'}
+      {showAll ? t('review.proposals.showingAll') : t('review.proposals.mineOnly')}
     </Button>
   )
 }
@@ -234,21 +218,22 @@ function ProposalsStatusFilter({
   status: StatusFilter
   onChange: (next: StatusFilter) => void
 }) {
+  const { t } = useTranslation()
   const { data: pending } = useProposalsByStatus(workspaceId, 'pending')
   const pendingCount = pending?.items.length ?? 0
   return (
     <Tabs value={status} onValueChange={value => onChange(value as StatusFilter)}>
       <TabsList className={FILTER_TABS_LIST}>
         <TabsTrigger value="pending" className={FILTER_TAB_TRIGGER}>
-          Pending
+          {t('review.proposals.tabPending')}
           {pendingCount > 0 && (
             <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-2xs font-medium leading-none text-primary">
               {pendingCount}
             </span>
           )}
         </TabsTrigger>
-        <TabsTrigger value="applied" className={FILTER_TAB_TRIGGER}>Applied</TabsTrigger>
-        <TabsTrigger value="rejected" className={FILTER_TAB_TRIGGER}>Rejected</TabsTrigger>
+        <TabsTrigger value="applied" className={FILTER_TAB_TRIGGER}>{t('review.proposals.tabApplied')}</TabsTrigger>
+        <TabsTrigger value="rejected" className={FILTER_TAB_TRIGGER}>{t('review.proposals.tabRejected')}</TabsTrigger>
       </TabsList>
     </Tabs>
   )
@@ -263,6 +248,7 @@ function ProposalDetail({
   proposal: Proposal
   onComplete: () => void
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [rejectReason, setRejectReason] = useState('')
   const [rejectOpen, setRejectOpen] = useState(false)
@@ -301,7 +287,7 @@ function ProposalDetail({
   })
 
   const applyTitle = blockedByErrors
-    ? `Cannot apply: ${errorCount} validation error${errorCount === 1 ? '' : 's'} must be resolved first.`
+    ? t('review.proposals.applyBlockedTitle', { count: errorCount })
     : undefined
 
   const title = firstSentence(proposal.rationale)
@@ -326,7 +312,7 @@ function ProposalDetail({
                 title={applyTitle}
               >
                 <Check />
-                Apply
+                {t('common.apply')}
               </Button>
               <Button
                 variant="destructive"
@@ -335,7 +321,7 @@ function ProposalDetail({
                 onClick={() => setRejectOpen(open => !open)}
               >
                 <X />
-                Reject
+                {t('common.reject')}
               </Button>
             </>
           )}
@@ -389,6 +375,7 @@ function firstSentence(text: string): string {
 }
 
 function RationaleSection({ text, firstSentence: shown }: { text: string, firstSentence: string }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const rest = text.trim().slice(shown.length).trim()
   if (!rest)
@@ -401,7 +388,7 @@ function RationaleSection({ text, firstSentence: shown }: { text: string, firstS
         className="flex items-center gap-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
       >
         {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-        Rationale
+        {t('review.proposals.rationale')}
       </button>
       {open && (
         <p className="mt-1.5 whitespace-pre-wrap rounded-md border border-border bg-card px-3 py-2 text-xs text-foreground/90">
@@ -418,15 +405,14 @@ function ValidationPanel({ isLoading, error, issues, ok }: {
   issues: readonly ValidationIssue[]
   ok: boolean | null
 }) {
+  const { t } = useTranslation()
   if (isLoading) {
-    return <p className="px-4 pt-3 text-2xs text-muted-foreground">Validating against the current graph…</p>
+    return <p className="px-4 pt-3 text-2xs text-muted-foreground">{t('review.proposals.validating')}</p>
   }
   if (error) {
     return (
       <p className="mx-4 mt-3 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-2xs text-destructive">
-        Validation request failed:
-        {' '}
-        {error instanceof Error ? error.message : String(error)}
+        {t('review.proposals.validationRequestFailed', { message: error instanceof Error ? error.message : String(error) })}
       </p>
     )
   }
@@ -435,9 +421,9 @@ function ValidationPanel({ isLoading, error, issues, ok }: {
       <div className="mx-4 mt-3 flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400">
         <Check className="size-4 shrink-0" />
         <span>
-          <strong className="font-semibold">No validation issues.</strong>
+          <strong className="font-semibold">{t('review.proposals.noIssues')}</strong>
           {' '}
-          Safe to apply.
+          {t('review.proposals.safeToApply')}
         </span>
       </div>
     )
@@ -501,6 +487,7 @@ function IssueGroup({ severity, issues }: { severity: ValidationSeverity, issues
 // When a GraphNavigation context is in scope,
 // nodeId and edgeId become buttons that switch to the Graph tab.
 function IssueTarget({ issue }: { issue: ValidationIssue }) {
+  const { t } = useTranslation()
   const nav = useGraphNavigation()
   if (!issue.nodeId && !issue.edgeId && !issue.path)
     return null
@@ -514,7 +501,7 @@ function IssueTarget({ issue }: { issue: ValidationIssue }) {
           type="button"
           onClick={() => nav.focusNode(nodeId)}
           className={linkClass}
-          title="Open in Graph"
+          title={t('review.proposals.openInGraphButton')}
         >
           {issue.nodeId}
         </button>
@@ -530,7 +517,7 @@ function IssueTarget({ issue }: { issue: ValidationIssue }) {
           type="button"
           onClick={() => nav.focusEdge(edgeId)}
           className={linkClass}
-          title="Open in Graph"
+          title={t('review.proposals.openInGraphButton')}
         >
           {issue.edgeId}
         </button>
@@ -553,29 +540,30 @@ function RejectForm({ value, onChange, onCancel, onSubmit, isPending }: {
   onSubmit: () => void
   isPending: boolean
 }) {
+  const { t } = useTranslation()
   const hasReason = value.trim().length > 0
   return (
     <div className="mx-4 mt-3 space-y-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2">
       <label className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Reject Reason
+        {t('review.proposals.rejectReasonLabel')}
       </label>
       <textarea
         autoFocus
         value={value}
         onChange={e => onChange(e.target.value)}
         rows={3}
-        placeholder="Why are you rejecting this proposal? Pasted into the decision log; useful for skill iteration."
+        placeholder={t('review.proposals.rejectReasonPlaceholder')}
         className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
       />
       <div className="flex justify-end gap-2">
-        <Button variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
+        <Button variant="ghost" size="sm" onClick={onCancel}>{t('common.cancel')}</Button>
         <Button
           variant="destructive"
           size="sm"
           disabled={!hasReason || isPending}
           onClick={onSubmit}
         >
-          {isPending ? 'Rejecting…' : 'Submit Rejection'}
+          {isPending ? t('review.proposals.rejecting') : t('review.proposals.submitRejectionButton')}
         </Button>
       </div>
     </div>
@@ -604,6 +592,7 @@ type PreviewView = 'graph' | 'list'
 const INCREMENTAL_RATIO_THRESHOLD = 0.3
 
 function ProposalPreview({ workspaceId, operations }: { workspaceId: string, operations: readonly GraphOperation[] }) {
+  const { t } = useTranslation()
   // Proposal preview pairs the graph visualization with a flat list view.
   // We manage `view` here,
   // and delegate the graph view to GraphSurface.
@@ -636,10 +625,7 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
       <div className="flex shrink-0 items-center justify-between px-4 pt-3 pb-2">
         <div className="flex items-baseline gap-2">
           <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Preview (
-            {flat.length}
-            {' '}
-            ops)
+            {t('review.proposals.previewTitle', { count: flat.length })}
           </h3>
           <ProposalImpactSummary adds={addCount} updates={updateCount} removes={removeCount} />
         </div>
@@ -650,9 +636,9 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
           {selectedNodeId && view !== 'list' && (
             <FocusToggle active={focusMode} onChange={setFocusMode} />
           )}
-          <div role="tablist" aria-label="Preview view" className="inline-flex items-center gap-0.5 rounded border border-border bg-card p-0.5">
-            <ViewTab active={view === 'graph'} onClick={() => setView('graph')}>Graph</ViewTab>
-            <ViewTab active={view === 'list'} onClick={() => setView('list')}>List</ViewTab>
+          <div role="tablist" aria-label={t('review.proposals.previewViewLabel')} className="inline-flex items-center gap-0.5 rounded border border-border bg-card p-0.5">
+            <ViewTab active={view === 'graph'} onClick={() => setView('graph')}>{t('review.proposals.viewGraph')}</ViewTab>
+            <ViewTab active={view === 'list'} onClick={() => setView('list')}>{t('review.proposals.viewList')}</ViewTab>
           </div>
         </div>
       </div>
@@ -685,26 +671,27 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
  * such as a model audit fix that adds 4 edges and changes nothing else.
  */
 function ProposalImpactSummary({ adds, updates, removes }: { adds: number, updates: number, removes: number }) {
+  const { t } = useTranslation()
   const total = adds + updates + removes
   if (total === 0) {
-    return <span className="text-2xs text-muted-foreground/70">empty</span>
+    return <span className="text-2xs text-muted-foreground/70">{t('review.proposals.impactEmpty')}</span>
   }
   return (
     <span className="flex items-baseline gap-1.5 text-2xs font-mono">
       {adds > 0 && (
-        <span className="text-emerald-600 dark:text-emerald-400" title={`${adds} added`}>
+        <span className="text-emerald-600 dark:text-emerald-400" title={t('review.proposals.addedCount', { count: adds })}>
           +
           {adds}
         </span>
       )}
       {updates > 0 && (
-        <span className="text-amber-600 dark:text-amber-400" title={`${updates} updated`}>
+        <span className="text-amber-600 dark:text-amber-400" title={t('review.proposals.updatedCount', { count: updates })}>
           ~
           {updates}
         </span>
       )}
       {removes > 0 && (
-        <span className="text-destructive" title={`${removes} removed`}>
+        <span className="text-destructive" title={t('review.proposals.removedCount', { count: removes })}>
           −
           {removes}
         </span>
@@ -714,13 +701,14 @@ function ProposalImpactSummary({ adds, updates, removes }: { adds: number, updat
 }
 
 function OperationList({ flat }: { flat: readonly FlatOp[] }) {
+  const { t } = useTranslation()
   const adds = flat.filter(op => op.kind === 'add')
   const updates = flat.filter(op => op.kind === 'update')
   const removes = flat.filter(op => op.kind === 'remove')
   if (flat.length === 0) {
     return (
       <p className="mx-4 mt-2 rounded-md border border-border bg-card px-3 py-2 text-2xs text-muted-foreground">
-        No operations in this proposal.
+        {t('review.proposals.noOperations')}
       </p>
     )
   }
@@ -859,20 +847,21 @@ function flatUpdateEdge(id: string, patch: Record<string, unknown>): FlatOp {
   }
 }
 
-const OPERATION_PALETTE: Record<FlatOp['kind'], { icon: typeof PlusCircle, label: string, ring: string, text: string }> = {
-  add: { icon: PlusCircle, label: 'Added', ring: 'border-emerald-500/40 bg-emerald-500/5', text: 'text-emerald-600 dark:text-emerald-400' },
-  update: { icon: PencilLine, label: 'Updated', ring: 'border-amber-500/40 bg-amber-500/5', text: 'text-amber-600 dark:text-amber-400' },
-  remove: { icon: MinusCircle, label: 'Removed', ring: 'border-destructive/40 bg-destructive/5', text: 'text-destructive' },
+const OPERATION_PALETTE: Record<FlatOp['kind'], { icon: typeof PlusCircle, ring: string, text: string }> = {
+  add: { icon: PlusCircle, ring: 'border-emerald-500/40 bg-emerald-500/5', text: 'text-emerald-600 dark:text-emerald-400' },
+  update: { icon: PencilLine, ring: 'border-amber-500/40 bg-amber-500/5', text: 'text-amber-600 dark:text-amber-400' },
+  remove: { icon: MinusCircle, ring: 'border-destructive/40 bg-destructive/5', text: 'text-destructive' },
 }
 
 function OperationGroup({ kind, ops }: { kind: FlatOp['kind'], ops: readonly FlatOp[] }) {
+  const { t } = useTranslation()
   const palette = OPERATION_PALETTE[kind]
   const Icon = palette.icon
   return (
     <div className={`rounded-md border ${palette.ring}`}>
       <div className={`flex items-center gap-1.5 border-b border-border/50 px-3 py-1.5 text-2xs font-semibold uppercase tracking-wider ${palette.text}`}>
         <Icon className="size-3" />
-        {palette.label}
+        {t(`review.proposals.operationLabels.${kind}`)}
         {' '}
         (
         {ops.length}

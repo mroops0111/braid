@@ -23,7 +23,7 @@ export type ClarificationStatus = z.infer<typeof ClarificationStatus>
 export const ClarificationOrigin = z.enum(['skill', 'human'])
 export type ClarificationOrigin = z.infer<typeof ClarificationOrigin>
 
-/** Human picks this when filing to steer the AI. Skill tickets leave it unset. */
+/** Human picks this when filing to steer the AI. Skill clarifications leave it unset. */
 export const ClarificationAmbiguityType = z.enum(['gap', 'contradiction', 'ambiguous', 'assumption'])
 export type ClarificationAmbiguityType = z.infer<typeof ClarificationAmbiguityType>
 
@@ -49,13 +49,13 @@ export const Clarification = z.object({
   // Display-name snapshot at submit time. Absent for the 'system' owner.
   ownerDisplayName: z.string().min(1).optional(),
   // Owner's kind snapshotted at submit time.
-  // Absent means a human's private ticket, 'service' is autonomous and owner-visible.
+  // Absent means a human's private clarification, 'service' is autonomous and owner-visible.
   ownerKind: UserKind.optional(),
   // Set when the resolution becomes a Proposal, so the UI can link the two.
   proposalId: ProposalId.optional(),
   externalReferences: z.array(ExternalReference).optional(),
   origin: ClarificationOrigin,
-  // Free-form background on a human-filed issue. Skill tickets leave it empty.
+  // Free-form background on a human-filed issue. Skill clarifications leave it empty.
   context: z.string().max(2000).optional(),
   // Node the human believes the issue concerns, to help the AI scope its resolution.
   relatedNode: NodeId.optional(),
@@ -76,7 +76,7 @@ export const ClarificationCreate = z.object({
 export type ClarificationCreate = z.infer<typeof ClarificationCreate>
 
 /**
- * The POST body for creating a ticket. Workspace comes from the path,
+ * The POST body for creating a clarification. Workspace comes from the path,
  * and human-authored candidates omit their id for the server to mint.
  */
 export const ClarificationCreateBody = ClarificationCreate
@@ -89,7 +89,7 @@ export const ClarificationFilter = z.object({
   statuses: z.array(ClarificationStatus).optional(),
   limit: z.number().int().positive().optional(),
   offset: z.number().int().nonnegative().optional(),
-  // When set, hides others' pending tickets. Non-pending stay visible, absent shows all.
+  // When set, hides others' pending clarifications. Non-pending stay visible, absent shows all.
   viewerId: UserId.optional(),
   // Owner-only, also shows service-owned (autonomous) pending to this viewer.
   includeServiceOwned: z.boolean().optional(),

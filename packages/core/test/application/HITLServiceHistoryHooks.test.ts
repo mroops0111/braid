@@ -65,7 +65,7 @@ async function setupWithHistory(options: { withHistory?: boolean } = {}) {
   return { service, history, serializer, workspaceId: workspace.id, workspace, proposalRepository, clarificationRepository, clock }
 }
 
-function makeAnsweredTicket(workspaceId: WorkspaceId): Clarification {
+function makeAnsweredClarification(workspaceId: WorkspaceId): Clarification {
   return new Clarification({
     id: mintTestId('ct') as ClarificationId,
     workspaceId,
@@ -80,7 +80,7 @@ function makeAnsweredTicket(workspaceId: WorkspaceId): Clarification {
   })
 }
 
-function makePendingTicket(workspaceId: WorkspaceId): Clarification {
+function makePendingClarification(workspaceId: WorkspaceId): Clarification {
   return new Clarification({
     id: mintTestId('ct') as ClarificationId,
     workspaceId,
@@ -127,7 +127,7 @@ describe('HITLService — workspace history hooks', () => {
 
   it('submitClarification commits with kind=clarification-submit', async () => {
     const { service, history, workspaceId } = await setupWithHistory()
-    const ticket = await service.submitClarification({
+    const clarification = await service.submitClarification({
       workspaceId,
       question: 'agg or entity?',
       candidates: [],
@@ -135,7 +135,7 @@ describe('HITLService — workspace history hooks', () => {
     expect(history.commit).toHaveBeenCalledTimes(1)
     const message = history.commit.mock.calls[0]![1]
     expect(message.kind).toBe('clarification-submit')
-    expect(message.clarificationId).toBe(ticket.id)
+    expect(message.clarificationId).toBe(clarification.id)
   })
 
   it('applyProposal serialises the post-mutation graph then commits with kind proposal-apply', async () => {
@@ -171,11 +171,11 @@ describe('HITLService — workspace history hooks', () => {
 
   it('answerClarification commits with kind=clarification-answer', async () => {
     const { service, history, workspaceId, clarificationRepository } = await setupWithHistory()
-    const ticket = makePendingTicket(workspaceId)
-    await clarificationRepository.save(ticket)
+    const clarification = makePendingClarification(workspaceId)
+    await clarificationRepository.save(clarification)
 
     await service.answerClarification({
-      clarificationId: ticket.id,
+      clarificationId: clarification.id,
       selection: { kind: 'existing', candidateId },
       userId,
     })
@@ -183,34 +183,34 @@ describe('HITLService — workspace history hooks', () => {
     expect(history.commit).toHaveBeenCalledTimes(1)
     const message = history.commit.mock.calls[0]![1]
     expect(message.kind).toBe('clarification-answer')
-    expect(message.clarificationId).toBe(ticket.id)
+    expect(message.clarificationId).toBe(clarification.id)
   })
 
   it('markClarificationApplied commits with kind=clarification-apply and stamps proposalId when present', async () => {
     const { service, history, workspaceId, clarificationRepository } = await setupWithHistory()
-    const ticket = makeAnsweredTicket(workspaceId)
-    await clarificationRepository.save(ticket)
+    const clarification = makeAnsweredClarification(workspaceId)
+    await clarificationRepository.save(clarification)
     const proposalId = mintTestId('p') as ProposalId
 
-    await service.markClarificationApplied(ticket.id, userId, proposalId)
+    await service.markClarificationApplied(clarification.id, userId, proposalId)
 
     expect(history.commit).toHaveBeenCalledTimes(1)
     const message = history.commit.mock.calls[0]![1]
     expect(message.kind).toBe('clarification-apply')
-    expect(message.clarificationId).toBe(ticket.id)
+    expect(message.clarificationId).toBe(clarification.id)
     expect(message.proposalId).toBe(proposalId)
   })
 
   it('skipClarification commits with kind=clarification-skip', async () => {
     const { service, history, workspaceId, clarificationRepository } = await setupWithHistory()
-    const ticket = makePendingTicket(workspaceId)
-    await clarificationRepository.save(ticket)
+    const clarification = makePendingClarification(workspaceId)
+    await clarificationRepository.save(clarification)
 
-    await service.skipClarification(ticket.id, 'not relevant', userId)
+    await service.skipClarification(clarification.id, 'not relevant', userId)
 
     expect(history.commit).toHaveBeenCalledTimes(1)
     expect(history.commit.mock.calls[0]![1].kind).toBe('clarification-skip')
-    expect(history.commit.mock.calls[0]![1].clarificationId).toBe(ticket.id)
+    expect(history.commit.mock.calls[0]![1].clarificationId).toBe(clarification.id)
   })
 
   it('skips git hooks entirely when deps are absent (in-process / test mode)', async () => {

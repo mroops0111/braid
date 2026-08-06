@@ -1,6 +1,8 @@
 import type { SkillManifest, SkillPermission, WorkspaceMember } from '@braidhq/schema'
+import type { TFunction } from 'i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, Minus, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import { api } from '@/lib/api'
 import { queryKeys, useMe, useSkills, useUsers, useWorkspaceMembers } from '@/lib/queries'
@@ -29,6 +31,7 @@ function SectionHeader({ title }: SectionHeaderProps) {
 }
 
 export function WorkspaceSkillPermissions({ workspaceId }: { workspaceId: string }) {
+  const { t } = useTranslation()
   const { data: members, isLoading: membersLoading } = useWorkspaceMembers(workspaceId)
   const { data: skills, isLoading: skillsLoading } = useSkills(workspaceId)
   const { data: allUsers } = useUsers()
@@ -37,8 +40,8 @@ export function WorkspaceSkillPermissions({ workspaceId }: { workspaceId: string
   if (membersLoading || skillsLoading) {
     return (
       <section>
-        <SectionHeader title="Skill Permissions" />
-        <p className="mt-2 text-2xs text-muted-foreground">Loading…</p>
+        <SectionHeader title={t('workspace.permissions.title')} />
+        <p className="mt-2 text-2xs text-muted-foreground">{t('common.loading')}</p>
       </section>
     )
   }
@@ -55,11 +58,11 @@ export function WorkspaceSkillPermissions({ workspaceId }: { workspaceId: string
   if (visibleMembers.length === 0 || visibleSkills.length === 0) {
     return (
       <section>
-        <SectionHeader title="Skill Permissions" />
+        <SectionHeader title={t('workspace.permissions.title')} />
         <p className="mt-2 text-2xs text-muted-foreground">
           {visibleMembers.length === 0
-            ? 'No Maintainers or Guests to manage. Owners always have full access.'
-            : 'No skills available in this workspace.'}
+            ? t('workspace.permissions.noMembers')
+            : t('workspace.permissions.noSkills')}
         </p>
       </section>
     )
@@ -67,17 +70,17 @@ export function WorkspaceSkillPermissions({ workspaceId }: { workspaceId: string
 
   return (
     <section>
-      <SectionHeader title="Skill Permissions" />
+      <SectionHeader title={t('workspace.permissions.title')} />
       <p className="mt-1 text-2xs text-muted-foreground">
-        Click a cell to cycle inherit, allow, deny. Inherit uses the skill's role default.
+        {t('workspace.permissions.cycleHint')}
       </p>
       <div className="mt-2 overflow-x-auto rounded-md border border-border">
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-border bg-card/40 text-left text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <th className="sticky left-0 bg-card/40 px-3 py-1.5">Member</th>
+              <th className="sticky left-0 bg-card/40 px-3 py-1.5">{t('workspace.permissions.memberLabel')}</th>
               {visibleSkills.map(skill => (
-                <th key={skill.id} className="px-2 py-1.5 text-center" title={skillTooltip(skill)}>
+                <th key={skill.id} className="px-2 py-1.5 text-center" title={skillTooltip(skill, t)}>
                   <div className="font-mono">{skill.id.replace(/^braid-/, '')}</div>
                 </th>
               ))}
@@ -112,6 +115,7 @@ function PermissionRow({ workspaceId, member, displayName, skills, isMe, isLast 
   isMe: boolean
   isLast: boolean
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const patch = useMutation({
     mutationFn: (nextOverrides: Record<string, SkillPermission>) =>
@@ -143,7 +147,7 @@ function PermissionRow({ workspaceId, member, displayName, skills, isMe, isLast 
           <span className="truncate text-foreground/90">{displayName}</span>
           {isMe && (
             <span className="rounded bg-primary/15 px-1 py-0.5 text-2xs uppercase tracking-wider text-primary">
-              You
+              {t('workspace.permissions.currentUserLabel')}
             </span>
           )}
           <Badge variant="outline" className="text-2xs uppercase tracking-wider text-muted-foreground">
@@ -161,7 +165,7 @@ function PermissionRow({ workspaceId, member, displayName, skills, isMe, isLast 
               onClick={() => flip(skill.id)}
               disabled={patch.isPending}
               className="inline-flex size-6 items-center justify-center rounded transition-colors hover:bg-accent disabled:opacity-50"
-              title={cellTooltip(state, allowedByDefault, member.role)}
+              title={cellTooltip(state, allowedByDefault, member.role, t)}
             >
               <CellIcon state={state} allowedByDefault={allowedByDefault} />
             </button>
@@ -184,16 +188,17 @@ function CellIcon({ state, allowedByDefault }: { state: CellState, allowedByDefa
   )
 }
 
-function skillTooltip(skill: SkillManifest): string {
-  return `Default: ${skill.frontmatter.braid.allowedRoles.join(', ')}`
+function skillTooltip(skill: SkillManifest, t: TFunction): string {
+  return t('workspace.permissions.defaultRoles', { roles: skill.frontmatter.braid.allowedRoles.join(', ') })
 }
 
-function cellTooltip(state: CellState, allowedByDefault: boolean, role: string): string {
+function cellTooltip(state: CellState, allowedByDefault: boolean, role: string, t: TFunction): string {
   if (state === 'allow')
-    return 'Override: allow'
+    return t('workspace.permissions.overrideAllow')
   if (state === 'deny')
-    return 'Override: deny'
-  return `Inherit (${allowedByDefault ? 'allowed' : 'denied'} for ${role})`
+    return t('workspace.permissions.overrideDeny')
+  const stateLabel = allowedByDefault ? t('workspace.permissions.allowedLabel') : t('workspace.permissions.deniedLabel')
+  return t('workspace.permissions.inheritTooltip', { state: stateLabel, role })
 }
 
 function orderSkillsForGrid(skills: SkillManifest[]): SkillManifest[] {

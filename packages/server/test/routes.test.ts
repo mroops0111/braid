@@ -221,7 +221,7 @@ describe('GET /workspaces/:ws/proposals', () => {
 })
 
 describe('POST /workspaces/:ws/clarifications/:id/answer', () => {
-  it('returns 404 when the ticket does not exist', async () => {
+  it('returns 404 when the clarification does not exist', async () => {
     const { app } = await buildTestApp()
 
     const response = await app.request(`/workspaces/${workspaceId}/clarifications/missing/answer`, {
@@ -257,7 +257,7 @@ describe('POST /workspaces/:ws/clarifications/:id/answer', () => {
     expect(response.status).toBe(400)
   })
 
-  it('appends a custom candidate to the ticket and answers with it in one round-trip', async () => {
+  it('appends a custom candidate to the clarification and answers with it in one round-trip', async () => {
     const { app, deps } = await buildTestApp()
     await deps.clarificationRepository.save(makeClarification(workspaceId, {
       id: 'ct-custom',
@@ -284,7 +284,7 @@ describe('POST /workspaces/:ws/clarifications/:id/answer', () => {
 })
 
 describe('PATCH /workspaces/:ws/clarifications/:id', () => {
-  it('moves an answered ticket to applied and stamps proposalId', async () => {
+  it('moves an answered clarification to applied and stamps proposalId', async () => {
     const { app, deps } = await buildTestApp()
     await deps.clarificationRepository.save(makeClarification(workspaceId, { id: 'ct-link', status: 'answered' }))
 
@@ -304,7 +304,7 @@ describe('PATCH /workspaces/:ws/clarifications/:id', () => {
     expect(reloaded.proposalId).toBe('p-99')
   })
 
-  it('moves an answered ticket to applied without proposalId for no-impact resolutions', async () => {
+  it('moves an answered clarification to applied without proposalId for no-impact resolutions', async () => {
     const { app, deps } = await buildTestApp()
     await deps.clarificationRepository.save(makeClarification(workspaceId, { id: 'ct-noop', status: 'answered' }))
 
@@ -337,7 +337,7 @@ describe('PATCH /workspaces/:ws/clarifications/:id', () => {
     expect(response.status).toBe(400)
   })
 
-  it('returns 409 when ticket has not been answered yet', async () => {
+  it('returns 409 when clarification has not been answered yet', async () => {
     const { app, deps } = await buildTestApp()
     await deps.clarificationRepository.save(makeClarification(workspaceId, { id: 'ct-pending', status: 'pending' }))
 
@@ -352,7 +352,7 @@ describe('PATCH /workspaces/:ws/clarifications/:id', () => {
 })
 
 describe('POST /workspaces/:ws/clarifications/:id/skip', () => {
-  it('marks the ticket as skipped', async () => {
+  it('marks the clarification as skipped', async () => {
     const { app, deps } = await buildTestApp()
     await deps.clarificationRepository.save(makeClarification(workspaceId, { id: 'ct-1', status: 'pending' }))
 
