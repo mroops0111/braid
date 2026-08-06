@@ -70,8 +70,8 @@
 
 @theme inline {
   --font-sans:
-    "Geist Variable", "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Text",
-    system-ui, sans-serif;
+    "Geist Variable", "Geist", "Noto Sans TC Variable", "Noto Sans TC",
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
   --font-mono:
     "Geist Mono Variable", "Geist Mono", "SF Mono", "Menlo", "Consolas",
     monospace;

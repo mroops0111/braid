@@ -1,5 +1,6 @@
 import { Check, Globe, Laptop, Loader2, LogIn, LogOut, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,16 +18,17 @@ import {
 import { DEFAULT_SERVER_URL, getServerUrlFor } from '@/lib/serverUrl'
 
 export function ServersTab() {
+  const { t } = useTranslation()
   const remotes = useRemotes()
   const activeId = useActiveRemoteId()
   return (
     <div className="space-y-6">
       <section className="space-y-2">
-        <h2 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">Connections</h2>
+        <h2 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{t('admin.servers.connections')}</h2>
         <ul className="space-y-2">
           <ServerRow
             id={LOCAL_REMOTE_ID}
-            name="Local"
+            name={t('admin.servers.localName')}
             url={getServerUrlFor(LOCAL_REMOTE_ID)}
             isLocal
             isActive={activeId === LOCAL_REMOTE_ID}
@@ -56,6 +58,7 @@ interface ServerRowProps {
 }
 
 function ServerRow({ id, name, url, isLocal, isActive }: ServerRowProps) {
+  const { t } = useTranslation()
   const token = isLocal ? null : getTokenFor(id)
   const connected = isLocal || !!token
   const [armedForRemove, setArmedForRemove] = useState(false)
@@ -93,17 +96,17 @@ function ServerRow({ id, name, url, isLocal, isActive }: ServerRowProps) {
             <span className="truncate text-sm">{name}</span>
             {isActive && (
               <Badge variant="outline" className="bg-primary/15 text-2xs uppercase tracking-wider text-primary">
-                Active
+                {t('admin.servers.active')}
               </Badge>
             )}
             {!isActive && connected && (
               <Badge variant="outline" className="bg-emerald-500/15 text-2xs uppercase tracking-wider text-emerald-400">
-                Connected
+                {t('admin.servers.connected')}
               </Badge>
             )}
             {!connected && (
               <Badge variant="outline" className="text-2xs uppercase tracking-wider text-muted-foreground">
-                Not signed in
+                {t('admin.servers.notSignedIn')}
               </Badge>
             )}
           </div>
@@ -114,19 +117,19 @@ function ServerRow({ id, name, url, isLocal, isActive }: ServerRowProps) {
             {!isActive && connected && (
               <Button variant="ghost" size="sm" className="h-7 text-2xs" onClick={activate}>
                 <Check className="mr-1 size-3" />
-                Use This
+                {t('admin.servers.useThisButton')}
               </Button>
             )}
             {!isLocal && !connected && (
               <Button variant="default" size="sm" className="h-7 text-2xs" onClick={startSignIn}>
                 <LogIn className="mr-1 size-3" />
-                Sign In
+                {t('common.signIn')}
               </Button>
             )}
             {!isLocal && connected && (
               <Button variant="ghost" size="sm" className="h-7 text-2xs" onClick={disconnect}>
                 <LogOut className="mr-1 size-3" />
-                Sign Out
+                {t('common.signOut')}
               </Button>
             )}
             {!isLocal && (
@@ -134,8 +137,8 @@ function ServerRow({ id, name, url, isLocal, isActive }: ServerRowProps) {
                 variant="ghost"
                 size="icon"
                 onClick={() => setArmedForRemove(true)}
-                title="Remove server"
-                aria-label="Remove server"
+                title={t('admin.servers.removeServerButton')}
+                aria-label={t('admin.servers.removeServerButton')}
                 className="text-destructive hover:text-destructive"
               >
                 <Trash2 />
@@ -147,22 +150,18 @@ function ServerRow({ id, name, url, isLocal, isActive }: ServerRowProps) {
       {armedForRemove && (
         <div className="mt-2 space-y-2 border-t border-border pt-2">
           <p className="text-2xs text-muted-foreground">
-            Remove
-            {' '}
-            <span className="font-medium">{name}</span>
-            ? Stored token is cleared. Workspaces on the remote stay
-            untouched; you can add this server back later.
+            {t('admin.servers.removeConfirm', { name })}
           </p>
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" className="flex-1" onClick={() => setArmedForRemove(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               size="sm"
               className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={confirmRemove}
             >
-              Remove Permanently
+              {t('admin.servers.removePermanentlyButton')}
             </Button>
           </div>
         </div>
@@ -193,6 +192,7 @@ async function probeBraidServer(url: string): Promise<void> {
 }
 
 function AddRemoteForm() {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
@@ -211,18 +211,18 @@ function AddRemoteForm() {
     setError(null)
     const trimmedUrl = url.trim().replace(/\/$/, '')
     if (!trimmedUrl) {
-      setError('URL is required')
+      setError(t('admin.servers.urlRequired'))
       return
     }
     try {
       const parsed = new URL(trimmedUrl)
       if (!parsed.protocol.startsWith('http')) {
-        setError('URL must be http or https')
+        setError(t('admin.servers.urlMustBeHttp'))
         return
       }
     }
     catch {
-      setError('Invalid URL')
+      setError(t('admin.servers.invalidUrl'))
       return
     }
     setValidating(true)
@@ -243,15 +243,15 @@ function AddRemoteForm() {
     return (
       <Button variant="ghost" size="sm" onClick={() => setOpen(true)} className="h-7 text-2xs">
         <Plus className="mr-1 size-3" />
-        Add Remote
+        {t('admin.servers.addRemoteButton')}
       </Button>
     )
   }
   return (
     <section className="space-y-3 rounded-md border border-border p-3">
-      <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">New Server</h3>
+      <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{t('admin.servers.newServer')}</h3>
       <div className="space-y-2">
-        <Label htmlFor="add-remote-url" className="text-xs">URL</Label>
+        <Label htmlFor="add-remote-url" className="text-xs">{t('admin.servers.url')}</Label>
         <Input
           id="add-remote-url"
           autoFocus
@@ -261,20 +261,20 @@ function AddRemoteForm() {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="add-remote-name" className="text-xs">Name (optional)</Label>
+        <Label htmlFor="add-remote-name" className="text-xs">{t('admin.servers.optionalLabel')}</Label>
         <Input
           id="add-remote-name"
-          placeholder="Defaults to the host"
+          placeholder={t('admin.servers.namePlaceholder')}
           value={name}
           onChange={e => setName(e.target.value)}
         />
       </div>
       {error && <p className="text-2xs text-destructive">{error}</p>}
       <div className="flex gap-2">
-        <Button variant="ghost" size="sm" onClick={reset} className="flex-1" disabled={validating}>Cancel</Button>
+        <Button variant="ghost" size="sm" onClick={reset} className="flex-1" disabled={validating}>{t('common.cancel')}</Button>
         <Button size="sm" onClick={save} className="flex-1" disabled={validating}>
           {validating && <Loader2 className="mr-1 size-3 animate-spin" />}
-          {validating ? 'Verifying…' : 'Save'}
+          {validating ? t('admin.servers.verifying') : t('common.save')}
         </Button>
       </div>
     </section>

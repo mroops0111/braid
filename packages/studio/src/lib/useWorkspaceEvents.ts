@@ -102,7 +102,7 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
       queryClient.invalidateQueries({ queryKey: ['reactor-cycles', workspaceId], exact: false })
     }
     const invalidateCycleFinished = (): void => {
-      // Per-option badges (extracted / stale) live behind the diff endpoint.
+      // Per-option badges (processed / stale) live behind the diff endpoint.
       // Refresh them when the reactor finishes a cycle, so the dropdown's freshness chips reflect the new ledger.
       queryClient.invalidateQueries({ queryKey: ['source-unit-diff', workspaceId], exact: false })
       // Reactor writes Proposals through the per-unit skill it dispatches.

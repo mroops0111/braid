@@ -1,8 +1,10 @@
+import { FALLBACK_LOCALE } from '@braidhq/schema'
 import { createContext, useContext, useMemo } from 'react'
+import { useLocale } from '@/lib/i18n'
 import { useOntology } from '@/lib/queries'
 import { buildPalette, type OntologyPalette } from './ontologyPalette'
 
-const FALLBACK_PALETTE = buildPalette(undefined)
+const FALLBACK_PALETTE = buildPalette(undefined, FALLBACK_LOCALE)
 
 /**
  * Provided by GraphCanvas, consumed by node cards, navigator rows,
@@ -20,7 +22,8 @@ export const PaletteProvider = PaletteContext.Provider
  */
 export function usePalette(workspaceId: string): OntologyPalette {
   const { data } = useOntology(workspaceId)
-  return useMemo(() => buildPalette(data), [data])
+  const { locale } = useLocale()
+  return useMemo(() => buildPalette(data, locale), [data, locale])
 }
 
 /**

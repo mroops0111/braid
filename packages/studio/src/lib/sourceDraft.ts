@@ -1,4 +1,5 @@
 import type { SourceDescriptor } from '@braidhq/schema'
+import type { TFunction } from 'i18next'
 import { asAbsolutePath, asLoaderKind, asSourceId, asSourceRole } from './brands'
 
 export interface SourceDraft {
@@ -46,11 +47,15 @@ export const STUDIO_KNOWN_LOADER_KINDS = new Set(['git', 'github', 'gdrive'])
  * Falls back to the raw kind,
  * so a new plugin without a Studio-side label still renders sensibly.
  */
-export function loaderKindLabel(kind: string): string {
+export function loaderKindLabel(kind: string, t: TFunction): string {
   if (kind === '')
-    return 'manual (no auto-sync)'
+    return t('sources.loaderKind.manual')
   if (kind === 'github')
-    return 'github (issues)'
+    return t('sources.loaderKind.github')
+  if (kind === 'git')
+    return t('sources.loaderKind.git')
+  if (kind === 'gdrive')
+    return t('sources.loaderKind.gdrive')
   return kind
 }
 

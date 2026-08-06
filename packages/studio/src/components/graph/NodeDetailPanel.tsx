@@ -1,5 +1,6 @@
 import type { GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
 import { ArrowDownToDot, ArrowUpFromDot, FileText, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Markdown } from '@/components/SkillTranscript/Markdown'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
@@ -36,6 +37,7 @@ export function NodeDetailPanel({
   onSelectNode,
   onCenterInGraph,
 }: NodeDetailPanelProps) {
+  const { t } = useTranslation()
   const sources = node.metadata.sourceReferences ?? []
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -43,7 +45,7 @@ export function NodeDetailPanel({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close detail"
+          aria-label={t('graph.detail.closeDetailButton')}
           className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <X className="size-3.5" />
@@ -59,7 +61,7 @@ export function NodeDetailPanel({
       <div className="flex-1 space-y-5 overflow-y-auto p-4 scrollbar-thin">
         {node.description && (
           <section>
-            <SectionTitle>Description</SectionTitle>
+            <SectionTitle>{t('common.description')}</SectionTitle>
             <div className="mt-1 text-xs text-foreground/90">
               <Markdown text={node.description} />
             </div>
@@ -69,7 +71,7 @@ export function NodeDetailPanel({
         <FlagsSection node={node} />
 
         <EdgeList
-          title={`Incoming (${incoming.length})`}
+          title={t('graph.detail.incoming', { count: incoming.length })}
           icon={ArrowDownToDot}
           edges={incoming}
           getOther={edge => edge.fromNodeId}
@@ -78,7 +80,7 @@ export function NodeDetailPanel({
         />
 
         <EdgeList
-          title={`Outgoing (${outgoing.length})`}
+          title={t('graph.detail.outgoing', { count: outgoing.length })}
           icon={ArrowUpFromDot}
           edges={outgoing}
           getOther={edge => edge.toNodeId}
@@ -87,9 +89,9 @@ export function NodeDetailPanel({
         />
 
         <section>
-          <SectionTitle>Sources</SectionTitle>
+          <SectionTitle>{t('graph.detail.sources')}</SectionTitle>
           {sources.length === 0
-            ? <p className="mt-1 text-2xs text-muted-foreground">No sourceReferences declared.</p>
+            ? <p className="mt-1 text-2xs text-muted-foreground">{t('graph.detail.noSources')}</p>
             : (
                 <ul className="mt-1 space-y-1.5">
                   {sources.map((reference, index) => (
@@ -116,7 +118,7 @@ export function NodeDetailPanel({
       {onCenterInGraph && (
         <div className="border-t border-border p-4">
           <Button variant="ghost" size="sm" className="w-full justify-center" onClick={onCenterInGraph}>
-            Center in Graph
+            {t('graph.detail.centerInGraphButton')}
           </Button>
         </div>
       )}
@@ -161,14 +163,15 @@ function EdgeList({ title, icon: Icon, edges, getOther, nodesById, onSelectNode 
 }
 
 function FlagsSection({ node }: { node: GraphNode }) {
+  const { t } = useTranslation()
   const flags: Array<{ label: string, tone: 'amber' | 'rose' }> = []
   for (const role of node.metadata.missingRoles ?? [])
-    flags.push({ label: `missing ${role}`, tone: 'amber' })
+    flags.push({ label: t('graph.detail.missingRole', { role }), tone: 'amber' })
   if (flags.length === 0)
     return null
   return (
     <section>
-      <SectionTitle>Flags</SectionTitle>
+      <SectionTitle>{t('graph.detail.flags')}</SectionTitle>
       <ul className="mt-1 flex flex-wrap gap-1.5">
         {flags.map(flag => (
           <li

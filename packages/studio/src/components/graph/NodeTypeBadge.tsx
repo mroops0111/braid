@@ -19,7 +19,7 @@ export function NodeTypeBadge({ type, className }: { type: NodeTypeId, className
       )}
       style={palette.nodeBadgeStyle(type)}
     >
-      {type}
+      {palette.nodeLabel(type)}
     </span>
   )
 }
