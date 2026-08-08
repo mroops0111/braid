@@ -94,7 +94,7 @@ jobs:
       - name: Pack tarballs
         run: |
           mkdir -p .release
-          pnpm -r --filter="./packages/*" --filter="!@braidhq/studio" --filter="!@braidhq/desktop" --filter="!@braidhq/test-utils" exec npm pack --pack-destination "$GITHUB_WORKSPACE/.release"
+          pnpm -r --filter="./packages/*" --filter="!@braidhq/studio" --filter="!@braidhq/desktop" --filter="!@braidhq/test-utils" exec pnpm pack --pack-destination "$GITHUB_WORKSPACE/.release"
 
       - uses: actions/attest-build-provenance@v2
         with:
