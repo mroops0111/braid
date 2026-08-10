@@ -238,7 +238,10 @@ export class BatchService {
   private async runLoop(workspace: Workspace, initial: BatchPlan, callerToken?: string): Promise<void> {
     let plan = initial
     const binding = this.requireBinding(this.resolveOntology(workspace))
-    if (plan.mode === 'derived') {
+    // Derive only when no units exist yet, a fresh derived batch.
+    // A resume already has its units, so it skips scan and re-runs the pending ones,
+    // otherwise scan would refuse an already-populated plan and stall.
+    if (plan.mode === 'derived' && plan.units.length === 0) {
       plan = await this.runDerivePhase(workspace, plan, binding, callerToken)
       if (plan.status !== 'running')
         return

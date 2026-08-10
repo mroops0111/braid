@@ -250,8 +250,12 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   // they mount plain Hono sub-routers, so they never register with the doc.
   // The `servers[]` block lets the gateway resolve the upstream base URL,
   // without an explicit --base-url flag.
-  app.doc('/openapi.json', {
-    openapi: '3.0.0',
+  // 3.1 so schemas are JSON Schema 2020-12,
+  // the dialect a tool `input_schema` is validated against.
+  // A 3.0 doc emits `nullable` and boolean `exclusiveMinimum`,
+  // which the model API rejects once the gateway forwards them as MCP tool schemas.
+  app.doc31('/openapi.json', {
+    openapi: '3.1.0',
     info: {
       title: 'Braid REST API',
       version: '0.0.1',
