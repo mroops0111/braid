@@ -9,9 +9,9 @@ describe('dddOntology configuration', () => {
     expect(dddOntology.skillNamespace).toBe('ddd')
   })
 
-  it('requires both an intent and a code source', () => {
+  it('requires only a code source, intent is optional for a code-first start', () => {
     const required = dddOntology.sourceRoles.filter(role => role.required).map(role => role.id)
-    expect(required).toEqual(['intent', 'code'])
+    expect(required).toEqual(['code'])
   })
 
   it('declares intent as the unit-bearing role', () => {

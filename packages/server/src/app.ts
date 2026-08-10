@@ -14,7 +14,7 @@ import { healthRouter } from './routes/health.js'
 import { createHistoryRouter } from './routes/history.js'
 import { createModelRouter } from './routes/model.js'
 import { createNodesRouter } from './routes/nodes.js'
-import { createOAuthRouter } from './routes/oauth.js'
+import { createOAuthCallbackRouter, createOAuthStartRouter, OAuthFlowStore } from './routes/oauth.js'
 import { createOntologiesRouter } from './routes/ontologies.js'
 import { createOntologyRouter } from './routes/ontology.js'
 import { createProposalsRouter } from './routes/proposals.js'
@@ -22,6 +22,7 @@ import { createReactorCyclesRouter } from './routes/reactorCycles.js'
 import { createRunsRouter } from './routes/runs.js'
 import { createSkillInputOptionsRouter } from './routes/skillInputOptions.js'
 import { createSkillsRouter } from './routes/skills.js'
+import { createSourceConnectionRouter } from './routes/sourceConnection.js'
 import { createSourceLoadersRouter } from './routes/sourceLoaders.js'
 import { createSourceUnitObservationsRouter } from './routes/sourceUnitObservations.js'
 import { createGithubWebhookReceiver, createSourceWebhooksAdminRouter } from './routes/sourceWebhooks.js'
@@ -120,6 +121,10 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     }))
   }
 
+  // Shared by the OAuth start and callback routers,
+  // so a flow opened by start is resolved by callback.
+  const oauthFlowStore = new OAuthFlowStore()
+
   // Workspace-scoped sub-app, mounted under `/workspaces/:workspaceId` below.
   const workspaceScoped = new OpenAPIHono()
   workspaceScoped.use('*', workspaceIdMiddleware)
@@ -196,6 +201,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       pluginRegistry: deps.pluginRegistry,
       ...(options.apiUrl ? { apiUrl: options.apiUrl } : {}),
     }))
+    workspaceScoped.route('/source-connections', createSourceConnectionRouter({ secretStore: deps.secretStore, workspaceService: deps.workspaceService }))
   }
   workspaceScoped.route('/skill-input-options', createSkillInputOptionsRouter({
     modelRepository: deps.modelRepository,
@@ -219,9 +225,23 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   app.route('/workspaces/:workspaceId', workspaceScoped)
 
   if (deps.secretStore) {
-    app.route('/oauth', createOAuthRouter({
+    // Start is owner-gated in-handler,
+    // so an existing workspace needs `workspace.write`,
+    // while the Wizard can connect before scaffold.
+    app.route('/oauth', createOAuthStartRouter({
       secretStore: deps.secretStore,
+      flowStore: oauthFlowStore,
       ...(deps.googleOAuth ? { google: deps.googleOAuth } : {}),
+      ...(deps.githubOAuth ? { github: deps.githubOAuth } : {}),
+      ...(deps.userRegistry ? { userRegistry: deps.userRegistry } : {}),
+      workspaceService: deps.workspaceService,
+      ...(deps.workspaceRegistry ? { workspaceRegistry: deps.workspaceRegistry } : {}),
+    }))
+    app.route('/oauth', createOAuthCallbackRouter({
+      secretStore: deps.secretStore,
+      flowStore: oauthFlowStore,
+      ...(deps.googleOAuth ? { google: deps.googleOAuth } : {}),
+      ...(deps.githubOAuth ? { github: deps.githubOAuth } : {}),
     }))
   }
 

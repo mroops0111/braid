@@ -10,6 +10,7 @@ import { InFlightRunBanner } from './components/InFlightRunBanner'
 import { PageActions, PageActionsHost, PageActionsProvider } from './components/PageActions'
 import { ReactorBanner } from './components/ReactorBanner'
 import { Sidebar } from './components/Sidebar'
+import { SourceAuthBanner } from './components/SourceAuthBanner'
 import { TooltipProvider } from './components/ui/tooltip'
 import { UserPicker } from './components/UserPicker'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
@@ -144,6 +145,7 @@ function AppInner() {
                           activeSurface={activeSurface}
                           onOpenDetails={() => activeId && openDetails(activeId)}
                         />
+                        <SourceAuthBanner workspaceId={activeId} onOpenDetails={() => activeId && openDetails(activeId)} />
                         <ReactorBanner workspaceId={activeId} onOpenActivity={() => setActiveSurface('activity')} />
                         <BatchInFlightBanner
                           workspaceId={activeId}

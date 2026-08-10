@@ -198,6 +198,11 @@ export const review = {
     unitLog: 'Unit log',
   },
   banners: {
+    sourceAuthLabel: 'Source connection',
+    sourceAuthOne: 'connection expired, sync is paused. Reconnect to resume.',
+    sourceNotConnectedOne: 'is not connected, so it cannot sync. Connect it.',
+    sourceAttentionMany: '{count} sources need connecting before they can sync.',
+    sourceAuthAction: 'Go to settings',
     reactor: 'Reactor',
     reactorProcessingPrefix: 'processing',
     reactorUnits: '{processed}/{total} units',
