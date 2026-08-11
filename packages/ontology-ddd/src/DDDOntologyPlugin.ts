@@ -39,15 +39,15 @@ function localeEdges(edges: readonly Omit<EdgeTypeDescriptor, 'label'>[]): EdgeT
 export const dddOntology = defineOntologyPlugin({
   ontologyId: 'ddd',
 
-  // DDD models a domain through intent and code convergence.
-  // Extracting from intent alone ships speculation into the graph,
-  // and from code alone drags implementation accidents into the language.
-  // Both roles are required, so a workspace cannot start in a state where
-  // this value prop fails. Intent docs are the unit-bearing role, each doc
-  // is one extraction unit and its sync drives the Reactor. Code is context
-  // the per-unit skill reads, and seeds derived mode when no intent exists.
+  // DDD converges intent and code. Code is the required floor,
+  // the honest record of what shipped, so every workspace has it.
+  // Intent is optional, a brownfield model starts from code alone,
+  // via derived mode, then intent converges it and lands as evidence.
+  // Intent is the unit-bearing role, each doc is one extraction unit,
+  // its sync drives the Reactor. Code is context the per-unit skill reads,
+  // and seeds derived mode when no intent source exists.
   sourceRoles: localeRoles([
-    { id: 'intent', required: true, unitBearing: true, pathSegment: 'intents' },
+    { id: 'intent', required: false, unitBearing: true, pathSegment: 'intents' },
     { id: 'code', required: true, pathSegment: 'codebases' },
   ]),
 

@@ -22,6 +22,7 @@ import type { AbsolutePath } from '@braidhq/schema'
 import type { AuthMode } from './authMode.js'
 import type { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
 import type { SessionStore } from './infrastructure/auth/SessionStore.js'
+import type { GitHubOAuth } from './infrastructure/oauth/GitHubOAuth.js'
 import type { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
 import type { SecretStore } from './infrastructure/secrets/SecretStore.js'
 import type { UserRegistryFile } from './infrastructure/users/UserRegistryFile.js'
@@ -123,6 +124,9 @@ export interface AppDependencies {
   // Google client, undefined when its env is unset,
   // then `/auth/google/*` respond 503.
   googleOAuth?: GoogleOAuth
+  // GitHub App client, undefined when its env is unset,
+  // then `/oauth/github/*` respond 503.
+  githubOAuth?: GitHubOAuth
   // Where the OAuth callback redirects with `#token=...`,
   // defaults to the Vite dev origin.
   studioUrl?: string

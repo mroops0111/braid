@@ -23,6 +23,14 @@ const PUBLIC_EXACT_PATHS = new Set(['/openapi.json'])
 // keeps a future admin or metrics webhook from inheriting the bypass.
 const PUBLIC_PATH_PREFIXES = ['/auth/', '/health', '/webhooks/github/']
 
+// Any OAuth provider callback is anonymous. It is a browser redirect,
+// so it carries no Bearer,
+// its `state` token validated against the pending-flow store is its auth.
+// The pattern matches the callback of every provider,
+// so a new one inherits the bypass without editing here,
+// while the start route stays gated so its owner check runs.
+const PUBLIC_PATH_PATTERNS = [/^\/oauth\/[^/]+\/callback(?:\/|$)/]
+
 // Header naming the caller under local trust, a dev and multi-persona convenience.
 // Read only when auth is not enforced, never on an authenticated deployment,
 // so it can never impersonate a caller behind real auth.
@@ -98,7 +106,7 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
 
     // Public routes bootstrap the login flow, so pass them through ungated,
     // and without reading the header, they must never carry a caller.
-    if (PUBLIC_EXACT_PATHS.has(path) || PUBLIC_PATH_PREFIXES.some(prefix => path.startsWith(prefix))) {
+    if (PUBLIC_EXACT_PATHS.has(path) || PUBLIC_PATH_PREFIXES.some(prefix => path.startsWith(prefix)) || PUBLIC_PATH_PATTERNS.some(pattern => pattern.test(path))) {
       await next()
       return undefined
     }

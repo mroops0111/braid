@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { ClaudeCodeAgentBinding } from '@braidhq/agent-claude-code'
 import {
   type AgentBinding,
+  ServiceUnavailableError,
   SkillManifest,
   type SkillRegistry,
   type SkillRunner as SkillRunnerPort,
@@ -32,6 +33,7 @@ interface BuildRunnerInput {
   readonly skillRegistry?: SkillRegistry
   readonly skillAgent?: SkillAgentOverride
   readonly buildAgentBinding?: (descriptor: AgentBindingDescriptor) => AgentBinding
+  readonly coreGateway?: { specUrl: string, uvxBin?: string }
 }
 
 interface BuiltRunner {
@@ -57,6 +59,7 @@ async function buildRunner(input: BuildRunnerInput): Promise<BuiltRunner> {
     ...(input.referenceDirs ? { referenceDirs: [...input.referenceDirs] } : {}),
     ...(input.eventBus ? { eventBus: input.eventBus } : {}),
     ...(input.clock ? { clock: input.clock } : {}),
+    ...(input.coreGateway ? { coreGateway: input.coreGateway } : {}),
   })
   const workspace = makeWorkspace({ rootPath: input.rootPath })
   return { runner, workspace, invocations, skillRegistry, runRepository }
@@ -209,6 +212,33 @@ describe('SubprocessSkillRunner', () => {
 
     const completed = events.find(event => event.type === 'completed')
     expect(completed && 'exitCode' in completed ? completed.exitCode : undefined).toBe(137)
+  })
+
+  it('fails fast when the braid-core gateway pre-flight rejects the spec', async () => {
+    const rootPath = await makeWorkspaceRoot()
+    const { runner, workspace, invocations } = await buildRunner({
+      rootPath,
+      coreGateway: { specUrl: 'http://localhost:4321/openapi.json' },
+      sequence: [{ stdoutLines: ['Invalid, ParameterInfo schema_type'], exitCode: 1 }],
+    })
+
+    await expect(runner.start(workspace, SKILL_ID, '')).rejects.toThrow(ServiceUnavailableError)
+    // Only the gateway probe ran, no agent was spawned.
+    expect(invocations).toHaveLength(1)
+    expect(invocations[0]!.args).toContain('--dry-run')
+  })
+
+  it('runs the gateway pre-flight, then spawns the agent when it passes', async () => {
+    const rootPath = await makeWorkspaceRoot()
+    const { runner, workspace, invocations } = await buildRunner({
+      rootPath,
+      coreGateway: { specUrl: 'http://localhost:4321/openapi.json' },
+      sequence: [{ stdoutLines: [], exitCode: 0 }, { stdoutLines: [], exitCode: 0 }],
+    })
+
+    await runner.start(workspace, SKILL_ID, '')
+    expect(invocations).toHaveLength(2)
+    expect(invocations[0]!.args).toEqual(expect.arrayContaining(['openapi-mcp-gateway', '--dry-run']))
   })
 
   it('maps nested stream-json (system + assistant + result) into the public SkillEvent shape', async () => {

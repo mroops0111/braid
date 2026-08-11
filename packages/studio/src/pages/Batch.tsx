@@ -642,7 +642,7 @@ function LogPane({ workspaceId, plan, selectedRunId }: {
         <span className="font-medium text-foreground">
           {selectedUnit?.name ?? t('review.batch.unitLog')}
         </span>
-        <span className="ml-auto font-mono">{selectedRunId.slice(0, 8)}</span>
+        <span className="ml-auto font-mono">{selectedRunId.replace('skill-run-', '').slice(0, 8)}</span>
       </div>
       <SkillTranscript events={events} error={error} running={running} />
     </div>

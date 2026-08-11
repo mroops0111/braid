@@ -196,6 +196,11 @@ const review: typeof en = {
     unitLog: '單元記錄',
   },
   banners: {
+    sourceAuthLabel: '來源連線',
+    sourceAuthOne: '的連線已失效，同步已暫停。請重新連接以恢復。',
+    sourceNotConnectedOne: '尚未連接，無法同步。請連接。',
+    sourceAttentionMany: '有 {count} 個來源需要連接才能同步。',
+    sourceAuthAction: '前往設定',
     reactor: 'Reactor',
     reactorProcessingPrefix: '正在處理',
     reactorUnits: '{processed}/{total} 個單元',

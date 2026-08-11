@@ -1,47 +1,17 @@
 import type { UseMutationResult } from '@tanstack/react-query'
-import { useMutation } from '@tanstack/react-query'
 import { api } from './api'
-
-interface OauthPostMessage {
-  source?: string
-  provider?: string
-  status?: string
-}
+import { useOAuthPopup } from './useOAuthPopup'
 
 /**
- * Start the Google OAuth flow for a `(workspaceId, sourceId)` pair,
- * and resolve when the popup posts a success status.
- * The caller passes an `onConnected` callback that fires on consent.
- * The popup closes via `window.close()`,
- * in the callback HTML page that `/oauth/google/callback` serves.
- *
- * The same hook is used in two places.
- *   - `CreateWorkspaceWizard`: workspaceId comes from the typed name.
- *     The workspace does not exist on the server yet,
- *     but the SecretStore key is just `${workspaceId}--${sourceId}`,
- *     so tokens can be stashed ahead of scaffold.
- *   - `AddSourceDialog`: workspaceId is the workspace's real id.
+ * Start the Google OAuth flow for a `(workspaceId, sourceId)` pair.
+ * A thin binding of `useOAuthPopup` to the Google start endpoint.
+ * Used by `CreateWorkspaceWizard` (workspaceId from the typed name,
+ * ahead of scaffold) and `AddSourceDialog` (the workspace's real id).
  */
 export function useGoogleOAuth(
   workspaceId: string,
   sourceId: string,
   options: { onConnected: (sourceId: string) => void },
 ): UseMutationResult<{ authorizationUrl: string }, Error, void> {
-  return useMutation({
-    mutationFn: () => api.startGoogleOAuth(workspaceId, sourceId),
-    onSuccess: (result) => {
-      const popup = window.open(result.authorizationUrl, 'braid-oauth-google', 'width=520,height=720')
-      if (!popup)
-        return
-      const onMessage = (event: MessageEvent): void => {
-        const data = event.data as OauthPostMessage | null
-        if (!data || data.source !== 'braid-oauth' || data.provider !== 'google')
-          return
-        window.removeEventListener('message', onMessage)
-        if (data.status === 'success')
-          options.onConnected(sourceId)
-      }
-      window.addEventListener('message', onMessage)
-    },
-  })
+  return useOAuthPopup('google', workspaceId, sourceId, api.startGoogleOAuth, options)
 }

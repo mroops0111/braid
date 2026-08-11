@@ -129,12 +129,15 @@ describe('ClaudeCodeAgentBinding', () => {
 
     expect(result.args).toContain('--mcp-config')
     expect(result.args).toContain(join(dir, '.braid-mcp-ws-1.json'))
+    // Strict, so the operator's global ~/.claude.json servers do not merge in.
+    expect(result.args).toContain('--strict-mcp-config')
   })
 
   it('omits --mcp-config when no servers are provided', async () => {
     const binding = new ClaudeCodeAgentBinding(descriptor)
     const result = await binding.resolveSpawn(makeInput())
     expect(result.args).not.toContain('--mcp-config')
+    expect(result.args).not.toContain('--strict-mcp-config')
   })
 
   it('forwards workspace path, workspace id, api url, and descriptor env into the child env', async () => {

@@ -14,8 +14,8 @@ import type {
   UserId,
   WorkspaceId,
 } from '@braidhq/schema'
-import type { BatchPlan, BatchPlanRepository, HistoryService, HITLService, SkillEventListener, SkillRunner, SkillRunOptions, SkillRunSubscription, SourceUnitDigest, Workspace } from '../../src/index.js'
-import { SkillId as SkillIdSchema } from '@braidhq/schema'
+import type { BatchPlanRepository, HistoryService, HITLService, SkillEventListener, SkillRunner, SkillRunOptions, SkillRunSubscription, SourceUnitDigest, Workspace } from '../../src/index.js'
+import { BatchPlanId, BatchUnitId, SkillId as SkillIdSchema } from '@braidhq/schema'
 import { FixedClock, makeOntology, makeProposal, makeWorkspace, mintTestId, resetTestIds, T0 } from '@braidhq/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -25,6 +25,7 @@ import {
   InMemoryWorkspaceRepository,
 } from '../../src/in-memory.js'
 import {
+  BatchPlan,
   BatchService,
   ConflictError,
   PluginRegistry,
@@ -543,6 +544,41 @@ describe('BatchService', () => {
 
       expect(final.status).toBe('completed')
       expect(final.units.every(u => u.status === 'completed')).toBe(true)
+    })
+
+    it('re-runs the pending units of a derived plan without re-deriving', async () => {
+      const { service, workspace, planRepository, skillRunner } = await setup({
+        sources: [secondarySource('codebase')],
+      })
+      // A derived plan that already carries units, one done, one still to run.
+      // Resume must feed the pending unit straight into extract, not re-scan.
+      const failedPlan = new BatchPlan({
+        id: BatchPlanId.parse('batch-plan-derived'),
+        workspaceId: workspace.id,
+        createdAt: T0,
+        updatedAt: T0,
+        mode: 'derived',
+        status: 'failed',
+        autoApply: false,
+        units: [
+          { id: BatchUnitId.parse('batch-unit-orders'), name: 'orders', description: '', status: 'completed', proposalIds: [], clarificationIds: [] },
+          { id: BatchUnitId.parse('batch-unit-payments'), name: 'payments', description: '', status: 'failed', proposalIds: [], clarificationIds: [], error: 'boom' },
+        ],
+        checkpointPhases: [],
+      })
+      await planRepository.save(workspace, failedPlan)
+
+      await service.resume(workspace.id)
+      const final = await flushBatch(planRepository)
+
+      expect(final.status).toBe('completed')
+      const skillIds = skillRunner.startCalls.map(c => c.skillId)
+      // The D fix, resume of a derived plan must not re-derive its units.
+      expect(skillIds).not.toContain('braid:scan')
+      // The pending unit still re-runs.
+      // Skip-completed accounting is the sibling resume test's concern,
+      // so only assert extraction happened.
+      expect(skillIds).toContain('ddd:extract')
     })
   })
 })

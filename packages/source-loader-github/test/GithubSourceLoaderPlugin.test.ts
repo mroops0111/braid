@@ -1,15 +1,21 @@
-import type { SourceLoaderContext } from '@braidhq/core'
+import type { SourceLoaderContext, SourceLoaderPlugin } from '@braidhq/core'
 import type { AbsolutePath, SourceId, WorkspaceId } from '@braidhq/schema'
 import { mkdtemp, readdir, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parse as parseYaml } from 'yaml'
-import { createGithubLoader } from '../src/GithubSourceLoaderPlugin.js'
+import { createGithubLoader, type GithubLoaderDeps } from '../src/GithubSourceLoaderPlugin.js'
 
 const ctx: SourceLoaderContext = {
   workspaceId: 'ws-test' as WorkspaceId,
   sourceId: 'src-test' as SourceId,
+}
+
+const TEST_TOKEN = 'ghp-test-token'
+
+function makeLoader(deps: Partial<GithubLoaderDeps> = {}): SourceLoaderPlugin {
+  return createGithubLoader({ resolveAccessToken: async () => TEST_TOKEN, ...deps })
 }
 
 interface MockIssue {
@@ -157,7 +163,6 @@ describe('GithubLoader', () => {
 
   afterEach(async () => {
     await rm(dest, { recursive: true, force: true })
-    vi.unstubAllEnvs()
   })
 
   it('provision writes one markdown file per issue with deterministic frontmatter', async () => {
@@ -189,7 +194,7 @@ describe('GithubLoader', () => {
       ],
     })
 
-    const loader = createGithubLoader({ fetchFn })
+    const loader = makeLoader({ fetchFn })
     const report = await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
 
     expect(report.localPath).toBe(dest)
@@ -212,7 +217,7 @@ describe('GithubLoader', () => {
         { number: 2, title: 'PR', pull_request: { url: 'x' }, created_at: 't', updated_at: 't' },
       ],
     }
-    const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    const loader = makeLoader({ fetchFn: buildMockFetch(router) })
     await loader.provision({ owner: 'o', repo: 'r', includePullRequests: true }, dest, ctx)
     // PR (#2) is filtered out regardless of the deprecated flag.
     // Only #1 survives, and it passes the realized-intent gate,
@@ -233,7 +238,7 @@ describe('GithubLoader', () => {
         3: [{ number: 30, merged: false }], // PR was closed without merging
       },
     }
-    const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    const loader = makeLoader({ fetchFn: buildMockFetch(router) })
     await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md'])
   })
@@ -251,7 +256,7 @@ describe('GithubLoader', () => {
         6: [{ number: 60, merged: true, mergeCommit: 'shaB' }],
       },
     }
-    const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    const loader = makeLoader({ fetchFn: buildMockFetch(router) })
     await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['6.md'])
   })
@@ -267,7 +272,7 @@ describe('GithubLoader', () => {
         ],
       },
     }
-    const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    const loader = makeLoader({ fetchFn: buildMockFetch(router) })
     await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     const content = await readFile(join(dest, 'issues', '7.md'), 'utf-8')
     const { fm } = splitMarkdown(content)
@@ -288,7 +293,7 @@ describe('GithubLoader', () => {
         2: [],
       },
     }
-    const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    const loader = makeLoader({ fetchFn: buildMockFetch(router) })
     const report = await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect(report.metadata).toMatchObject({ issueCount: 1, fetchedRaw: 2 })
   })
@@ -311,7 +316,7 @@ describe('GithubLoader', () => {
       },
     })
 
-    const loader = createGithubLoader({ fetchFn })
+    const loader = makeLoader({ fetchFn })
     await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     const content = await readFile(join(dest, 'issues', '7.md'), 'utf-8')
     expect(content).toContain('## Comments')
@@ -330,7 +335,7 @@ describe('GithubLoader', () => {
     }))
     const fetchFn = buildMockFetch({ issues, pageSize: 1 })
 
-    const loader = createGithubLoader({ fetchFn })
+    const loader = makeLoader({ fetchFn })
     await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md', '2.md', '3.md'])
   })
@@ -342,7 +347,7 @@ describe('GithubLoader', () => {
         { number: 2, title: 'Two', body: 'two', created_at: '2026-01-02T00:00:00Z', updated_at: '2026-02-02T00:00:00Z' },
       ],
     }
-    const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    const loader = makeLoader({ fetchFn: buildMockFetch(router) })
     await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
 
     const beforeStat1 = await stat(join(dest, 'issues', '1.md'))
@@ -355,7 +360,7 @@ describe('GithubLoader', () => {
         { number: 2, title: 'Two (edited)', body: 'two edited', created_at: '2026-01-02T00:00:00Z', updated_at: '2026-03-01T00:00:00Z' },
       ],
     }
-    const loader2 = createGithubLoader({ fetchFn: buildMockFetch(router2) })
+    const loader2 = makeLoader({ fetchFn: buildMockFetch(router2) })
     const report = await loader2.sync!({ owner: 'o', repo: 'r' }, dest, ctx)
 
     expect(report.changed).toBe(true)
@@ -383,7 +388,7 @@ describe('GithubLoader', () => {
         2: [{ number: 20, merged: true }],
       },
     }
-    const loader1 = createGithubLoader({ fetchFn: buildMockFetch(initial) })
+    const loader1 = makeLoader({ fetchFn: buildMockFetch(initial) })
     await loader1.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md', '2.md'])
 
@@ -398,7 +403,7 @@ describe('GithubLoader', () => {
         2: [{ number: 20, merged: true }],
       },
     }
-    const loader2 = createGithubLoader({ fetchFn: buildMockFetch(after) })
+    const loader2 = makeLoader({ fetchFn: buildMockFetch(after) })
     const report = await loader2.sync!({ owner: 'o', repo: 'r' }, dest, ctx)
 
     expect(report.removed).toBe(1)
@@ -406,20 +411,21 @@ describe('GithubLoader', () => {
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md'])
   })
 
-  // eslint-disable-next-line no-template-curly-in-string -- describing the literal `${VAR}` placeholder, NOT a template string
-  it('sets Authorization header from ${GH_TOKEN} env interpolation; omits it when unset', async () => {
+  it('sends the resolved token as the Authorization header, omitting it when the token is empty', async () => {
     const recorder = { calls: [] as string[], lastHeaders: null as Headers | null }
-    const fetchFn = buildMockFetch({ issues: [] }, recorder)
-
-    vi.stubEnv('GH_TOKEN', 'ghp-abc-123')
-    const loader = createGithubLoader({ fetchFn })
-    await loader.provision({ owner: 'o', repo: 'r' }, dest, ctx)
+    const withToken = createGithubLoader({
+      resolveAccessToken: async () => 'ghp-abc-123',
+      fetchFn: buildMockFetch({ issues: [] }, recorder),
+    })
+    await withToken.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect(recorder.lastHeaders?.get('Authorization')).toBe('Bearer ghp-abc-123')
 
-    vi.unstubAllEnvs()
     const recorder2 = { calls: [] as string[], lastHeaders: null as Headers | null }
-    const loader2 = createGithubLoader({ fetchFn: buildMockFetch({ issues: [] }, recorder2) })
-    await loader2.provision({ owner: 'o', repo: 'r' }, dest, ctx)
+    const noToken = createGithubLoader({
+      resolveAccessToken: async () => '',
+      fetchFn: buildMockFetch({ issues: [] }, recorder2),
+    })
+    await noToken.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect(recorder2.lastHeaders?.get('Authorization')).toBeNull()
   })
 
@@ -427,7 +433,7 @@ describe('GithubLoader', () => {
     const router: MockRouter = {
       issues: [{ number: 1, title: 'One', body: 'one', created_at: 't', updated_at: '2026-02-01T00:00:00Z' }],
     }
-    const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    const loader = makeLoader({ fetchFn: buildMockFetch(router) })
     // No provision first, so no cursor file exists on disk.
     const report = await loader.sync!({ owner: 'o', repo: 'r' }, dest, ctx)
     expect(report.added).toBe(1)
@@ -439,7 +445,7 @@ describe('GithubLoader', () => {
       issues: [{ number: 7, title: 'Discussion', body: 'Original.', created_at: 't', updated_at: 't', comments: 2 }],
       comments: { 7: [{ user: { login: 'bob' }, body: 'hi', created_at: 't', updated_at: 't' }] },
     }
-    const loader = createGithubLoader({ fetchFn: buildMockFetch(router) })
+    const loader = makeLoader({ fetchFn: buildMockFetch(router) })
     await loader.provision({ owner: 'o', repo: 'r', includeComments: false }, dest, ctx)
     const content = await readFile(join(dest, 'issues', '7.md'), 'utf-8')
     expect(content).not.toContain('## Comments')
@@ -447,7 +453,7 @@ describe('GithubLoader', () => {
 
   it('throws when the issues list request fails', async () => {
     const fetchFn: typeof globalThis.fetch = async () => new Response('boom', { status: 500 })
-    const loader = createGithubLoader({ fetchFn })
+    const loader = makeLoader({ fetchFn })
     await expect(loader.provision({ owner: 'o', repo: 'r' }, dest, ctx))
       .rejects
       .toThrow(/GET .* failed \(500\)/)
@@ -461,15 +467,15 @@ describe('GithubLoader', () => {
       const oneClosed = [{ number: 1, title: 'x', state: 'closed', created_at: 't', updated_at: 't', comments: 0 }]
       return new Response(JSON.stringify(oneClosed), { status: 200, headers: { 'Content-Type': 'application/json' } })
     }
-    const loader = createGithubLoader({ fetchFn })
+    const loader = makeLoader({ fetchFn })
     await expect(loader.provision({ owner: 'o', repo: 'r' }, dest, ctx))
       .rejects
-      .toThrow(/realized-intent filter requires an authenticated token/)
+      .toThrow(/GitHub connection is invalid or expired/)
   })
 })
 
 describe('GithubLoader webhook capability', () => {
-  const loader = createGithubLoader()
+  const loader = makeLoader()
 
   it('reports repoIdentity from the loader config', () => {
     expect(loader.webhook?.repoIdentity({ owner: 'mroops0111', repo: 'braid' }))
