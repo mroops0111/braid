@@ -1,8 +1,7 @@
-import type { SourceLoaderPlugin } from '@braidhq/core'
+import type { SourceLoaderContext, SourceLoaderPlugin } from '@braidhq/core'
 import type { Timestamp } from '@braidhq/schema'
 import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import process from 'node:process'
 import { defineSourceLoaderPlugin } from '@braidhq/sdk'
 import { stringify as stringifyYaml } from 'yaml'
 import { z } from 'zod'
@@ -27,14 +26,6 @@ export const GithubLoaderConfig = z.object({
    * so existing configs do not break. Drop the field at your next config edit.
    */
   includePullRequests: z.boolean().default(false),
-  /**
-   * Auth token. Supports `${VAR}` interpolation against the server's process env.
-   * Defaults to `${GH_TOKEN}`.
-   * An empty string after interpolation means anonymous,
-   * with a 60 req/h rate limit and public repos only.
-   */
-  // eslint-disable-next-line no-template-curly-in-string -- literal `${VAR}` placeholder for env interpolation, not a template string
-  token: z.string().default('${GH_TOKEN}'),
   /** REST base URL. Override for GitHub Enterprise. */
   apiBaseUrl: z.string().default('https://api.github.com'),
   /** GraphQL endpoint. Defaults to `${apiBaseUrl}/graphql`. */
@@ -43,6 +34,12 @@ export const GithubLoaderConfig = z.object({
 export type GithubLoaderConfig = z.infer<typeof GithubLoaderConfig>
 
 export interface GithubLoaderDeps {
+  /**
+   * Resolve a fresh access token for a given `(workspaceId, sourceId)`.
+   * The composition root implements this against its OAuth token store.
+   * Tests can return a static token regardless of context.
+   */
+  resolveAccessToken: (context: SourceLoaderContext) => Promise<string>
   /** Inject for tests. Real callers use globalThis.fetch. */
   fetchFn?: FetchFn
 }
@@ -93,21 +90,22 @@ const CURSOR_FILENAME = '.braid-github-cursor.json'
  * The check uses GitHub's GraphQL API.
  * Setups behind an enterprise proxy that only exposes REST can override `graphqlUrl`.
  *
- * Auth: pass the token via `${GH_TOKEN}` (or any other env var) in `config.token`.
- * Tokens are never persisted on disk.
+ * Auth: the composition root injects `resolveAccessToken`,
+ * keyed by `(workspaceId, sourceId)`,
+ * so the loader never reads an env var or config secret.
  * Only the rendered markdown lands in `destination`.
  */
-export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlugin {
+export function createGithubLoader(deps: GithubLoaderDeps): SourceLoaderPlugin {
   const fetchFn: FetchFn = deps.fetchFn ?? globalThis.fetch
 
   return defineSourceLoaderPlugin({
     kind: 'github',
     configSchema: GithubLoaderConfig,
-    provision: async (config, destination) => {
+    provision: async (config, destination, context) => {
       const issuesDir = join(destination, 'issues')
       await mkdir(issuesDir, { recursive: true })
       warnDeprecated(config)
-      const headers = buildHeaders(config)
+      const headers = buildHeaders(await deps.resolveAccessToken(context))
       const rawIssues = await fetchIssues(fetchFn, config, headers, undefined)
       const issues = await filterAndAnnotateRealizedIntent(fetchFn, config, headers, rawIssues)
       // Cursor advances over every raw issue we examined,
@@ -137,11 +135,11 @@ export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlu
         fetchedAt: new Date().toISOString() as Timestamp,
       }
     },
-    sync: async (config, destination) => {
+    sync: async (config, destination, context) => {
       const issuesDir = join(destination, 'issues')
       await mkdir(issuesDir, { recursive: true })
       warnDeprecated(config)
-      const headers = buildHeaders(config)
+      const headers = buildHeaders(await deps.resolveAccessToken(context))
       const cursor = await readCursor(destination)
       const sinceParam = cursor?.owner === config.owner && cursor.repo === config.repo
         ? cursor.since
@@ -217,15 +215,15 @@ export function createGithubLoader(deps: GithubLoaderDeps = {}): SourceLoaderPlu
   })
 }
 
-function buildHeaders(config: GithubLoaderConfig): Record<string, string> {
+function buildHeaders(token: string): Record<string, string> {
   const headers: Record<string, string> = {
     'Accept': 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
     'User-Agent': 'braid-source-loader-github',
   }
-  const token = interpolateEnv(config.token).trim()
-  if (token.length > 0)
-    headers.Authorization = `Bearer ${token}`
+  const trimmed = token.trim()
+  if (trimmed.length > 0)
+    headers.Authorization = `Bearer ${trimmed}`
   return headers
 }
 
@@ -388,12 +386,9 @@ async function fetchLinkedMergedPRs(
     const body = await response.text().catch(() => '')
     if (response.status === 401) {
       throw new Error(
-        // GitHub's GraphQL endpoint rejects anonymous requests.
-        // The realized-intent filter needs `GH_TOKEN` (or any other env var referenced via `${VAR}` in config.token).
-        // The REST issue list works anonymously,
-        // so this only bites when the loader reaches the linked-PR check.
-        // Surface it actionably.
-        `githubLoader: realized-intent filter requires an authenticated token (set GH_TOKEN or override config.token). GitHub GraphQL returned 401 for issue ${issueNumber}.`,
+        // A 401 means the resolved GitHub token is invalid or expired.
+        // Surface it so the source is flagged needs-auth for reconnect.
+        `githubLoader: GitHub GraphQL returned 401 for issue ${issueNumber}. The GitHub connection is invalid or expired, reconnect the source.`,
       )
     }
     throw new Error(`githubLoader: GraphQL POST failed (${response.status}) for issue ${issueNumber}: ${body.slice(0, 200)}`)
@@ -542,8 +537,4 @@ function parseNextLink(header: string | null): string | undefined {
       return match[1]
   }
   return undefined
-}
-
-function interpolateEnv(input: string): string {
-  return input.replace(/\$\{([A-Z_][A-Z0-9_]*)\}/g, (_match, name: string) => process.env[name] ?? '')
 }

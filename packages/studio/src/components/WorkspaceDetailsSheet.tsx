@@ -9,6 +9,8 @@ import { api } from '@/lib/api'
 import { humaniseApiError } from '@/lib/errors'
 import { useLocaleFormat } from '@/lib/i18n'
 import { queryKeys, useMe, useSourceLoaders, useUsers, useWorkspaceMembers } from '@/lib/queries'
+import { useGithubOAuth } from '@/lib/useGithubOAuth'
+import { useGoogleOAuth } from '@/lib/useGoogleOAuth'
 import { useWorkspacePolicy } from '@/policy'
 import { AddSourceDialog } from './AddSourceDialog'
 import { ArmedConfirmBar } from './ArmedConfirmBar'
@@ -219,6 +221,7 @@ function SourceRow({ workspaceId, source, onChange }: {
   const loaderKind = source.kind === 'filesystem' ? (source.loader?.kind ?? 'manual') : null
   const detail = source.kind === 'filesystem' ? source.path : `mcp:${source.mcpServerId}`
   const canSync = source.kind === 'filesystem' && !!source.loader
+  const canWrite = useWorkspacePolicy(workspaceId).can('workspace.write')
 
   return (
     <li className="rounded-md border border-border p-2">
@@ -269,11 +272,71 @@ function SourceRow({ workspaceId, source, onChange }: {
           {formatTime(sync.data.fetchedAt ?? Date.now())}
         </p>
       )}
+      {(loaderKind === 'gdrive' || loaderKind === 'github') && (
+        <SourceConnectionStatus workspaceId={workspaceId} sourceId={source.id} loaderKind={loaderKind} canWrite={canWrite} />
+      )}
       {(sync.error || remove.error) && (
         <p className="mt-1 text-2xs text-destructive">{humaniseApiError(sync.error ?? remove.error)}</p>
       )}
       <WebhookPanelGate workspaceId={workspaceId} source={source} />
     </li>
+  )
+}
+
+/**
+ * Connection state for an OAuth-backed source. Any member sees the status,
+ * only an owner (`workspace.write`) gets the connect or reconnect action,
+ * so a stale token surfaces here rather than only in the server log.
+ */
+function SourceConnectionStatus({ workspaceId, sourceId, loaderKind, canWrite }: {
+  workspaceId: string
+  sourceId: string
+  loaderKind: string
+  canWrite: boolean
+}) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const connection = useQuery({
+    queryKey: ['source-connection', workspaceId, sourceId],
+    queryFn: () => api.getSourceConnection(workspaceId, sourceId),
+  })
+  // Refresh this badge and the top banner's list query,
+  // so both drop the stale state the moment a connection succeeds.
+  const onConnected = (): void => {
+    void queryClient.invalidateQueries({ queryKey: ['source-connection', workspaceId, sourceId] })
+    void queryClient.invalidateQueries({ queryKey: ['source-connections', workspaceId] })
+  }
+  const google = useGoogleOAuth(workspaceId, sourceId, { onConnected })
+  const github = useGithubOAuth(workspaceId, sourceId, { onConnected })
+  const oauth = loaderKind === 'gdrive' ? google : github
+
+  const status = connection.data
+  if (!status)
+    return null
+
+  const label = status.needsAuth
+    ? t('workspace.details.connectionNeedsAuth')
+    : status.connected
+      ? t('workspace.details.connectionConnected', { name: status.connectedBy?.displayName ?? t('workspace.details.connectionUnknownMember') })
+      : t('workspace.details.connectionNotConnected')
+  const tone = status.needsAuth ? 'text-destructive' : status.connected ? 'text-muted-foreground' : 'text-amber-500'
+  const showAction = canWrite && (status.needsAuth || !status.connected)
+
+  return (
+    <div className="mt-1 flex items-center justify-between gap-2">
+      <span className={`flex items-center gap-1 text-2xs ${tone}`}>
+        <Plug className="size-2.5" />
+        {label}
+      </span>
+      {showAction && (
+        <Button variant={status.needsAuth ? 'default' : 'ghost'} size="sm" disabled={oauth.isPending} onClick={() => oauth.mutate()}>
+          {oauth.isPending
+            ? t('workspace.details.connectOpening')
+            : status.connected ? t('workspace.details.reconnect') : t('workspace.details.connect')}
+        </Button>
+      )}
+      {oauth.error && <span className="text-2xs text-destructive">{humaniseApiError(oauth.error)}</span>}
+    </div>
   )
 }
 

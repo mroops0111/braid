@@ -31,9 +31,11 @@ import { GitWorkspaceHistory } from './infrastructure/history/GitWorkspaceHistor
 import { FsClarificationRepository } from './infrastructure/hitl/FsClarificationRepository.js'
 import { FsProposalRepository } from './infrastructure/hitl/FsProposalRepository.js'
 import { FsModelSerializer } from './infrastructure/model/FsModelSerializer.js'
+import { GitHubOAuth } from './infrastructure/oauth/GitHubOAuth.js'
 import { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
+import { oauthNamespace } from './infrastructure/oauth/providers.js'
 import { FsReactorCycleRepository } from './infrastructure/reactor/FsReactorCycleRepository.js'
-import { FsSecretStore } from './infrastructure/secrets/SecretStore.js'
+import { FsSecretStore, type SecretStore } from './infrastructure/secrets/SecretStore.js'
 import { FsRunRepository } from './infrastructure/skill/FsRunRepository.js'
 import { FsSkillRegistry } from './infrastructure/skill/FsSkillRegistry.js'
 import { SubprocessSkillRunner } from './infrastructure/skill/SubprocessSkillRunner.js'
@@ -108,6 +110,17 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     })
     : undefined
 
+  const githubClientId = process.env.BRAID_GITHUB_CLIENT_ID
+  const githubClientSecret = process.env.BRAID_GITHUB_CLIENT_SECRET
+  const githubRedirect = process.env.BRAID_GITHUB_REDIRECT_URI ?? `${apiUrl}/oauth/github/callback`
+  const githubOAuth = githubClientId && githubClientSecret
+    ? new GitHubOAuth({
+      clientId: githubClientId,
+      clientSecret: githubClientSecret,
+      redirectUri: githubRedirect,
+    })
+    : undefined
+
   const registry = new WorkspaceRegistryFile(join(braidHome, 'workspaces.json'))
   const workspaceRepository = new FsWorkspaceRepository({ registry })
 
@@ -171,7 +184,20 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     pluginRegistry.register(plugin)
 
   pluginRegistry.register(gitLoader)
-  pluginRegistry.register(createGithubLoader())
+  pluginRegistry.register(createGithubLoader({
+    resolveAccessToken: makeOAuthTokenResolver({
+      secretStore,
+      namespace: oauthNamespace('github'),
+      refresh: githubOAuth ? refreshToken => githubOAuth.refreshAccessToken(refreshToken) : undefined,
+      notConfigured: sourceId => new ValidationError(
+        `GitHub source "${sourceId}" cannot be loaded: set BRAID_GITHUB_CLIENT_ID and BRAID_GITHUB_CLIENT_SECRET on the server, restart, then reconnect.`,
+      ),
+      notConnected: (workspaceId, sourceId) => new NotFoundError(
+        `GitHub source "${sourceId}" on workspace "${workspaceId}" is not connected. `
+        + `Connect it from the source settings in Studio.`,
+      ),
+    }),
+  }))
   for (const plugin of options.extraSourceLoaderPlugins ?? [])
     pluginRegistry.register(plugin)
 
@@ -184,38 +210,19 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   // If OAuth env vars aren't configured,
   // the token resolver throws an actionable error at provision time,
   // so the user knows exactly what to set.
-  const oauth = googleOAuth
   pluginRegistry.register(createGoogleDriveLoader({
-    resolveAccessToken: async ({ workspaceId, sourceId }) => {
-      if (!oauth) {
-        throw new ValidationError(
-          `Google Drive source "${sourceId}" cannot be loaded: set BRAID_GOOGLE_CLIENT_ID and BRAID_GOOGLE_CLIENT_SECRET on the server, restart, then re-sync.`,
-        )
-      }
-      const key = `${workspaceId}--${sourceId}`
-      const stored = await secretStore.read<{
-        accessToken: string
-        refreshToken: string
-        expiresAt: string
-      }>('oauth-google', key)
-      if (!stored) {
-        throw new NotFoundError(
-          `Google Drive source "${sourceId}" on workspace "${workspaceId}" is not connected. `
-          + `Authorise via POST /oauth/google/start.`,
-        )
-      }
-      // 60-second skew, so we don't hand out a token about to expire mid-request.
-      const stillValidUntil = new Date(stored.expiresAt).getTime() - 60_000
-      if (Date.now() < stillValidUntil)
-        return stored.accessToken
-      const refreshed = await oauth.refreshAccessToken(stored.refreshToken)
-      await secretStore.write('oauth-google', key, {
-        ...stored,
-        accessToken: refreshed.accessToken,
-        expiresAt: refreshed.expiresAt,
-      })
-      return refreshed.accessToken
-    },
+    resolveAccessToken: makeOAuthTokenResolver({
+      secretStore,
+      namespace: oauthNamespace('google'),
+      refresh: googleOAuth ? refreshToken => googleOAuth.refreshAccessToken(refreshToken) : undefined,
+      notConfigured: sourceId => new ValidationError(
+        `Google Drive source "${sourceId}" cannot be loaded: set BRAID_GOOGLE_CLIENT_ID and BRAID_GOOGLE_CLIENT_SECRET on the server, restart, then re-sync.`,
+      ),
+      notConnected: (workspaceId, sourceId) => new NotFoundError(
+        `Google Drive source "${sourceId}" on workspace "${workspaceId}" is not connected. `
+        + `Connect it from the source settings in Studio.`,
+      ),
+    }),
   }))
 
   // Resolve the active storage plugin and ask it for a ModelRepository.
@@ -365,6 +372,49 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     accessPolicy,
     studioUrl,
     ...(googleOAuth ? { googleOAuth } : {}),
+    ...(githubOAuth ? { githubOAuth } : {}),
+  }
+}
+
+/**
+ * Build a token resolver for an OAuth-backed loader.
+ * Returns a still-valid access token, or refreshes when it is near expiry.
+ * A failed refresh flags the source `needsAuth` so Studio prompts a reconnect,
+ * a fresh refresh clears that flag.
+ * `refresh` is absent when the provider's server env is unset,
+ * then the resolver throws `notConfigured`.
+ */
+function makeOAuthTokenResolver<R extends { accessToken: string, expiresAt: string }>(deps: {
+  secretStore: SecretStore
+  namespace: string
+  refresh: ((refreshToken: string) => Promise<R>) | undefined
+  notConfigured: (sourceId: string) => Error
+  notConnected: (workspaceId: string, sourceId: string) => Error
+}): (context: { workspaceId: string, sourceId: string }) => Promise<string> {
+  return async ({ workspaceId, sourceId }) => {
+    if (!deps.refresh)
+      throw deps.notConfigured(sourceId)
+    const key = `${workspaceId}--${sourceId}`
+    const stored = await deps.secretStore.read<{ accessToken: string, refreshToken: string, expiresAt: string }>(deps.namespace, key)
+    if (!stored)
+      throw deps.notConnected(workspaceId, sourceId)
+    // 60-second skew, so we don't hand out a token about to expire mid-request.
+    const stillValidUntil = new Date(stored.expiresAt).getTime() - 60_000
+    if (Date.now() < stillValidUntil)
+      return stored.accessToken
+    try {
+      // A fresh set clears any prior needs-auth marker.
+      // GitHub rotates its refresh token, so spreading `refreshed` keeps it.
+      const refreshed = await deps.refresh(stored.refreshToken)
+      await deps.secretStore.write(deps.namespace, key, { ...stored, ...refreshed, needsAuth: false })
+      return refreshed.accessToken
+    }
+    catch (error) {
+      // The refresh token is dead, revoked or expired.
+      // Flag the source so Studio prompts a reconnect instead of only logging.
+      await deps.secretStore.write(deps.namespace, key, { ...stored, needsAuth: true })
+      throw error
+    }
   }
 }
 

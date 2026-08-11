@@ -90,6 +90,15 @@ export interface AddSourceResult {
   provision?: ProvisionSummary
 }
 
+export interface SourceConnection {
+  connected: boolean
+  needsAuth: boolean
+  connectedBy?: { userId: string, displayName: string }
+  connectedAt?: string
+}
+
+export type SourceConnectionSummary = SourceConnection & { sourceId: string, name: string, kind: string }
+
 export interface PatchWorkspaceResult {
   workspace: Workspace
   renamed?: boolean
@@ -265,8 +274,20 @@ export const api = {
       body: JSON.stringify(patch),
     }),
 
+  getSourceConnection: (workspaceId: string, sourceId: string) =>
+    fetchJson<SourceConnection>(`/workspaces/${workspaceId}/source-connections/${sourceId}`),
+
+  listSourceConnections: (workspaceId: string) =>
+    fetchJson<{ connections: SourceConnectionSummary[] }>(`/workspaces/${workspaceId}/source-connections`),
+
   startGoogleOAuth: (workspaceId: string, sourceId: string) =>
     fetchJson<{ authorizationUrl: string }>('/oauth/google/start', {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, sourceId }),
+    }),
+
+  startGithubOAuth: (workspaceId: string, sourceId: string) =>
+    fetchJson<{ authorizationUrl: string }>('/oauth/github/start', {
       method: 'POST',
       body: JSON.stringify({ workspaceId, sourceId }),
     }),

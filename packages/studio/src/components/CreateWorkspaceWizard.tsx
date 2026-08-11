@@ -14,6 +14,7 @@ import { type ErrorCase, humaniseApiError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n'
 import { queryKeys, useOntologies, useSourceLoaders } from '@/lib/queries'
 import { draftPathSegment, loaderKindLabel, nameToId, STUDIO_KNOWN_LOADER_KINDS, toSourceDescriptor } from '@/lib/sourceDraft'
+import { useGithubOAuth } from '@/lib/useGithubOAuth'
 import { useGoogleOAuth } from '@/lib/useGoogleOAuth'
 import { MarkdownDescriptionField } from './MarkdownDescriptionField'
 import { Button } from './ui/button'
@@ -447,6 +448,14 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
             />
           </>
         )}
+        {draft.loaderKind === 'github' && (
+          <GithubOauthBlock
+            workspaceName={workspaceName}
+            sourceName={draft.name}
+            connected={oauthConnected}
+            onConnected={onOauthConnected}
+          />
+        )}
         {draft.loaderKind !== '' && !STUDIO_KNOWN_LOADER_KINDS.has(draft.loaderKind) && (
           <UnknownLoaderWarning
             kind={draft.loaderKind}
@@ -533,6 +542,50 @@ function GdriveOauthBlock({ workspaceName, sourceName, connected, onConnected }:
           onClick={() => startOauth.mutate()}
         >
           {startOauth.isPending ? t('workspace.wizard.opening') : connected ? t('workspace.wizard.reconnect') : t('workspace.wizard.connectGoogle')}
+        </Button>
+      </div>
+      {startOauth.error && (
+        <p className="mt-2 text-2xs text-destructive">{humaniseApiError(startOauth.error)}</p>
+      )}
+    </div>
+  )
+}
+
+function GithubOauthBlock({ workspaceName, sourceName, connected, onConnected }: {
+  workspaceName: string
+  sourceName: string
+  connected: boolean
+  onConnected: (sourceId: string) => void
+}) {
+  const { t } = useTranslation()
+  // Same pre-scaffold token stashing as gdrive,
+  // the key is `${workspaceId}--${sourceId}`, both from the wizard state.
+  const workspaceId = workspaceName.trim()
+  const sourceId = nameToId(sourceName)
+  const canStart = workspaceId.length > 0 && sourceId.length > 0
+
+  const startOauth = useGithubOAuth(workspaceId, sourceId, { onConnected })
+
+  return (
+    <div className="rounded-md border border-border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-medium">{t('workspace.wizard.githubAccount')}</p>
+          <p className="text-2xs text-muted-foreground">
+            {!canStart
+              ? t('workspace.wizard.githubAccountSetNames')
+              : connected
+                ? t('workspace.wizard.githubAccountConnected', { workspaceId, sourceId })
+                : t('workspace.wizard.githubAccountAuthorise')}
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant={connected ? 'ghost' : 'default'}
+          disabled={!canStart || startOauth.isPending}
+          onClick={() => startOauth.mutate()}
+        >
+          {startOauth.isPending ? t('workspace.wizard.opening') : connected ? t('workspace.wizard.reconnect') : t('workspace.wizard.connectGithub')}
         </Button>
       </div>
       {startOauth.error && (
@@ -841,6 +894,10 @@ function canAdvanceFrom(
           return false
       }
       if (source.loaderKind === 'git' && source.gitUrl.trim().length === 0)
+        return false
+      // GitHub reads issues over the API,
+      // so it needs a connected token before scaffold, else sync fails opaquely.
+      if (source.loaderKind === 'github' && !state.oauthConnectedFor.has(nameToId(source.name)))
         return false
       return true
     })

@@ -3,6 +3,7 @@ import type { ResolvedSession, SessionStore } from '../../src/infrastructure/aut
 import { Hono } from 'hono'
 import { describe, expect, it } from 'vitest'
 import { authMiddleware, getUserId } from '../../src/middleware/auth.js'
+import { errorHandler } from '../../src/middleware/error.js'
 
 function fakeSessionStore(byToken: Record<string, UserId>): SessionStore {
   return {
@@ -41,5 +42,21 @@ describe('authMiddleware', () => {
     const app = appWith(store, false, 'local-user' as UserId)
     const res = await app.request('/who', { headers: { Authorization: 'Bearer bogus' } })
     expect(await res.json()).toEqual({ userId: 'local-user' })
+  })
+
+  it('under enforced auth, any OAuth callback is public but the start route stays gated', async () => {
+    const app = new Hono()
+    app.onError(errorHandler)
+    app.use('*', authMiddleware({ sessionStore: fakeSessionStore({}), requireAuth: true, defaultPrincipal: null }))
+    app.get('/oauth/google/callback', context => context.text('ok'))
+    app.get('/oauth/anyprovider/callback', context => context.text('ok'))
+    app.post('/oauth/google/start', context => context.text('ok'))
+    app.get('/oauth/google/callback-admin', context => context.text('ok'))
+
+    expect((await app.request('/oauth/google/callback?state=x&code=y')).status).toBe(200)
+    expect((await app.request('/oauth/anyprovider/callback?state=x&code=y')).status).toBe(200)
+    expect((await app.request('/oauth/google/start', { method: 'POST' })).status).toBe(401)
+    // The pattern is anchored, so a lookalike path does not inherit the bypass.
+    expect((await app.request('/oauth/google/callback-admin')).status).toBe(401)
   })
 })

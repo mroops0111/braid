@@ -14,7 +14,7 @@ import type { AbsolutePath, AgentBindingDescriptor, McpServerConfig, RunRecord, 
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { newSkillRunId, NotFoundError } from '@braidhq/core'
+import { newSkillRunId, NotFoundError, ServiceUnavailableError } from '@braidhq/core'
 import { AbsolutePath as AbsolutePathSchema, McpServerId, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema, splitSkillId } from '@braidhq/schema'
 import { sessionDirPath } from '../_shared/paths.js'
 import { createAsyncQueue } from './asyncQueue.js'
@@ -85,6 +85,10 @@ export class SubprocessSkillRunner implements SkillRunner {
   private readonly subscribers = new Map<SkillRunId, Set<SkillEventListener>>()
   // How many events have been emitted (and persisted) per run so far.
   private readonly positions = new Map<SkillRunId, number>()
+  // Memoised braid-core gateway pre-flight per spec URL.
+  // Only the first run of a session pays the check, a failed probe is not cached,
+  // so a later run re-probes once the spec or gateway is fixed.
+  private readonly gatewayReadyBySpec = new Map<string, Promise<void>>()
 
   constructor(private readonly deps: SubprocessSkillRunnerDeps) {}
 
@@ -136,6 +140,9 @@ export class SubprocessSkillRunner implements SkillRunner {
     })
 
     const spawnFn = this.deps.spawn ?? (await defaultSpawn())
+    // Fail fast when the braid-core gateway cannot turn the spec into tools,
+    // rather than spawning an agent that discovers the missing tools mid-run.
+    await this.ensureGatewayReady(spawnFn)
     // BRAID_SESSION_DIR resolves ambiguity in SKILL.md paths.
     // claude sees both `BRAID_WORKSPACE` and a cwd inside it,
     // and would otherwise guess which one `.claude/skills/...` is rooted in.
@@ -226,6 +233,63 @@ export class SubprocessSkillRunner implements SkillRunner {
     this.sessionDirs.delete(sessionId)
     if (this.deps.cleanupSession !== false)
       await rm(dir, { recursive: true, force: true })
+  }
+
+  /**
+   * Pre-flight the braid-core gateway before an agent runs.
+   * Runs `openapi-mcp-gateway --dry-run`, memoised per spec,
+   * so only the first run pays it.
+   */
+  private async ensureGatewayReady(spawnFn: SpawnFn): Promise<void> {
+    const gateway = this.deps.coreGateway
+    if (!gateway)
+      return
+    const { specUrl } = gateway
+    let pending = this.gatewayReadyBySpec.get(specUrl)
+    if (!pending) {
+      pending = this.probeGateway(spawnFn, gateway.uvxBin ?? 'uvx', specUrl)
+      this.gatewayReadyBySpec.set(specUrl, pending)
+    }
+    try {
+      await pending
+    }
+    catch (error) {
+      this.gatewayReadyBySpec.delete(specUrl)
+      throw error
+    }
+  }
+
+  private probeGateway(spawnFn: SpawnFn, uvxBin: string, specUrl: string): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const child = spawnFn(uvxBin, ['openapi-mcp-gateway', '--spec', specUrl, '--dry-run'], { stdio: ['ignore', 'pipe', 'pipe'] })
+      let output = ''
+      const collect = (chunk: string): void => {
+        output += chunk
+      }
+      child.stdout?.setEncoding('utf-8')
+      child.stdout?.on('data', collect)
+      child.stderr?.setEncoding('utf-8')
+      child.stderr?.on('data', collect)
+      const timer = setTimeout(() => {
+        child.kill('SIGKILL')
+        reject(new ServiceUnavailableError(`The braid-core gateway pre-flight timed out after 60s against the spec at ${specUrl}.`))
+      }, 60_000)
+      child.on('error', (err: Error) => {
+        clearTimeout(timer)
+        reject(new ServiceUnavailableError(`The braid-core gateway pre-flight could not run "${uvxBin}". ${err.message}`))
+      })
+      child.on('close', (code: number | null) => {
+        clearTimeout(timer)
+        if (code === 0) {
+          resolve()
+          return
+        }
+        reject(new ServiceUnavailableError(
+          `The braid-core gateway is not ready. The openapi-mcp-gateway command could not turn the spec at ${specUrl} into MCP tools. `
+          + `Fix the spec or the gateway, then retry.\n\n${output.trim().slice(-1200)}`,
+        ))
+      })
+    })
   }
 
   private async drain(input: {

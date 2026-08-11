@@ -15,7 +15,7 @@ braid:
 
 You analyse a codebase's overall structure and split it into independent **business units** that the batch orchestrator will feed one-by-one into `ddd:extract`. You do NOT extract entities, do NOT submit proposals, do NOT submit clarify tickets. You only plan the cut.
 
-This skill runs once when bootstrapping a workspace that has no intent docs (only codebases). The orchestrator created `artifacts/batch-plan.json` with `status: 'scanning'` and an empty `units` array before invoking you; your job is to populate `units` and return.
+This skill runs once when bootstrapping a workspace that has no intent docs (only codebases). The orchestrator created `artifacts/batch-plan.json` with `status: 'deriving'` and an empty `units` array before invoking you; your job is to populate `units` and return.
 
 ## Design Principles
 
@@ -31,7 +31,7 @@ This skill runs once when bootstrapping a workspace that has no intent docs (onl
 
 1. Read `$BRAID_WORKSPACE/PRODUCT.md` to discover the `role: code` sources and their `path` fields. Skip any `role: intent` sources.
 2. Verify the Knowledge Graph is empty via the `braid-core` MCP server. If non-empty, exit non-zero with a clear error — scan is for empty graphs only.
-3. Read `$BRAID_WORKSPACE/artifacts/batch-plan.json`. Confirm `plan.status === 'scanning'`. Refuse otherwise; the orchestrator owns this status flip.
+3. Read `$BRAID_WORKSPACE/artifacts/batch-plan.json`. Confirm `plan.status === 'deriving'`. Refuse otherwise; the orchestrator owns this status flip.
 
 ## Procedure
 
@@ -55,7 +55,7 @@ You do not write any other files. You do not call any `braid-core` write capabil
 
 - [ ] PRODUCT.md was read; `role: code` sources identified.
 - [ ] Graph emptiness was verified via the MCP server.
-- [ ] batch-plan.json was read; status was confirmed `scanning`.
+- [ ] batch-plan.json was read; status was confirmed `deriving`.
 - [ ] Each code source contributed one or more units.
 - [ ] Every unit carries id / name / description / status / proposalIds / clarifyTicketIds.
 - [ ] batch-plan.json was rewritten atomically, with the `units` array replaced and other fields untouched.
