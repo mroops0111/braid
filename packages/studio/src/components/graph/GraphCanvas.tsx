@@ -3,9 +3,10 @@ import type { NodeChange } from '@xyflow/react'
 import type { GraphDataSource } from './GraphDataSource'
 import type { NodeCardNode } from './useGraphLayout'
 import { localize } from '@braidhq/schema'
-import { Background, BackgroundVariant, Controls, MarkerType, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react'
-import { GitBranch, PanelLeftClose, PanelLeftOpen, Sparkles } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { Background, BackgroundVariant, ControlButton, Controls, getNodesBounds, MarkerType, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react'
+import { toPng, toSvg } from 'html-to-image'
+import { Download, GitBranch, PanelLeftClose, PanelLeftOpen, RotateCcw, Sparkles } from 'lucide-react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
 import { Button } from '@/components/ui/button'
@@ -98,6 +99,11 @@ const INITIAL_FILTERS: GraphFilters = {
   orphansOnly: false,
 }
 
+// Show every edge's type label only when the visible set stays readable.
+// A dense full graph would drop a pill over every card it crosses,
+// so labels appear on a high-level or focused view, not the whole graph.
+const EDGE_LABEL_LIMIT = 40
+
 export function GraphCanvas({ workspaceId, source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, dimUnchanged, emphasizeAdded, onStartBootstrap }: GraphCanvasProps) {
   const palette = usePalette(workspaceId)
   return (
@@ -136,6 +142,8 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   // so the filter chips are visible from the start.
   // Reviewers got stuck in preview mode wondering how to surface types.
   const [navigatorOpen, setNavigatorOpen] = useState(true)
+  const canvasRef = useRef<HTMLDivElement>(null)
+  const [exporting, setExporting] = useState(false)
 
   useFilterSeed(ontology, workspaceId, setFilters, diff !== undefined ? 'all' : 'defaultVisible')
 
@@ -206,6 +214,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   // Diff state is signalled via stroke shape, dashed removed, thicker added.
   // Labels are hidden until selected,
   // long-jump edges would otherwise drop pills over every card they cross.
+  const labelAllEdges = laidOut.edges.length <= EDGE_LABEL_LIMIT
   const reactFlowEdges = useMemo(
     () => laidOut.edges.map((edge) => {
       const selected = edge.id === selectedEdgeId
@@ -231,7 +240,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
       return {
         ...edge,
         selected,
-        label: selected ? palette.edgeLabel(edge.data!.edge.type) : undefined,
+        label: selected || labelAllEdges ? palette.edgeLabel(edge.data!.edge.type) : undefined,
         animated: selected && change !== 'removed',
         style: {
           stroke,
@@ -253,7 +262,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
         labelShowBg: true,
       }
     }),
-    [laidOut.edges, selectedEdgeId, palette, diff, selectedNodeId, focusMode, neighborhood, dimUnchanged],
+    [laidOut.edges, selectedEdgeId, palette, diff, selectedNodeId, focusMode, neighborhood, dimUnchanged, labelAllEdges],
   )
 
   useFitOnLayoutChange(reactFlow, laidOut.nodes)
@@ -305,6 +314,41 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   }, [laidOut.nodes, reactFlow])
 
   useGraphShortcuts(reactFlow)
+
+  // Export the visible graph as a clean image. We render `.react-flow__viewport`,
+  // which holds only nodes and edges, so the minimap, controls, background,
+  // and every panel are left out.
+  // The transform reframes the node bounds into a margin,
+  // so the file is sized to the graph, not the current pan and zoom.
+  const exportImage = useCallback(async (format: 'png' | 'svg') => {
+    const container = canvasRef.current
+    const viewport = container?.querySelector<HTMLElement>('.react-flow__viewport')
+    if (!container || !viewport)
+      return
+    setExporting(true)
+    try {
+      const bounds = getNodesBounds(reactFlow.getNodes())
+      const margin = 48
+      const width = Math.ceil(bounds.width) + margin * 2
+      const height = Math.ceil(bounds.height) + margin * 2
+      const backgroundColor = getComputedStyle(container).backgroundColor
+      const style = {
+        width: `${width}px`,
+        height: `${height}px`,
+        transform: `translate(${margin - bounds.x}px, ${margin - bounds.y}px) scale(1)`,
+      }
+      const dataUrl = format === 'png'
+        ? await toPng(viewport, { backgroundColor, width, height, pixelRatio: 2, style })
+        : await toSvg(viewport, { backgroundColor, width, height, style })
+      const link = document.createElement('a')
+      link.download = `${workspaceId}-${imageStamp()}.${format}`
+      link.href = dataUrl
+      link.click()
+    }
+    finally {
+      setExporting(false)
+    }
+  }, [reactFlow, workspaceId])
 
   // xyflow v12 controlled mode requires `onNodesChange`,
   // to advance the visual during a drag.
@@ -367,7 +411,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
         />
       )}
 
-      <div className="relative flex-1 bg-background">
+      <div ref={canvasRef} className="relative flex-1 bg-background">
         <div className="absolute left-3 top-3 z-10">
           <button
             type="button"
@@ -378,6 +422,32 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
             {navigatorOpen ? <PanelLeftClose className="size-3.5" /> : <PanelLeftOpen className="size-3.5" />}
           </button>
         </div>
+        {filtered.nodes.length > 0 && (
+          <div
+            className="absolute right-3 top-3 z-10 flex items-center gap-0.5 rounded-md border border-border bg-card px-1 py-0.5 shadow-sm"
+            title={t('graph.export.buttonTooltip')}
+          >
+            <Download className="size-3.5 text-muted-foreground" aria-hidden />
+            <button
+              type="button"
+              onClick={() => exportImage('png')}
+              disabled={exporting}
+              aria-label={`${t('graph.export.buttonTooltip')} PNG`}
+              className="rounded px-1.5 py-0.5 text-2xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+            >
+              {t('graph.export.png')}
+            </button>
+            <button
+              type="button"
+              onClick={() => exportImage('svg')}
+              disabled={exporting}
+              aria-label={`${t('graph.export.buttonTooltip')} SVG`}
+              className="rounded px-1.5 py-0.5 text-2xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+            >
+              {t('graph.export.svg')}
+            </button>
+          </div>
+        )}
         {filtered.nodes.length === 0
           ? (
               <FilteredEmpty
@@ -426,7 +496,16 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
                 <Controls
                   showInteractive={false}
                   className="!bg-card !border !border-border [&_button]:!bg-card [&_button]:!border-border [&_button]:!text-foreground"
-                />
+                >
+                  {dragPositions.size > 0 && (
+                    <ControlButton
+                      onClick={() => setDragPositions(new Map())}
+                      title={t('graph.resetLayoutTooltip')}
+                    >
+                      <RotateCcw className="size-3.5" />
+                    </ControlButton>
+                  )}
+                </Controls>
               </ReactFlow>
             )}
       </div>
@@ -516,6 +595,14 @@ function applyFilters(
   const finalNodes = nodes.filter(n => includedIds.has(n.id))
   const finalEdges = edges.filter(e => includedIds.has(e.fromNodeId) && includedIds.has(e.toNodeId))
   return { nodes: finalNodes, edges: finalEdges }
+}
+
+// Local wall-clock stamp for a downloaded filename, YYYYMMDD-HHmmss.
+// This is a presentation-only file label, so a direct clock read is fine.
+function imageStamp(): string {
+  const now = new Date()
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
 }
 
 function orphanNodeIds(nodes: readonly GraphNode[], edges: readonly GraphEdge[]): Set<NodeId> {
