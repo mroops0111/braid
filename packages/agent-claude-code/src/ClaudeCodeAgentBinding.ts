@@ -43,7 +43,9 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
     }
     if (input.mcpServers.length > 0) {
       const mcpConfigFile = await writeClaudeMcpConfig(input.sessionDir, input.workspace.id, input.mcpServers)
-      baseArgs.push('--mcp-config', mcpConfigFile)
+      // Strict, so the run sees only braid's servers,
+      // not the operator's global ~/.claude.json MCP servers merged in.
+      baseArgs.push('--mcp-config', mcpConfigFile, '--strict-mcp-config')
     }
     // Load each namespace's skill bundle, so `/namespace:verb` resolves.
     for (const bundleDir of input.skillBundleDirs) {
