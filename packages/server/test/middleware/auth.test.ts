@@ -51,9 +51,12 @@ describe('authMiddleware', () => {
     app.get('/oauth/google/callback', context => context.text('ok'))
     app.get('/oauth/anyprovider/callback', context => context.text('ok'))
     app.post('/oauth/google/start', context => context.text('ok'))
+    app.get('/oauth/google/callback-admin', context => context.text('ok'))
 
     expect((await app.request('/oauth/google/callback?state=x&code=y')).status).toBe(200)
     expect((await app.request('/oauth/anyprovider/callback?state=x&code=y')).status).toBe(200)
     expect((await app.request('/oauth/google/start', { method: 'POST' })).status).toBe(401)
+    // The pattern is anchored, so a lookalike path does not inherit the bypass.
+    expect((await app.request('/oauth/google/callback-admin')).status).toBe(401)
   })
 })

@@ -12,6 +12,7 @@ import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { createOAuthState, createPkceVerifier } from '../infrastructure/oauth/GoogleOAuth.js'
+import { oauthProvider, type OAuthProviderInfo } from '../infrastructure/oauth/providers.js'
 import { getUserId } from '../middleware/auth.js'
 import { defaultPermissionRegistry, resolveViewer } from '../policy/index.js'
 
@@ -46,7 +47,7 @@ interface PendingFlow {
  * so its start route answers 503.
  */
 interface OAuthProvider {
-  readonly id: 'google' | 'github'
+  readonly id: OAuthProviderInfo['id']
   readonly label: string
   readonly namespace: string
   readonly notConfigured: string
@@ -98,11 +99,13 @@ export interface OAuthRouterDeps {
 }
 
 function providersOf(deps: OAuthRouterDeps): readonly OAuthProvider[] {
+  const google = oauthProvider('google')
+  const github = oauthProvider('github')
   return [
     {
-      id: 'google',
-      label: 'Google',
-      namespace: 'oauth-google',
+      id: google.id,
+      label: google.label,
+      namespace: google.namespace,
       notConfigured: 'Google OAuth is not configured on this server. Set BRAID_GOOGLE_CLIENT_ID + BRAID_GOOGLE_CLIENT_SECRET (and BRAID_GOOGLE_REDIRECT_URI if not the default) and restart.',
       ...(deps.google
         ? {
@@ -119,9 +122,9 @@ function providersOf(deps: OAuthRouterDeps): readonly OAuthProvider[] {
         : {}),
     },
     {
-      id: 'github',
-      label: 'GitHub',
-      namespace: 'oauth-github',
+      id: github.id,
+      label: github.label,
+      namespace: github.namespace,
       notConfigured: 'GitHub OAuth is not configured on this server. Set BRAID_GITHUB_CLIENT_ID + BRAID_GITHUB_CLIENT_SECRET (and BRAID_GITHUB_REDIRECT_URI if not the default) and restart.',
       ...(deps.github
         ? {

@@ -29,7 +29,7 @@ const PUBLIC_PATH_PREFIXES = ['/auth/', '/health', '/webhooks/github/']
 // The pattern matches the callback of every provider,
 // so a new one inherits the bypass without editing here,
 // while the start route stays gated so its owner check runs.
-const PUBLIC_PATH_PATTERNS = [/^\/oauth\/[^/]+\/callback/]
+const PUBLIC_PATH_PATTERNS = [/^\/oauth\/[^/]+\/callback(?:\/|$)/]
 
 // Header naming the caller under local trust, a dev and multi-persona convenience.
 // Read only when auth is not enforced, never on an authenticated deployment,

@@ -1,16 +1,17 @@
 import type { WorkspaceService } from '@braidhq/core'
 import type { Hono as HonoType } from 'hono'
 import type { SecretStore } from '../infrastructure/secrets/SecretStore.js'
-import { WorkspaceId } from '@braidhq/schema'
+import { SourceId, WorkspaceId } from '@braidhq/schema'
 import { Hono } from 'hono'
+import { OAUTH_PROVIDERS } from '../infrastructure/oauth/providers.js'
 import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 
 // OAuth namespaces a source credential can live under,
 // keyed by `${workspaceId}--${sourceId}`. A source uses at most one.
-const OAUTH_NAMESPACES = ['oauth-google', 'oauth-github'] as const
+const OAUTH_NAMESPACES = OAUTH_PROVIDERS.map(provider => provider.namespace)
 // Loader kinds whose sources authenticate over OAuth.
-const OAUTH_LOADER_KINDS = new Set(['gdrive', 'github'])
+const OAUTH_LOADER_KINDS = new Set(OAUTH_PROVIDERS.map(provider => provider.loaderKind))
 
 interface StoredCredential {
   readonly connectedBy?: { userId: string, displayName: string }
@@ -58,7 +59,7 @@ export function createSourceConnectionRouter(deps: SourceConnectionRouterDeps): 
   })
 
   router.get('/:sourceId', requirePermission('workspace.read'), async (context) => {
-    return context.json(await readStatus(deps.secretStore, getWorkspaceId(context), context.req.param('sourceId')))
+    return context.json(await readStatus(deps.secretStore, getWorkspaceId(context), SourceId.parse(context.req.param('sourceId'))))
   })
 
   return router

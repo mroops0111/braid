@@ -33,6 +33,7 @@ import { FsProposalRepository } from './infrastructure/hitl/FsProposalRepository
 import { FsModelSerializer } from './infrastructure/model/FsModelSerializer.js'
 import { GitHubOAuth } from './infrastructure/oauth/GitHubOAuth.js'
 import { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
+import { oauthNamespace } from './infrastructure/oauth/providers.js'
 import { FsReactorCycleRepository } from './infrastructure/reactor/FsReactorCycleRepository.js'
 import { FsSecretStore, type SecretStore } from './infrastructure/secrets/SecretStore.js'
 import { FsRunRepository } from './infrastructure/skill/FsRunRepository.js'
@@ -186,7 +187,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   pluginRegistry.register(createGithubLoader({
     resolveAccessToken: makeOAuthTokenResolver({
       secretStore,
-      namespace: 'oauth-github',
+      namespace: oauthNamespace('github'),
       refresh: githubOAuth ? refreshToken => githubOAuth.refreshAccessToken(refreshToken) : undefined,
       notConfigured: sourceId => new ValidationError(
         `GitHub source "${sourceId}" cannot be loaded: set BRAID_GITHUB_CLIENT_ID and BRAID_GITHUB_CLIENT_SECRET on the server, restart, then reconnect.`,
@@ -212,7 +213,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   pluginRegistry.register(createGoogleDriveLoader({
     resolveAccessToken: makeOAuthTokenResolver({
       secretStore,
-      namespace: 'oauth-google',
+      namespace: oauthNamespace('google'),
       refresh: googleOAuth ? refreshToken => googleOAuth.refreshAccessToken(refreshToken) : undefined,
       notConfigured: sourceId => new ValidationError(
         `Google Drive source "${sourceId}" cannot be loaded: set BRAID_GOOGLE_CLIENT_ID and BRAID_GOOGLE_CLIENT_SECRET on the server, restart, then re-sync.`,
