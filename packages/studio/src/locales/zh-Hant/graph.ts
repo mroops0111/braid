@@ -2,6 +2,7 @@ import type { graph as en } from '../en/graph'
 
 const graph: typeof en = {
   loadingGraph: '載入圖譜中…',
+  resetLayoutTooltip: '重設排列',
   empty: {
     title: '圖譜為空',
     tableDescription: '從動作頁執行建構，或從來源啟動建置。',
@@ -58,6 +59,11 @@ const graph: typeof en = {
     graphView: '圖譜檢視',
     visualizationViewButton: '視覺化檢視',
     tableViewButton: '表格檢視',
+  },
+  export: {
+    buttonTooltip: '匯出圖片',
+    png: 'PNG',
+    svg: 'SVG',
   },
 }
 

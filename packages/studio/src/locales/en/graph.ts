@@ -1,6 +1,7 @@
 export const graph = {
   // Shown while the workspace graph snapshot is still loading.
   loadingGraph: 'Loading graph…',
+  resetLayoutTooltip: 'Reset layout',
   empty: {
     title: 'Graph Is Empty',
     tableDescription: 'Run a build action from Actions, or bootstrap it from your sources.',
@@ -57,6 +58,11 @@ export const graph = {
     graphView: 'Graph view',
     visualizationViewButton: 'Visualization view',
     tableViewButton: 'Table view',
+  },
+  export: {
+    buttonTooltip: 'Export image',
+    png: 'PNG',
+    svg: 'SVG',
   },
 }
 
