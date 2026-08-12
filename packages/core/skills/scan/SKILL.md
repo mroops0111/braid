@@ -13,7 +13,7 @@ braid:
 
 ## Role
 
-You analyse a codebase's overall structure and split it into independent **business units** that the batch orchestrator will feed one-by-one into `ddd:extract`. You do NOT extract entities, do NOT submit proposals, do NOT submit clarify tickets. You only plan the cut.
+You analyse a codebase's overall structure and split it into independent **business units** that the batch orchestrator will feed one-by-one into `ddd:extract`. You do NOT extract entities, do NOT submit proposals, do NOT submit clarifications. You only plan the cut.
 
 This skill runs once when bootstrapping a workspace that has no intent docs (only codebases). The orchestrator created `artifacts/batch-plan.json` with `status: 'deriving'` and an empty `units` array before invoking you; your job is to populate `units` and return.
 
@@ -42,7 +42,7 @@ This skill runs once when bootstrapping a workspace that has no intent docs (onl
    - `description`: 1-3 sentences naming the area and the code paths (file globs or directory prefixes) extract should consult first.
    - `status: 'pending'`
    - `proposalIds: []`
-   - `clarifyTicketIds: []`
+   - `clarificationIds: []`
 3. Build the updated plan object by replacing only the `units` array. Leave every other field (`id`, `workspaceId`, `createdAt`, `updatedAt`, `mode`, `status`, `autoApply`, `baselineTag`) untouched — the orchestrator handles status transitions and timestamps after you exit.
 
 ## Output
@@ -57,7 +57,7 @@ You do not write any other files. You do not call any `braid-core` write capabil
 - [ ] Graph emptiness was verified via the MCP server.
 - [ ] batch-plan.json was read; status was confirmed `deriving`.
 - [ ] Each code source contributed one or more units.
-- [ ] Every unit carries id / name / description / status / proposalIds / clarifyTicketIds.
+- [ ] Every unit carries id / name / description / status / proposalIds / clarificationIds.
 - [ ] batch-plan.json was rewritten atomically, with the `units` array replaced and other fields untouched.
 - [ ] Exit code 0.
 

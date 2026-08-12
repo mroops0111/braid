@@ -126,6 +126,36 @@ describe('HITLService', () => {
       ).rejects.toThrow(ConflictError)
     })
 
+    it('closes the linked clarification when a proposal from it lands', async () => {
+      const fixture = await setupFixture()
+      const clarification = makeClarification(fixture.workspaceId, {
+        status: 'answered',
+        selectedCandidateId: mintTestId('cc') as ClarificationCandidateId,
+      })
+      await fixture.clarificationRepository.save(clarification)
+      const proposal = makeProposal(fixture.workspaceId, { clarificationId: clarification.id })
+      await fixture.proposalRepository.save(proposal)
+
+      await fixture.service.applyProposal(proposal.id, userId)
+
+      const reloaded = await fixture.clarificationRepository.load(clarification.id)
+      expect(reloaded.status).toBe('applied')
+      expect(reloaded.proposalId).toBe(proposal.id)
+    })
+
+    it('leaves a linked clarification untouched when it is not answered', async () => {
+      const fixture = await setupFixture()
+      const clarification = makeClarification(fixture.workspaceId)
+      await fixture.clarificationRepository.save(clarification)
+      const proposal = makeProposal(fixture.workspaceId, { clarificationId: clarification.id })
+      await fixture.proposalRepository.save(proposal)
+
+      await fixture.service.applyProposal(proposal.id, userId)
+
+      const reloaded = await fixture.clarificationRepository.load(clarification.id)
+      expect(reloaded.status).toBe('pending')
+    })
+
     it('throws ValidationError when the active ontology blocks and leaves proposal pending', async () => {
       // Active ontology ships a validator that always reports an error.
       // HITLService looks up workspace.ontologyId at validate-time, and runs `ontology.validators[]`,
