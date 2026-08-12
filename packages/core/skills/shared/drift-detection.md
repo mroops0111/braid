@@ -2,7 +2,7 @@
 
 When you read more than one source for the same concept (intent file + code, two intent files, two code layers), the sources can disagree. That disagreement is **drift**. This file tells you when to emit a structured `DriftIssue` so the graph carries that signal forward; the proposal review pane and the apply-gate consume it automatically.
 
-Drift is observed, not invented. If you can't point at two specific sources that disagree, you don't have drift. You have a question, and that belongs in a `ClarifyTicket`.
+Drift is observed, not invented. If you can't point at two specific sources that disagree, you don't have drift. You have a question, and that belongs in a `Clarification`.
 
 ---
 
@@ -51,7 +51,7 @@ Don't raise a `DriftIssue` for:
 - A role missing at the *whole-node* level (only some roles have evidence so far): that's already covered by `metadata.missingRoles` on the node. Use `DriftIssue` for field-level drift on a shared concept.
 - Vague suspicions ("I think these might differ but couldn't verify"). Either confirm with a specific cite or skip. Drift is structured evidence, not impressions.
 
-If the disagreement makes you unsure which concept these even *are* (two different `cancelOrder` candidates? same? distinct?), you don't have field-level drift; you have an identity question. Emit a `ClarifyTicket`, not a `DriftIssue`.
+If the disagreement makes you unsure which concept these even *are* (two different `cancelOrder` candidates? same? distinct?), you don't have field-level drift; you have an identity question. Emit a `Clarification`, not a `DriftIssue`.
 
 ---
 

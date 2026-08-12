@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import {
   Actor,
+  ClarificationId,
   EdgeId,
   ExternalReference,
   NodeId,
@@ -53,6 +54,9 @@ export const Proposal = z.object({
   reviewedBy: UserId.optional(),
   reviewedAt: Timestamp.optional(),
   externalReferences: z.array(ExternalReference).optional(),
+  // Set when the clarify skill materialised this from an answered clarification.
+  // Applying the proposal transitions that clarification to `applied`.
+  clarificationId: ClarificationId.optional(),
   // The user who created it, or 'system' for autonomous ones. Pending is owner-only.
   owner: Actor,
   // Name at submit time, survives renames. Absent for the 'system' owner.
@@ -69,6 +73,8 @@ export const ProposalCreate = z.object({
   generatedBy: SkillId,
   rationale: proposalRationale,
   externalReferences: z.array(ExternalReference).optional(),
+  // Links the proposal back to the clarification it resolves, when any.
+  clarificationId: ClarificationId.optional(),
 })
 export type ProposalCreate = z.infer<typeof ProposalCreate>
 

@@ -76,6 +76,7 @@ export class HITLService {
       generatedAt,
       rationale: draft.rationale,
       ...(draft.externalReferences ? { externalReferences: draft.externalReferences } : {}),
+      ...(draft.clarificationId ? { clarificationId: draft.clarificationId } : {}),
       owner: draft.submitterId ?? 'system',
       ...(submitter?.displayName ? { ownerDisplayName: submitter.displayName } : {}),
       ...(submitter?.kind ? { ownerKind: submitter.kind } : {}),
@@ -145,6 +146,7 @@ export class HITLService {
       await this.assertOperationsValid(proposal.workspaceId, [...proposal.operations])
       await this.deps.modelRepository.applyOperations(proposal.workspaceId, [...proposal.operations])
       await this.deps.proposalRepository.save(applied)
+      await this.applyLinkedClarification(proposal)
       await this.commitWorkspaceChange(
         workspace,
         { kind: 'proposal-apply', subject: `applied ${proposalId}`, userId, proposalId },
@@ -157,6 +159,26 @@ export class HITLService {
         at: this.deps.clock.now(),
       })
       return applied
+    })
+  }
+
+  // Close the clarification a proposal resolved, if any, once the change lands.
+  // The answered to applied move is guarded by the domain state machine,
+  // so an already-closed clarification is left untouched rather than erroring.
+  private async applyLinkedClarification(proposal: Proposal): Promise<void> {
+    if (!proposal.clarificationId)
+      return
+    const clarification = await this.deps.clarificationRepository.load(proposal.clarificationId)
+    if (clarification.status !== 'answered')
+      return
+    const applied = clarification.markApplied(proposal.id)
+    await this.deps.clarificationRepository.save(applied)
+    this.deps.eventBus?.publish({
+      type: 'clarification.applied',
+      workspaceId: proposal.workspaceId,
+      clarificationId: clarification.id,
+      proposalId: proposal.id,
+      at: this.deps.clock.now(),
     })
   }
 

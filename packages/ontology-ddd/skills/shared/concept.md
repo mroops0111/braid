@@ -70,7 +70,7 @@ Shape: `event --triggers--> policy --enacts--> command`. A policy without both e
 
 Seven strategic edges describe BoundedContext-to-BoundedContext relationships (Evans Blue Book Part IV): `partnership`, `customerSupplier`, `conformist`, `sharedKernel`, `anticorruptionLayer`, `openHostService`, `publishedLanguage`. Direction, symmetry, and semantics are in each `EdgeTypeDescriptor.description` from the ontology fetch capability.
 
-They reflect team structure, organisational politics, and integration architecture, and are **not** derivable from a single feature slice. **Do not auto-emit them from per-slice extraction.** If the source signals one (a third-party dependency, two contexts described as coupled in release planning, etc.), raise a `ClarifyTicket` asking the architect to confirm the mapping type. Let the human pick.
+They reflect team structure, organisational politics, and integration architecture, and are **not** derivable from a single feature slice. **Do not auto-emit them from per-slice extraction.** If the source signals one (a third-party dependency, two contexts described as coupled in release planning, etc.), raise a `Clarification` asking the architect to confirm the mapping type. Let the human pick.
 
 ## ID Conventions
 
@@ -116,17 +116,17 @@ Recommended skeleton (not a template; adapt freely):
 
 Skip any of these the source doesn't ground. A trivial event might be one line; a strategically-critical aggregate might use all four sections.
 
-## ClarifyTickets: Reviewer Pool and Vocabulary
+## Clarifications: Reviewer Pool and Vocabulary
 
-`ddd:extract` and `ddd:reconcile` emit ClarifyTickets when an extraction or global-pass decision is genuinely ambiguous. For DDD workspaces, the reviewer pool that answers those tickets is the **cross-functional team that owns the domain**: PM, RD, QA, designer, and anyone whose work touches the affected concept. Engineers can read graph topology; the others cannot, and the workflow is broken when they cannot answer.
+`ddd:extract` and `ddd:reconcile` emit Clarifications when an extraction or global-pass decision is genuinely ambiguous. For DDD workspaces, the reviewer pool that answers those clarifications is the **cross-functional team that owns the domain**: PM, RD, QA, designer, and anyone whose work touches the affected concept. Engineers can read graph topology; the others cannot, and the workflow is broken when they cannot answer.
 
-Two rules apply to the ticket's `question` and each `candidate.description` (the fields the reviewer reads):
+Two rules apply to the clarification's `question` and each `candidate.description` (the fields the reviewer reads):
 
 1. **Audience is the domain team, not the skill author.** The question and each candidate must be grokkable by a reviewer who knows the product but not the graph. If a PM cannot pick a candidate without asking an engineer to translate, rewrite.
 
 2. **Translate, don't transliterate.** Same rule the node `description` field carries (see § Per-Type Description Aspects). Do not paste DDD vocabulary (`aggregate`, `emit`, `contains`, `performedBy edge`, "sibling commands") or code identifiers (`cmd.ingestSource`, `IntentExtractionLedger`) into the question or candidates. Use the term the team would say in a meeting. When a code-side name is the clearest cross-team reference, put the domain term first and the identifier in parentheses, sparingly. If the question reads like a graph walk in prose, rewrite it.
 
-The ticket's `context` field has no audience constraint and is the right place for the engineering reasoning: which nodes were inconsistent, which sibling-coverage pattern triggered the question, which graph operations each candidate would run.
+The clarification's `context` field has no audience constraint and is the right place for the engineering reasoning: which nodes were inconsistent, which sibling-coverage pattern triggered the question, which graph operations each candidate would run.
 
 Worked contrast (same underlying ambiguity, two ways of writing it):
 

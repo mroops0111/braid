@@ -41,9 +41,9 @@ You are the graph's global structurer and validator. Where `ddd:extract` sees a 
 1. **Build**: create structural relationships extract can't infer because they require a cross-source view (containment, bridge edges between aggregates / contexts, cross-PRD triggers).
 2. **Validate**: cross-check the assembled graph against the active ontology's structural rules and the per-node completeness rules.
 
-The skill talks to the workspace through the `braid-core` MCP server (read capabilities: ontology fetch, model snapshot, node search; write capabilities: proposal submission, clarify-ticket submission). Discover the actual tool names via the MCP tool list before authoring calls; the capabilities below are *what to do*, not literal identifiers.
+The skill talks to the workspace through the `braid-core` MCP server (read capabilities: ontology fetch, model snapshot, node search; write capabilities: proposal submission, clarification submission). Discover the actual tool names via the MCP tool list before authoring calls; the capabilities below are *what to do*, not literal identifiers.
 
-You never write to the graph directly. You produce a Proposal the human applies via Studio. When the right answer is ambiguous, you produce a ClarifyTicket instead.
+You never write to the graph directly. You produce a Proposal the human applies via Studio. When the right answer is ambiguous, you produce a Clarification instead.
 
 This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its build phase encodes DDD-specific structural rules; workspaces using a different ontology should not load this skill.
 
@@ -51,7 +51,7 @@ This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its 
 
 - Global view. `ddd:extract` sees one slice; you see the whole graph. Use that to spot wrong attachments and missing bridges.
 - Validate before propose. Surface problems with sufficient context (which nodes, which rule). Don't dump raw API output.
-- Conservative on semantics. Format fixes (casing, whitespace) are auto. Semantic decisions (which aggregate owns this command) become a ClarifyTicket.
+- Conservative on semantics. Format fixes (casing, whitespace) are auto. Semantic decisions (which aggregate owns this command) become a Clarification.
 - Idempotent. A `validate` run with no graph changes since last time must produce a no-op proposal (or none at all).
 
 ## Modes
@@ -74,7 +74,7 @@ This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its 
 
 ## Procedure
 
-Build mode runs Steps 1-3 (graph mutations + cross-source drift), then Steps 4-6 (validation). `validate` mode skips to Step 4. Step 7 always emits the proposal; Step 8 emits any clarify tickets.
+Build mode runs Steps 1-3 (graph mutations + cross-source drift), then Steps 4-6 (validation). `validate` mode skips to Step 4. Step 7 always emits the proposal; Step 8 emits any clarifications.
 
 ### Step 1: Fix Wrong Edges Extract Emitted (build)
 
@@ -84,21 +84,21 @@ Each extract run sees one slice. From the global view, some edges land on the wr
 |---|---|
 | Command attached to the wrong aggregate (a more specific aggregate exists) | Delete the old edge + create the new one in the proposal |
 | Duplicate edges across slices (same `from` / `to` / `type`) | Delete the duplicate |
-| Inconsistent attachments (same node, different parent in two slices) | ClarifyTicket: which parent is canonical? |
-| `contains` edge from BoundedContext to a non-aggregate (cmd / qry / evt / rule) | Delete the edge. If the dangling node has no `accepts` / `emits` / `constrainedBy` to its owning aggregate, raise a ClarifyTicket asking which aggregate owns it. Do not re-attach to the BC. |
+| Inconsistent attachments (same node, different parent in two slices) | Clarification: which parent is canonical? |
+| `contains` edge from BoundedContext to a non-aggregate (cmd / qry / evt / rule) | Delete the edge. If the dangling node has no `accepts` / `emits` / `constrainedBy` to its owning aggregate, raise a Clarification asking which aggregate owns it. Do not re-attach to the BC. |
 | `dependsOn` edge whose endpoints are not both aggregates | Delete and re-express. Use `triggers` for event-driven cross-aggregate flow; for direct read access, the calling aggregate should reference the target aggregate's id and use `dependsOn` between the two aggregates. |
-| Command or query with no `performedBy` edge to any actor | For each command and query, check sibling commands on the same aggregate: if the aggregate's other operations have `performedBy` edges to a consistent actor set, propose the same wiring for the gap and add a one-line rationale. If sibling coverage is inconsistent or absent, raise a ClarifyTicket asking which actor performs the operation. Single-aggregate orphans without sibling coverage are the most common gap from per-slice extracts. |
-| Aggregate with commands but no events, or events with no source command / aggregate | Cross-check the source references on the aggregate. If sibling commands emit events of a consistent shape (e.g. `*Created`, `*Updated`, `*Deleted`) but one command is missing its event, raise a ClarifyTicket asking whether the missing event was intentionally omitted (intermediate state change with no domain significance) or simply not extracted. |
+| Command or query with no `performedBy` edge to any actor | For each command and query, check sibling commands on the same aggregate: if the aggregate's other operations have `performedBy` edges to a consistent actor set, propose the same wiring for the gap and add a one-line rationale. If sibling coverage is inconsistent or absent, raise a Clarification asking which actor performs the operation. Single-aggregate orphans without sibling coverage are the most common gap from per-slice extracts. |
+| Aggregate with commands but no events, or events with no source command / aggregate | Cross-check the source references on the aggregate. If sibling commands emit events of a consistent shape (e.g. `*Created`, `*Updated`, `*Deleted`) but one command is missing its event, raise a Clarification asking whether the missing event was intentionally omitted (intermediate state change with no domain significance) or simply not extracted. |
 
 ### Step 2: Add Missing Containment (build)
 
-For every aggregate without a `contains`-style edge from a context, decide its owning bounded context based on naming + cross-edges to peers. Create the missing edge in the proposal. If two contexts are plausible, raise a ClarifyTicket instead.
+For every aggregate without a `contains`-style edge from a context, decide its owning bounded context based on naming + cross-edges to peers. Create the missing edge in the proposal. If two contexts are plausible, raise a Clarification instead.
 
 Only aggregates carry `contains` from a BoundedContext. Commands / queries / events / rules already have their parent aggregate via `accepts` / `emits` / `constrainedBy`; never add a `contains` edge from BC to them.
 
 ### Step 3: Add Bridge Edges + Cross-Source Drift (build)
 
-Add `triggers`, `dependsOn`, `policy` chains, and aggregate-wide `constrainedBy` edges per concept.md's wiring rules. Context Mapping edges (the 7 strategic relationships) are never auto-emitted; raise a ClarifyTicket.
+Add `triggers`, `dependsOn`, `policy` chains, and aggregate-wide `constrainedBy` edges per concept.md's wiring rules. Context Mapping edges (the 7 strategic relationships) are never auto-emitted; raise a Clarification.
 
 `ddd:extract` checks drift on a single slice at a time. From the global view, also catch:
 
@@ -112,7 +112,7 @@ For each finding, emit one `DriftIssue` per dimension and attach to the node's `
 
 ### Step 4: Structural Validation
 
-Structural violations show up in the `issues[]` array of Step 7's proposal-create response. Fix `error`-severity ones (or raise a ClarifyTicket if the right fix is ambiguous); report `warning`-severity in the proposal `rationale`. If a scope-hint is set, filter to nodes in or adjacent to that scope.
+Structural violations show up in the `issues[]` array of Step 7's proposal-create response. Fix `error`-severity ones (or raise a Clarification if the right fix is ambiguous); report `warning`-severity in the proposal `rationale`. If a scope-hint is set, filter to nodes in or adjacent to that scope.
 
 ### Step 5: Node-Content Validation
 
@@ -132,11 +132,11 @@ Submit the Proposal via the `braid-core` proposal-create capability:
 
 Operation names and payload shapes are in `.claude/skills/shared/proposal-format.md` (see § Companion Docs). Follow that file rather than freelancing JSON.
 
-#### Step 8: Emit ClarifyTickets
+#### Step 8: Emit Clarifications
 
-For ambiguous attachments / splits / merges, submit a ClarifyTicket via the `braid-core` clarify-create capability per unresolved question. Include each candidate resolution with the evidence behind it so the human can pick informedly.
+For ambiguous attachments / splits / merges, submit a Clarification via the `braid-core` clarification-create capability per unresolved question. Include each candidate resolution with the evidence behind it so the human can pick informedly.
 
-Before writing the `question` and each `candidate.description`, re-read `<cwd>/.claude/skills/ontology-ddd/concept.md` § ClarifyTickets: Reviewer Pool and Vocabulary. The reviewer pool for DDD workspaces is the cross-functional team (PM, RD, QA, designer); the ticket fields must read in their ubiquitous language, not in graph topology or code identifiers. Lower graph terms, exact node ids, and the engineering reasoning into the ticket's `context` field instead, which has no audience constraint.
+Before writing the `question` and each `candidate.description`, re-read `<cwd>/.claude/skills/ontology-ddd/concept.md` § Clarifications: Reviewer Pool and Vocabulary. The reviewer pool for DDD workspaces is the cross-functional team (PM, RD, QA, designer); the clarification fields must read in their ubiquitous language, not in graph topology or code identifiers. Lower graph terms, exact node ids, and the engineering reasoning into the clarification's `context` field instead, which has no audience constraint.
 
 ## Output
 
@@ -144,7 +144,7 @@ stdout summary at the end:
 
 ```
 ddd:reconcile (build + validate): proposal p-2026-05-12-abc (18 ops; 4 bridges, 5 driftIssues, 9 content fills)
-ddd:reconcile raised 2 clarify tickets (ct-..., ct-...)
+ddd:reconcile raised 2 clarifications (ct-..., ct-...)
 ```
 
 In `validate` mode, omit the `bridges` figure and prefix with `(validate-only)`.
@@ -154,7 +154,7 @@ In `validate` mode, omit the `bridges` figure and prefix with `(validate-only)`.
 - [ ] Ontology loaded; every emitted type id matches the ontology.
 - [ ] (build mode) Bridge / containment edges added to the proposal.
 - [ ] (build mode) Cross-source drift (intent-vs-intent, code-vs-code, cross-aggregate) attached as `DriftIssue` entries on affected nodes.
-- [ ] Structural errors fixed or raised as ClarifyTickets.
+- [ ] Structural errors fixed or raised as Clarifications.
 - [ ] Node-content fixes for `draft` / `unclear` nodes folded into the proposal.
 - [ ] Coverage gaps reported in the proposal `rationale`.
 - [ ] (validate mode) Stale `driftIssues` entries that no longer reproduce are cleared from affected nodes.
@@ -167,7 +167,7 @@ Companion docs sit at `<cwd>/.claude/skills/shared/` (core) and `<cwd>/.claude/s
 |---|---|---|
 | `.claude/skills/ontology-ddd/concept.md` | **Before Steps 1-3 and any time you author a bridge edge** | The DDD vocabulary, wiring rules, policy pattern, Context Mapping rules. Anchors every structural decision Part 1 makes. |
 | `.claude/skills/shared/proposal-format.md` | Before Step 7 | `GraphOperation` discriminated union, `DriftIssue` shape, status semantics. |
-| `.claude/skills/shared/clarify-format.md` | Before Step 8 | `ClarifyTicket` request body and candidate shape. |
+| `.claude/skills/shared/clarification-format.md` | Before Step 8 | `Clarification` request body and candidate shape. |
 | `.claude/skills/shared/content-conventions.md` | Whenever writing a `name`, `description`, `rationale`, or `question` | Plain-text rule, length caps, structural conventions for every user-facing string field. |
 | `.claude/skills/shared/validators.md` | Before Step 7 | The four server-side validators; self-check ops here so they don't hit a 400 unnecessarily. |
 | `.claude/skills/shared/drift-detection.md` | Step 3 | Dimension checklist + description pattern for `DriftIssue` entries; severity rules. |
