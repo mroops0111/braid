@@ -1,6 +1,6 @@
 ---
 name: extract
-description: Extract Domain Model nodes / edges from intent (PRD / RFC) and codebase. Emit a Proposal JSON for human review (HITL). Emit a ClarifyTicket when ambiguity prevents a confident proposal.
+description: Extract Domain Model nodes / edges from intent (PRD / RFC) and codebase. Emit a Proposal JSON for human review (HITL). Emit a Clarification when ambiguity prevents a confident proposal.
 argument-hint: "[scope-hint]"
 disable-model-invocation: true
 braid:
@@ -25,16 +25,16 @@ braid:
 
 You are a knowledge-extraction assistant. You read intent + code, figure out what the graph should look like for the given scope, and produce a Proposal that a human reviews and applies via the Studio UI.
 
-The skill talks to the workspace through the `braid-core` MCP server (read capabilities: ontology fetch, model snapshot, node search; write capabilities: proposal submission, clarify-ticket submission). Discover the actual tool names via the MCP tool list before authoring calls; the capabilities below are *what to do*, not literal identifiers.
+The skill talks to the workspace through the `braid-core` MCP server (read capabilities: ontology fetch, model snapshot, node search; write capabilities: proposal submission, clarification submission). Discover the actual tool names via the MCP tool list before authoring calls; the capabilities below are *what to do*, not literal identifiers.
 
-You never write to the graph directly. Braid is HITL: you propose, the human applies. When you cannot decide between candidate interpretations, you produce a ClarifyTicket and let the human pick.
+You never write to the graph directly. Braid is HITL: you propose, the human applies. When you cannot decide between candidate interpretations, you produce a Clarification and let the human pick.
 
 This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its procedure encodes DDD-specific structural rules (BoundedContext contains aggregates only, the seven Context Mapping edges, Vernon's Process Manager). Workspaces using a different ontology should not load this skill.
 
 ## Design Principles
 
 - Small scope > big. If `$ARGUMENTS` is given, stay within that bounded context. < 30 ops per proposal.
-- Conservative > eager. Insufficient evidence means a ClarifyTicket, never a guess.
+- Conservative > eager. Insufficient evidence means a Clarification, never a guess.
 - Rationale required. The proposal's `rationale` must explain why these ops and what triggered them.
 - Idempotent. Two runs with identical input produce equivalent proposals.
 
@@ -84,15 +84,15 @@ Every node you emit MUST have `metadata` set. A node with `metadata.sourceRefere
 
 When a node has multiple sources to cite (intent plus one or more code files, or several layers of code), order them by representativeness: see `proposal-format.md` § Picking sourceReferences.
 
-#### Identity-Level Disagreement: ClarifyTicket
+#### Identity-Level Disagreement: Clarification
 
-You can't tell whether two sources are describing the *same* concept (alias or distinct? two unrelated `Order` definitions in different PRDs?). Don't pick. Emit a ClarifyTicket per Step 5 and stop.
+You can't tell whether two sources are describing the *same* concept (alias or distinct? two unrelated `Order` definitions in different PRDs?). Don't pick. Emit a Clarification per Step 5 and stop.
 
 #### Field-Level Drift: DriftIssue Attached to the Node
 
-The sources agree on *what* this is, but disagree on *specifics*: a limit, a state set, a parameter list, a sequence of steps. Don't drop into a ClarifyTicket. Emit the node anyway and attach one structured `DriftIssue` per dimension to its `metadata.driftIssues[]`. Set `status: 'unclear'` instead of `draft` when at least one DriftIssue is `severity: 'error'`. Read `drift-detection.md` for the dimension checklist, description pattern, severity rules, and the JSON shape.
+The sources agree on *what* this is, but disagree on *specifics*: a limit, a state set, a parameter list, a sequence of steps. Don't drop into a Clarification. Emit the node anyway and attach one structured `DriftIssue` per dimension to its `metadata.driftIssues[]`. Set `status: 'unclear'` instead of `draft` when at least one DriftIssue is `severity: 'error'`. Read `drift-detection.md` for the dimension checklist, description pattern, severity rules, and the JSON shape.
 
-This split is load-bearing: ClarifyTickets are "the human must decide what this is", DriftIssues are "the human can see two sources disagree and act on the proposal review pane". Conflating them buries field-level drift in ticket prose where the validator can't gate Apply.
+This split is load-bearing: Clarifications are "the human must decide what this is", DriftIssues are "the human can see two sources disagree and act on the proposal review pane". Conflating them buries field-level drift in clarification prose where the validator can't gate Apply.
 
 ### Step 4: Submit the Proposal
 
@@ -104,18 +104,18 @@ Submit the Proposal via the `braid-core` proposal-create capability:
 
 Outcomes: 201 means move on. 400 (`code: BRAID-VAL`) means fix the cited `issues[]` and resubmit, max 3 rounds; after that list remaining issues and stop. 409 (id collision) means mint a fresh id. 5xx means bail and report. `warning` issues don't block apply; mention them in `rationale` if intentional.
 
-### Step 5: Submit ClarifyTicket (Low-Confidence Candidates)
+### Step 5: Submit Clarification (Low-Confidence Candidates)
 
-Use the `braid-core` clarify-create capability with the question text and the candidate list. Each candidate must carry its own `proposedOperations`; the human's pick determines which ops run on Apply.
+Use the `braid-core` clarification-create capability with the question text and the candidate list. Each candidate must carry its own `proposedOperations`; the human's pick determines which ops run on Apply.
 
-Before writing the `question` and each `candidate.description`, re-read `<cwd>/.claude/skills/ontology-ddd/concept.md` § ClarifyTickets: Reviewer Pool and Vocabulary. The reviewer pool for DDD workspaces is the cross-functional team (PM, RD, QA, designer); the ticket fields must read in their ubiquitous language, not in graph topology or code identifiers. Lower graph terms, exact node ids, and the engineering reasoning into the ticket's `context` field instead, which has no audience constraint.
+Before writing the `question` and each `candidate.description`, re-read `<cwd>/.claude/skills/ontology-ddd/concept.md` § Clarifications: Reviewer Pool and Vocabulary. The reviewer pool for DDD workspaces is the cross-functional team (PM, RD, QA, designer); the clarification fields must read in their ubiquitous language, not in graph topology or code identifiers. Lower graph terms, exact node ids, and the engineering reasoning into the clarification's `context` field instead, which has no audience constraint.
 
 ## Output
 
 stdout summary at the end:
 
 ```
-Produced N proposals + M clarify tickets:
+Produced N proposals + M clarifications:
   - p-2026-05-12-abc (scope: ctx.checkout, 12 ops)
   - p-2026-05-12-def (scope: ctx.billing, 8 ops)
   - ct-2026-05-12-xyz (question: cancelOrder vs revokeOrder)
@@ -126,10 +126,10 @@ Produced N proposals + M clarify tickets:
 - [ ] Ontology fetched from `braid-core` before any operation was drafted; every `node.type` / `edge.type` matches an id in the response.
 - [ ] Wiring rules in `ontology-ddd/concept.md` followed (parent edges, no Context Mapping auto-emit, policy has both edges, `dependsOn` is aggregate-to-aggregate).
 - [ ] Every node has `metadata.sourceReferences` and / or a non-empty `metadata.missingRoles`.
-- [ ] Field-level disagreement between sources surfaces as a `DriftIssue` on the node (see `drift-detection.md`), not a ClarifyTicket.
+- [ ] Field-level disagreement between sources surfaces as a `DriftIssue` on the node (see `drift-detection.md`), not a Clarification.
 - [ ] Each proposal was submitted via `braid-core` proposal-create and the final response was 201 (not 4xx).
 - [ ] No `removeNode` of a node still referenced elsewhere; deprecate instead.
-- [ ] Each ClarifyTicket candidate carries `proposedOperations`.
+- [ ] Each Clarification candidate carries `proposedOperations`.
 - [ ] Final stdout lists outcomes (or, if proposal-create kept returning 400 after 3 rounds, lists the remaining issues).
 
 ## Companion Docs
@@ -140,12 +140,12 @@ Companion docs sit at `<cwd>/.claude/skills/shared/` (core) and `<cwd>/.claude/s
 |---|---|---|
 | `.claude/skills/ontology-ddd/concept.md` | **Before Step 2 and any time you author a node / edge** | The DDD vocabulary, wiring rules, policy pattern, Context Mapping rules, ID prefix conventions, and per-type description aspects. The contract for everything Step 2 does. |
 | `.claude/skills/shared/proposal-format.md` | Before Step 4 | `GraphOperation` discriminated union, `DriftIssue` shape, status semantics, sizing. |
-| `.claude/skills/shared/clarify-format.md` | Before Step 5 | `ClarifyTicket` request body and candidate shape. |
+| `.claude/skills/shared/clarification-format.md` | Before Step 5 | `Clarification` request body and candidate shape. |
 | `.claude/skills/shared/content-conventions.md` | Whenever writing a `name`, `description`, `rationale`, or `question` | Plain-text rule, length caps, structural conventions for every user-facing string field. |
 | `.claude/skills/shared/validators.md` | Before Step 4 | The four server-side validators; self-check ops here so they don't hit a 400 unnecessarily. |
 | `.claude/skills/shared/drift-detection.md` | Step 3, when two sources disagree on a field | Dimension checklist + description pattern for `DriftIssue` entries; severity rules. |
 
 ## Notes
 
-- Found a pre-existing bad node (wrong type, missing description) that no source mentions? Produce a ClarifyTicket asking what to do. Do not silently fix.
+- Found a pre-existing bad node (wrong type, missing description) that no source mentions? Produce a Clarification asking what to do. Do not silently fix.
 - If `$BRAID_WORKSPACE/skill-extensions/ddd-extract/EXTEND.md` exists, follow its rules after the steps above. Workspace-specific ID conventions / status enums / source patterns go there.

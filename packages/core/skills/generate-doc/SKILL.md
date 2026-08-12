@@ -104,7 +104,7 @@ expandedUnder chain)
 
 | Item | Status | Note |
 |---|---|---|
-| {name} | ⚠️ unclear | See clarify ticket {id} |
+| {name} | ⚠️ unclear | See clarification {id} |
 | {name} | 🟡 draft | Description incomplete |
 
 ---

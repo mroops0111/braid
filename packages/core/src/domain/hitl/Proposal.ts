@@ -1,5 +1,6 @@
 import type {
   Actor,
+  ClarificationId,
   ExternalReference,
   GraphOperation,
   Proposal as ProposalData,
@@ -27,6 +28,7 @@ export class Proposal {
   get ownerDisplayName(): string | undefined { return this.data.ownerDisplayName }
   get ownerKind(): ProposalData['ownerKind'] { return this.data.ownerKind }
   get externalReferences(): readonly ExternalReference[] | undefined { return this.data.externalReferences }
+  get clarificationId(): ClarificationId | undefined { return this.data.clarificationId }
 
   // Returns a new Proposal in 'applied' state. Caller must persist the new instance and run the operations,
   // we keep the entity pure with no side effects.
