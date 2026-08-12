@@ -1,0 +1,1232 @@
+{
+  "id": "proposal-95d2ddda1d65",
+  "workspaceId": "conciergent",
+  "status": "applied",
+  "operations": [
+    {
+      "operation": "addNodes",
+      "payloads": [
+        {
+          "id": "ctx.surfaceIngress",
+          "type": "boundedContext",
+          "name": "Message Arrival and User Identity",
+          "description": "A person types into Slack, LINE, or Discord, and what reaches this product is a signed web request or a frame on an open socket, not yet a question worth answering. Something has to prove the delivery really came from the platform it claims, drop what is not a person talking, refuse to act on the same delivery twice, and work out which person is speaking and in which conversation. This subsystem owns that doorway, and the identity everything downstream is attributed to.\n\nThe terms this subsystem uses, and what each means here:\n\n| Term | Meaning here |\n|---|---|\n| Delivery | One thing a chat platform handed over: a typed message, a tap on a suggestion, or somebody adding the assistant. |\n| Identity | The stable handle naming one person: the platform, the workspace or account, and their account within it. |\n| Conversation | The scope memory and waiting confirmations belong to, decided here from the identity plus the thread the delivery arrived in. |\n| Installation | The product's presence in one Slack workspace, and the credential it answers that workspace with. |\n| Connection | A link held open to a platform that pushes its deliveries rather than posting them. |\n\nThree platforms arrive two different ways: Slack and LINE post signed requests, Discord streams over a connection this product keeps open. Both paths end the same way, in one accepted message attributed to one person.\n\nOutside this boundary: what a turn actually does with the message, how the answer is drawn for each platform, and the personal sign-ins the assistant's tools need. Those neighbours receive an accepted message and an identity; they never decide whether a delivery was genuine or whose it was.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 46,
+                  "endLine": 129
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 72,
+                  "endLine": 116
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/webhook.py",
+                  "startLine": 41,
+                  "endLine": 79
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/identity.py",
+                  "startLine": 4,
+                  "endLine": 30
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/base.py",
+                  "startLine": 13,
+                  "endLine": 43
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "agg.inboundDelivery",
+          "type": "aggregate",
+          "name": "Inbound Delivery",
+          "description": "One thing a chat platform handed over, and whether it earns an answer. A delivery is only a candidate: most of what platforms send is not a person asking something, and the same delivery often arrives more than once because the platform retried it.\n\nRules that always hold:\n\n- A delivery that cannot prove it came from the platform is refused outright.\n- Only a person's own direct message or their tap on a suggestion starts a turn; anything from a bot, an edit, or a group channel is dropped.\n- The same delivery is acted on once, however many times the platform sends it.\n- The platform is told the delivery landed before the answer is produced, because platforms give only seconds.\n\nLifecycle:\n\n```mermaid\nstateDiagram-v2\n    [*] --> Arrived\n    Arrived --> Refused: signature does not check out\n    Arrived --> Ignored: not a person talking, or already seen\n    Arrived --> Accepted: genuine, eligible, first time\n    Accepted --> [*]: handed to a turn\n```\n\nA delivery reaches the person it belongs to and the workspace credential needed to answer through their identities, never by carrying either itself.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 65,
+                  "endLine": 127
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 172,
+                  "endLine": 208
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/webhook.py",
+                  "startLine": 58,
+                  "endLine": 77
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/message.py",
+                  "startLine": 85,
+                  "endLine": 87
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "agg.platformConnection",
+          "type": "aggregate",
+          "name": "Platform Connection",
+          "description": "The link this product holds open to a platform that pushes its deliveries instead of posting them, today Discord. While the link is up, messages and taps arrive on it; while it is down, that platform's users get nothing, so keeping it up is the whole job.\n\nRules that always hold:\n\n- A connection the platform rejected outright is not retried, because the same rejection would repeat forever.\n- A connection that merely dropped is re-established, waiting longer between attempts, and picks up the stream where it left off rather than replaying it.\n\nEach platform runs on its own, so one platform's link failing leaves the others answering normally.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 99,
+                  "endLine": 132
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 39,
+                  "endLine": 41
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 136,
+                  "endLine": 142
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "agg.userIdentity",
+          "type": "aggregate",
+          "name": "User Identity",
+          "description": "Who is speaking, and everything the product keeps about them between messages: the stable handle that names them, the conversation their message belongs to, and the language they read in.\n\nThe handle is built from the platform, the workspace or account, and the person's account within it, so the same human in two Slack workspaces counts as two people and shares neither memory nor sign-ins. It is derived fresh from every delivery rather than stored, which is what makes it stable.\n\nThe one thing that is kept is the language, remembered per person so a later message can be answered in it even when that message carries no clue about which language they read.\n\nEverything a turn does is attributed to this identity: the memory it reads, the confirmations it holds, and the personal sign-ins it uses.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/identity.py",
+                  "startLine": 4,
+                  "endLine": 30
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/credential.py",
+                  "startLine": 38,
+                  "endLine": 42
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 148,
+                  "endLine": 153
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 258,
+                  "endLine": 267
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "agg.workspaceInstallation",
+          "type": "aggregate",
+          "name": "Workspace Installation",
+          "description": "The product's presence inside one Slack workspace: the credential it posts with there, and a record of who put it there.\n\nOne deployment can serve many workspaces at once, each answered with its own credential, so a workspace that removes the app stops being answerable without affecting the rest. A single-workspace deployment can skip the whole flow and configure one credential up front, which answers any workspace no stored credential is found for.\n\nAdding a workspace is a browser round trip away from the chat app: the product sends the person to Slack, Slack sends them back, and only a return that matches the request that started it is honoured.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/install.py",
+                  "startLine": 34,
+                  "endLine": 84
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/credential.py",
+                  "startLine": 28,
+                  "endLine": 35
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 148,
+                  "endLine": 150
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.acceptDelivery",
+          "type": "command",
+          "name": "Accept an Arriving Message",
+          "description": "Decide whether something a platform just delivered is a genuine, first-time message from a person, and if it is, hand it on to be answered.\n\n- **Issued by**: the chat user, relayed by whichever platform received their message or their tap.\n- **Requires**: proof the delivery came from the platform, and content that is a person talking rather than a bot echo, an edit, or a group message.\n- **Produces**: an accepted message, attributed to one person and one conversation, or nothing at all.\n- **Fails as**: a delivery that cannot prove its origin is refused with an authentication error; everything else that does not qualify is dropped silently, because a platform reads a complaint as a reason to retry.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 65,
+                  "endLine": 92
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 172,
+                  "endLine": 208
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/webhook.py",
+                  "startLine": 58,
+                  "endLine": 77
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.holdPlatformConnection",
+          "type": "command",
+          "name": "Hold the Platform Connection",
+          "description": "Keep the link to a pushing platform open for as long as the product runs, so that platform's messages have somewhere to arrive.\n\n- **Issued by**: the product itself at start-up, once per platform that pushes.\n- **Requires**: a working credential for that platform.\n- **Produces**: a live link that delivers messages and taps until the product stops.\n- **Fails as**: a rejected credential ends that platform's link for good and is reported; a dropped link is simply re-established.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 99,
+                  "endLine": 116
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/app.py",
+                  "startLine": 31,
+                  "endLine": 46
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.resolveSpeaker",
+          "type": "command",
+          "name": "Work Out Who Is Speaking",
+          "description": "Turn what a platform said about a delivery into the handle that names the person and the conversation their message belongs to.\n\n- **Issued by**: the doorway, on every delivery it accepts.\n- **Requires**: the platform, the workspace or account the delivery came through, and the person's account there.\n- **Produces**: a stable handle for the person, and the conversation scope their memory and any waiting confirmation live under.\n- **Fails as**: an account whose name would make the handle ambiguous is rejected rather than quietly reshaped.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/identity.py",
+                  "startLine": 12,
+                  "endLine": 23
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 151,
+                  "endLine": 153
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 219,
+                  "endLine": 221
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/webhook.py",
+                  "startLine": 90,
+                  "endLine": 94
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.rememberUserLanguage",
+          "type": "command",
+          "name": "Remember the User's Language",
+          "description": "Record the language a person reads in, learned from whatever the platform said about them, so later messages can be answered in it.\n\n- **Issued by**: the doorway, whenever a delivery carries a language and the platform does not offer one on demand.\n- **Requires**: the person's handle and the language the delivery carried.\n- **Produces**: a remembered language for that person, replacing whatever was remembered before.\n- **Fails as**: a language the product does not recognise is discarded rather than stored, and the reply falls back.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 258,
+                  "endLine": 267
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/credential.py",
+                  "startLine": 102,
+                  "endLine": 109
+                }
+              }
+            ],
+            "driftIssues": [
+              {
+                "id": "drift-lang-coverage",
+                "description": "Slack and LINE read the user's language from the platform profile on every delivery (src/conciergent/surfaces/slack/surface.py:50-65, src/conciergent/surfaces/line/surface.py:56-67); Discord has no profile lookup and only learns the language when the user taps a button, at src/conciergent/surfaces/discord/gateway.py:258-267. A Discord user who only ever types is answered in the fallback language indefinitely.",
+                "severity": "warning",
+                "sourceReferences": [
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/surfaces/discord/gateway.py",
+                      "startLine": 258,
+                      "endLine": 267
+                    }
+                  },
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/surfaces/slack/surface.py",
+                      "startLine": 50,
+                      "endLine": 65
+                    }
+                  }
+                ],
+                "raisedAt": "2026-08-11T10:15:00+08:00"
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.installWorkspace",
+          "type": "command",
+          "name": "Install Into a Workspace",
+          "description": "Put the assistant into a Slack workspace and keep the credential it will answer there with.\n\n- **Issued by**: the person setting the product up for their team.\n- **Requires**: a return from Slack that matches the request that started it, and a code Slack has not already spent.\n- **Produces**: a stored credential for that workspace, tagged with who installed it, and a page telling the installer it worked.\n- **Fails as**: a declined install, a mismatched return, or a spent code all end on the same failure page; none of them is treated as a fault of the product.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/install.py",
+                  "startLine": 41,
+                  "endLine": 84
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/install.py",
+                  "startLine": 95,
+                  "endLine": 120
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/credential.py",
+                  "startLine": 94,
+                  "endLine": 100
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.greetNewFollower",
+          "type": "command",
+          "name": "Greet Someone Who Just Added the Assistant",
+          "description": "Welcome a person the moment they add the assistant, and use that moment to get any sign-in they will need out of the way before they ask their first question.\n\n- **Issued by**: the platform, when somebody adds the assistant; supported on LINE today.\n- **Requires**: the new person's handle.\n- **Produces**: either a welcome saying the assistant is ready, or one saying it is ready again, depending on whether a sign-in was completed just now.\n- **Fails as**: a person handed a sign-in link who walks away gets no greeting; the welcome waits for their first message instead.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/webhook.py",
+                  "startLine": 146,
+                  "endLine": 163
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/webhook.py",
+                  "startLine": 99,
+                  "endLine": 110
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "qry.userLanguage",
+          "type": "query",
+          "name": "Look Up the User's Language",
+          "description": "Find the language to answer a person in.\n\nAsked once per delivery, before anything is written, so the reply, the confirmation card, and any sign-in prompt all read the same way. Answered from the platform's own profile where the platform offers one, and from what was remembered about the person otherwise. An unknown answer is fine: the product falls back rather than guessing.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/surface.py",
+                  "startLine": 50,
+                  "endLine": 65
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/surface.py",
+                  "startLine": 56,
+                  "endLine": 67
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 258,
+                  "endLine": 267
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "evt.deliveryAccepted",
+          "type": "event",
+          "name": "Message Accepted",
+          "description": "A genuine, first-time message from an identified person is ready to be answered. Fires at the end of the doorway, once the delivery has proved its origin, qualified as a person talking, and been checked as one the product has not already acted on. The turn lifecycle reacts by running the round trip; nothing inside the doorway does.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 79,
+                  "endLine": 92
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 185,
+                  "endLine": 185
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/webhook.py",
+                  "startLine": 69,
+                  "endLine": 76
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "evt.followerJoined",
+          "type": "event",
+          "name": "Assistant Added",
+          "description": "Somebody has just added the assistant on their platform. Fires when the platform reports the addition rather than a message, and is answered with a welcome instead of a turn. Stays inside the doorway.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/webhook.py",
+                  "startLine": 99,
+                  "endLine": 110
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "evt.workspaceInstalled",
+          "type": "event",
+          "name": "Workspace Installed",
+          "description": "A Slack workspace now has the assistant, and the credential to answer there has been stored. Fires at the end of the browser round trip, after the return has been matched to the request that started it. Nothing reacts automatically; from here on, messages from that workspace are answerable.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/install.py",
+                  "startLine": 79,
+                  "endLine": 82
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.deliveryProvesItsOrigin",
+          "type": "rule",
+          "name": "A Delivery Must Prove Where It Came From",
+          "description": "Every delivery carries a signature made with a secret only the product and the platform share, and a delivery whose signature does not check out is refused before anything is read from it. Slack deliveries must also be recent: one whose timestamp is more than five minutes off is refused as stale.\n\nThe business cares because the address a platform posts to is public. Without the check, anybody who found it could impersonate a user, make the assistant answer questions nobody asked, and spend the account's usage doing it, while the conversation history filled with exchanges the real person never had.\n\nA refused delivery is answered with an authentication error and nothing else happens. Applies to every delivery on every platform that posts.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 196,
+                  "endLine": 206
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/webhook.py",
+                  "startLine": 166,
+                  "endLine": 170
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 57,
+                  "endLine": 63
+                }
+              }
+            ],
+            "driftIssues": [
+              {
+                "id": "drift-replay-window",
+                "description": "Slack refuses a delivery whose timestamp is more than five minutes off at src/conciergent/surfaces/slack/webhook.py:196-206; the LINE check at src/conciergent/surfaces/line/webhook.py:166-170 verifies only the signature and has no freshness window. A captured LINE delivery stays replayable indefinitely, and only the event-id check stops it being answered again.",
+                "severity": "warning",
+                "sourceReferences": [
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/surfaces/slack/webhook.py",
+                      "startLine": 196,
+                      "endLine": 206
+                    }
+                  },
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/surfaces/line/webhook.py",
+                      "startLine": 166,
+                      "endLine": 170
+                    }
+                  }
+                ],
+                "raisedAt": "2026-08-11T10:15:00+08:00"
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.onlyAPersonsDirectMessageStartsATurn",
+          "type": "rule",
+          "name": "Only a Person's Direct Message Starts a Turn",
+          "description": "A turn starts only for a person's own message in a direct conversation with the assistant, or their tap on a suggestion the assistant offered. Messages from bots, edits and other after-the-fact changes, empty messages, and anything in a shared or group channel are dropped without a reply.\n\nThe business cares because the assistant lives in the same chat apps as everything else a team says. Answering group chatter would make it interrupt conversations it was never part of, and answering another bot would let two automated participants talk to each other indefinitely, at a real cost per exchange.\n\nNothing is surfaced when a delivery is dropped; the platform is simply told it landed. Applies at the doorway, before any identity or memory is touched.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 209,
+                  "endLine": 217
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 172,
+                  "endLine": 185
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/webhook.py",
+                  "startLine": 90,
+                  "endLine": 93
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.eachDeliveryIsActedOnOnce",
+          "type": "rule",
+          "name": "The Same Delivery Is Acted On Once",
+          "description": "A delivery is recorded the first time it is acted on and ignored on every later arrival, for a day afterwards. A tap that closes a set of options counts for the whole set, so a person cannot pick twice from one card; a tap that leaves the options standing counts per button, so different follow-ups from the same card each get their turn.\n\nThe business cares because platforms retry a delivery they think went unanswered, and a duplicate turn means the same question answered twice, the same action taken twice, and the same confirmation raised twice for something the user already approved.\n\nA repeat is dropped silently. Applies to every delivery the doorway accepts.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 220,
+                  "endLine": 231
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 77,
+                  "endLine": 78
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/webhook.py",
+                  "startLine": 64,
+                  "endLine": 68
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/message.py",
+                  "startLine": 85,
+                  "endLine": 87
+                }
+              }
+            ],
+            "driftIssues": [
+              {
+                "id": "drift-dedupe-coverage",
+                "description": "Slack and Discord deduplicate every delivery they act on (src/conciergent/surfaces/slack/webhook.py:77 and src/conciergent/surfaces/discord/gateway.py:181); LINE skips the check when the delivery carries no event id, at src/conciergent/surfaces/line/webhook.py:64-68. A LINE delivery without an id that the platform retries is answered twice.",
+                "severity": "warning",
+                "sourceReferences": [
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/surfaces/line/webhook.py",
+                      "startLine": 64,
+                      "endLine": 68
+                    }
+                  },
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/surfaces/slack/webhook.py",
+                      "startLine": 77,
+                      "endLine": 78
+                    }
+                  }
+                ],
+                "raisedAt": "2026-08-11T10:15:00+08:00"
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.thePlatformIsAnsweredFirst",
+          "type": "rule",
+          "name": "The Platform Is Answered Before the User Is",
+          "description": "The platform is told its delivery landed straight away, and the answer is produced afterwards, out of band. Platforms allow only a few seconds before treating a delivery as failed.\n\nThe business cares because an answer worth waiting for almost always takes longer than the platform will wait: the assistant may think, call a tool, or pause for a confirmation. Holding the platform open until the answer is ready would make every real question look like a failure and be retried, so the user would get their answer two or three times over.\n\nA violation shows up as duplicate answers rather than as an error. Applies to every accepted delivery.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 79,
+                  "endLine": 92
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/webhook.py",
+                  "startLine": 69,
+                  "endLine": 77
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 172,
+                  "endLine": 185
+                }
+              }
+            ],
+            "driftIssues": [
+              {
+                "id": "drift-ack-sequence",
+                "description": "Slack and LINE acknowledge the platform first and produce the answer on a background task (src/conciergent/surfaces/slack/webhook.py:79-92, src/conciergent/surfaces/line/webhook.py:69-77); the Discord connection produces the answer inline in the loop that reads the stream, at src/conciergent/surfaces/discord/gateway.py:172-185. While one Discord answer is being produced, that platform's later deliveries wait behind it.",
+                "severity": "warning",
+                "sourceReferences": [
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/surfaces/discord/gateway.py",
+                      "startLine": 172,
+                      "endLine": 185
+                    }
+                  },
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/surfaces/slack/webhook.py",
+                      "startLine": 79,
+                      "endLine": 92
+                    }
+                  }
+                ],
+                "raisedAt": "2026-08-11T10:15:00+08:00"
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.identityNamesPlatformWorkspaceAndAccount",
+          "type": "rule",
+          "name": "A Person Is Named by Platform, Workspace, and Account",
+          "description": "A person's handle is built from three parts joined in a fixed order: the platform they are on, the workspace or account the message came through, and their account within it. None of the parts may contain the separator, so a handle can always be read back into the parts it was built from.\n\nThe business cares because this handle is what memory, waiting confirmations, and personal sign-ins are filed under. Two people whose handles collided would read each other's conversation and act with each other's access; a handle that could not be read back would strand whatever was filed under it.\n\nA part that would make the handle ambiguous is rejected outright rather than quietly reshaped. Applies everywhere a person is named, on every platform.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/identity.py",
+                  "startLine": 12,
+                  "endLine": 23
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/identity.py",
+                  "startLine": 26,
+                  "endLine": 30
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.languageIsLearnedFromWhatTheDeliveryCarries",
+          "type": "rule",
+          "name": "The User's Language Is Learned From What Arrives",
+          "description": "Where a platform will tell the product what language a person reads, it is asked once per delivery and the answer is used for everything written in that turn. Where a platform mentions the language on only some deliveries, it is remembered the first time it appears and reused afterwards.\n\nThe business cares because a person should not have to state their language, and should not get an English reply to a question they asked in their own. Asking once per turn also keeps one reply from mixing languages between its text, its buttons, and any sign-in prompt.\n\nUntil a language is known the product falls back rather than guessing. Applies to every person on every platform.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 258,
+                  "endLine": 267
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 155,
+                  "endLine": 156
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/webhook.py",
+                  "startLine": 97,
+                  "endLine": 98
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.eachWorkspaceIsAnsweredWithItsOwnCredential",
+          "type": "rule",
+          "name": "Each Workspace Is Answered With Its Own Credential",
+          "description": "A message from a workspace is answered with the credential stored for that workspace. A deployment serving a single workspace may configure one credential up front, which is used for any workspace no stored credential is found for.\n\nThe business cares because one deployment is meant to serve many teams. Answering one workspace with another's credential would post the reply into the wrong company's chat, and a workspace that removed the app must simply stop being answerable rather than fall back onto somebody else's access.\n\nWhen no credential can be found the message goes unanswered and nothing is recorded. Applies to every reply and every prompt sent back to a workspace.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 148,
+                  "endLine": 150
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/credential.py",
+                  "startLine": 89,
+                  "endLine": 100
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.anInstallReturnMatchesTheRequest",
+          "type": "rule",
+          "name": "An Install Return Is Matched to the Request That Started It",
+          "description": "Sending somebody to Slack to install the assistant stashes a one-shot token that the return must present. The token is consumed on first use and expires ten minutes after it was issued, so a return presenting an unknown, reused, or stale token is refused.\n\nThe business cares because without the match, a link crafted by somebody else could make an admin install an attacker's app under the team's name, or replay an old install to overwrite the workspace's credential.\n\nA refused return shows the installer the same failure page as any other unsuccessful install. Applies to every workspace install.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/install.py",
+                  "startLine": 41,
+                  "endLine": 57
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/install.py",
+                  "startLine": 59,
+                  "endLine": 68
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/install.py",
+                  "startLine": 19,
+                  "endLine": 20
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.aRejectedConnectionIsNotRetried",
+          "type": "rule",
+          "name": "A Rejected Connection Is Not Retried",
+          "description": "When a platform closes the connection with a reason saying the product itself is not acceptable, a bad credential or permissions it was never granted, that platform is given up on rather than retried.\n\nThe business cares because the rejection would repeat identically on every attempt: an endless reconnect loop hides a misconfiguration only a person can fix, and can get the product rate-limited or blocked by the platform. Failing loudly and once is what gets it noticed and corrected.\n\nThe failure is reported and only that platform stops; the others keep answering. Applies to every platform the product holds a connection to.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 106,
+                  "endLine": 116
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 39,
+                  "endLine": 41
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.aDroppedConnectionPicksUpWhereItLeftOff",
+          "type": "rule",
+          "name": "A Dropped Connection Picks Up Where It Left Off",
+          "description": "A connection that drops for any ordinary reason is re-established, waiting a little longer before each further attempt up to a minute, and asks the platform to continue the stream from the last delivery it saw rather than starting clean.\n\nThe business cares because dropped links are routine and users notice only the gap. Resuming means messages sent during the gap still arrive, so a question asked at the wrong moment is answered late instead of never, and backing off keeps a platform outage from turning into a flood of reconnects.\n\nA link whose heartbeat goes unanswered is treated as dropped even when it still looks open. Applies to every platform the product holds a connection to.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 99,
+                  "endLine": 116
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 134,
+                  "endLine": 161
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/gateway.py",
+                  "startLine": 269,
+                  "endLine": 286
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "operation": "addEdges",
+      "payloads": [
+        {
+          "id": "edge.ctx-surfaceIngress-agg-inboundDelivery",
+          "type": "contains",
+          "fromNodeId": "ctx.surfaceIngress",
+          "toNodeId": "agg.inboundDelivery"
+        },
+        {
+          "id": "edge.ctx-surfaceIngress-agg-platformConnection",
+          "type": "contains",
+          "fromNodeId": "ctx.surfaceIngress",
+          "toNodeId": "agg.platformConnection"
+        },
+        {
+          "id": "edge.ctx-surfaceIngress-agg-userIdentity",
+          "type": "contains",
+          "fromNodeId": "ctx.surfaceIngress",
+          "toNodeId": "agg.userIdentity"
+        },
+        {
+          "id": "edge.ctx-surfaceIngress-agg-workspaceInstallation",
+          "type": "contains",
+          "fromNodeId": "ctx.surfaceIngress",
+          "toNodeId": "agg.workspaceInstallation"
+        },
+        {
+          "id": "edge.agg-inboundDelivery-cmd-acceptDelivery",
+          "type": "accepts",
+          "fromNodeId": "agg.inboundDelivery",
+          "toNodeId": "cmd.acceptDelivery"
+        },
+        {
+          "id": "edge.agg-inboundDelivery-cmd-greetNewFollower",
+          "type": "accepts",
+          "fromNodeId": "agg.inboundDelivery",
+          "toNodeId": "cmd.greetNewFollower"
+        },
+        {
+          "id": "edge.agg-platformConnection-cmd-holdPlatformConnection",
+          "type": "accepts",
+          "fromNodeId": "agg.platformConnection",
+          "toNodeId": "cmd.holdPlatformConnection"
+        },
+        {
+          "id": "edge.agg-userIdentity-cmd-resolveSpeaker",
+          "type": "accepts",
+          "fromNodeId": "agg.userIdentity",
+          "toNodeId": "cmd.resolveSpeaker"
+        },
+        {
+          "id": "edge.agg-userIdentity-cmd-rememberUserLanguage",
+          "type": "accepts",
+          "fromNodeId": "agg.userIdentity",
+          "toNodeId": "cmd.rememberUserLanguage"
+        },
+        {
+          "id": "edge.agg-userIdentity-qry-userLanguage",
+          "type": "accepts",
+          "fromNodeId": "agg.userIdentity",
+          "toNodeId": "qry.userLanguage"
+        },
+        {
+          "id": "edge.agg-workspaceInstallation-cmd-installWorkspace",
+          "type": "accepts",
+          "fromNodeId": "agg.workspaceInstallation",
+          "toNodeId": "cmd.installWorkspace"
+        },
+        {
+          "id": "edge.cmd-acceptDelivery-evt-deliveryAccepted",
+          "type": "emits",
+          "fromNodeId": "cmd.acceptDelivery",
+          "toNodeId": "evt.deliveryAccepted"
+        },
+        {
+          "id": "edge.cmd-acceptDelivery-evt-followerJoined",
+          "type": "emits",
+          "fromNodeId": "cmd.acceptDelivery",
+          "toNodeId": "evt.followerJoined"
+        },
+        {
+          "id": "edge.cmd-installWorkspace-evt-workspaceInstalled",
+          "type": "emits",
+          "fromNodeId": "cmd.installWorkspace",
+          "toNodeId": "evt.workspaceInstalled"
+        },
+        {
+          "id": "edge.evt-deliveryAccepted-cmd-runTurn",
+          "type": "triggers",
+          "fromNodeId": "evt.deliveryAccepted",
+          "toNodeId": "cmd.runTurn"
+        },
+        {
+          "id": "edge.evt-followerJoined-cmd-greetNewFollower",
+          "type": "triggers",
+          "fromNodeId": "evt.followerJoined",
+          "toNodeId": "cmd.greetNewFollower"
+        },
+        {
+          "id": "edge.cmd-acceptDelivery-rule-deliveryProvesItsOrigin",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.acceptDelivery",
+          "toNodeId": "rule.deliveryProvesItsOrigin"
+        },
+        {
+          "id": "edge.cmd-acceptDelivery-rule-onlyAPersonsDirectMessageStartsATurn",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.acceptDelivery",
+          "toNodeId": "rule.onlyAPersonsDirectMessageStartsATurn"
+        },
+        {
+          "id": "edge.cmd-acceptDelivery-rule-eachDeliveryIsActedOnOnce",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.acceptDelivery",
+          "toNodeId": "rule.eachDeliveryIsActedOnOnce"
+        },
+        {
+          "id": "edge.cmd-acceptDelivery-rule-thePlatformIsAnsweredFirst",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.acceptDelivery",
+          "toNodeId": "rule.thePlatformIsAnsweredFirst"
+        },
+        {
+          "id": "edge.agg-userIdentity-rule-identityNamesPlatformWorkspaceAndAccount",
+          "type": "constrainedBy",
+          "fromNodeId": "agg.userIdentity",
+          "toNodeId": "rule.identityNamesPlatformWorkspaceAndAccount"
+        },
+        {
+          "id": "edge.cmd-resolveSpeaker-rule-conversationScopedMemory",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.resolveSpeaker",
+          "toNodeId": "rule.conversationScopedMemory"
+        },
+        {
+          "id": "edge.cmd-rememberUserLanguage-rule-languageIsLearnedFromWhatTheDeliveryCarries",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.rememberUserLanguage",
+          "toNodeId": "rule.languageIsLearnedFromWhatTheDeliveryCarries"
+        },
+        {
+          "id": "edge.agg-workspaceInstallation-rule-eachWorkspaceIsAnsweredWithItsOwnCredential",
+          "type": "constrainedBy",
+          "fromNodeId": "agg.workspaceInstallation",
+          "toNodeId": "rule.eachWorkspaceIsAnsweredWithItsOwnCredential"
+        },
+        {
+          "id": "edge.cmd-installWorkspace-rule-anInstallReturnMatchesTheRequest",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.installWorkspace",
+          "toNodeId": "rule.anInstallReturnMatchesTheRequest"
+        },
+        {
+          "id": "edge.agg-platformConnection-rule-aRejectedConnectionIsNotRetried",
+          "type": "constrainedBy",
+          "fromNodeId": "agg.platformConnection",
+          "toNodeId": "rule.aRejectedConnectionIsNotRetried"
+        },
+        {
+          "id": "edge.agg-platformConnection-rule-aDroppedConnectionPicksUpWhereItLeftOff",
+          "type": "constrainedBy",
+          "fromNodeId": "agg.platformConnection",
+          "toNodeId": "rule.aDroppedConnectionPicksUpWhereItLeftOff"
+        },
+        {
+          "id": "edge.cmd-acceptDelivery-actor-chatUser",
+          "type": "performedBy",
+          "fromNodeId": "cmd.acceptDelivery",
+          "toNodeId": "actor.chatUser"
+        },
+        {
+          "id": "edge.cmd-installWorkspace-actor-appBuilder",
+          "type": "performedBy",
+          "fromNodeId": "cmd.installWorkspace",
+          "toNodeId": "actor.appBuilder"
+        },
+        {
+          "id": "edge.agg-inboundDelivery-depends-agg-userIdentity",
+          "type": "dependsOn",
+          "fromNodeId": "agg.inboundDelivery",
+          "toNodeId": "agg.userIdentity"
+        },
+        {
+          "id": "edge.agg-inboundDelivery-depends-agg-workspaceInstallation",
+          "type": "dependsOn",
+          "fromNodeId": "agg.inboundDelivery",
+          "toNodeId": "agg.workspaceInstallation"
+        }
+      ]
+    }
+  ],
+  "generatedBy": "ddd:extract",
+  "generatedAt": "2026-08-11T02:20:51.604Z",
+  "rationale": "Extracted a new subsystem for the doorway every message comes through and the identity it is attributed to: proving a delivery came from the platform, dropping what is not a person talking, acting on a delivery once, holding the connection to a platform that pushes, minting the handle that names a person and their conversation, remembering their language, and installing into a Slack workspace. 4 aggregates, 6 commands, 1 query, 3 events and 10 rules, wired to the existing chat user, app builder, conversation-scoping rule, and the turn the doorway hands its accepted messages to. Sources are code only (surfaces/*/webhook.py, discord/gateway.py, slack/install.py, identity.py, store/credential.py, surfaces/base.py, app.py), so every node declares intent as the missing role. Four code-vs-code drifts recorded as warnings where the three platforms implement the same doorway rule differently. Deliberately excluded: rendering and suggestion parsing, already covered elsewhere; and any strategic mapping between this context and its neighbours, raised as a clarification instead.",
+  "owner": "usr-7176d698",
+  "ownerDisplayName": "臺",
+  "reviewedBy": "braid-batch",
+  "reviewedAt": "2026-08-11T02:20:51.805Z"
+}

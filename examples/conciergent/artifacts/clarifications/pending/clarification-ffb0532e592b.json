@@ -1,0 +1,118 @@
+{
+  "id": "clarification-ffb0532e592b",
+  "workspaceId": "conciergent",
+  "question": "Receiving messages from Slack, LINE and Discord and drawing the replies for those same platforms are built from the same per-platform code and share the same idea of which language a user reads. Should the two be planned and released together as one piece of work, or should one of them set a fixed contract the other simply follows?",
+  "candidates": [
+    {
+      "id": "cc-partnership",
+      "description": "Plan and release them together: neither can change how a platform is handled without the other changing too.",
+      "sourceReferences": [
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/surfaces/slack/webhook.py",
+            "startLine": 154,
+            "endLine": 176
+          }
+        },
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/surfaces/discord/gateway.py",
+            "startLine": 222,
+            "endLine": 240
+          }
+        }
+      ],
+      "proposedOperations": [
+        {
+          "operation": "addEdge",
+          "payload": {
+            "id": "edge.ctx-surfaceIngress-partnership-ctx-replyPresentation",
+            "type": "partnership",
+            "fromNodeId": "ctx.surfaceIngress",
+            "toNodeId": "ctx.replyPresentation"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cc-published-contract",
+      "description": "Message arrival sets the contract (who is speaking, in which conversation, in which language) and reply drawing follows it.",
+      "sourceReferences": [
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/identity.py",
+            "startLine": 12,
+            "endLine": 23
+          }
+        },
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/surfaces/discord/gateway.py",
+            "startLine": 258,
+            "endLine": 267
+          }
+        }
+      ],
+      "proposedOperations": [
+        {
+          "operation": "addEdge",
+          "payload": {
+            "id": "edge.ctx-surfaceIngress-publishedLanguage-ctx-replyPresentation",
+            "type": "publishedLanguage",
+            "fromNodeId": "ctx.surfaceIngress",
+            "toNodeId": "ctx.replyPresentation"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cc-customer-supplier",
+      "description": "Reply drawing depends on message arrival and can get what it is handed changed when it needs something different.",
+      "sourceReferences": [
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/surfaces/slack/surface.py",
+            "startLine": 50,
+            "endLine": 65
+          }
+        },
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/surfaces/line/webhook.py",
+            "startLine": 115,
+            "endLine": 127
+          }
+        }
+      ],
+      "proposedOperations": [
+        {
+          "operation": "addEdge",
+          "payload": {
+            "id": "edge.ctx-replyPresentation-customerSupplier-ctx-surfaceIngress",
+            "type": "customerSupplier",
+            "fromNodeId": "ctx.replyPresentation",
+            "toNodeId": "ctx.surfaceIngress"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cc-none-yet",
+      "description": "Record nothing yet: leave the two apart until how the work is split between them is settled.",
+      "sourceReferences": [],
+      "proposedOperations": []
+    }
+  ],
+  "status": "pending",
+  "origin": "skill",
+  "context": "Raised by ddd:extract while adding ctx.surfaceIngress (Message Arrival and User Identity) in proposal-95d2ddda1d65. The DDD ontology's strategic edges between bounded contexts describe team structure and integration politics and are never derived from a single feature slice, so this went out as a question rather than an emitted edge. Evidence for the coupling: both contexts are implemented in the same files (surfaces/slack/*, surfaces/line/*, surfaces/discord/* each hold the webhook or gateway alongside render.py and surface.py); the language a reply is written in is resolved at the doorway (slack/webhook.py:155-156, line/webhook.py:97-98, discord/gateway.py:258-267) and consumed by every renderer; and ctx.replyPresentation's own description already names \"receiving a button tap back off the platform, resolving which language a user reads in, and the credentials the chat apps post with\" as outside its boundary, pointing at the new context. Each candidate's operations add one strategic edge between ctx.surfaceIngress and ctx.replyPresentation; they assume proposal-95d2ddda1d65 has been applied first, since ctx.surfaceIngress does not exist until then. Candidate ops are only validated when a reviewer picks one.",
+  "ambiguityType": "ambiguous",
+  "owner": "usr-7176d698",
+  "ownerDisplayName": "臺"
+}

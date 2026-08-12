@@ -1,0 +1,225 @@
+{
+  "id": "clarification-eea1bd17d956",
+  "workspaceId": "conciergent",
+  "question": "Some steps happen without anyone asking: reading a conversation back, summarizing it, recording or forgetting a turn, holding an action for confirmation, opening the tool connections, and starting a sign-in. Should the product itself be named as the one doing those, or should only what a person asks for name anybody?",
+  "candidates": [
+    {
+      "id": "cc-name-the-product",
+      "description": "Name the product itself, and show it as the one behind every step nobody asked for.",
+      "sourceReferences": [
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/turn.py",
+            "startLine": 29,
+            "endLine": 56
+          }
+        },
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/agent/runner.py",
+            "startLine": 196,
+            "endLine": 208
+          }
+        }
+      ],
+      "proposedOperations": [
+        {
+          "operation": "addNode",
+          "payload": {
+            "id": "actor.product",
+            "type": "actor",
+            "name": "The Product Itself",
+            "description": "The product acting on its own behalf, with nobody having asked it to. It does the housekeeping that keeps a conversation usable around whatever the person actually said: reading back what was remembered, summarizing it once it grows too long to read, recording a finished exchange or dropping one that stopped being true, holding a sensitive action until the person confirms it, opening the connections to every tool provider, and starting a sign-in the moment a service asks for one.\n\nNot a person, and never a second user. It acts only for the person whose conversation it is, and only within what that person has already granted. Nothing it does is on its own schedule either: every step it takes sits downstream of a message somebody sent or an assistant the product added.",
+            "status": "draft",
+            "metadata": {
+              "missingRoles": [
+                "intent"
+              ],
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/turn.py",
+                    "startLine": 29,
+                    "endLine": 56
+                  }
+                },
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/agent/runner.py",
+                    "startLine": 196,
+                    "endLine": 208
+                  }
+                },
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/agent/mcp/client.py",
+                    "startLine": 86,
+                    "endLine": 119
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "operation": "addEdges",
+          "payloads": [
+            {
+              "id": "edge.qry-loadHistory-actor-product",
+              "type": "performedBy",
+              "fromNodeId": "qry.loadHistory",
+              "toNodeId": "actor.product",
+              "metadata": {
+                "sourceReferences": [
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/turn.py",
+                      "startLine": 29,
+                      "endLine": 30
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": "edge.cmd-compactHistory-actor-product",
+              "type": "performedBy",
+              "fromNodeId": "cmd.compactHistory",
+              "toNodeId": "actor.product",
+              "metadata": {
+                "sourceReferences": [
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/turn.py",
+                      "startLine": 31,
+                      "endLine": 35
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": "edge.cmd-commitTurnHistory-actor-product",
+              "type": "performedBy",
+              "fromNodeId": "cmd.commitTurnHistory",
+              "toNodeId": "actor.product",
+              "metadata": {
+                "sourceReferences": [
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/turn.py",
+                      "startLine": 68,
+                      "endLine": 69
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": "edge.cmd-forgetConversation-actor-product",
+              "type": "performedBy",
+              "fromNodeId": "cmd.forgetConversation",
+              "toNodeId": "actor.product",
+              "metadata": {
+                "sourceReferences": [
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/turn.py",
+                      "startLine": 65,
+                      "endLine": 67
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": "edge.cmd-parkApproval-actor-product",
+              "type": "performedBy",
+              "fromNodeId": "cmd.parkApproval",
+              "toNodeId": "actor.product",
+              "metadata": {
+                "sourceReferences": [
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/turn.py",
+                      "startLine": 49,
+                      "endLine": 56
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": "edge.cmd-openToolConnections-actor-product",
+              "type": "performedBy",
+              "fromNodeId": "cmd.openToolConnections",
+              "toNodeId": "actor.product",
+              "metadata": {
+                "sourceReferences": [
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/agent/runner.py",
+                      "startLine": 196,
+                      "endLine": 208
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": "edge.cmd-authorizeService-actor-product",
+              "type": "performedBy",
+              "fromNodeId": "cmd.authorizeService",
+              "toNodeId": "actor.product",
+              "metadata": {
+                "sourceReferences": [
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/agent/mcp/client.py",
+                      "startLine": 86,
+                      "endLine": 119
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cc-leave-unnamed",
+      "description": "Leave them unnamed: only a step a person asks for says who asked.",
+      "sourceReferences": [
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/turn.py",
+            "startLine": 9,
+            "endLine": 28
+          }
+        }
+      ],
+      "proposedOperations": []
+    }
+  ],
+  "status": "pending",
+  "origin": "skill",
+  "context": "Seven operations carry no performedBy edge: qry.loadHistory, cmd.compactHistory, cmd.commitTurnHistory, cmd.forgetConversation (agg.conversationHistory), cmd.parkApproval (agg.pendingApproval), cmd.openToolConnections (agg.toolConnection), and cmd.authorizeService (agg.serviceAuthorization). actor.chatUser is the only actor in the graph and is wired to the six user-entry operations: cmd.runTurn, cmd.runAssistant, cmd.prepareToolAccess, cmd.answerApproval, cmd.completeAuthorization, cmd.revokeAuthorization. Sibling coverage does not settle the gap. On agg.conversationHistory no sibling has an actor at all. On agg.pendingApproval, agg.toolConnection and agg.serviceAuthorization a sibling points at actor.chatUser, but the unwired operations are product-internal by their own descriptions: cmd.parkApproval is raised when the assistant hits a provider-marked destructive tool (src/conciergent/agent/runner.py:276-296), cmd.openToolConnections says \"issued by the assistant run itself\" (src/conciergent/agent/runner.py:196-208), and cmd.authorizeService says \"issued by the connection being opened\" (src/conciergent/agent/mcp/client.py:86-119). Copying the sibling actor across would assert the user triggers steps they never see. Candidate one mints actor.product and adds the seven performedBy edges; candidate two runs nothing and leaves the current split, where only user-initiated operations name an actor, as the deliberate convention.",
+  "relatedNode": "actor.chatUser",
+  "ambiguityType": "gap",
+  "owner": "usr-7176d698",
+  "ownerDisplayName": "臺"
+}

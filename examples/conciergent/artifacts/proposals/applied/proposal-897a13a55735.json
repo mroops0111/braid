@@ -1,0 +1,1162 @@
+{
+  "id": "proposal-897a13a55735",
+  "workspaceId": "conciergent",
+  "status": "applied",
+  "operations": [
+    {
+      "operation": "addNodes",
+      "payloads": [
+        {
+          "id": "ctx.replyPresentation",
+          "type": "boundedContext",
+          "name": "Reply Shape and Native Rendering",
+          "description": "An answer has to look at home wherever it lands. The same answer reaches one person in Slack, another in LINE, another in Discord, three products that draw a message three different ways and disagree about how long a title may be and which markup they will render at all. This subsystem owns the one shape an answer takes and how each chat platform paints it, so whoever writes the answer never has to know where it is going.\n\nThe terms this subsystem uses, and what each means here:\n\n| Term | Meaning here |\n|---|---|\n| Reply | The single answer a turn produces: a short line, a card, or a set of option cards. |\n| Card | A titled block with body paragraphs, an optional picture, link buttons, and follow-up buttons. |\n| Option set | Up to four cards the user picks between, closed by an escape-hatch card. |\n| Suggestion | A tappable follow-up; tapping it says its wording back to the assistant as if the user had typed it. |\n| Rendering | One platform's own drawing of a reply, in that platform's message format. |\n| Wording catalog | The product's own fixed copy, kept per key and per language apart from the code that shows it. |\n\nOutside this boundary: deciding what the answer actually says, running the round trip that produces and dispatches it, receiving a button tap back off the platform, resolving which language a user reads in, and the credentials the chat apps post with. Those neighbours hand a finished answer in and get a sent message out; they never decide how it looks.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 164,
+                  "endLine": 203
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/render.py",
+                  "startLine": 31,
+                  "endLine": 84
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/render.py",
+                  "startLine": 33,
+                  "endLine": 74
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/render.py",
+                  "startLine": 37,
+                  "endLine": 59
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/__init__.py",
+                  "startLine": 70,
+                  "endLine": 82
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "agg.reply",
+          "type": "aggregate",
+          "name": "Structured Reply",
+          "description": "The one answer a turn produces, held in a form no chat platform owns: either a short line of text, a single card, or a small set of option cards.\n\nA card carries a short title, up to six body paragraphs each optionally closing with a bulleted list, an optional picture above the title, a small footnote for caveats, up to five link buttons, and up to three follow-up suggestions. The first link is treated as the action the user is most likely to want and is drawn with emphasis. A suggestion is a shortcut rather than a decoration: it carries both the words on the button and the words said back to the assistant when it is tapped.\n\nAn option set is up to four of those cards for the user to pick between, always closed by an escape-hatch card for the case where none of them fit.\n\nWhy it is held apart from any platform: the answer is written once and drawn three ways. Sizes, wording, and structure are settled here, against the tightest platform, so the drawing step never has to negotiate with the content.\n\nLifecycle: created fresh at the end of every turn, handed once to the chat platform, never revised and never stored. Nothing else in the product refers back to a reply after it is sent.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 86,
+                  "endLine": 165
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 9,
+                  "endLine": 83
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "tests/test_reply.py",
+                  "startLine": 43,
+                  "endLine": 58
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "agg.platformRendering",
+          "type": "aggregate",
+          "name": "Platform Rendering",
+          "description": "One chat platform's ability to draw an answer in its own message format, to signal that work is under way, and to tell the assistant what markup it will actually render.\n\nEach platform contributes its own and keeps all of its own quirks inside it: LINE builds a scrollable bubble with its buttons either as chips beside the message or inside the bubble's footer, Slack builds a stack of blocks inside a color-striped attachment and threads it under the message being answered, Discord builds an embed with rows of buttons in the user's direct-message channel.\n\nWhy it exists: adding a chat platform should mean contributing one of these and nothing else, and changing how answers look should mean replacing one rather than changing what the assistant says. The colors it draws in are the ones whoever set the product up chose.\n\nLifecycle: built for one turn around the conversation being answered, used for that turn's sends, and discarded. It holds nothing between turns.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 168,
+                  "endLine": 203
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/surface.py",
+                  "startLine": 68,
+                  "endLine": 153
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/surface.py",
+                  "startLine": 101,
+                  "endLine": 164
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/surface.py",
+                  "startLine": 64,
+                  "endLine": 127
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "agg.wordingCatalog",
+          "type": "aggregate",
+          "name": "Interface Wording Catalog",
+          "description": "The product's own fixed copy, kept as keyed entries one per language, apart from the code that shows them. It covers everything the product says for itself rather than through the assistant: the sign-in card's title, body, and button, the confirm and cancel labels, the greetings, the status line on a tapped button, and the short browser pages shown after a sign-in or a workspace install completes.\n\nWhy it is a place of its own: this copy is the part a buyer wants to change. Keeping it keyed and separate makes rewording the product a matter of supplying a file, and adding a language a translation job rather than a code change.\n\nEntries ship for English and Traditional Chinese. Whoever sets the product up can point it at their own folder and have their entries layered over the shipped ones, one key and one language at a time, leaving everything they did not mention on the shipped copy.\n\nLifecycle: assembled once when the product starts, replaced wholesale when custom wording is loaded, and read from memory on every lookup thereafter.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/__init__.py",
+                  "startLine": 12,
+                  "endLine": 82
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/locales/en.yml",
+                  "startLine": 1,
+                  "endLine": 51
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/lang.py",
+                  "startLine": 9,
+                  "endLine": 36
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "actor.appBuilder",
+          "type": "actor",
+          "name": "App Builder",
+          "description": "The person who sets this product up as their own assistant: they point it at their tools, connect their chat apps, and choose how it is worded and colored. They do not talk to it in a chat window, they configure it once and hand it to their users.\n\nIn this area their reach is the product's own copy and look: supplying their own wording for any key in any language, adding a language the product does not ship with, and choosing the brand and alert colors each platform's cards are drawn in. A person, not a system, and their choices apply to every user of that deployment rather than to one conversation.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/__init__.py",
+                  "startLine": 58,
+                  "endLine": 67
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 224,
+                  "endLine": 225
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 48,
+                  "endLine": 61
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.deliverReply",
+          "type": "command",
+          "name": "Deliver the Reply",
+          "description": "Hand the finished answer to the chat platform, drawn the way that platform draws things.\n\n- **Issued by**: the conversation round trip, once per turn, as soon as the assistant has answered.\n- **Requires**: one finished answer and the rendering for the platform the conversation is on.\n- **Produces**: exactly one message in the user's chat. A short line goes as plain text, a card as that platform's rich message, an option set as a group the user scrolls or picks through. A confirmation the user has to answer goes the same way, marked as sensitive so it is drawn as such.\n- **Fails as**: this is the last step of the turn, so a platform that refuses the message loses the answer outright. There is no retry and no falling back to a plainer shape.\n\nAn option set is flattened on the way out: the escape-hatch card becomes the last card of the group, so the user meets it after the options rather than as a separate thing. Each platform's own ceiling still applies on top of the shared sizes, and Discord in particular drops any button past its fifth row, so a very button-heavy set can lose its tail.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 48,
+                  "endLine": 63
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 192,
+                  "endLine": 199
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/surface.py",
+                  "startLine": 106,
+                  "endLine": 123
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/render.py",
+                  "startLine": 134,
+                  "endLine": 141
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.showProgressSignal",
+          "type": "command",
+          "name": "Show That Work Is Under Way",
+          "description": "Tell the user their message has been picked up, before there is an answer to give them.\n\n- **Issued by**: the conversation round trip, immediately after taking the message and before the assistant starts.\n- **Requires**: nothing beyond the conversation being answered.\n- **Produces**: whatever that platform offers. LINE runs its loading animation. Discord disables the buttons on a message the user just tapped, or shows a typing hint on an ordinary message. Slack rewrites the tapped message with its buttons disabled and a short line naming what is being processed, which the eventual answer then finalizes to a line naming what was selected.\n- **Fails as**: quietly. The signal is reassurance, not part of the answer, so a failure is noted for operators and the turn carries on.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 201,
+                  "endLine": 203
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 38,
+                  "endLine": 38
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/surface.py",
+                  "startLine": 125,
+                  "endLine": 153
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/surface.py",
+                  "startLine": 93,
+                  "endLine": 98
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/surface.py",
+                  "startLine": 110,
+                  "endLine": 127
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "qry.formattingDialect",
+          "type": "query",
+          "name": "Ask What Markup the Platform Renders",
+          "description": "- **What the caller wants**: the writing rules for the platform this turn will land on. Whether it renders any markup at all, which flavor if it does, and how a link or a list should be written there.\n- **Called by**: the assistant, once per turn, folded into its own instructions before it composes anything.\n- **Freshness**: fixed per platform and always current. A platform that has nothing to say returns nothing and the assistant writes as it would anywhere.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 175,
+                  "endLine": 181
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 120,
+                  "endLine": 124
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/render.py",
+                  "startLine": 17,
+                  "endLine": 21
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/render.py",
+                  "startLine": 10,
+                  "endLine": 15
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/render.py",
+                  "startLine": 16,
+                  "endLine": 20
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "qry.uiWording",
+          "type": "query",
+          "name": "Look Up Interface Wording",
+          "description": "- **What the caller wants**: one line of the product's own copy, in the user's language, with any values filled in, such as the workspace being installed into or the action awaiting confirmation.\n- **Called by**: everything that shows fixed copy. The sign-in card, the confirmation card, the greeting after a sign-in completes, the status line on a tapped button, and the short browser pages the user lands on coming back from a service.\n- **Freshness**: read straight from memory, always reflecting whatever custom wording was loaded at startup.\n\nA key with no entry in the user's language is answered in English rather than left blank.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/__init__.py",
+                  "startLine": 70,
+                  "endLine": 82
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/surface.py",
+                  "startLine": 180,
+                  "endLine": 190
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/locales/en.yml",
+                  "startLine": 1,
+                  "endLine": 51
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.loadWordingOverrides",
+          "type": "command",
+          "name": "Load Custom Wording",
+          "description": "Layer someone's own copy over the wording the product ships with.\n\n- **Issued by**: whoever set the product up, by pointing its configuration at a folder of wording files.\n- **Requires**: one or more folders holding a file per language, each file naming its language.\n- **Produces**: a catalog carrying their entries on top of the shipped ones, key by key and language by language, with everything they did not mention left on the shipped copy. Later folders win over earlier ones. Every part of the product that shows copy picks the change up without being told.\n- **Fails as**: a file whose name is not a language the product knows is passed over rather than treated as a mistake, so an unrelated file sitting in the folder does not stop startup.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/__init__.py",
+                  "startLine": 58,
+                  "endLine": 67
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 66,
+                  "endLine": 70
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/__init__.py",
+                  "startLine": 32,
+                  "endLine": 52
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.replyFitsTheStrictestSurface",
+          "type": "rule",
+          "name": "An Answer Is Sized for the Tightest Platform",
+          "description": "Every part of an answer carries a hard size limit chosen so the same answer renders everywhere: a title of at most 40 characters, at most six body paragraphs of 100 characters each, at most ten items in one bulleted list, at most five link buttons and three follow-up suggestions, and at most four cards in an option set. A suggestion's visible label stops at 20 characters and the words it says back at 40.\n\nThe business cares because the limits are not the same on every platform and the tightest one wins. An answer written for the roomiest platform arrives on another cut off mid-sentence, or is refused outright, and the user gets nothing back for a message they took the trouble to send.\n\nAn oversized answer is turned away before it can be sent and the assistant is asked again, up to three times. Applies to every card and every option set, whatever the platform, including the cards the product writes for itself.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 86,
+                  "endLine": 161
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 9,
+                  "endLine": 83
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 106,
+                  "endLine": 118
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "tests/test_reply.py",
+                  "startLine": 43,
+                  "endLine": 51
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.cardWordingIsPlain",
+          "type": "rule",
+          "name": "Card Wording Is Plain, the Platform Adds the Styling",
+          "description": "Text inside a card is written as plain wording with no markup: no bold, no addresses written inline, and no bullet characters typed into list items. The bullet marker, the emphasis, and the button all come from the platform's own drawing.\n\nThe business cares because a card is not free text, it is assembled from named parts. Markup typed into a part shows up literally as stray asterisks and brackets in the middle of a sentence on a platform that does not parse it, and doubles up with the marker the drawing already adds. A bullet character that slips in anyway is stripped before drawing rather than shown twice.\n\nThe user never sees the rule holding; they see it failing as a title reading like source code. Applies to every card, including the sign-in and confirmation cards the product writes itself.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 12,
+                  "endLine": 29
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/render.py",
+                  "startLine": 101,
+                  "endLine": 123
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/render.py",
+                  "startLine": 119,
+                  "endLine": 126
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/render.py",
+                  "startLine": 95,
+                  "endLine": 102
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.plainAnswersSpeakThePlatformDialect",
+          "type": "rule",
+          "name": "A Plain Answer Is Written in the Platform's Own Markup",
+          "description": "When the answer is a short line rather than a card, it is written in the markup the receiving platform actually renders, and the assistant is told which that is before it writes a word.\n\nThe three differ enough to matter. LINE renders none, so a list is written with a bullet character and ideas are separated by blank lines. Slack renders its own flavor, where bold takes a single asterisk and a link is written as the address and its words together. Discord renders ordinary markdown but shows links as bare addresses, so the address is written plainly rather than hidden behind words.\n\nThe business cares because the same line reads as a clean answer on one platform and as a mess of stray asterisks and brackets on another. The user has no way to know it was written for somewhere else; it simply looks broken.\n\nApplies to the plain-text shape only. Cards carry no markup at all.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/render.py",
+                  "startLine": 10,
+                  "endLine": 15
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/render.py",
+                  "startLine": 17,
+                  "endLine": 21
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/render.py",
+                  "startLine": 16,
+                  "endLine": 20
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 120,
+                  "endLine": 124
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.everyOptionCanBePicked",
+          "type": "rule",
+          "name": "Every Option Can Be Picked",
+          "description": "Each card in an option set carries the means of choosing it, either a follow-up suggestion or a link, and the set always closes with an escape-hatch card for the case where none of the options fit.\n\nThe business cares because an option set is a question put to the user. An option they can read but not act on is worse than not having offered it, and a set with no way out corners someone whose answer is not on the list into retyping their request from scratch.\n\nThe user meets the escape hatch as the last card after the options. Applies to option sets only; a single card carries no such requirement.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 147,
+                  "endLine": 161
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 58,
+                  "endLine": 59
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 32,
+                  "endLine": 40
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.wordingFallsBackToEnglish",
+          "type": "rule",
+          "name": "Missing Wording Falls Back to English",
+          "description": "When the product's own copy has no entry for the user's language, the English entry is shown rather than failing or leaving a gap.\n\nThe business cares because this copy grows a language at a time and custom wording is written by hand. A missing entry would otherwise break the very thing it labels, a sign-in card with no button words or a confirmation with nothing to confirm, and strand the user at exactly the moment they need to act. English is a worse experience than their own language and a far better one than nothing.\n\nThe user sees one line in English inside an otherwise translated message. Applies to every piece of the product's own copy, shipped or supplied, and not to what the assistant writes, which is composed in the user's language each turn.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/__init__.py",
+                  "startLine": 16,
+                  "endLine": 17
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/__init__.py",
+                  "startLine": 70,
+                  "endLine": 82
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.interfaceWordingIsNeverHardCoded",
+          "type": "rule",
+          "name": "Interface Wording Lives in the Catalog",
+          "description": "Every fixed line the product says for itself, button labels, card titles, greetings, and the browser pages a user lands on, is held in the wording catalog under a key. It is never written into the code that shows it and never into the configuration file next to credentials and colors.\n\nThe business cares because this copy is precisely the part a buyer wants to make their own: their tone, their brand, their language. Holding it in one keyed place is what turns rewording the whole product into supplying a file, and adding a language into a translation job rather than a code change. Copy scattered across the code cannot be handed to a translator at all.\n\nApplies to everything the product says on its own behalf. It does not apply to what the assistant says, which is written fresh each turn.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 48,
+                  "endLine": 52
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/locales/en.yml",
+                  "startLine": 1,
+                  "endLine": 51
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/__init__.py",
+                  "startLine": 58,
+                  "endLine": 67
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.progressSignalNeverCostsTheAnswer",
+          "type": "rule",
+          "name": "A Progress Signal Never Costs the Answer",
+          "description": "The hint that work is under way, the loading animation, the typing indicator, the tapped button turning into a status line, is cosmetic. When it cannot be shown, the failure is noted quietly for operators and the turn carries straight on to produce the answer.\n\nThe business cares because the signal exists to reassure someone during a wait. Letting it end the turn would trade the entire answer for the reassurance that one was coming, which is the worst exchange available.\n\nThe user sees a wait with no indicator and then their answer as usual. Applies to every progress signal on every platform, including the one that rewrites a message the user just tapped.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/surface.py",
+                  "startLine": 93,
+                  "endLine": 98
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/surface.py",
+                  "startLine": 131,
+                  "endLine": 141
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/surface.py",
+                  "startLine": 110,
+                  "endLine": 127
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.confirmationsReadAsDangerous",
+          "type": "rule",
+          "name": "A Confirmation Reads as Dangerous",
+          "description": "A card asking the user to confirm something that may not be undone is drawn apart from an ordinary answer: in the alert color rather than the brand color, with the confirming button emphasized over the others, and with the whole set of buttons marked as spent by the first tap so the question is not answered twice.\n\nThe business cares because that tap is the last thing standing between the user and something irreversible. A confirmation that looks like every other card gets tapped the way every other card gets tapped, and the safeguard becomes a formality the user clicks through.\n\nThe user sees a visibly different card and a button that stops responding once they have answered. Applies wherever a held action is put to the user, on every platform, and to nothing else.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/render.py",
+                  "startLine": 63,
+                  "endLine": 74
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/render.py",
+                  "startLine": 37,
+                  "endLine": 49
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/surface.py",
+                  "startLine": 131,
+                  "endLine": 149
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/render.py",
+                  "startLine": 148,
+                  "endLine": 164
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "operation": "addEdges",
+      "payloads": [
+        {
+          "id": "edge.ctx-replyPresentation-agg-reply",
+          "type": "contains",
+          "fromNodeId": "ctx.replyPresentation",
+          "toNodeId": "agg.reply",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 164,
+                  "endLine": 165
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.ctx-replyPresentation-agg-platformRendering",
+          "type": "contains",
+          "fromNodeId": "ctx.replyPresentation",
+          "toNodeId": "agg.platformRendering",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 168,
+                  "endLine": 173
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.ctx-replyPresentation-agg-wordingCatalog",
+          "type": "contains",
+          "fromNodeId": "ctx.replyPresentation",
+          "toNodeId": "agg.wordingCatalog",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/__init__.py",
+                  "startLine": 47,
+                  "endLine": 55
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-reply-cmd-deliverReply",
+          "type": "accepts",
+          "fromNodeId": "agg.reply",
+          "toNodeId": "cmd.deliverReply",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 58,
+                  "endLine": 63
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-platformRendering-qry-formattingDialect",
+          "type": "accepts",
+          "fromNodeId": "agg.platformRendering",
+          "toNodeId": "qry.formattingDialect",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 175,
+                  "endLine": 181
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-platformRendering-cmd-showProgressSignal",
+          "type": "accepts",
+          "fromNodeId": "agg.platformRendering",
+          "toNodeId": "cmd.showProgressSignal",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 201,
+                  "endLine": 203
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-wordingCatalog-qry-uiWording",
+          "type": "accepts",
+          "fromNodeId": "agg.wordingCatalog",
+          "toNodeId": "qry.uiWording",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/__init__.py",
+                  "startLine": 70,
+                  "endLine": 82
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-wordingCatalog-cmd-loadWordingOverrides",
+          "type": "accepts",
+          "fromNodeId": "agg.wordingCatalog",
+          "toNodeId": "cmd.loadWordingOverrides",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/__init__.py",
+                  "startLine": 58,
+                  "endLine": 67
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-reply-depends-agg-platformRendering",
+          "type": "dependsOn",
+          "fromNodeId": "agg.reply",
+          "toNodeId": "agg.platformRendering",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 55,
+                  "endLine": 63
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-platformRendering-depends-agg-wordingCatalog",
+          "type": "dependsOn",
+          "fromNodeId": "agg.platformRendering",
+          "toNodeId": "agg.wordingCatalog",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/surface.py",
+                  "startLine": 133,
+                  "endLine": 136
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/surface.py",
+                  "startLine": 195,
+                  "endLine": 203
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-reply-rule-replyFitsTheStrictestSurface",
+          "type": "constrainedBy",
+          "fromNodeId": "agg.reply",
+          "toNodeId": "rule.replyFitsTheStrictestSurface",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 86,
+                  "endLine": 161
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-reply-rule-cardWordingIsPlain",
+          "type": "constrainedBy",
+          "fromNodeId": "agg.reply",
+          "toNodeId": "rule.cardWordingIsPlain",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 12,
+                  "endLine": 29
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-reply-rule-plainAnswersSpeakThePlatformDialect",
+          "type": "constrainedBy",
+          "fromNodeId": "agg.reply",
+          "toNodeId": "rule.plainAnswersSpeakThePlatformDialect",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 120,
+                  "endLine": 124
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-reply-rule-everyOptionCanBePicked",
+          "type": "constrainedBy",
+          "fromNodeId": "agg.reply",
+          "toNodeId": "rule.everyOptionCanBePicked",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 147,
+                  "endLine": 161
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-deliverReply-rule-confirmationsReadAsDangerous",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.deliverReply",
+          "toNodeId": "rule.confirmationsReadAsDangerous",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 196,
+                  "endLine": 196
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/render.py",
+                  "startLine": 63,
+                  "endLine": 74
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-showProgressSignal-rule-progressSignalNeverCostsTheAnswer",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.showProgressSignal",
+          "toNodeId": "rule.progressSignalNeverCostsTheAnswer",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/discord/surface.py",
+                  "startLine": 112,
+                  "endLine": 127
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-wordingCatalog-rule-wordingFallsBackToEnglish",
+          "type": "constrainedBy",
+          "fromNodeId": "agg.wordingCatalog",
+          "toNodeId": "rule.wordingFallsBackToEnglish",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/__init__.py",
+                  "startLine": 16,
+                  "endLine": 17
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-wordingCatalog-rule-interfaceWordingIsNeverHardCoded",
+          "type": "constrainedBy",
+          "fromNodeId": "agg.wordingCatalog",
+          "toNodeId": "rule.interfaceWordingIsNeverHardCoded",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 48,
+                  "endLine": 52
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-loadWordingOverrides-actor-appBuilder",
+          "type": "performedBy",
+          "fromNodeId": "cmd.loadWordingOverrides",
+          "toNodeId": "actor.appBuilder",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/i18n/__init__.py",
+                  "startLine": 58,
+                  "endLine": 67
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 224,
+                  "endLine": 225
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "generatedBy": "ddd:extract",
+  "generatedAt": "2026-08-11T02:10:40.919Z",
+  "rationale": "Extracted a new subsystem for how one answer is shaped and drawn: the surface-neutral reply model (short line, card, option set), each chat platform's native rendering plus its progress signal and markup dialect, and the keyed interface wording behind the product's own copy. Sources are code only (reply.py, surfaces/*/render.py, surfaces/*/surface.py, i18n/, plus the output contract in agent/runner.py and the dispatch in turn.py), so every node cites code and declares intent as the missing role. Deliberately excluded: the mount-time surface abstraction in surfaces/base.py, per-user language resolution, and suggestion-tap callbacks, all of which belong to the chat-surface ingress slice; and the \"exactly one reply per turn\" invariant, which already exists in the turn-lifecycle subsystem. No strategic context-mapping edges emitted.",
+  "owner": "usr-7176d698",
+  "ownerDisplayName": "臺",
+  "reviewedBy": "braid-batch",
+  "reviewedAt": "2026-08-11T02:10:41.093Z"
+}
