@@ -429,8 +429,10 @@ function ValidationPanel({ isLoading, error, issues, ok }: {
     )
   }
   const grouped = groupBySeverity(issues)
+  // Cap the list height so a long validation run stays a scrollable box,
+  // rather than pushing the proposal's graph preview off-screen.
   return (
-    <div className="space-y-2 px-4 pt-3">
+    <div className="max-h-52 space-y-2 overflow-y-auto scrollbar-thin px-4 pt-3">
       {(['error', 'warning', 'info'] as const).map((severity) => {
         const list = grouped[severity]
         if (list.length === 0)
