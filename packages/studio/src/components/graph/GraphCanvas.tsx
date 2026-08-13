@@ -6,7 +6,7 @@ import { localize } from '@braidhq/schema'
 import { Background, BackgroundVariant, ControlButton, Controls, getNodesBounds, MarkerType, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react'
 import { toPng, toSvg } from 'html-to-image'
 import { Download, GitBranch, PanelLeftClose, PanelLeftOpen, RotateCcw, Sparkles } from 'lucide-react'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
 import { Button } from '@/components/ui/button'
@@ -267,6 +267,23 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
 
   useFitOnLayoutChange(reactFlow, laidOut.nodes)
 
+  // Only-changes zooms the viewport onto the changed nodes,
+  // so a small diff is enlarged rather than lost in the dimmed full graph.
+  // Toggling it off restores the whole-graph frame.
+  // Re-runs when the navigator collapses too, since that resizes the canvas.
+  const changedNodeIds = useMemo(() => [...(diff?.nodes.keys() ?? [])], [diff])
+  const didFitChangesRef = useRef(false)
+  useEffect(() => {
+    if (dimUnchanged && changedNodeIds.length > 0) {
+      reactFlow.fitView({ nodes: changedNodeIds.map(id => ({ id })), padding: 0.4, maxZoom: 1.2, duration: 300 })
+      didFitChangesRef.current = true
+    }
+    else if (didFitChangesRef.current) {
+      reactFlow.fitView({ padding: 0.15, duration: 300 })
+      didFitChangesRef.current = false
+    }
+  }, [dimUnchanged, changedNodeIds, reactFlow, navigatorOpen])
+
   const centerOnNode = useCallback((nodeId: NodeId) => {
     const positioned = laidOut.nodes.find(n => n.id === nodeId)
     if (!positioned)
@@ -390,6 +407,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   }
 
   const selectedNode = selectedNodeId ? nodesById.get(selectedNodeId) ?? null : null
+  const selectedNodeChange = selectedNode ? diff?.nodes.get(selectedNode.id) : undefined
   const selectedEdge = selectedEdgeId
     ? allEdges.find(e => e.id === selectedEdgeId) ?? null
     : null
@@ -523,6 +541,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
             onClose={clearSelection}
             onSelectNode={selectAndCenter}
             onCenterInGraph={() => selectedNodeId && centerOnNode(selectedNodeId)}
+            {...(selectedNodeChange ? { change: selectedNodeChange } : {})}
           />
         </aside>
       )}

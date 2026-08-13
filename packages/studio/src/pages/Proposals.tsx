@@ -328,41 +328,39 @@ function ProposalDetail({
           {(!isPending || !canWrite) && <StatusBadge status={proposal.status} />}
         </div>
       </header>
-      <div className="shrink-0">
-        {isPending && (
-          <ValidationPanel
-            isLoading={validation.isLoading}
-            error={validation.error}
-            issues={validation.data?.issues ?? []}
-            ok={validation.data?.ok ?? null}
-          />
-        )}
+      {(rejectOpen && isPending) || apply.error || reject.error
+        ? (
+            <div className="shrink-0">
+              {rejectOpen && isPending && (
+                <RejectForm
+                  value={rejectReason}
+                  onChange={setRejectReason}
+                  onCancel={() => {
+                    setRejectOpen(false)
+                    setRejectReason('')
+                  }}
+                  onSubmit={() => reject.mutate(rejectReason.trim())}
+                  isPending={reject.isPending}
+                />
+              )}
 
-        {rejectOpen && isPending && (
-          <RejectForm
-            value={rejectReason}
-            onChange={setRejectReason}
-            onCancel={() => {
-              setRejectOpen(false)
-              setRejectReason('')
-            }}
-            onSubmit={() => reject.mutate(rejectReason.trim())}
-            isPending={reject.isPending}
-          />
-        )}
+              {(apply.error || reject.error) && (
+                <div className="mx-4 mt-3 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  {((apply.error ?? reject.error) as Error).message}
+                </div>
+              )}
+            </div>
+          )
+        : null}
 
-        {hasMoreRationale && (
-          <RationaleSection text={proposal.rationale} firstSentence={title} />
-        )}
-
-        {(apply.error || reject.error) && (
-          <div className="mx-4 mt-3 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-            {((apply.error ?? reject.error) as Error).message}
-          </div>
-        )}
-      </div>
-
-      <ProposalPreview workspaceId={workspaceId} operations={proposal.operations} />
+      <ProposalPreview
+        workspaceId={workspaceId}
+        operations={proposal.operations}
+        {...(isPending
+          ? { validation: { isLoading: validation.isLoading, error: validation.error, issues: validation.data?.issues ?? [], ok: validation.data?.ok ?? null } }
+          : {})}
+        {...(hasMoreRationale ? { rationale: proposal.rationale } : {})}
+      />
     </div>
   )
 }
@@ -374,72 +372,21 @@ function firstSentence(text: string): string {
   return (match ? match[0] : text.trim()).trim()
 }
 
-function RationaleSection({ text, firstSentence: shown }: { text: string, firstSentence: string }) {
-  const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
-  const rest = text.trim().slice(shown.length).trim()
-  if (!rest)
-    return null
-  return (
-    <div className="px-4 pt-3 pb-3">
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
-      >
-        {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-        {t('review.proposals.rationale')}
-      </button>
-      {open && (
-        <p className="mt-1.5 whitespace-pre-wrap rounded-md border border-border bg-card px-3 py-2 text-xs text-foreground/90">
-          {text.trim()}
-        </p>
-      )}
-    </div>
-  )
-}
-
-function ValidationPanel({ isLoading, error, issues, ok }: {
-  isLoading: boolean
-  error: unknown
-  issues: readonly ValidationIssue[]
-  ok: boolean | null
+function DisclosureChip({ open, onToggle, tone = 'text-muted-foreground', children }: {
+  open: boolean
+  onToggle: () => void
+  tone?: string
+  children: React.ReactNode
 }) {
-  const { t } = useTranslation()
-  if (isLoading) {
-    return <p className="px-4 pt-3 text-2xs text-muted-foreground">{t('review.proposals.validating')}</p>
-  }
-  if (error) {
-    return (
-      <p className="mx-4 mt-3 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-2xs text-destructive">
-        {t('review.proposals.validationRequestFailed', { message: error instanceof Error ? error.message : String(error) })}
-      </p>
-    )
-  }
-  if (ok && issues.length === 0) {
-    return (
-      <div className="mx-4 mt-3 flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400">
-        <Check className="size-4 shrink-0" />
-        <span>
-          <strong className="font-semibold">{t('review.proposals.noIssues')}</strong>
-          {' '}
-          {t('review.proposals.safeToApply')}
-        </span>
-      </div>
-    )
-  }
-  const grouped = groupBySeverity(issues)
-  // Cap the list height so a long validation run stays a scrollable box,
-  // rather than pushing the proposal's graph preview off-screen.
   return (
-    <div className="max-h-52 space-y-2 overflow-y-auto scrollbar-thin px-4 pt-3">
-      {(['error', 'warning', 'info'] as const).map((severity) => {
-        const list = grouped[severity]
-        if (list.length === 0)
-          return null
-        return <IssueGroup key={severity} severity={severity} issues={list} />
-      })}
-    </div>
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`inline-flex items-center gap-1.5 rounded px-1.5 py-1 text-2xs font-semibold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${open ? 'bg-accent' : 'hover:bg-accent'} ${tone}`}
+    >
+      {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+      {children}
+    </button>
   )
 }
 
@@ -593,7 +540,12 @@ type PreviewView = 'graph' | 'list'
  */
 const INCREMENTAL_RATIO_THRESHOLD = 0.3
 
-function ProposalPreview({ workspaceId, operations }: { workspaceId: string, operations: readonly GraphOperation[] }) {
+function ProposalPreview({ workspaceId, operations, validation, rationale }: {
+  workspaceId: string
+  operations: readonly GraphOperation[]
+  validation?: { isLoading: boolean, error: unknown, issues: readonly ValidationIssue[], ok: boolean | null }
+  rationale?: string
+}) {
   const { t } = useTranslation()
   // Proposal preview pairs the graph visualization with a flat list view.
   // We manage `view` here,
@@ -602,7 +554,11 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
   const [selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId]
     = useMutualExclusionPair<NodeId, EdgeId>()
   const [focusMode, setFocusMode] = useState(false)
-  const [onlyChanges, setOnlyChanges] = useState(false)
+  // Default to only-changes so a review opens on the diff, not the whole model.
+  const [onlyChanges, setOnlyChanges] = useState(true)
+  // One meta panel open at a time, so an expanded list never stacks on the
+  // other and pushes the graph further than one panel's worth.
+  const [openMeta, setOpenMeta] = useState<'validation' | 'rationale' | null>(null)
   const source = useProposalGraphDataSource(workspaceId, operations)
   const flat = flattenOperations(operations)
 
@@ -622,14 +578,67 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
   const incrementalRatio = totalCount > 0 ? changedCount / totalCount : 1
   const emphasizeAdded = incrementalRatio < INCREMENTAL_RATIO_THRESHOLD
 
+  // Validation and rationale ride in this header rather than a row of their own,
+  // so a collapsed proposal keeps the whole preview height for the graph.
+  const issues = validation?.issues ?? []
+  const grouped = groupBySeverity(issues)
+  const errorCount = grouped.error.length
+  const warningCount = grouped.warning.length
+  const infoCount = grouped.info.length
+  const valLoading = validation?.isLoading ?? false
+  const valError = !valLoading && Boolean(validation?.error)
+  const valSettled = validation !== undefined && !valLoading && !valError
+  const hasIssues = valSettled && issues.length > 0
+  const isClean = valSettled && (validation.ok ?? false) && issues.length === 0
+  const valErrorMessage = validation?.error instanceof Error ? validation.error.message : String(validation?.error)
+
   return (
     <section className="flex min-h-0 flex-1 flex-col border-t border-border">
-      <div className="flex shrink-0 items-center justify-between px-4 pt-3 pb-2">
-        <div className="flex items-baseline gap-2">
-          <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {t('review.proposals.previewTitle', { count: flat.length })}
-          </h3>
-          <ProposalImpactSummary adds={addCount} updates={updateCount} removes={removeCount} />
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-y-2 px-4 pt-3 pb-2">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="flex items-baseline gap-2">
+            <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {t('review.proposals.previewTitle', { count: flat.length })}
+            </h3>
+            <ProposalImpactSummary adds={addCount} updates={updateCount} removes={removeCount} />
+          </div>
+          {valLoading && (
+            <span className="text-2xs text-muted-foreground">{t('review.proposals.validating')}</span>
+          )}
+          {valError && (
+            <span className="inline-flex items-center gap-1 text-2xs font-semibold uppercase tracking-wider text-destructive" title={valErrorMessage}>
+              <AlertTriangle className="size-3" />
+              {t('review.proposals.validation')}
+            </span>
+          )}
+          {isClean && (
+            <span className="inline-flex items-center gap-1 text-2xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              <Check className="size-3" />
+              {t('review.proposals.safeToApply')}
+            </span>
+          )}
+          {hasIssues && (
+            <DisclosureChip
+              open={openMeta === 'validation'}
+              onToggle={() => setOpenMeta(current => current === 'validation' ? null : 'validation')}
+              tone={errorCount > 0 ? 'text-destructive' : 'text-amber-500'}
+            >
+              {t('review.proposals.validation')}
+              <span className="flex items-baseline gap-1 font-mono">
+                {errorCount > 0 && <span className="text-destructive">{errorCount}</span>}
+                {warningCount > 0 && <span className="text-amber-500">{warningCount}</span>}
+                {infoCount > 0 && <span className="text-muted-foreground">{infoCount}</span>}
+              </span>
+            </DisclosureChip>
+          )}
+          {rationale && (
+            <DisclosureChip
+              open={openMeta === 'rationale'}
+              onToggle={() => setOpenMeta(current => current === 'rationale' ? null : 'rationale')}
+            >
+              {t('review.proposals.rationale')}
+            </DisclosureChip>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {view !== 'list' && changedCount > 0 && (
@@ -638,12 +647,27 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
           {selectedNodeId && view !== 'list' && (
             <FocusToggle active={focusMode} onChange={setFocusMode} />
           )}
-          <div role="tablist" aria-label={t('review.proposals.previewViewLabel')} className="inline-flex items-center gap-0.5 rounded border border-border bg-card p-0.5">
+          <div role="tablist" aria-label={t('review.proposals.previewViewLabel')} className="inline-flex h-7 items-center gap-0.5 rounded-md border border-border bg-card p-0.5 shadow-sm">
             <ViewTab active={view === 'graph'} onClick={() => setView('graph')}>{t('review.proposals.viewGraph')}</ViewTab>
             <ViewTab active={view === 'list'} onClick={() => setView('list')}>{t('review.proposals.viewList')}</ViewTab>
           </div>
         </div>
       </div>
+      {openMeta === 'validation' && hasIssues && (
+        <div className="max-h-52 shrink-0 space-y-2 overflow-y-auto scrollbar-thin border-t border-border px-4 py-2">
+          {(['error', 'warning', 'info'] as const).map((severity) => {
+            const list = grouped[severity]
+            return list.length === 0 ? null : <IssueGroup key={severity} severity={severity} issues={list} />
+          })}
+        </div>
+      )}
+      {openMeta === 'rationale' && rationale && (
+        <div className="shrink-0 border-t border-border px-4 py-2">
+          <p className="whitespace-pre-wrap rounded-md border border-border bg-card px-3 py-2 text-xs text-foreground/90">
+            {rationale.trim()}
+          </p>
+        </div>
+      )}
       <div className="min-h-0 flex-1 overflow-hidden">
         {view === 'list'
           ? <OperationList flat={flat} />
@@ -657,7 +681,7 @@ function ProposalPreview({ workspaceId, operations }: { workspaceId: string, ope
                 selectedEdgeId={selectedEdgeId}
                 onSelectEdge={setSelectedEdgeId}
                 focusMode={focusMode}
-                dimUnchanged={onlyChanges}
+                dimUnchanged={onlyChanges && changedCount > 0}
                 emphasizeAdded={emphasizeAdded}
               />
             )}
@@ -730,7 +754,7 @@ function ViewTab({ active, onClick, children }: { active: boolean, onClick: () =
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`rounded-sm px-2 py-0.5 text-2xs font-medium uppercase tracking-wider transition-colors ${
+      className={`flex h-full items-center rounded-sm px-2 text-2xs font-medium uppercase tracking-wider transition-colors ${
         active ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
       }`}
     >

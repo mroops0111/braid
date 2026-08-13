@@ -25,7 +25,7 @@ export function FocusToggle({ active, onChange }: { active: boolean, onChange: (
       aria-pressed={active}
       title={active ? t('graph.toolbar.showFullGraphTooltip') : t('graph.toolbar.focusNeighbourhoodTooltip')}
       className={cn(
-        'flex h-7 items-center gap-1 rounded-md border border-border px-2 text-2xs shadow-sm transition-colors',
+        'flex h-7 items-center gap-1 rounded-md border border-border px-2 text-2xs font-medium uppercase tracking-wider shadow-sm transition-colors',
         active
           ? 'bg-accent text-foreground'
           : 'bg-card text-muted-foreground hover:bg-accent/50 hover:text-foreground',
@@ -56,7 +56,7 @@ export function OnlyChangesToggle({ active, onChange }: { active: boolean, onCha
       aria-pressed={active}
       title={active ? t('graph.toolbar.showFullGraphTooltip') : t('graph.toolbar.dimUnchangedTooltip')}
       className={cn(
-        'flex h-7 items-center gap-1 rounded-md border border-border px-2 text-2xs shadow-sm transition-colors',
+        'flex h-7 items-center gap-1 rounded-md border border-border px-2 text-2xs font-medium uppercase tracking-wider shadow-sm transition-colors',
         active
           ? 'bg-accent text-foreground'
           : 'bg-card text-muted-foreground hover:bg-accent/50 hover:text-foreground',
