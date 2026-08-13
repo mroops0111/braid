@@ -5,30 +5,28 @@
 [![Node](https://img.shields.io/badge/node-%3E%3D20-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 
-> A harness framework that keeps AI and your team building one domain model together, in a loop where the AI drafts and asks, and people decide.
+_A harness framework that keeps AI and your team building one domain model together, in a loop where the AI drafts and asks, and people decide._
+
+![Braid Studio: answering a clarification, running clarify, then reviewing and applying the proposal to the domain model](demo.gif)
 
 **A shared model of your business, not another code graph.** Code is what shipped. Intent is what the team meant. They drift apart every sprint, and the team ends up arguing about which one is right.
 
-Braid braids them back into one domain model that engineers and PMs can both read. The default ontology is Domain-Driven Design (DDD), so people and the AI both speak the ubiquitous language of the domain instead of class names and package paths.
-
-![Braid architecture](architecture.png)
+Braid _braids_ them back into one domain model that engineers and PMs can both read. The default ontology is Domain-Driven Design (DDD), so people and the AI both speak the ubiquitous language of the domain instead of class names and package paths.
 
 ## Features
 
-Braid keeps one human-gated domain model, built from your sources and reviewed before any change lands.
-
-- **Canonical Model**: the model is the one artifact everything else derives from. Docs and other views are projections off it rather than parallel copies, so the team reasons about a single shared source of truth instead of reconciling many.
-- **Pluggable Ontology**: an ontology gives the model its types, so it reads as a domain rather than a call graph. The ontology is itself a plugin, so the default is a starting point you can replace.
-- **Human-in-the-Loop Gate**: an AI-built model will not always match how each expert sees the domain, so every disagreement is settled by a person before it lands. The AI drafts, but it is never the final authority on the model.
-- **Continuous Reaction**: the model is not a one-shot build. As sources change, Braid reacts and feeds the diff back as a fresh Proposal, so the model keeps pace instead of going stale.
-- **Evidence-Backed Claims**: each node carries a reference to the source it was drawn from, so a claim can be traced back rather than taken on trust.
+- **Human-in-the-Loop Gate**: the AI drafts and asks, but a person decides before any change lands.
+- **Evidence-Backed Claims**: every node traces back to the file or document it was drawn from.
+- **Docs That Never Drift**: a document is a projection of the one model, regenerated on demand rather than kept in sync by hand.
+- **Continuous Reaction**: as sources change, Braid feeds the diff back as a fresh Proposal instead of going stale.
+- **Git-Versioned History**: every human-gated write commits to Git, so any point in the model's history is restorable.
 
 ## Motivation
 
 Braid is built against two failure modes.
 
 - **Code-Only Graphs**: tools that pull a graph straight from source are honest about what runs, but the result is a class-and-call-site graph. It cannot tell you why a feature exists, who asked for it, or what trade-off shaped its rules. PMs cannot read it.
-- **Doc-Only Knowledge**: PRDs, design docs, Notion, and Confluence speak the domain, but nobody keeps them in sync once the code lands. Six months later, nobody trusts them.
+- **Doc-Only Knowledge**: PRDs, design docs, Notion, and Confluence speak the domain, but nobody keeps them in sync once the code lands. Several months later, nobody trusts them.
 
 ## Design
 
@@ -36,15 +34,17 @@ Braid is a pluggable framework over a fixed runtime shape. The axes are swappabl
 
 ### Framework
 
-Braid is a framework, not a managed service. Every axis is a plugin, and the defaults are a starting point rather than a built-in assumption.
+Every axis is a plugin, and the defaults are a starting point rather than a built-in assumption.
 
 - **Swappable Axes**: the ontology, source loaders, storage, agent, and view generators are all plugins, each overridable in one manifest field.
 - **Framework Invariants**: the human-in-the-loop gate, the evidence requirement, and the branded type discipline are enforced by the type system and cannot be swapped out.
-- **Braid Anything**: the domain lives in the ontology, not the engine, so the same loop, gate, and provenance carry over whether you braid a codebase or a research corpus.
+- **Braid Anything**: the domain lives in the ontology, not the engine, so the same loop, gate, and provenance carry over whether you braid a codebase, a research corpus, or a product spec.
 
 ### Architecture
 
 The server is the composition root. Sources feed an event-driven engine that produces reviewable changes, a human gate lands them in one canonical model, and every write is versioned in Git.
+
+![Braid architecture](architecture.png)
 
 - **Surfaces**: Studio (web UI), Desktop, CLI, and MCP clients all talk to one server over REST and SSE.
 - **Sources**: Intent (PRDs, RFCs, issues) and Code (repositories) are pulled in by Source Loader plugins for git, github, and gdrive.
@@ -55,99 +55,65 @@ The server is the composition root. Sources feed an event-driven engine that pro
 
 ## Usage
 
-Get a workspace running, then work the review loop and tune it through the manifest.
+Get a workspace running, then work the review loop in Studio.
 
 ### Quick Start
 
-Scaffold a workspace and start the dev server.
+Braid runs from the monorepo today. Clone it, install, and start the dev stack.
 
 ```bash
-pnpm dlx @braidhq/cli init my-product
-cd my-product && pnpm dlx @braidhq/cli dev
+git clone https://github.com/mroops0111/braid
+cd braid && pnpm install && pnpm dev
 # Studio at http://localhost:5173, server at :4321
 ```
 
+Open Studio and create a workspace with the Wizard, then add your intent and code sources. The default ontology is DDD.
+
 ### The Loop
 
-Once `braid dev` is running, work the loop in Studio at `http://localhost:5173`.
+Once the dev server is running, work the loop in Studio at `http://localhost:5173`.
 
-- **Extract**: run a skill such as `/ddd:extract` from the Skills tab.
+- **Extract**: run a skill such as `/ddd:extract` from the Actions tab.
 - **Review**: open each Proposal, inspect the diff, and pre-validate it. Answer any Clarification the agent raised.
 - **Apply**: land the change when it is green, or reject it with a reason.
 
-### Workspace Manifest
-
-Workspace shape lives in one `PRODUCT.md` manifest. It names the workspace, points at the sources, and picks a graph store.
-
-```yaml
----
-name: my-product
-sources:
-  - {kind: filesystem, id: src-intent, name: intent, role: intent, path: ./intent}
-  - {kind: filesystem, id: src-code, name: app, role: code, path: ./code/app, language: typescript}
-storage: {kind: kuzu, config: {}}
----
-```
-
-`version`, `ontologyId` (DDD by default), and `mcpServers` fill in when omitted. Swap a source's `kind: filesystem` for `git` or `gdrive` to load remote sources.
-
 ## Packages
+
+**Framework Core**
 
 | Package | Description |
 |---|---|
-| [`@braidhq/schema`](packages/schema/) | Zod schemas and branded TypeScript types for the domain. The wire-format contract for all packages. |
-| [`@braidhq/core`](packages/core/) | Domain entities, application services, and plugin port interfaces. The framework engine, with no concrete adapters. |
-| [`@braidhq/sdk`](packages/sdk/) | Plugin author SDK, used to define ontology, source loader, and view generator plugins. |
-| [`@braidhq/server`](packages/server/) | REST and SSE server. |
+| [`@braidhq/schema`](packages/schema/) | Zod schemas and branded types. The wire-format contract for every package. |
+| [`@braidhq/core`](packages/core/) | Domain entities, application services, and plugin port interfaces, with no concrete adapters. |
+| [`@braidhq/sdk`](packages/sdk/) | Author SDK for ontology, source loader, and view generator plugins. |
+
+**Plugins**
+
+| Package | Description |
+|---|---|
+| [`@braidhq/ontology-ddd`](packages/ontology-ddd/) | Default DDD ontology: boundedContext, aggregate, command, query, event, rule, and actor. |
+| [`@braidhq/storage-kuzu`](packages/storage-kuzu/) | Embedded Kuzu graph store, a zero-infra single-binary alternative to Neo4j. |
+| [`@braidhq/source-loader-git`](packages/source-loader-git/) | Clone a repository and sync it automatically. |
+| [`@braidhq/source-loader-github`](packages/source-loader-github/) | Sync a GitHub repository over the API, OAuth on first use. |
+| [`@braidhq/source-loader-gdrive`](packages/source-loader-gdrive/) | Export documents from Google Drive, OAuth on first use. |
+| [`@braidhq/agent-claude-code`](packages/agent-claude-code/) | Runs the `claude` CLI to execute SKILL.md prompts, the default LLM backend. |
+
+**Surfaces**
+
+| Package | Description |
+|---|---|
+| [`@braidhq/server`](packages/server/) | REST and SSE server, the composition root. |
 | [`@braidhq/cli`](packages/cli/) | Command-line entry point. |
 | [`@braidhq/studio`](packages/studio/) | Web UI. |
-| [`@braidhq/ontology-ddd`](packages/ontology-ddd/) | Default DDD ontology plugin, including boundedContext, aggregate, command, query, event, rule, and actor. |
-| [`@braidhq/storage-kuzu`](packages/storage-kuzu/) | Embedded Kuzu graph-storage plugin. A zero-infra single-binary alternative to Neo4j. |
-| [`@braidhq/source-loader-git`](packages/source-loader-git/) | Git source-loader plugin. Clone a repo and sync automatically. |
-| [`@braidhq/source-loader-gdrive`](packages/source-loader-gdrive/) | Google Drive source-loader plugin. Export docs from Google Drive, requires OAuth on first use. |
-| [`@braidhq/agent-claude-code`](packages/agent-claude-code/) | Claude Code agent plugin. Spawns the `claude` CLI to run SKILL.md prompts, the default LLM backend. |
 | [`@braidhq/desktop`](packages/desktop/) | Tauri desktop shell. |
-
-Adding a plugin such as `@braidhq/my-coding-agent` means one new package implementing the relevant port. No core changes.
 
 ## Extending Braid
 
-Braid has two extension surfaces, a TypeScript plugin for the five swappable axes and a Markdown skill for new AI capabilities.
+Braid has two extension surfaces, and neither touches the core. A TypeScript plugin adds a swappable axis. A Markdown skill adds an AI capability.
 
-### Swappable Axes
+A plugin implements a port and registers at server start-up, then a workspace opts in by name. See [`@braidhq/sdk`](packages/sdk/) for the ontology and source-loader builders. The shipped plugins, such as [`@braidhq/storage-kuzu`](packages/storage-kuzu/) and [`@braidhq/source-loader-git`](packages/source-loader-git/), are reference implementations to copy from.
 
-Five plugin ports are swappable, ontology, source loader, storage, agent, and view generator. Storage, agent, and view generator implement their port interface directly. Ontology and source loader get a more declarative SDK builder.
-
-```ts
-// @somecorp/braid-storage-mygraph
-import type { StoragePlugin } from '@braidhq/core'
-import { z } from 'zod'
-
-export const myStoragePlugin: StoragePlugin = {
-  id: 'storage.mygraph',
-  type: 'storage',
-  kind: 'mygraph',
-  configSchema: z.object({ uri: z.string() }),
-  createModelRepository: async (descriptor, ctx) =>
-    new MyGraphRepository(descriptor.config, ctx.resolveWorkspaceRoot),
-}
-```
-
-Register it at server start-up and flip the workspace's `storage.kind`.
-
-```ts
-import { composeFsApp, createApp } from '@braidhq/server'
-import { myStoragePlugin } from '@somecorp/braid-storage-mygraph'
-
-createApp(await composeFsApp({
-  extraStoragePlugins: [myStoragePlugin],
-  storageKind: 'mygraph',
-}))
-```
-
-### Custom Skills
-
-A skill is a `SKILL.md` file at `<workspace>/skills/<verb>/SKILL.md`, invoked as `/workspace:<verb>`. The framework picks it up on the next request, and it shows up in Studio's Skills tab alongside the built-ins.
+A skill is a `SKILL.md` file at `<workspace>/skills/<verb>/SKILL.md`, invoked as `/workspace:<verb>`. It shows up in Studio's Actions tab alongside the built-ins on the next request.
 
 ```markdown
 ---
@@ -161,7 +127,7 @@ braid:
 Walk `intent/` and `code/`. Emit proposals that add boundedContext, aggregate, and command nodes. Cite the source file or doc each claim came from.
 ```
 
-Top-level keys follow the Claude Code skill frontmatter format (`name`, `description`, `argumentHint`, `model`). The Braid-specific `braid:` block is preflighted before the agent spawns, so a missing env var or MCP server fails fast with a clear error instead of derailing the conversation halfway through.
+The `braid:` block is preflighted before the agent spawns, so a missing env var or MCP server fails fast with a clear error.
 
 ## License
 
