@@ -33,6 +33,7 @@ const review: typeof en = {
     submitRejectionButton: '送出拒絕',
     rejecting: '拒絕中…',
     rationale: '理由',
+    validation: '驗證',
     validating: '正在對照目前的圖譜進行驗證…',
     validationRequestFailed: '驗證請求失敗：{message}',
     noIssues: '沒有驗證問題。',

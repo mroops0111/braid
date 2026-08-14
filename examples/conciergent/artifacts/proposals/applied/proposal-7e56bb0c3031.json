@@ -1,0 +1,1520 @@
+{
+  "id": "proposal-7e56bb0c3031",
+  "workspaceId": "conciergent",
+  "status": "applied",
+  "operations": [
+    {
+      "operation": "addNodes",
+      "payloads": [
+        {
+          "id": "ctx.appSetup",
+          "type": "boundedContext",
+          "name": "Setup and Startup",
+          "description": "Getting the product running should not require writing code. Someone who wants their own tools to have a chat face writes one settings file, points it at their tool servers and their chat platforms, and starts it. That whole path is what this subsystem owns, from the starter file it hands them to the moment the product is live and listening.\n\nThe words used here:\n\n- **Configuration** — the one file the person setting the product up writes. Everything the product can be told is in it, and anything left out falls back to a shipped value.\n- **Platform** — Slack, LINE or Discord. Each has its own switch and only runs when switched on.\n- **Embedded tool server** — the product's ability to read an API description file and offer it to the assistant as tools, without anybody running a second service.\n- **Scaffold** — writing a starter settings file into a folder so there is something to edit.\n\nWhat falls outside: what the assistant says and how it says it, how a message arrives, and what the product remembers of a conversation. Those are all *built* here, at startup, but their behaviour is theirs. This subsystem is answerable only for reading what was asked for, refusing to start on a request that cannot work, putting the pieces together, and keeping a record of what the running product does.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 214,
+                  "endLine": 236
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 60,
+                  "endLine": 106
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/cli.py",
+                  "startLine": 13,
+                  "endLine": 35
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/defaults.yml",
+                  "startLine": 1,
+                  "endLine": 68
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "README.md",
+                  "startLine": 144,
+                  "endLine": 192
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "agg.configuration",
+          "type": "aggregate",
+          "name": "Configuration (manifest.yml)",
+          "description": "Everything the product can be told, in one file the person setting it up writes and keeps alongside their code. It names the assistant's model and instructions, which chat platforms are on and with what credentials, where state is kept, whether an API description file should be served to the assistant as tools, how long conversation state lives, and how the product logs.\n\nIt exists so that standing the product up is an editing job rather than a programming one. The file only has to say what differs from the shipped values; everything unmentioned falls back, and the shipped copy is a complete working base rather than a page of blanks.\n\nNothing sensitive is written in it. Credentials are referenced by the name of an environment entry, so the file is safe to commit and safe to publish as an example.\n\nIts life is short and one-directional: a starter copy is scaffolded into a folder, the person edits it, and every start reads it fresh, lays it over the defaults, and refuses to go further if what it asks for cannot work. It is never written back to, and a change to it means a restart.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 214,
+                  "endLine": 236
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/defaults.yml",
+                  "startLine": 1,
+                  "endLine": 68
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/templates/manifest.yml",
+                  "startLine": 1,
+                  "endLine": 74
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "README.md",
+                  "startLine": 161,
+                  "endLine": 191
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "agg.runningService",
+          "type": "aggregate",
+          "name": "Running Service",
+          "description": "The product as it actually runs: the assistant, the platforms that were switched on, the two state stores, and every address each of them needs, all built from one configuration and served as a single process.\n\nIt exists because everything the product does has to be reachable at one place. A chat platform posts its deliveries here, a person finishing a sign-in comes back here, and, when an API description file is being served as tools, the assistant dials back into this very process to use them.\n\nIts life runs in one direction and does not loop:\n\n| from | what happens | to |\n|---|---|---|\n| checked settings | the pieces are built and agree with each other | assembled |\n| assembled | logging settled, addresses published, stores answered, pushing platforms listened to | serving |\n| serving | every held-open link is cancelled and waited out | stopped |\n\nA restart repeats the whole thing from the file. It keeps nothing of its own between restarts: everything durable belongs to the stores.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 22,
+                  "endLine": 106
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 108,
+                  "endLine": 167
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 169,
+                  "endLine": 178
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "agg.operationsLog",
+          "type": "aggregate",
+          "name": "Operations Log",
+          "description": "One record of what the running product is doing, written where whoever runs it can read it. Every part writes into that same record in that same shape, whether it is the product's own code, the embedded tool server, the web server underneath it, or the library that talks to tool servers.\n\nIt exists because a chat assistant fails in places nobody is watching. A platform rejects a credential, a tool call times out, a sign-in is abandoned; none of those reach the person in the conversation as anything more than silence, and the record is the only way to tell them apart afterwards.\n\nIt can be read by a person or by a machine: human-readable lines, coloured when somebody is actually watching a terminal, or one entry per line in a machine-readable shape for a collector. It always goes to the error stream, and additionally to a file when one is named.\n\nThe level of detail, the shape, and that optional file are the only three things anyone sets.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/logger.py",
+                  "startLine": 99,
+                  "endLine": 131
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/logger.py",
+                  "startLine": 41,
+                  "endLine": 78
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 206,
+                  "endLine": 211
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/defaults.yml",
+                  "startLine": 63,
+                  "endLine": 66
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.scaffoldManifest",
+          "type": "command",
+          "name": "Scaffold a Starter Configuration",
+          "description": "Write a starter settings file into a folder so there is something to edit, with every available setting present and the ones left at their shipped value commented out beside it.\n\n- **Issued by**: whoever is setting the product up, from the command line, usually as the first thing they do.\n- **Requires**: a folder, which is created if it is not there yet.\n- **Produces**: a settings file carrying one worked example, a Slack assistant reading its secrets from the environment, plus a line telling them what to do next.\n- **Fails as**: a settings file already sitting in that folder stops the whole thing with a message. Nothing is overwritten and nothing is merged in.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/cli.py",
+                  "startLine": 25,
+                  "endLine": 35
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/templates/manifest.yml",
+                  "startLine": 1,
+                  "endLine": 74
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "tests/test_cli.py",
+                  "startLine": 14,
+                  "endLine": 20
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.loadConfiguration",
+          "type": "command",
+          "name": "Load the Configuration",
+          "description": "Read the settings file, fill in the environment entries it names, lay it over the shipped values, and check that what it asks for can actually work.\n\n- **Issued by**: whoever starts the product. Every start does this first, and nothing else runs until it finishes.\n- **Requires**: a readable settings file. Several may be given, and a later one wins over an earlier one, setting by setting.\n- **Produces**: one complete, checked set of settings for this run. Nothing is read again afterwards, so a change means a restart.\n- **Fails as**: anything the settings ask for that cannot work stops the start with a message naming the setting. A platform switched on without its credentials, a missing address for state, or a waiting time set shorter than the sign-in it has to outlast all end here. The product never starts half-configured.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 239,
+                  "endLine": 250
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 253,
+                  "endLine": 278
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/defaults.py",
+                  "startLine": 61,
+                  "endLine": 74
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 60,
+                  "endLine": 63
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "tests/test_config.py",
+                  "startLine": 26,
+                  "endLine": 126
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.assembleService",
+          "type": "command",
+          "name": "Assemble the Service",
+          "description": "Turn one checked set of settings into the actual product: the assistant with its model, its instructions and the tool servers it may dial; the platforms that were switched on; the two state stores; and any custom wording layered over the shipped copy before a word is rendered.\n\n- **Issued by**: the product itself, immediately after the settings are read and checked. It is also the point at which somebody embedding the product in their own code takes over instead of using the command line.\n- **Requires**: at least one chat platform switched on.\n- **Produces**: an assembled product ready to be served. Where an API description file is being served as tools, its address is added to the assistant's list of tool servers, so the assistant will dial back into this same process.\n- **Fails as**: no platform switched on is refused outright rather than started.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 65,
+                  "endLine": 106
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 135,
+                  "endLine": 143
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "tests/test_app.py",
+                  "startLine": 88,
+                  "endLine": 131
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.startService",
+          "type": "command",
+          "name": "Start Serving",
+          "description": "Bring the assembled product up: settle how it logs, publish every address it answers on, check the stores respond, open the links to platforms that push rather than post, and serve until stopped.\n\n- **Issued by**: whoever is running the product, from the command line or from a container that runs that command for them.\n- **Requires**: an assembled product. When an API description file is being served as tools, the optional extra that provides that capability must be installed.\n- **Produces**: a live service answering platform deliveries, sign-in returns, an up-or-down check, and, where configured, the tools built from an API description file.\n- **Fails as**: a missing optional extra stops the start with the exact command that installs it. Stopping cancels every held-open platform link and waits for each one, so nothing is left half-closed.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 169,
+                  "endLine": 178
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 108,
+                  "endLine": 167
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 187,
+                  "endLine": 209
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.configureLogging",
+          "type": "command",
+          "name": "Settle How the Product Logs",
+          "description": "Apply the chosen level of detail, shape and destination once, at start-up, before the web server underneath has a chance to bring up logging of its own.\n\n- **Issued by**: the product itself, as the first thing it does when serving starts.\n- **Requires**: a level of detail and a shape, human-readable or machine-readable, plus an optional file to write to as well as the error stream.\n- **Produces**: one place every part of the product writes to. Parts that arrive with logging of their own have it stripped, so their entries come out in the same shape as everyone else's rather than twice or in a second format.\n- **Caveat**: colour is used only when somebody is actually watching a terminal, and never when the environment asks for none.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/logger.py",
+                  "startLine": 99,
+                  "endLine": 131
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 169,
+                  "endLine": 178
+                }
+              }
+            ],
+            "driftIssues": [
+              {
+                "id": "drift-log-level-unchecked",
+                "description": "src/conciergent/logger.py line 17 enumerates the five accepted levels of detail, but the logger settings at src/conciergent/config.py line 209 accept any text at all, unlike the shape field beside them which is restricted to two values. A misspelled level passes the configuration check and instead brings the process down with a raw error at start-up.",
+                "severity": "warning",
+                "sourceReferences": [
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/logger.py",
+                      "startLine": 17,
+                      "endLine": 18
+                    }
+                  },
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/config.py",
+                      "startLine": 206,
+                      "endLine": 211
+                    }
+                  }
+                ],
+                "raisedAt": "2026-08-11T10:30:00+08:00"
+              }
+            ]
+          }
+        },
+        {
+          "id": "qry.serviceHealth",
+          "type": "query",
+          "name": "Ask Whether the Service Is Up",
+          "description": "A bare up-or-down check for whatever is watching the deployment: a load balancer, a container platform, an uptime monitor.\n\n- **Asked by**: infrastructure rather than a person, on a fixed schedule.\n- **Answers with**: an empty confirmation, as soon as the process can answer at all.\n- **Caveat**: it reports that the process is answering, not that it could serve a conversation. Neither store is probed, so a product whose memory or credential store has gone away still answers as up.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 149,
+                  "endLine": 151
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "tests/test_app.py",
+                  "startLine": 60,
+                  "endLine": 64
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "evt.configurationLoaded",
+          "type": "event",
+          "name": "Configuration Loaded",
+          "description": "The settings for this run have been read, resolved against the environment, laid over the shipped values, and found workable. Fires once per start, before anything is built, and only the start-up sequence reacts to it.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 245,
+                  "endLine": 250
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 60,
+                  "endLine": 63
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "evt.serviceAssembled",
+          "type": "event",
+          "name": "Service Assembled",
+          "description": "The assistant, the switched-on platforms and the two state stores exist and agree with each other, but nothing is being served yet. Fires once per start, between reading the settings and going live. It is also the handover point for somebody embedding the product in their own code rather than running it from the command line.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 92,
+                  "endLine": 106
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 65,
+                  "endLine": 67
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "evt.serviceStarted",
+          "type": "event",
+          "name": "Service Started",
+          "description": "The product is live: its addresses answer and the platforms that push are being listened to. Fires once per start. It is what puts a held-open platform link on the air, so a platform that pushes rather than posts has somewhere to deliver from this moment on.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 124,
+                  "endLine": 142
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 169,
+                  "endLine": 178
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.secretsStayInTheEnvironment",
+          "type": "rule",
+          "name": "Secrets Stay in the Environment",
+          "description": "No credential is written into the settings file. Each one is named as an environment entry instead, optionally with a fallback for the harmless ones, and the real value is filled in as the file is read.\n\nThe business cares because that file is meant to be committed and shared. It is the thing an app builder copies from an example, checks in, and hands to a colleague. A signing secret or a bot token sitting inside it leaks the moment the repository is shared or the example is published, and a leaked signing secret lets anybody make the assistant answer as if the company had asked.\n\nA named entry that is not set resolves to nothing rather than stopping the read, so the failure surfaces as the setting that needed it being empty, which is checked and reported by name.\n\nApplies to every piece of text anywhere in the file, not just to the fields that happen to hold credentials today.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 253,
+                  "endLine": 268
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/templates/manifest.yml",
+                  "startLine": 1,
+                  "endLine": 3
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "docker-compose.yml",
+                  "startLine": 44,
+                  "endLine": 60
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "tests/test_config.py",
+                  "startLine": 34,
+                  "endLine": 56
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.settingsLayerOverShippedDefaults",
+          "type": "rule",
+          "name": "Settings Layer Over the Shipped Values",
+          "description": "The product ships a complete, working set of values, and what the person writes is laid over it setting by setting. Anything they do not mention keeps the shipped value, and where several files are given, a later one wins over an earlier one.\n\nThe business cares because it keeps the setup short enough to actually finish. Somebody can start from three lines and still get a fully specified product, and tuning one number never means restating the twenty around it. It is also where a default is changed for everybody, once, instead of in every deployment.\n\nThe shipped copy deliberately leaves the values that must be supplied empty, so a start that is genuinely missing something fails immediately instead of running on a guess.\n\nApplies to every start, before anything is checked.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 245,
+                  "endLine": 250
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 271,
+                  "endLine": 278
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/defaults.yml",
+                  "startLine": 1,
+                  "endLine": 2
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/defaults.py",
+                  "startLine": 61,
+                  "endLine": 74
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "tests/test_config.py",
+                  "startLine": 58,
+                  "endLine": 63
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.anEnabledPlatformCarriesItsCredentials",
+          "type": "rule",
+          "name": "An Enabled Platform Carries Its Credentials",
+          "description": "A chat platform that is switched on must also carry what it needs to be trusted: Slack its signing secret, LINE both its channel secret and its access token, Discord its bot token. Switched off, the same platform needs nothing at all.\n\nThe business cares most about the signing secret. Without one, every delivery claiming to come from Slack would be believed, and anybody who found the address could make the assistant answer as though the company had asked. The other two fail more quietly but no more usefully: the product would run and simply never be able to reply.\n\nThe check runs while the settings are being read, so the mistake is refused before the product starts rather than discovered on somebody's first message.\n\nApplies per platform, and only to the ones switched on.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 63,
+                  "endLine": 68
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 92,
+                  "endLine": 96
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 120,
+                  "endLine": 124
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "tests/test_config.py",
+                  "startLine": 70,
+                  "endLine": 78
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.atLeastOnePlatformIsTurnedOn",
+          "type": "rule",
+          "name": "At Least One Platform Is Turned On",
+          "description": "A product with no chat platform switched on is refused. There has to be at least one way for somebody to talk to it.\n\nThe business cares because the alternative is the worst kind of misconfiguration: a service that starts, reports itself healthy, and silently does nothing, with every signal saying it is fine. It is an easy slip to make, because every platform is off until it is turned on, so a settings file that carefully names a model, a prompt and two stores can still be missing the one switch that matters.\n\nChecked while the pieces are being put together, so the start stops with a message rather than coming up empty.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 89,
+                  "endLine": 91
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 142,
+                  "endLine": 143
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.theEmbeddedToolServerRemembersItsClients",
+          "type": "rule",
+          "name": "The Embedded Tool Server Remembers Its Clients",
+          "description": "When the product is serving an API description file to the assistant as tools, it must also be told where to keep the registrations it hands out. Switched on without that, the start is refused.\n\nThe business cares because those registrations are how the assistant identifies itself. Kept only in memory, they disappear on every restart, and the assistant then turns up holding an identity the tool server no longer recognises and is refused. What the team sees is an assistant that worked yesterday and now fails every tool call, with nothing in the conversation to explain it and nothing obviously changed.\n\nChecked while the settings are being read. The usual answer is to point it at the same place the product already keeps conversation state.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 189,
+                  "endLine": 195
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 194,
+                  "endLine": 197
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "examples/openapi-chat.yml",
+                  "startLine": 39,
+                  "endLine": 46
+                }
+              }
+            ],
+            "driftIssues": [
+              {
+                "id": "drift-gateway-store-undocumented",
+                "description": "The setup reference at README.md lines 184-185 lists only the switch and the spec entries for the embedded tool server, omitting the place its registrations are kept, which src/conciergent/config.py line 193 requires whenever that server is switched on. An app builder configuring from the reference table alone turns it on and the start is refused with a setting they were never told about.",
+                "severity": "warning",
+                "sourceReferences": [
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "README.md",
+                      "startLine": 184,
+                      "endLine": 185
+                    }
+                  },
+                  {
+                    "sourceId": "app",
+                    "location": {
+                      "uri": "src/conciergent/config.py",
+                      "startLine": 189,
+                      "endLine": 195
+                    }
+                  }
+                ],
+                "raisedAt": "2026-08-11T10:30:00+08:00"
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.scaffoldingNeverOverwrites",
+          "type": "rule",
+          "name": "Scaffolding Never Overwrites",
+          "description": "Asking for a starter settings file where one already exists stops with a message. Nothing is replaced and nothing is merged in.\n\nThe business cares because that file is the only place somebody's own credentials, their assistant's instructions and their platform choices live, and it is edited by hand over weeks. Quietly replacing it with the shipped example would erase all of that with no way back, in answer to a command most people re-run out of habit.\n\nApplies to the scaffolding step only. Starting the product reads that file and never writes to it.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/cli.py",
+                  "startLine": 30,
+                  "endLine": 34
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "tests/test_cli.py",
+                  "startLine": 30,
+                  "endLine": 33
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.everythingLogsThroughOneConfiguration",
+          "type": "rule",
+          "name": "Everything Logs Through One Configuration",
+          "description": "Every part of the running product writes to one place in one shape: the product's own code, the embedded tool server, the web server underneath it, and the library that talks to tool servers. Parts that arrive with logging of their own have it stripped, so nothing is written twice or in a second format.\n\nThe business cares because the whole point of a record is following one incident end to end. A platform rejecting a credential, a tool timing out and a sign-in expiring are three different-looking failures of the same conversation, and nobody can line them up if each component writes in its own format, or twice, or not at all.\n\nIt is settled once, before the web server has a chance to install its own, so there is no early window whose entries come out looking different from the rest.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/logger.py",
+                  "startLine": 118,
+                  "endLine": 131
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/logger.py",
+                  "startLine": 20,
+                  "endLine": 23
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 171,
+                  "endLine": 177
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.aBenignTeardownIsNotAnError",
+          "type": "rule",
+          "name": "A Tidy-Up Race Is Not an Error",
+          "description": "One specific piece of noise is dropped from the record: the tool-connection library complaining that its stream closed, when it does so only because the turn it belonged to had already answered and was being tidied up. Every other complaint from that same component is kept.\n\nThe business cares because that entry appears on ordinary, successful turns. Left in, every healthy conversation records what reads like a broken connection, and whoever is on call learns to skip that component's errors entirely, including the real ones.\n\nThe exception is deliberately narrow: it matches that one component and only those two ways of saying the stream had already gone.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/logger.py",
+                  "startLine": 81,
+                  "endLine": 89
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/logger.py",
+                  "startLine": 12,
+                  "endLine": 14
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "tests/test_logger.py",
+                  "startLine": 15,
+                  "endLine": 21
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.stateIsSplitByHowLongItMayLive",
+          "type": "rule",
+          "name": "State Is Split by How Long It May Live",
+          "description": "Two separate places are named, and what goes where is decided by how long it is allowed to survive. Anything carrying what people said — conversation history, held confirmations, records of what has already been delivered, sign-ins in mid-handoff — goes where it expires on its own. Long-lived credentials — tool tokens, registrations, platform tokens — go where they survive a restart.\n\nThe business cares in both directions. Conversation content that outlived its purpose is a liability nobody chose to take on, so it is kept somewhere that forgets by design. Credentials that did not survive a restart would ask every user to sign in again after each deployment, which is the fastest way to make people stop using an assistant.\n\nBoth addresses have to be given and neither has a usable default, because guessing either one wrong puts the wrong kind of data in the wrong place.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 146,
+                  "endLine": 156
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 71,
+                  "endLine": 72
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/templates/manifest.yml",
+                  "startLine": 46,
+                  "endLine": 51
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "README.md",
+                  "startLine": 181,
+                  "endLine": 182
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "operation": "addEdges",
+      "payloads": [
+        {
+          "id": "edge.ctx-appSetup-agg-configuration",
+          "type": "contains",
+          "fromNodeId": "ctx.appSetup",
+          "toNodeId": "agg.configuration",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 214,
+                  "endLine": 236
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.ctx-appSetup-agg-runningService",
+          "type": "contains",
+          "fromNodeId": "ctx.appSetup",
+          "toNodeId": "agg.runningService",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 22,
+                  "endLine": 106
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.ctx-appSetup-agg-operationsLog",
+          "type": "contains",
+          "fromNodeId": "ctx.appSetup",
+          "toNodeId": "agg.operationsLog",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/logger.py",
+                  "startLine": 99,
+                  "endLine": 131
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-configuration-cmd-scaffoldManifest",
+          "type": "accepts",
+          "fromNodeId": "agg.configuration",
+          "toNodeId": "cmd.scaffoldManifest",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/cli.py",
+                  "startLine": 25,
+                  "endLine": 35
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-configuration-cmd-loadConfiguration",
+          "type": "accepts",
+          "fromNodeId": "agg.configuration",
+          "toNodeId": "cmd.loadConfiguration",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 239,
+                  "endLine": 250
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-runningService-cmd-assembleService",
+          "type": "accepts",
+          "fromNodeId": "agg.runningService",
+          "toNodeId": "cmd.assembleService",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 65,
+                  "endLine": 106
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-runningService-cmd-startService",
+          "type": "accepts",
+          "fromNodeId": "agg.runningService",
+          "toNodeId": "cmd.startService",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 169,
+                  "endLine": 178
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-runningService-qry-serviceHealth",
+          "type": "accepts",
+          "fromNodeId": "agg.runningService",
+          "toNodeId": "qry.serviceHealth",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 149,
+                  "endLine": 151
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-operationsLog-cmd-configureLogging",
+          "type": "accepts",
+          "fromNodeId": "agg.operationsLog",
+          "toNodeId": "cmd.configureLogging",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/logger.py",
+                  "startLine": 99,
+                  "endLine": 131
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-loadConfiguration-evt-configurationLoaded",
+          "type": "emits",
+          "fromNodeId": "cmd.loadConfiguration",
+          "toNodeId": "evt.configurationLoaded",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 245,
+                  "endLine": 250
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-assembleService-evt-serviceAssembled",
+          "type": "emits",
+          "fromNodeId": "cmd.assembleService",
+          "toNodeId": "evt.serviceAssembled",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 92,
+                  "endLine": 106
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-startService-evt-serviceStarted",
+          "type": "emits",
+          "fromNodeId": "cmd.startService",
+          "toNodeId": "evt.serviceStarted",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 124,
+                  "endLine": 142
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.evt-configurationLoaded-cmd-assembleService",
+          "type": "triggers",
+          "fromNodeId": "evt.configurationLoaded",
+          "toNodeId": "cmd.assembleService",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 60,
+                  "endLine": 63
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.evt-serviceAssembled-cmd-configureLogging",
+          "type": "triggers",
+          "fromNodeId": "evt.serviceAssembled",
+          "toNodeId": "cmd.configureLogging",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 171,
+                  "endLine": 177
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.evt-serviceAssembled-cmd-startService",
+          "type": "triggers",
+          "fromNodeId": "evt.serviceAssembled",
+          "toNodeId": "cmd.startService",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 169,
+                  "endLine": 178
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.evt-serviceStarted-cmd-holdPlatformConnection",
+          "type": "triggers",
+          "fromNodeId": "evt.serviceStarted",
+          "toNodeId": "cmd.holdPlatformConnection",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 134,
+                  "endLine": 137
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-loadConfiguration-rule-secretsStayInTheEnvironment",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.loadConfiguration",
+          "toNodeId": "rule.secretsStayInTheEnvironment",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 253,
+                  "endLine": 268
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-loadConfiguration-rule-settingsLayerOverShippedDefaults",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.loadConfiguration",
+          "toNodeId": "rule.settingsLayerOverShippedDefaults",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 245,
+                  "endLine": 250
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-loadConfiguration-rule-anEnabledPlatformCarriesItsCredentials",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.loadConfiguration",
+          "toNodeId": "rule.anEnabledPlatformCarriesItsCredentials",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 63,
+                  "endLine": 68
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-loadConfiguration-rule-theEmbeddedToolServerRemembersItsClients",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.loadConfiguration",
+          "toNodeId": "rule.theEmbeddedToolServerRemembersItsClients",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 189,
+                  "endLine": 195
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-loadConfiguration-rule-signInWaitFitsInsideConnect",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.loadConfiguration",
+          "toNodeId": "rule.signInWaitFitsInsideConnect",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 227,
+                  "endLine": 236
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-assembleService-rule-atLeastOnePlatformIsTurnedOn",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.assembleService",
+          "toNodeId": "rule.atLeastOnePlatformIsTurnedOn",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 89,
+                  "endLine": 91
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-scaffoldManifest-rule-scaffoldingNeverOverwrites",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.scaffoldManifest",
+          "toNodeId": "rule.scaffoldingNeverOverwrites",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/cli.py",
+                  "startLine": 30,
+                  "endLine": 34
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-configureLogging-rule-everythingLogsThroughOneConfiguration",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.configureLogging",
+          "toNodeId": "rule.everythingLogsThroughOneConfiguration",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/logger.py",
+                  "startLine": 118,
+                  "endLine": 131
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-configureLogging-rule-aBenignTeardownIsNotAnError",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.configureLogging",
+          "toNodeId": "rule.aBenignTeardownIsNotAnError",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/logger.py",
+                  "startLine": 81,
+                  "endLine": 89
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-configuration-rule-stateIsSplitByHowLongItMayLive",
+          "type": "constrainedBy",
+          "fromNodeId": "agg.configuration",
+          "toNodeId": "rule.stateIsSplitByHowLongItMayLive",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 146,
+                  "endLine": 156
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-scaffoldManifest-actor-appBuilder",
+          "type": "performedBy",
+          "fromNodeId": "cmd.scaffoldManifest",
+          "toNodeId": "actor.appBuilder",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/cli.py",
+                  "startLine": 25,
+                  "endLine": 35
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-loadConfiguration-actor-appBuilder",
+          "type": "performedBy",
+          "fromNodeId": "cmd.loadConfiguration",
+          "toNodeId": "actor.appBuilder",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/cli.py",
+                  "startLine": 18,
+                  "endLine": 22
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-startService-actor-appBuilder",
+          "type": "performedBy",
+          "fromNodeId": "cmd.startService",
+          "toNodeId": "actor.appBuilder",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/cli.py",
+                  "startLine": 18,
+                  "endLine": 22
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-runningService-depends-agg-configuration",
+          "type": "dependsOn",
+          "fromNodeId": "agg.runningService",
+          "toNodeId": "agg.configuration",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 65,
+                  "endLine": 106
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-runningService-depends-agg-wordingCatalog",
+          "type": "dependsOn",
+          "fromNodeId": "agg.runningService",
+          "toNodeId": "agg.wordingCatalog",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 68,
+                  "endLine": 70
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-runningService-depends-agg-toolConnection",
+          "type": "dependsOn",
+          "fromNodeId": "agg.runningService",
+          "toNodeId": "agg.toolConnection",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 74,
+                  "endLine": 86
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "generatedBy": "ddd:extract",
+  "generatedAt": "2026-08-11T02:31:15.122Z",
+  "rationale": "Extracted the no-code setup path as its own subsystem: the one settings file laid over shipped defaults with credentials pulled from the environment, the checks that refuse a start that cannot work, scaffolding and serving from the command line, the record the running product writes, and the up-or-down check. 3 aggregates, 5 commands, 1 query, 3 events and 9 rules, wired to the existing app builder, to the sign-in timing rule this configuration already enforces, and to the held-open platform link that goes on the air once the service starts. Sources are code only (config.py, defaults.py/defaults.yml, cli.py, app.py, logger.py, templates/manifest.yml, examples/, README.md), so every node declares intent as the missing role. Two docs-vs-code drifts recorded as warnings. Deliberately excluded: what each assembled subsystem then does, already covered elsewhere; and any strategic mapping to those subsystems.",
+  "owner": "usr-7176d698",
+  "ownerDisplayName": "臺",
+  "reviewedBy": "braid-batch",
+  "reviewedAt": "2026-08-11T02:31:15.308Z"
+}

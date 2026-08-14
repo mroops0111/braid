@@ -44,6 +44,9 @@ const graph: typeof en = {
     missingRole: '缺少 {role}',
     incoming: '傳入 ({count})',
     outgoing: '傳出 ({count})',
+    changeNew: '新增',
+    changeUpdated: '更新',
+    changeRemoved: '移除',
   },
   nodeCard: {
     addedTooltip: '由此提案新增',

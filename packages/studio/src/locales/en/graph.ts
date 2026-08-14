@@ -43,6 +43,9 @@ export const graph = {
     missingRole: 'missing {role}',
     incoming: 'Incoming ({count})',
     outgoing: 'Outgoing ({count})',
+    changeNew: 'New',
+    changeUpdated: 'Updated',
+    changeRemoved: 'Removed',
   },
   nodeCard: {
     addedTooltip: 'Added by this proposal',

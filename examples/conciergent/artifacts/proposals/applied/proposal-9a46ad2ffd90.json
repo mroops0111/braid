@@ -1,0 +1,169 @@
+{
+  "id": "proposal-9a46ad2ffd90",
+  "workspaceId": "conciergent",
+  "status": "applied",
+  "operations": [
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.agg-turn-depends-agg-reply",
+        "type": "dependsOn",
+        "fromNodeId": "agg.turn",
+        "toNodeId": "agg.reply",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 48,
+                "endLine": 61
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.agg-turn-depends-agg-platformRendering",
+        "type": "dependsOn",
+        "fromNodeId": "agg.turn",
+        "toNodeId": "agg.platformRendering",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 38,
+                "endLine": 38
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 56,
+                "endLine": 61
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.agg-assistantRun-depends-agg-reply",
+        "type": "dependsOn",
+        "fromNodeId": "agg.assistantRun",
+        "toNodeId": "agg.reply",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/runner.py",
+                "startLine": 105,
+                "endLine": 116
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.agg-assistantRun-depends-agg-platformRendering",
+        "type": "dependsOn",
+        "fromNodeId": "agg.assistantRun",
+        "toNodeId": "agg.platformRendering",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/runner.py",
+                "startLine": 120,
+                "endLine": 125
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "updateNode",
+      "nodeId": "cmd.greetNewFollower",
+      "patch": {
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/surfaces/line/webhook.py",
+                "startLine": 146,
+                "endLine": 163
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/surfaces/line/webhook.py",
+                "startLine": 99,
+                "endLine": 110
+              }
+            }
+          ],
+          "driftIssues": [
+            {
+              "id": "drift-greeting-surface-coverage",
+              "description": "LINE reacts when somebody adds the assistant and greets them, getting any sign-in out of the way up front, at src/conciergent/surfaces/line/webhook.py:99-109; the Slack delivery route at src/conciergent/surfaces/slack/webhook.py:212 acts only on a message and the Discord connection at src/conciergent/surfaces/discord/gateway.py:164-169 acts only on ready, message and button events, so neither notices the assistant being added. A Slack or Discord user gets no welcome and meets the sign-in request in the middle of their first real question instead of before it.",
+              "severity": "warning",
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/surfaces/line/webhook.py",
+                    "startLine": 99,
+                    "endLine": 109
+                  }
+                },
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/surfaces/discord/gateway.py",
+                    "startLine": 164,
+                    "endLine": 169
+                  }
+                },
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/surfaces/slack/webhook.py",
+                    "startLine": 212,
+                    "endLine": 212
+                  }
+                }
+              ],
+              "raisedAt": "2026-08-11T10:00:00+08:00"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "generatedBy": "ddd:reconcile",
+  "generatedAt": "2026-08-11T02:38:20.028Z",
+  "rationale": "Global structure pass + validation: added 4 cross-context dependsOn bridges (Turn and Assistant Run to Structured Reply and Platform Rendering, grounded in turn.py:38/48/56-61 and runner.py:105-125) and attached 1 code-vs-code driftIssue on the new-follower greeting, where LINE handles the add event but Slack and Discord do not. Triggered by a whole-graph walk of 120 nodes / 155 edges with no scope hint. Structural validation found no errors: no orphans, no duplicate edges, no contains to non-aggregates, all dependsOn endpoints are aggregates. No content fills or status flips: every node already carries a description and a code citation, all 120 sit at draft, and promotion to completed is a human call. Coverage: the workspace has no intent source, so all 120 nodes carry missingRoles intent and only code-vs-code drift is detectable; 19 operations have no actor, which matches a deliberate convention rather than a gap.",
+  "owner": "usr-7176d698",
+  "ownerDisplayName": "臺",
+  "reviewedBy": "braid-batch",
+  "reviewedAt": "2026-08-11T02:38:20.226Z"
+}

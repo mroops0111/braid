@@ -1,0 +1,86 @@
+{
+  "id": "proposal-84ec6bbc6ea6",
+  "workspaceId": "conciergent",
+  "status": "applied",
+  "operations": [
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.agg-turn-agg-assistantRun",
+        "type": "dependsOn",
+        "fromNodeId": "agg.turn",
+        "toNodeId": "agg.assistantRun",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 39,
+                "endLine": 46
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.evt-replySent-cmd-commitTurnHistory",
+        "type": "triggers",
+        "fromNodeId": "evt.replySent",
+        "toNodeId": "cmd.commitTurnHistory",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 58,
+                "endLine": 69
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "updateNode",
+      "nodeId": "evt.replySent",
+      "patch": {
+        "description": "The user has received the turn's answer: a short line, one card, or a set of option cards.\n\nFires after the assistant has settled on an answer and the platform has rendered it. It marks the point where the turn's promise to the user is kept, and it is what puts the conversation memory in motion: an ordinary turn is recorded from here, while a turn that made the earlier exchanges untrue forgets the conversation instead. A turn that paused for a confirmation never reaches this point at all.",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 58,
+                "endLine": 63
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/reply.py",
+                "startLine": 164,
+                "endLine": 165
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "generatedBy": "ddd:reconcile",
+  "generatedAt": "2026-08-11T02:01:31.734Z",
+  "rationale": "Global structure pass + validation over all 55 nodes / 71 edges against the code. Added 2 bridge edges no single-slice extract could see: the conversation round trip now depends on the assistant run it calls on every message, and a sent reply now drives the record of the turn, which until now had no inbound flow at all and sat unreachable while its mirror branch, the invalidated-history path, was already wired. Reworded the sent-reply moment, which asserted nothing reacted to it. No status promoted: every node still declares the intent role missing, and the workspace has no intent source, so no node can claim its sources align. No new drift found; the existing sign-out warning still reproduces in the code and was left in place. Coverage: the early sign-in step is wired on LINE only, so Slack and Discord users meet their first sign-in mid-question; sign-in link rendering and handoff expiry are covered on all three surfaces. Seven product-internal steps carry no named participant; raised as a clarification rather than guessed.",
+  "owner": "usr-7176d698",
+  "ownerDisplayName": "臺",
+  "reviewedBy": "braid-batch",
+  "reviewedAt": "2026-08-11T02:01:31.917Z"
+}
