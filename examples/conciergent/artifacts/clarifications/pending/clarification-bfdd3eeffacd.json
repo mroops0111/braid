@@ -1,0 +1,134 @@
+{
+  "id": "clarification-bfdd3eeffacd",
+  "workspaceId": "conciergent",
+  "question": "The one answer shape that everything fills in and every chat platform draws is settled in one place. Is it published by its owners for the rest to take as it comes, or is it co-owned and changed by agreement among everyone who touches it?",
+  "candidates": [
+    {
+      "id": "cc-published",
+      "description": "One side owns the answer shape and publishes it; everyone filling it in or drawing it takes it as it comes.",
+      "sourceReferences": [
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/reply.py",
+            "startLine": 86
+          }
+        }
+      ],
+      "proposedOperations": [
+        {
+          "operation": "addEdge",
+          "payload": {
+            "id": "edge.ctx-replyPresentation-published-ctx-conversationTurn",
+            "type": "publishedLanguage",
+            "fromNodeId": "ctx.replyPresentation",
+            "toNodeId": "ctx.conversationTurn",
+            "metadata": {
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/turn.py",
+                    "startLine": 48,
+                    "endLine": 61
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "operation": "addEdge",
+          "payload": {
+            "id": "edge.ctx-replyPresentation-published-ctx-toolAccess",
+            "type": "publishedLanguage",
+            "fromNodeId": "ctx.replyPresentation",
+            "toNodeId": "ctx.toolAccess",
+            "metadata": {
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/agent/runner.py",
+                    "startLine": 105,
+                    "endLine": 116
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "cc-shared",
+      "description": "The answer shape is co-owned: anyone who fills it in or draws it can ask for changes, and they are agreed together.",
+      "sourceReferences": [
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/agent/runner.py",
+            "startLine": 105
+          }
+        }
+      ],
+      "proposedOperations": [
+        {
+          "operation": "addEdge",
+          "payload": {
+            "id": "edge.ctx-replyPresentation-shared-ctx-toolAccess",
+            "type": "sharedKernel",
+            "fromNodeId": "ctx.replyPresentation",
+            "toNodeId": "ctx.toolAccess",
+            "metadata": {
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/agent/runner.py",
+                    "startLine": 105,
+                    "endLine": 116
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "operation": "addEdge",
+          "payload": {
+            "id": "edge.ctx-replyPresentation-shared-ctx-conversationTurn",
+            "type": "sharedKernel",
+            "fromNodeId": "ctx.replyPresentation",
+            "toNodeId": "ctx.conversationTurn",
+            "metadata": {
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/turn.py",
+                    "startLine": 48,
+                    "endLine": 61
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "cc-not-worth-recording",
+      "description": "Neither: one team builds all of this today, so there is no working arrangement worth writing down.",
+      "sourceReferences": [],
+      "proposedOperations": []
+    }
+  ],
+  "status": "pending",
+  "origin": "skill",
+  "context": "Strategic Context Mapping question between ctx.replyPresentation (upstream) and its two consumers, ctx.conversationTurn and ctx.toolAccess. Per the ontology concept doc, Context Mapping edges are never auto-emitted, so this is raised rather than proposed. The signal: agg.reply's description states the answer is \"written once and drawn three ways\" with sizes and structure \"settled here, against the tightest platform, so the drawing step never has to negotiate with the content\"; agg.platformRendering states that \"adding a chat platform should mean contributing one of these and nothing else\". This reads as a one-way published contract, but the reply model is also the assistant's own structured-output schema (src/conciergent/agent/runner.py:105-116), which makes ctx.toolAccess a co-owner in practice rather than a pure consumer. Candidate A emits publishedLanguage edges from ctx.replyPresentation; candidate B emits sharedKernel edges; candidate C records nothing.",
+  "relatedNode": "ctx.replyPresentation",
+  "ambiguityType": "ambiguous",
+  "owner": "usr-7176d698",
+  "ownerDisplayName": "臺"
+}

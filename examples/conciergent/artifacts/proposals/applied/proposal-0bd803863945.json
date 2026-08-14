@@ -1,0 +1,258 @@
+{
+  "id": "proposal-0bd803863945",
+  "workspaceId": "conciergent",
+  "status": "applied",
+  "operations": [
+    {
+      "operation": "addNode",
+      "payload": {
+        "id": "rule.oneApprovalPerConversation",
+        "type": "rule",
+        "name": "One Confirmation Waits at a Time",
+        "description": "A conversation holds at most one waiting confirmation, and picking it up removes it. A newer confirmation takes the place of an older one, and once an answer has claimed a confirmation there is nothing left to claim again.\n\nThe business cares because a confirmation is answered by whatever the user says next, and there is only ever one next message. Two waiting at once would let a single Confirm settle the wrong held action, and a confirmation that survived being answered would let the same irreversible action run again on a later message.\n\nNothing surfaces to the user. A violation would show up as an action the user approved once happening twice, or a Confirm landing on something they never saw.\n\nApplies to every waiting confirmation, for the whole life of a conversation.",
+        "status": "draft",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 89,
+                "endLine": 96
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 36,
+                "endLine": 36
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 49,
+                "endLine": 56
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addNode",
+      "payload": {
+        "id": "rule.approvalExpiry",
+        "type": "rule",
+        "name": "An Unanswered Confirmation Ages Out",
+        "description": "A confirmation the user never answers stops waiting after a bounded time, ten minutes by default and adjustable per deployment. The held action is dropped with it, and the user's next message is answered as an ordinary fresh question.\n\nThe business cares because a held action only makes sense inside the conversation that raised it. Confirming it hours later would act on an intent the user has long since moved on from, and a confirmation held open forever would keep a stale irreversible action permanently one tap away.\n\nExpiry is silent: the user sees no notice, just a normal answer to whatever they say next.\n\nApplies to every waiting confirmation.",
+        "status": "draft",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 49,
+                "endLine": 56
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/defaults.yml",
+                "startLine": 58,
+                "endLine": 59
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/config.py",
+                "startLine": 199,
+                "endLine": 202
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addNode",
+      "payload": {
+        "id": "rule.approvalPromptsMatchTheCard",
+        "type": "rule",
+        "name": "The Answer Is Matched Against the Words Offered",
+        "description": "A waiting confirmation carries its own Confirm and Cancel wording, and the user's answer is judged against that wording rather than against wording worked out afresh when they reply.\n\nThe business cares because the language a confirmation was written in cannot always be resolved a second time. On some chat platforms, tapping a button tells the product less about who is answering than sending a message does, so the reply would be read in a different language than the one the user was offered. The confirmation would then look like an unrelated remark, the action the user had just approved would be dropped in silence, and they would never be told it did not happen.\n\nApplies whenever a waiting confirmation is answered, whether the user taps a button or types the words themselves.",
+        "status": "draft",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/runner.py",
+                "startLine": 250,
+                "endLine": 257
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/runner.py",
+                "startLine": 265,
+                "endLine": 270
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/runner.py",
+                "startLine": 279,
+                "endLine": 295
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.agg-pendingApproval-rule-oneApprovalPerConversation",
+        "type": "constrainedBy",
+        "fromNodeId": "agg.pendingApproval",
+        "toNodeId": "rule.oneApprovalPerConversation",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 89,
+                "endLine": 96
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.agg-pendingApproval-rule-approvalExpiry",
+        "type": "constrainedBy",
+        "fromNodeId": "agg.pendingApproval",
+        "toNodeId": "rule.approvalExpiry",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 54,
+                "endLine": 54
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/defaults.yml",
+                "startLine": 58,
+                "endLine": 59
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.cmd-answerApproval-rule-approvalPromptsMatchTheCard",
+        "type": "constrainedBy",
+        "fromNodeId": "cmd.answerApproval",
+        "toNodeId": "rule.approvalPromptsMatchTheCard",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/runner.py",
+                "startLine": 250,
+                "endLine": 270
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.cmd-answerApproval-rule-unreadableStateStartsFresh",
+        "type": "constrainedBy",
+        "fromNodeId": "cmd.answerApproval",
+        "toNodeId": "rule.unreadableStateStartsFresh",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/runner.py",
+                "startLine": 246,
+                "endLine": 260
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.evt-approvalAnswered-cmd-runAssistant",
+        "type": "triggers",
+        "fromNodeId": "evt.approvalAnswered",
+        "toNodeId": "cmd.runAssistant",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/runner.py",
+                "startLine": 211,
+                "endLine": 232
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/runner.py",
+                "startLine": 271,
+                "endLine": 274
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "generatedBy": "ddd:extract",
+  "generatedAt": "2026-08-11T01:47:51.922Z",
+  "rationale": "Extracted the destructive-tool approval gate from the approval predicate and the park/resume paths in the agent runner, the parked-approval store, and the turn dispatcher. Three invariants that existing nodes describe in prose but that had no node of their own now exist: one confirmation waits at a time, an unanswered one ages out, and an answer is matched against the wording the user was actually shown. Five edges wire them up and record that answering a confirmation resumes the held assistant run. Whether signing out falls under the same rule went out as a clarification rather than a guess.",
+  "owner": "usr-7176d698",
+  "ownerDisplayName": "臺",
+  "reviewedBy": "braid-batch",
+  "reviewedAt": "2026-08-11T01:47:52.123Z"
+}

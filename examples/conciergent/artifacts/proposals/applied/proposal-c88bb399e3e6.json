@@ -1,0 +1,675 @@
+{
+  "id": "proposal-c88bb399e3e6",
+  "workspaceId": "conciergent",
+  "status": "applied",
+  "operations": [
+    {
+      "operation": "addNode",
+      "payload": {
+        "id": "cmd.forgetConversation",
+        "type": "command",
+        "name": "Forget Conversation",
+        "description": "Drop everything remembered about a conversation, so the user's next message is answered as if it were their first.\n\n- **Issued by**: the turn itself, not the user directly, once something that happened during the turn made the earlier exchanges untrue. Today the one thing that does this is the user signing out of the connected services.\n- **Requires**: nothing. It is safe on a conversation that remembers nothing.\n- **Produces**: an empty memory. Every recorded exchange and any summary standing in for older ones are gone for good.\n- **Fails as**: it does not. Forgetting is best-effort and repeating it changes nothing.\n\nRuns instead of recording the turn, never alongside it: the turn that triggered the forgetting is itself discarded along with everything before it, because its answer also assumed what is no longer true.",
+        "status": "draft",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 77,
+                "endLine": 83
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 65,
+                "endLine": 67
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/runner.py",
+                "startLine": 139,
+                "endLine": 149
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addNode",
+      "payload": {
+        "id": "evt.historyInvalidated",
+        "type": "event",
+        "name": "Earlier Exchanges Invalidated",
+        "description": "Something this turn did has made the remembered exchanges untrue, so they can no longer be relied on.\n\nToday the only thing that raises it is the user signing out of every connected service: the earlier answers were built on an authorization that no longer exists, so quoting them back would describe access the user has just taken away.\n\nFires after the reply has reached the user and in place of the moment the memory would ordinarily be brought up to date. The conversation is forgotten in response. Stays inside this subsystem.",
+        "status": "draft",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/runner.py",
+                "startLine": 139,
+                "endLine": 149
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 65,
+                "endLine": 67
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/runner.py",
+                "startLine": 241,
+                "endLine": 241
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addNode",
+      "payload": {
+        "id": "evt.conversationForgotten",
+        "type": "event",
+        "name": "Conversation Forgotten",
+        "description": "Everything remembered about a conversation is gone, including any summary standing in for older exchanges. The user's next message is answered cold.",
+        "status": "draft",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 77,
+                "endLine": 83
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 65,
+                "endLine": 67
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addNode",
+      "payload": {
+        "id": "evt.turnHistoryCommitted",
+        "type": "event",
+        "name": "Turn History Committed",
+        "description": "The conversation memory now includes this turn, as a single entry carrying its own expiry.\n\nFires last in an ordinary turn, after the reply has reached the user. From here the next message has something to pick up from. Nothing reacts to it.",
+        "status": "draft",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 56,
+                "endLine": 63
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 68,
+                "endLine": 69
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addNode",
+      "payload": {
+        "id": "rule.historyEntryExpiry",
+        "type": "rule",
+        "name": "Remembered Exchanges Age Out",
+        "description": "Every recorded exchange carries its own expiry, a week by default, and disappears on its own once it passes. Nothing is remembered indefinitely.\n\nThe business cares because an assistant that quotes a months-old exchange back at someone is both unhelpful and a liability: the user stopped expecting it to remember long ago, and the content is often something they would rather was not still sitting around. Ageing each exchange separately, rather than the conversation as a whole, means an active discussion keeps its recent context while the stale tail falls away underneath it.\n\nNothing surfaces to the user. An aged-out exchange is simply absent when the memory is read, and the pointer it left behind is tidied on the next write. Applies to every exchange in every conversation.",
+        "status": "draft",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 56,
+                "endLine": 63
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 44,
+                "endLine": 54
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/defaults.yml",
+                "startLine": 58,
+                "endLine": 60
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addNode",
+      "payload": {
+        "id": "rule.boundedHistoryLength",
+        "type": "rule",
+        "name": "Only the Most Recent Exchanges Are Kept",
+        "description": "A conversation remembers at most a fixed number of its most recent exchanges, ten by default. Recording one more drops the oldest.\n\nThe business cares because everything remembered is re-read on every single message: the cost of a turn and the wait before the user sees an answer both grow with the length of the memory, and there is a hard ceiling on how much the assistant can read at all. Capping the count keeps an ordinary conversation cheap and quick, and leaves summarizing to handle the harder case where even a handful of exchanges have grown too long. A summary counts as one of the kept exchanges.\n\nNothing surfaces to the user; they see an assistant that follows the recent thread but has lost the very beginning of a long discussion. Applies to every conversation.",
+        "status": "draft",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 56,
+                "endLine": 63
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 30,
+                "endLine": 32
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/defaults.yml",
+                "startLine": 48,
+                "endLine": 51
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addNode",
+      "payload": {
+        "id": "rule.conversationScopedMemory",
+        "type": "rule",
+        "name": "Memory Is Scoped to One Conversation",
+        "description": "What is remembered belongs to one user on one platform, narrowed further to a single thread where the platform has threads. No conversation can read another's memory.\n\nThe business cares because the same person often runs two unrelated discussions side by side, and letting one bleed into the other produces answers that look like the assistant has confused two people, or that pull something from a private thread into a shared one. Where the platform has no threads, the whole dialog with that person is one conversation, which is the behaviour the user expects there.\n\nNothing surfaces as an error; a violation shows up as an answer referring to something the user never said in this conversation. Applies to every read and every write of the memory.",
+        "status": "draft",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 22,
+                "endLine": 29
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 117,
+                "endLine": 121
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/surfaces/slack/webhook.py",
+                "startLine": 152,
+                "endLine": 153
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addNode",
+      "payload": {
+        "id": "rule.compactionTriggerThreshold",
+        "type": "rule",
+        "name": "Summarize Only Near the Reading Limit",
+        "description": "Summarizing runs only once the previous exchange genuinely came close to what the assistant can read at one time, at four fifths of that limit, and then aims to shrink the older part to roughly a fifth of its length. A conversation still comfortably under the limit is left exactly as it is.\n\nThe business cares because summarizing is not free in either direction. Doing it early spends an extra model run on every long-ish conversation and permanently throws away detail that was never in the way. Doing it late, or not at all, means a conversation that simply stops working once it outgrows the limit, with no warning to the user and nothing they can do about it.\n\nThe measurement is what the assistant actually read on its last real answer rather than an estimate, so the trigger tracks reality including bulky tool output. When the assistant's reading limit cannot be determined, a deliberately low one is assumed, so summarizing fires early rather than never. Applies to this operation only.",
+        "status": "draft",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/compactor.py",
+                "startLine": 23,
+                "endLine": 31
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/compactor.py",
+                "startLine": 109,
+                "endLine": 115
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/compactor.py",
+                "startLine": 88,
+                "endLine": 106
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addNode",
+      "payload": {
+        "id": "rule.latestExchangeKeptVerbatim",
+        "type": "rule",
+        "name": "The Latest Exchange Is Never Summarized",
+        "description": "The most recent complete exchange is kept word for word; only what came before it collapses into a summary. Where the split falls is constrained too: it must land on a plain message from the user, never partway through an exchange still waiting on results from a tool.\n\nThe business cares on two counts. The latest exchange is the thing the user is actually talking about right now, so paraphrasing it makes the assistant's very next answer wrong about the question in front of it. And splitting through a half-finished exchange separates work already in flight from the request that started it, which the assistant then refuses to read at all: the conversation stops working outright rather than merely getting vaguer.\n\nWhen no safe split point exists, nothing is summarized and the conversation is left untouched. Applies to this operation only.",
+        "status": "draft",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/compactor.py",
+                "startLine": 118,
+                "endLine": 133
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/compactor.py",
+                "startLine": 74,
+                "endLine": 85
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/compactor.py",
+                "startLine": 44,
+                "endLine": 49
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addNode",
+      "payload": {
+        "id": "rule.summaryKeepsHardFacts",
+        "type": "rule",
+        "name": "A Summary Keeps the Hard Facts",
+        "description": "A summary must carry over who the user is, what they asked for, what the assistant did or found out, and anything still unfinished, with names, reference numbers, email addresses, links, dates, and figures reproduced exactly as they appeared. Small talk, retries, and mistakes already corrected are dropped. It reads as plain prose in the conversation's own language.\n\nThe business cares because the summary is the only thing left of the earlier discussion. A reference number that gets rounded off or an address that gets paraphrased is a fact the user has to supply all over again, and an unfinished request that quietly vanishes is a promise the assistant made and then broke without ever saying so. Chatter, by contrast, costs nothing to lose, which makes the trade entirely one-sided.\n\nNothing surfaces as an error; the symptom is an assistant that asks for something the user already gave it, or that has forgotten it still owes them an answer. Applies to this operation only.",
+        "status": "draft",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/compactor.py",
+                "startLine": 34,
+                "endLine": 41
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/compactor.py",
+                "startLine": 78,
+                "endLine": 79
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/compactor.py",
+                "startLine": 44,
+                "endLine": 49
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "updateNode",
+      "nodeId": "cmd.commitTurnHistory",
+      "patch": {
+        "description": "Record what this turn said and heard, so the next message picks up where this one left off. Runs once the reply has reached the user, adding this turn's messages as one entry with its own expiry.\n\nNot every turn records something:\n\n| Situation | What happens |\n|---|---|\n| An ordinary turn | This turn's messages are added as a single entry. |\n| The turn paused for a confirmation | Nothing is recorded; the messages travel with the held confirmation and are recorded once the user answers. |\n| The turn made the earlier exchanges untrue, for example the user signed out | Nothing is added; the conversation is forgotten instead. |\n\nAdding an entry also ages out the oldest one once the conversation is already remembering as much as it keeps."
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.agg-conversationHistory-cmd-forgetConversation",
+        "type": "accepts",
+        "fromNodeId": "agg.conversationHistory",
+        "toNodeId": "cmd.forgetConversation",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 77,
+                "endLine": 83
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.cmd-runTurn-evt-historyInvalidated",
+        "type": "emits",
+        "fromNodeId": "cmd.runTurn",
+        "toNodeId": "evt.historyInvalidated",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/runner.py",
+                "startLine": 146,
+                "endLine": 149
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 65,
+                "endLine": 65
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.evt-historyInvalidated-cmd-forgetConversation",
+        "type": "triggers",
+        "fromNodeId": "evt.historyInvalidated",
+        "toNodeId": "cmd.forgetConversation",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 65,
+                "endLine": 67
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.cmd-forgetConversation-evt-conversationForgotten",
+        "type": "emits",
+        "fromNodeId": "cmd.forgetConversation",
+        "toNodeId": "evt.conversationForgotten",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 77,
+                "endLine": 83
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.cmd-commitTurnHistory-evt-turnHistoryCommitted",
+        "type": "emits",
+        "fromNodeId": "cmd.commitTurnHistory",
+        "toNodeId": "evt.turnHistoryCommitted",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 56,
+                "endLine": 63
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.agg-conversationHistory-rule-historyEntryExpiry",
+        "type": "constrainedBy",
+        "fromNodeId": "agg.conversationHistory",
+        "toNodeId": "rule.historyEntryExpiry",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 56,
+                "endLine": 63
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.agg-conversationHistory-rule-boundedHistoryLength",
+        "type": "constrainedBy",
+        "fromNodeId": "agg.conversationHistory",
+        "toNodeId": "rule.boundedHistoryLength",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 61,
+                "endLine": 61
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.agg-conversationHistory-rule-conversationScopedMemory",
+        "type": "constrainedBy",
+        "fromNodeId": "agg.conversationHistory",
+        "toNodeId": "rule.conversationScopedMemory",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 117,
+                "endLine": 121
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.cmd-compactHistory-rule-compactionTriggerThreshold",
+        "type": "constrainedBy",
+        "fromNodeId": "cmd.compactHistory",
+        "toNodeId": "rule.compactionTriggerThreshold",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/compactor.py",
+                "startLine": 72,
+                "endLine": 79
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.cmd-compactHistory-rule-latestExchangeKeptVerbatim",
+        "type": "constrainedBy",
+        "fromNodeId": "cmd.compactHistory",
+        "toNodeId": "rule.latestExchangeKeptVerbatim",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/compactor.py",
+                "startLine": 118,
+                "endLine": 133
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.cmd-compactHistory-rule-summaryKeepsHardFacts",
+        "type": "constrainedBy",
+        "fromNodeId": "cmd.compactHistory",
+        "toNodeId": "rule.summaryKeepsHardFacts",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/compactor.py",
+                "startLine": 34,
+                "endLine": 41
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.cmd-compactHistory-rule-unreadableStateStartsFresh",
+        "type": "constrainedBy",
+        "fromNodeId": "cmd.compactHistory",
+        "toNodeId": "rule.unreadableStateStartsFresh",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/compactor.py",
+                "startLine": 67,
+                "endLine": 70
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "generatedBy": "ddd:extract",
+  "generatedAt": "2026-08-11T01:34:56.467Z",
+  "rationale": "Deepened the conversation-memory slice of the Conversation Turn Lifecycle context: added Forget Conversation with the invalidation flow that raises it, named the two terminal facts the memory produces, and promoted six previously-implicit constraints (entry expiry, remembered length, conversation scoping, and the three summarizing constraints) into rules wired to the memory aggregate and to Compact History. Extracted from the conversation store, the summarizer, the turn orchestrator, and the sign-out tool; no intent source exists in this workspace, so every node carries missingRoles intent. Deliberately excluded: the approval and reply slices, already covered, and the storage-level index bookkeeping, which carries no domain meaning.",
+  "owner": "usr-7176d698",
+  "ownerDisplayName": "臺",
+  "reviewedBy": "braid-batch",
+  "reviewedAt": "2026-08-11T01:34:56.667Z"
+}

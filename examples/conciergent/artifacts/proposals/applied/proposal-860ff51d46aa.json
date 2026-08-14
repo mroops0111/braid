@@ -1,0 +1,1220 @@
+{
+  "id": "proposal-860ff51d46aa",
+  "workspaceId": "conciergent",
+  "status": "applied",
+  "operations": [
+    {
+      "operation": "addNodes",
+      "payloads": [
+        {
+          "id": "ctx.toolAccess",
+          "type": "boundedContext",
+          "name": "Assistant Run and Tool Access",
+          "description": "An assistant that can only talk is not much use. Being useful means reaching outside itself into services the user already has accounts with, acting there on that user's own permission rather than a shared one, and stopping short of anything irreversible until the user has said yes. This subsystem owns exactly that: what the assistant can reach, whose permission it reaches with, and which of those actions have to be confirmed first.\n\nThe terms this subsystem uses, and what each means here:\n\n| Term | Meaning here |\n|---|---|\n| Tool provider | An outside service that offers its capabilities to the assistant, either a standing MCP server or an API description this product serves as one. |\n| Tool | One thing a provider can do, which the assistant may call while working out an answer. |\n| Sign-in | One person's own grant of access to one connected service, given once inside the conversation and reused afterwards. |\n| Sensitive tool | A tool its provider marks as destructive, which never runs before the user confirms it. |\n| Assistant run | One pass of the assistant over the user's message, the remembered exchanges, and the tools it can currently reach. |\n\nOutside this boundary: the round trip around a run, meaning reading the conversation memory, sending the reply, and recording it, along with the confirmation card the user actually answers, all of which belong to the conversation neighbour; how each chat platform paints the sign-in link; and the credentials the product's own chat apps need to post at all.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/client.py",
+                  "startLine": 45,
+                  "endLine": 83
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 74,
+                  "endLine": 118
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "README.md",
+                  "startLine": 7,
+                  "endLine": 18
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "agg.assistantRun",
+          "type": "aggregate",
+          "name": "Assistant Run",
+          "description": "One pass of the assistant over what the user just said, what was said before, and the tools it can reach right now. The pass is assembled fresh every time: the product's own standing guidance, the chat platform's formatting dialect, the language to answer in, and a live connection to every configured tool provider.\n\nRules that always hold:\n\n- The tools it holds are the only capabilities it may claim; it never offers something no tool can do.\n- Anything arriving from a tool result or an earlier exchange is treated as information, never as an instruction to follow.\n- The answer follows the language of the user's own message, falling back to their platform language only when the message leaves it unclear.\n\nLifecycle:\n\n```mermaid\nstateDiagram-v2\n    [*] --> Prepared: guidance and tools assembled\n    Prepared --> Working: calls tools, up to three attempts at a malformed answer\n    Working --> Answered: settles on one answer\n    Working --> Held: a sensitive tool needs the user's yes\n    Answered --> [*]\n    Held --> [*]\n```\n\nA run either answers or stops holding one or more sensitive actions. It never sends the answer itself and never records anything; the conversation round trip around it does both.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 106,
+                  "endLine": 135
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 196,
+                  "endLine": 241
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 24,
+                  "endLine": 29
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "agg.toolConnection",
+          "type": "aggregate",
+          "name": "Tool Provider Connection",
+          "description": "The live link between one assistant run and one tool provider. It is opened fresh for each run and closed with it, and it carries the identity of the person the run is for, so everything the provider does happens on their account rather than a shared one.\n\nRules that always hold:\n\n- Every tool the provider marks as destructive is held for the user's confirmation before it runs.\n- A provider that expects a sign-in is reached with that person's stored one, and starts a new sign-in when there is none.\n- A provider that expects no sign-in is reached as an anonymous caller, with nothing stored for it.\n\nLifecycle: opened for the run, possibly pausing part-way while the user signs in, then serving tool calls until the run finishes. Nothing about the connection survives the run except the sign-in it may have obtained.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/client.py",
+                  "startLine": 45,
+                  "endLine": 83
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 196,
+                  "endLine": 208
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 31,
+                  "endLine": 45
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "agg.serviceAuthorization",
+          "type": "aggregate",
+          "name": "Service Authorization",
+          "description": "What one person has granted the assistant on one connected service, so a sign-in they completed once keeps working on every later request. It is held against that person and that service together: two colleagues in the same chat workspace never share one, and the same person on two services holds two.\n\nRules that always hold:\n\n- The grant is kept with the moment it stops being valid, so it can be renewed quietly instead of being discovered dead mid-request.\n- It outlives restarts and redeployments, because it is the one thing the user cannot re-supply without being asked again.\n- Signing out removes it outright rather than letting it lapse.\n\nThe product's own registration with a service is separate: it is arranged once per service and shared by everyone, while the grant on top of it is always personal.\n\nLifecycle: none, then requested when a tool first needs it, then granted, then renewed for as long as the person keeps using it, and finally revoked on sign-out or abandoned when they never come back to finish.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/storage.py",
+                  "startLine": 14,
+                  "endLine": 58
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/credential.py",
+                  "startLine": 13,
+                  "endLine": 25
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/credential.py",
+                  "startLine": 65,
+                  "endLine": 87
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.runAssistant",
+          "type": "command",
+          "name": "Run Assistant",
+          "description": "Ask the assistant for an answer, with the tools it can reach and the exchanges it should remember.\n\n- **Issued by**: the conversation round trip, always on one chat user's behalf.\n- **Requires**: the user's message, whoever is speaking, any remembered exchanges, and an open connection to every configured tool provider.\n- **Produces**: either one answer, or a set of sensitive actions held back for the user to confirm.\n- **Fails as**: an answer in the wrong shape is retried up to three times; a sign-in the user was offered but never finished ends the run as an expected outcome rather than an error.\n\nA resumed run, one that had held actions and is coming back with the user's decision, takes the same path with that decision already applied.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 186,
+                  "endLine": 241
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 112,
+                  "endLine": 118
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 39,
+                  "endLine": 46
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.openToolConnections",
+          "type": "command",
+          "name": "Open Tool Connections",
+          "description": "Reach every tool provider configured for this assistant, on behalf of the person the run is for, and hand the assistant the tools they expose.\n\n- **Issued by**: the assistant run itself, before it asks the model anything.\n- **Requires**: who the run is for. A provider expecting a sign-in also needs somewhere to keep it, otherwise the connection is refused outright rather than silently reaching the service as a stranger.\n- **Produces**: one usable set of tools per provider, with every tool the provider marks destructive already flagged for confirmation.\n- **Fails as**: a provider that expects a sign-in the user has not given pauses here while they are asked for one; a provider that cannot be reached at all fails the run.\n\nThe connections are per run and per person, never pooled, so one user's access is never handed to another.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/client.py",
+                  "startLine": 45,
+                  "endLine": 83
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 196,
+                  "endLine": 208
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 93,
+                  "endLine": 95
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.prepareToolAccess",
+          "type": "command",
+          "name": "Prepare Tool Access",
+          "description": "Open every tool connection without asking the assistant anything, purely so a sign-in the user still owes happens at a calm moment instead of interrupting their first real question.\n\n- **Issued by**: the product, at a moment that is already about setup rather than about getting an answer. Today that is someone adding the assistant on LINE.\n- **Requires**: who the person is.\n- **Produces**: nothing the user sees directly, but it reports whether a sign-in actually took place, which decides whether they are greeted as newly connected or welcomed back.\n- **Fails as**: an unfinished sign-in is an expected ending and the greeting is simply skipped; the user's next message picks the sign-in up again.\n\nWith no tool providers configured, it does nothing and reports that nothing happened.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 163,
+                  "endLine": 184
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/webhook.py",
+                  "startLine": 146,
+                  "endLine": 163
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/webhook.py",
+                  "startLine": 99,
+                  "endLine": 109
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.authorizeService",
+          "type": "command",
+          "name": "Authorize Service",
+          "description": "Ask the user to grant the assistant access to one connected service, without making them leave the conversation.\n\n- **Issued by**: the connection being opened, the moment it finds a service that expects a sign-in this person has not given.\n- **Requires**: who the person is and which service is being reached.\n- **Produces**: a sign-in link shown in the chat, and then a wait, four minutes by default, for the user to finish in their browser. What comes back is stored as their grant on that service.\n- **Fails as**: the wait running out is an ordinary outcome, not an error. Their message goes unanswered and the next one offers the link again.\n\nThe wait is deliberately shorter than the connection's own patience, so a slow sign-in ends as an abandoned sign-in rather than as a broken service.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/runtime.py",
+                  "startLine": 56,
+                  "endLine": 87
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/client.py",
+                  "startLine": 86,
+                  "endLine": 119
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/surface.py",
+                  "startLine": 156,
+                  "endLine": 186
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.completeAuthorization",
+          "type": "command",
+          "name": "Complete Sign-In",
+          "description": "The user has finished granting access in their browser and lands back on the product's own return page; what they bring back is handed to the request still waiting for it.\n\n- **Issued by**: the chat user, arriving from the connected service's own sign-in page.\n- **Requires**: the one-time grant and the tag naming which waiting request it belongs to. A return missing either shows a failure page instead.\n- **Produces**: the waiting request resumes and the user's access is stored; the page tells them, in their browser's language, that they can go back to the conversation.\n- **Fails as**: a return that arrives after everyone has stopped waiting is simply discarded, and the user is asked again on their next message.\n\nThe tag travels back untouched so the service can check it against the one the sign-in started with, which is what stops somebody else's return from being substituted for theirs.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 153,
+                  "endLine": 161
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/message.py",
+                  "startLine": 98,
+                  "endLine": 115
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/runtime.py",
+                  "startLine": 72,
+                  "endLine": 82
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.revokeAuthorization",
+          "type": "command",
+          "name": "Revoke Authorization",
+          "description": "Sign the user out by removing their access to every connected service.\n\n- **Issued by**: the assistant, when the user asks to sign out, log out, disconnect, or switch accounts. Because it is offered as a sensitive action, the user confirms it before it runs.\n- **Requires**: who the person is. It exists at all only when sign-ins are configured; with none, the assistant is never offered it.\n- **Produces**: every grant that person holds is gone, so their next request starts a fresh sign-in. It also marks the conversation's earlier exchanges as no longer true, because those answers assumed access that has just been taken away.\n- **Fails as**: it does not. Repeating it on someone who holds nothing changes nothing.\n\nOnly the person's own grants are removed; the product's registration with each service is untouched and still serves everyone else.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 137,
+                  "endLine": 156
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/storage.py",
+                  "startLine": 48,
+                  "endLine": 49
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/credential.py",
+                  "startLine": 74,
+                  "endLine": 78
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "evt.authorizationRequested",
+          "type": "event",
+          "name": "Sign-In Requested",
+          "description": "The user has been shown a link to grant the assistant access to one connected service.\n\nFires part-way through reaching that service, so the request that needed it is paused rather than finished, and the user has an answer waiting on them. What happens next is theirs: finish in the browser, or walk away and let the offer run out.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/runtime.py",
+                  "startLine": 72,
+                  "endLine": 87
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/client.py",
+                  "startLine": 146,
+                  "endLine": 165
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "evt.serviceAuthorized",
+          "type": "event",
+          "name": "Service Authorized",
+          "description": "One person now has access to one connected service, kept along with the moment it stops being valid so it can be renewed later without asking them again.\n\nFires the moment their return from the browser reaches the request that was waiting, which then carries straight on to the tool it was trying to use. Everything they ask afterwards reuses this rather than asking again.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/storage.py",
+                  "startLine": 39,
+                  "endLine": 46
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/runtime.py",
+                  "startLine": 90,
+                  "endLine": 105
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "evt.authorizationAbandoned",
+          "type": "event",
+          "name": "Sign-In Abandoned",
+          "description": "The user was shown the sign-in link and never came back in time.\n\nThis is an expected ending, not a failure: nothing is logged as broken and nothing is left half-granted. Their message goes unanswered, and the next one offers them the link again.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/runtime.py",
+                  "startLine": 11,
+                  "endLine": 21
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 190,
+                  "endLine": 193
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "evt.authorizationRevoked",
+          "type": "event",
+          "name": "Authorization Revoked",
+          "description": "Every grant one person held on the connected services is gone, and their next request will start a fresh sign-in.\n\nFires while the turn is still running, before its answer reaches the user. It also crosses out of this subsystem: the conversation memory treats the earlier exchanges as no longer true, because they were built on access that no longer exists.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 139,
+                  "endLine": 156
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 44,
+                  "endLine": 50
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.destructiveToolsNeedApproval",
+          "type": "rule",
+          "name": "Destructive Actions Wait for the User's Yes",
+          "description": "A tool its provider marks as destructive never runs until the user has confirmed it. The marking comes from the provider, which is the only party that knows which of its own capabilities cannot be taken back, so it is trusted rather than second-guessed here.\n\nThe business cares because the assistant acts on the user's real accounts with the user's own access. A single misread message would otherwise delete a document, cancel a booking, or empty a list, and none of that is something the user can undo by rephrasing. The cost of asking is one tap; the cost of not asking is unbounded.\n\nThe user sees a confirmation naming what is about to happen, with Confirm and Cancel. Applies to every tool of every provider, on a first attempt and on a resumed one alike.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/client.py",
+                  "startLine": 35,
+                  "endLine": 42
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/client.py",
+                  "startLine": 83,
+                  "endLine": 83
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "README.md",
+                  "startLine": 17,
+                  "endLine": 17
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.toolsBoundCapability",
+          "type": "rule",
+          "name": "The Tools Are the Only Capability",
+          "description": "The assistant may only offer what its current tools can actually do. It never claims or invents a capability none of them expose.\n\nThe business cares because a confident promise the assistant cannot keep is worse than a plain refusal. The user acts on it, waits for something that never happens, and stops trusting the answers that were true. It matters most here because the tools differ per deployment, so the assistant genuinely cannot know its own reach without looking.\n\nThe user sees an honest \"I cannot do that here\" instead of a fabricated confirmation. Applies to every run.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 24,
+                  "endLine": 26
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 112,
+                  "endLine": 118
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.toolResultsAreData",
+          "type": "rule",
+          "name": "Text From Tools Is Never an Instruction",
+          "description": "Anything that arrives in a tool result or an earlier exchange is information to work with, never a command to obey. Text sitting inside a name, a description, an email, or a file's contents is read as content even when it is phrased as an order.\n\nThe business cares because most of what the assistant reads was written by somebody other than the user, and the assistant is holding that user's own access to their real accounts. An instruction planted in a record the user merely asked about would otherwise spend that access on the planter's behalf, and the user would see only a plausible answer with something quietly done underneath it.\n\nNothing surfaces to the user when it holds. Applies to every run, to every provider's output and to the remembered conversation alike.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 26,
+                  "endLine": 29
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 112,
+                  "endLine": 118
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.perUserAuthorization",
+          "type": "rule",
+          "name": "A Sign-In Belongs to One Person",
+          "description": "Access to a connected service is held against one person and one service together, and is never shared or reused for anybody else. The product's own registration with a service is arranged once and shared; the personal grant on top of it never is.\n\nThe business cares because sharing one would let a colleague in the same chat workspace act as somebody else on their real account, reading and changing things they were never entitled to touch, with the audit trail on the connected service naming the wrong person. Keeping the registration shared and the grant personal is what lets one deployment serve a whole team without pooling their access.\n\nA violation would surface as the assistant answering with someone else's data. Applies to every read and every write of a stored sign-in.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/storage.py",
+                  "startLine": 14,
+                  "endLine": 25
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/credential.py",
+                  "startLine": 13,
+                  "endLine": 25
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/identity.py",
+                  "startLine": 4,
+                  "endLine": 30
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.storedAuthorizationRefreshes",
+          "type": "rule",
+          "name": "A Sign-In Is Renewed, Not Re-Asked",
+          "description": "A stored grant is kept together with the moment it stops being valid, so it can be renewed before it is used rather than discovered dead when a tool is already running. It must also survive restarts and redeployments untouched.\n\nThe business cares because the alternative sends the user back through a sign-in they already completed, in the middle of asking for something else, on a schedule they cannot see and did nothing to cause. Access granted once should feel granted; being asked again reads as the product having forgotten them, and each extra sign-in is another chance to drop the request entirely.\n\nThe user sees nothing at all when it holds, which is the point. Applies to every stored sign-in on every service.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/storage.py",
+                  "startLine": 39,
+                  "endLine": 46
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/client.py",
+                  "startLine": 109,
+                  "endLine": 118
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/credential.py",
+                  "startLine": 45,
+                  "endLine": 50
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.signInWaitFitsInsideConnect",
+          "type": "rule",
+          "name": "The Connection Waits Longer Than the User",
+          "description": "However long the user is given to complete a sign-in, the connection reaching that service must be willing to wait longer. The configuration refuses to start when it is set the other way round.\n\nThe business cares because the sign-in happens inside the attempt to reach the service. If the connection gives up first, an ordinary user taking a couple of minutes over a login page turns into a service that looks broken: the failure is logged as a real fault, the user gets nothing, and nobody can tell an outage from somebody who was simply reading carefully. With the order the right way round, the same slowness ends as an abandoned sign-in, which costs the user only their next message.\n\nApplies to every deployment, checked once before the product will run at all.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 227,
+                  "endLine": 236
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/defaults.yml",
+                  "startLine": 19,
+                  "endLine": 21
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/client.py",
+                  "startLine": 76,
+                  "endLine": 78
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "operation": "addEdges",
+      "payloads": [
+        {
+          "id": "edge.ctx-toolAccess-agg-assistantRun",
+          "type": "contains",
+          "fromNodeId": "ctx.toolAccess",
+          "toNodeId": "agg.assistantRun",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 74,
+                  "endLine": 80
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.ctx-toolAccess-agg-toolConnection",
+          "type": "contains",
+          "fromNodeId": "ctx.toolAccess",
+          "toNodeId": "agg.toolConnection",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/client.py",
+                  "startLine": 45,
+                  "endLine": 61
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.ctx-toolAccess-agg-serviceAuthorization",
+          "type": "contains",
+          "fromNodeId": "ctx.toolAccess",
+          "toNodeId": "agg.serviceAuthorization",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/storage.py",
+                  "startLine": 14,
+                  "endLine": 25
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-assistantRun-cmd-runAssistant",
+          "type": "accepts",
+          "fromNodeId": "agg.assistantRun",
+          "toNodeId": "cmd.runAssistant",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 186,
+                  "endLine": 196
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-toolConnection-cmd-openToolConnections",
+          "type": "accepts",
+          "fromNodeId": "agg.toolConnection",
+          "toNodeId": "cmd.openToolConnections",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/client.py",
+                  "startLine": 45,
+                  "endLine": 83
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-toolConnection-cmd-prepareToolAccess",
+          "type": "accepts",
+          "fromNodeId": "agg.toolConnection",
+          "toNodeId": "cmd.prepareToolAccess",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 163,
+                  "endLine": 184
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-serviceAuthorization-cmd-authorizeService",
+          "type": "accepts",
+          "fromNodeId": "agg.serviceAuthorization",
+          "toNodeId": "cmd.authorizeService",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/runtime.py",
+                  "startLine": 56,
+                  "endLine": 82
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-serviceAuthorization-cmd-completeAuthorization",
+          "type": "accepts",
+          "fromNodeId": "agg.serviceAuthorization",
+          "toNodeId": "cmd.completeAuthorization",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 153,
+                  "endLine": 161
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-serviceAuthorization-cmd-revokeAuthorization",
+          "type": "accepts",
+          "fromNodeId": "agg.serviceAuthorization",
+          "toNodeId": "cmd.revokeAuthorization",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/storage.py",
+                  "startLine": 48,
+                  "endLine": 49
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-authorizeService-evt-authorizationRequested",
+          "type": "emits",
+          "fromNodeId": "cmd.authorizeService",
+          "toNodeId": "evt.authorizationRequested",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/runtime.py",
+                  "startLine": 72,
+                  "endLine": 79
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-authorizeService-evt-authorizationAbandoned",
+          "type": "emits",
+          "fromNodeId": "cmd.authorizeService",
+          "toNodeId": "evt.authorizationAbandoned",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/runtime.py",
+                  "startLine": 79,
+                  "endLine": 82
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-completeAuthorization-evt-serviceAuthorized",
+          "type": "emits",
+          "fromNodeId": "cmd.completeAuthorization",
+          "toNodeId": "evt.serviceAuthorized",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/message.py",
+                  "startLine": 98,
+                  "endLine": 106
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/storage.py",
+                  "startLine": 39,
+                  "endLine": 46
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-revokeAuthorization-evt-authorizationRevoked",
+          "type": "emits",
+          "fromNodeId": "cmd.revokeAuthorization",
+          "toNodeId": "evt.authorizationRevoked",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 139,
+                  "endLine": 149
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.evt-authorizationRequested-cmd-completeAuthorization",
+          "type": "triggers",
+          "fromNodeId": "evt.authorizationRequested",
+          "toNodeId": "cmd.completeAuthorization",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/runtime.py",
+                  "startLine": 73,
+                  "endLine": 82
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 153,
+                  "endLine": 161
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-runAssistant-actor-chatUser",
+          "type": "performedBy",
+          "fromNodeId": "cmd.runAssistant",
+          "toNodeId": "actor.chatUser",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 39,
+                  "endLine": 46
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-completeAuthorization-actor-chatUser",
+          "type": "performedBy",
+          "fromNodeId": "cmd.completeAuthorization",
+          "toNodeId": "actor.chatUser",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/app.py",
+                  "startLine": 153,
+                  "endLine": 159
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-revokeAuthorization-actor-chatUser",
+          "type": "performedBy",
+          "fromNodeId": "cmd.revokeAuthorization",
+          "toNodeId": "actor.chatUser",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 141,
+                  "endLine": 145
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-prepareToolAccess-actor-chatUser",
+          "type": "performedBy",
+          "fromNodeId": "cmd.prepareToolAccess",
+          "toNodeId": "actor.chatUser",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/line/webhook.py",
+                  "startLine": 99,
+                  "endLine": 109
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-openToolConnections-rule-destructiveToolsNeedApproval",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.openToolConnections",
+          "toNodeId": "rule.destructiveToolsNeedApproval",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/client.py",
+                  "startLine": 35,
+                  "endLine": 42
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-runAssistant-rule-toolsBoundCapability",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.runAssistant",
+          "toNodeId": "rule.toolsBoundCapability",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 24,
+                  "endLine": 26
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-runAssistant-rule-toolResultsAreData",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.runAssistant",
+          "toNodeId": "rule.toolResultsAreData",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 26,
+                  "endLine": 29
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-serviceAuthorization-rule-perUserAuthorization",
+          "type": "constrainedBy",
+          "fromNodeId": "agg.serviceAuthorization",
+          "toNodeId": "rule.perUserAuthorization",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/storage.py",
+                  "startLine": 14,
+                  "endLine": 25
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-serviceAuthorization-rule-storedAuthorizationRefreshes",
+          "type": "constrainedBy",
+          "fromNodeId": "agg.serviceAuthorization",
+          "toNodeId": "rule.storedAuthorizationRefreshes",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/storage.py",
+                  "startLine": 39,
+                  "endLine": 46
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-authorizeService-rule-signInWaitFitsInsideConnect",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.authorizeService",
+          "toNodeId": "rule.signInWaitFitsInsideConnect",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/config.py",
+                  "startLine": 227,
+                  "endLine": 236
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-assistantRun-agg-toolConnection",
+          "type": "dependsOn",
+          "fromNodeId": "agg.assistantRun",
+          "toNodeId": "agg.toolConnection",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 196,
+                  "endLine": 208
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-toolConnection-agg-serviceAuthorization",
+          "type": "dependsOn",
+          "fromNodeId": "agg.toolConnection",
+          "toNodeId": "agg.serviceAuthorization",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/mcp/client.py",
+                  "startLine": 62,
+                  "endLine": 78
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "generatedBy": "ddd:extract",
+  "generatedAt": "2026-08-11T01:41:57.612Z",
+  "rationale": "Extracted the Assistant Run and Tool Access context: 3 aggregates (Assistant Run, Tool Provider Connection, Service Authorization) with 6 commands, 4 events and 6 rules covering the approval gate, the in-chat sign-in handoff, and sign-out. Sources are the agent runner, the tool-provider client and token storage, the credential store, the authorization bridge and its return route, and the config guard tying the two waits together. This is the tool-connection and authorization slice the first extract deliberately deferred. No intent source exists in this workspace, so every node carries missingRoles intent. Deliberately excluded: the embedded OpenAPI gateway, each surface's own rendering of the sign-in link, and any strategic mapping between this context and the conversation turn, all left to a follow-up.",
+  "owner": "usr-7176d698",
+  "ownerDisplayName": "臺",
+  "reviewedBy": "braid-batch",
+  "reviewedAt": "2026-08-11T01:41:57.844Z"
+}

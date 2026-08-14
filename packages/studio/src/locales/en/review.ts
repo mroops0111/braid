@@ -32,6 +32,7 @@ export const review = {
     submitRejectionButton: 'Submit Rejection',
     rejecting: 'Rejecting…',
     rationale: 'Rationale',
+    validation: 'Validation',
     validating: 'Validating against the current graph…',
     validationRequestFailed: 'Validation request failed: {message}',
     noIssues: 'No validation issues.',

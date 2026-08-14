@@ -1,0 +1,96 @@
+{
+  "id": "clarification-24c55593451d",
+  "workspaceId": "conciergent",
+  "question": "The up-or-down check on the running product is asked by monitoring equipment on a schedule, not by a person. Should that equipment be named as a role of its own, or is the check plumbing with nobody behind it?",
+  "candidates": [
+    {
+      "id": "cc-name-the-monitor",
+      "description": "Name the monitoring equipment as a role of its own, alongside the chat user and the person who set the product up.",
+      "sourceReferences": [
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/app.py",
+            "startLine": 149
+          }
+        }
+      ],
+      "proposedOperations": [
+        {
+          "operation": "addNode",
+          "payload": {
+            "id": "actor.deploymentMonitor",
+            "type": "actor",
+            "name": "Deployment Monitor",
+            "description": "Whatever watches the running product from outside and needs a quick answer on whether it is still up: a load balancer deciding where to send traffic, a container platform deciding whether to restart it, an uptime monitor deciding whether to page somebody.\n\nIt is equipment rather than a person, it asks on a fixed schedule rather than because anything happened, and it never takes part in a conversation. The only thing it asks for is the up-or-down check.",
+            "status": "draft",
+            "metadata": {
+              "missingRoles": [
+                "intent"
+              ],
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/app.py",
+                    "startLine": 149,
+                    "endLine": 152
+                  }
+                },
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "tests/test_app.py",
+                    "startLine": 60
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "operation": "addEdge",
+          "payload": {
+            "id": "edge.qry-serviceHealth-performedBy-actor-deploymentMonitor",
+            "type": "performedBy",
+            "fromNodeId": "qry.serviceHealth",
+            "toNodeId": "actor.deploymentMonitor",
+            "metadata": {
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/app.py",
+                    "startLine": 149,
+                    "endLine": 152
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "cc-leave-unattributed",
+      "description": "Leave the check with nobody behind it: it is plumbing for the deployment, not something anyone in the product does.",
+      "sourceReferences": [
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/app.py",
+            "startLine": 149
+          }
+        }
+      ],
+      "proposedOperations": []
+    }
+  ],
+  "status": "pending",
+  "origin": "skill",
+  "context": "qry.serviceHealth (src/conciergent/app.py:149, tests/test_app.py:60) has no performedBy edge. The graph declares only two actors, actor.chatUser and actor.appBuilder, and neither fits: the node's own description says it is asked by \"a load balancer, a container platform, an uptime monitor\" on a fixed schedule. The DDD ontology allows an actor to be a system role, not only a person. This is the one operation in the graph whose issuer is genuinely external to the product yet unmodelled; the other 18 unwired operations are all issued internally by the product itself and their omission looks deliberate. Candidate A adds an actor node plus a performedBy edge from qry.serviceHealth; candidate B leaves the graph as it stands.",
+  "relatedNode": "qry.serviceHealth",
+  "ambiguityType": "gap",
+  "owner": "usr-7176d698",
+  "ownerDisplayName": "臺"
+}
