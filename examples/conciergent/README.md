@@ -4,11 +4,11 @@ A code-first workspace that Braid built from the [conciergent](https://github.co
 
 ## Contents
 
-Three files, each a piece of the same result.
+The raw workspace, exactly as Braid wrote it, plus a manifest and a rendered view.
 
 - **PRODUCT.md**: the source manifest. One `role: code` source (a git loader on the conciergent repo), the DDD ontology, and Kuzu storage. No intent source.
-- **model.snapshot.json**: the derived model as `{ nodes, edges }`, 120 nodes and 159 edges. Node ids follow the ontology convention (`ctx.` bounded context, `agg.` aggregate, plus `cmd.`, `qry.`, `evt.`, `rule.`). Every node carries a plain-language `description` and `metadata.sourceReferences` pointing back at the code it was drawn from.
 - **graph.png**: the model in Studio, filtered to bounded contexts and aggregates for a readable overview.
+- **artifacts/**: the workspace dump Braid versions in Git. `model.json` is the derived model, 120 nodes and 159 edges, a `{ version, nodes, edges }` graph. Node ids follow the ontology convention (`ctx.` bounded context, `agg.` aggregate, `actor.`, `cmd.`, `qry.`, `evt.`, `rule.`), and every node carries a plain-language `description` and `metadata.sourceReferences` pointing back at the code it was drawn from. Alongside it sit the `batch-plan.json` from the scan and the reviewed `clarifications/` and `proposals/`.
 
 ## Build Steps
 
