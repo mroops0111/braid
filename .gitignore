@@ -33,6 +33,7 @@ coverage
 # Docs
 docs/
 
-# Example: only the reference workspace is tracked, local experiments are not.
+# Example: only the reference workspace and the conciergent showcase are tracked, local experiments are not.
 examples/*
 !examples/example-workspace/
+!examples/conciergent/

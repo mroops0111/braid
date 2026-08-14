@@ -1,0 +1,183 @@
+{
+  "id": "clarification-43fbbf022f36",
+  "workspaceId": "conciergent",
+  "question": "Signing out asks the user to confirm, just as an outside service's irreversible actions do. Is that the same promise about anything irreversible, or a rule of its own about the product's own actions?",
+  "candidates": [
+    {
+      "id": "cc-one-rule",
+      "description": "One promise: anything irreversible waits for the user's Confirm, whoever owns the action.",
+      "sourceReferences": [
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/agent/runner.py",
+            "startLine": 139,
+            "endLine": 149
+          }
+        },
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/agent/mcp/client.py",
+            "startLine": 35,
+            "endLine": 42
+          }
+        }
+      ],
+      "proposedOperations": [
+        {
+          "operation": "updateNode",
+          "nodeId": "rule.destructiveToolsNeedApproval",
+          "patch": {
+            "description": "An action that cannot be taken back never runs until the user has confirmed it. Outside services mark their own irreversible capabilities, and the product marks its own the same way, because in each case the owner of the action is the only party that knows what it costs. The marking is trusted rather than second-guessed here.\n\nThe business cares because the assistant acts on the user's real accounts with the user's own access. A single misread message would otherwise delete a document, cancel a booking, empty a list, or throw away every sign-in the user holds, and none of that is something the user can undo by rephrasing. The cost of asking is one tap; the cost of not asking is unbounded.\n\nThe user sees a confirmation naming what is about to happen, with Confirm and Cancel. Applies to every action of every connected service and to signing out, on a first attempt and on a resumed one alike.",
+            "metadata": {
+              "missingRoles": [
+                "intent"
+              ],
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/agent/mcp/client.py",
+                    "startLine": 35,
+                    "endLine": 42
+                  }
+                },
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/agent/runner.py",
+                    "startLine": 137,
+                    "endLine": 149
+                  }
+                },
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/agent/mcp/client.py",
+                    "startLine": 83,
+                    "endLine": 83
+                  }
+                },
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "README.md",
+                    "startLine": 17,
+                    "endLine": 17
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "operation": "addEdge",
+          "payload": {
+            "id": "edge.cmd-revokeAuthorization-rule-destructiveToolsNeedApproval",
+            "type": "constrainedBy",
+            "fromNodeId": "cmd.revokeAuthorization",
+            "toNodeId": "rule.destructiveToolsNeedApproval",
+            "metadata": {
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/agent/runner.py",
+                    "startLine": 139,
+                    "endLine": 139
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "cc-two-rules",
+      "description": "Two rules: outside services flag their own irreversible actions, and signing out is confirmed for its own reason.",
+      "sourceReferences": [
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/agent/runner.py",
+            "startLine": 137,
+            "endLine": 149
+          }
+        },
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/agent/runner.py",
+            "startLine": 44,
+            "endLine": 50
+          }
+        }
+      ],
+      "proposedOperations": [
+        {
+          "operation": "addNode",
+          "payload": {
+            "id": "rule.signOutNeedsConfirmation",
+            "type": "rule",
+            "name": "Signing Out Waits for the User's Yes",
+            "description": "Signing out never happens until the user has confirmed it. The assistant may offer it the moment someone asks to log out, disconnect, or switch accounts, but the removal itself waits for a Confirm.\n\nThe business cares because signing out throws away every grant the person has given, across every connected service at once, and the only way back is to go through each sign-in again. The assistant reads the request out of ordinary conversation, where a phrase like \"disconnect\" can be said in passing or be about something else entirely, so acting on it unasked is a real risk.\n\nThe user sees a confirmation naming the sign-out, with Confirm and Cancel. This is a rule about the product's own action, distinct from what a connected service flags as irreversible.",
+            "status": "draft",
+            "metadata": {
+              "missingRoles": [
+                "intent"
+              ],
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/agent/runner.py",
+                    "startLine": 137,
+                    "endLine": 149
+                  }
+                },
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/agent/runner.py",
+                    "startLine": 44,
+                    "endLine": 50
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "operation": "addEdge",
+          "payload": {
+            "id": "edge.cmd-revokeAuthorization-rule-signOutNeedsConfirmation",
+            "type": "constrainedBy",
+            "fromNodeId": "cmd.revokeAuthorization",
+            "toNodeId": "rule.signOutNeedsConfirmation",
+            "metadata": {
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/agent/runner.py",
+                    "startLine": 139,
+                    "endLine": 139
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "status": "pending",
+  "origin": "skill",
+  "context": "The graph holds one rule today, rule.destructiveToolsNeedApproval, whose description states that the destructive marking comes from the provider (\"the only party that knows which of its own capabilities cannot be taken back\") and that it applies \"to every tool of every provider\". Its evidence is the predicate at src/conciergent/agent/mcp/client.py:35-42, which reads the MCP annotation destructiveHint, installed on every toolset at client.py:83 and wired to cmd.openToolConnections. The sign-out tool at src/conciergent/agent/runner.py:139 is registered with requires_approval=True by the product itself, not by any provider, so it flows through the same pydantic-ai approval path and produces the same parked confirmation card, but its marking has a different origin than the rule's description claims. cmd.revokeAuthorization currently has no constrainedBy edge at all, and its own description already says \"Because it is offered as a sensitive action, the user confirms it before it runs\", so the concept is described but unwired. Candidate one updates rule.destructiveToolsNeedApproval to cover both origins and adds cmd.revokeAuthorization --constrainedBy--> rule.destructiveToolsNeedApproval. Candidate two leaves that rule scoped to provider-marked tools and adds a new rule.signOutNeedsConfirmation with cmd.revokeAuthorization --constrainedBy--> rule.signOutNeedsConfirmation. Deferred to a reviewer rather than guessed because the two readings differ on whether the confirmation promise is one product-wide commitment or a per-owner mechanism.",
+  "relatedNode": "rule.destructiveToolsNeedApproval",
+  "ambiguityType": "ambiguous",
+  "owner": "usr-7176d698",
+  "ownerDisplayName": "臺"
+}

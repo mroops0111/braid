@@ -1,0 +1,183 @@
+{
+  "id": "clarification-29352f69cc76",
+  "workspaceId": "conciergent",
+  "question": "The product introduces itself to each connected service once, and that introduction is shared by everyone and stays put when somebody signs out. Is it something the team talks about in its own right, or just part of how one person's sign-in works?",
+  "candidates": [
+    {
+      "id": "cc-own-thing",
+      "description": "Track it on its own: it is per service, shared by all users, and survives a sign-out that clears personal access.",
+      "sourceReferences": [
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/agent/mcp/storage.py",
+            "startLine": 51,
+            "endLine": 58
+          }
+        },
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/store/credential.py",
+            "startLine": 21,
+            "endLine": 25
+          }
+        }
+      ],
+      "proposedOperations": [
+        {
+          "operation": "addNode",
+          "payload": {
+            "id": "agg.serviceRegistration",
+            "type": "aggregate",
+            "name": "Service Registration",
+            "description": "The product's own standing introduction to one connected service: arranged once, before anybody signs in, and shared by everyone who ever reaches that service through this product. It is what lets the service recognise the product at all; each person's own grant sits on top of it.\n\nRules that always hold:\n\n- One per service, never per person. It carries nobody's identity and opens nothing on its own.\n- It is kept so a later reconnect is not turned away as an unknown caller, which is why it has to survive restarts and redeployments.\n- Signing out never touches it. Taking away one person's access leaves everybody else's working.\n\nLifecycle: arranged the first time the product reaches the service, reused unchanged from then on, and replaced only when the service itself issues a new one.",
+            "status": "draft",
+            "metadata": {
+              "missingRoles": [
+                "intent"
+              ],
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/agent/mcp/storage.py",
+                    "startLine": 51,
+                    "endLine": 58
+                  }
+                },
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/store/credential.py",
+                    "startLine": 21,
+                    "endLine": 25
+                  }
+                },
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/store/credential.py",
+                    "startLine": 80,
+                    "endLine": 87
+                  }
+                },
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/app.py",
+                    "startLine": 193,
+                    "endLine": 197
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "operation": "addEdge",
+          "payload": {
+            "id": "edge.ctx-toolAccess-agg-serviceRegistration",
+            "type": "contains",
+            "fromNodeId": "ctx.toolAccess",
+            "toNodeId": "agg.serviceRegistration",
+            "metadata": {
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/agent/mcp/storage.py",
+                    "startLine": 14,
+                    "endLine": 19
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "operation": "addEdge",
+          "payload": {
+            "id": "edge.agg-serviceAuthorization-agg-serviceRegistration",
+            "type": "dependsOn",
+            "fromNodeId": "agg.serviceAuthorization",
+            "toNodeId": "agg.serviceRegistration",
+            "metadata": {
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/agent/mcp/client.py",
+                    "startLine": 112,
+                    "endLine": 118
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "cc-part-of-sign-in",
+      "description": "Keep it as a detail of a person's sign-in, spelled out there rather than followed as a thing of its own.",
+      "sourceReferences": [
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/agent/mcp/storage.py",
+            "startLine": 14,
+            "endLine": 58
+          }
+        }
+      ],
+      "proposedOperations": [
+        {
+          "operation": "updateNode",
+          "nodeId": "agg.serviceAuthorization",
+          "patch": {
+            "description": "What one person has granted the assistant on one connected service, so a sign-in they completed once keeps working on every later request. It is held against that person and that service together: two colleagues in the same chat workspace never share one, and the same person on two services holds two.\n\nRules that always hold:\n\n- The grant is kept with the moment it stops being valid, so it can be renewed quietly instead of being discovered dead mid-request.\n- It outlives restarts and redeployments, because it is the one thing the user cannot re-supply without being asked again.\n- Signing out removes it outright rather than letting it lapse.\n\nThe product's own introduction to a service is held here too, and behaves nothing like the grant: it is arranged once per service, shared by everyone, kept so a later reconnect is not turned away as an unknown caller, and left untouched when somebody signs out. Only the grant on top of it is personal.\n\nLifecycle: none, then requested when a tool first needs it, then granted, then renewed for as long as the person keeps using it, and finally revoked on sign-out or abandoned when they never come back to finish.",
+            "metadata": {
+              "missingRoles": [
+                "intent"
+              ],
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/agent/mcp/storage.py",
+                    "startLine": 14,
+                    "endLine": 58
+                  }
+                },
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/store/credential.py",
+                    "startLine": 13,
+                    "endLine": 25
+                  }
+                },
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/store/credential.py",
+                    "startLine": 65,
+                    "endLine": 87
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "status": "pending",
+  "origin": "skill",
+  "context": "Identity question raised by ddd:extract on the \"In-Chat OAuth Authorization and Sign-Out\" slice. The code holds two distinct things behind one graph node today. OAuthTokenStorage (src/conciergent/agent/mcp/storage.py) has two key spaces: tokens keyed by (server, principal), and client info keyed by server alone (lines 51-58). The credential store mirrors that split with two tables, McpToken and McpClient (src/conciergent/store/credential.py:13-25), and two accessor pairs (lines 65-78 vs 80-87). Lifecycles differ: _revoke_authorization (src/conciergent/agent/runner.py:151-156) deletes only the per-principal token, never the client registration; app.py:193-197 persists the embedded gateway's registrations in Redis specifically so a saved client id is not later rejected as unknown. agg.serviceAuthorization currently covers both, mentioning the registration only in a contrast paragraph, and its sourceReferences already span both key spaces. Candidate 1 mints agg.serviceRegistration, wires ctx.toolAccess --contains--> it and agg.serviceAuthorization --dependsOn--> it; a follow-up would trim the registration paragraph out of agg.serviceAuthorization. Candidate 2 keeps one node and sharpens that paragraph to state the registration is held there, is per-service rather than per-person, and is untouched by sign-out.",
+  "relatedNode": "agg.serviceAuthorization",
+  "ambiguityType": "ambiguous",
+  "owner": "usr-7176d698",
+  "ownerDisplayName": "臺"
+}

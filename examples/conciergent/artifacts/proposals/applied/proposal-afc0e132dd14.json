@@ -1,0 +1,1062 @@
+{
+  "id": "proposal-afc0e132dd14",
+  "workspaceId": "conciergent",
+  "status": "applied",
+  "operations": [
+    {
+      "operation": "addNodes",
+      "payloads": [
+        {
+          "id": "ctx.conversationTurn",
+          "type": "boundedContext",
+          "name": "Conversation Turn Lifecycle",
+          "description": "A person sends one message in a chat app and expects one useful answer back. Answering can detour through a sign-in, a confirmation the user has to tap, or a conversation so long the assistant can no longer hold all of it. This subsystem owns that single round trip, from an arriving message to a sent reply and an up-to-date conversation memory.\n\nThe terms this subsystem uses, and what each means here:\n\n| Term | Meaning here |\n|---|---|\n| Turn | One incoming message and the single reply that answers it. |\n| Conversation | The scope memory and waiting confirmations belong to: one user on one platform, narrowed to one thread where the platform has threads. |\n| History | The remembered earlier exchanges handed to the assistant so it can follow along. |\n| Pending approval | A sensitive action held back until the user confirms it. |\n| Reply | The one answer a turn produces: a short line, a card, or a set of option cards. |\n\nOutside this boundary: how each chat platform receives a message and paints a reply in its own style, how the assistant's tools are connected and authorized, and where long-lived sign-ins are kept. Those neighbours hand a turn in and render what it produces; they never decide what a turn does.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 9,
+                  "endLine": 69
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/runtime.py",
+                  "startLine": 24,
+                  "endLine": 45
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "README.md",
+                  "startLine": 1,
+                  "endLine": 20
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "agg.turn",
+          "type": "aggregate",
+          "name": "Turn",
+          "description": "One exchange: an arriving user message and the single reply that answers it. Everything a turn needs is gathered at the start (who is speaking, what was said before, whether a confirmation is waiting) and everything it changes is committed at the end, so an interrupted turn leaves nothing half-written.\n\nRules that always hold:\n\n- A turn ends with exactly one reply: a short line, one card, or one set of option cards, never a mix.\n- A turn that pauses for a confirmation records nothing; the work in flight travels with the held confirmation instead.\n- Memory that cannot be read is discarded rather than allowed to wedge the conversation.\n\nLifecycle:\n\n```mermaid\nstateDiagram-v2\n    [*] --> Running: message arrives\n    Running --> Paused: sensitive action needs confirmation\n    Paused --> Running: user answers\n    Running --> Answered: reply sent, memory updated\n    Answered --> [*]\n```\n\nA turn reaches the conversation's memory and any waiting confirmation through the conversation it belongs to, never by holding either itself.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 9,
+                  "endLine": 69
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/runtime.py",
+                  "startLine": 37,
+                  "endLine": 44
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 186,
+                  "endLine": 241
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "agg.conversationHistory",
+          "type": "aggregate",
+          "name": "Conversation History",
+          "description": "What the assistant remembers of a conversation, so it can follow along instead of starting cold on every message. Memory is kept per conversation: one user on one platform, narrowed to a single thread where the platform has threads, so two parallel threads with the same person never bleed into each other.\n\nRules that always hold:\n\n- Each recorded exchange ages out on its own; nothing is kept forever.\n- Only a bounded number of the most recent exchanges is kept.\n- Memory that can no longer be read is dropped rather than allowed to block the conversation.\n\nLifecycle: starts empty, grows by one entry per answered turn, is summarized when it approaches what the assistant can read at once, and is cleared outright when something makes the earlier exchanges untrue, such as the user signing out.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/message.py",
+                  "startLine": 18,
+                  "endLine": 83
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 29,
+                  "endLine": 35
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "agg.pendingApproval",
+          "type": "aggregate",
+          "name": "Pending Approval",
+          "description": "A sensitive action held back until the user says yes. When the assistant wants to use something the tool provider marked destructive, the action does not run: the work already in flight is set aside and the user is shown a confirmation with Confirm and Cancel.\n\nRules that always hold:\n\n- At most one confirmation waits per conversation, and picking it up consumes it, so the same held work can never run twice.\n- The confirmation ages out on its own, and held work that can no longer be read counts as expired.\n- One answer decides every action held in that pause.\n\nLifecycle: held, then either answered (confirmed, cancelled, or abandoned when the user changes topic) or quietly expired, after which the user's next message is treated as a fresh question.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/runtime.py",
+                  "startLine": 24,
+                  "endLine": 34
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 276,
+                  "endLine": 296
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/message.py",
+                  "startLine": 89,
+                  "endLine": 96
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "actor.chatUser",
+          "type": "actor",
+          "name": "Chat User",
+          "description": "The person talking to the assistant in a chat app, today Slack, LINE, or Discord. Every turn runs on their behalf, and any sign-in to a connected service is held against their identity rather than shared.\n\nThey are identified by a stable handle combining the platform, the workspace or account, and the user, so the same person in two workspaces counts as two users and shares neither memory nor sign-in. A person, never a system: automated callers do not enter through this subsystem.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/identity.py",
+                  "startLine": 4,
+                  "endLine": 30
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 148,
+                  "endLine": 153
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.runTurn",
+          "type": "command",
+          "name": "Run Turn",
+          "description": "Answer one incoming message. This is the single entry point for the whole round trip: gather what was said before, pick up any confirmation the user might be answering, show that work is under way, ask the assistant for an answer, send it, and bring the conversation memory up to date.\n\n- **Issued by**: the chat user, relayed by whichever platform received the message.\n- **Requires**: message text, plus a resolved identity and conversation scope.\n- **Produces**: exactly one reply, and then either an updated memory or a held confirmation.\n- **Fails as**: an authorization the user was offered but never finished is an expected ending and passes quietly; anything else is a real failure, logged, and the user's message goes unanswered.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 9,
+                  "endLine": 69
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 186,
+                  "endLine": 241
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 177,
+                  "endLine": 193
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.compactHistory",
+          "type": "command",
+          "name": "Compact History",
+          "description": "Summarize the older part of a conversation once the previous exchange came close to what the assistant can read at one time, so a long conversation keeps working instead of hitting the ceiling.\n\nThe most recent exchange is kept word for word and everything before it collapses into a single summary that preserves names, identifiers, links, dates, numbers, and anything still unresolved. Small talk, retries, and corrected mistakes are dropped.\n\nRuns at the start of a turn, before the assistant reads the conversation. Memory that cannot be read is left untouched rather than summarized, and a conversation still well under the limit is left alone.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/compactor.py",
+                  "startLine": 44,
+                  "endLine": 85
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 31,
+                  "endLine": 35
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.commitTurnHistory",
+          "type": "command",
+          "name": "Commit Turn History",
+          "description": "Record what this turn said and heard, so the next message picks up where this one left off. Runs once the reply has reached the user.\n\n| Situation | What happens |\n|---|---|\n| An ordinary turn | This turn's messages are added as one entry with its own expiry. |\n| The turn made the earlier exchanges untrue, for example the user signed out | The whole memory is dropped instead of appended. |\n\nA turn paused for a confirmation commits nothing here; its messages travel with the held confirmation and are recorded only once the user has answered.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 65,
+                  "endLine": 69
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/message.py",
+                  "startLine": 56,
+                  "endLine": 83
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "qry.loadHistory",
+          "type": "query",
+          "name": "Load History",
+          "description": "Read back the remembered exchanges of a conversation so the assistant can follow along. Called at the very start of every turn, before anything else happens.\n\nThe answer is current as of the read: exchanges that have aged out are simply absent, and their leftover placeholders are tidied on the next write. The turn itself and the summarizer are the only callers.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/message.py",
+                  "startLine": 44,
+                  "endLine": 54
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 29,
+                  "endLine": 30
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.parkApproval",
+          "type": "command",
+          "name": "Park Approval",
+          "description": "Hold a sensitive action back and ask the user to confirm it before it runs. Raised when the assistant tries to use a tool its provider marked destructive.\n\nThe work already in flight is set aside together with the held action, and the user is shown a confirmation naming what is about to happen, with Confirm and Cancel offered as tappable replies. The turn ends here having recorded nothing, because the exchange is not finished: it completes when the user answers.\n\nOnly one confirmation waits per conversation, and it expires on its own if the user never comes back to it.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 276,
+                  "endLine": 296
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 49,
+                  "endLine": 56
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/message.py",
+                  "startLine": 89,
+                  "endLine": 92
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "cmd.answerApproval",
+          "type": "command",
+          "name": "Answer Approval",
+          "description": "The user's response to a waiting confirmation, which arrives as their next message, whether they tap one of the offered buttons or type something else.\n\n- **Confirm**: the held action runs and the turn finishes as if it had never paused.\n- **Cancel**: the action is dropped and the assistant acknowledges briefly, without implying that anything went wrong or that permission was refused.\n- **Anything else**: the user has moved on, so the held action is dropped silently and their new message is answered instead.\n\nThe confirmation is consumed the moment it is picked up, so it can never be answered twice, and one answer settles every action held in that pause. The wording the user must match is the wording the confirmation itself offered, so a reply still works when the user's language cannot be resolved a second time.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 243,
+                  "endLine": 274
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/message.py",
+                  "startLine": 94,
+                  "endLine": 96
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 36,
+                  "endLine": 36
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "evt.replySent",
+          "type": "event",
+          "name": "Reply Sent",
+          "description": "The user has received the turn's answer: a short line, one card, or a set of option cards.\n\nFires after the assistant has settled on an answer and the platform has rendered it, and immediately before the conversation memory is brought up to date. It marks the point where the turn's promise to the user is kept; nothing inside this subsystem reacts to it.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 58,
+                  "endLine": 63
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 164,
+                  "endLine": 165
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "evt.historyCompacted",
+          "type": "event",
+          "name": "History Compacted",
+          "description": "The older part of a conversation has been replaced by a summary.\n\nFires at the start of a turn, before the assistant reads the conversation, and only when the previous exchange came close to the reading limit. From here on the assistant works from the summary plus the latest exchange, and the replaced entries are gone for good. Stays inside this subsystem.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/compactor.py",
+                  "startLine": 74,
+                  "endLine": 85
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 32,
+                  "endLine": 35
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "evt.approvalRequested",
+          "type": "event",
+          "name": "Approval Requested",
+          "description": "A sensitive action has been held back and the user has been shown a confirmation naming it.\n\nThe turn is paused rather than finished, and nothing has been recorded. What happens next belongs to the user: confirm, cancel, or move on and let the request quietly expire. The confirmation the user sees is what carries the wording their answer will be matched against.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 54,
+                  "endLine": 56
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 282,
+                  "endLine": 296
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "evt.approvalAnswered",
+          "type": "event",
+          "name": "Approval Answered",
+          "description": "The user has responded to a waiting confirmation, by confirming it, cancelling it, or moving on to something else.\n\nThe held work resumes with that one decision applied to every action in the pause, and the exchange that began when the confirmation was raised finally completes and is recorded as a single entry.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 262,
+                  "endLine": 274
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 36,
+                  "endLine": 46
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.oneReplyPerTurn",
+          "type": "rule",
+          "name": "One Reply Per Turn",
+          "description": "Every turn ends with exactly one reply: a short line, a single card, or a single set of option cards, never a mix and never several messages in a row.\n\nThe business cares because the user is sitting in a chat window. Two half-answers, or an answer with loose text beside it, read as a malfunction and make it unclear which part to act on. One shape also lets every chat platform render the same answer natively, so a reply looks at home everywhere without the assistant knowing where it landed.\n\nThe assistant is told this up front, the answer it produces can only take one of the three shapes, and the turn dispatches exactly one of them. Applies to every turn, including a resumed one.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 32,
+                  "endLine": 40
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/reply.py",
+                  "startLine": 164,
+                  "endLine": 165
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 58,
+                  "endLine": 63
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.pausedTurnKeepsHistoryUncommitted",
+          "type": "rule",
+          "name": "Paused Turn Records Nothing",
+          "description": "A turn that pauses for a confirmation must not write anything to the conversation memory. The messages in flight travel with the held confirmation and come back when the user answers.\n\nThe business cares because recording them here would either wipe the conversation outright or separate a held action from the result it produces later, leaving the assistant referring to work the user cannot see and cannot finish. Nothing surfaces to the user directly; the symptom would be an assistant that has lost the thread on the very next message.\n\nApplies whenever an action is held, and only then.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 49,
+                  "endLine": 56
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 237,
+                  "endLine": 240
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.approvalDecisionCoversWholeBatch",
+          "type": "rule",
+          "name": "One Decision Covers Every Held Action",
+          "description": "When a single pause holds more than one action, the user's one Confirm or Cancel decides all of them.\n\nThe business cares because the user is shown one confirmation and answers it once. Anything left undecided would strand the turn with no way to finish and no second question to answer, so the user would be stuck waiting on something they already responded to. Violation would surface as a turn that never replies.\n\nApplies to every pause that holds more than one action.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 262,
+                  "endLine": 271
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 290,
+                  "endLine": 295
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "rule.unreadableStateStartsFresh",
+          "type": "rule",
+          "name": "Unreadable Memory Never Blocks a Conversation",
+          "description": "When remembered exchanges or held work can no longer be read, they are discarded and the user's message is answered as a fresh start.\n\nThe business cares because the alternative is a conversation that is permanently stuck: every message fails the same way, and the damaged memory is exactly the thing the user has no way to reach or clear. Losing earlier context is recoverable in one message; a wedged conversation is not recoverable at all. The user sees an assistant that has forgotten the earlier discussion, never an error.\n\nApplies alike to the conversation memory, to summarizing it, and to a held confirmation whose set-aside work no longer decodes.",
+          "status": "draft",
+          "metadata": {
+            "missingRoles": [
+              "intent"
+            ],
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 217,
+                  "endLine": 224
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 247,
+                  "endLine": 260
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/compactor.py",
+                  "startLine": 67,
+                  "endLine": 70
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "operation": "addEdges",
+      "payloads": [
+        {
+          "id": "edge.ctx-conversationTurn-agg-turn",
+          "type": "contains",
+          "fromNodeId": "ctx.conversationTurn",
+          "toNodeId": "agg.turn",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 9,
+                  "endLine": 28
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.ctx-conversationTurn-agg-conversationHistory",
+          "type": "contains",
+          "fromNodeId": "ctx.conversationTurn",
+          "toNodeId": "agg.conversationHistory",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/message.py",
+                  "startLine": 18,
+                  "endLine": 28
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.ctx-conversationTurn-agg-pendingApproval",
+          "type": "contains",
+          "fromNodeId": "ctx.conversationTurn",
+          "toNodeId": "agg.pendingApproval",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/runtime.py",
+                  "startLine": 24,
+                  "endLine": 34
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-turn-cmd-runTurn",
+          "type": "accepts",
+          "fromNodeId": "agg.turn",
+          "toNodeId": "cmd.runTurn",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 9,
+                  "endLine": 21
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-conversationHistory-qry-loadHistory",
+          "type": "accepts",
+          "fromNodeId": "agg.conversationHistory",
+          "toNodeId": "qry.loadHistory",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/message.py",
+                  "startLine": 44,
+                  "endLine": 54
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-conversationHistory-cmd-compactHistory",
+          "type": "accepts",
+          "fromNodeId": "agg.conversationHistory",
+          "toNodeId": "cmd.compactHistory",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 31,
+                  "endLine": 35
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-conversationHistory-cmd-commitTurnHistory",
+          "type": "accepts",
+          "fromNodeId": "agg.conversationHistory",
+          "toNodeId": "cmd.commitTurnHistory",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/message.py",
+                  "startLine": 56,
+                  "endLine": 83
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-pendingApproval-cmd-parkApproval",
+          "type": "accepts",
+          "fromNodeId": "agg.pendingApproval",
+          "toNodeId": "cmd.parkApproval",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/message.py",
+                  "startLine": 89,
+                  "endLine": 92
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-pendingApproval-cmd-answerApproval",
+          "type": "accepts",
+          "fromNodeId": "agg.pendingApproval",
+          "toNodeId": "cmd.answerApproval",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/store/message.py",
+                  "startLine": 94,
+                  "endLine": 96
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-runTurn-evt-replySent",
+          "type": "emits",
+          "fromNodeId": "cmd.runTurn",
+          "toNodeId": "evt.replySent",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 58,
+                  "endLine": 63
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-compactHistory-evt-historyCompacted",
+          "type": "emits",
+          "fromNodeId": "cmd.compactHistory",
+          "toNodeId": "evt.historyCompacted",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 32,
+                  "endLine": 35
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-parkApproval-evt-approvalRequested",
+          "type": "emits",
+          "fromNodeId": "cmd.parkApproval",
+          "toNodeId": "evt.approvalRequested",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 54,
+                  "endLine": 56
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-answerApproval-evt-approvalAnswered",
+          "type": "emits",
+          "fromNodeId": "cmd.answerApproval",
+          "toNodeId": "evt.approvalAnswered",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 262,
+                  "endLine": 274
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.evt-approvalRequested-cmd-answerApproval",
+          "type": "triggers",
+          "fromNodeId": "evt.approvalRequested",
+          "toNodeId": "cmd.answerApproval",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 284,
+                  "endLine": 295
+                }
+              },
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 252,
+                  "endLine": 257
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-runTurn-actor-chatUser",
+          "type": "performedBy",
+          "fromNodeId": "cmd.runTurn",
+          "toNodeId": "actor.chatUser",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/surfaces/slack/webhook.py",
+                  "startLine": 148,
+                  "endLine": 153
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-answerApproval-actor-chatUser",
+          "type": "performedBy",
+          "fromNodeId": "cmd.answerApproval",
+          "toNodeId": "actor.chatUser",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 265,
+                  "endLine": 270
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-runTurn-rule-oneReplyPerTurn",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.runTurn",
+          "toNodeId": "rule.oneReplyPerTurn",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 58,
+                  "endLine": 63
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-runTurn-rule-unreadableStateStartsFresh",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.runTurn",
+          "toNodeId": "rule.unreadableStateStartsFresh",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 217,
+                  "endLine": 224
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-parkApproval-rule-pausedTurnKeepsHistoryUncommitted",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.parkApproval",
+          "toNodeId": "rule.pausedTurnKeepsHistoryUncommitted",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 49,
+                  "endLine": 56
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.cmd-answerApproval-rule-approvalDecisionCoversWholeBatch",
+          "type": "constrainedBy",
+          "fromNodeId": "cmd.answerApproval",
+          "toNodeId": "rule.approvalDecisionCoversWholeBatch",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/agent/runner.py",
+                  "startLine": 262,
+                  "endLine": 271
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-turn-agg-conversationHistory",
+          "type": "dependsOn",
+          "fromNodeId": "agg.turn",
+          "toNodeId": "agg.conversationHistory",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 29,
+                  "endLine": 35
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "edge.agg-turn-agg-pendingApproval",
+          "type": "dependsOn",
+          "fromNodeId": "agg.turn",
+          "toNodeId": "agg.pendingApproval",
+          "metadata": {
+            "sourceReferences": [
+              {
+                "sourceId": "app",
+                "location": {
+                  "uri": "src/conciergent/turn.py",
+                  "startLine": 36,
+                  "endLine": 36
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "generatedBy": "ddd:extract",
+  "generatedAt": "2026-08-11T01:30:16.484Z",
+  "rationale": "Extracted the Conversation Turn Lifecycle context: 3 aggregates (Turn, Conversation History, Pending Approval) plus 5 commands, 1 query, 4 events, 4 rules and 1 actor, from a first pass over codebases/app/src/conciergent (turn, runtime, agent, store). The graph was empty and no intent document exists yet, so every node is code-only and carries missingRoles intent. Deliberately excluded: chat-platform surfaces, tool connection and in-chat authorization, and the sign-out invalidation policy, all deferred to a follow-up extract.",
+  "owner": "usr-7176d698",
+  "ownerDisplayName": "臺",
+  "reviewedBy": "braid-batch",
+  "reviewedAt": "2026-08-11T01:30:16.728Z"
+}

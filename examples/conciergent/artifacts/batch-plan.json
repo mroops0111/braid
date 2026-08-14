@@ -1,0 +1,161 @@
+{
+  "version": 2,
+  "plan": {
+    "id": "batch-plan-9d4d86cb1a2f",
+    "workspaceId": "conciergent",
+    "createdAt": "2026-08-11T01:21:55.013Z",
+    "updatedAt": "2026-08-11T13:35:48.351Z",
+    "mode": "derived",
+    "status": "archived",
+    "autoApply": true,
+    "baselineTag": "batch-baseline-2026-08-11T01-21-55-013Z",
+    "units": [
+      {
+        "id": "pu-3f7a1c02",
+        "name": "Conversation Turn Lifecycle",
+        "description": "How one inbound user message becomes one outbound reply: history is loaded and compacted, a parked approval is picked up, the agent runs, and exactly one reply is dispatched to the surface before the turn is committed or the history invalidated. Start at src/conciergent/turn.py and src/conciergent/runtime.py, then tests/test_runtime.py and tests/test_reply.py.",
+        "status": "completed",
+        "skillRunId": "skill-run-e072184b993d",
+        "startedAt": "2026-08-11T01:23:54.769Z",
+        "completedAt": "2026-08-11T01:30:56.215Z",
+        "proposalIds": [
+          "proposal-afc0e132dd14"
+        ],
+        "clarificationIds": []
+      },
+      {
+        "id": "pu-9d51b8e6",
+        "name": "Conversation Memory and Compaction",
+        "description": "Per-conversation history and short-lived turn state kept in Redis, with turn caps, TTL expiry, and summarization of older turns once the model context window nears its limit. Start at src/conciergent/store/message.py and src/conciergent/agent/compactor.py, then tests/store/.",
+        "status": "completed",
+        "skillRunId": "skill-run-2b5a7c1a5d0b",
+        "startedAt": "2026-08-11T01:30:56.217Z",
+        "completedAt": "2026-08-11T01:35:40.212Z",
+        "proposalIds": [
+          "proposal-c88bb399e3e6"
+        ],
+        "clarificationIds": []
+      },
+      {
+        "id": "pu-c25e0a74",
+        "name": "Agent Run and MCP Tool Access",
+        "description": "The AI agent that answers a turn: model configuration, layered instructions, the structured-output contract, and the MCP toolsets it dials, including specs served in-process by the embedded openapi-mcp-gateway. Start at src/conciergent/agent/runner.py and src/conciergent/agent/mcp/client.py, plus the gateway assembly in src/conciergent/app.py and tests/agent/.",
+        "status": "completed",
+        "skillRunId": "skill-run-88b84cb85be4",
+        "startedAt": "2026-08-11T01:35:40.215Z",
+        "completedAt": "2026-08-11T01:43:26.433Z",
+        "proposalIds": [
+          "proposal-860ff51d46aa"
+        ],
+        "clarificationIds": [
+          "clarification-28c563e155ee"
+        ]
+      },
+      {
+        "id": "pu-1d90f3b8",
+        "name": "Destructive-Tool Approval Gate",
+        "description": "Human-in-the-loop confirmation: a tool the MCP server marks destructive pauses behind a Confirm / Cancel card, its in-flight state is parked with a TTL, and the user's confirm, cancel, or topic change resumes or drops the deferred call. Start at the approval predicate in src/conciergent/agent/mcp/client.py, the park/resume paths in src/conciergent/agent/runner.py, and PendingApproval in src/conciergent/runtime.py.",
+        "status": "completed",
+        "skillRunId": "skill-run-5dd8bdfb5768",
+        "startedAt": "2026-08-11T01:43:26.435Z",
+        "completedAt": "2026-08-11T01:48:57.341Z",
+        "proposalIds": [
+          "proposal-0bd803863945"
+        ],
+        "clarificationIds": [
+          "clarification-43fbbf022f36"
+        ]
+      },
+      {
+        "id": "pu-6ae82c15",
+        "name": "In-Chat OAuth Authorization and Sign-Out",
+        "description": "Per-user authorization to an MCP server carried out inside the conversation: the authorize link is rendered in chat, the callback delivers the code back through the store, tokens and client registrations are persisted and refreshed, and a sign-out revokes them. Start at the bridges in src/conciergent/runtime.py, src/conciergent/agent/mcp/storage.py, src/conciergent/store/credential.py, the callback route in src/conciergent/app.py, and tests/test_oauth_handoff.py.",
+        "status": "completed",
+        "skillRunId": "skill-run-8b638ae60086",
+        "startedAt": "2026-08-11T01:48:57.342Z",
+        "completedAt": "2026-08-11T01:55:49.571Z",
+        "proposalIds": [
+          "proposal-fab796f865b5"
+        ],
+        "clarificationIds": [
+          "clarification-29352f69cc76"
+        ]
+      },
+      {
+        "id": "pu-04b7e59d",
+        "name": "Structured Reply Model and Rendering",
+        "description": "The surface-neutral reply model (plain text, Card, Carousel, links, suggestions) and its native rendering per platform, including localized UI strings and the per-surface formatting dialect fed to the agent. Start at src/conciergent/reply.py, src/conciergent/surfaces/base.py, src/conciergent/surfaces/*/render.py, and src/conciergent/i18n/.",
+        "status": "completed",
+        "skillRunId": "skill-run-3bd2b26779b3",
+        "startedAt": "2026-08-11T02:03:01.639Z",
+        "completedAt": "2026-08-11T02:11:20.930Z",
+        "proposalIds": [
+          "proposal-897a13a55735"
+        ],
+        "clarificationIds": []
+      },
+      {
+        "id": "pu-8b41d9e6",
+        "name": "Chat Surface Ingress and User Identity",
+        "description": "How Slack, LINE, and Discord deliver events and how a platform user becomes a stable principal: signature verification, event dedupe, webhook versus persistent-gateway delivery, suggestion button callbacks, Slack workspace install with bot-token lookup, and per-user language resolution. Start at src/conciergent/surfaces/{slack,line,discord}/ (webhook.py, gateway.py, surface.py, install.py), src/conciergent/identity.py, and tests/surfaces/.",
+        "status": "completed",
+        "skillRunId": "skill-run-4c71e027ebb0",
+        "startedAt": "2026-08-11T02:11:20.933Z",
+        "completedAt": "2026-08-11T02:22:03.366Z",
+        "proposalIds": [
+          "proposal-95d2ddda1d65"
+        ],
+        "clarificationIds": [
+          "clarification-ffb0532e592b"
+        ]
+      },
+      {
+        "id": "pu-72e3ac40",
+        "name": "Application Configuration and Assembly",
+        "description": "The single-YAML, no-code setup path: layered defaults and ${ENV_VAR} config, which surfaces and stores are enabled, scaffolding and serving via the CLI, process logging, and the health endpoint. Start at src/conciergent/config.py, src/conciergent/defaults.py, src/conciergent/cli.py, src/conciergent/app.py, src/conciergent/logger.py, and examples/.",
+        "status": "completed",
+        "skillRunId": "skill-run-0fd2881cbccd",
+        "startedAt": "2026-08-11T02:22:03.367Z",
+        "completedAt": "2026-08-11T02:31:53.017Z",
+        "proposalIds": [
+          "proposal-7e56bb0c3031"
+        ],
+        "clarificationIds": []
+      }
+    ],
+    "checkpointPhases": [
+      {
+        "status": "completed",
+        "unitIds": [
+          "pu-3f7a1c02",
+          "pu-9d51b8e6",
+          "pu-c25e0a74",
+          "pu-1d90f3b8",
+          "pu-6ae82c15"
+        ],
+        "startedAt": "2026-08-11T01:55:49.574Z",
+        "completedAt": "2026-08-11T02:03:01.637Z",
+        "skillRunId": "skill-run-d455301e00cb"
+      },
+      {
+        "status": "completed",
+        "unitIds": [
+          "pu-04b7e59d",
+          "pu-8b41d9e6",
+          "pu-72e3ac40"
+        ],
+        "startedAt": "2026-08-11T02:31:53.018Z",
+        "completedAt": "2026-08-11T02:39:34.487Z",
+        "skillRunId": "skill-run-cf78710a9422"
+      }
+    ],
+    "batchPolicy": {
+      "perUnitSkillId": "ddd:extract",
+      "perUnitLabel": "Extract",
+      "checkpointSkillId": "ddd:reconcile",
+      "checkpointLabel": "Model",
+      "checkpointChunkSize": 5,
+      "checkpointRunAtEnd": true
+    }
+  }
+}

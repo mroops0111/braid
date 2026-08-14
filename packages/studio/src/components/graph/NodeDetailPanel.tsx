@@ -6,6 +6,8 @@ import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { NodeTypeBadge } from './NodeTypeBadge'
 
+type NodeChange = 'added' | 'updated' | 'removed'
+
 interface NodeDetailPanelProps {
   node: GraphNode
   nodesById: ReadonlyMap<NodeId, GraphNode>
@@ -13,6 +15,13 @@ interface NodeDetailPanelProps {
   outgoing: readonly GraphEdge[]
   onClose: () => void
   onSelectNode: (nodeId: NodeId) => void
+  /**
+   * Diff state in a proposal preview.
+   * Present only when the panel opens over a proposal's projected graph,
+   * where it spells out `New` / `Updated` / `Removed` in full,
+   * rather than the card's terse corner dot.
+   */
+  change?: NodeChange
   /**
    * Canvas-only affordance.
    * When present, a "Center in graph" footer button calls it.
@@ -36,6 +45,7 @@ export function NodeDetailPanel({
   onClose,
   onSelectNode,
   onCenterInGraph,
+  change,
 }: NodeDetailPanelProps) {
   const { t } = useTranslation()
   const sources = node.metadata.sourceReferences ?? []
@@ -53,6 +63,7 @@ export function NodeDetailPanel({
         <div className="flex items-center gap-1.5">
           <NodeTypeBadge type={node.type} />
           <StatusBadge status={node.status} />
+          {change && <ChangeBadge change={change} />}
         </div>
         <h2 className="text-sm font-semibold text-foreground">{node.name}</h2>
         <p className="font-mono text-2xs text-muted-foreground">{node.id}</p>
@@ -187,6 +198,22 @@ function FlagsSection({ node }: { node: GraphNode }) {
         ))}
       </ul>
     </section>
+  )
+}
+
+const CHANGE_BADGE = {
+  added: { labelKey: 'graph.detail.changeNew', className: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-500' },
+  updated: { labelKey: 'graph.detail.changeUpdated', className: 'border-amber-500/30 bg-amber-500/15 text-amber-500' },
+  removed: { labelKey: 'graph.detail.changeRemoved', className: 'border-rose-500/30 bg-rose-500/15 text-rose-500' },
+} as const
+
+function ChangeBadge({ change }: { change: NodeChange }) {
+  const { t } = useTranslation()
+  const { labelKey, className } = CHANGE_BADGE[change]
+  return (
+    <span className={`inline-flex items-center rounded-sm border px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wider ${className}`}>
+      {t(labelKey)}
+    </span>
   )
 }
 

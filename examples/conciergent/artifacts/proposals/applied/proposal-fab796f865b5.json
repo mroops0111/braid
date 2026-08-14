@@ -1,0 +1,388 @@
+{
+  "id": "proposal-fab796f865b5",
+  "workspaceId": "conciergent",
+  "status": "applied",
+  "operations": [
+    {
+      "operation": "addNode",
+      "payload": {
+        "id": "rule.signInReturnMatchesTheRequest",
+        "type": "rule",
+        "name": "A Return Is Matched to the Sign-In It Belongs To",
+        "description": "Every sign-in the assistant starts carries a one-time tag, and what the user brings back from the connected service is only accepted by the request holding that same tag. A link that arrives without a tag is refused before the user ever sees it, and a return missing either the grant or the tag is shown a short failure page instead.\n\nThe business cares because the return leg lands on an ordinary web address that anyone can call. Without the match, a grant obtained somewhere else could be handed to whichever request happened to be waiting, and one person's access to a connected service would end up stored against somebody else's name, with the service's own audit trail naming the wrong person.\n\nThe user sees nothing at all when it holds, and a short failure page when it does not. Applies to every sign-in, on every service and every chat platform.",
+        "status": "draft",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/runtime.py",
+                "startLine": 72,
+                "endLine": 82
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/app.py",
+                "startLine": 153,
+                "endLine": 161
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 98,
+                "endLine": 115
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/mcp/client.py",
+                "startLine": 160,
+                "endLine": 165
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addNode",
+      "payload": {
+        "id": "rule.signInLinkOpensOutsideTheChatApp",
+        "type": "rule",
+        "name": "The Sign-In Link Opens Outside the Chat App",
+        "description": "The link that starts a sign-in must open in the device's own browser rather than the small browser built into the chat app. On LINE the link is marked so the phone hands it to the real browser before the connected service is ever reached.\n\nThe business cares because connected services turn away a sign-in attempted from a chat app's built-in browser. Without this the user taps the button, is refused by the service with nothing they can do about it, and every tool behind that sign-in stays out of reach however many times they try.\n\nThe user notices only that the sign-in page opens the way any other link does. Applies wherever the chat platform opens links inside itself; platforms that already hand links to the browser need nothing extra.",
+        "status": "draft",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/surfaces/line/surface.py",
+                "startLine": 191,
+                "endLine": 198
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/runtime.py",
+                "startLine": 84,
+                "endLine": 87
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addNode",
+      "payload": {
+        "id": "rule.unclaimedSignInReturnAgesOut",
+        "type": "rule",
+        "name": "An Unclaimed Return Is Thrown Away",
+        "description": "A grant that comes back from the connected service when nobody is waiting for it is held for five minutes and then discarded, instead of sitting in the store until something happens to pick it up.\n\nThe business cares because what comes back is a one-time key to somebody's real account. The request that asked for it may already have given up, or the process holding it may have restarted; leaving the key lying around is a standing risk for no gain, since a user who returns that late is asked to sign in again on their next message anyway.\n\nThe user sees nothing: a late return simply does nothing, and their next message offers the link afresh. Applies to every sign-in return on every service.",
+        "status": "draft",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 98,
+                "endLine": 106
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 13,
+                "endLine": 14
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/runtime.py",
+                "startLine": 78,
+                "endLine": 82
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.cmd-authorizeService-rule-signInReturnMatchesTheRequest",
+        "type": "constrainedBy",
+        "fromNodeId": "cmd.authorizeService",
+        "toNodeId": "rule.signInReturnMatchesTheRequest",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/runtime.py",
+                "startLine": 74,
+                "endLine": 79
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.cmd-completeAuthorization-rule-signInReturnMatchesTheRequest",
+        "type": "constrainedBy",
+        "fromNodeId": "cmd.completeAuthorization",
+        "toNodeId": "rule.signInReturnMatchesTheRequest",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/app.py",
+                "startLine": 153,
+                "endLine": 161
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.cmd-authorizeService-rule-signInLinkOpensOutsideTheChatApp",
+        "type": "constrainedBy",
+        "fromNodeId": "cmd.authorizeService",
+        "toNodeId": "rule.signInLinkOpensOutsideTheChatApp",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/surfaces/line/surface.py",
+                "startLine": 191,
+                "endLine": 198
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.cmd-completeAuthorization-rule-unclaimedSignInReturnAgesOut",
+        "type": "constrainedBy",
+        "fromNodeId": "cmd.completeAuthorization",
+        "toNodeId": "rule.unclaimedSignInReturnAgesOut",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/message.py",
+                "startLine": 98,
+                "endLine": 106
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.cmd-revokeAuthorization-rule-destructiveToolsNeedApproval",
+        "type": "constrainedBy",
+        "fromNodeId": "cmd.revokeAuthorization",
+        "toNodeId": "rule.destructiveToolsNeedApproval",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/runner.py",
+                "startLine": 137,
+                "endLine": 149
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "addEdge",
+      "payload": {
+        "id": "edge.evt-authorizationRevoked-cmd-forgetConversation",
+        "type": "triggers",
+        "fromNodeId": "evt.authorizationRevoked",
+        "toNodeId": "cmd.forgetConversation",
+        "metadata": {
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/runner.py",
+                "startLine": 146,
+                "endLine": 149
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 65,
+                "endLine": 67
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "updateNode",
+      "nodeId": "rule.destructiveToolsNeedApproval",
+      "patch": {
+        "description": "A tool its provider marks as destructive never runs until the user has confirmed it. The marking comes from the provider, which is the only party that knows which of its own capabilities cannot be taken back, so it is trusted rather than second-guessed here. The product's own sign-out is held behind the same confirmation, because no provider marks it and it is every bit as hard to take back.\n\nThe business cares because the assistant acts on the user's real accounts with the user's own access. A single misread message would otherwise delete a document, cancel a booking, or empty a list, and none of that is something the user can undo by rephrasing. The cost of asking is one tap; the cost of not asking is unbounded.\n\nThe user sees a confirmation naming what is about to happen, with Confirm and Cancel. Applies to every tool of every provider and to the sign-out, on a first attempt and on a resumed one alike.",
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/mcp/client.py",
+                "startLine": 35,
+                "endLine": 42
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/mcp/client.py",
+                "startLine": 83,
+                "endLine": 83
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/runner.py",
+                "startLine": 137,
+                "endLine": 149
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "README.md",
+                "startLine": 17,
+                "endLine": 17
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "operation": "updateNode",
+      "nodeId": "cmd.revokeAuthorization",
+      "patch": {
+        "metadata": {
+          "missingRoles": [
+            "intent"
+          ],
+          "sourceReferences": [
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/runner.py",
+                "startLine": 137,
+                "endLine": 156
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/agent/mcp/storage.py",
+                "startLine": 48,
+                "endLine": 49
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/store/credential.py",
+                "startLine": 74,
+                "endLine": 78
+              }
+            },
+            {
+              "sourceId": "app",
+              "location": {
+                "uri": "src/conciergent/turn.py",
+                "startLine": 65,
+                "endLine": 67
+              }
+            }
+          ],
+          "driftIssues": [
+            {
+              "id": "drift-signout-local-only",
+              "description": "The sign-out tool at src/conciergent/agent/runner.py:44-50 is named revoke_authorization and tells the user their authorization was removed, while the sign-out itself at src/conciergent/store/credential.py:74-78 only deletes the copy of the grant this product stored and sends no revocation to the connected service. The grant stays live at the service until it expires on its own, so a user who signs out to cut access off has not actually cut it off.",
+              "severity": "warning",
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/agent/runner.py",
+                    "startLine": 44,
+                    "endLine": 50
+                  }
+                },
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/store/credential.py",
+                    "startLine": 74,
+                    "endLine": 78
+                  }
+                }
+              ],
+              "raisedAt": "2026-08-11T12:00:00+08:00"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "generatedBy": "ddd:extract",
+  "generatedAt": "2026-08-11T01:54:34.188Z",
+  "rationale": "Extracted three unmodelled invariants of the in-chat sign-in and sign-out slice: matching a return to the request that started it, opening the link outside the chat app, and discarding an unclaimed return. Also wired sign-out into the confirmation gate and into the conversation memory it clears, and flagged that sign-out removes the stored grant locally without revoking it at the connected service. Read from the handoff, message store, credential store, and runner code; the workspace has no intent source, so every node cites code only. The Slack workspace-install flow was deliberately excluded because it is not an in-chat sign-in.",
+  "owner": "usr-7176d698",
+  "ownerDisplayName": "臺",
+  "reviewedBy": "braid-batch",
+  "reviewedAt": "2026-08-11T01:54:34.378Z"
+}

@@ -1,0 +1,155 @@
+{
+  "id": "clarification-28c563e155ee",
+  "workspaceId": "conciergent",
+  "question": "How are the two halves of the product tied together: do the conversation round trip and access to connected tools always ship as one, does one of them lead while the other follows, or is it too early to say?",
+  "candidates": [
+    {
+      "id": "cc-partnership",
+      "description": "They always ship as one: neither half is planned or released without the other.",
+      "sourceReferences": [
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/turn.py",
+            "startLine": 39,
+            "endLine": 46
+          }
+        },
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "pyproject.toml",
+            "startLine": 1,
+            "endLine": 20
+          }
+        }
+      ],
+      "proposedOperations": [
+        {
+          "operation": "addEdge",
+          "payload": {
+            "id": "edge.ctx-conversationTurn-ctx-toolAccess-partnership",
+            "type": "partnership",
+            "fromNodeId": "ctx.conversationTurn",
+            "toNodeId": "ctx.toolAccess",
+            "metadata": {
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/turn.py",
+                    "startLine": 39,
+                    "endLine": 46
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "cc-customer-supplier",
+      "description": "Connected-tool access leads, and the conversation half asks it for what it needs.",
+      "sourceReferences": [
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/turn.py",
+            "startLine": 36,
+            "endLine": 46
+          }
+        },
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/agent/runner.py",
+            "startLine": 186,
+            "endLine": 241
+          }
+        }
+      ],
+      "proposedOperations": [
+        {
+          "operation": "addEdge",
+          "payload": {
+            "id": "edge.ctx-conversationTurn-ctx-toolAccess-customerSupplier",
+            "type": "customerSupplier",
+            "fromNodeId": "ctx.conversationTurn",
+            "toNodeId": "ctx.toolAccess",
+            "metadata": {
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/turn.py",
+                    "startLine": 39,
+                    "endLine": 46
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "cc-shared-kernel",
+      "description": "They share one small common vocabulary, and changing it needs both sides to agree.",
+      "sourceReferences": [
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/runtime.py",
+            "startLine": 24,
+            "endLine": 45
+          }
+        },
+        {
+          "sourceId": "app",
+          "location": {
+            "uri": "src/conciergent/identity.py",
+            "startLine": 4,
+            "endLine": 30
+          }
+        }
+      ],
+      "proposedOperations": [
+        {
+          "operation": "addEdge",
+          "payload": {
+            "id": "edge.ctx-conversationTurn-ctx-toolAccess-sharedKernel",
+            "type": "sharedKernel",
+            "fromNodeId": "ctx.conversationTurn",
+            "toNodeId": "ctx.toolAccess",
+            "metadata": {
+              "sourceReferences": [
+                {
+                  "sourceId": "app",
+                  "location": {
+                    "uri": "src/conciergent/runtime.py",
+                    "startLine": 24,
+                    "endLine": 45
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "cc-not-yet",
+      "description": "Too early to say: leave the tie unrecorded until the team has decided how the halves evolve.",
+      "sourceReferences": [],
+      "proposedOperations": []
+    }
+  ],
+  "status": "pending",
+  "origin": "skill",
+  "context": "This extract added ctx.toolAccess (Assistant Run and Tool Access) alongside the existing ctx.conversationTurn (Conversation Turn Lifecycle), and deliberately emitted no Context Mapping edge between them, per the ontology rule that strategic edges are not derivable from a single feature slice. The coupling signals are real: cmd.runTurn calls into cmd.runAssistant on every message; cmd.revokeAuthorization in this context sets the flag that makes cmd.runTurn emit evt.historyInvalidated and forget the conversation; and both contexts share the reply shapes (Card, Carousel) and the pending-approval envelope declared in src/conciergent/runtime.py, plus the identity handle in src/conciergent/identity.py. Today both halves live in one repository released together, which argues for partnership, but the sharing of Reply / PendingApproval / principal across the boundary argues for sharedKernel, and the one-way call direction argues for customerSupplier with ctx.conversationTurn as the customer. Each candidate below carries the single addEdge that would record its answer; the last one runs nothing.",
+  "relatedNode": "ctx.toolAccess",
+  "ambiguityType": "gap",
+  "owner": "usr-7176d698",
+  "ownerDisplayName": "臺"
+}
