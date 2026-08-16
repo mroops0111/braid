@@ -57,10 +57,10 @@ export interface DefineOntologyInput {
   /** Skills this plugin ships alongside the ontology (see PluginSkillRef). */
   readonly skills?: readonly PluginSkillRef[]
   /**
-   * Reference directories, such as concept docs or shared rules, this plugin
-   * ships for its skills to Read at run time (see PluginReferenceDirRef).
+   * Directory of reference docs, such as this ontology's concept doc,
+   * that its skills Read at run time (see PluginReferenceDirRef).
    */
-  readonly referenceDirs?: readonly PluginReferenceDirRef[]
+  readonly referenceDir?: PluginReferenceDirRef
   /** Optional config-schema override, defaults to an empty object schema. */
   readonly configSchema?: z.ZodTypeAny
   /** Optional explicit plugin id, defaults to `ontology.<ontologyId>`. */
@@ -143,7 +143,7 @@ export function defineOntologyPlugin(input: DefineOntologyInput): OntologyPlugin
     // so its skills invoke as `/<ontologyId>:<verb>`,
     // without the author repeating it per skill.
     skillNamespace: input.ontologyId,
-    referenceDirs: input.referenceDirs ?? [],
+    ...(input.referenceDir ? { referenceDir: input.referenceDir } : {}),
     validators: [],
     sourceRoles: [
       ...(input.extends?.sourceRoles ?? []),

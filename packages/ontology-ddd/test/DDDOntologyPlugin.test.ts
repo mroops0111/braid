@@ -19,12 +19,12 @@ describe('dddOntology configuration', () => {
     expect(unitBearing).toEqual(['intent'])
   })
 
-  it('ships three skills whose directories are the bare verbs', () => {
+  it('ships four skills whose directories are the bare verbs', () => {
     const verbs = (dddOntology.skills ?? []).map((skill) => {
       const path = typeof skill.directory === 'string' ? skill.directory : skill.directory.pathname
       return path.replace(/\/+$/, '').split('/').pop()
     })
-    expect(verbs).toEqual(['extract', 'clarify', 'reconcile'])
+    expect(verbs).toEqual(['extract', 'clarify', 'reconcile', 'scan'])
   })
 
   it('binds the batch loop: extract per unit, reconcile as the chunked checkpoint, scan to derive units', () => {
@@ -33,7 +33,7 @@ describe('dddOntology configuration', () => {
     expect(batch?.checkpoint?.skillId).toBe('ddd:reconcile')
     expect(batch?.checkpoint?.chunkSize).toBe(5)
     expect(batch?.checkpoint?.runAtEnd).toBe(true)
-    expect(batch?.deriveUnits?.skillId).toBe('braid:scan')
+    expect(batch?.deriveUnits?.skillId).toBe('ddd:scan')
   })
 })
 

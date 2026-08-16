@@ -156,5 +156,5 @@ This skill is read-only and currently does not need supplementary shared docs. (
 
 ## Notes
 
-- Do not invent or fill in missing descriptions. That is `ddd:extract` / `ddd:clarify`'s job. Render what the graph says, faithfully.
+- Do not invent or fill in missing descriptions. That is the extraction / clarification skills' job, not this one's. Render what the graph says, faithfully.
 - If `$BRAID_WORKSPACE/skill-extensions/braid-generate-doc/EXTEND.md` exists, follow its rules after the steps above. Product-specific tone / glossary / customer-facing terminology overrides go there.

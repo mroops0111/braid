@@ -9,7 +9,7 @@ export const SkillOrigin = z.enum(['builtin', 'plugin', 'workspace', 'extension'
 export type SkillOrigin = z.infer<typeof SkillOrigin>
 
 /**
- * A SkillId is `<namespace>:<verb>`, such as `ddd:extract` or `braid:scan`.
+ * A SkillId is `<namespace>:<verb>`, such as `ddd:extract` or `braid:ask`.
  * The namespace is the contributing plugin, the verb the bare action.
  * Split on the first colon, so a hyphenated verb like `generate-doc` survives.
  */
