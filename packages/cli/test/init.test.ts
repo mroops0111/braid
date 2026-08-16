@@ -17,7 +17,7 @@ describe('initCommand', () => {
     vi.restoreAllMocks()
   })
 
-  it('creates PRODUCT.md, .gitignore, and intent/ at the target directory', async () => {
+  it('scaffolds PRODUCT.md, .gitignore, and one dir per declared role', async () => {
     const target = join(workDir, 'my-product')
     await initCommand({ dir: target, ontologyId: 'ddd' })
 
@@ -25,13 +25,18 @@ describe('initCommand', () => {
     expect(product).toContain('name: my-product')
     expect(product).toContain('ontologyId: ddd')
     expect(product).toContain('# my-product')
+    // The required `code` role seeds a source entry pointing at its path segment.
+    expect(product).toContain('role: code')
+    expect(product).toContain('path: ./codebases')
 
     const gitignore = await readFile(join(target, '.gitignore'), 'utf-8')
     expect(gitignore).toContain('.braid/')
     expect(gitignore).toContain('artifacts/')
 
-    const gitkeep = await readFile(join(target, 'intent', '.gitkeep'), 'utf-8')
-    expect(gitkeep).toBe('')
+    // Every declared role gets a directory keyed by its pathSegment,
+    // the required `code` and the optional `intent` alike.
+    expect(await readFile(join(target, 'codebases', '.gitkeep'), 'utf-8')).toBe('')
+    expect(await readFile(join(target, 'intents', '.gitkeep'), 'utf-8')).toBe('')
   })
 
   it('uses --name override when provided', async () => {
@@ -43,12 +48,12 @@ describe('initCommand', () => {
     expect(product).not.toContain('name: somefolder')
   })
 
-  it('respects --ontology flag', async () => {
+  it('throws a clear error for an ontology the build does not ship', async () => {
     const target = join(workDir, 'redoc-ws')
-    await initCommand({ dir: target, ontologyId: 'redoc' })
 
-    const product = await readFile(join(target, 'PRODUCT.md'), 'utf-8')
-    expect(product).toContain('ontologyId: redoc')
+    await expect(initCommand({ dir: target, ontologyId: 'redoc' }))
+      .rejects
+      .toThrow(/Unknown ontology "redoc"/)
   })
 
   it('refuses to overwrite an existing PRODUCT.md without --force', async () => {

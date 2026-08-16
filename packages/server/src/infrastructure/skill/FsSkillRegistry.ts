@@ -8,6 +8,13 @@ import { AbsolutePath as AbsolutePathSchema, SkillFrontmatter as SkillFrontmatte
 import { parseMarkdownFrontmatter } from '../_shared/frontmatter.js'
 import { workspaceSkillExtensionsDir, workspaceSkillsDir } from '../_shared/paths.js'
 
+/**
+ * Namespace for skills and reference docs shipped by the framework itself.
+ * Builtin skills invoke as `braid:<verb>`,
+ * and core's shared reference docs mount under the same namespace.
+ */
+export const BUILTIN_SKILL_NAMESPACE = 'braid'
+
 interface DirentLike {
   readonly name: string
   isDirectory: () => boolean
@@ -80,7 +87,7 @@ export class FsSkillRegistry implements SkillRegistry {
       // The directory is the bare verb. Namespace it by origin,
       // builtins under `braid`, workspace skills under `workspace`,
       // so the id matches the plugin the agent binding stages it as.
-      const namespace = origin === 'builtin' ? 'braid' : 'workspace'
+      const namespace = origin === 'builtin' ? BUILTIN_SKILL_NAMESPACE : 'workspace'
       manifests.push(new SkillManifest({
         id: SkillIdSchema.parse(`${namespace}:${entry.name}`),
         origin,

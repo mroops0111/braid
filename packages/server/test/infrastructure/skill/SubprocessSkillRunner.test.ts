@@ -1,4 +1,4 @@
-import type { AbsolutePath, AgentBindingDescriptor, SkillAgentOverride, SkillEvent, SkillId, SkillRunId, WorkspaceEvent } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, SkillAgentOverride, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceEvent } from '@braidhq/schema'
 import { mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -26,7 +26,7 @@ interface BuildRunnerInput {
   readonly rootPath: AbsolutePath
   readonly sequence?: readonly MockSpawnScript[]
   readonly cleanupSession?: boolean
-  readonly referenceDirs?: readonly { name: string, path: AbsolutePath }[]
+  readonly referenceDirs?: readonly { skillNamespace: string, path: AbsolutePath }[]
   readonly eventBus?: WorkspaceEventBus
   readonly clock?: () => string
   readonly runRepository?: FsRunRepository
@@ -34,6 +34,7 @@ interface BuildRunnerInput {
   readonly skillAgent?: SkillAgentOverride
   readonly buildAgentBinding?: (descriptor: AgentBindingDescriptor) => AgentBinding
   readonly coreGateway?: { specUrl: string, uvxBin?: string }
+  readonly resolveSourceRoles?: (workspace: Workspace) => readonly SourceRoleDescriptor[]
 }
 
 interface BuiltRunner {
@@ -60,6 +61,7 @@ async function buildRunner(input: BuildRunnerInput): Promise<BuiltRunner> {
     ...(input.eventBus ? { eventBus: input.eventBus } : {}),
     ...(input.clock ? { clock: input.clock } : {}),
     ...(input.coreGateway ? { coreGateway: input.coreGateway } : {}),
+    ...(input.resolveSourceRoles ? { resolveSourceRoles: input.resolveSourceRoles } : {}),
   })
   const workspace = makeWorkspace({ rootPath: input.rootPath })
   return { runner, workspace, invocations, skillRegistry, runRepository }
@@ -160,7 +162,7 @@ describe('SubprocessSkillRunner', () => {
     expect(captured?.kind).toBe(DEFAULT_AGENT_BINDING.kind)
   })
 
-  it('stages reference dirs under .claude/skills and each skill as a per-namespace plugin', async () => {
+  it('stages each namespace as one bundle holding both its skills and its reference docs', async () => {
     const rootPath = await makeWorkspaceRoot()
     const sharedDir = join(rootPath, 'shared')
     await mkdir(sharedDir, { recursive: true })
@@ -169,7 +171,7 @@ describe('SubprocessSkillRunner', () => {
     const { runner, workspace, invocations } = await buildRunner({
       rootPath,
       cleanupSession: false,
-      referenceDirs: [{ name: 'shared', path: sharedDir as AbsolutePath }],
+      referenceDirs: [{ skillNamespace: 'braid', path: sharedDir as AbsolutePath }],
     })
 
     await collectRunEvents(runner, workspace, '')
@@ -178,15 +180,9 @@ describe('SubprocessSkillRunner', () => {
     expect(sessionCwd).toContain('.braid-sessions/')
     expect(sessionCwd.startsWith(rootPath)).toBe(true)
 
-    // Companion reference dirs still live under .claude/skills/, but invokable
-    // skills no longer do. They stage as a claude plugin per namespace.
-    const claudeSkillNames = await readdir(join(sessionCwd, '.claude', 'skills'))
-    expect(claudeSkillNames).toContain('shared')
-    expect(claudeSkillNames).not.toContain('ask')
-
     // The `braid:ask` skill stages as plugin `braid`, verb dir `ask`, plus a
     // .claude-plugin/plugin.json manifest naming the namespace.
-    const pluginRoot = join(sessionCwd, '.braid-plugins', 'braid')
+    const pluginRoot = join(sessionCwd, '.skill-bundles', 'braid')
     const pluginManifest = JSON.parse(
       await readFile(join(pluginRoot, '.claude-plugin', 'plugin.json'), 'utf-8'),
     ) as { name: string }
@@ -194,11 +190,44 @@ describe('SubprocessSkillRunner', () => {
     const verbDirs = await readdir(join(pluginRoot, 'skills'))
     expect(verbDirs).toContain('ask')
 
+    // Reference docs mount inside that same bundle, not in a parallel tree,
+    // so everything the `braid` namespace owns lives under one directory.
+    const referenceMount = join(pluginRoot, 'reference')
+    expect(await readdir(referenceMount)).toContain('api-routes.md')
+
     // The binding is pointed at the bundle via --plugin-dir.
     const spawnArgs = invocations[0]!.args
     const pluginDirIdx = spawnArgs.indexOf('--plugin-dir')
     expect(pluginDirIdx).toBeGreaterThan(-1)
     expect(spawnArgs[pluginDirIdx + 1]).toBe(pluginRoot)
+
+    // The absolute mount path reaches the skill as env, so no prompt writes it.
+    expect(invocations[0]!.options.env?.BRAID_SHARED_REFERENCE).toBe(referenceMount)
+  })
+
+  it('injects BRAID_ONTOLOGY_REFERENCE for the workspace ontology namespace only', async () => {
+    const rootPath = await makeWorkspaceRoot()
+    const ontologyDir = join(rootPath, 'ddd-reference')
+    await mkdir(ontologyDir, { recursive: true })
+    await writeFile(join(ontologyDir, 'concept.md'), '# concept', 'utf-8')
+
+    // makeWorkspace defaults to ontologyId `ddd`, so the `ddd` mount is active.
+    const { runner, workspace, invocations } = await buildRunner({
+      rootPath,
+      cleanupSession: false,
+      referenceDirs: [
+        { skillNamespace: 'ddd', path: ontologyDir as AbsolutePath },
+        { skillNamespace: 'unused-ontology', path: ontologyDir as AbsolutePath },
+      ],
+    })
+
+    await collectRunEvents(runner, workspace, '')
+
+    const sessionCwd = invocations[0]?.options.cwd as string
+    const env = invocations[0]!.options.env
+    expect(env?.BRAID_ONTOLOGY_REFERENCE).toBe(join(sessionCwd, '.skill-bundles', 'ddd', 'reference'))
+    // Core shipped no reference dir in this run, so the shared var stays unset.
+    expect(env?.BRAID_SHARED_REFERENCE).toBeUndefined()
   })
 
   it('forwards non-zero subprocess exit code into the completed event', async () => {
@@ -342,6 +371,36 @@ describe('SubprocessSkillRunner', () => {
     const firstCwd = before.invocations[0]!.options.cwd as string
     const secondCwd = after.invocations[0]!.options.cwd as string
     expect(secondCwd).toBe(firstCwd)
+  })
+
+  it('injects the resolved source roles as BRAID_SOURCE_ROLES for the spawned skill', async () => {
+    const rootPath = await makeWorkspaceRoot()
+    const { runner, workspace, invocations } = await buildRunner({
+      rootPath,
+      resolveSourceRoles: () => [
+        { id: 'intent' as SourceRoleDescriptor['id'], label: { 'en': 'Intent', 'zh-Hant': '意圖' }, unitBearing: true, pathSegment: 'intents' },
+        { id: 'code' as SourceRoleDescriptor['id'], label: 'Code', required: true, pathSegment: 'codebases' },
+      ],
+    })
+
+    await collectRunEvents(runner, workspace, 'q')
+
+    const injected = invocations[0]!.options.env?.BRAID_SOURCE_ROLES
+    expect(injected).toBeDefined()
+    // Labels resolve to their English string, and only declared fields survive.
+    expect(JSON.parse(injected!)).toEqual([
+      { id: 'intent', label: 'Intent', pathSegment: 'intents', unitBearing: true },
+      { id: 'code', label: 'Code', pathSegment: 'codebases', unitBearing: false },
+    ])
+  })
+
+  it('omits BRAID_SOURCE_ROLES when no source-role resolver is wired', async () => {
+    const rootPath = await makeWorkspaceRoot()
+    const { runner, workspace, invocations } = await buildRunner({ rootPath })
+
+    await collectRunEvents(runner, workspace, 'q')
+
+    expect(invocations[0]!.options.env?.BRAID_SOURCE_ROLES).toBeUndefined()
   })
 
   it('passes --resume to the binding and marks started.resumed=true when resumeSessionId is set', async () => {

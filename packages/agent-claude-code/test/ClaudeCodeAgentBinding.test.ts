@@ -103,7 +103,7 @@ describe('ClaudeCodeAgentBinding', () => {
     const binding = new ClaudeCodeAgentBinding(descriptor)
 
     const result = await binding.resolveSpawn(makeInput({
-      skillBundleDirs: ['/tmp/sess/.braid-plugins/braid', '/tmp/sess/.braid-plugins/ddd'],
+      skillBundleDirs: ['/tmp/sess/.skill-bundles/braid', '/tmp/sess/.skill-bundles/ddd'],
     }))
 
     const pluginDirIdx = result.args.reduce<number[]>((acc, arg, i) => {
@@ -113,8 +113,8 @@ describe('ClaudeCodeAgentBinding', () => {
     }, [])
     expect(pluginDirIdx).toHaveLength(2)
     expect(pluginDirIdx.map(i => result.args[i + 1])).toEqual([
-      '/tmp/sess/.braid-plugins/braid',
-      '/tmp/sess/.braid-plugins/ddd',
+      '/tmp/sess/.skill-bundles/braid',
+      '/tmp/sess/.skill-bundles/ddd',
     ])
   })
 

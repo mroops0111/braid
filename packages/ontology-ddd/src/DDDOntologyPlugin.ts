@@ -61,17 +61,13 @@ export const dddOntology = defineOntologyPlugin({
     { directory: new URL('../skills/extract', import.meta.url) },
     { directory: new URL('../skills/clarify', import.meta.url) },
     { directory: new URL('../skills/reconcile', import.meta.url) },
+    { directory: new URL('../skills/scan', import.meta.url) },
   ],
 
-  // Shared reference docs every SKILL.md above consults,
-  // so the DDD vocabulary, wiring rules, and id conventions live in one place,
-  // not duplicated per prompt.
-  referenceDirs: [
-    {
-      name: 'ontology-ddd',
-      directory: new URL('../skills/shared', import.meta.url),
-    },
-  ],
+  // Reference docs every SKILL.md above consults, so the DDD vocabulary,
+  // wiring rules, and id conventions live in one place, not per prompt.
+  // The runner mounts it under this ontology's namespace and injects the path.
+  referenceDir: new URL('../skills/shared', import.meta.url),
 
   nodeTypes: localeNodes([
     {
@@ -260,7 +256,7 @@ export const dddOntology = defineOntologyPlugin({
   // The checkpoint ddd:reconcile fires every 5 successful extracts,
   // and once more at the end of the loop for global validation.
   // When the workspace has no intent source,
-  // braid:scan derives units from the codebase.
+  // ddd:scan derives units from the codebase.
   batch: {
     perUnit: {
       skillId: SkillId.parse('ddd:extract'),
@@ -280,7 +276,7 @@ export const dddOntology = defineOntologyPlugin({
       },
     },
     deriveUnits: {
-      skillId: SkillId.parse('braid:scan'),
+      skillId: SkillId.parse('ddd:scan'),
     },
   },
 })

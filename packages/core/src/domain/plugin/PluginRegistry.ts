@@ -10,7 +10,7 @@ import type {
 } from '@braidhq/schema'
 import type { AgentPlugin } from './AgentPlugin.js'
 import type { OntologyPlugin } from './OntologyPlugin.js'
-import type { Plugin, PluginReferenceDirRef, PluginSkillRef } from './Plugin.js'
+import type { Plugin, PluginSkillRef } from './Plugin.js'
 import type { SourceLoaderPlugin } from './SourceLoaderPlugin.js'
 import type { StoragePlugin } from './StoragePlugin.js'
 import type { ViewGeneratorPlugin } from './ViewGeneratorPlugin.js'
@@ -37,8 +37,14 @@ function composePluginSkillId(plugin: Plugin, skill: PluginSkillRef): SkillId {
   return SkillIdSchema.parse(`${plugin.skillNamespace}:${verb}`)
 }
 
-/** PluginReferenceDirRef enriched with the id of the plugin that contributed it. */
-export interface PluginSourcedReferenceDir extends PluginReferenceDirRef {
+/**
+ * A plugin's reference directory, resolved to the namespace it mounts under.
+ * The namespace is the plugin's own `skillNamespace`, never an authored name,
+ * so a plugin's docs and its skills cannot drift apart.
+ */
+export interface PluginSourcedReferenceDir {
+  readonly skillNamespace: string
+  readonly directory: URL | string
   readonly contributedBy: PluginId
 }
 
@@ -78,17 +84,22 @@ export class PluginRegistry {
   }
 
   /**
-   * All reference directories declared by registered plugins,
-   * tagged with the plugin id that contributed each.
-   * Consumers like SubprocessSkillRunner symlink these into every session,
-   * so SKILL.md authors can reference plugin-owned concept docs,
-   * via a stable cwd-relative path.
+   * Every registered plugin's reference directory, keyed by its namespace.
+   * SubprocessSkillRunner mounts each and hands skills the absolute path,
+   * so no SKILL.md writes a location.
    */
   pluginReferenceDirs(): readonly PluginSourcedReferenceDir[] {
     const result: PluginSourcedReferenceDir[] = []
     for (const plugin of this.plugins.values()) {
-      for (const dir of plugin.referenceDirs ?? [])
-        result.push({ ...dir, contributedBy: plugin.id })
+      if (plugin.referenceDir === undefined)
+        continue
+      if (plugin.skillNamespace === undefined || plugin.skillNamespace.length === 0)
+        throw new ValidationError(`Plugin "${plugin.id}" ships a referenceDir but declares no skillNamespace`)
+      result.push({
+        skillNamespace: plugin.skillNamespace,
+        directory: plugin.referenceDir,
+        contributedBy: plugin.id,
+      })
     }
     return result
   }

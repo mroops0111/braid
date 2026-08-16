@@ -1,14 +1,12 @@
 # DDD Ontology Concept
 
-The shared concept document for `@braidhq/ontology-ddd`. Every DDD-resident skill (`ddd:extract`, `ddd:clarify`, `ddd:reconcile`) consults this file before authoring nodes / edges, so the vocabulary, wiring rules, and authoring conventions live in one place instead of being duplicated in each Procedure.
-
-Skills read this at `<cwd>/.claude/skills/ontology-ddd/concept.md`, where `<cwd>` is the working directory each SKILL.md captures in its Initialization step.
+The shared concept document for `@braidhq/ontology-ddd`. Every DDD-resident skill (`ddd:extract`, `ddd:clarify`, `ddd:reconcile`, `ddd:scan`) consults this file before authoring nodes / edges, so the vocabulary, wiring rules, and authoring conventions live in one place instead of being duplicated in each Procedure.
 
 ## Vocabulary
 
 The 8 node types grouped by sub-domain. Full per-type definitions are in each `NodeTypeDescriptor.description` from the ontology fetch capability; this table is the categorization view.
 
-| Node type | Sub-domain |
+| Node Type | Sub-domain |
 |---|---|
 | `boundedContext` | Strategic DDD (Evans Blue Book Part IV) |
 | `aggregate` | Tactical DDD (Vernon IDDD ch. 10) |
@@ -27,7 +25,7 @@ Edges carry the structural contract. Always use the exact `edgeTypes[].id` from 
 
 Every new node carries an edge into its owning structural parent. Orphans are a hard reject in `StructuralValidator` (see `validators.md` in `shared/`).
 
-| New node | Required parent edge |
+| New Node | Required Parent Edge |
 |---|---|
 | `aggregate` | `boundedContext --contains--> aggregate` |
 | `command` / `query` | `aggregate --accepts--> command` (or `query`) |
@@ -88,11 +86,21 @@ Node and edge ids are minted by the skill following the ontology-style dotted co
 | Policy | `policy.` | `policy.notifyShipping` |
 | Edge | `edge.<slug>` | `edge.ctx-checkout-agg-order` |
 
+## Naming Style (Per Type)
+
+How a `node.name` reads depends on the type it names:
+
+| Types | Style | Examples |
+|---|---|---|
+| `command`, `query`, `event` | Match the code identifier when there's a clear mapping. | `CreateOrder`, `OrderPlaced` |
+| `boundedContext`, `aggregate`, `actor` | Descriptive title. | `Order Checkout`, `Order`, `Buyer` |
+| `rule`, `policy` | Noun phrase that reads as the invariant or reaction. | `Max Line Items`, `Notify Shipping` |
+
 ## Description Authoring (Per Type)
 
 `description` is markdown (see `content-conventions.md`); aim for several short paragraphs that convey causality, not just identity. The table below lists *topics* each type should address; pick the ones the source grounds, skip the rest, never invent.
 
-| Type | Topics the description should address |
+| Type | Topics the Description Should Address |
 |---|---|
 | `boundedContext` | **Lead with a `Problem` section: the slice of the domain reality this model addresses (Evans's problem space).** What part of the business this subsystem owns; the few key terms the domain team uses (in their own words), with the meaning each carries *here*; what falls outside it; the neighbouring subsystems it talks to and how. |
 | `aggregate` | The main thing being managed (e.g. an order, a contract, a user account); the rules that always hold about it; how the rest of the system refers to it; its lifecycle from creation to terminal state. |
@@ -130,14 +138,44 @@ The clarification's `context` field has no audience constraint and is the right 
 
 Worked contrast (same underlying ambiguity, two ways of writing it):
 
-| Field | Wrong (graph walk in prose) | Right (domain language) |
+| Field | Wrong (Graph Walk in Prose) | Right (Domain Language) |
 |---|---|---|
 | `question` | "Does `cmd.ingestSource` emit `evt.sourceSynced` so the reactor picks up a first full load?" | "After the framework first connects to a new source, should the next extraction start automatically, or should a person trigger it?" |
 | `candidate.description` | "Add an emits edge from Ingest Source to Source Synced" | "Treat the first connect like every later refresh: extract automatically." |
 | `context` | (engineering reasoning belongs here) | "cmd.ingestSource currently has no emits edge; cmd.syncSource emits evt.sourceSynced; the reactor reacts only to source.synced." |
 
-## Where This Doc Sits in the Architecture
+## Drift Dimensions
 
-This file is shipped by `@braidhq/ontology-ddd` via its `Plugin.referenceDirs[]`. The runner symlinks it into every spawned skill session under `<session>/.claude/skills/ontology-ddd/`. Any DDD-resident skill consults it; non-DDD ontologies would ship their own equivalent under their own plugin name.
+The axes on which a DDD workspace's sources disagree, and the shapes those comparisons take.
 
-When the DDD ontology evolves (new types, new wiring rules, refined ID conventions), update this file and the corresponding `NodeTypeDescriptor.description` / `EdgeTypeDescriptor.description` in `DDDOntologyPlugin.ts` together. The descriptors are the runtime contract; this doc is the prose explanation.
+**Comparison shapes for a DDD workspace:**
+
+| Comparison | Typical Setup |
+|---|---|
+| intent vs code | A node has both an intent ref (under `intents/`) and a code ref. The most common case. |
+| code vs code | Multi-layer codebases: backend handler vs frontend client, controller vs service, etc. |
+| intent vs intent | Multiple intent files describe the same concept (e.g. two PRDs that overlap). |
+
+**Dimensions.** Cover the ones the two sources actually have content on, skip the rest, and emit one `DriftIssue` per dimension.
+
+| Dimension | Look for | Example Finding |
+|---|---|---|
+| `existence` | One source describes a concept the other doesn't mention | "Intent describes `cancelOrder` command; no implementation found in `apps/api/order/`" |
+| `terminology` | Same concept, different name, or same name, different concept | "Intent calls them `buyers`, code uses `customer` (which also covers anonymous guests)" |
+| `sequence` | Order of steps in a flow | "Intent: validate quota then debit. Code: debits first, then validates quota at `order.service.ts:88`" |
+| `params` | Input / output field set | "Intent lists 8 field types for line items; code accepts 10 (extras: `currency`, `regex`)" |
+| `states` | Enumerated states / status machine | "Intent: 5 order states. Code enum has 6 (extra: `archived`)" |
+| `rules` | Business rules / validation thresholds | "Intent: max 50 line items per order. Code: `<= 99` at `validator.ts:14`" |
+| `permissions` | Role / actor / authorisation checks | "Intent: only `buyer` can cancel. Code also requires `org.admin` at `policy.ts:31`" |
+| `limits` | Numeric caps that differ across layers | "Backend `approval_step` has no cap (-1); frontend hardcodes `max=99`" |
+| `api-contract` | Wire format between layers | "Frontend POSTs `{ couponCode }`; backend handler doesn't read it" |
+| `errors` | Error code coverage | "Backend returns `quota_exceeded`; frontend has no matching message" |
+| `feature-coverage` | One layer ships a feature the other lacks | "Frontend has 'share order' UI; backend has no endpoint" |
+
+**Description example (DDD):**
+
+> Intent (`intents/order.md` §"Quota") caps line items at 50; code at `apps/api/order/validator.ts:14` allows up to 99. Extra line items currently silently fail a downstream DB unique check.
+
+## Keeping This Doc in Sync
+
+When the DDD ontology evolves (new types, new wiring rules, refined ID conventions), update this file and the corresponding `NodeTypeDescriptor.description` / `EdgeTypeDescriptor.description` in `DDDOntologyPlugin.ts` together. The descriptors are the runtime contract, this doc is the prose explanation.
