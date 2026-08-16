@@ -15,7 +15,6 @@ import {
   WorkspaceBootstrapService,
 } from '@braidhq/core'
 import { InMemoryWorkspaceEventBus } from '@braidhq/core/in-memory'
-import { dddOntology } from '@braidhq/ontology-ddd'
 import { AgentId, AgentKind, StorageKind as StorageKindSchema } from '@braidhq/schema'
 import { createGoogleDriveLoader } from '@braidhq/source-loader-gdrive'
 import { gitLoader } from '@braidhq/source-loader-git'
@@ -23,6 +22,7 @@ import { createGithubLoader } from '@braidhq/source-loader-github'
 import { kuzuStoragePlugin } from '@braidhq/storage-kuzu'
 import { authenticated, localTrust } from './authMode.js'
 import { composeApp } from './composeApp.js'
+import { defaultOntologyPlugins } from './defaultOntologyPlugins.js'
 import { parseBoolEnv } from './infrastructure/_shared/env.js'
 import { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
 import { FsSessionStore } from './infrastructure/auth/SessionStore.js'
@@ -37,7 +37,7 @@ import { oauthNamespace } from './infrastructure/oauth/providers.js'
 import { FsReactorCycleRepository } from './infrastructure/reactor/FsReactorCycleRepository.js'
 import { FsSecretStore, type SecretStore } from './infrastructure/secrets/SecretStore.js'
 import { FsRunRepository } from './infrastructure/skill/FsRunRepository.js'
-import { FsSkillRegistry } from './infrastructure/skill/FsSkillRegistry.js'
+import { BUILTIN_SKILL_NAMESPACE, FsSkillRegistry } from './infrastructure/skill/FsSkillRegistry.js'
 import { SubprocessSkillRunner } from './infrastructure/skill/SubprocessSkillRunner.js'
 import { FsSourceUnitDigest } from './infrastructure/source/FsSourceUnitDigest.js'
 import { FsSourceUnitObservationRepository } from './infrastructure/source/FsSourceUnitObservationRepository.js'
@@ -179,7 +179,8 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   for (const plugin of options.extraStoragePlugins ?? [])
     pluginRegistry.register(plugin)
 
-  pluginRegistry.register(dddOntology)
+  for (const plugin of defaultOntologyPlugins())
+    pluginRegistry.register(plugin)
   for (const plugin of options.extraOntologyPlugins ?? [])
     pluginRegistry.register(plugin)
 
@@ -282,16 +283,16 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
       + 'Install via `brew install uv` or https://docs.astral.sh/uv/ to enable.',
     )
   }
-  // Build the list of reference dirs symlinked into every skill session:
-  // - builtin `shared/` from @braidhq/core,
-  //   format docs for Proposal, Clarification, Validator, content conventions,
-  //   and drift-detection guidance.
-  // - whatever each registered plugin contributes,
-  //   for example the concept doc from ontology-ddd.
+  // Reference dirs mounted into every skill session,
+  // keyed by the namespace that owns them, so each stays paired with its skills.
+  // Core's `shared/` lands under the builtin namespace,
+  // carrying the Proposal, Clarification, Validator, batch-plan, drift contracts.
+  // Each plugin's own dir lands under its namespace,
+  // the DDD concept doc under `ddd` for example.
   // Plugin contributions resolve `URL` to an absolute path.
   const pluginReferenceDirs = pluginRegistry.pluginReferenceDirs().map((ref) => {
     const dir = typeof ref.directory === 'string' ? ref.directory : fileURLToPath(ref.directory)
-    return { name: ref.name, path: dir as AbsolutePath }
+    return { skillNamespace: ref.skillNamespace, path: dir as AbsolutePath }
   })
   const skillRunner = new SubprocessSkillRunner({
     skillRegistry,
@@ -304,9 +305,16 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
       ? { coreGateway: { specUrl: `${apiUrl}/openapi.json`, uvxBin } }
       : {}),
     referenceDirs: [
-      { name: 'shared', path: join(builtinSkillsRoot, 'shared') as AbsolutePath },
+      { skillNamespace: BUILTIN_SKILL_NAMESPACE, path: join(builtinSkillsRoot, 'shared') as AbsolutePath },
       ...pluginReferenceDirs,
     ],
+    // Resolve the workspace's active ontology to its declared source roles.
+    // The runner serialises these into BRAID_SOURCE_ROLES,
+    // so a generic prompt reads the role vocabulary instead of naming role ids.
+    resolveSourceRoles: (workspace) => {
+      const ontology = pluginRegistry.findOntology(workspace.productManifest.ontologyId)
+      return ontology?.sourceRoles ?? []
+    },
   })
 
   // Shared by WorkspaceBootstrapService (boot reconciliation),

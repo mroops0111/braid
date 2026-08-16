@@ -239,8 +239,8 @@ export class BatchService {
     let plan = initial
     const binding = this.requireBinding(this.resolveOntology(workspace))
     // Derive only when no units exist yet, a fresh derived batch.
-    // A resume already has its units, so it skips scan and re-runs the pending ones,
-    // otherwise scan would refuse an already-populated plan and stall.
+    // A resume already has its units, so it skips derive and re-runs them,
+    // otherwise derive would refuse a populated plan and stall.
     if (plan.mode === 'derived' && plan.units.length === 0) {
       plan = await this.runDerivePhase(workspace, plan, binding, callerToken)
       if (plan.status !== 'running')

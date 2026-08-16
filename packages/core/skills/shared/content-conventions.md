@@ -1,6 +1,6 @@
 # Content Conventions
 
-How to write the human-facing string fields a skill produces. These rules apply across every ontology; ontology-specific aspects (what to address in a `boundedContext` description, etc.) live in the active ontology's `concept.md`.
+How to write the human-facing string fields a skill produces. These rules apply across every ontology; ontology-specific aspects (what to address in a given node type's description, etc.) live in the active ontology's `concept.md`.
 
 Hard caps (min / max lengths, single-line regex) live in the MCP tool `inputSchema` each capability exposes; the agent sees them at call time and the server rejects violations. This document is the **soft recipe** schema can't express: target lengths, tone, structure, language policy, and rules like "first paragraph is prose" that need prose to describe.
 
@@ -13,22 +13,19 @@ Hard caps (min / max lengths, single-line regex) live in the MCP tool `inputSche
 
 ## Language Policy
 
-Every string field follows the language of its **source intent** (the PRD / spec / code comment the node was extracted from). If the workspace's intent is written in 中文, names and descriptions are 中文 first. Mixed-language workspaces are normal; per-node language follows per-node source.
+Every string field follows the language of the **source it was extracted from** (whatever document, spec, or code comment grounded the node). If that source is written in 中文, names and descriptions are 中文 first. Mixed-language workspaces are normal; per-node language follows per-node source.
 
 ## Per-Field Rules
 
 ### `node.name`
 
-- **Format**: human-facing display string. Distinct from `id` (`id = cmd.createOrder`, `name = Create Order` or `建立訂單`).
+- **Format**: human-facing display string. Distinct from `id`, which is an opaque identifier (e.g. `id = create-order`, `name = Create Order` or `建立訂單`).
 - **Length**: aim for ≤ 60 including any bilingual suffix.
-- **Style**:
-  - `command`, `query`, `event`: match the code identifier when there's a clear mapping (`CreateOrder`, `OrderPlaced`).
-  - `boundedContext`, `aggregate`, `actor`: descriptive title (`Order Checkout`, `Order`, `Buyer`).
-  - `rule`, `policy`: noun phrase that reads as the invariant or reaction (`Max Line Items`, `Notify Shipping`).
-- **Bilingual suffix (optional)**: when the workspace is multilingual, the name follows the source intent's language and may carry the alternate language in parentheses (half-width `()` or full-width `（）` both accepted):
-  - Intent in English, team reads 中文: `Create Order (建立訂單)`
-  - Intent in 中文, code in English: `建立訂單 (CreateOrder)`
-  - Skip the suffix when the name is already a code identifier the reader will recognise either way.
+- **Style**: match a code identifier when one clearly maps to the node, otherwise use a descriptive title or a noun phrase. Per-type naming specifics (which types mirror a code identifier, which read as a title) are the active ontology's opinion; its `concept.md` spells them out.
+- **Bilingual suffix (optional)**: when the workspace is multilingual, the name follows its source's language and may carry the alternate language in parentheses (half-width `()` or full-width `（）` both accepted):
+  - Source in English, readers expect 中文: `Create Order (建立訂單)`
+  - Source in 中文, readers expect English: `建立訂單 (Create Order)`
+  - Skip the suffix when the name is already an identifier the reader will recognise either way.
 
 ### `node.description`
 
@@ -42,7 +39,7 @@ Every string field follows the language of its **source intent** (the PRD / spec
   - Prose only when the point genuinely flows as one thought.
 - **Length**: aim for the **shortest text that lets a reader without the source understand this node**. Typically 2-5 short paragraphs (or a list / table / diagram plus a sentence) for non-trivial nodes; a single line is fine for terminal commands / events.
 - **Content goal**: convey *causality*, not just identity. A reader should be able to answer "what is this, why does it exist, what does it interact with, what would break if I remove it" from the description alone. The type's `NodeTypeDescriptor.description` already names the *kind*; this field describes the *instance*.
-- **Per-type aspects**: each ontology's `concept.md` lists the *topics* to cover per type (e.g. `boundedContext` should describe its purpose, ubiquitous language, integration boundaries). Treat the list as **topics to address**, not a template; pick the topics the source actually grounds; don't invent.
+- **Per-type aspects**: each ontology's `concept.md` lists the *topics* to cover per type (a type's purpose, its boundaries, how it connects). Treat the list as **topics to address**, not a template; pick the topics the source actually grounds; don't invent.
 - **Don't repeat the type**. Don't open with "This is a bounded context that…"; open with the subject.
 - **No newline-padding tricks**. Two newlines for paragraph break, one for line break inside a list item. Don't add blank lines just to inflate the description.
 
@@ -56,9 +53,9 @@ Every string field follows the language of its **source intent** (the PRD / spec
 - **Format**: one paragraph plain text.
 - **Length**: aim for 1-5 sentences, ≤ 500 chars.
 - **Structure**: three beats in this order:
-  1. **What** changed (1 clause, e.g. "Extracted ctx.checkout with 3 commands, 2 events").
-  2. **Why** (the trigger: "from intent/checkout.md + apps/api/checkout/").
-  3. **Scope hint** (anything noteworthy about what was deliberately *excluded*, e.g. "policies deferred to a follow-up extract").
+  1. **What** changed (1 clause, e.g. "Added one subsystem with 3 operations and 2 events").
+  2. **Why** (the trigger: name the sources it was derived from, e.g. "from the checkout spec and its handler directory").
+  3. **Scope hint** (anything noteworthy about what was deliberately *excluded*, e.g. "reactions deferred to a follow-up pass").
 
 ### `clarify.question`
 

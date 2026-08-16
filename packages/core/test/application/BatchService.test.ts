@@ -172,7 +172,7 @@ async function setup(options: {
           return hint ? { BRAID_CHANGED_UNITS: hint } : {}
         },
       },
-      deriveUnits: { skillId: SkillIdSchema.parse('braid:scan') },
+      deriveUnits: { skillId: SkillIdSchema.parse('test:derive') },
     },
   }))
 
@@ -321,7 +321,7 @@ describe('BatchService', () => {
     await service.start(workspace.id, { autoApply: false })
     // The orchestrator runs the derive skill in the background.
     // Assert the kick-off and mode without driving the loop to completion.
-    expect(skillRunner.startCalls[0]?.skillId).toBe('braid:scan')
+    expect(skillRunner.startCalls[0]?.skillId).toBe('test:derive')
     expect((await planRepository.load())?.mode).toBe('derived')
   })
 
@@ -574,7 +574,7 @@ describe('BatchService', () => {
       expect(final.status).toBe('completed')
       const skillIds = skillRunner.startCalls.map(c => c.skillId)
       // The D fix, resume of a derived plan must not re-derive its units.
-      expect(skillIds).not.toContain('braid:scan')
+      expect(skillIds).not.toContain('test:derive')
       // The pending unit still re-runs.
       // Skip-completed accounting is the sibling resume test's concern,
       // so only assert extraction happened.

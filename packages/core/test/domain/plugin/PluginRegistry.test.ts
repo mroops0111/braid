@@ -233,15 +233,25 @@ describe('PluginRegistry', () => {
   })
 
   describe('pluginReferenceDirs', () => {
-    it('aggregates reference dirs across plugins and tags the contributor id', () => {
+    it('keys each reference dir by the contributing plugin own skillNamespace', () => {
       registry.register({
         ...fakePlugin('p1', 'ontology'),
-        referenceDirs: [{ name: 'ddd-concepts', directory: '/abs/ddd' }],
+        skillNamespace: 'demo',
+        referenceDir: '/abs/demo',
       })
       const dirs = registry.pluginReferenceDirs()
       expect(dirs).toHaveLength(1)
-      expect(dirs[0]!.name).toBe('ddd-concepts')
+      expect(dirs[0]!.skillNamespace).toBe('demo')
+      expect(dirs[0]!.directory).toBe('/abs/demo')
       expect(dirs[0]!.contributedBy).toBe('p1')
+    })
+
+    it('throws when a plugin ships a reference dir but declares no namespace', () => {
+      registry.register({
+        ...fakePlugin('p2', 'ontology'),
+        referenceDir: '/abs/orphan',
+      })
+      expect(() => registry.pluginReferenceDirs()).toThrow(ValidationError)
     })
 
     it('returns an empty array when no plugin contributes reference dirs', () => {

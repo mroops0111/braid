@@ -10,25 +10,27 @@ import type {
   Workspace,
   WorkspaceEventBus,
 } from '@braidhq/core'
-import type { AbsolutePath, AgentBindingDescriptor, McpServerConfig, RunRecord, SkillAgentOverride, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, McpServerConfig, RunRecord, SkillAgentOverride, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { newSkillRunId, NotFoundError, ServiceUnavailableError } from '@braidhq/core'
-import { AbsolutePath as AbsolutePathSchema, McpServerId, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema, splitSkillId } from '@braidhq/schema'
+import { AbsolutePath as AbsolutePathSchema, localize, McpServerId, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema, splitSkillId } from '@braidhq/schema'
 import { sessionDirPath } from '../_shared/paths.js'
 import { createAsyncQueue } from './asyncQueue.js'
+import { BUILTIN_SKILL_NAMESPACE } from './FsSkillRegistry.js'
 import { attachOutputBuffers, type LineParser } from './subprocessEventStream.js'
 
 export type SpawnFn = (command: string, args: readonly string[], options: SpawnOptions) => ChildProcess
 
 /**
- * Additional directories to expose under the session's `.claude/skills/` tree.
- * Typically non-skill reference content,
- * e.g. a `shared/` dir that builtin SKILL.md files reference.
+ * Reference docs a skill Reads but never invokes,
+ * such as core's shared formats or an ontology's concept doc.
+ * Each mounts inside its own namespace's bundle, keyed by that namespace alone,
+ * so a mount can never be named out of step with its skills.
  */
 export interface SkillReferenceDir {
-  readonly name: string
+  readonly skillNamespace: string
   readonly path: AbsolutePath
 }
 
@@ -45,7 +47,7 @@ export interface SubprocessSkillRunnerDeps {
   readonly runRepository: RunRepository
   readonly spawn?: SpawnFn
   readonly clock?: () => string
-  // Extra directories symlinked alongside skills (e.g. shared reference docs).
+  // Reference-doc dirs mounted inside their own namespace's bundle.
   readonly referenceDirs?: readonly SkillReferenceDir[]
   // Delete the per-run session directory after the run. Default `true`.
   readonly cleanupSession?: boolean
@@ -71,6 +73,11 @@ export interface SubprocessSkillRunnerDeps {
   // Studio uses it to invalidate run and proposal lists live, without polling.
   // Tests can leave this undefined.
   readonly eventBus?: WorkspaceEventBus
+  // Resolves the active ontology's declared source roles for a workspace.
+  // The runner serialises the result into `BRAID_SOURCE_ROLES` for every skill,
+  // so a generic prompt reads the role vocabulary rather than naming role ids.
+  // Composition wires this from the PluginRegistry, keeping the runner ontology-agnostic.
+  readonly resolveSourceRoles?: (workspace: Workspace) => readonly SourceRoleDescriptor[]
 }
 
 interface ActiveRun {
@@ -151,6 +158,12 @@ export class SubprocessSkillRunner implements SkillRunner {
       env: {
         ...invocation.env,
         BRAID_SESSION_DIR: sessionDir,
+        // The active ontology's declared source roles, as JSON.
+        // A generic prompt reads this instead of naming role ids.
+        ...this.sourceRolesEnv(workspace),
+        // Absolute paths to the reference docs a prompt may Read,
+        // so no SKILL.md carries a location of its own.
+        ...this.referenceEnv(workspace, sessionDir),
         // BRAID_TOKEN is read by the braid-core MCP gateway,
         // and by any shell-level callback (curl in a SKILL.md),
         // so the subprocess can authenticate against the running server.
@@ -423,21 +436,25 @@ export class SubprocessSkillRunner implements SkillRunner {
   private async buildSessionDir(workspace: Workspace, runId: SkillRunId): Promise<string> {
     const sessionDir = sessionDirPath(workspace.rootPath, runId)
 
-    // Companion reference docs stay under `.claude/skills/<name>/`,
-    // so SKILL.md bodies keep reading `<cwd>/.claude/skills/shared/...`.
-    const docsDir = join(sessionDir, '.claude', 'skills')
-    await mkdir(docsDir, { recursive: true })
+    // Reference docs mount inside their own namespace's bundle,
+    // so a namespace owns one directory and its docs cannot drift from its skills.
+    // An agent loads components only from the names its plugin format defines,
+    // so `reference` stays inert there and is reached by the injected path.
     const linkedRefs = new Set<string>()
     for (const reference of this.deps.referenceDirs ?? []) {
-      if (linkedRefs.has(reference.name))
+      if (linkedRefs.has(reference.skillNamespace))
         continue
-      linkedRefs.add(reference.name)
-      await symlink(reference.path, join(docsDir, reference.name), 'dir')
+      linkedRefs.add(reference.skillNamespace)
+      const mount = this.referenceDir(sessionDir, reference.skillNamespace)
+      await mkdir(dirname(mount), { recursive: true })
+      await symlink(reference.path, mount, 'dir')
     }
 
-    // Invokable skills stage as one claude plugin per namespace, so a skill
-    // invokes as `/namespace:verb`. The colon lives only in the invocation
-    // token claude synthesises, never in a path, so the layout is portable.
+    // Invokable skills stage as one claude plugin per namespace,
+    // since a plugin is claude's only mechanism for `/namespace:verb`.
+    // The runner synthesises that bundle per run as an adapter alone,
+    // so an author ships a braid plugin and never writes a claude one.
+    // The colon lives in the invocation token, never in a path.
     const byNamespace = new Map<string, SkillManifest[]>()
     for (const manifest of await this.deps.skillRegistry.list(workspace)) {
       const { namespace } = splitSkillId(manifest.id)
@@ -466,7 +483,13 @@ export class SubprocessSkillRunner implements SkillRunner {
   }
 
   private skillBundleDir(sessionDir: string, namespace: string): string {
-    return join(sessionDir, '.braid-plugins', namespace)
+    return join(sessionDir, '.skill-bundles', namespace)
+  }
+
+  // Where a namespace's reference docs mount, inside that namespace's bundle,
+  // so everything one namespace owns lives under a single directory.
+  private referenceDir(sessionDir: string, namespace: string): string {
+    return join(this.skillBundleDir(sessionDir, namespace), 'reference')
   }
 
   // The plugin bundle dir for every namespace present in the workspace.
@@ -491,6 +514,44 @@ export class SubprocessSkillRunner implements SkillRunner {
       extraArgs: base.extraArgs,
       env: base.env,
     })
+  }
+
+  /**
+   * Absolute paths to the mounted reference dirs,
+   * `BRAID_SHARED_REFERENCE` for framework contracts,
+   * and `BRAID_ONTOLOGY_REFERENCE` for the active ontology.
+   * A variable is set only when that namespace ships reference docs,
+   * so a prompt can branch on absence instead of reading a dangling path.
+   * Paths derive from the session dir, so a resumed run resolves them unchanged.
+   */
+  private referenceEnv(workspace: Workspace, sessionDir: string): Record<string, string> {
+    const mounted = new Set((this.deps.referenceDirs ?? []).map(reference => reference.skillNamespace))
+    const ontologyNamespace = workspace.productManifest.ontologyId
+    return {
+      ...(mounted.has(BUILTIN_SKILL_NAMESPACE)
+        ? { BRAID_SHARED_REFERENCE: this.referenceDir(sessionDir, BUILTIN_SKILL_NAMESPACE) }
+        : {}),
+      ...(mounted.has(ontologyNamespace)
+        ? { BRAID_ONTOLOGY_REFERENCE: this.referenceDir(sessionDir, ontologyNamespace) }
+        : {}),
+    }
+  }
+
+  // Serialise the workspace ontology's source roles into a `BRAID_SOURCE_ROLES` env pair.
+  // Labels resolve to English so a prompt renders them without a locale map.
+  // Returns an empty object when no resolver is wired or the ontology declares no roles,
+  // so a skill that never reads the var is unaffected.
+  private sourceRolesEnv(workspace: Workspace): Record<string, string> {
+    const roles = this.deps.resolveSourceRoles?.(workspace) ?? []
+    if (roles.length === 0)
+      return {}
+    const wire = roles.map(role => ({
+      id: role.id,
+      label: localize(role.label, 'en'),
+      ...(role.pathSegment ? { pathSegment: role.pathSegment } : {}),
+      unitBearing: role.unitBearing === true,
+    }))
+    return { BRAID_SOURCE_ROLES: JSON.stringify(wire) }
   }
 
   private now(): string {

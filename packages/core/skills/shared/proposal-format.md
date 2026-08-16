@@ -7,7 +7,7 @@ What a skill puts on the wire for the `braid-core` proposal-create capability th
 - Status semantics on `node.status`.
 - The < 30 ops per proposal rule.
 
-For the `DriftIssue` shape on `node.metadata.driftIssues[]`, see `drift-detection.md`. For per-field content rules (description length, name format, rationale structure), see `content-conventions.md`. For per-ontology id prefix conventions and per-type description aspects, see the active ontology's `concept.md` (e.g. `<cwd>/.claude/skills/ontology-ddd/concept.md`). For the server-side validators that gate `createProposal`, see `validators.md`.
+For the `DriftIssue` shape on `node.metadata.driftIssues[]`, see `drift-detection.md`. For per-field content rules (description length, name format, rationale structure), see `content-conventions.md`. For per-ontology id prefix conventions and per-type description aspects, see the active ontology's `concept.md` at `$BRAID_ONTOLOGY_REFERENCE/concept.md`. For the server-side validators that gate `createProposal`, see `validators.md`.
 
 ## GraphOperation (Discriminated Union on `operation`)
 
@@ -34,14 +34,14 @@ Each entry in `operations[]` is one of:
 
 ```jsonc
 {
-  "id": "cmd.cancelOrder",          // optional; skill mints by convention (see ontology's concept.md)
-  "type": "command",                 // must match ontology nodeTypes[].id
-  "name": "cancelOrder",             // see content-conventions.md
+  "id": "<node-id>",                 // optional; skill mints by the ontology's convention (see its concept.md)
+  "type": "<nodeType id>",           // must match one of the ontology's nodeTypes[].id
+  "name": "<display name>",          // see content-conventions.md
   "description": "...",              // see content-conventions.md + ontology concept.md
   "status": "draft",                 // default 'draft'; promote to 'completed' only when sources align
   "metadata": {                      // required object
     "sourceReferences": [
-      { "sourceId": "src-intent", "location": { "uri": "...", "anchor": "..." } }
+      { "sourceId": "<a source id>", "location": { "uri": "...", "anchor": "..." } }
     ],
     "missingRoles": [],             // optional list of roles not yet evidenced
     "driftIssues": [ /* DriftIssue[]; see drift-detection.md */ ]
@@ -53,15 +53,15 @@ Each entry in `operations[]` is one of:
 
 ### Picking sourceReferences
 
-A node usually has more than one place it could cite: an intent doc plus one or more code files (backend definition, frontend binding, ORM model, UI page, test fixture, etc.). All of them are valid evidence, but order matters.
+A node usually has more than one place it could cite, spread across the workspace's declared source roles and often several files within one role. All of them are valid evidence, but order matters.
 
-**Lead with the most representative entry for this node's type** — the file that most directly *defines* or *invokes* the thing the node names. Then list supporting refs in decreasing specificity. For example:
+**Lead with the most representative entry for this node's type**: the file that most directly *defines* or *invokes* the thing the node names. Then list supporting refs in decreasing specificity. For example:
 
 - A node naming a **definition** (a type, a model, a schema, an invariant): lead with the file holding the canonical declaration; UI bindings, consumers, and prose mentions follow.
 - A node naming an **action** or **moment** (a request that changes state, an event emitted, a reaction): lead with the entry point that handles or emits it; supporting layers (validators, UI dispatchers, downstream subscribers) follow.
 - A node naming a **role**: lead with where the role's identity / scope is defined; the places it's consumed follow.
 
-Intent vs code is **not** a fixed order. Lead with whichever genuinely defines the node today — a fresh PRD with no implementation leads with intent; long-running code with no spec leads with code; both-aligned cases lead with whichever is more concrete for that type. Apply the same principle inside one source kind too (e.g. backend handler before its tests; ORM model before its migrations).
+Source role is **not** a fixed order. Lead with whichever role genuinely defines the node today: when only one role carries it, that role leads; when several align, lead with whichever is more concrete for that node's type. Apply the same principle inside one role too (e.g. a handler before its tests, a model before its migrations).
 
 The order is consumed by Studio's detail panel and `braid:generate-doc` as "the link a reader should click first." Drift detection treats every entry equally regardless of order.
 
@@ -69,10 +69,10 @@ The order is consumed by Studio's detail panel and `braid:generate-doc` as "the 
 
 ```jsonc
 {
-  "id": "edge.ctx-checkout-agg-order",  // optional; skill mints by convention
-  "type": "contains",                    // must match ontology edgeTypes[].id
-  "fromNodeId": "ctx.checkout",
-  "toNodeId": "agg.order",
+  "id": "<edge-id>",                     // optional; skill mints by the ontology's convention
+  "type": "<edgeType id>",               // must match one of the ontology's edgeTypes[].id
+  "fromNodeId": "<source node id>",
+  "toNodeId": "<target node id>",
   "metadata": { "sourceReferences": [] }
 }
 ```
