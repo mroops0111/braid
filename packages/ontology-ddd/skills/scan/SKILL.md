@@ -7,7 +7,7 @@ braid:
   category: build
   order: 50
   summary: Scan a codebase and produce extraction units
-  required-env: [BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
+  required-env: [BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE]
   hidden: true
 ---
 
@@ -30,26 +30,21 @@ This skill runs once when bootstrapping a workspace that has no intent docs (onl
 ## Initialization
 
 1. Read `$BRAID_WORKSPACE/PRODUCT.md` to discover the `role: code` sources and their `path` fields. Skip any `role: intent` sources.
-2. Verify the Knowledge Graph is empty via the `braid-core` MCP server. If non-empty, exit non-zero with a clear error — scan is for empty graphs only.
-3. Read `$BRAID_WORKSPACE/artifacts/batch-plan.json`. Confirm `plan.status === 'deriving'`. Refuse otherwise; the orchestrator owns this status flip.
+2. Verify the Knowledge Graph is empty via the `braid-core` MCP server. If non-empty, exit non-zero with a clear error. Scan is for empty graphs only.
+3. Read `$BRAID_WORKSPACE/artifacts/batch-plan.json` and confirm `plan.status === 'deriving'` per `$BRAID_SHARED_REFERENCE/batch-plan.md`.
 
 ## Procedure
 
 1. Walk each `role: code` source at `$BRAID_WORKSPACE/<path>` with Read / Grep / Glob. Look at the top-level layout: entry points, top-level modules, routing tables. Do not enter individual feature files unless the top-level layout demands it.
-2. Decide unit boundaries. Aim for a handful per codebase. Each unit must carry:
-   - `id`: short opaque id matching `pu-<8 hex>`; mint a fresh value per unit.
-   - `name`: business area name (≤ 60 chars).
+2. Decide unit boundaries. Aim for a handful per codebase. What a DDD unit carries:
+   - `name`: business area name.
    - `description`: 1-3 sentences naming the area and the code paths (file globs or directory prefixes) extract should consult first.
-   - `status: 'pending'`
-   - `proposalIds: []`
-   - `clarificationIds: []`
-3. Build the updated plan object by replacing only the `units` array. Leave every other field (`id`, `workspaceId`, `createdAt`, `updatedAt`, `mode`, `status`, `autoApply`, `baselineTag`) untouched — the orchestrator handles status transitions and timestamps after you exit.
+
+   The full required unit shape and the remaining fields live in `$BRAID_SHARED_REFERENCE/batch-plan.md`.
 
 ## Output
 
-Atomic write of the updated plan to `$BRAID_WORKSPACE/artifacts/batch-plan.json`. Use the tmp-file-then-rename pattern: write to `<path>.tmp-<pid>-<ts>`, then `mv` over the target. Partial writes corrupt the plan and break the orchestrator's `completed`-event recovery.
-
-You do not write any other files. You do not call any `braid-core` write capability.
+Rewrite `$BRAID_WORKSPACE/artifacts/batch-plan.json` per the write contract in `$BRAID_SHARED_REFERENCE/batch-plan.md`: replace only the `units` array, leave every other field untouched, and write atomically. That doc is the single source of truth for the plan-file mechanics.
 
 ## Completion Checklist
 
@@ -63,4 +58,8 @@ You do not write any other files. You do not call any `braid-core` write capabil
 
 ## Companion Docs
 
-None. Scan is self-contained. The downstream `ddd:extract` skill owns its own companion docs (ontology-specific shared/*.md files) when it picks up the unit.
+| File | When to read | Why |
+|---|---|---|
+| `$BRAID_SHARED_REFERENCE/batch-plan.md` | Initialization step 3 and Output | The plan-file write contract: preconditions, the required unit shape, which fields to leave untouched, and the atomic-write rule. Framework mechanics owned by core. |
+
+The downstream `ddd:extract` skill owns its own companion docs (ontology-specific shared/*.md files) when it picks up the unit.

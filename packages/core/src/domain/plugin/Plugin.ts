@@ -33,27 +33,6 @@ export interface PluginSkillRef {
   readonly directory: URL | string
 }
 
-/**
- * Pointer to a *shared reference* directory,
- * the plugin contributes it to every spawned skill session.
- * SubprocessSkillRunner symlinks the directory,
- * under `<session>/.claude/skills/<name>/`,
- * so any SKILL.md can read it regardless of which skill spawned the session.
- *
- * Use this for ontology / domain concept docs the plugin's skills assume,
- * instead of duplicating the content in every SKILL.md.
- * `name` becomes a subdirectory under `.claude/skills/`,
- * so pick a stable, namespaced value, e.g. `ontology-ddd`.
- */
-export interface PluginReferenceDirRef {
-  readonly name: string
-  /**
-   * Directory whose immediate contents get symlinked,
-   * into `<session>/.claude/skills/<name>/`.
-   */
-  readonly directory: URL | string
-}
-
 export interface Plugin {
   readonly id: PluginId
   readonly type: PluginType
@@ -62,16 +41,18 @@ export interface Plugin {
   readonly skills?: readonly PluginSkillRef[]
   /**
    * Namespace for this plugin's skill ids, composed as `<skillNamespace>:<verb>`.
-   * Required once `skills` is non-empty, the registry fails loudly otherwise.
+   * Required once `skills` or `referenceDir` is set, the registry fails loudly otherwise.
    * An ontology plugin sets it to its `ontologyId`.
    */
   readonly skillNamespace?: string
   /**
-   * Reference directories symlinked into every skill session,
-   * under `<session>/.claude/skills/<name>/`.
-   * Omitted when the plugin contributes none.
+   * Directory of reference docs this plugin's skills Read but never invoke,
+   * such as an ontology concept doc.
+   * The runner mounts it under `skillNamespace` and passes the absolute path,
+   * so no SKILL.md carries a location of its own.
+   * A `URL` is accepted for `new URL('../skills/shared', import.meta.url)`.
    */
-  readonly referenceDirs?: readonly PluginReferenceDirRef[]
+  readonly referenceDir?: URL | string
   initialize?: (context: PluginContext) => Promise<void>
   dispose?: () => Promise<void>
 }

@@ -7,7 +7,7 @@ braid:
   category: build
   order: 100
   summary: Extract domain nodes/edges from PRDs and code
-  required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
+  required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
   inputs:
     - name: scope
       label: Intent
@@ -41,7 +41,7 @@ This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its 
 ## Initialization
 
 1. Read `$BRAID_WORKSPACE/PRODUCT.md` to learn the active `ontologyId`, sources, and any extra MCP servers.
-2. Run `pwd` to capture your working directory. Companion docs (§ Companion Docs) live at `<cwd>/.claude/skills/shared/`; concatenate when you Read them.
+2. Note `$BRAID_SHARED_REFERENCE` (framework contracts) and `$BRAID_ONTOLOGY_REFERENCE` (the active ontology). Companion docs (§ Companion Docs) live under those paths; concatenate when you Read them.
 3. Fetch the active ontology via `braid-core` to learn the canonical list of valid node and edge type ids. Every `node.type` / `edge.type` you emit MUST equal one of `nodeTypes[].id` / `edgeTypes[].id`. Case-sensitive. If you find yourself wanting `context` or `CONTAINS`, re-read the ontology response.
 4. Fetch the current graph snapshot via `braid-core` to know what's already there.
 5. Parse `$ARGUMENTS` (bounded-context name, file path, sub-dir, or empty).
@@ -62,7 +62,7 @@ Cap each proposal at < 30 operations. Split into multiple proposals if needed.
 
 ### Step 2: Derive Candidate Operations
 
-Map the signals in intent / code to ontology types. The shape of an id is a hint for humans; the `type` field is the contract. **All vocabulary, wiring rules, policy pattern, Context Mapping rules, ID prefixes, and per-type description aspects are in `<cwd>/.claude/skills/ontology-ddd/concept.md`.** Consult it before authoring any operation.
+Map the signals in intent / code to ontology types. The shape of an id is a hint for humans; the `type` field is the contract. **All vocabulary, wiring rules, policy pattern, Context Mapping rules, ID prefixes, and per-type description aspects are in `$BRAID_ONTOLOGY_REFERENCE/concept.md`.** Consult it before authoring any operation.
 
 For each candidate node compared to the current graph:
 
@@ -108,7 +108,7 @@ Outcomes: 201 means move on. 400 (`code: BRAID-VAL`) means fix the cited `issues
 
 Use the `braid-core` clarification-create capability with the question text and the candidate list. Each candidate must carry its own `proposedOperations`; the human's pick determines which ops run on Apply.
 
-Before writing the `question` and each `candidate.description`, re-read `<cwd>/.claude/skills/ontology-ddd/concept.md` § Clarifications: Reviewer Pool and Vocabulary. The reviewer pool for DDD workspaces is the cross-functional team (PM, RD, QA, designer); the clarification fields must read in their ubiquitous language, not in graph topology or code identifiers. Lower graph terms, exact node ids, and the engineering reasoning into the clarification's `context` field instead, which has no audience constraint.
+Before writing the `question` and each `candidate.description`, re-read `$BRAID_ONTOLOGY_REFERENCE/concept.md` § Clarifications: Reviewer Pool and Vocabulary. The reviewer pool for DDD workspaces is the cross-functional team (PM, RD, QA, designer); the clarification fields must read in their ubiquitous language, not in graph topology or code identifiers. Lower graph terms, exact node ids, and the engineering reasoning into the clarification's `context` field instead, which has no audience constraint.
 
 ## Output
 
@@ -134,16 +134,17 @@ Produced N proposals + M clarifications:
 
 ## Companion Docs
 
-Companion docs sit at `<cwd>/.claude/skills/shared/` (core) and `<cwd>/.claude/skills/ontology-ddd/` (this plugin), where `<cwd>` is the value captured in Initialization step 2.
+Companion docs live under `$BRAID_SHARED_REFERENCE/` (framework contracts, owned by core) and `$BRAID_ONTOLOGY_REFERENCE/` (this ontology). Both absolute paths arrive in the environment; this prompt never assumes a location.
 
 | File | When to read | Why |
 |---|---|---|
-| `.claude/skills/ontology-ddd/concept.md` | **Before Step 2 and any time you author a node / edge** | The DDD vocabulary, wiring rules, policy pattern, Context Mapping rules, ID prefix conventions, and per-type description aspects. The contract for everything Step 2 does. |
-| `.claude/skills/shared/proposal-format.md` | Before Step 4 | `GraphOperation` discriminated union, `DriftIssue` shape, status semantics, sizing. |
-| `.claude/skills/shared/clarification-format.md` | Before Step 5 | `Clarification` request body and candidate shape. |
-| `.claude/skills/shared/content-conventions.md` | Whenever writing a `name`, `description`, `rationale`, or `question` | Plain-text rule, length caps, structural conventions for every user-facing string field. |
-| `.claude/skills/shared/validators.md` | Before Step 4 | The four server-side validators; self-check ops here so they don't hit a 400 unnecessarily. |
-| `.claude/skills/shared/drift-detection.md` | Step 3, when two sources disagree on a field | Dimension checklist + description pattern for `DriftIssue` entries; severity rules. |
+| `$BRAID_ONTOLOGY_REFERENCE/concept.md` | **Before Step 2 and any time you author a node / edge** | The DDD vocabulary, wiring rules, policy pattern, Context Mapping rules, ID prefix conventions, and per-type description aspects. The contract for everything Step 2 does. |
+| `$BRAID_SHARED_REFERENCE/proposal-format.md` | Before Step 4 | `GraphOperation` discriminated union, `DriftIssue` shape, status semantics, sizing. |
+| `$BRAID_SHARED_REFERENCE/clarification-format.md` | Before Step 5 | `Clarification` request body and candidate shape. |
+| `$BRAID_SHARED_REFERENCE/content-conventions.md` | Whenever writing a `name`, `description`, `rationale`, or `question` | Plain-text rule, length caps, structural conventions for every user-facing string field. |
+| `$BRAID_SHARED_REFERENCE/validators.md` | Before Step 4 | The four server-side validators; self-check ops here so they don't hit a 400 unnecessarily. |
+| `$BRAID_SHARED_REFERENCE/drift-detection.md` | Step 3, when two sources disagree on a field | The framework `DriftIssue` contract: dimension checklist, description pattern, severity rules, JSON shape. Role-agnostic. |
+| `$BRAID_ONTOLOGY_REFERENCE/concept.md` § Drift | Step 3, alongside `drift-detection.md` | The DDD framing (intent vs code) and worked example findings per dimension. |
 
 ## Notes
 

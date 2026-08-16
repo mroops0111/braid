@@ -7,7 +7,7 @@ braid:
   category: build
   order: 200
   summary: Resolve answered clarifications into proposals
-  required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID]
+  required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
   inputs:
     - name: clarification
       label: Clarification
@@ -39,7 +39,7 @@ The reviewer's chosen candidate is the contract. You do not reinvent the answer.
 ## Initialization
 
 1. Read `$BRAID_WORKSPACE/PRODUCT.md` to confirm the workspace id and ontology id.
-2. Run `pwd` to capture your working directory. Companion docs (§ Companion Docs) live at `<cwd>/.claude/skills/shared/`; concatenate when you Read them.
+2. Note `$BRAID_SHARED_REFERENCE` (framework contracts) and `$BRAID_ONTOLOGY_REFERENCE` (the active ontology). Companion docs (§ Companion Docs) live under those paths; concatenate when you Read them.
 3. Parse `$ARGUMENTS`:
    - A specific clarification id: process that one.
    - `all` or empty: use the `braid-core` clarification-list capability with `status: 'answered'` and iterate.
@@ -122,14 +122,14 @@ Processed N clarifications: M proposals produced, K new clarifications raised, L
 
 ## Companion Docs
 
-Companion docs sit at `<cwd>/.claude/skills/shared/` (core) and `<cwd>/.claude/skills/ontology-ddd/` (this plugin), where `<cwd>` is the value captured in Initialization step 2.
+Companion docs live under `$BRAID_SHARED_REFERENCE/` (framework contracts, owned by core) and `$BRAID_ONTOLOGY_REFERENCE/` (this ontology). Both absolute paths arrive in the environment; this prompt never assumes a location.
 
 | File | When to read | Why |
 |---|---|---|
-| `.claude/skills/ontology-ddd/concept.md` | Before Step 2 | DDD wiring rules; needed when sanity-checking the reviewer's chosen ops against current invariants. |
-| `.claude/skills/shared/proposal-format.md` | Before Step 3 | `GraphOperation` variants, status semantics, sizing. |
-| `.claude/skills/shared/content-conventions.md` | If you author a new Clarification in Step 2 | Question / candidate-description / rationale conventions. |
-| `.claude/skills/shared/validators.md` | Before Step 3 | The four server-side validators; self-check supplementary ops here so they don't hit a 400 unnecessarily. |
+| `$BRAID_ONTOLOGY_REFERENCE/concept.md` | Before Step 2 | DDD wiring rules; needed when sanity-checking the reviewer's chosen ops against current invariants. |
+| `$BRAID_SHARED_REFERENCE/proposal-format.md` | Before Step 3 | `GraphOperation` variants, status semantics, sizing. |
+| `$BRAID_SHARED_REFERENCE/content-conventions.md` | If you author a new Clarification in Step 2 | Question / candidate-description / rationale conventions. |
+| `$BRAID_SHARED_REFERENCE/validators.md` | Before Step 3 | The four server-side validators; self-check supplementary ops here so they don't hit a 400 unnecessarily. |
 
 ## Notes
 

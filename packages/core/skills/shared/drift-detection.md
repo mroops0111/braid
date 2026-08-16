@@ -1,6 +1,8 @@
 # Drift Detection
 
-When you read more than one source for the same concept (intent file + code, two intent files, two code layers), the sources can disagree. That disagreement is **drift**. This file tells you when to emit a structured `DriftIssue` so the graph carries that signal forward; the proposal review pane and the apply-gate consume it automatically.
+When two sources for the same concept disagree, that disagreement is **drift**. This file is the framework contract for recording drift as a structured `DriftIssue` so the graph carries the signal forward; the proposal review pane and the apply-gate consume it automatically.
+
+It names no source role. Which roles a workspace has, and what they mean, comes from the injected role list (`$BRAID_SOURCE_ROLES`); compare whatever sources a node actually cites. An ontology may ship worked, domain-specific examples in its own reference doc.
 
 Drift is observed, not invented. If you can't point at two specific sources that disagree, you don't have drift. You have a question, and that belongs in a `Clarification`.
 
@@ -8,13 +10,12 @@ Drift is observed, not invented. If you can't point at two specific sources that
 
 ## When to Look
 
-You compare two sources whenever a node has evidence from both. Three comparison shapes:
+Compare two sources whenever a node has evidence from both. Two comparison shapes, framed by the node's source roles:
 
-| Comparison | Typical setup |
+| Comparison | Setup |
 |---|---|
-| **intent vs code** | Node has both an intent ref (under `intent/`) and a code ref. The most common case. |
-| **code vs code** | Multi-layer codebases: backend handler vs frontend client, controller vs service, etc. |
-| **intent vs intent** | Multiple intent files describe the same concept (e.g. two PRDs that overlap). |
+| **Cross-role** | The node cites two sources of different roles (e.g. a source that specifies against one that realises). The most common case. |
+| **Intra-role** | The node cites two sources of the same role (e.g. two layers of one source, or two overlapping documents). |
 
 Drift is local to one node. Every `DriftIssue` belongs in that node's `metadata.driftIssues`.
 
@@ -22,21 +23,21 @@ Drift is local to one node. Every `DriftIssue` belongs in that node's `metadata.
 
 ## What to Compare (Dimensions)
 
-Use this taxonomy as a checklist when reading the two sources. Cover the dimensions that the sources actually have content on; skip the rest. Don't force every node into every dimension.
+Use this taxonomy as a checklist when reading the two sources. Cover the dimensions the sources actually have content on; skip the rest. Don't force every node into every dimension.
 
 | Dimension | Look for | Example finding |
 |---|---|---|
-| `existence` | One source describes a concept the other doesn't mention | "Intent describes `cancelOrder` command; no implementation found in `apps/api/order/`" |
-| `terminology` | Same concept, different name; or same name, different concept | "Intent calls them `buyers`, code uses `customer` (which also covers anonymous guests)" |
-| `sequence` | Order of steps in a flow | "Intent: validate quota then debit. Code: debits first, then validates quota at `order.service.ts:88`" |
-| `params` | Input / output field set | "Intent lists 8 field types for line items; code accepts 10 (extras: `currency`, `regex`)" |
-| `states` | Enumerated states / status machine | "Intent: 5 order states. Code enum has 6 (extra: `archived`)" |
-| `rules` | Business rules / validation thresholds | "Intent: max 50 line items per order. Code: `<= 99` at `validator.ts:14`" |
-| `permissions` | Role / actor / authorisation checks | "Intent: only `buyer` can cancel. Code also requires `org.admin` at `policy.ts:31`" |
-| `limits` | Numeric caps that differ across layers (code-vs-code) | "Backend `approval_step` has no cap (-1); frontend hardcodes `max=99`" |
-| `api-contract` | Wire format between layers | "Frontend POSTs `{ couponCode }`; backend handler doesn't read it" |
-| `errors` | Error code coverage | "Backend returns `quota_exceeded`; frontend has no matching message" |
-| `feature-coverage` | One layer ships a feature the other lacks | "Frontend has 'share order' UI; backend has no endpoint" |
+| `existence` | One source describes a concept the other doesn't mention | "One source defines an operation the other never realises" |
+| `terminology` | Same concept, different name; or same name, different concept | "One source's name for a concept quietly covers a second case the other keeps separate" |
+| `sequence` | Order of steps in a flow | "One source validates then commits; the other commits first" |
+| `params` | Input / output field set | "One source lists 8 fields; the other accepts 10" |
+| `states` | Enumerated states / status machine | "One source names 5 states; the other has 6" |
+| `rules` | Rules / validation thresholds | "One source caps a quantity at 50; the other allows 99" |
+| `permissions` | Role / actor / authorisation checks | "One source allows a single actor; the other also requires an admin" |
+| `limits` | Numeric caps that differ across sources | "One source sets no cap; the other hardcodes a maximum" |
+| `api-contract` | Wire format between a producer and a consumer | "A caller sends a field the receiver never reads" |
+| `errors` | Error code coverage | "A producer returns an error the consumer has no handling for" |
+| `feature-coverage` | One source ships a capability the other lacks | "One source exposes an action the other has no counterpart for" |
 
 These are guidance, not enum values; the schema doesn't enforce them. Pick whichever fits the finding; if none fits, write the finding anyway with the best fit.
 
@@ -46,12 +47,12 @@ These are guidance, not enum values; the schema doesn't enforce them. Pick which
 
 Don't raise a `DriftIssue` for:
 
-- Style differences (camelCase vs snake_case, English vs Chinese phrasing). Names mean the same thing.
-- High-level intent vs low-level implementation detail (intent says "compute total price", code has 12 lines of arithmetic; that's expected, not drift).
+- Style differences (camelCase vs snake_case, one natural language vs another). Names mean the same thing.
+- High-level description vs low-level detail (one source says "compute the total", the other spells out the arithmetic; that's expected, not drift).
 - A role missing at the *whole-node* level (only some roles have evidence so far): that's already covered by `metadata.missingRoles` on the node. Use `DriftIssue` for field-level drift on a shared concept.
 - Vague suspicions ("I think these might differ but couldn't verify"). Either confirm with a specific cite or skip. Drift is structured evidence, not impressions.
 
-If the disagreement makes you unsure which concept these even *are* (two different `cancelOrder` candidates? same? distinct?), you don't have field-level drift; you have an identity question. Emit a `Clarification`, not a `DriftIssue`.
+If the disagreement makes you unsure which concept these even *are* (two candidates that might be the same, might be distinct), you don't have field-level drift; you have an identity question. Emit a `Clarification`, not a `DriftIssue`.
 
 ---
 
@@ -68,13 +69,13 @@ The description goes straight to a human reviewer. It must:
 
 **Good example:**
 
-> Intent (`intent/order.md` §"Quota") caps line items at 50; code at `apps/api/order/validator.ts:14` allows up to 99. Extra line items currently silently fail a downstream DB unique check.
+> Source A (the specification) caps line items at 50; source B (the implementation) allows up to 99. Extra line items currently fail silently downstream.
 
 **Avoid:**
 
 - "Symbol name mismatch." (abstract metadata, no business meaning)
 - "Drift detected on params." (taxonomy without specifics)
-- "The intent and code don't match." (no cite, no impact)
+- "The two sources don't match." (no cite, no impact)
 
 ---
 
@@ -101,11 +102,11 @@ If you find drift across multiple dimensions for one node, emit one `DriftIssue`
 ```json
 {
   "id": "drift-{shortRandom}",
-  "description": "Intent (intent/order.md §Quota) caps line items at 50; code at apps/api/order/validator.ts:14 allows up to 99.",
+  "description": "Source A caps line items at 50; source B allows up to 99.",
   "severity": "error",
   "sourceReferences": [
-    { "sourceId": "src-intent", "location": { "uri": "intent/order.md", "anchor": "Quota" } },
-    { "sourceId": "src-code", "location": { "uri": "apps/api/order/validator.ts", "startLine": 14 } }
+    { "sourceId": "src-a", "location": { "uri": "spec.md", "anchor": "Limits" } },
+    { "sourceId": "src-b", "location": { "uri": "impl.ext", "startLine": 14 } }
   ],
   "raisedAt": "2026-05-24T10:15:00+08:00"
 }

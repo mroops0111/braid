@@ -1,8 +1,8 @@
 # DDD Ontology Concept
 
-The shared concept document for `@braidhq/ontology-ddd`. Every DDD-resident skill (`ddd:extract`, `ddd:clarify`, `ddd:reconcile`) consults this file before authoring nodes / edges, so the vocabulary, wiring rules, and authoring conventions live in one place instead of being duplicated in each Procedure.
+The shared concept document for `@braidhq/ontology-ddd`. Every DDD-resident skill (`ddd:extract`, `ddd:clarify`, `ddd:reconcile`, `ddd:scan`) consults this file before authoring nodes / edges, so the vocabulary, wiring rules, and authoring conventions live in one place instead of being duplicated in each Procedure.
 
-Skills read this at `<cwd>/.claude/skills/ontology-ddd/concept.md`, where `<cwd>` is the working directory each SKILL.md captures in its Initialization step.
+Skills read this at `$BRAID_ONTOLOGY_REFERENCE/concept.md`, an absolute path the framework injects. No prompt assumes a location of its own.
 
 ## Vocabulary
 
@@ -88,6 +88,16 @@ Node and edge ids are minted by the skill following the ontology-style dotted co
 | Policy | `policy.` | `policy.notifyShipping` |
 | Edge | `edge.<slug>` | `edge.ctx-checkout-agg-order` |
 
+## Naming Style (Per Type)
+
+Core's `content-conventions.md` sets the generic `node.name` rule (match a code identifier when one clearly maps, otherwise a descriptive title). These are the per-type specifics for DDD:
+
+| Types | Style | Examples |
+|---|---|---|
+| `command`, `query`, `event` | Match the code identifier when there's a clear mapping. | `CreateOrder`, `OrderPlaced` |
+| `boundedContext`, `aggregate`, `actor` | Descriptive title. | `Order Checkout`, `Order`, `Buyer` |
+| `rule`, `policy` | Noun phrase that reads as the invariant or reaction. | `Max Line Items`, `Notify Shipping` |
+
 ## Description Authoring (Per Type)
 
 `description` is markdown (see `content-conventions.md`); aim for several short paragraphs that convey causality, not just identity. The table below lists *topics* each type should address; pick the ones the source grounds, skip the rest, never invent.
@@ -136,8 +146,40 @@ Worked contrast (same underlying ambiguity, two ways of writing it):
 | `candidate.description` | "Add an emits edge from Ingest Source to Source Synced" | "Treat the first connect like every later refresh: extract automatically." |
 | `context` | (engineering reasoning belongs here) | "cmd.ingestSource currently has no emits edge; cmd.syncSource emits evt.sourceSynced; the reactor reacts only to source.synced." |
 
+## Drift: DDD Framing and Worked Examples
+
+Core's `drift-detection.md` holds the framework contract for a `DriftIssue`: its JSON shape, severity semantics, the dimension taxonomy, and when to emit one versus a `Clarification`. That doc names no source role. This section grounds it in DDD's two roles, `intent` and `code`, with the concrete examples a codebase-plus-spec workspace produces.
+
+**Comparison shapes for a DDD workspace:**
+
+| Comparison | Typical setup |
+|---|---|
+| intent vs code | A node has both an intent ref (under `intents/`) and a code ref. The most common case. |
+| code vs code | Multi-layer codebases: backend handler vs frontend client, controller vs service, etc. |
+| intent vs intent | Multiple intent files describe the same concept (e.g. two PRDs that overlap). |
+
+**Worked example findings, by dimension:**
+
+| Dimension | Example finding |
+|---|---|
+| `existence` | "Intent describes `cancelOrder` command; no implementation found in `apps/api/order/`" |
+| `terminology` | "Intent calls them `buyers`, code uses `customer` (which also covers anonymous guests)" |
+| `sequence` | "Intent: validate quota then debit. Code: debits first, then validates quota at `order.service.ts:88`" |
+| `params` | "Intent lists 8 field types for line items; code accepts 10 (extras: `currency`, `regex`)" |
+| `states` | "Intent: 5 order states. Code enum has 6 (extra: `archived`)" |
+| `rules` | "Intent: max 50 line items per order. Code: `<= 99` at `validator.ts:14`" |
+| `permissions` | "Intent: only `buyer` can cancel. Code also requires `org.admin` at `policy.ts:31`" |
+| `limits` | "Backend `approval_step` has no cap (-1); frontend hardcodes `max=99`" |
+| `api-contract` | "Frontend POSTs `{ couponCode }`; backend handler doesn't read it" |
+| `errors` | "Backend returns `quota_exceeded`; frontend has no matching message" |
+| `feature-coverage` | "Frontend has 'share order' UI; backend has no endpoint" |
+
+**Description example (DDD):**
+
+> Intent (`intents/order.md` §"Quota") caps line items at 50; code at `apps/api/order/validator.ts:14` allows up to 99. Extra line items currently silently fail a downstream DB unique check.
+
 ## Where This Doc Sits in the Architecture
 
-This file is shipped by `@braidhq/ontology-ddd` via its `Plugin.referenceDirs[]`. The runner symlinks it into every spawned skill session under `<session>/.claude/skills/ontology-ddd/`. Any DDD-resident skill consults it; non-DDD ontologies would ship their own equivalent under their own plugin name.
+This file is shipped by `@braidhq/ontology-ddd` via its `Plugin.referenceDir`. The runner mounts it into every spawned skill session under this ontology's own skill namespace, and hands each skill the absolute path as `$BRAID_ONTOLOGY_REFERENCE`. Any DDD-resident skill consults it. A non-DDD ontology ships its own equivalent, mounted under its own namespace and reached through the same variable, so no prompt changes when the ontology does.
 
 When the DDD ontology evolves (new types, new wiring rules, refined ID conventions), update this file and the corresponding `NodeTypeDescriptor.description` / `EdgeTypeDescriptor.description` in `DDDOntologyPlugin.ts` together. The descriptors are the runtime contract; this doc is the prose explanation.
