@@ -6,7 +6,7 @@ disable-model-invocation: true
 braid:
   category: ask
   summary: Answer questions from the graph and the workspace's declared sources
-  required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SOURCE_ROLES, BRAID_SHARED_REFERENCE]
+  required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SOURCE_ROLES, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
   allowed-roles: [owner, maintainer, guest]
   inputs:
     - name: question
@@ -39,7 +39,7 @@ You answer the question and surface discrepancies between what the sources say. 
 
 1. Read `$BRAID_WORKSPACE/PRODUCT.md` for source paths and declared MCP servers.
 2. Parse `$BRAID_SOURCE_ROLES`: a JSON array of the workspace ontology's source roles, each `{ id, label, pathSegment, unitBearing }`. This is your source vocabulary for the rest of the run. A role's sources live under `$BRAID_WORKSPACE/<pathSegment>/`. Never name a role the list does not contain.
-3. Note `$BRAID_SHARED_REFERENCE`, the absolute path to the framework's reference docs. Companion docs (§ Companion Docs) live under it; concatenate when you Read them.
+3. Note `$BRAID_SHARED_REFERENCE` (framework contracts) and `$BRAID_ONTOLOGY_REFERENCE` (the active ontology). Companion docs (§ Companion Docs) live under those paths; concatenate when you Read them.
 4. Detect whether the graph is populated by calling the `braid-core` node-search capability with `limit: 1`. If the result has zero items, the graph isn't yet built; fall back to the declared source roles.
 5. Parse the question argument; identify keywords and scope hints.
 
@@ -63,7 +63,7 @@ If `PRODUCT.md` declares additional MCP sources (Redmine / XWiki / Notion / Line
 
 ### Step 5: Check Consistency Dimensions
 
-Compare the sources against each other on the dimensions relevant to the question. `drift-detection.md` carries the canonical taxonomy (`existence`, `terminology`, `sequence`, `params`, `states`, `rules`, `permissions`, `limits`, `api-contract`, `errors`, `feature-coverage`) plus the description pattern; consult it when classifying or writing a finding. Pick the dimensions that the question and the sources actually have content on, not every one in the taxonomy.
+Compare the sources against each other on the dimensions relevant to the question. `drift-detection.md` carries the description pattern, and the active ontology's `concept.md` names the dimensions worth checking. Consult both when classifying or writing a finding. Pick the dimensions that the question and the sources actually have content on, not every one the ontology lists.
 
 ## Output
 
@@ -111,7 +111,7 @@ Produce two sections separated by `---`.
 
 ### Consistency Technical Detail
 
-| Dimension | {source A role} | {source B role} | Status |
+| Dimension | {Role A} | {Role B} | Status |
 |---|---|---|---|
 | ... | ... | ... | ✅/⚠️ |
 
@@ -133,11 +133,12 @@ Produce two sections separated by `---`.
 
 ## Companion Docs
 
-Companion docs live under `$BRAID_SHARED_REFERENCE/`, an absolute path that arrives in the environment; this prompt never assumes a location.
+Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
 
-| File | When to read | Why |
+| File | When to Read | Why |
 |---|---|---|
-| `$BRAID_SHARED_REFERENCE/drift-detection.md` | Step 5, when describing a finding | The full consistency-dimension taxonomy and the description pattern for writing cross-source drift in a way reviewers can act on. |
+| `$BRAID_SHARED_REFERENCE/drift-detection.md` | Step 5, when describing a finding | What counts as drift, and the description pattern for writing it so reviewers can act on it. |
+| `$BRAID_ONTOLOGY_REFERENCE/concept.md` | Step 5, before classifying a finding | The dimensions this ontology considers worth checking. Read the list rather than assuming one. |
 | `$BRAID_SHARED_REFERENCE/content-conventions.md` | When composing the Output sections | Plain-text rule, length targets, structural conventions for the Answer / Sources / Consistency prose. |
 
 ## Notes

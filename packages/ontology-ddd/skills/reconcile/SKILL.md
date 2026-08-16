@@ -102,7 +102,7 @@ Add `triggers`, `dependsOn`, `policy` chains, and aggregate-wide `constrainedBy`
 
 `ddd:extract` checks drift on a single slice at a time. From the global view, also catch:
 
-| Drift shape | What to look for |
+| Drift Shape | What to Look for |
 |---|---|
 | **intent vs intent** | Same concept described in two intent files with different limits / states / rules |
 | **code vs code** | A node's code refs include layers that disagree (backend vs frontend; controller vs service) |
@@ -161,17 +161,17 @@ In `validate` mode, omit the `bridges` figure and prefix with `(validate-only)`.
 
 ## Companion Docs
 
-Companion docs live under `$BRAID_SHARED_REFERENCE/` (framework contracts, owned by core) and `$BRAID_ONTOLOGY_REFERENCE/` (this ontology). Both absolute paths arrive in the environment; this prompt never assumes a location.
+Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
 
-| File | When to read | Why |
+| File | When to Read | Why |
 |---|---|---|
 | `$BRAID_ONTOLOGY_REFERENCE/concept.md` | **Before Steps 1-3 and any time you author a bridge edge** | The DDD vocabulary, wiring rules, policy pattern, Context Mapping rules. Anchors every structural decision Part 1 makes. |
 | `$BRAID_SHARED_REFERENCE/proposal-format.md` | Before Step 7 | `GraphOperation` discriminated union, `DriftIssue` shape, status semantics. |
 | `$BRAID_SHARED_REFERENCE/clarification-format.md` | Before Step 8 | `Clarification` request body and candidate shape. |
 | `$BRAID_SHARED_REFERENCE/content-conventions.md` | Whenever writing a `name`, `description`, `rationale`, or `question` | Plain-text rule, length caps, structural conventions for every user-facing string field. |
 | `$BRAID_SHARED_REFERENCE/validators.md` | Before Step 7 | The four server-side validators; self-check ops here so they don't hit a 400 unnecessarily. |
-| `$BRAID_SHARED_REFERENCE/drift-detection.md` | Step 3 | The framework `DriftIssue` contract: dimension checklist, description pattern, severity rules. Role-agnostic. |
-| `$BRAID_ONTOLOGY_REFERENCE/concept.md` § Drift | Step 3, alongside `drift-detection.md` | The DDD framing (intent vs code) and worked example findings per dimension. |
+| `$BRAID_SHARED_REFERENCE/drift-detection.md` | Step 3 | The framework `DriftIssue` contract, description pattern, severity rules. |
+| `$BRAID_ONTOLOGY_REFERENCE/concept.md` § Drift Dimensions | Step 3, alongside `drift-detection.md` | The dimensions DDD checks, with a worked example finding for each. |
 
 ## Notes
 

@@ -52,7 +52,7 @@ This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its 
 
 Derive which sources to read from the scope hint:
 
-| Hint shape | Intent sources | Code sources |
+| Hint Shape | Intent Sources | Code Sources |
 |---|---|---|
 | Bounded-context name (e.g. `checkout`) | `$BRAID_WORKSPACE/intent/**/*checkout*.md` plus topical subdirs | `$BRAID_WORKSPACE/code/**/checkout/**` plus imports / importers |
 | File path (e.g. `apps/api/checkout/order.ts`) | The file plus intent sections naming the file's symbols | That file plus its import / imported-by chain |
@@ -90,7 +90,7 @@ You can't tell whether two sources are describing the *same* concept (alias or d
 
 #### Field-Level Drift: DriftIssue Attached to the Node
 
-The sources agree on *what* this is, but disagree on *specifics*: a limit, a state set, a parameter list, a sequence of steps. Don't drop into a Clarification. Emit the node anyway and attach one structured `DriftIssue` per dimension to its `metadata.driftIssues[]`. Set `status: 'unclear'` instead of `draft` when at least one DriftIssue is `severity: 'error'`. Read `drift-detection.md` for the dimension checklist, description pattern, severity rules, and the JSON shape.
+The sources agree on *what* this is, but disagree on *specifics*: a limit, a state set, a parameter list, a sequence of steps. Don't drop into a Clarification. Emit the node anyway and attach one structured `DriftIssue` per dimension to its `metadata.driftIssues[]`. Set `status: 'unclear'` instead of `draft` when at least one DriftIssue is `severity: 'error'`. Read `drift-detection.md` for the description pattern, severity rules, and JSON shape, and `concept.md` § Drift Dimensions for the axes to check.
 
 This split is load-bearing: Clarifications are "the human must decide what this is", DriftIssues are "the human can see two sources disagree and act on the proposal review pane". Conflating them buries field-level drift in clarification prose where the validator can't gate Apply.
 
@@ -134,17 +134,17 @@ Produced N proposals + M clarifications:
 
 ## Companion Docs
 
-Companion docs live under `$BRAID_SHARED_REFERENCE/` (framework contracts, owned by core) and `$BRAID_ONTOLOGY_REFERENCE/` (this ontology). Both absolute paths arrive in the environment; this prompt never assumes a location.
+Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
 
-| File | When to read | Why |
+| File | When to Read | Why |
 |---|---|---|
 | `$BRAID_ONTOLOGY_REFERENCE/concept.md` | **Before Step 2 and any time you author a node / edge** | The DDD vocabulary, wiring rules, policy pattern, Context Mapping rules, ID prefix conventions, and per-type description aspects. The contract for everything Step 2 does. |
 | `$BRAID_SHARED_REFERENCE/proposal-format.md` | Before Step 4 | `GraphOperation` discriminated union, `DriftIssue` shape, status semantics, sizing. |
 | `$BRAID_SHARED_REFERENCE/clarification-format.md` | Before Step 5 | `Clarification` request body and candidate shape. |
 | `$BRAID_SHARED_REFERENCE/content-conventions.md` | Whenever writing a `name`, `description`, `rationale`, or `question` | Plain-text rule, length caps, structural conventions for every user-facing string field. |
 | `$BRAID_SHARED_REFERENCE/validators.md` | Before Step 4 | The four server-side validators; self-check ops here so they don't hit a 400 unnecessarily. |
-| `$BRAID_SHARED_REFERENCE/drift-detection.md` | Step 3, when two sources disagree on a field | The framework `DriftIssue` contract: dimension checklist, description pattern, severity rules, JSON shape. Role-agnostic. |
-| `$BRAID_ONTOLOGY_REFERENCE/concept.md` § Drift | Step 3, alongside `drift-detection.md` | The DDD framing (intent vs code) and worked example findings per dimension. |
+| `$BRAID_SHARED_REFERENCE/drift-detection.md` | Step 3, when two sources disagree on a field | The framework `DriftIssue` contract, description pattern, severity rules, JSON shape. |
+| `$BRAID_ONTOLOGY_REFERENCE/concept.md` § Drift Dimensions | Step 3, alongside `drift-detection.md` | The dimensions DDD checks, with a worked example finding for each. |
 
 ## Notes
 

@@ -58,8 +58,8 @@ Rewrite `$BRAID_WORKSPACE/artifacts/batch-plan.json` per the write contract in `
 
 ## Companion Docs
 
-| File | When to read | Why |
+| File | When to Read | Why |
 |---|---|---|
-| `$BRAID_SHARED_REFERENCE/batch-plan.md` | Initialization step 3 and Output | The plan-file write contract: preconditions, the required unit shape, which fields to leave untouched, and the atomic-write rule. Framework mechanics owned by core. |
+| `$BRAID_SHARED_REFERENCE/batch-plan.md` | Initialization step 3 and Output | The plan-file write contract: preconditions, the required unit shape, which fields to leave untouched, and the atomic-write rule. |
 
 The downstream `ddd:extract` skill owns its own companion docs (ontology-specific shared/*.md files) when it picks up the unit.

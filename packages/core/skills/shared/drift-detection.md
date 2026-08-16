@@ -23,23 +23,9 @@ Drift is local to one node. Every `DriftIssue` belongs in that node's `metadata.
 
 ## What to Compare (Dimensions)
 
-Use this taxonomy as a checklist when reading the two sources. Cover the dimensions the sources actually have content on; skip the rest. Don't force every node into every dimension.
+A **dimension** names the axis on which two sources disagree, a limit, a name, an order of steps. It is a label you choose rather than a stored field, since `DriftIssue` has no dimension. The axis reaches a reviewer through the description and through the rule that each axis gets its own entry.
 
-| Dimension | Look for | Example finding |
-|---|---|---|
-| `existence` | One source describes a concept the other doesn't mention | "One source defines an operation the other never realises" |
-| `terminology` | Same concept, different name; or same name, different concept | "One source's name for a concept quietly covers a second case the other keeps separate" |
-| `sequence` | Order of steps in a flow | "One source validates then commits; the other commits first" |
-| `params` | Input / output field set | "One source lists 8 fields; the other accepts 10" |
-| `states` | Enumerated states / status machine | "One source names 5 states; the other has 6" |
-| `rules` | Rules / validation thresholds | "One source caps a quantity at 50; the other allows 99" |
-| `permissions` | Role / actor / authorisation checks | "One source allows a single actor; the other also requires an admin" |
-| `limits` | Numeric caps that differ across sources | "One source sets no cap; the other hardcodes a maximum" |
-| `api-contract` | Wire format between a producer and a consumer | "A caller sends a field the receiver never reads" |
-| `errors` | Error code coverage | "A producer returns an error the consumer has no handling for" |
-| `feature-coverage` | One source ships a capability the other lacks | "One source exposes an action the other has no counterpart for" |
-
-These are guidance, not enum values; the schema doesn't enforce them. Pick whichever fits the finding; if none fits, write the finding anyway with the best fit.
+Which axes are worth checking is domain knowledge, so the active ontology owns the list. Read it at `$BRAID_ONTOLOGY_REFERENCE/concept.md` before classifying a finding. Cover the axes the two sources actually have content on, skip the rest, and never force a node through every one. If a real disagreement fits no listed axis, write the finding anyway under the closest label rather than dropping it.
 
 ---
 
