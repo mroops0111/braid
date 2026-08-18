@@ -935,7 +935,7 @@ function OperationTarget({ op }: { op: FlatOp }) {
     return (
       <span className="flex min-w-0 items-baseline gap-1">
         <NodeReferenceTag nodeId={op.from} />
-        <span className="text-muted-foreground/60">→</span>
+        <span className="text-muted-foreground">→</span>
         <NodeReferenceTag nodeId={op.to} />
       </span>
     )

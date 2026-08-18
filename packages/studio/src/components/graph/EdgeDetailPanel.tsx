@@ -1,5 +1,5 @@
 import type { GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
-import { ArrowDownToDot, ArrowUpFromDot, FileText, X } from 'lucide-react'
+import { ArrowDownToDot, ArrowUpFromDot, Crosshair, FileText, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { NodeTypeBadge } from './NodeTypeBadge'
@@ -117,7 +117,8 @@ export function EdgeDetailPanel({
 
       {onCenterInGraph && (
         <div className="border-t border-border p-4">
-          <Button variant="ghost" size="sm" className="w-full justify-center" onClick={onCenterInGraph}>
+          <Button variant="ghost" size="sm" className="w-full justify-center [&_svg]:size-3" onClick={onCenterInGraph}>
+            <Crosshair />
             {t('graph.detail.centerInGraphButton')}
           </Button>
         </div>
