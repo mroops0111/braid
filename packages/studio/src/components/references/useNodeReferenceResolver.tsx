@@ -1,5 +1,6 @@
 import type { GraphNode } from '@braidhq/schema'
 import type { ReferenceResolver } from '@/lib/references/ReferenceResolver'
+import { Network } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { asNodeId } from '@/lib/brands'
@@ -28,6 +29,8 @@ export function useNodeReferenceResolver(workspaceId: string | undefined): Refer
     const resolver = createNodeReferenceResolver({
       nodesById,
       openLabel,
+      // The Graph surface's own nav icon, so the action names where it lands.
+      openIcon: <Network />,
       ...(navigation ? { onOpen: navigation.focusNode } : {}),
     })
     if (workspaceId === undefined)

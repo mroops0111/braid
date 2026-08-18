@@ -1,4 +1,4 @@
-import type { Reference } from '@braidhq/schema'
+import type { Reference, ReferenceKind } from '@braidhq/schema'
 import type { ReactNode } from 'react'
 import type { ResolvedReference } from '@/lib/references/ReferenceResolver'
 import { X } from 'lucide-react'
@@ -34,12 +34,18 @@ const PeekTargetContext = createContext<Reference | null>(null)
  * which the shell places as a flex sibling, matching the graph's detail panel.
  * A modal sheet would cover the very text the reader clicked from.
  */
-export function ReferencePeekProvider({ children }: { children: ReactNode }) {
+export function ReferencePeekProvider({ resetKey, children }: { resetKey: string, children: ReactNode }) {
   const [reference, setReference] = useState<Reference | null>(null)
   const peek = useMemo<ReferencePeek>(
     () => ({ open: setReference, close: () => setReference(null) }),
     [],
   )
+  // A peek reads one reference beside the surface it was opened from, so it
+  // does not survive a move to another surface. Left open it would sit next to
+  // that surface's own detail panel, showing the same component twice.
+  useEffect(() => {
+    setReference(null)
+  }, [resetKey])
   return (
     <ReferencePeekContext.Provider value={peek}>
       <PeekTargetContext.Provider value={reference}>
@@ -47,6 +53,29 @@ export function ReferencePeekProvider({ children }: { children: ReactNode }) {
       </PeekTargetContext.Provider>
     </ReferencePeekContext.Provider>
   )
+}
+
+/**
+ * Lets a surface that already shows one kind's detail claim that kind, so a
+ * click swaps the panel it has rather than opening a second, identical one
+ * beside it. Every other kind falls through to the app-level peek.
+ */
+export function ReferencePeekOverride({ kind, onOpen, children }: {
+  kind: ReferenceKind
+  onOpen: (id: string) => void
+  children: ReactNode
+}) {
+  const outer = useReferencePeek()
+  const value = useMemo<ReferencePeek>(() => ({
+    open: (reference) => {
+      if (reference.kind === kind)
+        onOpen(reference.id)
+      else
+        outer?.open(reference)
+    },
+    close: () => outer?.close(),
+  }), [kind, onOpen, outer])
+  return <ReferencePeekContext.Provider value={value}>{children}</ReferencePeekContext.Provider>
 }
 
 /**
@@ -92,12 +121,16 @@ export function ReferencePeekAside() {
           <Button
             variant="outline"
             size="sm"
-            className="w-full justify-center"
+            // Icon just under the label, 12px against 14px. Same ratio the
+            // hover card's own open action uses, and below the button
+            // default's 16-against-14 which reads as an oversized glyph.
+            className="w-full justify-center [&_svg]:size-3"
             onClick={() => {
               resolved.open?.()
               peek?.close()
             }}
           >
+            {resolved.openIcon}
             {resolved.openLabel ?? t('references.openFallback')}
           </Button>
         </div>

@@ -15,6 +15,8 @@ export interface ResolvedReference {
   readonly open?: () => void
   /** Names the destination, since each kind leaves for a different surface. */
   readonly openLabel?: string
+  /** The destination's own icon, so the action reads the same as its nav entry. */
+  readonly openIcon?: ReactNode
 }
 
 /** A resolution plus how well it matched, so several kinds share one menu. */

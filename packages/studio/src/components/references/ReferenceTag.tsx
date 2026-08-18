@@ -1,7 +1,6 @@
 import type { NodeId, Reference } from '@braidhq/schema'
 import type { ResolvedReference } from '@/lib/references/ReferenceResolver'
 import { NODE_REFERENCE_KIND } from '@braidhq/schema'
-import { ArrowUpRight } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
@@ -120,17 +119,20 @@ function ReferenceCard({ resolved, onOpen }: { resolved: ResolvedReference, onOp
         <span className="truncate font-mono text-2xs text-muted-foreground">{resolved.reference.id}</span>
         {resolved.open && (
           // Leaving the current surface stays an explicit action, never a stray click.
+          // Icon just under the label, 10px against 11px. Same ratio the peek
+          // panel's open action uses, and below the button default's 12px
+          // which reads as an oversized glyph on a row this small.
           <Button
             variant="ghost"
             size="xs"
-            className="shrink-0 text-2xs"
+            className="shrink-0 text-2xs [&_svg]:size-2.5"
             onClick={() => {
               onOpen()
               resolved.open?.()
             }}
           >
+            {resolved.openIcon}
             {resolved.openLabel}
-            <ArrowUpRight />
           </Button>
         )}
       </div>

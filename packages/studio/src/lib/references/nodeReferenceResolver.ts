@@ -1,4 +1,5 @@
 import type { GraphNode, NodeId } from '@braidhq/schema'
+import type { ReactNode } from 'react'
 import type { ReferenceCandidate, ReferenceResolver, ResolvedReference } from './ReferenceResolver'
 import { NODE_REFERENCE_KIND } from '@braidhq/schema'
 
@@ -8,6 +9,8 @@ export interface NodeReferenceResolverDeps {
   readonly onOpen?: (nodeId: NodeId) => void
   /** Translated destination label, since this module has no access to i18n. */
   readonly openLabel?: string
+  /** Destination icon, passed in so this module stays free of the icon set. */
+  readonly openIcon?: ReactNode
 }
 
 // Ranked so an exact id beats a name that merely contains the query.
@@ -34,6 +37,7 @@ export function createNodeReferenceResolver(deps: NodeReferenceResolverDeps): Re
       ...(node.description ? { description: previewOf(node.description) } : {}),
       ...(onOpen ? { open: () => onOpen(node.id) } : {}),
       ...(onOpen && deps.openLabel ? { openLabel: deps.openLabel } : {}),
+      ...(onOpen && deps.openIcon ? { openIcon: deps.openIcon } : {}),
     }
   }
 

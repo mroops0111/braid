@@ -1,5 +1,6 @@
 import type { EdgeId, NodeId, ProposalId } from '@braidhq/schema'
 import type { Surface } from './components/CommandPalette'
+import { NODE_REFERENCE_KIND } from '@braidhq/schema'
 import { Settings2, Sparkles } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -9,13 +10,14 @@ import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
 import { InFlightRunBanner } from './components/InFlightRunBanner'
 import { PageActions, PageActionsHost, PageActionsProvider } from './components/PageActions'
 import { ReactorBanner } from './components/ReactorBanner'
-import { ReferencePeekAside, ReferencePeekProvider } from './components/references/ReferencePeek'
+import { ReferencePeekAside, ReferencePeekOverride, ReferencePeekProvider } from './components/references/ReferencePeek'
 import { ReferenceRegistryProvider } from './components/references/ReferenceRegistryProvider'
 import { Sidebar } from './components/Sidebar'
 import { SourceAuthBanner } from './components/SourceAuthBanner'
 import { TooltipProvider } from './components/ui/tooltip'
 import { UserPicker } from './components/UserPicker'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
+import { asNodeId } from './lib/brands'
 import { useBatchStatus, useReactorCycles, useWorkspaces } from './lib/queries'
 import { useAuthGate } from './lib/useAuthGate'
 import { GraphNavigationContext } from './lib/useGraphNavigation'
@@ -126,7 +128,7 @@ function AppInner() {
     <GraphNavigationContext.Provider value={graphNavigation}>
       <TabNavigationContext.Provider value={tabNavigation}>
         <ReferenceRegistryProvider workspaceId={activeId ?? undefined}>
-          <ReferencePeekProvider>
+          <ReferencePeekProvider resetKey={activeSurface ?? 'graph'}>
             <PageActionsProvider>
               <TooltipProvider>
                 <div className="flex h-screen overflow-hidden bg-background text-foreground">
@@ -252,31 +254,41 @@ function GraphHomeView({ workspaceId, state, onStartBootstrap }: {
   state: ReturnType<typeof useGraphSurfaceState>
   onStartBootstrap: () => void
 }) {
-  const { view, setView, selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode, centerRequest } = state
+  const { view, setView, selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode, centerRequest, requestCenter } = state
+
+  // This surface already shows node detail, so a reference here swaps that
+  // panel instead of opening the peek, which renders the very same panel.
+  const revealNode = useCallback((id: string) => {
+    setSelectedEdgeId(null)
+    setSelectedNodeId(asNodeId(id))
+    requestCenter()
+  }, [setSelectedNodeId, setSelectedEdgeId, requestCenter])
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden">
-      <PageActions>
-        <GraphSurfaceActions
+    <ReferencePeekOverride kind={NODE_REFERENCE_KIND} onOpen={revealNode}>
+      <div className="relative flex h-full flex-col overflow-hidden">
+        <PageActions>
+          <GraphSurfaceActions
+            view={view}
+            onViewChange={setView}
+            selectedNodeId={selectedNodeId}
+            focusMode={focusMode}
+            onFocusChange={setFocusMode}
+          />
+        </PageActions>
+        <GraphSurface
+          workspaceId={workspaceId}
           view={view}
-          onViewChange={setView}
           selectedNodeId={selectedNodeId}
+          onSelectNode={setSelectedNodeId}
+          selectedEdgeId={selectedEdgeId}
+          onSelectEdge={setSelectedEdgeId}
           focusMode={focusMode}
-          onFocusChange={setFocusMode}
+          centerRequest={centerRequest}
+          onStartBootstrap={onStartBootstrap}
         />
-      </PageActions>
-      <GraphSurface
-        workspaceId={workspaceId}
-        view={view}
-        selectedNodeId={selectedNodeId}
-        onSelectNode={setSelectedNodeId}
-        selectedEdgeId={selectedEdgeId}
-        onSelectEdge={setSelectedEdgeId}
-        focusMode={focusMode}
-        centerRequest={centerRequest}
-        onStartBootstrap={onStartBootstrap}
-      />
-    </div>
+      </div>
+    </ReferencePeekOverride>
   )
 }
 
