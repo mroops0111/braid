@@ -22,7 +22,7 @@ interface ReferencePickerProps {
 
 /**
  * Search-and-pick control for a field that stores one id.
- * Replaces free-typing an id, so a typo can no longer reach the server.
+ * Every value comes from the registry, so a typo cannot reach the server.
  */
 export function ReferencePicker({ id, kind, value, onChange, placeholder, disabled }: ReferencePickerProps) {
   const { t } = useTranslation()

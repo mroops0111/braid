@@ -89,8 +89,8 @@ export function ReferencePeekAside() {
   const reference = useContext(PeekTargetContext)
   const close = peek?.close
 
-  // The modal sheet gave Escape for free. An in-flow aside has to bind it,
-  // and the listener only exists while a reference is open.
+  // An in-flow aside binds Escape itself, unlike a modal dialog. The listener
+  // exists only while a reference is open.
   useEffect(() => {
     if (!reference || !close)
       return

@@ -118,7 +118,7 @@ function ReferenceCard({ resolved, onOpen }: { resolved: ResolvedReference, onOp
       <div className="flex items-center justify-between gap-2 border-t border-border pt-1.5">
         <span className="truncate font-mono text-2xs text-muted-foreground">{resolved.reference.id}</span>
         {resolved.open && (
-          // Leaving the current surface stays an explicit action, never a stray click.
+          // Leaving the surface is an explicit action, never a stray click.
           // Icon just under the label, 10px against 11px. Same ratio the peek
           // panel's open action uses, and below the button default's 12px
           // which reads as an oversized glyph on a row this small.

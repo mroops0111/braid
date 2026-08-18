@@ -50,6 +50,7 @@ Studio follows Linear: dark-first, compact, keyboard-first, with a purple accent
 - **Restrained Motion**: `transition-colors duration-150` on hover, `tw-animate-css` for enters, and nothing that bounces, scales, or parallaxes. Reduced-motion is honoured globally.
 - **Accessibility**: A visible focus ring, a pointer cursor on every control, and an `aria-label` on icon-only buttons. The same code ships to the Tauri desktop and mobile shells, so keep touch targets near 44px where the layout allows.
 - **No Em-Dashes**: Never `—` or `–` in a user-facing string. Use a colon, a comma, or two sentences.
+- **Typographic Marks**: One ellipsis character `…` for a truncation or a busy label, never three periods, since the character keeps its spacing and never breaks across a line. `→` is reserved for a directed relationship, such as an edge's two ends or a pointer at a target.
 
 ## Boundaries
 

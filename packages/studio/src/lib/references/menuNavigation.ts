@@ -13,9 +13,9 @@ export interface MenuKeyPress {
 
 /**
  * Reads a key press as a candidate-menu action.
- * One definition shared by the mention menu and the picker, since the two
- * drifted apart while each kept its own copy. Callers map the outcome onto
- * their own state, which is where they genuinely differ.
+ * One definition for the mention menu and the picker, so a key cannot mean
+ * different things in the two. Callers map the outcome onto their own state,
+ * which is where they genuinely differ.
  */
 export function readMenuKey(press: MenuKeyPress): MenuKeyOutcome {
   // An IME owns the keyboard while composing. Enter confirms its candidate,

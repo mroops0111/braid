@@ -99,10 +99,11 @@ function AppInner() {
     setDetailsOpen(true)
   }
 
-  // Deep-link from a reference tag or a validation issue. Drop the overlaying surface so the user lands on the graph,
-  // with their chosen node selected. The surface is one click away in the dock if they want to come back.
-  // Centring and focus both matter here. Selecting alone dims every non-neighbour,
-  // and on a large graph the target is off-screen, so the arrival reads as a blank canvas.
+  // Deep-link from a reference tag or a validation issue. Drop the overlaying
+  // surface so the user lands on the graph with their chosen node selected.
+  // The surface is one click away in the dock if they want to come back.
+  // Centring and focus both matter. Selecting alone dims every non-neighbour,
+  // and on a large graph the target is off screen, so the arrival reads blank.
   const focusNode = useCallback((id: NodeId) => {
     setSelectedNodeId(id)
     setSelectedEdgeId(null)

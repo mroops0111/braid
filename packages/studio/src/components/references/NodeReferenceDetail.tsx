@@ -9,7 +9,7 @@ import { PaletteProvider, usePalette } from '@/components/graph/usePalette'
 import { useModelSnapshot } from '@/lib/queries'
 import { useReferencePeek } from './ReferencePeek'
 
-// Stable identities, so the neighbour memos do not rebuild while the snapshot loads.
+// Stable identities, so the neighbour memos hold while the snapshot loads.
 const NO_NODES: readonly GraphNode[] = []
 const NO_EDGES: readonly GraphEdge[] = []
 
