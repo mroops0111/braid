@@ -1,6 +1,8 @@
 import { isValidElement } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { ReferenceTag } from '@/components/references/ReferenceTag'
+import { readReferenceProps, rehypeReferences } from '@/components/references/rehypeReferences'
 import { cn } from '@/lib/utils'
 import { Mermaid } from './Mermaid'
 
@@ -76,6 +78,16 @@ const components: NonNullable<Parameters<typeof ReactMarkdown>[0]['components']>
     </th>
   ),
   td: ({ children, style }) => <td style={style} className="px-2 py-1 align-top">{children}</td>,
+  span: ({ children, node: _node, ...props }) => {
+    // `rehypeReferences` marks reference tokens as carrier spans.
+    // Everything else is a span the markdown itself asked for.
+    // A tag replaces an inline code span, so it carries that same size,
+    // otherwise mono at prose size reads as a jump in weight.
+    const reference = readReferenceProps(props)
+    return reference
+      ? <ReferenceTag reference={reference} className="text-2xs" />
+      : <span {...props}>{children}</span>
+  },
 }
 
 /**
@@ -89,7 +101,7 @@ const components: NonNullable<Parameters<typeof ReactMarkdown>[0]['components']>
 export function Markdown({ text }: MarkdownProps) {
   return (
     <div className="font-sans text-sm leading-relaxed text-foreground/95">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeReferences]} components={components}>
         {text}
       </ReactMarkdown>
     </div>

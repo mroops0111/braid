@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
 import { GraphCanvas } from '@/components/graph/GraphCanvas'
 import { ListRow } from '@/components/ListRow'
+import { NodeReferenceTag } from '@/components/references/ReferenceTag'
 import { SurfaceLayout } from '@/components/SurfaceLayout'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -529,6 +530,8 @@ function DiffGroup({ group }: { group: DiffGroupModel }) {
         {group.entries.map(entry => (
           <li key={entry.id} className="rounded-md px-1.5 py-1 text-xs hover:bg-muted/50">
             <div className="flex items-center gap-1.5">
+              {/* A removed node no longer resolves, and the tag says so plainly. */}
+              {group.category === 'node' && <NodeReferenceTag nodeId={asNodeId(entry.id)} />}
               <span className="truncate text-foreground/90">{entry.label}</span>
               <span className="ml-auto shrink-0 rounded border border-border/60 bg-background/60 px-1 py-0.5 text-2xs font-medium uppercase tracking-wider text-muted-foreground">
                 {entry.type}

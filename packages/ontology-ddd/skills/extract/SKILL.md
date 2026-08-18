@@ -132,6 +132,10 @@ Produced N proposals + M clarifications:
 - [ ] Each Clarification candidate carries `proposedOperations`.
 - [ ] Final stdout lists outcomes (or, if proposal-create kept returning 400 after 3 rounds, lists the remaining issues).
 
+## Referencing Nodes
+
+When any prose you write names a graph node, write it as the token `@node:<id>` instead of a bare id. Studio renders the token as a live tag carrying the node's name and description. This applies to your narration, to `clarification.context`, to `proposal.rationale`, and to `node.description`. It does not apply to `clarify.question` or `candidate.description`, whose audience rule is unchanged. Full grammar in `$BRAID_SHARED_REFERENCE/reference-syntax.md`.
+
 ## Companion Docs
 
 Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
@@ -145,6 +149,7 @@ Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERE
 | `$BRAID_SHARED_REFERENCE/validators.md` | Before Step 4 | The four server-side validators; self-check ops here so they don't hit a 400 unnecessarily. |
 | `$BRAID_SHARED_REFERENCE/drift-detection.md` | Step 3, when two sources disagree on a field | The framework `DriftIssue` contract, description pattern, severity rules, JSON shape. |
 | `$BRAID_ONTOLOGY_REFERENCE/concept.md` § Drift Dimensions | Step 3, alongside `drift-detection.md` | The dimensions DDD checks, with a worked example finding for each. |
+| `$BRAID_SHARED_REFERENCE/reference-syntax.md` | Whenever prose names a node | Token grammar for node references, and which fields accept them. |
 
 ## Notes
 

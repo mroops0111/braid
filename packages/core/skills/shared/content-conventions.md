@@ -7,7 +7,7 @@ Hard caps (min / max lengths, single-line regex) live in the MCP tool `inputSche
 ## Common Rules (All Fields)
 
 - **Plain text** is the default for every field **except `node.description`**, which allows markdown. Plain-text fields render verbatim; markdown leaks as raw `**` / `#` characters there.
-- **No code identifiers in prose** (file paths, line numbers, type ids). Those go in `metadata.sourceReferences` or in lower / engineering output sections, never in the human-facing string itself.
+- **No code identifiers in prose** (file paths, line numbers, type ids). Those go in `metadata.sourceReferences` or in lower / engineering output sections, never in the human-facing string itself. **Graph node ids are the one exception**, and only in the token form `@node:<id>`, which Studio renders as a live tag. See `reference-syntax.md` for the grammar and for which fields accept it.
 - **No newlines** unless the field's spec explicitly allows multiple paragraphs (currently only `node.description`).
 - **No leading / trailing whitespace.**
 

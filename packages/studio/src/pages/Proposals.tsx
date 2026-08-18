@@ -8,6 +8,8 @@ import { useProposalGraphDataSource } from '@/components/graph/GraphDataSource'
 import { FocusToggle, OnlyChangesToggle } from '@/components/graph/GraphToolbar'
 import { ListRow } from '@/components/ListRow'
 import { PageActions } from '@/components/PageActions'
+import { NodeReferenceTag } from '@/components/references/ReferenceTag'
+import { ReferenceText } from '@/components/references/ReferenceText'
 import { StatusBadge } from '@/components/StatusBadge'
 import { SurfaceLayout } from '@/components/SurfaceLayout'
 import { Badge } from '@/components/ui/badge'
@@ -433,27 +435,19 @@ function IssueGroup({ severity, issues }: { severity: ValidationSeverity, issues
 }
 
 // Renders the trailing arrow pointer to nodeId on a validation issue.
-// When a GraphNavigation context is in scope,
-// nodeId and edgeId become buttons that switch to the Graph tab.
+// Node targets go through the reference registry, which carries the hover card.
+// Edges have no resolver kind yet, so they keep the plain navigation button.
 function IssueTarget({ issue }: { issue: ValidationIssue }) {
   const { t } = useTranslation()
   const nav = useGraphNavigation()
   if (!issue.nodeId && !issue.edgeId && !issue.path)
     return null
   const linkClass = 'rounded font-mono text-2xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline'
-  if (issue.nodeId && nav) {
-    const nodeId = issue.nodeId
+  if (issue.nodeId) {
     return (
-      <span className="ml-1 inline-flex items-center gap-1 text-muted-foreground">
+      <span className="ml-1 inline-flex items-center gap-1 text-2xs text-muted-foreground">
         →
-        <button
-          type="button"
-          onClick={() => nav.focusNode(nodeId)}
-          className={linkClass}
-          title={t('review.proposals.openInGraphButton')}
-        >
-          {issue.nodeId}
-        </button>
+        <NodeReferenceTag nodeId={issue.nodeId} />
       </span>
     )
   }
@@ -477,7 +471,7 @@ function IssueTarget({ issue }: { issue: ValidationIssue }) {
     <span className="ml-1 font-mono text-2xs text-muted-foreground">
       →
       {' '}
-      {issue.nodeId ?? issue.edgeId ?? issue.path}
+      {issue.edgeId ?? issue.path}
     </span>
   )
 }
@@ -664,7 +658,7 @@ function ProposalPreview({ workspaceId, operations, validation, rationale }: {
       {openMeta === 'rationale' && rationale && (
         <div className="shrink-0 border-t border-border px-4 py-2">
           <p className="whitespace-pre-wrap rounded-md border border-border bg-card px-3 py-2 text-xs text-foreground/90">
-            {rationale.trim()}
+            <ReferenceText text={rationale.trim()} />
           </p>
         </div>
       )}
@@ -763,17 +757,35 @@ function ViewTab({ active, onClick, children }: { active: boolean, onClick: () =
   )
 }
 
-interface FlatOp {
-  kind: 'add' | 'update' | 'remove'
-  target: 'node' | 'edge'
-  id: string
+type OperationKind = 'add' | 'update' | 'remove'
+
+interface FlatOpCommon {
+  kind: OperationKind
   /** Type id when known (node type or edge type). */
   type?: string
-  /** Short human label, e.g. node name or edge from-to. */
-  label: string
-  /** Optional detail, e.g. "status: draft to completed". */
+  /** Optional detail, e.g. "patch: name, description". */
   detail?: string
 }
+
+/**
+ * Split by target so each node id stays a typed field the row can tag,
+ * rather than a preformatted label a reader cannot hover.
+ */
+type FlatOp =
+  | (FlatOpCommon & {
+    target: 'node'
+    /** Absent while the server still has to mint the id. */
+    nodeId?: NodeId
+    /** Shown next to the id only when it carries something the id does not. */
+    name?: string
+  })
+  | (FlatOpCommon & {
+    target: 'edge'
+    edgeId?: EdgeId
+    /** Endpoints are known for added edges only, removals carry the edge id alone. */
+    from?: NodeId
+    to?: NodeId
+  })
 
 function flattenOperations(operations: readonly GraphOperation[]): FlatOp[] {
   // Each schema operation collapses to one FlatOp.
@@ -790,10 +802,10 @@ function flattenOperations(operations: readonly GraphOperation[]): FlatOp[] {
         for (const n of op.payloads) out.push(flatAddNode(n))
         break
       case 'removeNode':
-        out.push({ kind: 'remove', target: 'node', id: op.nodeId, label: op.nodeId })
+        out.push({ kind: 'remove', target: 'node', nodeId: op.nodeId })
         break
       case 'removeNodes':
-        for (const id of op.nodeIds) out.push({ kind: 'remove', target: 'node', id, label: id })
+        for (const nodeId of op.nodeIds) out.push({ kind: 'remove', target: 'node', nodeId })
         break
       case 'updateNode':
         out.push(flatUpdateNode(op.nodeId, op.patch))
@@ -808,10 +820,10 @@ function flattenOperations(operations: readonly GraphOperation[]): FlatOp[] {
         for (const e of op.payloads) out.push(flatAddEdge(e))
         break
       case 'removeEdge':
-        out.push({ kind: 'remove', target: 'edge', id: op.edgeId, label: op.edgeId })
+        out.push({ kind: 'remove', target: 'edge', edgeId: op.edgeId })
         break
       case 'removeEdges':
-        for (const id of op.edgeIds) out.push({ kind: 'remove', target: 'edge', id, label: id })
+        for (const edgeId of op.edgeIds) out.push({ kind: 'remove', target: 'edge', edgeId })
         break
       case 'updateEdge':
         out.push(flatUpdateEdge(op.edgeId, op.patch))
@@ -829,46 +841,43 @@ function flattenOperations(operations: readonly GraphOperation[]): FlatOp[] {
 }
 
 function flatAddNode(payload: GraphNodeCreate): FlatOp {
-  const id = payload.id ?? '(server-minted)'
   return {
     kind: 'add',
     target: 'node',
-    id,
     type: payload.type,
-    label: payload.name,
+    name: payload.name,
+    ...(payload.id ? { nodeId: payload.id } : {}),
     ...(payload.status ? { detail: `status=${payload.status}` } : {}),
   }
 }
 
-function flatUpdateNode(id: string, patch: Record<string, unknown>): FlatOp {
+function flatUpdateNode(nodeId: NodeId, patch: Record<string, unknown>): FlatOp {
   const fields = Object.keys(patch).filter(k => k !== 'id')
   return {
     kind: 'update',
     target: 'node',
-    id,
-    label: id,
+    nodeId,
     ...(fields.length > 0 ? { detail: `patch: ${fields.join(', ')}` } : {}),
   }
 }
 
 function flatAddEdge(payload: GraphEdgeCreate): FlatOp {
-  const id = payload.id ?? '(server-minted)'
   return {
     kind: 'add',
     target: 'edge',
-    id,
     type: payload.type,
-    label: `${payload.fromNodeId} → ${payload.toNodeId}`,
+    from: payload.fromNodeId,
+    to: payload.toNodeId,
+    ...(payload.id ? { edgeId: payload.id } : {}),
   }
 }
 
-function flatUpdateEdge(id: string, patch: Record<string, unknown>): FlatOp {
+function flatUpdateEdge(edgeId: EdgeId, patch: Record<string, unknown>): FlatOp {
   const fields = Object.keys(patch).filter(k => k !== 'id')
   return {
     kind: 'update',
     target: 'edge',
-    id,
-    label: id,
+    edgeId,
     ...(fields.length > 0 ? { detail: `patch: ${fields.join(', ')}` } : {}),
   }
 }
@@ -895,18 +904,46 @@ function OperationGroup({ kind, ops }: { kind: FlatOp['kind'], ops: readonly Fla
       </div>
       <ul className="divide-y divide-border/50">
         {ops.map((op, idx) => (
-          <li key={`${op.id}-${idx}`} className="flex items-baseline gap-2 px-3 py-1.5 text-2xs">
+          <li key={`${op.target}-${idx}`} className="flex items-baseline gap-2 px-3 py-1.5 text-2xs">
             <Badge variant="outline" className="text-2xs uppercase tracking-wider text-muted-foreground">
               {op.target}
               {op.type ? `:${op.type}` : ''}
             </Badge>
-            <span className="truncate font-mono text-foreground">{op.label}</span>
-            {op.detail && <span className="truncate text-muted-foreground">{op.detail}</span>}
-            <span className="ml-auto shrink-0 font-mono text-2xs text-muted-foreground/70">{op.id}</span>
+            <OperationTarget op={op} />
+            {op.detail && <span className="ml-auto shrink-0 truncate text-muted-foreground">{op.detail}</span>}
           </li>
         ))}
       </ul>
     </div>
+  )
+}
+
+/** The changed element itself, tagged so a reviewer can hover it without leaving the list. */
+function OperationTarget({ op }: { op: FlatOp }) {
+  const { t } = useTranslation()
+  if (op.target === 'node') {
+    return (
+      <span className="flex min-w-0 items-baseline gap-1.5">
+        {op.nodeId
+          ? <NodeReferenceTag nodeId={op.nodeId} />
+          : <span className="font-mono text-muted-foreground/70">{t('review.proposals.serverMintedId')}</span>}
+        {op.name && <span className="truncate text-muted-foreground">{op.name}</span>}
+      </span>
+    )
+  }
+  if (op.from && op.to) {
+    return (
+      <span className="flex min-w-0 items-baseline gap-1">
+        <NodeReferenceTag nodeId={op.from} />
+        <span className="text-muted-foreground/60">→</span>
+        <NodeReferenceTag nodeId={op.to} />
+      </span>
+    )
+  }
+  return (
+    <span className="truncate font-mono text-foreground">
+      {op.edgeId ?? t('review.proposals.serverMintedId')}
+    </span>
   )
 }
 

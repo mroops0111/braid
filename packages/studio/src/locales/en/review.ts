@@ -39,6 +39,8 @@ export const review = {
     safeToApply: 'Safe to apply.',
     openInGraphButton: 'Open in Graph',
     previewTitle: 'Preview ({count} ops)',
+    // Stands in for an id the server only mints when the proposal is applied.
+    serverMintedId: '(server-minted)',
     impactEmpty: 'empty',
     addedCount: '{count} added',
     updatedCount: '{count} updated',
@@ -55,6 +57,9 @@ export const review = {
     },
   },
   clarify: {
+    // Background section, rendered only for human-filed tickets.
+    contextTitle: 'Context',
+    relatedNodeLabel: 'Related node',
     // Empty-state copy keyed by the status filter.
     empty: {
       pending: {

@@ -1,5 +1,5 @@
+import { MentionTextarea } from './references/MentionTextarea'
 import { Label } from './ui/label'
-import { Textarea } from './ui/textarea'
 
 interface MarkdownDescriptionFieldProps {
   id: string
@@ -32,14 +32,13 @@ export function MarkdownDescriptionField({
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <Textarea
+      <MentionTextarea
         id={id}
         value={value}
-        onChange={e => onChange(e.target.value)}
+        onChange={onChange}
         placeholder={placeholder}
         rows={rows}
-        disabled={disabled}
-        className="resize-y"
+        {...(disabled === undefined ? {} : { disabled })}
       />
       {helperText && <p className="text-2xs text-muted-foreground">{helperText}</p>}
     </div>

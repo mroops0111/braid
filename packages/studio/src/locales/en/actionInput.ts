@@ -1,5 +1,7 @@
 export const actionInput = {
   submitDefaultButton: 'Start',
+  // Plain Enter stays a newline here, since inputs can be multi-sentence.
+  submitShortcutHint: '⌘ + Enter',
   runsSuffix: '{label} ({count, plural, one {# run} other {# runs}})',
   staleBadge: 'stale',
   lastProcessed: 'Last processed {date}',

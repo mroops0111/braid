@@ -6,6 +6,9 @@ import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
 import { PageActions } from '@/components/PageActions'
+import { MentionTextarea } from '@/components/references/MentionTextarea'
+import { NodeReferenceTag } from '@/components/references/ReferenceTag'
+import { ReferenceText } from '@/components/references/ReferenceText'
 import { StatusBadge } from '@/components/StatusBadge'
 import { SubmitIssueForm } from '@/components/SubmitIssueForm'
 import { SurfaceLayout } from '@/components/SurfaceLayout'
@@ -15,7 +18,6 @@ import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
 import { queryKeys, useClarificationByStatus, useClarificationDetail, usePendingClarification, useWorkspaceMembers } from '@/lib/queries'
-import { useGraphNavigation } from '@/lib/useGraphNavigation'
 import { useTabNavigation } from '@/lib/useTabNavigation'
 import { useWorkspacePolicy } from '@/policy'
 
@@ -465,7 +467,7 @@ function ClarificationDetail({
         <div className="min-w-0 flex-1">
           <div className="font-mono text-2xs text-muted-foreground">{ticket.id}</div>
           <p className="mt-0.5 text-sm leading-relaxed text-foreground" title={ticket.question}>
-            {ticket.question}
+            <ReferenceText text={ticket.question} />
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -476,6 +478,8 @@ function ClarificationDetail({
       {ticket.externalReferences && ticket.externalReferences.length > 0 && (
         <ExternalRefs refs={ticket.externalReferences} />
       )}
+
+      <FiledContext ticket={ticket} />
 
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         <CandidatesList
@@ -615,13 +619,14 @@ function CustomAnswerSection({
               <X className="size-3.5" />
             </button>
           </div>
-          <textarea
+          <MentionTextarea
+            id="clarification-custom-answer"
             autoFocus
             value={value}
-            onChange={e => onChange(e.target.value)}
+            onChange={onChange}
             rows={3}
+            compact
             placeholder={t('review.clarify.customAnswerPlaceholder')}
-            className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
           />
           <p className="text-2xs text-muted-foreground">
             {t('review.clarify.customAnswerHint')}
@@ -635,6 +640,35 @@ function CustomAnswerSection({
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Background a human attached when filing the issue.
+ * Skill-authored tickets leave both fields empty, so the section hides itself,
+ * which keeps the AI-authored detail pane exactly as it was.
+ */
+function FiledContext({ ticket }: { ticket: Clarification }) {
+  const { t } = useTranslation()
+  if (!ticket.context && !ticket.relatedNode)
+    return null
+  return (
+    <section className="shrink-0 space-y-1.5 border-b border-border/60 bg-muted/20 px-4 py-2">
+      <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {t('review.clarify.contextTitle')}
+      </h3>
+      {ticket.relatedNode && (
+        <div className="flex items-baseline gap-1.5 text-2xs text-muted-foreground">
+          <span>{t('review.clarify.relatedNodeLabel')}</span>
+          <NodeReferenceTag nodeId={ticket.relatedNode} />
+        </div>
+      )}
+      {ticket.context && (
+        <p className="whitespace-pre-wrap text-xs leading-relaxed text-foreground/90">
+          <ReferenceText text={ticket.context} />
+        </p>
+      )}
+    </section>
   )
 }
 
@@ -761,7 +795,6 @@ function CandidateRow({
 }) {
   const { t } = useTranslation()
   const summary = summarizeOps(candidate.proposedOperations)
-  const nav = useGraphNavigation()
   const nodeIds = collectNodeIds(candidate)
 
   const cardClass = `rounded-md border transition-colors ${
@@ -772,7 +805,7 @@ function CandidateRow({
         : 'border-border'
   } ${dimmed ? 'opacity-60' : ''}`
 
-  // Inner row layout: letter chip, then description, impact, and node refs.
+  // Inner row layout: letter chip, then description and impact.
   // Always rendered, only the wrapping element flips,
   // between an interactive <button> (pending) and a passive <div> (terminal).
   const innerRow = (
@@ -792,28 +825,19 @@ function CandidateRow({
           </span>
           <span>{summary.total === 0 ? t('review.clarify.noGraphImpact') : formatOpsSummary(summary)}</span>
         </p>
-        {nav && nodeIds.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {nodeIds.map(id => (
-              <button
-                key={id}
-                type="button"
-                onClick={(e) => {
-                  // Stop the outer row from also flipping the radio.
-                  e.stopPropagation()
-                  nav.focusNode(id)
-                }}
-                className="rounded bg-muted/50 px-1.5 py-0.5 font-mono text-2xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                title={t('review.clarify.openInGraphButton')}
-              >
-                {id}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   )
+
+  // Same reason as the rationale below, a tag is a button,
+  // and a button inside the radio button would be invalid HTML.
+  const references = nodeIds.length > 0
+    ? (
+        <div className="flex flex-wrap gap-1 px-3 pb-2 text-2xs">
+          {nodeIds.map(id => <NodeReferenceTag key={id} nodeId={id} />)}
+        </div>
+      )
+    : null
 
   // Rationale lives in the same card as the row,
   // but as a sibling of the click target,
@@ -842,6 +866,7 @@ function CandidateRow({
             </button>
           )
         : innerRow}
+      {references}
       {rationale}
     </li>
   )
@@ -883,14 +908,16 @@ function InlineRationale({
         {t('review.clarify.rationale')}
         <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">{t('review.clarify.optionalLabel')}</span>
       </label>
-      <textarea
-        id={`clarification-rationale-${candidateLetter}`}
-        value={slot.value}
-        onChange={e => slot.onChange(e.target.value)}
-        rows={2}
-        placeholder={t('review.clarify.rationalePlaceholder', { letter: candidateLetter })}
-        className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
-      />
+      <div className="mt-1">
+        <MentionTextarea
+          id={`clarification-rationale-${candidateLetter}`}
+          value={slot.value}
+          onChange={slot.onChange}
+          rows={2}
+          compact
+          placeholder={t('review.clarify.rationalePlaceholder', { letter: candidateLetter })}
+        />
+      </div>
     </div>
   )
 }

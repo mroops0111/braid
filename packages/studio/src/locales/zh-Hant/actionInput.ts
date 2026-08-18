@@ -2,6 +2,7 @@ import type { actionInput as en } from '../en/actionInput'
 
 const actionInput: typeof en = {
   submitDefaultButton: '開始',
+  submitShortcutHint: '⌘ + Enter',
   runsSuffix: '{label} ({count, plural, other {# 次執行}})',
   staleBadge: '過期',
   lastProcessed: '上次處理 {date}',
