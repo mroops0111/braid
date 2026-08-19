@@ -80,7 +80,7 @@ export interface ComposeFsRuntimeOptions {
   readonly defaultOntologyId?: OntologyId
 }
 
-export interface ComposeFsOptions extends ComposeFsRuntimeOptions {
+export interface ExtraPluginOptions {
   // Extra plugins registered alongside the preset defaults, not replacing them.
   // The active ontology, storage, and agent stay chosen per-workspace,
   // so a caller registers a plugin here, then a workspace opts into it.
@@ -89,6 +89,8 @@ export interface ComposeFsOptions extends ComposeFsRuntimeOptions {
   readonly extraSourceLoaderPlugins?: readonly SourceLoaderPlugin[]
   readonly extraAgentPlugins?: readonly AgentPlugin[]
 }
+
+export type ComposeFsOptions = ComposeFsRuntimeOptions & ExtraPluginOptions
 
 /**
  * What the fs runtime has already built by the time it asks for a registry.
@@ -131,11 +133,10 @@ export function defaultSourceLoaderPlugins(context: FsRuntimeContext): readonly 
         ),
       }),
     }),
-    // The gdrive loader is always registered,
-    // so a `kind: gdrive` source doesn't crash at plugin lookup.
-    // If OAuth env vars aren't configured,
-    // the token resolver throws an actionable error at provision time,
-    // so the user knows exactly what to set.
+    // Drive is listed even when its OAuth env is unset,
+    // so a `kind: gdrive` source resolves a loader instead of failing lookup.
+    // The token resolver then throws at provision time,
+    // naming the env vars the user has to set.
     createGoogleDriveLoader({
       resolveAccessToken: makeOAuthTokenResolver({
         secretStore,
@@ -154,13 +155,12 @@ export function defaultSourceLoaderPlugins(context: FsRuntimeContext): readonly 
 }
 
 /**
- * The coding preset's registry, Kuzu storage, the DDD ontology, the git,
- * github, and drive loaders, and the claude-code agent.
+ * The registry `composeFsApp` runs on, the coding preset's whole bundle.
  * Defaults register first, then the caller's extras,
  * so `extraOntologyPlugins: [c4]` yields both ddd and c4.
  * The active one is chosen per-workspace via PRODUCT.md.ontologyId.
  */
-export function defaultPluginRegistry(context: FsRuntimeContext, options: ComposeFsOptions = {}): PluginRegistry {
+export function defaultPluginRegistry(context: FsRuntimeContext, options: ExtraPluginOptions = {}): PluginRegistry {
   const pluginRegistry = new PluginRegistry()
   pluginRegistry.register(kuzuStoragePlugin)
   for (const plugin of options.extraStoragePlugins ?? [])
