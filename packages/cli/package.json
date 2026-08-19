@@ -32,7 +32,7 @@
   },
   "devDependencies": {
     "@braidhq/test-utils": "workspace:*",
-    "tsx": "^4.23.1",
+    "tsx": "^4.23.12",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
   },
