@@ -99,11 +99,12 @@ function AppInner() {
     setDetailsOpen(true)
   }
 
-  // Deep-link from a reference tag or a validation issue. Drop the overlaying
-  // surface so the user lands on the graph with their chosen node selected.
-  // The surface is one click away in the dock if they want to come back.
-  // Centring and focus both matter. Selecting alone dims every non-neighbour,
-  // and on a large graph the target is off screen, so the arrival reads blank.
+  // Deep-link from a reference tag or a validation issue.
+  // Drops the overlaying surface, so the user lands on the graph,
+  // with their chosen node selected.
+  // Centring and focus both matter here.
+  // Selecting alone dims every non-neighbour,
+  // and on a large graph the target is off screen.
   const focusNode = useCallback((id: NodeId) => {
     setSelectedNodeId(id)
     setSelectedEdgeId(null)
@@ -257,8 +258,9 @@ function GraphHomeView({ workspaceId, state, onStartBootstrap }: {
 }) {
   const { view, setView, selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode, centerRequest, requestCenter } = state
 
-  // This surface already shows node detail, so a reference here swaps that
-  // panel instead of opening the peek, which renders the very same panel.
+  // This surface already shows node detail,
+  // so a reference here swaps that panel instead of opening the peek,
+  // which renders the very same component.
   const revealNode = useCallback((id: string) => {
     setSelectedEdgeId(null)
     setSelectedNodeId(asNodeId(id))

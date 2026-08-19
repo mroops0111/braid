@@ -33,8 +33,9 @@ export interface GraphSurfaceProps {
   /**
    * Bumped by a caller that arrived from outside, such as a reference tag,
    * to pan the canvas onto the current selection.
-   * A plain selection change cannot stand in for it, since a direct canvas
-   * click changes the same value and auto-panning on those felt twitchy.
+   * A plain selection change cannot stand in for it,
+   * since a direct canvas click changes the same value,
+   * and auto-panning on those felt twitchy.
    */
   centerRequest?: number
   /** Proposal-preview only: see GraphCanvas for semantics. */

@@ -1,6 +1,6 @@
 export const references = {
-  // Tag whose target the registry could not resolve. Lowercase because the
-  // interpolated kind is a lowercase identifier.
+  // Tag whose target the registry could not resolve.
+  // Lowercase, since the interpolated kind is a lowercase identifier.
   unknownTooltip: 'unknown {kind} reference',
   // Destination labels for the action that leaves the current surface.
   openInGraph: 'Open in Graph',

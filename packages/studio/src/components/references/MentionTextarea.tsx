@@ -32,16 +32,19 @@ interface MentionTextareaProps {
 /**
  * Textarea whose `@kind:id` tokens are highlighted and whose `@` opens a picker.
  *
- * The highlight is a second box behind the textarea that paints only the token
- * backgrounds, its own text stays transparent so the textarea keeps rendering
- * the glyphs. Both boxes therefore need identical metrics, which is why the
- * shared class below is the single source for font, padding, and wrapping.
+ * The highlight is a second box behind the textarea,
+ * painting only the token backgrounds.
+ * Its own text stays transparent, so the textarea keeps rendering the glyphs.
+ * Both boxes therefore need identical metrics,
+ * which is why the shared class below is the single source,
+ * for font, padding, and wrapping.
  * The same box also carries the anchor the menu positions against.
  *
- * Manual resize is off. A drag would change the textarea's height without
- * moving the overlay, and the two boxes would drift apart. For the same reason
- * typography is a prop rather than a caller className, a font applied to one
- * box only would misalign every highlight.
+ * Manual resize is off.
+ * A drag would change the textarea's height without moving the overlay,
+ * and the two boxes would drift apart.
+ * Typography is a prop rather than a caller className for the same reason,
+ * since a font applied to one box only would misalign every highlight.
  */
 const BOX_CLASS = 'w-full rounded-md border py-1.5 leading-relaxed whitespace-pre-wrap break-words'
 const DENSITY_CLASS = { default: 'px-3 text-sm', compact: 'px-2 text-xs' } as const
@@ -103,8 +106,9 @@ export function MentionTextarea({
     }
     const anchorBox = anchor.getBoundingClientRect()
     const containerBox = container.getBoundingClientRect()
-    // Prompt boxes sit at the bottom of a page, so a menu below the caret would
-    // fall off screen. Anchoring the menu's bottom edge lets it grow upward
+    // Prompt boxes sit at the bottom of a page,
+    // so a menu below the caret would fall off screen.
+    // Anchoring the menu's bottom edge lets it grow upward,
     // without having to know its height first.
     const flipUp = window.innerHeight - anchorBox.bottom < MENU_MAX_HEIGHT_PX
     setMenuPosition({
@@ -118,8 +122,9 @@ export function MentionTextarea({
   function refreshMention(nextValue: string, caret: number | null): void {
     const found = caret === null ? null : findActiveMention(nextValue, caret)
     // Every caret event calls this, including the key-up after an arrow key.
-    // Resetting the highlight unconditionally would undo the arrow before the
-    // reader sees it move, so an unchanged mention is left alone.
+    // Resetting the highlight unconditionally,
+    // would undo the arrow before the reader sees it move,
+    // so an unchanged mention is left alone.
     if (sameMention(mention, found))
       return
     setMention(found)
@@ -143,8 +148,9 @@ export function MentionTextarea({
     })
   }
 
-  // True when the menu claimed the key, which keeps a host binding such as
-  // Enter-to-submit from firing while the reader is choosing a node.
+  // True when the menu claimed the key.
+  // Keeps a host binding such as Enter-to-submit from firing,
+  // while the reader is choosing a node.
   function menuHandledKey(event: KeyboardEvent<HTMLTextAreaElement>): boolean {
     const outcome = readMenuKey(toMenuKeyPress(event))
     if (outcome === null)
@@ -241,8 +247,8 @@ function syncScroll(overlay: RefObject<HTMLDivElement | null>, textarea: RefObje
 
 /**
  * Paints token backgrounds and drops the menu anchor at the live `@`.
- * The anchor always lands inside a text run, since a caret inside a finished
- * token is not treated as a mention.
+ * The anchor always lands inside a text run,
+ * since a caret inside a finished token is not treated as a mention.
  */
 function renderOverlay(value: string, anchorAt: number | null, anchorRef: RefObject<HTMLSpanElement | null>): ReactNode[] {
   const nodes: ReactNode[] = []

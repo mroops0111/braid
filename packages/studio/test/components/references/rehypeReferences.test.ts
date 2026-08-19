@@ -39,8 +39,8 @@ describe('rehypeReferences', () => {
   })
 
   it('replaces an inline code span holding one token', () => {
-    // Skills habitually wrap identifiers in backticks, so this is the shape
-    // real transcripts arrive in.
+    // Skills habitually wrap identifiers in backticks,
+    // so this is the shape real transcripts arrive in.
     const out = run([element('p', [element('code', [text('@node:agg.cart')])])])
     const paragraph = out[0] as Element
     expect(paragraph.children.map(child => describeNode(child as RootContent))).toEqual(['ref:agg.cart'])

@@ -13,8 +13,9 @@ export interface MenuKeyPress {
 
 /**
  * Reads a key press as a candidate-menu action.
- * One definition for the mention menu and the picker, so a key cannot mean
- * different things in the two. Callers map the outcome onto their own state,
+ * One definition for the mention menu and the picker,
+ * so a key cannot mean different things in the two.
+ * Callers map the outcome onto their own state,
  * which is where they genuinely differ.
  */
 export function readMenuKey(press: MenuKeyPress): MenuKeyOutcome {
@@ -30,8 +31,8 @@ export function readMenuKey(press: MenuKeyPress): MenuKeyOutcome {
     case 'Tab':
       return 'pick'
     case 'Enter':
-      // A modified Enter is a host shortcut such as submit. Stealing it would
-      // strand the reader inside the menu with no way to send.
+      // A modified Enter is a host shortcut such as submit.
+      // Stealing it would strand the reader inside the menu with no way to send.
       return press.metaKey === true || press.ctrlKey === true ? null : 'pick'
     case 'Escape':
       return 'dismiss'

@@ -40,9 +40,10 @@ export function ReferencePeekProvider({ resetKey, children }: { resetKey: string
     () => ({ open: setReference, close: () => setReference(null) }),
     [],
   )
-  // A peek reads one reference beside the surface it was opened from, so it
-  // does not survive a move to another surface. Left open it would sit next to
-  // that surface's own detail panel, showing the same component twice.
+  // A peek reads one reference beside the surface it was opened from,
+  // so it does not survive a move to another surface.
+  // Left open it would sit next to that surface's own detail panel,
+  // showing the same component twice.
   useEffect(() => {
     setReference(null)
   }, [resetKey])
@@ -56,9 +57,10 @@ export function ReferencePeekProvider({ resetKey, children }: { resetKey: string
 }
 
 /**
- * Lets a surface that already shows one kind's detail claim that kind, so a
- * click swaps the panel it has rather than opening a second, identical one
- * beside it. Every other kind falls through to the app-level peek.
+ * Lets a surface that already shows one kind's detail claim that kind,
+ * so a click swaps the panel it has,
+ * rather than opening a second, identical one beside it.
+ * Every other kind falls through to the app-level peek.
  */
 export function ReferencePeekOverride({ kind, onOpen, children }: {
   kind: ReferenceKind
@@ -79,8 +81,9 @@ export function ReferencePeekOverride({ kind, onOpen, children }: {
 }
 
 /**
- * The peek panel itself, an in-flow aside that narrows the page rather than
- * covering it. Renders nothing while no reference is open.
+ * The peek panel itself, an in-flow aside that narrows the page,
+ * rather than covering it.
+ * Renders nothing while no reference is open.
  */
 export function ReferencePeekAside() {
   const { t } = useTranslation()
@@ -89,8 +92,8 @@ export function ReferencePeekAside() {
   const reference = useContext(PeekTargetContext)
   const close = peek?.close
 
-  // An in-flow aside binds Escape itself, unlike a modal dialog. The listener
-  // exists only while a reference is open.
+  // An in-flow aside binds Escape itself, unlike a modal dialog.
+  // The listener exists only while a reference is open.
   useEffect(() => {
     if (!reference || !close)
       return
@@ -121,9 +124,10 @@ export function ReferencePeekAside() {
           <Button
             variant="outline"
             size="sm"
-            // Icon just under the label, 12px against 14px. Same ratio the
-            // hover card's own open action uses, and below the button
-            // default's 16-against-14 which reads as an oversized glyph.
+            // Icon just under the label, 12px against 14px.
+            // Same ratio the hover card's own open action uses,
+            // and below the button default's 16 against 14,
+            // which reads as an oversized glyph.
             className="w-full justify-center [&_svg]:size-3"
             onClick={() => {
               resolved.open?.()

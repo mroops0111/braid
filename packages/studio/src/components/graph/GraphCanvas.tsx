@@ -60,8 +60,9 @@ interface GraphCanvasProps {
    */
   /**
    * Bumped by a caller arriving from outside to pan onto the current selection.
-   * Selection alone cannot trigger the pan, a direct canvas click changes the
-   * same value and auto-panning on those felt twitchy.
+   * Selection alone cannot trigger the pan,
+   * since a direct canvas click changes the same value,
+   * and auto-panning on those felt twitchy.
    */
   centerRequest?: number
   selectedEdgeId?: EdgeId | null
@@ -299,12 +300,12 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   }, [laidOut.nodes, reactFlow])
 
   // Serve an outside arrival by revealing the target, then panning onto it.
-  // The two are separate passes because the relayout that follows a filter
-  // change lands on the next render, and until then the target has no
-  // position to centre on.
-  // Seeded with the resting value, never with the current one. An arrival
-  // mounts this canvas, so the request is already counted by first render,
-  // and seeding from it would mark the arrival served before it happened.
+  // The two are separate passes,
+  // since the relayout that follows a filter change lands on the next render,
+  // and until then the target has no position to centre on.
+  // The ref is seeded with the resting value, never the current one.
+  // An arrival mounts this canvas,
+  // so the request is already counted by first render.
   const servedCenterRef = useRef(0)
   useEffect(() => {
     if (centerRequest === servedCenterRef.current || !selectedNodeId)
@@ -318,8 +319,9 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
       neighbourTypes: neighbourTypesOf(selectedNodeId, incoming, outgoing, nodesById),
     }
     if (revealNode(filters, revealTarget) !== filters) {
-      // An updater, not a plain value. The ontology seed can already have a
-      // filter update queued this commit, which a plain value would drop.
+      // An updater, not a plain value.
+      // The ontology seed can already have a filter update queued this commit,
+      // which a plain value would drop.
       setFilters(current => revealNode(current, revealTarget))
       return
     }

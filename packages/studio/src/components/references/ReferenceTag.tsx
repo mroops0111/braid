@@ -27,9 +27,9 @@ export function ReferenceTag({ reference, className }: ReferenceTagProps) {
   const registry = useReferenceRegistry()
   const peek = useReferencePeek()
   // Controlled, so acting on the tag dismisses the card.
-  // Acting leaves the pointer sitting on the trigger, which would reopen the
-  // card over whatever just opened, so reopening is suppressed until the
-  // pointer actually leaves.
+  // Acting leaves the pointer sitting on the trigger,
+  // which would reopen the card over whatever just opened,
+  // so reopening is suppressed until the pointer actually leaves.
   const [cardOpen, setCardOpen] = useState(false)
   const suppressCardRef = useRef(false)
   const resolved = registry?.resolve(reference) ?? null
@@ -119,8 +119,9 @@ function ReferenceCard({ resolved, onOpen }: { resolved: ResolvedReference, onOp
         <span className="truncate font-mono text-2xs text-muted-foreground">{resolved.reference.id}</span>
         {resolved.open && (
           // Leaving the surface is an explicit action, never a stray click.
-          // Icon just under the label, 10px against 11px. Same ratio the peek
-          // panel's open action uses, and below the button default's 12px
+          // Icon just under the label, 10px against 11px.
+          // Same ratio the peek panel's open action uses,
+          // and below the button default's 12px,
           // which reads as an oversized glyph on a row this small.
           <Button
             variant="ghost"

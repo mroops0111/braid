@@ -18,10 +18,12 @@ export function matchesSearch(search: string, node: GraphNode): boolean {
 
 /**
  * Relaxes a browsing filter just enough to show a node someone asked to open.
- * Arriving from a reference is a fresh intent, so it outranks the filter the
- * reader set while browsing. Only the axes actually hiding the target move,
- * and the type whitelist grows rather than resetting, which keeps the rest of
- * the reader's choices intact. Returns the same object when nothing hides it,
+ * Arriving from a reference is a fresh intent,
+ * so it outranks the filter the reader set while browsing.
+ * Only the axes actually hiding the target move,
+ * and the type whitelist grows rather than resetting,
+ * which keeps the rest of the reader's choices intact.
+ * Returns the same object when nothing hides it,
  * so callers can skip a pointless state write.
  */
 export function revealNode(filters: GraphFilters, target: RevealTarget): GraphFilters {
