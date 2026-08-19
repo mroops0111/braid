@@ -21,6 +21,8 @@ Two layers share this package for now.
 
 A future app, a story world or a research-notes base, reuses the kernel and swaps the preset for its own ontology and adapters. When that second worldview arrives, the coding preset extracts into its own package, `@braidhq/preset-code`, and this package drops its plugin dependencies. Until a second worldview exists that pressure is speculative, so both layers stay here at no cost. The seam is `composeApp`: whatever the kernel reaches without a concrete plugin already belongs to it.
 
+Such an app does not have to reimplement the runtime to get there. `composeFsAppWithRegistry(buildRegistry, options)` runs the same filesystem assembly as `composeFsApp`, the subprocess skill runner, the fs unit lister, and every fs repository, over a registry the caller builds. `composeFsApp` is that call with the preset's bundle.
+
 ## Structure
 
 The package layers outward from core. Infrastructure implements core's ports, routes expose them, and composition binds the two.
@@ -49,7 +51,7 @@ src/
     └── _shared/      cross-cutting fs plumbing, paths, json store, frontmatter
 ```
 
-- **composeApp / composeFsApp**: The kernel root and the coding preset. `composeApp` takes a deps object, registers no plugin, and defaults every unset port to an in-memory adapter. `composeFsApp` builds the filesystem, git, and vendor adapters, registers the default plugin bundle, then hands the result to `composeApp`. Production runs the latter. See Positioning above.
+- **composeApp / composeFsApp**: The kernel root and the coding preset. `composeApp` takes a deps object, registers no plugin, and defaults every unset port to an in-memory adapter. `composeFsAppWithRegistry` builds the filesystem, git, and vendor adapters over a caller-supplied registry, then hands the result to `composeApp`. `composeFsApp` is that call with the default bundle, and production runs it. See Positioning above.
 - **startup**: The two boot passes, `startupBeforeServe` and `startupAfterServe`. See Startup below for the full order.
 - **infrastructure**: The real adapters behind core's ports, grouped by domain concern to mirror `core/domain`, never by storage technology. Each folder owns one aggregate's adapter, so a future SQLite or Postgres store lands beside the filesystem one instead of in a separate `sql/` tree. `hitl/` persists proposals and clarifications, `workspace/` the graph and workspace files, `history/` records every change as a git commit, `skill/` runs a skill as a subprocess and streams its events back. `_shared/` holds the cross-cutting fs plumbing, its underscore marking it as the one folder that is not a domain concern, matching `routes/_shared.ts`. `users/ auth/ secrets/ oauth/` are host services with no core port.
 - **routes**: One `createXxxRouter(deps)` per resource, each taking only the services it needs. Bodies validate through zod, path ids parse through their branded schema.

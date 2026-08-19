@@ -18,7 +18,7 @@ import type {
   WorkspaceHistory,
   WorkspaceRepository,
 } from '@braidhq/core'
-import type { AbsolutePath } from '@braidhq/schema'
+import type { AbsolutePath, OntologyId } from '@braidhq/schema'
 import type { AuthMode } from './authMode.js'
 import type { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
 import type { SessionStore } from './infrastructure/auth/SessionStore.js'
@@ -104,6 +104,10 @@ export interface AppDependencies {
   // Workspace scaffolding.
   // `POST /workspaces/scaffold { name }` resolves to `<workspacesRoot>/<name>`.
   workspacesRoot: AbsolutePath
+  // What a scaffold writes when its manifest names no ontology.
+  // Absent when the registry holds no ontology or more than one,
+  // then the manifest schema's own default applies.
+  defaultOntologyId?: OntologyId
   bootstrap?: WorkspaceBootstrapService
 
   // Identity and auth, the multi-user axis.
@@ -180,6 +184,9 @@ export interface ComposeOptions {
   authMode?: AuthMode
   // Scaffold parent, `<braidHome>/workspaces` in `composeFsApp`.
   workspacesRoot?: AbsolutePath
+  // Overrides the sole-registered-ontology derivation below.
+  // A build registering several ontologies names its scaffold default here.
+  defaultOntologyId?: OntologyId
 }
 
 export function composeApp(options: ComposeOptions = {}): AppDependencies {
@@ -189,6 +196,11 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const modelRepository = options.modelRepository ?? new InMemoryModelRepository()
   const workspaceRepository = options.workspaceRepository ?? new InMemoryWorkspaceRepository()
   const pluginRegistry = options.pluginRegistry ?? new PluginRegistry()
+  // A build registering exactly one ontology has no ambiguity to resolve,
+  // so a scaffold that names none gets that one rather than a hardwired id.
+  const ontologies = pluginRegistry.ontologies()
+  const defaultOntologyId = options.defaultOntologyId
+    ?? (ontologies.length === 1 ? ontologies[0]?.ontologyId : undefined)
 
   const eventBus = options.eventBus ?? new InMemoryWorkspaceEventBus()
   const workspaceService = new WorkspaceService({ workspaceRepository, pluginRegistry })
@@ -304,6 +316,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     skillRunner: options.skillRunner,
     runRepository: options.runRepository ?? new NoopRunRepository(),
     workspacesRoot: options.workspacesRoot ?? (join(tmpdir(), 'braid-workspaces') as AbsolutePath),
+    ...(defaultOntologyId ? { defaultOntologyId } : {}),
     // `composeApp` is the test and in-memory composition entry.
     // It defaults to local trust, the local-user fallback,
     // so a test that wires a sessionStore still resolves a caller.

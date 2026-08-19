@@ -21,14 +21,17 @@ const DEFAULT_STORAGE: StorageDescriptor = {
  * Take a user-provided `ProductManifestCreate` and fill in the structure,
  * such as the storage block, so the result is a complete `ProductManifest`,
  * that Zod will accept.
+ * `defaultOntologyId` comes from the composition, the sole registered
+ * ontology in a single-ontology build, and only a build that registers
+ * none at all falls back to the coding preset's `ddd`.
  * Throws if the user's own input is inconsistent.
  */
-export function fillManifestDefaults(draft: ProductManifestCreate): ProductManifest {
+export function fillManifestDefaults(draft: ProductManifestCreate, defaultOntologyId?: OntologyId): ProductManifest {
   const manifest = {
     name: draft.name,
     version: draft.version ?? '0.1.0',
     ...(draft.description ? { description: draft.description } : {}),
-    ontologyId: draft.ontologyId ?? OntologyId.parse('ddd'),
+    ontologyId: draft.ontologyId ?? defaultOntologyId ?? OntologyId.parse('ddd'),
     sources: draft.sources,
     mcpServers: draft.mcpServers,
     storage: draft.storage ?? DEFAULT_STORAGE,
