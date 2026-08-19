@@ -1,5 +1,5 @@
 import type { AgentPlugin, OntologyPlugin, SourceLoaderPlugin, StoragePlugin } from '@braidhq/core'
-import type { AbsolutePath, AgentBindingDescriptor, AgentEffort, StorageKind, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, AgentEffort, OntologyId, StorageKind, WorkspaceId } from '@braidhq/schema'
 import type { AppDependencies } from './composeApp.js'
 import { spawn } from 'node:child_process'
 import { homedir } from 'node:os'
@@ -53,13 +53,14 @@ import { startupBeforeServe } from './startup.js'
 
 // The coding preset's default plugin identities, its worldview in one place.
 // A caller overrides any of these through ComposeFsOptions,
-// or drops to composeApp with its own PluginRegistry for a different worldview.
+// or hands composeFsAppWithRegistry its own PluginRegistry,
+// for a different worldview over the same runtime.
 const DEFAULT_STORAGE_KIND = 'kuzu'
 const DEFAULT_AGENT_KIND = 'claude-code'
 const DEFAULT_AGENT_MODEL = 'opus'
 const DEFAULT_AGENT_EFFORT = 'high'
 
-export interface ComposeFsOptions {
+export interface ComposeFsRuntimeOptions {
   // Paths and URLs.
   // `braidHome` defaults to `$BRAID_HOME` or `~/.braid`.
   // `apiUrl` is what the server reports to spawned subprocesses for callbacks.
@@ -73,6 +74,13 @@ export interface ComposeFsOptions {
   readonly agentModel?: string
   readonly agentEffort?: AgentEffort
 
+  // What a scaffold writes when its manifest names no ontology.
+  // Unset falls to the sole registered ontology,
+  // so a single-ontology build never has to repeat its own id.
+  readonly defaultOntologyId?: OntologyId
+}
+
+export interface ComposeFsOptions extends ComposeFsRuntimeOptions {
   // Extra plugins registered alongside the preset defaults, not replacing them.
   // The active ontology, storage, and agent stay chosen per-workspace,
   // so a caller registers a plugin here, then a workspace opts into it.
@@ -83,15 +91,123 @@ export interface ComposeFsOptions {
 }
 
 /**
+ * What the fs runtime has already built by the time it asks for a registry.
+ * The OAuth-backed loaders need the secret store and the provider clients,
+ * both derived from `braidHome` and `apiUrl`, so a caller-supplied plugin
+ * reads them from here rather than rebuilding them.
+ * `googleOAuth` and `githubOAuth` are absent when their env is unset.
+ */
+export interface FsRuntimeContext {
+  readonly braidHome: string
+  readonly apiUrl: string
+  readonly secretStore: SecretStore
+  readonly googleOAuth?: GoogleOAuth
+  readonly githubOAuth?: GitHubOAuth
+}
+
+/** Yields the registry the fs runtime resolves storage, agent, and ontology from. */
+export type PluginRegistryFactory = (context: FsRuntimeContext) => PluginRegistry | Promise<PluginRegistry>
+
+/**
+ * The source loaders a default Braid build ships with.
+ * Exported so a third-party composition can take the git, github, and drive
+ * loaders without inheriting the rest of the coding preset.
+ */
+export function defaultSourceLoaderPlugins(context: FsRuntimeContext): readonly SourceLoaderPlugin[] {
+  const { secretStore, githubOAuth, googleOAuth } = context
+  return [
+    gitLoader,
+    createGithubLoader({
+      resolveAccessToken: makeOAuthTokenResolver({
+        secretStore,
+        namespace: oauthNamespace('github'),
+        refresh: githubOAuth ? refreshToken => githubOAuth.refreshAccessToken(refreshToken) : undefined,
+        notConfigured: sourceId => new ValidationError(
+          `GitHub source "${sourceId}" cannot be loaded: set BRAID_GITHUB_CLIENT_ID and BRAID_GITHUB_CLIENT_SECRET on the server, restart, then reconnect.`,
+        ),
+        notConnected: (workspaceId, sourceId) => new NotFoundError(
+          `GitHub source "${sourceId}" on workspace "${workspaceId}" is not connected. `
+          + `Connect it from the source settings in Studio.`,
+        ),
+      }),
+    }),
+    // The gdrive loader is always registered,
+    // so a `kind: gdrive` source doesn't crash at plugin lookup.
+    // If OAuth env vars aren't configured,
+    // the token resolver throws an actionable error at provision time,
+    // so the user knows exactly what to set.
+    createGoogleDriveLoader({
+      resolveAccessToken: makeOAuthTokenResolver({
+        secretStore,
+        namespace: oauthNamespace('google'),
+        refresh: googleOAuth ? refreshToken => googleOAuth.refreshAccessToken(refreshToken) : undefined,
+        notConfigured: sourceId => new ValidationError(
+          `Google Drive source "${sourceId}" cannot be loaded: set BRAID_GOOGLE_CLIENT_ID and BRAID_GOOGLE_CLIENT_SECRET on the server, restart, then re-sync.`,
+        ),
+        notConnected: (workspaceId, sourceId) => new NotFoundError(
+          `Google Drive source "${sourceId}" on workspace "${workspaceId}" is not connected. `
+          + `Connect it from the source settings in Studio.`,
+        ),
+      }),
+    }),
+  ]
+}
+
+/**
+ * The coding preset's registry, Kuzu storage, the DDD ontology, the git,
+ * github, and drive loaders, and the claude-code agent.
+ * Defaults register first, then the caller's extras,
+ * so `extraOntologyPlugins: [c4]` yields both ddd and c4.
+ * The active one is chosen per-workspace via PRODUCT.md.ontologyId.
+ */
+export function defaultPluginRegistry(context: FsRuntimeContext, options: ComposeFsOptions = {}): PluginRegistry {
+  const pluginRegistry = new PluginRegistry()
+  pluginRegistry.register(kuzuStoragePlugin)
+  for (const plugin of options.extraStoragePlugins ?? [])
+    pluginRegistry.register(plugin)
+
+  for (const plugin of defaultOntologyPlugins())
+    pluginRegistry.register(plugin)
+  for (const plugin of options.extraOntologyPlugins ?? [])
+    pluginRegistry.register(plugin)
+
+  for (const plugin of defaultSourceLoaderPlugins(context))
+    pluginRegistry.register(plugin)
+  for (const plugin of options.extraSourceLoaderPlugins ?? [])
+    pluginRegistry.register(plugin)
+
+  pluginRegistry.register(claudeCodeAgentPlugin)
+  for (const plugin of options.extraAgentPlugins ?? [])
+    pluginRegistry.register(plugin)
+
+  return pluginRegistry
+}
+
+/**
  * Opinionated production composition, the coding preset.
  * Filesystem-persists workspaces, proposals, and clarifications,
  * and bundles Kuzu storage, the DDD ontology, the git, github, and drive
  * loaders, and the claude-code agent.
  *
  * To run a different plugin set, either pass `extraXxxPlugins` and flip
- * `storageKind` or `agentKind`, or call `composeApp` with your own registry.
+ * `storageKind` or `agentKind`, or hand `composeFsAppWithRegistry` a registry
+ * holding only the plugins you want.
  */
 export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppDependencies> {
+  return composeFsAppWithRegistry(context => defaultPluginRegistry(context, options), options)
+}
+
+/**
+ * The same filesystem runtime as `composeFsApp`, over a registry you build.
+ * Storage and agent resolve from whatever `buildRegistry` registered, under
+ * `storageKind` and `agentKind`, so a composition that omits the coding
+ * preset's ontology and loaders still gets the subprocess skill runner, the
+ * fs unit lister, and every fs repository, and so a batch runs unchanged.
+ */
+export async function composeFsAppWithRegistry(
+  buildRegistry: PluginRegistryFactory,
+  options: ComposeFsRuntimeOptions = {},
+): Promise<AppDependencies> {
   const braidHome = options.braidHome ?? process.env.BRAID_HOME ?? join(homedir(), '.braid')
   const apiUrl = options.apiUrl ?? 'http://localhost:4321'
 
@@ -171,60 +287,13 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
   const proposalRepository = new FsProposalRepository({ workspaceRoots })
   const clarificationRepository = new FsClarificationRepository({ workspaceRoots })
 
-  // Plugin registration. Defaults bundle first, then extras,
-  // so a caller passing `extraOntologyPlugins: [c4]` gets both ddd and c4.
-  // The active one is chosen per-workspace via PRODUCT.md.ontologyId.
-  const pluginRegistry = new PluginRegistry()
-  pluginRegistry.register(kuzuStoragePlugin)
-  for (const plugin of options.extraStoragePlugins ?? [])
-    pluginRegistry.register(plugin)
-
-  for (const plugin of defaultOntologyPlugins())
-    pluginRegistry.register(plugin)
-  for (const plugin of options.extraOntologyPlugins ?? [])
-    pluginRegistry.register(plugin)
-
-  pluginRegistry.register(gitLoader)
-  pluginRegistry.register(createGithubLoader({
-    resolveAccessToken: makeOAuthTokenResolver({
-      secretStore,
-      namespace: oauthNamespace('github'),
-      refresh: githubOAuth ? refreshToken => githubOAuth.refreshAccessToken(refreshToken) : undefined,
-      notConfigured: sourceId => new ValidationError(
-        `GitHub source "${sourceId}" cannot be loaded: set BRAID_GITHUB_CLIENT_ID and BRAID_GITHUB_CLIENT_SECRET on the server, restart, then reconnect.`,
-      ),
-      notConnected: (workspaceId, sourceId) => new NotFoundError(
-        `GitHub source "${sourceId}" on workspace "${workspaceId}" is not connected. `
-        + `Connect it from the source settings in Studio.`,
-      ),
-    }),
-  }))
-  for (const plugin of options.extraSourceLoaderPlugins ?? [])
-    pluginRegistry.register(plugin)
-
-  pluginRegistry.register(claudeCodeAgentPlugin)
-  for (const plugin of options.extraAgentPlugins ?? [])
-    pluginRegistry.register(plugin)
-
-  // The gdrive loader is always registered,
-  // so a `kind: gdrive` source doesn't crash at plugin lookup.
-  // If OAuth env vars aren't configured,
-  // the token resolver throws an actionable error at provision time,
-  // so the user knows exactly what to set.
-  pluginRegistry.register(createGoogleDriveLoader({
-    resolveAccessToken: makeOAuthTokenResolver({
-      secretStore,
-      namespace: oauthNamespace('google'),
-      refresh: googleOAuth ? refreshToken => googleOAuth.refreshAccessToken(refreshToken) : undefined,
-      notConfigured: sourceId => new ValidationError(
-        `Google Drive source "${sourceId}" cannot be loaded: set BRAID_GOOGLE_CLIENT_ID and BRAID_GOOGLE_CLIENT_SECRET on the server, restart, then re-sync.`,
-      ),
-      notConnected: (workspaceId, sourceId) => new NotFoundError(
-        `Google Drive source "${sourceId}" on workspace "${workspaceId}" is not connected. `
-        + `Connect it from the source settings in Studio.`,
-      ),
-    }),
-  }))
+  const pluginRegistry = await buildRegistry({
+    braidHome,
+    apiUrl,
+    secretStore,
+    ...(googleOAuth ? { googleOAuth } : {}),
+    ...(githubOAuth ? { githubOAuth } : {}),
+  })
 
   // Resolve the active storage plugin and ask it for a ModelRepository.
   const storageKind = StorageKindSchema.parse(
@@ -345,6 +414,7 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
     bootstrap,
     batchPlanRepository: new FsBatchPlanRepository(),
     unitLister: workspace => listUnitItems(workspace, unitBearingRolesOf(pluginRegistry, workspace)),
+    ...(options.defaultOntologyId ? { defaultOntologyId: options.defaultOntologyId } : {}),
     // The reactor has no human caller, so it acts as the `reactor` service account,
     // minting a short-lived session so its API calls authenticate.
     reactorToken: async () => (await sessionStore.issue(REACTOR_USER_ID, { ttlSeconds: 3600 })).token,

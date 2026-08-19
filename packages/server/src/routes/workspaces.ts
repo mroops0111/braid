@@ -65,6 +65,11 @@ export interface WorkspacesRouterDeps {
    * and validate that the manifest carries every role it requires.
    */
   pluginRegistry: PluginRegistry
+  /**
+   * What a scaffold writes when the submitted manifest names no ontology.
+   * Absent falls to the coding preset's `ddd`.
+   */
+  defaultOntologyId?: OntologyId
   bootstrap?: WorkspaceBootstrapService
   /**
    * Optional. When present, `GET /workspaces` filters to member ones,
@@ -171,12 +176,21 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
       )
     }
 
-    const manifest = fillManifestDefaults(draft)
+    const manifest = fillManifestDefaults(draft, deps.defaultOntologyId)
     // Each ontology declares which source roles it needs to function.
     // Reject scaffolds that omit a role the ontology declares required,
     // before any writes, so the wizard can show a precise "you also need
     // a source of role x", rather than a post-scaffold validation error.
     const ontology = deps.pluginRegistry.findOntology(manifest.ontologyId)
+    // An unregistered ontology only surfaces later, at the first batch,
+    // so a build that registers any at all rejects the mismatch here.
+    const registeredOntologies = deps.pluginRegistry.ontologies()
+    if (!ontology && registeredOntologies.length > 0) {
+      throw new ValidationError(
+        `Ontology "${manifest.ontologyId}" is not registered on this server. `
+        + `Available: ${registeredOntologies.map(o => `"${o.ontologyId}"`).join(', ')}.`,
+      )
+    }
     const requiredRoles = (ontology?.sourceRoles ?? []).filter(role => role.required).map(role => role.id)
     if (requiredRoles.length > 0) {
       const presentRoles = new Set(manifest.sources.map(s => s.role))

@@ -95,6 +95,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     sourceLoaderRunner: deps.sourceLoaderRunner,
     workspacesRoot: deps.workspacesRoot,
     pluginRegistry: deps.pluginRegistry,
+    ...(deps.defaultOntologyId ? { defaultOntologyId: deps.defaultOntologyId } : {}),
     ...(deps.bootstrap ? { bootstrap: deps.bootstrap } : {}),
     ...(deps.workspaceRegistry ? { workspaceRegistry: deps.workspaceRegistry } : {}),
     ...(deps.userRegistry ? { userRegistry: deps.userRegistry } : {}),
