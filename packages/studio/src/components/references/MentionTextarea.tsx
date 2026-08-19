@@ -32,19 +32,11 @@ interface MentionTextareaProps {
 /**
  * Textarea whose `@kind:id` tokens are highlighted and whose `@` opens a picker.
  *
- * The highlight is a second box behind the textarea,
- * painting only the token backgrounds.
- * Its own text stays transparent, so the textarea keeps rendering the glyphs.
- * Both boxes therefore need identical metrics,
- * which is why the shared class below is the single source,
- * for font, padding, and wrapping.
- * The same box also carries the anchor the menu positions against.
- *
- * Manual resize is off.
- * A drag would change the textarea's height without moving the overlay,
- * and the two boxes would drift apart.
- * Typography is a prop rather than a caller className for the same reason,
- * since a font applied to one box only would misalign every highlight.
+ * The highlight is a second box behind the textarea painting only the token
+ * backgrounds, and it carries the anchor the menu positions against.
+ * The two boxes must therefore share every metric, which is why the class
+ * below is their single source, why typography is a prop rather than a caller
+ * className, and why manual resize is off.
  */
 const BOX_CLASS = 'w-full rounded-md border py-1.5 leading-relaxed whitespace-pre-wrap break-words'
 const DENSITY_CLASS = { default: 'px-3 text-sm', compact: 'px-2 text-xs' } as const
@@ -106,9 +98,7 @@ export function MentionTextarea({
     }
     const anchorBox = anchor.getBoundingClientRect()
     const containerBox = container.getBoundingClientRect()
-    // Prompt boxes sit at the bottom of a page,
-    // so a menu below the caret would fall off screen.
-    // Anchoring the menu's bottom edge lets it grow upward,
+    // Anchoring the bottom edge lets the menu grow upward,
     // without having to know its height first.
     const flipUp = window.innerHeight - anchorBox.bottom < MENU_MAX_HEIGHT_PX
     setMenuPosition({
@@ -121,10 +111,8 @@ export function MentionTextarea({
 
   function refreshMention(nextValue: string, caret: number | null): void {
     const found = caret === null ? null : findActiveMention(nextValue, caret)
-    // Every caret event calls this, including the key-up after an arrow key.
-    // Resetting the highlight unconditionally,
-    // would undo the arrow before the reader sees it move,
-    // so an unchanged mention is left alone.
+    // The key-up after an arrow key lands here too,
+    // so an unchanged mention must not reset the highlight the arrow just moved.
     if (sameMention(mention, found))
       return
     setMention(found)
@@ -148,8 +136,7 @@ export function MentionTextarea({
     })
   }
 
-  // True when the menu claimed the key.
-  // Keeps a host binding such as Enter-to-submit from firing,
+  // A claimed key never reaches the host, so Enter-to-submit cannot fire,
   // while the reader is choosing a node.
   function menuHandledKey(event: KeyboardEvent<HTMLTextAreaElement>): boolean {
     const outcome = readMenuKey(toMenuKeyPress(event))

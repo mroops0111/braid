@@ -6,9 +6,7 @@ export const REFERENCE_KIND_ATTRIBUTE = 'data-reference-kind'
 export const REFERENCE_ID_ATTRIBUTE = 'data-reference-id'
 
 // Fenced code is sample text a reader is meant to copy, so it stays literal.
-// Inline code is different. Skills habitually wrap identifiers in backticks,
-// so a lone token inside one is still a reference and becomes the tag itself,
-// rather than a tag nested in code styling.
+// Inline code is not, since skills habitually backtick their identifiers.
 const LITERAL_TAGS = new Set(['pre'])
 const INLINE_CODE_TAG = 'code'
 

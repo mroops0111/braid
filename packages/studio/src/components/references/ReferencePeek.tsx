@@ -40,10 +40,8 @@ export function ReferencePeekProvider({ resetKey, children }: { resetKey: string
     () => ({ open: setReference, close: () => setReference(null) }),
     [],
   )
-  // A peek reads one reference beside the surface it was opened from,
-  // so it does not survive a move to another surface.
-  // Left open it would sit next to that surface's own detail panel,
-  // showing the same component twice.
+  // A peek belongs to the surface it was opened from.
+  // Left open it would sit beside that surface's own panel, showing it twice.
   useEffect(() => {
     setReference(null)
   }, [resetKey])
@@ -124,10 +122,6 @@ export function ReferencePeekAside() {
           <Button
             variant="outline"
             size="sm"
-            // Icon just under the label, 12px against 14px.
-            // Same ratio the hover card's own open action uses,
-            // and below the button default's 16 against 14,
-            // which reads as an oversized glyph.
             className="w-full justify-center [&_svg]:size-3"
             onClick={() => {
               resolved.open?.()

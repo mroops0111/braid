@@ -79,8 +79,6 @@ const components: NonNullable<Parameters<typeof ReactMarkdown>[0]['components']>
   ),
   td: ({ children, style }) => <td style={style} className="px-2 py-1 align-top">{children}</td>,
   span: ({ children, node: _node, ...props }) => {
-    // `rehypeReferences` marks reference tokens as carrier spans.
-    // Everything else is a span the markdown itself asked for.
     // A tag replaces an inline code span, so it carries that same size,
     // otherwise mono at prose size reads as a jump in weight.
     const reference = readReferenceProps(props)

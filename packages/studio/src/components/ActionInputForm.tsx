@@ -141,9 +141,7 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
   }
 
   // Cmd or Ctrl plus Enter submits from any field,
-  // so a multi-sentence answer keeps plain Enter for newlines.
-  // Caught by bubbling rather than wired per control,
-  // and a plain Enter the mention menu consumed never reaches here.
+  // so plain Enter stays a newline for multi-sentence answers.
   function handleShortcut(event: KeyboardEvent<HTMLDivElement>): void {
     if (event.key !== 'Enter' || !(event.metaKey || event.ctrlKey) || event.nativeEvent.isComposing)
       return

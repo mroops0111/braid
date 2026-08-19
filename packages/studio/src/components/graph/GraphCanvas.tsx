@@ -299,14 +299,11 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
     reactFlow.setCenter(positioned.position.x + 100, positioned.position.y + 32, { zoom: 1, duration: 250 })
   }, [laidOut.nodes, reactFlow])
 
-  // Serve an outside arrival by revealing the target, then panning onto it.
-  // The two are separate passes,
-  // since the relayout that follows a filter change lands on the next render,
-  // and until then the target has no position to centre on.
-  // The ref is seeded with the resting value, never the current one.
-  // An arrival mounts this canvas,
-  // so the request is already counted by first render.
+  // Seeded with the resting value, never the current one.
+  // An arrival mounts this canvas, so its request is already counted here.
   const servedCenterRef = useRef(0)
+  // Revealing and panning are separate passes,
+  // since the relayout a filter change triggers lands on the next render.
   useEffect(() => {
     if (centerRequest === servedCenterRef.current || !selectedNodeId)
       return
@@ -319,8 +316,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
       neighbourTypes: neighbourTypesOf(selectedNodeId, incoming, outgoing, nodesById),
     }
     if (revealNode(filters, revealTarget) !== filters) {
-      // An updater, not a plain value.
-      // The ontology seed can already have a filter update queued this commit,
+      // An updater, since the ontology seed can already have one queued,
       // which a plain value would drop.
       setFilters(current => revealNode(current, revealTarget))
       return
