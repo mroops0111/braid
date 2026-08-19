@@ -1,4 +1,4 @@
-import type { EdgeId, GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
+import type { EdgeId, GraphEdge, GraphNode, NodeId, NodeTypeId } from '@braidhq/schema'
 import type { NodeChange } from '@xyflow/react'
 import type { GraphDataSource } from './GraphDataSource'
 import type { NodeCardNode } from './useGraphLayout'
@@ -23,6 +23,7 @@ import { GraphNodeCard } from './GraphNodeCard'
 import { computeNeighborhood } from './neighborhood'
 import { NodeDetailPanel } from './NodeDetailPanel'
 import { withAlpha } from './ontologyPalette'
+import { matchesSearch, revealNode } from './revealFilters'
 import { DIMMED_EDGE_OPACITY, DIMMED_NODE_OPACITY, EDGE_DASH, EDGE_DIM_DEFAULT, EDGE_DIM_REMOVED, EDGE_STROKE, NODE_DETAIL_ASIDE_WIDTH } from './styleTokens'
 import { useFilterSeed } from './useFilterSeed'
 import { useFitOnLayoutChange } from './useFitOnLayoutChange'
@@ -57,6 +58,13 @@ interface GraphCanvasProps {
    * When omitted the canvas falls back to internal state,
    * and still maintains its own mutual-exclusion invariant.
    */
+  /**
+   * Bumped by a caller arriving from outside to pan onto the current selection.
+   * Selection alone cannot trigger the pan,
+   * since a direct canvas click changes the same value,
+   * and auto-panning on those felt twitchy.
+   */
+  centerRequest?: number
   selectedEdgeId?: EdgeId | null
   onSelectEdge?: (id: EdgeId | null) => void
   /**
@@ -104,21 +112,21 @@ const INITIAL_FILTERS: GraphFilters = {
 // so labels appear on a high-level or focused view, not the whole graph.
 const EDGE_LABEL_LIMIT = 40
 
-export function GraphCanvas({ workspaceId, source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, dimUnchanged, emphasizeAdded, onStartBootstrap }: GraphCanvasProps) {
+export function GraphCanvas({ workspaceId, source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap }: GraphCanvasProps) {
   const palette = usePalette(workspaceId)
   return (
     <PaletteProvider value={palette}>
       <ReactFlowProvider>
         <CanvasInner
           workspaceId={workspaceId}
-          {...optional({ source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, dimUnchanged, emphasizeAdded, onStartBootstrap })}
+          {...optional({ source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap })}
         />
       </ReactFlowProvider>
     </PaletteProvider>
   )
 }
 
-function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, onSelectNode, selectedEdgeId: controlledEdgeSelected, onSelectEdge, focusMode = false, dimUnchanged = false, emphasizeAdded = false, onStartBootstrap }: GraphCanvasProps) {
+function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, onSelectNode, selectedEdgeId: controlledEdgeSelected, onSelectEdge, focusMode = false, centerRequest = 0, dimUnchanged = false, emphasizeAdded = false, onStartBootstrap }: GraphCanvasProps) {
   const { t } = useTranslation()
   // React Query dedupes the live snapshot fetch by queryKey,
   // so it is effectively free when `source` is supplied.
@@ -290,6 +298,34 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
       return
     reactFlow.setCenter(positioned.position.x + 100, positioned.position.y + 32, { zoom: 1, duration: 250 })
   }, [laidOut.nodes, reactFlow])
+
+  // Seeded with the resting value, never the current one.
+  // An arrival mounts this canvas, so its request is already counted here.
+  const servedCenterRef = useRef(0)
+  // Revealing and panning are separate passes,
+  // since the relayout a filter change triggers lands on the next render.
+  useEffect(() => {
+    if (centerRequest === servedCenterRef.current || !selectedNodeId)
+      return
+    const target = nodesById.get(selectedNodeId)
+    if (!target)
+      return
+    const revealTarget = {
+      node: target,
+      isOrphan: orphanIds.has(target.id),
+      neighbourTypes: neighbourTypesOf(selectedNodeId, incoming, outgoing, nodesById),
+    }
+    if (revealNode(filters, revealTarget) !== filters) {
+      // An updater, since the ontology seed can already have one queued,
+      // which a plain value would drop.
+      setFilters(current => revealNode(current, revealTarget))
+      return
+    }
+    if (!laidOut.nodes.some(n => n.id === selectedNodeId))
+      return
+    servedCenterRef.current = centerRequest
+    centerOnNode(selectedNodeId)
+  }, [centerRequest, selectedNodeId, nodesById, filters, orphanIds, incoming, outgoing, laidOut.nodes, centerOnNode])
 
   // Node and edge selections are mutually exclusive.
   // These helpers encapsulate the "set one, clear the other" invariant,
@@ -576,6 +612,23 @@ function FilteredEmpty({ onClear }: { onClear: () => void }) {
   )
 }
 
+/** Types sitting on the other end of the target's edges. */
+function neighbourTypesOf(
+  nodeId: NodeId,
+  incoming: readonly GraphEdge[],
+  outgoing: readonly GraphEdge[],
+  nodesById: ReadonlyMap<NodeId, GraphNode>,
+): NodeTypeId[] {
+  const types: NodeTypeId[] = []
+  for (const edge of [...incoming, ...outgoing]) {
+    const otherId = edge.fromNodeId === nodeId ? edge.toNodeId : edge.fromNodeId
+    const other = nodesById.get(otherId)
+    if (other)
+      types.push(other.type)
+  }
+  return types
+}
+
 interface FilteredGraph {
   nodes: readonly GraphNode[]
   edges: readonly GraphEdge[]
@@ -598,17 +651,11 @@ function applyFilters(
       return false
     if (filters.orphansOnly && !orphanIds.has(node.id))
       return false
-    if (filters.search) {
-      // Search is free-text against the human-facing content,
-      // name and description.
-      // Structured criteria such as type and orphan have their own filter UI.
-      // Conflating them into search caused "what does typing here even do?".
-      const needle = filters.search.toLowerCase()
-      const haystack = `${node.name} ${node.description ?? ''}`.toLowerCase()
-      if (!haystack.includes(needle))
-        return false
-    }
-    return true
+    // Search is free-text against the human-facing content,
+    // name and description.
+    // Structured criteria such as type and orphan have their own filter UI.
+    // Conflating them into search caused "what does typing here even do?".
+    return matchesSearch(filters.search, node)
   })
   const includedIds = new Set<NodeId>(nodeMatches.map(n => n.id))
   const finalNodes = nodes.filter(n => includedIds.has(n.id))

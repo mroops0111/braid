@@ -1,7 +1,7 @@
 import type { EdgeId, NodeId } from '@braidhq/schema'
 import type { GraphDataSource } from '@/components/graph/GraphDataSource'
 import type { GraphView } from '@/components/graph/GraphToolbar'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { GraphCanvas } from '@/components/graph/GraphCanvas'
 import { FocusToggle, ViewToggle } from '@/components/graph/GraphToolbar'
 import { optional } from '@/lib/optional'
@@ -30,6 +30,14 @@ export interface GraphSurfaceProps {
   selectedEdgeId: EdgeId | null
   onSelectEdge: (id: EdgeId | null) => void
   focusMode: boolean
+  /**
+   * Bumped by a caller that arrived from outside, such as a reference tag,
+   * to pan the canvas onto the current selection.
+   * A plain selection change cannot stand in for it,
+   * since a direct canvas click changes the same value,
+   * and auto-panning on those felt twitchy.
+   */
+  centerRequest?: number
   /** Proposal-preview only: see GraphCanvas for semantics. */
   dimUnchanged?: boolean
   /** Proposal-preview only: see GraphCanvas for semantics. */
@@ -55,6 +63,7 @@ export function GraphSurface({
   selectedEdgeId,
   onSelectEdge,
   focusMode,
+  centerRequest,
   dimUnchanged,
   emphasizeAdded,
   onStartBootstrap,
@@ -63,7 +72,7 @@ export function GraphSurface({
     return (
       <GraphCanvas
         workspaceId={workspaceId}
-        {...optional({ source, dimUnchanged, emphasizeAdded, onStartBootstrap })}
+        {...optional({ source, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap })}
         selectedNodeId={selectedNodeId}
         onSelectNode={onSelectNode}
         selectedEdgeId={selectedEdgeId}
@@ -91,6 +100,9 @@ export function useGraphSurfaceState(initialView: GraphView = 'visualization') {
   const [selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId]
     = useMutualExclusionPair<NodeId, EdgeId>()
   const [focusMode, setFocusMode] = useState(false)
+  // A counter, not a boolean, so two arrivals at the same node both pan.
+  const [centerRequest, setCenterRequest] = useState(0)
+  const requestCenter = useCallback(() => setCenterRequest(current => current + 1), [])
   return {
     view,
     setView,
@@ -100,6 +112,8 @@ export function useGraphSurfaceState(initialView: GraphView = 'visualization') {
     setSelectedEdgeId,
     focusMode,
     setFocusMode,
+    centerRequest,
+    requestCenter,
   }
 }
 

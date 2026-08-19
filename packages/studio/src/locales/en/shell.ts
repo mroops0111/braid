@@ -12,7 +12,7 @@ export const shell = {
   // Top workspace header bar.
   header: {
     // Keep the (G W) keyboard hint literal in every locale.
-    workspaceSettingsTooltip: 'Workspace settings (G W)',
+    workspaceSettingsTooltip: 'Workspace Settings (G W)',
     workspaceLabel: 'Workspace',
     noneRegistered: '(None Registered)',
   },
@@ -26,12 +26,12 @@ export const shell = {
   // Left sidebar chrome.
   sidebar: {
     // Keep the (⌘\) keyboard hint literal in every locale.
-    expandTooltip: 'Expand sidebar (⌘\\)',
-    collapseTooltip: 'Collapse sidebar (⌘\\)',
-    openWorkspace: 'Open workspace',
+    expandTooltip: 'Expand Sidebar (⌘\\)',
+    collapseTooltip: 'Collapse Sidebar (⌘\\)',
+    openWorkspace: 'Open Workspace',
     signInTo: 'Sign in to {name}',
     unreachable: 'Unreachable',
-    openWorkspaceOn: 'Open workspace on {name}',
+    openWorkspaceOn: 'Open Workspace on {name}',
     noWorkspaceYet: 'No workspace yet.',
     detailsLabel: 'Details',
     hereTitle: 'Here',
@@ -66,14 +66,14 @@ export const shell = {
     renameAccount: 'Rename Account',
     dialogTitle: 'Account Name',
     dialogDescription: 'Display name shown in audit trails and HITL reviews. Local install: this is the single account on this machine; defaults to your OS username.',
-    displayNameLabel: 'Display name',
+    displayNameLabel: 'Display Name',
   },
   // Generic multi-select dropdown.
   multiSelect: {
     filterPlaceholder: 'Filter…',
     noMatches: 'No matches.',
     selectedCount: '{count} selected',
-    clearAllButton: 'Clear all',
+    clearAllButton: 'Clear All',
     removeLabel: 'Remove {label}',
     selectPlaceholder: 'Select {label}…',
   },

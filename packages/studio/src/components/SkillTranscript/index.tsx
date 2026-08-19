@@ -1,6 +1,7 @@
 import type { SkillEvent } from '@braidhq/schema'
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ReferenceText } from '@/components/references/ReferenceText'
 import { useLocaleFormat } from '@/lib/i18n'
 import { groupTranscript } from './groupTranscript'
 import { Markdown } from './Markdown'
@@ -68,7 +69,9 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
           <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground/70">
             {event.resumed ? t('transcript.followUpLabel') : t('transcript.promptLabel')}
           </div>
-          <div className="mt-0.5 text-sm text-foreground">{event.args}</div>
+          <div className="mt-0.5 text-sm text-foreground">
+            <ReferenceText text={event.args} />
+          </div>
         </div>
       )
     case 'session-started':

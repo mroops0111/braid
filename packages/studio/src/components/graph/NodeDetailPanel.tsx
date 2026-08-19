@@ -1,5 +1,5 @@
 import type { GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
-import { ArrowDownToDot, ArrowUpFromDot, FileText, X } from 'lucide-react'
+import { ArrowDownToDot, ArrowUpFromDot, Crosshair, FileText, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Markdown } from '@/components/SkillTranscript/Markdown'
 import { StatusBadge } from '@/components/StatusBadge'
@@ -128,7 +128,10 @@ export function NodeDetailPanel({
 
       {onCenterInGraph && (
         <div className="border-t border-border p-4">
-          <Button variant="ghost" size="sm" className="w-full justify-center" onClick={onCenterInGraph}>
+          {/* Same footer slot as the reference peek's own action, so the icon
+              is what tells a reader this one stays on the page. */}
+          <Button variant="ghost" size="sm" className="w-full justify-center [&_svg]:size-3" onClick={onCenterInGraph}>
+            <Crosshair />
             {t('graph.detail.centerInGraphButton')}
           </Button>
         </div>

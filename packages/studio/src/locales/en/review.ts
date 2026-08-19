@@ -39,13 +39,15 @@ export const review = {
     safeToApply: 'Safe to apply.',
     openInGraphButton: 'Open in Graph',
     previewTitle: 'Preview ({count} ops)',
+    // Stands in for an id the server only mints when the proposal is applied.
+    serverMintedId: '(server-minted)',
     impactEmpty: 'empty',
     addedCount: '{count} added',
     updatedCount: '{count} updated',
     removedCount: '{count} removed',
     viewGraph: 'Graph',
     viewList: 'List',
-    previewViewLabel: 'Preview view',
+    previewViewLabel: 'Preview View',
     noOperations: 'No operations in this proposal.',
     // Operation group labels keyed by the change kind (add, update, remove).
     operationLabels: {
@@ -55,6 +57,9 @@ export const review = {
     },
   },
   clarify: {
+    // Background section, rendered only for human-filed tickets.
+    contextTitle: 'Context',
+    relatedNodeLabel: 'Related Node',
     // Empty-state copy keyed by the status filter.
     empty: {
       pending: {
@@ -89,12 +94,12 @@ export const review = {
     pickTitle: 'Pick a Clarification',
     pickPendingDescription: 'Select a clarification on the left to review candidates and answer or skip it.',
     pickTerminalDescription: 'Select a clarification on the left to inspect its resolution.',
-    answerWithCustomButton: 'Answer with custom',
+    answerWithCustomButton: 'Answer with Custom',
     answerWithButton: 'Answer with {letter}',
     answerButton: 'Answer',
     skipButton: 'Skip…',
-    addOwnAnswer: 'Add my own answer',
-    customAnswer: 'Custom answer',
+    addOwnAnswer: 'Add My Own Answer',
+    customAnswer: 'Custom Answer',
     discardButton: 'Discard',
     customAnswerPlaceholder: 'Describe your answer. Appended to the clarification\'s candidates list as a new option and selected as the answer.',
     customAnswerHint: 'No graph operations are attached, picking this resolves the clarification without mutating the graph (the same path a build action uses for zero-impact resolutions).',
@@ -137,7 +142,7 @@ export const review = {
     pickDescription: 'Choose an action on the left to start, or resume a recent conversation.',
     turnCount: '{count, plural, one {# turn} other {# turns}}',
     rename: 'Rename',
-    deleteConversation: 'Delete conversation',
+    deleteConversation: 'Delete Conversation',
     deleteDialogTitle: 'Delete this conversation?',
     deleteDialogDescription: '{count, plural, one {One run will be permanently removed, including its transcript.} other {# turns will be permanently removed, including transcripts. This cannot be undone.}}',
     deleting: 'Deleting…',
@@ -196,14 +201,14 @@ export const review = {
     proposalsTooltip: '{count} proposals',
     clarificationsTooltip: '{count} clarifications',
     pickUnit: 'Pick a unit on the left to see its skill log.',
-    unitLog: 'Unit log',
+    unitLog: 'Unit Log',
   },
   banners: {
-    sourceAuthLabel: 'Source connection',
+    sourceAuthLabel: 'Source Connection',
     sourceAuthOne: 'connection expired, sync is paused. Reconnect to resume.',
     sourceNotConnectedOne: 'is not connected, so it cannot sync. Connect it.',
     sourceAttentionMany: '{count} sources need connecting before they can sync.',
-    sourceAuthAction: 'Go to settings',
+    sourceAuthAction: 'Go to Settings',
     reactor: 'Reactor',
     reactorProcessingPrefix: 'processing',
     reactorUnits: '{processed}/{total} units',

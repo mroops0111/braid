@@ -1,5 +1,6 @@
 import type { EdgeId, NodeId, ProposalId } from '@braidhq/schema'
 import type { Surface } from './components/CommandPalette'
+import { NODE_REFERENCE_KIND } from '@braidhq/schema'
 import { Settings2, Sparkles } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -9,11 +10,14 @@ import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
 import { InFlightRunBanner } from './components/InFlightRunBanner'
 import { PageActions, PageActionsHost, PageActionsProvider } from './components/PageActions'
 import { ReactorBanner } from './components/ReactorBanner'
+import { ReferencePeekAside, ReferencePeekOverride, ReferencePeekProvider } from './components/references/ReferencePeek'
+import { ReferenceRegistryProvider } from './components/references/ReferenceRegistryProvider'
 import { Sidebar } from './components/Sidebar'
 import { SourceAuthBanner } from './components/SourceAuthBanner'
 import { TooltipProvider } from './components/ui/tooltip'
 import { UserPicker } from './components/UserPicker'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
+import { asNodeId } from './lib/brands'
 import { useBatchStatus, useReactorCycles, useWorkspaces } from './lib/queries'
 import { useAuthGate } from './lib/useAuthGate'
 import { GraphNavigationContext } from './lib/useGraphNavigation'
@@ -62,7 +66,7 @@ function AppInner() {
   const [detailsId, setDetailsId] = useState<string | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const graphSurfaceState = useGraphSurfaceState()
-  const { setSelectedNodeId, setSelectedEdgeId } = graphSurfaceState
+  const { setSelectedNodeId, setSelectedEdgeId, setFocusMode, requestCenter } = graphSurfaceState
   // One-shot deep-link target for the Proposals surface.
   // ProposalsPage consumes and clears it once it selects the matching item.
   const [focusedProposalId, setFocusedProposalId] = useState<ProposalId | null>(null)
@@ -95,13 +99,15 @@ function AppInner() {
     setDetailsOpen(true)
   }
 
-  // Deep-link from a Proposal or Clarification validation issue. Drop the overlaying surface so the user lands on the graph,
-  // with their chosen node selected. The surface is one click away in the dock if they want to come back.
+  // Selecting alone dims every non-neighbour and leaves the target off screen,
+  // so an arrival needs centring and focus to land on something readable.
   const focusNode = useCallback((id: NodeId) => {
     setSelectedNodeId(id)
     setSelectedEdgeId(null)
+    setFocusMode(true)
+    requestCenter()
     setActiveSurface(null)
-  }, [setSelectedNodeId, setSelectedEdgeId])
+  }, [setSelectedNodeId, setSelectedEdgeId, setFocusMode, requestCenter])
 
   const focusEdge = useCallback((_id: EdgeId) => {
     setActiveSurface(null)
@@ -119,113 +125,118 @@ function AppInner() {
   return (
     <GraphNavigationContext.Provider value={graphNavigation}>
       <TabNavigationContext.Provider value={tabNavigation}>
-        <PageActionsProvider>
-          <TooltipProvider>
-            <div className="flex h-screen overflow-hidden bg-background text-foreground">
-              <Sidebar
-                workspaces={items}
-                activeWorkspaceId={activeId}
-                activeSurface={activeSurface}
-                onSelect={(id) => {
-                  setActiveId(id)
-                  if (activeSurface === 'settings')
-                    setActiveSurface(null)
-                }}
-                onOpenDetails={openDetails}
-                onGoHome={() => setActiveSurface(null)}
-                onSelectSurface={setActiveSurface}
-              />
-              <main className="flex flex-1 flex-col overflow-hidden">
-                {activeSurface === 'settings'
-                  ? <SettingsPage />
-                  : (
-                      <>
-                        <WorkspaceHeader
-                          workspaceId={activeId}
-                          activeSurface={activeSurface}
-                          onOpenDetails={() => activeId && openDetails(activeId)}
-                        />
-                        <SourceAuthBanner workspaceId={activeId} onOpenDetails={() => activeId && openDetails(activeId)} />
-                        <ReactorBanner workspaceId={activeId} onOpenActivity={() => setActiveSurface('activity')} />
-                        <BatchInFlightBanner
-                          workspaceId={activeId}
-                          onOpenBatch={() => setActiveSurface('batch')}
-                          suppress={activeSurface === 'batch'}
-                        />
-                        <InFlightRunBanner
-                          workspaceId={activeId}
-                          // Suppress on surfaces that render the run themselves,
-                          // or when a batch banner already shows it.
-                          // Both would point at the same in-flight extract subprocess.
-                          suppress={activeSurface === 'actions' || activeSurface === 'batch' || hasActiveBatch || hasActiveReactor}
-                        />
-                        {activeId
-                          ? (
-                              <div key={activeSurface ?? 'graph'} className="relative flex-1 overflow-hidden duration-150 animate-in fade-in-0">
-                                {activeSurface === null && (
-                                  <GraphHomeView
-                                    workspaceId={activeId}
-                                    state={graphSurfaceState}
-                                    onStartBootstrap={() => setActiveSurface('batch')}
-                                  />
+        <ReferenceRegistryProvider workspaceId={activeId ?? undefined}>
+          <ReferencePeekProvider resetKey={activeSurface ?? 'graph'}>
+            <PageActionsProvider>
+              <TooltipProvider>
+                <div className="flex h-screen overflow-hidden bg-background text-foreground">
+                  <Sidebar
+                    workspaces={items}
+                    activeWorkspaceId={activeId}
+                    activeSurface={activeSurface}
+                    onSelect={(id) => {
+                      setActiveId(id)
+                      if (activeSurface === 'settings')
+                        setActiveSurface(null)
+                    }}
+                    onOpenDetails={openDetails}
+                    onGoHome={() => setActiveSurface(null)}
+                    onSelectSurface={setActiveSurface}
+                  />
+                  <main className="flex flex-1 flex-col overflow-hidden">
+                    {activeSurface === 'settings'
+                      ? <SettingsPage />
+                      : (
+                          <>
+                            <WorkspaceHeader
+                              workspaceId={activeId}
+                              activeSurface={activeSurface}
+                              onOpenDetails={() => activeId && openDetails(activeId)}
+                            />
+                            <SourceAuthBanner workspaceId={activeId} onOpenDetails={() => activeId && openDetails(activeId)} />
+                            <ReactorBanner workspaceId={activeId} onOpenActivity={() => setActiveSurface('activity')} />
+                            <BatchInFlightBanner
+                              workspaceId={activeId}
+                              onOpenBatch={() => setActiveSurface('batch')}
+                              suppress={activeSurface === 'batch'}
+                            />
+                            <InFlightRunBanner
+                              workspaceId={activeId}
+                              // Suppress on surfaces that render the run themselves,
+                              // or when a batch banner already shows it.
+                              // Both would point at the same in-flight extract subprocess.
+                              suppress={activeSurface === 'actions' || activeSurface === 'batch' || hasActiveBatch || hasActiveReactor}
+                            />
+                            {activeId
+                              ? (
+                                  <div key={activeSurface ?? 'graph'} className="relative flex-1 overflow-hidden duration-150 animate-in fade-in-0">
+                                    {activeSurface === null && (
+                                      <GraphHomeView
+                                        workspaceId={activeId}
+                                        state={graphSurfaceState}
+                                        onStartBootstrap={() => setActiveSurface('batch')}
+                                      />
+                                    )}
+                                    {activeSurface === 'actions' && (
+                                      <ActionsPage workspaceId={activeId} />
+                                    )}
+                                    {activeSurface === 'clarifications' && (
+                                      <ClarificationPage workspaceId={activeId} />
+                                    )}
+                                    {activeSurface === 'proposals' && (
+                                      <ProposalsPage
+                                        workspaceId={activeId}
+                                        focusedProposalId={focusedProposalId}
+                                        onFocusConsumed={() => setFocusedProposalId(null)}
+                                      />
+                                    )}
+                                    {activeSurface === 'activity' && (
+                                      <ActivityPage workspaceId={activeId} />
+                                    )}
+                                    {activeSurface === 'history' && (
+                                      <HistoryPage workspaceId={activeId} />
+                                    )}
+                                    {activeSurface === 'batch' && (
+                                      <BatchPage workspaceId={activeId} />
+                                    )}
+                                  </div>
+                                )
+                              : (
+                                  <NoWorkspaceState onSelect={setActiveId} />
                                 )}
-                                {activeSurface === 'actions' && (
-                                  <ActionsPage workspaceId={activeId} />
-                                )}
-                                {activeSurface === 'clarifications' && (
-                                  <ClarificationPage workspaceId={activeId} />
-                                )}
-                                {activeSurface === 'proposals' && (
-                                  <ProposalsPage
-                                    workspaceId={activeId}
-                                    focusedProposalId={focusedProposalId}
-                                    onFocusConsumed={() => setFocusedProposalId(null)}
-                                  />
-                                )}
-                                {activeSurface === 'activity' && (
-                                  <ActivityPage workspaceId={activeId} />
-                                )}
-                                {activeSurface === 'history' && (
-                                  <HistoryPage workspaceId={activeId} />
-                                )}
-                                {activeSurface === 'batch' && (
-                                  <BatchPage workspaceId={activeId} />
-                                )}
-                              </div>
-                            )
-                          : (
-                              <NoWorkspaceState onSelect={setActiveId} />
-                            )}
-                      </>
-                    )}
-              </main>
-              <CommandPalette
-                workspaces={items}
-                activeWorkspaceId={activeId}
-                activeSurface={activeSurface}
-                onSelectWorkspace={setActiveId}
-                onSelectSurface={setActiveSurface}
-                onOpenWorkspaceDetails={() => activeId && openDetails(activeId)}
-              />
-              <WorkspaceDetailsSheet
-                workspaceId={detailsId}
-                open={detailsOpen}
-                onOpenChange={setDetailsOpen}
-                onUnregistered={() => {
-                  setDetailsOpen(false)
-                  if (activeId === detailsId)
-                    setActiveId(null)
-                  setDetailsId(null)
-                }}
-                onRenamed={(newId) => {
-                  if (activeId === detailsId)
-                    setActiveId(newId)
-                  setDetailsId(newId)
-                }}
-              />
-            </div>
-          </TooltipProvider>
-        </PageActionsProvider>
+                          </>
+                        )}
+                  </main>
+                  <ReferencePeekAside />
+                  <CommandPalette
+                    workspaces={items}
+                    activeWorkspaceId={activeId}
+                    activeSurface={activeSurface}
+                    onSelectWorkspace={setActiveId}
+                    onSelectSurface={setActiveSurface}
+                    onOpenWorkspaceDetails={() => activeId && openDetails(activeId)}
+                  />
+                  <WorkspaceDetailsSheet
+                    workspaceId={detailsId}
+                    open={detailsOpen}
+                    onOpenChange={setDetailsOpen}
+                    onUnregistered={() => {
+                      setDetailsOpen(false)
+                      if (activeId === detailsId)
+                        setActiveId(null)
+                      setDetailsId(null)
+                    }}
+                    onRenamed={(newId) => {
+                      if (activeId === detailsId)
+                        setActiveId(newId)
+                      setDetailsId(newId)
+                    }}
+                  />
+                </div>
+              </TooltipProvider>
+            </PageActionsProvider>
+          </ReferencePeekProvider>
+        </ReferenceRegistryProvider>
       </TabNavigationContext.Provider>
     </GraphNavigationContext.Provider>
   )
@@ -241,30 +252,41 @@ function GraphHomeView({ workspaceId, state, onStartBootstrap }: {
   state: ReturnType<typeof useGraphSurfaceState>
   onStartBootstrap: () => void
 }) {
-  const { view, setView, selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode } = state
+  const { view, setView, selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode, centerRequest, requestCenter } = state
+
+  // This surface already shows node detail,
+  // so a reference swaps that panel rather than opening an identical one.
+  const revealNode = useCallback((id: string) => {
+    setSelectedEdgeId(null)
+    setSelectedNodeId(asNodeId(id))
+    requestCenter()
+  }, [setSelectedNodeId, setSelectedEdgeId, requestCenter])
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden">
-      <PageActions>
-        <GraphSurfaceActions
+    <ReferencePeekOverride kind={NODE_REFERENCE_KIND} onOpen={revealNode}>
+      <div className="relative flex h-full flex-col overflow-hidden">
+        <PageActions>
+          <GraphSurfaceActions
+            view={view}
+            onViewChange={setView}
+            selectedNodeId={selectedNodeId}
+            focusMode={focusMode}
+            onFocusChange={setFocusMode}
+          />
+        </PageActions>
+        <GraphSurface
+          workspaceId={workspaceId}
           view={view}
-          onViewChange={setView}
           selectedNodeId={selectedNodeId}
+          onSelectNode={setSelectedNodeId}
+          selectedEdgeId={selectedEdgeId}
+          onSelectEdge={setSelectedEdgeId}
           focusMode={focusMode}
-          onFocusChange={setFocusMode}
+          centerRequest={centerRequest}
+          onStartBootstrap={onStartBootstrap}
         />
-      </PageActions>
-      <GraphSurface
-        workspaceId={workspaceId}
-        view={view}
-        selectedNodeId={selectedNodeId}
-        onSelectNode={setSelectedNodeId}
-        selectedEdgeId={selectedEdgeId}
-        onSelectEdge={setSelectedEdgeId}
-        focusMode={focusMode}
-        onStartBootstrap={onStartBootstrap}
-      />
-    </div>
+      </div>
+    </ReferencePeekOverride>
   )
 }
 

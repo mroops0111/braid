@@ -1,10 +1,12 @@
 import type { SkillInputDescriptor, SkillInputDynamicOption, SourceId, SourceUnit, SourceUnitObservation } from '@braidhq/schema'
 import type { TFunction } from 'i18next'
+import type { KeyboardEvent } from 'react'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MultiSelectDropdown } from '@/components/MultiSelectDropdown'
+import { MentionTextarea } from '@/components/references/MentionTextarea'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { formatDateTimeIn } from '@/lib/i18n'
@@ -138,8 +140,17 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
     onSubmit(runs)
   }
 
+  // Cmd or Ctrl plus Enter submits from any field,
+  // so plain Enter stays a newline for multi-sentence answers.
+  function handleShortcut(event: KeyboardEvent<HTMLDivElement>): void {
+    if (event.key !== 'Enter' || !(event.metaKey || event.ctrlKey) || event.nativeEvent.isComposing)
+      return
+    event.preventDefault()
+    handleSubmit()
+  }
+
   return (
-    <div className="space-y-3 border-t border-border px-4 py-3">
+    <div className="space-y-3 border-t border-border px-4 py-3" onKeyDown={handleShortcut}>
       {tooManyMultiPicks && (
         <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-2xs text-rose-300">
           This skill declares more than one multi-pick input. Only one is supported per skill.
@@ -157,7 +168,8 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
           disabled={disabled}
         />
       ))}
-      <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-2">
+        <span className="text-2xs text-muted-foreground/70">{t('actionInput.submitShortcutHint')}</span>
         <Button size="sm" onClick={handleSubmit} disabled={!canSubmit}>
           <Send />
           {disabled
@@ -202,14 +214,16 @@ function InputControl({ input, ...rest }: ControlProps<SkillInputDescriptor>) {
 function TextField({ input, scalarValue, onScalarChange, disabled }: ControlProps<TextInput>) {
   if (input.multiline) {
     return (
-      <textarea
+      <MentionTextarea
         id={`input-${input.name}`}
+        className="mt-1"
+        compact
+        mono
         value={scalarValue}
-        onChange={e => onScalarChange(e.target.value)}
+        onChange={onScalarChange}
         disabled={disabled}
-        placeholder={input.placeholder}
+        {...(input.placeholder === undefined ? {} : { placeholder: input.placeholder })}
         rows={3}
-        className="mt-1 w-full rounded-md border border-input bg-background px-2.5 py-1.5 font-mono text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
       />
     )
   }

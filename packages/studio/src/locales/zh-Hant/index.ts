@@ -4,6 +4,7 @@ import admin from './admin'
 import common from './common'
 import graph from './graph'
 import history from './history'
+import references from './references'
 import review from './review'
 import settings from './settings'
 import shell from './shell'
@@ -18,6 +19,7 @@ const zhHant: typeof en = {
   admin,
   graph,
   history,
+  references,
   review,
   shell,
   sources,

@@ -20,7 +20,7 @@ export const transcript = {
   toolCall: {
     arguments: 'Args',
     result: 'Result',
-    errorOutput: 'Error output',
+    errorOutput: 'Error Output',
     errorBadge: 'error',
     emptyOutput: '(empty)',
   },

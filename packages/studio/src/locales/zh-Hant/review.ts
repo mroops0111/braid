@@ -40,6 +40,7 @@ const review: typeof en = {
     safeToApply: '可以安全套用。',
     openInGraphButton: '在圖譜中開啟',
     previewTitle: '預覽 ({count} 項操作)',
+    serverMintedId: '(套用時產生)',
     impactEmpty: '無變更',
     addedCount: '新增 {count} 項',
     updatedCount: '更新 {count} 項',
@@ -55,6 +56,8 @@ const review: typeof en = {
     },
   },
   clarify: {
+    contextTitle: '背景',
+    relatedNodeLabel: '相關節點',
     empty: {
       pending: {
         title: '沒有待處理的釐清',

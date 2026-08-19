@@ -131,6 +131,10 @@ Produce two sections separated by `---`.
 - [ ] Search scope listed in lower section.
 - [ ] Upper and lower sections separated by `---`.
 
+## Referencing Nodes
+
+When any prose you write names a graph node, write it as the token `@node:<id>` instead of a bare id. Studio renders the token as a live tag carrying the node's name and description. This applies to your narration, to `clarification.context`, to `proposal.rationale`, and to `node.description`. It does not apply to `clarify.question` or `candidate.description`, whose audience rule is unchanged. Full grammar in `$BRAID_SHARED_REFERENCE/reference-syntax.md`.
+
 ## Companion Docs
 
 Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
@@ -140,6 +144,7 @@ Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERE
 | `$BRAID_SHARED_REFERENCE/drift-detection.md` | Step 5, when describing a finding | What counts as drift, and the description pattern for writing it so reviewers can act on it. |
 | `$BRAID_ONTOLOGY_REFERENCE/concept.md` | Step 5, before classifying a finding | The dimensions this ontology considers worth checking. Read the list rather than assuming one. |
 | `$BRAID_SHARED_REFERENCE/content-conventions.md` | When composing the Output sections | Plain-text rule, length targets, structural conventions for the Answer / Sources / Consistency prose. |
+| `$BRAID_SHARED_REFERENCE/reference-syntax.md` | Whenever prose names a node | Token grammar for node references, and which fields accept them. |
 
 ## Notes
 

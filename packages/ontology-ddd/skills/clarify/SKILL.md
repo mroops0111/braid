@@ -120,6 +120,10 @@ Processed N clarifications: M proposals produced, K new clarifications raised, L
 - [ ] Each no-impact Clarification was closed to `applied` in Step 4. Each Clarification with a Proposal was left `answered` for the reviewer to apply.
 - [ ] Final stdout lists each clarification's outcome.
 
+## Referencing Nodes
+
+When any prose you write names a graph node, write it as the token `@node:<id>` instead of a bare id. Studio renders the token as a live tag carrying the node's name and description. This applies to your narration, to `clarification.context`, to `proposal.rationale`, and to `node.description`. It does not apply to `clarify.question` or `candidate.description`, whose audience rule is unchanged. Full grammar in `$BRAID_SHARED_REFERENCE/reference-syntax.md`.
+
 ## Companion Docs
 
 Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
@@ -130,6 +134,7 @@ Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERE
 | `$BRAID_SHARED_REFERENCE/proposal-format.md` | Before Step 3 | `GraphOperation` variants, status semantics, sizing. |
 | `$BRAID_SHARED_REFERENCE/content-conventions.md` | If you author a new Clarification in Step 2 | Question / candidate-description / rationale conventions. |
 | `$BRAID_SHARED_REFERENCE/validators.md` | Before Step 3 | The four server-side validators; self-check supplementary ops here so they don't hit a 400 unnecessarily. |
+| `$BRAID_SHARED_REFERENCE/reference-syntax.md` | Whenever prose names a node | Token grammar for node references, and which fields accept them. |
 
 ## Notes
 

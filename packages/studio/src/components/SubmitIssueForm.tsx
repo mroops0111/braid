@@ -1,11 +1,13 @@
 import type { Clarification, ClarificationAmbiguityType } from '@braidhq/schema'
+import { NODE_REFERENCE_KIND } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, Send, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { MentionTextarea } from '@/components/references/MentionTextarea'
+import { ReferencePicker } from '@/components/references/ReferencePicker'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
 import { asNodeId } from '@/lib/brands'
 import { queryKeys } from '@/lib/queries'
@@ -103,13 +105,12 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
             {' '}
             <span className="text-destructive">*</span>
           </Label>
-          <Textarea
+          <MentionTextarea
             id="issue-question"
             value={question}
-            onChange={e => setQuestion(e.target.value)}
+            onChange={setQuestion}
             placeholder={t('sources.issueForm.questionPlaceholder')}
             rows={5}
-            className="resize-y"
             autoFocus
             maxLength={400}
           />
@@ -121,15 +122,15 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
             {' '}
             <span className="text-xs text-muted-foreground">{t('sources.issueForm.optionalLabel')}</span>
           </Label>
-          <Textarea
+          <MentionTextarea
             id="issue-context"
             value={context}
-            onChange={e => setContext(e.target.value)}
+            onChange={setContext}
             placeholder={t('sources.issueForm.contextPlaceholder')}
             rows={3}
-            className="resize-y text-xs"
             maxLength={2000}
           />
+          <p className="text-2xs text-muted-foreground">{t('references.mention.triggerHint')}</p>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_180px]">
@@ -139,13 +140,12 @@ export function SubmitIssueForm({ workspaceId, onSubmitted, onCancel }: SubmitIs
               {' '}
               <span className="text-xs text-muted-foreground">{t('sources.issueForm.optionalLabel')}</span>
             </Label>
-            <input
+            <ReferencePicker
               id="issue-related"
-              type="text"
+              kind={NODE_REFERENCE_KIND}
               value={relatedNode}
-              onChange={e => setRelatedNode(e.target.value)}
+              onChange={setRelatedNode}
               placeholder={t('sources.issueForm.relatedNodePlaceholder')}
-              className="w-full rounded-md border border-input bg-background px-3 py-1.5 font-mono text-xs text-foreground outline-none focus:ring-2 focus:ring-ring/40"
             />
           </div>
           <div className="space-y-1.5">

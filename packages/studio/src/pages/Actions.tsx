@@ -6,12 +6,12 @@ import { useTranslation } from 'react-i18next'
 import { ActionInputForm } from '@/components/ActionInputForm'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
+import { MentionTextarea } from '@/components/references/MentionTextarea'
 import { SkillTranscript } from '@/components/SkillTranscript'
 import { SurfaceLayout } from '@/components/SurfaceLayout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
 import { useLocaleFormat } from '@/lib/i18n'
 import { queryKeys, useRuns, useSessionMetadata, useSkills } from '@/lib/queries'
@@ -576,7 +576,10 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
           )
         : (
             <div className="flex items-end gap-2 border-t border-border px-4 py-2.5">
-              <Textarea
+              <MentionTextarea
+                id="action-prompt"
+                className="flex-1"
+                mono
                 placeholder={
                   locked
                     ? t('review.actions.promptLockedPlaceholder')
@@ -585,7 +588,7 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
                       : (skill.frontmatter.argumentHint ?? t('review.actions.promptDefaultPlaceholder'))
                 }
                 value={prompt}
-                onChange={e => setPrompt(e.target.value)}
+                onChange={setPrompt}
                 onKeyDown={(e) => {
                   // While the user composes CJK or accented input through an IME,
                   // Enter confirms the candidate character and must not submit.
@@ -600,7 +603,6 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
                 }}
                 disabled={running || locked}
                 rows={2}
-                className="flex-1 font-mono"
                 autoFocus
               />
               <Button size="sm" onClick={send} disabled={running || locked || !prompt.trim()}>
