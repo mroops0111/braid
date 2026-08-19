@@ -1,7 +1,7 @@
 {
   "name": "@braidhq/server",
   "type": "module",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "REST + SSE server for Braid.",
   "license": "MIT",
   "repository": {

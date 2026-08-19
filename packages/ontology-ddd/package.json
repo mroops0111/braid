@@ -1,7 +1,7 @@
 {
   "name": "@braidhq/ontology-ddd",
   "type": "module",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Default DDD ontology plugin for Braid, including boundedContext, aggregate, command, query, event, rule, and actor.",
   "license": "MIT",
   "repository": {
