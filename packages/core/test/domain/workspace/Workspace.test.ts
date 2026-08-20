@@ -8,7 +8,7 @@ import type {
   StorageDescriptor,
   StorageKind,
 } from '@braidhq/schema'
-import { makeWorkspace } from '@braidhq/test-utils'
+import { makeFilesystemSource, makeWorkspace } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { NotFoundError, type Workspace } from '../../../src/index.js'
 
@@ -116,5 +116,41 @@ describe('Workspace MCP servers', () => {
     const workspace = buildWorkspace()
     const mcpSource = workspace.mcpSources()[0]!
     expect(workspace.resolveMcpServerForSource(mcpSource).id).toBe('redmine')
+  })
+})
+
+describe('Workspace sync policy', () => {
+  const MANAGED = 'src-managed' as SourceId
+  const NO_BUDGET = 'src-no-budget' as SourceId
+  const MANUAL = 'src-manual' as SourceId
+  const BUDGET_MS = 60_000
+
+  function build(): Workspace {
+    return makeWorkspace({
+      sources: [
+        makeFilesystemSource({ id: MANAGED, maxStalenessMs: BUDGET_MS }),
+        makeFilesystemSource({ id: NO_BUDGET }),
+        makeFilesystemSource({ id: MANUAL, loaderKind: null, maxStalenessMs: BUDGET_MS }),
+      ],
+    })
+  }
+
+  it('counts only loader-backed sources that carry a budget as managed', () => {
+    expect(build().managedSources().map(source => source.id)).toEqual([MANAGED])
+  })
+
+  it('resolves a policy for a managed source and nothing for the rest', () => {
+    const workspace = build()
+    expect(workspace.syncPolicyFor(MANAGED)).toEqual({ maxStalenessMs: BUDGET_MS })
+    expect(workspace.syncPolicyFor(NO_BUDGET)).toBeUndefined()
+    expect(workspace.syncPolicyFor('src-absent' as SourceId)).toBeUndefined()
+  })
+
+  it('treats a budget on a manual source as inert, since there is nothing to pull', () => {
+    expect(build().syncPolicyFor(MANUAL)).toBeUndefined()
+  })
+
+  it('polls unless the workspace explicitly opts out', () => {
+    expect(build().isPollingEnabled()).toBe(true)
   })
 })

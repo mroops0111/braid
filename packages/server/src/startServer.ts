@@ -85,6 +85,9 @@ function installShutdown(
     shuttingDown = true
     log.info({ signal }, 'shutting down')
     server.close()
+    // Drop pending refresh timers before the store closes,
+    // so a tick cannot fire against a repository that is going away.
+    deps.sourcePollingService.stopAll()
     try {
       await deps.modelRepository.close?.()
     }

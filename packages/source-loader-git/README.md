@@ -22,9 +22,11 @@ src/
 
 ## Provision and Sync
 
-`provision` removes the destination, shallow-clones the remote there at `depth` (default 1), and records the resolved sha. `sync` fetches the tracked branch and runs `git reset --hard origin/<branch>`, so the working tree always matches the remote. Local edits under the destination are discarded by design, since the directory is a mirror, not a scratchpad. Reach for the manual loader when you want to hand-manage a directory instead.
+`provision` removes the destination, shallow-clones the remote at `depth` (default 1) with `--branch`, and records the resolved sha. `sync` fetches the tracked branch through the explicit refspec `+refs/heads/<branch>:refs/remotes/origin/<branch>` and runs `git reset --hard refs/remotes/origin/<branch>`, so the working tree always matches the remote. The refspec is written out rather than left implicit because a bare `git fetch origin <branch>` writes only `FETCH_HEAD`, which would leave the reset pointing at the clone-time commit forever. The leading `+` makes an upstream force-push land instead of failing. Local edits under the destination are discarded by design, since the directory is a mirror, not a scratchpad. Reach for the manual loader when you want to hand-manage a directory instead.
 
-The webhook capability dispatches a sync on a `push` to the tracked branch, on either `main` or `master` when no branch is configured, and on `ping`. Other events and pushes to other refs are skipped, so an unrelated event never spends a fetch.
+`branch` defaults to `master` rather than resolving the remote's HEAD. A default that misses fails loudly at clone time with `Remote branch master not found in upstream origin`, which is easier to act on than a mirror that quietly tracks the wrong ref.
+
+The webhook capability dispatches a sync on a `push` to the tracked branch and on `ping`. Other events and pushes to other refs are skipped, so an unrelated event never spends a fetch.
 
 ## Boundaries
 

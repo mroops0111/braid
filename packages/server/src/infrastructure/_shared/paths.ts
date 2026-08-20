@@ -63,6 +63,14 @@ export function sourceUnitObservationSourceDir(
   return join(sourceUnitObservationDir(workspaceRoot), sourceId)
 }
 
+export function sourceSyncStateDir(workspaceRoot: AbsolutePath): string {
+  return join(workspaceArtifactsDir(workspaceRoot), 'source-sync-state')
+}
+
+export function sourceSyncStateFilePath(workspaceRoot: AbsolutePath, sourceId: string): string {
+  return join(sourceSyncStateDir(workspaceRoot), `${sourceId}.json`)
+}
+
 export function proposalsDir(workspaceRoot: AbsolutePath, status: ProposalStatus): string {
   return join(workspaceArtifactsDir(workspaceRoot), 'proposals', status)
 }

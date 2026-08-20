@@ -69,13 +69,24 @@ Reconcile workspaces, register then boot each:
 
 2. `discoverCanonicalWorkspaces` registers workspaces present on disk but absent from the registry.
 3. `ensureWorkspaceOwners` gives any ownerless workspace the auth mode's default principal, or throws under authenticated mode where every workspace must have an explicit owner.
-4. `startupBeforeServe` runs the per-workspace pass. Per workspace it provisions the git repo and store, recovers a batch left running by a killed process, subscribes the reactor when the workspace opts in, and fires a catch-up sync for each loader-backed source.
+4. `startupBeforeServe` runs the per-workspace pass. Per workspace it provisions the git repo and store, recovers a batch left running by a killed process, subscribes the reactor when the workspace opts in, starts the source poller unless the workspace turned polling off, and fires a catch-up sync for each loader-backed source.
 
 After `serve()`, the background phase runs cosmetic recovery that need not finish first, via `startupAfterServe`:
 
 5. `reapOrphanRuns` marks runs left without a completion, from a killed process, as aborted so the UI does not show them active forever.
 
 Both passes live in `startup.ts`, `startupBeforeServe` before `serve()` and `startupAfterServe` after. A new blocking per-workspace step is added to `startupBeforeServe`, a new background step to `startupAfterServe`. Provisioning tied to one adapter stays next to that adapter's construction. Source loaders take part without a bespoke step, the sync in step 4 fires for any registered loader.
+
+## Source Freshness
+
+Every sync trigger goes through `SourceSyncService`, which collapses concurrent triggers for one source into a single pass and records the outcome under `artifacts/source-sync-state/`. Calling `SourceLoaderRunner` directly still syncs, but takes no lock and records nothing.
+
+A source opts in with `sync: { maxStalenessMs }` in `PRODUCT.md`. Two mechanisms act on that budget, and only the first is load-bearing.
+
+- **The guarantee**: `ensureWorkspaceFresh` refreshes stale sources before a skill run reads them. Best effort and time-bounded, so an unreachable remote leaves the run on the previous mirror instead of failing it.
+- **The optimisation**: `SourcePollingService` warms sources between reads, with per-source spread and exponential backoff. Stopping it costs latency, never staleness.
+
+`polling: { enabled: false }` kills the poller for a workspace. The guarantee has no switch, since it can never block work.
 
 ## Auth Mode
 

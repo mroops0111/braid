@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { AbsolutePath, PluginId, SourceId } from './common.js'
 import { McpServerId } from './mcp.js'
+import { SourceSyncPolicy } from './source-sync.js'
 
 /** Open set. The active ontology declares its own roles, core stays agnostic. */
 export const SourceRole = z.string().min(1).brand<'SourceRole'>()
@@ -29,6 +30,9 @@ export const FilesystemSourceDescriptor = z.object({
   language: z.string().optional(),
   // Omitted means manual. The user manages the directory, Braid does no provisioning.
   loader: SourceLoaderDescriptor.optional(),
+  // Omitted means this source only refreshes when someone asks for it.
+  // Meaningful only alongside a loader, a manual directory has nothing to pull.
+  sync: SourceSyncPolicy.optional(),
   // Read verbatim by skills so the agent can prioritise and cite this source.
   description: z.string().optional(),
 })
