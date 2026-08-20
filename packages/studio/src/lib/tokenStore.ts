@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { isDesktop } from './platform'
 
 /**
  * Per-remote Bearer token store.
@@ -19,10 +20,6 @@ const LS_KEY = 'braid:tokens'
 
 const cache = new Map<string, string>()
 let hydrated = false
-
-function isTauri(): boolean {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
-}
 
 function readLocalStorageTokens(): Record<string, string> {
   if (typeof localStorage === 'undefined')
@@ -58,7 +55,7 @@ export async function hydrateTokens(remoteIds: string[]): Promise<void> {
     return
   hydrated = true
 
-  if (!isTauri()) {
+  if (!isDesktop()) {
     const map = readLocalStorageTokens()
     for (const [id, token] of Object.entries(map))
       cache.set(id, token)
@@ -104,7 +101,7 @@ export function setToken(remoteId: string, token: string | null): void {
   else
     cache.delete(remoteId)
 
-  if (!isTauri()) {
+  if (!isDesktop()) {
     const map = readLocalStorageTokens()
     if (token && token.length > 0)
       map[remoteId] = token

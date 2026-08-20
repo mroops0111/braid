@@ -88,6 +88,35 @@ A source opts in with `sync: { maxStalenessMs }` in `PRODUCT.md`. Two mechanisms
 
 `polling: { enabled: false }` kills the poller for a workspace. The guarantee has no switch, since it can never block work.
 
+## Serving Studio
+
+Point `BRAID_STUDIO_ROOT` at Studio's built files and this server serves them too. One origin for the UI and the API keeps a deployment out of CORS on the path that matters. Unset changes nothing, which is what a dev install wants.
+
+The static handler sits ahead of the auth gate, because the app shell is what a signed-out visitor loads in order to sign in. The API behind it stays gated.
+
+## Deployment
+
+`Dockerfile` and `compose.yaml` at the repo root run the server with Studio on one origin. The image installs `git`, `uvx`, and `claude`, all three of which the server shells out to.
+
+**Persist `BRAID_HOME`.** It holds the mirrors, the graph, the artifacts, and each workspace's git history. Without a volume every redeploy re-clones and loses the rest.
+
+| Variable | Why |
+|---|---|
+| `BRAID_LOCAL_TRUST=false` | Requires a real login. Left true, every caller is trusted |
+| `BRAID_STUDIO_URL` | Where users reach Studio, and the browser origin trusted by default |
+| `BRAID_STUDIO_ROOT` | Serve the UI from this process |
+| `BRAID_GOOGLE_CLIENT_ID` / `_SECRET` | Google sign-in |
+| `BRAID_ALLOWED_DOMAINS` | Restricts sign-in to your domains |
+| `BRAID_ADMIN_EMAILS` | Who may create workspaces and manage the roster |
+| `CLAUDE_CODE_OAUTH_TOKEN` | The agent's credential, from `claude setup-token` |
+| `BRAID_CORS_ORIGINS` | Extra browser origins, only for a Studio served elsewhere |
+
+Naming a real `BRAID_STUDIO_URL` stops localhost being trusted, so a dev origin has to be listed in `BRAID_CORS_ORIGINS` to keep working against that server.
+
+`CLAUDE_CODE_OAUTH_TOKEN` is one person's subscription, so every user's runs draw on that seat's limits. A Console API key bills more honestly for a shared server. Do not set `ANTHROPIC_API_KEY` alongside it, the key wins and the subscription goes unused.
+
+For the desktop client, `pnpm bundle:remote` builds a shell without the embedded server, which is what someone connecting to a deployed server wants.
+
 ## Auth Mode
 
 One axis separates a trusted local install from an authenticated remote server, who the implicit user is. Rather than scatter that decision, an `AuthMode` strategy carries it, and the auth and ownership code reads the strategy, never a hardcoded `local-user`.

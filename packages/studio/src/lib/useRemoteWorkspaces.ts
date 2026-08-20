@@ -2,6 +2,7 @@ import type { Workspace } from '@braidhq/schema'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { api, ApiError } from './api'
+import { isDesktop } from './platform'
 import { getTokenFor, LOCAL_REMOTE_ID, useActiveRemoteId, useRemotes } from './remotes'
 import { getServerUrlFor } from './serverUrl'
 
@@ -61,9 +62,12 @@ export function classifyRemoteResult(remote: RemoteSummary, input: ClassifyInput
  */
 export function useAllRemoteWorkspaces(): RemoteWorkspacesResult[] {
   const remotes = useRemotes()
+  // Served in a browser, this Studio belongs to the server it came from,
+  // so saved remotes stay out of the sidebar even if the store holds some.
+  const named = isDesktop() ? remotes : []
   const all: RemoteSummary[] = [
     { id: LOCAL_REMOTE_ID, name: 'Local', url: getServerUrlFor(LOCAL_REMOTE_ID), isLocal: true },
-    ...remotes.map(r => ({ id: r.id, name: r.name, url: r.url, isLocal: false })),
+    ...named.map(r => ({ id: r.id, name: r.name, url: r.url, isLocal: false })),
   ]
   const queries = useQueries({
     queries: all.map(remote => ({

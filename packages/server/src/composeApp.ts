@@ -146,6 +146,13 @@ export interface AppDependencies {
   // Where the OAuth callback redirects with `#token=...`,
   // defaults to the Vite dev origin.
   studioUrl?: string
+  // Directory holding Studio's built files, in the sense nginx means by root.
+  // Present makes this server serve the UI as well as the API,
+  // which keeps a deployment to one origin and so out of CORS entirely.
+  studioRoot?: string
+  // Origins allowed to call this API from a browser.
+  // Empty leaves the dev defaults, which is what a local install wants.
+  corsOrigins?: readonly string[]
 }
 
 /**

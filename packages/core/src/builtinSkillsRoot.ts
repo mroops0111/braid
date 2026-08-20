@@ -1,12 +1,6 @@
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-
-const here = dirname(fileURLToPath(import.meta.url))
+import { resolveSkillsDir } from './skillsDir.js'
 
 /**
- * Absolute path to the directory containing built-in `SKILL.md` files,
- * shipped with `@braidhq/core`.
- * `here` is either `<core>/src` in dev / tsx, or `<core>/dist` after a build.
- * Either way, `<core>/skills` is one level up.
+ * Absolute path to the built-in `SKILL.md` files shipped with `@braidhq/core`.
  */
-export const builtinSkillsRoot = resolve(here, '..', 'skills')
+export const builtinSkillsRoot = resolveSkillsDir(import.meta.url, 'core')
