@@ -31,7 +31,7 @@ export const FilesystemSourceDescriptor = z.object({
   // Omitted means manual. The user manages the directory, Braid does no provisioning.
   loader: SourceLoaderDescriptor.optional(),
   // Omitted means this source only refreshes when someone asks for it.
-  // Only meaningful alongside a loader, since a manual directory has nothing to pull.
+  // Meaningful only alongside a loader, a manual directory has nothing to pull.
   sync: SourceSyncPolicy.optional(),
   // Read verbatim by skills so the agent can prioritise and cite this source.
   description: z.string().optional(),

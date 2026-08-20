@@ -15,6 +15,9 @@ import type {
 } from '@braidhq/schema'
 import { NotFoundError } from '../errors.js'
 
+/** A source the framework refreshes on its own, so its budget is never absent. */
+export type ManagedSource = FilesystemSourceDescriptor & { readonly sync: SourceSyncPolicy }
+
 export class Workspace {
   constructor(private readonly data: WorkspaceData) {}
 
@@ -59,8 +62,8 @@ export class Workspace {
    * staleness budget. A manual directory has nothing to pull, and a source
    * with no budget only refreshes when someone asks for it.
    */
-  managedSources(): readonly FilesystemSourceDescriptor[] {
-    return this.filesystemSources().filter(source => source.loader && source.sync)
+  managedSources(): readonly ManagedSource[] {
+    return this.filesystemSources().filter((source): source is ManagedSource => !!source.loader && !!source.sync)
   }
 
   syncPolicyFor(sourceId: SourceId): SourceSyncPolicy | undefined {

@@ -139,12 +139,13 @@ export class SourceSyncService {
     workspace: Workspace,
     options: EnsureWorkspaceFreshOptions = {},
   ): Promise<readonly SourceRefreshOutcome[]> {
-    const managed = workspace.managedSources()
-    const passes = managed.map(source => this.ensureFresh(workspace, source.id))
-    if (options.deadlineMs === undefined)
-      return Promise.all(passes)
-    return Promise.all(managed.map(async (source, index) =>
-      withDeadline(passes[index]!, options.deadlineMs!, { sourceId: source.id, outcome: 'timedOut' as const })))
+    const { deadlineMs } = options
+    return Promise.all(workspace.managedSources().map((source) => {
+      const pass = this.ensureFresh(workspace, source.id)
+      return deadlineMs === undefined
+        ? pass
+        : withDeadline(pass, deadlineMs, { sourceId: source.id, outcome: 'timedOut' as const })
+    }))
   }
 
   async loadState(workspace: Workspace, sourceId: SourceId): Promise<SourceSyncState> {

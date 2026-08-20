@@ -41,9 +41,9 @@ export class FsSourceSyncStateRepository implements SourceSyncStateRepository {
     const root = await this.resolveRoot(state.workspaceId)
     const file = sourceSyncStateFilePath(root, state.sourceId)
     await mkdir(sourceSyncStateDir(root), { recursive: true })
-    const tmp = `${file}.tmp-${process.pid}-${Date.now()}`
-    await writeFile(tmp, `${JSON.stringify(state, null, 2)}\n`, 'utf-8')
-    await rename(tmp, file)
+    const temporaryPath = `${file}.tmp-${process.pid}-${Date.now()}`
+    await writeFile(temporaryPath, `${JSON.stringify(state, null, 2)}\n`, 'utf-8')
+    await rename(temporaryPath, file)
   }
 
   async listByWorkspace(workspaceId: WorkspaceId): Promise<readonly SourceSyncState[]> {

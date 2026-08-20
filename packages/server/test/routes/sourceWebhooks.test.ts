@@ -107,8 +107,8 @@ const gitLikeFake = makeFakeLoader({
     const url = (config as { url?: unknown }).url
     if (typeof url !== 'string')
       return undefined
-    const m = url.match(/^https?:\/\/([^/]+)\/(.+?)(?:\.git)?$/)
-    return m ? { host: m[1]!.toLowerCase(), path: m[2]! } : undefined
+    const match = url.match(/^https?:\/\/([^/]+)\/(.+?)(?:\.git)?$/)
+    return match ? { host: match[1]!.toLowerCase(), path: match[2]! } : undefined
   },
   shouldDispatch: (config, delivery) => {
     if (delivery.event === 'ping')
@@ -137,9 +137,8 @@ async function buildApp(opts: { withSecret?: string, source?: ReturnType<typeof 
   deps.secretStore = secretStore
   await deps.workspaceRepository.save(workspace)
 
-  // Replace the sync service with a spy. The real one would try to actually
-  // invoke the github plugin; tests only need to assert the receiver
-  // dispatched the sync call.
+  // Replace the sync service with a spy. The real one would invoke the github
+  // plugin for real, and these tests only assert that the receiver dispatched.
   const syncOne = vi.fn().mockResolvedValue({
     sourceId: SOURCE_ID,
     new: [],

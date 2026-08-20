@@ -1,4 +1,4 @@
-import type { SourceId, SourceSyncPolicy, WorkspaceId } from '@braidhq/schema'
+import type { SourceId, SourceSyncPolicy, Timestamp, WorkspaceId } from '@braidhq/schema'
 import type { Clock } from '../domain/Clock.js'
 import type { Logger } from '../domain/Logger.js'
 import type { ScheduledTask, Scheduler } from '../domain/Scheduler.js'
@@ -100,15 +100,13 @@ export class SourcePollingService {
       return
     const now = this.deps.clock.now()
     for (const source of workspace.managedSources()) {
-      if (!source.sync)
-        continue
       const state = await this.deps.sourceSyncService.loadState(workspace, source.id)
       if (this.isDue(state, source.id, source.sync, now))
         await this.deps.sourceSyncService.ensureFresh(workspace, source.id)
     }
   }
 
-  private isDue(state: SourceSyncState, sourceId: SourceId, policy: SourceSyncPolicy, now: string): boolean {
+  private isDue(state: SourceSyncState, sourceId: SourceId, policy: SourceSyncPolicy, now: Timestamp): boolean {
     const sinceAttempt = state.lastAttemptAt === undefined
       ? Number.POSITIVE_INFINITY
       : Date.parse(now) - Date.parse(state.lastAttemptAt)
@@ -154,9 +152,7 @@ export class SourcePollingService {
   private async tickDelayFor(workspaceId: WorkspaceId, known?: Workspace): Promise<number> {
     try {
       const workspace = known ?? await this.deps.workspaceService.findById(workspaceId)
-      const budgets = workspace.managedSources()
-        .map(source => source.sync?.maxStalenessMs)
-        .filter((budget): budget is number => budget !== undefined)
+      const budgets = workspace.managedSources().map(source => source.sync.maxStalenessMs)
       if (budgets.length === 0)
         return MAXIMUM_TICK_MS
       // A quarter of the tightest budget, so a source is checked several times
