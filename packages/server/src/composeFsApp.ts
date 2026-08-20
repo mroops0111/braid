@@ -64,9 +64,15 @@ const DEFAULT_AGENT_EFFORT = 'high'
 export interface ComposeFsRuntimeOptions {
   // Paths and URLs.
   // `braidHome` defaults to `$BRAID_HOME` or `~/.braid`.
-  // `apiUrl` is what the server reports to spawned subprocesses for callbacks.
+  // `apiUrl` is the address callers outside the host reach this server at,
+  // so it is what OAuth redirects, webhook URLs,
+  // and the OpenAPI `servers[]` block name.
+  // `loopbackApiUrl` is the address a subprocess on this host uses,
+  // which a deployment behind a proxy cannot always reach by its public name.
+  // It defaults to `apiUrl`, which is right whenever the two coincide.
   readonly braidHome?: string
   readonly apiUrl?: string
+  readonly loopbackApiUrl?: string
 
   // Preset default overrides, each falls to the `DEFAULT_*` constant above.
   // `storageKind` also reads `BRAID_STORAGE_KIND`, resolved against the registry.
@@ -211,6 +217,7 @@ export async function composeFsAppWithRegistry(
 ): Promise<AppDependencies> {
   const braidHome = options.braidHome ?? process.env.BRAID_HOME ?? join(homedir(), '.braid')
   const apiUrl = options.apiUrl ?? 'http://localhost:4321'
+  const loopbackApiUrl = options.loopbackApiUrl ?? apiUrl
 
   const secretStore = new FsSecretStore(join(braidHome, 'secrets'))
 
@@ -376,11 +383,13 @@ export async function composeFsAppWithRegistry(
     skillRegistry,
     buildAgentBinding: descriptor => pluginRegistry.requireAgentPlugin(descriptor.kind).createBinding(descriptor),
     defaultAgent,
-    apiUrl,
+    // The agent and the gateway both run on this host,
+    // so they call back on loopback rather than through the public name.
+    apiUrl: loopbackApiUrl,
     runRepository,
     eventBus,
     ...(uvxBin
-      ? { coreGateway: { specUrl: `${apiUrl}/openapi.json`, uvxBin } }
+      ? { coreGateway: { specUrl: `${loopbackApiUrl}/openapi.json`, uvxBin } }
       : {}),
     referenceDirs: [
       { skillNamespace: BUILTIN_SKILL_NAMESPACE, path: join(builtinSkillsRoot, 'shared') as AbsolutePath },

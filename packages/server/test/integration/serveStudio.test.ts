@@ -140,6 +140,65 @@ describe('cors origins', () => {
 })
 
 /**
+ * One server has two addresses, and using either for both breaks something.
+ * A public name in the agent's callback can be unreachable from inside the host.
+ * A loopback name in an OAuth redirect sends the browser to the user's own machine.
+ */
+describe('public and loopback api urls', () => {
+  let braidHome: string
+  let deps: AppDependencies
+
+  beforeEach(async () => {
+    braidHome = await mkdtemp(join(tmpdir(), 'braid-apiurl-'))
+  })
+
+  afterEach(async () => {
+    deps?.sourcePollingService.stopAll()
+    delete process.env.BRAID_GOOGLE_CLIENT_ID
+    delete process.env.BRAID_GOOGLE_CLIENT_SECRET
+    await rm(braidHome, { recursive: true, force: true }).catch(() => {})
+  })
+
+  it('advertises the public url in the spec, whatever the host calls itself', async () => {
+    const apiUrl = 'https://braid.internal'
+    deps = await composeFsApp({ braidHome, apiUrl, loopbackApiUrl: 'http://localhost:4321' })
+
+    const spec = await createApp(deps, { apiUrl }).request('/openapi.json')
+
+    expect((await spec.json() as { servers: { url: string }[] }).servers)
+      .toEqual([{ url: apiUrl }])
+  })
+
+  it('hands the agent the loopback url, not the public one', async () => {
+    deps = await composeFsApp({
+      braidHome,
+      apiUrl: 'https://braid.internal',
+      loopbackApiUrl: 'http://localhost:4321',
+    })
+
+    expect(deps.skillRunner).toMatchObject({ deps: { apiUrl: 'http://localhost:4321' } })
+  })
+
+  // Google sends the user's browser here,
+  // so a loopback value lands them on their own machine.
+  it('sends the browser back to the public url after signing in', async () => {
+    process.env.BRAID_GOOGLE_CLIENT_ID = 'id'
+    process.env.BRAID_GOOGLE_CLIENT_SECRET = 'secret'
+    deps = await composeFsApp({
+      braidHome,
+      apiUrl: 'https://braid.internal',
+      loopbackApiUrl: 'http://localhost:4321',
+    })
+
+    const response = await createApp(deps).request('/auth/google/start')
+
+    const { authorizationUrl } = await response.json() as { authorizationUrl: string }
+    expect(new URL(authorizationUrl).searchParams.get('redirect_uri'))
+      .toBe('https://braid.internal/auth/google/callback')
+  })
+})
+
+/**
  * A bundler collapses each module into one file,
  * so the path a package walks to reach its own `skills/` stops leading anywhere.
  * Nothing catches that until a run asks for a skill and the registry comes back empty.

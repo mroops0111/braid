@@ -104,6 +104,7 @@ The static handler sits ahead of the auth gate, because the app shell is what a 
 |---|---|
 | `BRAID_LOCAL_TRUST=false` | Requires a real login. Left true, every caller is trusted |
 | `BRAID_STUDIO_URL` | Where users reach Studio, and the browser origin trusted by default |
+| `BRAID_API_URL` | Where callers reach this API. Unset, it is loopback, and every OAuth redirect points at the deployment's own machine |
 | `BRAID_STUDIO_ROOT` | Serve the UI from this process |
 | `BRAID_GOOGLE_CLIENT_ID` / `_SECRET` | Google sign-in |
 | `BRAID_ALLOWED_DOMAINS` | Restricts sign-in to your domains |
@@ -112,6 +113,8 @@ The static handler sits ahead of the auth gate, because the app shell is what a 
 | `BRAID_CORS_ORIGINS` | Extra browser origins, only for a Studio served elsewhere |
 
 Naming a real `BRAID_STUDIO_URL` stops localhost being trusted, so a dev origin has to be listed in `BRAID_CORS_ORIGINS` to keep working against that server.
+
+`BRAID_API_URL` is the address the outside world uses. Both Google redirects derive from it, `/auth/google/callback` for signing in and `/oauth/google/callback` for connecting a Drive source, and each has to be registered in the Google console exactly as derived. Agents and the MCP gateway ignore it and call back on loopback, so a proxy, a split-horizon DNS, or a private certificate never breaks a skill run.
 
 `CLAUDE_CODE_OAUTH_TOKEN` is one person's subscription, so every user's runs draw on that seat's limits. A Console API key bills more honestly for a shared server. Do not set `ANTHROPIC_API_KEY` alongside it, the key wins and the subscription goes unused.
 
