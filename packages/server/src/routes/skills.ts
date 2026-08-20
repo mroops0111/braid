@@ -3,6 +3,7 @@ import type {
   RunRepository,
   SkillRegistry,
   SkillRunner,
+  SourceSyncService,
   SourceUnitObservationService,
   Workspace,
   WorkspaceRepository,
@@ -16,6 +17,10 @@ import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
+
+// Long enough for a cold shallow fetch across a handful of repos,
+// short enough that an unresponsive remote does not look like a hung submit.
+const PRE_RUN_REFRESH_DEADLINE_MS = 20_000
 
 const SourceUnitRef = z.object({
   sourceId: SourceId,
@@ -67,6 +72,12 @@ export interface SkillsRouterDeps {
    * instead of hard-coding the extract skill.
    */
   readonly pluginRegistry: PluginRegistry
+  /**
+   * Brings managed sources inside their budget before the agent reads them.
+   * Best effort by contract, so an unreachable remote delays the run briefly,
+   * and leaves the previous mirror in place rather than failing it.
+   */
+  readonly sourceSyncService: SourceSyncService
 }
 
 const listSkillsRoute = createRoute({
@@ -185,6 +196,14 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
       if (!known)
         throw new ValidationError(`Source-unit id "${sourceUnit.sourceId}" does not name a unit-bearing source in workspace "${workspace.id}"`)
     }
+
+    // Before the agent opens a single file, not after.
+    // A refresh landing mid-run swaps content the agent already reasoned about.
+    // Bounded,
+    // because this call holds the request open and git has no timeout of its own.
+    // Past the bound the run starts against the existing mirror,
+    // which is what the best-effort contract promises anyway.
+    await deps.sourceSyncService.ensureWorkspaceFresh(workspace, { deadlineMs: PRE_RUN_REFRESH_DEADLINE_MS })
 
     const runId = await deps.skillRunner.start(workspace, skillId, args, options)
 

@@ -23,6 +23,8 @@ import type {
   SkillManifest,
   SourceDescriptor,
   SourceId,
+  SourceSyncPolicy,
+  SourceSyncState,
   SourceUnitDiff,
   SourceUnitObservation,
   TagMeta,
@@ -31,6 +33,7 @@ import type {
   ValidationResult,
   Workspace,
   WorkspaceMember,
+  WorkspacePollingConfig,
   WorkspaceRole,
 } from '@braidhq/schema'
 import { getAuthToken } from './authToken.js'
@@ -245,6 +248,7 @@ export const api = {
     description?: string
     ontologyId?: string
     mcpServers?: McpServerConfig[]
+    polling?: WorkspacePollingConfig
   }) =>
     fetchJson<PatchWorkspaceResult>(`/workspaces/${workspaceId}`, {
       method: 'PATCH',
@@ -263,7 +267,7 @@ export const api = {
     fetchJson<{ workspace: Workspace }>(`/workspaces/${workspaceId}/sources/${sourceId}`, { method: 'DELETE' }),
   syncSource: (workspaceId: string, sourceId: string) =>
     fetchJson<ProvisionSummary>(`/workspaces/${workspaceId}/sources/${sourceId}/sync`, { method: 'POST' }),
-  patchSource: (workspaceId: string, sourceId: string, patch: { description?: string }) =>
+  patchSource: (workspaceId: string, sourceId: string, patch: { description?: string, sync?: SourceSyncPolicy | null }) =>
     fetchJson<{ workspace: Workspace }>(`/workspaces/${workspaceId}/sources/${sourceId}`, {
       method: 'PATCH',
       body: JSON.stringify(patch),
@@ -279,6 +283,9 @@ export const api = {
 
   listSourceConnections: (workspaceId: string) =>
     fetchJson<{ connections: SourceConnectionSummary[] }>(`/workspaces/${workspaceId}/source-connections`),
+
+  listSourceSyncStates: (workspaceId: string) =>
+    fetchJson<{ states: SourceSyncState[] }>(`/workspaces/${workspaceId}/source-sync-states`),
 
   startGoogleOAuth: (workspaceId: string, sourceId: string) =>
     fetchJson<{ authorizationUrl: string }>('/oauth/google/start', {

@@ -14,6 +14,7 @@ import { ReferencePeekAside, ReferencePeekOverride, ReferencePeekProvider } from
 import { ReferenceRegistryProvider } from './components/references/ReferenceRegistryProvider'
 import { Sidebar } from './components/Sidebar'
 import { SourceAuthBanner } from './components/SourceAuthBanner'
+import { SourceSyncBanner } from './components/SourceSyncBanner'
 import { TooltipProvider } from './components/ui/tooltip'
 import { UserPicker } from './components/UserPicker'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
@@ -154,6 +155,7 @@ function AppInner() {
                               onOpenDetails={() => activeId && openDetails(activeId)}
                             />
                             <SourceAuthBanner workspaceId={activeId} onOpenDetails={() => activeId && openDetails(activeId)} />
+                            <SourceSyncBanner workspaceId={activeId} onOpenDetails={() => activeId && openDetails(activeId)} />
                             <ReactorBanner workspaceId={activeId} onOpenActivity={() => setActiveSurface('activity')} />
                             <BatchInFlightBanner
                               workspaceId={activeId}

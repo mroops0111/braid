@@ -6,12 +6,17 @@ import type {
   McpSourceDescriptor,
   ProductManifest,
   SourceDescriptor,
+  SourceId,
   SourceRole,
+  SourceSyncPolicy,
   StorageDescriptor,
   Workspace as WorkspaceData,
   WorkspaceId,
 } from '@braidhq/schema'
 import { NotFoundError } from '../errors.js'
+
+/** A source the framework refreshes on its own, so its budget is never absent. */
+export type ManagedSource = FilesystemSourceDescriptor & { readonly sync: SourceSyncPolicy }
 
 export class Workspace {
   constructor(private readonly data: WorkspaceData) {}
@@ -50,6 +55,26 @@ export class Workspace {
 
   mcpSources(): readonly McpSourceDescriptor[] {
     return this.sources.filter((source): source is McpSourceDescriptor => source.kind === 'mcp')
+  }
+
+  /**
+   * Sources that refresh on their own,
+   * being loader-backed and carrying a staleness budget.
+   * A manual directory has nothing to pull,
+   * and a source with no budget only refreshes when someone asks for it.
+   */
+  managedSources(): readonly ManagedSource[] {
+    return this.filesystemSources().filter((source): source is ManagedSource => !!source.loader && !!source.sync)
+  }
+
+  syncPolicyFor(sourceId: SourceId): SourceSyncPolicy | undefined {
+    const source = this.filesystemSources().find(candidate => candidate.id === sourceId)
+    return source?.loader ? source.sync : undefined
+  }
+
+  /** Whether background refreshes run. Opting out costs latency, never freshness. */
+  isPollingEnabled(): boolean {
+    return this.data.productManifest.polling?.enabled !== false
   }
 
   resolveAddDirs(): readonly AbsolutePath[] {

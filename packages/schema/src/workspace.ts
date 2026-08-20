@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { AbsolutePath, OntologyId, SkillId, Timestamp, UserId, WorkspaceId } from './common.js'
 import { McpServerConfig } from './mcp.js'
 import { ReactorConfig } from './reactor.js'
+import { WorkspacePollingConfig } from './source-sync.js'
 import { SourceDescriptor } from './source.js'
 import { StorageDescriptor } from './storage.js'
 
@@ -33,6 +34,7 @@ export const ProductManifest = z.object({
   mcpServers: z.array(McpServerConfig).default([]),
   storage: StorageDescriptor,
   reactor: ReactorConfig.optional(),
+  polling: WorkspacePollingConfig.optional(),
 })
 export type ProductManifest = z.infer<typeof ProductManifest>
 

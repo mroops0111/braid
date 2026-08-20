@@ -1,6 +1,6 @@
 import type {
   PluginRegistry,
-  SourceLoaderRunner,
+  SourceSyncService,
   WebhookCapability,
   WorkspaceService,
 } from '@braidhq/core'
@@ -32,7 +32,7 @@ import { WorkspaceIdParam } from './_shared.js'
  *
  * The receiver is loader-agnostic and does not switch on `loader.kind`.
  * A new loader extends the webhook surface from its plugin definition,
- * via `webhook: { repoIdentity, shouldDispatch }`.
+ * via `webhook: { upstream, shouldDispatch }`.
  *
  * Secrets live in the existing `SecretStore`,
  * under namespace `webhook-github`, keyed by `<workspaceId>--<sourceId>`.
@@ -41,7 +41,11 @@ import { WorkspaceIdParam } from './_shared.js'
  */
 
 const SECRET_NAMESPACE = 'webhook-github'
-const PROVIDER = 'github' as const
+// Hosts this receiver knows how to verify deliveries from.
+// A source whose upstream lives elsewhere is not webhook-capable here,
+// and says so with a 400,
+// rather than minting a secret that could never authenticate anything.
+const GITHUB_HOSTS = new Set(['github.com'])
 
 interface WebhookSecretRecord {
   readonly secret: string
@@ -54,9 +58,16 @@ function secretKey(workspaceId: WorkspaceId, sourceId: SourceId): string {
 
 export interface GithubWebhookReceiverDeps {
   readonly workspaceService: WorkspaceService
-  readonly sourceLoaderRunner: SourceLoaderRunner
+  readonly sourceSyncService: SourceSyncService
   readonly secretStore: SecretStore
   readonly pluginRegistry: PluginRegistry
+  /**
+   * Whether a skill run currently holds the workspace's sources.
+   * Deliveries are dropped while one does, matching the poller.
+   * A manual sync stays unconditional,
+   * since a person asked for it and can see the result.
+   */
+  readonly isWorkspaceBusy?: (workspaceId: WorkspaceId) => boolean
 }
 
 const receiverLogger = createLogger('webhooks.github.receiver')
@@ -107,7 +118,7 @@ function unauthorized(): never {
 interface VerifiedDelivery {
   readonly workspace: Awaited<ReturnType<WorkspaceService['findById']>>
   readonly resolved: NonNullable<ReturnType<typeof resolveWebhookCapability>>
-  readonly identity: NonNullable<ReturnType<WebhookCapability['repoIdentity']>>
+  readonly upstream: NonNullable<ReturnType<WebhookCapability['upstream']>>
   readonly rawBody: string
 }
 
@@ -134,15 +145,15 @@ async function verifyDelivery(
     const resolved = resolveWebhookCapability(deps.pluginRegistry, source)
     if (!resolved)
       return undefined
-    const identity = resolved.capability.repoIdentity(resolved.config)
-    if (!identity || identity.provider !== PROVIDER)
+    const upstream = resolved.capability.upstream(resolved.config)
+    if (!upstream || !GITHUB_HOSTS.has(upstream.host))
       return undefined
     const record = await deps.secretStore.read<WebhookSecretRecord>(SECRET_NAMESPACE, secretKey(workspaceId, sourceId))
     if (!record)
       return undefined
     if (!verifySignature(rawBody, signature, record.secret))
       return undefined
-    return { workspace, resolved, identity, rawBody }
+    return { workspace, resolved, upstream, rawBody }
   }
   catch (err) {
     receiverLogger.warn({ workspaceId, sourceId, err: err instanceof Error ? err.message : String(err) }, 'webhook: pre-signature check failed')
@@ -170,7 +181,7 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
     const verified = await verifyDelivery(deps, context, workspaceId, sourceId)
     if (!verified)
       return unauthorized()
-    const { workspace, resolved, identity, rawBody } = verified
+    const { workspace, resolved, upstream, rawBody } = verified
 
     // Parse the body only after the signature check,
     // so an attacker who can't forge the HMAC, never reaches our JSON parser.
@@ -183,7 +194,7 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
     }
 
     const fullName = extractFullName(payload)
-    const expectedFullName = `${identity.owner}/${identity.repo}`.toLowerCase()
+    const expectedFullName = upstream.path.toLowerCase()
     // GitHub repo names are case-insensitive,
     // (a stored `Owner/Repo` may arrive as `owner/repo`, or vice versa).
     // Compare normalised. Also REQUIRE full_name to be present.
@@ -208,6 +219,15 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
       return context.json({ accepted: true, event, workspaceId, sourceId, skipped: true }, 202)
     }
 
+    // A run holds this workspace's files,
+    // and a refresh rewrites them under the agent mid-read.
+    // Nobody is waiting on a delivery, so drop it and let the next one,
+    // or the poller, pick the change up once the run is done.
+    if (deps.isWorkspaceBusy?.(workspaceId)) {
+      receiverLogger.info({ workspaceId, sourceId }, 'skipped webhook sync, a run holds this workspace')
+      return context.json({ ok: true, skipped: true }, 202)
+    }
+
     // Fire-and-forget. Deliveries time out at ~10s,
     // and a clean repo with many issues can take minutes to poll.
     // Errors are logged so a failing sync doesn't silently disappear,
@@ -215,7 +235,7 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
     // Concurrent deliveries are allowed to race, loaders are idempotent,
     // (last-writer-wins per file) so the result still converges,
     // to the latest remote state.
-    void deps.sourceLoaderRunner.syncOne(workspace, sourceId).catch((err) => {
+    void deps.sourceSyncService.syncNow(workspace, sourceId).catch((err) => {
       receiverLogger.warn(
         {
           workspaceId,
@@ -369,14 +389,14 @@ async function guardWebhookSource(
   if (!resolved)
     throw new ValidationError(`Source "${sourceId}" has no webhook-capable loader.`)
   try {
-    const identity = resolved.capability.repoIdentity(resolved.config)
-    if (!identity || identity.provider !== PROVIDER)
+    const upstream = resolved.capability.upstream(resolved.config)
+    if (!upstream || !GITHUB_HOSTS.has(upstream.host))
       throw new ValidationError(`Source "${sourceId}" is not bound to a github repo.`)
   }
   catch (err) {
     if (err instanceof ValidationError)
       throw err
-    adminLogger.warn({ workspaceId, sourceId, err: err instanceof Error ? err.message : String(err) }, 'admin: repoIdentity threw')
+    adminLogger.warn({ workspaceId, sourceId, err: err instanceof Error ? err.message : String(err) }, 'admin: upstream lookup threw')
     throw new ValidationError(`Source "${sourceId}" loader config does not match the loader's schema.`)
   }
 }

@@ -477,9 +477,14 @@ describe('GithubLoader', () => {
 describe('GithubLoader webhook capability', () => {
   const loader = makeLoader()
 
-  it('reports repoIdentity from the loader config', () => {
-    expect(loader.webhook?.repoIdentity({ owner: 'mroops0111', repo: 'braid' }))
-      .toEqual({ provider: 'github', owner: 'mroops0111', repo: 'braid' })
+  it('reports the upstream host and path from the loader config', () => {
+    expect(loader.webhook?.upstream({ owner: 'mroops0111', repo: 'braid' }))
+      .toEqual({ host: 'github.com', path: 'mroops0111/braid' })
+  })
+
+  it('reports an enterprise host rather than assuming the public one', () => {
+    expect(loader.webhook?.upstream({ owner: 'o', repo: 'r', apiBaseUrl: 'https://api.github.acme.internal' }))
+      .toEqual({ host: 'github.acme.internal', path: 'o/r' })
   })
 
   it('dispatches issues, issue_comment, and ping events', () => {
