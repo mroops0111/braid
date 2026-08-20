@@ -1,0 +1,30 @@
+services:
+  braid:
+    build: .
+    ports:
+      - '4321:4321'
+    volumes:
+      # Everything that must survive a redeploy. Without it every source
+      # re-clones on each boot, and the graph and its git history are lost.
+      - braid-data:/data
+    environment:
+      # Real authentication. Leaving this true trusts every caller.
+      BRAID_LOCAL_TRUST: 'false'
+      # Where users reach Studio. Also the only browser origin trusted by
+      # default, so a wrong value here is what a CORS failure looks like.
+      BRAID_STUDIO_URL: ${BRAID_STUDIO_URL:?set this to the URL users open}
+      BRAID_GOOGLE_CLIENT_ID: ${BRAID_GOOGLE_CLIENT_ID:?}
+      BRAID_GOOGLE_CLIENT_SECRET: ${BRAID_GOOGLE_CLIENT_SECRET:?}
+      BRAID_GOOGLE_LOGIN_REDIRECT_URI: ${BRAID_STUDIO_URL}/auth/google/callback
+      BRAID_ALLOWED_DOMAINS: ${BRAID_ALLOWED_DOMAINS:-}
+      BRAID_ADMIN_EMAILS: ${BRAID_ADMIN_EMAILS:?at least one admin is required}
+      # Subscription credential for the agent. See the deployment notes in
+      # packages/server/README.md for how it is minted and what it costs.
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:?}
+      # Read access for private git remotes, referenced from PRODUCT.md as
+      # `https://oauth2:${GIT_TOKEN}@host/group/repo.git`.
+      GIT_TOKEN: ${GIT_TOKEN:-}
+    restart: unless-stopped
+
+volumes:
+  braid-data:

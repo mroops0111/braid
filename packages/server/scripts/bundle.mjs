@@ -112,6 +112,23 @@ async function copyKuzuRuntime(triple) {
   await writeTrimmedKuzuManifest(kuzuDir, targetDir)
 }
 
+/**
+ * Skill prompts are read from disk at run time,
+ * so the bundle has to carry them. Each package gets its own directory,
+ * because more than one ships a `shared/` and a flat copy would lose one of them.
+ */
+async function copySkills() {
+  const packages = [
+    ['core', resolve(packageDir, '../core/skills')],
+    ['ontology-ddd', resolve(packageDir, '../ontology-ddd/skills')],
+  ]
+  for (const [name, source] of packages) {
+    if (!existsSync(source))
+      throw new Error(`[bundle] missing skills for ${name}: ${source}`)
+    await cp(source, join(bundleDir, 'skills', name), { recursive: true })
+  }
+}
+
 async function main() {
   const triple = currentTriple()
   if (existsSync(bundleDir))
@@ -120,6 +137,7 @@ async function main() {
 
   await bundleServerJs()
   await copyKuzuRuntime(triple)
+  await copySkills()
 
   console.log(`[bundle] ready: ${bundleDir} (target: ${triple})`)
 }

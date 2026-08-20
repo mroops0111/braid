@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ListRow } from '@/components/ListRow'
 import { UserPicker } from '@/components/UserPicker'
+import { isDesktop } from '@/lib/platform'
 import { useWorkspacePolicy } from '@/policy'
 import { AboutTab } from './settings/AboutTab'
 import { AppearanceTab } from './settings/AppearanceTab'
@@ -13,7 +14,11 @@ type SettingsTab = 'servers' | 'users' | 'appearance' | 'about'
 
 export function SettingsPage() {
   const { t } = useTranslation()
-  const [tab, setTab] = useState<SettingsTab>('servers')
+  // A page served by a server speaks only to that server,
+  // so the server list is a desktop affordance.
+  // In a browser the same need is met by a new tab.
+  const canManageServers = isDesktop()
+  const [tab, setTab] = useState<SettingsTab>(canManageServers ? 'servers' : 'appearance')
   const { isServerAdmin: isAdmin } = useWorkspacePolicy(null)
   return (
     <div className="flex h-full flex-col">
@@ -26,7 +31,9 @@ export function SettingsPage() {
       </header>
       <div className="flex flex-1 overflow-hidden">
         <ul className="flex w-60 shrink-0 flex-col border-r border-border">
-          <SettingsNavRow label={t('admin.navigation.servers')} value="servers" active={tab === 'servers'} onClick={setTab} />
+          {canManageServers && (
+            <SettingsNavRow label={t('admin.navigation.servers')} value="servers" active={tab === 'servers'} onClick={setTab} />
+          )}
           {isAdmin && (
             <SettingsNavRow label={t('admin.navigation.users')} value="users" active={tab === 'users'} onClick={setTab} />
           )}
@@ -35,7 +42,7 @@ export function SettingsPage() {
         </ul>
         <div className="flex-1 overflow-y-auto scrollbar-thin">
           <div className="max-w-2xl px-6 py-6">
-            {tab === 'servers' && <ServersTab />}
+            {tab === 'servers' && canManageServers && <ServersTab />}
             {tab === 'users' && isAdmin && <UsersTab />}
             {tab === 'appearance' && <AppearanceTab />}
             {tab === 'about' && <AboutTab />}

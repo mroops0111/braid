@@ -1,4 +1,5 @@
 import type { AppDependencies } from './composeApp.js'
+import { serveStatic } from '@hono/node-server/serve-static'
 import { OpenAPIHono } from '@hono/zod-openapi'
 import { authMiddleware } from './middleware/auth.js'
 import { corsMiddleware } from './middleware/cors.js'
@@ -48,12 +49,19 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   const app = new OpenAPIHono()
 
   // Global middleware, every request passes these in order.
-  app.use(
-    '*',
-    options.corsOrigins
-      ? corsMiddleware({ allowedOrigins: options.corsOrigins })
-      : corsMiddleware(),
-  )
+  const corsOrigins = deps.corsOrigins ?? options.corsOrigins
+  app.use('*', corsOrigins ? corsMiddleware({ allowedOrigins: corsOrigins }) : corsMiddleware())
+  // The app shell is what a signed-out visitor loads in order to sign in,
+  // so it mounts before the auth gate.
+  // Gating it would leave nobody able to reach the login screen,
+  // while the API behind it stays gated. Vite emits `index.html` and `assets/`,
+  // neither of which can collide with an API prefix,
+  // and a miss falls through to the routes below.
+  if (deps.studioRoot) {
+    const root = deps.studioRoot
+    app.use('/*', serveStatic({ root, index: 'index.html' }))
+  }
+
   // Identity and auth gate. Resolves the caller's `userId` from a Bearer session
   // when auth is enforced, else the `X-Braid-User` header or the default principal.
   // Non-public routes that lack a required Bearer token are rejected.

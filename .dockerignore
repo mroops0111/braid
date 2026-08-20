@@ -1,0 +1,29 @@
+# Secrets / Env
+# The server walks up for a `.env` at boot, so one copied in would both leak
+# and silently override the deployment's own settings.
+.env
+.env.*
+
+# Build Outputs
+**/dist
+**/bundle
+**/node_modules
+**/.turbo
+
+# Repository Metadata
+.git
+.github
+
+# Test and Coverage Outputs
+**/coverage
+
+# Desktop Shell
+packages/desktop/src-tauri/target
+packages/desktop/src-tauri/resources
+
+# Documentation and Media
+docs
+examples
+demo.gif
+architecture.png
+architecture.pen

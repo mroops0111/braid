@@ -267,19 +267,27 @@ export async function composeFsAppWithRegistry(
     accessPolicyConfig.adminEmails = adminEmails
   const accessPolicy = new AccessPolicy(join(braidHome, 'access.json'), accessPolicyConfig)
   // Boot, part one, provision host identity, who may use this server.
+  const studioUrl = process.env.BRAID_STUDIO_URL ?? 'http://localhost:5173'
   // Local trust is the default.
   // Production sets `BRAID_LOCAL_TRUST=false` to require real authentication.
   // We do not flip the default when Google OAuth env is present,
   // those creds also feed the Drive loader,
   // and a dev pulling from Drive should not hit Login on every reload.
-  const authMode = parseBoolEnv(process.env.BRAID_LOCAL_TRUST, true) ? localTrust : authenticated
+  const locallyTrusted = parseBoolEnv(process.env.BRAID_LOCAL_TRUST, true)
+  assertLocalTrustIsLocal(locallyTrusted, studioUrl)
+  const authMode = locallyTrusted ? localTrust : authenticated
   // Local trust seeds `local-user`, authenticated mode syncs the login allowlist.
   await authMode.provision({ userRegistry, accessPolicy })
   // The reactor is an autonomous component, so it seeds its own service account.
   // Its kind=service rides onto every proposal it submits,
   // so the HITL views classify it without a read-time lookup.
   await ensureServiceAccount(userRegistry, REACTOR_USER_ID, 'Reactor')
-  const studioUrl = process.env.BRAID_STUDIO_URL ?? 'http://localhost:5173'
+  // Serving Studio ourselves puts the UI and the API on one origin,
+  // so the browser never reaches for CORS on the path that matters.
+  const studioRoot = process.env.BRAID_STUDIO_ROOT
+  // A deployment that sets its own studio origin has left dev behind,
+  // so localhost stops being allowed unless it is named explicitly.
+  const corsOrigins = resolveCorsOrigins(studioUrl, process.env.BRAID_CORS_ORIGINS)
   const workspaceRoots = async (): Promise<ReadonlyMap<WorkspaceId, AbsolutePath>> => {
     const workspaces = await workspaceRepository.list()
     return new Map(workspaces.map(ws => [ws.id, ws.rootPath]))
@@ -452,6 +460,8 @@ export async function composeFsAppWithRegistry(
     sessionStore,
     accessPolicy,
     studioUrl,
+    ...(studioRoot ? { studioRoot } : {}),
+    ...(corsOrigins ? { corsOrigins } : {}),
     ...(googleOAuth ? { googleOAuth } : {}),
     ...(githubOAuth ? { githubOAuth } : {}),
   }
@@ -496,6 +506,68 @@ function makeOAuthTokenResolver<R extends { accessToken: string, expiresAt: stri
       await deps.secretStore.write(deps.namespace, key, { ...stored, needsAuth: true })
       throw error
     }
+  }
+}
+
+/**
+ * Refuse to trust every caller on a deployment reachable by other people.
+ *
+ * The default is local trust and suits a laptop,
+ * but it is catastrophic on a shared host. Nothing else tells the two apart,
+ * and naming a Studio origin that is not loopback is a deployment saying so out loud.
+ */
+function assertLocalTrustIsLocal(locallyTrusted: boolean, studioUrl: string): void {
+  if (!locallyTrusted)
+    return
+  const host = hostOf(studioUrl)
+  const isLoopback = host === undefined
+    || host === 'localhost'
+    || host === '127.0.0.1'
+    || host === '[::1]'
+    || host.endsWith('.localhost')
+  if (isLoopback)
+    return
+  throw new Error(
+    `BRAID_STUDIO_URL is "${studioUrl}", so this server is reachable by other people, `
+    + 'but BRAID_LOCAL_TRUST is on and every caller would be trusted without signing in. '
+    + 'Set BRAID_LOCAL_TRUST=false.',
+  )
+}
+
+/** The hostname of a URL, without the port. */
+function hostOf(url: string): string | undefined {
+  try {
+    return new URL(url).hostname.toLowerCase()
+  }
+  catch {
+    return undefined
+  }
+}
+
+/**
+ * Which browser origins may call this API.
+ *
+ * A deployment that names its own Studio origin has left dev behind,
+ * so the localhost defaults stop applying and only that origin,
+ * plus anything named explicitly, gets through.
+ * Leaving both unset keeps a local install on the dev defaults.
+ */
+function resolveCorsOrigins(studioUrl: string, extra: string | undefined): readonly string[] | undefined {
+  const named = parseCsv(extra) ?? []
+  const studioOrigin = originOf(studioUrl)
+  const isDevDefault = studioOrigin === 'http://localhost:5173'
+  if (isDevDefault && named.length === 0)
+    return undefined
+  return [...new Set([...(studioOrigin ? [studioOrigin] : []), ...named])]
+}
+
+/** The scheme and authority of a URL, the shape a browser sends as `Origin`. */
+function originOf(url: string): string | undefined {
+  try {
+    return new URL(url).origin
+  }
+  catch {
+    return undefined
   }
 }
 

@@ -11,7 +11,8 @@ let cachedEmbeddedUrl: string | null = null
  * Resolves the URL Studio should talk to right now.
  *   1. Active remote in Settings, when not Local
  *   2. Cached embedded sidecar URL (Tauri runtime)
- *   3. Vite env / hard default (web dev)
+ *   3. The origin this page came from, when a server served it
+ *   4. Vite env / hard default (web dev)
  *
  * Falls through to Local if the active remote was removed externally.
  */
@@ -22,17 +23,32 @@ export function getServerUrl(): string {
     if (remote)
       return remote.url
   }
+  return localServerUrl()
+}
+
+/**
+ * The server behind the Local entry.
+ *
+ * A page a server served has to call that same server,
+ * whatever hostname and port it happens to be reachable on.
+ * A build-time default cannot know that,
+ * and it would send a deployed Studio to a port on the visitor's own machine.
+ * Vite serves Studio on its own port in development,
+ * the one case where the page's origin is not the API.
+ */
+function localServerUrl(): string {
   if (cachedEmbeddedUrl)
     return cachedEmbeddedUrl
-  return import.meta.env.VITE_BRAID_API_URL ?? DEFAULT_SERVER_URL
+  if (import.meta.env.VITE_BRAID_API_URL)
+    return import.meta.env.VITE_BRAID_API_URL
+  if (typeof window !== 'undefined' && !import.meta.env.DEV)
+    return window.location.origin
+  return DEFAULT_SERVER_URL
 }
 
 export function getServerUrlFor(remoteId: string): string {
-  if (remoteId === LOCAL_REMOTE_ID) {
-    if (cachedEmbeddedUrl)
-      return cachedEmbeddedUrl
-    return import.meta.env.VITE_BRAID_API_URL ?? DEFAULT_SERVER_URL
-  }
+  if (remoteId === LOCAL_REMOTE_ID)
+    return localServerUrl()
   const remote = listRemotes().find(r => r.id === remoteId)
   return remote?.url ?? DEFAULT_SERVER_URL
 }

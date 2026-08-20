@@ -1,10 +1,17 @@
 import type { EdgeTypeDescriptor, NodeTypeDescriptor } from '@braidhq/core'
 import type { LocalizedText } from '@braidhq/schema'
 import type { SourceRoleInput } from '@braidhq/sdk'
+import { pathToFileURL } from 'node:url'
+import { resolveSkillsDir } from '@braidhq/core'
 import { EdgeTypeId, NodeTypeId, SkillId } from '@braidhq/schema'
 import { defineOntologyPlugin } from '@braidhq/sdk'
 import enLabels from './locales/en/labels.js'
 import zhHantLabels from './locales/zh-Hant/labels.js'
+
+/** This ontology's own skills, wherever they landed at run time. */
+function skillDir(name: string): URL {
+  return pathToFileURL(`${resolveSkillsDir(import.meta.url, 'ontology-ddd')}/${name}`)
+}
 
 type LabelKind = keyof typeof enLabels
 
@@ -58,16 +65,16 @@ export const dddOntology = defineOntologyPlugin({
   // The id is composed as `ddd:<directory basename>`, ddd from ontologyId,
   // so the namespace is never repeated or forgotten here.
   skills: [
-    { directory: new URL('../skills/extract', import.meta.url) },
-    { directory: new URL('../skills/clarify', import.meta.url) },
-    { directory: new URL('../skills/reconcile', import.meta.url) },
-    { directory: new URL('../skills/scan', import.meta.url) },
+    { directory: skillDir('extract') },
+    { directory: skillDir('clarify') },
+    { directory: skillDir('reconcile') },
+    { directory: skillDir('scan') },
   ],
 
   // Reference docs every SKILL.md above consults, so the DDD vocabulary,
   // wiring rules, and id conventions live in one place, not per prompt.
   // The runner mounts it under this ontology's namespace and injects the path.
-  referenceDir: new URL('../skills/shared', import.meta.url),
+  referenceDir: skillDir('shared'),
 
   nodeTypes: localeNodes([
     {
