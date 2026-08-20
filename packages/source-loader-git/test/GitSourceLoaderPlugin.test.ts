@@ -111,10 +111,11 @@ describe('GitLoader', () => {
 })
 
 /**
- * A source that omits `branch` must still follow its remote. Fetching
- * `origin HEAD` writes only FETCH_HEAD, leaving the tracking ref at the
- * clone-time commit, so a reset against it freezes the mirror while every
- * sync reports success. These cover the branch defaulting that avoids that.
+ * A source that omits `branch` must still follow its remote.
+ * Fetching `origin HEAD` writes only FETCH_HEAD,
+ * leaving the tracking ref at the clone-time commit,
+ * so a reset against it freezes the mirror while every sync reports success.
+ * These cover the branch defaulting that avoids that.
  */
 describe('GitLoader default branch', () => {
   let scratch: string

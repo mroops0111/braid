@@ -75,13 +75,12 @@ export interface AppDependencies {
   modelService: ModelService
   modelValidationService: ModelValidationService
   sourceLoaderRunner: SourceLoaderRunner
-  // The entry point every sync trigger uses. Calling the runner directly
-  // skips the lock and leaves the sync-state store untouched.
+  // The entry point every sync trigger uses.
+  // Calling the runner directly skips the lock,
+  // and leaves the sync-state store untouched.
   sourceSyncService: SourceSyncService
   sourcePollingService: SourcePollingService
   syncStateRepository: SourceSyncStateRepository
-  // Shared by the poller and the webhook receiver, both of which back off
-  // rather than rewrite files under a running agent.
   isWorkspaceBusy?: (workspaceId: WorkspaceId) => boolean
   sourceUnitObservationService: SourceUnitObservationService
 
@@ -172,8 +171,7 @@ export interface ComposeOptions {
   sourceUnitObservationRepository?: SourceUnitObservationRepository
   sourceSyncStateRepository?: SourceSyncStateRepository
   batchPlanRepository?: BatchPlanRepository
-  // Whether a skill run currently holds a workspace's sources, so the poller
-  // skips it rather than swapping files under a running agent.
+  // Whether a skill run currently holds a workspace's sources.
   isWorkspaceBusy?: (workspaceId: WorkspaceId) => boolean
 
   // Source-unit extraction.
@@ -225,8 +223,6 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const modelValidationService = new ModelValidationService({ pluginRegistry })
   const sourceLoaderRunner = new SourceLoaderRunner({ pluginRegistry, clock, eventBus })
   const syncStateRepository = options.sourceSyncStateRepository ?? new InMemorySourceSyncStateRepository()
-  // Every sync trigger funnels through here, so each pass is recorded once
-  // and concurrent triggers for one source collapse into a single fetch.
   const sourceSyncService = new SourceSyncService({
     sourceLoaderRunner,
     syncStateRepository,

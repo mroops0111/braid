@@ -2,8 +2,8 @@ import type { SourceId, SourceSyncState, WorkspaceId } from '@braidhq/schema'
 
 /**
  * Repository port for `SourceSyncState`, keyed by `(workspaceId, sourceId)`.
- * Matching the `SourceUnitObservationRepository` shape, so a SQL-backed
- * implementation swaps in without the domain noticing.
+ * Matching the `SourceUnitObservationRepository` shape,
+ * so a SQL-backed implementation swaps in without the domain noticing.
  *
  * `find` returns null for a source that has never been attempted,
  * which callers read as "not fresh" rather than seeding a record eagerly.

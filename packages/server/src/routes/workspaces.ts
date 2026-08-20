@@ -67,8 +67,8 @@ export interface WorkspacesRouterDeps {
   // Sync goes through the service, so the pass is locked and recorded.
   // Provisioning stays on the runner, a scaffold has no prior state to guard.
   sourceSyncService: SourceSyncService
-  // Started and stopped in step with the workspace's polling flag, so the
-  // toggle takes effect without a restart.
+  // Started and stopped in step with the workspace's polling flag,
+  // so the toggle takes effect without a restart.
   sourcePollingService: SourcePollingService
   syncStateRepository: SourceSyncStateRepository
   workspacesRoot: AbsolutePath
@@ -219,7 +219,8 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
       const workspace = await deps.workspaceService.load(rootPath)
       const provisionOutcomes = await deps.sourceLoaderRunner.provisionAll(workspace)
       await deps.workspaceService.save(workspace)
-      // After save, since the sync-state store resolves a workspace's path
+      // After save,
+      // since the sync-state store resolves a workspace's path,
       // through the registration this call writes.
       await deps.sourceSyncService.recordProvisioned(workspace, provisionOutcomes)
       await deps.bootstrap?.ensure(workspace)
@@ -319,8 +320,8 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     await updateProductManifest(workspace.rootPath, nextManifest)
     await commitConfigChange(deps, workspaceId, getUserId(context), `updated source ${existing.name}`, sourceId)
     const updated = await reload(deps.workspaceService, workspace.rootPath)
-    // The loop only runs for workspaces with something to warm, so setting the
-    // first schedule is what starts it.
+    // The loop only runs for workspaces with something to warm,
+    // so setting the first schedule is what starts it.
     if (patch.sync !== undefined && updated.isPollingEnabled())
       await deps.sourcePollingService.start(updated.id)
     return context.json({ workspace: updated.toData() })
@@ -353,9 +354,9 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     return context.json({ workspace: updated.toData() })
   })
 
-  // Freshness and failure state per source, so Studio can show a stale or
-  // failing mirror without opening each source, and monitoring can alert on
-  // one that has not succeeded in a while.
+  // Freshness and failure state per source,
+  // so Studio can show a stale or failing mirror without opening each source,
+  // and monitoring can alert on one that has not succeeded in a while.
   // Read-only, so any member sees it, matching the source-connection route.
   router.get('/:workspaceId/source-sync-states', workspaceIdMiddleware, wsAccess, requirePermission('workspace.read'), async (context) => {
     const states = await deps.syncStateRepository.listByWorkspace(getWorkspaceId(context))
@@ -392,9 +393,10 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     const renamed = patch.name !== undefined && patch.name !== workspace.productManifest.name
     await commitConfigChange(deps, workspaceId, getUserId(context), renamed ? `renamed to ${patch.name}` : 'updated workspace config')
     const updated = await reload(deps.workspaceService, workspace.rootPath)
-    // Match the running loop to what was just saved. A tick already re-reads
-    // the manifest, so turning it off would take effect anyway, but turning it
-    // back on would otherwise wait for a restart.
+    // Match the running loop to what was just saved.
+    // A tick already re-reads the manifest,
+    // so turning it off would take effect anyway,
+    // but turning it back on would otherwise wait for a restart.
     if (patch.polling !== undefined) {
       if (updated.isPollingEnabled())
         await deps.sourcePollingService.start(updated.id)

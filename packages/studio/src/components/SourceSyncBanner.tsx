@@ -5,8 +5,9 @@ import { api } from '@/lib/api'
 import { TopBanner } from './TopBanner'
 import { Button } from './ui/button'
 
-// A single miss is usually a blip the next pass clears, so hold the banner
-// until a source has failed repeatedly and stopped recovering on its own.
+// A single miss is usually a blip the next pass clears,
+// so hold the banner until a source keeps failing,
+// and stops recovering on its own.
 const FAILURES_BEFORE_WARNING = 3
 
 interface SourceSyncBannerProps {
@@ -18,12 +19,14 @@ interface SourceSyncBannerProps {
 /**
  * Top-of-app warning for a source whose refreshes keep failing.
  *
- * A mirror that stops updating is otherwise silent. Runs keep working against
- * the last good copy by design, so without this the graph quietly describes
- * code from weeks ago and nobody has a reason to look.
+ * A mirror that stops updating is otherwise silent.
+ * Runs keep working against the last good copy by design,
+ * so without this the graph quietly describes week-old code,
+ * and nobody has a reason to look.
  *
- * Polls rather than listening, since a refresh fails in the background with no
- * event a client is subscribed to.
+ * Polls rather than listening,
+ * since a refresh fails in the background,
+ * with no event a client is subscribed to.
  */
 export function SourceSyncBanner({ workspaceId, onOpenDetails }: SourceSyncBannerProps) {
   const { t } = useTranslation()

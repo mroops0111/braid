@@ -26,10 +26,9 @@ export interface SourcePollingServiceDeps {
   readonly clock: Clock
   readonly logger: Logger
   /**
-   * Whether a skill run currently holds the workspace's sources.
-   * A refresh mid-run swaps files under the agent, so a busy workspace is
-   * skipped rather than waited on, since holding a background pass for the
-   * length of a run buys nothing. Absent means never skip.
+   * A busy workspace is skipped, not waited on,
+   * since holding a background pass for the length of a run buys nothing.
+   * Absent means never skip.
    */
   readonly isWorkspaceBusy?: (workspaceId: WorkspaceId) => boolean
   readonly baseBackoffMs?: number
@@ -37,17 +36,13 @@ export interface SourcePollingServiceDeps {
 }
 
 /**
- * Keeps managed sources warm so `ensureFresh` rarely makes anyone wait.
+ * One timer per workspace, not per source. Each tick re-reads the manifest,
+ * so an added or removed source needs no config-change listener,
+ * and the timer count does not grow with the repo count.
  *
- * One timer per workspace rather than one per source. Each tick re-reads the
- * manifest, so an added or removed source is picked up without listening for
- * config changes, and the timer count does not grow with the repo count.
- * Per-source pacing still works, because the backoff reads each source's own
- * recorded failure streak.
- *
- * Correctness does not depend on this service. `ensureFresh` enforces the
- * budget at the moment a source is read, so a stopped or never-started poller
- * costs latency, never staleness.
+ * Correctness does not depend on this service.
+ * `ensureFresh` enforces the budget when a source is read,
+ * so a stopped poller costs latency, never staleness.
  */
 export class SourcePollingService {
   private readonly timers = new Map<WorkspaceId, ScheduledTask>()
@@ -55,13 +50,14 @@ export class SourcePollingService {
   constructor(private readonly deps: SourcePollingServiceDeps) {}
 
   /**
-   * Callers that already hold the workspace pass it, which is the common case
-   * at boot and avoids re-reading the registry and every manifest per call.
+   * Callers that already hold the workspace pass it,
+   * the common case at boot,
+   * which avoids re-reading the registry and every manifest per call.
    *
-   * Nothing to warm means nothing to schedule. Arming regardless would leave a
-   * timer on every workspace that never opted in, doing filesystem reads
-   * forever to rediscover that there is still nothing to do. Whoever sets the
-   * first schedule starts the loop.
+   * Nothing to warm means nothing to schedule.
+   * Arming regardless leaves a timer on every workspace that never opted in,
+   * reading the filesystem forever to rediscover it has nothing to do.
+   * Whoever sets the first schedule starts the loop.
    */
   async start(workspaceId: WorkspaceId, known?: Workspace): Promise<void> {
     if (this.timers.has(workspaceId))
@@ -143,8 +139,8 @@ export class SourcePollingService {
       )
     }
     // Re-arm only while still started, so `stop` during a tick ends the loop.
-    // Re-arming after the pass rather than on a fixed period keeps a slow
-    // refresh from stacking ticks behind it.
+    // Re-arming after the pass, not on a fixed period,
+    // keeps a slow refresh from stacking ticks behind it.
     if (this.timers.has(workspaceId))
       await this.arm(workspaceId)
   }
@@ -155,32 +151,33 @@ export class SourcePollingService {
       const budgets = workspace.managedSources().map(source => source.sync.maxStalenessMs)
       if (budgets.length === 0)
         return MAXIMUM_TICK_MS
-      // A quarter of the tightest budget, so a source is checked several times
-      // inside its window and the warm threshold is not overshot by a full tick.
+      // A quarter of the tightest budget,
+      // so a source is checked several times inside its window,
+      // and the warm threshold is not overshot by a whole tick.
       return clamp(Math.min(...budgets) / 4, MINIMUM_TICK_MS, MAXIMUM_TICK_MS)
     }
     catch {
-      // A workspace that cannot be read right now, e.g. mid-rename, should not
-      // kill the loop. Back off to the slowest cadence and look again.
+      // A workspace that cannot be read right now, e.g. mid-rename,
+      // should not kill the loop.
+      // Back off to the slowest cadence and look again.
       return MAXIMUM_TICK_MS
     }
   }
 }
 
 /**
- * How long a source may sit before the poller warms it, somewhere between half
- * and all of its budget. Spreading the threshold keeps a dozen repos from
- * hitting one remote in the same instant, and refreshing before the budget
- * expires is the point of polling, since it is what stops a run from waiting.
+ * How long a source may sit before the poller warms it,
+ * somewhere between half and all of its budget.
+ * Spreading it keeps a dozen repos off one remote in the same instant,
+ * and warming before the budget expires is what stops a run waiting.
  *
- * The offset comes from the source id rather than a random draw, so it is
- * stable across restarts and a test needs no randomness port.
+ * The offset comes from the source id rather than a random draw,
+ * so a restart does not reshuffle which sources come due when.
  */
 function warmThresholdMs(policy: SourceSyncPolicy, sourceId: SourceId): number {
   return policy.maxStalenessMs * (0.5 + 0.5 * hashFraction(sourceId))
 }
 
-/** Exponential backoff after repeated failures, flat zero while healthy. */
 function backoffDelayMs(consecutiveFailures: number, baseMs: number, capMs: number): number {
   if (consecutiveFailures <= 0)
     return 0

@@ -41,8 +41,9 @@ import { WorkspaceIdParam } from './_shared.js'
  */
 
 const SECRET_NAMESPACE = 'webhook-github'
-// Hosts this receiver knows how to verify deliveries from. A source whose
-// upstream lives elsewhere is not webhook-capable here, and says so with a 400
+// Hosts this receiver knows how to verify deliveries from.
+// A source whose upstream lives elsewhere is not webhook-capable here,
+// and says so with a 400,
 // rather than minting a secret that could never authenticate anything.
 const GITHUB_HOSTS = new Set(['github.com'])
 
@@ -62,8 +63,9 @@ export interface GithubWebhookReceiverDeps {
   readonly pluginRegistry: PluginRegistry
   /**
    * Whether a skill run currently holds the workspace's sources.
-   * Deliveries are dropped while one does, matching the poller. A manual sync
-   * stays unconditional, since a person asked for it and can see the result.
+   * Deliveries are dropped while one does, matching the poller.
+   * A manual sync stays unconditional,
+   * since a person asked for it and can see the result.
    */
   readonly isWorkspaceBusy?: (workspaceId: WorkspaceId) => boolean
 }
@@ -217,9 +219,10 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
       return context.json({ accepted: true, event, workspaceId, sourceId, skipped: true }, 202)
     }
 
-    // A run holds this workspace's files, and a refresh rewrites them under
-    // the agent mid-read. Nobody is waiting on a delivery, so drop it and let
-    // the next one, or the poller, pick the change up once the run is done.
+    // A run holds this workspace's files,
+    // and a refresh rewrites them under the agent mid-read.
+    // Nobody is waiting on a delivery, so drop it and let the next one,
+    // or the poller, pick the change up once the run is done.
     if (deps.isWorkspaceBusy?.(workspaceId)) {
       receiverLogger.info({ workspaceId, sourceId }, 'skipped webhook sync, a run holds this workspace')
       return context.json({ ok: true, skipped: true }, 202)

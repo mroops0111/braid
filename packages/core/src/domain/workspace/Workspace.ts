@@ -58,9 +58,10 @@ export class Workspace {
   }
 
   /**
-   * Sources that refresh on their own, being loader-backed and carrying a
-   * staleness budget. A manual directory has nothing to pull, and a source
-   * with no budget only refreshes when someone asks for it.
+   * Sources that refresh on their own,
+   * being loader-backed and carrying a staleness budget.
+   * A manual directory has nothing to pull,
+   * and a source with no budget only refreshes when someone asks for it.
    */
   managedSources(): readonly ManagedSource[] {
     return this.filesystemSources().filter((source): source is ManagedSource => !!source.loader && !!source.sync)

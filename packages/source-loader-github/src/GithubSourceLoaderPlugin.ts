@@ -212,9 +212,10 @@ export function createGithubLoader(deps: GithubLoaderDeps): SourceLoaderPlugin {
       }
     },
     webhook: {
-      // Deliveries come from the web host, not the API host, so drop the
-      // `api.` prefix. Knowing that mapping is fine here, this package is
-      // GitHub-specific by definition, unlike the generic git loader.
+      // Deliveries come from the web host, not the API host,
+      // so drop the `api.` prefix. Knowing that mapping is fine here,
+      // this package is GitHub-specific by definition,
+      // unlike the generic git loader.
       upstream: config => ({ host: webHostOf(config.apiBaseUrl), path: `${config.owner}/${config.repo}` }),
       // This loader pulls issues and (optionally) comments.
       // Push and other code-side events do not change what we would re-fetch,

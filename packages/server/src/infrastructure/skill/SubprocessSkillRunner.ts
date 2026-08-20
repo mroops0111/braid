@@ -231,11 +231,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     return this.running.has(runId)
   }
 
-  /**
-   * Whether any run currently holds this workspace's sources.
-   * The source poller reads it to skip a refresh that would swap files
-   * under an agent mid-run.
-   */
+  /** Whether any run currently holds this workspace's sources. */
   hasActiveRun(workspaceId: WorkspaceId): boolean {
     for (const active of this.running.values()) {
       if (active.workspace.id === workspaceId)

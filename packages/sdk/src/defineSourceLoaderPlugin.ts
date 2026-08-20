@@ -22,9 +22,10 @@ export interface DefineSourceLoaderInput<TSchema extends z.ZodTypeAny> {
   readonly sync?: (config: z.infer<TSchema>, destination: AbsolutePath, context: SourceLoaderContext) => Promise<SyncReport>
   /**
    * Optional. Declare that this loader's sources can be refreshed by a push.
-   * `upstream` reports where the content lives, host and path, so a delivery
-   * can be matched to a source. `shouldDispatch` decides whether a given event
-   * changes this loader's content at all. Neither names a platform.
+   * `upstream` reports where the content lives, host and path,
+   * so a delivery can be matched to a source.
+   * `shouldDispatch` decides whether an event changes this loader's content.
+   * Neither names a platform.
    * Loaders that omit this field cannot serve webhooks, the receiver 400s.
    */
   readonly webhook?: {

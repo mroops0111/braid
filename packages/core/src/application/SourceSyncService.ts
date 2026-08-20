@@ -10,8 +10,8 @@ import { SourceSyncState } from '../domain/source/SourceSyncState.js'
 
 /**
  * The single capability this service needs from the loader layer.
- * Narrower than `SourceLoaderRunner`, which also provisions, so the seam
- * states what is actually depended on and a test needs no runner instance.
+ * Narrower than `SourceLoaderRunner`, which also provisions,
+ * so the seam states exactly what is depended on.
  */
 export interface SourceSyncExecutor {
   syncOne: (workspace: Workspace, sourceId: SourceId) => Promise<SyncReport>
@@ -20,8 +20,9 @@ export interface SourceSyncExecutor {
 /**
  * What happened to one source when the caller asked for it to be current.
  *
- * `failed` is not an error case for the caller. A refresh that could not reach
- * its remote leaves the previous mirror in place, which is still readable.
+ * `failed` is not an error case for the caller.
+ * A refresh that could not reach its remote leaves the previous mirror in place,
+ * which is still readable.
  */
 export type SourceRefreshOutcome =
   | { readonly sourceId: SourceId, readonly outcome: 'fresh' | 'synced' | 'unmanaged' | 'timedOut' }
@@ -30,8 +31,9 @@ export type SourceRefreshOutcome =
 export interface EnsureWorkspaceFreshOptions {
   /**
    * How long to wait on refreshes before giving up and reporting `timedOut`.
-   * A caller with a request open needs this, since git offers no timeout of
-   * its own and one unresponsive remote would otherwise wedge the call.
+   * A caller with a request open needs this.
+   * Git offers no timeout of its own,
+   * so one unresponsive remote would otherwise wedge the call.
    * The pass itself keeps running and its result lands in the sync state.
    */
   readonly deadlineMs?: number
@@ -46,28 +48,27 @@ export interface SourceSyncServiceDeps {
 }
 
 /**
- * The one entry point for every sync trigger, whether that is boot catch-up, a
- * webhook delivery, the Studio button, or the background poller.
+ * The one entry point for every sync trigger, whether that is boot catch-up,
+ * a webhook delivery, the Studio button, or the background poller.
  *
- * It owns three things the loader layer deliberately does not. Concurrent
- * callers for one source collapse to a single pass, every attempt lands in the
- * sync-state store, and `ensureFresh` decides whether a pass is needed at all.
+ * It owns three things the loader layer deliberately does not.
+ * Concurrent callers for one source collapse to a single pass,
+ * every attempt lands in the sync-state store,
+ * and `ensureFresh` decides whether a pass is needed at all.
  * `SourceLoaderRunner` stays a thin adapter over the plugin port.
  *
- * Going around this service and calling the runner directly still syncs, but
- * records nothing and takes no lock, so new call sites belong here.
+ * Going around this service and calling the runner directly still syncs,
+ * but records nothing and takes no lock, so new call sites belong here.
  */
 export class SourceSyncService {
   constructor(private readonly deps: SourceSyncServiceDeps) {}
 
-  /**
-   * Refresh regardless of how recently it last ran, and surface failures.
-   * Callers with a human waiting on the answer want the error.
-   */
+  /** Unconditional, and it throws. A caller waiting on the answer wants it. */
   async syncNow(workspace: Workspace, sourceId: SourceId): Promise<SyncReport> {
     return this.deps.coalescer.run(coalesceKey(workspace, sourceId), async () => {
-      // Stamped before the pass, not after. The loader observed its remote
-      // somewhere inside the window, so the earlier bound is the honest one.
+      // Stamped before the pass, not after.
+      // The loader observed its remote somewhere inside the window,
+      // so the earlier bound is the honest one.
       const attemptedAt = this.deps.clock.now()
       try {
         const report = await this.deps.sourceLoaderRunner.syncOne(workspace, sourceId)
@@ -85,13 +86,12 @@ export class SourceSyncService {
   }
 
   /**
-   * Take the first fill of a scaffolded workspace into the sync state.
-   *
-   * Separate from provisioning itself because a workspace is only registered
-   * once its sources are on disk, and the state store resolves its path
-   * through that registration. The caller provisions, registers, then reports
-   * here. Without this a fresh mirror would read as never synced, so the first
-   * run would refetch what it already has.
+   * Separate from provisioning,
+   * because a workspace registers only once its sources are on disk,
+   * and the state store resolves its path through that registration.
+   * So the caller provisions, registers, then reports here.
+   * Without it a fresh mirror reads as never synced,
+   * and the first run refetches what it already has.
    */
   async recordProvisioned(workspace: Workspace, outcomes: readonly ProvisionOutcome[]): Promise<void> {
     const provisionedAt = this.deps.clock.now()
@@ -102,12 +102,11 @@ export class SourceSyncService {
   }
 
   /**
-   * Bring one source within its staleness budget, best effort.
-   *
-   * A failure here never propagates. Refusing to run because a mirror could
-   * not be refreshed would let one unreachable remote block every skill run in
-   * the workspace, which is worse than reading a mirror that is an hour old.
-   * The attempt is recorded either way, so the staleness surfaces in Studio.
+   * Best effort, so a failure never propagates.
+   * Refusing to run over a mirror that could not refresh,
+   * would let one unreachable remote block every run in the workspace,
+   * which is worse than reading an hour-old mirror.
+   * The attempt is recorded either way, so staleness surfaces.
    */
   async ensureFresh(workspace: Workspace, sourceId: SourceId): Promise<SourceRefreshOutcome> {
     const policy = workspace.syncPolicyFor(sourceId)
@@ -130,11 +129,7 @@ export class SourceSyncService {
     }
   }
 
-  /**
-   * Bring every managed source in the workspace within budget, concurrently.
-   * Sources sharing no working tree cannot contend, and a single slow remote
-   * should not hold up the rest.
-   */
+  /** Concurrent, since separate working trees cannot contend for each other. */
   async ensureWorkspaceFresh(
     workspace: Workspace,
     options: EnsureWorkspaceFreshOptions = {},
@@ -168,9 +163,10 @@ function coalesceKey(workspace: Workspace, sourceId: SourceId): string {
 }
 
 /**
- * Resolve `fallback` once `deadlineMs` passes, leaving the original pass to
- * finish in the background. Its outcome still reaches the sync state, so a slow
- * remote surfaces in Studio rather than being lost with the abandoned wait.
+ * Resolve `fallback` once `deadlineMs` passes,
+ * leaving the original pass to finish in the background.
+ * Its outcome still reaches the sync state,
+ * so a slow remote surfaces rather than vanishing with the abandoned wait.
  */
 async function withDeadline<T>(pass: Promise<T>, deadlineMs: number, fallback: T): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined

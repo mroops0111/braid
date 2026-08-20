@@ -153,10 +153,11 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
 /**
  * Whether this workspace refreshes its sources in the background at all.
  *
- * Off leaves each source's own schedule saved but idle, so a remote under
- * strain can be spared without unpicking every source and losing what they
- * were set to. It does not affect the refresh that runs before a skill reads
- * a source, which cannot block work and so has nothing to switch off.
+ * Off leaves each source's own schedule saved but idle,
+ * so a remote under strain can be spared,
+ * without unpicking every source and losing what they were set to.
+ * It does not affect the refresh that runs before a skill reads a source,
+ * which cannot block work and so has nothing to switch off.
  */
 function AutoRefreshSwitch({ workspaceId, enabled, canWrite, onChange }: {
   workspaceId: string
@@ -254,8 +255,9 @@ function SourceRow({ workspaceId, source, paused, onChange }: {
   const sync = useMutation({
     mutationFn: () => api.syncSource(workspaceId, source.id),
     onSuccess: () => {
-      // The freshness line polls on a slow interval, so without this a manual
-      // sync leaves it showing the previous revision for up to a minute.
+      // The freshness line polls on a slow interval,
+      // so without this a manual sync shows the previous revision,
+      // for up to a minute.
       void queryClient.invalidateQueries({ queryKey: ['source-sync-states', workspaceId] })
       onChange()
     },
@@ -518,9 +520,9 @@ function GithubWebhookPanel({ workspaceId, sourceId }: { workspaceId: string, so
 }
 
 /**
- * Persisted sync health, as opposed to the row above it, which shows only the
- * result of a sync the user just triggered and vanishes on reload. Without
- * this a mirror that stopped updating leaves no trace in the UI at all.
+ * Persisted sync health, as opposed to the row above it,
+ * which shows only the sync the user just triggered, and clears on reload.
+ * Without this a mirror that stopped updating leaves no trace in the UI at all.
  */
 function SourceFreshness({ workspaceId, sourceId, maxStalenessMs }: {
   workspaceId: string
@@ -539,8 +541,8 @@ function SourceFreshness({ workspaceId, sourceId, maxStalenessMs }: {
   if (!state)
     return null
 
-  // A schedule that has quietly stopped ages exactly like one that was never
-  // turned on, so say when the source is past the budget it was promised.
+  // A schedule that quietly stopped ages like one never turned on,
+  // so say when the source is past the budget it was promised.
   const overdue = maxStalenessMs !== undefined
     && state.lastSuccessAt !== undefined
     && Date.now() - Date.parse(state.lastSuccessAt) > maxStalenessMs
@@ -572,11 +574,12 @@ function SourceFreshness({ workspaceId, sourceId, maxStalenessMs }: {
   )
 }
 
-// Presets rather than a free number field. Nobody reasons in milliseconds, and
-// the exact value never matters, only the order of magnitude.
+// Presets rather than a free number field. Nobody reasons in milliseconds,
+// and the exact value never matters, only the order of magnitude.
 //
-// None of them are minutes-scale. Shortening the budget does not make a run
-// read anything newer, since the refresh before a run already guarantees that.
+// None of them are minutes-scale.
+// Shortening the budget does not make a run read anything newer,
+// since the refresh before a run already guarantees that.
 // It only makes the background poll the remote harder, all day.
 const REFRESH_PRESETS_MS = [900_000, 3_600_000, 21_600_000, 86_400_000] as const
 
@@ -592,8 +595,8 @@ function useIntervalLabel(): (ms: number) => string {
 
 /**
  * How stale this source may get before Braid refreshes it on its own.
- * Off leaves the source manual, which is what an existing workspace gets until
- * someone opts it in.
+ * Off leaves the source manual,
+ * which is what an existing workspace gets until someone opts it in.
  */
 function RefreshSchedule({ workspaceId, sourceId, current, paused, canWrite, onChange }: {
   workspaceId: string
@@ -615,7 +618,8 @@ function RefreshSchedule({ workspaceId, sourceId, current, paused, canWrite, onC
     },
   })
 
-  // An unrecognised value from a hand-edited PRODUCT.md still needs an option,
+  // An unrecognised value from a hand-edited PRODUCT.
+  // md still needs an option,
   // else selecting nothing would silently look like Off.
   const options = current !== undefined && !REFRESH_PRESETS_MS.includes(current as never)
     ? [...REFRESH_PRESETS_MS, current].sort((a, b) => a - b)
@@ -647,9 +651,9 @@ function RefreshSchedule({ workspaceId, sourceId, current, paused, canWrite, onC
 }
 
 /**
- * UTC ISO 8601 to the second, deliberately not locale-formatted. It reads the
- * same as the timestamps in the sync-state records, so an operator comparing
- * the two does not have to convert a zone or an AM/PM clock in their head.
+ * UTC ISO 8601 to the second, deliberately not locale-formatted.
+ * It reads the same as the timestamps in the sync-state records,
+ * so comparing the two needs no zone or AM/PM conversion in the head.
  */
 function isoSeconds(value: string | number): string {
   return `${new Date(value).toISOString().slice(0, 19)}Z`

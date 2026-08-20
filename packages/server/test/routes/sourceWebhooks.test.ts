@@ -137,8 +137,9 @@ async function buildApp(opts: { withSecret?: string, source?: ReturnType<typeof 
   deps.secretStore = secretStore
   await deps.workspaceRepository.save(workspace)
 
-  // Replace the sync service with a spy. The real one would invoke the github
-  // plugin for real, and these tests only assert that the receiver dispatched.
+  // Replace the sync service with a spy.
+  // The real one would invoke the github plugin for real,
+  // and these tests only assert that the receiver dispatched.
   const syncOne = vi.fn().mockResolvedValue({
     sourceId: SOURCE_ID,
     new: [],

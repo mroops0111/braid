@@ -34,9 +34,10 @@ export async function startupBeforeServe(deps: AppDependencies): Promise<void> {
       // Reactor opt-in is per workspace, subscribe only when PRODUCT.md sets it.
       if (workspace.productManifest.reactor?.enabled)
         await deps.reactorService?.start(workspace.id)
-      // Warms sources between reads. The freshness check at read time is what
-      // guarantees the budget, so a workspace that opts out of polling is
-      // slower on first use, never staler.
+      // Warms sources between reads.
+      // The freshness check at read time is what guarantees the budget,
+      // so a workspace that opts out of polling is slower on first use,
+      // never staler.
       if (workspace.productManifest.polling?.enabled !== false)
         await deps.sourcePollingService.start(workspace.id, workspace)
       // Catch deliveries missed while the server was down.

@@ -12,13 +12,13 @@ import { readJson } from '../helpers/readJson.js'
 
 /**
  * Exercises the assembled sync path against a real git remote, a real server,
- * and real files. The remote is a local bare repo rather than a hosted one, so
- * the run stays offline and deterministic.
+ * and real files. The remote is a local bare repo rather than a hosted one,
+ * so the run stays offline and deterministic.
  *
- * The pieces have their own unit tests. What only shows up here is the wiring,
- * whether a scaffold provisions, whether the health record lands where the
- * repository says it does, and whether a broken remote degrades rather than
- * throws.
+ * The pieces have their own unit tests.
+ * What only shows up here is the wiring, whether a scaffold provisions,
+ * whether the health record lands where the repository says it does,
+ * and whether a broken remote degrades rather than throws.
  */
 describe('source sync', () => {
   let braidHome: string
@@ -91,9 +91,10 @@ describe('source sync', () => {
   })
 
   afterEach(async () => {
-    // Boot fires its catch-up syncs fire-and-forget, so one can still be in
-    // flight here. Removing the home under it logs a resolve failure, which is
-    // teardown noise rather than a defect worth chasing.
+    // Boot fires its catch-up syncs fire-and-forget,
+    // so one can still be in flight here.
+    // Removing the home under it logs a resolve failure,
+    // which is teardown noise rather than a defect worth chasing.
     deps.sourcePollingService.stopAll()
     await rm(braidHome, { recursive: true, force: true }).catch(() => {})
     await rm(scratch, { recursive: true, force: true }).catch(() => {})

@@ -56,8 +56,9 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
     const git = simpleGit({ baseDir: destination })
     const trackingRef = `refs/remotes/origin/${config.branch}`
     const before = (await git.revparse(['HEAD'])).trim()
-    // An explicit refspec, since a bare `git fetch origin <branch>` leaves the
-    // remote-tracking ref untouched and the reset below would be a silent no-op.
+    // An explicit refspec,
+    // since a bare `git fetch origin <branch>` leaves the tracking ref alone,
+    // and the reset below would be a silent no-op.
     // The leading `+` makes a force-push upstream still land.
     await git.fetch('origin', `+refs/heads/${config.branch}:${trackingRef}`, ['--depth', String(config.depth)])
     await git.reset(['--hard', trackingRef])
@@ -77,9 +78,10 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
   },
   webhook: {
     // Host and path come from the literal URL, never the credential portion.
-    // `${VAR}` placeholders are deliberately left uninterpolated, since
-    // resolving them would couple this to credential rotation, and a missing
-    // env var would throw on every anonymous probe and leak the var name.
+    // `${VAR}` placeholders are deliberately left uninterpolated,
+    // since resolving them would couple this to credential rotation,
+    // and a missing env var would throw on every anonymous probe,
+    // leaking the var name.
     upstream: config => parseRemoteUrl(config.url),
     // We track a single ref.
     // `push` events on other refs are guaranteed no-ops for `git fetch && reset --hard origin/<branch>`,
@@ -101,9 +103,9 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
 })
 
 /**
- * Split a clone URL into the host it lives on and the path identifying the
- * repository there. Any host, since git speaks to all of them and this loader
- * has no business deciding which platforms exist.
+ * Split a clone URL into its host and the path identifying the repository.
+ * Any host, since git speaks to all of them,
+ * and this loader has no business deciding which platforms exist.
  *
  * Accepts the URL shapes git itself accepts:
  *   - `https://host/owner/repo`

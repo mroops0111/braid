@@ -17,9 +17,9 @@ export interface ProvisionReport {
   /** Local path where the source content now lives (under destination). */
   readonly localPath: AbsolutePath
   /**
-   * Opaque marker for the upstream state this pass landed on, e.g. a commit sha.
-   * The framework only stores and displays it, never parses it,
-   * so a loader with no such concept leaves it unset.
+   * Opaque marker for the upstream state this pass landed on,
+   * e.g. a commit sha. The framework only stores and displays it,
+   * never parses it, so a loader with no such concept leaves it unset.
    * Distinct from `metadata`, which stays loader-specific and unread.
    */
   readonly revision?: string
@@ -76,21 +76,21 @@ export interface SourceLoaderPlugin extends Plugin {
   sync?: (config: unknown, destination: AbsolutePath, context: SourceLoaderContext) => Promise<SyncReport>
 
   /**
-   * What this loader contributes to push-based refresh. Two questions, both
-   * answerable without knowing which platform sends the notification.
+   * What this loader contributes to push-based refresh.
+   * Two questions, both answerable without knowing which platform sends it.
    * First, where its content lives, so a delivery can be matched to a source.
-   * Second, whether a given event changes this loader's content at all, since
-   * a push matters to a code mirror and not to an issues loader.
+   * Second, whether an event changes this loader's content at all,
+   * since a push matters to a code mirror and not to an issues loader.
    * Verifying the delivery is not here. That is the receiver's job.
    */
   readonly webhook?: WebhookCapability
 }
 
 /**
- * Where a source's content comes from, as the loader reads it off its own
- * config. Host-neutral on purpose. Naming a platform here would put an
- * integration detail in the kernel, and would stop the same loader serving
- * two hosts, which is exactly what a git remote does.
+ * Where a source's content comes from, read off its own config.
+ * Host-neutral on purpose.
+ * Naming a platform here would put an integration detail in the kernel,
+ * and would stop one loader serving two hosts, which a git remote does.
  *
  * Whoever receives a notification decides which hosts it can speak for.
  */
@@ -103,8 +103,9 @@ export interface SourceUpstream {
 
 /**
  * A delivery the receiver has already authenticated and matched to a source.
- * `payload` is still the platform's own shape, so a loader reading it is
- * coupled to that platform. Normalising it is tracked separately.
+ * `payload` is still the platform's own shape,
+ * so a loader reading it is coupled to that platform.
+ * Normalising it is tracked separately.
  */
 export interface WebhookDelivery {
   /** Provider header value, e.g. `push`, `issues`, `issue_comment`, `ping`. */
@@ -115,8 +116,8 @@ export interface WebhookDelivery {
 
 export interface WebhookCapability {
   /**
-   * Where this source's content lives, parsed from its own config and nothing
-   * else. Return `undefined` when the config names no addressable remote.
+   * Where this source's content lives, parsed from its own config,
+   * and nothing else. Return `undefined` when the config names no remote.
    * The receiver matches a delivery against this, and rejects a mismatch.
    */
   readonly upstream: (config: unknown) => SourceUpstream | undefined

@@ -7,8 +7,9 @@ import type {
 } from '@braidhq/schema'
 
 /**
- * What a source's recent sync attempts did, and whether it is current
- * enough to read. Transitions return a new instance, the caller persists it.
+ * What a source's recent sync attempts did,
+ * and whether it is current enough to read.
+ * Transitions return a new instance, the caller persists it.
  */
 export class SourceSyncState {
   constructor(private readonly data: SourceSyncStateData) {}
