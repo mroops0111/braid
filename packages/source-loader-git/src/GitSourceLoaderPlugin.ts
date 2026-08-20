@@ -8,8 +8,12 @@ import { z } from 'zod'
 export const GitLoaderConfig = z.object({
   /** Remote URL. Supports `${VAR}` interpolation for tokens (e.g. `https://x-access-token:${GH_TOKEN}@github.com/...`). */
   url: z.string().min(1),
-  /** Branch to track. Defaults to whatever the remote's HEAD points at. */
-  branch: z.string().min(1).optional(),
+  /**
+   * Branch to track. Always concrete, so fetch and reset name a real ref.
+   * Resolving the remote's HEAD instead would be silent when it is wrong,
+   * whereas a default that misses fails loudly at clone time.
+   */
+  branch: z.string().min(1).default('master'),
   /** Subdirectory inside the cloned repo to use as the source content root. The loader still clones the full repo; you choose what claude sees by pointing the source `path` deeper. */
   subdir: z.string().optional(),
   /** Shallow clone depth. Defaults to 1; we only need the working tree. */
@@ -38,22 +42,25 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
     await rm(destination, { recursive: true, force: true })
     await mkdir(destination, { recursive: true })
     const git = simpleGit({ baseDir: destination })
-    const cloneOptions: string[] = ['--depth', String(config.depth)]
-    if (config.branch)
-      cloneOptions.push('--branch', config.branch)
+    const cloneOptions: string[] = ['--depth', String(config.depth), '--branch', config.branch]
     await git.clone(url, destination, cloneOptions)
     const sha = (await git.revparse(['HEAD'])).trim()
     return {
       localPath: destination,
-      metadata: { url: config.url, branch: config.branch ?? null, sha },
+      revision: sha,
+      metadata: { url: config.url, branch: config.branch, sha },
       fetchedAt: new Date().toISOString() as never,
     }
   },
   sync: async (config, destination) => {
     const git = simpleGit({ baseDir: destination })
+    const trackingRef = `refs/remotes/origin/${config.branch}`
     const before = (await git.revparse(['HEAD'])).trim()
-    await git.fetch('origin', config.branch ?? 'HEAD', ['--depth', String(config.depth)])
-    await git.reset(['--hard', `origin/${config.branch ?? 'HEAD'}`])
+    // An explicit refspec, since a bare `git fetch origin <branch>` leaves the
+    // remote-tracking ref untouched and the reset below would be a silent no-op.
+    // The leading `+` makes a force-push upstream still land.
+    await git.fetch('origin', `+refs/heads/${config.branch}:${trackingRef}`, ['--depth', String(config.depth)])
+    await git.reset(['--hard', trackingRef])
     const after = (await git.revparse(['HEAD'])).trim()
     const counts = before === after
       ? { added: 0, updated: 0, removed: 0 }
@@ -63,35 +70,23 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
       added: counts.added,
       updated: counts.updated,
       removed: counts.removed,
-      metadata: { url: config.url, branch: config.branch ?? null, sha: after, previousSha: before },
+      revision: after,
+      metadata: { url: config.url, branch: config.branch, sha: after, previousSha: before },
       fetchedAt: new Date().toISOString() as never,
     }
   },
   webhook: {
-    // owner/repo live in the literal host and path segment,
-    // not in the credential portion of the URL.
-    // We deliberately do not interpolate `${VAR}` placeholders here,
-    // since that would couple webhook identity to credential rotation.
-    // A missing env var would throw 500 on every anonymous probe,
-    // and leak the env var name, for zero benefit.
-    repoIdentity: (config) => {
-      const parsed = parseGithubUrl(config.url)
-      return parsed ? { provider: 'github', owner: parsed.owner, repo: parsed.repo } : undefined
-    },
+    // Host and path come from the literal URL, never the credential portion.
+    // `${VAR}` placeholders are deliberately left uninterpolated, since
+    // resolving them would couple this to credential rotation, and a missing
+    // env var would throw on every anonymous probe and leak the var name.
+    upstream: config => parseRemoteUrl(config.url),
     // We track a single ref.
     // `push` events on other refs are guaranteed no-ops for `git fetch && reset --hard origin/<branch>`,
     // so skip them to avoid wasting a network round-trip.
     // `ping` always dispatches,
     // so the user sees `lastObservedSha` populate on first wire-up.
     // Other event types (issues, deploy, and so on) are unrelated to the code mirror and are skipped.
-    //
-    // Default-branch heuristic: when `config.branch` is unset,
-    // we accept pushes to both `main` (the GitHub default since 2020),
-    // and `master` (the historical default).
-    // The git loader's sync follows remote HEAD.
-    // We cannot read HEAD from a push payload,
-    // so we dispatch on either common default,
-    // and let `git fetch` no-op when the pushed ref is not HEAD.
     shouldDispatch: (config, delivery) => {
       if (delivery.event === 'ping')
         return true
@@ -100,34 +95,30 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
       const ref = typeof delivery.payload === 'object' && delivery.payload !== null
         ? (delivery.payload as { ref?: unknown }).ref
         : undefined
-      if (typeof ref !== 'string')
-        return false
-      if (typeof config.branch === 'string')
-        return ref === `refs/heads/${config.branch}`
-      return ref === 'refs/heads/main' || ref === 'refs/heads/master'
+      return ref === `refs/heads/${config.branch}`
     },
   },
 })
 
 /**
- * Pull `owner/repo` out of a GitHub clone URL.
- * Returns undefined for non-github hosts,
- * so the receiver rejects the delivery instead of pretending it matches.
+ * Split a clone URL into the host it lives on and the path identifying the
+ * repository there. Any host, since git speaks to all of them and this loader
+ * has no business deciding which platforms exist.
  *
  * Accepts the URL shapes git itself accepts:
- *   - `https://github.com/owner/repo`
- *   - `https://github.com/owner/repo.git`
- *   - `https://github.com/owner/repo/` (trailing slash)
- *   - `https://user:token@github.com/owner/repo.git` (creds inline)
- *   - `https://x:${GH_TOKEN}@github.com/owner/repo.git` (env placeholder)
- *   - `git+https://github.com/owner/repo` (npm-style)
- *   - `git@github.com:owner/repo[.git]` (ssh)
+ *   - `https://host/owner/repo`
+ *   - `https://host/owner/repo.git`
+ *   - `https://host/owner/repo/` (trailing slash)
+ *   - `https://user:token@host/owner/repo.git` (creds inline)
+ *   - `https://x:${GH_TOKEN}@host/owner/repo.git` (env placeholder)
+ *   - `git+https://host/owner/repo` (npm-style)
+ *   - `git@host:owner/repo[.git]` (ssh)
+ *   - nested groups, which self-hosted forges use (`host/group/sub/repo`)
  *
- * Host comparison is case-insensitive (`GitHub.com` and similar).
- * Query and fragment portions on the URL are tolerated,
- * since we ignore them and they never affect the repo identity.
+ * The host is lowercased so `GitHub.com` and `github.com` compare equal.
+ * Query and fragment portions are dropped, they never identify the repo.
  */
-function parseGithubUrl(url: string): { owner: string, repo: string } | undefined {
+function parseRemoteUrl(url: string): { host: string, path: string } | undefined {
   // Strip an optional `git+` prefix, trim, drop query or fragment,
   // and normalise a trailing slash plus .git suffix.
   let trimmed = url.trim().replace(/^git\+/, '')
@@ -135,12 +126,12 @@ function parseGithubUrl(url: string): { owner: string, repo: string } | undefine
   if (queryAt >= 0)
     trimmed = trimmed.slice(0, queryAt)
   trimmed = trimmed.replace(/\/$/, '').replace(/\.git$/, '')
-  const httpsMatch = trimmed.match(/^https?:\/\/(?:[^@/]+@)?github\.com\/([^/]+)\/([^/]+)$/i)
+  const httpsMatch = trimmed.match(/^https?:\/\/(?:[^@/]+@)?([^/]+)\/(.+)$/)
   if (httpsMatch)
-    return { owner: httpsMatch[1]!, repo: httpsMatch[2]! }
-  const sshMatch = trimmed.match(/^git@github\.com:([^/]+)\/([^/]+)$/i)
+    return { host: httpsMatch[1]!.toLowerCase(), path: httpsMatch[2]! }
+  const sshMatch = trimmed.match(/^[^@\s]+@([^:]+):(.+)$/)
   if (sshMatch)
-    return { owner: sshMatch[1]!, repo: sshMatch[2]! }
+    return { host: sshMatch[1]!.toLowerCase(), path: sshMatch[2]! }
   return undefined
 }
 

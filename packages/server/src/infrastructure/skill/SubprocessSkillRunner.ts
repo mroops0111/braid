@@ -10,7 +10,7 @@ import type {
   Workspace,
   WorkspaceEventBus,
 } from '@braidhq/core'
-import type { AbsolutePath, AgentBindingDescriptor, McpServerConfig, RunRecord, SkillAgentOverride, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, McpServerConfig, RunRecord, SkillAgentOverride, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceId } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -229,6 +229,19 @@ export class SubprocessSkillRunner implements SkillRunner {
 
   isActive(runId: SkillRunId): boolean {
     return this.running.has(runId)
+  }
+
+  /**
+   * Whether any run currently holds this workspace's sources.
+   * The source poller reads it to skip a refresh that would swap files
+   * under an agent mid-run.
+   */
+  hasActiveRun(workspaceId: WorkspaceId): boolean {
+    for (const active of this.running.values()) {
+      if (active.workspace.id === workspaceId)
+        return true
+    }
+    return false
   }
 
   async cancel(runId: SkillRunId): Promise<void> {

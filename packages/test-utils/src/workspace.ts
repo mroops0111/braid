@@ -3,6 +3,8 @@ import type {
   AgentBindingDescriptor,
   AgentId,
   AgentKind,
+  FilesystemSourceDescriptor,
+  LoaderKind,
   McpServerConfig,
   ProductManifest,
   SourceDescriptor,
@@ -70,5 +72,34 @@ function defaultSource(rootPath: AbsolutePath): SourceDescriptor {
     role: SourceRole.parse('primary'),
     name: 'default',
     path: rootPath,
+  }
+}
+
+export interface MakeFilesystemSourceOptions {
+  readonly id?: string
+  readonly role?: string
+  readonly path?: AbsolutePath
+  /** `null` builds a manual source, one Braid does not provision. */
+  readonly loaderKind?: string | null
+  /** Present makes the source self-refreshing, absent leaves it manual-only. */
+  readonly maxStalenessMs?: number
+}
+
+/**
+ * A loader-backed filesystem source, the shape most source tests need.
+ * Defaults give a git-backed code source with no staleness budget, so a test
+ * states only the axis it exercises.
+ */
+export function makeFilesystemSource(options: MakeFilesystemSourceOptions = {}): FilesystemSourceDescriptor {
+  const id = options.id ?? 'source-1'
+  const loaderKind = options.loaderKind === undefined ? 'git' : options.loaderKind
+  return {
+    kind: 'filesystem',
+    id: id as SourceId,
+    role: SourceRole.parse(options.role ?? 'code'),
+    name: id,
+    path: options.path ?? ('/abs/ws/code' as AbsolutePath),
+    ...(loaderKind === null ? {} : { loader: { kind: loaderKind as LoaderKind, config: { url: 'file:///remote' } } }),
+    ...(options.maxStalenessMs === undefined ? {} : { sync: { maxStalenessMs: options.maxStalenessMs } }),
   }
 }

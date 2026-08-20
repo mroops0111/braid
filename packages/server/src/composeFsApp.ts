@@ -39,6 +39,7 @@ import { FsSecretStore, type SecretStore } from './infrastructure/secrets/Secret
 import { FsRunRepository } from './infrastructure/skill/FsRunRepository.js'
 import { BUILTIN_SKILL_NAMESPACE, FsSkillRegistry } from './infrastructure/skill/FsSkillRegistry.js'
 import { SubprocessSkillRunner } from './infrastructure/skill/SubprocessSkillRunner.js'
+import { FsSourceSyncStateRepository } from './infrastructure/source/FsSourceSyncStateRepository.js'
 import { FsSourceUnitDigest } from './infrastructure/source/FsSourceUnitDigest.js'
 import { FsSourceUnitObservationRepository } from './infrastructure/source/FsSourceUnitObservationRepository.js'
 import { listUnitItems, unitBearingRolesOf } from './infrastructure/source/unitScan.js'
@@ -419,6 +420,8 @@ export async function composeFsAppWithRegistry(
     // minting a short-lived session so its API calls authenticate.
     reactorToken: async () => (await sessionStore.issue(REACTOR_USER_ID, { ttlSeconds: 3600 })).token,
     sourceUnitObservationRepository: new FsSourceUnitObservationRepository({ workspaceRoots }),
+    sourceSyncStateRepository: new FsSourceSyncStateRepository({ workspaceRoots }),
+    isWorkspaceBusy: workspaceId => skillRunner.hasActiveRun(workspaceId),
     reactorCycleRepository: new FsReactorCycleRepository({ workspaceRoots }),
     sourceUnitDigest: new FsSourceUnitDigest(),
     userDirectory,

@@ -54,6 +54,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
     queryFn: () => api.getWorkspace(workspaceId),
   })
   const [addSourceOpen, setAddSourceOpen] = useState(false)
+  const canWrite = useWorkspacePolicy(workspaceId).can('workspace.write')
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: queryKeys.workspaces() })
@@ -83,6 +84,12 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
 
         <section>
           <SectionHeader title={t('workspace.details.sourcesTitle')} onAdd={() => setAddSourceOpen(true)} addLabel={t('workspace.details.addSource')} />
+          <AutoRefreshSwitch
+            workspaceId={workspaceId}
+            enabled={workspace.productManifest.polling?.enabled !== false}
+            canWrite={canWrite}
+            onChange={invalidate}
+          />
           {workspace.productManifest.sources.length === 0
             ? <p className="mt-2 text-2xs text-muted-foreground">{t('workspace.details.sourcesEmpty')}</p>
             : (
@@ -92,6 +99,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
                       key={source.id}
                       workspaceId={workspaceId}
                       source={source}
+                      paused={workspace.productManifest.polling?.enabled === false}
                       onChange={invalidate}
                     />
                   ))}
@@ -138,6 +146,45 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
         onOpenChange={setAddSourceOpen}
         onAdded={invalidate}
       />
+    </div>
+  )
+}
+
+/**
+ * Whether this workspace refreshes its sources in the background at all.
+ *
+ * Off leaves each source's own schedule saved but idle, so a remote under
+ * strain can be spared without unpicking every source and losing what they
+ * were set to. It does not affect the refresh that runs before a skill reads
+ * a source, which cannot block work and so has nothing to switch off.
+ */
+function AutoRefreshSwitch({ workspaceId, enabled, canWrite, onChange }: {
+  workspaceId: string
+  enabled: boolean
+  canWrite: boolean
+  onChange: () => void
+}) {
+  const { t } = useTranslation()
+  const save = useMutation({
+    mutationFn: (next: boolean) => api.patchWorkspace(workspaceId, { polling: { enabled: next } }),
+    onSuccess: onChange,
+  })
+
+  return (
+    <div className="mt-1 flex items-center gap-2 text-2xs text-muted-foreground">
+      <label className="flex items-center gap-1.5" htmlFor={`polling-${workspaceId}`}>
+        <input
+          id={`polling-${workspaceId}`}
+          type="checkbox"
+          className="size-3 accent-current disabled:opacity-50"
+          checked={enabled}
+          disabled={!canWrite || save.isPending}
+          onChange={event => save.mutate(event.target.checked)}
+        />
+        {t('workspace.details.backgroundRefreshLabel')}
+      </label>
+      {!enabled && <span className="text-amber-500">{t('workspace.details.backgroundRefreshPaused')}</span>}
+      {save.error && <span className="text-destructive">{humaniseApiError(save.error)}</span>}
     </div>
   )
 }
@@ -193,18 +240,25 @@ function RenameSection({ workspace, onRenamed }: { workspace: Workspace, onRenam
   )
 }
 
-function SourceRow({ workspaceId, source, onChange }: {
+function SourceRow({ workspaceId, source, paused, onChange }: {
   workspaceId: string
   source: SourceDescriptor
+  /** Workspace-level auto refresh is off, so this source's interval is idle. */
+  paused: boolean
   onChange: () => void
 }) {
   const { t } = useTranslation()
-  const { formatTime } = useLocaleFormat()
   const [editingDescription, setEditingDescription] = useState(false)
   const [draftDescription, setDraftDescription] = useState(source.description ?? '')
+  const queryClient = useQueryClient()
   const sync = useMutation({
     mutationFn: () => api.syncSource(workspaceId, source.id),
-    onSuccess: onChange,
+    onSuccess: () => {
+      // The freshness line polls on a slow interval, so without this a manual
+      // sync leaves it showing the previous revision for up to a minute.
+      void queryClient.invalidateQueries({ queryKey: ['source-sync-states', workspaceId] })
+      onChange()
+    },
   })
   const remove = useMutation({
     mutationFn: () => api.removeSource(workspaceId, source.id),
@@ -269,8 +323,25 @@ function SourceRow({ workspaceId, source, onChange }: {
         <p className="mt-1 text-2xs text-muted-foreground">
           <SyncSummary report={sync.data} />
           {' · '}
-          {formatTime(sync.data.fetchedAt ?? Date.now())}
+          <span className="font-mono">{isoSeconds(sync.data.fetchedAt ?? Date.now())}</span>
         </p>
+      )}
+      {canSync && (
+        <>
+          <SourceFreshness
+            workspaceId={workspaceId}
+            sourceId={source.id}
+            maxStalenessMs={source.kind === 'filesystem' ? source.sync?.maxStalenessMs : undefined}
+          />
+          <RefreshSchedule
+            workspaceId={workspaceId}
+            sourceId={source.id}
+            current={source.kind === 'filesystem' ? source.sync?.maxStalenessMs : undefined}
+            paused={paused}
+            canWrite={canWrite}
+            onChange={onChange}
+          />
+        </>
       )}
       {(loaderKind === 'gdrive' || loaderKind === 'github') && (
         <SourceConnectionStatus workspaceId={workspaceId} sourceId={source.id} loaderKind={loaderKind} canWrite={canWrite} />
@@ -444,6 +515,144 @@ function GithubWebhookPanel({ workspaceId, sourceId }: { workspaceId: string, so
       )}
     </div>
   )
+}
+
+/**
+ * Persisted sync health, as opposed to the row above it, which shows only the
+ * result of a sync the user just triggered and vanishes on reload. Without
+ * this a mirror that stopped updating leaves no trace in the UI at all.
+ */
+function SourceFreshness({ workspaceId, sourceId, maxStalenessMs }: {
+  workspaceId: string
+  sourceId: string
+  maxStalenessMs: number | undefined
+}) {
+  const { t } = useTranslation()
+  const { formatRelativeTime } = useLocaleFormat()
+  const { data } = useQuery({
+    queryKey: ['source-sync-states', workspaceId],
+    queryFn: () => api.listSourceSyncStates(workspaceId),
+    refetchInterval: 60_000,
+  })
+
+  const state = data?.states.find(candidate => candidate.sourceId === sourceId)
+  if (!state)
+    return null
+
+  // A schedule that has quietly stopped ages exactly like one that was never
+  // turned on, so say when the source is past the budget it was promised.
+  const overdue = maxStalenessMs !== undefined
+    && state.lastSuccessAt !== undefined
+    && Date.now() - Date.parse(state.lastSuccessAt) > maxStalenessMs
+
+  return (
+    <p className="mt-1 text-2xs text-muted-foreground">
+      {state.lastSuccessAt
+        ? t('workspace.details.lastSyncedAt', { when: formatRelativeTime(state.lastSuccessAt) })
+        : t('workspace.details.neverSynced')}
+      {overdue && <span className="text-amber-500">{` (${t('workspace.details.refreshOverdue')})`}</span>}
+      {state.revision && (
+        <>
+          {' · '}
+          <span className="font-mono">{state.revision.slice(0, 7)}</span>
+        </>
+      )}
+      {state.consecutiveFailures > 0 && (
+        <span className="text-destructive">
+          {' · '}
+          {t('workspace.details.syncFailures', { count: state.consecutiveFailures })}
+        </span>
+      )}
+      {/* Git errors run long and multi-line, so give them their own clamped
+          line instead of letting them push the row apart. */}
+      {state.lastError && (
+        <span className="mt-0.5 block truncate text-destructive" title={state.lastError}>{state.lastError}</span>
+      )}
+    </p>
+  )
+}
+
+// Presets rather than a free number field. Nobody reasons in milliseconds, and
+// the exact value never matters, only the order of magnitude.
+//
+// None of them are minutes-scale. Shortening the budget does not make a run
+// read anything newer, since the refresh before a run already guarantees that.
+// It only makes the background poll the remote harder, all day.
+const REFRESH_PRESETS_MS = [900_000, 3_600_000, 21_600_000, 86_400_000] as const
+
+const HOUR_MS = 3_600_000
+
+// Whole hours read as hours. "Every 360 min" is arithmetic, not an interval.
+function useIntervalLabel(): (ms: number) => string {
+  const { t } = useTranslation()
+  return ms => (ms % HOUR_MS === 0
+    ? t('workspace.details.refreshEveryHours', { hours: ms / HOUR_MS })
+    : t('workspace.details.refreshEveryMinutes', { minutes: Math.round(ms / 60_000) }))
+}
+
+/**
+ * How stale this source may get before Braid refreshes it on its own.
+ * Off leaves the source manual, which is what an existing workspace gets until
+ * someone opts it in.
+ */
+function RefreshSchedule({ workspaceId, sourceId, current, paused, canWrite, onChange }: {
+  workspaceId: string
+  sourceId: string
+  current: number | undefined
+  paused: boolean
+  canWrite: boolean
+  onChange: () => void
+}) {
+  const { t } = useTranslation()
+  const intervalLabel = useIntervalLabel()
+  const queryClient = useQueryClient()
+  const save = useMutation({
+    mutationFn: (maxStalenessMs: number | null) =>
+      api.patchSource(workspaceId, sourceId, { sync: maxStalenessMs === null ? null : { maxStalenessMs } }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['source-sync-states', workspaceId] })
+      onChange()
+    },
+  })
+
+  // An unrecognised value from a hand-edited PRODUCT.md still needs an option,
+  // else selecting nothing would silently look like Off.
+  const options = current !== undefined && !REFRESH_PRESETS_MS.includes(current as never)
+    ? [...REFRESH_PRESETS_MS, current].sort((a, b) => a - b)
+    : REFRESH_PRESETS_MS
+
+  return (
+    <div className="mt-1 flex items-center gap-1.5 text-2xs text-muted-foreground">
+      <label htmlFor={`refresh-${sourceId}`}>{t('workspace.details.refreshIntervalLabel')}</label>
+      <select
+        id={`refresh-${sourceId}`}
+        className="rounded border border-border bg-transparent px-1 py-0.5 text-2xs disabled:opacity-50"
+        value={current ?? ''}
+        disabled={!canWrite || save.isPending}
+        onChange={event => save.mutate(event.target.value === '' ? null : Number(event.target.value))}
+      >
+        <option value="">{t('workspace.details.refreshOff')}</option>
+        {options.map(ms => (
+          <option key={ms} value={ms}>{intervalLabel(ms)}</option>
+        ))}
+      </select>
+      {/* Say it where the interval is read. A row showing "Every hour" while
+          the workspace switch is off otherwise reads as actively refreshing. */}
+      {paused && current !== undefined && (
+        <span className="text-amber-500">{`(${t('workspace.details.refreshPausedInline')})`}</span>
+      )}
+      {save.error && <span className="text-destructive">{humaniseApiError(save.error)}</span>}
+    </div>
+  )
+}
+
+/**
+ * UTC ISO 8601 to the second, deliberately not locale-formatted. It reads the
+ * same as the timestamps in the sync-state records, so an operator comparing
+ * the two does not have to convert a zone or an AM/PM clock in their head.
+ */
+function isoSeconds(value: string | number): string {
+  return `${new Date(value).toISOString().slice(0, 19)}Z`
 }
 
 function SyncSummary({ report }: { report: { changed: boolean, added?: number, updated?: number, removed?: number } }) {

@@ -110,22 +110,103 @@ describe('GitLoader', () => {
   })
 })
 
+/**
+ * A source that omits `branch` used to fetch `origin HEAD` and reset to
+ * `origin/HEAD`, which only ever wrote FETCH_HEAD and left the tracking ref
+ * at its clone-time commit, so the mirror froze while reporting success.
+ */
+describe('GitLoader default branch', () => {
+  let scratch: string
+  let remoteUrl: string
+  let upstream: ReturnType<typeof simpleGit>
+
+  beforeEach(async () => {
+    scratch = await mkdtemp(join(tmpdir(), 'braid-git-default-branch-'))
+    const seedDir = join(scratch, 'seed')
+    await mkdir(seedDir, { recursive: true })
+    const seed = simpleGit({ baseDir: seedDir })
+    await seed.init(['--initial-branch=master'])
+    await seed.addConfig('user.name', 'tester')
+    await seed.addConfig('user.email', 't@example.com')
+    await writeFile(join(seedDir, 'README.md'), '# v1\n', 'utf-8')
+    await seed.add('.').commit('v1', ['--no-gpg-sign'])
+    const remoteDir = join(scratch, 'remote')
+    await simpleGit().clone(seedDir, remoteDir, ['--bare'])
+    remoteUrl = `file://${remoteDir}`
+    const upstreamDir = join(scratch, 'upstream')
+    await simpleGit().clone(remoteUrl, upstreamDir)
+    upstream = simpleGit({ baseDir: upstreamDir })
+    await upstream.addConfig('user.name', 'tester')
+    await upstream.addConfig('user.email', 't@example.com')
+  })
+
+  afterEach(async () => {
+    await rm(scratch, { recursive: true, force: true })
+  })
+
+  it('picks up upstream commits when branch is omitted', async () => {
+    const dest = join(scratch, 'workspace-source') as AbsolutePath
+    await gitLoader.provision({ url: remoteUrl }, dest, ctx)
+    expect(await readFile(join(dest, 'README.md'), 'utf-8')).toBe('# v1\n')
+
+    await writeFile(join(scratch, 'upstream', 'README.md'), '# v2\n', 'utf-8')
+    await upstream.add('.').commit('v2', ['--no-gpg-sign'])
+    await upstream.push('origin', 'HEAD')
+
+    const report = await gitLoader.sync!({ url: remoteUrl }, dest, ctx)
+    expect(report.changed).toBe(true)
+    expect(await readFile(join(dest, 'README.md'), 'utf-8')).toBe('# v2\n')
+  })
+
+  it('follows a force-push that rewrites the tracked branch', async () => {
+    const dest = join(scratch, 'workspace-source') as AbsolutePath
+    await gitLoader.provision({ url: remoteUrl }, dest, ctx)
+
+    await writeFile(join(scratch, 'upstream', 'README.md'), '# rewritten\n', 'utf-8')
+    await upstream.add('.')
+    await upstream.commit('rewrite', ['--amend', '--no-gpg-sign'])
+    await upstream.push(['--force', 'origin', 'master'])
+
+    const report = await gitLoader.sync!({ url: remoteUrl }, dest, ctx)
+    expect(report.changed).toBe(true)
+    expect(await readFile(join(dest, 'README.md'), 'utf-8')).toBe('# rewritten\n')
+  })
+
+  it('fails at provision when the default misses, rather than mirroring nothing', async () => {
+    const mainOnly = join(scratch, 'main-only')
+    await mkdir(mainOnly, { recursive: true })
+    const seed = simpleGit({ baseDir: mainOnly })
+    await seed.init(['--initial-branch=main'])
+    await seed.addConfig('user.name', 'tester')
+    await seed.addConfig('user.email', 't@example.com')
+    await writeFile(join(mainOnly, 'README.md'), '# main\n', 'utf-8')
+    await seed.add('.').commit('c1', ['--no-gpg-sign'])
+    const bare = join(scratch, 'main-only-remote')
+    await simpleGit().clone(mainOnly, bare, ['--bare'])
+
+    const dest = join(scratch, 'never-mirrored') as AbsolutePath
+    await expect(gitLoader.provision({ url: `file://${bare}` }, dest, ctx)).rejects.toThrow(/master/)
+  })
+})
+
 describe('GitLoader webhook capability', () => {
-  it('parses owner/repo from an https github url', () => {
-    expect(gitLoader.webhook?.repoIdentity({ url: 'https://github.com/mroops0111/braid.git' }))
-      .toEqual({ provider: 'github', owner: 'mroops0111', repo: 'braid' })
-    expect(gitLoader.webhook?.repoIdentity({ url: 'https://github.com/mroops0111/braid' }))
-      .toEqual({ provider: 'github', owner: 'mroops0111', repo: 'braid' })
+  it('parses host and path from an https url', () => {
+    expect(gitLoader.webhook?.upstream({ url: 'https://github.com/mroops0111/braid.git' }))
+      .toEqual({ host: 'github.com', path: 'mroops0111/braid' })
+    expect(gitLoader.webhook?.upstream({ url: 'https://github.com/mroops0111/braid' }))
+      .toEqual({ host: 'github.com', path: 'mroops0111/braid' })
   })
 
-  it('parses owner/repo from an ssh github url', () => {
-    expect(gitLoader.webhook?.repoIdentity({ url: 'git@github.com:mroops0111/braid.git' }))
-      .toEqual({ provider: 'github', owner: 'mroops0111', repo: 'braid' })
+  it('parses host and path from an ssh url', () => {
+    expect(gitLoader.webhook?.upstream({ url: 'git@github.com:mroops0111/braid.git' }))
+      .toEqual({ host: 'github.com', path: 'mroops0111/braid' })
   })
 
-  it('returns undefined for non-github hosts so the receiver rejects the delivery', () => {
-    expect(gitLoader.webhook?.repoIdentity({ url: 'https://gitlab.com/foo/bar.git' })).toBeUndefined()
-    expect(gitLoader.webhook?.repoIdentity({ url: 'https://git.sr.ht/~user/repo' })).toBeUndefined()
+  it('reports any host, leaving the receiver to decide which it can speak for', () => {
+    expect(gitLoader.webhook?.upstream({ url: 'https://gitlab.com/foo/bar.git' }))
+      .toEqual({ host: 'gitlab.com', path: 'foo/bar' })
+    expect(gitLoader.webhook?.upstream({ url: 'https://gitlab.internal/team/sub/billing.git' }))
+      .toEqual({ host: 'gitlab.internal', path: 'team/sub/billing' })
   })
 
   it('dispatches a push to the tracked branch', () => {
@@ -138,30 +219,30 @@ describe('GitLoader webhook capability', () => {
     expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'push', payload: { ref: 'refs/heads/feature-x' } })).toBe(false)
   })
 
-  it('accepts pushes to both main and master when branch is unset (covers modern + legacy default)', () => {
+  it('resolves the master default when branch is unset, rather than guessing at the payload', () => {
     const config = { url: 'https://github.com/o/r.git' }
-    expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'push', payload: { ref: 'refs/heads/main' } })).toBe(true)
     expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'push', payload: { ref: 'refs/heads/master' } })).toBe(true)
+    expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'push', payload: { ref: 'refs/heads/main' } })).toBe(false)
     expect(gitLoader.webhook?.shouldDispatch?.(config, { event: 'push', payload: { ref: 'refs/heads/develop' } })).toBe(false)
   })
 
   it('tolerates URL shapes the loader accepts: trailing slash, uppercase host, git+https, ssh-with-port, query string', () => {
-    expect(gitLoader.webhook?.repoIdentity({ url: 'https://github.com/foo/bar/' }))
-      .toEqual({ provider: 'github', owner: 'foo', repo: 'bar' })
-    expect(gitLoader.webhook?.repoIdentity({ url: 'https://GitHub.com/foo/bar.git' }))
-      .toEqual({ provider: 'github', owner: 'foo', repo: 'bar' })
-    expect(gitLoader.webhook?.repoIdentity({ url: 'git+https://github.com/foo/bar.git' }))
-      .toEqual({ provider: 'github', owner: 'foo', repo: 'bar' })
-    expect(gitLoader.webhook?.repoIdentity({ url: 'https://github.com/foo/bar?token=x' }))
-      .toEqual({ provider: 'github', owner: 'foo', repo: 'bar' })
+    expect(gitLoader.webhook?.upstream({ url: 'https://github.com/foo/bar/' }))
+      .toEqual({ host: 'github.com', path: 'foo/bar' })
+    expect(gitLoader.webhook?.upstream({ url: 'https://GitHub.com/foo/bar.git' }))
+      .toEqual({ host: 'github.com', path: 'foo/bar' })
+    expect(gitLoader.webhook?.upstream({ url: 'git+https://github.com/foo/bar.git' }))
+      .toEqual({ host: 'github.com', path: 'foo/bar' })
+    expect(gitLoader.webhook?.upstream({ url: 'https://github.com/foo/bar?token=x' }))
+      .toEqual({ host: 'github.com', path: 'foo/bar' })
   })
 
-  it('does NOT interpolate env vars at identity time, so a missing env never crashes the webhook receiver', () => {
+  it('does NOT interpolate env vars, so a missing env never crashes the receiver', () => {
     delete process.env.SHOULD_NOT_NEED_TO_BE_SET
     // eslint-disable-next-line no-template-curly-in-string -- literal placeholder
     const url = 'https://x:${SHOULD_NOT_NEED_TO_BE_SET}@github.com/foo/bar.git'
-    expect(gitLoader.webhook?.repoIdentity({ url }))
-      .toEqual({ provider: 'github', owner: 'foo', repo: 'bar' })
+    expect(gitLoader.webhook?.upstream({ url }))
+      .toEqual({ host: 'github.com', path: 'foo/bar' })
   })
 
   it('always dispatches ping so wire-up smoke tests succeed', () => {

@@ -73,6 +73,7 @@ export class SourceLoaderRunner {
       const provision = await loader.provision(source.loader.config, destination, context)
       const report: SyncReport = {
         changed: true,
+        ...(provision.revision === undefined ? {} : { revision: provision.revision }),
         ...(provision.metadata ? { metadata: provision.metadata } : {}),
         fetchedAt: provision.fetchedAt,
       }

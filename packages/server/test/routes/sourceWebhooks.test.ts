@@ -63,15 +63,15 @@ function makeGitSource(branch?: string) {
 // Stand-in loader plugins for the receiver's plugin-registry lookup.
 // We deliberately bypass `defineSourceLoaderPlugin` and construct the plugin
 // object literal so the test stays loader-agnostic: it only exercises
-// the receiver's contract (delegate to `plugin.webhook.{repoIdentity,
+// the receiver's contract (delegate to `plugin.webhook.{upstream,
 // shouldDispatch}`) and does NOT reproduce production loader semantics.
 // Each real loader has its own webhook unit test in its own package.
 const FAKE_FETCHED_AT = '2026-01-01T00:00:00.000Z' as Timestamp
 
 interface FakeLoaderOptions {
   readonly kind: string
-  readonly repoIdentity: SourceLoaderPlugin['webhook'] extends infer T
-    ? T extends { repoIdentity: infer R } ? R : never
+  readonly upstream: SourceLoaderPlugin['webhook'] extends infer T
+    ? T extends { upstream: infer R } ? R : never
     : never
   readonly shouldDispatch?: NonNullable<SourceLoaderPlugin['webhook']>['shouldDispatch']
 }
@@ -84,7 +84,7 @@ function makeFakeLoader(opts: FakeLoaderOptions): SourceLoaderPlugin {
     configSchema: z.unknown(),
     provision: async () => ({ localPath: '/abs/x' as AbsolutePath, fetchedAt: FAKE_FETCHED_AT }),
     webhook: {
-      repoIdentity: opts.repoIdentity,
+      upstream: opts.upstream,
       ...(opts.shouldDispatch ? { shouldDispatch: opts.shouldDispatch } : {}),
     },
   }
@@ -92,23 +92,23 @@ function makeFakeLoader(opts: FakeLoaderOptions): SourceLoaderPlugin {
 
 const githubLikeFake = makeFakeLoader({
   kind: 'github',
-  repoIdentity: (config) => {
+  upstream: (config) => {
     const c = config as { owner?: unknown, repo?: unknown }
     if (typeof c.owner !== 'string' || typeof c.repo !== 'string')
       return undefined
-    return { provider: 'github', owner: c.owner, repo: c.repo }
+    return { host: 'github.com', path: `${c.owner}/${c.repo}` }
   },
   shouldDispatch: (_c, d) => d.event === 'issues' || d.event === 'issue_comment' || d.event === 'ping',
 })
 
 const gitLikeFake = makeFakeLoader({
   kind: 'git',
-  repoIdentity: (config) => {
+  upstream: (config) => {
     const url = (config as { url?: unknown }).url
     if (typeof url !== 'string')
       return undefined
-    const m = url.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?$/)
-    return m ? { provider: 'github', owner: m[1]!, repo: m[2]! } : undefined
+    const m = url.match(/^https?:\/\/([^/]+)\/(.+?)(?:\.git)?$/)
+    return m ? { host: m[1]!.toLowerCase(), path: m[2]! } : undefined
   },
   shouldDispatch: (config, delivery) => {
     if (delivery.event === 'ping')
@@ -137,9 +137,9 @@ async function buildApp(opts: { withSecret?: string, source?: ReturnType<typeof 
   deps.secretStore = secretStore
   await deps.workspaceRepository.save(workspace)
 
-  // Replace the sourceLoaderRunner with a spy. The real one would try to
-  // actually invoke the github plugin; tests only need to assert the
-  // receiver dispatched the syncOne call.
+  // Replace the sync service with a spy. The real one would try to actually
+  // invoke the github plugin; tests only need to assert the receiver
+  // dispatched the sync call.
   const syncOne = vi.fn().mockResolvedValue({
     sourceId: SOURCE_ID,
     new: [],
@@ -147,7 +147,7 @@ async function buildApp(opts: { withSecret?: string, source?: ReturnType<typeof 
     unchanged: [],
     orphaned: [],
   })
-  deps.sourceLoaderRunner = { syncOne } as never
+  deps.sourceSyncService = { syncNow: syncOne } as never
 
   if (opts.withSecret) {
     await secretStore.write('webhook-github', composeSecretKey(workspace.id, SOURCE_ID), {
@@ -339,7 +339,7 @@ describe('POST /webhooks/github/:workspaceId/:sourceId (issue #30)', () => {
     expect(syncOne).not.toHaveBeenCalled()
   })
 
-  it('accepts pushes to both `main` and `master` when the git loader leaves branch unset', async () => {
+  it('dispatches on every ref the loader plugin accepts, without reading the config itself', async () => {
     const { app, workspace, syncOne } = await buildApp({
       withSecret: 'super-secret',
       source: makeGitSource(),

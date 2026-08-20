@@ -16,6 +16,13 @@ export interface SourceLoaderContext {
 export interface ProvisionReport {
   /** Local path where the source content now lives (under destination). */
   readonly localPath: AbsolutePath
+  /**
+   * Opaque marker for the upstream state this pass landed on, e.g. a commit sha.
+   * The framework only stores and displays it, never parses it,
+   * so a loader with no such concept leaves it unset.
+   * Distinct from `metadata`, which stays loader-specific and unread.
+   */
+  readonly revision?: string
   /** Loader-specific provenance metadata, e.g. a commit sha or Drive revision. */
   readonly metadata?: Readonly<Record<string, unknown>>
   /** When the provision completed. */
@@ -35,6 +42,8 @@ export interface SyncReport {
   readonly updated?: number
   readonly removed?: number
   readonly unchanged?: number
+  /** Opaque marker for the upstream state this sync landed on. See `ProvisionReport.revision`. */
+  readonly revision?: string
   /** Loader-specific provenance after the sync, e.g. a commit sha or Drive revision. */
   readonly metadata?: Readonly<Record<string, unknown>>
   readonly fetchedAt: Timestamp
@@ -67,35 +76,35 @@ export interface SourceLoaderPlugin extends Plugin {
   sync?: (config: unknown, destination: AbsolutePath, context: SourceLoaderContext) => Promise<SyncReport>
 
   /**
-   * Webhook integration. When defined, sources backed by this loader can receive,
-   * and verify, webhook deliveries from the remote `repoIdentity` names.
-   * The webhook route delegates two questions to the plugin.
-   * First, which `(provider, owner, repo)` triple this source is bound to,
-   * for matching `repository.full_name` in the payload.
-   * Second, whether a verified delivery should fire `syncOne` for this source.
-   * Adding a new loader extends the webhook surface without touching the route.
+   * What this loader contributes to push-based refresh. Two questions, both
+   * answerable without knowing which platform sends the notification.
+   * First, where its content lives, so a delivery can be matched to a source.
+   * Second, whether a given event changes this loader's content at all, since
+   * a push matters to a code mirror and not to an issues loader.
+   * Verifying the delivery is not here. That is the receiver's job.
    */
   readonly webhook?: WebhookCapability
 }
 
 /**
- * Provider this server's webhook receiver knows how to verify today.
- * Future provider support, e.g. `gitlab` or `linear`, extends this union.
- * A new provider mounts a sibling receiver at `/webhooks/<provider>/...`.
+ * Where a source's content comes from, as the loader reads it off its own
+ * config. Host-neutral on purpose. Naming a platform here would put an
+ * integration detail in the kernel, and would stop the same loader serving
+ * two hosts, which is exactly what a git remote does.
+ *
+ * Whoever receives a notification decides which hosts it can speak for.
  */
-export type WebhookProvider = 'github'
-
-export interface WebhookRepoIdentity {
-  readonly provider: WebhookProvider
-  readonly owner: string
-  readonly repo: string
+export interface SourceUpstream {
+  /** Hostname of the remote, lowercased, e.g. `github.com`. */
+  readonly host: string
+  /** Path identifying the resource on that host, e.g. `owner/repo`. */
+  readonly path: string
 }
 
 /**
- * Normalised view of a verified webhook delivery,
- * handed to a loader's `shouldDispatch`.
- * The receiver has already parsed JSON, verified the HMAC,
- * and confirmed `repository.full_name` matches `repoIdentity`.
+ * A delivery the receiver has already authenticated and matched to a source.
+ * `payload` is still the platform's own shape, so a loader reading it is
+ * coupled to that platform. Normalising it is tracked separately.
  */
 export interface WebhookDelivery {
   /** Provider header value, e.g. `push`, `issues`, `issue_comment`, `ping`. */
@@ -106,12 +115,11 @@ export interface WebhookDelivery {
 
 export interface WebhookCapability {
   /**
-   * Resolve the canonical `(provider, owner, repo)` this source is bound to.
-   * Return `undefined` when the configured remote is not webhook-capable,
-   * e.g. a `git` loader pointed at a self-hosted gitea instance.
-   * The receiver rejects mismatches with 400.
+   * Where this source's content lives, parsed from its own config and nothing
+   * else. Return `undefined` when the config names no addressable remote.
+   * The receiver matches a delivery against this, and rejects a mismatch.
    */
-  readonly repoIdentity: (config: unknown) => WebhookRepoIdentity | undefined
+  readonly upstream: (config: unknown) => SourceUpstream | undefined
   /**
    * Decide whether a verified delivery should actually fire `syncOne`.
    * Default `() => true` lets every verified delivery through.

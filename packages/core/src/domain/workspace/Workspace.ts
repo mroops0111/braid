@@ -6,7 +6,9 @@ import type {
   McpSourceDescriptor,
   ProductManifest,
   SourceDescriptor,
+  SourceId,
   SourceRole,
+  SourceSyncPolicy,
   StorageDescriptor,
   Workspace as WorkspaceData,
   WorkspaceId,
@@ -50,6 +52,25 @@ export class Workspace {
 
   mcpSources(): readonly McpSourceDescriptor[] {
     return this.sources.filter((source): source is McpSourceDescriptor => source.kind === 'mcp')
+  }
+
+  /**
+   * Sources that refresh on their own, being loader-backed and carrying a
+   * staleness budget. A manual directory has nothing to pull, and a source
+   * with no budget only refreshes when someone asks for it.
+   */
+  managedSources(): readonly FilesystemSourceDescriptor[] {
+    return this.filesystemSources().filter(source => source.loader && source.sync)
+  }
+
+  syncPolicyFor(sourceId: SourceId): SourceSyncPolicy | undefined {
+    const source = this.filesystemSources().find(candidate => candidate.id === sourceId)
+    return source?.loader ? source.sync : undefined
+  }
+
+  /** Whether background refreshes run. Opting out costs latency, never freshness. */
+  isPollingEnabled(): boolean {
+    return this.data.productManifest.polling?.enabled !== false
   }
 
   resolveAddDirs(): readonly AbsolutePath[] {

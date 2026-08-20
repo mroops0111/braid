@@ -93,6 +93,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   app.route('/workspaces', createWorkspacesRouter({
     workspaceService: deps.workspaceService,
     sourceLoaderRunner: deps.sourceLoaderRunner,
+    sourceSyncService: deps.sourceSyncService,
+    sourcePollingService: deps.sourcePollingService,
+    syncStateRepository: deps.syncStateRepository,
     workspacesRoot: deps.workspacesRoot,
     pluginRegistry: deps.pluginRegistry,
     ...(deps.defaultOntologyId ? { defaultOntologyId: deps.defaultOntologyId } : {}),
@@ -116,7 +119,8 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   if (deps.secretStore) {
     app.route('/webhooks', createGithubWebhookReceiver({
       workspaceService: deps.workspaceService,
-      sourceLoaderRunner: deps.sourceLoaderRunner,
+      sourceSyncService: deps.sourceSyncService,
+      ...(deps.isWorkspaceBusy ? { isWorkspaceBusy: deps.isWorkspaceBusy } : {}),
       secretStore: deps.secretStore,
       pluginRegistry: deps.pluginRegistry,
     }))
@@ -177,6 +181,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       skillRunner: deps.skillRunner,
       workspaceRepository: deps.workspaceRepository,
       sourceUnitObservationService: deps.sourceUnitObservationService,
+      sourceSyncService: deps.sourceSyncService,
       runRepository: deps.runRepository,
       pluginRegistry: deps.pluginRegistry,
     }))

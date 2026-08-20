@@ -1,4 +1,4 @@
-import type { HistoryService, PluginRegistry, SourceLoaderRunner, WorkspaceBootstrapService, WorkspaceService } from '@braidhq/core'
+import type { HistoryService, PluginRegistry, SourceLoaderRunner, SourcePollingService, SourceSyncService, SourceSyncStateRepository, WorkspaceBootstrapService, WorkspaceService } from '@braidhq/core'
 import type { AbsolutePath, ProductManifest, SourceDescriptor, SourceId as SourceIdType, Timestamp, UserId, WorkspaceId } from '@braidhq/schema'
 import type { Context, MiddlewareHandler } from 'hono'
 import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
@@ -13,7 +13,9 @@ import {
   ProductManifestCreate,
   SourceDescriptor as SourceDescriptorSchema,
   SourceId,
+  SourceSyncPolicy,
   StorageDescriptor,
+  WorkspacePollingConfig,
 } from '@braidhq/schema'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
@@ -44,12 +46,15 @@ const PatchWorkspaceBodySchema = z.object({
   ontologyId: OntologyId.optional(),
   storage: StorageDescriptor.optional(),
   mcpServers: z.array(McpServerConfig).optional(),
+  polling: WorkspacePollingConfig.optional(),
 }).refine(body => Object.keys(body).length > 0, { message: 'PATCH body must contain at least one field' })
 
 // Per-item PATCH bodies. An empty string for `description` clears the field,
 // absent means leave as-is.
 const PatchSourceBodySchema = z.object({
   description: z.string().optional(),
+  // `null` turns automatic refresh off, mirroring how `description: ''` clears.
+  sync: SourceSyncPolicy.nullable().optional(),
 }).refine(body => Object.keys(body).length > 0, { message: 'PATCH body must contain at least one field' })
 
 const PatchMcpServerBodySchema = z.object({
@@ -59,6 +64,13 @@ const PatchMcpServerBodySchema = z.object({
 export interface WorkspacesRouterDeps {
   workspaceService: WorkspaceService
   sourceLoaderRunner: SourceLoaderRunner
+  // Sync goes through the service, so the pass is locked and recorded.
+  // Provisioning stays on the runner, a scaffold has no prior state to guard.
+  sourceSyncService: SourceSyncService
+  // Started and stopped in step with the workspace's polling flag, so the
+  // toggle takes effect without a restart.
+  sourcePollingService: SourcePollingService
+  syncStateRepository: SourceSyncStateRepository
   workspacesRoot: AbsolutePath
   /**
    * Used at scaffold time to look up the chosen ontology,
@@ -207,6 +219,9 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
       const workspace = await deps.workspaceService.load(rootPath)
       const provisionOutcomes = await deps.sourceLoaderRunner.provisionAll(workspace)
       await deps.workspaceService.save(workspace)
+      // After save, since the sync-state store resolves a workspace's path
+      // through the registration this call writes.
+      await deps.sourceSyncService.recordProvisioned(workspace, provisionOutcomes)
       await deps.bootstrap?.ensure(workspace)
       await ensureCallerOwner(deps.workspaceRegistry, workspace.rootPath, getUserId(context))
       return context.json({
@@ -238,7 +253,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
 
     let provision: ProvisionSummary | undefined
     if (source.kind === 'filesystem' && source.loader) {
-      const report = await deps.sourceLoaderRunner.syncOne(updated, source.id)
+      const report = await deps.sourceSyncService.syncNow(updated, source.id)
       provision = { sourceId: source.id, ...report }
     }
     return context.json({ workspace: updated.toData(), ...(provision ? { provision } : {}) }, 201)
@@ -289,13 +304,25 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     if (!existing)
       throw new NotFoundError(`Source "${sourceId}" not found in workspace "${workspaceId}"`)
 
-    const patched: SourceDescriptor = patch.description === ''
-      ? stripField(existing, 'description')
-      : { ...existing, ...(patch.description !== undefined ? { description: patch.description } : {}) }
+    if (patch.sync !== undefined && (existing.kind !== 'filesystem' || !existing.loader))
+      throw new ValidationError(`Source "${sourceId}" has no loader, so there is nothing to refresh on a schedule`)
+
+    let patched: SourceDescriptor = existing
+    if (patch.description !== undefined) {
+      patched = patch.description === ''
+        ? stripField(patched, 'description')
+        : { ...patched, description: patch.description }
+    }
+    if (patch.sync !== undefined && patched.kind === 'filesystem')
+      patched = patch.sync === null ? stripField(patched, 'sync') : { ...patched, sync: patch.sync }
     const nextManifest = withSources(workspace.productManifest, workspace.sources.map(s => (s.id === sourceId ? patched : s)))
     await updateProductManifest(workspace.rootPath, nextManifest)
     await commitConfigChange(deps, workspaceId, getUserId(context), `updated source ${existing.name}`, sourceId)
     const updated = await reload(deps.workspaceService, workspace.rootPath)
+    // The loop only runs for workspaces with something to warm, so setting the
+    // first schedule is what starts it.
+    if (patch.sync !== undefined && updated.isPollingEnabled())
+      await deps.sourcePollingService.start(updated.id)
     return context.json({ workspace: updated.toData() })
   })
 
@@ -326,13 +353,22 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     return context.json({ workspace: updated.toData() })
   })
 
+  // Freshness and failure state per source, so Studio can show a stale or
+  // failing mirror without opening each source, and monitoring can alert on
+  // one that has not succeeded in a while.
+  // Read-only, so any member sees it, matching the source-connection route.
+  router.get('/:workspaceId/source-sync-states', workspaceIdMiddleware, wsAccess, requirePermission('workspace.read'), async (context) => {
+    const states = await deps.syncStateRepository.listByWorkspace(getWorkspaceId(context))
+    return context.json({ states })
+  })
+
   // Per-source sync. Looks up the source's loader and invokes `sync`,
   // or falls back to `provision` if the destination doesn't exist yet.
   router.post('/:workspaceId/sources/:sourceId/sync', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const sourceId = SourceId.parse(context.req.param('sourceId'))
     const workspace = await deps.workspaceService.findById(workspaceId)
-    const report = await deps.sourceLoaderRunner.syncOne(workspace, sourceId)
+    const report = await deps.sourceSyncService.syncNow(workspace, sourceId)
     return context.json(report)
   })
 
@@ -350,11 +386,21 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
       ...(patch.ontologyId !== undefined ? { ontologyId: patch.ontologyId } : {}),
       ...(patch.storage !== undefined ? { storage: patch.storage } : {}),
       ...(patch.mcpServers !== undefined ? { mcpServers: patch.mcpServers } : {}),
+      ...(patch.polling !== undefined ? { polling: patch.polling } : {}),
     }
     await updateProductManifest(workspace.rootPath, nextManifest)
     const renamed = patch.name !== undefined && patch.name !== workspace.productManifest.name
     await commitConfigChange(deps, workspaceId, getUserId(context), renamed ? `renamed to ${patch.name}` : 'updated workspace config')
     const updated = await reload(deps.workspaceService, workspace.rootPath)
+    // Match the running loop to what was just saved. A tick already re-reads
+    // the manifest, so turning it off would take effect anyway, but turning it
+    // back on would otherwise wait for a restart.
+    if (patch.polling !== undefined) {
+      if (updated.isPollingEnabled())
+        await deps.sourcePollingService.start(updated.id)
+      else
+        deps.sourcePollingService.stop(updated.id)
+    }
     return context.json({
       workspace: updated.toData(),
       ...(renamed ? { renamed: true, previousId: workspace.id, newId: updated.id } : {}),

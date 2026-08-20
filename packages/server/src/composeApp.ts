@@ -9,6 +9,7 @@ import type {
   RunRepository,
   SkillRegistry,
   SkillRunner,
+  SourceSyncStateRepository,
   SourceUnitDigest,
   SourceUnitObservationRepository,
   UnitLister,
@@ -18,7 +19,7 @@ import type {
   WorkspaceHistory,
   WorkspaceRepository,
 } from '@braidhq/core'
-import type { AbsolutePath, OntologyId } from '@braidhq/schema'
+import type { AbsolutePath, OntologyId, WorkspaceId } from '@braidhq/schema'
 import type { AuthMode } from './authMode.js'
 import type { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
 import type { SessionStore } from './infrastructure/auth/SessionStore.js'
@@ -39,9 +40,12 @@ import {
   PluginRegistry,
   ReactorService,
   SourceLoaderRunner,
+  SourcePollingService,
+  SourceSyncService,
   SourceUnitObservationService,
   SystemClock,
   SystemScheduler,
+  TaskCoalescer,
   WorkspaceLock,
   WorkspaceService,
 } from '@braidhq/core'
@@ -50,6 +54,7 @@ import {
   InMemoryModelRepository,
   InMemoryProposalRepository,
   InMemoryReactorCycleRepository,
+  InMemorySourceSyncStateRepository,
   InMemorySourceUnitObservationRepository,
   InMemoryWorkspaceEventBus,
   InMemoryWorkspaceRepository,
@@ -70,6 +75,14 @@ export interface AppDependencies {
   modelService: ModelService
   modelValidationService: ModelValidationService
   sourceLoaderRunner: SourceLoaderRunner
+  // The entry point every sync trigger uses. Calling the runner directly
+  // skips the lock and leaves the sync-state store untouched.
+  sourceSyncService: SourceSyncService
+  sourcePollingService: SourcePollingService
+  syncStateRepository: SourceSyncStateRepository
+  // Shared by the poller and the webhook receiver, both of which back off
+  // rather than rewrite files under a running agent.
+  isWorkspaceBusy?: (workspaceId: WorkspaceId) => boolean
   sourceUnitObservationService: SourceUnitObservationService
 
   // Capability services, each built only when its dependencies are wired.
@@ -157,7 +170,11 @@ export interface ComposeOptions {
   // Swapped fs-backed by `composeFsApp`, so records survive restart.
   reactorCycleRepository?: ReactorCycleRepository
   sourceUnitObservationRepository?: SourceUnitObservationRepository
+  sourceSyncStateRepository?: SourceSyncStateRepository
   batchPlanRepository?: BatchPlanRepository
+  // Whether a skill run currently holds a workspace's sources, so the poller
+  // skips it rather than swapping files under a running agent.
+  isWorkspaceBusy?: (workspaceId: WorkspaceId) => boolean
 
   // Source-unit extraction.
   // Without a real digest the observation service falls back,
@@ -207,6 +224,24 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const modelService = new ModelService({ modelRepository })
   const modelValidationService = new ModelValidationService({ pluginRegistry })
   const sourceLoaderRunner = new SourceLoaderRunner({ pluginRegistry, clock, eventBus })
+  const syncStateRepository = options.sourceSyncStateRepository ?? new InMemorySourceSyncStateRepository()
+  // Every sync trigger funnels through here, so each pass is recorded once
+  // and concurrent triggers for one source collapse into a single fetch.
+  const sourceSyncService = new SourceSyncService({
+    sourceLoaderRunner,
+    syncStateRepository,
+    coalescer: new TaskCoalescer(),
+    clock,
+    logger: createLogger('source-sync'),
+  })
+  const sourcePollingService = new SourcePollingService({
+    sourceSyncService,
+    workspaceService,
+    scheduler: new SystemScheduler(),
+    clock,
+    logger: createLogger('source-polling'),
+    ...(options.isWorkspaceBusy ? { isWorkspaceBusy: options.isWorkspaceBusy } : {}),
+  })
   // Shared lock domain so HITL mutations and history restore exclude each other.
   const workspaceLock = new WorkspaceLock()
   const hitlService = new HITLService({
@@ -306,6 +341,10 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     modelService,
     modelValidationService,
     sourceLoaderRunner,
+    sourceSyncService,
+    sourcePollingService,
+    syncStateRepository,
+    ...(options.isWorkspaceBusy ? { isWorkspaceBusy: options.isWorkspaceBusy } : {}),
     eventBus,
     pluginRegistry,
     proposalRepository,

@@ -2,10 +2,10 @@ import type {
   ProvisionReport,
   SourceLoaderContext,
   SourceLoaderPlugin,
+  SourceUpstream,
   SyncReport,
   WebhookCapability,
   WebhookDelivery,
-  WebhookRepoIdentity,
 } from '@braidhq/core'
 import type { AbsolutePath, LoaderKind, PluginId } from '@braidhq/schema'
 import type { z } from 'zod'
@@ -21,15 +21,14 @@ export interface DefineSourceLoaderInput<TSchema extends z.ZodTypeAny> {
   /** Optional. Refresh `destination` in place. Loaders that can't refresh may omit this. */
   readonly sync?: (config: z.infer<TSchema>, destination: AbsolutePath, context: SourceLoaderContext) => Promise<SyncReport>
   /**
-   * Optional. Declare that this loader's sources can receive webhooks.
-   * `repoIdentity` returns the `(provider, owner, repo)` triple
-   * to match against the payload's `repository.full_name`.
-   * `shouldDispatch` decides whether a verified delivery is worth a `syncOne` call.
-   * Loaders that omit this field cannot serve webhooks at all,
-   * the receiver returns 400.
+   * Optional. Declare that this loader's sources can be refreshed by a push.
+   * `upstream` reports where the content lives, host and path, so a delivery
+   * can be matched to a source. `shouldDispatch` decides whether a given event
+   * changes this loader's content at all. Neither names a platform.
+   * Loaders that omit this field cannot serve webhooks, the receiver 400s.
    */
   readonly webhook?: {
-    readonly repoIdentity: (config: z.infer<TSchema>) => WebhookRepoIdentity | undefined
+    readonly upstream: (config: z.infer<TSchema>) => SourceUpstream | undefined
     readonly shouldDispatch?: (config: z.infer<TSchema>, delivery: WebhookDelivery) => boolean
   }
   /** Skills this plugin ships (e.g. a migration walkthrough). */
@@ -64,7 +63,7 @@ export function defineSourceLoaderPlugin<TSchema extends z.ZodTypeAny>(
 
   const webhook: WebhookCapability | undefined = input.webhook
     ? {
-        repoIdentity: rawConfig => input.webhook!.repoIdentity(parse(rawConfig)),
+        upstream: rawConfig => input.webhook!.upstream(parse(rawConfig)),
         ...(input.webhook.shouldDispatch
           ? { shouldDispatch: (rawConfig: unknown, delivery: WebhookDelivery) => input.webhook!.shouldDispatch!(parse(rawConfig), delivery) }
           : {}),

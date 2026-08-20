@@ -33,6 +33,16 @@ export const GithubLoaderConfig = z.object({
 })
 export type GithubLoaderConfig = z.infer<typeof GithubLoaderConfig>
 
+/** The host a delivery arrives from, given the REST base a config points at. */
+function webHostOf(apiBaseUrl: string): string {
+  try {
+    return new URL(apiBaseUrl).host.toLowerCase().replace(/^api\./, '')
+  }
+  catch {
+    return 'github.com'
+  }
+}
+
 export interface GithubLoaderDeps {
   /**
    * Resolve a fresh access token for a given `(workspaceId, sourceId)`.
@@ -202,7 +212,10 @@ export function createGithubLoader(deps: GithubLoaderDeps): SourceLoaderPlugin {
       }
     },
     webhook: {
-      repoIdentity: config => ({ provider: 'github', owner: config.owner, repo: config.repo }),
+      // Deliveries come from the web host, not the API host, so drop the
+      // `api.` prefix. Knowing that mapping is fine here, this package is
+      // GitHub-specific by definition, unlike the generic git loader.
+      upstream: config => ({ host: webHostOf(config.apiBaseUrl), path: `${config.owner}/${config.repo}` }),
       // This loader pulls issues and (optionally) comments.
       // Push and other code-side events do not change what we would re-fetch,
       // so accept but skip them.
