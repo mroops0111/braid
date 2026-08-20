@@ -31,8 +31,7 @@ export type SourceRefreshOutcome =
 export interface EnsureWorkspaceFreshOptions {
   /**
    * How long to wait on refreshes before giving up and reporting `timedOut`.
-   * A caller with a request open needs this.
-   * Git offers no timeout of its own,
+   * A caller with a request open needs this. Git offers no timeout of its own,
    * so one unresponsive remote would otherwise wedge the call.
    * The pass itself keeps running and its result lands in the sync state.
    */

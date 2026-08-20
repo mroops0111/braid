@@ -24,8 +24,7 @@ interface SourceSyncBannerProps {
  * so without this the graph quietly describes week-old code,
  * and nobody has a reason to look.
  *
- * Polls rather than listening,
- * since a refresh fails in the background,
+ * Polls rather than listening, since a refresh fails in the background,
  * with no event a client is subscribed to.
  */
 export function SourceSyncBanner({ workspaceId, onOpenDetails }: SourceSyncBannerProps) {

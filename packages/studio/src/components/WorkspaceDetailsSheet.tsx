@@ -618,8 +618,7 @@ function RefreshSchedule({ workspaceId, sourceId, current, paused, canWrite, onC
     },
   })
 
-  // An unrecognised value from a hand-edited PRODUCT.
-  // md still needs an option,
+  // An unrecognised value from a hand-edited PRODUCT. md still needs an option,
   // else selecting nothing would silently look like Off.
   const options = current !== undefined && !REFRESH_PRESETS_MS.includes(current as never)
     ? [...REFRESH_PRESETS_MS, current].sort((a, b) => a - b)

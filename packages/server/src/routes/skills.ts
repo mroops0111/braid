@@ -74,8 +74,7 @@ export interface SkillsRouterDeps {
   readonly pluginRegistry: PluginRegistry
   /**
    * Brings managed sources inside their budget before the agent reads them.
-   * Best effort by contract,
-   * so an unreachable remote delays the run briefly,
+   * Best effort by contract, so an unreachable remote delays the run briefly,
    * and leaves the previous mirror in place rather than failing it.
    */
   readonly sourceSyncService: SourceSyncService

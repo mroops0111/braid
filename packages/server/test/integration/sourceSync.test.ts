@@ -15,8 +15,8 @@ import { readJson } from '../helpers/readJson.js'
  * and real files. The remote is a local bare repo rather than a hosted one,
  * so the run stays offline and deterministic.
  *
- * The pieces have their own unit tests.
- * What only shows up here is the wiring, whether a scaffold provisions,
+ * The pieces have their own unit tests. What only shows up here is the wiring,
+ * whether a scaffold provisions,
  * whether the health record lands where the repository says it does,
  * and whether a broken remote degrades rather than throws.
  */

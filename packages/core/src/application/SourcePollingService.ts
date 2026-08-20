@@ -50,8 +50,7 @@ export class SourcePollingService {
   constructor(private readonly deps: SourcePollingServiceDeps) {}
 
   /**
-   * Callers that already hold the workspace pass it,
-   * the common case at boot,
+   * Callers that already hold the workspace pass it, the common case at boot,
    * which avoids re-reading the registry and every manifest per call.
    *
    * Nothing to warm means nothing to schedule.

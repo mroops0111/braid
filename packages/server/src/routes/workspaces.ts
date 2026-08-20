@@ -219,8 +219,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
       const workspace = await deps.workspaceService.load(rootPath)
       const provisionOutcomes = await deps.sourceLoaderRunner.provisionAll(workspace)
       await deps.workspaceService.save(workspace)
-      // After save,
-      // since the sync-state store resolves a workspace's path,
+      // After save, since the sync-state store resolves a workspace's path,
       // through the registration this call writes.
       await deps.sourceSyncService.recordProvisioned(workspace, provisionOutcomes)
       await deps.bootstrap?.ensure(workspace)
