@@ -90,7 +90,9 @@ async function listUnitEntries(root: string, sourceId: string, sourceName: strin
       })
     }
   }
-  return items.sort((a, b) => a.label.localeCompare(b.label))
+  // Newest first, which for a mirror named by upstream id,
+  // means the most recent work rather than the oldest.
+  return items.sort((a, b) => byNaturalName(b.label, a.label))
 }
 
 // A flat document directory has every visible entry a markdown file,
@@ -122,7 +124,7 @@ async function listFlatDocumentFiles(dir: string): Promise<string[] | undefined>
   }
   if (docs.length === 0)
     return undefined
-  return docs.sort((a, b) => a.localeCompare(b))
+  return docs.sort(byNaturalName)
 }
 
 async function containsDocument(dir: string, maxDepth: number): Promise<boolean> {
@@ -144,6 +146,19 @@ async function containsDocument(dir: string, maxDepth: number): Promise<boolean>
       return true
   }
   return false
+}
+
+/**
+ * Orders names the way a reader expects, so `9` precedes `10`.
+ * Plain string order puts `10` first,
+ * which scrambles any source named by an upstream id,
+ * once the numbers pass single digits.
+ *
+ * The locale is pinned, since the default varies by host,
+ * and the order a listing comes back in should not.
+ */
+function byNaturalName(left: string, right: string): number {
+  return left.localeCompare(right, 'en', { numeric: true })
 }
 
 // Frontmatter sits at the top, so the rest of a long document is never read.

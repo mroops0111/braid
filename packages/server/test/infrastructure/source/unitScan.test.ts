@@ -57,6 +57,26 @@ describe('listUnitItems', () => {
     ])
   })
 
+  // Plain string order puts 10 before 9,
+  // which scrambles any source named by an upstream id,
+  // and buries the most recent work at the bottom.
+  it('orders units newest first, counting numbers as numbers', async () => {
+    const issuesDir = join(workspaceRoot, 'primaries/issues/issues')
+    await mkdir(issuesDir, { recursive: true })
+    for (const number of ['4', '9', '10', '27', '100'])
+      await writeFile(join(issuesDir, `${number}.md`), `# Issue ${number}\n`)
+
+    const items = await listUnitItems(makeWorkspace(workspaceRoot, 'primaries/issues'), ROLES)
+
+    expect(items.map(i => i.label)).toEqual([
+      'issues/100',
+      'issues/27',
+      'issues/10',
+      'issues/9',
+      'issues/4',
+    ])
+  })
+
   // A mirrored unit is named by its upstream id,
   // so a picker of bare numbers says nothing about what any of them are.
   it('reads the title out of a document\'s frontmatter', async () => {
