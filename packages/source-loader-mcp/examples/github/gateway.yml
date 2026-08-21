@@ -49,9 +49,13 @@ servers:
             }
           # A full page means more remain, and the last item's timestamp is
           # where the next page starts. A short page ends the walk.
+          # GitHub counts a pull request as an issue on this endpoint,
+          # and a dependency bump is not intent, so they are dropped here.
+          # Paging still counts the unfiltered page,
+          # or the walk would stop early.
           response: |
             {
-              "items": [$.{
+              "items": [$[$not($exists(pull_request))].{
                 "id": $string(number),
                 "title": title,
                 "body": body,

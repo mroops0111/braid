@@ -28,6 +28,12 @@ each field.
 
 `policy.allow` keeps everything else in the spec unreachable.
 
+One thing the endpoint does that its name does not suggest: GitHub counts a
+pull request as an issue here, so a repository with active dependency bumps
+returns mostly those. They are dropped in the `response` expression, since a
+version bump is not intent. Paging still counts the unfiltered page, or a page
+of nothing but pull requests would end the walk early.
+
 ## Why Paging Walks Timestamps
 
 GitHub pages with `page` and reports the next one in a `Link` header, and a
