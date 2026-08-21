@@ -1,10 +1,14 @@
+import type { TFunction } from 'i18next'
 import { Check, ChevronDown, X } from 'lucide-react'
 import { Popover } from 'radix-ui'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
-type TranslateFn = ReturnType<typeof useTranslation>['t']
+// The same alias the rest of Studio uses.
+// Inferring it from the hook drags the whole resource tree through every call,
+// which the compiler gives up on once the catalog grows.
+type TranslateFn = TFunction
 
 export interface MultiSelectOption {
   value: string

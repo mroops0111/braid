@@ -52,6 +52,9 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
   const [githubState, setGithubState] = useState<'open' | 'closed' | 'all'>('all')
   const [githubLabels, setGithubLabels] = useState('')
   const [githubIncludeComments, setGithubIncludeComments] = useState(true)
+  const [mcpUrl, setMcpUrl] = useState('')
+  const [mcpAuthorization, setMcpAuthorization] = useState('')
+  const [mcpTool, setMcpTool] = useState('')
   /**
    * Set once the user successfully completes the Google OAuth popup.
    * Keyed to the sourceId derived from `name` at the time of consent.
@@ -92,6 +95,9 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
         githubState,
         githubLabels,
         githubIncludeComments,
+        mcpUrl,
+        mcpAuthorization,
+        mcpTool,
       })
       return api.addSource(workspaceId, source)
     },
@@ -116,6 +122,9 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
     setGithubState('all')
     setGithubLabels('')
     setGithubIncludeComments(true)
+    setMcpUrl('')
+    setMcpAuthorization('')
+    setMcpTool('')
     setOauthConnectedFor(null)
     add.reset()
     startOauth.reset()
@@ -132,6 +141,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
     && (loaderKind !== 'git' || gitUrl.trim().length > 0)
     && (loaderKind !== 'gdrive' || (gdriveFolderId.trim().length > 0 && gdriveFolderId.trim() !== 'root' && oauthConnected))
     && (loaderKind !== 'github' || (githubOwner.trim().length > 0 && githubRepo.trim().length > 0))
+    && (loaderKind !== 'mcp' || mcpUrl.trim().length > 0)
 
   return (
     <Dialog
@@ -241,6 +251,26 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
                   <p className="mt-2 text-2xs text-destructive">{humaniseApiError(startOauth.error)}</p>
                 )}
               </div>
+            </>
+          )}
+          {loaderKind === 'mcp' && (
+            <>
+              <Field label={t('sources.addDialog.mcpUrlLabel')}>
+                <Input value={mcpUrl} onChange={e => setMcpUrl(e.target.value)} placeholder="https://gateway.internal/redmine/mcp" />
+                <p className="text-2xs text-muted-foreground">{t('sources.addDialog.mcpUrlHint')}</p>
+              </Field>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label={t('sources.addDialog.mcpAuthorizationLabel')}>
+                  {/* eslint-disable-next-line no-template-curly-in-string -- intentional: shows the literal ${VAR} form */}
+                  <Input value={mcpAuthorization} onChange={e => setMcpAuthorization(e.target.value)} placeholder="Bearer ${REDMINE_TOKEN}" />
+                </Field>
+                <Field label={t('sources.addDialog.mcpToolLabel')}>
+                  <Input value={mcpTool} onChange={e => setMcpTool(e.target.value)} placeholder="list_items" />
+                </Field>
+              </div>
+              <p className="text-2xs text-muted-foreground">
+                {t('sources.addDialog.mcpShapeHint')}
+              </p>
             </>
           )}
           {loaderKind === 'github' && (

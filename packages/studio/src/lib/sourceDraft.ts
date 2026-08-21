@@ -27,6 +27,15 @@ export interface SourceDraft {
   /** Comma-separated, trimmed and filtered to non-empty before serialising. */
   githubLabels: string
   githubIncludeComments: boolean
+  /** Streamable HTTP endpoint of the MCP server. */
+  mcpUrl: string
+  /**
+   * Sent as the `Authorization` header, so a token never lands in the path.
+   * Supports `${VAR}`, which the server resolves against its own environment.
+   */
+  mcpAuthorization: string
+  /** Empty keeps the loader's own default, which a shaped gateway matches. */
+  mcpTool: string
 }
 
 export function nameToId(name: string): string {
@@ -40,7 +49,7 @@ export function nameToId(name: string): string {
  * and disables submit until the kind is configured,
  * by editing PRODUCT.md directly.
  */
-export const STUDIO_KNOWN_LOADER_KINDS = new Set(['git', 'github', 'gdrive'])
+export const STUDIO_KNOWN_LOADER_KINDS = new Set(['git', 'github', 'gdrive', 'mcp'])
 
 /**
  * Human-friendly label for a loader kind.
@@ -56,6 +65,8 @@ export function loaderKindLabel(kind: string, t: TFunction): string {
     return t('sources.loaderKind.git')
   if (kind === 'gdrive')
     return t('sources.loaderKind.gdrive')
+  if (kind === 'mcp')
+    return t('sources.loaderKind.mcp')
   return kind
 }
 
@@ -99,7 +110,18 @@ export function toSourceDescriptor(draft: SourceDraft): SourceDescriptor {
               },
             }
           })()
-        : undefined
+        : draft.loaderKind === 'mcp'
+          ? {
+              kind: asLoaderKind('mcp'),
+              config: {
+                url: draft.mcpUrl,
+                // Every other field is left to the loader's defaults,
+                // which describe the envelope a shaped gateway emits.
+                ...(draft.mcpAuthorization ? { headers: { Authorization: draft.mcpAuthorization } } : {}),
+                ...(draft.mcpTool ? { tool: draft.mcpTool } : {}),
+              },
+            }
+          : undefined
   return {
     kind: 'filesystem',
     id,

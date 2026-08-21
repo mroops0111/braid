@@ -1,8 +1,10 @@
 import type { PluginRegistry, SourceUnitItem, Workspace } from '@braidhq/core'
 import type { SourceRole } from '@braidhq/schema'
-import { readdir } from 'node:fs/promises'
+import { Buffer } from 'node:buffer'
+import { open, readdir } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import { unitBearingRoleIds } from '@braidhq/core'
+import { parseMarkdownFrontmatter } from '../_shared/frontmatter.js'
 
 const UNIT_FILE_EXTENSIONS = new Set(['.md', '.mdx', '.markdown', '.txt', '.rst'])
 
@@ -56,11 +58,13 @@ async function listUnitEntries(root: string, sourceId: string, sourceName: strin
       const flatFiles = await listFlatDocumentFiles(folder)
       if (flatFiles) {
         for (const name of flatFiles) {
+          const title = await readTitle(join(folder, name))
           items.push({
             value: `${entry.name}/${name}`,
             label: `${entry.name}/${stripExtension(name)}`,
             sourceId,
             sourceName,
+            ...(title ? { title } : {}),
           })
         }
         continue
@@ -76,11 +80,13 @@ async function listUnitEntries(root: string, sourceId: string, sourceName: strin
       continue
     }
     if (entry.isFile() && isUnitDocument(entry.name)) {
+      const title = await readTitle(join(root, entry.name))
       items.push({
         value: entry.name,
         label: stripExtension(entry.name),
         sourceId,
         sourceName,
+        ...(title ? { title } : {}),
       })
     }
   }
@@ -138,6 +144,38 @@ async function containsDocument(dir: string, maxDepth: number): Promise<boolean>
       return true
   }
   return false
+}
+
+// Frontmatter sits at the top, so the rest of a long document is never read.
+// A picker opens over every unit at once, and some mirrors run to thousands.
+const FRONTMATTER_BUDGET = 4096
+
+/**
+ * The document's own title, when its frontmatter carries one.
+ * Anything unreadable or unparseable yields nothing,
+ * since a listing that fails over one malformed document,
+ * is worse than one missing a label.
+ */
+async function readTitle(path: string): Promise<string | undefined> {
+  let handle
+  try {
+    handle = await open(path, 'r')
+    const buffer = Buffer.alloc(FRONTMATTER_BUDGET)
+    const { bytesRead } = await handle.read(buffer, 0, FRONTMATTER_BUDGET, 0)
+    const head = buffer.subarray(0, bytesRead).toString('utf-8')
+    // A truncated read can cut the closing delimiter, so put one back.
+    const { frontmatter } = parseMarkdownFrontmatter<{ title?: unknown }>(
+      bytesRead < FRONTMATTER_BUDGET ? head : `${head}\n---\n`,
+    )
+    const { title } = frontmatter
+    return typeof title === 'string' && title.length > 0 ? title : undefined
+  }
+  catch {
+    return undefined
+  }
+  finally {
+    await handle?.close()
+  }
 }
 
 function isUnitDocument(filename: string): boolean {

@@ -4,6 +4,7 @@ export const sources = {
     github: 'github (issues)',
     git: 'git',
     gdrive: 'Google Drive',
+    mcp: 'MCP tool',
   },
   addDialog: {
     title: 'Add Source',
@@ -14,6 +15,12 @@ export const sources = {
     descriptionPlaceholder: 'e.g. what this source holds and how authoritative it is.',
     descriptionHint: 'Visible to skills via PRODUCT.md.',
     gitUrlLabel: 'Git URL',
+    mcpUrlLabel: 'MCP Server URL',
+    // eslint-disable-next-line no-template-curly-in-string -- intentional: names the literal ${VAR} form
+    mcpUrlHint: 'Streamable HTTP endpoint. Supports ${VAR} from the server environment.',
+    mcpAuthorizationLabel: 'Authorization',
+    mcpToolLabel: 'Tool',
+    mcpShapeHint: 'Leave the tool empty for a gateway shaped to the default envelope. Field mapping for another shape is set in PRODUCT.md.',
     branchLabel: 'Branch',
     googleDriveFolderLabel: 'Google Drive Folder ID',
     googleDriveRootWarning: '"root" mirrors your entire My Drive (rejected by the loader). Create a dedicated subfolder and paste its ID.',

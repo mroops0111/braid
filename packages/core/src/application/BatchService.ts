@@ -38,6 +38,14 @@ export interface SourceUnitItem {
   readonly label: string
   readonly sourceId: string
   readonly sourceName: string
+  /**
+   * What the document calls itself, from its frontmatter.
+   * A mirrored unit is named by its upstream id,
+   * so the filename alone says nothing about what the unit is,
+   * and a picker of bare numbers is unreadable.
+   * Absent when the document declares no title.
+   */
+  readonly title?: string
 }
 
 /** Enumerates the current units on disk from a workspace's unit-bearing sources. */

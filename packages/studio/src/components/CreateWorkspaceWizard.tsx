@@ -925,6 +925,9 @@ function defaultSourceDraft(role: SourceRoleDescriptor): SourceDraft {
     githubState: 'all',
     githubLabels: '',
     githubIncludeComments: true,
+    mcpUrl: '',
+    mcpAuthorization: '',
+    mcpTool: '',
   }
 }
 
