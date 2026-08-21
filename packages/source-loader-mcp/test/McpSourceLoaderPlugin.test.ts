@@ -178,6 +178,25 @@ describe('mcp source loader', () => {
     )).rejects.toThrow(/upstream returned 502/)
   })
 
+  // A real gateway puts the upstream error body in `structuredContent` as well,
+  // which is where a payload would be read from.
+  // Reading the failure first is what keeps the cause visible,
+  // instead of a complaint that the envelope has no items.
+  it('reports the failure, not the envelope, when the error carries a body', async () => {
+    const server = fakeServer([{
+      isError: true,
+      content: [{ type: 'text', text: 'Upstream GET returned 401 Unauthorized' }],
+      structuredContent: { message: 'Bad credentials', status: '401' },
+    }])
+    const loader = createMcpLoader({ connect: server.connect })
+
+    await expect(loader.provision(
+      { url: 'https://gateway.internal/mcp' },
+      destination as AbsolutePath,
+      context,
+    )).rejects.toThrow(/401 Unauthorized/)
+  })
+
   it('stops at the page ceiling and says so', async () => {
     const endless = Array.from({ length: 5 }, (_unused, index) =>
       page([{ id: index, updatedAt: '2026-01-01T00:00:00Z' }], `cursor-${index}`))
