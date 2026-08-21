@@ -2,6 +2,21 @@
 
 Braid keeps a product's intent and its code aligned in one knowledge graph. `@braidhq/studio` is the web UI a human uses to see that graph and steer it. It renders the graph, the review queues that gate every change to it, and the skill runs that produce those changes, talking to the server over REST and a live event stream.
 
+## What The Package Ships
+
+The published package is the built app, not its source. A server that wants to
+serve the UI from its own origin asks for the directory:
+
+```ts
+import { studioAssetsDir } from '@braidhq/studio/assets'
+
+process.env.BRAID_STUDIO_ROOT ??= studioAssetsDir
+```
+
+The bundle is self-contained, so installing it pulls nothing else in. React,
+the component library, and the fonts are all inside `dist` already, which is
+why they are build dependencies here rather than runtime ones.
+
 ## Role
 
 Studio is the presentation layer. It reads and displays server state, and it turns a reviewer's decisions into API calls, but it holds no authority of its own.
