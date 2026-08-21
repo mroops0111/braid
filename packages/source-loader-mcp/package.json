@@ -34,6 +34,8 @@
   },
   "devDependencies": {
     "@braidhq/test-utils": "workspace:*",
+    "@hono/node-server": "^1.19.6",
+    "@modelcontextprotocol/server": "^2.0.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
   },

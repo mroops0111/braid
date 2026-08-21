@@ -1,0 +1,64 @@
+# Shapes GitHub's issue list into the envelope the Braid MCP loader assumes.
+# Nothing about Braid is in GitHub, and nothing about GitHub is in Braid. This
+# file is the whole adapter.
+transport: streamable-http
+host: 127.0.0.1
+port: 8931
+
+servers:
+  - name: github
+    spec: ./github-issues.yaml
+    base_url: https://api.github.com
+    auth:
+      type: bearer
+      token: ${GH_TOKEN}
+    policy:
+      allow: [issues-list-for-repo]
+    operations:
+      issues-list-for-repo:
+        tool:
+          name: list_items
+          description: One page of repository issues, oldest update first.
+          # The caller sees only the three the loader knows. Everything the
+          # endpoint really takes is supplied below.
+          strategy: replace
+          params:
+            since:
+              type: string
+              description: Only issues updated at or after this timestamp.
+            cursor:
+              type: string
+              description: Carries the previous page's boundary timestamp.
+            limit:
+              type: integer
+              default: 5
+          # `page` and Link headers cannot be reached from a body-only
+          # transform, so paging walks GitHub's own `since` instead, which
+          # needs the list sorted oldest-first.
+          # Only `auth` fields interpolate `${VAR}`, so the repository is
+          # written in. Edit these two for another one.
+          request: |
+            {
+              "owner": "mroops0111",
+              "repo": "braid",
+              "state": "all",
+              "sort": "updated",
+              "direction": "asc",
+              "per_page": 5,
+              "since": $exists(cursor) and cursor != "" ? cursor : since
+            }
+          # A full page means more remain, and the last item's timestamp is
+          # where the next page starts. A short page ends the walk.
+          response: |
+            {
+              "items": [$.{
+                "id": $string(number),
+                "title": title,
+                "body": body,
+                "updatedAt": updated_at,
+                "state": state,
+                "author": user.login,
+                "url": html_url
+              }],
+              "nextCursor": $count($) = 5 ? $[-1].updated_at : ""
+            }

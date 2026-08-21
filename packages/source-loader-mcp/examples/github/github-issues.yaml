@@ -1,0 +1,69 @@
+openapi: 3.1.0
+info:
+  title: GitHub Issues
+  version: 1.0.0
+  description: The one endpoint this mirror reads, described as GitHub serves it.
+servers:
+  - url: https://api.github.com
+paths:
+  /repos/{owner}/{repo}/issues:
+    get:
+      operationId: issues-list-for-repo
+      summary: List repository issues
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema: {type: string}
+        - name: repo
+          in: path
+          required: true
+          schema: {type: string}
+        - name: state
+          in: query
+          schema:
+            type: string
+            enum: [open, closed, all]
+            default: open
+        - name: since
+          in: query
+          description: Only issues updated at or after this ISO 8601 timestamp.
+          schema: {type: string}
+        - name: per_page
+          in: query
+          schema: {type: integer, default: 30, maximum: 100}
+        - name: page
+          in: query
+          schema: {type: integer, default: 1}
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [created, updated, comments]
+            default: created
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: A page of issues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    number: {type: integer}
+                    title: {type: string}
+                    body: {type: [string, 'null']}
+                    state: {type: string}
+                    updated_at: {type: string}
+                    html_url: {type: string}
+                    user:
+                      type: object
+                      properties:
+                        login: {type: string}
