@@ -13,9 +13,12 @@ services:
       # Where users reach Studio. Also the only browser origin trusted by
       # default, so a wrong value here is what a CORS failure looks like.
       BRAID_STUDIO_URL: ${BRAID_STUDIO_URL:?set this to the URL users open}
+      # This server serves Studio, so the API answers on that same origin.
+      # Both OAuth redirects derive from it, and each has to be registered
+      # in the Google console exactly as derived.
+      BRAID_API_URL: ${BRAID_STUDIO_URL}
       BRAID_GOOGLE_CLIENT_ID: ${BRAID_GOOGLE_CLIENT_ID:?}
       BRAID_GOOGLE_CLIENT_SECRET: ${BRAID_GOOGLE_CLIENT_SECRET:?}
-      BRAID_GOOGLE_LOGIN_REDIRECT_URI: ${BRAID_STUDIO_URL}/auth/google/callback
       BRAID_ALLOWED_DOMAINS: ${BRAID_ALLOWED_DOMAINS:-}
       BRAID_ADMIN_EMAILS: ${BRAID_ADMIN_EMAILS:?at least one admin is required}
       # Subscription credential for the agent. See the deployment notes in

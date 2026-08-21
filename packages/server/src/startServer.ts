@@ -7,7 +7,7 @@ import { createLogger } from '@braidhq/core'
 import { AgentEffort } from '@braidhq/schema'
 import { serve } from '@hono/node-server'
 import { createApp } from './app.js'
-import { composeFsApp } from './composeFsApp.js'
+import { composeFsApp, withoutTrailingSlash } from './composeFsApp.js'
 import { startupAfterServe } from './startup.js'
 
 /**
@@ -52,8 +52,14 @@ export interface StartServerOptions {
  * Resolves once the socket is listening, then keeps running under signal handlers.
  */
 export async function startServer(options: StartServerOptions): Promise<void> {
-  const apiUrl = `http://localhost:${options.port}`
-  const deps = await composeFsApp({ apiUrl, ...fsOptionsFromEnv() })
+  // Two addresses for one server.
+  // Callers outside the host reach it at `BRAID_API_URL`,
+  // which is also what OAuth redirects and webhook URLs have to name.
+  // A subprocess on the host reaches it on loopback,
+  // which stays true whatever the deployment is called from outside.
+  const loopbackApiUrl = `http://localhost:${options.port}`
+  const apiUrl = withoutTrailingSlash(process.env.BRAID_API_URL ?? loopbackApiUrl)
+  const deps = await composeFsApp({ apiUrl, loopbackApiUrl, ...fsOptionsFromEnv() })
   const app = createApp(deps, { apiUrl })
   const log = createLogger('server')
 
