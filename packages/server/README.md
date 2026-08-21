@@ -94,6 +94,27 @@ Point `BRAID_STUDIO_ROOT` at Studio's built files and this server serves them to
 
 The static handler sits ahead of the auth gate, because the app shell is what a signed-out visitor loads in order to sign in. The API behind it stays gated.
 
+`@braidhq/studio` ships those files, so an installed copy already has them and there is nothing to build:
+
+```ts
+import { studioAssetsDir } from '@braidhq/studio/assets'
+
+process.env.BRAID_STUDIO_ROOT ??= studioAssetsDir
+```
+
+## Adding Your Own Plugins
+
+`startServer` takes the same extra-plugin options `composeFsApp` does, so a deployment with a private loader registers it without assembling a server itself:
+
+```ts
+import { startServer } from '@braidhq/server'
+import { redmineLoader } from '@yourorg/braid-source-loader-redmine'
+
+await startServer({ port: 4321, extraSourceLoaderPlugins: [redmineLoader] })
+```
+
+Doing that by hand means reproducing the shutdown that closes the graph store, and forgetting it is silent.
+
 ## Deployment
 
 `Dockerfile` and `compose.yaml` at the repo root run the server with Studio on one origin. The image installs `git`, `uvx`, and `claude`, all three of which the server shells out to.

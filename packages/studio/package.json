@@ -2,7 +2,6 @@
   "name": "@braidhq/studio",
   "type": "module",
   "version": "0.3.0",
-  "private": true,
   "description": "Web UI for Braid.",
   "license": "MIT",
   "repository": {
@@ -10,6 +9,15 @@
     "url": "git+https://github.com/mroops0111/braid.git",
     "directory": "packages/studio"
   },
+  "exports": {
+    "./assets": "./assets.js"
+  },
+  "files": [
+    "README.md",
+    "assets.d.ts",
+    "assets.js",
+    "dist"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -60,5 +68,8 @@
     "typescript": "^6.0.3",
     "vite": "^8.2.1",
     "vitest": "^4.1.10"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

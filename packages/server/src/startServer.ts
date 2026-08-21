@@ -1,5 +1,5 @@
 import type { AppDependencies } from './composeApp.js'
-import type { ComposeFsOptions } from './composeFsApp.js'
+import type { ComposeFsOptions, ExtraPluginOptions } from './composeFsApp.js'
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import process from 'node:process'
@@ -40,7 +40,7 @@ function fsOptionsFromEnv(): ComposeFsOptions {
   }
 }
 
-export interface StartServerOptions {
+export interface StartServerOptions extends ExtraPluginOptions {
   readonly port: number
   // Called once the socket is listening, with the bound URL.
   readonly onListen?: (url: string) => void
@@ -50,6 +50,11 @@ export interface StartServerOptions {
  * Boot the coding-preset app and start serving, shared by the standalone
  * entry and the cli `serve` command so both wire identically.
  * Resolves once the socket is listening, then keeps running under signal handlers.
+ *
+ * A deployment with its own plugins passes them here,
+ * rather than assembling a server itself.
+ * Doing that by hand means reproducing the shutdown,
+ * which closes the graph store, and forgetting it is silent.
  */
 export async function startServer(options: StartServerOptions): Promise<void> {
   // Two addresses for one server.
@@ -59,7 +64,8 @@ export async function startServer(options: StartServerOptions): Promise<void> {
   // which stays true whatever the deployment is called from outside.
   const loopbackApiUrl = `http://localhost:${options.port}`
   const apiUrl = withoutTrailingSlash(process.env.BRAID_API_URL ?? loopbackApiUrl)
-  const deps = await composeFsApp({ apiUrl, loopbackApiUrl, ...fsOptionsFromEnv() })
+  const { port: _port, onListen: _onListen, ...extraPlugins } = options
+  const deps = await composeFsApp({ apiUrl, loopbackApiUrl, ...fsOptionsFromEnv(), ...extraPlugins })
   const app = createApp(deps, { apiUrl })
   const log = createLogger('server')
 
