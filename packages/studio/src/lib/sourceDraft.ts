@@ -43,13 +43,59 @@ export function nameToId(name: string): string {
 }
 
 /**
+ * Turns the fields a form collected into the config its loader expects.
+ * One entry per loader Studio can configure, so adding one is an entry,
+ * rather than an edit to something that already knows every other loader.
+ */
+const LOADER_CONFIGS: Record<string, (draft: SourceDraft) => Record<string, unknown>> = {
+  git: draft => ({
+    url: draft.gitUrl,
+    ...(draft.gitBranch ? { branch: draft.gitBranch } : {}),
+  }),
+  gdrive: draft => ({
+    folderId: draft.gdriveFolderId,
+    ...(draft.gdriveInclude ? { include: draft.gdriveInclude } : {}),
+    ...(draft.gdriveExclude ? { exclude: draft.gdriveExclude } : {}),
+  }),
+  github: (draft) => {
+    const labels = draft.githubLabels.split(',').map(s => s.trim()).filter(s => s.length > 0)
+    return {
+      owner: draft.githubOwner,
+      repo: draft.githubRepo,
+      state: draft.githubState,
+      ...(labels.length > 0 ? { labels } : {}),
+      includeComments: draft.githubIncludeComments,
+    }
+  },
+  // Every other field is left to the loader's defaults,
+  // which describe the envelope a shaped gateway emits.
+  mcp: draft => ({
+    url: draft.mcpUrl,
+    ...(draft.mcpAuthorization ? { headers: { Authorization: draft.mcpAuthorization } } : {}),
+    ...(draft.mcpTool ? { tool: draft.mcpTool } : {}),
+  }),
+}
+
+/**
  * Loader kinds for which Studio ships a per-field config form.
  * Other kinds the server reports still appear in the dropdown,
  * but the dialog shows a warning instead of a form,
  * and disables submit until the kind is configured,
  * by editing PRODUCT.md directly.
  */
-export const STUDIO_KNOWN_LOADER_KINDS = new Set(['git', 'github', 'gdrive', 'mcp'])
+export const STUDIO_KNOWN_LOADER_KINDS = new Set(Object.keys(LOADER_CONFIGS))
+
+// Spelled out rather than derived from the table above,
+// because the catalog's keys are typed,
+// and a key built at run time is only a string.
+// `manual` names the absence of a loader, so it has no config builder.
+const LOADER_LABEL_KEYS = {
+  '': 'sources.loaderKind.manual',
+  'git': 'sources.loaderKind.git',
+  'gdrive': 'sources.loaderKind.gdrive',
+  'github': 'sources.loaderKind.github',
+  'mcp': 'sources.loaderKind.mcp',
+} as const
 
 /**
  * Human-friendly label for a loader kind.
@@ -57,23 +103,14 @@ export const STUDIO_KNOWN_LOADER_KINDS = new Set(['git', 'github', 'gdrive', 'mc
  * so a new plugin without a Studio-side label still renders sensibly.
  */
 export function loaderKindLabel(kind: string, t: TFunction): string {
-  if (kind === '')
-    return t('sources.loaderKind.manual')
-  if (kind === 'github')
-    return t('sources.loaderKind.github')
-  if (kind === 'git')
-    return t('sources.loaderKind.git')
-  if (kind === 'gdrive')
-    return t('sources.loaderKind.gdrive')
-  if (kind === 'mcp')
-    return t('sources.loaderKind.mcp')
-  return kind
+  const key = LOADER_LABEL_KEYS[kind as keyof typeof LOADER_LABEL_KEYS]
+  return key ? t(key) : kind
 }
 
 /**
  * Top-level grouping dir for a role, from its descriptor.
- * Falls back to the role id, so a role that declares no pathSegment
- * still provisions into a stable, walkable folder.
+ * Falls back to the role id,
+ * so a role that declares no pathSegment still provisions into a stable folder.
  */
 export function draftPathSegment(draft: Pick<SourceDraft, 'role' | 'pathSegment'>): string {
   return draft.pathSegment || draft.role
@@ -82,46 +119,13 @@ export function draftPathSegment(draft: Pick<SourceDraft, 'role' | 'pathSegment'
 export function toSourceDescriptor(draft: SourceDraft): SourceDescriptor {
   const id = asSourceId(nameToId(draft.name))
   // Path is fully derived. The role's grouping dir decides the parent,
-  // and the source name decides the leaf, so any tool can walk
-  // `workspaces/x/<segment>/` without parsing PRODUCT.md.
+  // and the source name decides the leaf,
+  // so any tool can walk `workspaces/x/<segment>/` without parsing PRODUCT.md.
   const path = asAbsolutePath(`./${draftPathSegment(draft)}/${id}`)
-  const loader = draft.loaderKind === 'git'
-    ? { kind: asLoaderKind('git'), config: { url: draft.gitUrl, ...(draft.gitBranch ? { branch: draft.gitBranch } : {}) } }
-    : draft.loaderKind === 'gdrive'
-      ? {
-          kind: asLoaderKind('gdrive'),
-          config: {
-            folderId: draft.gdriveFolderId,
-            ...(draft.gdriveInclude ? { include: draft.gdriveInclude } : {}),
-            ...(draft.gdriveExclude ? { exclude: draft.gdriveExclude } : {}),
-          },
-        }
-      : draft.loaderKind === 'github'
-        ? (() => {
-            const labels = draft.githubLabels.split(',').map(s => s.trim()).filter(s => s.length > 0)
-            return {
-              kind: asLoaderKind('github'),
-              config: {
-                owner: draft.githubOwner,
-                repo: draft.githubRepo,
-                state: draft.githubState,
-                ...(labels.length > 0 ? { labels } : {}),
-                includeComments: draft.githubIncludeComments,
-              },
-            }
-          })()
-        : draft.loaderKind === 'mcp'
-          ? {
-              kind: asLoaderKind('mcp'),
-              config: {
-                url: draft.mcpUrl,
-                // Every other field is left to the loader's defaults,
-                // which describe the envelope a shaped gateway emits.
-                ...(draft.mcpAuthorization ? { headers: { Authorization: draft.mcpAuthorization } } : {}),
-                ...(draft.mcpTool ? { tool: draft.mcpTool } : {}),
-              },
-            }
-          : undefined
+  const buildConfig = LOADER_CONFIGS[draft.loaderKind]
+  const loader = buildConfig
+    ? { kind: asLoaderKind(draft.loaderKind), config: buildConfig(draft) }
+    : undefined
   return {
     kind: 'filesystem',
     id,

@@ -24,8 +24,6 @@ interface CursorFile {
 export interface McpLoaderDeps {
   /** Defaults to a streamable HTTP session. Replaced in tests. */
   readonly connect?: ConnectFn
-  /** Defaults to the server's own environment, read for `${VAR}`. */
-  readonly environment?: Record<string, string | undefined>
 }
 
 /**
@@ -45,15 +43,14 @@ export interface McpLoaderDeps {
  */
 export function createMcpLoader(deps: McpLoaderDeps = {}): SourceLoaderPlugin {
   const connect = deps.connect ?? connectOverHttp
-  const environment = deps.environment ?? process.env
 
   const mirror = async (
     config: McpLoaderConfig,
     since: string | undefined,
   ): Promise<{ url: string, walked: WalkResult }> => {
-    const url = interpolateEnv(config.url, environment)
+    const url = interpolateEnv(config.url, process.env)
     const headers = Object.fromEntries(
-      Object.entries(config.headers).map(([key, value]) => [key, interpolateEnv(value, environment)]),
+      Object.entries(config.headers).map(([key, value]) => [key, interpolateEnv(value, process.env)]),
     )
     const session = await connect(url, headers)
     try {
@@ -87,7 +84,7 @@ export function createMcpLoader(deps: McpLoaderDeps = {}): SourceLoaderPlugin {
     sync: async (config, destination) => {
       await mkdir(destination, { recursive: true })
       const previous = await readCursor(destination)
-      const url = interpolateEnv(config.url, environment)
+      const url = interpolateEnv(config.url, process.env)
       // A mark recorded against a different target says nothing about this one,
       // so retargeting a source re-reads it whole,
       // rather than silently skipping everything older.

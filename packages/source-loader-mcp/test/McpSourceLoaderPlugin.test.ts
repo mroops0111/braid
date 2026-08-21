@@ -2,6 +2,7 @@ import type { AbsolutePath, SourceId, WorkspaceId } from '@braidhq/schema'
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import process from 'node:process'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createMcpLoader } from '../src/McpSourceLoaderPlugin.js'
 import { fakeServer, page } from './fakes/fakeMcpServer.js'
@@ -19,6 +20,7 @@ describe('mcp source loader', () => {
   })
 
   afterEach(async () => {
+    delete process.env.BRAID_MCP_TEST_TOKEN
     await rm(destination, { recursive: true, force: true }).catch(() => {})
   })
 
@@ -141,28 +143,27 @@ describe('mcp source loader', () => {
 
   it('resolves a credential from the environment, never from the manifest', async () => {
     const server = fakeServer([page([])])
-    const loader = createMcpLoader({
-      connect: server.connect,
-      environment: { REDMINE_TOKEN: 'secret-value' },
-    })
+    const loader = createMcpLoader({ connect: server.connect })
+    process.env.BRAID_MCP_TEST_TOKEN = 'secret-value'
 
     await loader.provision({
       url: 'https://gateway.internal/mcp',
       // eslint-disable-next-line no-template-curly-in-string -- intentional: testing literal ${VAR} interpolation
-      headers: { Authorization: 'Bearer ${REDMINE_TOKEN}' },
+      headers: { Authorization: 'Bearer ${BRAID_MCP_TEST_TOKEN}' },
     }, destination as AbsolutePath, context)
 
     expect(server.headersSeen[0]).toEqual({ Authorization: 'Bearer secret-value' })
   })
 
   it('names the variable when it is not set', async () => {
-    const loader = createMcpLoader({ connect: fakeServer([]).connect, environment: {} })
+    const loader = createMcpLoader({ connect: fakeServer([]).connect })
+    delete process.env.BRAID_MCP_ABSENT_TOKEN
 
     await expect(loader.provision({
       url: 'https://gateway.internal/mcp',
       // eslint-disable-next-line no-template-curly-in-string -- intentional: testing literal ${VAR} interpolation
-      headers: { Authorization: 'Bearer ${MISSING_TOKEN}' },
-    }, destination as AbsolutePath, context)).rejects.toThrow(/MISSING_TOKEN/)
+      headers: { Authorization: 'Bearer ${BRAID_MCP_ABSENT_TOKEN}' },
+    }, destination as AbsolutePath, context)).rejects.toThrow(/BRAID_MCP_ABSENT_TOKEN/)
   })
 
   it('fails the sync on a tool error, rather than mirroring nothing', async () => {

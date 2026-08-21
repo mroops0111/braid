@@ -1,5 +1,3 @@
-export * from './client.js'
-export * from './config.js'
-export * from './item.js'
-export * from './McpSourceLoaderPlugin.js'
-export * from './mirror.js'
+export type { ConnectFn, McpSession, McpToolResult } from './client.js'
+export { McpLoaderConfig } from './config.js'
+export { createMcpLoader, type McpLoaderDeps } from './McpSourceLoaderPlugin.js'
