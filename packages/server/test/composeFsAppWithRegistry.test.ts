@@ -161,14 +161,14 @@ describe('composeFsAppWithRegistry', () => {
 })
 
 describe('composeFsApp', () => {
-  it('still bundles the coding preset, kuzu, ddd, the three loaders, and claude-code', async () => {
+  it('still bundles the coding preset, kuzu, ddd, every loader, and claude-code', async () => {
     const braidHome = await makeBraidHome()
 
     const deps = await composeFsApp({ braidHome })
 
     expect(deps.pluginRegistry.ontologies().map(o => o.ontologyId)).toEqual(['ddd'])
     expect(deps.pluginRegistry.sourceLoaders().map(loader => loader.kind).sort())
-      .toEqual(['gdrive', 'git', 'github'])
+      .toEqual(['gdrive', 'git', 'github', 'mcp'])
     expect(deps.pluginRegistry.findStoragePlugin(StorageKind.parse('kuzu'))).toBeDefined()
     expect(deps.pluginRegistry.findAgentPlugin(AgentKind.parse('claude-code'))).toBeDefined()
   })

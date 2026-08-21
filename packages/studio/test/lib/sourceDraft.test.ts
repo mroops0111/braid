@@ -18,6 +18,9 @@ const blank: SourceDraft = {
   githubState: 'all',
   githubLabels: '',
   githubIncludeComments: true,
+  mcpUrl: '',
+  mcpAuthorization: '',
+  mcpTool: '',
 }
 
 describe('nameToId', () => {
@@ -101,6 +104,48 @@ describe('toSourceDescriptor: filesystem', () => {
     expect(descriptor).toMatchObject({
       kind: 'filesystem',
       loader: { kind: 'git', config: { url: 'https://example.com/repo.git', branch: 'develop' } },
+    })
+  })
+
+  // The defaults describe the envelope a shaped gateway emits,
+  // so naming only a URL is the whole configuration in the common case.
+  it('attaches an mcp loader from a url alone, leaving every default in place', () => {
+    const descriptor = toSourceDescriptor({
+      ...blank,
+      role: 'primary',
+      name: 'issues',
+      loaderKind: 'mcp',
+      mcpUrl: 'https://gateway.internal/redmine/mcp',
+    })
+
+    expect(descriptor).toMatchObject({
+      kind: 'filesystem',
+      loader: { kind: 'mcp', config: { url: 'https://gateway.internal/redmine/mcp' } },
+    })
+    expect(descriptor).not.toHaveProperty('loader.config.headers')
+    expect(descriptor).not.toHaveProperty('loader.config.tool')
+  })
+
+  it('carries the credential as a header, so it stays out of the url', () => {
+    const descriptor = toSourceDescriptor({
+      ...blank,
+      role: 'primary',
+      name: 'issues',
+      loaderKind: 'mcp',
+      mcpUrl: 'https://gateway.internal/redmine/mcp',
+      // eslint-disable-next-line no-template-curly-in-string -- intentional: the literal ${VAR} form
+      mcpAuthorization: 'Bearer ${REDMINE_TOKEN}',
+      mcpTool: 'search_issues',
+    })
+
+    expect(descriptor).toMatchObject({
+      loader: {
+        config: {
+          // eslint-disable-next-line no-template-curly-in-string -- intentional: the literal ${VAR} form
+          headers: { Authorization: 'Bearer ${REDMINE_TOKEN}' },
+          tool: 'search_issues',
+        },
+      },
     })
   })
 

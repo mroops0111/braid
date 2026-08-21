@@ -6,6 +6,7 @@ const sources: typeof en = {
     github: 'GitHub (issues)',
     git: 'git',
     gdrive: 'Google 雲端硬碟',
+    mcp: 'MCP 工具',
   },
   addDialog: {
     title: '新增來源',
@@ -16,6 +17,12 @@ const sources: typeof en = {
     descriptionPlaceholder: '例如這個來源包含哪些內容，以及其權威程度。',
     descriptionHint: '透過 PRODUCT.md 讓技能可見。',
     gitUrlLabel: 'Git URL',
+    mcpUrlLabel: 'MCP 伺服器網址',
+    // eslint-disable-next-line no-template-curly-in-string -- intentional: names the literal ${VAR} form
+    mcpUrlHint: 'Streamable HTTP 端點。支援 ${VAR}，由伺服器端的環境變數解析。',
+    mcpAuthorizationLabel: 'Authorization',
+    mcpToolLabel: '工具',
+    mcpShapeHint: '若 gateway 已整成預設信封，工具留空即可。其他形狀的欄位對應在 PRODUCT.md 設定。',
     branchLabel: '分支',
     googleDriveFolderLabel: 'Google Drive 資料夾 ID',
     googleDriveRootWarning: '"root" 會鏡射你的整個 My Drive (會被載入器拒絕)。請建立一個專用子資料夾，並貼上它的 ID。',

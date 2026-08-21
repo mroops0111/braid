@@ -19,6 +19,7 @@ import { AgentId, AgentKind, StorageKind as StorageKindSchema } from '@braidhq/s
 import { createGoogleDriveLoader } from '@braidhq/source-loader-gdrive'
 import { gitLoader } from '@braidhq/source-loader-git'
 import { createGithubLoader } from '@braidhq/source-loader-github'
+import { createMcpLoader } from '@braidhq/source-loader-mcp'
 import { kuzuStoragePlugin } from '@braidhq/storage-kuzu'
 import { authenticated, localTrust } from './authMode.js'
 import { composeApp } from './composeApp.js'
@@ -158,6 +159,12 @@ export function defaultSourceLoaderPlugins(context: FsRuntimeContext): readonly 
         ),
       }),
     }),
+    // Reaches whatever an MCP server exposes,
+    // so the tracker or wiki a team already runs becomes a source,
+    // without a package per product.
+    // Its credential rides in the source's own config,
+    // so there is nothing for the composition root to inject.
+    createMcpLoader(),
   ]
 }
 

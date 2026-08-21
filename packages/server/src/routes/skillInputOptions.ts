@@ -156,7 +156,10 @@ async function resolveSource(
       return {
         value: item.value,
         label: item.label,
-        description: item.sourceName,
+        // The source name repeats on every row and so tells a reader nothing,
+        // while a mirrored unit's filename is an upstream id.
+        // Its title is the only thing on the row that says what it is.
+        description: item.title ?? item.sourceName,
         ...(parsed.success ? { sourceId: parsed.data } : {}),
       }
     })
