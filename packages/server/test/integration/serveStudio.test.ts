@@ -179,6 +179,20 @@ describe('public and loopback api urls', () => {
     expect(deps.skillRunner).toMatchObject({ deps: { apiUrl: 'http://localhost:4321' } })
   })
 
+  // A trailing slash is the easiest thing to type into an env file,
+  // and it would double the separator into a redirect no console entry matches.
+  it('survives a trailing slash on the public url', async () => {
+    process.env.BRAID_GOOGLE_CLIENT_ID = 'id'
+    process.env.BRAID_GOOGLE_CLIENT_SECRET = 'secret'
+    deps = await composeFsApp({ braidHome, apiUrl: 'https://braid.internal/' })
+
+    const response = await createApp(deps).request('/auth/google/start')
+
+    const { authorizationUrl } = await response.json() as { authorizationUrl: string }
+    expect(new URL(authorizationUrl).searchParams.get('redirect_uri'))
+      .toBe('https://braid.internal/auth/google/callback')
+  })
+
   // Google sends the user's browser here,
   // so a loopback value lands them on their own machine.
   it('sends the browser back to the public url after signing in', async () => {

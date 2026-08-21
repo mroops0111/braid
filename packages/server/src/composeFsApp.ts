@@ -216,8 +216,11 @@ export async function composeFsAppWithRegistry(
   options: ComposeFsRuntimeOptions = {},
 ): Promise<AppDependencies> {
   const braidHome = options.braidHome ?? process.env.BRAID_HOME ?? join(homedir(), '.braid')
-  const apiUrl = options.apiUrl ?? 'http://localhost:4321'
-  const loopbackApiUrl = options.loopbackApiUrl ?? apiUrl
+  // Everything below appends a path to this,
+  // so a trailing slash would double the separator,
+  // and leave an OAuth redirect no console entry matches.
+  const apiUrl = withoutTrailingSlash(options.apiUrl ?? 'http://localhost:4321')
+  const loopbackApiUrl = withoutTrailingSlash(options.loopbackApiUrl ?? apiUrl)
 
   const secretStore = new FsSecretStore(join(braidHome, 'secrets'))
 
@@ -541,6 +544,11 @@ function assertLocalTrustIsLocal(locallyTrusted: boolean, studioUrl: string): vo
     + 'but BRAID_LOCAL_TRUST is on and every caller would be trusted without signing in. '
     + 'Set BRAID_LOCAL_TRUST=false.',
   )
+}
+
+/** A base URL a path can be appended to, whatever the operator typed. */
+export function withoutTrailingSlash(url: string): string {
+  return url.replace(/\/+$/, '')
 }
 
 /** The hostname of a URL, without the port. */

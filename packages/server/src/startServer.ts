@@ -7,7 +7,7 @@ import { createLogger } from '@braidhq/core'
 import { AgentEffort } from '@braidhq/schema'
 import { serve } from '@hono/node-server'
 import { createApp } from './app.js'
-import { composeFsApp } from './composeFsApp.js'
+import { composeFsApp, withoutTrailingSlash } from './composeFsApp.js'
 import { startupAfterServe } from './startup.js'
 
 /**
@@ -58,7 +58,7 @@ export async function startServer(options: StartServerOptions): Promise<void> {
   // A subprocess on the host reaches it on loopback,
   // which stays true whatever the deployment is called from outside.
   const loopbackApiUrl = `http://localhost:${options.port}`
-  const apiUrl = process.env.BRAID_API_URL ?? loopbackApiUrl
+  const apiUrl = withoutTrailingSlash(process.env.BRAID_API_URL ?? loopbackApiUrl)
   const deps = await composeFsApp({ apiUrl, loopbackApiUrl, ...fsOptionsFromEnv() })
   const app = createApp(deps, { apiUrl })
   const log = createLogger('server')
