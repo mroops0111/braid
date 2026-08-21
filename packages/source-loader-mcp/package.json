@@ -1,13 +1,13 @@
 {
-  "name": "@braidhq/server",
+  "name": "@braidhq/source-loader-mcp",
   "type": "module",
   "version": "0.3.0",
-  "description": "REST + SSE server for Braid.",
+  "description": "MCP source-loader plugin for Braid. Mirror an API-backed source into markdown through an MCP tool.",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mroops0111/braid.git",
-    "directory": "packages/server"
+    "directory": "packages/source-loader-mcp"
   },
   "exports": {
     ".": "./src/index.ts"
@@ -20,37 +20,20 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "bundle": "node scripts/bundle.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "dev": "tsx watch src/server.ts",
-    "start": "tsx src/server.ts",
-    "clean": "rm -rf dist bundle .turbo *.tsbuildinfo coverage"
+    "test": "vitest run --coverage",
+    "clean": "rm -rf dist .turbo *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@braidhq/agent-claude-code": "workspace:*",
     "@braidhq/core": "workspace:*",
-    "@braidhq/ontology-ddd": "workspace:*",
     "@braidhq/schema": "workspace:*",
-    "@braidhq/source-loader-gdrive": "workspace:*",
-    "@braidhq/source-loader-git": "workspace:*",
-    "@braidhq/source-loader-github": "workspace:*",
-    "@braidhq/source-loader-mcp": "workspace:*",
-    "@braidhq/storage-kuzu": "workspace:*",
-    "@hono/node-server": "^2.1.0",
-    "@hono/zod-openapi": "^1.5.3",
-    "@hono/zod-validator": "^0.9.0",
-    "hono": "^4.12.34",
-    "pino": "^10.3.1",
-    "simple-git": "^3.36.0",
+    "@braidhq/sdk": "workspace:*",
+    "@modelcontextprotocol/client": "^2.0.0",
     "yaml": "^2.9.0",
     "zod": "^4.2.1"
   },
   "devDependencies": {
     "@braidhq/test-utils": "workspace:*",
-    "esbuild": "^0.28.2",
-    "tsx": "^4.23.12",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
   },
