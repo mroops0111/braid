@@ -67,4 +67,4 @@ These are the rules that keep Studio a thin, honest client. They are enforced in
 Studio sits at the edge of the monorepo, downstream of the schema and the running server.
 
 - **Depends On**: `@braidhq/schema` for every shape it renders, a live `@braidhq/server` to talk to, and the UI stack: `react`, `@tanstack/react-query`, `@xyflow/react` with `dagre`, `mermaid`, `react-markdown`, `cmdk`, Radix and `tailwindcss`, and `@tauri-apps/api` for the desktop shell.
-- **Consumed By**: The `desktop` Tauri shell, which serves the built assets, and any browser pointed at a Braid server.
+- **Consumed By**: The `desktop` Tauri shell and `@braidhq/server`, both of which serve the built assets this package publishes, and any browser pointed at a Braid server.
