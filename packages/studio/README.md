@@ -2,21 +2,6 @@
 
 Braid keeps a product's intent and its code aligned in one knowledge graph. `@braidhq/studio` is the web UI a human uses to see that graph and steer it. It renders the graph, the review queues that gate every change to it, and the skill runs that produce those changes, talking to the server over REST and a live event stream.
 
-## What The Package Ships
-
-The published package is the built app, not its source. A server that wants to
-serve the UI from its own origin asks for the directory:
-
-```ts
-import { studioAssetsDir } from '@braidhq/studio/assets'
-
-process.env.BRAID_STUDIO_ROOT ??= studioAssetsDir
-```
-
-The bundle is self-contained, so installing it pulls nothing else in. React,
-the component library, and the fonts are all inside `dist` already, which is
-why they are build dependencies here rather than runtime ones.
-
 ## Role
 
 Studio is the presentation layer. It reads and displays server state, and it turns a reviewer's decisions into API calls, but it holds no authority of its own.
@@ -82,4 +67,4 @@ These are the rules that keep Studio a thin, honest client. They are enforced in
 Studio sits at the edge of the monorepo, downstream of the schema and the running server.
 
 - **Depends On**: `@braidhq/schema` for every shape it renders, a live `@braidhq/server` to talk to, and the UI stack: `react`, `@tanstack/react-query`, `@xyflow/react` with `dagre`, `mermaid`, `react-markdown`, `cmdk`, Radix and `tailwindcss`, and `@tauri-apps/api` for the desktop shell.
-- **Consumed By**: The `desktop` Tauri shell, which serves the built assets, and any browser pointed at a Braid server.
+- **Consumed By**: The `desktop` Tauri shell and `@braidhq/server`, both of which serve the built assets this package publishes, and any browser pointed at a Braid server.

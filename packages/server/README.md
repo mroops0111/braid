@@ -21,7 +21,7 @@ Two layers share this package for now.
 
 A future app, a story world or a research-notes base, reuses the kernel and swaps the preset for its own ontology and adapters. When that second worldview arrives, the coding preset extracts into its own package, `@braidhq/preset-code`, and this package drops its plugin dependencies. Until a second worldview exists that pressure is speculative, so both layers stay here at no cost. The seam is `composeApp`: whatever the kernel reaches without a concrete plugin already belongs to it.
 
-Such an app does not have to reimplement the runtime to get there. `composeFsAppWithRegistry(buildRegistry, options)` runs the same filesystem assembly as `composeFsApp`, the subprocess skill runner, the fs unit lister, and every fs repository, over a registry the caller builds. `composeFsApp` is that call with the preset's bundle.
+Such an app does not have to reimplement the runtime to get there. `composeFsAppWithRegistry(buildRegistry, options)` runs the same filesystem assembly as `composeFsApp`, the subprocess skill runner, the fs unit lister, and every fs repository, over a registry the caller builds. `composeFsApp` is that call with the preset's bundle. A deployment that only adds a loader to the preset passes it to `startServer`, which takes the same `extraXxxPlugins` options and keeps the shutdown that closes the graph store.
 
 ## Structure
 
@@ -90,30 +90,9 @@ A source opts in with `sync: { maxStalenessMs }` in `PRODUCT.md`. Two mechanisms
 
 ## Serving Studio
 
-Point `BRAID_STUDIO_ROOT` at Studio's built files and this server serves them too. One origin for the UI and the API keeps a deployment out of CORS on the path that matters. Unset changes nothing, which is what a dev install wants.
+Point `BRAID_STUDIO_ROOT` at Studio's built files and this server serves them too. `@braidhq/studio` ships them, and its `assets` entry reports the path. One origin for the UI and the API keeps a deployment out of CORS on the path that matters. Unset changes nothing, which is what a dev install wants.
 
 The static handler sits ahead of the auth gate, because the app shell is what a signed-out visitor loads in order to sign in. The API behind it stays gated.
-
-`@braidhq/studio` ships those files, so an installed copy already has them and there is nothing to build:
-
-```ts
-import { studioAssetsDir } from '@braidhq/studio/assets'
-
-process.env.BRAID_STUDIO_ROOT ??= studioAssetsDir
-```
-
-## Adding Your Own Plugins
-
-`startServer` takes the same extra-plugin options `composeFsApp` does, so a deployment with a private loader registers it without assembling a server itself:
-
-```ts
-import { startServer } from '@braidhq/server'
-import { redmineLoader } from '@yourorg/braid-source-loader-redmine'
-
-await startServer({ port: 4321, extraSourceLoaderPlugins: [redmineLoader] })
-```
-
-Doing that by hand means reproducing the shutdown that closes the graph store, and forgetting it is silent.
 
 ## Deployment
 
