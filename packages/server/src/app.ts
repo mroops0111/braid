@@ -112,7 +112,6 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     ...(deps.userRegistry ? { userRegistry: deps.userRegistry } : {}),
     ...(deps.historyService ? { historyService: deps.historyService } : {}),
   }))
-  app.route('/workspaces', createWorkspaceEventsRouter({ eventBus: deps.eventBus }))
   // Server-level plugin discovery for Studio's loader dropdown,
   // sourced from the active PluginRegistry, not hardcoded strings.
   // Installed loaders are identical across workspaces, not scoped to one.
@@ -152,6 +151,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       userRegistry: deps.userRegistry,
     }))
   }
+  // Mounted under the workspace-scoped app rather than on `/workspaces`,
+  // so the membership gate above covers the event stream too.
+  workspaceScoped.route('/events', createWorkspaceEventsRouter({ eventBus: deps.eventBus }))
   workspaceScoped.route('/model', createModelRouter({ modelService: deps.modelService }))
   workspaceScoped.route('/nodes', createNodesRouter({ modelService: deps.modelService }))
   workspaceScoped.route('/edges', createEdgesRouter({ modelService: deps.modelService }))

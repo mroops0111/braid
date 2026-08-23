@@ -4,6 +4,7 @@ import { Activity, ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, LogIn, N
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import braidLogo from '@/assets/braid-logo.svg'
+import { startGoogleSignIn } from '@/lib/googleSignIn'
 import { usePendingClarification, usePendingProposals, useRuns, useSkills } from '@/lib/queries'
 import { setActiveRemoteId, useActiveRemoteId } from '@/lib/remotes'
 import { type RemoteSummary, type RemoteWorkspacesResult, useAllRemoteWorkspaces } from '@/lib/useRemoteWorkspaces'
@@ -110,8 +111,7 @@ export function Sidebar({
   function startRemoteSignIn(remote: RemoteSummary): void {
     if (typeof window === 'undefined')
       return
-    const returnTo = `${window.location.origin}${window.location.pathname}#auth-remote=${encodeURIComponent(remote.id)}`
-    window.location.href = `${remote.url}/auth/google/start?returnTo=${encodeURIComponent(returnTo)}`
+    void startGoogleSignIn(remote.url, remote.id)
   }
 
   return (

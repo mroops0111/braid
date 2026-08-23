@@ -10,8 +10,8 @@ const workspace: typeof en = {
     stepConfirm: '檢視',
     stepProgress: '建立中',
     createTitle: '建立工作區',
-    createDescriptionPrefix: '在此路徑下建立全新的工作區',
-    createDescriptionSuffix: '。若要開啟現有的工作區，請從側邊欄選取。',
+    createDescription: '在此伺服器上建立全新的工作區。若要開啟現有的工作區，請從側邊欄選取。',
+    workspacesRootPlaceholder: '<workspaces root>',
     nameConflict: '已有相同名稱的工作區。請從側邊欄開啟它，或先刪除再重新建立。',
     nameLabel: '工作區名稱',
     namePlaceholder: 'my-product',
@@ -64,7 +64,6 @@ const workspace: typeof en = {
     creationFailed: '工作區建立失敗。',
     creationSucceeded: '工作區已建立。',
     provisionedLabel: '已佈建',
-    noChangeLabel: '無變更',
   },
   details: {
     noWorkspaceSelected: '未選取工作區。',

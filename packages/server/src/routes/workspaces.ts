@@ -161,7 +161,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     return context.json({ items: visible.map(workspace => workspace.toData()) })
   })
 
-  router.get('/:workspaceId', workspaceIdMiddleware, async (context) => {
+  router.get('/:workspaceId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.read'), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const workspace = await deps.workspaceService.findById(workspaceId)
     return context.json(workspace.toData())

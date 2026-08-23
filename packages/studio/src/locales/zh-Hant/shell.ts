@@ -17,7 +17,7 @@ const shell: typeof en = {
   },
   noWorkspace: {
     title: '歡迎使用 Braid',
-    description: '開啟一個工作區即可開始。工作區位於',
+    description: '開啟一個工作區即可開始。',
     openWorkspaceTitle: '開啟工作區',
     openWorkspaceDescription: '輸入名稱以建立新的工作區，或在標準根目錄下開啟現有工作區。',
   },

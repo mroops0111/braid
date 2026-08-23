@@ -72,7 +72,8 @@ export type ClarificationDetail = Clarification & { skipReason?: string, answerN
 
 export interface ProvisionSummary {
   sourceId: string
-  changed: boolean
+  /** Sync only, a first provision creates the source and reports nothing here. */
+  changed?: boolean
   /** Per-file counts populated by loaders that can compute them cheaply (gdrive, git). */
   added?: number
   updated?: number
