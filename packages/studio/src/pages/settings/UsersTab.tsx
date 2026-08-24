@@ -288,6 +288,9 @@ function UserRow({ user, isMe, isLast }: { user: AdminUser, isMe: boolean, isLas
   const nextRole = user.serverRole === 'admin' ? 'user' : 'admin'
   const nextRoleLabel = nextRole === 'admin' ? t('admin.users.makeAdminButton') : t('admin.users.makeUserButton')
   const secondary = user.email ?? user.id
+  // The server refuses these edits, a service account is reseeded on boot.
+  const isServiceAccount = user.kind === 'service'
+  const canManage = !isMe && !isServiceAccount
   const rowClass = isLast ? 'align-top' : 'border-b border-border align-top'
   return (
     <>
@@ -298,6 +301,11 @@ function UserRow({ user, isMe, isLast }: { user: AdminUser, isMe: boolean, isLas
             {isMe && (
               <Badge variant="outline" className="bg-primary/15 text-2xs uppercase tracking-wider text-primary">
                 {t('admin.users.currentUserLabel')}
+              </Badge>
+            )}
+            {isServiceAccount && (
+              <Badge variant="outline" className="text-2xs uppercase tracking-wider text-muted-foreground">
+                {t('admin.users.serviceAccountLabel')}
               </Badge>
             )}
           </div>
@@ -318,7 +326,7 @@ function UserRow({ user, isMe, isLast }: { user: AdminUser, isMe: boolean, isLas
           <WorkspaceList workspaces={user.workspaces} />
         </td>
         <td className="px-3 py-2 text-right">
-          {isMe
+          {!canManage
             ? null
             : (
                 <DropdownPrimitive.Root>
@@ -354,7 +362,7 @@ function UserRow({ user, isMe, isLast }: { user: AdminUser, isMe: boolean, isLas
               )}
         </td>
       </tr>
-      {armedAction && !isMe && (
+      {armedAction && canManage && (
         <tr className="border-b border-border bg-muted/30">
           <td colSpan={4} className="px-3 py-2">
             {armedAction === 'role'

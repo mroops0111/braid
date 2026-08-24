@@ -21,6 +21,7 @@ export const admin = {
     columnUser: 'User',
     columnWorkspaces: 'Workspaces',
     currentUserLabel: 'You',
+    serviceAccountLabel: 'service',
     userActions: 'User Actions',
     makeAdminButton: 'Make Admin',
     makeUserButton: 'Make User',

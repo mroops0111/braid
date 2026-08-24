@@ -3,7 +3,7 @@ import type { WorkspaceId as WorkspaceIdType, WorkspaceRole as WorkspaceRoleType
 import type { AccessPolicy } from '../infrastructure/auth/AccessPolicy.js'
 import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
 import type { WorkspaceRegistryFile } from '../infrastructure/workspace/WorkspaceRegistryFile.js'
-import { NotFoundError } from '@braidhq/core'
+import { NotFoundError, ValidationError } from '@braidhq/core'
 import { ServerRole, User, UserId, WorkspaceId, WorkspaceRole } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getUserId } from '../middleware/auth.js'
@@ -145,6 +145,10 @@ const updateUserRoute = createRoute({
       content: { 'application/json': { schema: User } },
     },
     404: NotFoundResponse,
+    400: {
+      description: 'Target is a service account.',
+      content: { 'application/problem+json': { schema: z.object({}).passthrough() } },
+    },
     403: {
       description: 'Caller is not an admin.',
       content: { 'application/problem+json': { schema: z.object({}).passthrough() } },
@@ -162,7 +166,7 @@ const deleteUserRoute = createRoute({
   responses: {
     204: { description: 'User removed (or never existed).' },
     400: {
-      description: 'Caller attempted to delete themselves.',
+      description: 'Caller attempted to delete themselves, or the target is a service account.',
       content: { 'application/problem+json': { schema: z.object({}).passthrough() } },
     },
     403: {
@@ -171,6 +175,13 @@ const deleteUserRoute = createRoute({
     },
   },
 })
+
+// Every boot reseeds a service account's kind and role,
+// so an edit here reverts on the next restart.
+// Meanwhile the component fails its checks with nothing to signal it.
+function serviceAccountRefusal(userId: string): string {
+  return `User "${userId}" is a service account. The server manages it, so its role and record cannot be changed.`
+}
 
 export function createAdminRouter(deps: AdminRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
@@ -229,6 +240,8 @@ export function createAdminRouter(deps: AdminRouterDeps): OpenAPIHono {
     const existing = await deps.userRegistry.get(userId)
     if (!existing)
       throw new NotFoundError(`User "${userId}" not found`)
+    if (existing.kind === 'service')
+      throw new ValidationError(serviceAccountRefusal(userId))
     const updated = await deps.userRegistry.update(userId, { serverRole: patch.serverRole })
     return context.json(updated, 200)
   })
@@ -256,6 +269,8 @@ export function createAdminRouter(deps: AdminRouterDeps): OpenAPIHono {
     // Read the user first to grab their email,
     // tolerated when missing for idempotency.
     const existing = await deps.userRegistry.get(userId)
+    if (existing?.kind === 'service')
+      throw new ValidationError(serviceAccountRefusal(userId))
     if (existing?.email)
       await deps.accessPolicy.revokeApproval(existing.email)
     await deps.userRegistry.delete(userId)
