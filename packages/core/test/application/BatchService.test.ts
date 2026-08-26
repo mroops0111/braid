@@ -39,6 +39,9 @@ class FakeSkillRunner implements SkillRunner {
   readonly startCalls: Array<{ skillId: SkillId, args: string, options?: SkillRunOptions }> = []
   // Per-call exit code (default 0). Override by pushing to `exitCodes`.
   exitCodes: number[] = []
+  // Per-call error text. An entry emits an `error` event instead of `completed`,
+  // so a test can drive the exact wording the orchestrator classifies on.
+  errorMessages: Array<string | undefined> = []
   // Fires after start resolves and before the completed event.
   // Lets a test create proposals the orchestrator attributes by set difference.
   onStart?: (skillId: SkillId, runId: SkillRunId) => Promise<void>
@@ -50,6 +53,11 @@ class FakeSkillRunner implements SkillRunner {
     setTimeout(async () => {
       await this.onStart?.(skillId, runId)
       const listener = this.listeners.get(runId)
+      const message = this.errorMessages.shift()
+      if (message !== undefined) {
+        listener?.({ type: 'error', message, at: T0 })
+        return
+      }
       const code = this.exitCodes.shift() ?? 0
       const event: SkillEvent = { type: 'completed', runId, exitCode: code, at: T0 }
       listener?.(event)
@@ -461,6 +469,47 @@ describe('BatchService', () => {
     await new Promise(r => setTimeout(r, 20))
 
     expect((await service.getStatus(workspace.id))?.status).toBe('running')
+  })
+
+  describe('aborting a run that cannot recover', () => {
+    it('stops the whole plan on an account-level failure, leaving the rest resumable', async () => {
+      const { service, workspace, planRepository, skillRunner } = await setup()
+      skillRunner.errorMessages = ['You have hit your session limit, resets 5:50am (UTC)']
+
+      await service.start(workspace.id, { autoApply: false })
+      const plan = await flushBatch(planRepository)
+
+      expect(plan.status).toBe('failed')
+      expect(plan.units.filter(unit => unit.status === 'failed')).toHaveLength(1)
+      expect(plan.units.filter(unit => unit.status === 'pending').length).toBeGreaterThan(0)
+      // One dispatch only. The remaining units were never sent into the same fault.
+      expect(skillRunner.startCalls.filter(call => call.skillId === 'ddd:extract')).toHaveLength(1)
+    })
+
+    it('stops after three consecutive failures whatever the wording', async () => {
+      const { service, workspace, planRepository, skillRunner } = await setup({
+        sources: ['a', 'b', 'c', 'd'].map(primarySource),
+      })
+      skillRunner.errorMessages = ['boom', 'boom', 'boom', 'boom']
+
+      await service.start(workspace.id, { autoApply: false })
+      const plan = await flushBatch(planRepository)
+
+      expect(plan.status).toBe('failed')
+      expect(plan.units.filter(unit => unit.status === 'failed')).toHaveLength(3)
+    })
+
+    it('keeps going when a single unit fails on its own', async () => {
+      const { service, workspace, planRepository, skillRunner } = await setup()
+      skillRunner.errorMessages = ['boom']
+
+      await service.start(workspace.id, { autoApply: false })
+      const plan = await flushBatch(planRepository)
+
+      expect(plan.status).toBe('completed')
+      expect(plan.units.filter(unit => unit.status === 'failed')).toHaveLength(1)
+      expect(plan.units.filter(unit => unit.status === 'completed').length).toBeGreaterThan(0)
+    })
   })
 
   describe('stop', () => {
