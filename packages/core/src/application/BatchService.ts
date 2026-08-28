@@ -445,15 +445,22 @@ export class BatchService {
   private async runUnit(workspace: Workspace, plan: BatchPlan, binding: OntologyBatchBinding, unit: BatchUnit, callerToken?: string): Promise<BatchPlan> {
     const startedAt = this.deps.clock.now()
     let running = plan
+    // Declared out here so the catch can look the run's session up.
+    let runId: SkillRunId | undefined
     try {
       // Snapshot the pre-run id sets, so post-run additions can be attributed to this unit.
       const before = await this.snapshotIds(workspace.id)
       const argsFor = binding.perUnit.argsFor ?? defaultUnitArg
-      const runId = await this.deps.skillRunner.start(
+      runId = await this.deps.skillRunner.start(
         workspace,
         binding.perUnit.skillId,
         argsFor(unit),
-        callerToken ? { callerToken } : undefined,
+        {
+          ...(callerToken ? { callerToken } : {}),
+          // A retry continues the agent's own session,
+          // so a unit interrupted part way does not read the document again.
+          ...(unit.resumeSessionId ? { resumeSessionId: unit.resumeSessionId } : {}),
+        },
       )
       running = plan.markUnitRunning(startedAt, unit.id, { unitId: unit.id, skillRunId: runId })
       await this.deps.batchPlanRepository.save(workspace, running)
@@ -485,7 +492,11 @@ export class BatchService {
     }
     catch (err) {
       const completedAt = this.deps.clock.now()
-      const failed = running.markUnitFailed(completedAt, unit.id, errorMessage(err))
+      // Read after the fact, so a session the run opened late is still caught.
+      const sessionId = runId ? await this.deps.skillRunner.sessionIdFor(workspace, runId) : undefined
+      const failed = running
+        .markUnitFailed(completedAt, unit.id, errorMessage(err))
+        .rememberUnitSession(unit.id, sessionId)
       await this.deps.batchPlanRepository.save(workspace, failed)
       this.publish(workspace.id, {
         type: 'batch.unit.failed',

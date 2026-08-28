@@ -42,6 +42,8 @@ class FakeSkillRunner implements SkillRunner {
   // Per-call error text. An entry emits an `error` event instead of `completed`,
   // so a test can drive the exact wording the orchestrator classifies on.
   errorMessages: Array<string | undefined> = []
+  // Announced on every run when set, mirroring the real runner's session event.
+  sessionId?: string
   // Fires after start resolves and before the completed event.
   // Lets a test create proposals the orchestrator attributes by set difference.
   onStart?: (skillId: SkillId, runId: SkillRunId) => Promise<void>
@@ -63,6 +65,10 @@ class FakeSkillRunner implements SkillRunner {
       listener?.(event)
     }, 0)
     return runId
+  }
+
+  async sessionIdFor(): Promise<string | undefined> {
+    return this.sessionId
   }
 
   private readonly listeners = new Map<SkillRunId, SkillEventListener>()
@@ -509,6 +515,51 @@ describe('BatchService', () => {
       expect(plan.status).toBe('completed')
       expect(plan.units.filter(unit => unit.status === 'failed')).toHaveLength(1)
       expect(plan.units.filter(unit => unit.status === 'completed').length).toBeGreaterThan(0)
+    })
+  })
+
+  describe('resuming a unit', () => {
+    it('carries the failed unit\'s session into its retry', async () => {
+      const { service, workspace, planRepository, skillRunner } = await setup()
+      skillRunner.sessionId = 'sess-abc'
+      skillRunner.errorMessages = ['boom']
+
+      await service.start(workspace.id, { autoApply: false })
+      const failedPlan = await flushBatch(planRepository)
+      const failedUnit = failedPlan.units.find(unit => unit.status === 'failed')
+      expect(failedUnit?.resumeSessionId).toBe('sess-abc')
+
+      skillRunner.errorMessages = []
+      skillRunner.startCalls.length = 0
+      await service.resume(workspace.id)
+      await flushBatch(planRepository)
+
+      const retry = skillRunner.startCalls.find(call => call.skillId === 'ddd:extract')
+      expect(retry?.options?.resumeSessionId).toBe('sess-abc')
+    })
+
+    it('clears the stale timestamps on a unit left running by a crash', async () => {
+      const { service, workspace, planRepository, skillRunner } = await setup()
+      skillRunner.onStart = async () => new Promise(() => {}) // stall, as a killed process would
+      void service.start(workspace.id, { autoApply: false })
+      await new Promise(resolve => setTimeout(resolve, 20))
+
+      // Stand in for the boot-time reconcile after the process that held the run died.
+      const stalled = await planRepository.load()
+      expect(stalled?.units.some(unit => unit.status === 'running')).toBe(true)
+      await planRepository.save(workspace, stalled!.markFailed(T0, 'Batch was interrupted by a server restart.'))
+
+      const crashed = await planRepository.load()
+      const stale = crashed!.units.find(unit => unit.status === 'running')
+      expect(stale?.startedAt).toBeDefined()
+
+      // The reset drops the stale stamps,
+      // so the retry's duration measures the retry,
+      // not the wall clock spanning the crash.
+      const requeued = crashed!.resumeRun(T0).units.find(unit => unit.id === stale!.id)
+      expect(requeued?.status).toBe('pending')
+      expect(requeued?.startedAt).toBeUndefined()
+      expect(requeued?.skillRunId).toBeUndefined()
     })
   })
 

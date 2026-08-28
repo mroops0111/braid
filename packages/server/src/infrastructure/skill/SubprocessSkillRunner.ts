@@ -248,6 +248,11 @@ export class SubprocessSkillRunner implements SkillRunner {
     active.child.kill('SIGTERM')
   }
 
+  async sessionIdFor(workspace: Workspace, runId: SkillRunId): Promise<string | undefined> {
+    const records = await this.deps.runRepository.listRecords(workspace)
+    return records.find(record => record.runId === runId)?.sessionId
+  }
+
   async forgetSession(sessionId: string): Promise<void> {
     const dir = this.sessionDirs.get(sessionId)
     if (!dir)

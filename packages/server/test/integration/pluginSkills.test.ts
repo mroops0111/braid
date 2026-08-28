@@ -73,6 +73,7 @@ const noopSkillRunner: SkillRunner = {
   subscribe: () => ({ unsubscribe: () => {}, positionAtSubscribe: 0 }),
   isActive: () => false,
   cancel: async () => {},
+  sessionIdFor: async () => undefined,
   forgetSession: async () => {},
 }
 

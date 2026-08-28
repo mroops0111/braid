@@ -93,6 +93,10 @@ class FakeSkillRunner implements SkillRunner {
 
   isActive(): boolean { return false }
   async cancel(): Promise<void> {}
+  async sessionIdFor(): Promise<string | undefined> {
+    return undefined
+  }
+
   async forgetSession(): Promise<void> {}
 }
 

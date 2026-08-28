@@ -36,6 +36,10 @@ export const BatchUnit = z.object({
   proposalIds: z.array(ProposalId).default([]),
   clarificationIds: z.array(ClarificationId).default([]),
   error: z.string().optional(),
+  // Carried across a resume,
+  // so the retry continues the agent's session rather than re-reading it all.
+  // Absent until a run reports one, and on a unit that never started.
+  resumeSessionId: z.string().min(1).optional(),
 })
 export type BatchUnit = z.infer<typeof BatchUnit>
 
