@@ -1,7 +1,7 @@
 {
   "name": "@braidhq/source-loader-mcp",
   "type": "module",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "MCP source-loader plugin for Braid. Mirror an API-backed source into markdown through an MCP tool.",
   "license": "MIT",
   "repository": {

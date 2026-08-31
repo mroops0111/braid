@@ -1,7 +1,7 @@
 {
   "name": "@braidhq/test-utils",
   "type": "module",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "Shared test fixtures for the Braid monorepo.",
   "license": "MIT",
