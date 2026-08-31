@@ -37,7 +37,7 @@
     "@hono/node-server": "^1.19.6",
     "@modelcontextprotocol/server": "^2.0.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "publishConfig": {
     "access": "public",
