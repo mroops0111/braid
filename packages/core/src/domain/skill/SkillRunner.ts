@@ -1,4 +1,4 @@
-import type { SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
+import type { SkillEvent, SkillId, SkillRunId, UserId } from '@braidhq/schema'
 import type { Workspace } from '../workspace/Workspace.js'
 
 export interface SkillRunOptions {
@@ -23,6 +23,12 @@ export interface SkillRunOptions {
    * Absent in `BRAID_LOCAL_TRUST=true` mode, where anonymous traffic is allowed.
    */
   readonly callerToken?: string
+  /**
+   * The user the run is attributed to, recorded on the RunRecord.
+   * Distinct from `callerToken`, which carries permissions rather than identity,
+   * and is absent under `BRAID_LOCAL_TRUST=true`.
+   */
+  readonly startedBy?: UserId
 }
 
 export type SkillEventListener = (event: SkillEvent) => void

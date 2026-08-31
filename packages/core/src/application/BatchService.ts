@@ -17,7 +17,7 @@ import type { ClarificationRepository } from '../domain/hitl/ClarificationReposi
 import type { ProposalRepository } from '../domain/hitl/ProposalRepository.js'
 import type { OntologyBatchBinding, OntologyPlugin } from '../domain/plugin/OntologyPlugin.js'
 import type { PluginRegistry } from '../domain/plugin/PluginRegistry.js'
-import type { SkillRunner } from '../domain/skill/SkillRunner.js'
+import type { SkillRunner, SkillRunOptions } from '../domain/skill/SkillRunner.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
 import type { HistoryService } from './HistoryService.js'
 import type { HITLService } from './HITLService.js'
@@ -89,7 +89,16 @@ export interface StartBatchOptions {
    * where the auth middleware lets unauthenticated callers through.
    */
   callerToken?: string
+  /** Recorded on every RunRecord the batch writes, so the history names a person. */
+  startedBy?: UserId
 }
+
+/**
+ * Permission and identity for the runs a batch spawns, carried as one value.
+ * Typed as a slice of SkillRunOptions so a call site spreads it whole,
+ * rather than threading each field through every signature in the loop.
+ */
+type BatchCaller = Pick<SkillRunOptions, 'callerToken' | 'startedBy'>
 
 export class BatchService {
   private readonly stopRequested = new Set<WorkspaceId>()
@@ -130,7 +139,7 @@ export class BatchService {
       this.publish(workspaceId, { type: 'batch.started', workspaceId, planId: plan.id, mode, at: now })
 
       // Fire-and-forget. Callers poll via getStatus or subscribe to SSE.
-      void this.runLoop(workspace, plan, options.callerToken).catch(async (err: unknown) => {
+      void this.runLoop(workspace, plan, callerFrom(options)).catch(async (err: unknown) => {
         const failed = (await this.deps.batchPlanRepository.load(workspace))
           ?.markFailed(this.deps.clock.now(), errorMessage(err))
         if (failed)
@@ -162,7 +171,7 @@ export class BatchService {
     await this.deps.batchPlanRepository.save(workspace, failed)
   }
 
-  async resume(workspaceId: WorkspaceId, options: { callerToken?: string } = {}): Promise<BatchPlan> {
+  async resume(workspaceId: WorkspaceId, options: BatchCaller = {}): Promise<BatchPlan> {
     return this.deps.workspaceLock.run(workspaceId, async () => {
       const workspace = await this.deps.workspaceService.findById(workspaceId)
       const existingPlan = await this.deps.batchPlanRepository.load(workspace)
@@ -179,7 +188,7 @@ export class BatchService {
         mode: resumedPlan.mode,
         at: now,
       })
-      void this.runLoop(workspace, resumedPlan, options.callerToken).catch(async (err: unknown) => {
+      void this.runLoop(workspace, resumedPlan, callerFrom(options)).catch(async (err: unknown) => {
         const failed = (await this.deps.batchPlanRepository.load(workspace))
           ?.markFailed(this.deps.clock.now(), errorMessage(err))
         if (failed)
@@ -243,14 +252,14 @@ export class BatchService {
     })
   }
 
-  private async runLoop(workspace: Workspace, initial: BatchPlan, callerToken?: string): Promise<void> {
+  private async runLoop(workspace: Workspace, initial: BatchPlan, caller: BatchCaller): Promise<void> {
     let plan = initial
     const binding = this.requireBinding(this.resolveOntology(workspace))
     // Derive only when no units exist yet, a fresh derived batch.
     // A resume already has its units, so it skips derive and re-runs them,
     // otherwise derive would refuse a populated plan and stall.
     if (plan.mode === 'derived' && plan.units.length === 0) {
-      plan = await this.runDerivePhase(workspace, plan, binding, callerToken)
+      plan = await this.runDerivePhase(workspace, plan, binding, caller)
       if (plan.status !== 'running')
         return
     }
@@ -271,7 +280,7 @@ export class BatchService {
         })
         return
       }
-      plan = await this.runUnit(workspace, plan, binding, unit, callerToken)
+      plan = await this.runUnit(workspace, plan, binding, unit, caller)
       // Dispatching into a fault the next unit cannot clear burns the plan,
       // so stop here and leave the remaining units resumable.
       const abort = abortReason(plan, unit.id, consecutiveFailures)
@@ -295,7 +304,7 @@ export class BatchService {
         const unconsumed = unconsumedCompletedUnitIds(plan)
         if (unconsumed.length >= binding.checkpoint.chunkSize) {
           const chunkUnitIds = unconsumed.slice(0, binding.checkpoint.chunkSize)
-          const after = await this.runCheckpointPhase(workspace, plan, binding.checkpoint, chunkUnitIds, callerToken)
+          const after = await this.runCheckpointPhase(workspace, plan, binding.checkpoint, chunkUnitIds, caller)
           if (after.status === 'failed')
             return
           plan = after
@@ -306,7 +315,7 @@ export class BatchService {
     // Some ontologies rely purely on per-chunk checkpoints, others skip checkpoints entirely.
     if (binding.checkpoint?.runAtEnd) {
       const remainingUnits = unconsumedCompletedUnitIds(plan)
-      const after = await this.runCheckpointPhase(workspace, plan, binding.checkpoint, remainingUnits, callerToken)
+      const after = await this.runCheckpointPhase(workspace, plan, binding.checkpoint, remainingUnits, caller)
       if (after.status === 'failed')
         return
       plan = after
@@ -327,7 +336,7 @@ export class BatchService {
     plan: BatchPlan,
     checkpoint: NonNullable<OntologyBatchBinding['checkpoint']>,
     unitIds: readonly BatchUnitId[],
-    callerToken?: string,
+    caller: BatchCaller,
   ): Promise<BatchPlan> {
     const unitsById = new Map(plan.units.map(unit => [unit.id, unit] as const))
     const units = unitIds.map(id => unitsById.get(id)).filter((unit): unit is BatchUnit => !!unit)
@@ -344,7 +353,7 @@ export class BatchService {
         '',
         {
           ...(hasEnv ? { extraEnv } : {}),
-          ...(callerToken ? { callerToken } : {}),
+          ...caller,
         },
       )
       const running = plan.startCheckpointPhase(startedAt, runId, unitIds)
@@ -419,7 +428,7 @@ export class BatchService {
     workspace: Workspace,
     _plan: BatchPlan,
     binding: OntologyBatchBinding,
-    callerToken?: string,
+    caller: BatchCaller,
   ): Promise<BatchPlan> {
     if (!binding.deriveUnits) {
       throw new ValidationError(
@@ -427,7 +436,7 @@ export class BatchService {
       )
     }
     const skillId = binding.deriveUnits.skillId
-    const runId = await this.deps.skillRunner.start(workspace, skillId, '', callerToken ? { callerToken } : undefined)
+    const runId = await this.deps.skillRunner.start(workspace, skillId, '', caller)
     await waitForCompletion(this.deps.skillRunner, runId)
     const updated = await this.deps.batchPlanRepository.load(workspace)
     if (!updated)
@@ -442,7 +451,7 @@ export class BatchService {
     return promoted
   }
 
-  private async runUnit(workspace: Workspace, plan: BatchPlan, binding: OntologyBatchBinding, unit: BatchUnit, callerToken?: string): Promise<BatchPlan> {
+  private async runUnit(workspace: Workspace, plan: BatchPlan, binding: OntologyBatchBinding, unit: BatchUnit, caller: BatchCaller): Promise<BatchPlan> {
     const startedAt = this.deps.clock.now()
     let running = plan
     // Declared out here so the catch can look the run's session up.
@@ -456,7 +465,7 @@ export class BatchService {
         binding.perUnit.skillId,
         argsFor(unit),
         {
-          ...(callerToken ? { callerToken } : {}),
+          ...caller,
           // A retry continues the agent's own session,
           // so a unit interrupted part way does not read the document again.
           ...(unit.resumeSessionId ? { resumeSessionId: unit.resumeSessionId } : {}),
@@ -763,4 +772,16 @@ async function waitForCompletion(runner: SkillRunner, runId: SkillRunId): Promis
       }
     })
   })
+}
+
+/**
+ * Narrow the start options down to what a spawned run needs.
+ * Passing the whole options object would leak batch-only fields,
+ * such as the mode, into every skill invocation.
+ */
+function callerFrom(options: BatchCaller): BatchCaller {
+  return {
+    ...(options.callerToken ? { callerToken: options.callerToken } : {}),
+    ...(options.startedBy ? { startedBy: options.startedBy } : {}),
+  }
 }

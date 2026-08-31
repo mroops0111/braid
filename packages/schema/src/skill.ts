@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { AgentEffort, AgentKind } from './agent.js'
-import { AbsolutePath, PluginId, SkillId, SkillRunId, SourceId, Timestamp, WorkspaceId } from './common.js'
+import { AbsolutePath, PluginId, SkillId, SkillRunId, SourceId, Timestamp, UserId, WorkspaceId } from './common.js'
 import { McpServerId } from './mcp.js'
 import { SourceRole } from './source.js'
 import { WorkspaceRole } from './workspace.js'
@@ -330,6 +330,9 @@ export const RunRecord = z.object({
   skillId: SkillId,
   args: z.string(),
   resumed: z.boolean().default(false),
+  // Who asked for the run. Absent on records written before attribution,
+  // and on runs a service account starts with no caller behind them.
+  startedBy: UserId.optional(),
   // Set once claude reports its session id, absent if the run errored first.
   sessionId: z.string().min(1).optional(),
   startedAt: Timestamp,
