@@ -44,6 +44,11 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
     const git = simpleGit({ baseDir: destination })
     const cloneOptions: string[] = ['--depth', String(config.depth), '--branch', config.branch]
     await git.clone(url, destination, cloneOptions)
+    // Clone leaves the interpolated credential in `.git/config`,
+    // so put the uninterpolated form back.
+    // A token read from the environment then never sits on disk,
+    // and sync re-interpolates before every fetch.
+    await git.remote(['set-url', 'origin', config.url])
     const sha = (await git.revparse(['HEAD'])).trim()
     return {
       localPath: destination,
@@ -54,6 +59,12 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
   },
   sync: async (config, destination) => {
     const git = simpleGit({ baseDir: destination })
+    // Clone wrote the interpolated credential into `.git/config`,
+    // so a rotated token leaves the mirror holding the old one.
+    // Every fetch then fails as "Access denied",
+    // which reads like a permission problem rather than a stale copy.
+    // Re-interpolate here, so the environment stays authoritative.
+    await git.remote(['set-url', 'origin', interpolateEnv(config.url)])
     const trackingRef = `refs/remotes/origin/${config.branch}`
     const before = (await git.revparse(['HEAD'])).trim()
     // An explicit refspec,

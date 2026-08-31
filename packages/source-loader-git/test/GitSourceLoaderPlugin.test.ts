@@ -99,6 +99,31 @@ describe('GitLoader', () => {
     expect(report).toMatchObject({ added: 1, updated: 0, removed: 1, changed: true })
   })
 
+  it('keeps the placeholder in .git/config, so a rotated token is picked up', async () => {
+    const loader = gitLoader
+    const dest = join(scratch, 'rotating') as AbsolutePath
+    // A file remote ignores the user segment, so the credential is inert here.
+    // What is under test is whether the placeholder survives on disk,
+    // and whether sync re-reads the environment rather than the stored copy.
+    // eslint-disable-next-line no-template-curly-in-string -- literal placeholder
+    const url = remoteUrl.replace('file://', 'file://${BRAID_GITLOADER_TEST_TOKEN}@')
+
+    process.env.BRAID_GITLOADER_TEST_TOKEN = 'first'
+    await loader.provision({ url, branch: 'main' }, dest, ctx)
+
+    const stored = String(await simpleGit({ baseDir: dest }).remote(['get-url', 'origin'])).trim()
+    // eslint-disable-next-line no-template-curly-in-string -- literal placeholder
+    expect(stored).toContain('${BRAID_GITLOADER_TEST_TOKEN}')
+    expect(stored).not.toContain('first')
+
+    // A rotation must reach the fetch, which reads the env rather than disk.
+    process.env.BRAID_GITLOADER_TEST_TOKEN = 'second'
+    await loader.sync!({ url, branch: 'main' }, dest, ctx)
+    const after = String(await simpleGit({ baseDir: dest }).remote(['get-url', 'origin'])).trim()
+    expect(after).toContain('second')
+    delete process.env.BRAID_GITLOADER_TEST_TOKEN
+  })
+
   // eslint-disable-next-line no-template-curly-in-string -- intentional: testing literal ${VAR} interpolation
   it('throws on unset env var when URL contains ${VAR}', async () => {
     const loader = gitLoader
