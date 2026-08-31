@@ -1,4 +1,4 @@
-import type { AbsolutePath, PluginId, RunRecord, SkillId, SkillManifest, SkillRunId, Timestamp, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, PluginId, RunRecord, SkillId, SkillManifest, SkillRunId, Timestamp, UserId, WorkspaceId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { bucketByGroup, formatTimestamp, groupBySession, originLabel } from '../../src/pages/Actions'
 
@@ -114,7 +114,7 @@ describe('formatTimestamp', () => {
 })
 
 describe('groupBySession', () => {
-  function rec(opts: { runId: string, sessionId?: string, args?: string, startedAt: string, skillId?: string }): RunRecord {
+  function rec(opts: { runId: string, sessionId?: string, args?: string, startedAt: string, skillId?: string, startedBy?: string }): RunRecord {
     return {
       runId: opts.runId as SkillRunId,
       workspaceId: 'ws' as WorkspaceId,
@@ -122,9 +122,25 @@ describe('groupBySession', () => {
       args: opts.args ?? '',
       resumed: false,
       ...(opts.sessionId ? { sessionId: opts.sessionId } : {}),
+      ...(opts.startedBy ? { startedBy: opts.startedBy as UserId } : {}),
       startedAt: opts.startedAt as Timestamp,
     } as RunRecord
   }
+
+  it('takes the author from the run that opened the session', () => {
+    // The later run carries no author, and must not blank the group,
+    // since a resumed conversation still belongs to whoever started it.
+    const groups = groupBySession([
+      rec({ runId: 'r2', sessionId: 'sess-1', startedAt: '2026-05-21T10:20:00Z' }),
+      rec({ runId: 'r1', sessionId: 'sess-1', startedBy: 'user-abc', startedAt: '2026-05-21T10:10:00Z' }),
+    ])
+    expect(groups[0]!.startedBy).toBe('user-abc')
+  })
+
+  it('leaves the author null on a run recorded before attribution existed', () => {
+    const groups = groupBySession([rec({ runId: 'r1', sessionId: 'sess-1', startedAt: '2026-05-21T10:10:00Z' })])
+    expect(groups[0]!.startedBy).toBeNull()
+  })
 
   it('groups runs that share a sessionId and orders runs within a group oldest-first', () => {
     // API delivers newest-first; groupBySession reverses inside a session

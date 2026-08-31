@@ -12,6 +12,7 @@ import {
   type Workspace,
   type WorkspaceEventBus,
 } from '@braidhq/core'
+import { UserId } from '@braidhq/schema'
 import { T0 } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { FsRunRepository } from '../../../src/infrastructure/skill/FsRunRepository.js'
@@ -298,6 +299,18 @@ describe('SubprocessSkillRunner', () => {
     const flagIndex = gatewayArgs?.indexOf('--base-url') ?? -1
     expect(flagIndex).toBeGreaterThanOrEqual(0)
     expect(gatewayArgs?.[flagIndex + 1]).toBe('http://localhost:4321')
+  })
+
+  it('records who started the run, so a shared history names its author', async () => {
+    const rootPath = await makeWorkspaceRoot()
+    const { runner, workspace, runRepository } = await buildRunner({ rootPath })
+
+    const runId = await runner.start(workspace, SKILL_ID, 'who asked', {
+      startedBy: UserId.parse('user-abc'),
+    })
+
+    const records = await runRepository.listRecords(workspace)
+    expect(records.find(record => record.runId === runId)?.startedBy).toBe('user-abc')
   })
 
   it('maps nested stream-json (system + assistant + result) into the public SkillEvent shape', async () => {

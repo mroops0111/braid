@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { api } from '@/lib/api'
 import { useLocaleFormat } from '@/lib/i18n'
-import { queryKeys, useRuns, useSessionMetadata, useSkills } from '@/lib/queries'
+import { queryKeys, useRuns, useSessionMetadata, useSkills, useUsers } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
 import { useConversation } from '@/lib/useRun'
 import { useWorkspacePolicy } from '@/policy'
@@ -51,6 +51,12 @@ export interface SessionGroup {
   lastStartedAt: string
   /** Reviewer-set title via SessionMetadata, null falls back to firstPrompt. */
   title: string | null
+  /**
+   * Who opened the conversation, taken from its first run.
+   * Null on runs recorded before attribution existed,
+   * and on any run with no caller behind it.
+   */
+  startedBy: string | null
 }
 
 /**
@@ -202,6 +208,12 @@ function ConversationRow({ workspaceId, group, onResume }: {
   const { t } = useTranslation()
   const { formatDateTime } = useLocaleFormat()
   const queryClient = useQueryClient()
+  // One workspace's history is shared by every member,
+  // so a row that does not name its author reads as everyone's.
+  const { data: users } = useUsers()
+  const startedByName = group.startedBy
+    ? users?.items.find(user => user.id === group.startedBy)?.displayName ?? null
+    : null
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(group.title ?? group.firstPrompt)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -329,7 +341,10 @@ function ConversationRow({ workspaceId, group, onResume }: {
         <div className="break-words text-xs text-foreground/90">
           {group.title ?? group.firstPrompt}
         </div>
-        <div className="text-2xs text-muted-foreground">{formatDateTime(group.lastStartedAt)}</div>
+        <div className="text-2xs text-muted-foreground">
+          {formatDateTime(group.lastStartedAt)}
+          {startedByName ? ` · ${startedByName}` : ''}
+        </div>
       </ListRow>
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
@@ -635,6 +650,7 @@ export function groupBySession(
         skillId: rec.skillId,
         lastStartedAt: rec.startedAt,
         title: null,
+        startedBy: rec.startedBy ?? null,
       })
       continue
     }
@@ -652,6 +668,7 @@ export function groupBySession(
         skillId: rec.skillId,
         lastStartedAt: rec.startedAt,
         title: titleMap.get(rec.sessionId) ?? null,
+        startedBy: rec.startedBy ?? null,
       })
     }
   }

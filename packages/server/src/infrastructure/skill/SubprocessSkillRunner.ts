@@ -189,6 +189,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       args,
       resumed: options?.resumeSessionId !== undefined,
       startedAt,
+      ...(options?.startedBy ? { startedBy: options.startedBy } : {}),
       ...(options?.resumeSessionId ? { sessionId: options.resumeSessionId } : {}),
     }
     await this.deps.runRepository.saveRecord(workspace, initialRecord)

@@ -12,7 +12,7 @@ import type { SkillEvent, SkillId, SkillRunId as SkillRunIdType } from '@braidhq
 import { createLogger, unitBearingRoleIds, ValidationError } from '@braidhq/core'
 import { SkillId as SkillIdSchema, SkillManifest, SkillRunId, SourceId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
-import { extractBearerToken } from '../middleware/auth.js'
+import { extractBearerToken, getUserId } from '../middleware/auth.js'
 import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, WorkspaceIdParam } from './_shared.js'
@@ -169,9 +169,13 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
     const { skillId } = context.req.valid('param')
     const { args, resumeSessionId, sourceUnit } = context.req.valid('json')
     const callerToken = extractBearerToken(context)
+    // Attribute the run to whoever asked for it,
+    // since one workspace's run history is shared by every member.
+    const startedBy = getUserId(context)
     const options = {
       ...(resumeSessionId ? { resumeSessionId } : {}),
       ...(callerToken ? { callerToken } : {}),
+      ...(startedBy ? { startedBy } : {}),
     }
     const perUnitSkillId = resolvePerUnitSkillId(deps.pluginRegistry, workspace)
 
