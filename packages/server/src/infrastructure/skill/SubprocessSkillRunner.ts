@@ -117,6 +117,11 @@ export class SubprocessSkillRunner implements SkillRunner {
       'stdio',
       '--name',
       'braid-core',
+      // The spec's `servers[]` block names the public URL,
+      // which a host behind a proxy cannot always reach by its own name.
+      // The gateway calls back on loopback like the rest of the subprocess.
+      '--base-url',
+      this.deps.apiUrl,
       // Forward the caller's Bearer token so the gateway authenticates its outgoing API calls.
       // The gateway resolves `${BRAID_TOKEN}` against its process env at startup.
       // Without this the server's auth middleware rejects every callback with 401.

@@ -270,6 +270,36 @@ describe('SubprocessSkillRunner', () => {
     expect(invocations[0]!.args).toEqual(expect.arrayContaining(['openapi-mcp-gateway', '--dry-run']))
   })
 
+  it('points the gateway at the loopback API, since the spec names the public one', async () => {
+    const rootPath = await makeWorkspaceRoot()
+    let gatewayArgs: readonly string[] | undefined
+    const { runner, workspace } = await buildRunner({
+      rootPath,
+      coreGateway: { specUrl: 'http://localhost:4321/openapi.json' },
+      sequence: [{ stdoutLines: [], exitCode: 0 }, { stdoutLines: [], exitCode: 0 }],
+      buildAgentBinding: (descriptor) => {
+        const inner = new ClaudeCodeAgentBinding(descriptor)
+        return {
+          descriptor: inner.descriptor,
+          parseLine: (line, now) => inner.parseLine(line, now),
+          resolveSpawn: async (input) => {
+            const core = input.mcpServers.find(server => server.id === 'braid-core')
+            gatewayArgs = core?.transport === 'stdio' ? core.args : undefined
+            return inner.resolveSpawn(input)
+          },
+        }
+      },
+    })
+
+    await runner.start(workspace, SKILL_ID, '')
+
+    // A host behind a proxy cannot reach itself by its public name,
+    // so the flag has to name the address the runner itself was given.
+    const flagIndex = gatewayArgs?.indexOf('--base-url') ?? -1
+    expect(flagIndex).toBeGreaterThanOrEqual(0)
+    expect(gatewayArgs?.[flagIndex + 1]).toBe('http://localhost:4321')
+  })
+
   it('maps nested stream-json (system + assistant + result) into the public SkillEvent shape', async () => {
     const rootPath = await makeWorkspaceRoot()
     const { runner, workspace } = await buildRunner({
