@@ -3,7 +3,7 @@ import type { WorkspaceEvent } from '@braidhq/schema'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { createAsyncQueue } from '../infrastructure/skill/asyncQueue.js'
-import { getWorkspaceId, workspaceIdMiddleware } from '../middleware/workspaceId.js'
+import { getWorkspaceId } from '../middleware/workspaceId.js'
 
 export interface WorkspaceEventsRouterDeps {
   readonly eventBus: WorkspaceEventBus
@@ -20,7 +20,7 @@ export interface WorkspaceEventsRouterDeps {
 export function createWorkspaceEventsRouter(deps: WorkspaceEventsRouterDeps): Hono {
   const router = new Hono()
 
-  router.get('/:workspaceId/events', workspaceIdMiddleware, async (context) => {
+  router.get('/', async (context) => {
     const workspaceId = getWorkspaceId(context)
     return streamSSE(context, async (stream) => {
       const queue = createAsyncQueue<WorkspaceEvent>()

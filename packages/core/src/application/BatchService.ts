@@ -254,6 +254,7 @@ export class BatchService {
       if (plan.status !== 'running')
         return
     }
+    let consecutiveFailures = 0
     for (const unit of plan.units) {
       // Skip completed units so Resume only re-runs pending ones.
       // The failed to pending move was already done by resumeRun().
@@ -271,6 +272,22 @@ export class BatchService {
         return
       }
       plan = await this.runUnit(workspace, plan, binding, unit, callerToken)
+      // Dispatching into a fault the next unit cannot clear burns the plan,
+      // so stop here and leave the remaining units resumable.
+      const abort = abortReason(plan, unit.id, consecutiveFailures)
+      if (abort.stop) {
+        plan = plan.markFailed(this.deps.clock.now(), abort.reason)
+        await this.deps.batchPlanRepository.save(workspace, plan)
+        this.publish(workspace.id, {
+          type: 'batch.failed',
+          workspaceId: workspace.id,
+          planId: plan.id,
+          error: abort.reason,
+          at: this.deps.clock.now(),
+        })
+        return
+      }
+      consecutiveFailures = abort.consecutiveFailures
       // Fire a checkpoint when the ontology's chunkSize threshold is crossed.
       // A failed checkpoint fails the batch immediately,
       // so we stop dispatching runs into a model state we know is broken.
@@ -428,15 +445,22 @@ export class BatchService {
   private async runUnit(workspace: Workspace, plan: BatchPlan, binding: OntologyBatchBinding, unit: BatchUnit, callerToken?: string): Promise<BatchPlan> {
     const startedAt = this.deps.clock.now()
     let running = plan
+    // Declared out here so the catch can look the run's session up.
+    let runId: SkillRunId | undefined
     try {
       // Snapshot the pre-run id sets, so post-run additions can be attributed to this unit.
       const before = await this.snapshotIds(workspace.id)
       const argsFor = binding.perUnit.argsFor ?? defaultUnitArg
-      const runId = await this.deps.skillRunner.start(
+      runId = await this.deps.skillRunner.start(
         workspace,
         binding.perUnit.skillId,
         argsFor(unit),
-        callerToken ? { callerToken } : undefined,
+        {
+          ...(callerToken ? { callerToken } : {}),
+          // A retry continues the agent's own session,
+          // so a unit interrupted part way does not read the document again.
+          ...(unit.resumeSessionId ? { resumeSessionId: unit.resumeSessionId } : {}),
+        },
       )
       running = plan.markUnitRunning(startedAt, unit.id, { unitId: unit.id, skillRunId: runId })
       await this.deps.batchPlanRepository.save(workspace, running)
@@ -468,7 +492,11 @@ export class BatchService {
     }
     catch (err) {
       const completedAt = this.deps.clock.now()
-      const failed = running.markUnitFailed(completedAt, unit.id, errorMessage(err))
+      // Read after the fact, so a session the run opened late is still caught.
+      const sessionId = runId ? await this.deps.skillRunner.sessionIdFor(workspace, runId) : undefined
+      const failed = running
+        .markUnitFailed(completedAt, unit.id, errorMessage(err))
+        .rememberUnitSession(unit.id, sessionId)
       await this.deps.batchPlanRepository.save(workspace, failed)
       this.publish(workspace.id, {
         type: 'batch.unit.failed',
@@ -631,6 +659,49 @@ export class BatchService {
   private publish(_workspaceId: WorkspaceId, event: WorkspaceEvent): void {
     this.deps.eventBus?.publish(event)
   }
+}
+
+// A quota or credential fault belongs to the account,
+// not to the document that happened to hit it,
+// so every remaining unit would fail the same way.
+// Matched on the agent's own wording, since the runner surfaces it as text.
+const UNRECOVERABLE_PATTERNS: readonly RegExp[] = [
+  /\b(?:session|usage|rate)\s+limit\b/i,
+  /\bquota\s+exceeded\b/i,
+  /\b(?:401|403)\b|\bunauthorized\b|\bauthentication\s+failed\b|\binvalid\s+api\s+key\b/i,
+  /\bcredit\s+balance\b/i,
+]
+
+// Enough consecutive failures to mean the fault is shared rather than per-unit,
+// while still letting a run survive a couple of genuinely bad documents.
+const CONSECUTIVE_FAILURE_LIMIT = 3
+
+function isUnrecoverable(error: string | undefined): boolean {
+  return error !== undefined && UNRECOVERABLE_PATTERNS.some(pattern => pattern.test(error))
+}
+
+/**
+ * Whether the run should give up after the unit that just finished.
+ *
+ * A recognised account-level fault stops on its own,
+ * and a streak stops whatever the wording,
+ * so an unfamiliar phrasing still cannot burn the plan.
+ * The counter resets on success, since a single bad document is not a streak.
+ */
+function abortReason(
+  plan: BatchPlan,
+  unitId: BatchUnitId,
+  consecutiveFailures: number,
+): { stop: true, reason: string } | { stop: false, consecutiveFailures: number } {
+  const unit = plan.units.find(candidate => candidate.id === unitId)
+  if (unit?.status !== 'failed')
+    return { stop: false, consecutiveFailures: 0 }
+  if (isUnrecoverable(unit.error))
+    return { stop: true, reason: `Stopped after an account-level failure, the rest would fail the same way. ${unit.error}` }
+  const streak = consecutiveFailures + 1
+  if (streak >= CONSECUTIVE_FAILURE_LIMIT)
+    return { stop: true, reason: `Stopped after ${streak} consecutive unit failures. Last error: ${unit.error}` }
+  return { stop: false, consecutiveFailures: streak }
 }
 
 function defaultUnitArg(unit: BatchUnit): string {

@@ -361,9 +361,6 @@ function NoWorkspaceState({ onSelect }: { onSelect: (id: string) => void }) {
         <h1 className="text-base font-semibold">{t('shell.noWorkspace.title')}</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
           {t('shell.noWorkspace.description')}
-          {' '}
-          <code className="rounded bg-muted px-1">~/.braid/workspaces/</code>
-          .
         </p>
       </div>
       <div className="mt-6 grid w-full max-w-md grid-cols-1 gap-3">

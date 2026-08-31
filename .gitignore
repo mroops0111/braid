@@ -37,3 +37,6 @@ docs/
 examples/*
 !examples/example-workspace/
 !examples/conciergent/
+
+# Playwright MCP dumps console logs and page snapshots here on each run.
+.playwright-mcp/

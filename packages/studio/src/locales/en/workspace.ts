@@ -11,8 +11,8 @@ export const workspace = {
     stepProgress: 'Creating',
     // Dialog chrome.
     createTitle: 'Create Workspace',
-    createDescriptionPrefix: 'Scaffolds a fresh workspace under',
-    createDescriptionSuffix: '. To open an existing one, pick it from the sidebar.',
+    createDescription: 'Scaffolds a fresh workspace on this server. To open an existing one, pick it from the sidebar.',
+    workspacesRootPlaceholder: '<workspaces root>',
     nameConflict: 'A workspace with that name already exists. Open it from the sidebar, or delete it first to recreate.',
     // Basics step.
     nameLabel: 'Workspace Name',
@@ -71,7 +71,6 @@ export const workspace = {
     creationFailed: 'Workspace creation failed.',
     creationSucceeded: 'Workspace created.',
     provisionedLabel: 'provisioned',
-    noChangeLabel: 'no change',
   },
   details: {
     noWorkspaceSelected: 'No workspace selected.',

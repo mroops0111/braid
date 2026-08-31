@@ -1,5 +1,6 @@
 import type { User } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
+import { REACTOR_USER_ID } from '../../src/serviceAccounts.js'
 import { asUser, asUserJson, buildMultiUserApp } from '../helpers/multiUser.js'
 import { readJson } from '../helpers/readJson.js'
 
@@ -158,5 +159,40 @@ describe('DELETE /admin/users/:userId', () => {
     )
 
     expect(response.status).toBe(400)
+  })
+})
+
+// The server reseeds these on every boot, so an accepted edit would revert.
+describe('service accounts are not editable', () => {
+  it('refuses to change a service account\'s server role', async () => {
+    const { app, users } = await buildMultiUserApp()
+
+    const response = await app.request(
+      `/admin/users/${REACTOR_USER_ID}`,
+      asUserJson(users.admin.id, 'PATCH', { serverRole: 'user' }),
+    )
+
+    expect(response.status).toBe(400)
+
+    const listed = await readJson<AdminUserListBody>(
+      await app.request('/admin/users', asUser(users.admin.id)),
+    )
+    expect(listed.items.find(u => u.id === REACTOR_USER_ID)?.serverRole).toBe('admin')
+  })
+
+  it('refuses to delete a service account', async () => {
+    const { app, users } = await buildMultiUserApp()
+
+    const response = await app.request(
+      `/admin/users/${REACTOR_USER_ID}`,
+      asUserJson(users.admin.id, 'DELETE'),
+    )
+
+    expect(response.status).toBe(400)
+
+    const listed = await readJson<AdminUserListBody>(
+      await app.request('/admin/users', asUser(users.admin.id)),
+    )
+    expect(listed.items.map(u => u.id)).toContain(REACTOR_USER_ID)
   })
 })

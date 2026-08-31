@@ -19,7 +19,7 @@ export const shell = {
   // Empty state shown when no workspace is open.
   noWorkspace: {
     title: 'Welcome to Braid',
-    description: 'Open a workspace to begin. Workspaces live under',
+    description: 'Open a workspace to begin.',
     openWorkspaceTitle: 'Open Workspace',
     openWorkspaceDescription: 'Type a name to create a new one or open an existing workspace under the canonical root.',
   },

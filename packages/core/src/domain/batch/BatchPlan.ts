@@ -62,6 +62,13 @@ export class BatchPlan {
     return this.with({ status: 'failed', running: undefined, error, updatedAt: now })
   }
 
+  /** Stores the session a unit's run opened, so a later resume can continue it. */
+  rememberUnitSession(unitId: BatchUnitId, sessionId: string | undefined): BatchPlan {
+    if (!sessionId)
+      return this
+    return this.with({ units: this.mapUnit(unitId, unit => ({ ...unit, resumeSessionId: sessionId })) })
+  }
+
   markStopped(now: Timestamp): BatchPlan {
     return this.with({ status: 'stopped', running: undefined, updatedAt: now })
   }
@@ -81,7 +88,10 @@ export class BatchPlan {
   resumeRun(now: Timestamp): BatchPlan {
     if (!this.isTerminal())
       throw new ConflictError(`Cannot resume plan ${this.data.id} from status=${this.data.status}`)
-    const units = this.data.units.map(unit => unit.status === 'failed' || unit.status === 'pending' ? resetUnit(unit) : unit)
+    // Everything short of completed goes back to pending,
+    // a unit left running by a crash included,
+    // since its subprocess died with the process that held it.
+    const units = this.data.units.map(unit => unit.status === 'completed' ? unit : resetUnit(unit))
     // Drop failed checkpoint phases so the upcoming chunk accounting resets.
     // Successful phases remain, their units are still recorded as completed.
     const checkpointPhases = this.data.checkpointPhases.filter(phase => phase.status === 'completed')
@@ -205,6 +215,10 @@ function resetUnit(unit: BatchUnit): BatchUnit {
     status: 'pending',
     proposalIds: [],
     clarificationIds: [],
+    // Kept so the retry can continue where the agent left off.
+    // Everything else is dropped,
+    // a stale runId or timestamp would only distort the next run.
+    ...(unit.resumeSessionId ? { resumeSessionId: unit.resumeSessionId } : {}),
   }
   return fresh
 }

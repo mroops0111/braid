@@ -76,5 +76,14 @@ export interface SkillRunner {
    * Called by the UI's "New Conversation" flow,
    * so the next run starts fresh and the per-cwd transient files can be reclaimed.
    */
+  /**
+   * The claude session a run opened, once it has reported one.
+   *
+   * Read rather than observed,
+   * since a subscriber registered after `start` resolves can miss the event.
+   * A caller only needs the value once the run has settled.
+   */
+  sessionIdFor: (workspace: Workspace, runId: SkillRunId) => Promise<string | undefined>
+
   forgetSession: (sessionId: string) => Promise<void>
 }

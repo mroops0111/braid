@@ -658,7 +658,7 @@ function isoSeconds(value: string | number): string {
   return `${new Date(value).toISOString().slice(0, 19)}Z`
 }
 
-function SyncSummary({ report }: { report: { changed: boolean, added?: number, updated?: number, removed?: number } }) {
+function SyncSummary({ report }: { report: { changed?: boolean, added?: number, updated?: number, removed?: number } }) {
   const { t } = useTranslation()
   // When the loader reports structured counts,
   // use the unified `+a ~u -r` format.

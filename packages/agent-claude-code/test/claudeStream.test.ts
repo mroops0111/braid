@@ -62,9 +62,18 @@ describe('parseClaudeLine', () => {
     expect(parse({ type: 'result', is_error: true })[0]).toMatchObject({ type: 'error', message: 'skill run failed' })
   })
 
-  it('maps a successful result with text into a message, and an empty result into nothing', () => {
-    expect(parse({ type: 'result', is_error: false, result: 'done' })[0]).toMatchObject({ type: 'message', text: 'done' })
+  it('leaves a successful result to speak through usage alone, not a second copy of the answer', () => {
+    // `result` restates the last assistant message,
+    // which the assistant envelope already emitted.
+    const events = parse({ type: 'result', is_error: false, result: 'done', total_cost_usd: 1.5 })
+    expect(events.some(event => event.type === 'message')).toBe(false)
+    expect(events).toContainEqual(expect.objectContaining({ type: 'usage', costUsd: 1.5 }))
     expect(parse({ type: 'result', is_error: false, result: '' })).toEqual([])
+  })
+
+  it('still surfaces a failing result, whose text lives nowhere else', () => {
+    expect(parse({ type: 'result', is_error: true, result: 'boom' })[0])
+      .toMatchObject({ type: 'error', message: 'boom' })
   })
 
   it('maps the legacy flat text, tool_use, error, and artifact-written shapes', () => {
@@ -96,7 +105,7 @@ describe('parseClaudeLine', () => {
     expect(throttled[0]).toMatchObject({ type: 'rate-limit', status: 'rejected', resetsAt: 456 })
   })
 
-  it('emits a usage event from the result envelope metrics, alongside the message', () => {
+  it('emits a usage event from the result envelope metrics', () => {
     const events = parse({
       type: 'result',
       is_error: false,
@@ -106,7 +115,6 @@ describe('parseClaudeLine', () => {
       num_turns: 3,
       usage: { input_tokens: 100, output_tokens: 50 },
     })
-    expect(events).toContainEqual(expect.objectContaining({ type: 'message', text: 'done' }))
     expect(events).toContainEqual(expect.objectContaining({
       type: 'usage',
       costUsd: 0.12,

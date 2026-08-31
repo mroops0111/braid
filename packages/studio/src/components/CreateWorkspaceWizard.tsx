@@ -122,24 +122,29 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (!o) {
-          // Don't let an outside-click or Escape kill the wizard mid-flight.
-          // Scaffold and provision can take minutes for gdrive sources.
-          // Closing would orphan the request and lose the progress shown.
-          if (scaffold.isPending)
-            return
+        if (o)
+          return
+        // Don't let an outside-click or Escape kill the wizard mid-flight.
+        // Scaffold and provision can take minutes for gdrive sources.
+        // Closing would orphan the request and lose the progress shown.
+        if (scaffold.isPending)
+          return
+        // A finished run holds nothing worth reopening, so discard it.
+        if (step === 'progress') {
           close()
+          return
         }
+        // Anything else is a draft the user typed,
+        // so Escape and outside-click keep it for the next open.
+        // Only Cancel discards it.
+        onOpenChange(false)
       }}
     >
       <DialogContent className="sm:max-w-[720px]">
         <DialogHeader>
           <DialogTitle>{t('workspace.wizard.createTitle')}</DialogTitle>
           <DialogDescription>
-            {t('workspace.wizard.createDescriptionPrefix')}
-            {' '}
-            <code className="rounded bg-muted px-1">~/.braid/workspaces/</code>
-            {t('workspace.wizard.createDescriptionSuffix')}
+            {t('workspace.wizard.createDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -294,7 +299,8 @@ function BasicsStep({ name, description, onName, onDescription }: {
         />
         <p className="text-2xs text-muted-foreground">{t('workspace.wizard.nameHint')}</p>
         <code className="block truncate rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
-          ~/.braid/workspaces/
+          {t('workspace.wizard.workspacesRootPlaceholder')}
+          /
           {name || '<name>'}
         </code>
         {invalid && (
@@ -704,7 +710,7 @@ function ConfirmStep({ name, description, sources, mcpServers, ontologyId, stora
   return (
     <div className="space-y-3 text-xs">
       <Field label={t('common.name')} value={name} />
-      <Field label={t('workspace.wizard.folderLabel')} value={`~/.braid/workspaces/${name}`} mono />
+      <Field label={t('workspace.wizard.folderLabel')} value={`${t('workspace.wizard.workspacesRootPlaceholder')}/${name}`} mono />
       {description && <Field label={t('common.description')} value={description} />}
       <Field label={t('workspace.wizard.ontologyLabel')} value={ontologyId} />
       <Field label={t('workspace.wizard.storageLabel')} value={storageKind} />
@@ -858,9 +864,9 @@ function ProgressStep({ workspaceName, status, error, provision, expectedSources
           <ul className="space-y-1 text-2xs">
             {provision.map(entry => (
               <li key={entry.sourceId} className="flex items-center gap-2 font-mono">
-                <span className={`size-1.5 rounded-full ${entry.changed ? 'bg-green-500' : 'bg-muted-foreground'}`} />
+                <span className="size-1.5 rounded-full bg-green-500" />
                 {entry.sourceId}
-                <span className="text-muted-foreground">{entry.changed ? t('workspace.wizard.provisionedLabel') : t('workspace.wizard.noChangeLabel')}</span>
+                <span className="text-muted-foreground">{t('workspace.wizard.provisionedLabel')}</span>
               </li>
             ))}
           </ul>

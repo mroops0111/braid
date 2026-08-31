@@ -23,6 +23,7 @@ const admin: typeof en = {
     columnUser: '使用者',
     columnWorkspaces: '工作區',
     currentUserLabel: '你',
+    serviceAccountLabel: '系統帳號',
     userActions: '使用者操作',
     makeAdminButton: '設為管理員',
     makeUserButton: '設為一般使用者',

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { clearAuthToken } from '@/lib/authToken'
+import { startGoogleSignIn } from '@/lib/googleSignIn'
 import {
   addRemote,
   getTokenFor,
@@ -64,8 +65,7 @@ function ServerRow({ id, name, url, isLocal, isActive }: ServerRowProps) {
   const [armedForRemove, setArmedForRemove] = useState(false)
 
   function startSignIn() {
-    const returnTo = `${window.location.origin}${window.location.pathname}#auth-remote=${encodeURIComponent(id)}`
-    window.location.href = `${url}/auth/google/start?returnTo=${encodeURIComponent(returnTo)}`
+    void startGoogleSignIn(url, id)
   }
 
   function disconnect() {

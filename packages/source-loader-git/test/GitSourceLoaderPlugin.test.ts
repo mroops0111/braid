@@ -2,7 +2,7 @@ import type { SourceLoaderContext } from '@braidhq/core'
 import type { AbsolutePath, SourceId, WorkspaceId } from '@braidhq/schema'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { simpleGit } from 'simple-git'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { gitLoader } from '../src/GitSourceLoaderPlugin.js'
@@ -97,6 +97,34 @@ describe('GitLoader', () => {
 
     const report = await loader.sync!({ url: remoteUrl, branch: 'main' }, dest, ctx)
     expect(report).toMatchObject({ added: 1, updated: 0, removed: 1, changed: true })
+  })
+
+  it('re-reads the environment on sync, so a rotated credential reaches the fetch', async () => {
+    const loader = gitLoader
+    const dest = join(scratch, 'rotating') as AbsolutePath
+    // A file remote ignores a user segment,
+    // so the placeholder goes in the path instead.
+    // Only the second value names the real repository,
+    // which makes the source of the fetch URL observable.
+    const stale = join(scratch, 'stale-not-a-repo')
+    await mkdir(stale, { recursive: true })
+
+    const url = `file://${scratch}/\${BRAID_GITLOADER_TEST_TOKEN}`
+
+    process.env.BRAID_GITLOADER_TEST_TOKEN = 'stale-not-a-repo'
+    // Clone would fail against the stale path,
+    // so seed the mirror from the real remote,
+    // and let the stored URL carry the placeholder as provision leaves it.
+    await simpleGit().clone(remoteUrl, dest)
+    await simpleGit({ baseDir: dest }).remote(['set-url', 'origin', url])
+
+    process.env.BRAID_GITLOADER_TEST_TOKEN = basename(remoteDir)
+    await expect(loader.sync!({ url, branch: 'main' }, dest, ctx)).resolves.toMatchObject({ changed: false })
+
+    // The placeholder is back, so no interpolated credential outlives the call.
+    const after = String(await simpleGit({ baseDir: dest }).remote(['get-url', 'origin'])).trim()
+    expect(after).toBe(url)
+    delete process.env.BRAID_GITLOADER_TEST_TOKEN
   })
 
   // eslint-disable-next-line no-template-curly-in-string -- intentional: testing literal ${VAR} interpolation
