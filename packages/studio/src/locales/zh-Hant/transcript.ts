@@ -6,6 +6,7 @@ const transcript: typeof en = {
   followUpLabel: '後續追問',
   runningStatus: '執行中…',
   thinkingTitle: '思考中',
+  rateLimitNearing: '接近速率限制',
   rateLimitWaiting: '正在等待速率限制解除',
   rateLimitReset: '(於 {time} 解除)',
   artifactLine: '[artifact] {kind} {id}: {path}',

@@ -5,6 +5,7 @@ import { ReferenceText } from '@/components/references/ReferenceText'
 import { useLocaleFormat } from '@/lib/i18n'
 import { groupTranscript } from './groupTranscript'
 import { Markdown } from './Markdown'
+import { rateLimitHeld } from './rateLimitHeld'
 import { ToolGroup } from './ToolGroup'
 
 interface SkillTranscriptProps {
@@ -118,15 +119,17 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
           </div>
         </details>
       )
-    case 'rate-limit':
+    case 'rate-limit': {
+      const held = rateLimitHeld(event.status)
       return (
-        <div className="text-amber-400">
+        <div className={held ? 'text-amber-400' : 'text-muted-foreground/70'}>
           ⏳
           {' '}
-          {t('transcript.rateLimitWaiting')}
+          {held ? t('transcript.rateLimitWaiting') : t('transcript.rateLimitNearing')}
           {event.resetsAt ? ` ${t('transcript.rateLimitReset', { time: formatTime(event.resetsAt * 1000) })}` : ''}
         </div>
       )
+    }
     case 'usage': {
       const parts = [
         event.costUsd != null ? `$${event.costUsd.toFixed(3)}` : null,
