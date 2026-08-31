@@ -1,7 +1,7 @@
 {
   "name": "@braidhq/source-loader-git",
   "type": "module",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Git source-loader plugin for Braid. Clone a repo and sync automatically.",
   "license": "MIT",
   "repository": {
