@@ -90,10 +90,13 @@ export function parseClaudeLine(line: string, now: string): SkillEvent[] {
   if (raw.type === 'result') {
     const isError = raw.is_error === true
     const text = typeof raw.result === 'string' ? raw.result : ''
+    // On success `result` restates the last assistant message verbatim,
+    // for callers that want only the outcome.
+    // The assistant envelope already emitted it,
+    // so re-emitting would show the answer twice.
+    // A failure carries its text nowhere else, so it still speaks.
     if (isError)
       out.push(SkillEventSchema.parse({ type: 'error', message: text || 'skill run failed', at: now }))
-    else if (text.length > 0)
-      out.push(SkillEventSchema.parse({ type: 'message', text }))
     const usage = raw.usage as { input_tokens?: unknown, output_tokens?: unknown } | undefined
     const usageEvent: Record<string, unknown> = { type: 'usage' }
     if (typeof raw.total_cost_usd === 'number')
