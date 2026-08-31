@@ -2,7 +2,7 @@ import type { SourceLoaderContext } from '@braidhq/core'
 import type { AbsolutePath, SourceId, WorkspaceId } from '@braidhq/schema'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { simpleGit } from 'simple-git'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { gitLoader } from '../src/GitSourceLoaderPlugin.js'
@@ -99,28 +99,31 @@ describe('GitLoader', () => {
     expect(report).toMatchObject({ added: 1, updated: 0, removed: 1, changed: true })
   })
 
-  it('keeps the placeholder in .git/config, so a rotated token is picked up', async () => {
+  it('re-reads the environment on sync, so a rotated credential reaches the fetch', async () => {
     const loader = gitLoader
     const dest = join(scratch, 'rotating') as AbsolutePath
-    // A file remote ignores the user segment, so the credential is inert here.
-    // What is under test is whether the placeholder survives on disk,
-    // and whether sync re-reads the environment rather than the stored copy.
-    // eslint-disable-next-line no-template-curly-in-string -- literal placeholder
-    const url = remoteUrl.replace('file://', 'file://${BRAID_GITLOADER_TEST_TOKEN}@')
+    // A file remote ignores a user segment,
+    // so the placeholder goes in the path instead.
+    // Only the second value names the real repository,
+    // which makes the source of the fetch URL observable.
+    const stale = join(scratch, 'stale-not-a-repo')
+    await mkdir(stale, { recursive: true })
 
-    process.env.BRAID_GITLOADER_TEST_TOKEN = 'first'
-    await loader.provision({ url, branch: 'main' }, dest, ctx)
+    const url = `file://${scratch}/\${BRAID_GITLOADER_TEST_TOKEN}`
 
-    const stored = String(await simpleGit({ baseDir: dest }).remote(['get-url', 'origin'])).trim()
-    // eslint-disable-next-line no-template-curly-in-string -- literal placeholder
-    expect(stored).toContain('${BRAID_GITLOADER_TEST_TOKEN}')
-    expect(stored).not.toContain('first')
+    process.env.BRAID_GITLOADER_TEST_TOKEN = 'stale-not-a-repo'
+    // Clone would fail against the stale path,
+    // so seed the mirror from the real remote,
+    // and let the stored URL carry the placeholder as provision leaves it.
+    await simpleGit().clone(remoteUrl, dest)
+    await simpleGit({ baseDir: dest }).remote(['set-url', 'origin', url])
 
-    // A rotation must reach the fetch, which reads the env rather than disk.
-    process.env.BRAID_GITLOADER_TEST_TOKEN = 'second'
-    await loader.sync!({ url, branch: 'main' }, dest, ctx)
+    process.env.BRAID_GITLOADER_TEST_TOKEN = basename(remoteDir)
+    await expect(loader.sync!({ url, branch: 'main' }, dest, ctx)).resolves.toMatchObject({ changed: false })
+
+    // The placeholder is back, so no interpolated credential outlives the call.
     const after = String(await simpleGit({ baseDir: dest }).remote(['get-url', 'origin'])).trim()
-    expect(after).toContain('second')
+    expect(after).toBe(url)
     delete process.env.BRAID_GITLOADER_TEST_TOKEN
   })
 

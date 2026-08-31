@@ -73,6 +73,9 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
     // The leading `+` makes a force-push upstream still land.
     await git.fetch('origin', `+refs/heads/${config.branch}:${trackingRef}`, ['--depth', String(config.depth)])
     await git.reset(['--hard', trackingRef])
+    // Put the placeholder back now the fetch is done,
+    // so the interpolated credential does not outlive the call that needed it.
+    await git.remote(['set-url', 'origin', config.url])
     const after = (await git.revparse(['HEAD'])).trim()
     const counts = before === after
       ? { added: 0, updated: 0, removed: 0 }
