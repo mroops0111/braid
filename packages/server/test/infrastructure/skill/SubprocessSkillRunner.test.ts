@@ -517,6 +517,7 @@ describe('SubprocessSkillRunner', () => {
           }
         },
         subscribe: () => () => {},
+        subscribeAll: () => () => {},
       }
       const waitFor = (predicate: (events: readonly WorkspaceEvent[]) => boolean): Promise<void> => {
         if (predicate(events))

@@ -46,6 +46,7 @@ import {
   SourcePollingService,
   SourceSyncService,
   SourceUnitObservationService,
+  startEmbeddingReindexer,
   SystemClock,
   SystemScheduler,
   TaskCoalescer,
@@ -235,6 +236,8 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const eventBus = options.eventBus ?? new InMemoryWorkspaceEventBus()
   const workspaceService = new WorkspaceService({ workspaceRepository, pluginRegistry })
   const modelService = new ModelService({ modelRepository })
+  // Started here rather than per route, so any future path that mutates the
+  // graph reindexes without its author having to know this exists.
   const embeddingService = options.embedder && options.embeddingRepository
     ? new EmbeddingService({
       modelRepository,
@@ -244,6 +247,14 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
       eventBus,
     })
     : undefined
+  if (embeddingService) {
+    startEmbeddingReindexer({
+      eventBus,
+      embeddingService,
+      onError: (workspaceId: WorkspaceId, error: unknown) =>
+        createLogger('embedding').warn({ workspaceId, err: String(error) }, 'reindex failed'),
+    })
+  }
   const modelValidationService = new ModelValidationService({ pluginRegistry })
   const sourceLoaderRunner = new SourceLoaderRunner({ pluginRegistry, clock, eventBus })
   const syncStateRepository = options.sourceSyncStateRepository ?? new InMemorySourceSyncStateRepository()

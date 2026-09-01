@@ -180,6 +180,26 @@ describe('embeddingService', () => {
     expect(hits[0]!.score).toBeGreaterThanOrEqual(hits[1]!.score)
   })
 
+  it('leaves out a node whose text moved since it was embedded', async () => {
+    const { service, modelRepository } = build([node('a', 'Apply', 'old words'), node('b', 'Seal')])
+    await service.rebuild(WORKSPACE)
+
+    // A restore rewinds the graph without touching the index,
+    // so the stored vector now describes text the node no longer has.
+    modelRepository.replace([node('a', 'Apply', 'reverted words'), node('b', 'Seal')])
+
+    const hits = await service.search(WORKSPACE, 'query', 10)
+    expect(hits.map(hit => hit.nodeId)).toEqual(['b'])
+  })
+
+  it('answers nothing at all when every vector went stale', async () => {
+    const { service, modelRepository } = build([node('a', 'Apply', 'old words')])
+    await service.rebuild(WORKSPACE)
+    modelRepository.replace([node('a', 'Apply', 'reverted words')])
+
+    expect(await service.search(WORKSPACE, 'query', 10)).toEqual([])
+  })
+
   it('answers nothing when the workspace has no comparable vectors', async () => {
     const { service } = build([node('a', 'A')])
 

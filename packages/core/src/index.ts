@@ -1,5 +1,6 @@
 export * from './application/BatchService.js'
 export * from './application/computeSourceDiff.js'
+export * from './application/EmbeddingReindexer.js'
 export * from './application/EmbeddingService.js'
 export * from './application/embeddingText.js'
 export * from './application/enrichCommitAuthor.js'

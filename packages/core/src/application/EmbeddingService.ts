@@ -93,17 +93,31 @@ export class EmbeddingService {
     return this.coverage(workspaceId)
   }
 
-  /** Rank nodes by similarity to a query, best first. */
+  /**
+   * Rank nodes by similarity to a query, best first.
+   *
+   * Only vectors that still match their node's text take part. A restore
+   * rewinds the graph without touching this index, so a vector left over
+   * from newer text would rank a node by words it no longer has. Ranking on
+   * fewer nodes is recoverable, ranking on text that does not exist is not.
+   */
   async search(workspaceId: WorkspaceId, query: string, limit: number): Promise<SemanticHit[]> {
-    const stored = await this.deps.embeddingRepository.list(workspaceId)
-    const comparable = stored.filter(entry => entry.modelId === this.deps.embedder.modelId)
-    if (comparable.length === 0)
+    const nodes = await this.deps.modelRepository.listNodes(workspaceId)
+    const stored = await this.byNodeId(workspaceId)
+    const usable = nodes
+      .map(node => ({ node, embedding: stored.get(node.id) }))
+      .filter((pair): pair is { node: GraphNode, embedding: NodeEmbedding } =>
+        pair.embedding !== undefined && this.isCurrent(pair.embedding, pair.node))
+    if (usable.length === 0)
       return []
     const [queryVector] = await this.deps.embedder.embed([query])
     if (!queryVector)
       return []
-    return comparable
-      .map(entry => ({ nodeId: entry.nodeId, score: cosineSimilarity(queryVector, entry.vector) }))
+    return usable
+      .map(({ embedding }) => ({
+        nodeId: embedding.nodeId,
+        score: cosineSimilarity(queryVector, embedding.vector),
+      }))
       .sort((left, right) => right.score - left.score)
       .slice(0, limit)
   }
