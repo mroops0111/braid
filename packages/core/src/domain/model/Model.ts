@@ -104,7 +104,6 @@ export class Model {
       description: payload.description,
       status: payload.status ?? 'draft',
       metadata: payload.metadata ?? { sourceReferences: [] },
-      embedding: payload.embedding,
     }
   }
 

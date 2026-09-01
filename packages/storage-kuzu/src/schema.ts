@@ -14,7 +14,6 @@ export const DDL_CREATE_NODE_TABLE = `
     description STRING,
     status STRING,
     metadata STRING,
-    embedding STRING,
     PRIMARY KEY (id)
   );
 `

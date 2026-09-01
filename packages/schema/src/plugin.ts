@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 export const PluginType = z.enum([
   'agent',
+  'embedding',
   'ontology',
   'source-loader',
   'storage',

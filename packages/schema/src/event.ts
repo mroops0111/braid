@@ -93,6 +93,31 @@ export const WorkspaceRestoredEvent = WorkspaceEventBase.extend({
 })
 export type WorkspaceRestoredEvent = z.infer<typeof WorkspaceRestoredEvent>
 
+/**
+ * A rebuild is under way, so a search covers less than the whole graph.
+ * Vectors are an index rather than part of the model, so a restored
+ * workspace answers structurally from the first moment and gains
+ * semantic search as these events run their course.
+ */
+export const EmbeddingStartedEvent = WorkspaceEventBase.extend({
+  type: z.literal('embedding.started'),
+  total: z.number().int().nonnegative(),
+})
+export type EmbeddingStartedEvent = z.infer<typeof EmbeddingStartedEvent>
+
+export const EmbeddingProgressEvent = WorkspaceEventBase.extend({
+  type: z.literal('embedding.progress'),
+  done: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+})
+export type EmbeddingProgressEvent = z.infer<typeof EmbeddingProgressEvent>
+
+export const EmbeddingCompletedEvent = WorkspaceEventBase.extend({
+  type: z.literal('embedding.completed'),
+  total: z.number().int().nonnegative(),
+})
+export type EmbeddingCompletedEvent = z.infer<typeof EmbeddingCompletedEvent>
+
 export const BatchStartedEvent = WorkspaceEventBase.extend({
   type: z.literal('batch.started'),
   planId: BatchPlanId,
@@ -249,6 +274,9 @@ export const ReactorCheckpointCompletedEvent = WorkspaceEventBase.extend({
 export type ReactorCheckpointCompletedEvent = z.infer<typeof ReactorCheckpointCompletedEvent>
 
 export const WorkspaceEvent = z.discriminatedUnion('type', [
+  EmbeddingStartedEvent,
+  EmbeddingProgressEvent,
+  EmbeddingCompletedEvent,
   RunStartedEvent,
   RunCompletedEvent,
   ProposalCreatedEvent,

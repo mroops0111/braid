@@ -1,5 +1,6 @@
 import type {
   AgentKind,
+  EmbeddingKind,
   LoaderKind,
   OntologyId,
   PluginId,
@@ -9,6 +10,7 @@ import type {
   ViewKind,
 } from '@braidhq/schema'
 import type { AgentPlugin } from './AgentPlugin.js'
+import type { EmbeddingPlugin } from './EmbeddingPlugin.js'
 import type { OntologyPlugin } from './OntologyPlugin.js'
 import type { Plugin, PluginSkillRef } from './Plugin.js'
 import type { SourceLoaderPlugin } from './SourceLoaderPlugin.js'
@@ -158,6 +160,21 @@ export class PluginRegistry {
     const plugin = this.findAgentPlugin(kind)
     if (!plugin)
       throw new NotFoundError(`No agent plugin registered for kind "${kind}"`)
+    return plugin
+  }
+
+  embeddingPlugins(): readonly EmbeddingPlugin[] {
+    return this.listByType('embedding') as readonly EmbeddingPlugin[]
+  }
+
+  findEmbeddingPlugin(kind: EmbeddingKind): EmbeddingPlugin | undefined {
+    return this.embeddingPlugins().find(plugin => plugin.kind === kind)
+  }
+
+  requireEmbeddingPlugin(kind: EmbeddingKind): EmbeddingPlugin {
+    const plugin = this.findEmbeddingPlugin(kind)
+    if (!plugin)
+      throw new NotFoundError(`No embedding plugin registered for kind "${kind}"`)
     return plugin
   }
 

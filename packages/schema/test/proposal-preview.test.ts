@@ -294,11 +294,9 @@ describe('previewProposal', () => {
         name: 'n1',
         status: 'draft' as NodeStatus,
         description: 'desc',
-        embedding: { vector: [0.1], modelId: 'voyage-3', createdAt: '2026-05-09T00:00:00.000Z' as never },
       } },
     ])
     expect(next.nodes[0]!.description).toBe('desc')
-    expect(next.nodes[0]!.embedding?.vector).toHaveLength(1)
   })
 
   it('synthesizes ids for id-less added node and edge payloads', () => {
