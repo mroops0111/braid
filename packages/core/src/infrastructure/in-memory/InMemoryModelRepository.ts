@@ -10,6 +10,7 @@ import type {
 } from '@braidhq/schema'
 import type { ModelRepository } from '../../domain/model/ModelRepository.js'
 import { NotFoundError } from '../../domain/errors.js'
+import { applyEdgeFilter, applyNodeFilter } from '../../domain/model/graphFilters.js'
 import { Model } from '../../domain/model/Model.js'
 
 export class InMemoryModelRepository implements ModelRepository {
@@ -24,20 +25,8 @@ export class InMemoryModelRepository implements ModelRepository {
   }
 
   async listNodes(workspaceId: WorkspaceId, filter?: GraphNodeFilter): Promise<GraphNode[]> {
-    let nodes = this.modelFor(workspaceId).toSnapshot().nodes
-    if (filter?.types && filter.types.length > 0) {
-      const types = filter.types
-      nodes = nodes.filter(node => types.includes(node.type))
-    }
-    if (filter?.statuses && filter.statuses.length > 0) {
-      const statuses = filter.statuses
-      nodes = nodes.filter(node => statuses.includes(node.status))
-    }
-    if (filter?.nameContains) {
-      const needle = filter.nameContains.toLowerCase()
-      nodes = nodes.filter(node => node.name.toLowerCase().includes(needle))
-    }
-    return nodes
+    const nodes = this.modelFor(workspaceId).toSnapshot().nodes
+    return applyNodeFilter(nodes, filter)
   }
 
   async getNode(workspaceId: WorkspaceId, nodeId: NodeId): Promise<GraphNode> {
@@ -78,20 +67,8 @@ export class InMemoryModelRepository implements ModelRepository {
   }
 
   async listEdges(workspaceId: WorkspaceId, filter?: GraphEdgeFilter): Promise<GraphEdge[]> {
-    let edges = this.modelFor(workspaceId).toSnapshot().edges
-    if (filter?.types && filter.types.length > 0) {
-      const types = filter.types
-      edges = edges.filter(edge => types.includes(edge.type))
-    }
-    if (filter?.fromNodeId !== undefined) {
-      const fromId = filter.fromNodeId
-      edges = edges.filter(edge => edge.fromNodeId === fromId)
-    }
-    if (filter?.toNodeId !== undefined) {
-      const toId = filter.toNodeId
-      edges = edges.filter(edge => edge.toNodeId === toId)
-    }
-    return edges
+    const edges = this.modelFor(workspaceId).toSnapshot().edges
+    return applyEdgeFilter(edges, filter)
   }
 
   private modelFor(workspaceId: WorkspaceId): Model {

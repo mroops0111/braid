@@ -7,7 +7,7 @@ import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from '.
 const ListQuery = z.object({
   type: z.union([NodeTypeId, z.array(NodeTypeId)]).optional().openapi({ description: 'Filter by node type id. Pass one or many.' }),
   status: z.union([NodeStatus, z.array(NodeStatus)]).optional().openapi({ description: 'Filter by node status. Pass one or many.' }),
-  q: z.string().optional().openapi({ description: 'Case-insensitive substring match against node name.' }),
+  q: z.string().optional().openapi({ description: 'Case-insensitive substring match against node name and description.' }),
 })
 
 const NodeIdParam = WorkspaceIdParam.extend({
@@ -30,7 +30,7 @@ const listNodesRoute = createRoute({
   method: 'get',
   path: '/',
   operationId: 'listNodes',
-  summary: 'Search graph nodes by type, status, name substring.',
+  summary: 'Search graph nodes by type, status, and a substring of the name or description.',
   tags: ['nodes'],
   request: {
     params: WorkspaceIdParam,
@@ -91,7 +91,7 @@ export function createNodesRouter(deps: NodesRouterDeps): OpenAPIHono {
     const nodes = await deps.modelService.listNodes(workspaceId, {
       types,
       statuses,
-      nameContains: q,
+      textContains: q,
     })
     return context.json({ items: nodes }, 200)
   })
