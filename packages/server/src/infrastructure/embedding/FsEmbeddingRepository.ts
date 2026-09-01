@@ -7,8 +7,9 @@ import { embeddingsPath } from '../_shared/paths.js'
 
 export interface FsEmbeddingRepositoryDeps {
   /**
-   * Locates a workspace on disk, mirroring how the storage plugins resolve
-   * their own per-workspace state rather than owning the registry.
+   * Locates a workspace on disk,
+   * mirroring how the storage plugins resolve their own state,
+   * rather than owning the registry.
    */
   readonly resolveWorkspaceRoot: (workspaceId: WorkspaceId) => Promise<string>
 }
@@ -16,8 +17,9 @@ export interface FsEmbeddingRepositoryDeps {
 /**
  * Vectors on disk, one JSON object per line.
  *
- * A line per vector rather than one document, so a malformed tail costs the
- * vectors after it and not the whole index, which a rebuild then refills.
+ * A line per vector rather than one document,
+ * so a malformed tail costs the vectors after it and not the whole index,
+ * which a rebuild then refills.
  */
 export class FsEmbeddingRepository implements EmbeddingRepository {
   constructor(private readonly deps: FsEmbeddingRepositoryDeps) {}

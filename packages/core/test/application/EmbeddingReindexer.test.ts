@@ -54,8 +54,9 @@ describe('startEmbeddingReindexer', () => {
     emit('proposal.applied')
     emit('workspace.restored')
 
-    // A batch emits many of these in a row, and each rebuild reads the whole
-    // index, so overlapping them would repeat the same work.
+    // A batch emits many of these in a row,
+    // and each rebuild reads the whole index,
+    // so overlapping them would repeat the same work.
     expect(embeddingService.rebuild).toHaveBeenCalledTimes(1)
     release?.()
   })

@@ -101,9 +101,10 @@ export function useModelSnapshot(workspaceId: string | undefined) {
 /**
  * Ranked node results for a query.
  *
- * Disabled below two characters, since a single character ranks the whole
- * graph and costs a model call to do it. Results are kept briefly so moving
- * back through a term the reader already typed does not re-query.
+ * Disabled below two characters,
+ * since a single character ranks the whole graph and costs a model call to do it.
+ * Results are kept briefly,
+ * so moving back through a term the reader already typed does not re-query.
  */
 export function useNodeSearch(workspaceId: string | undefined, query: string) {
   const trimmed = query.trim()

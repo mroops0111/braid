@@ -14,10 +14,11 @@ export type EmbeddingDescriptor = z.infer<typeof EmbeddingDescriptor>
 /**
  * One node's vector, held apart from the node itself.
  *
- * A vector is derived from the node's text, the way a search index is derived
- * from a corpus, so it lives outside the versioned model and is rebuilt rather
- * than restored. Storing it on the node would put 1024 floats per node into
- * every revision of a file that is committed on each apply.
+ * A vector is derived from the node's text,
+ * the way a search index is derived from a corpus,
+ * so it lives outside the versioned model and is rebuilt rather than restored.
+ * Storing it on the node would put 1024 floats per node,
+ * into every revision of a file that is committed on each apply.
  */
 export const NodeEmbedding = z.object({
   nodeId: NodeId,

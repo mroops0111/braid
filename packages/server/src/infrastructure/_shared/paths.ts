@@ -37,9 +37,10 @@ export function graphJsonPath(workspaceRoot: AbsolutePath): string {
 /**
  * The vector index.
  *
- * Under `.braid/` with the other derived state, which the workspace gitignore
- * already covers. Putting it in `artifacts/` would have needed a new ignore
- * rule that every existing workspace was already missing.
+ * Under `.braid/` with the other derived state,
+ * which the workspace gitignore already covers.
+ * Putting it in `artifacts/` would have needed a new ignore rule,
+ * that every existing workspace was already missing.
  */
 export function embeddingsPath(workspaceRoot: AbsolutePath): string {
   return join(workspaceRoot, '.braid', 'embeddings.jsonl')

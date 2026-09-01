@@ -95,9 +95,9 @@ export type WorkspaceRestoredEvent = z.infer<typeof WorkspaceRestoredEvent>
 
 /**
  * A rebuild is under way, so a search covers less than the whole graph.
- * Vectors are an index rather than part of the model, so a restored
- * workspace answers structurally from the first moment and gains
- * semantic search as these events run their course.
+ * Vectors are an index rather than part of the model,
+ * so a restored workspace answers structurally from the first moment,
+ * and gains semantic search as these events run their course.
  */
 export const EmbeddingStartedEvent = WorkspaceEventBase.extend({
   type: z.literal('embedding.started'),

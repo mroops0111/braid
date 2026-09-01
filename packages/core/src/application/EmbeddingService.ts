@@ -27,9 +27,10 @@ const DEFAULT_PROGRESS_EVERY = 50
 /**
  * Keeps a workspace's vectors in step with its nodes.
  *
- * Vectors are an index, not part of the model, so nothing here is required
- * for the graph to be correct. A workspace with no vectors answers every
- * structural query exactly as before and only loses semantic search.
+ * Vectors are an index, not part of the model,
+ * so nothing here is required for the graph to be correct.
+ * A workspace with no vectors answers every structural query as before,
+ * and only loses semantic search.
  */
 export class EmbeddingService {
   constructor(private readonly deps: EmbeddingServiceDeps) {}
@@ -56,8 +57,9 @@ export class EmbeddingService {
   }
 
   /**
-   * Bring every node's vector up to date, and drop vectors for nodes that
-   * no longer exist. Skips a node whose text and model both still match,
+   * Bring every node's vector up to date,
+   * and drop vectors for nodes that no longer exist.
+   * Skips a node whose text and model both still match,
    * so a rebuild after one apply costs one model call rather than a thousand.
    */
   async rebuild(workspaceId: WorkspaceId): Promise<EmbeddingCoverage> {
@@ -96,10 +98,12 @@ export class EmbeddingService {
   /**
    * Rank nodes by similarity to a query, best first.
    *
-   * Only vectors that still match their node's text take part. A restore
-   * rewinds the graph without touching this index, so a vector left over
-   * from newer text would rank a node by words it no longer has. Ranking on
-   * fewer nodes is recoverable, ranking on text that does not exist is not.
+   * Only vectors that still match their node's text take part.
+   * A restore rewinds the graph without touching this index,
+   * so a vector left over from newer text,
+   * would rank a node by words it does not have.
+   * Ranking on fewer nodes is recoverable,
+   * ranking on text that does not exist is not.
    */
   async search(workspaceId: WorkspaceId, query: string, limit: number): Promise<SemanticHit[]> {
     const nodes = await this.deps.modelRepository.listNodes(workspaceId)

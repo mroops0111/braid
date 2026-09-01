@@ -25,9 +25,9 @@ export interface WorkspaceEventBus {
   /**
    * Subscribe to every workspace at once.
    *
-   * For a process-wide reaction that must not depend on someone remembering
-   * to register the workspace, such as keeping a derived index in step with
-   * whatever mutated the graph.
+   * For a process-wide reaction,
+   * that must not depend on someone remembering to register the workspace,
+   * such as keeping a derived index in step with whatever mutated the graph.
    */
   subscribeAll: (listener: WorkspaceEventListener) => () => void
 }

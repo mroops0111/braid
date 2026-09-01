@@ -183,8 +183,9 @@ export interface ComposeOptions {
   sourceUnitObservationRepository?: SourceUnitObservationRepository
   sourceSyncStateRepository?: SourceSyncStateRepository
   batchPlanRepository?: BatchPlanRepository
-  // Semantic search. Absent when a deployment configures no embedding
-  // backend, which leaves every other capability untouched.
+  // Semantic search.
+  // Absent when a deployment configures no embedding backend,
+  // which leaves every other capability untouched.
   embeddingRepository?: EmbeddingRepository
   embedder?: Embedder
   // Whether a skill run currently holds a workspace's sources.
@@ -236,8 +237,9 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const eventBus = options.eventBus ?? new InMemoryWorkspaceEventBus()
   const workspaceService = new WorkspaceService({ workspaceRepository, pluginRegistry })
   const modelService = new ModelService({ modelRepository })
-  // Started here rather than per route, so any future path that mutates the
-  // graph reindexes without its author having to know this exists.
+  // Started here rather than per route,
+  // so any future path that mutates the graph reindexes,
+  // without its author having to know this exists.
   const embeddingService = options.embedder && options.embeddingRepository
     ? new EmbeddingService({
       modelRepository,

@@ -108,8 +108,8 @@ export function createNodesRouter(deps: NodesRouterDeps): OpenAPIHono {
     const { type, status, q, semantic, limit } = context.req.valid('query')
     const types = type === undefined ? undefined : Array.isArray(type) ? type : [type]
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
-    // The structural filters decide what is eligible at all, so they run once
-    // and both retrievers rank within what survives them.
+    // The structural filters decide what is eligible at all,
+    // so they run once and both retrievers rank within what survives them.
     const eligible = await deps.modelService.listNodes(workspaceId, { types, statuses })
     const lexical = applyNodeFilter(eligible, q ? { textContains: q } : undefined)
     if (!semantic || !q || !deps.embeddingService)
@@ -121,8 +121,9 @@ export function createNodesRouter(deps: NodesRouterDeps): OpenAPIHono {
       .map(hit => byId.get(hit.nodeId))
       .filter((node): node is GraphNode => node !== undefined)
 
-    // Rank fusion rather than a blended score, since a substring hit count and
-    // a cosine distance have no common scale to be weighed on.
+    // Rank fusion rather than a blended score,
+    // since a substring hit count and a cosine distance,
+    // have no common scale to be weighed on.
     const fused = fuseByRank([lexical, semanticNodes], node => node.id)
     return context.json({ items: capped(fused, limit) }, 200)
   })

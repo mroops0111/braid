@@ -160,8 +160,9 @@ export function CommandPalette({
             {nodes.map(node => (
               <CommandItem
                 key={node.id}
-                // cmdk scores an item by this value, and the server already
-                // ranked these, so carrying the query keeps every result.
+                // cmdk scores an item by this value,
+                // and the server already ranked these,
+                // so carrying the query keeps every result.
                 value={`${query} ${node.id}`}
                 onSelect={() => {
                   onSelectNode(node.id)

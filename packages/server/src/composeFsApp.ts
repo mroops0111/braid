@@ -346,8 +346,9 @@ export async function composeFsAppWithRegistry(
     { ...pluginContext, resolveWorkspaceRoot },
   )
 
-  // Semantic search is optional. A deployment with no embedding backend
-  // configured keeps every other capability and simply cannot rank by meaning,
+  // Semantic search is optional.
+  // A deployment with no embedding backend keeps every other capability,
+  // and simply cannot rank by meaning,
   // so nothing here may throw when the axis is left unset.
   const embeddingKind = process.env.BRAID_EMBEDDING_KIND
   const embedder = embeddingKind

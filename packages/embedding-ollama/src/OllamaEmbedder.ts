@@ -27,8 +27,8 @@ interface EmbedResponse {
 /**
  * Embeds through an Ollama server.
  *
- * Ollama is already a common part of a self-hosted stack, and it keeps the
- * model outside the Braid image and the text inside the host.
+ * Ollama is already a common part of a self-hosted stack,
+ * and it keeps the model outside the Braid image and the text inside the host.
  */
 export class OllamaEmbedder implements Embedder {
   private readonly fetchImpl: typeof globalThis.fetch

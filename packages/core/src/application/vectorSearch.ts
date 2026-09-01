@@ -21,17 +21,18 @@ export function cosineSimilarity(left: readonly number[], right: readonly number
 
 /**
  * Smoothing constant for reciprocal rank fusion.
- * 60 is the value the original paper settled on and the one every
- * hybrid-search implementation since has used, so it stays a constant
- * rather than a knob nobody would know how to turn.
+ * 60 is the value the original paper settled on,
+ * and the one every hybrid-search implementation since has used,
+ * so it stays a constant rather than a knob nobody would know how to turn.
  */
 const RRF_SMOOTHING = 60
 
 /**
  * Merge ranked lists by reciprocal rank fusion.
  *
- * Fusion reads ranks rather than scores, so a lexical hit count and a cosine
- * distance combine without either being rescaled into the other's units.
+ * Fusion reads ranks rather than scores,
+ * so a lexical hit count and a cosine distance combine,
+ * without either being rescaled into the other's units.
  * A result found by both lists outranks one found by a single list,
  * which is the whole reason to run two retrievers.
  */

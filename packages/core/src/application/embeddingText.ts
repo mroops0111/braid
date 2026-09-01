@@ -4,8 +4,9 @@ import { createHash } from 'node:crypto'
 /**
  * The text a node is searched by.
  *
- * Name and description both, since a node's vocabulary is mostly in its
- * description, and a name alone is what left substring search half blind.
+ * Name and description both,
+ * since a node's vocabulary is mostly in its description,
+ * and a name alone is what left substring search half blind.
  * Ids and types are left out, they are structure rather than language,
  * and the type filter already selects on them exactly.
  */
