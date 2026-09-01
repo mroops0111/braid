@@ -1,4 +1,4 @@
-import type { SkillManifest, Workspace } from '@braidhq/schema'
+import type { NodeId, SkillManifest, Workspace } from '@braidhq/schema'
 import { Activity, ClipboardCheck, GitGraph, HelpCircle, Network, Settings, Settings2, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -11,7 +11,8 @@ import {
   CommandList,
   CommandShortcut,
 } from '@/components/ui/command'
-import { useSkills } from '@/lib/queries'
+import { useNodeSearch, useSkills } from '@/lib/queries'
+import { useDebounced } from '@/lib/useDebounced'
 import { WorkspaceSwatch } from './WorkspaceSwatch'
 
 interface CommandPaletteProps {
@@ -21,6 +22,11 @@ interface CommandPaletteProps {
   onSelectWorkspace: (id: string) => void
   onSelectSurface: (surface: Surface | null) => void
   onOpenWorkspaceDetails: () => void
+  /** Take the reader to a node on the graph and centre it there. */
+  onSelectNode: (nodeId: NodeId) => void
+  /** Lifted so a visible control can open the palette without the shortcut. */
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 export type Surface = 'actions' | 'activity' | 'batch' | 'clarifications' | 'history' | 'proposals' | 'settings'
@@ -70,21 +76,31 @@ export function CommandPalette({
   onSelectWorkspace,
   onSelectSurface,
   onOpenWorkspaceDetails,
+  onSelectNode,
+  open,
+  onOpenChange: setOpen,
 }: CommandPaletteProps) {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  // Ranking runs on the server and costs a model call,
+  // so the request trails the keystrokes rather than following each one.
+  const debouncedQuery = useDebounced(query, 350)
+  const { data: nodeData, isFetching: searching } = useNodeSearch(
+    activeWorkspaceId ?? undefined,
+    debouncedQuery,
+  )
   const { data: skillData } = useSkills(activeWorkspaceId ?? undefined)
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
         event.preventDefault()
-        setOpen(current => !current)
+        setOpen(!open)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [open, setOpen])
 
   // Linear, Gmail, and GitHub-style `g`-chord navigation.
   // Press `g`, then within 1s press the second key,
@@ -127,12 +143,38 @@ export function CommandPalette({
   }, [activeWorkspaceId, onSelectSurface, onOpenWorkspaceDetails])
 
   const skills = (skillData?.items ?? []).filter((s: SkillManifest) => !s.frontmatter.braid.hidden)
+  const nodes = nodeData?.items ?? []
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen} title={t('shell.commandPalette.accessibilityTitle')} description={t('shell.commandPalette.accessibilityDescription')}>
-      <CommandInput placeholder={t('shell.commandPalette.searchPlaceholder')} />
+      <CommandInput
+        placeholder={t('shell.commandPalette.searchPlaceholder')}
+        value={query}
+        onValueChange={setQuery}
+      />
       <CommandList>
         <CommandEmpty>{t('shell.commandPalette.noMatches')}</CommandEmpty>
+
+        {nodes.length > 0 && (
+          <CommandGroup heading={searching ? t('shell.commandPalette.nodesSearching') : t('shell.commandPalette.nodesTitle')}>
+            {nodes.map(node => (
+              <CommandItem
+                key={node.id}
+                // cmdk scores an item by this value, and the server already
+                // ranked these, so carrying the query keeps every result.
+                value={`${query} ${node.id}`}
+                onSelect={() => {
+                  onSelectNode(node.id)
+                  setOpen(false)
+                }}
+              >
+                <Network className="mr-2 size-3.5 text-muted-foreground" />
+                <span className="truncate">{node.name}</span>
+                <CommandShortcut className="uppercase tracking-wider">{node.type}</CommandShortcut>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
 
         <CommandGroup heading={t('shell.commandPalette.goToTitle')}>
           {SURFACE_ITEMS.map(({ id, labelKey, Icon, shortcut }) => (

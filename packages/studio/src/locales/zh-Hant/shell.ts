@@ -41,6 +41,8 @@ const shell: typeof en = {
     accessibilityDescription: '搜尋要執行的指令。',
     searchPlaceholder: '輸入指令或搜尋…',
     noMatches: '沒有結果。',
+    nodesTitle: '節點',
+    nodesSearching: '排序中…',
     goToTitle: '前往',
     workspacesTitle: '工作區',
     actionsTitle: '動作',

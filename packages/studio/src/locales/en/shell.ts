@@ -46,6 +46,8 @@ export const shell = {
     accessibilityDescription: 'Search for a command to run.',
     searchPlaceholder: 'Type a command or search…',
     noMatches: 'No results.',
+    nodesTitle: 'Nodes',
+    nodesSearching: 'Ranking…',
     goToTitle: 'Go To',
     workspacesTitle: 'Workspaces',
     actionsTitle: 'Actions',

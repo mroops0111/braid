@@ -67,6 +67,9 @@ function AppInner() {
   const [detailsId, setDetailsId] = useState<string | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const graphSurfaceState = useGraphSurfaceState()
+  // Lifted out of the palette so a visible control can open it,
+  // rather than the shortcut being the only way in.
+  const [paletteOpen, setPaletteOpen] = useState(false)
   const { setSelectedNodeId, setSelectedEdgeId, setFocusMode, requestCenter } = graphSurfaceState
   // One-shot deep-link target for the Proposals surface.
   // ProposalsPage consumes and clears it once it selects the matching item.
@@ -177,6 +180,7 @@ function AppInner() {
                                         workspaceId={activeId}
                                         state={graphSurfaceState}
                                         onStartBootstrap={() => setActiveSurface('batch')}
+                                        onOpenSearch={() => setPaletteOpen(true)}
                                       />
                                     )}
                                     {activeSurface === 'actions' && (
@@ -217,6 +221,9 @@ function AppInner() {
                     onSelectWorkspace={setActiveId}
                     onSelectSurface={setActiveSurface}
                     onOpenWorkspaceDetails={() => activeId && openDetails(activeId)}
+                    onSelectNode={focusNode}
+                    open={paletteOpen}
+                    onOpenChange={setPaletteOpen}
                   />
                   <WorkspaceDetailsSheet
                     workspaceId={detailsId}
@@ -249,10 +256,11 @@ function AppInner() {
  * Mounts the GraphSurface and routes its toolbar through the shared PageActions portal,
  * so view / focus controls sit in the contextual sub-bar alongside any future graph-only actions.
  */
-function GraphHomeView({ workspaceId, state, onStartBootstrap }: {
+function GraphHomeView({ workspaceId, state, onStartBootstrap, onOpenSearch }: {
   workspaceId: string
   state: ReturnType<typeof useGraphSurfaceState>
   onStartBootstrap: () => void
+  onOpenSearch: () => void
 }) {
   const { view, setView, selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode, centerRequest, requestCenter } = state
 
@@ -285,6 +293,7 @@ function GraphHomeView({ workspaceId, state, onStartBootstrap }: {
           onSelectEdge={setSelectedEdgeId}
           focusMode={focusMode}
           centerRequest={centerRequest}
+          onOpenSearch={onOpenSearch}
           onStartBootstrap={onStartBootstrap}
         />
       </div>

@@ -97,6 +97,8 @@ interface GraphCanvasProps {
    * Lets a freshly-scaffolded workspace discover the bootstrap flow.
    */
   onStartBootstrap?: () => void
+  /** Opens the command palette from the navigator, not only from the shortcut. */
+  onOpenSearch?: () => void
 }
 
 const NODE_TYPES = { card: GraphNodeCard }
@@ -112,21 +114,21 @@ const INITIAL_FILTERS: GraphFilters = {
 // so labels appear on a high-level or focused view, not the whole graph.
 const EDGE_LABEL_LIMIT = 40
 
-export function GraphCanvas({ workspaceId, source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap }: GraphCanvasProps) {
+export function GraphCanvas({ workspaceId, source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap, onOpenSearch }: GraphCanvasProps) {
   const palette = usePalette(workspaceId)
   return (
     <PaletteProvider value={palette}>
       <ReactFlowProvider>
         <CanvasInner
           workspaceId={workspaceId}
-          {...optional({ source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap })}
+          {...optional({ source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap, onOpenSearch })}
         />
       </ReactFlowProvider>
     </PaletteProvider>
   )
 }
 
-function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, onSelectNode, selectedEdgeId: controlledEdgeSelected, onSelectEdge, focusMode = false, centerRequest = 0, dimUnchanged = false, emphasizeAdded = false, onStartBootstrap }: GraphCanvasProps) {
+function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, onSelectNode, selectedEdgeId: controlledEdgeSelected, onSelectEdge, focusMode = false, centerRequest = 0, dimUnchanged = false, emphasizeAdded = false, onStartBootstrap, onOpenSearch }: GraphCanvasProps) {
   const { t } = useTranslation()
   // React Query dedupes the live snapshot fetch by queryKey,
   // so it is effectively free when `source` is supplied.
@@ -462,6 +464,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
           orphanIds={orphanIds}
           filters={filters}
           onFiltersChange={setFilters}
+          onOpenSearch={onOpenSearch ?? (() => {})}
         />
       )}
 

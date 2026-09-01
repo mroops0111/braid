@@ -38,6 +38,8 @@ export interface GraphSurfaceProps {
    * and auto-panning on those felt twitchy.
    */
   centerRequest?: number
+  /** Opens the command palette from the navigator. */
+  onOpenSearch?: () => void
   /** Proposal-preview only: see GraphCanvas for semantics. */
   dimUnchanged?: boolean
   /** Proposal-preview only: see GraphCanvas for semantics. */
@@ -64,6 +66,7 @@ export function GraphSurface({
   onSelectEdge,
   focusMode,
   centerRequest,
+  onOpenSearch,
   dimUnchanged,
   emphasizeAdded,
   onStartBootstrap,
@@ -72,7 +75,7 @@ export function GraphSurface({
     return (
       <GraphCanvas
         workspaceId={workspaceId}
-        {...optional({ source, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap })}
+        {...optional({ source, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap, onOpenSearch })}
         selectedNodeId={selectedNodeId}
         onSelectNode={onSelectNode}
         selectedEdgeId={selectedEdgeId}
