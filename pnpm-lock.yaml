@@ -251,6 +251,9 @@ importers:
       '@braidhq/core':
         specifier: workspace:*
         version: link:../core
+      '@braidhq/embedding-ollama':
+        specifier: workspace:*
+        version: link:../embedding-ollama
       '@braidhq/ontology-ddd':
         specifier: workspace:*
         version: link:../ontology-ddd
