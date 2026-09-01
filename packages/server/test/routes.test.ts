@@ -394,7 +394,7 @@ describe('list endpoints return their empty shape for a fresh workspace', () => 
 })
 
 describe('GET /workspaces/:ws/nodes filters and lookup', () => {
-  it('filters nodes by type, status, and nameContains', async () => {
+  it('filters nodes by type, status, and a text substring', async () => {
     const { app, deps } = await buildTestApp()
     await deps.modelRepository.applyOperations(workspaceId, [
       { operation: 'addNode', payload: { type: COMMAND, name: 'voidTask', id: 'n-1' as NodeId, status: DRAFT } },

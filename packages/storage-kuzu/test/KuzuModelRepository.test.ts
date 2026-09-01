@@ -173,7 +173,7 @@ describe('KuzuModelRepository', () => {
     ])
     expect((await repo.listNodes(wsId, { types: [entityType] })).map(n => n.id).sort()).toEqual(['b', 'c'])
     expect((await repo.listNodes(wsId, { statuses: [completedStatus] })).map(n => n.id)).toEqual(['b'])
-    expect((await repo.listNodes(wsId, { nameContains: 'cart' })).map(n => n.id).sort()).toEqual(['a', 'b'])
+    expect((await repo.listNodes(wsId, { textContains: 'cart' })).map(n => n.id).sort()).toEqual(['a', 'b'])
   })
 
   it('listEdges filters by type, fromNodeId, and toNodeId', async () => {
@@ -232,6 +232,38 @@ describe('KuzuModelRepository', () => {
 
     const twoHop = await repo.scopeOf(wsId, 'a' as NodeId, 2)
     expect(twoHop.nodes.map(n => n.id).sort()).toEqual(['a', 'b', 'c'])
+  })
+
+  it('scopeOf walks an edge backwards, so a parent is reachable from its child', async () => {
+    await repo.applyOperations(wsId, [
+      { operation: 'addNodes', payloads: [
+        { id: 'parent' as NodeId, type: aggregateType, name: 'Parent', status: draft },
+        { id: 'child' as NodeId, type: entityType, name: 'Child', status: draft },
+      ] },
+      { operation: 'addEdges', payloads: [
+        { id: 'e1' as EdgeId, type: containsType, fromNodeId: 'parent' as NodeId, toNodeId: 'child' as NodeId },
+      ] },
+    ])
+
+    // Seeded at the child, whose only edge points at it rather than away.
+    const scope = await repo.scopeOf(wsId, 'child' as NodeId, 1)
+    expect(scope.nodes.map(node => node.id).sort()).toEqual(['child', 'parent'])
+  })
+
+  it('scopeOf stops once the frontier is exhausted, rather than running the full depth', async () => {
+    await repo.applyOperations(wsId, [
+      { operation: 'addNodes', payloads: [
+        { id: 'a' as NodeId, type: aggregateType, name: 'A', status: draft },
+        { id: 'b' as NodeId, type: entityType, name: 'B', status: draft },
+      ] },
+      { operation: 'addEdges', payloads: [
+        { id: 'e1' as EdgeId, type: containsType, fromNodeId: 'a' as NodeId, toNodeId: 'b' as NodeId },
+      ] },
+    ])
+
+    // Depth outruns the graph, which has nothing past the first hop.
+    const scope = await repo.scopeOf(wsId, 'a' as NodeId, 5)
+    expect(scope.nodes.map(node => node.id).sort()).toEqual(['a', 'b'])
   })
 
   it('isolates workspaces by db path', async () => {

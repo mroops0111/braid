@@ -114,7 +114,7 @@ export type ModelSnapshot = z.infer<typeof ModelSnapshot>
 export const GraphNodeFilter = z.object({
   types: z.array(NodeTypeId).optional(),
   statuses: z.array(NodeStatus).optional(),
-  nameContains: z.string().optional(),
+  textContains: z.string().optional(),
 })
 export type GraphNodeFilter = z.infer<typeof GraphNodeFilter>
 

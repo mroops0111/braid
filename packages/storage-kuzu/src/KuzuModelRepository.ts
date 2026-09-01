@@ -13,7 +13,7 @@ import type { Connection, Database, PreparedStatement, QueryResult } from 'kuzu'
 import { mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import process from 'node:process'
-import { Model, NotFoundError } from '@braidhq/core'
+import { applyEdgeFilter, applyNodeFilter, Model, NotFoundError } from '@braidhq/core'
 import * as kuzu from 'kuzu'
 import { edgeToParams, edgeToUpdateParams, nodeToParams, rowToEdge, rowToNode } from './codec.js'
 import { DDL_CREATE_EDGE_TABLE, DDL_CREATE_NODE_TABLE } from './schema.js'
@@ -249,38 +249,4 @@ function scopeBfs(snapshot: ModelSnapshot, seed: NodeId, depth: number): ModelSn
     nodes: snapshot.nodes.filter(n => visited.has(n.id)),
     edges: snapshot.edges.filter(e => visited.has(e.fromNodeId) && visited.has(e.toNodeId)),
   }
-}
-
-function applyNodeFilter(nodes: GraphNode[], filter?: GraphNodeFilter): GraphNode[] {
-  let out = nodes
-  if (filter?.types?.length) {
-    const t = filter.types
-    out = out.filter(n => t.includes(n.type))
-  }
-  if (filter?.statuses?.length) {
-    const s = filter.statuses
-    out = out.filter(n => s.includes(n.status))
-  }
-  if (filter?.nameContains) {
-    const needle = filter.nameContains.toLowerCase()
-    out = out.filter(n => n.name.toLowerCase().includes(needle))
-  }
-  return out
-}
-
-function applyEdgeFilter(edges: GraphEdge[], filter?: GraphEdgeFilter): GraphEdge[] {
-  let out = edges
-  if (filter?.types?.length) {
-    const t = filter.types
-    out = out.filter(e => t.includes(e.type))
-  }
-  if (filter?.fromNodeId !== undefined) {
-    const from = filter.fromNodeId
-    out = out.filter(e => e.fromNodeId === from)
-  }
-  if (filter?.toNodeId !== undefined) {
-    const to = filter.toNodeId
-    out = out.filter(e => e.toNodeId === to)
-  }
-  return out
 }
