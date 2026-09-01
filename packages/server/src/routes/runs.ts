@@ -1,15 +1,19 @@
 import type {
   RunRepository,
   SkillRunner,
+  Workspace,
   WorkspaceRepository,
 } from '@braidhq/core'
-import type { SessionMetadata, SkillEvent } from '@braidhq/schema'
+import type { RunRecord, SessionMetadata, SkillEvent, SkillRunId as SkillRunIdType } from '@braidhq/schema'
+import type { Context } from 'hono'
 import { ConflictError, NotFoundError, ValidationError } from '@braidhq/core'
 import { SkillRunId } from '@braidhq/schema'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { z } from 'zod'
 import { createAsyncQueue } from '../infrastructure/skill/asyncQueue.js'
+import { getUserId } from '../middleware/auth.js'
+import { getViewerContext } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { loadWorkspaceById } from './helpers.js'
 
@@ -22,10 +26,51 @@ export interface RunsRouterDeps {
 export function createRunsRouter(deps: RunsRouterDeps): Hono {
   const router = new Hono()
 
+  /**
+   * Which runs this caller may read or act on.
+   *
+   * An owner reviews the workspace as a whole, so every run is theirs.
+   * Everyone else sees only what they asked for.
+   * A record with no author predates attribution,
+   * so it stays with the owners who can place it.
+   */
+  function visibleToCaller(context: Context): (record: RunRecord) => boolean {
+    const viewer = getViewerContext(context)
+    // No viewer is an open composition (in-memory), which applies no filter.
+    if (!viewer || viewer.effectiveRole === 'owner')
+      return () => true
+    const userId = getUserId(context)
+    return record => record.startedBy === userId
+  }
+
+  /**
+   * Refuse a run belonging to someone else.
+   *
+   * Reported as absent rather than forbidden,
+   * so the answer never confirms that another person's run exists.
+   * An id with no record is left alone,
+   * since the endpoints below already answer for a run they cannot find.
+   */
+  async function requireVisibleRun(context: Context, workspace: Workspace, runId: SkillRunIdType): Promise<void> {
+    const records = await deps.runRepository.listRecords(workspace)
+    const record = records.find(candidate => candidate.runId === runId)
+    if (record && !visibleToCaller(context)(record))
+      throw new NotFoundError(`Run "${runId}" not found`)
+  }
+
+  /** The same rule for a session, which is visible through any run under it. */
+  async function requireVisibleSession(context: Context, workspace: Workspace, sessionId: string): Promise<void> {
+    const records = await deps.runRepository.listRecords(workspace)
+    const under = records.filter(record => record.sessionId === sessionId)
+    const canSee = visibleToCaller(context)
+    if (under.length > 0 && !under.some(canSee))
+      throw new NotFoundError(`Session "${sessionId}" not found`)
+  }
+
   router.get('/', async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const items = await deps.runRepository.listRecords(workspace)
-    return context.json({ items })
+    return context.json({ items: items.filter(visibleToCaller(context)) })
   })
 
   // Replay the persisted JSONL log,
@@ -35,6 +80,7 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
   router.get('/:runId/events', async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const runId = SkillRunId.parse(context.req.param('runId'))
+    await requireVisibleRun(context, workspace, runId)
 
     return streamSSE(context, async (stream) => {
       if (!deps.skillRunner.isActive(runId)) {
@@ -81,6 +127,8 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
   // which the SSE tailers receive normally. 404 if the run already finished.
   router.post('/:runId/cancel', async (context) => {
     const runId = SkillRunId.parse(context.req.param('runId'))
+    const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
+    await requireVisibleRun(context, workspace, runId)
     await deps.skillRunner.cancel(runId)
     return context.body(null, 204)
   })
@@ -89,6 +137,7 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
     const sessionId = context.req.param('sessionId')
     if (!sessionId)
       throw new NotFoundError('Query parameter sessionId is required')
+    await requireVisibleSession(context, await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository), sessionId)
     await deps.skillRunner.forgetSession(sessionId)
     // `?purge=true` also drops the persisted run records and event logs,
     // matching the workspace-level `?purge=true` pattern.
@@ -115,6 +164,7 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
     if (deps.skillRunner.isActive(runId))
       throw new ConflictError(`Run "${runId}" is still active`)
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
+    await requireVisibleRun(context, workspace, runId)
     await deps.runRepository.deleteRecords(workspace, [runId])
     return context.body(null, 204)
   })
@@ -127,7 +177,13 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
   router.get('/sessions', async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const items = await deps.runRepository.listSessionMetadata(workspace)
-    return context.json({ items })
+    const canSee = visibleToCaller(context)
+    const mine = new Set(
+      (await deps.runRepository.listRecords(workspace))
+        .filter(record => record.sessionId !== undefined && canSee(record))
+        .map(record => record.sessionId),
+    )
+    return context.json({ items: items.filter(metadata => mine.has(metadata.sessionId)) })
   })
 
   router.patch('/sessions/:sessionId', async (context) => {
@@ -139,6 +195,7 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
     if (!parsed.success)
       throw new ValidationError(parsed.error.issues.map(i => i.message).join('; '))
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
+    await requireVisibleSession(context, workspace, sessionId)
     const metadata: SessionMetadata = {
       sessionId,
       title: parsed.data.title,

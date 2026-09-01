@@ -120,12 +120,15 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
         </details>
       )
     case 'rate-limit': {
-      const held = rateLimitHeld(event.status)
+      // A warning carries nothing the reader can act on,
+      // and it lands on almost every run near the limit.
+      if (!rateLimitHeld(event.status))
+        return null
       return (
-        <div className={held ? 'text-amber-400' : 'text-muted-foreground/70'}>
+        <div className="text-amber-400">
           ⏳
           {' '}
-          {held ? t('transcript.rateLimitWaiting') : t('transcript.rateLimitNearing')}
+          {t('transcript.rateLimitWaiting')}
           {event.resetsAt ? ` ${t('transcript.rateLimitReset', { time: formatTime(event.resetsAt * 1000) })}` : ''}
         </div>
       )
