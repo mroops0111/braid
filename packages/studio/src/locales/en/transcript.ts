@@ -8,10 +8,8 @@ export const transcript = {
   runningStatus: 'running…',
   // Collapsible reasoning section.
   thinkingTitle: 'Thinking',
-  // Rate-limit notices. `time` is a preformatted clock time.
-  // The agent reports a warning long before it blocks,
-  // so the two states read differently.
-  rateLimitNearing: 'approaching rate limit',
+  // Shown only when the agent actually holds the run.
+  // `time` is a preformatted clock time.
   rateLimitWaiting: 'waiting on rate limit',
   rateLimitReset: '(resets {time})',
   // Terminal-style event lines. Bracket tags stay verbatim.
