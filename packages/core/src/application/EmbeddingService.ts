@@ -76,10 +76,18 @@ export class EmbeddingService {
     this.publish(workspaceId, { type: 'embedding.started', total: outdated.length })
     const every = this.deps.progressEvery ?? DEFAULT_PROGRESS_EVERY
     let done = 0
-    for (const chunk of chunked(outdated, every)) {
-      await this.embedAndStore(workspaceId, chunk)
-      done += chunk.length
-      this.publish(workspaceId, { type: 'embedding.progress', done, total: outdated.length })
+    try {
+      for (const chunk of chunked(outdated, every)) {
+        await this.embedAndStore(workspaceId, chunk)
+        done += chunk.length
+        this.publish(workspaceId, { type: 'embedding.progress', done, total: outdated.length })
+      }
+    }
+    catch (err) {
+      // A caller that started this detached has nowhere else to learn it broke,
+      // and the vectors written before the failure stay valid.
+      this.publish(workspaceId, { type: 'embedding.failed', message: messageOf(err) })
+      throw err
     }
     this.publish(workspaceId, { type: 'embedding.completed', total: outdated.length })
     return this.coverage(workspaceId)
@@ -142,6 +150,12 @@ type EmbeddingProgress =
   | { type: 'embedding.started', total: number }
   | { type: 'embedding.progress', done: number, total: number }
   | { type: 'embedding.completed', total: number }
+  | { type: 'embedding.failed', message: string }
+
+function messageOf(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err)
+  return message.length > 0 ? message : 'embedding failed'
+}
 
 function chunked<T>(items: readonly T[], size: number): T[][] {
   const out: T[][] = []

@@ -118,6 +118,12 @@ export const EmbeddingCompletedEvent = WorkspaceEventBase.extend({
 })
 export type EmbeddingCompletedEvent = z.infer<typeof EmbeddingCompletedEvent>
 
+export const EmbeddingFailedEvent = WorkspaceEventBase.extend({
+  type: z.literal('embedding.failed'),
+  message: z.string().min(1),
+})
+export type EmbeddingFailedEvent = z.infer<typeof EmbeddingFailedEvent>
+
 export const BatchStartedEvent = WorkspaceEventBase.extend({
   type: z.literal('batch.started'),
   planId: BatchPlanId,
@@ -277,6 +283,7 @@ export const WorkspaceEvent = z.discriminatedUnion('type', [
   EmbeddingStartedEvent,
   EmbeddingProgressEvent,
   EmbeddingCompletedEvent,
+  EmbeddingFailedEvent,
   RunStartedEvent,
   RunCompletedEvent,
   ProposalCreatedEvent,
