@@ -4,6 +4,7 @@ import type {
   ClarificationCreateBody,
   CommitMeta,
   CommitSha,
+  EmbeddingCoverage,
   FileDiff,
   GraphEdge,
   GraphNode,
@@ -346,6 +347,9 @@ export const api = {
     const params = new URLSearchParams({ q: query, semantic: 'true', limit: String(limit) })
     return fetchJson<ItemList<GraphNode>>(`/workspaces/${workspaceId}/nodes?${params.toString()}`)
   },
+
+  getEmbeddingCoverage: (workspaceId: string) =>
+    fetchJson<EmbeddingCoverage>(`/workspaces/${workspaceId}/embeddings`),
 
   listEdges: (workspaceId: string) =>
     fetchJson<ItemList<GraphEdge>>(`/workspaces/${workspaceId}/edges`),

@@ -47,6 +47,7 @@ export const shell = {
     searchPlaceholder: 'Type a command or search…',
     noMatches: 'No results.',
     nodesTitle: 'Nodes',
+    nodesRebuilding: 'Nodes (index rebuilding)',
     nodesSearching: 'Ranking…',
     goToTitle: 'Go To',
     workspacesTitle: 'Workspaces',

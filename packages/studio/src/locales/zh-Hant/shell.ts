@@ -42,6 +42,7 @@ const shell: typeof en = {
     searchPlaceholder: '輸入指令或搜尋…',
     noMatches: '沒有結果。',
     nodesTitle: '節點',
+    nodesRebuilding: '節點（索引重建中）',
     nodesSearching: '排序中…',
     goToTitle: '前往',
     workspacesTitle: '工作區',

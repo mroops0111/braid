@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { BatchInFlightBanner } from './components/BatchInFlightBanner'
 import { CommandPalette } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
+import { EmbeddingRebuildBanner } from './components/EmbeddingRebuildBanner'
 import { InFlightRunBanner } from './components/InFlightRunBanner'
 import { PageActions, PageActionsHost, PageActionsProvider } from './components/PageActions'
 import { ReactorBanner } from './components/ReactorBanner'
@@ -165,6 +166,7 @@ function AppInner() {
                               onOpenBatch={() => setActiveSurface('batch')}
                               suppress={activeSurface === 'batch'}
                             />
+                            <EmbeddingRebuildBanner workspaceId={activeId} />
                             <InFlightRunBanner
                               workspaceId={activeId}
                               // Suppress on surfaces that render the run themselves,

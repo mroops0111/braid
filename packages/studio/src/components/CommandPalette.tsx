@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/command'
 import { useNodeSearch, useSkills } from '@/lib/queries'
 import { useDebounced } from '@/lib/useDebounced'
+import { useEmbeddingProgress } from '@/lib/useEmbeddingProgress'
 import { WorkspaceSwatch } from './WorkspaceSwatch'
 
 interface CommandPaletteProps {
@@ -90,6 +91,7 @@ export function CommandPalette({
     debouncedQuery,
   )
   const { data: skillData } = useSkills(activeWorkspaceId ?? undefined)
+  const { rebuilding } = useEmbeddingProgress(open ? activeWorkspaceId : null)
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -144,6 +146,13 @@ export function CommandPalette({
 
   const skills = (skillData?.items ?? []).filter((s: SkillManifest) => !s.frontmatter.braid.hidden)
   const nodes = nodeData?.items ?? []
+  // A rebuild leaves out any node whose vector no longer matches its text,
+  // so the list is short for a reason worth naming.
+  const nodesHeading = rebuilding
+    ? t('shell.commandPalette.nodesRebuilding')
+    : searching
+      ? t('shell.commandPalette.nodesSearching')
+      : t('shell.commandPalette.nodesTitle')
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen} title={t('shell.commandPalette.accessibilityTitle')} description={t('shell.commandPalette.accessibilityDescription')}>
@@ -156,7 +165,7 @@ export function CommandPalette({
         <CommandEmpty>{t('shell.commandPalette.noMatches')}</CommandEmpty>
 
         {nodes.length > 0 && (
-          <CommandGroup heading={searching ? t('shell.commandPalette.nodesSearching') : t('shell.commandPalette.nodesTitle')}>
+          <CommandGroup heading={nodesHeading}>
             {nodes.map(node => (
               <CommandItem
                 key={node.id}
