@@ -2,6 +2,8 @@ import type {
   BatchPlanRepository,
   ClarificationRepository,
   Clock,
+  Embedder,
+  EmbeddingRepository,
   ModelRepository,
   ModelSerializer,
   ProposalRepository,
@@ -33,6 +35,7 @@ import { join } from 'node:path'
 import {
   BatchService,
   createLogger,
+  EmbeddingService,
   HistoryService,
   HITLService,
   ModelService,
@@ -43,6 +46,7 @@ import {
   SourcePollingService,
   SourceSyncService,
   SourceUnitObservationService,
+  startEmbeddingReindexer,
   SystemClock,
   SystemScheduler,
   TaskCoalescer,
@@ -87,6 +91,7 @@ export interface AppDependencies {
   // Capability services, each built only when its dependencies are wired.
   historyService?: HistoryService
   batchService?: BatchService
+  embeddingService?: EmbeddingService
   // Runs the active ontology's per-unit skill on intent-source diffs.
   reactorService?: ReactorService
 
@@ -178,6 +183,11 @@ export interface ComposeOptions {
   sourceUnitObservationRepository?: SourceUnitObservationRepository
   sourceSyncStateRepository?: SourceSyncStateRepository
   batchPlanRepository?: BatchPlanRepository
+  // Semantic search.
+  // Absent when a deployment configures no embedding backend,
+  // which leaves every other capability untouched.
+  embeddingRepository?: EmbeddingRepository
+  embedder?: Embedder
   // Whether a skill run currently holds a workspace's sources.
   isWorkspaceBusy?: (workspaceId: WorkspaceId) => boolean
 
@@ -227,6 +237,26 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const eventBus = options.eventBus ?? new InMemoryWorkspaceEventBus()
   const workspaceService = new WorkspaceService({ workspaceRepository, pluginRegistry })
   const modelService = new ModelService({ modelRepository })
+  // Started here rather than per route,
+  // so any future path that mutates the graph reindexes,
+  // without its author having to know this exists.
+  const embeddingService = options.embedder && options.embeddingRepository
+    ? new EmbeddingService({
+      modelRepository,
+      embeddingRepository: options.embeddingRepository,
+      embedder: options.embedder,
+      clock,
+      eventBus,
+    })
+    : undefined
+  if (embeddingService) {
+    startEmbeddingReindexer({
+      eventBus,
+      embeddingService,
+      onError: (workspaceId: WorkspaceId, error: unknown) =>
+        createLogger('embedding').warn({ workspaceId, err: String(error) }, 'reindex failed'),
+    })
+  }
   const modelValidationService = new ModelValidationService({ pluginRegistry })
   const sourceLoaderRunner = new SourceLoaderRunner({ pluginRegistry, clock, eventBus })
   const syncStateRepository = options.sourceSyncStateRepository ?? new InMemorySourceSyncStateRepository()
@@ -335,6 +365,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     hitlService,
     ...(historyService ? { historyService } : {}),
     ...(batchService ? { batchService } : {}),
+    ...(embeddingService ? { embeddingService } : {}),
     ...(reactorService ? { reactorService } : {}),
     reactorCycleRepository,
     ...(options.unitLister ? { unitLister: options.unitLister } : {}),

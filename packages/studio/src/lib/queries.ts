@@ -22,6 +22,8 @@ export const queryKeys = {
   clarificationByStatus: (workspaceId: string, status: string) => ['workspaces', workspaceId, 'clarifications', status] as const,
   clarificationDetail: (workspaceId: string, clarificationId: string) => ['workspaces', workspaceId, 'clarifications', 'detail', clarificationId] as const,
   runs: (workspaceId: string) => ['workspaces', workspaceId, 'runs'] as const,
+  nodeSearch: (workspaceId: string, query: string) => ['nodeSearch', workspaceId, query] as const,
+  embeddingCoverage: (workspaceId: string) => ['workspaces', workspaceId, 'embeddings'] as const,
   sessionMetadata: (workspaceId: string) => ['workspaces', workspaceId, 'runs', 'sessions'] as const,
   history: (workspaceId: string) => ['workspaces', workspaceId, 'history'] as const,
   historyCommit: (workspaceId: string, sha: string) => ['workspaces', workspaceId, 'history', sha] as const,
@@ -94,6 +96,32 @@ export function useModelSnapshot(workspaceId: string | undefined) {
     queryKey: workspaceId ? queryKeys.modelSnapshot(workspaceId) : ['model', 'none'],
     queryFn: () => api.modelSnapshot(workspaceId!),
     enabled: !!workspaceId,
+  })
+}
+
+/**
+ * Ranked node results for a query.
+ *
+ * Disabled below two characters,
+ * since a single character ranks the whole graph and costs a model call to do it.
+ * Results are kept briefly,
+ * so moving back through a term the reader already typed does not re-query.
+ */
+export function useEmbeddingCoverage(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.embeddingCoverage(workspaceId ?? 'none'),
+    queryFn: () => api.getEmbeddingCoverage(workspaceId!),
+    enabled: !!workspaceId,
+  })
+}
+
+export function useNodeSearch(workspaceId: string | undefined, query: string) {
+  const trimmed = query.trim()
+  return useQuery({
+    queryKey: queryKeys.nodeSearch(workspaceId ?? 'none', trimmed),
+    queryFn: () => api.searchNodes(workspaceId!, trimmed),
+    enabled: !!workspaceId && trimmed.length >= 2,
+    staleTime: 30_000,
   })
 }
 

@@ -14,7 +14,7 @@ export function useGraphShortcuts(reactFlow: ReactFlowInstance): void {
       if (!(event.metaKey || event.ctrlKey))
         return
       if (event.key === 'f') {
-        const input = document.querySelector<HTMLInputElement>('input[placeholder="Search nodes…"]')
+        const input = document.querySelector<HTMLInputElement>('input[data-graph-text-filter]')
         if (input) {
           event.preventDefault()
           input.focus()

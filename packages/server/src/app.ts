@@ -11,6 +11,7 @@ import { createAuthRouter } from './routes/auth.js'
 import { createBatchRouter } from './routes/batch.js'
 import { createClarificationRouter } from './routes/clarifications.js'
 import { createEdgesRouter } from './routes/edges.js'
+import { createEmbeddingsRouter } from './routes/embeddings.js'
 import { healthRouter } from './routes/health.js'
 import { createHistoryRouter } from './routes/history.js'
 import { createModelRouter } from './routes/model.js'
@@ -155,7 +156,13 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   // so the membership gate above covers the event stream too.
   workspaceScoped.route('/events', createWorkspaceEventsRouter({ eventBus: deps.eventBus }))
   workspaceScoped.route('/model', createModelRouter({ modelService: deps.modelService }))
-  workspaceScoped.route('/nodes', createNodesRouter({ modelService: deps.modelService }))
+  workspaceScoped.route('/embeddings', createEmbeddingsRouter(
+    deps.embeddingService ? { embeddingService: deps.embeddingService } : {},
+  ))
+  workspaceScoped.route('/nodes', createNodesRouter({
+    modelService: deps.modelService,
+    ...(deps.embeddingService ? { embeddingService: deps.embeddingService } : {}),
+  }))
   workspaceScoped.route('/edges', createEdgesRouter({ modelService: deps.modelService }))
   workspaceScoped.route('/proposals', createProposalsRouter({
     hitlService: deps.hitlService,

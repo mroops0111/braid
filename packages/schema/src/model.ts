@@ -23,14 +23,6 @@ export type DriftIssue = z.infer<typeof DriftIssue>
 const nodeName = z.string().min(1).max(200).describe('Human-facing display name, distinct from id.')
 const nodeDescription = z.string().max(4000).optional().describe('Human-facing description of the node. Markdown allowed.')
 
-export const Embedding = z.object({
-  // Plain number[], not Float32Array. The storage adapter converts at its own boundary.
-  vector: z.array(z.number()),
-  modelId: z.string().min(1),
-  createdAt: Timestamp,
-})
-export type Embedding = z.infer<typeof Embedding>
-
 export const GraphNodeMetadata = z.object({
   // Declared source roles whose evidence is missing on this node.
   // Role-agnostic, an ontology names its own roles, absent means none missing.
@@ -60,7 +52,6 @@ export const GraphNode = z.object({
   description: nodeDescription,
   status: NodeStatus,
   metadata: GraphNodeMetadata,
-  embedding: Embedding.optional(),
 })
 export type GraphNode = z.infer<typeof GraphNode>
 
@@ -71,7 +62,6 @@ export const GraphNodeCreate = z.object({
   description: nodeDescription,
   status: NodeStatus.default('draft'),
   metadata: GraphNodeMetadata.optional(),
-  embedding: Embedding.optional(),
 })
 export type GraphNodeCreate = z.infer<typeof GraphNodeCreate>
 

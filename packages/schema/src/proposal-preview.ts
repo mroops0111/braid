@@ -139,8 +139,6 @@ function materializeNode(payload: GraphNodeCreate): GraphNode {
   }
   if (payload.description !== undefined)
     node.description = payload.description
-  if (payload.embedding !== undefined)
-    node.embedding = payload.embedding
   return node
 }
 

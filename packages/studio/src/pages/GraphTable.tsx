@@ -210,7 +210,7 @@ function NodeTable({
         <thead>
           <tr className="border-y border-border text-2xs uppercase tracking-wider text-muted-foreground">
             {showChange && <th className="w-24 px-4 py-2 text-left font-semibold">{t('graph.table.columnChange')}</th>}
-            <th className="w-32 px-4 py-2 text-left font-semibold">{t('common.type')}</th>
+            <th className="w-px whitespace-nowrap px-4 py-2 text-left font-semibold">{t('common.type')}</th>
             <th className="px-4 py-2 text-left font-semibold">{t('graph.table.columnId')}</th>
             <th className="px-4 py-2 text-left font-semibold">{t('common.name')}</th>
             <th className="px-4 py-2 text-left font-semibold">{t('common.status')}</th>
@@ -237,7 +237,7 @@ function NodeTable({
                     <ChangeBadge change={change} />
                   </td>
                 )}
-                <td className="px-4 py-1.5">
+                <td className="whitespace-nowrap px-4 py-1.5">
                   <NodeTypeBadge type={node.type} />
                 </td>
                 <td className="px-4 py-1.5 font-mono text-xs text-foreground">{node.id}</td>
@@ -284,7 +284,7 @@ function EdgeTable({
         <thead>
           <tr className="border-y border-border text-2xs uppercase tracking-wider text-muted-foreground">
             {showChange && <th className="w-24 px-4 py-2 text-left font-semibold">{t('graph.table.columnChange')}</th>}
-            <th className="px-4 py-2 text-left font-semibold">{t('common.type')}</th>
+            <th className="w-px whitespace-nowrap px-4 py-2 text-left font-semibold">{t('common.type')}</th>
             <th className="px-4 py-2 text-left font-semibold">{t('graph.table.columnFrom')}</th>
             <th className="px-4 py-2 text-left font-semibold">{t('graph.table.columnTo')}</th>
           </tr>
@@ -310,7 +310,7 @@ function EdgeTable({
                     <ChangeBadge change={change} />
                   </td>
                 )}
-                <td className="px-4 py-1.5">
+                <td className="whitespace-nowrap px-4 py-1.5">
                   <EdgeTypePill type={edge.type} />
                 </td>
                 <td className="px-4 py-1.5 font-mono text-xs text-foreground">{edge.fromNodeId}</td>

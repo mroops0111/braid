@@ -136,13 +136,13 @@ async function prepareStatements(conn: Connection): Promise<PreparedStatementCac
     insertNode: await conn.prepare(`
       CREATE (n:Node {
         id: $id, type: $type, name: $name, description: $description,
-        status: $status, metadata: $metadata, embedding: $embedding
+        status: $status, metadata: $metadata
       });
     `),
     updateNode: await conn.prepare(`
       MATCH (n:Node {id: $id})
       SET n.type = $type, n.name = $name, n.description = $description,
-          n.status = $status, n.metadata = $metadata, n.embedding = $embedding;
+          n.status = $status, n.metadata = $metadata;
     `),
     deleteNode: await conn.prepare(`
       MATCH (n:Node {id: $id}) DETACH DELETE n;
@@ -165,7 +165,7 @@ async function readSnapshot(conn: Connection): Promise<ModelSnapshot> {
   const nodesResult = await conn.query(`
     MATCH (n:Node)
     RETURN n.id AS id, n.type AS type, n.name AS name, n.description AS description,
-           n.status AS status, n.metadata AS metadata, n.embedding AS embedding;
+           n.status AS status, n.metadata AS metadata;
   `)
   const nodes = (await firstResult(nodesResult).getAll()).map(rowToNode)
 

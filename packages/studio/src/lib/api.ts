@@ -4,6 +4,7 @@ import type {
   ClarificationCreateBody,
   CommitMeta,
   CommitSha,
+  EmbeddingCoverage,
   FileDiff,
   GraphEdge,
   GraphNode,
@@ -334,6 +335,21 @@ export const api = {
 
   listNodes: (workspaceId: string) =>
     fetchJson<ItemList<GraphNode>>(`/workspaces/${workspaceId}/nodes`),
+
+  /**
+   * Nodes ranked for a query rather than filtered by it.
+   *
+   * The server fuses a substring pass with a vector pass,
+   * so an exact identifier and a paraphrase both land,
+   * and a deployment with no embedding backend simply returns the substring hits.
+   */
+  searchNodes: (workspaceId: string, query: string, limit = 20) => {
+    const params = new URLSearchParams({ q: query, semantic: 'true', limit: String(limit) })
+    return fetchJson<ItemList<GraphNode>>(`/workspaces/${workspaceId}/nodes?${params.toString()}`)
+  },
+
+  getEmbeddingCoverage: (workspaceId: string) =>
+    fetchJson<EmbeddingCoverage>(`/workspaces/${workspaceId}/embeddings`),
 
   listEdges: (workspaceId: string) =>
     fetchJson<ItemList<GraphEdge>>(`/workspaces/${workspaceId}/edges`),

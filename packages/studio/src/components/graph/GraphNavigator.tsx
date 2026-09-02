@@ -1,5 +1,5 @@
 import type { GraphNode, NodeId, NodeTypeId, OntologyResponse } from '@braidhq/schema'
-import { Check, ChevronDown, ChevronRight, Search } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, ListFilter, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useOntology } from '@/lib/queries'
@@ -20,9 +20,11 @@ interface GraphNavigatorProps {
   orphanIds: ReadonlySet<NodeId>
   filters: GraphFilters
   onFiltersChange: (filters: GraphFilters) => void
+  /** Opens the command palette, where a query is ranked rather than filtered. */
+  onOpenSearch: () => void
 }
 
-export function GraphNavigator({ workspaceId, nodes, orphanIds, filters, onFiltersChange }: GraphNavigatorProps) {
+export function GraphNavigator({ workspaceId, nodes, orphanIds, filters, onFiltersChange, onOpenSearch }: GraphNavigatorProps) {
   const { t } = useTranslation()
   // Build the localized palette here rather than read context,
   // since the navigator renders outside GraphCanvas's PaletteProvider.
@@ -47,8 +49,9 @@ export function GraphNavigator({ workspaceId, nodes, orphanIds, filters, onFilte
   return (
     <PaletteProvider value={palette}>
       <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground">
-        <div className="border-b border-sidebar-border p-2">
-          <SearchInput value={filters.search} onChange={search => onFiltersChange({ ...filters, search })} />
+        <div className="space-y-2 border-b border-sidebar-border p-2">
+          <SearchNodesButton onOpen={onOpenSearch} />
+          <TextFilterInput value={filters.search} onChange={search => onFiltersChange({ ...filters, search })} />
         </div>
 
         <div className="flex-1 overflow-y-auto scrollbar-thin">
@@ -104,16 +107,50 @@ export function GraphNavigator({ workspaceId, nodes, orphanIds, filters, onFilte
   )
 }
 
-function SearchInput({ value, onChange }: { value: string, onChange: (value: string) => void }) {
+/**
+ * Opens the palette, where a query is ranked rather than used to filter.
+ *
+ * The shortcut alone would leave the capability undiscoverable,
+ * and this sits above the filter,
+ * because a reader who cannot find a node looks here first.
+ */
+function SearchNodesButton({ onOpen }: { onOpen: () => void }) {
+  const { t } = useTranslation()
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/40 px-2 py-2 text-xs text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-foreground"
+    >
+      <Search className="size-3.5" />
+      <span className="flex-1 text-left">{t('graph.navigator.searchNodesButton')}</span>
+      <kbd className="rounded border border-sidebar-border px-1 text-2xs text-muted-foreground">⌘K</kbd>
+    </button>
+  )
+}
+
+/**
+ * Narrows the canvas to nodes whose text contains the value.
+ *
+ * A funnel rather than a magnifier,
+ * since this keeps or drops nodes and does not take the reader anywhere.
+ * Finding one node by relevance is the command palette's job,
+ * which ranks rather than filters.
+ */
+function TextFilterInput({ value, onChange }: { value: string, onChange: (value: string) => void }) {
   const { t } = useTranslation()
   return (
     <div className="relative">
-      <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-sidebar-foreground/40" />
+      <ListFilter className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-sidebar-foreground/40" />
       <input
         type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
-        placeholder={t('graph.navigator.searchPlaceholder')}
+        placeholder={t('graph.navigator.textFilterPlaceholder')}
+        title={t('graph.navigator.textFilterHint')}
+        // The shortcut focuses this by attribute.
+        // A placeholder selector would miss in every locale but one.
+        data-graph-text-filter
         className="w-full rounded-md border border-sidebar-border bg-background pl-7 pr-2 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
       />
     </div>

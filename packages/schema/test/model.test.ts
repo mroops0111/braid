@@ -1,11 +1,9 @@
 import type { DriftIssueId, SourceId } from '../src/index.js'
-import { T0 as isoTimestamp } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 
 import {
   DriftIssue,
   DriftSeverity,
-  Embedding,
   GraphEdge,
   GraphEdgeCreate,
   GraphEdgeFilter,
@@ -24,22 +22,6 @@ function sourceRef(uri: string) {
   }
 }
 
-describe('Embedding', () => {
-  it('parses a vector + model id + timestamp', () => {
-    const embedding = Embedding.parse({
-      vector: [0.1, 0.2, 0.3],
-      modelId: 'voyage-3',
-      createdAt: isoTimestamp,
-    })
-    expect(embedding.vector).toHaveLength(3)
-  })
-  it('rejects empty model id', () => {
-    expect(
-      Embedding.safeParse({ vector: [], modelId: '', createdAt: isoTimestamp }).success,
-    ).toBe(false)
-  })
-})
-
 describe('GraphNodeCreate', () => {
   it('defaults status to draft', () => {
     const node = GraphNodeCreate.parse({ type: 'command', name: 'voidTask' })
@@ -47,14 +29,6 @@ describe('GraphNodeCreate', () => {
   })
   it('rejects empty name', () => {
     expect(GraphNodeCreate.safeParse({ type: 'command', name: '' }).success).toBe(false)
-  })
-  it('accepts optional embedding', () => {
-    const node = GraphNodeCreate.parse({
-      type: 'command',
-      name: 'voidTask',
-      embedding: { vector: [0.1], modelId: 'voyage-3', createdAt: isoTimestamp },
-    })
-    expect(node.embedding?.vector).toHaveLength(1)
   })
 })
 

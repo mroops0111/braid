@@ -15,7 +15,8 @@ import {
   WorkspaceBootstrapService,
 } from '@braidhq/core'
 import { InMemoryWorkspaceEventBus } from '@braidhq/core/in-memory'
-import { AgentId, AgentKind, StorageKind as StorageKindSchema } from '@braidhq/schema'
+import { OllamaEmbeddingPlugin } from '@braidhq/embedding-ollama'
+import { AgentId, AgentKind, EmbeddingKind, StorageKind as StorageKindSchema } from '@braidhq/schema'
 import { createGoogleDriveLoader } from '@braidhq/source-loader-gdrive'
 import { gitLoader } from '@braidhq/source-loader-git'
 import { createGithubLoader } from '@braidhq/source-loader-github'
@@ -28,6 +29,7 @@ import { parseBoolEnv } from './infrastructure/_shared/env.js'
 import { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
 import { FsSessionStore } from './infrastructure/auth/SessionStore.js'
 import { FsBatchPlanRepository } from './infrastructure/batch/FsBatchPlanRepository.js'
+import { FsEmbeddingRepository } from './infrastructure/embedding/FsEmbeddingRepository.js'
 import { GitWorkspaceHistory } from './infrastructure/history/GitWorkspaceHistory.js'
 import { FsClarificationRepository } from './infrastructure/hitl/FsClarificationRepository.js'
 import { FsProposalRepository } from './infrastructure/hitl/FsProposalRepository.js'
@@ -191,6 +193,9 @@ export function defaultPluginRegistry(context: FsRuntimeContext, options: ExtraP
     pluginRegistry.register(plugin)
 
   pluginRegistry.register(claudeCodeAgentPlugin)
+  // Registered whether or not a deployment turns it on,
+  // so selecting `ollama` is one env var rather than a code change.
+  pluginRegistry.register(new OllamaEmbeddingPlugin())
   for (const plugin of options.extraAgentPlugins ?? [])
     pluginRegistry.register(plugin)
 
@@ -325,20 +330,40 @@ export async function composeFsAppWithRegistry(
   const storageKind = StorageKindSchema.parse(
     options.storageKind ?? process.env.BRAID_STORAGE_KIND ?? DEFAULT_STORAGE_KIND,
   )
+  const resolveWorkspaceRoot = async (workspaceId: WorkspaceId): Promise<string> => {
+    const roots = await workspaceRoots()
+    const root = roots.get(workspaceId)
+    if (!root)
+      throw new NotFoundError(`Workspace "${workspaceId}" not registered`)
+    return root
+  }
+  const pluginContext = {
+    workspaceRootPath: braidHome,
+    logger: { info: () => {}, warn: () => {}, error: () => {} },
+  }
   const modelRepository = await pluginRegistry.requireStoragePlugin(storageKind).createModelRepository(
     { kind: storageKind, config: {} },
-    {
-      workspaceRootPath: braidHome,
-      logger: { info: () => {}, warn: () => {}, error: () => {} },
-      resolveWorkspaceRoot: async (workspaceId: WorkspaceId) => {
-        const roots = await workspaceRoots()
-        const root = roots.get(workspaceId)
-        if (!root)
-          throw new NotFoundError(`Workspace "${workspaceId}" not registered`)
-        return root
-      },
-    },
+    { ...pluginContext, resolveWorkspaceRoot },
   )
+
+  // Semantic search is optional.
+  // A deployment with no embedding backend keeps every other capability,
+  // and simply cannot rank by meaning,
+  // so nothing here may throw when the axis is left unset.
+  const embeddingKind = process.env.BRAID_EMBEDDING_KIND
+  const embedder = embeddingKind
+    ? await pluginRegistry.requireEmbeddingPlugin(EmbeddingKind.parse(embeddingKind)).createEmbedder(
+      {
+        kind: EmbeddingKind.parse(embeddingKind),
+        config: {
+          ...(process.env.BRAID_EMBEDDING_HOST ? { host: process.env.BRAID_EMBEDDING_HOST } : {}),
+          ...(process.env.BRAID_EMBEDDING_MODEL ? { model: process.env.BRAID_EMBEDDING_MODEL } : {}),
+        },
+      },
+      pluginContext,
+    )
+    : undefined
+  const embeddingRepository = new FsEmbeddingRepository({ resolveWorkspaceRoot })
 
   // Server default agent.
   // A skill overrides kind, model, or effort in its SKILL.md frontmatter,
@@ -441,6 +466,8 @@ export async function composeFsAppWithRegistry(
     modelSerializer,
     bootstrap,
     batchPlanRepository: new FsBatchPlanRepository(),
+    embeddingRepository,
+    ...(embedder ? { embedder } : {}),
     unitLister: workspace => listUnitItems(workspace, unitBearingRolesOf(pluginRegistry, workspace)),
     ...(options.defaultOntologyId ? { defaultOntologyId: options.defaultOntologyId } : {}),
     // The reactor has no human caller, so it acts as the `reactor` service account,

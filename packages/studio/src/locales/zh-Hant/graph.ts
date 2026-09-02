@@ -22,7 +22,9 @@ const graph: typeof en = {
     columnTo: '終點',
   },
   navigator: {
-    searchPlaceholder: '搜尋名稱 / 描述…',
+    searchNodesButton: '搜尋節點',
+    textFilterPlaceholder: '依文字篩選…',
+    textFilterHint: '保留名稱或描述含有此文字的節點。',
     filterByType: '依類型篩選',
     orphansOnly: '僅孤立節點 ({count})',
     collapseButton: '收合導覽面板',

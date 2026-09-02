@@ -10,8 +10,13 @@ import type { WorkspaceEventBus, WorkspaceEventListener } from '../../applicatio
  */
 export class InMemoryWorkspaceEventBus implements WorkspaceEventBus {
   private readonly listeners = new Map<WorkspaceId, Set<WorkspaceEventListener>>()
+  private readonly globalListeners = new Set<WorkspaceEventListener>()
 
   publish(event: WorkspaceEvent): void {
+    // Snapshotted for the same reason as the per-workspace set below.
+    for (const listener of [...this.globalListeners]) {
+      listener(event)
+    }
     const subscribers = this.listeners.get(event.workspaceId)
     if (!subscribers)
       return
@@ -20,6 +25,13 @@ export class InMemoryWorkspaceEventBus implements WorkspaceEventBus {
     // does not mutate the set we are iterating.
     for (const listener of [...subscribers]) {
       listener(event)
+    }
+  }
+
+  subscribeAll(listener: WorkspaceEventListener): () => void {
+    this.globalListeners.add(listener)
+    return () => {
+      this.globalListeners.delete(listener)
     }
   }
 

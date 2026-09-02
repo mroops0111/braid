@@ -8,7 +8,6 @@ export interface NodeRow extends Record<string, string> {
   description: string
   status: string
   metadata: string
-  embedding: string
 }
 
 export interface EdgeRow extends Record<string, string> {
@@ -27,7 +26,6 @@ export function nodeToParams(node: GraphNode): NodeRow {
     description: node.description ?? '',
     status: node.status,
     metadata: JSON.stringify(node.metadata),
-    embedding: node.embedding ? JSON.stringify(node.embedding) : '',
   }
 }
 
@@ -62,7 +60,6 @@ export function edgeToUpdateParams(edge: GraphEdge): Pick<EdgeRow, 'id' | 'type'
  */
 export function rowToNode(row: Record<string, KuzuValue>): GraphNode {
   const description = asString(row.description, 'description')
-  const embedding = asString(row.embedding, 'embedding')
   const metadata = asString(row.metadata, 'metadata')
   return GraphNode.parse({
     id: asString(row.id, 'id'),
@@ -71,7 +68,6 @@ export function rowToNode(row: Record<string, KuzuValue>): GraphNode {
     status: asString(row.status, 'status'),
     metadata: metadata === '' ? {} : JSON.parse(metadata),
     ...(description !== '' ? { description } : {}),
-    ...(embedding !== '' ? { embedding: JSON.parse(embedding) } : {}),
   })
 }
 

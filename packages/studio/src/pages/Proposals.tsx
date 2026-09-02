@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
 import { useProposalGraphDataSource } from '@/components/graph/GraphDataSource'
 import { FocusToggle, OnlyChangesToggle } from '@/components/graph/GraphToolbar'
+import { useFocusedSelection } from '@/components/graph/useFocusedSelection'
 import { ListRow } from '@/components/ListRow'
 import { PageActions } from '@/components/PageActions'
 import { NodeReferenceTag } from '@/components/references/ReferenceTag'
@@ -19,7 +20,6 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
 import { queryKeys, useProposalsByStatus, useProposalValidation, useWorkspaceMembers } from '@/lib/queries'
 import { useGraphNavigation } from '@/lib/useGraphNavigation'
-import { useMutualExclusionPair } from '@/lib/useMutualExclusionPair'
 import { useWorkspacePolicy } from '@/policy'
 import { GraphSurface } from './GraphSurface'
 
@@ -545,9 +545,8 @@ function ProposalPreview({ workspaceId, operations, validation, rationale }: {
   // We manage `view` here,
   // and delegate the graph view to GraphSurface.
   const [view, setView] = useState<PreviewView>('graph')
-  const [selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId]
-    = useMutualExclusionPair<NodeId, EdgeId>()
-  const [focusMode, setFocusMode] = useState(false)
+  const { selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode }
+    = useFocusedSelection()
   // Default to only-changes so a review opens on the diff, not the whole model.
   const [onlyChanges, setOnlyChanges] = useState(true)
   // One meta panel open at a time, so an expanded list never stacks on the
@@ -638,8 +637,8 @@ function ProposalPreview({ workspaceId, operations, validation, rationale }: {
           {view !== 'list' && changedCount > 0 && (
             <OnlyChangesToggle active={onlyChanges} onChange={setOnlyChanges} />
           )}
-          {selectedNodeId && view !== 'list' && (
-            <FocusToggle active={focusMode} onChange={setFocusMode} />
+          {view !== 'list' && (
+            <FocusToggle active={focusMode} disabled={!selectedNodeId} onChange={setFocusMode} />
           )}
           <div role="tablist" aria-label={t('review.proposals.previewViewLabel')} className="inline-flex h-7 items-center gap-0.5 rounded-md border border-border bg-card p-0.5 shadow-sm">
             <ViewTab active={view === 'graph'} onClick={() => setView('graph')}>{t('review.proposals.viewGraph')}</ViewTab>

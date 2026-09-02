@@ -4,7 +4,6 @@ import type {
   NodeId,
   NodeStatus,
   NodeTypeId,
-  Timestamp,
   WorkspaceId,
 } from '@braidhq/schema'
 import { mkdtemp, rm } from 'node:fs/promises'
@@ -192,21 +191,6 @@ describe('KuzuModelRepository', () => {
     expect((await repo.listEdges(wsId, { types: [containsType] })).map(e => e.id).sort()).toEqual(['e1', 'e3'])
     expect((await repo.listEdges(wsId, { fromNodeId: 'a' as NodeId })).map(e => e.id).sort()).toEqual(['e1', 'e2'])
     expect((await repo.listEdges(wsId, { toNodeId: 'c' as NodeId })).map(e => e.id).sort()).toEqual(['e2', 'e3'])
-  })
-
-  it('round-trips a node embedding', async () => {
-    await repo.applyOperations(wsId, [
-      { operation: 'addNode', payload: {
-        id: 'emb' as NodeId,
-        type: aggregateType,
-        name: 'E',
-        status: draft,
-        embedding: { vector: [0.1, 0.2, 0.3], modelId: 'test-model', createdAt: '2026-01-01T00:00:00.000Z' as Timestamp },
-      } },
-    ])
-    const n = await repo.getNode(wsId, 'emb' as NodeId)
-    expect(n.embedding?.vector).toEqual([0.1, 0.2, 0.3])
-    expect(n.embedding?.modelId).toBe('test-model')
   })
 
   it('getNode throws NotFoundError for unknown id', async () => {

@@ -21,7 +21,11 @@ export const graph = {
     columnTo: 'To',
   },
   navigator: {
-    searchPlaceholder: 'Search name / description…',
+    // The box narrows the canvas rather than finding one node,
+    // so it reads as a filter and never borrows search's wording.
+    searchNodesButton: 'Search Nodes',
+    textFilterPlaceholder: 'Filter by text…',
+    textFilterHint: 'Keeps every node whose name or description contains this.',
     filterByType: 'Filter by Type',
     orphansOnly: 'Orphans Only ({count})',
     collapseButton: 'Collapse Navigator',
