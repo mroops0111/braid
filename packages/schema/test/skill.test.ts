@@ -366,12 +366,25 @@ describe('RunRecord', () => {
       workspaceId: 'demo',
       skillId: 'braid:ask',
       args: 'hi',
+      startedBy: 'local-user',
       startedAt: isoTimestamp,
     })
 
     expect(record.resumed).toBe(false)
     expect(record.completedAt).toBeUndefined()
     expect(record.exitCode).toBeUndefined()
+  })
+
+  it('rejects a record with no author', () => {
+    const parsed = RunRecord.safeParse({
+      runId: 'sr-anonymous',
+      workspaceId: 'demo',
+      skillId: 'braid:ask',
+      args: 'hi',
+      startedAt: isoTimestamp,
+    })
+
+    expect(parsed.success).toBe(false)
   })
 
   it('parses a completed record with sessionId and exitCode', () => {
@@ -381,6 +394,7 @@ describe('RunRecord', () => {
       skillId: 'braid:ask',
       args: 'hi',
       resumed: true,
+      startedBy: 'local-user',
       sessionId: 'sess-abc',
       startedAt: isoTimestamp,
       completedAt: isoTimestamp,

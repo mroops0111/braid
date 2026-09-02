@@ -171,11 +171,10 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
     const callerToken = extractBearerToken(context)
     // Attribute the run to whoever asked for it,
     // since one workspace's run history is shared by every member.
-    const startedBy = getUserId(context)
     const options = {
+      startedBy: getUserId(context),
       ...(resumeSessionId ? { resumeSessionId } : {}),
       ...(callerToken ? { callerToken } : {}),
-      ...(startedBy ? { startedBy } : {}),
     }
     const perUnitSkillId = resolvePerUnitSkillId(deps.pluginRegistry, workspace)
 

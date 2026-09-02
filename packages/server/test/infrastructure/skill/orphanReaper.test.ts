@@ -6,6 +6,7 @@ import type {
   SkillRunId,
   SourceId,
   SourceRole,
+  UserId,
   WorkspaceId,
 } from '@braidhq/schema'
 import { mkdtemp } from 'node:fs/promises'
@@ -52,6 +53,7 @@ function makeRunRecord(
     skillId: 'braid:ask' as SkillId,
     args: '',
     resumed: false,
+    startedBy: 'local-user' as UserId,
     startedAt: T0,
     ...overrides,
   } as RunRecord

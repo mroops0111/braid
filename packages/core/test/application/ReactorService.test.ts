@@ -1,4 +1,4 @@
-import type { AbsolutePath, SkillEvent, SkillId, SkillRunId, SourceDescriptor, SourceId, SourceRole, SourceUnitSha, Timestamp, WorkspaceEvent, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, SkillEvent, SkillId, SkillRunId, SourceDescriptor, SourceId, SourceRole, SourceUnitSha, Timestamp, UserId, WorkspaceEvent, WorkspaceId } from '@braidhq/schema'
 import type {
   SkillEventListener,
   SkillRunner,
@@ -18,6 +18,7 @@ import {
 } from '../../src/in-memory.js'
 import {
   PluginRegistry,
+  REACTOR_USER_ID,
   ReactorService,
   SourceUnitObservationService,
   Workspace,
@@ -49,7 +50,7 @@ function secondarySource(id: string): SourceDescriptor {
 }
 
 class FakeSkillRunner implements SkillRunner {
-  readonly startCalls: Array<{ skillId: SkillId, args: string, callerToken?: string }> = []
+  readonly startCalls: Array<{ skillId: SkillId, args: string, startedBy: UserId, callerToken?: string }> = []
   private readonly listeners = new Map<SkillRunId, SkillEventListener>()
   // When set, start() defers completion until flushOne fires it.
   controlled = false
@@ -57,9 +58,9 @@ class FakeSkillRunner implements SkillRunner {
   private readonly pending: Array<() => void> = []
   exitCodes: number[] = []
 
-  async start(_workspace: unknown, skillId: SkillId, args: string, options?: { callerToken?: string }): Promise<SkillRunId> {
+  async start(_workspace: unknown, skillId: SkillId, args: string, options: { startedBy: UserId, callerToken?: string }): Promise<SkillRunId> {
     const runId = `r-${this.startCalls.length}` as SkillRunId
-    this.startCalls.push({ skillId, args, ...(options?.callerToken ? { callerToken: options.callerToken } : {}) })
+    this.startCalls.push({ skillId, args, startedBy: options.startedBy, ...(options.callerToken ? { callerToken: options.callerToken } : {}) })
     const code = this.exitCodes.shift() ?? 0
     const fire = () => {
       const listener = this.listeners.get(runId)
@@ -254,6 +255,17 @@ describe('ReactorService', () => {
     // Every dispatched run, per-unit and checkpoint, carries the token.
     expect(skillRunner.startCalls.length).toBeGreaterThan(0)
     expect(skillRunner.startCalls.every(c => c.callerToken === 'reactor-token')).toBe(true)
+  })
+
+  it('attributes every dispatched run to the reactor service account', async () => {
+    const { workspace, eventBus, skillRunner } = await setup({ hasCheckpoint: true })
+    emitSync(eventBus, workspace.id, 'issues')
+    await tick(100)
+
+    // Nobody asked for these runs, so the history names the reactor itself,
+    // rather than leaving the author of an autonomous run unrecorded.
+    expect(skillRunner.startCalls.length).toBeGreaterThan(0)
+    expect(skillRunner.startCalls.every(call => call.startedBy === REACTOR_USER_ID)).toBe(true)
   })
 
   it('runs tokenless when no reactor token is provided', async () => {

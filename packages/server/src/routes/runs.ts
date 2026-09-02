@@ -31,8 +31,6 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
    *
    * An owner reviews the workspace as a whole, so every run is theirs.
    * Everyone else sees only what they asked for.
-   * A record with no author predates attribution,
-   * so it stays with the owners who can place it.
    */
   function visibleToCaller(context: Context): (record: RunRecord) => boolean {
     const viewer = getViewerContext(context)

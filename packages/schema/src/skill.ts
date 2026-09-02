@@ -330,9 +330,10 @@ export const RunRecord = z.object({
   skillId: SkillId,
   args: z.string(),
   resumed: z.boolean().default(false),
-  // Who asked for the run. Absent on records written before attribution,
-  // and on runs a service account starts with no caller behind them.
-  startedBy: UserId.optional(),
+  // Whose identity the run acts under, matching the caller token it carries.
+  // A person for anything a route starts, batch included,
+  // and the service account itself for an autonomous run such as the reactor's.
+  startedBy: UserId,
   // Set once claude reports its session id, absent if the run errored first.
   sessionId: z.string().min(1).optional(),
   startedAt: Timestamp,

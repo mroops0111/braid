@@ -27,8 +27,10 @@ export interface SkillRunOptions {
    * The user the run is attributed to, recorded on the RunRecord.
    * Distinct from `callerToken`, which carries permissions rather than identity,
    * and is absent under `BRAID_LOCAL_TRUST=true`.
+   * A run with no person behind it names the service account that drove it,
+   * so the history never holds an anonymous run.
    */
-  readonly startedBy?: UserId
+  readonly startedBy: UserId
 }
 
 export type SkillEventListener = (event: SkillEvent) => void
@@ -60,7 +62,7 @@ export interface SkillRunner {
     workspace: Workspace,
     skillId: SkillId,
     args: string,
-    options?: SkillRunOptions
+    options: SkillRunOptions
   ) => Promise<SkillRunId>
 
   /**

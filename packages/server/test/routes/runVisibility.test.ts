@@ -2,6 +2,7 @@ import type { WorkspaceId } from '@braidhq/schema'
 import type { OpenAPIHono } from '@hono/zod-openapi'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { REACTOR_USER_ID } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { asUser, buildMultiUserApp } from '../helpers/multiUser.js'
 
@@ -17,7 +18,7 @@ interface RunList {
 async function seedRuns(
   workspaceRootPath: string,
   workspaceId: WorkspaceId,
-  records: ReadonlyArray<{ runId: string, startedBy?: string, sessionId?: string }>,
+  records: ReadonlyArray<{ runId: string, startedBy: string, sessionId?: string }>,
 ): Promise<void> {
   const dir = join(workspaceRootPath, 'artifacts', 'runs')
   await mkdir(dir, { recursive: true })
@@ -28,7 +29,7 @@ async function seedRuns(
     args: 'a question',
     resumed: false,
     startedAt: '2026-05-21T10:00:00.000Z',
-    ...(record.startedBy ? { startedBy: record.startedBy } : {}),
+    startedBy: record.startedBy,
     ...(record.sessionId ? { sessionId: record.sessionId } : {}),
   }))
   await writeFile(join(dir, 'index.jsonl'), `${lines.join('\n')}\n`, 'utf-8')
@@ -42,22 +43,22 @@ async function listRuns(app: OpenAPIHono, workspaceId: WorkspaceId, userId: stri
 }
 
 describe('run history visibility', () => {
-  it('shows an owner every run, including ones recorded before attribution', async () => {
+  it('shows an owner every run, including the ones the reactor started', async () => {
     const { app, workspaceId, workspaceRootPath, users } = await buildMultiUserApp()
     await seedRuns(workspaceRootPath, workspaceId, [
-      { runId: 'run-unattributed' },
+      { runId: 'run-reactor', startedBy: REACTOR_USER_ID },
       { runId: 'run-owner', startedBy: users.owner.id },
       { runId: 'run-maintainer', startedBy: users.maintainer.id },
     ])
 
     expect((await listRuns(app, workspaceId, users.owner.id)).sort())
-      .toEqual(['run-maintainer', 'run-owner', 'run-unattributed'])
+      .toEqual(['run-maintainer', 'run-owner', 'run-reactor'])
   })
 
   it('shows a maintainer only their own runs', async () => {
     const { app, workspaceId, workspaceRootPath, users } = await buildMultiUserApp()
     await seedRuns(workspaceRootPath, workspaceId, [
-      { runId: 'run-unattributed' },
+      { runId: 'run-reactor', startedBy: REACTOR_USER_ID },
       { runId: 'run-owner', startedBy: users.owner.id },
       { runId: 'run-maintainer', startedBy: users.maintainer.id },
     ])

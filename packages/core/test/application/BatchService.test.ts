@@ -15,7 +15,7 @@ import type {
   WorkspaceId,
 } from '@braidhq/schema'
 import type { BatchPlanRepository, HistoryService, HITLService, SkillEventListener, SkillRunner, SkillRunOptions, SkillRunSubscription, SourceUnitDigest, Workspace } from '../../src/index.js'
-import { BatchPlanId, BatchUnitId, SkillId as SkillIdSchema } from '@braidhq/schema'
+import { BatchPlanId, BatchUnitId, SkillId as SkillIdSchema, UserId as UserIdSchema } from '@braidhq/schema'
 import { FixedClock, makeOntology, makeProposal, makeWorkspace, mintTestId, resetTestIds, T0 } from '@braidhq/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -34,6 +34,8 @@ import {
   WorkspaceLock,
   WorkspaceService,
 } from '../../src/index.js'
+
+const STARTED_BY = UserIdSchema.parse('tester')
 
 class FakeSkillRunner implements SkillRunner {
   readonly startCalls: Array<{ skillId: SkillId, args: string, options?: SkillRunOptions }> = []
@@ -268,7 +270,7 @@ describe('BatchService', () => {
       await proposalRepository.save(makeProposal(workspace.id, { id: `p-${counter}` }))
     }
 
-    await service.start(workspace.id, { autoApply: false })
+    await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
     const final = await flushBatch(planRepository)
 
     expect(final.status).toBe('completed')
@@ -292,7 +294,7 @@ describe('BatchService', () => {
       await proposalRepository.save(makeProposal(workspace.id, { id: `p-${counter}` }))
     }
 
-    await service.start(workspace.id, { autoApply: true })
+    await service.start(workspace.id, { autoApply: true, startedBy: STARTED_BY })
     await flushBatch(planRepository)
 
     // 2 extracts and 1 final checkpoint make 3 skill runs, each produces a fresh proposal. With autoApply on,
@@ -304,7 +306,7 @@ describe('BatchService', () => {
     const { service, workspace, planRepository, skillRunner } = await setup()
     skillRunner.exitCodes = [1, 0]
 
-    await service.start(workspace.id, { autoApply: false })
+    await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
     const final = await flushBatch(planRepository)
 
     expect(final.status).toBe('completed')
@@ -315,24 +317,24 @@ describe('BatchService', () => {
 
   it('refuses when workspace has no sources', async () => {
     const { service, workspace } = await setup({ sources: [] })
-    await expect(service.start(workspace.id, { autoApply: false })).rejects.toThrow(ValidationError)
+    await expect(service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })).rejects.toThrow(ValidationError)
   })
 
   it('refuses to start when a plan is already running', async () => {
     const { service, workspace, skillRunner, planRepository } = await setup()
     skillRunner.onStart = async () => new Promise(() => {}) // stall forever
-    void service.start(workspace.id, { autoApply: false })
+    void service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
     // Give the loop a tick to land plan.status='running'.
     await new Promise(r => setTimeout(r, 20))
     expect((await planRepository.load())?.status).toBe('running')
-    await expect(service.start(workspace.id, { autoApply: false })).rejects.toThrow(ConflictError)
+    await expect(service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })).rejects.toThrow(ConflictError)
   })
 
   it('chooses derive mode when no unit-bearing sources exist and runs the ontology deriveUnits skill', async () => {
     const { service, workspace, planRepository, skillRunner } = await setup({
       sources: [secondarySource('codebase')],
     })
-    await service.start(workspace.id, { autoApply: false })
+    await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
     // The orchestrator runs the derive skill in the background.
     // Assert the kick-off and mode without driving the loop to completion.
     expect(skillRunner.startCalls[0]?.skillId).toBe('test:derive')
@@ -342,7 +344,7 @@ describe('BatchService', () => {
   it('archive moves a completed plan to archived status', async () => {
     const { service, workspace, proposalRepository, planRepository, skillRunner } = await setup()
     skillRunner.onStart = async () => proposalRepository.save(makeProposal(workspace.id, { id: 'p-1' }))
-    await service.start(workspace.id, { autoApply: false })
+    await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
     await flushBatch(planRepository)
 
     const archived = await service.archive(workspace.id)
@@ -357,7 +359,7 @@ describe('BatchService', () => {
 
   it('runs ddd:reconcile once after the extract loop and passes BRAID_CHANGED_UNITS', async () => {
     const { service, workspace, planRepository, skillRunner } = await setup()
-    await service.start(workspace.id, { autoApply: false })
+    await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
     const final = await flushBatch(planRepository)
 
     expect(final.status).toBe('completed')
@@ -374,7 +376,7 @@ describe('BatchService', () => {
   it('marks the plan failed when the checkpoint skill exits non-zero', async () => {
     const { service, workspace, planRepository, skillRunner } = await setup()
     skillRunner.exitCodes = [0, 0, 1]
-    await service.start(workspace.id, { autoApply: false })
+    await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
     const final = await flushBatch(planRepository)
 
     expect(final.status).toBe('failed')
@@ -384,7 +386,7 @@ describe('BatchService', () => {
 
   it('records a SourceUnitObservation observation per completed unit when service is wired', async () => {
     const { service, workspace, planRepository, sourceUnitObservationRepository, sourceUnitDigest } = await setup({ withObservations: true })
-    await service.start(workspace.id, { autoApply: false })
+    await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
     await flushBatch(planRepository)
 
     const states = await sourceUnitObservationRepository.listByWorkspace(workspace.id)
@@ -402,7 +404,7 @@ describe('BatchService', () => {
 
   it('does not record observations when the service is absent (in-memory composeApp default)', async () => {
     const { service, workspace, planRepository } = await setup()
-    await service.start(workspace.id, { autoApply: false })
+    await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
     const final = await flushBatch(planRepository)
     expect(final.status).toBe('completed')
     // Nothing to assert on the state store, the service was not wired.
@@ -413,7 +415,7 @@ describe('BatchService', () => {
     const sources = Array.from({ length: 7 }, (_, i) => primarySource(`src-${i}`))
     const { service, workspace, planRepository, skillRunner } = await setup({ sources })
 
-    await service.start(workspace.id, { autoApply: false })
+    await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
     const final = await flushBatch(planRepository)
 
     expect(final.status).toBe('completed')
@@ -441,7 +443,7 @@ describe('BatchService', () => {
     const sources = Array.from({ length: 5 }, (_, i) => primarySource(`src-${i}`))
     const { service, workspace, planRepository, skillRunner } = await setup({ sources })
 
-    await service.start(workspace.id, { autoApply: false })
+    await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
     const final = await flushBatch(planRepository)
 
     expect(final.status).toBe('completed')
@@ -454,7 +456,7 @@ describe('BatchService', () => {
 
   it('records checkpointPhases entries with skillRunId, startedAt, completedAt', async () => {
     const { service, workspace, planRepository } = await setup()
-    await service.start(workspace.id, { autoApply: false })
+    await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
     const final = await flushBatch(planRepository)
 
     expect(final.checkpointPhases).toHaveLength(1)
@@ -471,7 +473,7 @@ describe('BatchService', () => {
     expect(await service.getStatus(workspace.id)).toBeNull()
 
     skillRunner.onStart = async () => new Promise(() => {})
-    void service.start(workspace.id, { autoApply: false })
+    void service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
     await new Promise(r => setTimeout(r, 20))
 
     expect((await service.getStatus(workspace.id))?.status).toBe('running')
@@ -482,7 +484,7 @@ describe('BatchService', () => {
       const { service, workspace, planRepository, skillRunner } = await setup()
       skillRunner.errorMessages = ['You have hit your session limit, resets 5:50am (UTC)']
 
-      await service.start(workspace.id, { autoApply: false })
+      await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
       const plan = await flushBatch(planRepository)
 
       expect(plan.status).toBe('failed')
@@ -498,7 +500,7 @@ describe('BatchService', () => {
       })
       skillRunner.errorMessages = ['boom', 'boom', 'boom', 'boom']
 
-      await service.start(workspace.id, { autoApply: false })
+      await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
       const plan = await flushBatch(planRepository)
 
       expect(plan.status).toBe('failed')
@@ -509,7 +511,7 @@ describe('BatchService', () => {
       const { service, workspace, planRepository, skillRunner } = await setup()
       skillRunner.errorMessages = ['boom']
 
-      await service.start(workspace.id, { autoApply: false })
+      await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
       const plan = await flushBatch(planRepository)
 
       expect(plan.status).toBe('completed')
@@ -524,14 +526,14 @@ describe('BatchService', () => {
       skillRunner.sessionId = 'sess-abc'
       skillRunner.errorMessages = ['boom']
 
-      await service.start(workspace.id, { autoApply: false })
+      await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
       const failedPlan = await flushBatch(planRepository)
       const failedUnit = failedPlan.units.find(unit => unit.status === 'failed')
       expect(failedUnit?.resumeSessionId).toBe('sess-abc')
 
       skillRunner.errorMessages = []
       skillRunner.startCalls.length = 0
-      await service.resume(workspace.id)
+      await service.resume(workspace.id, { startedBy: STARTED_BY })
       await flushBatch(planRepository)
 
       const retry = skillRunner.startCalls.find(call => call.skillId === 'ddd:extract')
@@ -541,7 +543,7 @@ describe('BatchService', () => {
     it('clears the stale timestamps on a unit left running by a crash', async () => {
       const { service, workspace, planRepository, skillRunner } = await setup()
       skillRunner.onStart = async () => new Promise(() => {}) // stall, as a killed process would
-      void service.start(workspace.id, { autoApply: false })
+      void service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
       await new Promise(resolve => setTimeout(resolve, 20))
 
       // Stand in for the boot-time reconcile after the process that held the run died.
@@ -573,7 +575,7 @@ describe('BatchService', () => {
       const { service, workspace, skillRunner } = await setup()
       skillRunner.active = true
       skillRunner.onStart = async () => new Promise(() => {})
-      void service.start(workspace.id, { autoApply: false })
+      void service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
       await new Promise(r => setTimeout(r, 20))
 
       await service.stop(workspace.id)
@@ -585,7 +587,7 @@ describe('BatchService', () => {
       const { service, workspace, skillRunner, planRepository } = await setup()
       skillRunner.active = false
       skillRunner.onStart = async () => new Promise(() => {})
-      void service.start(workspace.id, { autoApply: false })
+      void service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
       await new Promise(r => setTimeout(r, 20))
 
       await service.stop(workspace.id)
@@ -604,7 +606,7 @@ describe('BatchService', () => {
     it('leaves a terminal plan untouched', async () => {
       const { service, workspace, proposalRepository, planRepository, skillRunner } = await setup()
       skillRunner.onStart = async () => proposalRepository.save(makeProposal(workspace.id, { id: 'p-1' }))
-      await service.start(workspace.id, { autoApply: false })
+      await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
       await flushBatch(planRepository)
 
       await service.reconcileAfterBoot(workspace.id)
@@ -616,7 +618,7 @@ describe('BatchService', () => {
       const { service, workspace, skillRunner, planRepository } = await setup()
       skillRunner.active = false
       skillRunner.onStart = async () => new Promise(() => {})
-      void service.start(workspace.id, { autoApply: false })
+      void service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
       await new Promise(r => setTimeout(r, 20))
 
       await service.reconcileAfterBoot(workspace.id)
@@ -628,7 +630,7 @@ describe('BatchService', () => {
   describe('resume', () => {
     it('throws when there is no plan to resume', async () => {
       const { service, workspace } = await setup()
-      await expect(service.resume(workspace.id)).rejects.toThrow(ValidationError)
+      await expect(service.resume(workspace.id, { startedBy: STARTED_BY })).rejects.toThrow(ValidationError)
     })
 
     it('re-runs a failed plan, skipping already-completed units', async () => {
@@ -636,10 +638,10 @@ describe('BatchService', () => {
       // First pass fails the checkpoint, so every unit completes but the plan lands failed.
       skillRunner.exitCodes = [0, 0, 1]
       skillRunner.onStart = async () => proposalRepository.save(makeProposal(workspace.id, { id: `p-${skillRunner.startCalls.length}` }))
-      await service.start(workspace.id, { autoApply: false })
+      await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
       expect((await flushBatch(planRepository)).status).toBe('failed')
 
-      await service.resume(workspace.id)
+      await service.resume(workspace.id, { startedBy: STARTED_BY })
       const final = await flushBatch(planRepository)
 
       expect(final.status).toBe('completed')
@@ -668,7 +670,7 @@ describe('BatchService', () => {
       })
       await planRepository.save(workspace, failedPlan)
 
-      await service.resume(workspace.id)
+      await service.resume(workspace.id, { startedBy: STARTED_BY })
       const final = await flushBatch(planRepository)
 
       expect(final.status).toBe('completed')
