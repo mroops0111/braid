@@ -26,9 +26,17 @@ import type { SourceUnitObservationService } from './SourceUnitObservationServic
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import type { WorkspaceLock } from './WorkspaceLock.js'
 import type { WorkspaceService } from './WorkspaceService.js'
+import { UserId } from '@braidhq/schema'
 import { newReactorCycleId } from '../domain/ids.js'
 import { unitBearingRoleIds } from '../domain/plugin/OntologyPlugin.js'
 import { computeSourceDiff } from './computeSourceDiff.js'
+
+/**
+ * The autonomous source-sync reactor's service-account identity.
+ * Every run it dispatches is attributed to this account,
+ * and the server seeds a matching user record at boot.
+ */
+export const REACTOR_USER_ID = UserId.parse('reactor')
 
 export interface ReactorServiceDeps {
   readonly eventBus: WorkspaceEventBus
@@ -280,7 +288,10 @@ export class ReactorService {
     let runId: SkillRunId
     try {
       const args = argsForPath(batchBinding.perUnit, path)
-      runId = await this.deps.skillRunner.start(workspace, batchBinding.perUnit.skillId, args, context.callerToken ? { callerToken: context.callerToken } : undefined)
+      runId = await this.deps.skillRunner.start(workspace, batchBinding.perUnit.skillId, args, {
+        startedBy: REACTOR_USER_ID,
+        ...(context.callerToken ? { callerToken: context.callerToken } : {}),
+      })
       context.cycle = updateUnit(cycle, index, { status: 'running', skillRunId: runId, startedAt: this.deps.clock.now() })
       await this.persistAndEmit(context, this.unitStartedEvent(context, index, runId, total))
       await waitForCompletion(this.deps.skillRunner, runId)
@@ -323,7 +334,10 @@ export class ReactorService {
     const { workspace } = context
     const startedAt = this.deps.clock.now()
     try {
-      const runId = await this.deps.skillRunner.start(workspace, skillId, '', context.callerToken ? { callerToken: context.callerToken } : undefined)
+      const runId = await this.deps.skillRunner.start(workspace, skillId, '', {
+        startedBy: REACTOR_USER_ID,
+        ...(context.callerToken ? { callerToken: context.callerToken } : {}),
+      })
       context.cycle = updateCheckpoint(context.cycle, { skillId, status: 'running', skillRunId: runId, startedAt })
       await this.persistAndEmit(context, this.checkpointStartedEvent(context, skillId, runId))
       await waitForCompletion(this.deps.skillRunner, runId)

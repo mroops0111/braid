@@ -103,11 +103,11 @@ export class SubprocessSkillRunner implements SkillRunner {
     workspace: Workspace,
     skillId: SkillId,
     args: string,
-    options?: SkillRunOptions,
+    options: SkillRunOptions,
   ): Promise<SkillRunId> {
     const manifest = await this.deps.skillRegistry.get(workspace, skillId)
     const runId = newSkillRunId()
-    const sessionDir = await this.resolveSessionDir(workspace, runId, options?.resumeSessionId)
+    const sessionDir = await this.resolveSessionDir(workspace, runId, options.resumeSessionId)
     const skillBundleDirs = await this.skillBundleDirsFor(workspace, sessionDir)
     const gatewayArgs = [
       'openapi-mcp-gateway',
@@ -126,7 +126,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       // The gateway resolves `${BRAID_TOKEN}` against its process env at startup.
       // Without this the server's auth middleware rejects every callback with 401.
       // eslint-disable-next-line no-template-curly-in-string
-      ...(options?.callerToken ? ['--auth-type', 'bearer', '--auth-token', '${BRAID_TOKEN}'] : []),
+      ...(options.callerToken ? ['--auth-type', 'bearer', '--auth-token', '${BRAID_TOKEN}'] : []),
     ]
     // Compose the MCP server list, the built-in gateway plus any the workspace
     // declares. The binding writes whatever config its CLI needs from this.
@@ -148,7 +148,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       mcpServers: [...gatewayServers, ...workspace.mcpServers],
       sessionDir: AbsolutePathSchema.parse(sessionDir),
       skillBundleDirs,
-      ...(options?.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
+      ...(options.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
     })
 
     const spawnFn = this.deps.spawn ?? (await defaultSpawn())
@@ -172,8 +172,8 @@ export class SubprocessSkillRunner implements SkillRunner {
         // BRAID_TOKEN is read by the braid-core MCP gateway,
         // and by any shell-level callback (curl in a SKILL.md),
         // so the subprocess can authenticate against the running server.
-        ...(options?.callerToken ? { BRAID_TOKEN: options.callerToken } : {}),
-        ...(options?.extraEnv ?? {}),
+        ...(options.callerToken ? { BRAID_TOKEN: options.callerToken } : {}),
+        ...(options.extraEnv ?? {}),
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
@@ -187,10 +187,10 @@ export class SubprocessSkillRunner implements SkillRunner {
       workspaceId: workspace.id,
       skillId,
       args,
-      resumed: options?.resumeSessionId !== undefined,
+      resumed: options.resumeSessionId !== undefined,
       startedAt,
-      ...(options?.startedBy ? { startedBy: options.startedBy } : {}),
-      ...(options?.resumeSessionId ? { sessionId: options.resumeSessionId } : {}),
+      startedBy: options.startedBy,
+      ...(options.resumeSessionId ? { sessionId: options.resumeSessionId } : {}),
     }
     await this.deps.runRepository.saveRecord(workspace, initialRecord)
     this.deps.eventBus?.publish({
@@ -211,7 +211,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       skillId,
       args,
       sessionDir,
-      resumeSessionId: options?.resumeSessionId,
+      resumeSessionId: options.resumeSessionId,
       startedAt,
       initialRecord,
     })

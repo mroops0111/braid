@@ -1,9 +1,9 @@
 import type { Timestamp, UserId as UserIdType } from '@braidhq/schema'
 import type { UserRegistryFile } from './infrastructure/users/UserRegistryFile.js'
-import { UserId } from '@braidhq/schema'
 
-/** The autonomous source-sync reactor's service-account identity. */
-export const REACTOR_USER_ID = UserId.parse('reactor')
+// Re-exported from core, where the reactor attributes its runs to it,
+// so the seeded account and the recorded author cannot drift apart.
+export { REACTOR_USER_ID } from '@braidhq/core'
 
 /**
  * Upsert a service account, idempotently. It is an admin,

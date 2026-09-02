@@ -22,6 +22,7 @@ import { createMockSpawn, type MockSpawnRecord, type MockSpawnScript } from '../
 import { makeSkillFileContents } from '../../helpers/skillFixtures.js'
 
 const SKILL_ID = 'braid:ask' as SkillId
+const STARTED_BY = UserId.parse('tester')
 
 interface BuildRunnerInput {
   readonly rootPath: AbsolutePath
@@ -107,7 +108,7 @@ async function collectRunEvents(
   args: string,
   options?: { resumeSessionId?: string },
 ): Promise<{ runId: SkillRunId, events: SkillEvent[] }> {
-  const runId = await runner.start(workspace, SKILL_ID, args, options)
+  const runId = await runner.start(workspace, SKILL_ID, args, { startedBy: STARTED_BY, ...options })
   const events: SkillEvent[] = []
   await new Promise<void>((resolve) => {
     const sub = runner.subscribe(runId, (event) => {
@@ -252,7 +253,7 @@ describe('SubprocessSkillRunner', () => {
       sequence: [{ stdoutLines: ['Invalid, ParameterInfo schema_type'], exitCode: 1 }],
     })
 
-    await expect(runner.start(workspace, SKILL_ID, '')).rejects.toThrow(ServiceUnavailableError)
+    await expect(runner.start(workspace, SKILL_ID, '', { startedBy: STARTED_BY })).rejects.toThrow(ServiceUnavailableError)
     // Only the gateway probe ran, no agent was spawned.
     expect(invocations).toHaveLength(1)
     expect(invocations[0]!.args).toContain('--dry-run')
@@ -266,7 +267,7 @@ describe('SubprocessSkillRunner', () => {
       sequence: [{ stdoutLines: [], exitCode: 0 }, { stdoutLines: [], exitCode: 0 }],
     })
 
-    await runner.start(workspace, SKILL_ID, '')
+    await runner.start(workspace, SKILL_ID, '', { startedBy: STARTED_BY })
     expect(invocations).toHaveLength(2)
     expect(invocations[0]!.args).toEqual(expect.arrayContaining(['openapi-mcp-gateway', '--dry-run']))
   })
@@ -292,7 +293,7 @@ describe('SubprocessSkillRunner', () => {
       },
     })
 
-    await runner.start(workspace, SKILL_ID, '')
+    await runner.start(workspace, SKILL_ID, '', { startedBy: STARTED_BY })
 
     // A host behind a proxy cannot reach itself by its public name,
     // so the flag has to name the address the runner itself was given.

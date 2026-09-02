@@ -1,4 +1,4 @@
-import type { AbsolutePath, RunRecord, SkillId, SkillRunId, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, RunRecord, SkillId, SkillRunId, UserId, WorkspaceId } from '@braidhq/schema'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -18,6 +18,7 @@ function makeRecord(runId: string, overrides: Partial<RunRecord> = {}): RunRecor
     skillId: 'braid:ask' as SkillId,
     args: 'hi',
     resumed: false,
+    startedBy: 'tester' as UserId,
     startedAt: isoTimestamp,
     ...overrides,
   }

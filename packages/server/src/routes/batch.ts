@@ -21,11 +21,10 @@ export function createBatchRouter(deps: BatchRouterDeps): Hono {
     const workspaceId = getWorkspaceId(context)
     const { autoApply } = context.req.valid('json')
     const callerToken = extractBearerToken(context)
-    const startedBy = getUserId(context)
     const plan = await deps.batchService.start(workspaceId, {
       autoApply,
+      startedBy: getUserId(context),
       ...(callerToken ? { callerToken } : {}),
-      ...(startedBy ? { startedBy } : {}),
     })
     return context.json(plan.toData(), 202)
   })
@@ -47,10 +46,9 @@ export function createBatchRouter(deps: BatchRouterDeps): Hono {
   router.post('/resume', async (context) => {
     const workspaceId = getWorkspaceId(context)
     const callerToken = extractBearerToken(context)
-    const startedBy = getUserId(context)
     const plan = await deps.batchService.resume(workspaceId, {
+      startedBy: getUserId(context),
       ...(callerToken ? { callerToken } : {}),
-      ...(startedBy ? { startedBy } : {}),
     })
     return context.json(plan.toData(), 202)
   })

@@ -89,8 +89,8 @@ export interface StartBatchOptions {
    * where the auth middleware lets unauthenticated callers through.
    */
   callerToken?: string
-  /** Recorded on every RunRecord the batch writes, so the history names a person. */
-  startedBy?: UserId
+  /** Recorded on every RunRecord the batch writes, so the history names an author. */
+  startedBy: UserId
 }
 
 /**
@@ -171,7 +171,7 @@ export class BatchService {
     await this.deps.batchPlanRepository.save(workspace, failed)
   }
 
-  async resume(workspaceId: WorkspaceId, options: BatchCaller = {}): Promise<BatchPlan> {
+  async resume(workspaceId: WorkspaceId, options: BatchCaller): Promise<BatchPlan> {
     return this.deps.workspaceLock.run(workspaceId, async () => {
       const workspace = await this.deps.workspaceService.findById(workspaceId)
       const existingPlan = await this.deps.batchPlanRepository.load(workspace)
@@ -781,7 +781,7 @@ async function waitForCompletion(runner: SkillRunner, runId: SkillRunId): Promis
  */
 function callerFrom(options: BatchCaller): BatchCaller {
   return {
+    startedBy: options.startedBy,
     ...(options.callerToken ? { callerToken: options.callerToken } : {}),
-    ...(options.startedBy ? { startedBy: options.startedBy } : {}),
   }
 }
