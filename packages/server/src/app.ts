@@ -20,6 +20,7 @@ import { createOAuthCallbackRouter, createOAuthStartRouter, OAuthFlowStore } fro
 import { createOntologiesRouter } from './routes/ontologies.js'
 import { createOntologyRouter } from './routes/ontology.js'
 import { createProposalsRouter } from './routes/proposals.js'
+import { createProtectedResourceRouter } from './routes/protectedResource.js'
 import { createReactorCyclesRouter } from './routes/reactorCycles.js'
 import { createRunsRouter } from './routes/runs.js'
 import { createSkillInputOptionsRouter } from './routes/skillInputOptions.js'
@@ -70,8 +71,18 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     ...(deps.sessionStore ? { sessionStore: deps.sessionStore } : {}),
     requireAuth: deps.authMode.requiresAuth,
     defaultPrincipal: deps.authMode.defaultPrincipal,
+    ...(deps.accessTokenVerifiers ? { accessTokenVerifiers: deps.accessTokenVerifiers } : {}),
   }))
   app.onError(errorHandler)
+
+  // Only when an issuer is trusted.
+  // Advertising an empty list would point a client at a way in that does not exist.
+  if (deps.oidcIssuer && deps.apiUrl) {
+    app.route('/.well-known/oauth-protected-resource', createProtectedResourceRouter({
+      resource: deps.apiUrl,
+      authorizationServers: [deps.oidcIssuer],
+    }))
+  }
 
   // Host-level routes, not scoped to a single workspace.
   app.route('/health', healthRouter)

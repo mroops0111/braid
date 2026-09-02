@@ -1,5 +1,6 @@
 import type { UserId as UserIdType } from '@braidhq/schema'
 import type { Context, MiddlewareHandler } from 'hono'
+import type { AccessTokenVerifier } from '../infrastructure/auth/AccessTokenVerifier.js'
 import type { SessionStore } from '../infrastructure/auth/SessionStore.js'
 import { UnauthorizedError } from '@braidhq/core'
 import { UserId } from '@braidhq/schema'
@@ -15,7 +16,10 @@ declare module 'hono' {
 // `/openapi.json` follows the convention that OpenAPI reads publicly,
 // honored by Swagger UI, codegen, and MCP gateways.
 // It documents shape and not data, so exposing it to anonymous callers is safe.
-const PUBLIC_EXACT_PATHS = new Set(['/openapi.json'])
+// Metadata a client reads before it has a token,
+// so gating it would make it useless.
+// It names an issuer and nothing about this deployment's data.
+const PUBLIC_EXACT_PATHS = new Set(['/openapi.json', '/.well-known/oauth-protected-resource'])
 // Each `/webhooks/<provider>/` prefix is anonymous,
 // because the provider authenticates via a per-source HMAC,
 // checked inside the handler rather than via a Bearer token.
@@ -43,6 +47,15 @@ export interface AuthMiddlewareOptions {
   readonly requireAuth: boolean
   // The implicit caller under local trust, or null when there is none.
   readonly defaultPrincipal: UserIdType | null
+  /**
+   * Verifiers tried after the session store, in order.
+   *
+   * A deployment that names an authorization server accepts its tokens here,
+   * as well as the sessions Braid issues itself,
+   * so a browser and a programmatic client arrive by different doors,
+   * into the same user.
+   */
+  readonly accessTokenVerifiers?: readonly AccessTokenVerifier[]
 }
 
 // EventSource (browser SSE) cannot send custom Authorization headers,
@@ -76,9 +89,10 @@ export function extractBearerToken(context: { req: { header: (name: string) => s
  * principal, on every path so public routes like `/auth/whoami` see the caller.
  * Nothing is rejected.
  *
- * When auth is enforced, identity comes only from a valid Bearer session, and a
- * missing or invalid token on a non-public route is a 401. The header is never
- * read here, so it cannot impersonate an authenticated caller.
+ * When auth is enforced, identity comes only from a valid Bearer session,
+ * and a missing or invalid token on a non-public route is a 401.
+ * The header is never read here,
+ * so it cannot impersonate an authenticated caller.
  */
 export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandler {
   return async (context, next) => {
@@ -116,14 +130,34 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
       token = context.req.query('token') || undefined
     if (!token)
       throw new UnauthorizedError('Missing or invalid Authorization header. Sign in to continue.')
-    // The composition root always wires sessionStore alongside requireAuth.
-    const session = await options.sessionStore!.resolve(token)
-    if (!session)
+    const userId = await resolveCaller(token, options)
+    if (!userId)
       throw new UnauthorizedError('Session expired or revoked. Sign in again.')
-    context.set('userId', session.userId)
+    context.set('userId', userId)
     await next()
     return undefined
   }
+}
+
+/**
+ * The person a token stands for, from whichever verifier claims it.
+ *
+ * A verifier answering null has declined the token rather than judged it,
+ * so the next one gets a turn.
+ * One that recognises and refuses throws instead,
+ * which is why an expired token reports as expired rather than as unknown.
+ */
+async function resolveCaller(token: string, options: AuthMiddlewareOptions): Promise<UserIdType | null> {
+  // The composition root always wires sessionStore alongside requireAuth.
+  const session = await options.sessionStore!.resolve(token)
+  if (session)
+    return session.userId
+  for (const verifier of options.accessTokenVerifiers ?? []) {
+    const caller = await verifier.verify(token)
+    if (caller)
+      return caller.userId
+  }
+  return null
 }
 
 export function getUserId(context: Context): UserIdType {
