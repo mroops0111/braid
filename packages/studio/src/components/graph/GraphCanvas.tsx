@@ -5,7 +5,7 @@ import type { NodeCardNode } from './useGraphLayout'
 import { localize } from '@braidhq/schema'
 import { Background, BackgroundVariant, ControlButton, Controls, getNodesBounds, MarkerType, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react'
 import { toPng, toSvg } from 'html-to-image'
-import { Download, GitBranch, PanelLeftClose, PanelLeftOpen, RotateCcw, Sparkles } from 'lucide-react'
+import { Download, GitBranch, PanelLeftClose, PanelLeftOpen, RotateCcw, Sparkles, Target } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
@@ -31,6 +31,7 @@ import { useGraphLayout } from './useGraphLayout'
 import { useGraphShortcuts } from './useGraphShortcuts'
 import { useNodeNeighbors } from './useNodeNeighbors'
 import { PaletteProvider, usePalette } from './usePalette'
+import { useRefitOnResize } from './useRefitOnResize'
 import '@xyflow/react/dist/style.css'
 
 interface GraphCanvasProps {
@@ -103,6 +104,8 @@ interface GraphCanvasProps {
 
 const NODE_TYPES = { card: GraphNodeCard }
 
+const READABLE_ZOOM = 0.85
+
 const INITIAL_FILTERS: GraphFilters = {
   search: '',
   types: [],
@@ -153,6 +156,13 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   // Reviewers got stuck in preview mode wondering how to surface types.
   const [navigatorOpen, setNavigatorOpen] = useState(true)
   const canvasRef = useRef<HTMLDivElement>(null)
+  /**
+   * How the viewport was last framed on purpose,
+   * replayed when the canvas changes width. Null until something frames it,
+   * so a resize with no intent behind it leaves the reader where they were.
+   */
+  const viewportIntentRef = useRef<(() => void) | null>(null)
+
   const [exporting, setExporting] = useState(false)
 
   useFilterSeed(ontology, workspaceId, setFilters, diff !== undefined ? 'all' : 'defaultVisible')
@@ -275,7 +285,11 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
     [laidOut.edges, selectedEdgeId, palette, diff, selectedNodeId, focusMode, neighborhood, dimUnchanged, labelAllEdges],
   )
 
-  useFitOnLayoutChange(reactFlow, laidOut.nodes)
+  useFitOnLayoutChange(reactFlow, laidOut.nodes, {
+    onFitted: useCallback((refit: () => void) => {
+      viewportIntentRef.current = refit
+    }, []),
+  })
 
   // Only-changes zooms the viewport onto the changed nodes,
   // so a small diff is enlarged rather than lost in the dimmed full graph.
@@ -294,12 +308,39 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
     }
   }, [dimUnchanged, changedNodeIds, reactFlow, navigatorOpen])
 
+  // Where a node card's title and first description line are legible.
+  // Below this, arriving at a node tells the reader where it is,
+  // and nothing about what it says.
+  /**
+   * Put a graph point in the middle of what the reader can actually see.
+   *
+   * ReactFlow learns its size from a ResizeObserver,
+   * which has not fired yet on the render that opened the detail panel,
+   * so `setCenter` would aim at the width the canvas had,
+   * before the panel took a third of it.
+   * Measuring here and setting the viewport directly removes that race.
+   */
+  const centerOnPoint = useCallback((x: number, y: number) => {
+    viewportIntentRef.current = () => centerOnPoint(x, y)
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect)
+      return
+    // Close enough to read, never further out than the reader already was.
+    // Panning alone leaves a node a speck when the canvas is zoomed out,
+    // and a fixed zoom pulled them back whenever they had moved in closer.
+    const zoom = Math.max(reactFlow.getZoom(), READABLE_ZOOM)
+    reactFlow.setViewport(
+      { x: rect.width / 2 - x * zoom, y: rect.height / 2 - y * zoom, zoom },
+      { duration: 250 },
+    )
+  }, [reactFlow])
+
   const centerOnNode = useCallback((nodeId: NodeId) => {
     const positioned = laidOut.nodes.find(n => n.id === nodeId)
     if (!positioned)
       return
-    reactFlow.setCenter(positioned.position.x + 100, positioned.position.y + 32, { zoom: 1, duration: 250 })
-  }, [laidOut.nodes, reactFlow])
+    centerOnPoint(positioned.position.x + 100, positioned.position.y + 32)
+  }, [laidOut.nodes, centerOnPoint])
 
   // Seeded with the resting value, never the current one.
   // An arrival mounts this canvas, so its request is already counted here.
@@ -363,10 +404,17 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
     const toPos = laidOut.nodes.find(n => n.id === edge.toNodeId)?.position
     if (!fromPos || !toPos)
       return
-    const mx = (fromPos.x + toPos.x) / 2 + 100
-    const my = (fromPos.y + toPos.y) / 2 + 32
-    reactFlow.setCenter(mx, my, { zoom: 1, duration: 250 })
-  }, [laidOut.nodes, reactFlow])
+    centerOnPoint((fromPos.x + toPos.x) / 2 + 100, (fromPos.y + toPos.y) / 2 + 32)
+  }, [laidOut.nodes, centerOnPoint])
+
+  // A width change means the panels took or gave back space,
+  // so whatever last positioned the viewport has to say it again.
+  // Only something that moved the canvas on purpose is repeated,
+  // since a plain selection moves nothing,
+  // and repeating a fit for it would pan on every click.
+  useRefitOnResize(canvasRef, useCallback(() => {
+    viewportIntentRef.current?.()
+  }, []))
 
   useGraphShortcuts(reactFlow)
 
@@ -552,8 +600,21 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
                 />
                 <Controls
                   showInteractive={false}
-                  className="!bg-card !border !border-border [&_button]:!bg-card [&_button]:!border-border [&_button]:!text-foreground"
+                  // ReactFlow fills control icons,
+                  // which its own set is drawn for. Lucide draws strokes,
+                  // so an unfilled icon renders as a solid blob without this.
+                  className="!bg-card !border !border-border [&_button]:!bg-card [&_button]:!border-border [&_button]:!text-foreground [&_button:disabled]:!opacity-40 [&_button_svg]:!fill-none [&_button_svg]:!stroke-current"
                 >
+                  {/* Zoom and fit already live here, and centring is the same
+                      kind of thing, a one-shot move of the viewport. Focus is
+                      a mode, so it sits with the other mode in the toolbar. */}
+                  <ControlButton
+                    onClick={() => selectedNodeId && centerOnNode(selectedNodeId)}
+                    disabled={!selectedNodeId}
+                    title={t('graph.detail.centerInGraphButton')}
+                  >
+                    <Target className="size-3.5" />
+                  </ControlButton>
                   {dragPositions.size > 0 && (
                     <ControlButton
                       onClick={() => setDragPositions(new Map())}
@@ -579,7 +640,6 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
             outgoing={outgoing}
             onClose={clearSelection}
             onSelectNode={selectAndCenter}
-            onCenterInGraph={() => selectedNodeId && centerOnNode(selectedNodeId)}
             {...(selectedNodeChange ? { change: selectedNodeChange } : {})}
           />
         </aside>

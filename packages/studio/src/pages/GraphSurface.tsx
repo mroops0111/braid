@@ -4,8 +4,8 @@ import type { GraphView } from '@/components/graph/GraphToolbar'
 import { useCallback, useState } from 'react'
 import { GraphCanvas } from '@/components/graph/GraphCanvas'
 import { FocusToggle, ViewToggle } from '@/components/graph/GraphToolbar'
+import { useFocusedSelection } from '@/components/graph/useFocusedSelection'
 import { optional } from '@/lib/optional'
-import { useMutualExclusionPair } from '@/lib/useMutualExclusionPair'
 import { GraphTablePage } from './GraphTable'
 
 export type { GraphView } from '@/components/graph/GraphToolbar'
@@ -100,21 +100,14 @@ export function GraphSurface({
 /** Hook bundling the shared state pages typically hoist for the surface. */
 export function useGraphSurfaceState(initialView: GraphView = 'visualization') {
   const [view, setView] = useState<GraphView>(initialView)
-  const [selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId]
-    = useMutualExclusionPair<NodeId, EdgeId>()
-  const [focusMode, setFocusMode] = useState(false)
+  const selection = useFocusedSelection()
   // A counter, not a boolean, so two arrivals at the same node both pan.
   const [centerRequest, setCenterRequest] = useState(0)
   const requestCenter = useCallback(() => setCenterRequest(current => current + 1), [])
   return {
     view,
     setView,
-    selectedNodeId,
-    setSelectedNodeId,
-    selectedEdgeId,
-    setSelectedEdgeId,
-    focusMode,
-    setFocusMode,
+    ...selection,
     centerRequest,
     requestCenter,
   }
@@ -122,10 +115,10 @@ export function useGraphSurfaceState(initialView: GraphView = 'visualization') {
 
 /**
  * Canonical Focus and ViewToggle pair.
- * Focus is hidden when no node is selected,
- * since a no-op chord should not sit in the toolbar.
- * Pages with extra views, such as Proposals' "list",
- * can ignore this helper and compose `FocusToggle` and `ViewToggle` directly.
+ * Focus stays here rather than in the canvas cluster,
+ * since it is a mode and every control in that cluster fires once and returns.
+ * It is disabled without a selection instead of hidden,
+ * so the toolbar keeps its width.
  */
 export function GraphSurfaceActions({
   view,
@@ -142,7 +135,7 @@ export function GraphSurfaceActions({
 }) {
   return (
     <>
-      {selectedNodeId && <FocusToggle active={focusMode} onChange={onFocusChange} />}
+      <FocusToggle active={focusMode} disabled={!selectedNodeId} onChange={onFocusChange} />
       <ViewToggle view={view} onChange={onViewChange} />
     </>
   )

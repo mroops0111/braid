@@ -5,30 +5,33 @@ import { cn } from '@/lib/utils'
 export type GraphView = 'visualization' | 'table'
 
 /**
- * Page-actions toolbar atoms shared by the Graph page,
- * and the Proposals preview.
- * They live here, not in any page,
- * so neither page imports the other, both consume a common toolkit.
+ * Mode switch for the selected node's neighbourhood.
  *
- * Visual language matches the sibling icon group.
- * Same border, same card background,
- * and the active state uses the `accent` token,
- * so Focus and the active view chip read as members of one cluster.
+ * A mode rather than an action,
+ * so it sits with the view switch instead of in the canvas cluster,
+ * where every other control fires once and returns. Always rendered,
+ * and disabled without a selection,
+ * since appearing only when one exists shifted whatever stood beside it.
  */
-
-export function FocusToggle({ active, onChange }: { active: boolean, onChange: (next: boolean) => void }) {
+export function FocusToggle({ active, disabled, onChange }: {
+  active: boolean
+  disabled: boolean
+  onChange: (next: boolean) => void
+}) {
   const { t } = useTranslation()
   return (
     <button
       type="button"
       onClick={() => onChange(!active)}
+      disabled={disabled}
       aria-pressed={active}
       title={active ? t('graph.toolbar.showFullGraphTooltip') : t('graph.toolbar.focusNeighbourhoodTooltip')}
       className={cn(
         'flex h-7 items-center gap-1 rounded-md border border-border px-2 text-2xs font-medium uppercase tracking-wider shadow-sm transition-colors',
+        'disabled:cursor-not-allowed disabled:opacity-40',
         active
           ? 'bg-accent text-foreground'
-          : 'bg-card text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+          : 'bg-card text-muted-foreground enabled:hover:bg-accent/50 enabled:hover:text-foreground',
       )}
     >
       <FocusIcon className="size-3.5" />

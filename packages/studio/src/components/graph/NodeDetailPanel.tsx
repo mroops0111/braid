@@ -1,9 +1,8 @@
 import type { GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
-import { ArrowDownToDot, ArrowUpFromDot, Crosshair, FileText, X } from 'lucide-react'
+import { ArrowDownToDot, ArrowUpFromDot, FileText, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Markdown } from '@/components/SkillTranscript/Markdown'
 import { StatusBadge } from '@/components/StatusBadge'
-import { Button } from '@/components/ui/button'
 import { NodeTypeBadge } from './NodeTypeBadge'
 
 type NodeChange = 'added' | 'updated' | 'removed'
@@ -27,7 +26,7 @@ interface NodeDetailPanelProps {
    * When present, a "Center in graph" footer button calls it.
    * The table view omits this prop since centering has no meaning there.
    */
-  onCenterInGraph?: () => void
+
 }
 
 /**
@@ -44,7 +43,6 @@ export function NodeDetailPanel({
   outgoing,
   onClose,
   onSelectNode,
-  onCenterInGraph,
   change,
 }: NodeDetailPanelProps) {
   const { t } = useTranslation()
@@ -125,17 +123,6 @@ export function NodeDetailPanel({
               )}
         </section>
       </div>
-
-      {onCenterInGraph && (
-        <div className="border-t border-border p-4">
-          {/* Same footer slot as the reference peek's own action, so the icon
-              is what tells a reader this one stays on the page. */}
-          <Button variant="ghost" size="sm" className="w-full justify-center [&_svg]:size-3" onClick={onCenterInGraph}>
-            <Crosshair />
-            {t('graph.detail.centerInGraphButton')}
-          </Button>
-        </div>
-      )}
     </div>
   )
 }
