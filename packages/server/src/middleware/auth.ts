@@ -48,14 +48,14 @@ export interface AuthMiddlewareOptions {
   // The implicit caller under local trust, or null when there is none.
   readonly defaultPrincipal: UserIdType | null
   /**
-   * Verifiers tried after the session store, in order.
+   * Credentials this deployment accepts, tried in order.
    *
-   * A deployment that names an authorization server accepts its tokens here,
-   * as well as the sessions Braid issues itself,
-   * so a browser and a programmatic client arrive by different doors,
-   * into the same user.
+   * The sessions Braid issues are one entry rather than a step of their own,
+   * so a deployment that also names an authorization server,
+   * extends the list instead of the code that walks it.
+   * Required under `requireAuth`, since an empty list would refuse everyone.
    */
-  readonly accessTokenVerifiers?: readonly AccessTokenVerifier[]
+  readonly accessTokenVerifiers: readonly AccessTokenVerifier[]
 }
 
 // EventSource (browser SSE) cannot send custom Authorization headers,
@@ -130,7 +130,7 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
       token = context.req.query('token') || undefined
     if (!token)
       throw new UnauthorizedError('Missing or invalid Authorization header. Sign in to continue.')
-    const userId = await resolveCaller(token, options)
+    const userId = await resolveCaller(token, options.accessTokenVerifiers)
     if (!userId)
       throw new UnauthorizedError('Session expired or revoked. Sign in again.')
     context.set('userId', userId)
@@ -147,12 +147,8 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
  * One that recognises and refuses throws instead,
  * which is why an expired token reports as expired rather than as unknown.
  */
-async function resolveCaller(token: string, options: AuthMiddlewareOptions): Promise<UserIdType | null> {
-  // The composition root always wires sessionStore alongside requireAuth.
-  const session = await options.sessionStore!.resolve(token)
-  if (session)
-    return session.userId
-  for (const verifier of options.accessTokenVerifiers ?? []) {
+async function resolveCaller(token: string, verifiers: readonly AccessTokenVerifier[]): Promise<UserIdType | null> {
+  for (const verifier of verifiers) {
     const caller = await verifier.verify(token)
     if (caller)
       return caller.userId

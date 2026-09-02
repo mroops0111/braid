@@ -4,6 +4,7 @@ import type { SessionStore } from '../../src/infrastructure/auth/SessionStore.js
 import { UnauthorizedError } from '@braidhq/core'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
+import { SessionTokenVerifier } from '../../src/infrastructure/auth/SessionTokenVerifier.js'
 import { authMiddleware, getUserId } from '../../src/middleware/auth.js'
 
 function appWith(input: {
@@ -15,7 +16,10 @@ function appWith(input: {
     sessionStore: input.sessionStore,
     requireAuth: true,
     defaultPrincipal: null,
-    ...(input.verifiers ? { accessTokenVerifiers: input.verifiers } : {}),
+    accessTokenVerifiers: [
+      new SessionTokenVerifier(input.sessionStore),
+      ...(input.verifiers ?? []),
+    ],
   }))
   app.onError((error, context) => context.json({ message: error.message }, 401))
   app.get('/who', context => context.json({ userId: getUserId(context) }))
