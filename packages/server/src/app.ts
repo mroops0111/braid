@@ -15,6 +15,7 @@ import { createEdgesRouter } from './routes/edges.js'
 import { createEmbeddingsRouter } from './routes/embeddings.js'
 import { healthRouter } from './routes/health.js'
 import { createHistoryRouter } from './routes/history.js'
+import { createMcpProxyRouter } from './routes/mcpProxy.js'
 import { createModelRouter } from './routes/model.js'
 import { createNodesRouter } from './routes/nodes.js'
 import { createOAuthCallbackRouter, createOAuthStartRouter, OAuthFlowStore } from './routes/oauth.js'
@@ -54,6 +55,19 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   // Global middleware, every request passes these in order.
   const corsOrigins = deps.corsOrigins ?? options.corsOrigins
   app.use('*', corsOrigins ? corsMiddleware({ allowedOrigins: corsOrigins }) : corsMiddleware())
+
+  // The MCP endpoint, served on this port rather than one of its own.
+  // The gateway binds loopback and this forwards to it, so a deployment
+  // exposes one address and one certificate.
+  // Ahead of the app shell and the auth gate, because the endpoint runs its
+  // own OAuth against the same issuer. Braid's gate would answer an
+  // unauthenticated caller with a problem document, where the endpoint owes
+  // it a challenge naming where to authenticate.
+  if (deps.mcpGatewayUrl) {
+    const mcpProxy = createMcpProxyRouter({ gatewayUrl: deps.mcpGatewayUrl })
+    app.route('/braid', mcpProxy)
+    app.route('/.well-known/oauth-protected-resource/braid', mcpProxy)
+  }
   // The app shell is what a signed-out visitor loads in order to sign in,
   // so it mounts before the auth gate.
   // Gating it would leave nobody able to reach the login screen,
@@ -100,7 +114,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       sessionStore: deps.sessionStore,
       accessPolicy: deps.accessPolicy,
       userRegistry: deps.userRegistry,
-      ...(deps.googleOAuth ? { googleOAuth: deps.googleOAuth } : {}),
+      loginProviders: deps.loginProviders ?? [],
       studioUrl: deps.studioUrl ?? 'http://localhost:5173',
       requiresAuth: deps.authMode.requiresAuth,
     }))

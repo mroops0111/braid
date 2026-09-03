@@ -18,12 +18,29 @@ export interface OidcTokenVerifierOptions {
    */
   readonly audience: string
   readonly userRegistry: UserRegistryFile
+  /**
+   * Whether an email may still reach this deployment.
+   *
+   * Narrowed to the one question asked, so this stays independent of how the
+   * answer is reached, whether an allowed domain, an allowlist, or an invite.
+   */
+  readonly accessPolicy: SignInPolicy
   readonly fetch?: typeof globalThis.fetch
+}
+
+export interface SignInPolicy {
+  decide: (email: string) => Promise<{ readonly allow: boolean, readonly reason?: string }>
 }
 
 interface Claims {
   readonly sub?: unknown
   readonly email?: unknown
+}
+
+function emailOf(claims: Claims): string | null {
+  return typeof claims.email === 'string' && claims.email.length > 0
+    ? claims.email.toLowerCase()
+    : null
 }
 
 /**
@@ -61,13 +78,26 @@ export class OidcTokenVerifier implements AccessTokenVerifier {
       throw new UnauthorizedError(`Token rejected: ${error instanceof Error ? error.message : String(error)}`)
     }
 
-    const user = await this.resolveUser(claims)
-    if (!user) {
+    const email = emailOf(claims)
+    if (!email) {
       throw new UnauthorizedError(
-        'Token is valid but carries no email this deployment recognises. '
-        + 'The authorization server must include an email claim.',
+        'Token is valid but carries no email claim. '
+        + 'The authorization server must include one.',
       )
     }
+    const user = await this.resolveUser(email)
+    if (!user) {
+      throw new UnauthorizedError(
+        `Token is valid but no user of this deployment has the email "${email}".`,
+      )
+    }
+    // The browser door runs this same policy at every login,
+    // so this one has to as well.
+    // Without it, dropping a domain or revoking an invite closes one door,
+    // and leaves a token minted before the change working indefinitely.
+    const decision = await this.options.accessPolicy.decide(email)
+    if (!decision.allow)
+      throw new UnauthorizedError(decision.reason ?? `"${email}" is no longer authorized to sign in.`)
     return { userId: user }
   }
 
@@ -83,12 +113,9 @@ export class OidcTokenVerifier implements AccessTokenVerifier {
    * Carrying an issuer's subject would mean storing it first,
    * which is a decision about identity rather than a lookup.
    */
-  private async resolveUser(claims: Claims): Promise<UserId | null> {
-    if (typeof claims.email !== 'string' || claims.email.length === 0)
-      return null
-    const lower = claims.email.toLowerCase()
+  private async resolveUser(email: string): Promise<UserId | null> {
     const users = await this.options.userRegistry.list()
-    return users.find(user => user.email?.toLowerCase() === lower)?.id ?? null
+    return users.find(user => user.email?.toLowerCase() === email)?.id ?? null
   }
 
   private metadataOnce(): Promise<OidcMetadata> {

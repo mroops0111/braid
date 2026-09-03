@@ -1,6 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { api } from './api'
+import { useAuthConfig } from './useAuthConfig'
 import { useAuthToken } from './useAuthToken'
 
 interface GateLoading { status: 'loading' }
@@ -28,11 +27,7 @@ export type AuthGate = GateLoading | GateLogin | GateAuthenticated
  */
 export function useAuthGate(): AuthGate {
   const token = useAuthToken()
-  const { data: config, isLoading } = useQuery({
-    queryKey: ['auth', 'config'],
-    queryFn: () => api.authConfig(),
-    staleTime: 5 * 60 * 1000,
-  })
+  const config = useAuthConfig()
   const [redirectError, setRedirectError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -43,8 +38,6 @@ export function useAuthGate(): AuthGate {
     }
   }, [])
 
-  if (isLoading)
-    return { status: 'loading' }
   if (!config)
     return { status: 'loading' }
   if (!config.requiresAuth)

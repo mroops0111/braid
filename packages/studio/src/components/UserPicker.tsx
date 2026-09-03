@@ -3,8 +3,9 @@ import { Loader2, LogOut, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '@/lib/api'
-import { clearAuthToken } from '@/lib/authToken'
+import { canSignOut, clearAuthToken } from '@/lib/authToken'
 import { queryKeys, useMe } from '@/lib/queries'
+import { useAuthConfig } from '@/lib/useAuthConfig'
 import { useAuthToken } from '@/lib/useAuthToken'
 import { Button } from './ui/button'
 import {
@@ -58,6 +59,8 @@ function RenameDialog({
   const queryClient = useQueryClient()
   const { data: me } = useMe()
   const token = useAuthToken()
+  const requiresAuth = useAuthConfig()?.requiresAuth ?? false
+  const signOutAvailable = canSignOut({ token, requiresAuth })
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -94,8 +97,10 @@ function RenameDialog({
   }
 
   async function signOut() {
+    const returnTo = window.location.origin + window.location.pathname
+    let endSessionUrl: string | null = null
     try {
-      await api.logout()
+      ({ endSessionUrl } = await api.logout(returnTo))
     }
     catch {
       // Logout is best-effort.
@@ -105,6 +110,10 @@ function RenameDialog({
     clearAuthToken()
     queryClient.clear()
     onOpenChange(false)
+    // Last, because it navigates away. Without it the identity provider still
+    // knows who this is, and the next sign-in returns without asking.
+    if (endSessionUrl)
+      window.location.href = endSessionUrl
   }
 
   return (
@@ -132,7 +141,7 @@ function RenameDialog({
           {error && <p className="text-2xs text-destructive">{error}</p>}
         </div>
         <DialogFooter className="sm:justify-between">
-          {token
+          {signOutAvailable
             ? (
                 <Button
                   type="button"

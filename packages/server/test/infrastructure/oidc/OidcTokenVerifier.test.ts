@@ -1,4 +1,5 @@
 import type { User, UserId } from '@braidhq/schema'
+import type { SignInPolicy } from '../../../src/infrastructure/oidc/OidcTokenVerifier.js'
 import type { UserRegistryFile } from '../../../src/infrastructure/users/UserRegistryFile.js'
 import { exportJWK, generateKeyPair, SignJWT } from 'jose'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
@@ -33,7 +34,16 @@ function registry(users: Array<Partial<User>>): UserRegistryFile {
   } as unknown as UserRegistryFile
 }
 
-function verifier(userRegistry: UserRegistryFile, audience = AUDIENCE): OidcTokenVerifier {
+/** Allows everyone unless a test says otherwise, so each test states its own gate. */
+function policy(decision: { allow: boolean, reason?: string } = { allow: true }): SignInPolicy {
+  return { decide: async () => decision }
+}
+
+function verifier(
+  userRegistry: UserRegistryFile,
+  audience = AUDIENCE,
+  accessPolicy: SignInPolicy = policy(),
+): OidcTokenVerifier {
   const fetchImpl = vi.fn(async (url: string | URL) => {
     const target = String(url)
     if (target.endsWith('/.well-known/openid-configuration'))
@@ -42,10 +52,37 @@ function verifier(userRegistry: UserRegistryFile, audience = AUDIENCE): OidcToke
       return new Response(JSON.stringify(jwks), { status: 200, headers: { 'content-type': 'application/json' } })
     return new Response('not found', { status: 404 })
   }) as unknown as typeof globalThis.fetch
-  return new OidcTokenVerifier({ issuer: ISSUER, audience, userRegistry, fetch: fetchImpl })
+  return new OidcTokenVerifier({ issuer: ISSUER, audience, userRegistry, accessPolicy, fetch: fetchImpl })
 }
 
 describe('oidcTokenVerifier', () => {
+  it('refuses a caller the sign-in policy no longer allows', async () => {
+    // Offboarding is the case. The record still exists, so the email still
+    // resolves, but the domain was dropped or the invite revoked.
+    // The browser door closes at the next login, and this one has to agree.
+    const users = registry([{ id: 'user-abc' as UserId, email: 'alice@example.com' }])
+    const token = await mint({ sub: 'google-1', email: 'alice@example.com' })
+    const denied = policy({ allow: false, reason: 'This account is not authorized to sign in.' })
+    await expect(verifier(users, AUDIENCE, denied).verify(token))
+      .rejects
+      .toThrow('This account is not authorized to sign in.')
+  })
+
+  it('asks the policy about the email the token carries', async () => {
+    const users = registry([{ id: 'user-abc' as UserId, email: 'Alice@Example.com' }])
+    const token = await mint({ sub: 'google-1', email: 'ALICE@example.com' })
+    const asked: string[] = []
+    const recording = {
+      decide: async (email: string) => {
+        asked.push(email)
+        return { allow: true }
+      },
+    }
+    await verifier(users, AUDIENCE, recording).verify(token)
+    // Lowercased, so an allowlist written in one case matches a token in another.
+    expect(asked).toEqual(['alice@example.com'])
+  })
+
   it('declines an opaque token rather than judging it, so the session store keeps its turn', async () => {
     expect(await verifier(registry([])).verify('a-session-token')).toBeNull()
   })
@@ -84,6 +121,6 @@ describe('oidcTokenVerifier', () => {
 
   it('refuses a valid token whose email nobody here has, rather than inventing a caller', async () => {
     const token = await mint({ sub: 'google-1', email: 'stranger@example.com' })
-    await expect(verifier(registry([])).verify(token)).rejects.toThrow(/recognises/i)
+    await expect(verifier(registry([])).verify(token)).rejects.toThrow(/no user of this deployment has the email/i)
   })
 })
