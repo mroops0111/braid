@@ -2,6 +2,7 @@ import type { UserId } from '@braidhq/schema'
 import type { ResolvedSession, SessionStore } from '../../src/infrastructure/auth/SessionStore.js'
 import { Hono } from 'hono'
 import { describe, expect, it } from 'vitest'
+import { SessionTokenVerifier } from '../../src/infrastructure/auth/SessionTokenVerifier.js'
 import { authMiddleware, getUserId } from '../../src/middleware/auth.js'
 import { errorHandler } from '../../src/middleware/error.js'
 
@@ -17,7 +18,12 @@ function fakeSessionStore(byToken: Record<string, UserId>): SessionStore {
 
 function appWith(store: SessionStore, requireAuth: boolean, defaultPrincipal: UserId | null): Hono {
   const app = new Hono()
-  app.use('*', authMiddleware({ sessionStore: store, requireAuth, defaultPrincipal }))
+  app.use('*', authMiddleware({
+    sessionStore: store,
+    requireAuth,
+    defaultPrincipal,
+    accessTokenVerifiers: [new SessionTokenVerifier(store)],
+  }))
   app.get('/who', c => c.json({ userId: getUserId(c) ?? null }))
   return app
 }
@@ -47,7 +53,13 @@ describe('authMiddleware', () => {
   it('under enforced auth, any OAuth callback is public but the start route stays gated', async () => {
     const app = new Hono()
     app.onError(errorHandler)
-    app.use('*', authMiddleware({ sessionStore: fakeSessionStore({}), requireAuth: true, defaultPrincipal: null }))
+    const store = fakeSessionStore({})
+    app.use('*', authMiddleware({
+      sessionStore: store,
+      requireAuth: true,
+      defaultPrincipal: null,
+      accessTokenVerifiers: [new SessionTokenVerifier(store)],
+    }))
     app.get('/oauth/google/callback', context => context.text('ok'))
     app.get('/oauth/anyprovider/callback', context => context.text('ok'))
     app.post('/oauth/google/start', context => context.text('ok'))

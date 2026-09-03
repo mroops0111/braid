@@ -37,6 +37,7 @@ import { FsModelSerializer } from './infrastructure/model/FsModelSerializer.js'
 import { GitHubOAuth } from './infrastructure/oauth/GitHubOAuth.js'
 import { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
 import { oauthNamespace } from './infrastructure/oauth/providers.js'
+import { OidcTokenVerifier } from './infrastructure/oidc/OidcTokenVerifier.js'
 import { FsReactorCycleRepository } from './infrastructure/reactor/FsReactorCycleRepository.js'
 import { FsSecretStore, type SecretStore } from './infrastructure/secrets/SecretStore.js'
 import { FsRunRepository } from './infrastructure/skill/FsRunRepository.js'
@@ -122,8 +123,8 @@ export type PluginRegistryFactory = (context: FsRuntimeContext) => PluginRegistr
 
 /**
  * The source loaders a default Braid build ships with.
- * Exported so a third-party composition can take the git, github, and drive
- * loaders without inheriting the rest of the coding preset.
+ * Exported so a third-party composition can take the git, github,
+ * and drive loaders without inheriting the rest of the coding preset.
  */
 export function defaultSourceLoaderPlugins(context: FsRuntimeContext): readonly SourceLoaderPlugin[] {
   const { secretStore, githubOAuth, googleOAuth } = context
@@ -205,8 +206,8 @@ export function defaultPluginRegistry(context: FsRuntimeContext, options: ExtraP
 /**
  * Opinionated production composition, the coding preset.
  * Filesystem-persists workspaces, proposals, and clarifications,
- * and bundles Kuzu storage, the DDD ontology, the git, github, and drive
- * loaders, and the claude-code agent.
+ * and bundles Kuzu storage, the DDD ontology, the git, github,
+ * and drive loaders, and the claude-code agent.
  *
  * To run a different plugin set, either pass `extraXxxPlugins` and flip
  * `storageKind` or `agentKind`, or hand `composeFsAppWithRegistry` a registry
@@ -304,6 +305,16 @@ export async function composeFsAppWithRegistry(
   // Its kind=service rides onto every proposal it submits,
   // so the HITL views classify it without a read-time lookup.
   await ensureServiceAccount(userRegistry, REACTOR_USER_ID, 'Reactor')
+  // A deployment that names an authorization server accepts its tokens,
+  // as well as the sessions Braid issues,
+  // so a programmatic client has a door that does not involve a browser.
+  // Unset leaves Braid exactly as it was.
+  const oidcIssuer = process.env.BRAID_OIDC_ISSUER
+  const oidcAudience = process.env.BRAID_OIDC_AUDIENCE ?? apiUrl
+  const accessTokenVerifiers = oidcIssuer
+    ? [new OidcTokenVerifier({ issuer: oidcIssuer, audience: oidcAudience, userRegistry })]
+    : []
+
   // Serving Studio ourselves puts the UI and the API on one origin,
   // so the browser never reaches for CORS on the path that matters.
   const studioRoot = process.env.BRAID_STUDIO_ROOT
@@ -506,6 +517,8 @@ export async function composeFsAppWithRegistry(
     sessionStore,
     accessPolicy,
     studioUrl,
+    ...(accessTokenVerifiers.length > 0 ? { accessTokenVerifiers } : {}),
+    ...(oidcIssuer ? { oidcIssuer, apiUrl } : {}),
     ...(studioRoot ? { studioRoot } : {}),
     ...(corsOrigins ? { corsOrigins } : {}),
     ...(googleOAuth ? { googleOAuth } : {}),

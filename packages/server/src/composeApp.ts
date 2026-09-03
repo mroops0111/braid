@@ -24,6 +24,7 @@ import type {
 import type { AbsolutePath, OntologyId, WorkspaceId } from '@braidhq/schema'
 import type { AuthMode } from './authMode.js'
 import type { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
+import type { AccessTokenVerifier } from './infrastructure/auth/AccessTokenVerifier.js'
 import type { SessionStore } from './infrastructure/auth/SessionStore.js'
 import type { GitHubOAuth } from './infrastructure/oauth/GitHubOAuth.js'
 import type { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
@@ -92,6 +93,17 @@ export interface AppDependencies {
   historyService?: HistoryService
   batchService?: BatchService
   embeddingService?: EmbeddingService
+  /** Verifiers the auth middleware tries after the session store. */
+  accessTokenVerifiers?: readonly AccessTokenVerifier[]
+  /** Named in the protected resource metadata, absent when none is trusted. */
+  oidcIssuer?: string
+  /**
+   * This deployment's public API address.
+   *
+   * The resource a token is issued for, which is the API rather than the UI,
+   * since that is what a token is presented to.
+   */
+  apiUrl?: string
   // Runs the active ontology's per-unit skill on intent-source diffs.
   reactorService?: ReactorService
 

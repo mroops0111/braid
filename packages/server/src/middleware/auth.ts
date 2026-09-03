@@ -1,5 +1,6 @@
 import type { UserId as UserIdType } from '@braidhq/schema'
 import type { Context, MiddlewareHandler } from 'hono'
+import type { AccessTokenVerifier } from '../infrastructure/auth/AccessTokenVerifier.js'
 import type { SessionStore } from '../infrastructure/auth/SessionStore.js'
 import { UnauthorizedError } from '@braidhq/core'
 import { UserId } from '@braidhq/schema'
@@ -15,7 +16,10 @@ declare module 'hono' {
 // `/openapi.json` follows the convention that OpenAPI reads publicly,
 // honored by Swagger UI, codegen, and MCP gateways.
 // It documents shape and not data, so exposing it to anonymous callers is safe.
-const PUBLIC_EXACT_PATHS = new Set(['/openapi.json'])
+// Metadata a client reads before it has a token,
+// so gating it would make it useless.
+// It names an issuer and nothing about this deployment's data.
+const PUBLIC_EXACT_PATHS = new Set(['/openapi.json', '/.well-known/oauth-protected-resource'])
 // Each `/webhooks/<provider>/` prefix is anonymous,
 // because the provider authenticates via a per-source HMAC,
 // checked inside the handler rather than via a Bearer token.
@@ -43,6 +47,15 @@ export interface AuthMiddlewareOptions {
   readonly requireAuth: boolean
   // The implicit caller under local trust, or null when there is none.
   readonly defaultPrincipal: UserIdType | null
+  /**
+   * Credentials this deployment accepts, tried in order.
+   *
+   * The sessions Braid issues are one entry rather than a step of their own,
+   * so a deployment that also names an authorization server,
+   * extends the list instead of the code that walks it.
+   * Required under `requireAuth`, since an empty list would refuse everyone.
+   */
+  readonly accessTokenVerifiers: readonly AccessTokenVerifier[]
 }
 
 // EventSource (browser SSE) cannot send custom Authorization headers,
@@ -76,9 +89,10 @@ export function extractBearerToken(context: { req: { header: (name: string) => s
  * principal, on every path so public routes like `/auth/whoami` see the caller.
  * Nothing is rejected.
  *
- * When auth is enforced, identity comes only from a valid Bearer session, and a
- * missing or invalid token on a non-public route is a 401. The header is never
- * read here, so it cannot impersonate an authenticated caller.
+ * When auth is enforced, identity comes only from a valid Bearer session,
+ * and a missing or invalid token on a non-public route is a 401.
+ * The header is never read here,
+ * so it cannot impersonate an authenticated caller.
  */
 export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandler {
   return async (context, next) => {
@@ -116,14 +130,30 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
       token = context.req.query('token') || undefined
     if (!token)
       throw new UnauthorizedError('Missing or invalid Authorization header. Sign in to continue.')
-    // The composition root always wires sessionStore alongside requireAuth.
-    const session = await options.sessionStore!.resolve(token)
-    if (!session)
+    const userId = await resolveCaller(token, options.accessTokenVerifiers)
+    if (!userId)
       throw new UnauthorizedError('Session expired or revoked. Sign in again.')
-    context.set('userId', session.userId)
+    context.set('userId', userId)
     await next()
     return undefined
   }
+}
+
+/**
+ * The person a token stands for, from whichever verifier claims it.
+ *
+ * A verifier answering null has declined the token rather than judged it,
+ * so the next one gets a turn.
+ * One that recognises and refuses throws instead,
+ * which is why an expired token reports as expired rather than as unknown.
+ */
+async function resolveCaller(token: string, verifiers: readonly AccessTokenVerifier[]): Promise<UserIdType | null> {
+  for (const verifier of verifiers) {
+    const caller = await verifier.verify(token)
+    if (caller)
+      return caller.userId
+  }
+  return null
 }
 
 export function getUserId(context: Context): UserIdType {

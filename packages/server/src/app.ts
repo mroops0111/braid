@@ -1,6 +1,7 @@
 import type { AppDependencies } from './composeApp.js'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { OpenAPIHono } from '@hono/zod-openapi'
+import { SessionTokenVerifier } from './infrastructure/auth/SessionTokenVerifier.js'
 import { authMiddleware } from './middleware/auth.js'
 import { corsMiddleware } from './middleware/cors.js'
 import { errorHandler } from './middleware/error.js'
@@ -20,6 +21,7 @@ import { createOAuthCallbackRouter, createOAuthStartRouter, OAuthFlowStore } fro
 import { createOntologiesRouter } from './routes/ontologies.js'
 import { createOntologyRouter } from './routes/ontology.js'
 import { createProposalsRouter } from './routes/proposals.js'
+import { createProtectedResourceRouter } from './routes/protectedResource.js'
 import { createReactorCyclesRouter } from './routes/reactorCycles.js'
 import { createRunsRouter } from './routes/runs.js'
 import { createSkillInputOptionsRouter } from './routes/skillInputOptions.js'
@@ -66,12 +68,29 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   // Identity and auth gate. Resolves the caller's `userId` from a Bearer session
   // when auth is enforced, else the `X-Braid-User` header or the default principal.
   // Non-public routes that lack a required Bearer token are rejected.
+  // Sessions first, since the browser is the common case,
+  // and every other verifier would repeat that lookup before declining.
+  // Anything a deployment configured follows.
+  const accessTokenVerifiers = [
+    ...(deps.sessionStore ? [new SessionTokenVerifier(deps.sessionStore)] : []),
+    ...(deps.accessTokenVerifiers ?? []),
+  ]
   app.use('*', authMiddleware({
     ...(deps.sessionStore ? { sessionStore: deps.sessionStore } : {}),
     requireAuth: deps.authMode.requiresAuth,
     defaultPrincipal: deps.authMode.defaultPrincipal,
+    accessTokenVerifiers,
   }))
   app.onError(errorHandler)
+
+  // Only when an issuer is trusted.
+  // Advertising an empty list would point a client at a way in that does not exist.
+  if (deps.oidcIssuer && deps.apiUrl) {
+    app.route('/.well-known/oauth-protected-resource', createProtectedResourceRouter({
+      resource: deps.apiUrl,
+      authorizationServers: [deps.oidcIssuer],
+    }))
+  }
 
   // Host-level routes, not scoped to a single workspace.
   app.route('/health', healthRouter)
