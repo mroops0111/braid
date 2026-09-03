@@ -40,21 +40,21 @@
     "@braidhq/source-loader-mcp": "workspace:*",
     "@braidhq/storage-kuzu": "workspace:*",
     "@hono/node-server": "^2.1.0",
-    "@hono/zod-openapi": "^1.5.3",
+    "@hono/zod-openapi": "^1.6.1",
     "@hono/zod-validator": "^0.9.0",
-    "hono": "^4.12.34",
+    "hono": "^4.13.5",
     "jose": "^6.2.10",
     "pino": "^10.3.1",
     "simple-git": "^3.36.0",
     "yaml": "^2.9.0",
-    "zod": "^4.2.1"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@braidhq/test-utils": "workspace:*",
     "esbuild": "^0.28.2",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "publishConfig": {
     "access": "public",
