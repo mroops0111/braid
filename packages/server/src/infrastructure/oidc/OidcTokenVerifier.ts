@@ -62,34 +62,31 @@ export class OidcTokenVerifier implements AccessTokenVerifier {
     }
 
     const user = await this.resolveUser(claims)
-    if (!user)
-      throw new UnauthorizedError('Token is valid but names nobody with access here.')
+    if (!user) {
+      throw new UnauthorizedError(
+        'Token is valid but carries no email this deployment recognises. '
+        + 'The authorization server must include an email claim.',
+      )
+    }
     return { userId: user }
   }
 
   /**
    * Match the token to a user record.
    *
-   * Email first, since that is what the Google login already keys on, so the
-   * same person arriving through either door lands on one record rather than
-   * accumulating two.
+   * By email, which is what the Google login already keys on,
+   * so the same person arriving through either door lands on one record,
+   * rather than accumulating two.
+   *
+   * Not by `sub`. That names the person inside the issuer,
+   * and Braid's own ids are its own, so the two never coincide.
+   * Carrying an issuer's subject would mean storing it first,
+   * which is a decision about identity rather than a lookup.
    */
   private async resolveUser(claims: Claims): Promise<UserId | null> {
-    if (typeof claims.email === 'string' && claims.email.length > 0) {
-      const byEmail = await this.userRegistryByEmail(claims.email)
-      if (byEmail)
-        return byEmail
-    }
-    if (typeof claims.sub === 'string' && claims.sub.length > 0) {
-      const bySub = await this.options.userRegistry.get(claims.sub as UserId)
-      if (bySub)
-        return bySub.id
-    }
-    return null
-  }
-
-  private async userRegistryByEmail(email: string): Promise<UserId | null> {
-    const lower = email.toLowerCase()
+    if (typeof claims.email !== 'string' || claims.email.length === 0)
+      return null
+    const lower = claims.email.toLowerCase()
     const users = await this.options.userRegistry.list()
     return users.find(user => user.email?.toLowerCase() === lower)?.id ?? null
   }

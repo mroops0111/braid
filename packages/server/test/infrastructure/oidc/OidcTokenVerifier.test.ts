@@ -62,6 +62,14 @@ describe('oidcTokenVerifier', () => {
     expect(await verifier(users).verify(token)).toEqual({ userId: 'user-abc' })
   })
 
+  it('refuses a token carrying no email, since a subject from the issuer names nobody here', async () => {
+    // A token exchange can return a subject and no email,
+    // and the issuer's subject lives in its own namespace rather than Braid's.
+    const users = registry([{ id: 'user-abc' as UserId, email: 'alice@example.com' }])
+    const token = await mint({ sub: 'user-abc' })
+    await expect(verifier(users).verify(token)).rejects.toThrow(/email claim/i)
+  })
+
   it('refuses a token minted for another service, which is what a confused deputy accepts', async () => {
     const users = registry([{ id: 'user-abc' as UserId, email: 'alice@example.com' }])
     const token = await mint({ email: 'alice@example.com' }, { audience: 'https://someone-else.example.com' })
@@ -74,8 +82,8 @@ describe('oidcTokenVerifier', () => {
     await expect(verifier(users).verify(token)).rejects.toThrow(/rejected/i)
   })
 
-  it('refuses a valid token naming nobody here, rather than inventing a caller', async () => {
+  it('refuses a valid token whose email nobody here has, rather than inventing a caller', async () => {
     const token = await mint({ sub: 'google-1', email: 'stranger@example.com' })
-    await expect(verifier(registry([])).verify(token)).rejects.toThrow(/names nobody/i)
+    await expect(verifier(registry([])).verify(token)).rejects.toThrow(/recognises/i)
   })
 })
