@@ -3,14 +3,14 @@ import { NotFoundError } from '@braidhq/core'
 import { OntologyResponse } from '@braidhq/schema'
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
-import { NotFoundResponse, WorkspaceIdParam } from './_shared.js'
+import { mcpReadTool, NotFoundResponse, WorkspaceIdParam } from './_shared.js'
 
 export interface OntologyRouterDeps {
   workspaceRepository: WorkspaceRepository
   pluginRegistry: PluginRegistry
 }
 
-const getOntologyRoute = createRoute({
+const getOntologyRoute = createRoute(mcpReadTool({
   method: 'get',
   path: '/',
   operationId: 'getOntology',
@@ -24,7 +24,7 @@ const getOntologyRoute = createRoute({
     },
     404: NotFoundResponse,
   },
-})
+}))
 
 export function createOntologyRouter(deps: OntologyRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()

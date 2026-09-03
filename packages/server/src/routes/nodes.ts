@@ -3,13 +3,17 @@ import { applyNodeFilter, fuseByRank } from '@braidhq/core'
 import { GraphNode, ModelSnapshot, NodeId, NodeStatus, NodeTypeId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
-import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
+import { mcpReadTool, NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 
 const ListQuery = z.object({
   type: z.union([NodeTypeId, z.array(NodeTypeId)]).optional().openapi({ description: 'Filter by node type id. Pass one or many.' }),
   status: z.union([NodeStatus, z.array(NodeStatus)]).optional().openapi({ description: 'Filter by node status. Pass one or many.' }),
   q: z.string().optional().openapi({ description: 'Case-insensitive substring match against node name and description.' }),
-  semantic: z.coerce.boolean().optional().openapi({
+  // `stringbool` rather than `coerce.boolean`, for two reasons.
+  // Coercion runs `Boolean(value)`, so the string "false" arrives as true,
+  // and it emits `["boolean", "null"]`, which several MCP clients read as a
+  // single string and then either drop or refuse the whole tool.
+  semantic: z.stringbool().optional().openapi({
     description: 'Also rank by meaning, fusing the substring hits with vector hits. Ignored when the deployment configures no embedding backend.',
   }),
   limit: z.coerce.number().int().positive().max(200).optional().openapi({
@@ -46,7 +50,7 @@ export interface NodesRouterDeps {
   embeddingService?: EmbeddingService
 }
 
-const listNodesRoute = createRoute({
+const listNodesRoute = createRoute(mcpReadTool({
   method: 'get',
   path: '/',
   operationId: 'listNodes',
@@ -63,9 +67,9 @@ const listNodesRoute = createRoute({
     },
     400: ValidationFailureResponse,
   },
-})
+}))
 
-const getNodeRoute = createRoute({
+const getNodeRoute = createRoute(mcpReadTool({
   method: 'get',
   path: '/{nodeId}',
   operationId: 'getNode',
@@ -79,9 +83,9 @@ const getNodeRoute = createRoute({
     },
     404: NotFoundResponse,
   },
-})
+}))
 
-const scopeRoute = createRoute({
+const scopeRoute = createRoute(mcpReadTool({
   method: 'get',
   path: '/{nodeId}/scope',
   operationId: 'getNodeScope',
@@ -98,7 +102,7 @@ const scopeRoute = createRoute({
     },
     404: NotFoundResponse,
   },
-})
+}))
 
 export function createNodesRouter(deps: NodesRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()

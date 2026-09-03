@@ -65,8 +65,10 @@ describe('GET /openapi.json', () => {
       expect(operationIds, `missing operationId: ${expected}`).toContain(expected)
     }
 
-    // SSE streams, the OAuth HTML callback, and workspace-management routes, the CLI and Studio admin surface,
-    // are intentionally absent from the spec, they aren't invocable as MCP tools.
+    // SSE streams and the OAuth HTML callback are intentionally absent from
+    // the spec, they aren't invocable as MCP tools.
+    // Workspace management is absent too, apart from the list an MCP client
+    // needs in order to name a workspace at all.
     const allPaths = Object.keys(doc.paths)
     for (const excluded of [
       '/workspaces/{workspaceId}/runs/{runId}/events',
