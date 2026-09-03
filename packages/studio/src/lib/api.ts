@@ -171,6 +171,8 @@ async function fetchJsonAt<T>(remoteId: string, path: string, init?: RequestInit
 
 export interface AuthConfig {
   googleEnabled: boolean
+  /** Which door to knock on, `/auth/{id}/start`. Null leaves nobody able to sign in. */
+  loginProvider: string | null
   studioUrl: string
   requiresAuth: boolean
 }
@@ -182,12 +184,21 @@ export interface AuthWhoami {
 export const api = {
   authConfig: () => fetchJson<AuthConfig>('/auth/config'),
   whoami: () => fetchJson<AuthWhoami>('/auth/whoami'),
-  startGoogleSignIn: (returnTo: string) =>
+  startSignIn: (provider: string, returnTo: string) =>
     fetchJson<{ authorizationUrl: string }>(
-      `/auth/google/start?returnTo=${encodeURIComponent(returnTo)}`,
+      `/auth/${provider}/start?returnTo=${encodeURIComponent(returnTo)}`,
     ),
-  logout: () =>
-    fetchJson<void>('/auth/logout', { method: 'POST' }),
+  /**
+   * Ends the session here, and says where to end it at the identity provider.
+   *
+   * Null when there is none to end, which is the case for a server running
+   * its own Google client, since Google's session is not Braid's to close.
+   */
+  logout: (returnTo: string) =>
+    fetchJson<{ endSessionUrl: string | null }>('/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({ returnTo }),
+    }),
 
   listUsers: () => fetchJson<ItemList<User>>('/users'),
   getMe: () => fetchJson<User>('/users/me'),

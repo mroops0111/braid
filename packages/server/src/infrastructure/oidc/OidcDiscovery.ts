@@ -8,11 +8,19 @@
 export interface OidcMetadata {
   readonly issuer: string
   readonly jwksUri: string
+  /** Absent on an authorization server that runs no browser flow. */
+  readonly authorizationEndpoint?: string
+  readonly tokenEndpoint?: string
+  /** Absent on a server that offers no RP-initiated logout. */
+  readonly endSessionEndpoint?: string
 }
 
 interface RawMetadata {
   readonly issuer?: unknown
   readonly jwks_uri?: unknown
+  readonly authorization_endpoint?: unknown
+  readonly token_endpoint?: unknown
+  readonly end_session_endpoint?: unknown
 }
 
 /**
@@ -56,5 +64,13 @@ async function readMetadata(url: string, fetchImpl: typeof globalThis.fetch): Pr
   const body = await response.json() as RawMetadata
   if (typeof body.issuer !== 'string' || typeof body.jwks_uri !== 'string')
     throw new Error('missing issuer or jwks_uri')
-  return { issuer: body.issuer.replace(/\/$/, ''), jwksUri: body.jwks_uri }
+  return {
+    issuer: body.issuer.replace(/\/$/, ''),
+    jwksUri: body.jwks_uri,
+    // Optional, because a server that only validates tokens publishes
+    // neither, and Braid still trusts it for the programmatic door.
+    ...(typeof body.authorization_endpoint === 'string' ? { authorizationEndpoint: body.authorization_endpoint } : {}),
+    ...(typeof body.token_endpoint === 'string' ? { tokenEndpoint: body.token_endpoint } : {}),
+    ...(typeof body.end_session_endpoint === 'string' ? { endSessionEndpoint: body.end_session_endpoint } : {}),
+  }
 }

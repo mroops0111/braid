@@ -25,7 +25,9 @@ import type { AbsolutePath, OntologyId, WorkspaceId } from '@braidhq/schema'
 import type { AuthMode } from './authMode.js'
 import type { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
 import type { AccessTokenVerifier } from './infrastructure/auth/AccessTokenVerifier.js'
+import type { LoginProvider } from './infrastructure/auth/LoginProvider.js'
 import type { SessionStore } from './infrastructure/auth/SessionStore.js'
+import type { McpGatewayProcess } from './infrastructure/mcp/McpGatewayProcess.js'
 import type { GitHubOAuth } from './infrastructure/oauth/GitHubOAuth.js'
 import type { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
 import type { SecretStore } from './infrastructure/secrets/SecretStore.js'
@@ -97,6 +99,28 @@ export interface AppDependencies {
   accessTokenVerifiers?: readonly AccessTokenVerifier[]
   /** Named in the protected resource metadata, absent when none is trusted. */
   oidcIssuer?: string
+  /**
+   * The read-only MCP endpoint, absent unless the deployment asked for one.
+   *
+   * Built here but started by `startServer`,
+   * which owns the lifecycle it shares with the socket,
+   * so a composed app in a test spawns nothing.
+   */
+  mcpGateway?: McpGatewayProcess
+  /**
+   * Where the MCP gateway listens on loopback.
+   *
+   * Present with `mcpGateway`, and separate from it because the router that
+   * forwards to the endpoint needs the address, not the process.
+   */
+  mcpGatewayUrl?: string
+  /**
+   * The one browser sign-in this deployment offers.
+   *
+   * An authorization server displaces Braid's own Google client rather than
+   * joining it, so one person has one identity however they arrive.
+   */
+  loginProviders?: readonly LoginProvider[]
   /**
    * This deployment's public API address.
    *

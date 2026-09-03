@@ -2,10 +2,10 @@ import type { Clock } from '@braidhq/core'
 import type { Timestamp, UserId } from '@braidhq/schema'
 import type { Context } from 'hono'
 import type { AccessPolicy } from '../infrastructure/auth/AccessPolicy.js'
+import type { LoginProfile, LoginProvider } from '../infrastructure/auth/LoginProvider.js'
 import type { SessionStore } from '../infrastructure/auth/SessionStore.js'
-import type { GoogleOAuth } from '../infrastructure/oauth/GoogleOAuth.js'
 import type { UserRegistryFile } from '../infrastructure/users/UserRegistryFile.js'
-import { newUserId, NotFoundError, ServiceUnavailableError, ValidationError } from '@braidhq/core'
+import { newUserId, NotFoundError, ValidationError } from '@braidhq/core'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { createOAuthState, createPkceVerifier } from '../infrastructure/oauth/GoogleOAuth.js'
@@ -24,11 +24,13 @@ export interface AuthRouterDeps {
   accessPolicy: AccessPolicy
   userRegistry: UserRegistryFile
   /**
-   * When undefined, `/auth/google/*` respond with 503,
-   * so the operator knows the server is missing OAuth env config,
-   * rather than failing silently mid-flow.
+   * The one way in this deployment offers, or none.
+   *
+   * Exactly one, because two would mean two identities for one person and no
+   * rule for which wins. An empty list mounts no start route at all,
+   * so a misconfigured server says so at the door rather than mid-flow.
    */
-  googleOAuth?: GoogleOAuth
+  loginProviders: readonly LoginProvider[]
   /**
    * Where the Studio bundle is served from.
    * Login redirects land here, with `#token=...` in the fragment.
@@ -45,6 +47,10 @@ export interface AuthRouterDeps {
    */
   requiresAuth: boolean
 }
+
+const LogoutBody = z.object({
+  returnTo: z.string().url().optional(),
+})
 
 const StartQuery = z.object({
   returnTo: z.string().url().optional(),
@@ -73,94 +79,72 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
     }
   }
 
-  router.get('/google/start', async (context) => {
-    if (!deps.googleOAuth)
-      throw new ServiceUnavailableError('Server is missing BRAID_GOOGLE_CLIENT_ID / BRAID_GOOGLE_CLIENT_SECRET. Ask the admin to configure them.')
-    reapExpired()
-    const parsed = StartQuery.safeParse({
-      returnTo: context.req.query('returnTo'),
-    })
-    if (!parsed.success)
-      throw new ValidationError('Invalid returnTo query parameter.')
-    const state = createOAuthState()
-    const codeVerifier = createPkceVerifier()
-    pending.set(state, {
-      codeVerifier,
-      returnTo: parsed.data.returnTo ?? deps.studioUrl,
-      createdAt: Date.now(),
-    })
-    const url = deps.googleOAuth.buildLoginUrl({ state, codeVerifier })
-    return context.json({ authorizationUrl: url })
-  })
-
-  router.get('/google/callback', async (context) => {
-    if (!deps.googleOAuth)
-      throw new ServiceUnavailableError('Google sign-in is not configured on this server.')
-    const parsed = CallbackQuery.safeParse({
-      code: context.req.query('code'),
-      state: context.req.query('state'),
-      error: context.req.query('error'),
-      error_description: context.req.query('error_description'),
-    })
-    if (!parsed.success)
-      throw new ValidationError('Invalid callback parameters.')
-    const { code, state, error, error_description: errorDescription } = parsed.data
-    if (error || !code || !state)
-      return redirectWithError(context, deps.studioUrl, error_description_or_default(error, errorDescription))
-
-    const flow = pending.get(state)
-    if (!flow)
-      return redirectWithError(context, deps.studioUrl, 'Session expired before sign-in completed. Try again.')
-    pending.delete(state)
-
-    let profile
-    try {
-      profile = await deps.googleOAuth.loginWithCode({ code, codeVerifier: flow.codeVerifier })
-    }
-    catch (err) {
-      return redirectWithError(context, flow.returnTo, err instanceof Error ? err.message : String(err))
-    }
-
-    const decision = await deps.accessPolicy.decide(profile.email)
-    if (!decision.allow)
-      return redirectWithError(context, flow.returnTo, decision.reason ?? 'Not authorized.')
-
-    // Resolve or create the user record. Google `sub` survives an email change,
-    // so prefer it as the join key,
-    // falling back to email for invited users new to login.
-    const isAdmin = deps.accessPolicy.isAdmin(profile.email)
-    let user = await deps.userRegistry.getByGoogleSub(profile.sub)
-    if (!user) {
-      const inviteRole = decision.viaInvite?.serverRole
-      user = await deps.userRegistry.create({
-        id: newUserId(),
-        googleSub: profile.sub,
-        email: profile.email,
-        displayName: profile.displayName,
-        serverRole: isAdmin ? 'admin' : inviteRole ?? 'user',
-        createdAt: deps.clock.now() as Timestamp,
+  for (const provider of deps.loginProviders) {
+    router.get(`/${provider.id}/start`, async (context) => {
+      reapExpired()
+      const parsed = StartQuery.safeParse({ returnTo: context.req.query('returnTo') })
+      if (!parsed.success)
+        throw new ValidationError('Invalid returnTo query parameter.')
+      const state = createOAuthState()
+      const codeVerifier = createPkceVerifier()
+      pending.set(state, {
+        codeVerifier,
+        returnTo: parsed.data.returnTo ?? deps.studioUrl,
+        createdAt: Date.now(),
       })
-      if (decision.viaInvite)
-        await deps.accessPolicy.consumeInvite(profile.email)
-    }
-    else if (isAdmin && user.serverRole !== 'admin') {
-      // BRAID_ADMIN_EMAILS was edited after this user was created.
-      // Promote on next login, so re-deploying with a new admin list,
-      // never needs manual user-table surgery.
-      user = await deps.userRegistry.update(user.id, { serverRole: 'admin' })
-    }
+      return context.json({ authorizationUrl: await provider.buildLoginUrl({ state, codeVerifier }) })
+    })
 
-    const session = await deps.sessionStore.issue(user.id)
-    const target = `${flow.returnTo}#token=${encodeURIComponent(session.token)}`
-    return context.redirect(target, 302)
-  })
+    router.get(`/${provider.id}/callback`, async (context) => {
+      const parsed = CallbackQuery.safeParse({
+        code: context.req.query('code'),
+        state: context.req.query('state'),
+        error: context.req.query('error'),
+        error_description: context.req.query('error_description'),
+      })
+      if (!parsed.success)
+        throw new ValidationError('Invalid callback parameters.')
+      const { code, state, error, error_description: errorDescription } = parsed.data
+      if (error || !code || !state)
+        return redirectWithError(context, deps.studioUrl, error_description_or_default(error, errorDescription))
 
+      const flow = pending.get(state)
+      if (!flow)
+        return redirectWithError(context, deps.studioUrl, 'Session expired before sign-in completed. Try again.')
+      pending.delete(state)
+
+      let profile
+      try {
+        profile = await provider.loginWithCode({ code, codeVerifier: flow.codeVerifier })
+      }
+      catch (err) {
+        return redirectWithError(context, flow.returnTo, err instanceof Error ? err.message : String(err))
+      }
+
+      const decision = await deps.accessPolicy.decide(profile.email)
+      if (!decision.allow)
+        return redirectWithError(context, flow.returnTo, decision.reason ?? 'Not authorized.')
+
+      const user = await upsertUser(deps, profile, decision)
+      const session = await deps.sessionStore.issue(user.id)
+      return context.redirect(`${flow.returnTo}#token=${encodeURIComponent(session.token)}`, 302)
+    })
+  }
+
+  // Revoking Braid's session is only half of it. The provider keeps its own,
+  // so the answer carries where to end that one too, and the caller sends the
+  // browser there. Null when the provider offers no such endpoint, which
+  // leaves the old behaviour of a purely local sign-out.
   router.post('/logout', async (context) => {
     const header = context.req.header('Authorization')
     const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length).trim() : null
     if (token)
       await deps.sessionStore.revoke(token)
-    return context.body(null, 204)
+    const parsed = LogoutBody.safeParse(await context.req.json().catch(() => ({})))
+    const returnTo = parsed.success && parsed.data.returnTo ? parsed.data.returnTo : deps.studioUrl
+    const provider = deps.loginProviders[0]
+    const endSessionUrl = await provider?.endSessionUrl?.({ returnTo })
+    return context.json({ endSessionUrl: endSessionUrl ?? null })
   })
 
   router.get('/whoami', async (context) => {
@@ -201,13 +185,62 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
   // since otherwise the Sign-in button leads to a 503.
   router.get('/config', (context) => {
     return context.json({
-      googleEnabled: deps.googleOAuth !== undefined,
+      googleEnabled: deps.loginProviders.some(provider => provider.id === 'google'),
+      // Which door to knock on. Studio sends the person to
+      // `/auth/{loginProvider}/start` rather than guessing.
+      loginProvider: deps.loginProviders[0]?.id ?? null,
       studioUrl: deps.studioUrl,
       requiresAuth: deps.requiresAuth,
     })
   })
 
   return router
+}
+
+/**
+ * Resolve the person to a user record, creating one on first sign-in.
+ *
+ * Two join keys, in order. `sub` is tried first because it survives an email
+ * change, but it only names the person inside one provider, so it stops
+ * matching the moment a deployment puts an authorization server in front of
+ * the login it used to run itself. Email is what carries across that move,
+ * and adopting the record rather than creating a second one is what keeps a
+ * person's workspaces, runs, and proposals attached to them.
+ *
+ * The record keeps the subject it was created with, since that field is
+ * immutable by design, so an adopted record is found by email every time.
+ * That is a lookup per sign-in against a small file, and the alternative is
+ * making the join key rewritable, which is a worse trade.
+ *
+ * An admin list edited after the fact promotes on the next sign-in, so
+ * redeploying with a new roster never needs manual surgery on the registry.
+ */
+async function upsertUser(
+  deps: AuthRouterDeps,
+  profile: LoginProfile,
+  decision: { viaInvite?: { serverRole?: 'admin' | 'user' } },
+): Promise<{ id: UserId, serverRole: string }> {
+  const isAdmin = deps.accessPolicy.isAdmin(profile.email)
+  let user = await deps.userRegistry.getByGoogleSub(profile.sub)
+  if (!user) {
+    user = await deps.userRegistry.getByEmail(profile.email)
+  }
+  if (!user) {
+    user = await deps.userRegistry.create({
+      id: newUserId(),
+      googleSub: profile.sub,
+      email: profile.email,
+      displayName: profile.displayName,
+      serverRole: isAdmin ? 'admin' : decision.viaInvite?.serverRole ?? 'user',
+      createdAt: deps.clock.now() as Timestamp,
+    })
+    if (decision.viaInvite)
+      await deps.accessPolicy.consumeInvite(profile.email)
+  }
+  else if (isAdmin && user.serverRole !== 'admin') {
+    user = await deps.userRegistry.update(user.id, { serverRole: 'admin' })
+  }
+  return user
 }
 
 function redirectWithError(context: Context, target: string, reason: string): Response {

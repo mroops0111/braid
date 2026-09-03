@@ -58,11 +58,14 @@ export const shell = {
   // Login gate.
   login: {
     title: 'Sign In to Braid',
-    description: 'This server requires authentication. Sign in with a Google account whose email is on the allowlist or has an invite.',
+    description: 'This server requires authentication. Sign in with an account whose email is on the allowlist or has an invite.',
     checkingServer: 'Checking server…',
     redirecting: 'Redirecting…',
     signInWithGoogle: 'Sign In with Google',
-    googleNotConfigured: 'Google Sign-in isn\'t configured on this server. Ask the admin to set',
+    // Shown when the server signs people in through an identity provider it
+    // trusts. Which one is the deployment's business, so the label says none.
+    signIn: 'Sign In',
+    notConfigured: 'No sign-in is configured on this server. Ask the admin to set one up.',
   },
   // Account picker and rename dialog.
   userPicker: {
