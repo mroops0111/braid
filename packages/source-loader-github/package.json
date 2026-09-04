@@ -1,7 +1,7 @@
 {
   "name": "@braidhq/source-loader-github",
   "type": "module",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "GitHub Issues source-loader plugin for Braid. Ingest issues + comments into markdown.",
   "license": "MIT",
   "repository": {

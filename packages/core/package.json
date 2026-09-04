@@ -1,7 +1,7 @@
 {
   "name": "@braidhq/core",
   "type": "module",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Domain entities, application services, and plugin port interfaces for Braid. The framework engine; no concrete adapters.",
   "license": "MIT",
   "repository": {

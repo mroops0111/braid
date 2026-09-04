@@ -1,7 +1,7 @@
 {
   "name": "@braidhq/desktop",
   "type": "module",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "private": true,
   "description": "Tauri desktop shell for Braid.",
   "license": "MIT",
