@@ -453,7 +453,7 @@ export async function composeFsAppWithRegistry(
   })
   if (gatewayResolution.kind === 'incomplete') {
     console.warn(
-      `[braid] BRAID_MCP_GATEWAY_URL is set, but the MCP endpoint cannot start without `
+      `[braid] The MCP endpoint cannot start without `
       + `${gatewayResolution.missing.join(', ')}. The REST API is unaffected.`,
     )
   }
@@ -572,6 +572,7 @@ export async function composeFsAppWithRegistry(
     ...(accessTokenVerifiers.length > 0 ? { accessTokenVerifiers } : {}),
     loginProviders,
     ...(mcpGateway ? { mcpGateway } : {}),
+    mcpResolution: gatewayResolution,
     ...(gatewayResolution.kind === 'ready'
       ? { mcpGatewayUrl: `http://127.0.0.1:${gatewayResolution.config.port}` }
       : {}),

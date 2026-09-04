@@ -33,9 +33,11 @@ export interface McpGatewayContext {
   readonly uvxBin: string | undefined
 }
 
+/** Why a deployment serves no endpoint, for a reader who expected one. */
+export type McpUnrequestedReason = 'turnedOff' | 'noAuthorizationServer'
+
 export type McpGatewayResolution =
-  /** Switched off, or no authorization server to authenticate callers. */
-  | { readonly kind: 'unrequested' }
+  | { readonly kind: 'unrequested', readonly reason: McpUnrequestedReason }
   /** Possible in principle, but something it cannot run without is missing. */
   | { readonly kind: 'incomplete', readonly missing: readonly string[] }
   | {
@@ -65,10 +67,10 @@ export function resolveMcpGateway(
   // The authorization server is what makes it possible at all,
   // and a deployment without one has no MCP surface to offer.
   if (env[ENABLED_VAR]?.toLowerCase() === 'false')
-    return { kind: 'unrequested' }
+    return { kind: 'unrequested', reason: 'turnedOff' }
   const issuer = env[ISSUER_VAR]
   if (!issuer)
-    return { kind: 'unrequested' }
+    return { kind: 'unrequested', reason: 'noAuthorizationServer' }
 
   const missing: string[] = []
   if (!env[CLIENT_ID_VAR])

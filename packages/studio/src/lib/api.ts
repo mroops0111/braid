@@ -176,12 +176,26 @@ export interface AuthConfig {
   requiresAuth: boolean
 }
 
+/**
+ * What this deployment does with MCP.
+ *
+ * Read-only. Whether there is an endpoint follows from the authorization
+ * server, which is a deployment decision rather than a Studio one.
+ */
+export interface McpEndpointStatus {
+  state: 'ready' | 'unreachable' | 'incomplete' | 'turnedOff' | 'noAuthorizationServer'
+  endpointUrl: string | null
+  /** What an `incomplete` deployment is waiting on, empty otherwise. */
+  missing: string[]
+}
+
 export interface AuthWhoami {
   user: User | null
 }
 
 export const api = {
   authConfig: () => fetchJson<AuthConfig>('/auth/config'),
+  mcpEndpoint: () => fetchJson<McpEndpointStatus>('/mcp-endpoint'),
   whoami: () => fetchJson<AuthWhoami>('/auth/whoami'),
   startSignIn: (provider: string, returnTo: string) =>
     fetchJson<{ authorizationUrl: string }>(

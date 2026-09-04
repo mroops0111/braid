@@ -20,12 +20,13 @@ const completeEnv = {
 
 describe('resolveMcpGateway', () => {
   it('serves nothing when no authorization server can authenticate a caller', () => {
-    expect(resolveMcpGateway({}, context)).toEqual({ kind: 'unrequested' })
+    expect(resolveMcpGateway({}, context))
+      .toEqual({ kind: 'unrequested', reason: 'noAuthorizationServer' })
   })
 
   it('stays off when the deployment switches it off, issuer or not', () => {
     expect(resolveMcpGateway({ ...completeEnv, BRAID_MCP_ENABLED: 'false' }, context))
-      .toEqual({ kind: 'unrequested' })
+      .toEqual({ kind: 'unrequested', reason: 'turnedOff' })
   })
 
   it.each([

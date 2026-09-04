@@ -1,6 +1,7 @@
 import type { AppDependencies } from './composeApp.js'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { OpenAPIHono } from '@hono/zod-openapi'
+import { withoutTrailingSlash } from './infrastructure/_shared/urls.js'
 import { SessionTokenVerifier } from './infrastructure/auth/SessionTokenVerifier.js'
 import { authMiddleware } from './middleware/auth.js'
 import { corsMiddleware } from './middleware/cors.js'
@@ -16,6 +17,7 @@ import { createEmbeddingsRouter } from './routes/embeddings.js'
 import { healthRouter } from './routes/health.js'
 import { createHistoryRouter } from './routes/history.js'
 import { createMcpProxyRouter } from './routes/mcpProxy.js'
+import { createMcpStatusRouter } from './routes/mcpStatus.js'
 import { createModelRouter } from './routes/model.js'
 import { createNodesRouter } from './routes/nodes.js'
 import { createOAuthCallbackRouter, createOAuthStartRouter, OAuthFlowStore } from './routes/oauth.js'
@@ -108,6 +110,16 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
 
   // Host-level routes, not scoped to a single workspace.
   app.route('/health', healthRouter)
+
+  // What this deployment does with MCP, so Studio can show it rather than
+  // leaving an operator to read the logs.
+  if (deps.mcpResolution) {
+    app.route('/mcp-endpoint', createMcpStatusRouter({
+      resolution: deps.mcpResolution,
+      ...(deps.apiUrl ? { endpointUrl: `${withoutTrailingSlash(deps.apiUrl)}/braid/mcp` } : {}),
+      ...(deps.mcpGatewayUrl ? { gatewayUrl: deps.mcpGatewayUrl } : {}),
+    }))
+  }
   if (deps.sessionStore && deps.accessPolicy && deps.userRegistry) {
     app.route('/auth', createAuthRouter({
       clock: deps.clock,

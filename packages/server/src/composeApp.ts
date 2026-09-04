@@ -28,6 +28,7 @@ import type { AccessTokenVerifier } from './infrastructure/auth/AccessTokenVerif
 import type { LoginProvider } from './infrastructure/auth/LoginProvider.js'
 import type { SessionStore } from './infrastructure/auth/SessionStore.js'
 import type { McpGatewayProcess } from './infrastructure/mcp/McpGatewayProcess.js'
+import type { McpGatewayResolution } from './infrastructure/mcp/mcpGatewaySettings.js'
 import type { GitHubOAuth } from './infrastructure/oauth/GitHubOAuth.js'
 import type { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
 import type { SecretStore } from './infrastructure/secrets/SecretStore.js'
@@ -115,6 +116,13 @@ export interface AppDependencies {
    * not the process.
    */
   mcpGatewayUrl?: string
+  /**
+   * How this deployment resolved the endpoint at boot.
+   *
+   * Separate from `mcpGatewayUrl`, which only exists once there is one to
+   * forward to. Studio needs the cases where there is not, and why.
+   */
+  mcpResolution?: McpGatewayResolution
   /**
    * The one browser sign-in this deployment offers.
    *

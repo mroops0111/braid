@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import { Bug } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { GithubIcon } from '@/components/icons/GithubIcon'
+import { McpEndpointCard } from './McpEndpointCard'
 
 const REPOSITORY_URL = 'https://github.com/mroops0111/braid'
 
@@ -24,6 +25,7 @@ export function AboutTab() {
         <AboutLink href={`${REPOSITORY_URL}/issues`} icon={Bug} label={t('admin.about.reportAnIssue')} />
       </div>
       <p className="text-2xs text-muted-foreground">{t('admin.about.license')}</p>
+      <McpEndpointCard />
     </div>
   )
 }
