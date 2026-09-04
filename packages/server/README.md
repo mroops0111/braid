@@ -111,6 +111,12 @@ The static handler sits ahead of the auth gate, because the app shell is what a 
 | `BRAID_ADMIN_EMAILS` | Who may create workspaces and manage the roster |
 | `CLAUDE_CODE_OAUTH_TOKEN` | The agent's credential, from `claude setup-token` |
 | `BRAID_CORS_ORIGINS` | Extra browser origins, only for a Studio served elsewhere |
+| `BRAID_OIDC_ISSUER` | An authorization server. Set it and both doors answer to it, and the MCP endpoint turns on |
+| `BRAID_OIDC_CLIENT_ID` / `_SECRET` | Braid's own client there, for the browser sign-in |
+| `BRAID_OIDC_AUDIENCE` | What a token must name as its audience. Unset, it is `BRAID_API_URL` |
+| `BRAID_MCP_ENABLED=false` | Turns the MCP endpoint off on a server that could otherwise serve it |
+| `BRAID_MCP_GATEWAY_PORT` | Loopback port the gateway binds behind this server. Unset, `4322` |
+| `BRAID_MCP_GATEWAY_CLIENT_ID` / `_SECRET` | The endpoint's own client at that authorization server, used to exchange a caller's token |
 
 Naming a real `BRAID_STUDIO_URL` stops localhost being trusted, so a dev origin has to be listed in `BRAID_CORS_ORIGINS` to keep working against that server.
 
@@ -119,6 +125,21 @@ Naming a real `BRAID_STUDIO_URL` stops localhost being trusted, so a dev origin 
 `CLAUDE_CODE_OAUTH_TOKEN` is one person's subscription, so every user's runs draw on that seat's limits. A Console API key bills more honestly for a shared server. Do not set `ANTHROPIC_API_KEY` alongside it, the key wins and the subscription goes unused.
 
 For the desktop client, `pnpm bundle:remote` builds a shell without the embedded server, which is what someone connecting to a deployed server wants.
+
+## Sign-In
+
+One way in, never two. Braid runs the authorization code flow itself and issues its own session, the pattern OAuth 2.0 for Browser-Based Applications recommends, so no token ever reaches browser storage.
+
+| `BRAID_OIDC_ISSUER` | Studio signs in through | MCP endpoint |
+|---|---|---|
+| unset | Braid's own Google client | not served |
+| set | that authorization server | served |
+
+An authorization server displaces the Google client rather than joining it. Google is then configured once at the issuer, as a federated provider, instead of twice. A person keeps one identity whichever door they use, and closing their account at the issuer closes both.
+
+Naming an issuer without `BRAID_OIDC_CLIENT_ID` and `_SECRET` leaves nobody able to sign in, and says so at boot. It does not fall back to Google, which would sign people in against the very provider the deployment just replaced.
+
+Signing out ends the session here and then at the issuer, through RP-Initiated Logout. Without that second step the issuer still knows who this is, and the next sign-in returns without asking, which on a shared machine hands the next person the previous one's account.
 
 ## Auth Mode
 
@@ -202,8 +223,32 @@ Server sits at the outer edge, above core and the plugin packages the coding pre
 
 ## MCP Gateway
 
-Skills run as coding-agent subprocesses and reach this server's REST API as MCP tools, not by curl. An off-the-shelf translator, `openapi-mcp-gateway`, reads `/openapi.json` and re-exposes each operation as a tool named `braid-core`.
+Nothing here implements MCP. An off-the-shelf translator, `openapi-mcp-gateway`, reads `/openapi.json` and re-exposes operations as tools. This server spawns it twice, for two different audiences.
 
-The gateway is spawned per skill run and torn down with it, so there is no long-lived gateway process, no open port, and no network auth to manage. The transport is an implementation detail of the runner.
+### Per skill run
 
-SSE streams, the OAuth HTML callback, and the workspace-admin routes are deliberately absent from the spec, they are not one-shot MCP tools. The `GET /openapi.json` test in `test/app.test.ts` pins that boundary.
+Skills run as coding-agent subprocesses and reach this server's REST API as MCP tools, not by curl. That gateway speaks stdio, is spawned per run and torn down with it, and exposes the whole spec as `braid-core`. No long-lived process, no open port, no network auth to manage.
+
+SSE streams and the OAuth HTML callback are deliberately absent from the spec, they are not one-shot MCP tools. The `GET /openapi.json` test in `test/app.test.ts` pins that boundary.
+
+### For a person's own client
+
+Naming an authorization server also starts a long-lived gateway over streamable-http, reachable at `<BRAID_API_URL>/braid/mcp`. It outlives every run, because the caller is someone's own MCP client rather than a skill this server spawned.
+
+It answers on this server's own port. The gateway binds loopback and this server forwards to it, so a deployment exposes one address, one port, and one certificate. Set `BRAID_MCP_ENABLED=false` to turn it off.
+
+That endpoint is read-only, and much narrower than the spec. An operation is a tool only if its route carries `x-mcp-integration`, since the gateway runs with `marked_only`. Seven operations carry it today: the workspace list, node search, a single node, a node's neighbourhood, the edge list, the ontology, and the full snapshot. Everything else stays invisible, including proposals, clarifications, invites, and everything under `/admin`. `test/routes/mcpToolSurface.test.ts` asserts that set exactly, so widening it is a decision someone makes on purpose.
+
+The marking lives beside the route it describes rather than in an allowlist somewhere else, which is what stops the two drifting.
+
+### Why it needs an authorization server
+
+The endpoint only starts when `BRAID_OIDC_ISSUER` names one. The gateway holds no credential of its own. It validates the caller's token against that issuer, then exchanges it (RFC 8693) for one whose audience names this API, so the person behind an MCP call is the same person the run history records.
+
+Two things the authorization server has to supply. Tokens it mints for the endpoint must carry an `email` claim, since that is what matches a caller to a Braid user record, and the exchanged token's audience must name this API. Neither is automatic: on Keycloak both come from audience and attribute mappers on a client scope, and Keycloak reads the `audience` parameter rather than RFC 8707's `resource`, so the generated config sends both spellings.
+
+Access is re-checked per request, not just at sign-in. The same allowlist that gates `/auth/google` gates this endpoint, so removing a domain from `BRAID_ALLOWED_DOMAINS` closes both doors. An email already in `approvedEmails`, written when an invite was redeemed, survives that on both doors alike. To remove someone outright, delete the user, which revokes the approval and the record together.
+
+There is no static-token fallback on purpose. One token shared by every caller would land every MCP call here under a single identity, which is exactly what per-user attribution rules out. A deployment without an authorization server gets no endpoint rather than an anonymous one, and says so in the log at boot.
+
+The generated config lands at `$BRAID_HOME/mcp-gateway.yaml`, rewritten on every boot. Credentials stay in the environment and appear in the file only as `${...}` references, so the file is readable without being a secret.

@@ -4,9 +4,9 @@ import { Activity, ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, LogIn, N
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import braidLogo from '@/assets/braid-logo.svg'
-import { startGoogleSignIn } from '@/lib/googleSignIn'
 import { usePendingClarification, usePendingProposals, useRuns, useSkills } from '@/lib/queries'
 import { setActiveRemoteId, useActiveRemoteId } from '@/lib/remotes'
+import { startSignIn } from '@/lib/signIn'
 import { type RemoteSummary, type RemoteWorkspacesResult, useAllRemoteWorkspaces } from '@/lib/useRemoteWorkspaces'
 import { cn } from '@/lib/utils'
 import { useWorkspacePolicy } from '@/policy'
@@ -111,7 +111,7 @@ export function Sidebar({
   function startRemoteSignIn(remote: RemoteSummary): void {
     if (typeof window === 'undefined')
       return
-    void startGoogleSignIn(remote.url, remote.id)
+    void startSignIn(remote.url, remote.id)
   }
 
   return (

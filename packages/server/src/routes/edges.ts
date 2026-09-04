@@ -2,7 +2,7 @@ import type { ModelService } from '@braidhq/core'
 import { EdgeTypeId, GraphEdge, NodeId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
-import { ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
+import { mcpReadTool, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 
 const ListQuery = z.object({
   type: z.union([EdgeTypeId, z.array(EdgeTypeId)]).optional().openapi({ description: 'Filter by edge type id. Pass one or many.' }),
@@ -20,7 +20,7 @@ export interface EdgesRouterDeps {
   modelService: ModelService
 }
 
-const listEdgesRoute = createRoute({
+const listEdgesRoute = createRoute(mcpReadTool({
   method: 'get',
   path: '/',
   operationId: 'listEdges',
@@ -37,7 +37,7 @@ const listEdgesRoute = createRoute({
     },
     400: ValidationFailureResponse,
   },
-})
+}))
 
 export function createEdgesRouter(deps: EdgesRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()

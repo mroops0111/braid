@@ -1,3 +1,4 @@
+import type { LoginProvider } from '../auth/LoginProvider.js'
 import { createHash, randomBytes } from 'node:crypto'
 
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth'
@@ -60,7 +61,12 @@ export interface RefreshedAccessToken {
  * Avoiding a heavyweight dependency keeps the server's install footprint small,
  * and the auth surface auditable.
  */
-export class GoogleOAuth {
+export class GoogleOAuth implements LoginProvider {
+  // Part of the registered redirect URI,
+  // so it is fixed once a deployment exists.
+  // Renaming it would invalidate the Google console entry.
+  readonly id = 'google'
+
   constructor(private readonly config: GoogleOAuthConfig) {}
 
   /**

@@ -39,7 +39,11 @@ export function LoginPage({ initialError }: LoginPageProps) {
     setError(null)
     try {
       const returnTo = window.location.origin + window.location.pathname
-      const { authorizationUrl } = await api.startGoogleSignIn(returnTo)
+      // The server names its provider, so Studio never assumes Google.
+      const provider = config?.loginProvider
+      if (!provider)
+        throw new Error('This server has no sign-in configured.')
+      const { authorizationUrl } = await api.startSignIn(provider, returnTo)
       window.location.href = authorizationUrl
     }
     catch (err) {
@@ -64,7 +68,7 @@ export function LoginPage({ initialError }: LoginPageProps) {
         )}
         {isLoading
           ? <p className="text-center text-xs text-muted-foreground">{t('shell.login.checkingServer')}</p>
-          : config?.googleEnabled
+          : config?.loginProvider
             ? (
                 <Button
                   type="button"
@@ -73,17 +77,20 @@ export function LoginPage({ initialError }: LoginPageProps) {
                   onClick={startSignIn}
                   disabled={starting}
                 >
-                  {starting ? t('shell.login.redirecting') : t('shell.login.signInWithGoogle')}
+                  {starting
+                    ? t('shell.login.redirecting')
+                    // Google is Braid's own client,
+                    // so the button can name it.
+                    // Any other provider is the deployment's to name,
+                    // and guessing would put the wrong logo on the door.
+                    : config.loginProvider === 'google'
+                      ? t('shell.login.signInWithGoogle')
+                      : t('shell.login.signIn')}
                 </Button>
               )
             : (
                 <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                  {t('shell.login.googleNotConfigured')}
-                  {' '}
-                  <code className="font-mono">BRAID_GOOGLE_CLIENT_ID</code>
-                  {' / '}
-                  <code className="font-mono">BRAID_GOOGLE_CLIENT_SECRET</code>
-                  .
+                  {t('shell.login.notConfigured')}
                 </div>
               )}
       </div>

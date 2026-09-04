@@ -1,6 +1,7 @@
 import type { AgentPlugin, OntologyPlugin, SourceLoaderPlugin, StoragePlugin } from '@braidhq/core'
 import type { AbsolutePath, AgentBindingDescriptor, AgentEffort, OntologyId, StorageKind, WorkspaceId } from '@braidhq/schema'
 import type { AppDependencies } from './composeApp.js'
+import type { LoginProvider } from './infrastructure/auth/LoginProvider.js'
 import { spawn } from 'node:child_process'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -26,17 +27,22 @@ import { authenticated, localTrust } from './authMode.js'
 import { composeApp } from './composeApp.js'
 import { defaultOntologyPlugins } from './defaultOntologyPlugins.js'
 import { parseBoolEnv } from './infrastructure/_shared/env.js'
+import { withoutTrailingSlash } from './infrastructure/_shared/urls.js'
 import { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
+import { chooseLoginMode } from './infrastructure/auth/loginMode.js'
 import { FsSessionStore } from './infrastructure/auth/SessionStore.js'
 import { FsBatchPlanRepository } from './infrastructure/batch/FsBatchPlanRepository.js'
 import { FsEmbeddingRepository } from './infrastructure/embedding/FsEmbeddingRepository.js'
 import { GitWorkspaceHistory } from './infrastructure/history/GitWorkspaceHistory.js'
 import { FsClarificationRepository } from './infrastructure/hitl/FsClarificationRepository.js'
 import { FsProposalRepository } from './infrastructure/hitl/FsProposalRepository.js'
+import { McpGatewayProcess } from './infrastructure/mcp/McpGatewayProcess.js'
+import { resolveMcpGateway } from './infrastructure/mcp/mcpGatewaySettings.js'
 import { FsModelSerializer } from './infrastructure/model/FsModelSerializer.js'
 import { GitHubOAuth } from './infrastructure/oauth/GitHubOAuth.js'
 import { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
 import { oauthNamespace } from './infrastructure/oauth/providers.js'
+import { OidcLoginProvider } from './infrastructure/oidc/OidcLoginProvider.js'
 import { OidcTokenVerifier } from './infrastructure/oidc/OidcTokenVerifier.js'
 import { FsReactorCycleRepository } from './infrastructure/reactor/FsReactorCycleRepository.js'
 import { FsSecretStore, type SecretStore } from './infrastructure/secrets/SecretStore.js'
@@ -311,8 +317,29 @@ export async function composeFsAppWithRegistry(
   // Unset leaves Braid exactly as it was.
   const oidcIssuer = process.env.BRAID_OIDC_ISSUER
   const oidcAudience = process.env.BRAID_OIDC_AUDIENCE ?? apiUrl
+  // One way in, never two.
+  // An authorization server displaces the Google client rather than joining it,
+  // so a person has one identity whichever door they use,
+  // and Google is configured once at the issuer instead of twice.
+  // Without an issuer this falls back to the Google client,
+  // which is what a laptop install and a small deployment run on.
+  const loginMode = chooseLoginMode(process.env, { googleConfigured: googleOAuth !== undefined })
+  const loginProviders: LoginProvider[]
+    = loginMode.kind === 'oidc'
+      ? [new OidcLoginProvider({
+          issuer: loginMode.issuer,
+          clientId: loginMode.clientId,
+          clientSecret: loginMode.clientSecret,
+          redirectUri: `${apiUrl}/auth/oidc/callback`,
+        })]
+      : loginMode.kind === 'google' && googleOAuth
+        ? [googleOAuth]
+        : []
+  if (loginMode.kind === 'none' && authMode.requiresAuth)
+    console.warn(`[braid] Nobody can sign in. ${loginMode.reason}`)
+
   const accessTokenVerifiers = oidcIssuer
-    ? [new OidcTokenVerifier({ issuer: oidcIssuer, audience: oidcAudience, userRegistry })]
+    ? [new OidcTokenVerifier({ issuer: oidcIssuer, audience: oidcAudience, userRegistry, accessPolicy })]
     : []
 
   // Serving Studio ourselves puts the UI and the API on one origin,
@@ -414,6 +441,31 @@ export async function composeFsAppWithRegistry(
       + 'Install via `brew install uv` or https://docs.astral.sh/uv/ to enable.',
     )
   }
+  // The long-lived MCP endpoint a person points their own client at,
+  // distinct from the per-run stdio gateway above.
+  // Only a deployment that names an authorization server gets one,
+  // since a shared static token would flatten every caller into one identity.
+  const gatewayResolution = resolveMcpGateway(process.env, {
+    apiUrl,
+    loopbackApiUrl,
+    audience: oidcAudience,
+    uvxBin,
+  })
+  if (gatewayResolution.kind === 'incomplete') {
+    console.warn(
+      `[braid] The MCP endpoint cannot start without `
+      + `${gatewayResolution.missing.join(', ')}. The REST API is unaffected.`,
+    )
+  }
+  const mcpGateway = gatewayResolution.kind === 'ready' && uvxBin
+    ? new McpGatewayProcess({
+      uvxBin,
+      configPath: join(braidHome, 'mcp-gateway.yaml'),
+      config: gatewayResolution.config,
+      gatewayPackage: gatewayResolution.gatewayPackage,
+    })
+    : undefined
+
   // Reference dirs mounted into every skill session,
   // keyed by the namespace that owns them, so each stays paired with its skills.
   // Core's `shared/` lands under the builtin namespace,
@@ -518,6 +570,12 @@ export async function composeFsAppWithRegistry(
     accessPolicy,
     studioUrl,
     ...(accessTokenVerifiers.length > 0 ? { accessTokenVerifiers } : {}),
+    loginProviders,
+    ...(mcpGateway ? { mcpGateway } : {}),
+    mcpResolution: gatewayResolution,
+    ...(gatewayResolution.kind === 'ready'
+      ? { mcpGatewayUrl: `http://127.0.0.1:${gatewayResolution.config.port}` }
+      : {}),
     ...(oidcIssuer ? { oidcIssuer, apiUrl } : {}),
     ...(studioRoot ? { studioRoot } : {}),
     ...(corsOrigins ? { corsOrigins } : {}),
@@ -591,11 +649,6 @@ function assertLocalTrustIsLocal(locallyTrusted: boolean, studioUrl: string): vo
     + 'but BRAID_LOCAL_TRUST is on and every caller would be trusted without signing in. '
     + 'Set BRAID_LOCAL_TRUST=false.',
   )
-}
-
-/** A base URL a path can be appended to, whatever the operator typed. */
-export function withoutTrailingSlash(url: string): string {
-  return url.replace(/\/+$/, '')
 }
 
 /** The hostname of a URL, without the port. */

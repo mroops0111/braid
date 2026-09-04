@@ -52,11 +52,14 @@ const shell: typeof en = {
   },
   login: {
     title: '登入 Braid',
-    description: '此伺服器需要驗證。請使用電子郵件在允許清單中或已受邀的 Google 帳號登入。',
+    description: '此伺服器需要驗證。請使用電子郵件在允許清單中或已受邀的帳號登入。',
     checkingServer: '正在檢查伺服器…',
     redirecting: '正在轉址…',
     signInWithGoogle: '使用 Google 登入',
-    googleNotConfigured: '此伺服器尚未設定 Google 登入。請聯絡管理員設定',
+    // 伺服器改由它信任的身分提供者處理登入時顯示。
+    // 是哪一家屬於部署的決定，所以標籤不指名。
+    signIn: '登入',
+    notConfigured: '此伺服器尚未設定登入方式。請聯絡管理員設定。',
   },
   userPicker: {
     renameAccount: '重新命名帳號',

@@ -7,7 +7,8 @@ import { createLogger } from '@braidhq/core'
 import { AgentEffort } from '@braidhq/schema'
 import { serve } from '@hono/node-server'
 import { createApp } from './app.js'
-import { composeFsApp, withoutTrailingSlash } from './composeFsApp.js'
+import { composeFsApp } from './composeFsApp.js'
+import { withoutTrailingSlash } from './infrastructure/_shared/urls.js'
 import { startupAfterServe } from './startup.js'
 
 /**
@@ -77,6 +78,12 @@ export async function startServer(options: StartServerOptions): Promise<void> {
   })
 
   installShutdown(server, deps, log)
+  // After serve(), since the gateway fetches this server's spec on startup.
+  // Before that, there is nothing listening for it to fetch from.
+  if (deps.mcpGateway) {
+    await deps.mcpGateway.start()
+    log.info('MCP endpoint starting')
+  }
   // Background recovery, after serve() so it never delays accepting requests.
   void startupAfterServe(deps)
 }
@@ -100,6 +107,7 @@ function installShutdown(
     // Drop pending refresh timers before the store closes,
     // so a tick cannot fire against a repository that is going away.
     deps.sourcePollingService.stopAll()
+    await deps.mcpGateway?.stop()
     try {
       await deps.modelRepository.close?.()
     }

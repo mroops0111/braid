@@ -16,15 +16,17 @@ import {
   SourceSyncPolicy,
   StorageDescriptor,
   WorkspacePollingConfig,
+  Workspace as WorkspaceSchema,
 } from '@braidhq/schema'
+import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import { zValidator } from '@hono/zod-validator'
-import { Hono } from 'hono'
 import { z } from 'zod'
 import { isUnder, pathExists } from '../infrastructure/_shared/paths.js'
 import { fillManifestDefaults, updateProductManifest, writeProductManifest } from '../infrastructure/workspace/productManifestWriter.js'
 import { getUserId } from '../middleware/auth.js'
 import { requirePermission, requireServerCapability, workspaceAccessMiddleware } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId, workspaceIdMiddleware } from '../middleware/workspaceId.js'
+import { mcpReadTool } from './_shared.js'
 
 // Folder name resolved under the server-managed `workspacesRoot`,
 // default `~/.braid/workspaces/`.
@@ -121,8 +123,34 @@ async function commitConfigChange(
   })
 }
 
-export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
-  const router = new Hono()
+const WorkspaceListResponse = z.object({
+  items: z.array(WorkspaceSchema),
+}).openapi('WorkspaceListResponse')
+
+// Every other read tool is workspace-scoped,
+// so without this one an MCP client has no way to learn an id.
+// The projection drops `rootPath` and the manifest,
+// which name a path on the host and the credentials-shaped source config,
+// neither of which a caller needs in order to pick a workspace.
+const listWorkspacesRoute = createRoute(mcpReadTool({
+  method: 'get',
+  path: '/',
+  operationId: 'listWorkspaces',
+  summary: 'List the workspaces visible to the caller.',
+  tags: ['workspaces'],
+  responses: {
+    200: {
+      description: 'The visible workspaces. Server admins see every one, other users see their own memberships.',
+      content: { 'application/json': { schema: WorkspaceListResponse } },
+    },
+  },
+}, {
+  description: 'List the workspaces the caller can see. Start here, then pass an id to the other tools.',
+  response: '{"items": [items.{"id": id, "name": productManifest.name, "description": productManifest.description}]}',
+}))
+
+export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono {
+  const router = new OpenAPIHono()
 
   // Server-scope gate for creation, admin-only.
   // Skips without userRegistry, so in-memory tests stay open.
@@ -140,10 +168,10 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
       })
     : (async (_c: Context, next: () => Promise<void>) => { await next() }) as MiddlewareHandler
 
-  router.get('/', async (context) => {
+  router.openapi(listWorkspacesRoute, async (context) => {
     const all = await deps.workspaceService.list()
     if (!deps.workspaceRegistry)
-      return context.json({ items: all.map(workspace => workspace.toData()) })
+      return context.json({ items: all.map(workspace => workspace.toData()) }, 200)
     // Server admins see every workspace for support and oversight.
     // Other users get filtered to direct membership.
     // Single-tenant local installs see everything,
@@ -151,14 +179,14 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): Hono {
     const userId = getUserId(context)
     const me = await deps.userRegistry?.get(userId)
     if (me?.serverRole === 'admin')
-      return context.json({ items: all.map(workspace => workspace.toData()) })
+      return context.json({ items: all.map(workspace => workspace.toData()) }, 200)
     const visible: Workspace[] = []
     for (const workspace of all) {
       const member = await deps.workspaceRegistry.getMember(workspace.rootPath, userId)
       if (member)
         visible.push(workspace)
     }
-    return context.json({ items: visible.map(workspace => workspace.toData()) })
+    return context.json({ items: visible.map(workspace => workspace.toData()) }, 200)
   })
 
   router.get('/:workspaceId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.read'), async (context) => {

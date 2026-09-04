@@ -7,6 +7,7 @@ export const queryKeys = {
   me: () => ['users', 'me'] as const,
   adminInvites: () => ['admin', 'invites'] as const,
   adminUsers: () => ['admin', 'users'] as const,
+  mcpEndpoint: () => ['mcp-endpoint'] as const,
   workspaces: () => ['workspaces'] as const,
   sourceLoaders: () => ['source-loaders'] as const,
   workspaceMembers: (workspaceId: string) => ['workspaces', workspaceId, 'members'] as const,
@@ -54,6 +55,16 @@ export function useAdminUsers(enabled: boolean) {
     queryKey: queryKeys.adminUsers(),
     queryFn: () => api.adminListUsers(),
     enabled,
+  })
+}
+
+export function useMcpEndpoint() {
+  return useQuery({
+    queryKey: queryKeys.mcpEndpoint(),
+    queryFn: () => api.mcpEndpoint(),
+    // The gateway is supervised and restarts, so a stale `unreachable`
+    // would outlive the gap it described.
+    refetchInterval: 30_000,
   })
 }
 

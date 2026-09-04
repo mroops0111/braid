@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { clearAuthToken } from '@/lib/authToken'
-import { startGoogleSignIn } from '@/lib/googleSignIn'
 import {
   addRemote,
   getTokenFor,
@@ -17,6 +16,7 @@ import {
   useRemotes,
 } from '@/lib/remotes'
 import { DEFAULT_SERVER_URL, getServerUrlFor } from '@/lib/serverUrl'
+import { startSignIn } from '@/lib/signIn'
 
 export function ServersTab() {
   const { t } = useTranslation()
@@ -64,8 +64,8 @@ function ServerRow({ id, name, url, isLocal, isActive }: ServerRowProps) {
   const connected = isLocal || !!token
   const [armedForRemove, setArmedForRemove] = useState(false)
 
-  function startSignIn() {
-    void startGoogleSignIn(url, id)
+  function beginSignIn() {
+    void startSignIn(url, id)
   }
 
   function disconnect() {
@@ -121,7 +121,7 @@ function ServerRow({ id, name, url, isLocal, isActive }: ServerRowProps) {
               </Button>
             )}
             {!isLocal && !connected && (
-              <Button variant="default" size="sm" className="h-7 text-2xs" onClick={startSignIn}>
+              <Button variant="default" size="sm" className="h-7 text-2xs" onClick={beginSignIn}>
                 <LogIn className="mr-1 size-3" />
                 {t('common.signIn')}
               </Button>
@@ -187,7 +187,7 @@ async function probeBraidServer(url: string): Promise<void> {
   catch {
     throw new Error('Server replied with non-JSON. Is this a Braid instance?')
   }
-  if (typeof body !== 'object' || body === null || !('requiresAuth' in body) || !('googleEnabled' in body))
+  if (typeof body !== 'object' || body === null || !('requiresAuth' in body) || !('loginProvider' in body))
     throw new Error('Response did not match a Braid `/auth/config` shape')
 }
 

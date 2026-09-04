@@ -1,6 +1,7 @@
 import type { AppDependencies } from './composeApp.js'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { OpenAPIHono } from '@hono/zod-openapi'
+import { withoutTrailingSlash } from './infrastructure/_shared/urls.js'
 import { SessionTokenVerifier } from './infrastructure/auth/SessionTokenVerifier.js'
 import { authMiddleware } from './middleware/auth.js'
 import { corsMiddleware } from './middleware/cors.js'
@@ -15,6 +16,8 @@ import { createEdgesRouter } from './routes/edges.js'
 import { createEmbeddingsRouter } from './routes/embeddings.js'
 import { healthRouter } from './routes/health.js'
 import { createHistoryRouter } from './routes/history.js'
+import { createMcpProxyRouter } from './routes/mcpProxy.js'
+import { createMcpStatusRouter } from './routes/mcpStatus.js'
 import { createModelRouter } from './routes/model.js'
 import { createNodesRouter } from './routes/nodes.js'
 import { createOAuthCallbackRouter, createOAuthStartRouter, OAuthFlowStore } from './routes/oauth.js'
@@ -54,6 +57,19 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   // Global middleware, every request passes these in order.
   const corsOrigins = deps.corsOrigins ?? options.corsOrigins
   app.use('*', corsOrigins ? corsMiddleware({ allowedOrigins: corsOrigins }) : corsMiddleware())
+
+  // The MCP endpoint, served on this port rather than one of its own.
+  // The gateway binds loopback and this forwards to it,
+  // so a deployment exposes one address and one certificate.
+  // Ahead of the app shell and the auth gate,
+  // because the endpoint runs its own OAuth against the same issuer.
+  // Braid's gate answers with a problem document,
+  // where the endpoint owes it a challenge naming where to authenticate.
+  if (deps.mcpGatewayUrl) {
+    const mcpProxy = createMcpProxyRouter({ gatewayUrl: deps.mcpGatewayUrl })
+    app.route('/braid', mcpProxy)
+    app.route('/.well-known/oauth-protected-resource/braid', mcpProxy)
+  }
   // The app shell is what a signed-out visitor loads in order to sign in,
   // so it mounts before the auth gate.
   // Gating it would leave nobody able to reach the login screen,
@@ -94,13 +110,23 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
 
   // Host-level routes, not scoped to a single workspace.
   app.route('/health', healthRouter)
+
+  // What this deployment does with MCP, so Studio can show it rather than
+  // leaving an operator to read the logs.
+  if (deps.mcpResolution) {
+    app.route('/mcp-endpoint', createMcpStatusRouter({
+      resolution: deps.mcpResolution,
+      ...(deps.apiUrl ? { endpointUrl: `${withoutTrailingSlash(deps.apiUrl)}/braid/mcp` } : {}),
+      ...(deps.mcpGatewayUrl ? { gatewayUrl: deps.mcpGatewayUrl } : {}),
+    }))
+  }
   if (deps.sessionStore && deps.accessPolicy && deps.userRegistry) {
     app.route('/auth', createAuthRouter({
       clock: deps.clock,
       sessionStore: deps.sessionStore,
       accessPolicy: deps.accessPolicy,
       userRegistry: deps.userRegistry,
-      ...(deps.googleOAuth ? { googleOAuth: deps.googleOAuth } : {}),
+      loginProviders: deps.loginProviders ?? [],
       studioUrl: deps.studioUrl ?? 'http://localhost:5173',
       requiresAuth: deps.authMode.requiresAuth,
     }))
@@ -180,6 +206,10 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   ))
   workspaceScoped.route('/nodes', createNodesRouter({
     modelService: deps.modelService,
+    // Checks a `type` filter against the ontology this workspace speaks,
+    // which no static schema can express.
+    workspaceRepository: deps.workspaceRepository,
+    pluginRegistry: deps.pluginRegistry,
     ...(deps.embeddingService ? { embeddingService: deps.embeddingService } : {}),
   }))
   workspaceScoped.route('/edges', createEdgesRouter({ modelService: deps.modelService }))

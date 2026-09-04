@@ -1,16 +1,13 @@
-import type { PluginRegistry, WorkspaceRepository } from '@braidhq/core'
-import { NotFoundError } from '@braidhq/core'
+import type { OntologyLookupDeps } from './_ontology.js'
 import { OntologyResponse } from '@braidhq/schema'
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
-import { NotFoundResponse, WorkspaceIdParam } from './_shared.js'
+import { ontologyFor } from './_ontology.js'
+import { mcpReadTool, NotFoundResponse, WorkspaceIdParam } from './_shared.js'
 
-export interface OntologyRouterDeps {
-  workspaceRepository: WorkspaceRepository
-  pluginRegistry: PluginRegistry
-}
+export type OntologyRouterDeps = OntologyLookupDeps
 
-const getOntologyRoute = createRoute({
+const getOntologyRoute = createRoute(mcpReadTool({
   method: 'get',
   path: '/',
   operationId: 'getOntology',
@@ -24,18 +21,14 @@ const getOntologyRoute = createRoute({
     },
     404: NotFoundResponse,
   },
-})
+}))
 
 export function createOntologyRouter(deps: OntologyRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
 
   router.openapi(getOntologyRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
-    const workspaces = await deps.workspaceRepository.list()
-    const workspace = workspaces.find(ws => ws.id === workspaceId)
-    if (!workspace)
-      throw new NotFoundError(`Workspace "${workspaceId}" not registered`)
-    const ontology = deps.pluginRegistry.requireOntology(workspace.productManifest.ontologyId)
+    const ontology = await ontologyFor(deps, workspaceId)
     return context.json(OntologyResponse.parse({
       ontologyId: ontology.ontologyId,
       nodeTypes: ontology.nodeTypes,

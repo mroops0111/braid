@@ -27,6 +27,19 @@ export function clearAuthToken(remoteId?: string): void {
 }
 
 /**
+ * Whether the viewer holds a session they can leave.
+ *
+ * Both halves matter. With no token there is nothing to clear,
+ * and on a server that does not require auth the gate never consults the token,
+ * so clearing it would leave the screen exactly where it was.
+ * That server is in local trust mode,
+ * where one implicit user owns everything and no login ever happened.
+ */
+export function canSignOut(input: { token: string | null, requiresAuth: boolean }): boolean {
+  return input.token !== null && input.token.length > 0 && input.requiresAuth
+}
+
+/**
  * Drains the post-OAuth redirect hash.
  *   #token=<jwt>&auth-remote=<remoteId>   on success
  *   #auth-error=<msg>                     on failure

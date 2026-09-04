@@ -10,7 +10,8 @@ import type {
   UserId,
   WorkspaceId,
 } from '@braidhq/schema'
-import { Proposal } from '@braidhq/core'
+import { PluginRegistry, Proposal } from '@braidhq/core'
+import { dddOntology } from '@braidhq/ontology-ddd'
 import { makeClarification, T0 } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { buildTestApp } from './helpers/buildApp.js'
@@ -369,7 +370,9 @@ describe('POST /workspaces/:ws/clarifications/:id/skip', () => {
 describe('list endpoints return their empty shape for a fresh workspace', () => {
   const cases = [
     { path: `/workspaces/${workspaceId}/model/snapshot`, empty: { nodes: [], edges: [] } },
-    { path: `/workspaces/${workspaceId}/nodes`, empty: { items: [] } },
+    // `total` rides along,
+    // so an empty answer reads differently from a truncated one.
+    { path: `/workspaces/${workspaceId}/nodes`, empty: { items: [], total: 0 } },
     { path: `/workspaces/${workspaceId}/edges`, empty: { items: [] } },
     { path: `/workspaces/${workspaceId}/source-unit-states`, empty: { items: [] } },
   ] as const
@@ -395,7 +398,11 @@ describe('list endpoints return their empty shape for a fresh workspace', () => 
 
 describe('GET /workspaces/:ws/nodes filters and lookup', () => {
   it('filters nodes by type, status, and a text substring', async () => {
-    const { app, deps } = await buildTestApp()
+    // A type filter is checked against the workspace's ontology,
+    // so this needs the one its manifest names.
+    const registry = new PluginRegistry()
+    registry.register(dddOntology)
+    const { app, deps } = await buildTestApp({ pluginRegistry: registry })
     await deps.modelRepository.applyOperations(workspaceId, [
       { operation: 'addNode', payload: { type: COMMAND, name: 'voidTask', id: 'n-1' as NodeId, status: DRAFT } },
       { operation: 'addNode', payload: { type: COMMAND, name: 'cancelTask', id: 'n-2' as NodeId, status: DRAFT } },

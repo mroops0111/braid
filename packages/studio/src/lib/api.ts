@@ -170,9 +170,23 @@ async function fetchJsonAt<T>(remoteId: string, path: string, init?: RequestInit
 }
 
 export interface AuthConfig {
-  googleEnabled: boolean
+  /** Which door to knock on, `/auth/{id}/start`. Null means no sign-in. */
+  loginProvider: string | null
   studioUrl: string
   requiresAuth: boolean
+}
+
+/**
+ * What this deployment does with MCP.
+ *
+ * Read-only. Whether there is an endpoint follows from the authorization
+ * server, which is a deployment decision rather than a Studio one.
+ */
+export interface McpEndpointStatus {
+  state: 'ready' | 'unreachable' | 'incomplete' | 'turnedOff' | 'noAuthorizationServer'
+  endpointUrl: string | null
+  /** What an `incomplete` deployment is waiting on, empty otherwise. */
+  missing: string[]
 }
 
 export interface AuthWhoami {
@@ -181,13 +195,24 @@ export interface AuthWhoami {
 
 export const api = {
   authConfig: () => fetchJson<AuthConfig>('/auth/config'),
+  mcpEndpoint: () => fetchJson<McpEndpointStatus>('/mcp-endpoint'),
   whoami: () => fetchJson<AuthWhoami>('/auth/whoami'),
-  startGoogleSignIn: (returnTo: string) =>
+  startSignIn: (provider: string, returnTo: string) =>
     fetchJson<{ authorizationUrl: string }>(
-      `/auth/google/start?returnTo=${encodeURIComponent(returnTo)}`,
+      `/auth/${provider}/start?returnTo=${encodeURIComponent(returnTo)}`,
     ),
-  logout: () =>
-    fetchJson<void>('/auth/logout', { method: 'POST' }),
+  /**
+   * Ends the session here, and says where to end it at the identity provider.
+   *
+   * Null when there is none to end,
+   * which is the case for a server running its own Google client,
+   * since Google's session is not Braid's to close.
+   */
+  logout: (returnTo: string) =>
+    fetchJson<{ endSessionUrl: string | null }>('/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({ returnTo }),
+    }),
 
   listUsers: () => fetchJson<ItemList<User>>('/users'),
   getMe: () => fetchJson<User>('/users/me'),
@@ -332,9 +357,6 @@ export const api = {
 
   modelSnapshot: (workspaceId: string) =>
     fetchJson<ModelSnapshot>(`/workspaces/${workspaceId}/model/snapshot`),
-
-  listNodes: (workspaceId: string) =>
-    fetchJson<ItemList<GraphNode>>(`/workspaces/${workspaceId}/nodes`),
 
   /**
    * Nodes ranked for a query rather than filtered by it.

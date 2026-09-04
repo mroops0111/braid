@@ -61,6 +61,36 @@ async function startFlow(app: OpenAPIHono): Promise<string> {
 }
 
 describe('OAuth callback', () => {
+  it('adopts an existing record by email when the provider changes, rather than forking the person', async () => {
+    // An authorization server taking over the login changes the `sub`,
+    // though the person behind it is the same.
+    // Joining on `sub` alone would create a second record,
+    // and their workspaces, runs, and proposals would stay on the first.
+    const app = await buildAuthApp()
+    mockGoogleFetch({ profile: { sub: 'first-provider', email: 'user@example.com', name: 'Test User' } })
+    const first = await app.request(`/auth/google/callback?code=c1&state=${await startFlow(app)}`)
+    expect(first.status).toBe(302)
+
+    vi.restoreAllMocks()
+    mockGoogleFetch({ profile: { sub: 'second-provider', email: 'user@example.com', name: 'Renamed' } })
+    const second = await app.request(`/auth/google/callback?code=c2&state=${await startFlow(app)}`)
+    expect(second.status).toBe(302)
+
+    const tokenOf = (response: Response): string =>
+      new URL(response.headers.get('location')!).hash.replace('#token=', '')
+    const userOf = async (token: string): Promise<{ id: string, email: string } | null> => {
+      const body = await (await app.request('/auth/whoami', {
+        headers: { Authorization: `Bearer ${token}` },
+      })).json() as { user: { id: string, email: string } | null }
+      return body.user
+    }
+
+    const firstUser = await userOf(tokenOf(first))
+    const secondUser = await userOf(tokenOf(second))
+    expect(firstUser?.email).toBe('user@example.com')
+    expect(secondUser?.id).toBe(firstUser?.id)
+  })
+
   beforeEach(() => {
     mockGoogleFetch()
   })
