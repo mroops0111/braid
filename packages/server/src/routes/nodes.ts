@@ -1,32 +1,21 @@
 import type { EmbeddingService, ModelService } from '@braidhq/core'
-import { applyNodeFilter, fuseByRank } from '@braidhq/core'
+import { applyNodeFilter, fuseByRank, ValidationError } from '@braidhq/core'
 import { GraphNode, ModelSnapshot, NodeId, NodeStatus, NodeTypeId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
+import { ontologyFor, type OntologyLookupDeps } from './_ontology.js'
 import { mcpReadTool, NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 
-const ListQuery = z.object({
-  type: z.union([NodeTypeId, z.array(NodeTypeId)]).optional().openapi({ description: 'Filter by node type id. Pass one or many.' }),
-  status: z.union([NodeStatus, z.array(NodeStatus)]).optional().openapi({ description: 'Filter by node status. Pass one or many.' }),
-  q: z.string().optional().openapi({ description: 'Case-insensitive substring match against node name and description.' }),
-  // `stringbool` rather than `coerce.boolean`, for two reasons.
-  // Coercion runs `Boolean(value)`, so the string "false" arrives as true,
-  // and it emits `["boolean", "null"]`, which several MCP clients read as a
-  // single string and then either drop or refuse the whole tool.
-  semantic: z.stringbool().optional().openapi({
-    description: 'Also rank by meaning, fusing the substring hits with vector hits. Ignored when the deployment configures no embedding backend.',
-  }),
-  limit: z.coerce.number().int().positive().max(200).optional().openapi({
-    description: 'Cap on returned nodes. Applies to the fused ranking, so it is only meaningful with `semantic`.',
-  }),
-})
+// Unfiltered, this endpoint returns the whole graph, which on a mature one
+// is most of a megabyte. A caller wanting more says so, and a caller wanting
+// all of it wants the snapshot instead.
+const DEFAULT_LIMIT = 20
+// A ceiling on what one call can cost a caller's context.
+// Reading the whole graph is what the snapshot is for.
+const MAX_LIMIT = 100
 
-// A semantic search with no cap would rank the whole graph,
-// where the tail is noise by construction.
-const DEFAULT_SEMANTIC_LIMIT = 50
-
-function capped(nodes: readonly GraphNode[], limit: number | undefined): GraphNode[] {
-  return limit === undefined ? [...nodes] : nodes.slice(0, limit)
+function capped(nodes: readonly GraphNode[], limit: number): GraphNode[] {
+  return nodes.slice(0, limit)
 }
 
 const NodeIdParam = WorkspaceIdParam.extend({
@@ -39,9 +28,17 @@ const ScopeQuery = z.object({
 
 const NodeListResponse = z.object({
   items: z.array(GraphNode),
+  /**
+   * How many matched before `limit` cut the list.
+   *
+   * Without it a caller cannot tell a complete answer from the first page of
+   * a wide one, and with a default cap that difference decides whether the
+   * right next move is to read on or to narrow the query.
+   */
+  total: z.number().int().openapi({ description: 'Nodes matching the filters, before `limit` truncates.' }),
 }).openapi('NodeListResponse')
 
-export interface NodesRouterDeps {
+export interface NodesRouterDeps extends OntologyLookupDeps {
   modelService: ModelService
   /**
    * Absent when the deployment configures no embedding backend,
@@ -49,25 +46,6 @@ export interface NodesRouterDeps {
    */
   embeddingService?: EmbeddingService
 }
-
-const listNodesRoute = createRoute(mcpReadTool({
-  method: 'get',
-  path: '/',
-  operationId: 'listNodes',
-  summary: 'Search graph nodes by type, status, and a substring of the name or description.',
-  tags: ['nodes'],
-  request: {
-    params: WorkspaceIdParam,
-    query: ListQuery,
-  },
-  responses: {
-    200: {
-      description: 'A page of matching nodes.',
-      content: { 'application/json': { schema: NodeListResponse } },
-    },
-    400: ValidationFailureResponse,
-  },
-}))
 
 const getNodeRoute = createRoute(mcpReadTool({
   method: 'get',
@@ -107,6 +85,46 @@ const scopeRoute = createRoute(mcpReadTool({
 export function createNodesRouter(deps: NodesRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
 
+  const listQuery = z.object({
+    type: z.union([NodeTypeId, z.array(NodeTypeId)]).optional().openapi({
+      description: 'Filter by node type. Pass one or many. `getOntology` describes what each type means.',
+    }),
+    status: z.union([NodeStatus, z.array(NodeStatus)]).optional().openapi({ description: 'Filter by node status. Pass one or many.' }),
+    q: z.string().optional().openapi({ description: 'Case-insensitive substring match against node name and description.' }),
+    // Parsed as a string because a query parameter is one, and declared as a
+    // boolean because that is what it means. `coerce.boolean` gets the first
+    // half wrong, running `Boolean(value)` so that "false" arrives as true.
+    semantic: z.stringbool().default(true).openapi({
+      // Spelling out `type` replaces the generated schema rather than merging
+      // into it, so the default has to be restated here or it is lost.
+      type: 'boolean',
+      default: true,
+      description: 'Rank by meaning as well as by substring, fusing the two. On by default, and ignored where the deployment configures no embedding backend or the query is empty. Pass false for substring matching alone.',
+    }),
+    limit: z.coerce.number().int().positive().max(MAX_LIMIT).default(DEFAULT_LIMIT).openapi({
+      description: 'Cap on returned nodes, best ranked first. Defaults to 20, so narrow with `q` rather than raising this to read the whole graph.',
+    }),
+  })
+
+  const listNodesRoute = createRoute(mcpReadTool({
+    method: 'get',
+    path: '/',
+    operationId: 'listNodes',
+    summary: 'Search graph nodes by type, status, and a substring of the name or description.',
+    tags: ['nodes'],
+    request: {
+      params: WorkspaceIdParam,
+      query: listQuery,
+    },
+    responses: {
+      200: {
+        description: 'A page of matching nodes.',
+        content: { 'application/json': { schema: NodeListResponse } },
+      },
+      400: ValidationFailureResponse,
+    },
+  }))
+
   router.openapi(listNodesRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const { type, status, q, semantic, limit } = context.req.valid('query')
@@ -114,13 +132,29 @@ export function createNodesRouter(deps: NodesRouterDeps): OpenAPIHono {
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
     // The structural filters decide what is eligible at all,
     // so they run once and both retrievers rank within what survives them.
+    // Checked against the workspace's own ontology, because a type it does
+    // not define is a mistake rather than a filter that matches nothing.
+    // Answering 200 with an empty list makes a typo indistinguishable from a
+    // true absence, and leaves a caller with nothing to correct.
+    if (types) {
+      const ontology = await ontologyFor(deps, workspaceId)
+      const known = new Set(ontology.nodeTypes.map(nodeType => nodeType.id))
+      const unknown = types.filter(candidate => !known.has(candidate))
+      if (unknown.length > 0) {
+        throw new ValidationError(
+          `Unknown node type ${unknown.map(id => `"${id}"`).join(', ')}. `
+          + `Workspace "${workspaceId}" uses ontology "${ontology.ontologyId}", whose node types are `
+          + `${ontology.nodeTypes.map(nodeType => nodeType.id).join(', ')}.`,
+        )
+      }
+    }
     const eligible = await deps.modelService.listNodes(workspaceId, { types, statuses })
     const lexical = applyNodeFilter(eligible, q ? { textContains: q } : undefined)
     if (!semantic || !q || !deps.embeddingService)
-      return context.json({ items: capped(lexical, limit) }, 200)
+      return context.json({ items: capped(lexical, limit), total: lexical.length }, 200)
 
     const byId = new Map<string, GraphNode>(eligible.map(node => [node.id, node]))
-    const hits = await deps.embeddingService.search(workspaceId, q, limit ?? DEFAULT_SEMANTIC_LIMIT)
+    const hits = await deps.embeddingService.search(workspaceId, q, limit)
     const semanticNodes = hits
       .map(hit => byId.get(hit.nodeId))
       .filter((node): node is GraphNode => node !== undefined)
@@ -129,7 +163,7 @@ export function createNodesRouter(deps: NodesRouterDeps): OpenAPIHono {
     // since a substring hit count and a cosine distance,
     // have no common scale to be weighed on.
     const fused = fuseByRank([lexical, semanticNodes], node => node.id)
-    return context.json({ items: capped(fused, limit) }, 200)
+    return context.json({ items: capped(fused, limit), total: fused.length }, 200)
   })
 
   router.openapi(getNodeRoute, async (context) => {

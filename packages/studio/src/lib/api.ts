@@ -344,9 +344,6 @@ export const api = {
   modelSnapshot: (workspaceId: string) =>
     fetchJson<ModelSnapshot>(`/workspaces/${workspaceId}/model/snapshot`),
 
-  listNodes: (workspaceId: string) =>
-    fetchJson<ItemList<GraphNode>>(`/workspaces/${workspaceId}/nodes`),
-
   /**
    * Nodes ranked for a query rather than filtered by it.
    *

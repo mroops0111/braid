@@ -194,6 +194,12 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   ))
   workspaceScoped.route('/nodes', createNodesRouter({
     modelService: deps.modelService,
+    // Needed to check a `type` filter against the ontology the target
+    // workspace actually speaks, which no static schema can express.
+    workspaceRepository: deps.workspaceRepository,
+    pluginRegistry: deps.pluginRegistry,
+    // The vocabulary every registered ontology defines, so the spec can name
+    // the node types a caller may filter on instead of saying only `string`.
     ...(deps.embeddingService ? { embeddingService: deps.embeddingService } : {}),
   }))
   workspaceScoped.route('/edges', createEdgesRouter({ modelService: deps.modelService }))
