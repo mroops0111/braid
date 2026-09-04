@@ -1,7 +1,7 @@
 {
   "name": "@braidhq/agent-claude-code",
   "type": "module",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Claude Code agent plugin for Braid. Spawns the `claude` CLI to run SKILL.md prompts; the default LLM backend.",
   "license": "MIT",
   "repository": {

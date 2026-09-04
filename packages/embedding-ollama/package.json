@@ -1,7 +1,7 @@
 {
   "name": "@braidhq/embedding-ollama",
   "type": "module",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Ollama embedding plugin for Braid. Runs any Ollama-served model, so vectors are produced on your own host and no text leaves it.",
   "license": "MIT",
   "repository": {
