@@ -11,7 +11,6 @@ interface Operation {
 // A route added to this list is a decision about what a token buys,
 // so the assertion below is an equality rather than a containment check.
 const MCP_TOOLS = [
-  'getModelSnapshot',
   'getNode',
   'getNodeScope',
   'getOntology',
@@ -53,7 +52,7 @@ describe('the MCP tool surface', () => {
     const doc = await readJson<{ paths: Record<string, Record<string, Operation>> }>(
       await app.request('/openapi.json'),
     )
-    // `marked_only` exposes an operation whose extension names a `tool`.
+    // `annotated_only` exposes an operation whose extension names a `tool`.
     // An extension carrying only a `resource`, or nothing,
     // would pass the count above while surfacing no tool at all.
     const operations = Object.values(doc.paths).flatMap(pathItem => Object.values(pathItem))

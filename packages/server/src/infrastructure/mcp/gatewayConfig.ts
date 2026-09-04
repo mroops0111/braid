@@ -23,7 +23,7 @@ interface McpGatewayServerEntry {
   readonly name: string
   readonly spec: string
   readonly base_url: string
-  readonly policy: { readonly marked_only: true }
+  readonly policy: { readonly annotated_only: true }
   readonly auth: {
     readonly type: 'oauth2'
     readonly flow: 'token_exchange'
@@ -91,10 +91,10 @@ export function buildMcpGatewayConfig(options: McpGatewayConfigOptions): McpGate
       name: MCP_GATEWAY_SERVER_NAME,
       spec: options.specUrl,
       base_url: options.baseUrl,
-      // The marking on each route is the curation list.
-      // Without this every operation in the spec would become a tool,
-      // proposals and admin among them.
-      policy: { marked_only: true },
+      // The annotation on each route is the curation list.
+      // Without this every operation in the spec becomes a tool,
+      // proposals, skill runs, and webhook rotation among them.
+      policy: { annotated_only: true },
       // The gateway holds no credential of its own.
       // It validates the caller's token against the same issuer Braid does,
       // then exchanges it for one whose audience names Braid,

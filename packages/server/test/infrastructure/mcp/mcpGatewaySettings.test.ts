@@ -77,7 +77,7 @@ describe('resolveMcpGateway', () => {
     if (resolution.kind !== 'ready')
       throw new Error('expected a ready resolution')
     const server = resolution.config.servers[0]!
-    expect(server.policy.marked_only).toBe(true)
+    expect(server.policy.annotated_only).toBe(true)
     // The spec's `servers[]` names the public URL,
     // which a proxied host cannot always reach by its own name.
     expect(server.spec).toBe('http://localhost:4321/openapi.json')

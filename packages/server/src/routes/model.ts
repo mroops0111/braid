@@ -2,13 +2,17 @@ import type { ModelService } from '@braidhq/core'
 import { ModelSnapshot } from '@braidhq/schema'
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
-import { mcpReadTool, WorkspaceIdParam } from './_shared.js'
+import { WorkspaceIdParam } from './_shared.js'
 
 export interface ModelRouterDeps {
   modelService: ModelService
 }
 
-const getSnapshotRoute = createRoute(mcpReadTool({
+// Deliberately not an MCP tool. A mature graph runs past a megabyte, so a
+// model that reached for it would spend its whole context on one call, and
+// `listNodes` with a filter or `getNodeScope` around a node answer the
+// questions it would have asked. Studio still needs the whole thing.
+const getSnapshotRoute = createRoute({
   method: 'get',
   path: '/snapshot',
   operationId: 'getModelSnapshot',
@@ -21,14 +25,7 @@ const getSnapshotRoute = createRoute(mcpReadTool({
       content: { 'application/json': { schema: ModelSnapshot } },
     },
   },
-// The tool says what the REST summary need not.
-// A mature graph runs past a megabyte, and an MCP client pays that in context.
-}, {
-  description:
-    'Return every node and edge in the workspace at once. A mature graph runs past a megabyte, '
-    + 'which fills a context window on its own. Prefer `listNodes` with a filter, or `getNodeScope` '
-    + 'around a starting node, unless the whole graph is genuinely needed.',
-}))
+})
 
 export function createModelRouter(deps: ModelRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()

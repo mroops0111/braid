@@ -91,7 +91,7 @@ describe('McpGatewayProcess', () => {
         args: ['--from', PACKAGE, 'openapi-mcp-gateway', '--config', configPath],
       })
       const written = parse(await readFile(configPath, 'utf8'))
-      expect(written.servers[0].policy.marked_only).toBe(true)
+      expect(written.servers[0].policy.annotated_only).toBe(true)
       expect(written.transport).toBe('streamable-http')
       // Written as a reference the gateway resolves from the env it inherits,
       // so the file on disk is readable without being a secret.

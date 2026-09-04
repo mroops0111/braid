@@ -47,7 +47,7 @@ interface McpToolOverride {
 /**
  * Opts an operation into the MCP tool surface `openapi-mcp-gateway` serves.
  *
- * The gateway runs with `marked_only`,
+ * The gateway runs with `annotated_only`,
  * so an operation this does not wrap is invisible to an MCP client.
  * That makes the wrapping the curation list,
  * kept beside the route it describes rather than in a separate allowlist.
