@@ -170,8 +170,7 @@ async function fetchJsonAt<T>(remoteId: string, path: string, init?: RequestInit
 }
 
 export interface AuthConfig {
-  googleEnabled: boolean
-  /** Which door to knock on, `/auth/{id}/start`. Null leaves nobody able to sign in. */
+  /** Which door to knock on, `/auth/{id}/start`. Null means no sign-in. */
   loginProvider: string | null
   studioUrl: string
   requiresAuth: boolean
@@ -191,8 +190,9 @@ export const api = {
   /**
    * Ends the session here, and says where to end it at the identity provider.
    *
-   * Null when there is none to end, which is the case for a server running
-   * its own Google client, since Google's session is not Braid's to close.
+   * Null when there is none to end,
+   * which is the case for a server running its own Google client,
+   * since Google's session is not Braid's to close.
    */
   logout: (returnTo: string) =>
     fetchJson<{ endSessionUrl: string | null }>('/auth/logout', {

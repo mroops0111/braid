@@ -24,13 +24,14 @@ interface IdTokenClaims {
 /**
  * Signs a person in against the authorization server Braid already trusts.
  *
- * The same issuer that mints tokens for the MCP endpoint, so a deployment
- * configures one identity provider and both doors answer to it. Google, or
- * any other upstream, is federated there rather than wired into Braid twice.
+ * The same issuer that mints tokens for the MCP endpoint,
+ * so a deployment configures one identity provider and both doors answer to it.
+ * Google, or any other upstream,
+ * is federated there rather than wired into Braid twice.
  *
- * Only the id token is read. Braid issues its own session afterwards, so it
- * never needs the access token, and asking for an audience it does not use
- * would be a claim on the authorization server it does not need to make.
+ * Only the id token is read. Braid issues its own session afterwards,
+ * so it never needs the access token,
+ * and asking for an audience it never uses claims something it does not need.
  */
 export class OidcLoginProvider implements LoginProvider {
   readonly id = 'oidc'
@@ -82,9 +83,9 @@ export class OidcLoginProvider implements LoginProvider {
     if (typeof payload.id_token !== 'string')
       throw new UnauthorizedError('The authorization server returned no id token, so Braid cannot tell who signed in.')
 
-    // Verified rather than decoded. The response arrived over TLS from the
-    // token endpoint, but checking the signature keeps this honest if the
-    // flow is ever changed to receive it anywhere else.
+    // Verified rather than decoded.
+    // The response arrived over TLS from the token endpoint,
+    // but checking the signature keeps this honest if the flow ever changes.
     const { payload: claims } = await jwtVerify(payload.id_token, await this.keySet(), {
       issuer: metadata.issuer,
       audience: this.options.clientId,
@@ -95,8 +96,8 @@ export class OidcLoginProvider implements LoginProvider {
   /**
    * RP-Initiated Logout, per OpenID Connect RP-Initiated Logout 1.0.
    *
-   * Identified by `client_id` rather than `id_token_hint`, because Braid
-   * issues its own session after sign-in and never keeps the id token.
+   * Identified by `client_id` rather than `id_token_hint`,
+   * because Braid issues its own session and never keeps the id token.
    * The authorization server must list `returnTo` as a post-logout redirect,
    * or it will end the session and then refuse to send the browser back.
    */

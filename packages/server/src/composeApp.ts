@@ -110,15 +110,16 @@ export interface AppDependencies {
   /**
    * Where the MCP gateway listens on loopback.
    *
-   * Present with `mcpGateway`, and separate from it because the router that
-   * forwards to the endpoint needs the address, not the process.
+   * Present with `mcpGateway`,
+   * separate from it because the forwarding router needs an address,
+   * not the process.
    */
   mcpGatewayUrl?: string
   /**
    * The one browser sign-in this deployment offers.
    *
-   * An authorization server displaces Braid's own Google client rather than
-   * joining it, so one person has one identity however they arrive.
+   * An authorization server displaces the Google client rather than joining it,
+   * so one person has one identity however they arrive.
    */
   loginProviders?: readonly LoginProvider[]
   /**

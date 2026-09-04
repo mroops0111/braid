@@ -62,8 +62,9 @@ export interface RefreshedAccessToken {
  * and the auth surface auditable.
  */
 export class GoogleOAuth implements LoginProvider {
-  // Part of the registered redirect URI, so it is fixed once a deployment
-  // exists. Renaming it would invalidate the Google console entry.
+  // Part of the registered redirect URI,
+  // so it is fixed once a deployment exists.
+  // Renaming it would invalidate the Google console entry.
   readonly id = 'google'
 
   constructor(private readonly config: GoogleOAuthConfig) {}

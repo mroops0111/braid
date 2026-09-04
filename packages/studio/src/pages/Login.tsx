@@ -79,9 +79,10 @@ export function LoginPage({ initialError }: LoginPageProps) {
                 >
                   {starting
                     ? t('shell.login.redirecting')
-                    // Google is Braid's own client, so the button can name it.
-                    // Any other provider is the deployment's to name, and
-                    // guessing would put the wrong logo on the door.
+                    // Google is Braid's own client,
+                    // so the button can name it.
+                    // Any other provider is the deployment's to name,
+                    // and guessing would put the wrong logo on the door.
                     : config.loginProvider === 'google'
                       ? t('shell.login.signInWithGoogle')
                       : t('shell.login.signIn')}
@@ -90,11 +91,6 @@ export function LoginPage({ initialError }: LoginPageProps) {
             : (
                 <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                   {t('shell.login.notConfigured')}
-                  {' '}
-                  <code className="font-mono">BRAID_GOOGLE_CLIENT_ID</code>
-                  {' / '}
-                  <code className="font-mono">BRAID_GOOGLE_CLIENT_SECRET</code>
-                  .
                 </div>
               )}
       </div>

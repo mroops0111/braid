@@ -61,10 +61,9 @@ describe('resolveMcpGateway', () => {
     const server = resolution.config.servers[0]!
     expect(server.auth.flow).toBe('token_exchange')
     expect(server.auth.issuer).toBe('https://as.example.com')
-    // Names Braid,
-    // so the forwarded token passes Braid's own audience check,
-    // rather than the authorization server's default.
-    // Both spellings, since servers disagree on which one drives the exchange.
+    // Names Braid, so the forwarded token passes Braid's own audience check,
+    // rather than the authorization server's default. Both spellings,
+    // since servers disagree on which one drives the exchange.
     expect(server.auth.upstream.resource).toBe('https://braid.example.com')
     expect(server.auth.upstream.audience).toBe('https://braid.example.com')
     // References, not values, so the generated file holds no secret.
@@ -88,8 +87,9 @@ describe('resolveMcpGateway', () => {
     const resolution = resolveMcpGateway(completeEnv, { ...context, apiUrl: 'https://braid.example.com/' })
     if (resolution.kind !== 'ready')
       throw new Error('expected a ready resolution')
-    // The endpoint reaches callers on this server's port, so the metadata
-    // names this API. A trailing slash would reach a client doubled.
+    // The endpoint reaches callers on this server's port,
+    // so the metadata names this API.
+    // A trailing slash would reach a client doubled.
     expect(resolution.config.url).toBe('https://braid.example.com')
     // Never published. The only way in is through this server.
     expect(resolution.config.host).toBe('127.0.0.1')

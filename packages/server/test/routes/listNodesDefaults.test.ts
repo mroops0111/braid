@@ -23,8 +23,8 @@ describe('listNodes defaults', () => {
       paths: Record<string, Record<string, { parameters: Parameter[] }>>
     }
     const limit = spec.paths['/workspaces/{workspaceId}/nodes']!.get!.parameters.find(p => p.name === 'limit')
-    // Reading the whole graph is what the snapshot is for, so a caller
-    // cannot get there one large page at a time either.
+    // Reading the whole graph is what the snapshot is for,
+    // so a caller cannot get there one large page at a time either.
     expect((limit?.schema as { maximum?: number }).maximum).toBe(100)
   })
 
@@ -34,12 +34,13 @@ describe('listNodes defaults', () => {
       paths: Record<string, Record<string, { parameters: Parameter[] }>>
     }
     const parameters = spec.paths['/workspaces/{workspaceId}/nodes']!.get!.parameters
-    // A query parameter arrives as a string, but the schema says what it
-    // means, and a model reading `string` has to guess the spelling of true.
+    // A query parameter arrives as a string,
+    // but the schema says what it means,
+    // and a model reading `string` has to guess the spelling of true.
     expect(parameters.find(p => p.name === 'semantic')?.schema.type).toBe('boolean')
-    // Descriptions are the whole of what a model has to go on, and they
-    // vanish silently when two copies of zod-to-openapi race to install
-    // `.openapi()`, so their presence is worth asserting rather than assuming.
+    // Descriptions are the whole of what a model has to go on,
+    // and they vanish when two copies of zod-to-openapi race to patch zod,
+    // so their presence is worth asserting rather than assuming.
     for (const name of ['q', 'semantic', 'limit', 'type', 'status'])
       expect(parameters.find(p => p.name === name)?.description, name).toBeTruthy()
   })
@@ -55,15 +56,16 @@ describe('listNodes defaults', () => {
 
     // Unfiltered, this endpoint used to return the whole graph.
     expect(body.items).toHaveLength(20)
-    // And the caller can tell that it did, which is what decides whether the
-    // next move is to read on or to narrow the query.
+    // And the caller can tell that it did,
+    // which decides whether to read on or to narrow the query.
     expect(body.total).toBe(25)
   })
 
   it('ranks by meaning without being asked, where a backend can', async () => {
-    // No embedding service is wired here, so the flag is inert and the
-    // substring pass answers. What matters is that the default is on, so a
-    // caller gets the better ranking without knowing the parameter exists.
+    // No embedding service is wired here,
+    // so the flag is inert and the substring pass answers.
+    // What matters is that the default is on,
+    // so a caller gets the better ranking without knowing the parameter exists.
     const { app } = await buildTestApp()
     const spec = await (await app.request('/openapi.json')).json() as {
       paths: Record<string, Record<string, { parameters: (Parameter & { schema: { default?: unknown } })[] }>>

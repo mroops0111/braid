@@ -16,9 +16,9 @@ const DEFAULT_WORKSPACE_ID = 'w-1' as WorkspaceId
 export async function buildTestApp(options: {
   workspaceIds?: readonly WorkspaceId[]
   /**
-   * Registers real plugins. A route that consults the workspace's ontology
-   * needs one, since a bare registry describes a deployment that cannot
-   * serve its own workspaces and answers 404 accordingly.
+   * Registers real plugins.
+   * A route that consults the workspace's ontology needs one,
+   * since a bare registry cannot serve its own workspaces, and answers 404.
    */
   pluginRegistry?: PluginRegistry
 } = {}): Promise<{

@@ -57,12 +57,12 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   app.use('*', corsOrigins ? corsMiddleware({ allowedOrigins: corsOrigins }) : corsMiddleware())
 
   // The MCP endpoint, served on this port rather than one of its own.
-  // The gateway binds loopback and this forwards to it, so a deployment
-  // exposes one address and one certificate.
-  // Ahead of the app shell and the auth gate, because the endpoint runs its
-  // own OAuth against the same issuer. Braid's gate would answer an
-  // unauthenticated caller with a problem document, where the endpoint owes
-  // it a challenge naming where to authenticate.
+  // The gateway binds loopback and this forwards to it,
+  // so a deployment exposes one address and one certificate.
+  // Ahead of the app shell and the auth gate,
+  // because the endpoint runs its own OAuth against the same issuer.
+  // Braid's gate answers with a problem document,
+  // where the endpoint owes it a challenge naming where to authenticate.
   if (deps.mcpGatewayUrl) {
     const mcpProxy = createMcpProxyRouter({ gatewayUrl: deps.mcpGatewayUrl })
     app.route('/braid', mcpProxy)
@@ -194,12 +194,10 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   ))
   workspaceScoped.route('/nodes', createNodesRouter({
     modelService: deps.modelService,
-    // Needed to check a `type` filter against the ontology the target
-    // workspace actually speaks, which no static schema can express.
+    // Checks a `type` filter against the ontology this workspace speaks,
+    // which no static schema can express.
     workspaceRepository: deps.workspaceRepository,
     pluginRegistry: deps.pluginRegistry,
-    // The vocabulary every registered ontology defines, so the spec can name
-    // the node types a caller may filter on instead of saying only `string`.
     ...(deps.embeddingService ? { embeddingService: deps.embeddingService } : {}),
   }))
   workspaceScoped.route('/edges', createEdgesRouter({ modelService: deps.modelService }))

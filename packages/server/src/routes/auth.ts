@@ -26,8 +26,8 @@ export interface AuthRouterDeps {
   /**
    * The one way in this deployment offers, or none.
    *
-   * Exactly one, because two would mean two identities for one person and no
-   * rule for which wins. An empty list mounts no start route at all,
+   * Exactly one, because two means two identities for one person,
+   * and no rule for which wins. An empty list mounts no start route at all,
    * so a misconfigured server says so at the door rather than mid-flow.
    */
   loginProviders: readonly LoginProvider[]
@@ -132,9 +132,10 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
   }
 
   // Revoking Braid's session is only half of it. The provider keeps its own,
-  // so the answer carries where to end that one too, and the caller sends the
-  // browser there. Null when the provider offers no such endpoint, which
-  // leaves the old behaviour of a purely local sign-out.
+  // so the answer carries where to end that one too,
+  // and the caller sends the browser there.
+  // Null when the provider offers no such endpoint,
+  // which leaves the old behaviour of a purely local sign-out.
   router.post('/logout', async (context) => {
     const header = context.req.header('Authorization')
     const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length).trim() : null
@@ -181,13 +182,11 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
 
   // Hint at the configured studio URL and auth mode,
   // so the Login page can decide whether to gate at all,
-  // single-tenant skips it, and whether Google is configured,
-  // since otherwise the Sign-in button leads to a 503.
+  // single-tenant skips it, and which door to knock on.
   router.get('/config', (context) => {
     return context.json({
-      googleEnabled: deps.loginProviders.some(provider => provider.id === 'google'),
-      // Which door to knock on. Studio sends the person to
-      // `/auth/{loginProvider}/start` rather than guessing.
+      // Null where no provider is configured, which is what hides the button.
+      // Studio builds the start path from this rather than guessing.
       loginProvider: deps.loginProviders[0]?.id ?? null,
       studioUrl: deps.studioUrl,
       requiresAuth: deps.requiresAuth,
@@ -200,20 +199,23 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
 /**
  * Resolve the person to a user record, creating one on first sign-in.
  *
- * Two join keys, in order. `sub` is tried first because it survives an email
- * change, but it only names the person inside one provider, so it stops
- * matching the moment a deployment puts an authorization server in front of
- * the login it used to run itself. Email is what carries across that move,
- * and adopting the record rather than creating a second one is what keeps a
- * person's workspaces, runs, and proposals attached to them.
+ * Two join keys, in order.
+ * `sub` is tried first because it survives an email change,
+ * but it only names the person inside one provider,
+ * so it stops matching the moment an authorization server takes over the login.
+ * Email is what carries across that move,
+ * and adopting the record rather than forking it keeps a person's workspaces,
+ * runs, and proposals attached to them.
  *
- * The record keeps the subject it was created with, since that field is
- * immutable by design, so an adopted record is found by email every time.
- * That is a lookup per sign-in against a small file, and the alternative is
- * making the join key rewritable, which is a worse trade.
+ * The record keeps the subject it was created with,
+ * since that field is immutable by design,
+ * so an adopted record is found by email every time.
+ * That is a lookup per sign-in against a small file,
+ * and the alternative is making the join key rewritable,
+ * which is a worse trade.
  *
- * An admin list edited after the fact promotes on the next sign-in, so
- * redeploying with a new roster never needs manual surgery on the registry.
+ * An admin list edited after the fact promotes on the next sign-in,
+ * so redeploying with a new roster never needs manual surgery on the registry.
  */
 async function upsertUser(
   deps: AuthRouterDeps,

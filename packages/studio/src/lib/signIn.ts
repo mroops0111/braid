@@ -1,11 +1,13 @@
 /**
  * Send the browser to a server's sign-in.
  *
- * Which provider that is belongs to the server, not here. A deployment with
- * an authorization server signs people in there, one without uses Braid's own
- * Google client, and Studio only needs the id to build the path.
+ * Which provider that is belongs to the server, not here.
+ * A deployment with an authorization server signs people in there,
+ * one without uses Braid's own Google client,
+ * and Studio only needs the id to build the path.
  *
- * The start endpoint answers with the authorization URL, it does not redirect,
+ * The start endpoint answers with the authorization URL,
+ * it does not redirect,
  * so pointing `location.href` straight at it lands the user on raw JSON.
  * It takes a base URL rather than using the api client,
  * so a caller can reach a remote server it holds no token for yet.

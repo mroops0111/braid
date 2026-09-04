@@ -5,10 +5,10 @@ import { NotFoundError } from '@braidhq/core'
 /**
  * What a workspace answers to, so a route can check a request against it.
  *
- * A workspace names its ontology, which is why this takes a workspace rather
- * than reading a deployment-wide default. Two workspaces on one server may
- * speak different vocabularies, and a caller's `type=aggregate` is only
- * meaningful against the one that defines it.
+ * A workspace names its ontology, which is why this takes a workspace,
+ * not a deployment-wide default.
+ * Two workspaces on one server may speak different vocabularies,
+ * so `type=aggregate` means something only where it is defined.
  */
 export interface OntologyLookupDeps {
   workspaceRepository: WorkspaceRepository

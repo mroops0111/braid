@@ -17,8 +17,8 @@ export interface McpGatewayProcessDeps {
   readonly configPath: string
   readonly config: McpGatewayConfigDocument
   /**
-   * What `uvx` resolves the gateway from.
-   * Carries the `oidc` extra, which is what token_exchange needs,
+   * What `uvx` resolves the gateway from. Carries the `oidc` extra,
+   * which is what token_exchange needs,
    * and lets a deployment pin a version or point at a pre-release.
    */
   readonly gatewayPackage: string

@@ -56,8 +56,7 @@ interface McpToolOverride {
  * A tool that cannot change the graph needs far less trust than one that can,
  * and a write here would spend a seat on a caller who only asked to read.
  *
- * A wrapper rather than a field,
- * because the extension key needs quoting,
+ * A wrapper rather than a field, because the extension key needs quoting,
  * and lint then quotes every other key in the object alongside it.
  */
 export function mcpReadTool<T extends object>(

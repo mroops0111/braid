@@ -8,10 +8,10 @@ export interface ModelRouterDeps {
   modelService: ModelService
 }
 
-// Deliberately not an MCP tool. A mature graph runs past a megabyte, so a
-// model that reached for it would spend its whole context on one call, and
-// `listNodes` with a filter or `getNodeScope` around a node answer the
-// questions it would have asked. Studio still needs the whole thing.
+// Deliberately not an MCP tool. A mature graph runs past a megabyte,
+// so a model that reached for it would spend its whole context on one call,
+// and a filtered `listNodes` or `getNodeScope` answers what it would ask.
+// Studio still needs the whole thing.
 const getSnapshotRoute = createRoute({
   method: 'get',
   path: '/snapshot',

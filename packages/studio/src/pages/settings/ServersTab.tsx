@@ -187,7 +187,7 @@ async function probeBraidServer(url: string): Promise<void> {
   catch {
     throw new Error('Server replied with non-JSON. Is this a Braid instance?')
   }
-  if (typeof body !== 'object' || body === null || !('requiresAuth' in body) || !('googleEnabled' in body))
+  if (typeof body !== 'object' || body === null || !('requiresAuth' in body) || !('loginProvider' in body))
     throw new Error('Response did not match a Braid `/auth/config` shape')
 }
 

@@ -21,8 +21,9 @@ export interface OidcTokenVerifierOptions {
   /**
    * Whether an email may still reach this deployment.
    *
-   * Narrowed to the one question asked, so this stays independent of how the
-   * answer is reached, whether an allowed domain, an allowlist, or an invite.
+   * Narrowed to the one question asked,
+   * so this stays independent of how the answer is reached,
+   * whether an allowed domain, an allowlist, or an invite.
    */
   readonly accessPolicy: SignInPolicy
   readonly fetch?: typeof globalThis.fetch
@@ -92,8 +93,8 @@ export class OidcTokenVerifier implements AccessTokenVerifier {
       )
     }
     // The browser door runs this same policy at every login,
-    // so this one has to as well.
-    // Without it, dropping a domain or revoking an invite closes one door,
+    // so this one has to as well. Without it,
+    // dropping a domain or revoking an invite closes one door,
     // and leaves a token minted before the change working indefinitely.
     const decision = await this.options.accessPolicy.decide(email)
     if (!decision.allow)

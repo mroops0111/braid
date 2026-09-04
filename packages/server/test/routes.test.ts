@@ -370,8 +370,8 @@ describe('POST /workspaces/:ws/clarifications/:id/skip', () => {
 describe('list endpoints return their empty shape for a fresh workspace', () => {
   const cases = [
     { path: `/workspaces/${workspaceId}/model/snapshot`, empty: { nodes: [], edges: [] } },
-    // `total` rides along, so a caller can tell an empty answer from a
-    // truncated one without a second call.
+    // `total` rides along,
+    // so an empty answer reads differently from a truncated one.
     { path: `/workspaces/${workspaceId}/nodes`, empty: { items: [], total: 0 } },
     { path: `/workspaces/${workspaceId}/edges`, empty: { items: [] } },
     { path: `/workspaces/${workspaceId}/source-unit-states`, empty: { items: [] } },
@@ -398,8 +398,8 @@ describe('list endpoints return their empty shape for a fresh workspace', () => 
 
 describe('GET /workspaces/:ws/nodes filters and lookup', () => {
   it('filters nodes by type, status, and a text substring', async () => {
-    // A type filter is checked against the workspace's ontology, so this
-    // needs the one its manifest names.
+    // A type filter is checked against the workspace's ontology,
+    // so this needs the one its manifest names.
     const registry = new PluginRegistry()
     registry.register(dddOntology)
     const { app, deps } = await buildTestApp({ pluginRegistry: registry })

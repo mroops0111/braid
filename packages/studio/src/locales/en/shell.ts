@@ -62,8 +62,8 @@ export const shell = {
     checkingServer: 'Checking server…',
     redirecting: 'Redirecting…',
     signInWithGoogle: 'Sign In with Google',
-    // Shown when the server signs people in through an identity provider it
-    // trusts. Which one is the deployment's business, so the label says none.
+    // Shown when the server signs people in through an identity provider.
+    // Which one is the deployment's business, so the label says none.
     signIn: 'Sign In',
     notConfigured: 'No sign-in is configured on this server. Ask the admin to set one up.',
   },

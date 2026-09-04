@@ -1,9 +1,10 @@
 /**
  * Which browser sign-in a deployment offers.
  *
- * One, never two. An authorization server displaces Braid's own Google client
- * rather than joining it, so a person has one identity whichever door they
- * use, and Google is configured once at the issuer instead of twice.
+ * One, never two.
+ * An authorization server displaces the Google client rather than joining it,
+ * so a person has one identity whichever door they use,
+ * and Google is configured once at the issuer instead of twice.
  */
 export type LoginMode =
   | { readonly kind: 'oidc', readonly issuer: string, readonly clientId: string, readonly clientSecret: string }
@@ -18,9 +19,10 @@ const CLIENT_SECRET_VAR = 'BRAID_OIDC_CLIENT_SECRET'
 /**
  * Pure, so the rule is testable without building a provider.
  *
- * An issuer wins whenever one is named, including when it is named
- * incompletely. Falling back to Google there would sign people in against the
- * provider the deployment just said it was replacing.
+ * An issuer wins whenever one is named,
+ * including when it is named incompletely.
+ * Falling back to Google there is worse than refusing.
+ * It signs people in against the provider the deployment just replaced.
  */
 export function chooseLoginMode(
   env: Readonly<Record<string, string | undefined>>,

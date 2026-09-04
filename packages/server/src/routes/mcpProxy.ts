@@ -3,14 +3,15 @@ import { Hono } from 'hono'
 /**
  * Publishes the MCP endpoint on this server's own port.
  *
- * The gateway is a separate process, and a Python one, so it cannot be
- * mounted in-process. It binds loopback instead and this router forwards to
- * it, which leaves a deployment with one address, one port, and one
- * certificate. From outside, the endpoint is part of the API.
+ * The gateway is a separate process, and a Python one,
+ * so it cannot be mounted in-process.
+ * It binds loopback instead and this router forwards to it,
+ * which leaves a deployment with one address, one port, and one certificate.
+ * From outside, the endpoint is part of the API.
  *
- * Streaming matters here. Streamable HTTP answers with an event stream, so
- * the body is passed through rather than read, and the response headers are
- * carried across so `WWW-Authenticate` reaches the client that needs it.
+ * Streaming matters here. Streamable HTTP answers with an event stream,
+ * so the body is passed through rather than read,
+ * and headers are carried across so `WWW-Authenticate` reaches the client.
  */
 export interface McpProxyDeps {
   /** Where the gateway listens, loopback and not published. */
@@ -46,8 +47,8 @@ export function createMcpProxyRouter(deps: McpProxyDeps): Hono {
       })
     }
     catch {
-      // The gateway is supervised and restarts, so a gap here is a retry
-      // rather than a fault in the API the caller reached.
+      // The gateway is supervised and restarts, so a gap is a retry,
+      // not a fault in the API the caller reached.
       return context.json(
         {
           type: 'about:blank',

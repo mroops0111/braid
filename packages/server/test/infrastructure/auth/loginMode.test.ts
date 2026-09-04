@@ -22,9 +22,8 @@ describe('chooseLoginMode', () => {
   })
 
   it('refuses to fall back to Google when the issuer is named but incomplete', () => {
-    // Falling back here would sign people in against the very provider the
-    // deployment just said an authorization server replaces, quietly giving
-    // one person two identities.
+    // Falling back here signs people in against the provider just replaced,
+    // quietly giving one person two identities.
     const mode = chooseLoginMode({ BRAID_OIDC_ISSUER: 'https://as.example.com' }, { googleConfigured: true })
     expect(mode.kind).toBe('none')
     expect(mode.kind === 'none' && mode.reason).toContain('BRAID_OIDC_CLIENT_ID')

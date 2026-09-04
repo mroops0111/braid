@@ -15,9 +15,8 @@ function withDdd(): PluginRegistry {
 
 describe('node type filter validation', () => {
   it('refuses a type the workspace ontology does not define, and says what it does', async () => {
-    // Answering 200 with an empty list makes a typo indistinguishable from a
-    // true absence, which leaves a caller with nothing to correct and a model
-    // believing the graph holds no such nodes.
+    // Answering 200 and an empty list hides a typo behind a true absence,
+    // leaving nothing to correct, and a model believing no such nodes exist.
     const { app } = await buildTestApp({ pluginRegistry: withDdd() })
     const response = await app.request(`/workspaces/${WORKSPACE}/nodes?type=agregate`)
 

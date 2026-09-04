@@ -34,7 +34,7 @@ function registry(users: Array<Partial<User>>): UserRegistryFile {
   } as unknown as UserRegistryFile
 }
 
-/** Allows everyone unless a test says otherwise, so each test states its own gate. */
+/** Allows everyone unless a test says otherwise, so each states its gate. */
 function policy(decision: { allow: boolean, reason?: string } = { allow: true }): SignInPolicy {
   return { decide: async () => decision }
 }
@@ -57,8 +57,9 @@ function verifier(
 
 describe('oidcTokenVerifier', () => {
   it('refuses a caller the sign-in policy no longer allows', async () => {
-    // Offboarding is the case. The record still exists, so the email still
-    // resolves, but the domain was dropped or the invite revoked.
+    // Offboarding is the case. The record still exists,
+    // so the email still resolves,
+    // but the domain was dropped or the invite revoked.
     // The browser door closes at the next login, and this one has to agree.
     const users = registry([{ id: 'user-abc' as UserId, email: 'alice@example.com' }])
     const token = await mint({ sub: 'google-1', email: 'alice@example.com' })
@@ -79,7 +80,7 @@ describe('oidcTokenVerifier', () => {
       },
     }
     await verifier(users, AUDIENCE, recording).verify(token)
-    // Lowercased, so an allowlist written in one case matches a token in another.
+    // Lowercased, so an allowlist in one case matches a token in another.
     expect(asked).toEqual(['alice@example.com'])
   })
 

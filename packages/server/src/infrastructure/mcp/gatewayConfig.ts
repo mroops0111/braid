@@ -41,9 +41,8 @@ interface McpGatewayServerEntry {
 
 export interface McpGatewayConfigOptions {
   /**
-   * Address the gateway binds.
-   * Loopback, because the endpoint reaches callers through this server's own
-   * port rather than one of its own.
+   * Address the gateway binds. Loopback,
+   * because the endpoint reaches callers on this server's port, not its own.
    */
   readonly host: string
   readonly port: number
@@ -92,8 +91,8 @@ export function buildMcpGatewayConfig(options: McpGatewayConfigOptions): McpGate
       spec: options.specUrl,
       base_url: options.baseUrl,
       // The annotation on each route is the curation list.
-      // Without this every operation in the spec becomes a tool,
-      // proposals, skill runs, and webhook rotation among them.
+      // Without this every operation in the spec becomes a tool, proposals,
+      // skill runs, and webhook rotation among them.
       policy: { annotated_only: true },
       // The gateway holds no credential of its own.
       // It validates the caller's token against the same issuer Braid does,
@@ -102,19 +101,22 @@ export function buildMcpGatewayConfig(options: McpGatewayConfigOptions): McpGate
       auth: {
         type: 'oauth2',
         flow: 'token_exchange',
-        // No `required_scopes`. Demanding one would reject any client whose
-        // registration asked for a different set, and what Braid actually
-        // needs is an email claim, which is the authorization server's to
-        // release rather than a scope Braid is in a position to insist on.
+        // No `required_scopes`.
+        // Demanding one rejects any client that asked for a different set,
+        // and what Braid actually needs is an email claim,
+        // which the authorization server releases,
+        // not a scope Braid can insist on.
         issuer: options.issuer,
         upstream: {
-          // References rather than values, resolved by the gateway against
-          // the env it inherits, so the generated file holds no secret.
+          // References rather than values,
+          // resolved by the gateway against the env it inherits,
+          // so the generated file holds no secret.
           client_id: options.clientIdRef,
           client_secret: options.clientSecretRef,
-          // RFC 8693 defines both spellings, and servers disagree on which
-          // one drives the exchange. Keycloak reads `audience` and ignores
-          // `resource`, while a server built to RFC 8707 reads `resource`.
+          // RFC 8693 defines both spellings,
+          // and servers disagree on which one drives the exchange.
+          // Keycloak reads `audience` and ignores `resource`,
+          // while a server built to RFC 8707 reads `resource`.
           // Sending both keeps the generated config portable,
           // rather than making the operator work out which theirs wants.
           resource: options.audience,

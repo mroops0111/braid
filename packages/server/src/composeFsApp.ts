@@ -318,11 +318,11 @@ export async function composeFsAppWithRegistry(
   const oidcIssuer = process.env.BRAID_OIDC_ISSUER
   const oidcAudience = process.env.BRAID_OIDC_AUDIENCE ?? apiUrl
   // One way in, never two.
-  // An authorization server displaces Braid's own Google client rather than
-  // joining it, so a person has one identity whichever door they use, and
-  // Google is configured once at the issuer instead of twice.
-  // Without an issuer this falls back to the Google client, which is what a
-  // laptop install and a small deployment run on.
+  // An authorization server displaces the Google client rather than joining it,
+  // so a person has one identity whichever door they use,
+  // and Google is configured once at the issuer instead of twice.
+  // Without an issuer this falls back to the Google client,
+  // which is what a laptop install and a small deployment run on.
   const loginMode = chooseLoginMode(process.env, { googleConfigured: googleOAuth !== undefined })
   const loginProviders: LoginProvider[]
     = loginMode.kind === 'oidc'

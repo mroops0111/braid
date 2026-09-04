@@ -67,8 +67,9 @@ async function readMetadata(url: string, fetchImpl: typeof globalThis.fetch): Pr
   return {
     issuer: body.issuer.replace(/\/$/, ''),
     jwksUri: body.jwks_uri,
-    // Optional, because a server that only validates tokens publishes
-    // neither, and Braid still trusts it for the programmatic door.
+    // Optional,
+    // because a server that only validates tokens publishes neither,
+    // and Braid still trusts it for the programmatic door.
     ...(typeof body.authorization_endpoint === 'string' ? { authorizationEndpoint: body.authorization_endpoint } : {}),
     ...(typeof body.token_endpoint === 'string' ? { tokenEndpoint: body.token_endpoint } : {}),
     ...(typeof body.end_session_endpoint === 'string' ? { endSessionEndpoint: body.end_session_endpoint } : {}),
