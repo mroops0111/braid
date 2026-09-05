@@ -221,6 +221,8 @@ export const review = {
     runningElapsed: 'running… {elapsed}s elapsed',
     embeddingRebuildingLabel: 'Search Index',
     embeddingRebuildingDetail: 'Ranking by meaning covers {done} of {total} nodes so far.',
+    embeddingRebuildButton: 'Build Index',
+    embeddingRetryButton: 'Try Again',
     embeddingStaleLabel: 'Search Index',
     embeddingStaleDetail: '{stale} of {total} nodes are not ranked by meaning yet.',
     embeddingFailedLabel: 'Search Index',

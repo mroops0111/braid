@@ -16,8 +16,7 @@ import {
   WorkspaceBootstrapService,
 } from '@braidhq/core'
 import { InMemoryWorkspaceEventBus } from '@braidhq/core/in-memory'
-import { OllamaEmbeddingPlugin } from '@braidhq/embedding-ollama'
-import { AgentId, AgentKind, EmbeddingKind, StorageKind as StorageKindSchema } from '@braidhq/schema'
+import { AgentId, AgentKind, StorageKind as StorageKindSchema } from '@braidhq/schema'
 import { createGoogleDriveLoader } from '@braidhq/source-loader-gdrive'
 import { gitLoader } from '@braidhq/source-loader-git'
 import { createGithubLoader } from '@braidhq/source-loader-github'
@@ -33,6 +32,7 @@ import { chooseLoginMode } from './infrastructure/auth/loginMode.js'
 import { FsSessionStore } from './infrastructure/auth/SessionStore.js'
 import { FsBatchPlanRepository } from './infrastructure/batch/FsBatchPlanRepository.js'
 import { FsEmbeddingRepository } from './infrastructure/embedding/FsEmbeddingRepository.js'
+import { OpenAiCompatibleEmbedder } from './infrastructure/embedding/OpenAiCompatibleEmbedder.js'
 import { GitWorkspaceHistory } from './infrastructure/history/GitWorkspaceHistory.js'
 import { FsClarificationRepository } from './infrastructure/hitl/FsClarificationRepository.js'
 import { FsProposalRepository } from './infrastructure/hitl/FsProposalRepository.js'
@@ -67,6 +67,14 @@ import { startupBeforeServe } from './startup.js'
 // or hands composeFsAppWithRegistry its own PluginRegistry,
 // for a different worldview over the same runtime.
 const DEFAULT_STORAGE_KIND = 'kuzu'
+// What a self-hosted stack most often has pulled already.
+// Multilingual too, so a query reaches a node named in another language.
+const DEFAULT_EMBEDDING_MODEL = 'bge-m3:latest'
+const EMBEDDING_BATCH_SIZE = 16
+// A cold server loads the model on the first call.
+// On a multi-gigabyte model that outlasts any default HTTP timeout.
+const EMBEDDING_TIMEOUT_MS = 300_000
+
 const DEFAULT_AGENT_KIND = 'claude-code'
 const DEFAULT_AGENT_MODEL = 'opus'
 const DEFAULT_AGENT_EFFORT = 'high'
@@ -200,9 +208,6 @@ export function defaultPluginRegistry(context: FsRuntimeContext, options: ExtraP
     pluginRegistry.register(plugin)
 
   pluginRegistry.register(claudeCodeAgentPlugin)
-  // Registered whether or not a deployment turns it on,
-  // so selecting `ollama` is one env var rather than a code change.
-  pluginRegistry.register(new OllamaEmbeddingPlugin())
   for (const plugin of options.extraAgentPlugins ?? [])
     pluginRegistry.register(plugin)
 
@@ -388,18 +393,18 @@ export async function composeFsAppWithRegistry(
   // A deployment with no embedding backend keeps every other capability,
   // and simply cannot rank by meaning,
   // so nothing here may throw when the axis is left unset.
-  const embeddingKind = process.env.BRAID_EMBEDDING_KIND
-  const embedder = embeddingKind
-    ? await pluginRegistry.requireEmbeddingPlugin(EmbeddingKind.parse(embeddingKind)).createEmbedder(
-      {
-        kind: EmbeddingKind.parse(embeddingKind),
-        config: {
-          ...(process.env.BRAID_EMBEDDING_HOST ? { host: process.env.BRAID_EMBEDDING_HOST } : {}),
-          ...(process.env.BRAID_EMBEDDING_MODEL ? { model: process.env.BRAID_EMBEDDING_MODEL } : {}),
-        },
-      },
-      pluginContext,
-    )
+  // The address is the switch, since a backend cannot be reached without one.
+  const embeddingHost = process.env.BRAID_EMBEDDING_HOST
+  const embedder = embeddingHost
+    ? new OpenAiCompatibleEmbedder({
+      host: withoutTrailingSlash(embeddingHost),
+      model: process.env.BRAID_EMBEDDING_MODEL || DEFAULT_EMBEDDING_MODEL,
+      ...(process.env.BRAID_EMBEDDING_API_KEY
+        ? { apiKey: process.env.BRAID_EMBEDDING_API_KEY }
+        : {}),
+      batchSize: EMBEDDING_BATCH_SIZE,
+      timeoutMs: EMBEDDING_TIMEOUT_MS,
+    })
     : undefined
   const embeddingRepository = new FsEmbeddingRepository({ resolveWorkspaceRoot })
 

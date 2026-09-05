@@ -48,22 +48,6 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
 
-  examples/redoc-extending-ddd:
-    dependencies:
-      '@braidhq/ontology-ddd':
-        specifier: workspace:*
-        version: link:../../packages/ontology-ddd
-      '@braidhq/schema':
-        specifier: workspace:*
-        version: link:../../packages/schema
-      '@braidhq/sdk':
-        specifier: workspace:*
-        version: link:../../packages/sdk
-    devDependencies:
-      typescript:
-        specifier: ^5.7.0
-        version: 5.9.3
-
   packages/agent-claude-code:
     dependencies:
       '@braidhq/core':
@@ -158,25 +142,6 @@ importers:
         specifier: ^2.11.4
         version: 2.11.4
 
-  packages/embedding-ollama:
-    dependencies:
-      '@braidhq/core':
-        specifier: workspace:*
-        version: link:../core
-      '@braidhq/schema':
-        specifier: workspace:*
-        version: link:../schema
-      zod:
-        specifier: ^4.2.1
-        version: 4.4.3
-    devDependencies:
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
-
   packages/ontology-ddd:
     dependencies:
       '@braidhq/core':
@@ -251,9 +216,6 @@ importers:
       '@braidhq/core':
         specifier: workspace:*
         version: link:../core
-      '@braidhq/embedding-ollama':
-        specifier: workspace:*
-        version: link:../embedding-ollama
       '@braidhq/ontology-ddd':
         specifier: workspace:*
         version: link:../ontology-ddd
@@ -4697,11 +4659,6 @@ packages:
   type-fest@0.8.1:
     resolution: {integrity: sha512-4dbzIzqvjtgiM5rw1k5rEHtBANKmdudhGyBEajN01fEyhaAIhsoKNy6y7+IN93IfpFtwY9iqi7kD+xwKhQsNJA==}
     engines: {node: '>=8'}
-
-  typescript@5.9.3:
-    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
-    engines: {node: '>=14.17'}
-    hasBin: true
 
   typescript@6.0.3:
     resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
@@ -9269,8 +9226,6 @@ snapshots:
   type-fest@0.6.0: {}
 
   type-fest@0.8.1: {}
-
-  typescript@5.9.3: {}
 
   typescript@6.0.3: {}
 

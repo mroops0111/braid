@@ -217,6 +217,8 @@ const review: typeof en = {
     runningElapsed: '執行中… 已經過 {elapsed} 秒',
     embeddingRebuildingLabel: '搜尋索引',
     embeddingRebuildingDetail: '語意排序目前涵蓋 {total} 個節點中的 {done} 個。',
+    embeddingRebuildButton: '建立索引',
+    embeddingRetryButton: '重試',
     embeddingStaleLabel: '搜尋索引',
     embeddingStaleDetail: '{total} 個節點中有 {stale} 個尚未納入語意排序。',
     embeddingFailedLabel: '搜尋索引',

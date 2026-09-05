@@ -1,15 +1,5 @@
 import { z } from 'zod'
-import { NodeId, PluginId, Timestamp } from './common.js'
-
-export const EmbeddingKind = z.string().min(1).brand<'EmbeddingKind'>()
-export type EmbeddingKind = z.infer<typeof EmbeddingKind>
-
-export const EmbeddingDescriptor = z.object({
-  kind: EmbeddingKind,
-  pluginId: PluginId.optional(),
-  config: z.unknown(),
-})
-export type EmbeddingDescriptor = z.infer<typeof EmbeddingDescriptor>
+import { NodeId, Timestamp } from './common.js'
 
 /**
  * One node's vector, held apart from the node itself.
