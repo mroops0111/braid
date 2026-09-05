@@ -372,6 +372,12 @@ export const api = {
 
   getEmbeddingCoverage: (workspaceId: string) =>
     fetchJson<EmbeddingCoverage>(`/workspaces/${workspaceId}/embeddings`),
+  /**
+   * Answers as soon as the rebuild is accepted, not when it finishes.
+   * Progress arrives on the workspace event stream.
+   */
+  rebuildEmbeddings: (workspaceId: string) =>
+    fetchJson<EmbeddingCoverage>(`/workspaces/${workspaceId}/embeddings/rebuild`, { method: 'POST' }),
 
   listEdges: (workspaceId: string) =>
     fetchJson<ItemList<GraphEdge>>(`/workspaces/${workspaceId}/edges`),

@@ -221,6 +221,8 @@ const review: typeof en = {
     embeddingStaleDetail: '{total} 個節點中有 {stale} 個尚未納入語意排序。',
     embeddingFailedLabel: '搜尋索引',
     embeddingFailedDetail: '上次重建中斷：{message}',
+    embeddingRebuildButton: '建立索引',
+    embeddingRetryButton: '重試',
     bootstrapRunning: '啟動建置執行中',
     derivingUnits: '正在推導單元…',
     unitsProgress: '{completed} / {total} 個單元',

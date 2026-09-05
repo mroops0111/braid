@@ -31,7 +31,6 @@
   "dependencies": {
     "@braidhq/agent-claude-code": "workspace:*",
     "@braidhq/core": "workspace:*",
-    "@braidhq/embedding-ollama": "workspace:*",
     "@braidhq/ontology-ddd": "workspace:*",
     "@braidhq/schema": "workspace:*",
     "@braidhq/source-loader-gdrive": "workspace:*",

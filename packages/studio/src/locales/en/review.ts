@@ -225,6 +225,8 @@ export const review = {
     embeddingStaleDetail: '{stale} of {total} nodes are not ranked by meaning yet.',
     embeddingFailedLabel: 'Search Index',
     embeddingFailedDetail: 'The last rebuild stopped: {message}',
+    embeddingRebuildButton: 'Build Index',
+    embeddingRetryButton: 'Try Again',
     bootstrapRunning: 'Bootstrap Running',
     derivingUnits: 'Deriving Units…',
     unitsProgress: '{completed} / {total} units',

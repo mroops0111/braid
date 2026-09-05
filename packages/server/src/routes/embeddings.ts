@@ -1,4 +1,5 @@
 import type { EmbeddingService } from '@braidhq/core'
+import { createLogger } from '@braidhq/core'
 import { EmbeddingCoverage } from '@braidhq/schema'
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
@@ -45,6 +46,8 @@ const rebuildRoute = createRoute({
 
 const EMPTY_COVERAGE: EmbeddingCoverage = { total: 0, current: 0, stale: 0, modelId: null }
 
+const logger = createLogger('embeddings')
+
 export function createEmbeddingsRouter(deps: EmbeddingsRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
 
@@ -61,9 +64,15 @@ export function createEmbeddingsRouter(deps: EmbeddingsRouterDeps): OpenAPIHono 
     const service = deps.embeddingService
     const before = await service.coverage(workspaceId)
     // Answering first keeps the caller from holding a connection open for minutes.
-    // The service publishes progress and failure on the event stream,
-    // so nothing is lost by not awaiting it here.
-    void service.rebuild(workspaceId).catch(() => {})
+    // The event stream carries progress and failure to a viewer,
+    // which leaves an operator reading logs with nothing,
+    // so a failure is recorded here as well.
+    void service.rebuild(workspaceId).catch((error: unknown) => {
+      logger.error(
+        { workspaceId, err: error instanceof Error ? error.message : String(error) },
+        'embedding rebuild failed',
+      )
+    })
     return context.json(before, 202)
   })
 
