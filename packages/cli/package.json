@@ -32,9 +32,9 @@
   },
   "devDependencies": {
     "@braidhq/test-utils": "workspace:*",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "publishConfig": {
     "access": "public",

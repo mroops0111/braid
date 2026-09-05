@@ -30,12 +30,12 @@
     "@braidhq/core": "workspace:*",
     "@braidhq/schema": "workspace:*",
     "@braidhq/sdk": "workspace:*",
-    "zod": "^4.2.1"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.11",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "publishConfig": {
     "access": "public",
