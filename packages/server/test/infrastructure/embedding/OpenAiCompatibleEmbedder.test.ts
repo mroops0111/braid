@@ -46,8 +46,8 @@ describe('openAiCompatibleEmbedder', () => {
     expect(seen).toEqual(['http://ollama:11434/v1/embeddings'])
   })
 
-  // A self-hosted server wants no key, and sending an empty bearer is worse
-  // than sending nothing, since some servers reject the header outright.
+  // A self-hosted server wants no key.
+  // An empty bearer is worse than none, since some servers reject it.
   it('omits the authorization header when no key is configured', async () => {
     const headers: (string | null)[] = []
     const fetchImpl = vi.fn(async (_url: string, init: RequestInit) => {

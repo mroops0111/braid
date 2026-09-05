@@ -67,17 +67,19 @@ import { startupBeforeServe } from './startup.js'
 // or hands composeFsAppWithRegistry its own PluginRegistry,
 // for a different worldview over the same runtime.
 const DEFAULT_STORAGE_KIND = 'kuzu'
+const DEFAULT_AGENT_KIND = 'claude-code'
+const DEFAULT_AGENT_MODEL = 'opus'
+const DEFAULT_AGENT_EFFORT = 'high'
 // What a self-hosted stack most often has pulled already.
 // Multilingual too, so a query reaches a node named in another language.
 const DEFAULT_EMBEDDING_MODEL = 'bge-m3:latest'
+
+// How the embedding client paces itself. Fixed rather than configurable,
+// since a deployment has nothing to base a different number on.
 const EMBEDDING_BATCH_SIZE = 16
 // A cold server loads the model on the first call.
 // On a multi-gigabyte model that outlasts any default HTTP timeout.
 const EMBEDDING_TIMEOUT_MS = 300_000
-
-const DEFAULT_AGENT_KIND = 'claude-code'
-const DEFAULT_AGENT_MODEL = 'opus'
-const DEFAULT_AGENT_EFFORT = 'high'
 
 export interface ComposeFsRuntimeOptions {
   // Paths and URLs.

@@ -5,7 +5,7 @@ export interface OpenAiCompatibleEmbedderOptions {
   readonly host: string
   /** Model name as that server knows it, e.g. `bge-m3:latest`. */
   readonly model: string
-  /** Sent as a bearer token. Absent for a self-hosted server that wants none. */
+  /** Sent as a bearer token. Absent where a server wants none. */
   readonly apiKey?: string
   /**
    * How many texts go in one request.
@@ -29,13 +29,11 @@ interface EmbedResponse {
 /**
  * Embeds through any server speaking the OpenAI embeddings shape.
  *
- * That shape is what the field converged on, so one client reaches a
- * self-hosted Ollama, vLLM, or LM Studio as well as a hosted provider.
- * Which one is a deployment concern, and the only things that vary are
- * the address, the model name, and whether a key is required.
- *
- * Responses come back out of order under some servers, so each vector is
- * placed by the index the server reports rather than by arrival.
+ * That shape is what the field converged on.
+ * One client therefore reaches a self-hosted Ollama, vLLM, or LM Studio,
+ * as well as a hosted provider.
+ * Which one is a deployment concern, and all that varies is the address,
+ * the model name, and whether a key is required.
  */
 export class OpenAiCompatibleEmbedder implements Embedder {
   private readonly fetchImpl: typeof globalThis.fetch
@@ -90,8 +88,8 @@ export class OpenAiCompatibleEmbedder implements Embedder {
  * Puts each vector where the server said it belongs.
  *
  * Some servers answer out of order and report the position in `index`.
- * Trusting arrival order there would pair a node with another node's
- * meaning, and every vector involved would still be well formed,
+ * Trusting arrival order would pair a node with another node's meaning.
+ * Every vector involved would still be well formed,
  * so no later check would catch it.
  */
 function placeVectors(rows: unknown, expected: number): number[][] {

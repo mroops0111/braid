@@ -24,8 +24,8 @@ interface EmbeddingRebuildBannerProps {
  * This is the only way to build a first index.
  */
 export function EmbeddingRebuildBanner({ workspaceId }: EmbeddingRebuildBannerProps) {
-  // No workspace means no index to speak of, and the guard lives here so the
-  // panel below can take a workspace rather than assert one.
+  // No workspace means no index to speak of.
+  // The guard sits here so the panel below takes one rather than asserts it.
   if (!workspaceId)
     return null
   return <WorkspaceEmbeddingBanner workspaceId={workspaceId} />
