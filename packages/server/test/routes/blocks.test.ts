@@ -215,6 +215,45 @@ describe('render routes', () => {
     expect(block?.type === 'block' && block.block.call).toBe('showTrace')
   })
 
+  it('records a showSubgraph call with its edges', async () => {
+    const { app, workspace, runRepository, skillRunner, endAll } = await buildApp()
+    const runId = await startRun(app, workspace.id)
+
+    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/subgraph`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nodes: ['agg.template', 'agg.publicForm'],
+        edges: [{ from: 'agg.template', to: 'agg.publicForm', label: 'gates' }],
+      }),
+    })
+
+    expect(response.status).toBe(200)
+
+    endAll()
+    await waitForRunToEnd(skillRunner, runId)
+    const events = await readEvents(runRepository, workspace, runId)
+    const block = events.find(event => event.type === 'block')
+    expect(block?.type === 'block' && block.block.call).toBe('showSubgraph')
+  })
+
+  it('defaults a block to every reader when it names no audience', async () => {
+    const { app, workspace, runRepository, skillRunner, endAll } = await buildApp()
+    const runId = await startRun(app, workspace.id)
+
+    await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/diagram`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mermaid: 'flowchart LR\n A --> B' }),
+    })
+
+    endAll()
+    await waitForRunToEnd(skillRunner, runId)
+    const events = await readEvents(runRepository, workspace, runId)
+    const block = events.find(event => event.type === 'block')
+    expect(block?.type === 'block' && block.block.audiences).toEqual([])
+  })
+
   it('publishes the render operations in the OpenAPI document', async () => {
     const { app, endAll } = await buildApp()
 
@@ -230,6 +269,8 @@ describe('render routes', () => {
     expect(operationIds).toContain('showFinding')
     expect(operationIds).toContain('showMatrix')
     expect(operationIds).toContain('showTrace')
+    expect(operationIds).toContain('showDiagram')
+    expect(operationIds).toContain('showSubgraph')
     endAll()
   })
 })

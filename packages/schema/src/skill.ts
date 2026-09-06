@@ -184,12 +184,14 @@ export type SkillAgentOverride = z.infer<typeof SkillAgentOverride>
 export const SkillOutputContract = z.object({
   // Calls the run must have made at least once.
   requiredCalls: z.array(RenderCallName).default([]),
-  // Minimum blocks addressed to each audience. `both` counts toward neither,
-  // since a block for everyone does not prove the split was considered.
-  minPerAudience: z.object({
-    business: z.number().int().positive().optional(),
-    engineering: z.number().int().positive().optional(),
-  }).default({}),
+  /**
+   * Blocks each audience the ontology declares must be able to see.
+   *
+   * Named by count rather than by audience, so a builtin skill can require
+   * coverage without knowing which readers a product splits on. A block with
+   * no audience counts toward every one of them, since everyone sees it.
+   */
+  coverDeclaredAudiences: z.number().int().positive().optional(),
   // How many corrective retries the framework may spend before giving up.
   // One is usually enough, and a loop here burns a subscription.
   maxRetries: z.number().int().min(0).max(3).default(1),

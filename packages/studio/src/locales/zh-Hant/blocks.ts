@@ -1,6 +1,12 @@
 export const blocks = {
   title: '答案積木',
   findingsHeading: '{count} 項一致性檢查',
+  activity: {
+    starting: '啟動中…',
+    graphQueries: '次查圖',
+    sourceReads: '次讀來源',
+    rendered: '塊已產出',
+  },
   canvas: {
     emptyTitle: '還沒有答案',
     emptyDescription: '在下面問一個問題，答案會在這裡一塊一塊長出來。',
@@ -16,6 +22,9 @@ export const blocks = {
       conflict: '兩邊說法不一致',
       notApplicable: '不適用',
     },
+  },
+  subgraph: {
+    title: '相關節點',
   },
   trace: {
     searches: '次搜圖',
@@ -35,6 +44,8 @@ export const blocks = {
     showFinding: '一致性',
     showMatrix: '對照表',
     showTrace: '讀了什麼',
+    showDiagram: '圖解',
+    showSubgraph: '相關節點',
     consistency: '一致性',
     findingSummary: '檢查 {total} 項，{conflicts} 項有落差',
   },

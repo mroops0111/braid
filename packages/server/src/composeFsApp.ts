@@ -550,6 +550,10 @@ export async function composeFsAppWithRegistry(
       const ontology = pluginRegistry.findOntology(workspace.productManifest.ontologyId)
       return ontology?.sourceRoles ?? []
     },
+    resolveAudiences: (workspace) => {
+      const ontology = pluginRegistry.findOntology(workspace.productManifest.ontologyId)
+      return ontology?.audiences ?? []
+    },
   })
 
   // Shared by WorkspaceBootstrapService (boot reconciliation),

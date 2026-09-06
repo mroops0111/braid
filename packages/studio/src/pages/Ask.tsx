@@ -1,4 +1,5 @@
-import type { SkillEvent, SkillManifest } from '@braidhq/schema'
+import type { AudienceDescriptor, EvidenceDetail, Locale, SkillEvent, SkillManifest } from '@braidhq/schema'
+import { localize } from '@braidhq/schema'
 import { useMutation } from '@tanstack/react-query'
 import { MessageCircleQuestion, PanelLeftClose, PanelLeftOpen, Plus, Send, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -13,15 +14,21 @@ import { SurfaceLayout } from '@/components/SurfaceLayout'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
-import { type AnswerView, useAnswerView, visibleBlocks } from '@/lib/blocks/audience'
+import { type AnswerView, TRANSCRIPT_VIEW, useAnswerView, visibleBlocks } from '@/lib/blocks/audience'
 import { collectTurns } from '@/lib/blocks/collectBlocks'
-import { WorkspaceScopeContext } from '@/lib/blocks/WorkspaceScopeContext'
-import { useRuns, useSessionMetadata, useSkills } from '@/lib/queries'
+import { summariseActivity } from '@/lib/blocks/runActivity'
+import { EvidenceDetailContext, WorkspaceScopeContext } from '@/lib/blocks/WorkspaceScopeContext'
+import { useOntology, useRuns, useSessionMetadata, useSkills } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
-import { useConversation } from '@/lib/useRun'
+import { useConversation, useTurns } from '@/lib/useRun'
 import { formatTimestamp, groupBySession, type SessionGroup } from './Actions'
 
 const ASK_CATEGORY = 'ask'
+
+/** A workspace that declares no audiences hides nothing, so `full` is the floor. */
+function detailFor(view: AnswerView, audiences: readonly AudienceDescriptor[]): EvidenceDetail {
+  return audiences.find(audience => audience.id === view)?.evidenceDetail ?? 'full'
+}
 
 interface RunStats {
   readonly turns?: number
@@ -132,7 +139,7 @@ function AnswerList({ workspaceId, skill, answers, onCollapse }: {
   onCollapse: () => void
 }) {
   const { t } = useTranslation()
-  const activeTurns = runStore.getTurns(workspaceId, skill.id)
+  const activeTurns = useTurns(workspaceId, skill.id)
 
   return (
     <>
@@ -187,21 +194,26 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
   const { t } = useTranslation()
   const conversation = useConversation(workspaceId, skill.id)
   const { data: runsData } = useRuns(workspaceId)
-  const [view, setView] = useAnswerView()
+  const { data: ontology } = useOntology(workspaceId)
+  const audiences = ontology?.audiences ?? []
+  const [view, setView] = useAnswerView(audiences)
   const [question, setQuestion] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
 
   const running = conversation.phase === 'streaming' || submitting
   const turns = collectTurns(conversation.events)
-  const audience = view === 'transcript' ? 'business' : view
-  const shownTurns = turns.map(turn => ({ ...turn, blocks: visibleBlocks(turn.blocks, audience) }))
+  // The transcript is not an audience, so it filters nothing.
+  const shownTurns = view === TRANSCRIPT_VIEW
+    ? turns
+    : turns.map(turn => ({ ...turn, blocks: visibleBlocks(turn.blocks, view) }))
   const stats = readStats(conversation.events)
   // The latest question, not the first. A follow-up is what the reader is
   // looking at now, and the earlier ones head their own section in the canvas.
   const askedQuestion = conversation.events.filter(event => event.type === 'started').at(-1)?.args ?? null
   const activeRunId = conversation.phase === 'streaming' ? conversation.turnIds.at(-1) ?? null : null
   const toolCalls = conversation.events.filter(event => event.type === 'tool-call').length
+  const activity = summariseActivity(conversation.events)
 
   const cancel = useMutation({
     mutationFn: () => activeRunId ? api.cancelRun(workspaceId, activeRunId) : Promise.resolve(),
@@ -266,7 +278,7 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <ViewToggle value={view} onChange={setView} toolCalls={toolCalls} />
+          <ViewToggle value={view} onChange={setView} audiences={audiences} toolCalls={toolCalls} />
           {activeRunId && (
             <Button variant="ghost" size="sm" disabled={cancel.isPending} onClick={() => cancel.mutate()}>
               <X />
@@ -276,7 +288,7 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
         </div>
       </header>
 
-      {view === 'transcript'
+      {view === TRANSCRIPT_VIEW
         ? (
             <div className="flex min-h-0 flex-1 flex-col">
               <SkillTranscript events={[...conversation.events]} error={error} running={running} />
@@ -284,10 +296,12 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
           )
         : (
             <WorkspaceScopeContext value={workspaceId}>
-              <div className="flex min-h-0 flex-1">
-                <BlockCanvas turns={shownTurns} running={running} />
-                <BlockOutline blocks={shownTurns.flatMap(turn => turn.blocks)} />
-              </div>
+              <EvidenceDetailContext value={detailFor(view, audiences)}>
+                <div className="flex min-h-0 flex-1">
+                  <BlockCanvas turns={shownTurns} running={running} activity={activity} />
+                  <BlockOutline blocks={shownTurns.flatMap(turn => turn.blocks)} />
+                </div>
+              </EvidenceDetailContext>
             </WorkspaceScopeContext>
           )}
 
@@ -317,18 +331,36 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
   )
 }
 
-function ViewToggle({ value, onChange, toolCalls }: {
+function ViewToggle({ value, onChange, audiences, toolCalls }: {
   value: AnswerView
   onChange: (next: AnswerView) => void
+  audiences: readonly AudienceDescriptor[]
   toolCalls: number
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   return (
     <Tabs value={value} onValueChange={next => onChange(next as AnswerView)}>
       <TabsList variant="line" className="h-8">
-        <TabsTrigger value="business" className="text-2xs">{t('ask.view.business')}</TabsTrigger>
-        <TabsTrigger value="engineering" className="text-2xs">{t('ask.view.engineering')}</TabsTrigger>
-        <TabsTrigger value="transcript" className="gap-1.5 text-2xs">
+        {/* The description rides on `title` rather than a Tooltip wrapper.
+            Wrapping a trigger stopped Radix marking it selected, and a tab
+            that never looks active is worse than a plainer hover. */}
+        {audiences.map((audience) => {
+          const label = localize(audience.label, i18n.language as Locale)
+          return (
+            <TabsTrigger
+              key={audience.id}
+              value={audience.id}
+              className="text-2xs"
+              // `title` gives the hover description, and would otherwise become
+              // the accessible name, so the short label is pinned explicitly.
+              aria-label={label}
+              {...(audience.description ? { title: audience.description } : {})}
+            >
+              {label}
+            </TabsTrigger>
+          )
+        })}
+        <TabsTrigger value={TRANSCRIPT_VIEW} className="gap-1.5 text-2xs">
           {t('ask.view.transcript')}
           {toolCalls > 0 && <span className="font-mono text-muted-foreground/60">{toolCalls}</span>}
         </TabsTrigger>

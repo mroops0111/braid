@@ -1,13 +1,5 @@
 import { z } from 'zod'
-import { BlockId, DriftIssueId, NodeId, SourceReference } from './common.js'
-
-/**
- * Who a block is written for. A skill splits its output rather than
- * writing one document, so a reader sees only the half addressed to them.
- * `both` is for blocks that carry no audience-specific framing, such as a trace.
- */
-export const Audience = z.enum(['business', 'engineering', 'both'])
-export type Audience = z.infer<typeof Audience>
+import { AudienceId, BlockId, DriftIssueId, NodeId, SourceReference } from './common.js'
 
 /**
  * Where a reference came from. `graph` was copied verbatim off a node's
@@ -28,7 +20,27 @@ export const BlockRef = z.object({
 export type BlockRef = z.infer<typeof BlockRef>
 
 const blockBase = {
-  audience: Audience,
+  /**
+   * Readers this block is only for, from the audiences the ontology declares.
+   *
+   * Empty is the common case and means every reader sees it, because a
+   * conclusion belongs to whoever asked. Naming an audience is for content
+   * that genuinely says nothing to the others, such as a search trail. What
+   * differs between readers is usually how much of a reference is shown,
+   * which the audience's own `evidenceDetail` decides, not whether the
+   * finding above it exists.
+   */
+  audiences: z.array(AudienceId).default([]),
+  /**
+   * Blocks that belong together, named by a shared free string.
+   *
+   * This says the blocks are two readings of one comparison, not where to put
+   * them. The surface lays a group out side by side when there is room and
+   * stacks it when there is not, which is why a block still carries no
+   * position and no size. Two flows being compared share a group, a flow and
+   * the matrix summarising it do not.
+   */
+  group: z.string().min(1).max(80).optional(),
   title: z.string().min(1).max(200).optional(),
 }
 
@@ -154,18 +166,57 @@ export const ShowTrace = z.object({
 }).openapi('ShowTrace')
 export type ShowTrace = z.infer<typeof ShowTrace>
 
+/**
+ * A diagram, as a mermaid definition.
+ *
+ * The renderer already exists for node descriptions, so this carries the
+ * definition and nothing else. Use it for a flow or a state machine, where the
+ * shape of the thing is the point and a table would flatten it.
+ */
+export const ShowDiagram = z.object({
+  ...blockBase,
+  call: z.literal('showDiagram'),
+  mermaid: z.string().min(1),
+  caption: z.string().max(400).optional(),
+}).openapi('ShowDiagram')
+export type ShowDiagram = z.infer<typeof ShowDiagram>
+
+export const SubgraphEdge = z.object({
+  from: NodeId,
+  to: NodeId,
+  label: z.string().max(80).optional(),
+})
+export type SubgraphEdge = z.infer<typeof SubgraphEdge>
+
+/**
+ * A slice of the graph the answer stands on.
+ *
+ * Node ids and the edges between them, nothing else. The surface resolves each
+ * id to its own name, type, and colour, so this carries no ontology vocabulary
+ * and stays correct when a node is renamed.
+ */
+export const ShowSubgraph = z.object({
+  ...blockBase,
+  call: z.literal('showSubgraph'),
+  nodes: z.array(NodeId).min(1),
+  edges: z.array(SubgraphEdge).default([]),
+}).openapi('ShowSubgraph')
+export type ShowSubgraph = z.infer<typeof ShowSubgraph>
+
 export const RenderBlock = z.discriminatedUnion('call', [
   ShowAnswer,
   ShowEvidence,
   ShowFinding,
   ShowMatrix,
   ShowTrace,
+  ShowDiagram,
+  ShowSubgraph,
 ])
 export type RenderBlock = z.infer<typeof RenderBlock>
 
 export type RenderCall = RenderBlock['call']
 
-export const RENDER_CALLS = ['showAnswer', 'showEvidence', 'showFinding', 'showMatrix', 'showTrace'] as const
+export const RENDER_CALLS = ['showAnswer', 'showEvidence', 'showFinding', 'showMatrix', 'showTrace', 'showDiagram', 'showSubgraph'] as const
 
 /** The call names as a schema, so a skill can declare which ones it owes. */
 export const RenderCallName = z.enum(RENDER_CALLS)

@@ -4,6 +4,10 @@
  * Descriptions carry academic citations and stay in DDDOntologyPlugin.
  */
 export const labels = {
+  audiences: {
+    business: 'Business',
+    engineering: 'Engineering',
+  },
   sourceRoles: {
     intent: 'Intent',
     code: 'Code',

@@ -10,17 +10,31 @@ A skill may also declare an output contract in its frontmatter, naming the calls
 
 ## Audience
 
-Every call carries `audience`, one of:
+The framework injects `$BRAID_AUDIENCES`, a JSON array of the readers this workspace's ontology splits an answer for. Each carries an `id`, a `label`, a `description` of what that reader needs, and an `evidenceDetail` of `summary` or `full`. Read it before you render. Never name a reader the list does not contain, and when the list is empty, leave `audiences` off every call.
 
-- **`business`**: the reader wants the conclusion. No file paths, no line numbers, no type ids. Graph node ids are the one exception, in the `@node:<id>` token form.
-- **`engineering`**: the reader wants the evidence. Paths, line ranges, and identifiers belong here.
-- **`both`**: the block carries no audience-specific framing.
+**Leave `audiences` empty unless you have a reason not to.** An empty list means every reader sees the block, and that is right for almost everything you render. A conclusion belongs to whoever asked the question, whatever kind of evidence happens to back it.
 
-Split the content, never duplicate it. The same sentence written twice at two reading levels is one sentence in the wrong place. A reader sees one audience at a time, so anything only present in the other half is invisible to them.
+Name an audience only when a block genuinely says nothing to the others. A search trail is one. A conclusion is not, and neither is a finding, a matrix, or a comparison.
 
-Both halves are owed. An answer with nothing marked `engineering` leaves whoever has to act on it with no paths, no line ranges, and no way to check the claim. If the work turned up file evidence, and it almost always does, that evidence belongs in an `engineering` block. `both` is for a block with no audience-specific framing at all, not an escape from choosing.
+What differs between readers is **how much of a reference is shown**, and the surface already handles that from `evidenceDetail`. A reader who does not want line numbers still sees the finding, spelled with the document and section instead of the path and the range. So splitting a conclusion away from its reader to keep code out of their view is the wrong instinct, it removes the answer rather than the apparatus.
 
-A finding is never engineering-only. When someone asks whether two sources agree, the answer belongs on the business side even though its evidence is a line number.
+A reader who sees only half of a comparison has been given something worse than the whole. If you find yourself about to address one half of a comparison to one reader and the other half to another, render it once, addressed to nobody.
+
+### What Is Worth Addressing To One Reader
+
+There is one thing each reader needs that the others do not, and it is not the conclusion. It is what follows from it for them.
+
+A conflict between a spec and the code means "watch for this in tickets, and tell the customer the shorter answer" to one reader, and "this constant is the one to change, and here is what depends on it" to another. Those are different sentences carrying different information, so writing both is not duplication.
+
+So after the shared conclusions, render one short `show_answer` per audience, each naming that audience, saying what this answer means for them specifically. Read the audience's own `description` for what it cares about. Keep each to a few sentences, and skip an audience entirely rather than padding one out, since an empty implication tells a reader nothing they could not already see.
+
+## Grouping Blocks That Belong Together
+
+Every call takes an optional `group`, a short free string. Two blocks carrying the same `group` are two readings of one thing, and the surface will place them beside each other when the page is wide enough and stack them when it is not.
+
+Use it when a comparison only makes sense read together. Two flows being contrasted share a group. A flow and the matrix that summarises it do not, they are one after the other.
+
+You are saying the blocks belong together, not where to put them. Never try to express a position, a size, or an order beyond the order you emit in, because the same sequence has to work on a narrow screen and on a printed page.
 
 ## Reference Provenance
 
@@ -87,6 +101,8 @@ Two axes crossing, where each cell is a state rather than a sentence. Use it whe
 - `cells`: one per meaningful crossing, carrying `state` in your own words, a `tone`, an optional `note`, and its own `refs`.
 - `tone` is how the cell reads at a glance, one of `affirmed`, `denied`, `conditional`, `conflict`, `not-applicable`. The label beside it stays yours, so a renderer colours the grid without knowing your vocabulary.
 
+**Any comparison across two dimensions goes here, not into prose.** A markdown table inside `show_answer` renders as flat text, so its cells carry no state, no evidence, and nothing to click. If you catch yourself writing a table with a header row in an answer, that is a matrix.
+
 A cell whose two sources disagree takes `conflict`, and that same disagreement also deserves its own `show_finding`. The matrix shows where it sits, the finding shows what it is.
 
 Omit a crossing that has no meaning rather than filling it with a placeholder.
@@ -103,3 +119,23 @@ What this run searched, read, cited, and deliberately left out. Emit it once, ne
 `skipped` is the part that earns this call. A reader can infer what you used from the answer itself, but never what you looked at and dismissed, which is exactly where a wrong answer hides. Record it honestly, including the cases where you ran out of budget rather than ruled something out.
 
 Audience is `both`, since a reader of either half wants to know the scope.
+
+### `show_diagram`
+
+A mermaid definition, for a shape a table would flatten. A flow between two models, a state machine, a sequence of hand-offs.
+
+- `mermaid`: the definition. Keep it small enough to read without panning.
+- `caption`: optional, one line on what the reader should take from it.
+
+Reach for this when the answer is about how things connect or in what order, and for a matrix when it is about which combinations hold.
+
+Two diagrams being compared should carry the same `group`, so a reader sees them together rather than scrolling between them.
+
+### `show_subgraph`
+
+The slice of the graph the answer stands on.
+
+- `nodes`: the node ids, nothing more. The surface resolves each to its own name and type, so do not repeat them here and do not invent an id you have not seen.
+- `edges`: `from`, `to`, and an optional short `label`, for relationships worth showing.
+
+Use it when the answer turns on how a handful of nodes relate. Do not dump every node you touched, that is what `show_trace` records.

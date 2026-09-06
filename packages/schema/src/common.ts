@@ -34,6 +34,14 @@ export type ClarificationCandidateId = z.infer<typeof ClarificationCandidateId>
 export const DriftIssueId = z.string().min(1).brand<'DriftIssueId'>()
 export type DriftIssueId = z.infer<typeof DriftIssueId>
 
+/**
+ * A reader an answer is written for. Branded rather than an enum, because the
+ * facets a product splits its readers on belong to the active ontology, not to
+ * the framework. A workspace whose readers do not split declares none.
+ */
+export const AudienceId = z.string().min(1).brand<'AudienceId'>()
+export type AudienceId = z.infer<typeof AudienceId>
+
 export const BlockId = z.string().min(1).brand<'BlockId'>()
 export type BlockId = z.infer<typeof BlockId>
 

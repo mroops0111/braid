@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { OntologyId } from './common.js'
+import { AudienceId, OntologyId } from './common.js'
 import { localizedText } from './locale.js'
 import { SourceRole } from './source.js'
 
@@ -61,12 +61,43 @@ export const SourceRoleDescriptor = z.object({
 })
 export type SourceRoleDescriptor = z.infer<typeof SourceRoleDescriptor>
 
+/**
+ * How much of a reference this reader wants to see.
+ *
+ * A rendering depth rather than a vocabulary, which is why it is a closed set
+ * while the audience id beside it is not. `summary` names the source and its
+ * section, `full` adds the line range and the excerpt.
+ */
+export const EvidenceDetail = z.enum(['summary', 'full'])
+export type EvidenceDetail = z.infer<typeof EvidenceDetail>
+
+/**
+ * One reader an answer is split for, declared by the ontology.
+ *
+ * Declaring none is the honest default for a product whose readers do not
+ * split, and Studio then shows no audience switch at all. What belongs in each
+ * half is an editorial decision, so it lives in `description` where the skill
+ * reads it, not in any check the framework can make.
+ */
+export const AudienceDescriptor = z.object({
+  id: AudienceId,
+  label: localizedText(z.string().min(1).max(40)),
+  // Read by a skill when it decides what this reader needs.
+  description: z.string().max(400).optional(),
+  evidenceDetail: EvidenceDetail.default('full'),
+  // The one a reader lands on. Falls to the first declared when unset.
+  default: z.boolean().optional(),
+})
+export type AudienceDescriptor = z.infer<typeof AudienceDescriptor>
+
 /** Ontology-endpoint response. Descriptor order matters, so Studio keeps the author's order. */
 export const OntologyResponse = z.object({
   ontologyId: OntologyId,
   nodeTypes: z.array(NodeTypeDescriptor),
   edgeTypes: z.array(EdgeTypeDescriptor),
   sourceRoles: z.array(SourceRoleDescriptor),
+  // Empty when this ontology's readers do not split.
+  audiences: z.array(AudienceDescriptor).default([]),
 })
 export type OntologyResponse = z.infer<typeof OntologyResponse>
 

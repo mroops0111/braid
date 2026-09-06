@@ -4,7 +4,7 @@ import { AlertTriangle, ChevronDown, ChevronRight, ExternalLink, FileText, Shiel
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
-import { useWorkspaceScope } from '@/lib/blocks/WorkspaceScopeContext'
+import { useEvidenceDetail, useWorkspaceScope } from '@/lib/blocks/WorkspaceScopeContext'
 import { cn } from '@/lib/utils'
 
 function formatLocation(ref: BlockRef): string {
@@ -16,6 +16,20 @@ function formatLocation(ref: BlockRef): string {
   return endLine !== undefined && endLine !== startLine
     ? `${uri}:${startLine}-${endLine}`
     : `${uri}:${startLine}`
+}
+
+/**
+ * The same reference, named the way this reader recognises it.
+ *
+ * A summary reader is told which document and which section, since a path and
+ * a line range say nothing to them and a full path is mostly noise. The
+ * reference is not hidden, only spelled differently.
+ */
+function summariseLocation(ref: BlockRef): string {
+  const { uri, anchor } = ref.reference.location
+  const name = uri.split('/').filter(Boolean).at(-1) ?? uri
+  const readable = name.replace(/\.[a-z0-9]+$/i, '')
+  return anchor ? `${readable} · ${anchor}` : readable
 }
 
 /**
@@ -137,9 +151,14 @@ function InlineExcerpt({ reference }: { reference: BlockRef['reference'] }) {
  */
 function EvidenceRow({ ref: entry }: { ref: BlockRef }) {
   const { t } = useTranslation()
+  const detail = useEvidenceDetail()
   const [open, setOpen] = useState(false)
   const unverified = entry.provenance === 'agent-read'
+  // Anyone may open anything. The audience sets how much is shown by default,
+  // never what may be reached, and a spec is the business reader's own
+  // document, so gating the excerpt on evidence depth locked them out of it.
   const readable = entry.reference.location.startLine !== undefined
+  const label = detail === 'full' ? formatLocation(entry) : summariseLocation(entry)
 
   return (
     <li className="flex items-start gap-1.5">
@@ -156,14 +175,14 @@ function EvidenceRow({ ref: entry }: { ref: BlockRef }) {
                   className="inline-flex items-center gap-0.5 font-mono text-2xs break-all text-muted-foreground transition-colors duration-150 hover:text-foreground"
                 >
                   {open ? <ChevronDown className="size-2.5 shrink-0" /> : <ChevronRight className="size-2.5 shrink-0" />}
-                  {formatLocation(entry)}
+                  {label}
                 </button>
               )
-            : <span className="font-mono text-2xs break-all text-muted-foreground">{formatLocation(entry)}</span>}
+            : <span className={cn('text-2xs break-all text-muted-foreground', detail === 'full' && 'font-mono')}>{label}</span>}
           <CanonicalLink reference={entry.reference} />
           {unverified && <span className="text-2xs text-amber-400">{t('blocks.evidence.unverified')}</span>}
         </span>
-        {!open && entry.reference.snippet && (
+        {!open && detail === 'full' && entry.reference.snippet && (
           <p className="mt-0.5 border-l-2 border-border pl-2 font-mono text-2xs text-muted-foreground/80">
             {entry.reference.snippet}
           </p>

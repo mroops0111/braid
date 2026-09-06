@@ -5,6 +5,10 @@
  * A missing id falls back to the English label.
  */
 export const labels = {
+  audiences: {
+    business: '業務',
+    engineering: '工程',
+  },
   sourceRoles: {
     intent: '意圖',
     code: '程式碼',

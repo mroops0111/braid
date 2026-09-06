@@ -37,6 +37,15 @@ import '@xyflow/react/dist/style.css'
 interface GraphCanvasProps {
   workspaceId: string
   /**
+   * Rendered inside another surface rather than as the Graph page.
+   *
+   * The minimap goes, because a slice small enough to embed is already the
+   * overview a minimap would provide, and every type starts visible, because
+   * an embedded slice was chosen by whoever put it there rather than filtered
+   * down by the reader.
+   */
+  embedded?: boolean
+  /**
    * Optional data source override. Defaults to the live workspace snapshot.
    * Proposal previews pass a derived source carrying a `diff` overlay,
    * so the renderer can tint added, updated, and removed elements,
@@ -117,21 +126,21 @@ const INITIAL_FILTERS: GraphFilters = {
 // so labels appear on a high-level or focused view, not the whole graph.
 const EDGE_LABEL_LIMIT = 40
 
-export function GraphCanvas({ workspaceId, source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap, onOpenSearch }: GraphCanvasProps) {
+export function GraphCanvas({ workspaceId, source, embedded, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap, onOpenSearch }: GraphCanvasProps) {
   const palette = usePalette(workspaceId)
   return (
     <PaletteProvider value={palette}>
       <ReactFlowProvider>
         <CanvasInner
           workspaceId={workspaceId}
-          {...optional({ source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap, onOpenSearch })}
+          {...optional({ source, embedded, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap, onOpenSearch })}
         />
       </ReactFlowProvider>
     </PaletteProvider>
   )
 }
 
-function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, onSelectNode, selectedEdgeId: controlledEdgeSelected, onSelectEdge, focusMode = false, centerRequest = 0, dimUnchanged = false, emphasizeAdded = false, onStartBootstrap, onOpenSearch }: GraphCanvasProps) {
+function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: controlledSelected, onSelectNode, selectedEdgeId: controlledEdgeSelected, onSelectEdge, focusMode = false, centerRequest = 0, dimUnchanged = false, emphasizeAdded = false, onStartBootstrap, onOpenSearch }: GraphCanvasProps) {
   const { t } = useTranslation()
   // React Query dedupes the live snapshot fetch by queryKey,
   // so it is effectively free when `source` is supplied.
@@ -154,7 +163,10 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   // Navigator stays open across tab and preview modes,
   // so the filter chips are visible from the start.
   // Reviewers got stuck in preview mode wondering how to surface types.
-  const [navigatorOpen, setNavigatorOpen] = useState(true)
+  // An embedded slice starts with the panel folded. The reader came for the
+  // picture, and the slice was already chosen for them, so filters are there
+  // to reach for rather than to greet them.
+  const [navigatorOpen, setNavigatorOpen] = useState(!embedded)
   const canvasRef = useRef<HTMLDivElement>(null)
   /**
    * How the viewport was last framed on purpose,
@@ -165,7 +177,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
 
   const [exporting, setExporting] = useState(false)
 
-  useFilterSeed(ontology, workspaceId, setFilters, diff !== undefined ? 'all' : 'defaultVisible')
+  useFilterSeed(ontology, workspaceId, setFilters, diff !== undefined || embedded ? 'all' : 'defaultVisible')
 
   const orphanIds = useMemo(() => orphanNodeIds(allNodes, allEdges), [allNodes, allEdges])
   const filtered = useMemo(
@@ -583,21 +595,23 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
                 nodesConnectable={false}
               >
                 <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="hsl(var(--border))" />
-                <MiniMap
-                  pannable
-                  zoomable
-                  // Mask alpha kept low (0.25), so type-coloured nodes stay legible.
-                  // A higher alpha washes the minimap into one block.
-                  maskColor={theme === 'dark' ? 'oklch(0.17 0 0 / 0.25)' : 'oklch(0.97 0 0 / 0.25)'}
-                  nodeColor={(n) => {
-                    const data = n.data as { node?: { type?: string } } | undefined
-                    const type = data?.node?.type
-                    return type ? palette.nodeColor(type as never) : 'oklch(0.55 0 0)'
-                  }}
-                  nodeStrokeColor={theme === 'dark' ? 'oklch(0.85 0 0)' : 'oklch(0.3 0 0)'}
-                  nodeStrokeWidth={1.5}
-                  className="!bg-card !border !border-border"
-                />
+                {!embedded && (
+                  <MiniMap
+                    pannable
+                    zoomable
+                    // Mask alpha kept low (0.25), so type-coloured nodes stay legible.
+                    // A higher alpha washes the minimap into one block.
+                    maskColor={theme === 'dark' ? 'oklch(0.17 0 0 / 0.25)' : 'oklch(0.97 0 0 / 0.25)'}
+                    nodeColor={(n) => {
+                      const data = n.data as { node?: { type?: string } } | undefined
+                      const type = data?.node?.type
+                      return type ? palette.nodeColor(type as never) : 'oklch(0.55 0 0)'
+                    }}
+                    nodeStrokeColor={theme === 'dark' ? 'oklch(0.85 0 0)' : 'oklch(0.3 0 0)'}
+                    nodeStrokeWidth={1.5}
+                    className="!bg-card !border !border-border"
+                  />
+                )}
                 <Controls
                   showInteractive={false}
                   // ReactFlow fills control icons,

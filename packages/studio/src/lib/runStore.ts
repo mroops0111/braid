@@ -17,6 +17,8 @@ function runKey(workspaceId: string, runId: string): string {
   return `${workspaceId}|${runId}`
 }
 
+const NO_TURNS: readonly string[] = Object.freeze([])
+
 function turnsKey(workspaceId: string, skillId: string): string {
   return `${workspaceId}|${skillId}`
 }
@@ -61,7 +63,10 @@ class RunStore {
   }
 
   getTurns(workspaceId: string, skillId: string): readonly string[] {
-    return this.currentTurns.get(turnsKey(workspaceId, skillId)) ?? []
+    // One shared empty array, never a fresh one. A subscriber compares
+    // snapshots by identity, so returning a new `[]` each call reads as a
+    // change on every render and loops forever.
+    return this.currentTurns.get(turnsKey(workspaceId, skillId)) ?? NO_TURNS
   }
 
   /**
@@ -80,7 +85,7 @@ class RunStore {
    * Called when the user submits a new turn via POST /skills/:id/run.
    */
   pushTurn(workspaceId: string, skillId: string, runId: string): void {
-    const existing = this.currentTurns.get(turnsKey(workspaceId, skillId)) ?? []
+    const existing = this.currentTurns.get(turnsKey(workspaceId, skillId)) ?? NO_TURNS
     this.currentTurns.set(turnsKey(workspaceId, skillId), [...existing, runId])
     this.notify()
     this.openStream(workspaceId, runId, skillId)

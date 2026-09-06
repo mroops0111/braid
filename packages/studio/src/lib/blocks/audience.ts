@@ -1,51 +1,69 @@
-import type { Audience, EmittedBlock } from '@braidhq/schema'
+import type { AudienceDescriptor, AudienceId, EmittedBlock } from '@braidhq/schema'
 import { useCallback, useSyncExternalStore } from 'react'
 
 /**
- * Which view of a run a reader is on. The first two are the answer's own two
- * halves, and `transcript` is the same run seen as the log that produced it,
- * a peer of the other two rather than something tucked underneath them.
+ * Which view of a run a reader is on.
+ *
+ * `transcript` is the run seen as the log that produced it, a peer of the
+ * answer's views rather than something tucked underneath them. Everything
+ * else is an audience the ontology declared, so the set is open.
  */
-export type AnswerView = 'business' | 'engineering' | 'transcript'
+export const TRANSCRIPT_VIEW = 'transcript'
+export type AnswerView = AudienceId | typeof TRANSCRIPT_VIEW
 
 const STORAGE_KEY = 'braid.answerView'
-const DEFAULT_VIEW: AnswerView = 'business'
-const VIEWS: readonly AnswerView[] = ['business', 'engineering', 'transcript']
 
 // A reading habit rather than a workspace policy, so it lives with the reader.
 const listeners = new Set<() => void>()
 
-function read(): AnswerView {
+function read(): string | null {
   if (typeof window === 'undefined')
-    return DEFAULT_VIEW
-  const stored = window.localStorage.getItem(STORAGE_KEY)
-  return VIEWS.includes(stored as AnswerView) ? stored as AnswerView : DEFAULT_VIEW
+    return null
+  return window.localStorage.getItem(STORAGE_KEY)
 }
 
-export function useAnswerView(): [AnswerView, (next: AnswerView) => void] {
-  const view = useSyncExternalStore(
+/**
+ * The reader's stored view, resolved against what this ontology actually
+ * declares. A stored id an ontology no longer has falls back rather than
+ * showing an empty answer.
+ */
+export function useAnswerView(audiences: readonly AudienceDescriptor[]): [AnswerView, (next: AnswerView) => void] {
+  const stored = useSyncExternalStore(
     (onChange) => {
       listeners.add(onChange)
       return () => listeners.delete(onChange)
     },
     read,
-    () => DEFAULT_VIEW,
+    () => null,
   )
   const setView = useCallback((next: AnswerView) => {
     window.localStorage.setItem(STORAGE_KEY, next)
     for (const listener of listeners)
       listener()
   }, [])
-  return [view, setView]
+
+  const known = new Set<string>([TRANSCRIPT_VIEW, ...audiences.map(audience => audience.id)])
+  const fallback = defaultView(audiences)
+  return [stored !== null && known.has(stored) ? stored as AnswerView : fallback, setView]
 }
 
-export function matchesAudience(audience: Audience, view: 'business' | 'engineering'): boolean {
-  return audience === 'both' || audience === view
+function defaultView(audiences: readonly AudienceDescriptor[]): AnswerView {
+  const preferred = audiences.find(audience => audience.default) ?? audiences[0]
+  return preferred?.id ?? TRANSCRIPT_VIEW
 }
 
+/**
+ * Blocks this reader sees.
+ *
+ * A block naming nobody is addressed to everyone, which is the common case,
+ * because a conclusion belongs to whoever asked. Naming an audience is the
+ * exception, for content that says nothing to the others.
+ */
 export function visibleBlocks(
   blocks: readonly EmittedBlock[],
-  view: 'business' | 'engineering',
+  view: AudienceId,
 ): readonly EmittedBlock[] {
-  return blocks.filter(entry => matchesAudience(entry.block.audience, view))
+  return blocks.filter(entry =>
+    entry.block.audiences.length === 0 || entry.block.audiences.includes(view),
+  )
 }

@@ -6,7 +6,7 @@ function blockEvent(id: string, markdown: string): SkillEvent {
   return {
     type: 'block',
     id: id as BlockId,
-    block: { call: 'showAnswer', audience: 'business', markdown },
+    block: { call: 'showAnswer', audiences: [], markdown },
   }
 }
 

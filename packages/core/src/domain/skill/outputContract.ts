@@ -1,4 +1,4 @@
-import type { EmittedBlock, SkillOutputContract } from '@braidhq/schema'
+import type { AudienceId, EmittedBlock, SkillOutputContract } from '@braidhq/schema'
 
 /** One way a finished run fell short of what its skill declared it would render. */
 export interface OutputViolation {
@@ -20,6 +20,7 @@ export interface OutputViolation {
 export function validateOutput(
   contract: SkillOutputContract,
   blocks: readonly EmittedBlock[],
+  declaredAudiences: readonly AudienceId[] = [],
 ): readonly OutputViolation[] {
   const violations: OutputViolation[] = []
 
@@ -29,14 +30,16 @@ export function validateOutput(
       violations.push({ kind: 'missing-call', target: call, found, required: 1 })
   }
 
-  for (const [audience, required] of Object.entries(contract.minPerAudience)) {
-    if (required === undefined)
-      continue
-    // `both` deliberately counts toward neither. A block addressed to everyone
-    // does not show the split was considered, which is what this checks.
-    const found = blocks.filter(entry => entry.block.audience === audience).length
-    if (found < required)
-      violations.push({ kind: 'missing-audience', target: audience, found, required })
+  const required = contract.coverDeclaredAudiences
+  if (required !== undefined) {
+    for (const audience of declaredAudiences) {
+      // A block naming nobody is addressed to everyone, so it counts here.
+      const found = blocks.filter(entry =>
+        entry.block.audiences.length === 0 || entry.block.audiences.includes(audience),
+      ).length
+      if (found < required)
+        violations.push({ kind: 'missing-audience', target: audience, found, required })
+    }
   }
 
   return violations

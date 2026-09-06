@@ -1,6 +1,6 @@
 import type { SkillRunner, WorkspaceRepository } from '@braidhq/core'
 import type { RenderBlock } from '@braidhq/schema'
-import { ShowAnswer, ShowEvidence, ShowFinding, ShowMatrix, ShowTrace, SkillRunId } from '@braidhq/schema'
+import { ShowAnswer, ShowDiagram, ShowEvidence, ShowFinding, ShowMatrix, ShowSubgraph, ShowTrace, SkillRunId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
@@ -34,6 +34,8 @@ const ShowEvidenceBody = ShowEvidence.omit({ call: true }).openapi('ShowEvidence
 const ShowFindingBody = ShowFinding.omit({ call: true }).openapi('ShowFindingBody')
 const ShowMatrixBody = ShowMatrix.omit({ call: true }).openapi('ShowMatrixBody')
 const ShowTraceBody = ShowTrace.omit({ call: true }).openapi('ShowTraceBody')
+const ShowDiagramBody = ShowDiagram.omit({ call: true }).openapi('ShowDiagramBody')
+const ShowSubgraphBody = ShowSubgraph.omit({ call: true }).openapi('ShowSubgraphBody')
 
 const renderResponses = {
   200: {
@@ -109,6 +111,32 @@ const showTraceRoute = createRoute({
   responses: renderResponses,
 })
 
+const showDiagramRoute = createRoute({
+  method: 'post',
+  path: '/{runId}/blocks/diagram',
+  operationId: 'showDiagram',
+  summary: 'Render a mermaid diagram, for a flow or a state machine a table would flatten.',
+  tags: ['render'],
+  request: {
+    params: RunIdParam,
+    body: { content: { 'application/json': { schema: ShowDiagramBody } }, required: true },
+  },
+  responses: renderResponses,
+})
+
+const showSubgraphRoute = createRoute({
+  method: 'post',
+  path: '/{runId}/blocks/subgraph',
+  operationId: 'showSubgraph',
+  summary: 'Render the slice of the graph this answer stands on, as node ids and the edges between them.',
+  tags: ['render'],
+  request: {
+    params: RunIdParam,
+    body: { content: { 'application/json': { schema: ShowSubgraphBody } }, required: true },
+  },
+  responses: renderResponses,
+})
+
 export function createBlocksRouter(deps: BlocksRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
 
@@ -148,6 +176,18 @@ export function createBlocksRouter(deps: BlocksRouterDeps): OpenAPIHono {
   router.openapi(showTraceRoute, async (context) => {
     const { runId } = context.req.valid('param')
     await record(getWorkspaceId(context), runId, { call: 'showTrace', ...context.req.valid('json') })
+    return context.json({ ok: true } as const, 200)
+  })
+
+  router.openapi(showDiagramRoute, async (context) => {
+    const { runId } = context.req.valid('param')
+    await record(getWorkspaceId(context), runId, { call: 'showDiagram', ...context.req.valid('json') })
+    return context.json({ ok: true } as const, 200)
+  })
+
+  router.openapi(showSubgraphRoute, async (context) => {
+    const { runId } = context.req.valid('param')
+    await record(getWorkspaceId(context), runId, { call: 'showSubgraph', ...context.req.valid('json') })
     return context.json({ ok: true } as const, 200)
   })
 

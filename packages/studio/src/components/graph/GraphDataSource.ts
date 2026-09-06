@@ -3,6 +3,7 @@ import type {
   GraphNode,
   GraphOperation,
   ModelSnapshot,
+  NodeId,
   ProposalDiff,
 } from '@braidhq/schema'
 import { previewProposal } from '@braidhq/schema'
@@ -73,4 +74,32 @@ export function useProposalGraphDataSource(
       diff,
     }
   }, [data, isLoading, operations])
+}
+
+/**
+ * The slice of the live graph a set of node ids names.
+ *
+ * Edges are kept only when both ends survive the filter, so the view never
+ * draws a line to a node that is not on screen. Ids the snapshot does not
+ * carry are dropped rather than invented, which is what a reader wants when
+ * an answer cites a node that has since been removed.
+ */
+export function useSubgraphDataSource(
+  workspaceId: string,
+  nodeIds: readonly NodeId[],
+): GraphDataSource {
+  const { data, isLoading } = useModelSnapshot(workspaceId)
+  const key = nodeIds.join(',')
+  return useMemo<GraphDataSource>(() => {
+    const wanted = new Set<string>(key.length > 0 ? key.split(',') : [])
+    const nodes = (data?.nodes ?? []).filter(node => wanted.has(node.id))
+    const present = new Set(nodes.map(node => node.id))
+    const edges = (data?.edges ?? []).filter(edge => present.has(edge.fromNodeId) && present.has(edge.toNodeId))
+    return {
+      nodes,
+      edges,
+      isLoading,
+      isEmpty: !isLoading && nodes.length === 0,
+    }
+  }, [data, isLoading, key])
 }

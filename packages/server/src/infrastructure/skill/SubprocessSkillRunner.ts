@@ -10,7 +10,7 @@ import type {
   Workspace,
   WorkspaceEventBus,
 } from '@braidhq/core'
-import type { AbsolutePath, AgentBindingDescriptor, EmittedBlock, McpServerConfig, RenderBlock, RunRecord, SkillAgentOverride, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, AudienceDescriptor, EmittedBlock, McpServerConfig, RenderBlock, RunRecord, SkillAgentOverride, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceId } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import type { AgentCredentialBroker } from '../agent/AgentCredentialBroker.js'
 import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
@@ -86,6 +86,12 @@ export interface SubprocessSkillRunnerDeps {
   // so a generic prompt reads the role vocabulary rather than naming role ids.
   // Composition wires this from the PluginRegistry, keeping the runner ontology-agnostic.
   readonly resolveSourceRoles?: (workspace: Workspace) => readonly SourceRoleDescriptor[]
+  /**
+   * The workspace ontology's declared audiences, serialised for the prompt and
+   * used to check the output contract. Absent means a product whose readers do
+   * not split, and then nothing about audiences is required or injected.
+   */
+  readonly resolveAudiences?: (workspace: Workspace) => readonly AudienceDescriptor[]
 }
 
 interface ActiveRun {
@@ -196,6 +202,9 @@ export class SubprocessSkillRunner implements SkillRunner {
         // The active ontology's declared source roles, as JSON.
         // A generic prompt reads this instead of naming role ids.
         ...this.sourceRolesEnv(workspace),
+        // The readers this ontology splits for, so a builtin prompt reads the
+        // vocabulary rather than naming any product's own facets.
+        ...this.audiencesEnv(workspace),
         // Absolute paths to the reference docs a prompt may Read,
         // so no SKILL.md carries a location of its own.
         ...this.referenceEnv(workspace, sessionDir),
@@ -488,7 +497,8 @@ export class SubprocessSkillRunner implements SkillRunner {
     const contract = manifest.frontmatter.braid.output
     if (!contract)
       return
-    const violations = validateOutput(contract, rendered)
+    const declared = (this.deps.resolveAudiences?.(input.workspace) ?? []).map(audience => audience.id)
+    const violations = validateOutput(contract, rendered, declared)
     if (violations.length === 0)
       return
 
@@ -665,6 +675,20 @@ export class SubprocessSkillRunner implements SkillRunner {
       unitBearing: role.unitBearing === true,
     }))
     return { BRAID_SOURCE_ROLES: JSON.stringify(wire) }
+  }
+
+  /** The readers this workspace splits an answer for, as the prompt's vocabulary. */
+  private audiencesEnv(workspace: Workspace): Record<string, string> {
+    const audiences = this.deps.resolveAudiences?.(workspace) ?? []
+    if (audiences.length === 0)
+      return {}
+    const wire = audiences.map(audience => ({
+      id: audience.id,
+      label: localize(audience.label, 'en'),
+      ...(audience.description ? { description: audience.description } : {}),
+      evidenceDetail: audience.evidenceDetail,
+    }))
+    return { BRAID_AUDIENCES: JSON.stringify(wire) }
   }
 
   private now(): string {

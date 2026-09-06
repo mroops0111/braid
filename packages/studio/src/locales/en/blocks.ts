@@ -2,6 +2,12 @@ export const blocks = {
   // Section heading above a run's rendered output.
   title: 'Answer Blocks',
   findingsHeading: '{count, plural, one {# Finding} other {# Findings}}',
+  activity: {
+    starting: 'Starting…',
+    graphQueries: 'graph queries',
+    sourceReads: 'source reads',
+    rendered: 'rendered',
+  },
   canvas: {
     emptyTitle: 'No Answer Yet',
     emptyDescription: 'Ask a question below and the answer builds here as the run works.',
@@ -17,6 +23,9 @@ export const blocks = {
       conflict: 'sources disagree',
       notApplicable: 'not applicable',
     },
+  },
+  subgraph: {
+    title: 'Graph Slice',
   },
   trace: {
     searches: 'searches',
@@ -36,6 +45,8 @@ export const blocks = {
     showFinding: 'Finding',
     showMatrix: 'Matrix',
     showTrace: 'Trace',
+    showDiagram: 'Diagram',
+    showSubgraph: 'Subgraph',
     consistency: 'Consistency',
     findingSummary: '{total} checked, {conflicts} in conflict',
   },

@@ -29,6 +29,7 @@ export function createOntologiesRouter(deps: OntologiesRouterDeps): OpenAPIHono 
       nodeTypes: ontology.nodeTypes,
       edgeTypes: ontology.edgeTypes,
       sourceRoles: ontology.sourceRoles,
+      audiences: ontology.audiences ?? [],
     }))
     return context.json(OntologyListResponse.parse({ ontologies }), 200)
   })

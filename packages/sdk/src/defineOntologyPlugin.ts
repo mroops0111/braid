@@ -5,14 +5,7 @@ import type {
   OntologyPlugin,
   OntologyValidator,
 } from '@braidhq/core'
-import type {
-  EdgeTypeId,
-  LocalizedText,
-  NodeTypeId,
-  OntologyId,
-  PluginId,
-  SourceRole,
-} from '@braidhq/schema'
+import type { AudienceDescriptor, EdgeTypeId, LocalizedText, NodeTypeId, OntologyId, PluginId, SourceRole } from '@braidhq/schema'
 import type { PluginReferenceDirRef, PluginSkillRef } from './types.js'
 import { OntologyTypeValidator, StructuralValidator } from '@braidhq/core'
 import { SourceRole as SourceRoleSchema } from '@braidhq/schema'
@@ -78,6 +71,11 @@ export interface DefineOntologyInput {
    * wizard can prompt for it. `unitBearing` roles feed batch and the Reactor.
    */
   readonly sourceRoles?: readonly SourceRoleInput[]
+  /**
+   * Readers an answer is split for, in the order Studio shows them.
+   * Omit for a product whose readers do not split, which shows no switch.
+   */
+  readonly audiences?: readonly AudienceDescriptor[]
 }
 
 /**
@@ -145,6 +143,7 @@ export function defineOntologyPlugin(input: DefineOntologyInput): OntologyPlugin
     skillNamespace: input.ontologyId,
     ...(input.referenceDir ? { referenceDir: input.referenceDir } : {}),
     validators: [],
+    ...(input.audiences ? { audiences: input.audiences } : {}),
     sourceRoles: [
       ...(input.extends?.sourceRoles ?? []),
       ...(input.sourceRoles ?? []).map(role => ({

@@ -12,12 +12,12 @@ export const ask = {
   // Shown when the workspace has no skill in the ask category.
   noSkillTitle: 'No Ask Skill',
   noSkillDescription: 'This workspace has no skill in the ask category, so there is nothing to ask.',
-  // The three views of one run: the answer's two halves, and its log.
+  // Only the transcript is named here. Audience labels come from the
+  // ontology that declared them, so a downstream product names its own.
   view: {
-    business: 'Business',
-    engineering: 'Engineering',
     transcript: 'Transcript',
   },
+  // The three views of one run: the answer's two halves, and its log.
 }
 
 export default ask

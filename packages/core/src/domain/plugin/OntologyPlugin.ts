@@ -1,4 +1,4 @@
-import type { BatchUnit, EdgeTypeId, LocalizedText, ModelSnapshot, NodeStatus, NodeTypeId, OntologyId, SkillId, SourceRole, ValidationIssue } from '@braidhq/schema'
+import type { AudienceDescriptor, BatchUnit, EdgeTypeId, LocalizedText, ModelSnapshot, NodeStatus, NodeTypeId, OntologyId, SkillId, SourceRole, ValidationIssue } from '@braidhq/schema'
 import type { Plugin } from './Plugin.js'
 
 /**
@@ -148,6 +148,15 @@ export interface OntologyPlugin extends Plugin {
    * batch unit production and the Reactor. Core reads capabilities, not ids.
    */
   readonly sourceRoles: readonly SourceRoleDescriptor[]
+  /**
+   * Readers this ontology splits an answer for, in the order Studio shows them.
+   *
+   * Empty, and absent, both mean a product whose readers do not split, which
+   * is the honest default. What belongs in each half is this ontology's own
+   * editorial call, so it travels in the descriptor rather than in any rule
+   * the framework could apply.
+   */
+  readonly audiences?: readonly AudienceDescriptor[]
 }
 
 /** The ids of roles whose sources enumerate into batch units and drive the Reactor. */

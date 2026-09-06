@@ -34,6 +34,7 @@ export function createOntologyRouter(deps: OntologyRouterDeps): OpenAPIHono {
       nodeTypes: ontology.nodeTypes,
       edgeTypes: ontology.edgeTypes,
       sourceRoles: ontology.sourceRoles,
+      audiences: ontology.audiences ?? [],
     }), 200)
   })
 
