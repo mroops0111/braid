@@ -1,0 +1,32 @@
+import type { RenderBlock } from '@braidhq/schema'
+import type { ReactElement } from 'react'
+import { ShowAnswerBlock } from './ShowAnswerBlock'
+import { ShowEvidenceBlock } from './ShowEvidenceBlock'
+import { ShowFindingBlock } from './ShowFindingBlock'
+import { ShowMatrixBlock } from './ShowMatrixBlock'
+import { ShowTraceBlock } from './ShowTraceBlock'
+
+/**
+ * One renderer per render call, picked by the call the agent made.
+ * Each renderer owns its own chrome, because the calls differ in role:
+ * an answer is the document, a finding annotates it, evidence backs it.
+ * A single card wrapper around all of them would flatten that difference.
+ */
+export function renderBlock(block: RenderBlock): ReactElement {
+  switch (block.call) {
+    case 'showAnswer':
+      return <ShowAnswerBlock block={block} />
+    case 'showEvidence':
+      return <ShowEvidenceBlock block={block} />
+    case 'showFinding':
+      return <ShowFindingBlock block={block} />
+    case 'showMatrix':
+      return <ShowMatrixBlock block={block} />
+    case 'showTrace':
+      return <ShowTraceBlock block={block} />
+    default: {
+      const exhaustive: never = block
+      throw new Error(`Unhandled: ${JSON.stringify(exhaustive)}`)
+    }
+  }
+}

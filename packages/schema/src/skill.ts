@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { AgentEffort, AgentKind } from './agent.js'
-import { AbsolutePath, PluginId, SkillId, SkillRunId, SourceId, Timestamp, UserId, WorkspaceId } from './common.js'
+import { RenderBlock, RenderCallName } from './block.js'
+import { AbsolutePath, BlockId, PluginId, SkillId, SkillRunId, SourceId, Timestamp, UserId, WorkspaceId } from './common.js'
 import { McpServerId } from './mcp.js'
 import { SourceRole } from './source.js'
 import { WorkspaceRole } from './workspace.js'
@@ -172,6 +173,29 @@ export type SkillAgentOverride = z.infer<typeof SkillAgentOverride>
  * Braid-specific fields under the braid: key, so they never collide with Claude Code's own.
  * Read by SubprocessSkillRunner for preflight (env / path / MCP) before spawning.
  */
+/**
+ * What a finished run must have rendered for its output to count as complete.
+ *
+ * A prompt asking for something is not the same as getting it, and a run that
+ * stops early looks identical to one that had nothing more to say. Declaring
+ * the contract lets the framework check the output and hand the gap back to
+ * the agent, rather than leaving a reader to notice the hole.
+ */
+export const SkillOutputContract = z.object({
+  // Calls the run must have made at least once.
+  requiredCalls: z.array(RenderCallName).default([]),
+  // Minimum blocks addressed to each audience. `both` counts toward neither,
+  // since a block for everyone does not prove the split was considered.
+  minPerAudience: z.object({
+    business: z.number().int().positive().optional(),
+    engineering: z.number().int().positive().optional(),
+  }).default({}),
+  // How many corrective retries the framework may spend before giving up.
+  // One is usually enough, and a loop here burns a subscription.
+  maxRetries: z.number().int().min(0).max(3).default(1),
+})
+export type SkillOutputContract = z.infer<typeof SkillOutputContract>
+
 export const BraidSkillExtension = z.object({
   requiredEnv: z.array(z.string()).default([]),
   requiredMcpServers: z.array(McpServerId).default([]),
@@ -189,6 +213,8 @@ export const BraidSkillExtension = z.object({
   // Roles allowed to run this by default (owner implicit). Defaults to owner + maintainer.
   // Add guest for read-only skills. Per-member skillOverrides take precedence.
   allowedRoles: z.array(WorkspaceRole).min(1).default(['owner', 'maintainer']),
+  // Checked when the run exits, with the gap handed back for one more turn.
+  output: SkillOutputContract.optional(),
 })
 export type BraidSkillExtension = z.infer<typeof BraidSkillExtension>
 
@@ -259,6 +285,17 @@ export const SkillEventArtifactWritten = z.object({
   path: AbsolutePath,
 })
 
+/**
+ * A render call the run made, lifted out of its tool call.
+ * Surfaces compose these instead of reading the transcript,
+ * so a skill that makes none still renders as prose.
+ */
+export const SkillEventBlock = z.object({
+  type: z.literal('block'),
+  id: BlockId,
+  block: RenderBlock,
+})
+
 export const SkillEventCompleted = z.object({
   type: z.literal('completed'),
   runId: SkillRunId,
@@ -312,6 +349,7 @@ export const SkillEvent = z.discriminatedUnion('type', [
   SkillEventToolCall,
   SkillEventToolResult,
   SkillEventArtifactWritten,
+  SkillEventBlock,
   SkillEventCompleted,
   SkillEventError,
   SkillEventThinking,

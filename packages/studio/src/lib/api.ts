@@ -1,42 +1,4 @@
-import type {
-  BatchPlan,
-  Clarification,
-  ClarificationCreateBody,
-  CommitMeta,
-  CommitSha,
-  EmbeddingCoverage,
-  FileDiff,
-  GraphEdge,
-  GraphNode,
-  ListSourceLoadersResponse,
-  McpServerConfig,
-  ModelDiffEnvelope,
-  ModelSnapshot,
-  OntologyListResponse,
-  OntologyResponse,
-  ProductManifestCreate,
-  Proposal,
-  ReactorCycle,
-  ReactorCycleId,
-  RunRecord,
-  SessionMetadata,
-  SkillInputOptionsResponse,
-  SkillManifest,
-  SourceDescriptor,
-  SourceId,
-  SourceSyncPolicy,
-  SourceSyncState,
-  SourceUnitDiff,
-  SourceUnitObservation,
-  TagMeta,
-  User,
-  UserUpdate,
-  ValidationResult,
-  Workspace,
-  WorkspaceMember,
-  WorkspacePollingConfig,
-  WorkspaceRole,
-} from '@braidhq/schema'
+import type { BatchPlan, Clarification, ClarificationCreateBody, CommitMeta, CommitSha, EmbeddingCoverage, FileDiff, GraphEdge, GraphNode, ListSourceLoadersResponse, McpServerConfig, ModelDiffEnvelope, ModelSnapshot, OntologyListResponse, OntologyResponse, ProductManifestCreate, Proposal, ReactorCycle, ReactorCycleId, RunRecord, SessionMetadata, SkillEvent, SkillInputOptionsResponse, SkillManifest, SourceDescriptor, SourceId, SourceLocation, SourceSyncPolicy, SourceSyncState, SourceUnitDiff, SourceUnitObservation, TagMeta, User, UserUpdate, ValidationResult, Workspace, WorkspaceMember, WorkspacePollingConfig, WorkspaceRole } from '@braidhq/schema'
 import { getAuthToken } from './authToken.js'
 import { getCurrentUserId } from './currentUser.js'
 import { getTokenFor } from './remotes.js'
@@ -216,6 +178,33 @@ export interface AuthWhoami {
 }
 
 export const api = {
+  /** The cited lines from the local mirror, for reading without leaving the page. */
+  readSourceExcerpt: (workspaceId: string, sourceId: string, location: SourceLocation) =>
+    fetchJson<{
+      firstLine: number
+      lines: string[]
+      highlightFrom: number
+      highlightTo: number
+      truncated: boolean
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/source-refs/excerpt`, {
+      method: 'POST',
+      body: JSON.stringify({
+        sourceId,
+        uri: location.uri,
+        ...(location.startLine !== undefined ? { startLine: location.startLine } : {}),
+        ...(location.endLine !== undefined ? { endLine: location.endLine } : {}),
+      }),
+    }),
+  /**
+   * Where a reference lives on its own host, or null when the source has no
+   * web address. Only the loader knows how to build it, so this asks rather
+   * than guessing at a URL shape.
+   */
+  resolveSourceRefUrl: (workspaceId: string, sourceId: string, location: SourceLocation) =>
+    fetchJson<{ url: string | null }>(`/workspaces/${encodeURIComponent(workspaceId)}/source-refs/resolve`, {
+      method: 'POST',
+      body: JSON.stringify({ sourceId, location }),
+    }),
   authConfig: () => fetchJson<AuthConfig>('/auth/config'),
   listAgents: () => fetchJson<{ agents: AgentSummary[] }>('/agents'),
   getAgentCredential: (agentKind: string) =>
@@ -519,6 +508,11 @@ export const api = {
     const token = getAuthToken()
     return token ? `${base}?token=${encodeURIComponent(token)}` : base
   },
+  /** The persisted log in one response, for a run with nothing left to tail. */
+  runEvents: (workspaceId: string, runId: string) =>
+    fetchJson<{ items: SkillEvent[], active: boolean }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/runs/${encodeURIComponent(runId)}/events.json`,
+    ),
   cancelRun: (workspaceId: string, runId: string) =>
     fetchJson<void>(`/workspaces/${workspaceId}/runs/${runId}/cancel`, { method: 'POST' }),
   forgetSession: (workspaceId: string, sessionId: string) =>

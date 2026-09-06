@@ -1,4 +1,4 @@
-import type { AbsolutePath, SkillEvent, SkillId, SkillRunId, SourceDescriptor, SourceId, SourceRole, SourceUnitSha, Timestamp, UserId, WorkspaceEvent, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, EmittedBlock, SkillEvent, SkillId, SkillRunId, SourceDescriptor, SourceId, SourceRole, SourceUnitSha, Timestamp, UserId, WorkspaceEvent, WorkspaceId } from '@braidhq/schema'
 import type {
   SkillEventListener,
   SkillRunner,
@@ -57,6 +57,10 @@ class FakeSkillRunner implements SkillRunner {
   // Pending completions the test fires manually while controlled.
   private readonly pending: Array<() => void> = []
   exitCodes: number[] = []
+
+  async emitBlock(): Promise<EmittedBlock> {
+    throw new Error('FakeSkillRunner does not emit blocks')
+  }
 
   async start(_workspace: unknown, skillId: SkillId, args: string, options: { startedBy: UserId, callerToken?: string }): Promise<SkillRunId> {
     const runId = `r-${this.startCalls.length}` as SkillRunId

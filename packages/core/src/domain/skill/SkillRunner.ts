@@ -1,4 +1,4 @@
-import type { SkillEvent, SkillId, SkillRunId, UserId } from '@braidhq/schema'
+import type { EmittedBlock, RenderBlock, SkillEvent, SkillId, SkillRunId, UserId } from '@braidhq/schema'
 import type { Workspace } from '../workspace/Workspace.js'
 
 export interface SkillRunOptions {
@@ -31,6 +31,12 @@ export interface SkillRunOptions {
    * so the history never holds an anonymous run.
    */
   readonly startedBy: UserId
+  /**
+   * Corrective turns still available when this run's output misses its
+   * skill's declared contract. Absent means the manifest decides, which is
+   * what a caller starting a fresh run wants.
+   */
+  readonly retriesLeft?: number
 }
 
 export type SkillEventListener = (event: SkillEvent) => void
@@ -73,6 +79,14 @@ export interface SkillRunner {
    * Safe to call on a finished run, the listener simply receives nothing.
    */
   subscribe: (runId: SkillRunId, listener: SkillEventListener) => SkillRunSubscription
+
+  /**
+   * Record a render call the running agent made, ordered with its own output.
+   * The agent reaches this through an HTTP tool rather than its stdout,
+   * so the block arrives out of band while the run is still draining.
+   * Throws `NotFoundError` once the run is over.
+   */
+  emitBlock: (runId: SkillRunId, block: RenderBlock) => Promise<EmittedBlock>
 
   /** True while the run is still draining events. */
   isActive: (runId: SkillRunId) => boolean

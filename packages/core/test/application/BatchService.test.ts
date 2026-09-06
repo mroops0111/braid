@@ -1,19 +1,4 @@
-import type {
-  AbsolutePath,
-  CommitMeta,
-  CommitSha,
-  ProposalId,
-  SkillEvent,
-  SkillId,
-  SkillRunId,
-  SourceDescriptor,
-  SourceId,
-  SourceRole,
-  SourceUnitSha,
-  TagMeta,
-  UserId,
-  WorkspaceId,
-} from '@braidhq/schema'
+import type { AbsolutePath, CommitMeta, CommitSha, EmittedBlock, ProposalId, SkillEvent, SkillId, SkillRunId, SourceDescriptor, SourceId, SourceRole, SourceUnitSha, TagMeta, UserId, WorkspaceId } from '@braidhq/schema'
 import type { BatchPlanRepository, HistoryService, HITLService, SkillEventListener, SkillRunner, SkillRunOptions, SkillRunSubscription, SourceUnitDigest, Workspace } from '../../src/index.js'
 import { BatchPlanId, BatchUnitId, SkillId as SkillIdSchema, UserId as UserIdSchema } from '@braidhq/schema'
 import { FixedClock, makeOntology, makeProposal, makeWorkspace, mintTestId, resetTestIds, T0 } from '@braidhq/test-utils'
@@ -49,6 +34,10 @@ class FakeSkillRunner implements SkillRunner {
   // Fires after start resolves and before the completed event.
   // Lets a test create proposals the orchestrator attributes by set difference.
   onStart?: (skillId: SkillId, runId: SkillRunId) => Promise<void>
+
+  async emitBlock(): Promise<EmittedBlock> {
+    throw new Error('FakeSkillRunner does not emit blocks')
+  }
 
   async start(_workspace: Workspace, skillId: SkillId, args: string, options?: SkillRunOptions): Promise<SkillRunId> {
     const runId = `r-${this.startCalls.length}` as SkillRunId

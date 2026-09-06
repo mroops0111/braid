@@ -4,6 +4,7 @@ import { Check, ChevronDown, ChevronUp, Lock, MessageCircleQuestion, MessageSqua
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActionInputForm } from '@/components/ActionInputForm'
+import { BlockList } from '@/components/blocks/BlockList'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
 import { MentionTextarea } from '@/components/references/MentionTextarea'
@@ -13,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { api } from '@/lib/api'
+import { collectBlocks } from '@/lib/blocks/collectBlocks'
 import { useLocaleFormat } from '@/lib/i18n'
 import { queryKeys, useRuns, useSessionMetadata, useSkills, useUsers } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
@@ -565,6 +567,7 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
           )}
         </div>
       </div>
+      <BlockList blocks={collectBlocks(conversation.events)} />
       <SkillTranscript events={[...conversation.events]} error={transcriptError} running={running} />
       {locked && (
         <div className="flex items-start gap-2 border-t border-border bg-muted/40 px-4 py-2 text-2xs text-muted-foreground">

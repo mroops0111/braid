@@ -71,6 +71,7 @@ function fakeOntologyWithSkill(pluginId: string, skillNamespace: string, directo
 const noopSkillRunner: SkillRunner = {
   start: async () => 'fake-run-id' as SkillRunId,
   subscribe: () => ({ unsubscribe: () => {}, positionAtSubscribe: 0 }),
+  emitBlock: async () => { throw new Error('noopSkillRunner does not emit blocks') },
   isActive: () => false,
   cancel: async () => {},
   sessionIdFor: async () => undefined,

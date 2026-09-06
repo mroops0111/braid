@@ -16,6 +16,7 @@ import { createAgentProxyRouter } from './routes/agentProxy.js'
 import { createAgentsRouter } from './routes/agents.js'
 import { createAuthRouter } from './routes/auth.js'
 import { createBatchRouter } from './routes/batch.js'
+import { createBlocksRouter } from './routes/blocks.js'
 import { createClarificationRouter } from './routes/clarifications.js'
 import { createEdgesRouter } from './routes/edges.js'
 import { createEmbeddingsRouter } from './routes/embeddings.js'
@@ -35,7 +36,9 @@ import { createRunsRouter } from './routes/runs.js'
 import { createSkillInputOptionsRouter } from './routes/skillInputOptions.js'
 import { createSkillsRouter } from './routes/skills.js'
 import { createSourceConnectionRouter } from './routes/sourceConnection.js'
+import { createSourceExcerptRouter } from './routes/sourceExcerpt.js'
 import { createSourceLoadersRouter } from './routes/sourceLoaders.js'
+import { createSourceRefUrlRouter } from './routes/sourceRefUrl.js'
 import { createSourceUnitObservationsRouter } from './routes/sourceUnitObservations.js'
 import { createGithubWebhookReceiver, createSourceWebhooksAdminRouter } from './routes/sourceWebhooks.js'
 import { createUsersRouter } from './routes/users.js'
@@ -250,6 +253,14 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     ...(deps.embeddingService ? { embeddingService: deps.embeddingService } : {}),
   }))
   workspaceScoped.route('/edges', createEdgesRouter({ modelService: deps.modelService }))
+  workspaceScoped.route('/source-refs', createSourceExcerptRouter({
+    workspaceRepository: deps.workspaceRepository,
+  }))
+  workspaceScoped.route('/source-refs', createSourceRefUrlRouter({
+    workspaceRepository: deps.workspaceRepository,
+    pluginRegistry: deps.pluginRegistry,
+    sourceSyncStateRepository: deps.syncStateRepository,
+  }))
   workspaceScoped.route('/proposals', createProposalsRouter({
     hitlService: deps.hitlService,
     proposalRepository: deps.proposalRepository,
@@ -290,6 +301,13 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     }))
     workspaceScoped.route('/runs', createRunsRouter({
       runRepository: deps.runRepository,
+      skillRunner: deps.skillRunner,
+      workspaceRepository: deps.workspaceRepository,
+    }))
+    // Second mount under the same prefix, because the render operations must
+    // reach the OpenAPI doc for the gateway to serve them as tools,
+    // and the runs router above is a plain Hono sub-app.
+    workspaceScoped.route('/runs', createBlocksRouter({
       skillRunner: deps.skillRunner,
       workspaceRepository: deps.workspaceRepository,
     }))

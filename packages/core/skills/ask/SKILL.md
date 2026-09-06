@@ -6,8 +6,14 @@ disable-model-invocation: true
 braid:
   category: ask
   summary: Answer questions from the graph and the workspace's declared sources
-  required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SOURCE_ROLES, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
+  required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_RUN_ID, BRAID_SOURCE_ROLES, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
   allowed-roles: [owner, maintainer, guest]
+  output:
+    required-calls: [showAnswer, showTrace]
+    min-per-audience:
+      business: 1
+      engineering: 1
+    max-retries: 1
   inputs:
     - name: question
       label: Question
@@ -66,6 +72,21 @@ If `PRODUCT.md` declares additional MCP sources (Redmine / XWiki / Notion / Line
 Compare the sources against each other on the dimensions relevant to the question. `drift-detection.md` carries the description pattern, and the active ontology's `concept.md` names the dimensions worth checking. Consult both when classifying or writing a finding. Pick the dimensions that the question and the sources actually have content on, not every one the ontology lists.
 
 ## Output
+
+Produce the output twice over, in two forms that carry the same content.
+
+1. **Render calls**, the primary form. As each part of the answer settles, call the matching `braid-core` render tool with `$BRAID_RUN_ID`. Follow `$BRAID_SHARED_REFERENCE/block-protocol.md` for which call to make and what each carries. Do not batch them to the end, a reader watches the answer assemble.
+2. **The written sections below**, unchanged. They remain the record a transcript reader and the CLI see.
+
+Map the two forms like this:
+
+| Written section | Render call | Audience |
+|---|---|---|
+| `## Answer` and `### Related Context` | `show_answer`, one call per idea | `business` |
+| `### Sources` and `### Source Detail` | `show_evidence`, placed next to the claim it supports | `business` for the source list, `engineering` for the detail |
+| `### Consistency` and `### Consistency Technical Detail` | `show_finding`, one call per statement | `business`, always, even when the evidence is a line number |
+| A comparison the question crosses on two dimensions | `show_matrix`, once, in place of a prose table | `business` |
+| `### Search Scope` | `show_trace`, once, before the answer | `both` |
 
 Produce two sections separated by `---`.
 
@@ -130,6 +151,12 @@ Produce two sections separated by `---`.
 - [ ] At least one consistency dimension checked.
 - [ ] Search scope listed in lower section.
 - [ ] Upper and lower sections separated by `---`.
+- [ ] Every claim in the upper section reached the screen as a render call, not only as written prose.
+- [ ] Every consistency statement was emitted with `show_finding`, on the business audience.
+- [ ] Every reference carries the provenance it actually has, `graph` or `agent-read`, with nothing invented.
+- [ ] Nodes named in the answer had their `metadata.sourceReferences` read back, so graph-backed claims cite `graph` rather than a file that happened to be open.
+- [ ] Every stored reference the answer leans on was opened and confirmed to still support the claim, and any that had moved was reported as a finding rather than silently repointed.
+- [ ] Every finding was checked against `metadata.driftIssues` on the nodes involved, and an already-recorded drift carries `registered` and its `driftId`.
 
 ## Referencing Nodes
 
@@ -141,6 +168,7 @@ Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERE
 
 | File | When to Read | Why |
 |---|---|---|
+| `$BRAID_SHARED_REFERENCE/block-protocol.md` | Before the first render call | Which render tool carries which part of the output, the audience split, and the provenance rule for every reference. |
 | `$BRAID_SHARED_REFERENCE/drift-detection.md` | Step 5, when describing a finding | What counts as drift, and the description pattern for writing it so reviewers can act on it. |
 | `$BRAID_ONTOLOGY_REFERENCE/concept.md` | Step 5, before classifying a finding | The dimensions this ontology considers worth checking. Read the list rather than assuming one. |
 | `$BRAID_SHARED_REFERENCE/content-conventions.md` | When composing the Output sections | Plain-text rule, length targets, structural conventions for the Answer / Sources / Consistency prose. |

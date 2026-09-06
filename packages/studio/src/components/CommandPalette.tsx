@@ -1,5 +1,5 @@
 import type { NodeId, SkillManifest, Workspace } from '@braidhq/schema'
-import { Activity, ClipboardCheck, GitGraph, HelpCircle, Network, Settings, Settings2, Sparkles } from 'lucide-react'
+import { Activity, ClipboardCheck, GitGraph, HelpCircle, MessageCircleQuestion, Network, Settings, Settings2, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -30,7 +30,7 @@ interface CommandPaletteProps {
   onOpenChange: (open: boolean) => void
 }
 
-export type Surface = 'actions' | 'activity' | 'batch' | 'clarifications' | 'history' | 'proposals' | 'settings'
+export type Surface = 'actions' | 'activity' | 'ask' | 'batch' | 'clarifications' | 'history' | 'proposals' | 'settings'
 
 type ChordTarget = { kind: 'surface', surface: Surface | null } | { kind: 'workspace-details' }
 
@@ -51,6 +51,7 @@ function chordSecondKey(key: string): ChordTarget | undefined {
 // `as const` keeps labelKey literal so t() validates each against the typed catalog.
 const SURFACE_ITEMS = [
   { id: null, labelKey: 'shell.commandPalette.graphHome', Icon: Network, shortcut: 'G G' },
+  { id: 'ask', labelKey: 'shell.surfaces.ask', Icon: MessageCircleQuestion, shortcut: 'G Q' },
   { id: 'actions', labelKey: 'shell.surfaces.actions', Icon: Sparkles, shortcut: 'G A' },
   { id: 'clarifications', labelKey: 'shell.surfaces.clarifications', Icon: HelpCircle, shortcut: 'G C' },
   { id: 'proposals', labelKey: 'shell.surfaces.proposals', Icon: ClipboardCheck, shortcut: 'G P' },

@@ -29,6 +29,7 @@ import { readUrl, useUrlSync } from './lib/useUrlState'
 import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
 import { ActionsPage } from './pages/Actions'
 import { ActivityPage } from './pages/Activity'
+import { AskPage } from './pages/Ask'
 import { BatchPage } from './pages/Batch'
 import { ClarificationPage } from './pages/Clarification'
 import { GraphSurface, GraphSurfaceActions, useGraphSurfaceState } from './pages/GraphSurface'
@@ -172,7 +173,7 @@ function AppInner() {
                               // Suppress on surfaces that render the run themselves,
                               // or when a batch banner already shows it.
                               // Both would point at the same in-flight extract subprocess.
-                              suppress={activeSurface === 'actions' || activeSurface === 'batch' || hasActiveBatch || hasActiveReactor}
+                              suppress={activeSurface === 'ask' || activeSurface === 'actions' || activeSurface === 'batch' || hasActiveBatch || hasActiveReactor}
                             />
                             {activeId
                               ? (
@@ -184,6 +185,9 @@ function AppInner() {
                                         onStartBootstrap={() => setActiveSurface('batch')}
                                         onOpenSearch={() => setPaletteOpen(true)}
                                       />
+                                    )}
+                                    {activeSurface === 'ask' && (
+                                      <AskPage workspaceId={activeId} />
                                     )}
                                     {activeSurface === 'actions' && (
                                       <ActionsPage workspaceId={activeId} />
@@ -312,15 +316,17 @@ function WorkspaceHeader({ workspaceId, activeSurface, onOpenDetails }: {
   // Surface nav lives in the Sidebar's HERE section now. The header reports where you are,
   // workspace name plus optional surface, and hosts page-specific tools on the right.
   const surfaceLabel
-    = activeSurface === 'actions'
-      ? t('shell.surfaces.actions')
-      : activeSurface === 'clarifications'
-        ? t('shell.surfaces.clarifications')
-        : activeSurface === 'proposals'
-          ? t('shell.surfaces.proposals')
-          : activeSurface === 'history'
-            ? t('shell.surfaces.history')
-            : null
+    = activeSurface === 'ask'
+      ? t('shell.surfaces.ask')
+      : activeSurface === 'actions'
+        ? t('shell.surfaces.actions')
+        : activeSurface === 'clarifications'
+          ? t('shell.surfaces.clarifications')
+          : activeSurface === 'proposals'
+            ? t('shell.surfaces.proposals')
+            : activeSurface === 'history'
+              ? t('shell.surfaces.history')
+              : null
 
   return (
     <header className="flex h-11 items-center justify-between gap-3 border-b border-border px-4">

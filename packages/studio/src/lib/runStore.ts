@@ -138,7 +138,40 @@ class RunStore {
     }
     const controller = new AbortController()
     this.streams.set(key, controller)
-    void this.consumeStream(workspaceId, runId, controller.signal)
+    void this.hydrate(workspaceId, runId, controller)
+  }
+
+  /**
+   * Load a run's events, tailing only while there is something left to tail.
+   *
+   * A finished run is fetched in one response. Replaying history over SSE
+   * would pin a connection per run, and a browser allows only a handful per
+   * host, so a few opened answers were enough to stall every later request.
+   */
+  private async hydrate(workspaceId: string, runId: string, controller: AbortController): Promise<void> {
+    const key = runKey(workspaceId, runId)
+    try {
+      const { items, active } = await api.runEvents(workspaceId, runId)
+      if (controller.signal.aborted)
+        return
+      if (active) {
+        await this.consumeStream(workspaceId, runId, controller.signal)
+        return
+      }
+      for (const event of items)
+        this.appendEvent(workspaceId, runId, event)
+      const state = this.runs.get(key)
+      if (state && state.phase === 'streaming')
+        this.markPhase(workspaceId, runId, 'done')
+    }
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (!message.includes('aborted'))
+        this.markPhase(workspaceId, runId, 'error', message)
+    }
+    finally {
+      this.streams.delete(key)
+    }
   }
 
   private async consumeStream(workspaceId: string, runId: string, signal: AbortSignal): Promise<void> {
@@ -177,9 +210,6 @@ class RunStore {
       if (message.includes('aborted'))
         return
       this.markPhase(workspaceId, runId, 'error', message)
-    }
-    finally {
-      this.streams.delete(key)
     }
   }
 

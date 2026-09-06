@@ -10,15 +10,15 @@ import type {
   Workspace,
   WorkspaceEventBus,
 } from '@braidhq/core'
-import type { AbsolutePath, AgentBindingDescriptor, McpServerConfig, RunRecord, SkillAgentOverride, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, EmittedBlock, McpServerConfig, RenderBlock, RunRecord, SkillAgentOverride, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceId } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import type { AgentCredentialBroker } from '../agent/AgentCredentialBroker.js'
 import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { newSkillRunId, NotFoundError, ServiceUnavailableError } from '@braidhq/core'
+import { describeViolations, newBlockId, newSkillRunId, NotFoundError, ServiceUnavailableError, validateOutput } from '@braidhq/core'
 import { AbsolutePath as AbsolutePathSchema, localize, McpServerId, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema, splitSkillId } from '@braidhq/schema'
 import { sessionDirPath } from '../_shared/paths.js'
-import { createAsyncQueue } from './asyncQueue.js'
+import { type AsyncQueue, createAsyncQueue } from './asyncQueue.js'
 import { BUILTIN_SKILL_NAMESPACE } from './FsSkillRegistry.js'
 import { attachOutputBuffers, type LineParser } from './subprocessEventStream.js'
 
@@ -91,6 +91,12 @@ export interface SubprocessSkillRunnerDeps {
 interface ActiveRun {
   readonly workspace: Workspace
   readonly child: ChildProcess
+  /**
+   * The run's own event queue. A render call arrives out of band over HTTP
+   * while the subprocess is still writing, so it joins here rather than at
+   * `emit`, keeping one consumer and therefore one order.
+   */
+  readonly queue: AsyncQueue<SkillEvent>
 }
 
 export class SubprocessSkillRunner implements SkillRunner {
@@ -184,6 +190,9 @@ export class SubprocessSkillRunner implements SkillRunner {
       env: {
         ...invocation.env,
         BRAID_SESSION_DIR: sessionDir,
+        // The run a render call posts back to. Without it a skill can reach
+        // the render tools but cannot name which run they belong to.
+        BRAID_RUN_ID: runId,
         // The active ontology's declared source roles, as JSON.
         // A generic prompt reads this instead of naming role ids.
         ...this.sourceRolesEnv(workspace),
@@ -202,7 +211,8 @@ export class SubprocessSkillRunner implements SkillRunner {
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
-    this.running.set(runId, { workspace, child })
+    const queue = createAsyncQueue<SkillEvent>()
+    this.running.set(runId, { workspace, child, queue })
 
     // Persist the started record up front,
     // so listing endpoints see the run immediately, before any output.
@@ -232,6 +242,10 @@ export class SubprocessSkillRunner implements SkillRunner {
       workspace,
       runId,
       child,
+      queue,
+      // A retry inherits the remaining budget, so one correction cannot
+      // become a loop that spends a subscription on the same gap.
+      retriesLeft: options.retriesLeft ?? manifest.frontmatter.braid.output?.maxRetries ?? 0,
       parseLine: binding.parseLine,
       skillId,
       args,
@@ -269,6 +283,16 @@ export class SubprocessSkillRunner implements SkillRunner {
         return true
     }
     return false
+  }
+
+  async emitBlock(runId: SkillRunId, block: RenderBlock): Promise<EmittedBlock> {
+    const validated = SkillRunIdSchema.parse(runId)
+    const active = this.running.get(validated)
+    if (!active)
+      throw new NotFoundError(`SkillRun "${validated}" not active`)
+    const emitted: EmittedBlock = { id: newBlockId(), block }
+    active.queue.push(SkillEventSchema.parse({ type: 'block', ...emitted }))
+    return emitted
   }
 
   async cancel(runId: SkillRunId): Promise<void> {
@@ -354,6 +378,8 @@ export class SubprocessSkillRunner implements SkillRunner {
     workspace: Workspace
     runId: SkillRunId
     child: ChildProcess
+    queue: AsyncQueue<SkillEvent>
+    retriesLeft: number
     parseLine: LineParser
     skillId: SkillId
     args: string
@@ -366,6 +392,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     let capturedSessionId: string | null = input.resumeSessionId ?? null
     let sawError = false
     let exitCode = 0
+    const rendered: EmittedBlock[] = []
 
     try {
       await this.emit(input.workspace, input.runId, SkillEventSchema.parse({
@@ -377,7 +404,7 @@ export class SubprocessSkillRunner implements SkillRunner {
         at: input.startedAt,
       }))
 
-      const queue = createAsyncQueue<SkillEvent>()
+      const queue = input.queue
       const buffers = attachOutputBuffers(input.child, input.parseLine, queue.push, () => this.now())
 
       input.child.on('close', (code, signal) => {
@@ -408,6 +435,8 @@ export class SubprocessSkillRunner implements SkillRunner {
           exitCode = event.exitCode
           await this.deps.runRepository.saveRecord(input.workspace, record)
         }
+        if (event.type === 'block')
+          rendered.push({ id: event.id, block: event.block })
         if (event.type === 'error')
           sawError = true
         await this.emit(input.workspace, input.runId, event)
@@ -416,6 +445,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     finally {
       this.running.delete(input.runId)
       this.deps.agentCredentials?.release(input.runId)
+      await this.correctOutput(input, rendered, capturedSessionId, exitCode, sawError)
       this.deps.eventBus?.publish({
         type: 'run.completed',
         workspaceId: input.workspace.id,
@@ -432,6 +462,43 @@ export class SubprocessSkillRunner implements SkillRunner {
       if (this.deps.cleanupSession !== false && !keepForResume)
         await rm(input.sessionDir, { recursive: true, force: true }).catch(() => {})
     }
+  }
+
+  /**
+   * Hands a finished run's contract gap back to the agent for one more turn.
+   *
+   * A skill prompt asking for something is not the same as getting it, and a
+   * run that stopped early looks exactly like one that had nothing left to say.
+   * The check runs after the stream drains, and the correction resumes the same
+   * claude session so the agent still has everything it just read.
+   *
+   * Silent on a failed or cancelled run, because a gap there is a symptom of
+   * the failure rather than something the agent can fix by trying again.
+   */
+  private async correctOutput(
+    input: { workspace: Workspace, runId: SkillRunId, skillId: SkillId, retriesLeft: number, initialRecord: RunRecord },
+    rendered: readonly EmittedBlock[],
+    sessionId: string | null,
+    exitCode: number,
+    sawError: boolean,
+  ): Promise<void> {
+    if (sawError || exitCode !== 0 || input.retriesLeft <= 0 || sessionId === null)
+      return
+    const manifest = await this.deps.skillRegistry.get(input.workspace, input.skillId)
+    const contract = manifest.frontmatter.braid.output
+    if (!contract)
+      return
+    const violations = validateOutput(contract, rendered)
+    if (violations.length === 0)
+      return
+
+    await this.start(input.workspace, input.skillId, describeViolations(violations), {
+      resumeSessionId: sessionId,
+      retriesLeft: input.retriesLeft - 1,
+      // A correction belongs to whoever asked the original question,
+      // so run history never grows an entry with nobody behind it.
+      startedBy: input.initialRecord.startedBy,
+    })
   }
 
   // Persist first, then broadcast.

@@ -1,6 +1,6 @@
 import type { Workspace } from '@braidhq/schema'
 import type { Surface } from './CommandPalette'
-import { Activity, ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, LogIn, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles } from 'lucide-react'
+import { Activity, ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, LogIn, MessageCircleQuestion, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import braidLogo from '@/assets/braid-logo.svg'
@@ -524,6 +524,11 @@ function HereSection({
   const canRunActions = (skills?.items ?? []).some(s =>
     !s.frontmatter.braid.hidden && policy.can('skill.run', { skill: s.frontmatter, skillId: s.id }),
   )
+  const canAsk = (skills?.items ?? []).some(s =>
+    s.frontmatter.braid.category === 'ask'
+    && !s.frontmatter.braid.hidden
+    && policy.can('skill.run', { skill: s.frontmatter, skillId: s.id }),
+  )
   const canSeeHistory = policy.effectiveRole !== null && policy.effectiveRole !== 'guest'
 
   return (
@@ -542,6 +547,16 @@ function HereSection({
           shortcut="G G"
           onClick={onGoHome}
         />
+        {canAsk && (
+          <HereRow
+            collapsed={collapsed}
+            icon={MessageCircleQuestion}
+            label={t('shell.surfaces.ask')}
+            active={activeSurface === 'ask'}
+            shortcut="G Q"
+            onClick={() => onSelectSurface('ask')}
+          />
+        )}
         {canRunActions && (
           <HereRow
             collapsed={collapsed}

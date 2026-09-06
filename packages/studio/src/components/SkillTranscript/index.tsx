@@ -119,6 +119,14 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
           </div>
         </details>
       )
+    case 'block':
+      // The block itself renders above the transcript.
+      // This line keeps the audit trail showing when the run emitted it.
+      return (
+        <div className="text-muted-foreground/60">
+          {t('transcript.blockLine', { call: event.block.call })}
+        </div>
+      )
     case 'rate-limit': {
       // A warning carries nothing the reader can act on,
       // and it lands on almost every run near the limit.

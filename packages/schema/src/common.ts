@@ -34,6 +34,9 @@ export type ClarificationCandidateId = z.infer<typeof ClarificationCandidateId>
 export const DriftIssueId = z.string().min(1).brand<'DriftIssueId'>()
 export type DriftIssueId = z.infer<typeof DriftIssueId>
 
+export const BlockId = z.string().min(1).brand<'BlockId'>()
+export type BlockId = z.infer<typeof BlockId>
+
 export const SkillId = z.string().min(1).brand<'SkillId'>()
 export type SkillId = z.infer<typeof SkillId>
 

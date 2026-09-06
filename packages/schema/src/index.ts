@@ -3,6 +3,7 @@ import './zod-openapi.js'
 
 export * from './agent.js'
 export * from './batch.js'
+export * from './block.js'
 export * from './capability.js'
 export * from './clarification.js'
 export * from './common.js'

@@ -1,7 +1,7 @@
 import type { Surface } from '@/components/CommandPalette'
 import { useEffect } from 'react'
 
-const SURFACE_VALUES: readonly Surface[] = ['actions', 'batch', 'clarifications', 'history', 'proposals', 'settings']
+const SURFACE_VALUES: readonly Surface[] = ['actions', 'ask', 'batch', 'clarifications', 'history', 'proposals', 'settings']
 
 export interface UrlState {
   readonly workspaceId: string | null

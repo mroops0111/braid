@@ -1,4 +1,4 @@
-import type { AbsolutePath, LoaderKind, SourceId, Timestamp, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, LoaderKind, SourceId, SourceLocation, Timestamp, WorkspaceId } from '@braidhq/schema'
 import type { Plugin } from './Plugin.js'
 
 /**
@@ -76,6 +76,21 @@ export interface SourceLoaderPlugin extends Plugin {
   sync?: (config: unknown, destination: AbsolutePath, context: SourceLoaderContext) => Promise<SyncReport>
 
   /**
+   * Turns a location inside this source into a URL on the host it came from,
+   * so evidence reaches the canonical copy rather than the local mirror.
+   *
+   * Only the loader knows how to address its own host, which is why this lives
+   * here rather than in the surface that renders the link. The framework passes
+   * the location through and never parses what comes back, the same discipline
+   * `ProvisionReport.revision` already follows.
+   *
+   * Return null when this location has no addressable form, and omit the method
+   * entirely when the host has no web presence at all, as a plain local
+   * directory does.
+   */
+  webUrlFor?: (input: SourceWebUrlInput) => Promise<string | null> | string | null
+
+  /**
    * What this loader contributes to push-based refresh.
    * Two questions, both answerable without knowing which platform sends it.
    * First, where its content lives, so a delivery can be matched to a source.
@@ -84,6 +99,25 @@ export interface SourceLoaderPlugin extends Plugin {
    * Verifying the delivery is not here. That is the receiver's job.
    */
   readonly webhook?: WebhookCapability
+}
+
+export interface SourceWebUrlInput {
+  readonly config: unknown
+  /** Path of the file within the source, relative to the provisioned root. */
+  readonly unitPath: string
+  readonly location: SourceLocation
+  /**
+   * Where the mirror lives locally. A loader whose upstream address is not
+   * derivable from config alone reads its own state from here, as a Drive
+   * mirror does when it needs the file id behind a folder name.
+   */
+  readonly destination: AbsolutePath
+  /**
+   * The upstream state the local mirror currently sits on, when the loader
+   * reported one. A permalink needs it, and a link built without it drifts
+   * the moment the branch moves.
+   */
+  readonly revision?: string
 }
 
 /**

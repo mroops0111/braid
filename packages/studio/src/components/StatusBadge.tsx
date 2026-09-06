@@ -8,6 +8,11 @@ const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
   applied: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
   rejected: 'bg-red-500/15 text-red-400 border-red-500/30',
+  // Finding verdicts, so a consistency card reads with the same vocabulary
+  // as every other status in Studio rather than its own colour table.
+  consistent: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  conflict: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  unverifiable: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30',
 }
 
 export function StatusBadge({ status, className }: { status: string, className?: string }) {
