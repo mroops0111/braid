@@ -108,7 +108,7 @@ const workspace: typeof en = {
     generateSecret: '產生密鑰',
     copySecretOnce: '請立即將這組密鑰複製到 GitHub。它只會顯示一次。',
     autoJoinTitle: '自動接納登入者',
-    autoJoinHint: '凡是這台伺服器允許登入的人,都會以 guest 身分加入此 workspace,唯讀。開啟時也會納入已註冊的人。',
+    autoJoinHint: '凡是這台伺服器允許登入的人，都會以 guest 身分加入此工作區，權限為唯讀。開啟時也會一併納入已註冊的人。',
     membersTitle: '成員',
     membersEmpty: '尚無列出的成員。',
     currentUserLabel: '(你)',
