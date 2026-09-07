@@ -1,8 +1,10 @@
+import type { AbsolutePath, Timestamp, UserId } from '@braidhq/schema'
 import type { AppDependencies } from './composeApp.js'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { OpenAPIHono } from '@hono/zod-openapi'
 import { withoutTrailingSlash } from './infrastructure/_shared/urls.js'
 import { SessionTokenVerifier } from './infrastructure/auth/SessionTokenVerifier.js'
+import { autoJoinExistingUsers, autoJoinOpenWorkspaces } from './infrastructure/users/autoJoinGuests.js'
 import { authMiddleware } from './middleware/auth.js'
 import { corsMiddleware } from './middleware/cors.js'
 import { errorHandler } from './middleware/error.js'
@@ -120,6 +122,11 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       ...(deps.mcpGatewayUrl ? { gatewayUrl: deps.mcpGatewayUrl } : {}),
     }))
   }
+  // Built once here because both automatic-membership paths need them.
+  const autoJoinDeps = deps.workspaceRegistry
+    ? { registry: deps.workspaceRegistry, now: () => deps.clock.now() as Timestamp }
+    : undefined
+
   if (deps.sessionStore && deps.accessPolicy && deps.userRegistry) {
     app.route('/auth', createAuthRouter({
       clock: deps.clock,
@@ -129,6 +136,12 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       loginProviders: deps.loginProviders ?? [],
       studioUrl: deps.studioUrl ?? 'http://localhost:5173',
       requiresAuth: deps.authMode.requiresAuth,
+      ...(autoJoinDeps
+        ? {
+            autoJoin: async (user: { id: UserId }) =>
+              autoJoinOpenWorkspaces(autoJoinDeps, user, await deps.workspaceService.list()),
+          }
+        : {}),
     }))
   }
   if (deps.userRegistry) {
@@ -157,6 +170,12 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     ...(deps.workspaceRegistry ? { workspaceRegistry: deps.workspaceRegistry } : {}),
     ...(deps.userRegistry ? { userRegistry: deps.userRegistry } : {}),
     ...(deps.historyService ? { historyService: deps.historyService } : {}),
+    ...(autoJoinDeps && deps.userRegistry
+      ? {
+          backfillGuests: async (rootPath: AbsolutePath, role: 'guest') =>
+            autoJoinExistingUsers(autoJoinDeps, rootPath, role, await deps.userRegistry!.list()),
+        }
+      : {}),
   }))
   // Server-level plugin discovery for Studio's loader dropdown,
   // sourced from the active PluginRegistry, not hardcoded strings.

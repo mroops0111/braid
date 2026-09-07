@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { api } from '@/lib/api'
 import { humaniseApiError } from '@/lib/errors'
 import { useLocaleFormat } from '@/lib/i18n'
-import { queryKeys, useMe, useSourceLoaders, useUsers, useWorkspaceMembers } from '@/lib/queries'
+import { queryKeys, useMe, useSourceLoaders, useUsers, useWorkspaceMembers, useWorkspaces } from '@/lib/queries'
 import { useGithubOAuth } from '@/lib/useGithubOAuth'
 import { useGoogleOAuth } from '@/lib/useGoogleOAuth'
 import { useWorkspacePolicy } from '@/policy'
@@ -899,7 +899,51 @@ function MembersSection({ workspaceId }: { workspaceId: string }) {
       {canManageMembers && candidates.length > 0 && (
         <AddMemberControl workspaceId={workspaceId} candidates={candidates} onAdded={invalidate} />
       )}
+      {canManageMembers && <AutoJoinControl workspaceId={workspaceId} onChanged={invalidate} />}
     </section>
+  )
+}
+
+/**
+ * Whether anyone who can sign in joins this workspace as a guest.
+ *
+ * Sits under the member list because that is what it edits,
+ * and saving can add to it, so the list above refreshes when this does.
+ */
+function AutoJoinControl({ workspaceId, onChanged }: {
+  workspaceId: string
+  onChanged: () => void
+}) {
+  const { t } = useTranslation()
+  const { data: workspaces } = useWorkspaces()
+  const workspace = workspaces?.items.find(candidate => candidate.id === workspaceId)
+  const admitting = workspace?.productManifest.autoJoinAs === 'guest'
+
+  const save = useMutation({
+    mutationFn: (next: boolean) =>
+      api.patchWorkspace(workspaceId, { autoJoinAs: next ? 'guest' : null }),
+    onSuccess: onChanged,
+  })
+
+  return (
+    <div className="mt-3 flex items-start gap-2 border-t border-border pt-3">
+      <input
+        type="checkbox"
+        id={`auto-join-${workspaceId}`}
+        checked={admitting}
+        disabled={save.isPending}
+        onChange={event => save.mutate(event.target.checked)}
+        className="mt-0.5 size-3 accent-primary"
+      />
+      <label className="flex-1" htmlFor={`auto-join-${workspaceId}`}>
+        <span className="text-2xs font-medium text-foreground">
+          {t('workspace.details.autoJoinTitle')}
+        </span>
+        <span className="mt-0.5 block text-2xs leading-relaxed text-muted-foreground">
+          {t('workspace.details.autoJoinHint')}
+        </span>
+      </label>
+    </div>
   )
 }
 

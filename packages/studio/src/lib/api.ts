@@ -276,6 +276,7 @@ export const api = {
     ontologyId?: string
     mcpServers?: McpServerConfig[]
     polling?: WorkspacePollingConfig
+    autoJoinAs?: 'guest' | null
   }) =>
     fetchJson<PatchWorkspaceResult>(`/workspaces/${workspaceId}`, {
       method: 'PATCH',

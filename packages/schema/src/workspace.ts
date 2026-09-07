@@ -27,6 +27,19 @@ export type WorkspaceMember = z.infer<typeof WorkspaceMember>
 
 export const ProductManifest = z.object({
   name: z.string().min(1),
+  /**
+   * The role anyone who can sign in takes here without being invited.
+   *
+   * The server already decides who may sign in at all,
+   * so this only says whether the workspace takes them.
+   * Absent, which is the default, admits nobody.
+   *
+   * A literal rather than the role enum,
+   * because signing in must not hand out write access.
+   * Widening it later is a change someone has to make on purpose,
+   * rather than a value an owner can already reach for.
+   */
+  autoJoinAs: z.literal('guest').optional(),
   version: z.string().default('0.0.0'),
   description: z.string().optional(),
   ontologyId: OntologyId.default('ddd' as OntologyId),

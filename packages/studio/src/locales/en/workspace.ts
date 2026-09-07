@@ -114,6 +114,8 @@ export const workspace = {
     rotateSecret: 'Rotate Secret',
     generateSecret: 'Generate Secret',
     copySecretOnce: 'Copy this secret into GitHub now. It is shown once.',
+    autoJoinTitle: 'Admit Anyone Who Signs In',
+    autoJoinHint: 'Everyone this server lets sign in joins here as a guest, read-only. Turning this on also admits those already registered.',
     membersTitle: 'Members',
     membersEmpty: 'Nobody listed yet.',
     currentUserLabel: '(you)',
