@@ -30,13 +30,13 @@ interface CommandPaletteProps {
   onOpenChange: (open: boolean) => void
 }
 
-export type Surface = 'actions' | 'activity' | 'ask' | 'batch' | 'clarifications' | 'history' | 'proposals' | 'settings'
+export type Surface = 'actions' | 'activity' | 'ask' | 'batch' | 'clarifications' | 'graph' | 'history' | 'proposals' | 'settings'
 
 type ChordTarget = { kind: 'surface', surface: Surface | null } | { kind: 'workspace-details' }
 
 function chordSecondKey(key: string): ChordTarget | undefined {
   switch (key) {
-    case 'g': return { kind: 'surface', surface: null }
+    case 'g': return { kind: 'surface', surface: 'graph' }
     case 'a': return { kind: 'surface', surface: 'actions' }
     case 'c': return { kind: 'surface', surface: 'clarifications' }
     case 'p': return { kind: 'surface', surface: 'proposals' }

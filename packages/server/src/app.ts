@@ -14,6 +14,7 @@ import { createAdminRouter } from './routes/admin.js'
 import { createAgentCredentialsRouter } from './routes/agentCredentials.js'
 import { createAgentProxyRouter } from './routes/agentProxy.js'
 import { createAgentsRouter } from './routes/agents.js'
+import { createAguiRouter } from './routes/agui.js'
 import { createAuthRouter } from './routes/auth.js'
 import { createBatchRouter } from './routes/batch.js'
 import { createBlocksRouter } from './routes/blocks.js'
@@ -309,6 +310,11 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     // and the runs router above is a plain Hono sub-app.
     workspaceScoped.route('/runs', createBlocksRouter({
       skillRunner: deps.skillRunner,
+      workspaceRepository: deps.workspaceRepository,
+    }))
+    workspaceScoped.route('/agui', createAguiRouter({
+      skillRunner: deps.skillRunner,
+      runRepository: deps.runRepository,
       workspaceRepository: deps.workspaceRepository,
     }))
   }

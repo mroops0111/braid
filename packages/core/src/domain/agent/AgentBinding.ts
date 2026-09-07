@@ -8,9 +8,21 @@ export interface SpawnInvocation {
   readonly env: Readonly<Record<string, string>>
 }
 
+/** One turn of a conversation, in the form every agent can read. */
+export interface AgentMessage {
+  readonly role: 'user' | 'assistant'
+  readonly content: string
+}
+
 export interface AgentSpawnInput {
   readonly skillId: SkillId
-  readonly args: string
+  /**
+   * The conversation this turn continues, oldest first, ending with the user
+   * message that starts this run. A binding holding no conversation state of
+   * its own has everything it needs here, which is what keeps the port free of
+   * any one agent's idea of a session.
+   */
+  readonly messages: readonly AgentMessage[]
   readonly workspace: Workspace
   readonly manifest: SkillManifest
   readonly apiUrl: string
@@ -23,8 +35,14 @@ export interface AgentSpawnInput {
   // skills for one namespace. The binding loads them however its CLI expects,
   // claude via `--plugin-dir`, so a skill invokes as `/namespace:verb`.
   readonly skillBundleDirs: readonly string[]
-  // Session id to continue, when the agent supports resuming a conversation.
-  readonly resumeSessionId?: string
+  /**
+   * A handle the agent itself gave us for this conversation, from a prior
+   * `session-started`. A binding that recognises one may continue that
+   * conversation rather than replaying `messages`. That is an optimisation an
+   * agent may offer, never something the caller relies on, so a binding
+   * without it stays correct by reading `messages`.
+   */
+  readonly conversationId?: string
 }
 
 export interface AgentBinding {

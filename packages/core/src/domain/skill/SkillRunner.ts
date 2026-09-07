@@ -1,14 +1,21 @@
 import type { EmittedBlock, RenderBlock, SkillEvent, SkillId, SkillRunId, UserId } from '@braidhq/schema'
+import type { AgentMessage } from '../agent/AgentBinding.js'
 import type { Workspace } from '../workspace/Workspace.js'
 
 export interface SkillRunOptions {
   /**
-   * Continue a previous claude conversation.
+   * Continue a conversation the agent itself is holding.
    * The id comes from a prior `session-started` SkillEvent.
-   * When set, the agent binding passes `--resume <sessionId>`,
-   * so the model keeps its context.
+   * A binding may use it to skip replaying `messages`, and one that cannot
+   * still runs correctly, so a caller never has to know which kind it has.
    */
   readonly resumeSessionId?: string
+  /**
+   * The exchange this turn continues, oldest first, supplied by a caller that
+   * holds it rather than reconstructed here. Omitted, the run is a single turn
+   * whose only message is `args`.
+   */
+  readonly messages?: readonly AgentMessage[]
   /**
    * Extra environment variables merged into the spawned skill's env.
    * Used by orchestration code when the single positional `args` is taken,

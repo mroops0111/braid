@@ -1,7 +1,7 @@
 import type { Surface } from '@/components/CommandPalette'
 import { useEffect } from 'react'
 
-const SURFACE_VALUES: readonly Surface[] = ['actions', 'ask', 'batch', 'clarifications', 'history', 'proposals', 'settings']
+const SURFACE_VALUES: readonly Surface[] = ['actions', 'ask', 'batch', 'clarifications', 'graph', 'history', 'proposals', 'settings']
 
 export interface UrlState {
   readonly workspaceId: string | null
@@ -10,8 +10,12 @@ export interface UrlState {
 
 /**
  * The hash encodes the active workspace and surface.
- *   #/ws/<id>            workspace home (Graph)
- *   #/ws/<id>/<surface>  a workspace surface, Proposals, Clarification, Actions, Batch, History
+ *   #/ws/<id>            no surface stated, so the app picks where to land
+ *   #/ws/<id>/<surface>  a workspace surface, Graph, Ask, Proposals, Actions, History
+ *
+ * Graph is a named surface rather than the absence of one. A bare workspace
+ * url has to mean "land me somewhere sensible" for an arrival to be able to
+ * choose, and it cannot mean that and Graph at the same time.
  *   #/settings           account-level Settings, no workspace context
  *
  * Settings sits at the root because it is not workspace-scoped.

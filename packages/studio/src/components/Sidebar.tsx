@@ -543,7 +543,7 @@ function HereSection({
           collapsed={collapsed}
           icon={Network}
           label={t('shell.surfaces.graph')}
-          active={activeSurface === null}
+          active={activeSurface === 'graph'}
           shortcut="G G"
           onClick={onGoHome}
         />

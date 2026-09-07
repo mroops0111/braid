@@ -227,13 +227,12 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
     setSubmitting(true)
     setLocalError(null)
     try {
-      const { runId } = await api.startSkillRun(
+      await runStore.startTurn({
         workspaceId,
-        skill.id,
-        asked,
-        conversation.sessionId ?? undefined,
-      )
-      runStore.pushTurn(workspaceId, skill.id, runId)
+        skillId: skill.id,
+        question: asked,
+        ...(conversation.sessionId ? { resumeSessionId: conversation.sessionId } : {}),
+      })
     }
     catch (error) {
       setLocalError(error instanceof Error ? error.message : String(error))

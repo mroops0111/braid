@@ -1,5 +1,8 @@
 import type { SkillEvent } from '@braidhq/schema'
-import { api } from './api'
+import type { AguiTurn } from './agui/aguiTransport'
+import { EventType } from '@ag-ui/client'
+import { readAguiRun, runViaAgui } from './agui/aguiTransport'
+import { AguiEventReader } from './agui/fromAguiEvents'
 
 export type RunPhase = 'streaming' | 'done' | 'error'
 
@@ -147,6 +150,97 @@ class RunStore {
   }
 
   /**
+   * Ask, in the protocol's own shape.
+   *
+   * The POST is the stream, so the run's id arrives inside it rather than from
+   * a separate call, and this run is therefore never hydrated a second time.
+   * The exchange travels with the request, because in AG-UI the client holds
+   * the conversation and hands it over whole on every run.
+   */
+  async startTurn(options: {
+    readonly workspaceId: string
+    readonly skillId: string
+    readonly question: string
+    readonly resumeSessionId?: string
+  }): Promise<void> {
+    const { workspaceId, skillId, question } = options
+    const messages: AguiTurn[] = [...this.conversationFor(workspaceId, skillId), { role: 'user', content: question }]
+    const reader = new AguiEventReader()
+    let runId: string | null = null
+    // Resolves once the run exists, not once it ends. A run takes minutes,
+    // and the caller is asking whether it started, so awaiting the whole
+    // stream would leave the composer disabled for the length of the answer.
+    const started = Promise.withResolvers<void>()
+
+    const streaming = runViaAgui({
+      workspaceId,
+      skillId,
+      threadId: options.resumeSessionId ?? `${workspaceId}|${skillId}`,
+      messages,
+      ...(options.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
+      onEvent: (event) => {
+        if (event.type === EventType.RUN_STARTED) {
+          runId = String((event as unknown as { runId: string }).runId)
+          const key = runKey(workspaceId, runId)
+          this.runs.set(key, { workspaceId, runId, skillId, events: [], phase: 'streaming' })
+          // Claimed so a later `openStream` for the same run does not open a
+          // second reader onto a stream this call is already draining.
+          this.streams.set(key, new AbortController())
+          const existing = this.currentTurns.get(turnsKey(workspaceId, skillId)) ?? NO_TURNS
+          this.currentTurns.set(turnsKey(workspaceId, skillId), [...existing, runId])
+          this.notify()
+          started.resolve()
+          return
+        }
+        if (runId === null)
+          return
+        for (const translated of reader.read(event))
+          this.appendEvent(workspaceId, runId, translated)
+        if (event.type === EventType.RUN_FINISHED || event.type === EventType.RUN_ERROR)
+          this.markPhase(workspaceId, runId, event.type === EventType.RUN_FINISHED ? 'done' : 'error')
+      },
+    })
+
+    // The stream outlives this call, so a failure before the run exists is the
+    // caller's to report and a failure after it belongs on the run itself.
+    void streaming
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error)
+        if (runId !== null)
+          this.markPhase(workspaceId, runId, 'error', message)
+        started.reject(error)
+      })
+      .finally(() => {
+        if (runId !== null)
+          this.streams.delete(runKey(workspaceId, runId))
+      })
+    await started.promise
+  }
+
+  /**
+   * The exchange so far, as the protocol wants it.
+   *
+   * An assistant turn is the run's prose joined together, which is what the
+   * agent actually said. Blocks are Braid's own vocabulary and would mean
+   * nothing replayed into another agent's prompt, so they stay out of it.
+   */
+  private conversationFor(workspaceId: string, skillId: string): AguiTurn[] {
+    const turns: AguiTurn[] = []
+    for (const runId of this.currentTurns.get(turnsKey(workspaceId, skillId)) ?? NO_TURNS) {
+      const state = this.runs.get(runKey(workspaceId, runId))
+      if (!state)
+        continue
+      const started = state.events.find(event => event.type === 'started')
+      if (started?.type === 'started' && started.args.length > 0)
+        turns.push({ role: 'user', content: started.args })
+      const said = state.events.filter(event => event.type === 'message').map(event => event.text).join('\n\n')
+      if (said.length > 0)
+        turns.push({ role: 'assistant', content: said })
+    }
+    return turns
+  }
+
+  /**
    * Load a run's events, tailing only while there is something left to tail.
    *
    * A finished run is fetched in one response. Replaying history over SSE
@@ -155,66 +249,32 @@ class RunStore {
    */
   private async hydrate(workspaceId: string, runId: string, controller: AbortController): Promise<void> {
     const key = runKey(workspaceId, runId)
+    const reader = new AguiEventReader()
     try {
-      const { items, active } = await api.runEvents(workspaceId, runId)
-      if (controller.signal.aborted)
-        return
-      if (active) {
-        await this.consumeStream(workspaceId, runId, controller.signal)
-        return
-      }
-      for (const event of items)
-        this.appendEvent(workspaceId, runId, event)
+      await readAguiRun({
+        workspaceId,
+        runId,
+        threadId: runId,
+        signal: controller.signal,
+        onEvent: (event) => {
+          for (const translated of reader.read(event))
+            this.appendEvent(workspaceId, runId, translated)
+        },
+      })
+      // The stream can close without a terminal event when the server hangs
+      // up early, so a run left mid-flight is settled here rather than
+      // leaving the surface waiting on something that will not arrive.
       const state = this.runs.get(key)
       if (state && state.phase === 'streaming')
         this.markPhase(workspaceId, runId, 'done')
     }
     catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      if (!message.includes('aborted'))
+      if (!message.includes('aborted') && !message.includes('AbortError'))
         this.markPhase(workspaceId, runId, 'error', message)
     }
     finally {
       this.streams.delete(key)
-    }
-  }
-
-  private async consumeStream(workspaceId: string, runId: string, signal: AbortSignal): Promise<void> {
-    const key = runKey(workspaceId, runId)
-    try {
-      const response = await fetch(api.runEventsUrl(workspaceId, runId), { signal })
-      if (!response.ok || !response.body) {
-        this.markPhase(workspaceId, runId, 'error', `${response.status} ${response.statusText}`)
-        return
-      }
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder('utf-8')
-      let buffer = ''
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done)
-          break
-        buffer += decoder.decode(value, { stream: true })
-        const parts = buffer.split('\n\n')
-        buffer = parts.pop() ?? ''
-        for (const block of parts) {
-          const event = parseSseBlock(block)
-          if (event)
-            this.appendEvent(workspaceId, runId, event)
-        }
-      }
-      // If the loop exits without an explicit completed or error event,
-      // the server closed the stream early,
-      // so treat it as done and the UI unblocks.
-      const state = this.runs.get(key)
-      if (state && state.phase === 'streaming')
-        this.markPhase(workspaceId, runId, 'done')
-    }
-    catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      if (message.includes('aborted'))
-        return
-      this.markPhase(workspaceId, runId, 'error', message)
     }
   }
 
@@ -241,22 +301,6 @@ class RunStore {
       return
     this.runs.set(key, { ...state, phase, ...(error ? { error } : {}) })
     this.notify()
-  }
-}
-
-function parseSseBlock(block: string): SkillEvent | undefined {
-  let data = ''
-  for (const line of block.split('\n')) {
-    if (line.startsWith('data:'))
-      data += line.slice(5).trimStart()
-  }
-  if (!data)
-    return undefined
-  try {
-    return JSON.parse(data) as SkillEvent
-  }
-  catch {
-    return undefined
   }
 }
 

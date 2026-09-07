@@ -20,6 +20,7 @@ import { TooltipProvider } from './components/ui/tooltip'
 import { UserPicker } from './components/UserPicker'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
 import { asNodeId } from './lib/brands'
+import { useLandingSurface } from './lib/landingSurface'
 import { useBatchStatus, useReactorCycles, useWorkspaces } from './lib/queries'
 import { useAuthGate } from './lib/useAuthGate'
 import { GraphNavigationContext } from './lib/useGraphNavigation'
@@ -89,6 +90,15 @@ function AppInner() {
 
   useWorkspaceEvents(activeId)
 
+  // A bare workspace url states no surface, so the shell picks one. Waiting
+  // for the answer beats landing on Graph and jumping a moment later, and the
+  // reader keeps whatever they choose from here, including Graph itself.
+  const landing = useLandingSurface(activeId)
+  useEffect(() => {
+    if (activeSurface === null && landing !== undefined)
+      setActiveSurface(landing)
+  }, [activeSurface, landing])
+
   const { data: activeBatchPlan } = useBatchStatus(activeId ?? undefined)
   const hasActiveBatch = activeBatchPlan?.status === 'running' || activeBatchPlan?.status === 'deriving'
 
@@ -112,11 +122,11 @@ function AppInner() {
     setSelectedEdgeId(null)
     setFocusMode(true)
     requestCenter()
-    setActiveSurface(null)
+    setActiveSurface('graph')
   }, [setSelectedNodeId, setSelectedEdgeId, setFocusMode, requestCenter])
 
   const focusEdge = useCallback((_id: EdgeId) => {
-    setActiveSurface(null)
+    setActiveSurface('graph')
   }, [])
 
   const graphNavigation = useMemo(() => ({ focusNode, focusEdge }), [focusNode, focusEdge])
@@ -132,7 +142,7 @@ function AppInner() {
     <GraphNavigationContext.Provider value={graphNavigation}>
       <TabNavigationContext.Provider value={tabNavigation}>
         <ReferenceRegistryProvider workspaceId={activeId ?? undefined}>
-          <ReferencePeekProvider resetKey={activeSurface ?? 'graph'}>
+          <ReferencePeekProvider resetKey={activeSurface ?? 'landing'}>
             <PageActionsProvider>
               <TooltipProvider>
                 <div className="flex h-screen overflow-hidden bg-background text-foreground">
@@ -143,10 +153,10 @@ function AppInner() {
                     onSelect={(id) => {
                       setActiveId(id)
                       if (activeSurface === 'settings')
-                        setActiveSurface(null)
+                        setActiveSurface('graph')
                     }}
                     onOpenDetails={openDetails}
-                    onGoHome={() => setActiveSurface(null)}
+                    onGoHome={() => setActiveSurface('graph')}
                     onSelectSurface={setActiveSurface}
                   />
                   <main className="flex flex-1 flex-col overflow-hidden">
@@ -177,8 +187,8 @@ function AppInner() {
                             />
                             {activeId
                               ? (
-                                  <div key={activeSurface ?? 'graph'} className="relative flex-1 overflow-hidden duration-150 animate-in fade-in-0">
-                                    {activeSurface === null && (
+                                  <div key={activeSurface ?? 'landing'} className="relative flex-1 overflow-hidden duration-150 animate-in fade-in-0">
+                                    {activeSurface === 'graph' && (
                                       <GraphHomeView
                                         workspaceId={activeId}
                                         state={graphSurfaceState}

@@ -159,16 +159,20 @@ export class SubprocessSkillRunner implements SkillRunner {
         }]
       : []
     const binding = this.bindingFor(manifest.frontmatter.braid.agent)
+    // A caller holding the exchange supplies it. Otherwise this turn is the
+    // whole conversation, which is every run that did not come from a client
+    // keeping its own history.
+    const messages = options.messages ?? [{ role: 'user' as const, content: args }]
     const invocation = await binding.resolveSpawn({
       skillId,
-      args,
+      messages,
       workspace,
       manifest,
       apiUrl: this.deps.apiUrl,
       mcpServers: [...gatewayServers, ...workspace.mcpServers],
       sessionDir: AbsolutePathSchema.parse(sessionDir),
       skillBundleDirs,
-      ...(options.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
+      ...(options.resumeSessionId ? { conversationId: options.resumeSessionId } : {}),
     })
 
     // Resolved before the process exists,
