@@ -7,10 +7,10 @@ import { EvidenceRefs } from './EvidenceRefs'
 // Tone carries the reading, the label beside it carries the vocabulary.
 // A renderer that switched on the label instead would have to know the ontology.
 const TONE_DOT: Record<CellTone, string> = {
-  'affirmed': 'bg-emerald-400',
+  'affirmed': 'bg-emerald-600 dark:bg-emerald-400',
   'denied': 'bg-zinc-500',
-  'conditional': 'bg-blue-400',
-  'conflict': 'bg-amber-400',
+  'conditional': 'bg-blue-600 dark:bg-blue-400',
+  'conflict': 'bg-amber-600 dark:bg-amber-400',
   'not-applicable': 'bg-transparent border border-border',
 }
 
@@ -18,7 +18,7 @@ const TONE_TEXT: Record<CellTone, string> = {
   'affirmed': 'text-foreground/90',
   'denied': 'text-muted-foreground',
   'conditional': 'text-foreground/80',
-  'conflict': 'text-amber-400',
+  'conflict': 'text-amber-600 dark:text-amber-400',
   'not-applicable': 'text-muted-foreground/50',
 }
 

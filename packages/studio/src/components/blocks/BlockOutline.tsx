@@ -36,7 +36,7 @@ function fallbackKey(call: RenderBlock['call']):
 /** A conflict is the one thing worth spotting from the index alone. */
 function toneFor(block: RenderBlock): string {
   if (block.call === 'showFinding' && block.verdict === 'conflict')
-    return 'text-amber-500'
+    return 'text-amber-600 dark:text-amber-400'
   return 'text-muted-foreground'
 }
 

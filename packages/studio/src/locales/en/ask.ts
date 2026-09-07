@@ -17,7 +17,6 @@ export const ask = {
   view: {
     transcript: 'Transcript',
   },
-  // The three views of one run: the answer's two halves, and its log.
 }
 
 export default ask

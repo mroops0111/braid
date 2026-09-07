@@ -46,7 +46,7 @@ export function ShowTraceBlock({ block }: { block: ShowTrace }) {
         <Count value={block.read.length} label={t('blocks.trace.read')} />
         <Count value={block.cited.length} label={t('blocks.trace.cited')} />
         {block.skipped.length > 0 && (
-          <span className="text-2xs text-amber-400">
+          <span className="text-2xs text-amber-600 dark:text-amber-400">
             {t('blocks.trace.skipped', { count: block.skipped.length })}
           </span>
         )}

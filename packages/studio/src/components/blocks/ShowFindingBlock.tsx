@@ -16,9 +16,9 @@ const VERDICT_RULE: Record<ShowFinding['verdict'], string> = {
 // A second axis from the verdict, so it is stated in the footer rather than on
 // the rule, where it would read as a stronger or weaker version of the verdict.
 const SUPPORT_TONE: Record<EvidenceSupport, string> = {
-  corroborated: 'text-emerald-400/90',
+  corroborated: 'text-emerald-600 dark:text-emerald-400',
   partial: 'text-muted-foreground',
-  thin: 'text-amber-400',
+  thin: 'text-amber-600 dark:text-amber-400',
 }
 
 /**

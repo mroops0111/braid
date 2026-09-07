@@ -139,7 +139,7 @@ function InlineExcerpt({ reference }: { reference: BlockRef['reference'] }) {
   return (
     <>
       {drifted && (
-        <p className="mt-1 flex items-start gap-1 text-2xs text-amber-400">
+        <p className="mt-1 flex items-start gap-1 text-2xs text-amber-600 dark:text-amber-400">
           <AlertTriangle className="mt-0.5 size-2.5 shrink-0" />
           {t('blocks.evidence.snippetDrifted')}
         </p>
@@ -186,7 +186,7 @@ function EvidenceRow({ ref: entry }: { ref: BlockRef }) {
   return (
     <li className="flex items-start gap-1.5">
       {unrecorded
-        ? <ShieldQuestion className="mt-0.5 size-2.5 shrink-0 text-amber-400" />
+        ? <ShieldQuestion className="mt-0.5 size-2.5 shrink-0 text-amber-600 dark:text-amber-400" />
         : <FileText className="mt-0.5 size-2.5 shrink-0 text-muted-foreground" />}
       <div className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-x-1">
@@ -204,7 +204,7 @@ function EvidenceRow({ ref: entry }: { ref: BlockRef }) {
             : <span className="text-2xs break-words text-muted-foreground">{label}</span>}
           <CanonicalLink reference={entry.reference} />
           {unrecorded && (
-            <span className="text-2xs text-amber-400" title={t('blocks.evidence.unrecordedHint')}>
+            <span className="text-2xs text-amber-600 dark:text-amber-400" title={t('blocks.evidence.unrecordedHint')}>
               {t('blocks.evidence.unrecorded')}
             </span>
           )}
