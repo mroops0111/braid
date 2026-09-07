@@ -58,6 +58,7 @@ export const ProductManifestUpdate = ProductManifest.partial().extend({
   ontologyId: OntologyId.optional(),
   sources: z.array(SourceDescriptor).optional(),
   mcpServers: z.array(McpServerConfig).optional(),
+  openToDomains: z.array(z.string().min(1)).optional(),
 })
 export type ProductManifestUpdate = z.infer<typeof ProductManifestUpdate>
 

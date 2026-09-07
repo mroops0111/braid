@@ -37,7 +37,7 @@ describe('opening a workspace to a domain', () => {
 
     const members = await membersOf(handle)
     const joined = members.filter(member => member.role === 'guest').map(member => member.userId).sort()
-    // The outsider's address is on another domain, so the setting passes them by.
+    // The outsider is on another domain, so the setting passes them by.
     expect(joined).toEqual(['usr-guest', 'usr-maint'])
     // The owner matched the domain too, and keeps the role they had.
     expect(members.find(member => member.userId === 'usr-owner')?.role).toBe('owner')

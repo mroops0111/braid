@@ -52,8 +52,8 @@ describe('domainIsOpen', () => {
     expect(domainIsOpen('ada@', ['kdan.com'])).toBe(false)
   })
 
-  // An address may legitimately hold more than one `@`, and the domain is
-  // what follows the last of them.
+  // An address may legitimately hold more than one `@`,
+  // and the domain is what follows the last of them.
   it('reads the domain from the last at sign', () => {
     expect(domainIsOpen('"a@b"@kdan.com', ['kdan.com'])).toBe(true)
   })
@@ -77,8 +77,8 @@ describe('autoJoinOpenWorkspaces', () => {
     expect(registry.added[0]!.member.role).toBe('guest')
   })
 
-  // Signing in must not hand out write access, so the automatic path has one
-  // role and no way to ask for another.
+  // Signing in must not hand out write access,
+  // so the automatic path has one role and no way to ask for another.
   it('joins as guest even where the workspace has no other members', async () => {
     const registry = fakeRegistry()
     await autoJoinOpenWorkspaces(deps(registry), ada, [workspace('/open', ['kdan.com'])])
@@ -107,8 +107,8 @@ describe('autoJoinExistingUsers', () => {
     expect(registry.added.map(entry => entry.member.userId)).toEqual(['user-ada', 'user-cy'])
   })
 
-  // Closing a workspace is the common edit, and it must not read as an
-  // instruction to add everybody.
+  // Closing a workspace is the common edit,
+  // and it must not read as an instruction to add everybody.
   it('adds nobody when the workspace opens to no domain', async () => {
     const registry = fakeRegistry()
     await autoJoinExistingUsers(deps(registry), '/open' as AbsolutePath, [], users)
