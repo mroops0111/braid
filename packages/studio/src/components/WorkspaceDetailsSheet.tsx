@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { api } from '@/lib/api'
 import { humaniseApiError } from '@/lib/errors'
 import { useLocaleFormat } from '@/lib/i18n'
-import { queryKeys, useMe, useSourceLoaders, useUsers, useWorkspaceMembers } from '@/lib/queries'
+import { queryKeys, useMe, useSourceLoaders, useUsers, useWorkspaceMembers, useWorkspaces } from '@/lib/queries'
 import { useGithubOAuth } from '@/lib/useGithubOAuth'
 import { useGoogleOAuth } from '@/lib/useGoogleOAuth'
 import { useWorkspacePolicy } from '@/policy'
@@ -899,7 +899,69 @@ function MembersSection({ workspaceId }: { workspaceId: string }) {
       {canManageMembers && candidates.length > 0 && (
         <AddMemberControl workspaceId={workspaceId} candidates={candidates} onAdded={invalidate} />
       )}
+      {canManageMembers && <OpenToDomainsControl workspaceId={workspaceId} onChanged={invalidate} />}
     </section>
+  )
+}
+
+/**
+ * The domains that join a colleague without anyone inviting them.
+ *
+ * Sits under the member list because that is what it edits.
+ * Saving can add members, since opening reaches those already registered,
+ * so the list above refreshes with it.
+ */
+function OpenToDomainsControl({ workspaceId, onChanged }: {
+  workspaceId: string
+  onChanged: () => void
+}) {
+  const { t } = useTranslation()
+  const { data: workspaces } = useWorkspaces()
+  const workspace = workspaces?.items.find(candidate => candidate.id === workspaceId)
+  const stored = workspace?.productManifest.openToDomains ?? []
+  const [draft, setDraft] = useState(stored.join(', '))
+  const [touched, setTouched] = useState(false)
+  const value = touched ? draft : stored.join(', ')
+
+  const save = useMutation({
+    mutationFn: () => api.patchWorkspace(workspaceId, {
+      openToDomains: value.split(',').map(part => part.trim()).filter(Boolean),
+    }),
+    onSuccess: () => {
+      setTouched(false)
+      onChanged()
+    },
+  })
+
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      <p className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {t('workspace.details.openToTitle')}
+      </p>
+      <p className="mt-1 text-2xs leading-relaxed text-muted-foreground">
+        {t('workspace.details.openToHint')}
+      </p>
+      <div className="mt-1.5 flex items-center gap-1.5">
+        <Input
+          value={value}
+          onChange={(event) => {
+            setTouched(true)
+            setDraft(event.target.value)
+          }}
+          placeholder={t('workspace.details.openToPlaceholder')}
+          className="h-7 flex-1 text-2xs"
+        />
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 text-2xs"
+          disabled={!touched || save.isPending}
+          onClick={() => save.mutate()}
+        >
+          {t('workspace.details.openToSave')}
+        </Button>
+      </div>
+    </div>
   )
 }
 

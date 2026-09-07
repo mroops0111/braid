@@ -27,6 +27,19 @@ export type WorkspaceMember = z.infer<typeof WorkspaceMember>
 
 export const ProductManifest = z.object({
   name: z.string().min(1),
+  /**
+   * Email domains whose users join as `guest` without being invited.
+   *
+   * The workspace decides, not the server.
+   * A server-wide default would have to guess where a new colleague belongs,
+   * and a guess is not a basis for granting access.
+   * Empty, the default, changes nothing.
+   *
+   * `guest` is the ceiling here on purpose.
+   * Signing in should not hand out write access,
+   * so anything above read-only stays an owner's explicit act.
+   */
+  openToDomains: z.array(z.string().min(1)).default([]),
   version: z.string().default('0.0.0'),
   description: z.string().optional(),
   ontologyId: OntologyId.default('ddd' as OntologyId),

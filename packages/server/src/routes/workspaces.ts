@@ -49,6 +49,7 @@ const PatchWorkspaceBodySchema = z.object({
   storage: StorageDescriptor.optional(),
   mcpServers: z.array(McpServerConfig).optional(),
   polling: WorkspacePollingConfig.optional(),
+  openToDomains: z.array(z.string().min(1)).optional(),
 }).refine(body => Object.keys(body).length > 0, { message: 'PATCH body must contain at least one field' })
 
 // Per-item PATCH bodies. An empty string for `description` clears the field,
@@ -104,6 +105,11 @@ export interface WorkspacesRouterDeps {
    * Absent in tests without git.
    */
   historyService?: HistoryService
+  /**
+   * Joins users already registered here to a workspace that opened to them.
+   * Absent where the deployment models no membership.
+   */
+  backfillGuests?: (rootPath: AbsolutePath, openToDomains: readonly string[]) => Promise<void>
 }
 
 // Commit a PRODUCT.md edit as its own `config` history entry.
@@ -415,8 +421,13 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
       ...(patch.storage !== undefined ? { storage: patch.storage } : {}),
       ...(patch.mcpServers !== undefined ? { mcpServers: patch.mcpServers } : {}),
       ...(patch.polling !== undefined ? { polling: patch.polling } : {}),
+      ...(patch.openToDomains !== undefined ? { openToDomains: patch.openToDomains } : {}),
     }
     await updateProductManifest(workspace.rootPath, nextManifest)
+    // Opening a workspace has to reach the colleagues already here,
+    // or the setting would only apply to people who join afterwards.
+    if (patch.openToDomains !== undefined)
+      await deps.backfillGuests?.(workspace.rootPath, patch.openToDomains)
     const renamed = patch.name !== undefined && patch.name !== workspace.productManifest.name
     await commitConfigChange(deps, workspaceId, getUserId(context), renamed ? `renamed to ${patch.name}` : 'updated workspace config')
     const updated = await reload(deps.workspaceService, workspace.rootPath)
