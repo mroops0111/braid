@@ -113,7 +113,6 @@ describe('render routes', () => {
         audience: 'business',
         statement: 'The spec makes Admin mandatory, the code never enforces it.',
         verdict: 'conflict',
-        confidence: 0.8,
         sides: [
           { summary: 'The spec says Admin is mandatory.', refs: [] },
           { summary: 'The default is false for all three.', refs: [] },
@@ -129,6 +128,66 @@ describe('render routes', () => {
     const block = events.find(event => event.type === 'block')
     expect(block?.type === 'block' && block.block.call).toBe('showFinding')
     expect(block?.type === 'block' && block.block.call === 'showFinding' && block.block.sides).toHaveLength(2)
+    // Neither side carried a reference, so the derived support is the weakest.
+    expect(block?.type === 'block' && block.block.call === 'showFinding' && block.block.support).toBe('thin')
+  })
+
+  it('derives corroborated support when every side cites the graph', async () => {
+    const { app, workspace, runRepository, skillRunner, endAll } = await buildApp()
+    const runId = await startRun(app, workspace.id)
+    const ref = (provenance: string) => ({
+      provenance,
+      reference: { sourceId: 'spec', location: { uri: 'docs/spec.md', startLine: 3 } },
+    })
+
+    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/finding`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        statement: 'Both sides are cited by a node.',
+        verdict: 'conflict',
+        sides: [
+          { summary: 'The spec says one thing.', refs: [ref('graph')] },
+          { summary: 'The code does another.', refs: [ref('graph')] },
+        ],
+      }),
+    })
+    expect(response.status).toBe(200)
+
+    endAll()
+    await waitForRunToEnd(skillRunner, runId)
+    const events = await readEvents(runRepository, workspace, runId)
+    const block = events.find(event => event.type === 'block')
+    expect(block?.type === 'block' && block.block.call === 'showFinding' && block.block.support).toBe('corroborated')
+  })
+
+  it('derives partial support when a side rests on what the run read itself', async () => {
+    const { app, workspace, runRepository, skillRunner, endAll } = await buildApp()
+    const runId = await startRun(app, workspace.id)
+    const ref = (provenance: string) => ({
+      provenance,
+      reference: { sourceId: 'spec', location: { uri: 'docs/spec.md', startLine: 3 } },
+    })
+
+    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/finding`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        statement: 'One side is unrecorded.',
+        verdict: 'conflict',
+        sides: [
+          { summary: 'The spec says one thing.', refs: [ref('graph')] },
+          { summary: 'The code does another.', refs: [ref('agent-read')] },
+        ],
+      }),
+    })
+    expect(response.status).toBe(200)
+
+    endAll()
+    await waitForRunToEnd(skillRunner, runId)
+    const events = await readEvents(runRepository, workspace, runId)
+    const block = events.find(event => event.type === 'block')
+    expect(block?.type === 'block' && block.block.call === 'showFinding' && block.block.support).toBe('partial')
   })
 
   it('rejects a finding carrying fewer than two sides', async () => {
@@ -142,7 +201,6 @@ describe('render routes', () => {
         audience: 'business',
         statement: 'Only one side.',
         verdict: 'conflict',
-        confidence: 0.5,
         sides: [{ summary: 'Alone.', refs: [] }],
       }),
     })

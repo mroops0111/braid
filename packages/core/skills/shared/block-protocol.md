@@ -8,6 +8,12 @@ Calling none of them is valid. A skill that renders no blocks still shows its tr
 
 A skill may also declare an output contract in its frontmatter, naming the calls it owes and how many blocks each audience is due. When a run ends without meeting it, the framework resumes the same session once with the gap spelled out. Treat that correction as a request to add what is missing, not to redo the answer.
 
+## Prose In A Block
+
+Block text lands in the same surface as the product's own labels, so it follows the same typography. Never write an em dash or an en dash, in any language. Split the sentence in two, or use a comma or parentheses. The same goes for a decorative arrow, which is reserved for naming the two ends of a relationship. Write three periods as the ellipsis character when you need one at all.
+
+This applies to every string you pass, including a title, a matrix cell, and a diagram label.
+
 ## Audience
 
 The framework injects `$BRAID_AUDIENCES`, a JSON array of the readers this workspace's ontology splits an answer for. Each carries an `id`, a `label`, a `description` of what that reader needs, and an `evidenceDetail` of `summary` or `full`. Read it before you render. Never name a reader the list does not contain, and when the list is empty, leave `audiences` off every call.
@@ -85,7 +91,7 @@ One consistency statement. Use it whenever two sources agree, disagree, or canno
 - `statement`: what was compared, in one line.
 - `verdict`: `consistent`, `conflict`, or `unverifiable`.
 - `sides`: two or more, each a one-line summary plus its own references. Name both sides, never pick one.
-- `confidence`: 0 to 1.
+- Do not send a confidence. The surface derives one from `sides`, reading `corroborated` when every side rests on a `graph` reference, `partial` when every side has a reference but some are `agent-read`, and `thin` when a side has none. Earn a stronger reading by finding the reference, never by asserting one.
 - `registered` and `driftId`: set both when the model already records this as a `DriftIssue`, so the surface can link to the record instead of offering to create it. **Look before you answer.** The nodes involved carry `metadata.driftIssues`, and a workspace that has been reconciled holds dozens. Reporting a known drift as new wastes a reviewer's time on something already triaged.
 - `suggestedSource`: only for `unverifiable`, naming what would settle it.
 

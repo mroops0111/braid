@@ -18,6 +18,26 @@ function formatLocation(ref: BlockRef): string {
     : `${uri}:${startLine}`
 }
 
+// A file whose name says nothing about the document it holds. The folder
+// around it carries the title, which is the convention for a spec per folder.
+const GENERIC_FILE_NAMES = new Set(['index', 'readme', 'main', 'doc', 'spec'])
+
+/**
+ * The name a reader would use for the document a reference points into.
+ *
+ * The last path segment is usually it, but a spec kept as a folder with an
+ * `index.md` inside would be called "index" that way, which names every such
+ * spec identically and drops the one segment that identified it.
+ */
+function documentName(uri: string): string {
+  const segments = uri.split('/').filter(Boolean)
+  const fileName = segments.at(-1) ?? uri
+  const withoutExtension = fileName.replace(/\.[a-z0-9]+$/i, '')
+  if (!GENERIC_FILE_NAMES.has(withoutExtension.toLowerCase()))
+    return withoutExtension
+  return segments.at(-2) ?? withoutExtension
+}
+
 /**
  * The same reference, named the way this reader recognises it.
  *
@@ -27,8 +47,7 @@ function formatLocation(ref: BlockRef): string {
  */
 function summariseLocation(ref: BlockRef): string {
   const { uri, anchor } = ref.reference.location
-  const name = uri.split('/').filter(Boolean).at(-1) ?? uri
-  const readable = name.replace(/\.[a-z0-9]+$/i, '')
+  const readable = documentName(uri)
   return anchor ? `${readable} · ${anchor}` : readable
 }
 
@@ -146,23 +165,27 @@ function InlineExcerpt({ reference }: { reference: BlockRef['reference'] }) {
 }
 
 /**
- * A reference the run opened itself reads as unverified,
- * because nothing in the graph vouches for it yet.
+ * A reference the run opened itself reads as unrecorded,
+ * because no node in the graph cites it yet.
  */
 function EvidenceRow({ ref: entry }: { ref: BlockRef }) {
   const { t } = useTranslation()
   const detail = useEvidenceDetail()
   const [open, setOpen] = useState(false)
-  const unverified = entry.provenance === 'agent-read'
+  const unrecorded = entry.provenance === 'agent-read'
   // Anyone may open anything. The audience sets how much is shown by default,
   // never what may be reached, and a spec is the business reader's own
   // document, so gating the excerpt on evidence depth locked them out of it.
   const readable = entry.reference.location.startLine !== undefined
-  const label = detail === 'full' ? formatLocation(entry) : summariseLocation(entry)
+  // Every reader gets the same first line, so one person can name a piece of
+  // evidence to another. Depth adds the path below it rather than replacing
+  // the name with it, which is what made the two views describe one reference
+  // in two vocabularies that did not obviously match.
+  const label = summariseLocation(entry)
 
   return (
     <li className="flex items-start gap-1.5">
-      {unverified
+      {unrecorded
         ? <ShieldQuestion className="mt-0.5 size-2.5 shrink-0 text-amber-400" />
         : <FileText className="mt-0.5 size-2.5 shrink-0 text-muted-foreground" />}
       <div className="min-w-0 flex-1">
@@ -172,16 +195,23 @@ function EvidenceRow({ ref: entry }: { ref: BlockRef }) {
                 <button
                   type="button"
                   onClick={() => setOpen(value => !value)}
-                  className="inline-flex items-center gap-0.5 font-mono text-2xs break-all text-muted-foreground transition-colors duration-150 hover:text-foreground"
+                  className="inline-flex items-center gap-0.5 text-2xs break-words text-muted-foreground transition-colors duration-150 hover:text-foreground"
                 >
                   {open ? <ChevronDown className="size-2.5 shrink-0" /> : <ChevronRight className="size-2.5 shrink-0" />}
                   {label}
                 </button>
               )
-            : <span className={cn('text-2xs break-all text-muted-foreground', detail === 'full' && 'font-mono')}>{label}</span>}
+            : <span className="text-2xs break-words text-muted-foreground">{label}</span>}
           <CanonicalLink reference={entry.reference} />
-          {unverified && <span className="text-2xs text-amber-400">{t('blocks.evidence.unverified')}</span>}
+          {unrecorded && (
+            <span className="text-2xs text-amber-400" title={t('blocks.evidence.unrecordedHint')}>
+              {t('blocks.evidence.unrecorded')}
+            </span>
+          )}
         </span>
+        {detail === 'full' && (
+          <p className="font-mono text-2xs break-all text-muted-foreground/60">{formatLocation(entry)}</p>
+        )}
         {!open && detail === 'full' && entry.reference.snippet && (
           <p className="mt-0.5 border-l-2 border-border pl-2 font-mono text-2xs text-muted-foreground/80">
             {entry.reference.snippet}

@@ -1,5 +1,6 @@
 import type { SkillRunner, WorkspaceRepository } from '@braidhq/core'
 import type { RenderBlock } from '@braidhq/schema'
+import { evidenceSupport } from '@braidhq/core'
 import { ShowAnswer, ShowDiagram, ShowEvidence, ShowFinding, ShowMatrix, ShowSubgraph, ShowTrace, SkillRunId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
@@ -31,7 +32,8 @@ const AcceptedResponse = z.object({ ok: z.literal(true) }).openapi('BlockAccepte
 
 const ShowAnswerBody = ShowAnswer.omit({ call: true }).openapi('ShowAnswerBody')
 const ShowEvidenceBody = ShowEvidence.omit({ call: true }).openapi('ShowEvidenceBody')
-const ShowFindingBody = ShowFinding.omit({ call: true }).openapi('ShowFindingBody')
+// `support` is derived from the sides on arrival, so the skill never sends it.
+const ShowFindingBody = ShowFinding.omit({ call: true, support: true }).openapi('ShowFindingBody')
 const ShowMatrixBody = ShowMatrix.omit({ call: true }).openapi('ShowMatrixBody')
 const ShowTraceBody = ShowTrace.omit({ call: true }).openapi('ShowTraceBody')
 const ShowDiagramBody = ShowDiagram.omit({ call: true }).openapi('ShowDiagramBody')
@@ -163,7 +165,12 @@ export function createBlocksRouter(deps: BlocksRouterDeps): OpenAPIHono {
 
   router.openapi(showFindingRoute, async (context) => {
     const { runId } = context.req.valid('param')
-    await record(getWorkspaceId(context), runId, { call: 'showFinding', ...context.req.valid('json') })
+    const finding = context.req.valid('json')
+    await record(getWorkspaceId(context), runId, {
+      call: 'showFinding',
+      ...finding,
+      support: evidenceSupport(finding.sides),
+    })
     return context.json({ ok: true } as const, 200)
   })
 

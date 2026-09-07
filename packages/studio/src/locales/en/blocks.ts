@@ -52,17 +52,26 @@ export const blocks = {
   },
   evidence: {
     title: 'Evidence',
-    // Marks a reference the run opened itself, which no node vouches for yet.
-    unverified: 'unverified',
+    // Marks a reference the run opened itself, which no node cites yet.
+    unrecorded: 'unrecorded',
+    unrecordedHint: 'This run opened this location itself. No node in the graph cites it yet.',
     openCanonical: 'Open the source where it lives',
     excerptMissing: 'The local mirror no longer holds this location.',
     snippetDrifted: 'The cited text is no longer at these lines. The source has moved since this was recorded.',
     refCount: '{count, plural, one {# source} other {# sources}}',
   },
   finding: {
-    confidence: '{value}% confidence',
-    registered: 'registered',
-    unregistered: 'not registered as drift',
+    support: {
+      corroborated: 'corroborated evidence',
+      corroboratedHint: 'Every side rests on a location the graph already cites.',
+      partial: 'partial evidence',
+      partialHint: 'Every side has a source, but at least one is unrecorded in the graph.',
+      thin: 'thin evidence',
+      thinHint: 'At least one side carries no source at all.',
+    },
+    recorded: 'recorded',
+    unrecorded: 'unrecorded',
+    unrecordedHint: 'The graph holds no drift record for this. It surfaced in this run.',
     suggestedSource: 'Would settle it: {source}',
   },
 }

@@ -1,4 +1,4 @@
-import type { ShowFinding } from '@braidhq/schema'
+import type { EvidenceSupport, ShowFinding } from '@braidhq/schema'
 import { useTranslation } from 'react-i18next'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Badge } from '@/components/ui/badge'
@@ -13,6 +13,14 @@ const VERDICT_RULE: Record<ShowFinding['verdict'], string> = {
   unverifiable: 'border-l-zinc-500/60 bg-zinc-500/[0.04]',
 }
 
+// A second axis from the verdict, so it is stated in the footer rather than on
+// the rule, where it would read as a stronger or weaker version of the verdict.
+const SUPPORT_TONE: Record<EvidenceSupport, string> = {
+  corroborated: 'text-emerald-400/90',
+  partial: 'text-muted-foreground',
+  thin: 'text-amber-400',
+}
+
 /**
  * An annotation on the answer, not a peer of it.
  * Reads as a callout inserted into the reading column, which is what a
@@ -20,6 +28,7 @@ const VERDICT_RULE: Record<ShowFinding['verdict'], string> = {
  */
 export function ShowFindingBlock({ block }: { block: ShowFinding }) {
   const { t } = useTranslation()
+  const support = block.support
   return (
     <aside className={cn('rounded-r-md border-l-2 py-2.5 pl-3 pr-3', VERDICT_RULE[block.verdict])}>
       <div className="flex items-baseline gap-2">
@@ -42,15 +51,21 @@ export function ShowFindingBlock({ block }: { block: ShowFinding }) {
       </ol>
 
       <div className="mt-2 flex items-center gap-2 text-2xs text-muted-foreground/70">
-        <span>{t('blocks.finding.confidence', { value: Math.round(block.confidence * 100) })}</span>
+        {/* Absent on runs recorded before support was derived. A missing
+            reading is better left blank than filled in with a guess. */}
+        {support !== undefined && (
+          <span className={SUPPORT_TONE[support]} title={t(`blocks.finding.support.${support}Hint`)}>
+            {t(`blocks.finding.support.${support}`)}
+          </span>
+        )}
         {block.registered
           ? (
               <Badge variant="outline" className="text-2xs uppercase">
-                {t('blocks.finding.registered')}
+                {t('blocks.finding.recorded')}
               </Badge>
             )
           : (
-              <span>{t('blocks.finding.unregistered')}</span>
+              <span title={t('blocks.finding.unrecordedHint')}>{t('blocks.finding.unrecorded')}</span>
             )}
       </div>
 

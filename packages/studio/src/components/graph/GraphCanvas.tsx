@@ -3,7 +3,7 @@ import type { NodeChange } from '@xyflow/react'
 import type { GraphDataSource } from './GraphDataSource'
 import type { NodeCardNode } from './useGraphLayout'
 import { localize } from '@braidhq/schema'
-import { Background, BackgroundVariant, ControlButton, Controls, getNodesBounds, MarkerType, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react'
+import { Background, BackgroundVariant, ControlButton, Controls, getNodesBounds, MarkerType, MiniMap, ReactFlow, ReactFlowProvider, useNodesInitialized, useReactFlow } from '@xyflow/react'
 import { toPng, toSvg } from 'html-to-image'
 import { Download, GitBranch, PanelLeftClose, PanelLeftOpen, RotateCcw, Sparkles, Target } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -302,6 +302,28 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
       viewportIntentRef.current = refit
     }, []),
   })
+
+  /**
+   * Fit once the nodes have been measured.
+   *
+   * ReactFlow's own `fitView` prop runs before a node reports its size,
+   * so it frames a bounds it cannot know yet and lands on `minZoom`.
+   * The layout-change fit normally corrects this,
+   * because the snapshot usually arrives after mount and moves the key.
+   * A canvas mounted over an already-cached snapshot never gets that second
+   * pass, which is every embedded subgraph, and stays zoomed out.
+   */
+  const nodesInitialized = useNodesInitialized()
+  const didFitOnInitRef = useRef(false)
+  useEffect(() => {
+    if (!nodesInitialized || didFitOnInitRef.current || laidOut.nodes.length === 0)
+      return
+    didFitOnInitRef.current = true
+    // The changed-node framing below is more specific, so leave it alone.
+    if (dimUnchanged && (diff?.nodes.size ?? 0) > 0)
+      return
+    reactFlow.fitView({ padding: 0.15 })
+  }, [nodesInitialized, laidOut.nodes.length, dimUnchanged, diff, reactFlow])
 
   // Only-changes zooms the viewport onto the changed nodes,
   // so a small diff is enlarged rather than lost in the dimmed full graph.

@@ -76,6 +76,16 @@ export const FindingSide = z.object({
 export type FindingSide = z.infer<typeof FindingSide>
 
 /**
+ * How much the references behind a finding actually carry it.
+ *
+ * Derived from the sides, never stated by the skill. A model asked for its own
+ * confidence returns a number in a narrow band whatever the evidence, so the
+ * figure reads like a measurement while carrying no information.
+ */
+export const EvidenceSupport = z.enum(['corroborated', 'partial', 'thin'])
+export type EvidenceSupport = z.infer<typeof EvidenceSupport>
+
+/**
  * One consistency statement. A finding belongs to whoever asked the question,
  * so it is never engineering-only even when its evidence is a line number.
  */
@@ -88,7 +98,10 @@ export const ShowFinding = z.object({
   registered: z.boolean().default(false),
   driftId: DriftIssueId.optional(),
   sides: z.array(FindingSide).min(2),
-  confidence: z.number().min(0).max(1),
+  // Computed from the sides when the block is recorded, never sent by the skill.
+  // Optional because a run log is append-only and holds blocks written before
+  // this was derived, and dropping those lines would erase recorded history.
+  support: EvidenceSupport.optional(),
   // Only for the unverifiable case, naming what would settle it.
   suggestedSource: z.string().min(1).max(400).optional(),
 }).openapi('ShowFinding')
