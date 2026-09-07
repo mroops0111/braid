@@ -32,12 +32,11 @@ export interface AuthRouterDeps {
    */
   loginProviders: readonly LoginProvider[]
   /**
-   * Joins a newly registered user to the workspaces open to their domain.
+   * Joins a newly registered user to every workspace that admits arrivals.
    *
-   * Absent where the deployment keeps no workspace registry.
-   * That is the single-tenant case, where membership is not modelled.
+   * Absent in single-tenant, which keeps no registry and models no members.
    */
-  autoJoin?: (user: { id: UserId, email: string }) => Promise<void>
+  autoJoin?: (user: { id: UserId }) => Promise<void>
   /**
    * Where the Studio bundle is served from.
    * Login redirects land here, with `#token=...` in the fragment.
@@ -245,9 +244,8 @@ async function upsertUser(
     })
     if (decision.viaInvite)
       await deps.accessPolicy.consumeInvite(profile.email)
-    // Only for a user who did not exist a moment ago.
-    // Running it for a returning user would undo an owner's removal.
-    await deps.autoJoin?.({ id: user.id, email: profile.email })
+    // Only for a new user, or this would undo an owner's removal of one.
+    await deps.autoJoin?.({ id: user.id })
   }
   else if (isAdmin && user.serverRole !== 'admin') {
     user = await deps.userRegistry.update(user.id, { serverRole: 'admin' })

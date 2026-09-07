@@ -1,92 +1,84 @@
 import type { AbsolutePath, Timestamp, User, UserId, Workspace } from '@braidhq/schema'
 import type { WorkspaceRegistryFile } from '../workspace/WorkspaceRegistryFile.js'
 
-/**
- * Whether a workspace opens itself to the domain this address belongs to.
- *
- * Matches the part after the last `@`, case insensitively,
- * so `Ada@Kdan.com` reaches a workspace that named `kdan.com`.
- * An address carrying no domain matches nothing rather than everything,
- * and so does a user carrying no address, a service account being the case
- * in point. Both live here so no caller has to remember either.
- */
-export function domainIsOpen(
-  email: string | undefined,
-  openToDomains: readonly string[],
-): boolean {
-  if (!email)
-    return false
-  const at = email.lastIndexOf('@')
-  if (at < 0 || at === email.length - 1)
-    return false
-  const domain = email.slice(at + 1).toLowerCase()
-  return openToDomains.some(open => open.trim().toLowerCase() === domain)
-}
-
 export interface AutoJoinDeps {
   readonly registry: WorkspaceRegistryFile
   readonly now: () => Timestamp
 }
 
-type Joiner = Pick<User, 'id' | 'email'>
+type Joiner = Pick<User, 'id' | 'kind'>
 
 /**
- * Give one user guest membership of every workspace open to their domain.
+ * A service account is a component of the deployment, not a colleague,
+ * so it never picks up membership this way.
+ * The reactor is the one in the tree,
+ * and it reaches a workspace through its own token.
+ */
+function isPerson(user: Joiner): boolean {
+  return user.kind !== 'service'
+}
+
+/**
+ * Give one user membership of every workspace that admits arrivals.
  *
- * Called when a user first registers,
- * and again when a workspace changes the domains it opens to.
- * The second reaches the colleagues already here.
+ * Called at first registration, and again when a workspace starts admitting,
+ * which is what reaches the colleagues who were already here.
  *
- * Deliberately not called on every sign-in.
- * An owner who removes a guest means it,
- * and re-running this each login would put them back.
+ * Not called on every sign-in. An owner who removes a member means it,
+ * and running this at each login would put them back.
  */
 export async function autoJoinOpenWorkspaces(
   deps: AutoJoinDeps,
   user: Joiner,
   workspaces: readonly Workspace[],
 ): Promise<void> {
+  if (!isPerson(user))
+    return
   for (const workspace of workspaces) {
-    if (domainIsOpen(user.email, workspace.productManifest.openToDomains))
-      await addGuestIfAbsent(deps, workspace.rootPath, user.id)
+    const role = workspace.productManifest.autoJoinAs
+    if (role)
+      await addIfAbsent(deps, workspace.rootPath, user.id, role)
   }
 }
 
 /**
- * Give every user whose domain a workspace opens to guest membership of it.
+ * Give every registered user membership of a workspace that just opened.
  *
- * The mirror of the call above,
- * for the moment a workspace opens rather than the moment a user arrives.
+ * The mirror of the call above, for the moment a workspace opens,
+ * rather than the moment a user arrives.
  */
 export async function autoJoinExistingUsers(
   deps: AutoJoinDeps,
   rootPath: AbsolutePath,
-  openToDomains: readonly string[],
+  role: 'guest' | undefined,
   users: readonly Joiner[],
 ): Promise<void> {
+  if (!role)
+    return
   for (const user of users) {
-    if (domainIsOpen(user.email, openToDomains))
-      await addGuestIfAbsent(deps, rootPath, user.id)
+    if (isPerson(user))
+      await addIfAbsent(deps, rootPath, user.id, role)
   }
 }
 
 /**
  * A user already holding any role keeps it.
  *
- * That matters for an owner whose address happens to match,
- * who must not be demoted to guest by a later settings change.
+ * That matters for an owner of a workspace that later starts admitting,
+ * who must not be demoted by a setting meant for newcomers.
  */
-async function addGuestIfAbsent(
+async function addIfAbsent(
   deps: AutoJoinDeps,
   rootPath: AbsolutePath,
   userId: UserId,
+  role: 'guest',
 ): Promise<void> {
   const existing = await deps.registry.getMember(rootPath, userId)
   if (existing)
     return
   await deps.registry.addMember(rootPath, {
     userId,
-    role: 'guest',
+    role,
     joinedAt: deps.now(),
   })
 }

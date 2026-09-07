@@ -28,18 +28,18 @@ export type WorkspaceMember = z.infer<typeof WorkspaceMember>
 export const ProductManifest = z.object({
   name: z.string().min(1),
   /**
-   * Email domains whose users join as `guest` without being invited.
+   * The role anyone who can sign in takes here without being invited.
    *
-   * The workspace decides, not the server.
-   * A server-wide default would have to guess where a new colleague belongs,
-   * and a guess is not a basis for granting access.
-   * Empty, the default, changes nothing.
+   * The server already decides who may sign in at all,
+   * so this only says whether the workspace takes them.
+   * Absent, which is the default, admits nobody.
    *
-   * `guest` is the ceiling here on purpose.
-   * Signing in should not hand out write access,
-   * so anything above read-only stays an owner's explicit act.
+   * A literal rather than the role enum,
+   * because signing in must not hand out write access.
+   * Widening it later is a change someone has to make on purpose,
+   * rather than a value an owner can already reach for.
    */
-  openToDomains: z.array(z.string().min(1)).default([]),
+  autoJoinAs: z.literal('guest').optional(),
   version: z.string().default('0.0.0'),
   description: z.string().optional(),
   ontologyId: OntologyId.default('ddd' as OntologyId),
@@ -58,7 +58,6 @@ export const ProductManifestUpdate = ProductManifest.partial().extend({
   ontologyId: OntologyId.optional(),
   sources: z.array(SourceDescriptor).optional(),
   mcpServers: z.array(McpServerConfig).optional(),
-  openToDomains: z.array(z.string().min(1)).optional(),
 })
 export type ProductManifestUpdate = z.infer<typeof ProductManifestUpdate>
 

@@ -53,12 +53,6 @@ export interface BuildMultiUserAppOptions {
     guest?: boolean
     extra?: ReadonlyArray<{ userId: User['id'], role: 'owner' | 'maintainer' | 'guest' }>
   }
-  /**
-   * Addresses to seed onto the fixed users, keyed by their id.
-   * Absent by default.
-   * Most tests identify a user by header and never touch an address.
-   */
-  readonly emails?: Readonly<Record<string, string>>
 }
 
 /**
@@ -70,7 +64,7 @@ export async function buildMultiUserApp(
   options: BuildMultiUserAppOptions = {},
 ): Promise<MultiUserAppHandle> {
   const braidHome = await mkdtemp(join(tmpdir(), 'braid-multiuser-'))
-  await writeUsersJson(braidHome, options.emails ?? {})
+  await writeUsersJson(braidHome)
   const workspaceRootPath = await seedCanonicalWorkspace(braidHome, DEFAULT_WORKSPACE_NAME)
   await writeWorkspacesJson(braidHome, workspaceRootPath, options.members ?? { maintainer: true, guest: true })
   const deps = await composeFsApp({ braidHome })
@@ -106,16 +100,9 @@ export function asUserJson<T>(userId: User['id'], method: 'POST' | 'PATCH' | 'DE
   }
 }
 
-async function writeUsersJson(
-  braidHome: string,
-  emails: Readonly<Record<string, string>>,
-): Promise<void> {
+async function writeUsersJson(braidHome: string): Promise<void> {
   const path = join(braidHome, 'users.json')
-  const content = {
-    users: Object.values(TEST_USERS).map(user =>
-      emails[user.id] ? { ...user, email: emails[user.id] } : user,
-    ),
-  }
+  const content = { users: Object.values(TEST_USERS) }
   await writeFile(path, JSON.stringify(content, null, 2), 'utf-8')
 }
 

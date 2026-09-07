@@ -122,8 +122,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       ...(deps.mcpGatewayUrl ? { gatewayUrl: deps.mcpGatewayUrl } : {}),
     }))
   }
-  // Both automatic-membership paths need the same two things,
-  // so they are built once rather than assembled at each call site.
+  // Built once here because both automatic-membership paths need them.
   const autoJoinDeps = deps.workspaceRegistry
     ? { registry: deps.workspaceRegistry, now: () => deps.clock.now() as Timestamp }
     : undefined
@@ -139,7 +138,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       requiresAuth: deps.authMode.requiresAuth,
       ...(autoJoinDeps
         ? {
-            autoJoin: async (user: { id: UserId, email: string }) =>
+            autoJoin: async (user: { id: UserId }) =>
               autoJoinOpenWorkspaces(autoJoinDeps, user, await deps.workspaceService.list()),
           }
         : {}),
@@ -173,8 +172,8 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     ...(deps.historyService ? { historyService: deps.historyService } : {}),
     ...(autoJoinDeps && deps.userRegistry
       ? {
-          backfillGuests: async (rootPath: AbsolutePath, openToDomains: readonly string[]) =>
-            autoJoinExistingUsers(autoJoinDeps, rootPath, openToDomains, await deps.userRegistry!.list()),
+          backfillGuests: async (rootPath: AbsolutePath, role: 'guest') =>
+            autoJoinExistingUsers(autoJoinDeps, rootPath, role, await deps.userRegistry!.list()),
         }
       : {}),
   }))

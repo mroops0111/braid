@@ -52,8 +52,6 @@ export function makeWorkspace(opts: MakeWorkspaceOptions = {}): Workspace {
   const rootPath = opts.rootPath ?? ('/abs/ws' as AbsolutePath)
   const manifest: ProductManifest = {
     name: id,
-    // Closed, which is the production default and the safe one for a fixture.
-    openToDomains: [],
     version: '0.0.0',
     ontologyId: (opts.ontologyId ?? 'ddd') as never,
     sources: [...(opts.sources ?? [defaultSource(rootPath)])],

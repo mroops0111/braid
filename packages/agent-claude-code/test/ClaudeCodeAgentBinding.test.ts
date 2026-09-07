@@ -33,7 +33,6 @@ const descriptor: AgentBindingDescriptor = {
 function buildWorkspace(): Workspace {
   const manifest: ProductManifest = {
     name: 'ws-1',
-    openToDomains: [],
     version: '0.0.0',
     ontologyId: 'ddd' as OntologyId,
     sources: [{

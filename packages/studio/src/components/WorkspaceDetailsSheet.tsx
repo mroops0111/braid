@@ -899,68 +899,50 @@ function MembersSection({ workspaceId }: { workspaceId: string }) {
       {canManageMembers && candidates.length > 0 && (
         <AddMemberControl workspaceId={workspaceId} candidates={candidates} onAdded={invalidate} />
       )}
-      {canManageMembers && <OpenToDomainsControl workspaceId={workspaceId} onChanged={invalidate} />}
+      {canManageMembers && <AutoJoinControl workspaceId={workspaceId} onChanged={invalidate} />}
     </section>
   )
 }
 
 /**
- * The domains that join a colleague without anyone inviting them.
+ * Whether anyone who can sign in joins this workspace as a guest.
  *
- * Sits under the member list because that is what it edits.
- * Saving can add members, since opening reaches those already registered,
- * so the list above refreshes with it.
+ * Sits under the member list because that is what it edits,
+ * and saving can add to it, so the list above refreshes when this does.
  */
-function OpenToDomainsControl({ workspaceId, onChanged }: {
+function AutoJoinControl({ workspaceId, onChanged }: {
   workspaceId: string
   onChanged: () => void
 }) {
   const { t } = useTranslation()
   const { data: workspaces } = useWorkspaces()
   const workspace = workspaces?.items.find(candidate => candidate.id === workspaceId)
-  const stored = workspace?.productManifest.openToDomains ?? []
-  const [draft, setDraft] = useState(stored.join(', '))
-  const [touched, setTouched] = useState(false)
-  const value = touched ? draft : stored.join(', ')
+  const admitting = workspace?.productManifest.autoJoinAs === 'guest'
 
   const save = useMutation({
-    mutationFn: () => api.patchWorkspace(workspaceId, {
-      openToDomains: value.split(',').map(part => part.trim()).filter(Boolean),
-    }),
-    onSuccess: () => {
-      setTouched(false)
-      onChanged()
-    },
+    mutationFn: (next: boolean) =>
+      api.patchWorkspace(workspaceId, { autoJoinAs: next ? 'guest' : null }),
+    onSuccess: onChanged,
   })
 
   return (
-    <div className="mt-3 border-t border-border pt-3">
-      <p className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {t('workspace.details.openToTitle')}
-      </p>
-      <p className="mt-1 text-2xs leading-relaxed text-muted-foreground">
-        {t('workspace.details.openToHint')}
-      </p>
-      <div className="mt-1.5 flex items-center gap-1.5">
-        <Input
-          value={value}
-          onChange={(event) => {
-            setTouched(true)
-            setDraft(event.target.value)
-          }}
-          placeholder={t('workspace.details.openToPlaceholder')}
-          className="h-7 flex-1 text-2xs"
-        />
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 text-2xs"
-          disabled={!touched || save.isPending}
-          onClick={() => save.mutate()}
-        >
-          {t('workspace.details.openToSave')}
-        </Button>
-      </div>
+    <div className="mt-3 flex items-start gap-2 border-t border-border pt-3">
+      <input
+        type="checkbox"
+        id={`auto-join-${workspaceId}`}
+        checked={admitting}
+        disabled={save.isPending}
+        onChange={event => save.mutate(event.target.checked)}
+        className="mt-0.5 size-3 accent-primary"
+      />
+      <label className="flex-1" htmlFor={`auto-join-${workspaceId}`}>
+        <span className="text-2xs font-medium text-foreground">
+          {t('workspace.details.autoJoinTitle')}
+        </span>
+        <span className="mt-0.5 block text-2xs leading-relaxed text-muted-foreground">
+          {t('workspace.details.autoJoinHint')}
+        </span>
+      </label>
     </div>
   )
 }
