@@ -241,7 +241,7 @@ function ProposalsStatusFilter({
   )
 }
 
-function ProposalDetail({
+export function ProposalDetail({
   workspaceId,
   proposal,
   onComplete,

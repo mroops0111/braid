@@ -6,6 +6,7 @@ import {
   ExternalReference,
   NodeId,
   ProposalId,
+  SkillRunId,
   SourceReference,
   UserId,
   WorkspaceId,
@@ -54,6 +55,13 @@ export const Clarification = z.object({
   // Set when the resolution becomes a Proposal, so the UI can link the two.
   proposalId: ProposalId.optional(),
   externalReferences: z.array(ExternalReference).optional(),
+  /**
+   * The run that raised this, when a skill did. Absent on a human-filed one.
+   * A run that can still be continued is answered by resuming it, so the work
+   * carries on in the conversation that already read the sources, rather than
+   * starting over in a second skill.
+   */
+  skillRunId: SkillRunId.optional(),
   origin: ClarificationOrigin,
   // Free-form background on a human-filed issue. Skill clarifications leave it empty.
   context: z.string().max(2000).optional(),
@@ -72,6 +80,7 @@ export const ClarificationCreate = z.object({
   context: z.string().max(2000).optional(),
   relatedNode: NodeId.optional(),
   ambiguityType: ClarificationAmbiguityType.optional(),
+  skillRunId: SkillRunId.optional(),
 })
 export type ClarificationCreate = z.infer<typeof ClarificationCreate>
 

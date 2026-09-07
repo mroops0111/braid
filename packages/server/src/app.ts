@@ -316,6 +316,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       skillRunner: deps.skillRunner,
       runRepository: deps.runRepository,
       workspaceRepository: deps.workspaceRepository,
+      clarificationRepository: deps.clarificationRepository,
     }))
   }
   if (deps.historyService) {

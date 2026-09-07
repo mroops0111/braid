@@ -1,6 +1,7 @@
 export const shell = {
   // Surface names shared across the sidebar, header breadcrumb, and command palette.
   surfaces: {
+    inbox: 'Inbox',
     ask: 'Ask',
     graph: 'Graph',
     actions: 'Actions',

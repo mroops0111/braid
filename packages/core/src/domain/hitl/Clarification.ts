@@ -8,6 +8,7 @@ import type {
   ExternalReference,
   GraphOperation,
   ProposalId,
+  SkillRunId,
   UserId,
   WorkspaceId,
 } from '@braidhq/schema'
@@ -33,6 +34,7 @@ export class Clarification {
   get question(): string { return this.data.question }
   get candidates(): readonly ClarificationCandidate[] { return this.data.candidates }
   get status(): ClarificationStatus { return this.data.status }
+  get skillRunId(): SkillRunId | undefined { return this.data.skillRunId }
   get selectedCandidateId(): ClarificationCandidateId | undefined { return this.data.selectedCandidateId }
   get resolution(): readonly GraphOperation[] | undefined { return this.data.resolution }
   get proposalId(): ProposalId | undefined { return this.data.proposalId }

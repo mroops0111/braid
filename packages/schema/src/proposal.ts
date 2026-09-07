@@ -7,6 +7,7 @@ import {
   NodeId,
   ProposalId,
   SkillId,
+  SkillRunId,
   Timestamp,
   UserId,
   WorkspaceId,
@@ -57,6 +58,13 @@ export const Proposal = z.object({
   // Set when the clarify skill materialised this from an answered clarification.
   // Applying the proposal transitions that clarification to `applied`.
   clarificationId: ClarificationId.optional(),
+  /**
+   * The run that produced this, when a skill did. Absent on a human-authored
+   * proposal. It is what lets a batch tell its own output from anything else
+   * created while it was running, and what links a proposal back to the
+   * conversation that reasoned about it.
+   */
+  skillRunId: SkillRunId.optional(),
   // The user who created it, or 'system' for autonomous ones. Pending is owner-only.
   owner: Actor,
   // Name at submit time, survives renames. Absent for the 'system' owner.
@@ -75,6 +83,7 @@ export const ProposalCreate = z.object({
   externalReferences: z.array(ExternalReference).optional(),
   // Links the proposal back to the clarification it resolves, when any.
   clarificationId: ClarificationId.optional(),
+  skillRunId: SkillRunId.optional(),
 })
 export type ProposalCreate = z.infer<typeof ProposalCreate>
 

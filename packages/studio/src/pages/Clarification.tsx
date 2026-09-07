@@ -354,7 +354,7 @@ function ClarificationListItem({
   )
 }
 
-function ClarificationDetail({
+export function ClarificationDetail({
   workspaceId,
   ticket,
   onComplete,

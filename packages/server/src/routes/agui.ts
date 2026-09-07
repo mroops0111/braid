@@ -1,10 +1,10 @@
-import type { AgentMessage, RunRepository, SkillRunner, WorkspaceRepository } from '@braidhq/core'
-import type { SkillEvent } from '@braidhq/schema'
+import type { AgentMessage, Clarification, ClarificationRepository, RunRepository, SkillRunner, Workspace, WorkspaceRepository } from '@braidhq/core'
+import type { SkillEvent, SkillRunId as SkillRunIdType, WorkspaceId } from '@braidhq/schema'
 import type { SSEStreamingApi } from 'hono/streaming'
-import { RunAgentInputSchema } from '@ag-ui/core'
+import { EventType, RunAgentInputSchema } from '@ag-ui/core'
 import { EventEncoder } from '@ag-ui/encoder'
-import { ValidationError } from '@braidhq/core'
-import { SkillId, SkillRunId } from '@braidhq/schema'
+import { NotFoundError, ValidationError } from '@braidhq/core'
+import { ClarificationId, SkillId, SkillRunId } from '@braidhq/schema'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { AguiTranslator } from '../infrastructure/agui/AguiTranslator.js'
@@ -17,6 +17,7 @@ export interface AguiRouterDeps {
   readonly skillRunner: SkillRunner
   readonly runRepository: RunRepository
   readonly workspaceRepository: WorkspaceRepository
+  readonly clarificationRepository: ClarificationRepository
 }
 
 /**
@@ -43,6 +44,29 @@ function sseEncoder(): EventEncoder {
   return new EventEncoder({ accept: 'text/event-stream' })
 }
 
+/**
+ * The questions this run left open, spoken as the protocol's own interrupts.
+ *
+ * A run that could not decide something raised a Clarification and stopped.
+ * Ending such a run with a plain `RUN_FINISHED` would tell a client the work
+ * is over when it is only waiting, so the outcome names what it waits on and a
+ * client resumes by answering.
+ */
+async function openInterrupts(
+  deps: AguiRouterDeps,
+  workspaceId: WorkspaceId,
+  runId: SkillRunIdType,
+): Promise<{ id: string, reason: string, message: string }[]> {
+  const pending = await deps.clarificationRepository.list({ workspaceId, statuses: ['pending'] })
+  return pending
+    .filter(clarification => clarification.skillRunId === runId)
+    .map(clarification => ({
+      id: clarification.id,
+      reason: 'clarification',
+      message: clarification.question,
+    }))
+}
+
 async function writeAll(
   stream: SSEStreamingApi,
   encoder: EventEncoder,
@@ -51,6 +75,90 @@ async function writeAll(
 ): Promise<void> {
   for (const translated of translator.translate(event))
     await stream.write(encoder.encodeSSE(translated))
+}
+
+/**
+ * A resumed turn, built from the answer rather than from what the client says.
+ *
+ * The client names the interrupt it resolved. Everything else, which run to
+ * continue and which conversation that run holds, is looked up here, so a
+ * caller cannot resume a run it did not answer for.
+ */
+async function resolveResume(
+  deps: AguiRouterDeps,
+  workspace: Workspace,
+  entries: readonly { interruptId: string, status?: string }[],
+): Promise<{ skillId: SkillId, resumeSessionId: string, message: string } | null> {
+  const resolved = entries.filter(entry => entry.status !== 'cancelled')
+  if (resolved.length === 0)
+    return null
+
+  const answers: string[] = []
+  let runId: SkillRunIdType | undefined
+  for (const entry of resolved) {
+    const clarification = await deps.clarificationRepository.load(ClarificationId.parse(entry.interruptId))
+    if (clarification.workspaceId !== workspace.id)
+      throw new NotFoundError(`Clarification "${entry.interruptId}" not found`)
+    if (clarification.status !== 'answered')
+      throw new ValidationError(`Clarification "${entry.interruptId}" is ${clarification.status}, so there is nothing to resume with`)
+    if (!clarification.skillRunId)
+      throw new ValidationError(`Clarification "${entry.interruptId}" was not raised by a run, so it has no conversation to continue`)
+    runId ??= clarification.skillRunId
+    if (clarification.skillRunId !== runId)
+      throw new ValidationError('Every answer in one resume must belong to the same run')
+    answers.push(`${clarification.question}\n${describeAnswer(clarification)}`)
+  }
+
+  const sessionId = runId ? await deps.skillRunner.sessionIdFor(workspace, runId) : undefined
+  if (!runId || !sessionId)
+    throw new ValidationError('That run holds no conversation to continue, so the answer needs a fresh run')
+  const records = await deps.runRepository.listRecords(workspace)
+  const skillId = records.find(record => record.runId === runId)?.skillId
+  if (!skillId)
+    throw new NotFoundError(`Run "${runId}" not found`)
+
+  return {
+    skillId,
+    resumeSessionId: sessionId,
+    message: `These clarifications have been answered. Continue where you stopped, and do not ask them again.\n\n${answers.join('\n\n')}`,
+  }
+}
+
+/** What the reviewer picked, in the words they saw. */
+function describeAnswer(clarification: Clarification): string {
+  const chosen = clarification.candidates.find(candidate => candidate.id === clarification.selectedCandidateId)
+  return chosen ? `Answer: ${chosen.description}` : 'Answer: recorded, with no candidate named'
+}
+
+/**
+ * Close the stream, as a finish or as a wait.
+ *
+ * The translator cannot know which, since it reads one event at a time and the
+ * answer lives in the workspace rather than in the stream.
+ */
+async function writeTerminal(
+  deps: AguiRouterDeps,
+  stream: SSEStreamingApi,
+  encoder: EventEncoder,
+  translator: AguiTranslator,
+  event: SkillEvent,
+  workspaceId: WorkspaceId,
+  runId: SkillRunIdType,
+  threadId: string,
+): Promise<void> {
+  const interrupts = event.type === 'completed' && event.exitCode === 0
+    ? await openInterrupts(deps, workspaceId, runId)
+    : []
+  if (interrupts.length === 0) {
+    await writeAll(stream, encoder, translator, event)
+    return
+  }
+  await stream.write(encoder.encodeSSE({
+    type: EventType.RUN_FINISHED,
+    threadId,
+    runId,
+    outcome: { type: 'interrupt', interrupts },
+  }))
 }
 
 /**
@@ -74,20 +182,28 @@ export function createAguiRouter(deps: AguiRouterDeps): Hono {
     const input = parsed.data
 
     const forwarded = (input.forwardedProps ?? {}) as { skillId?: unknown, resumeSessionId?: unknown }
-    if (typeof forwarded.skillId !== 'string')
-      throw new ValidationError('`forwardedProps.skillId` must name the skill to run')
-    const skillId = SkillId.parse(forwarded.skillId)
+    const resumed = await resolveResume(deps, workspace, input.resume ?? [])
 
-    const messages = toAgentMessages(input)
+    const skillId = resumed?.skillId
+      ?? (typeof forwarded.skillId === 'string'
+        ? SkillId.parse(forwarded.skillId)
+        : (() => { throw new ValidationError('`forwardedProps.skillId` must name the skill to run') })())
+
+    const messages = resumed
+      ? [...toAgentMessages(input), { role: 'user' as const, content: resumed.message }]
+      : toAgentMessages(input)
     const latest = messages.at(-1)
     if (!latest || latest.role !== 'user')
       throw new ValidationError('`messages` must end with the user message that starts this run')
+
+    const resumeSessionId = resumed?.resumeSessionId
+      ?? (typeof forwarded.resumeSessionId === 'string' ? forwarded.resumeSessionId : undefined)
 
     const callerToken = extractBearerToken(context)
     const runId = await deps.skillRunner.start(workspace, skillId, latest.content, {
       startedBy: getUserId(context),
       messages,
-      ...(typeof forwarded.resumeSessionId === 'string' ? { resumeSessionId: forwarded.resumeSessionId } : {}),
+      ...(resumeSessionId ? { resumeSessionId } : {}),
       ...(callerToken ? { callerToken } : {}),
     })
 
@@ -113,11 +229,12 @@ export function createAguiRouter(deps: AguiRouterDeps): Hono {
           }
         }
         for await (const event of queue.iterate()) {
-          await writeAll(stream, encoder, translator, event)
           if (event.type === 'completed') {
+            await writeTerminal(deps, stream, encoder, translator, event, workspace.id, runId, input.threadId)
             queue.end()
             break
           }
+          await writeAll(stream, encoder, translator, event)
         }
       }
       finally {
@@ -139,8 +256,13 @@ export function createAguiRouter(deps: AguiRouterDeps): Hono {
 
     return streamSSE(context, async (stream) => {
       if (!deps.skillRunner.isActive(runId)) {
-        for await (const event of deps.runRepository.readEvents(workspace, runId))
+        for await (const event of deps.runRepository.readEvents(workspace, runId)) {
+          if (event.type === 'completed') {
+            await writeTerminal(deps, stream, encoder, translator, event, workspace.id, runId, threadId)
+            continue
+          }
           await writeAll(stream, encoder, translator, event)
+        }
         return
       }
 
@@ -157,11 +279,12 @@ export function createAguiRouter(deps: AguiRouterDeps): Hono {
           delivered++
         }
         for await (const event of queue.iterate()) {
-          await writeAll(stream, encoder, translator, event)
           if (event.type === 'completed') {
+            await writeTerminal(deps, stream, encoder, translator, event, workspace.id, runId, threadId)
             queue.end()
             break
           }
+          await writeAll(stream, encoder, translator, event)
         }
       }
       finally {

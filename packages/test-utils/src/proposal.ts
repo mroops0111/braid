@@ -1,4 +1,4 @@
-import type { ClarificationId, NodeStatus, NodeTypeId, ProposalId, SkillId, SourceRole, WorkspaceId } from '@braidhq/schema'
+import type { ClarificationId, NodeStatus, NodeTypeId, ProposalId, SkillId, SkillRunId, SourceRole, WorkspaceId } from '@braidhq/schema'
 import { Proposal } from '@braidhq/core'
 import { mintTestId } from './ids.js'
 import { T0 } from './time.js'
@@ -8,6 +8,8 @@ export interface MakeProposalOptions {
   readonly name?: string
   readonly rationale?: string
   readonly clarificationId?: string
+  /** The run that produced it. Left off, the proposal reads as human-filed. */
+  readonly skillRunId?: string
 }
 
 /**
@@ -38,6 +40,7 @@ export function makeProposal(workspaceId: WorkspaceId, opts: MakeProposalOptions
     generatedAt: T0,
     rationale: opts.rationale ?? 'add voidTask',
     ...(opts.clarificationId ? { clarificationId: opts.clarificationId as ClarificationId } : {}),
+    ...(opts.skillRunId ? { skillRunId: opts.skillRunId as SkillRunId } : {}),
     owner: 'system',
   })
 }

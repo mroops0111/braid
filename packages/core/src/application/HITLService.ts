@@ -77,6 +77,7 @@ export class HITLService {
       rationale: draft.rationale,
       ...(draft.externalReferences ? { externalReferences: draft.externalReferences } : {}),
       ...(draft.clarificationId ? { clarificationId: draft.clarificationId } : {}),
+      ...(draft.skillRunId ? { skillRunId: draft.skillRunId } : {}),
       owner: draft.submitterId ?? 'system',
       ...(submitter?.displayName ? { ownerDisplayName: submitter.displayName } : {}),
       ...(submitter?.kind ? { ownerKind: submitter.kind } : {}),
@@ -95,6 +96,7 @@ export class HITLService {
         type: 'proposal.created',
         workspaceId: proposal.workspaceId,
         proposalId: proposal.id,
+        ...(proposal.skillRunId ? { skillRunId: proposal.skillRunId } : {}),
         at: this.deps.clock.now(),
       })
       return proposal
@@ -115,6 +117,7 @@ export class HITLService {
       ...(draft.context ? { context: draft.context } : {}),
       ...(draft.relatedNode ? { relatedNode: draft.relatedNode } : {}),
       ...(draft.ambiguityType ? { ambiguityType: draft.ambiguityType } : {}),
+      ...(draft.skillRunId ? { skillRunId: draft.skillRunId } : {}),
       owner: draft.submitterId ?? 'system',
       ...(submitter?.displayName ? { ownerDisplayName: submitter.displayName } : {}),
       ...(submitter?.kind ? { ownerKind: submitter.kind } : {}),

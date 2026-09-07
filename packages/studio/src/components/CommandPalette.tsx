@@ -1,5 +1,5 @@
 import type { NodeId, SkillManifest, Workspace } from '@braidhq/schema'
-import { Activity, ClipboardCheck, GitGraph, HelpCircle, MessageCircleQuestion, Network, Settings, Settings2, Sparkles } from 'lucide-react'
+import { Activity, ClipboardCheck, GitGraph, HelpCircle, Inbox, MessageCircleQuestion, Network, Settings, Settings2, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -30,7 +30,7 @@ interface CommandPaletteProps {
   onOpenChange: (open: boolean) => void
 }
 
-export type Surface = 'actions' | 'activity' | 'ask' | 'batch' | 'clarifications' | 'graph' | 'history' | 'proposals' | 'settings'
+export type Surface = 'actions' | 'activity' | 'ask' | 'batch' | 'clarifications' | 'graph' | 'history' | 'inbox' | 'proposals' | 'settings'
 
 type ChordTarget = { kind: 'surface', surface: Surface | null } | { kind: 'workspace-details' }
 
@@ -38,8 +38,7 @@ function chordSecondKey(key: string): ChordTarget | undefined {
   switch (key) {
     case 'g': return { kind: 'surface', surface: 'graph' }
     case 'a': return { kind: 'surface', surface: 'actions' }
-    case 'c': return { kind: 'surface', surface: 'clarifications' }
-    case 'p': return { kind: 'surface', surface: 'proposals' }
+    case 'i': return { kind: 'surface', surface: 'inbox' }
     case 'b': return { kind: 'surface', surface: 'activity' }
     case 'h': return { kind: 'surface', surface: 'history' }
     case 's': return { kind: 'surface', surface: 'settings' }
@@ -53,6 +52,10 @@ const SURFACE_ITEMS = [
   { id: null, labelKey: 'shell.commandPalette.graphHome', Icon: Network, shortcut: 'G G' },
   { id: 'ask', labelKey: 'shell.surfaces.ask', Icon: MessageCircleQuestion, shortcut: 'G Q' },
   { id: 'actions', labelKey: 'shell.surfaces.actions', Icon: Sparkles, shortcut: 'G A' },
+  { id: 'inbox', labelKey: 'shell.surfaces.inbox', Icon: Inbox, shortcut: 'G I' },
+  // Both fold into the Inbox, which is the queue. These reach the same records
+  // once they are resolved, which is browsing rather than reviewing, so they
+  // keep a way in without taking a sidebar row for it.
   { id: 'clarifications', labelKey: 'shell.surfaces.clarifications', Icon: HelpCircle, shortcut: 'G C' },
   { id: 'proposals', labelKey: 'shell.surfaces.proposals', Icon: ClipboardCheck, shortcut: 'G P' },
   { id: 'activity', labelKey: 'shell.surfaces.activity', Icon: Activity, shortcut: 'G B' },

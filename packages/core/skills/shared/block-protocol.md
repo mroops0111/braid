@@ -47,13 +47,13 @@ You are saying the blocks belong together, not where to put them. Never try to e
 Every reference carries `provenance`:
 
 - **`graph`**: copied verbatim from a node's `metadata.sourceReferences`. Set `nodeId` to the node it came from.
-- **`agent-read`**: a location this run opened itself, which no node references yet.
+- **`agent`**: a location this run opened itself, which no node references yet.
 
-Both are wanted. A run exists to find what the graph does not know yet, so the most valuable findings routinely come from files no node has ever cited. Do not suppress a reference because it is not in the graph, and do not invent a `graph` provenance for something you read directly. The surface marks `agent-read` as unverified and offers to register it, which is the correct outcome.
+Both are wanted. A run exists to find what the graph does not know yet, so the most valuable findings routinely come from files no node has ever cited. Do not suppress a reference because it is not in the graph, and do not invent a `graph` provenance for something you read directly. The surface marks an `agent` reference as unrecorded and offers to register it, which is the correct outcome.
 
-When a claim rests on something a node already cites, use the `graph` provenance and set `nodeId`. An answer whose every reference is `agent-read` has usually skipped a step, because the graph nodes it named in prose carry `metadata.sourceReferences` that were never read back. Check them before settling for the file you happened to open.
+When a claim rests on something a node already cites, use the `graph` provenance and set `nodeId`. An answer whose every reference is `agent` has usually skipped a step, because the graph nodes it named in prose carry `metadata.sourceReferences` that were never read back. Check them before settling for the file you happened to open.
 
-Never fabricate a path, a line number, or a node id to make a block look better sourced. An honest `agent-read` reference beats an invented `graph` one.
+Never fabricate a path, a line number, or a node id to make a block look better sourced. An honest `agent` reference beats an invented `graph` one.
 
 ## Stored References Are Pointers, Not Citations
 
@@ -91,7 +91,7 @@ One consistency statement. Use it whenever two sources agree, disagree, or canno
 - `statement`: what was compared, in one line.
 - `verdict`: `consistent`, `conflict`, or `unverifiable`.
 - `sides`: two or more, each a one-line summary plus its own references. Name both sides, never pick one.
-- Do not send a confidence. The surface derives one from `sides`, reading `corroborated` when every side rests on a `graph` reference, `partial` when every side has a reference but some are `agent-read`, and `thin` when a side has none. Earn a stronger reading by finding the reference, never by asserting one.
+- Do not send a confidence. The surface derives one from `sides`, reading `corroborated` when every side rests on a `graph` reference, `partial` when every side has a reference but at least one carries `agent` provenance, and `thin` when a side has none. Earn a stronger reading by finding the reference, never by asserting one.
 - `registered` and `driftId`: set both when the model already records this as a `DriftIssue`, so the surface can link to the record instead of offering to create it. **Look before you answer.** The nodes involved carry `metadata.driftIssues`, and a workspace that has been reconciled holds dozens. Reporting a known drift as new wastes a reviewer's time on something already triaged.
 - `suggestedSource`: only for `unverifiable`, naming what would settle it.
 

@@ -254,9 +254,9 @@ describe('BatchService', () => {
   it('direct mode walks one unit per unit-bearing source, completes the plan', async () => {
     const { service, workspace, proposalRepository, planRepository, skillRunner } = await setup()
     let counter = 0
-    skillRunner.onStart = async () => {
+    skillRunner.onStart = async (_skillId, runId) => {
       counter += 1
-      await proposalRepository.save(makeProposal(workspace.id, { id: `p-${counter}` }))
+      await proposalRepository.save(makeProposal(workspace.id, { id: `p-${counter}`, skillRunId: runId }))
     }
 
     await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
@@ -278,9 +278,9 @@ describe('BatchService', () => {
   it('autoApply forwards each fresh proposal to HITLService.applyProposal', async () => {
     const { service, workspace, proposalRepository, planRepository, skillRunner, hitl } = await setup()
     let counter = 0
-    skillRunner.onStart = async () => {
+    skillRunner.onStart = async (_skillId, runId) => {
       counter += 1
-      await proposalRepository.save(makeProposal(workspace.id, { id: `p-${counter}` }))
+      await proposalRepository.save(makeProposal(workspace.id, { id: `p-${counter}`, skillRunId: runId }))
     }
 
     await service.start(workspace.id, { autoApply: true, startedBy: STARTED_BY })
@@ -289,6 +289,39 @@ describe('BatchService', () => {
     // 2 extracts and 1 final checkpoint make 3 skill runs, each produces a fresh proposal. With autoApply on,
     // all three get applied.
     expect(hitl.applyCalls).toEqual(['p-1', 'p-2', 'p-3'])
+  })
+
+  // The event bus is workspace-wide, so a person filing a proposal while a
+  // batch happens to be running would otherwise have it applied for them.
+  it('autoApply leaves a proposal that names no run of its own alone', async () => {
+    const { service, workspace, proposalRepository, planRepository, skillRunner, hitl } = await setup()
+    let counter = 0
+    skillRunner.onStart = async (_skillId, runId) => {
+      counter += 1
+      await proposalRepository.save(makeProposal(workspace.id, { id: `p-${counter}`, skillRunId: runId }))
+      await proposalRepository.save(makeProposal(workspace.id, { id: `human-${counter}` }))
+    }
+
+    await service.start(workspace.id, { autoApply: true, startedBy: STARTED_BY })
+    await flushBatch(planRepository)
+
+    expect(hitl.applyCalls).toEqual(['p-1', 'p-2', 'p-3'])
+  })
+
+  it('does not count another run\'s output as this unit\'s', async () => {
+    const { service, workspace, proposalRepository, planRepository, skillRunner } = await setup()
+    let counter = 0
+    skillRunner.onStart = async (_skillId, runId) => {
+      counter += 1
+      await proposalRepository.save(makeProposal(workspace.id, { id: `p-${counter}`, skillRunId: runId }))
+      await proposalRepository.save(makeProposal(workspace.id, { id: `other-${counter}` }))
+    }
+
+    await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
+    const final = await flushBatch(planRepository)
+
+    expect(final.units[0]!.proposalIds).toEqual(['p-1'])
+    expect(final.units[1]!.proposalIds).toEqual(['p-2'])
   })
 
   it('marks a unit failed when extract exits non-zero, continues to next', async () => {

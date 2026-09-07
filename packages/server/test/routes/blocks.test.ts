@@ -177,7 +177,7 @@ describe('render routes', () => {
         verdict: 'conflict',
         sides: [
           { summary: 'The spec says one thing.', refs: [ref('graph')] },
-          { summary: 'The code does another.', refs: [ref('agent-read')] },
+          { summary: 'The code does another.', refs: [ref('agent')] },
         ],
       }),
     })

@@ -3,12 +3,12 @@ import { AudienceId, BlockId, DriftIssueId, NodeId, SourceReference } from './co
 
 /**
  * Where a reference came from. `graph` was copied verbatim off a node's
- * `metadata.sourceReferences`, `agent-read` is a location the run opened itself.
+ * `metadata.sourceReferences`, `agent` is a location the run opened itself.
  * A run exists to find what the model does not know yet, so the second kind
  * carries the findings the graph could not have produced. Studio renders it
  * as unverified rather than dropping it.
  */
-export const RefProvenance = z.enum(['graph', 'agent-read'])
+export const RefProvenance = z.enum(['graph', 'agent'])
 export type RefProvenance = z.infer<typeof RefProvenance>
 
 export const BlockRef = z.object({

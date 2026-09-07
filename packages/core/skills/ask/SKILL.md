@@ -159,7 +159,7 @@ Produce two sections separated by `---`.
 - [ ] Every consistency statement was emitted with `show_finding`, addressed to every reader rather than to one.
 - [ ] Each declared audience got one short implication block naming it, saying what this answer means for them, or was skipped rather than padded.
 - [ ] No markdown table was written inside a `show_answer`, since a two-dimensional comparison belongs in `show_matrix` where its cells can carry state and evidence.
-- [ ] Every reference carries the provenance it actually has, `graph` or `agent-read`, with nothing invented.
+- [ ] Every reference carries the provenance it actually has, `graph` or `agent`, with nothing invented.
 - [ ] Nodes named in the answer had their `metadata.sourceReferences` read back, so graph-backed claims cite `graph` rather than a file that happened to be open.
 - [ ] Every stored reference the answer leans on was opened and confirmed to still support the claim, and any that had moved was reported as a finding rather than silently repointed.
 - [ ] Every finding was checked against `metadata.driftIssues` on the nodes involved, and an already-recorded drift carries `registered` and its `driftId`.

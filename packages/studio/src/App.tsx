@@ -35,6 +35,7 @@ import { BatchPage } from './pages/Batch'
 import { ClarificationPage } from './pages/Clarification'
 import { GraphSurface, GraphSurfaceActions, useGraphSurfaceState } from './pages/GraphSurface'
 import { HistoryPage } from './pages/History'
+import { InboxPage } from './pages/Inbox'
 import { LoginPage } from './pages/Login'
 import { ProposalsPage } from './pages/Proposals'
 import { SettingsPage } from './pages/Settings'
@@ -201,6 +202,9 @@ function AppInner() {
                                     )}
                                     {activeSurface === 'actions' && (
                                       <ActionsPage workspaceId={activeId} />
+                                    )}
+                                    {activeSurface === 'inbox' && (
+                                      <InboxPage workspaceId={activeId} />
                                     )}
                                     {activeSurface === 'clarifications' && (
                                       <ClarificationPage workspaceId={activeId} />

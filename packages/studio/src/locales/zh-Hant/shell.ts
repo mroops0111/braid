@@ -2,6 +2,7 @@ import type { shell as en } from '../en/shell'
 
 const shell: typeof en = {
   surfaces: {
+    inbox: '收件匣',
     ask: '提問',
     graph: '圖譜',
     actions: '動作',

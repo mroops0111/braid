@@ -39,7 +39,7 @@ async function buildApp(stdoutLines: readonly string[]) {
   })
   const deps = composeApp({ skillRegistry, skillRunner, runRepository })
   await deps.workspaceRepository.save(workspace)
-  return { app: createApp(deps), workspace, skillRunner, invocations }
+  return { app: createApp(deps), workspace, skillRunner, invocations, deps }
 }
 
 /** Parse an SSE body back into the events a conformant client would see. */
@@ -163,6 +163,47 @@ describe('agui route', () => {
     const { app, workspace } = await buildApp([])
 
     const response = await postRun(app, workspace.id, runInput({ forwardedProps: {} }))
+
+    expect(response.status).toBe(400)
+  })
+
+  // A run that stopped to ask is not finished, and a client that reads it as
+  // finished would never come back with the answer.
+  it('ends a run that left a question open as an interrupt, not a plain finish', async () => {
+    const { app, workspace, deps } = await buildApp([assistantLine('I need a decision.')])
+    const live = readEvents(await (await postRun(app, workspace.id, runInput())).text())
+    const runId = live[0]!.runId as string
+
+    await deps.hitlService.submitClarification({
+      workspaceId: workspace.id,
+      question: 'Is a kiosk the same thing as a front desk?',
+      candidates: [],
+      skillRunId: runId as never,
+    })
+
+    const replayed = readEvents(await (await app.request(`/workspaces/${workspace.id}/agui/runs/${runId}`)).text())
+    const finish = replayed.at(-1) as { type: string, outcome?: { type: string, interrupts: { id: string }[] } }
+
+    expect(finish.type).toBe(EventType.RUN_FINISHED)
+    expect(finish.outcome?.type).toBe('interrupt')
+    expect(finish.outcome?.interrupts).toHaveLength(1)
+    expect(() => EventSchemas.parse(finish)).not.toThrow()
+  })
+
+  it('refuses to resume on a clarification nobody answered', async () => {
+    const { app, workspace, deps } = await buildApp([assistantLine('An answer.')])
+    const live = readEvents(await (await postRun(app, workspace.id, runInput())).text())
+    const runId = live[0]!.runId as string
+    const clarification = await deps.hitlService.submitClarification({
+      workspaceId: workspace.id,
+      question: 'Still open.',
+      candidates: [],
+      skillRunId: runId as never,
+    })
+
+    const response = await postRun(app, workspace.id, runInput({
+      resume: [{ interruptId: clarification.id, status: 'resolved' }],
+    }))
 
     expect(response.status).toBe(400)
   })

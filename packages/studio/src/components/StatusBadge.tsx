@@ -8,6 +8,9 @@ const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-blue-500/15 text-blue-700 border-blue-500/30 dark:text-blue-300',
   applied: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30 dark:text-emerald-300',
   rejected: 'bg-red-500/15 text-red-700 border-red-500/30 dark:text-red-300',
+  // A clarification waiting on a person, which reads as a question rather
+  // than as a change, so it does not borrow the pending colour.
+  asked: 'bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-300',
   // Finding verdicts, so a consistency card reads with the same vocabulary
   // as every other status in Studio rather than its own colour table.
   consistent: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30 dark:text-emerald-300',

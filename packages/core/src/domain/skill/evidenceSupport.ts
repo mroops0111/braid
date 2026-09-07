@@ -8,7 +8,7 @@ import type { EvidenceSupport, FindingSide } from '@braidhq/schema'
  * already cites has survived a review and one this run opened has not.
  *
  * - `corroborated`: every side rests on at least one reference the graph cites.
- * - `partial`: every side has a reference, at least one of them agent-read.
+ * - `partial`: every side has a reference, at least one of them the run's own.
  * - `thin`: at least one side has no reference at all.
  */
 export function evidenceSupport(sides: readonly FindingSide[]): EvidenceSupport {

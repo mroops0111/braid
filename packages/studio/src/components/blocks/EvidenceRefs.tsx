@@ -172,7 +172,7 @@ function EvidenceRow({ ref: entry }: { ref: BlockRef }) {
   const { t } = useTranslation()
   const detail = useEvidenceDetail()
   const [open, setOpen] = useState(false)
-  const unrecorded = entry.provenance === 'agent-read'
+  const unrecorded = entry.provenance === 'agent'
   // Anyone may open anything. The audience sets how much is shown by default,
   // never what may be reached, and a spec is the business reader's own
   // document, so gating the excerpt on evidence depth locked them out of it.

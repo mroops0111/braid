@@ -6,6 +6,7 @@ import blocks from './blocks'
 import common from './common'
 import graph from './graph'
 import history from './history'
+import inbox from './inbox'
 import references from './references'
 import review from './review'
 import settings from './settings'
@@ -23,6 +24,7 @@ const zhHant: typeof en = {
   blocks,
   graph,
   history,
+  inbox,
   references,
   review,
   shell,

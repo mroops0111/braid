@@ -46,3 +46,11 @@ The threshold for emitting one:
 - **Field-level disagreement on a shared identity** (sources agree what this node is, disagree on a limit / state / sequence): emit a `DriftIssue` on the node's metadata. See `drift-detection.md`.
 
 Conflating these buries field drift in clarification prose where the validator can't gate Apply.
+
+## Naming the Run That Produced It
+
+Send `skillRunId: $BRAID_RUN_ID` on every create. The framework injects that variable into your environment.
+
+It is what lets a batch tell its own output apart from anything a person filed while it happened to be running, and it is what links this record back to the conversation that reasoned about it. Leave it off and an automated batch cannot claim its own work, so the record waits for a reviewer that the batch was supposed to stand in for.
+
+Never send a run id other than your own.

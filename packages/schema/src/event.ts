@@ -33,6 +33,12 @@ export type RunCompletedEvent = z.infer<typeof RunCompletedEvent>
 export const ProposalCreatedEvent = WorkspaceEventBase.extend({
   type: z.literal('proposal.created'),
   proposalId: ProposalId,
+  /**
+   * The run that produced it, when a skill did. A subscriber acting on its own
+   * output needs this to tell it apart from anything else created while it was
+   * running, since the bus is workspace-wide.
+   */
+  skillRunId: SkillRunId.optional(),
 })
 export type ProposalCreatedEvent = z.infer<typeof ProposalCreatedEvent>
 

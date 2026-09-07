@@ -534,14 +534,33 @@ export class BatchService {
     }
   }
 
-  private async collectUnitOutput(workspaceId: WorkspaceId, before: { proposals: Set<ProposalId>, clarifications: Set<ClarificationId> }): Promise<{
-    proposalIds: ProposalId[]
-    clarificationIds: ClarificationId[]
-  }> {
-    const after = await this.snapshotIds(workspaceId)
+  /**
+   * What this run produced, not what appeared while it ran.
+   *
+   * The before-and-after diff alone would claim anything anyone else created
+   * in the meantime, which for an auto-applying batch means landing a change
+   * nobody reviewed. A record naming this run is the only one it may claim,
+   * and one naming no run at all was authored by a person.
+   */
+  private async collectUnitOutput(
+    workspaceId: WorkspaceId,
+    runId: SkillRunId,
+    before: { proposals: Set<ProposalId>, clarifications: Set<ClarificationId> },
+  ): Promise<{
+      proposalIds: ProposalId[]
+      clarificationIds: ClarificationId[]
+    }> {
+    const [proposals, clarifications] = await Promise.all([
+      this.deps.proposalRepository.list({ workspaceId }),
+      this.deps.clarificationRepository.list({ workspaceId }),
+    ])
     return {
-      proposalIds: [...after.proposals].filter(id => !before.proposals.has(id)),
-      clarificationIds: [...after.clarifications].filter(id => !before.clarifications.has(id)),
+      proposalIds: proposals
+        .filter(proposal => !before.proposals.has(proposal.id) && proposal.skillRunId === runId)
+        .map(proposal => proposal.id),
+      clarificationIds: clarifications
+        .filter(clarification => !before.clarifications.has(clarification.id) && clarification.skillRunId === runId)
+        .map(clarification => clarification.id),
     }
   }
 
@@ -556,7 +575,7 @@ export class BatchService {
   ): Promise<{ proposalIds: ProposalId[], clarificationIds: ClarificationId[] }> {
     const applied = new Set<ProposalId>()
     const unsubscribe = autoApply
-      ? this.streamApplyProposals(workspace.id, applied)
+      ? this.streamApplyProposals(workspace.id, runId, applied)
       : () => {}
     try {
       await waitForCompletion(this.deps.skillRunner, runId)
@@ -564,7 +583,7 @@ export class BatchService {
     finally {
       unsubscribe()
     }
-    const output = await this.collectUnitOutput(workspace.id, before)
+    const output = await this.collectUnitOutput(workspace.id, runId, before)
     if (autoApply) {
       const remaining = output.proposalIds.filter(id => !applied.has(id))
       await this.autoApply(remaining)
@@ -572,11 +591,16 @@ export class BatchService {
     return output
   }
 
-  private streamApplyProposals(workspaceId: WorkspaceId, applied: Set<ProposalId>): () => void {
+  private streamApplyProposals(workspaceId: WorkspaceId, runId: SkillRunId, applied: Set<ProposalId>): () => void {
     if (!this.deps.eventBus)
       return () => {}
     return this.deps.eventBus.subscribe(workspaceId, (event) => {
       if (event.type !== 'proposal.created')
+        return
+      // The bus is workspace-wide, so a proposal from anywhere else arrives
+      // here too. Applying one without review because a batch happened to be
+      // running is the reviewer's decision taken away from them.
+      if (event.skillRunId !== runId)
         return
       if (applied.has(event.proposalId))
         return

@@ -1,6 +1,6 @@
 import type { Workspace } from '@braidhq/schema'
 import type { Surface } from './CommandPalette'
-import { Activity, ClipboardCheck, GitGraph, Globe, HelpCircle, Laptop, LogIn, MessageCircleQuestion, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles } from 'lucide-react'
+import { Activity, GitGraph, Globe, Inbox, Laptop, LogIn, MessageCircleQuestion, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import braidLogo from '@/assets/braid-logo.svg'
@@ -567,26 +567,15 @@ function HereSection({
             onClick={() => onSelectSurface('actions')}
           />
         )}
-        {canSeeClarification && (
+        {(canSeeClarification || canSeeProposals) && (
           <HereRow
             collapsed={collapsed}
-            icon={HelpCircle}
-            label={t('shell.surfaces.clarifications')}
-            active={activeSurface === 'clarifications'}
-            count={pendingClarification}
-            shortcut="G C"
-            onClick={() => onSelectSurface('clarifications')}
-          />
-        )}
-        {canSeeProposals && (
-          <HereRow
-            collapsed={collapsed}
-            icon={ClipboardCheck}
-            label={t('shell.surfaces.proposals')}
-            active={activeSurface === 'proposals'}
-            count={pendingProposals}
-            shortcut="G P"
-            onClick={() => onSelectSurface('proposals')}
+            icon={Inbox}
+            label={t('shell.surfaces.inbox')}
+            active={activeSurface === 'inbox'}
+            shortcut="G I"
+            count={pendingClarification + pendingProposals}
+            onClick={() => onSelectSurface('inbox')}
           />
         )}
         <HereRow
