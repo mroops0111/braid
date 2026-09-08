@@ -6,6 +6,9 @@ export const references = {
     missingTitle: '找不到參照對象',
     missingDescription: '這個工作區沒有「{id}」。它可能被改名或移除了。',
   },
+  // Shown under a menu that stopped listing,
+  // so a reader narrows the query rather than assuming they saw everything.
+  menuMore: '還有 {count} 筆',
   mention: {
     triggerHint: '輸入 @ 可以參照節點',
     emptyDescription: '沒有符合的節點。',

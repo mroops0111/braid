@@ -49,7 +49,10 @@ export function ReferencePicker({ id, kind, value, onChange, placeholder, disabl
     )
   }
 
-  const candidates = focused && registry ? registry.search(query, { kind, limit: MENU_CANDIDATE_LIMIT }) : []
+  const found = focused && registry
+    ? registry.search(query, { kind, limit: MENU_CANDIDATE_LIMIT })
+    : { items: [], total: 0 }
+  const candidates = found.items
 
   function pick(candidate: ReferenceCandidate): void {
     onChange(candidate.reference.id)
@@ -98,6 +101,7 @@ export function ReferencePicker({ id, kind, value, onChange, placeholder, disabl
           <ReferenceMenu
             id={menuId}
             candidates={candidates}
+            total={found.total}
             activeIndex={activeIndex}
             onHover={setActiveIndex}
             onPick={pick}

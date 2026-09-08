@@ -55,7 +55,7 @@ describe('createReferenceRegistry', () => {
 
   it('merges every kind into one ranked menu', () => {
     const registry = createReferenceRegistry([nodeResolver, sourceResolver])
-    expect(registry.search('').map(candidate => candidate.reference.id)).toEqual([
+    expect(registry.search('').items.map(candidate => candidate.reference.id)).toEqual([
       'ctx.signTask',
       'intents/checkout.md',
       'agg.cart',
@@ -64,16 +64,29 @@ describe('createReferenceRegistry', () => {
 
   it('scopes the search to one kind when asked', () => {
     const registry = createReferenceRegistry([nodeResolver, sourceResolver])
-    expect(registry.search('', { kind: SOURCE_UNIT })).toHaveLength(1)
+    expect(registry.search('', { kind: SOURCE_UNIT }).items).toHaveLength(1)
   })
 
   it('returns nothing when the scoped kind has no resolver', () => {
     const registry = createReferenceRegistry([nodeResolver])
-    expect(registry.search('', { kind: SOURCE_UNIT })).toEqual([])
+    expect(registry.search('', { kind: SOURCE_UNIT })).toEqual({ items: [], total: 0 })
   })
 
   it('caps the menu at the requested limit', () => {
     const registry = createReferenceRegistry([nodeResolver, sourceResolver])
-    expect(registry.search('', { limit: 2 })).toHaveLength(2)
+    expect(registry.search('', { limit: 2 }).items).toHaveLength(2)
+  })
+
+  // A menu that stops listing has to say how much it stopped short of,
+  // so the count is of every match rather than of the page.
+  it('counts every match, not the page it returned', () => {
+    const registry = createReferenceRegistry([nodeResolver, sourceResolver])
+    expect(registry.search('', { limit: 2 }).total).toBe(3)
+  })
+
+  it('reports a total equal to the page when nothing was cut', () => {
+    const registry = createReferenceRegistry([nodeResolver, sourceResolver])
+    const result = registry.search('', { limit: 10 })
+    expect(result.total).toBe(result.items.length)
   })
 })

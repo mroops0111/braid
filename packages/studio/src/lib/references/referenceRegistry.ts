@@ -8,14 +8,25 @@ export interface ReferenceSearchOptions {
   readonly limit?: number
 }
 
+/**
+ * What a search found, and how much of it the caller is being shown.
+ *
+ * `total` counts every match rather than the truncated page.
+ * A menu that silently drops the ninth reads as though there were eight.
+ */
+export interface ReferenceSearchResult {
+  readonly items: readonly ReferenceCandidate[]
+  readonly total: number
+}
+
 export interface ReferenceRegistry {
   readonly resolve: (reference: Reference) => ResolvedReference | null
-  readonly search: (query: string, options?: ReferenceSearchOptions) => readonly ReferenceCandidate[]
+  readonly search: (query: string, options?: ReferenceSearchOptions) => ReferenceSearchResult
   /** Null when the kind ships no detail body, which leaves the peek to its fallback. */
   readonly renderDetail: (reference: Reference) => ReactNode | null
 }
 
-const DEFAULT_SEARCH_LIMIT = 8
+const DEFAULT_SEARCH_LIMIT = 20
 
 export function createReferenceRegistry(resolvers: readonly ReferenceResolver[]): ReferenceRegistry {
   const byKind = new Map<ReferenceKind, ReferenceResolver>(resolvers.map(resolver => [resolver.kind, resolver]))
@@ -24,10 +35,13 @@ export function createReferenceRegistry(resolvers: readonly ReferenceResolver[])
     renderDetail: reference => byKind.get(reference.kind)?.renderDetail?.(reference.id) ?? null,
     search: (query, options) => {
       const scoped = scopedResolvers(resolvers, byKind, options?.kind)
-      return scoped
+      const ranked = scoped
         .flatMap(resolver => resolver.search(query))
         .sort((left, right) => right.score - left.score)
-        .slice(0, options?.limit ?? DEFAULT_SEARCH_LIMIT)
+      return {
+        items: ranked.slice(0, options?.limit ?? DEFAULT_SEARCH_LIMIT),
+        total: ranked.length,
+      }
     },
   }
 }
