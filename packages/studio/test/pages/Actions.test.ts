@@ -32,15 +32,24 @@ function skill(opts: {
 describe('bucketByGroup', () => {
   it('places each skill in the group derived from its category', () => {
     const buckets = bucketByGroup([
-      skill({ id: 'ask-1', category: 'ask' }),
       skill({ id: 'extract', category: 'build', order: 100 }),
       skill({ id: 'doc', category: 'generate' }),
       skill({ id: 'standalone' }),
     ])
-    expect(buckets.ask.map(s => s.id)).toEqual(['ask-1'])
     expect(buckets.build.map(s => s.id)).toEqual(['extract'])
     expect(buckets.generate.map(s => s.id)).toEqual(['doc'])
     expect(buckets.custom.map(s => s.id)).toEqual(['standalone'])
+  })
+
+  // Ask has its own surface, so listing it here would offer the same run from
+  // two places, and this is the poorer of the two.
+  it('leaves an ask skill out, since the Ask surface owns it', () => {
+    const buckets = bucketByGroup([
+      skill({ id: 'ask-1', category: 'ask' }),
+      skill({ id: 'extract', category: 'build', order: 100 }),
+    ])
+    expect(buckets.ask).toEqual([])
+    expect(buckets.build.map(s => s.id)).toEqual(['extract'])
   })
 
   it('sorts the build group by numeric order so step ranks line up with the workflow', () => {

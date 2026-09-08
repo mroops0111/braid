@@ -26,10 +26,16 @@ function authHeaders(): Record<string, string> {
  */
 export async function runViaAgui(options: {
   readonly workspaceId: string
-  readonly skillId: string
+  /** Omitted when resuming, where the server reads it off the run being continued. */
+  readonly skillId?: string
   readonly threadId: string
   readonly messages: readonly AguiTurn[]
   readonly resumeSessionId?: string
+  /**
+   * The interrupts this run answers. The server looks up which run to continue
+   * and which conversation it holds, so a caller names only what it resolved.
+   */
+  readonly resume?: readonly { readonly interruptId: string, readonly status: 'resolved' | 'cancelled' }[]
   readonly onEvent: (event: BaseEvent) => void
 }): Promise<void> {
   // The conversation is the agent's own state, the protocol's model being
@@ -46,8 +52,9 @@ export async function runViaAgui(options: {
   })
   await agent.runAgent(
     {
+      ...(options.resume ? { resume: options.resume.map(entry => ({ ...entry })) } : {}),
       forwardedProps: {
-        skillId: options.skillId,
+        ...(options.skillId ? { skillId: options.skillId } : {}),
         ...(options.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
       },
     },

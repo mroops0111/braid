@@ -141,7 +141,13 @@ class RunStore {
     const key = runKey(workspaceId, runId)
     if (this.streams.has(key))
       return
-    if (!this.runs.has(key)) {
+    // A settled run is already whole, and reading it again costs the same
+    // seconds as the first time. The stream handle is dropped once hydration
+    // ends, so without this every revisit refetches what is already here.
+    const loaded = this.runs.get(key)
+    if (loaded && loaded.phase !== 'streaming')
+      return
+    if (!loaded) {
       this.runs.set(key, { workspaceId, runId, skillId, events: [], phase: 'streaming' })
     }
     const controller = new AbortController()
@@ -215,6 +221,46 @@ class RunStore {
           this.streams.delete(runKey(workspaceId, runId))
       })
     await started.promise
+  }
+
+  /**
+   * Carry on the run that asked, now that its question has an answer.
+   *
+   * The answer is already recorded by the time this is called, so the client
+   * names only the interrupt it resolved. Which run to continue, and which
+   * conversation that run holds, are the server's to look up, since a caller
+   * that could name them could continue a run it never answered for.
+   */
+  async resumeAfterAnswer(options: {
+    readonly workspaceId: string
+    readonly skillId: string
+    readonly threadId: string
+    readonly clarificationId: string
+  }): Promise<void> {
+    const { workspaceId, skillId, threadId, clarificationId } = options
+    const reader = new AguiEventReader()
+    let runId: string | null = null
+
+    await runViaAgui({
+      workspaceId,
+      threadId,
+      messages: [],
+      resume: [{ interruptId: clarificationId, status: 'resolved' }],
+      onEvent: (event) => {
+        if (event.type === EventType.RUN_STARTED) {
+          runId = String((event as unknown as { runId: string }).runId)
+          this.runs.set(runKey(workspaceId, runId), { workspaceId, runId, skillId, events: [], phase: 'streaming' })
+          this.notify()
+          return
+        }
+        if (runId === null)
+          return
+        for (const translated of reader.read(event))
+          this.appendEvent(workspaceId, runId, translated)
+        if (event.type === EventType.RUN_FINISHED || event.type === EventType.RUN_ERROR)
+          this.markPhase(workspaceId, runId, event.type === EventType.RUN_FINISHED ? 'done' : 'error')
+      },
+    })
   }
 
   /**

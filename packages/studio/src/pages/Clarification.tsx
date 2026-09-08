@@ -358,10 +358,17 @@ export function ClarificationDetail({
   workspaceId,
   ticket,
   onComplete,
+  onAnswered,
 }: {
   workspaceId: string
   ticket: Clarification
   onComplete: () => void
+  /**
+   * Called after the answer lands, for a caller that wants to do something
+   * with it. The Inbox continues the run that asked, so the work carries on
+   * where it stopped instead of waiting for someone to start it again.
+   */
+  onAnswered?: (ticket: Clarification) => void
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -391,6 +398,7 @@ export function ClarificationDetail({
       api.answerClarification(workspaceId, ticket.id, input.selection, input.note),
     onSuccess: () => {
       invalidateClarification()
+      onAnswered?.(ticket)
       onComplete()
     },
   })
