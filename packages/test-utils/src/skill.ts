@@ -2,9 +2,20 @@ import type {
   AbsolutePath,
   McpServerId,
   SkillId,
+  SkillInputDescriptor,
   SkillManifest as SkillManifestData,
 } from '@braidhq/schema'
 import { SkillManifest } from '@braidhq/core'
+
+/** A per-unit input, the declaration that marks a step as working on one document. */
+const SOURCE_SCOPE_INPUT: SkillInputDescriptor = {
+  name: 'scope',
+  label: 'Scope',
+  kind: 'multi-pick',
+  optional: true,
+  provider: { kind: 'source' },
+  fallback: 'text',
+}
 
 export interface MakeSkillManifestOptions {
   readonly id?: string
@@ -15,6 +26,11 @@ export interface MakeSkillManifestOptions {
   readonly description?: string
   readonly requiredEnv?: readonly string[]
   readonly requiredMcpServers?: readonly McpServerId[]
+  readonly category?: 'ask' | 'build' | 'generate'
+  readonly order?: number
+  readonly hidden?: boolean
+  /** Give it an input fed by the source provider, so it reads as per-unit. */
+  readonly sourceInput?: boolean
 }
 
 /**
@@ -36,6 +52,10 @@ export function makeSkillManifestData(opts: MakeSkillManifestOptions = {}): Skil
         requiredEnv: [...(opts.requiredEnv ?? [])],
         requiredMcpServers: [...(opts.requiredMcpServers ?? [])],
         allowedRoles: ['owner', 'maintainer'],
+        ...(opts.category ? { category: opts.category } : {}),
+        ...(opts.order !== undefined ? { order: opts.order } : {}),
+        ...(opts.hidden ? { hidden: true } : {}),
+        ...(opts.sourceInput ? { inputs: [SOURCE_SCOPE_INPUT] } : {}),
       },
     },
   }

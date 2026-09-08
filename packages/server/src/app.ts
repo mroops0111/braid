@@ -19,6 +19,7 @@ import { createAuthRouter } from './routes/auth.js'
 import { createBatchRouter } from './routes/batch.js'
 import { createBlocksRouter } from './routes/blocks.js'
 import { createClarificationRouter } from './routes/clarifications.js'
+import { createCoverageRouter } from './routes/coverage.js'
 import { createEdgesRouter } from './routes/edges.js'
 import { createEmbeddingsRouter } from './routes/embeddings.js'
 import { healthRouter } from './routes/health.js'
@@ -330,6 +331,12 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   workspaceScoped.route('/reactor-cycles', createReactorCyclesRouter({
     reactorCycleRepository: deps.reactorCycleRepository,
   }))
+  if (deps.coverageProjection) {
+    workspaceScoped.route('/coverage', createCoverageRouter({
+      coverageProjection: deps.coverageProjection,
+      workspaceRepository: deps.workspaceRepository,
+    }))
+  }
   if (deps.secretStore) {
     workspaceScoped.route('/source-webhooks', createSourceWebhooksAdminRouter({
       workspaceService: deps.workspaceService,

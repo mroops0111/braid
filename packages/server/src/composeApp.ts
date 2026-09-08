@@ -41,6 +41,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   BatchService,
+  CoverageProjection,
   createLogger,
   EmbeddingService,
   HistoryService,
@@ -162,6 +163,9 @@ export interface AppDependencies {
   runRepository: RunRepository
   // Always wired, the Activity page renders an empty list before any cycle.
   reactorCycleRepository: ReactorCycleRepository
+  // Reads every source document against the model. Absent without a unit lister,
+  // which is the only way to know what documents there are.
+  coverageProjection?: CoverageProjection
 
   // Source-unit extraction, the filesystem walk and content digest,
   // threaded into the source-unit-states diff endpoint.
@@ -294,6 +298,9 @@ export interface ComposeOptions {
 export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const clock = options.clock ?? new SystemClock()
   const proposalRepository = options.proposalRepository ?? new InMemoryProposalRepository()
+  // Hoisted because three consumers read it, and a second Noop instance would
+  // be a second empty history rather than the same one.
+  const runRepository = options.runRepository ?? new NoopRunRepository()
   const clarificationRepository = options.clarificationRepository ?? new InMemoryClarificationRepository()
   const modelRepository = options.modelRepository ?? new InMemoryModelRepository()
   const workspaceRepository = options.workspaceRepository ?? new InMemoryWorkspaceRepository()
@@ -347,6 +354,15 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   })
   // Shared lock domain so HITL mutations and history restore exclude each other.
   const workspaceLock = new WorkspaceLock()
+  const sourceUnitDigest = options.sourceUnitDigest ?? new FailingSourceUnitDigest()
+  const sourceUnitObservationRepository = options.sourceUnitObservationRepository ?? new InMemorySourceUnitObservationRepository()
+  const sourceUnitObservationService = new SourceUnitObservationService({
+    repository: sourceUnitObservationRepository,
+    digest: sourceUnitDigest,
+    workspaceService,
+    clock,
+  })
+
   const hitlService = new HITLService({
     proposalRepository,
     clarificationRepository,
@@ -356,6 +372,12 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     clock,
     eventBus,
     workspaceLock,
+    // All three needed to stamp which documents a proposal came from, and at
+    // which version, so coverage is a fact the server watched rather than one
+    // it was told.
+    runRepository,
+    ...(options.unitLister ? { unitLister: options.unitLister } : {}),
+    ...(sourceUnitDigest instanceof FailingSourceUnitDigest ? {} : { sourceUnitDigest }),
     ...(options.history ? { history: options.history } : {}),
     ...(options.modelSerializer ? { modelSerializer: options.modelSerializer } : {}),
     ...(options.userDirectory ? { userDirectory: options.userDirectory } : {}),
@@ -367,22 +389,13 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
       workspaceService,
       workspaceLock,
       bootstrap: options.bootstrap,
-      runRepository: options.runRepository ?? new NoopRunRepository(),
+      runRepository,
       ...(options.skillRunner ? { skillRunner: options.skillRunner } : {}),
       ...(options.userDirectory ? { userDirectory: options.userDirectory } : {}),
       eventBus,
       clock,
     })
     : undefined
-
-  const sourceUnitObservationRepository = options.sourceUnitObservationRepository ?? new InMemorySourceUnitObservationRepository()
-  const sourceUnitDigest = options.sourceUnitDigest ?? new FailingSourceUnitDigest()
-  const sourceUnitObservationService = new SourceUnitObservationService({
-    repository: sourceUnitObservationRepository,
-    digest: sourceUnitDigest,
-    workspaceService,
-    clock,
-  })
 
   // Batch needs SkillRunner, HistoryService, BatchPlanRepository, and a lister.
   // Without them there is no batch surface.
@@ -412,6 +425,19 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   // whose ProductManifest.reactor.enabled is true.
   const reactorCycleRepository: ReactorCycleRepository
     = options.reactorCycleRepository ?? new InMemoryReactorCycleRepository()
+  // Always wired. It only reads, so a deployment missing one of the three
+  // sources shows fewer jobs rather than failing to show the board.
+  const coverageProjection = options.unitLister && options.skillRegistry
+    ? new CoverageProjection({
+      unitLister: options.unitLister,
+      sourceUnitObservationRepository,
+      proposalRepository,
+      clarificationRepository,
+      runRepository,
+      modelRepository,
+      skillRegistry: options.skillRegistry,
+    })
+    : undefined
   const reactorService = options.skillRunner && options.unitLister && sourceUnitDigest && !(sourceUnitDigest instanceof FailingSourceUnitDigest)
     ? new ReactorService({
       eventBus,
@@ -438,6 +464,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     ...(embeddingService ? { embeddingService } : {}),
     ...(reactorService ? { reactorService } : {}),
     reactorCycleRepository,
+    ...(coverageProjection ? { coverageProjection } : {}),
     ...(options.unitLister ? { unitLister: options.unitLister } : {}),
     ...(options.sourceUnitDigest ? { sourceUnitDigest: options.sourceUnitDigest } : {}),
     ...(options.bootstrap ? { bootstrap: options.bootstrap } : {}),
@@ -459,7 +486,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     skillRunner: options.skillRunner,
     ...(options.accessTokenVerifiers ? { accessTokenVerifiers: options.accessTokenVerifiers } : {}),
     ...(options.outputGate ? { outputGate: options.outputGate } : {}),
-    runRepository: options.runRepository ?? new NoopRunRepository(),
+    runRepository,
     workspacesRoot: options.workspacesRoot ?? (join(tmpdir(), 'braid-workspaces') as AbsolutePath),
     ...(defaultOntologyId ? { defaultOntologyId } : {}),
     // `composeApp` is the test and in-memory composition entry.
