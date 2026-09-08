@@ -8,6 +8,7 @@ import type {
   ProposalCreate,
   ProposalId,
   SkillRunId,
+  SourceUnit,
   ValidationIssue,
   WorkspaceId,
 } from '@braidhq/schema'
@@ -17,16 +18,20 @@ import type { ClarificationRepository } from '../domain/hitl/ClarificationReposi
 import type { ProposalRepository } from '../domain/hitl/ProposalRepository.js'
 import type { ModelRepository } from '../domain/model/ModelRepository.js'
 import type { ModelSerializer } from '../domain/model/ModelSerializer.js'
+import type { RunRepository } from '../domain/skill/RunRepository.js'
+import type { SourceUnitDigest } from '../domain/source/SourceUnitDigest.js'
 import type { UserDirectory } from '../domain/users/UserDirectory.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
+import type { UnitLister } from './BatchService.js'
 import type { ModelValidationService } from './ModelValidationService.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import type { WorkspaceService } from './WorkspaceService.js'
-import { UserId } from '@braidhq/schema'
+import { SourceId, UserId } from '@braidhq/schema'
 import { ValidationError } from '../domain/errors.js'
 import { Clarification } from '../domain/hitl/Clarification.js'
 import { Proposal } from '../domain/hitl/Proposal.js'
 import { newClarificationCandidateId, newClarificationId, newProposalId } from '../domain/ids.js'
+import { sourceUnitsForRun } from '../domain/source/sourceUnitsForRun.js'
 import { noopUserDirectory } from '../domain/users/UserDirectory.js'
 import { enrichCommitAuthor } from './enrichCommitAuthor.js'
 import { WorkspaceLock } from './WorkspaceLock.js'
@@ -41,6 +46,14 @@ export interface HITLServiceDeps {
   modelValidationService: ModelValidationService
   workspaceService: WorkspaceService
   clock: Clock
+  /**
+   * All three needed to stamp which source units a proposal came from, and at
+   * which version. Absent, the proposal carries none, and coverage falls back
+   * to reading the run's own arguments.
+   */
+  runRepository?: RunRepository
+  unitLister?: UnitLister
+  sourceUnitDigest?: SourceUnitDigest
   eventBus?: WorkspaceEventBus
   // Both required together. Absence makes the commit hook a no-op.
   history?: WorkspaceHistory
@@ -64,9 +77,37 @@ export class HITLService {
     this.userDirectory = deps.userDirectory ?? noopUserDirectory
   }
 
+  /**
+   * The source units the run that produced this was pointed at.
+   *
+   * Read from the run's own arguments and the observation store, never from
+   * the caller. A proposal that could name its own scope could name a document
+   * it never read, and coverage would then rest on the model's account of
+   * itself rather than on what the server watched it do.
+   */
+  private async scopeOfRun(workspaceId: WorkspaceId, skillRunId: SkillRunId | undefined): Promise<SourceUnit[]> {
+    const { runRepository, unitLister, sourceUnitDigest } = this.deps
+    if (!skillRunId || !runRepository || !unitLister || !sourceUnitDigest)
+      return []
+    const workspace = await this.deps.workspaceService.findById(workspaceId)
+    const record = (await runRepository.listRecords(workspace)).find(item => item.runId === skillRunId)
+    if (!record)
+      return []
+    const named = sourceUnitsForRun(record.args, await unitLister(workspace))
+    // Hashed here rather than read from the observation store, which records
+    // what a completed run saw and so is either absent or one version behind
+    // at the moment a proposal is filed.
+    return Promise.all(named.map(async unit => ({
+      sourceId: SourceId.parse(unit.sourceId),
+      path: unit.value,
+      sha: await sourceUnitDigest.computeSha(workspace, SourceId.parse(unit.sourceId), unit.value),
+    })))
+  }
+
   async submitProposal(draft: ProposalCreate & { submitterId?: UserId }): Promise<Proposal> {
     await this.assertOperationsValid(draft.workspaceId, draft.operations)
     const generatedAt = this.deps.clock.now()
+    const sourceUnits = await this.scopeOfRun(draft.workspaceId, draft.skillRunId)
     const submitter = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
     const proposal = new Proposal({
       id: newProposalId(),
@@ -79,6 +120,7 @@ export class HITLService {
       ...(draft.externalReferences ? { externalReferences: draft.externalReferences } : {}),
       ...(draft.clarificationId ? { clarificationId: draft.clarificationId } : {}),
       ...(draft.skillRunId ? { skillRunId: draft.skillRunId } : {}),
+      ...(sourceUnits.length > 0 ? { sourceUnits } : {}),
       owner: draft.submitterId ?? 'system',
       ...(submitter?.displayName ? { ownerDisplayName: submitter.displayName } : {}),
       ...(submitter?.kind ? { ownerKind: submitter.kind } : {}),

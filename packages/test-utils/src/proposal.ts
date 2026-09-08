@@ -1,4 +1,4 @@
-import type { ClarificationId, NodeStatus, NodeTypeId, ProposalId, SkillId, SkillRunId, SourceRole, WorkspaceId } from '@braidhq/schema'
+import type { ClarificationId, NodeStatus, NodeTypeId, ProposalId, ProposalStatus, SkillId, SkillRunId, SourceRole, SourceUnit, Timestamp, WorkspaceId } from '@braidhq/schema'
 import { Proposal } from '@braidhq/core'
 import { mintTestId } from './ids.js'
 import { T0 } from './time.js'
@@ -12,6 +12,11 @@ export interface MakeProposalOptions {
   readonly skillRunId?: string
   /** The id of the node it adds, when a test asserts on which one. */
   readonly nodeId?: string
+  readonly status?: ProposalStatus
+  readonly generatedBy?: string
+  readonly reviewedAt?: string
+  /** The units it was derived from, each at the version that was read. */
+  readonly sourceUnits?: readonly SourceUnit[]
 }
 
 /**
@@ -27,7 +32,7 @@ export function makeProposal(workspaceId: WorkspaceId, opts: MakeProposalOptions
   return new Proposal({
     id: (opts.id ?? mintTestId('p')) as ProposalId,
     workspaceId,
-    status: 'pending',
+    status: opts.status ?? 'pending',
     operations: [{
       operation: 'addNode',
       payload: {
@@ -38,11 +43,13 @@ export function makeProposal(workspaceId: WorkspaceId, opts: MakeProposalOptions
         metadata: { sourceReferences: [], missingRoles: ['alpha' as SourceRole] },
       },
     }],
-    generatedBy: 'extract' as SkillId,
+    generatedBy: (opts.generatedBy ?? 'extract') as SkillId,
     generatedAt: T0,
     rationale: opts.rationale ?? 'add voidTask',
     ...(opts.clarificationId ? { clarificationId: opts.clarificationId as ClarificationId } : {}),
     ...(opts.skillRunId ? { skillRunId: opts.skillRunId as SkillRunId } : {}),
+    ...(opts.reviewedAt ? { reviewedAt: opts.reviewedAt as Timestamp } : {}),
+    ...(opts.sourceUnits ? { sourceUnits: [...opts.sourceUnits] } : {}),
     owner: 'system',
   })
 }

@@ -1,4 +1,4 @@
-import type { ClarificationCandidate, ClarificationCandidateId, ClarificationId, UserId, WorkspaceId } from '@braidhq/schema'
+import type { ClarificationCandidate, ClarificationCandidateId, ClarificationId, SkillRunId, UserId, WorkspaceId } from '@braidhq/schema'
 import { Clarification } from '@braidhq/core'
 import { mintTestId } from './ids.js'
 
@@ -8,6 +8,8 @@ export interface MakeClarificationOptions {
   readonly candidates?: readonly ClarificationCandidate[]
   readonly selectedCandidateId?: ClarificationCandidateId
   readonly answeredBy?: UserId
+  /** The run that raised it. Left off, it reads as human-filed. */
+  readonly skillRunId?: string
 }
 
 /**
@@ -24,6 +26,7 @@ export function makeClarification(workspaceId: WorkspaceId, overrides: MakeClari
     status,
     owner: 'system',
     origin: 'skill',
+    ...(overrides.skillRunId ? { skillRunId: overrides.skillRunId as SkillRunId } : {}),
     ...(status === 'answered' && overrides.selectedCandidateId
       ? {
           selectedCandidateId: overrides.selectedCandidateId,
