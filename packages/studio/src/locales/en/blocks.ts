@@ -25,6 +25,7 @@ export const blocks = {
     },
   },
   subgraph: {
+    notInGraph: '{count, plural, one {# node is} other {# nodes are}} in neither the graph nor a pending proposal, so not drawn above.',
     title: 'Graph Slice',
   },
   trace: {

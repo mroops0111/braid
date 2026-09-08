@@ -1,10 +1,10 @@
 import type { EdgeId, GraphEdgeCreate, GraphNodeCreate, GraphOperation, NodeId, Proposal, ProposalId, ProposalStatus, ValidationIssue, ValidationSeverity } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, AlertTriangle, Check, ChevronDown, ChevronRight, Inbox, Info, MinusCircle, PencilLine, PlusCircle, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
-import { useProposalGraphDataSource } from '@/components/graph/GraphDataSource'
+import { emphasizeAddedFor, narrowToChanges, useProposalGraphDataSource } from '@/components/graph/GraphDataSource'
 import { FocusToggle, OnlyChangesToggle } from '@/components/graph/GraphToolbar'
 import { useFocusedSelection } from '@/components/graph/useFocusedSelection'
 import { ListRow } from '@/components/ListRow'
@@ -525,15 +525,6 @@ type PreviewView = 'graph' | 'list'
  * The source is computed once via `useProposalGraphDataSource`,
  * and shared across views so toggling is cheap.
  */
-/**
- * Threshold for auto-flipping `emphasizeAdded`.
- * A proposal touching less than this fraction of the live graph,
- * counts as "incremental".
- * The diff would otherwise be a handful of small green dots,
- * in a sea of unmarked context, which is easy to miss.
- */
-const INCREMENTAL_RATIO_THRESHOLD = 0.3
-
 function ProposalPreview({ workspaceId, operations, validation, rationale }: {
   workspaceId: string
   operations: readonly GraphOperation[]
@@ -552,24 +543,19 @@ function ProposalPreview({ workspaceId, operations, validation, rationale }: {
   // One meta panel open at a time, so an expanded list never stacks on the
   // other and pushes the graph further than one panel's worth.
   const [openMeta, setOpenMeta] = useState<'validation' | 'rationale' | null>(null)
-  const source = useProposalGraphDataSource(workspaceId, operations)
+  const full = useProposalGraphDataSource(workspaceId, operations)
+  // Only-changes narrows what is drawn, rather than dimming what is not. In a
+  // workspace of a thousand nodes, dimming leaves the change lost among them.
+  const source = useMemo(() => (onlyChanges ? narrowToChanges(full) : full), [onlyChanges, full])
   const flat = flattenOperations(operations)
 
   const addCount = flat.filter(op => op.kind === 'add').length
   const updateCount = flat.filter(op => op.kind === 'update').length
   const removeCount = flat.filter(op => op.kind === 'remove').length
 
-  // Incremental proposals dilute their own visual,
-  // a few green dots in a sea of unmarked context.
-  // When the diff touches under 30% of the preview snapshot,
-  // beef up the `added` treatment with a green ring and shadow,
-  // not a corner dot.
-  // The fresh-extract case, close to 100% touched, keeps the subtle markers,
-  // so the type colour is not drowned in green.
+  const emphasizeAdded = emphasizeAddedFor(source)
+  // Nothing changed means nothing to narrow to, so the toggle stays away.
   const changedCount = (source.diff?.nodes.size ?? 0) + (source.diff?.edges.size ?? 0)
-  const totalCount = source.nodes.length + source.edges.length
-  const incrementalRatio = totalCount > 0 ? changedCount / totalCount : 1
-  const emphasizeAdded = incrementalRatio < INCREMENTAL_RATIO_THRESHOLD
 
   // Validation and rationale ride in this header rather than a row of their own,
   // so a collapsed proposal keeps the whole preview height for the graph.
@@ -674,7 +660,6 @@ function ProposalPreview({ workspaceId, operations, validation, rationale }: {
                 selectedEdgeId={selectedEdgeId}
                 onSelectEdge={setSelectedEdgeId}
                 focusMode={focusMode}
-                dimUnchanged={onlyChanges && changedCount > 0}
                 emphasizeAdded={emphasizeAdded}
               />
             )}

@@ -77,29 +77,105 @@ export function useProposalGraphDataSource(
 }
 
 /**
- * The slice of the live graph a set of node ids names.
+ * The proposal's own neighbourhood, rather than the whole graph dimmed.
+ *
+ * Dimming leaves every untouched node in the layout, so in a workspace of a
+ * thousand the handful that changed is a few faint marks somewhere in a wall
+ * of them. Narrowing to what the proposal touches, plus one hop of context so
+ * a new edge has a visible other end, is what makes the change readable.
+ */
+export function narrowToChanges(source: GraphDataSource): GraphDataSource {
+  if (!source.diff || source.diff.nodes.size === 0)
+    return source
+  const changed = new Set(source.diff.nodes.keys())
+  const context = new Set<string>(changed)
+  for (const edge of source.edges) {
+    if (changed.has(edge.fromNodeId))
+      context.add(edge.toNodeId)
+    if (changed.has(edge.toNodeId))
+      context.add(edge.fromNodeId)
+  }
+  const nodes = source.nodes.filter(node => context.has(node.id))
+  const present = new Set(nodes.map(node => node.id))
+  return {
+    ...source,
+    nodes,
+    edges: source.edges.filter(edge => present.has(edge.fromNodeId) && present.has(edge.toNodeId)),
+  }
+}
+
+/**
+ * Threshold for `emphasizeAddedFor`. A diff touching less than this fraction
+ * of what is drawn counts as incremental.
+ */
+const INCREMENTAL_RATIO_THRESHOLD = 0.3
+
+/**
+ * Whether `added` needs the heavier treatment on this particular source.
+ *
+ * An incremental diff dilutes its own visual, a few green dots in a sea of
+ * unmarked context, so under the threshold `added` earns a ring and shadow on
+ * top of its corner dot. A fresh extraction touches nearly everything, and
+ * there the subtle marker is right, since a green border on every node would
+ * drown the type colour.
+ *
+ * Derived here rather than at each call site, so the canvas, the table, and a
+ * subgraph inside an answer cannot drift to different thresholds.
+ */
+export function emphasizeAddedFor(source: GraphDataSource): boolean {
+  const changedCount = (source.diff?.nodes.size ?? 0) + (source.diff?.edges.size ?? 0)
+  const totalCount = source.nodes.length + source.edges.length
+  const incrementalRatio = totalCount > 0 ? changedCount / totalCount : 1
+  return incrementalRatio < INCREMENTAL_RATIO_THRESHOLD
+}
+
+/**
+ * The slice of the graph a set of node ids names.
  *
  * Edges are kept only when both ends survive the filter, so the view never
- * draws a line to a node that is not on screen. Ids the snapshot does not
- * carry are dropped rather than invented, which is what a reader wants when
- * an answer cites a node that has since been removed.
+ * draws a line to a node that is not on screen. Ids nothing accounts for are
+ * dropped rather than invented, which is what a reader wants when an answer
+ * cites a node that has since been removed.
+ *
+ * `operations` are the changes still waiting on review. A run that proposes
+ * names the nodes it is about to add alongside the ones it stood on, and
+ * against the live snapshot alone half the slice was missing. Previewing the
+ * operations first puts them on the canvas wearing the same `added` marking
+ * the proposal review uses, so new and existing read apart without the block
+ * needing a visual vocabulary of its own.
  */
 export function useSubgraphDataSource(
   workspaceId: string,
   nodeIds: readonly NodeId[],
+  operations: readonly GraphOperation[] = [],
 ): GraphDataSource {
   const { data, isLoading } = useModelSnapshot(workspaceId)
   const key = nodeIds.join(',')
   return useMemo<GraphDataSource>(() => {
+    const current: ModelSnapshot = data ?? EMPTY_SNAPSHOT
+    const { snapshot, diff } = operations.length > 0
+      ? previewProposal(current, operations)
+      : { snapshot: current, diff: undefined }
     const wanted = new Set<string>(key.length > 0 ? key.split(',') : [])
-    const nodes = (data?.nodes ?? []).filter(node => wanted.has(node.id))
+    const nodes = snapshot.nodes.filter(node => wanted.has(node.id))
     const present = new Set(nodes.map(node => node.id))
-    const edges = (data?.edges ?? []).filter(edge => present.has(edge.fromNodeId) && present.has(edge.toNodeId))
+    const edges = snapshot.edges.filter(edge => present.has(edge.fromNodeId) && present.has(edge.toNodeId))
     return {
       nodes,
       edges,
       isLoading,
       isEmpty: !isLoading && nodes.length === 0,
+      // Narrowed to what is drawn, so `emphasizeAddedFor` measures this slice
+      // rather than the whole proposal it came from.
+      ...(diff ? { diff: narrowDiff(diff, present, edges) } : {}),
     }
-  }, [data, isLoading, key])
+  }, [data, isLoading, key, operations])
+}
+
+function narrowDiff(diff: ProposalDiff, nodeIds: ReadonlySet<string>, edges: readonly GraphEdge[]): ProposalDiff {
+  const drawnEdges = new Set(edges.map(edge => edge.id))
+  return {
+    nodes: new Map([...diff.nodes].filter(([id]) => nodeIds.has(id))),
+    edges: new Map([...diff.edges].filter(([id]) => drawnEdges.has(id))),
+  }
 }

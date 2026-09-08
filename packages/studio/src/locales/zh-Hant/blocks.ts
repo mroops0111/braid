@@ -24,6 +24,7 @@ export const blocks = {
     },
   },
   subgraph: {
+    notInGraph: '其中 {count} 個節點不在圖裡，也不在待審的提案裡，所以沒有畫在上面。',
     title: '圖譜切片',
   },
   trace: {

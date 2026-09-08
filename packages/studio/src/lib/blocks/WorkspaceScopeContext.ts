@@ -1,4 +1,4 @@
-import type { EvidenceDetail } from '@braidhq/schema'
+import type { EvidenceDetail, GraphOperation } from '@braidhq/schema'
 import { createContext, useContext } from 'react'
 
 /**
@@ -23,4 +23,19 @@ export const EvidenceDetailContext = createContext<EvidenceDetail>('full')
 
 export function useEvidenceDetail(): EvidenceDetail {
   return useContext(EvidenceDetailContext)
+}
+
+/**
+ * The changes the block's own run proposed and that nobody has applied yet.
+ *
+ * A run showing its working draws the slice it built, which is part existing
+ * graph and part what it is asking for. Only the first half is in the
+ * snapshot, so a renderer that needs to draw the whole slice previews these on
+ * top of it. Empty outside a provider, where a block describes the graph as it
+ * stands and nothing is pending.
+ */
+export const PendingOperationsContext = createContext<readonly GraphOperation[]>([])
+
+export function usePendingOperations(): readonly GraphOperation[] {
+  return useContext(PendingOperationsContext)
 }
