@@ -379,7 +379,7 @@ function ConversationRow({ workspaceId, group, onResume }: {
   )
 }
 
-function SidebarSection({ icon: Icon, title, children }: {
+export function SidebarSection({ icon: Icon, title, children }: {
   icon: typeof Sparkles
   title: string
   children: React.ReactNode
@@ -395,11 +395,11 @@ function SidebarSection({ icon: Icon, title, children }: {
   )
 }
 
-function SidebarEmpty({ children }: { children: React.ReactNode }) {
+export function SidebarEmpty({ children }: { children: React.ReactNode }) {
   return <li className="px-3 py-1.5 text-2xs text-muted-foreground/70">{children}</li>
 }
 
-function SkillRow({ skill, active, onClick, step, locked }: {
+export function SkillRow({ skill, active, onClick, step, locked }: {
   skill: SkillManifest
   active: boolean
   onClick: () => void
@@ -472,7 +472,7 @@ interface ConversationProps {
   locked?: boolean
 }
 
-function Conversation({ workspaceId, skill, locked = false }: ConversationProps) {
+export function Conversation({ workspaceId, skill, locked = false }: ConversationProps) {
   const { t } = useTranslation()
   const conversation = useConversation(workspaceId, skill.id)
   const [prompt, setPrompt] = useState('')

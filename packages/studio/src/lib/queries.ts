@@ -25,6 +25,7 @@ export const queryKeys = {
   clarificationByStatus: (workspaceId: string, status: string) => ['workspaces', workspaceId, 'clarifications', status] as const,
   clarificationDetail: (workspaceId: string, clarificationId: string) => ['workspaces', workspaceId, 'clarifications', 'detail', clarificationId] as const,
   runs: (workspaceId: string) => ['workspaces', workspaceId, 'runs'] as const,
+  coverage: (workspaceId: string) => ['workspaces', workspaceId, 'coverage'] as const,
   nodeSearch: (workspaceId: string, query: string) => ['nodeSearch', workspaceId, query] as const,
   embeddingCoverage: (workspaceId: string) => ['workspaces', workspaceId, 'embeddings'] as const,
   sessionMetadata: (workspaceId: string) => ['workspaces', workspaceId, 'runs', 'sessions'] as const,
@@ -278,6 +279,20 @@ export function useBatchStatus(workspaceId: string | undefined) {
  * Shared with `ReactorBanner` and the Activity page via React Query's dedup-by-key.
  * `useWorkspaceEvents` invalidates this on every reactor SSE event, so consumers stay live.
  */
+/**
+ * Every piece of work the workspace has set going, newest first.
+ *
+ * `useWorkspaceEvents` invalidates this on the same events the batch and
+ * reactor views watch, so a running job advances without its own polling.
+ */
+export function useCoverage(workspaceId: string | null | undefined) {
+  return useQuery({
+    queryKey: queryKeys.coverage(workspaceId ?? ''),
+    queryFn: () => api.getCoverageBoard(workspaceId!),
+    enabled: !!workspaceId,
+  })
+}
+
 export function useReactorCycles(workspaceId: string | null | undefined) {
   return useQuery({
     queryKey: ['reactor-cycles', workspaceId ?? null],

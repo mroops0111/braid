@@ -1,4 +1,4 @@
-import type { Clarification, Proposal } from '@braidhq/schema'
+import type { Clarification, Proposal, ProposalId } from '@braidhq/schema'
 import { Inbox as InboxIcon } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -37,7 +37,12 @@ type KindFilter = 'all' | 'clarification' | 'proposal'
  */
 type DetailView = 'record' | 'reasoning'
 
-export function InboxPage({ workspaceId }: { workspaceId: string }) {
+export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
+  workspaceId: string
+  /** A proposal named from another surface, selected once and then let go. */
+  focusedProposalId?: ProposalId | null
+  onFocusConsumed?: () => void
+}) {
   const { t } = useTranslation()
   const [kind, setKind] = useState<KindFilter>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -67,6 +72,18 @@ export function InboxPage({ workspaceId }: { workspaceId: string }) {
 
   const shown = kind === 'all' ? items : items.filter(item => item.kind === kind)
   const selected = shown.find(item => item.id === selectedId) ?? null
+
+  // A deep link outranks landing on the first item, and is consumed once so
+  // the reader is free to move on without being dragged back.
+  useEffect(() => {
+    if (!focusedProposalId)
+      return
+    if (!items.some(item => item.id === focusedProposalId))
+      return
+    setKind('all')
+    setSelectedId(focusedProposalId)
+    onFocusConsumed?.()
+  }, [focusedProposalId, items, onFocusConsumed])
 
   // Land on something rather than an empty pane, and re-land after answering
   // clears the current one. Working a queue should not cost a click per item.

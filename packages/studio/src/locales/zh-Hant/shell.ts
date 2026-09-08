@@ -5,6 +5,8 @@ const shell: typeof en = {
     inbox: '收件匣',
     ask: '提問',
     graph: '圖譜',
+    batch: '初始建模',
+    build: '建構',
     actions: '動作',
     clarifications: '釐清',
     proposals: '提案',

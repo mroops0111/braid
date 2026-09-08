@@ -3,6 +3,7 @@ import actionInput from './actionInput'
 import admin from './admin'
 import ask from './ask'
 import blocks from './blocks'
+import build from './build'
 import common from './common'
 import graph from './graph'
 import history from './history'
@@ -22,6 +23,7 @@ const zhHant: typeof en = {
   admin,
   ask,
   blocks,
+  build,
   graph,
   history,
   inbox,

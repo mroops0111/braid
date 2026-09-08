@@ -1,5 +1,5 @@
 import type { NodeId, SkillManifest, Workspace } from '@braidhq/schema'
-import { Activity, ClipboardCheck, GitGraph, HelpCircle, Inbox, MessageCircleQuestion, Network, Settings, Settings2, Sparkles } from 'lucide-react'
+import { Activity, Boxes, ClipboardCheck, GitGraph, HelpCircle, Inbox, MessageCircleQuestion, Network, Settings, Settings2, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -30,7 +30,28 @@ interface CommandPaletteProps {
   onOpenChange: (open: boolean) => void
 }
 
-export type Surface = 'actions' | 'activity' | 'ask' | 'batch' | 'clarifications' | 'graph' | 'history' | 'inbox' | 'proposals' | 'settings'
+/**
+ * Every surface the shell can show, and the source of truth for the type.
+ *
+ * Written once as values so the url parser can check against the same list
+ * rather than a second copy. Kept apart, `activity` was addressable in the
+ * shell and not in a url, and nothing said so.
+ */
+export const SURFACES = [
+  'actions',
+  'activity',
+  'ask',
+  'batch',
+  'build',
+  'clarifications',
+  'graph',
+  'history',
+  'inbox',
+  'proposals',
+  'settings',
+] as const
+
+export type Surface = typeof SURFACES[number]
 
 type ChordTarget = { kind: 'surface', surface: Surface | null } | { kind: 'workspace-details' }
 
@@ -51,14 +72,16 @@ function chordSecondKey(key: string): ChordTarget | undefined {
 const SURFACE_ITEMS = [
   { id: null, labelKey: 'shell.commandPalette.graphHome', Icon: Network, shortcut: 'G G' },
   { id: 'ask', labelKey: 'shell.surfaces.ask', Icon: MessageCircleQuestion, shortcut: 'G Q' },
-  { id: 'actions', labelKey: 'shell.surfaces.actions', Icon: Sparkles, shortcut: 'G A' },
+  { id: 'build', labelKey: 'shell.surfaces.build', Icon: Boxes, shortcut: 'G B' },
   { id: 'inbox', labelKey: 'shell.surfaces.inbox', Icon: Inbox, shortcut: 'G I' },
-  // Both fold into the Inbox, which is the queue. These reach the same records
-  // once they are resolved, which is browsing rather than reviewing, so they
-  // keep a way in without taking a sidebar row for it.
+  // Everything below folds into a surface above. Each reaches the same records
+  // once they are settled, which is browsing rather than working, so they keep
+  // a way in without taking a sidebar row for it.
+  { id: 'actions', labelKey: 'shell.surfaces.actions', Icon: Sparkles, shortcut: 'G A' },
   { id: 'clarifications', labelKey: 'shell.surfaces.clarifications', Icon: HelpCircle, shortcut: 'G C' },
   { id: 'proposals', labelKey: 'shell.surfaces.proposals', Icon: ClipboardCheck, shortcut: 'G P' },
-  { id: 'activity', labelKey: 'shell.surfaces.activity', Icon: Activity, shortcut: 'G B' },
+  { id: 'activity', labelKey: 'shell.surfaces.activity', Icon: Activity, shortcut: 'G R' },
+  { id: 'batch', labelKey: 'shell.surfaces.batch', Icon: Boxes, shortcut: 'G T' },
   { id: 'history', labelKey: 'shell.surfaces.history', Icon: GitGraph, shortcut: 'G H' },
   { id: 'settings', labelKey: 'shell.surfaces.settings', Icon: Settings, shortcut: 'G S' },
 ] as const satisfies readonly { id: Surface | null, labelKey: string, Icon: typeof Sparkles, shortcut: string }[]

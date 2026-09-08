@@ -1,6 +1,7 @@
 import type { Workspace } from '@braidhq/schema'
+import type { Sparkles } from 'lucide-react'
 import type { Surface } from './CommandPalette'
-import { Activity, GitGraph, Globe, Inbox, Laptop, LogIn, MessageCircleQuestion, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings, Sparkles } from 'lucide-react'
+import { Boxes, GitGraph, Globe, Inbox, Laptop, LogIn, MessageCircleQuestion, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import braidLogo from '@/assets/braid-logo.svg'
@@ -560,11 +561,11 @@ function HereSection({
         {canRunActions && (
           <HereRow
             collapsed={collapsed}
-            icon={Sparkles}
-            label={t('shell.surfaces.actions')}
-            active={activeSurface === 'actions'}
-            shortcut="G A"
-            onClick={() => onSelectSurface('actions')}
+            icon={Boxes}
+            label={t('shell.surfaces.build')}
+            active={activeSurface === 'build'}
+            shortcut="G B"
+            onClick={() => onSelectSurface('build')}
           />
         )}
         {(canSeeClarification || canSeeProposals) && (
@@ -578,14 +579,6 @@ function HereSection({
             onClick={() => onSelectSurface('inbox')}
           />
         )}
-        <HereRow
-          collapsed={collapsed}
-          icon={Activity}
-          label={t('shell.surfaces.activity')}
-          active={activeSurface === 'activity'}
-          shortcut="G B"
-          onClick={() => onSelectSurface('activity')}
-        />
         {canSeeHistory && (
           <HereRow
             collapsed={collapsed}

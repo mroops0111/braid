@@ -32,6 +32,7 @@ import { ActionsPage } from './pages/Actions'
 import { ActivityPage } from './pages/Activity'
 import { AskPage } from './pages/Ask'
 import { BatchPage } from './pages/Batch'
+import { BuildPage } from './pages/Build'
 import { ClarificationPage } from './pages/Clarification'
 import { GraphSurface, GraphSurfaceActions, useGraphSurfaceState } from './pages/GraphSurface'
 import { HistoryPage } from './pages/History'
@@ -132,9 +133,11 @@ function AppInner() {
 
   const graphNavigation = useMemo(() => ({ focusNode, focusEdge }), [focusNode, focusEdge])
 
+  // The Inbox is where a change is reviewed, so that is where a link to one
+  // lands. The Proposals surface stays reachable for browsing settled records.
   const focusProposal = useCallback((id: ProposalId) => {
     setFocusedProposalId(id)
-    setActiveSurface('proposals')
+    setActiveSurface('inbox')
   }, [])
 
   const tabNavigation = useMemo(() => ({ focusProposal }), [focusProposal])
@@ -203,8 +206,15 @@ function AppInner() {
                                     {activeSurface === 'actions' && (
                                       <ActionsPage workspaceId={activeId} />
                                     )}
+                                    {activeSurface === 'build' && (
+                                      <BuildPage workspaceId={activeId} />
+                                    )}
                                     {activeSurface === 'inbox' && (
-                                      <InboxPage workspaceId={activeId} />
+                                      <InboxPage
+                                        workspaceId={activeId}
+                                        focusedProposalId={focusedProposalId}
+                                        onFocusConsumed={() => setFocusedProposalId(null)}
+                                      />
                                     )}
                                     {activeSurface === 'clarifications' && (
                                       <ClarificationPage workspaceId={activeId} />

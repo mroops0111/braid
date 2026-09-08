@@ -4,6 +4,8 @@ export const shell = {
     inbox: 'Inbox',
     ask: 'Ask',
     graph: 'Graph',
+    batch: 'Bootstrap',
+    build: 'Build',
     actions: 'Actions',
     clarifications: 'Clarifications',
     proposals: 'Proposals',

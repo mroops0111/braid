@@ -163,11 +163,31 @@ class RunStore {
    * The exchange travels with the request, because in AG-UI the client holds
    * the conversation and hands it over whole on every run.
    */
+  /**
+   * Run one build step against one document.
+   *
+   * A board action is not a conversation. Nothing was said before it and
+   * nothing follows, so it carries a single message and a thread of its own,
+   * keyed by the document, rather than joining whatever exchange the skill's
+   * own surface happens to be holding.
+   */
+  async startUnit(options: {
+    readonly workspaceId: string
+    readonly skillId: string
+    readonly unitPath: string
+  }): Promise<void> {
+    const { workspaceId, skillId, unitPath } = options
+    this.currentTurns.delete(turnsKey(workspaceId, skillId))
+    await this.startTurn({ workspaceId, skillId, question: unitPath, threadId: `${workspaceId}|${skillId}|${unitPath}` })
+  }
+
   async startTurn(options: {
     readonly workspaceId: string
     readonly skillId: string
     readonly question: string
     readonly resumeSessionId?: string
+    /** Overrides the per-skill thread, for a run that stands on its own. */
+    readonly threadId?: string
   }): Promise<void> {
     const { workspaceId, skillId, question } = options
     const messages: AguiTurn[] = [...this.conversationFor(workspaceId, skillId), { role: 'user', content: question }]
@@ -181,7 +201,7 @@ class RunStore {
     const streaming = runViaAgui({
       workspaceId,
       skillId,
-      threadId: options.resumeSessionId ?? `${workspaceId}|${skillId}`,
+      threadId: options.threadId ?? options.resumeSessionId ?? `${workspaceId}|${skillId}`,
       messages,
       ...(options.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
       onEvent: (event) => {

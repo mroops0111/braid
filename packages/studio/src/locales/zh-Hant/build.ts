@@ -1,0 +1,35 @@
+export const build = {
+  loading: '正在讀取來源…',
+  emptyTitle: '尚未註冊來源',
+  emptyDescription: '在設定裡註冊一個來源，它底下的每份文件都會出現在這裡。',
+  coveredOf: '／{total} 份文件已在模型裡',
+  runGlobal: '執行',
+  runColumn: '全部執行',
+  runUnit: '執行 {skill}',
+  nodes: '{count} 個節點',
+  proposals: '{count} 筆待審',
+  questions: '{count} 題待答',
+  drifts: '{count} 處矛盾',
+  waiting: '等你決定',
+  decide: '前往處理',
+  conflicts: '矛盾',
+  conflictsHint: '依附這份文件的節點上記錄了 {count} 處，證據與模型的說法不一致。',
+  state: {
+    uncovered: '未讀取',
+    running: '讀取中',
+    awaitingDecision: '等你決定',
+    failed: '失敗',
+    sourceChanged: '來源已變',
+    conflicted: '有矛盾',
+    covered: '已在模型裡',
+  },
+  fact: {
+    nodes: '節點數',
+    incorporated: '納入版本',
+    onDisk: '讀到版本',
+    stage: '階段',
+    lastRun: '最後執行',
+  },
+}
+
+export default build

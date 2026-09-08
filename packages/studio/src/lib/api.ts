@@ -1,4 +1,4 @@
-import type { BatchPlan, Clarification, ClarificationCreateBody, CommitMeta, CommitSha, EmbeddingCoverage, FileDiff, GraphEdge, GraphNode, ListSourceLoadersResponse, McpServerConfig, ModelDiffEnvelope, ModelSnapshot, OntologyListResponse, OntologyResponse, ProductManifestCreate, Proposal, ReactorCycle, ReactorCycleId, RunRecord, SessionMetadata, SkillEvent, SkillInputOptionsResponse, SkillManifest, SourceDescriptor, SourceId, SourceLocation, SourceSyncPolicy, SourceSyncState, SourceUnitDiff, SourceUnitObservation, TagMeta, User, UserUpdate, ValidationResult, Workspace, WorkspaceMember, WorkspacePollingConfig, WorkspaceRole } from '@braidhq/schema'
+import type { BatchPlan, Clarification, ClarificationCreateBody, CommitMeta, CommitSha, CoverageBoard, EmbeddingCoverage, FileDiff, GraphEdge, GraphNode, ListSourceLoadersResponse, McpServerConfig, ModelDiffEnvelope, ModelSnapshot, OntologyListResponse, OntologyResponse, ProductManifestCreate, Proposal, ReactorCycle, ReactorCycleId, RunRecord, SessionMetadata, SkillEvent, SkillInputOptionsResponse, SkillManifest, SourceDescriptor, SourceId, SourceLocation, SourceSyncPolicy, SourceSyncState, SourceUnitDiff, SourceUnitObservation, TagMeta, User, UserUpdate, ValidationResult, Workspace, WorkspaceMember, WorkspacePollingConfig, WorkspaceRole } from '@braidhq/schema'
 import { getAuthToken } from './authToken.js'
 import { getCurrentUserId } from './currentUser.js'
 import { getTokenFor } from './remotes.js'
@@ -368,6 +368,9 @@ export const api = {
     const qs = sourceId ? `?sourceId=${encodeURIComponent(sourceId)}` : ''
     return fetchJson<{ items: SourceUnitObservation[] }>(`/workspaces/${workspaceId}/source-unit-states${qs}`)
   },
+
+  getCoverageBoard: (workspaceId: string) =>
+    fetchJson<CoverageBoard>(`/workspaces/${workspaceId}/coverage`),
 
   listReactorCycles: (workspaceId: string) =>
     fetchJson<{ items: ReactorCycle[] }>(`/workspaces/${workspaceId}/reactor-cycles`),

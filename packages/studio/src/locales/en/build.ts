@@ -1,0 +1,35 @@
+export const build = {
+  loading: 'Reading the sources…',
+  emptyTitle: 'No Sources Yet',
+  emptyDescription: 'Register a source in settings, and every document it holds appears here.',
+  coveredOf: 'of {total} documents in the model',
+  runGlobal: 'Run',
+  runColumn: 'Run All',
+  runUnit: 'Run {skill}',
+  nodes: '{count} nodes',
+  proposals: '{count} to review',
+  questions: '{count} to answer',
+  drifts: '{count} conflicts',
+  waiting: 'Waiting on You',
+  decide: 'Decide',
+  conflicts: 'Conflicts',
+  conflictsHint: '{count} recorded on the nodes resting on this document. The evidence disagrees with the model.',
+  state: {
+    uncovered: 'Not read',
+    running: 'Reading',
+    awaitingDecision: 'Waiting on you',
+    failed: 'Failed',
+    sourceChanged: 'Source changed',
+    conflicted: 'Conflicted',
+    covered: 'In the model',
+  },
+  fact: {
+    nodes: 'Nodes',
+    incorporated: 'Applied at',
+    onDisk: 'Read at',
+    stage: 'Stage',
+    lastRun: 'Last run',
+  },
+}
+
+export default build
