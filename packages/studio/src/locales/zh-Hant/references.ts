@@ -6,7 +6,8 @@ export const references = {
     missingTitle: '找不到參照對象',
     missingDescription: '這個工作區沒有「{id}」。它可能被改名或移除了。',
   },
-  // 選單停止列出時顯示，讓讀者知道要縮小查詢，而不是誤以為已看完全部。
+  // Shown under a menu that stopped listing,
+  // so a reader narrows the query rather than assuming they saw everything.
   menuMore: '還有 {count} 筆',
   mention: {
     triggerHint: '輸入 @ 可以參照節點',
