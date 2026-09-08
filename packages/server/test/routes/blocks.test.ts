@@ -4,10 +4,12 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ClaudeCodeAgentBinding } from '@braidhq/agent-claude-code'
+import { UserId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app.js'
 import { composeApp } from '../../src/composeApp.js'
 import { FsRunRepository } from '../../src/infrastructure/skill/FsRunRepository.js'
+import { RunTokenRegistry } from '../../src/infrastructure/skill/RunTokenRegistry.js'
 import { SubprocessSkillRunner } from '../../src/infrastructure/skill/SubprocessSkillRunner.js'
 import { DEFAULT_AGENT_BINDING, makeSkillManifest, makeWorkspace } from '../helpers/fakes.js'
 import { createMockSpawn } from '../helpers/mockSpawn.js'
@@ -25,11 +27,13 @@ async function buildApp() {
   const rootPath = (await mkdtemp(join(tmpdir(), 'braid-blocks-route-'))) as AbsolutePath
   const workspace = makeWorkspace({ rootPath })
   const runRepository = new FsRunRepository()
+  const runTokens = new RunTokenRegistry()
   // The run must outlive the request that posts a block,
   // so the scripted process holds its stdout open until the test releases it.
   const { spawn, endAll } = createMockSpawn([{ stdoutLines: [], hold: true }])
   const skillRegistry = makeSkillRegistry()
   const skillRunner = new SubprocessSkillRunner({
+    runTokens,
     skillRegistry,
     buildAgentBinding: descriptor => new ClaudeCodeAgentBinding(descriptor),
     defaultAgent: DEFAULT_AGENT_BINDING,
@@ -37,9 +41,9 @@ async function buildApp() {
     runRepository,
     spawn,
   })
-  const deps = composeApp({ skillRegistry, skillRunner })
+  const deps = composeApp({ skillRegistry, skillRunner, accessTokenVerifiers: [runTokens] })
   await deps.workspaceRepository.save(workspace)
-  return { app: createApp(deps), workspace, runRepository, skillRunner, endAll }
+  return { app: createApp(deps), workspace, runRepository, skillRunner, runTokens, startedBy: UserId.parse('local-user'), endAll }
 }
 
 async function startRun(app: ReturnType<typeof createApp>, workspaceId: string): Promise<string> {
@@ -206,6 +210,39 @@ describe('render routes', () => {
     })
 
     expect(response.status).toBe(400)
+    endAll()
+  })
+
+  // The run id is a fact the server holds, so nothing is asked for it. A
+  // resumed run once read the id off the record it was answering and
+  // attributed its work to the finished run that had asked.
+  it('attributes a proposal to the run whose credential created it', async () => {
+    const { app, workspace, runTokens, startedBy, endAll } = await buildApp()
+    const runId = await startRun(app, workspace.id)
+    const token = runTokens.issue(runId as never, startedBy)
+
+    const response = await app.request(`/workspaces/${workspace.id}/proposals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ operations: [], generatedBy: 'ddd:extract', rationale: 'from a live run' }),
+    })
+
+    expect(response.status).toBe(201)
+    expect((await response.json() as { skillRunId?: string }).skillRunId).toBe(runId)
+    endAll()
+  })
+
+  it('leaves a proposal a person filed unattributed', async () => {
+    const { app, workspace, endAll } = await buildApp()
+
+    const response = await app.request(`/workspaces/${workspace.id}/proposals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operations: [], generatedBy: 'ddd:extract', rationale: 'filed by hand' }),
+    })
+
+    expect(response.status).toBe(201)
+    expect((await response.json() as { skillRunId?: string }).skillRunId).toBeUndefined()
     endAll()
   })
 

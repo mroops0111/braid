@@ -100,6 +100,17 @@ export interface StartBatchOptions {
  */
 type BatchCaller = Pick<SkillRunOptions, 'callerToken' | 'startedBy'>
 
+/**
+ * Told to a skill when a batch is driving it and applying what it produces.
+ *
+ * Bootstrap trades settled-ness for coverage on purpose, so a run in this mode
+ * proposes what it has rather than stopping on the first thing it cannot
+ * decide. What it could not decide is recorded on the node and raised as a
+ * clarification, so the doubt is visible in the graph rather than lost in a
+ * guess nobody can see.
+ */
+const UNATTENDED_ENV = { BRAID_UNATTENDED: 'true' } as const
+
 export class BatchService {
   private readonly stopRequested = new Set<WorkspaceId>()
 
@@ -352,7 +363,7 @@ export class BatchService {
         checkpoint.skillId,
         '',
         {
-          ...(hasEnv ? { extraEnv } : {}),
+          ...(hasEnv || plan.autoApply ? { extraEnv: { ...extraEnv, ...(plan.autoApply ? UNATTENDED_ENV : {}) } } : {}),
           ...caller,
         },
       )
@@ -466,6 +477,7 @@ export class BatchService {
         argsFor(unit),
         {
           ...caller,
+          ...(plan.autoApply ? { extraEnv: UNATTENDED_ENV } : {}),
           // A retry continues the agent's own session,
           // so a unit interrupted part way does not read the document again.
           ...(unit.resumeSessionId ? { resumeSessionId: unit.resumeSessionId } : {}),

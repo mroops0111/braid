@@ -324,6 +324,30 @@ describe('BatchService', () => {
     expect(final.units[1]!.proposalIds).toEqual(['p-2'])
   })
 
+  // Bootstrap wants coverage, so a unit that cannot settle something records
+  // the doubt and carries on rather than leaving the graph empty.
+  it('tells each unit nobody is watching when the batch applies its own output', async () => {
+    const { service, workspace, planRepository, skillRunner } = await setup()
+
+    await service.start(workspace.id, { autoApply: true, startedBy: STARTED_BY })
+    await flushBatch(planRepository)
+
+    const modes = skillRunner.startCalls.map(call => call.options?.extraEnv?.BRAID_UNATTENDED)
+    expect(modes.length).toBeGreaterThan(0)
+    expect(modes.every(mode => mode === 'true')).toBe(true)
+  })
+
+  it('leaves a reviewed batch attended, so a unit still stops to ask', async () => {
+    const { service, workspace, planRepository, skillRunner } = await setup()
+
+    await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
+    await flushBatch(planRepository)
+
+    const modes = skillRunner.startCalls.map(call => call.options?.extraEnv?.BRAID_UNATTENDED)
+    expect(modes.length).toBeGreaterThan(0)
+    expect(modes.every(mode => mode === undefined)).toBe(true)
+  })
+
   it('marks a unit failed when extract exits non-zero, continues to next', async () => {
     const { service, workspace, planRepository, skillRunner } = await setup()
     skillRunner.exitCodes = [1, 0]

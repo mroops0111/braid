@@ -80,7 +80,6 @@ export const ClarificationCreate = z.object({
   context: z.string().max(2000).optional(),
   relatedNode: NodeId.optional(),
   ambiguityType: ClarificationAmbiguityType.optional(),
-  skillRunId: SkillRunId.optional(),
 })
 export type ClarificationCreate = z.infer<typeof ClarificationCreate>
 

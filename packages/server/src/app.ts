@@ -264,6 +264,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   }))
   workspaceScoped.route('/proposals', createProposalsRouter({
     hitlService: deps.hitlService,
+    ...(deps.outputGate ? { outputGate: deps.outputGate } : {}),
     proposalRepository: deps.proposalRepository,
     modelRepository: deps.modelRepository,
     modelValidationService: deps.modelValidationService,
@@ -271,6 +272,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   }))
   workspaceScoped.route('/clarifications', createClarificationRouter({
     hitlService: deps.hitlService,
+    ...(deps.outputGate ? { outputGate: deps.outputGate } : {}),
     clarificationRepository: deps.clarificationRepository,
   }))
   workspaceScoped.route('/source-unit-states', createSourceUnitObservationsRouter({

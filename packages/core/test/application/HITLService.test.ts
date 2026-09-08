@@ -245,6 +245,37 @@ describe('HITLService', () => {
   })
 
   describe('answerClarification', () => {
+    // A run often proposes new nodes and asks about them in one go, so the
+    // answer fails on a node that exists only in the proposal beside it.
+    it('names the pending proposal that would supply a node the answer needs', async () => {
+      const fixture = await setupFixture()
+      const nodeId = 'cmd.notYetApplied' as NodeId
+      const otherId = mintTestId('n') as NodeId
+      await fixture.modelRepository.applyOperations(fixture.workspaceId, [
+        { operation: 'addNode', payload: { type: 'command' as NodeTypeId, name: 'here', id: otherId, status: 'draft' as NodeStatus } },
+      ])
+      await fixture.proposalRepository.save(makeProposal(fixture.workspaceId, {
+        id: 'proposal-supplies-it',
+        nodeId,
+      }))
+      const candidateId = mintTestId('cc') as ClarificationCandidateId
+      const clarification = makeClarification(fixture.workspaceId, {
+        candidates: [{
+          id: candidateId,
+          description: 'link them',
+          sourceReferences: [],
+          proposedOperations: [{ operation: 'removeNode', nodeId }],
+        }],
+      })
+      await fixture.clarificationRepository.save(clarification)
+
+      await expect(fixture.service.answerClarification({
+        clarificationId: clarification.id,
+        selection: { kind: 'existing', candidateId },
+        userId,
+      })).rejects.toThrow(/proposal-supplies-it/)
+    })
+
     it('records the chosen candidate as answered without mutating the graph', async () => {
       // The user's answer is just a selection signal, graph writes go through the ddd:clarify skill's Proposal path,
       // not here.

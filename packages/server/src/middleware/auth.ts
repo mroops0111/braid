@@ -1,6 +1,6 @@
-import type { UserId as UserIdType } from '@braidhq/schema'
+import type { SkillRunId as SkillRunIdType, UserId as UserIdType } from '@braidhq/schema'
 import type { Context, MiddlewareHandler } from 'hono'
-import type { AccessTokenVerifier } from '../infrastructure/auth/AccessTokenVerifier.js'
+import type { AccessTokenVerifier, VerifiedCaller } from '../infrastructure/auth/AccessTokenVerifier.js'
 import type { SessionStore } from '../infrastructure/auth/SessionStore.js'
 import { UnauthorizedError } from '@braidhq/core'
 import { UserId } from '@braidhq/schema'
@@ -8,6 +8,8 @@ import { UserId } from '@braidhq/schema'
 declare module 'hono' {
   interface ContextVariableMap {
     userId: UserIdType
+    /** Present only when a running skill is the caller. */
+    skillRunId: SkillRunIdType
   }
 }
 
@@ -103,6 +105,14 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
       // so an internal caller like the reactor is identified as its service account.
       // Studio under local trust sends no Bearer, so this never shadows it.
       const token = extractBearerToken(context)
+      // A skill calls back with a run credential even here, so its work is
+      // attributed to the run rather than to whoever the deployment assumes.
+      const caller = token ? await resolveCaller(token, options.accessTokenVerifiers) : null
+      if (caller) {
+        setCaller(context, caller)
+        await next()
+        return undefined
+      }
       const session = token ? await options.sessionStore?.resolve(token) : undefined
       if (session) {
         context.set('userId', session.userId)
@@ -130,10 +140,10 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
       token = context.req.query('token') || undefined
     if (!token)
       throw new UnauthorizedError('Missing or invalid Authorization header. Sign in to continue.')
-    const userId = await resolveCaller(token, options.accessTokenVerifiers)
-    if (!userId)
+    const caller = await resolveCaller(token, options.accessTokenVerifiers)
+    if (!caller)
       throw new UnauthorizedError('Session expired or revoked. Sign in again.')
-    context.set('userId', userId)
+    setCaller(context, caller)
     await next()
     return undefined
   }
@@ -147,15 +157,31 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
  * One that recognises and refuses throws instead,
  * which is why an expired token reports as expired rather than as unknown.
  */
-async function resolveCaller(token: string, verifiers: readonly AccessTokenVerifier[]): Promise<UserIdType | null> {
+async function resolveCaller(token: string, verifiers: readonly AccessTokenVerifier[]): Promise<VerifiedCaller | null> {
   for (const verifier of verifiers) {
     const caller = await verifier.verify(token)
     if (caller)
-      return caller.userId
+      return caller
   }
   return null
 }
 
+function setCaller(context: Context, caller: VerifiedCaller): void {
+  context.set('userId', caller.userId)
+  if (caller.skillRunId)
+    context.set('skillRunId', caller.skillRunId)
+}
+
 export function getUserId(context: Context): UserIdType {
   return context.get('userId')
+}
+
+/**
+ * The run that is calling, when one is.
+ *
+ * Read from the credential rather than from the request body, so a record can
+ * be attributed to its run without anyone being asked which run that is.
+ */
+export function getSkillRunId(context: Context): SkillRunIdType | undefined {
+  return context.get('skillRunId')
 }

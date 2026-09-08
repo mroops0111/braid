@@ -7,6 +7,7 @@ import type {
   GraphOperation,
   ProposalCreate,
   ProposalId,
+  SkillRunId,
   ValidationIssue,
   WorkspaceId,
 } from '@braidhq/schema'
@@ -104,7 +105,7 @@ export class HITLService {
   }
 
   // Candidates are only validated at answer time, since each picks a different op set.
-  async submitClarification(draft: ClarificationCreate & { submitterId?: UserId }): Promise<Clarification> {
+  async submitClarification(draft: ClarificationCreate & { submitterId?: UserId, skillRunId?: SkillRunId }): Promise<Clarification> {
     const submitter = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
     const clarification = new Clarification({
       id: newClarificationId(),
@@ -326,8 +327,34 @@ export class HITLService {
     const snapshot = await this.deps.modelRepository.load(workspaceId)
     const result = await this.deps.modelValidationService.validateOperations(snapshot, operations, workspace)
     if (!result.ok) {
-      throw new ValidationError(this.formatValidationErrors(result.issues), result.issues)
+      const blame = await this.blameUnappliedProposal(workspaceId, result.issues)
+      throw new ValidationError(`${this.formatValidationErrors(result.issues)}${blame}`, result.issues)
     }
+  }
+
+  /**
+   * Name the pending proposal that would supply what is missing.
+   *
+   * A run often proposes new nodes and asks a question about them in the same
+   * breath, so answering before applying fails on a node that does exist, just
+   * not yet. A bare id leaves the reviewer to work that out, and they have no
+   * way to see which proposal holds it.
+   */
+  private async blameUnappliedProposal(
+    workspaceId: WorkspaceId,
+    issues: readonly ValidationIssue[],
+  ): Promise<string> {
+    const missing = issues.flatMap(issue => [...issue.message.matchAll(/"([^"]+)" not found/g)].map(match => match[1]!))
+    if (missing.length === 0)
+      return ''
+    const pending = await this.deps.proposalRepository.list({ workspaceId, statuses: ['pending'] })
+    for (const proposal of pending) {
+      const introduced = JSON.stringify(proposal.operations)
+      const supplied = missing.filter(id => introduced.includes(`"${id}"`))
+      if (supplied.length > 0)
+        return `. Proposal "${proposal.id}" adds ${supplied.join(', ')}, so apply it first`
+    }
+    return ''
   }
 
   private formatValidationErrors(issues: readonly ValidationIssue[]): string {

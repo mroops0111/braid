@@ -92,6 +92,14 @@ Map the two forms like this:
 
 Leave `audiences` empty on all of these except the last. They are conclusions and the evidence behind them, so every reader gets them, and the surface adjusts how much of a reference it shows from the reader's own `evidenceDetail`. See `$BRAID_SHARED_REFERENCE/block-protocol.md`.
 
+### What Is Worth Addressing To One Reader
+
+There is one thing each reader needs that the others do not, and it is not the conclusion. It is what follows from it for them.
+
+A conflict between a spec and the code means "watch for this in tickets, and tell the customer the shorter answer" to one reader, and "this constant is the one to change, and here is what depends on it" to another. Those are different sentences carrying different information, so writing both is not duplication.
+
+So after the shared conclusions, render one short `show_answer` per audience, each naming that audience, saying what this answer means for them specifically. Read the audience's own `description` for what it cares about. Keep each to a few sentences, and skip an audience entirely rather than padding one out, since an empty implication tells a reader nothing they could not already see.
+
 Produce two sections separated by `---`.
 
 ### Upper Section (Business Audience)

@@ -51,6 +51,8 @@ import { EncryptedSecretStore, readSecretKey } from './infrastructure/secrets/En
 import { FsSecretStore, type SecretStore } from './infrastructure/secrets/SecretStore.js'
 import { FsRunRepository } from './infrastructure/skill/FsRunRepository.js'
 import { BUILTIN_SKILL_NAMESPACE, FsSkillRegistry } from './infrastructure/skill/FsSkillRegistry.js'
+import { RunOutputGate } from './infrastructure/skill/RunOutputGate.js'
+import { RunTokenRegistry } from './infrastructure/skill/RunTokenRegistry.js'
 import { SubprocessSkillRunner } from './infrastructure/skill/SubprocessSkillRunner.js'
 import { FsSourceSyncStateRepository } from './infrastructure/source/FsSourceSyncStateRepository.js'
 import { FsSourceUnitDigest } from './infrastructure/source/FsSourceUnitDigest.js'
@@ -366,9 +368,19 @@ export async function composeFsAppWithRegistry(
   if (loginMode.kind === 'none' && authMode.requiresAuth)
     console.warn(`[braid] Nobody can sign in. ${loginMode.reason}`)
 
-  const accessTokenVerifiers = oidcIssuer
-    ? [new OidcTokenVerifier({ issuer: oidcIssuer, audience: oidcAudience, userRegistry, accessPolicy })]
-    : []
+  // A running skill's own credential, tried before any deployment's. It is the
+  // only verifier that is always present, since a run calls back the same way
+  // whether or not this deployment gates people at the door.
+  const runTokens = new RunTokenRegistry()
+  // Attended runs are held to one outcome. A batch that applies its own output
+  // opts out per run, since it wants the proposal and the doubt recorded both.
+  const outputGate = new RunOutputGate()
+  const accessTokenVerifiers = [
+    runTokens,
+    ...(oidcIssuer
+      ? [new OidcTokenVerifier({ issuer: oidcIssuer, audience: oidcAudience, userRegistry, accessPolicy })]
+      : []),
+  ]
 
   // Serving Studio ourselves puts the UI and the API on one origin,
   // so the browser never reaches for CORS on the path that matters.
@@ -527,6 +539,8 @@ export async function composeFsAppWithRegistry(
     return { skillNamespace: ref.skillNamespace, path: dir as AbsolutePath }
   })
   const skillRunner = new SubprocessSkillRunner({
+    runTokens,
+    outputGate,
     skillRegistry,
     buildAgentBinding: descriptor => pluginRegistry.requireAgentPlugin(descriptor.kind).createBinding(descriptor),
     defaultAgent,
@@ -624,6 +638,7 @@ export async function composeFsAppWithRegistry(
     accessPolicy,
     studioUrl,
     ...(accessTokenVerifiers.length > 0 ? { accessTokenVerifiers } : {}),
+    outputGate,
     loginProviders,
     ...(mcpGateway ? { mcpGateway } : {}),
     ...(agentCredentialStore && agentCredentialBroker

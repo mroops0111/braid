@@ -34,6 +34,7 @@ import type { McpGatewayResolution } from './infrastructure/mcp/mcpGatewaySettin
 import type { GitHubOAuth } from './infrastructure/oauth/GitHubOAuth.js'
 import type { GoogleOAuth } from './infrastructure/oauth/GoogleOAuth.js'
 import type { SecretStore } from './infrastructure/secrets/SecretStore.js'
+import type { RunOutputGate } from './infrastructure/skill/RunOutputGate.js'
 import type { UserRegistryFile } from './infrastructure/users/UserRegistryFile.js'
 import type { WorkspaceRegistryFile } from './infrastructure/workspace/WorkspaceRegistryFile.js'
 import { tmpdir } from 'node:os'
@@ -79,6 +80,7 @@ import { localTrust } from './authMode.js'
  * absent under in-memory or test wiring, filled by `composeFsApp`.
  */
 export interface AppDependencies {
+  outputGate?: RunOutputGate
   // Core services, always present.
   workspaceService: WorkspaceService
   hitlService: HITLService
@@ -222,6 +224,17 @@ export interface AppDependencies {
  * `composeFsApp` passes the fs, git, and vendor adapters through here.
  */
 export interface ComposeOptions {
+  /**
+   * Holds a run to one outcome, a question or a proposal. Wired where skills
+   * run, absent in a composition that has none.
+   */
+  readonly outputGate?: RunOutputGate
+  /**
+   * Credentials this composition accepts, beyond the sessions Braid issues.
+   * A running skill's own token is one, so what a run creates is attributed
+   * from the request rather than from a field it had to fill in.
+   */
+  readonly accessTokenVerifiers?: readonly AccessTokenVerifier[]
   // Infrastructure singletons.
   clock?: Clock
   // The same instance wired into `SubprocessSkillRunner`,
@@ -444,6 +457,8 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     workspaceRepository,
     skillRegistry: options.skillRegistry,
     skillRunner: options.skillRunner,
+    ...(options.accessTokenVerifiers ? { accessTokenVerifiers: options.accessTokenVerifiers } : {}),
+    ...(options.outputGate ? { outputGate: options.outputGate } : {}),
     runRepository: options.runRepository ?? new NoopRunRepository(),
     workspacesRoot: options.workspacesRoot ?? (join(tmpdir(), 'braid-workspaces') as AbsolutePath),
     ...(defaultOntologyId ? { defaultOntologyId } : {}),

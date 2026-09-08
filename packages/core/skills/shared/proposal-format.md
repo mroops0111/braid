@@ -79,13 +79,6 @@ The order is consumed by Studio's detail panel and `braid:generate-doc` as "the 
 
 `StructuralValidator` (in `validators.md`) enforces `fromNodeId`'s type ∈ `edgeTypes[<type>].fromTypes` and `toNodeId`'s likewise for `toTypes`.
 
-## Naming the Run That Produced It
-
-Send `skillRunId: $BRAID_RUN_ID` on every create. The framework injects that variable into your environment.
-
-It is what lets a batch tell its own output apart from anything a person filed while it happened to be running, and it is what links this record back to the conversation that reasoned about it. Leave it off and an automated batch cannot claim its own work, so the record waits for a reviewer that the batch was supposed to stand in for.
-
-Never send a run id other than your own.
 
 ## Status Semantics
 

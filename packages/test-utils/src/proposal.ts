@@ -10,6 +10,8 @@ export interface MakeProposalOptions {
   readonly clarificationId?: string
   /** The run that produced it. Left off, the proposal reads as human-filed. */
   readonly skillRunId?: string
+  /** The id of the node it adds, when a test asserts on which one. */
+  readonly nodeId?: string
 }
 
 /**
@@ -31,7 +33,7 @@ export function makeProposal(workspaceId: WorkspaceId, opts: MakeProposalOptions
       payload: {
         type: 'command' as NodeTypeId,
         name,
-        id: mintTestId('n') as never,
+        id: (opts.nodeId ?? mintTestId('n')) as never,
         status: 'draft' as NodeStatus,
         metadata: { sourceReferences: [], missingRoles: ['alpha' as SourceRole] },
       },

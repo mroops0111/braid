@@ -26,13 +26,7 @@ What differs between readers is **how much of a reference is shown**, and the su
 
 A reader who sees only half of a comparison has been given something worse than the whole. If you find yourself about to address one half of a comparison to one reader and the other half to another, render it once, addressed to nobody.
 
-### What Is Worth Addressing To One Reader
-
-There is one thing each reader needs that the others do not, and it is not the conclusion. It is what follows from it for them.
-
-A conflict between a spec and the code means "watch for this in tickets, and tell the customer the shorter answer" to one reader, and "this constant is the one to change, and here is what depends on it" to another. Those are different sentences carrying different information, so writing both is not duplication.
-
-So after the shared conclusions, render one short `show_answer` per audience, each naming that audience, saying what this answer means for them specifically. Read the audience's own `description` for what it cares about. Keep each to a few sentences, and skip an audience entirely rather than padding one out, since an empty implication tells a reader nothing they could not already see.
+Whether a skill should address anything to one reader at all is the skill's own decision, not this document's. A skill whose output is reviewed by whoever holds a gate has one reader, so it leaves `audiences` empty throughout.
 
 ## Grouping Blocks That Belong Together
 

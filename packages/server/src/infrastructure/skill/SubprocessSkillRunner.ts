@@ -13,6 +13,8 @@ import type {
 import type { AbsolutePath, AgentBindingDescriptor, AudienceDescriptor, EmittedBlock, McpServerConfig, RenderBlock, RunRecord, SkillAgentOverride, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceId } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import type { AgentCredentialBroker } from '../agent/AgentCredentialBroker.js'
+import type { RunOutputGate } from './RunOutputGate.js'
+import type { RunTokenRegistry } from './RunTokenRegistry.js'
 import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { describeViolations, newBlockId, newSkillRunId, NotFoundError, ServiceUnavailableError, validateOutput } from '@braidhq/core'
@@ -77,6 +79,17 @@ export interface SubprocessSkillRunnerDeps {
     readonly specUrl: string
     readonly uvxBin?: string
   }
+  /**
+   * Mints the credential a run calls back with. Wired, a run's identity rides
+   * its bearer token and nothing has to be told which run is calling. Absent,
+   * the run carries its caller's own token as before.
+   */
+  readonly runTokens?: RunTokenRegistry
+  /**
+   * Holds each run to one outcome, a question or a proposal. Absent, a run may
+   * do both, which is the batch's mode rather than a person's.
+   */
+  readonly outputGate?: RunOutputGate
   // Optional pub/sub for workspace-scoped notifications.
   // Studio uses it to invalidate run and proposal lists live, without polling.
   // Tests can leave this undefined.
@@ -129,6 +142,10 @@ export class SubprocessSkillRunner implements SkillRunner {
     const runId = newSkillRunId()
     const sessionDir = await this.resolveSessionDir(workspace, runId, options.resumeSessionId)
     const skillBundleDirs = await this.skillBundleDirsFor(workspace, sessionDir)
+    // The run's own credential, so what it creates is attributed from the
+    // request rather than from a field an agent had to fill in correctly.
+    const runToken = this.deps.runTokens?.issue(runId, options.startedBy) ?? options.callerToken
+    this.deps.outputGate?.open(runId, { unattended: options.extraEnv?.BRAID_UNATTENDED === 'true' })
     const gatewayArgs = [
       'openapi-mcp-gateway',
       '--spec',
@@ -146,7 +163,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       // The gateway resolves `${BRAID_TOKEN}` against its process env at startup.
       // Without this the server's auth middleware rejects every callback with 401.
       // eslint-disable-next-line no-template-curly-in-string
-      ...(options.callerToken ? ['--auth-type', 'bearer', '--auth-token', '${BRAID_TOKEN}'] : []),
+      ...(runToken ? ['--auth-type', 'bearer', '--auth-token', '${BRAID_TOKEN}'] : []),
     ]
     // Compose the MCP server list, the built-in gateway plus any the workspace
     // declares. The binding writes whatever config its CLI needs from this.
@@ -215,7 +232,7 @@ export class SubprocessSkillRunner implements SkillRunner {
         // BRAID_TOKEN is read by the braid-core MCP gateway,
         // and by any shell-level callback (curl in a SKILL.md),
         // so the subprocess can authenticate against the running server.
-        ...(options.callerToken ? { BRAID_TOKEN: options.callerToken } : {}),
+        ...(runToken ? { BRAID_TOKEN: runToken } : {}),
         // After the agent's own environment, so a run's credential wins.
         // A configured key would otherwise take precedence,
         // and the broker would go unused.
@@ -458,6 +475,8 @@ export class SubprocessSkillRunner implements SkillRunner {
     finally {
       this.running.delete(input.runId)
       this.deps.agentCredentials?.release(input.runId)
+      this.deps.runTokens?.revoke(input.runId)
+      this.deps.outputGate?.close(input.runId)
       await this.correctOutput(input, rendered, capturedSessionId, exitCode, sawError)
       this.deps.eventBus?.publish({
         type: 'run.completed',

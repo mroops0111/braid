@@ -1,7 +1,8 @@
 import type { HITLService, ModelRepository, ModelValidationService, ProposalRepository, WorkspaceService } from '@braidhq/core'
+import type { RunOutputGate } from '../infrastructure/skill/RunOutputGate.js'
 import { Proposal, ProposalCreate, ProposalId, ProposalStatus, UserId, ValidationResult } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
-import { getUserId } from '../middleware/auth.js'
+import { getSkillRunId, getUserId } from '../middleware/auth.js'
 import { getViewerContext, requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
@@ -33,7 +34,10 @@ const RejectBody = z.object({
 // Skill-facing create. Body must carry `workspaceId` matching the route param.
 // Zod parses the rest of the ProposalCreate fields,
 // and HITLService.submitProposal validates ops against the live graph.
-const CreateBody = ProposalCreate.omit({ workspaceId: true }).openapi('ProposalCreateBody')
+// `skillRunId` is not here on purpose. A running skill is identified by the
+// credential it calls with, and a person filing a proposal has no run, so
+// there is nobody left for the field to come from.
+const CreateBody = ProposalCreate.omit({ workspaceId: true, skillRunId: true }).openapi('ProposalCreateBody')
 
 const ProposalIdParam = WorkspaceIdParam.extend({
   proposalId: ProposalId.openapi({ param: { name: 'proposalId', in: 'path' } }),
@@ -45,6 +49,11 @@ const ProposalListResponse = z.object({
 
 export interface ProposalsRouterDeps {
   hitlService: HITLService
+  /**
+   * Holds a run to one outcome, a question or a proposal. Absent, nothing is
+   * gated, which is what an in-memory composition without skills wants.
+   */
+  outputGate?: RunOutputGate
   proposalRepository: ProposalRepository
   modelRepository: ModelRepository
   modelValidationService: ModelValidationService
@@ -171,7 +180,14 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     const workspaceId = getWorkspaceId(context)
     const body = context.req.valid('json')
     const submitterId = getUserId(context)
-    const proposal = await deps.hitlService.submitProposal({ workspaceId, ...body, submitterId })
+    const skillRunId = getSkillRunId(context)
+    deps.outputGate?.assertMayPropose(skillRunId)
+    const proposal = await deps.hitlService.submitProposal({
+      workspaceId,
+      ...body,
+      ...(skillRunId ? { skillRunId } : {}),
+      submitterId,
+    })
     return context.json(proposal.toData(), 201)
   })
 

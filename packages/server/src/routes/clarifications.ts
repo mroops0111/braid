@@ -1,8 +1,9 @@
 import type { ClarificationRepository, HITLService } from '@braidhq/core'
+import type { RunOutputGate } from '../infrastructure/skill/RunOutputGate.js'
 import { newClarificationCandidateId } from '@braidhq/core'
 import { Clarification, ClarificationCandidateId, ClarificationCreateBody, ClarificationId, ClarificationStatus, ProposalId, UserId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
-import { getUserId } from '../middleware/auth.js'
+import { getSkillRunId, getUserId } from '../middleware/auth.js'
 import { getViewerContext, requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
@@ -68,6 +69,11 @@ const ClarificationListResponse = z.object({
 
 export interface ClarificationRouterDeps {
   hitlService: HITLService
+  /**
+   * Holds a run to one outcome, a question or a proposal. Absent, nothing is
+   * gated, which is what an in-memory composition without skills wants.
+   */
+  outputGate?: RunOutputGate
   clarificationRepository: ClarificationRepository
 }
 
@@ -182,6 +188,22 @@ const skipClarificationRoute = createRoute({
   },
 })
 
+const reportNoClarificationRoute = createRoute({
+  method: 'post',
+  path: '/none',
+  operationId: 'reportNoClarification',
+  summary: 'Say that this run found nothing it could not decide. Call it before proposing.',
+  tags: ['clarifications'],
+  request: { params: WorkspaceIdParam },
+  responses: {
+    200: {
+      description: 'The declaration was recorded.',
+      content: { 'application/json': { schema: z.object({ ok: z.literal(true) }).openapi('NoClarificationAccepted') } },
+    },
+    400: ValidationFailureResponse,
+  },
+})
+
 export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
   // Answer, skip, and mark-applied are HITL decisions,
@@ -191,6 +213,11 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
   router.use('/:clarificationId/skip', requirePermission('clarification.write'))
   router.use('/:clarificationId', requirePermission('clarification.write'))
 
+  router.openapi(reportNoClarificationRoute, async (context) => {
+    deps.outputGate?.declareNothingToClarify(getSkillRunId(context))
+    return context.json({ ok: true } as const, 200)
+  })
+
   router.openapi(createClarificationRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const body = context.req.valid('json')
@@ -199,7 +226,15 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
       ...c,
       id: c.id ?? newClarificationCandidateId(),
     }))
-    const clarification = await deps.hitlService.submitClarification({ ...body, workspaceId, candidates, submitterId })
+    const skillRunId = getSkillRunId(context)
+    deps.outputGate?.assertMayClarify(skillRunId)
+    const clarification = await deps.hitlService.submitClarification({
+      ...body,
+      workspaceId,
+      candidates,
+      ...(skillRunId ? { skillRunId } : {}),
+      submitterId,
+    })
     return context.json(clarification.toData(), 201)
   })
 
