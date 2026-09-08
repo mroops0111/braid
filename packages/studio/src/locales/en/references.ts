@@ -9,6 +9,9 @@ export const references = {
     missingTitle: 'Reference Not Found',
     missingDescription: 'Nothing in this workspace answers to "{id}". It may have been renamed or removed.',
   },
+  // Shown under a menu that stopped listing,
+  // so a reader narrows the query rather than assuming they saw everything.
+  menuMore: '{count, plural, one {# more match} other {# more matches}}',
   mention: {
     triggerHint: 'Type @ to reference a node',
     emptyDescription: 'No matching nodes.',

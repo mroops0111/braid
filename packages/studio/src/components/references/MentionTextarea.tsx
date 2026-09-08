@@ -5,7 +5,7 @@ import { splitReferences } from '@braidhq/schema'
 import { Fragment, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { applyMention, findActiveMention, sameMention } from '@/lib/references/mentionQuery'
-import { MENU_CANDIDATE_LIMIT, readMenuKey, stepIndex, toMenuKeyPress } from '@/lib/references/menuNavigation'
+import { clampMenuLeft, MENU_CANDIDATE_LIMIT, placeMenu, readMenuKey, stepIndex, toMenuKeyPress } from '@/lib/references/menuNavigation'
 import { useReferenceRegistry } from '@/lib/references/ReferenceRegistryContext'
 import { cn } from '@/lib/utils'
 import { menuFieldAria, ReferenceMenu } from './ReferenceMenu'
@@ -42,11 +42,20 @@ const BOX_CLASS = 'w-full rounded-md border py-1.5 leading-relaxed whitespace-pr
 const DENSITY_CLASS = { default: 'px-3 text-sm', compact: 'px-2 text-xs' } as const
 
 const MENU_WIDTH_REM = 26
+
+// The menu is sized in rem and the clamp works in px, so the two meet here.
+// Read rather than assumed, since a reader may have changed the text size.
+function remInPx(): number {
+  return Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+}
 // Matches the menu's own max height, see ReferenceMenu.
-const MENU_MAX_HEIGHT_PX = 256
+// Clear of the caret's line without drifting away from the word it completes.
+const MENU_GAP_PX = 4
 
 interface MenuPosition {
   left: number
+  /** What the menu may take on the side it landed on. */
+  maxHeightPx: number
   /** Exactly one of these is set, which decides the growth direction. */
   top?: number
   bottom?: number
@@ -81,9 +90,10 @@ export function MentionTextarea({
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null)
 
   const open = mention !== null && mention.start !== dismissedStart
-  const candidates = open && registry
+  const found = open && registry
     ? registry.search(mention.query, { limit: MENU_CANDIDATE_LIMIT })
-    : []
+    : { items: [], total: 0 }
+  const candidates = found.items
 
   useLayoutEffect(() => {
     syncScroll(overlayRef, textareaRef)
@@ -98,16 +108,28 @@ export function MentionTextarea({
     }
     const anchorBox = anchor.getBoundingClientRect()
     const containerBox = container.getBoundingClientRect()
-    // Anchoring the bottom edge lets the menu grow upward,
-    // without having to know its height first.
-    const flipUp = window.innerHeight - anchorBox.bottom < MENU_MAX_HEIGHT_PX
-    setMenuPosition({
-      left: anchorBox.left - containerBox.left,
-      ...(flipUp
-        ? { bottom: containerBox.bottom - anchorBox.top }
-        : { top: anchorBox.bottom - containerBox.top }),
+    // Sits against the caret's own line, a hair off it either way,
+    // so the list stays beside the word it is completing.
+    const placement = placeMenu({
+      caretTop: anchorBox.top,
+      caretBottom: anchorBox.bottom,
+      viewportHeight: window.innerHeight,
+      gap: MENU_GAP_PX,
     })
-  }, [open, mention?.start, value])
+    setMenuPosition({
+      left: clampMenuLeft({
+        caretLeft: anchorBox.left,
+        containerLeft: containerBox.left,
+        containerWidth: containerBox.width,
+        menuWidth: MENU_WIDTH_REM * remInPx(),
+        viewportWidth: window.innerWidth,
+      }),
+      maxHeightPx: placement.maxHeightPx,
+      ...(placement.flipUp
+        ? { bottom: containerBox.bottom - anchorBox.top + MENU_GAP_PX }
+        : { top: anchorBox.bottom - containerBox.top + MENU_GAP_PX }),
+    })
+  }, [open, mention?.start, value, candidates.length])
 
   function refreshMention(nextValue: string, caret: number | null): void {
     const found = caret === null ? null : findActiveMention(nextValue, caret)
@@ -209,11 +231,19 @@ export function MentionTextarea({
       {open && menuPosition && (
         <div
           className="absolute z-50"
-          style={{ ...menuPosition, width: `${MENU_WIDTH_REM}rem`, maxWidth: '100%' }}
+          style={{
+            left: menuPosition.left,
+            ...(menuPosition.top !== undefined ? { top: menuPosition.top } : {}),
+            ...(menuPosition.bottom !== undefined ? { bottom: menuPosition.bottom } : {}),
+            width: `${MENU_WIDTH_REM}rem`,
+            maxWidth: '100%',
+          }}
         >
           <ReferenceMenu
             id={menuId}
             candidates={candidates}
+            total={found.total}
+            maxHeightPx={menuPosition.maxHeightPx}
             activeIndex={activeIndex}
             onHover={setActiveIndex}
             onPick={pick}
@@ -247,7 +277,11 @@ function renderOverlay(value: string, anchorAt: number | null, anchorRef: RefObj
     else if (anchorAt !== null && anchorAt >= offset && anchorAt <= offset + segment.text.length) {
       const cut = anchorAt - offset
       nodes.push(<Fragment key={`${index}-before`}>{segment.text.slice(0, cut)}</Fragment>)
-      nodes.push(<span key={`${index}-anchor`} ref={anchorRef} className="inline-block w-0" />)
+      // Carries the line's height and no width,
+      // so its box is the caret's line rather than a point on the baseline.
+      // A zero-height anchor reads as a line starting halfway down the text,
+      // which puts a menu opening upward over the words it should clear.
+      nodes.push(<span key={`${index}-anchor`} ref={anchorRef} className="inline-block h-[1lh] w-0 align-top" />)
       nodes.push(<Fragment key={`${index}-after`}>{segment.text.slice(cut)}</Fragment>)
     }
     else {
