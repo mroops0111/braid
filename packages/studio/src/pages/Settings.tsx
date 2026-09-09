@@ -6,16 +6,18 @@ import { UserPicker } from '@/components/UserPicker'
 import { isDesktop } from '@/lib/platform'
 import { useWorkspacePolicy } from '@/policy'
 import { AboutTab } from './settings/AboutTab'
+import { AgentTab } from './settings/AgentTab'
 import { AppearanceTab } from './settings/AppearanceTab'
 import { ServersTab } from './settings/ServersTab'
 import { UsersTab } from './settings/UsersTab'
 
-type SettingsTab = 'servers' | 'users' | 'appearance' | 'about'
+type SettingsTab = 'servers' | 'users' | 'agent' | 'appearance' | 'about'
 
 // i18next types the key, so the map is written out rather than derived.
 const TAB_LABEL_KEYS = {
   servers: 'admin.navigation.servers',
   users: 'admin.navigation.users',
+  agent: 'admin.navigation.agent',
   appearance: 'admin.navigation.appearance',
   about: 'admin.navigation.about',
 } as const
@@ -30,6 +32,9 @@ function visibleTabs(viewer: { canManageServers: boolean, isAdmin: boolean }): r
   return [
     ...(viewer.canManageServers ? ['servers' as const] : []),
     ...(viewer.isAdmin ? ['users' as const] : []),
+    // Everyone's own, since a credential belongs to the person,
+    // rather than to whoever administers the server.
+    'agent' as const,
     'appearance' as const,
     'about' as const,
   ]
@@ -77,6 +82,7 @@ export function SettingsPage() {
           <div className="max-w-2xl px-6 py-6">
             {tab === 'servers' && <ServersTab />}
             {tab === 'users' && <UsersTab />}
+            {tab === 'agent' && <AgentTab />}
             {tab === 'appearance' && <AppearanceTab />}
             {tab === 'about' && <AboutTab />}
           </div>

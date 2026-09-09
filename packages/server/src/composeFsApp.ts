@@ -27,6 +27,8 @@ import { composeApp } from './composeApp.js'
 import { defaultOntologyPlugins } from './defaultOntologyPlugins.js'
 import { parseBoolEnv } from './infrastructure/_shared/env.js'
 import { withoutTrailingSlash } from './infrastructure/_shared/urls.js'
+import { AgentCredentialBroker } from './infrastructure/agent/AgentCredentialBroker.js'
+import { SecretAgentCredentialStore } from './infrastructure/agent/SecretAgentCredentialStore.js'
 import { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
 import { chooseLoginMode } from './infrastructure/auth/loginMode.js'
 import { FsSessionStore } from './infrastructure/auth/SessionStore.js'
@@ -45,6 +47,7 @@ import { oauthNamespace } from './infrastructure/oauth/providers.js'
 import { OidcLoginProvider } from './infrastructure/oidc/OidcLoginProvider.js'
 import { OidcTokenVerifier } from './infrastructure/oidc/OidcTokenVerifier.js'
 import { FsReactorCycleRepository } from './infrastructure/reactor/FsReactorCycleRepository.js'
+import { EncryptedSecretStore, readSecretKey } from './infrastructure/secrets/EncryptedSecretStore.js'
 import { FsSecretStore, type SecretStore } from './infrastructure/secrets/SecretStore.js'
 import { FsRunRepository } from './infrastructure/skill/FsRunRepository.js'
 import { BUILTIN_SKILL_NAMESPACE, FsSkillRegistry } from './infrastructure/skill/FsSkillRegistry.js'
@@ -250,6 +253,24 @@ export async function composeFsAppWithRegistry(
 
   const secretStore = new FsSecretStore(join(braidHome, 'secrets'))
 
+  // Only where the deployment supplied a key.
+  // Without one a person cannot save a credential at all,
+  // which is the honest outcome.
+  // A key generated here would encrypt to something the code knows.
+  const secretKeyRaw = process.env.BRAID_SECRET_KEY
+  const agentCredentialStore = secretKeyRaw
+    ? new SecretAgentCredentialStore(
+      new EncryptedSecretStore({
+        inner: secretStore,
+        key: readSecretKey(secretKeyRaw, 'BRAID_SECRET_KEY'),
+        ...(process.env.BRAID_SECRET_KEY_PREVIOUS
+          ? { previousKey: readSecretKey(process.env.BRAID_SECRET_KEY_PREVIOUS, 'BRAID_SECRET_KEY_PREVIOUS') }
+          : {}),
+      }),
+      () => new Date().toISOString(),
+    )
+    : undefined
+
   const googleClientId = process.env.BRAID_GOOGLE_CLIENT_ID
   const googleClientSecret = process.env.BRAID_GOOGLE_CLIENT_SECRET
   const googleRedirect = process.env.BRAID_GOOGLE_REDIRECT_URI ?? `${apiUrl}/oauth/google/callback`
@@ -410,6 +431,18 @@ export async function composeFsAppWithRegistry(
     : undefined
   const embeddingRepository = new FsEmbeddingRepository({ resolveWorkspaceRoot })
 
+  // Mounted on this server's own port, as the MCP endpoint is,
+  // so a deployment exposes one address and the agent reaches it here.
+  const agentCredentialBroker = agentCredentialStore
+    ? new AgentCredentialBroker({
+      store: agentCredentialStore,
+      baseUrl: `${loopbackApiUrl}/agent-api`,
+      ...(process.env.CLAUDE_CODE_OAUTH_TOKEN
+        ? { serverCredential: process.env.CLAUDE_CODE_OAUTH_TOKEN }
+        : {}),
+    })
+    : undefined
+
   // Server default agent.
   // A skill overrides kind, model, or effort in its SKILL.md frontmatter,
   // and the runner merges that onto this default at run time.
@@ -420,7 +453,13 @@ export async function composeFsAppWithRegistry(
     model: options.agentModel ?? DEFAULT_AGENT_MODEL,
     effort: options.agentEffort ?? DEFAULT_AGENT_EFFORT,
     extraArgs: [],
-    env: {},
+    // The server's own credential, named here rather than inherited.
+    // Left out where a broker is wired,
+    // since the broker lends the same value behind a stand-in,
+    // and two credentials in one environment leave the agent to pick.
+    env: !agentCredentialBroker && process.env.CLAUDE_CODE_OAUTH_TOKEN
+      ? { CLAUDE_CODE_OAUTH_TOKEN: process.env.CLAUDE_CODE_OAUTH_TOKEN }
+      : {},
   }
 
   const runRepository = new FsRunRepository()
@@ -493,6 +532,7 @@ export async function composeFsAppWithRegistry(
     apiUrl: loopbackApiUrl,
     runRepository,
     eventBus,
+    ...(agentCredentialBroker ? { agentCredentials: agentCredentialBroker } : {}),
     ...(uvxBin
       ? { coreGateway: { specUrl: `${loopbackApiUrl}/openapi.json`, uvxBin } }
       : {}),
@@ -579,6 +619,9 @@ export async function composeFsAppWithRegistry(
     ...(accessTokenVerifiers.length > 0 ? { accessTokenVerifiers } : {}),
     loginProviders,
     ...(mcpGateway ? { mcpGateway } : {}),
+    ...(agentCredentialStore && agentCredentialBroker
+      ? { agentCredentialStore, agentCredentialBroker }
+      : {}),
     mcpResolution: gatewayResolution,
     ...(gatewayResolution.kind === 'ready'
       ? { mcpGatewayUrl: `http://127.0.0.1:${gatewayResolution.config.port}` }

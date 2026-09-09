@@ -4,6 +4,7 @@ export const admin = {
     servers: 'Servers',
     users: 'Users',
     appearance: 'Appearance',
+    agent: 'Agent',
     about: 'About',
   },
   users: {
@@ -65,6 +66,21 @@ export const admin = {
     turnedOffHint: 'Turned off for this deployment.',
     noAuthorizationServerHint: 'No endpoint, because this server has no identity provider. MCP callers each sign in as themselves, and without one there is no way to tell them apart.',
     incompleteHint: 'An endpoint is possible here but cannot start yet. Still needed:',
+  },
+  agent: {
+    title: 'Agent Credential',
+    description: 'Runs you start spend a Claude account. Save your own and they draw on your subscription rather than a seat shared with everyone else, which is what keeps one person\u2019s batch from throttling the rest.',
+    placeholder: 'Paste a token from `claude setup-token`',
+    saveButton: 'Save',
+    forgetButton: 'Forget',
+    savedHint: 'Saved, ending {hint}',
+    storageNote: 'Encrypted before it is written, and no page or API reads it back, including this one. Runs never receive it either: the server spends it on their behalf and lends them a stand-in that expires with the run.',
+    unavailable: 'This server stores no credentials, so every run spends its own configuration.',
+    source: {
+      own: 'Your runs spend your own credential.',
+      server: 'Your runs spend this server\u2019s shared credential.',
+      none: 'Your runs would be refused. Save a credential to start one.',
+    },
   },
   about: {
     title: 'About',
