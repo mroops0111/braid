@@ -169,6 +169,23 @@ const applyClarificationRoute = createRoute({
   },
 })
 
+const deferClarificationRoute = createRoute({
+  method: 'post',
+  path: '/{clarificationId}/defer',
+  operationId: 'deferClarification',
+  summary: 'Stop a run waiting on this question, keeping the question.',
+  description: 'Skipping discards a question. Deferring keeps it and only gives up the conversation, so it stays pending and stands on its own. The run carries on without the answer, and the step that reads answered clarifications picks it up whenever somebody gets to it.',
+  tags: ['clarify'],
+  request: { params: ClarificationIdParam },
+  responses: {
+    200: {
+      description: 'The updated clarification.',
+      content: { 'application/json': { schema: Clarification } },
+    },
+    404: NotFoundResponse,
+  },
+})
+
 const skipClarificationRoute = createRoute({
   method: 'post',
   path: '/{clarificationId}/skip',
@@ -211,6 +228,7 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
   // Guests never see the tab, but a direct curl still 403s here.
   router.use('/:clarificationId/answer', requirePermission('clarification.write'))
   router.use('/:clarificationId/skip', requirePermission('clarification.write'))
+  router.use('/:clarificationId/defer', requirePermission('clarification.write'))
   router.use('/:clarificationId', requirePermission('clarification.write'))
 
   router.openapi(reportNoClarificationRoute, async (context) => {
@@ -227,7 +245,6 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
       id: c.id ?? newClarificationCandidateId(),
     }))
     const skillRunId = getSkillRunId(context)
-    deps.outputGate?.assertMayClarify(skillRunId)
     const clarification = await deps.hitlService.submitClarification({
       ...body,
       workspaceId,
@@ -293,6 +310,15 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
     assertEntityInWorkspace(workspaceId, clarification.workspaceId, 'Clarification', clarificationId)
     const applied = await deps.hitlService.markClarificationApplied(clarificationId, userId, proposalId)
     return context.json(applied.toData(), 200)
+  })
+
+  router.openapi(deferClarificationRoute, async (context) => {
+    const workspaceId = getWorkspaceId(context)
+    const { clarificationId } = context.req.valid('param')
+    const clarification = await deps.clarificationRepository.load(clarificationId)
+    assertEntityInWorkspace(workspaceId, clarification.workspaceId, 'Clarification', clarificationId)
+    const deferred = await deps.hitlService.deferClarification(clarificationId, getUserId(context))
+    return context.json(deferred.toData(), 200)
   })
 
   router.openapi(skipClarificationRoute, async (context) => {

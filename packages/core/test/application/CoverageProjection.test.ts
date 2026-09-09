@@ -365,6 +365,25 @@ describe('coverageProjection', () => {
     expect((await projectionOf({ building: true }).board(WORKSPACE)).building).toBe(true)
   })
 
+  // Which step turns answered questions into changes is the ontology's to
+  // declare, so a reader who has worked through a queue is told what to press
+  // without this knowing any skill by name.
+  it('counts answered questions against the step that declares it reads them', async () => {
+    const board = await projectionOf({
+      clarifications: [
+        makeClarification(WORKSPACE.id, { id: 'ct-1', status: 'answered', selectedCandidateId: 'c-1' as never }),
+      ],
+      skills: [
+        makeSkillManifest({ id: 'ddd:extract', category: 'build', order: 100, sourceInput: true }),
+        makeSkillManifest({ id: 'ddd:clarify', category: 'build', order: 200, readsAnswered: true }),
+      ],
+    }).board(WORKSPACE)
+    expect(board.stages.map(stage => [stage.skillId, stage.readsAnswered, stage.answeredIds.length])).toEqual([
+      ['ddd:extract', false, 0],
+      ['ddd:clarify', true, 1],
+    ])
+  })
+
   it('leaves out anything the ontology did not declare as a build step', async () => {
     const board = await projectionOf({
       skills: [

@@ -379,6 +379,12 @@ export const RunRecord = z.object({
   startedAt: Timestamp,
   completedAt: Timestamp.optional(),
   exitCode: z.number().int().optional(),
+  /**
+   * True when nobody was watching, so nothing it asks will be answered in
+   * time to carry it on. Recorded rather than held in memory, because what a
+   * run's questions mean outlives the process that spawned it.
+   */
+  unattended: z.boolean().optional(),
 })
 export type RunRecord = z.infer<typeof RunRecord>
 

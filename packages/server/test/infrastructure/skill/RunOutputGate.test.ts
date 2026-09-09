@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import { RunOutputGate } from '../../../src/infrastructure/skill/RunOutputGate.js'
 
 const RUN = SkillRunId.parse('skill-run-1')
-const RESUMED = SkillRunId.parse('skill-run-2')
 
 function attended(): RunOutputGate {
   const gate = new RunOutputGate()
@@ -22,42 +21,24 @@ describe('runOutputGate', () => {
     expect(() => gate.assertMayPropose(RUN)).not.toThrow()
   })
 
-  it('stops a run that asked from also proposing', () => {
-    const gate = attended()
-    gate.assertMayClarify(RUN)
-    expect(() => gate.assertMayPropose(RUN)).toThrow(/stops here/)
-  })
-
-  // Mutual exclusion alone would lose the doubt, since whichever call came
-  // first would win. Requiring the declaration up front is what stops a run
-  // reaching this state at all.
-  it('stops a run that proposed from asking afterwards', () => {
-    const gate = attended()
-    gate.declareNothingToClarify(RUN)
-    gate.assertMayPropose(RUN)
-    expect(() => gate.assertMayClarify(RUN)).toThrow(/already proposed/)
-  })
-
-  // Answering starts a new run that continues the same conversation, and that
-  // run exists to propose. Keying the gate by conversation would deadlock it.
-  it('gives a resumed run a clean slate, so answering leads somewhere', () => {
-    const gate = attended()
-    gate.assertMayClarify(RUN)
-    gate.close(RUN)
-
-    gate.open(RESUMED, { unattended: false })
-    gate.declareNothingToClarify(RESUMED)
-    expect(() => gate.assertMayPropose(RESUMED)).not.toThrow()
-  })
-
-  it('gates nothing when nobody is waiting, since a batch wants both', () => {
+  // A batch wants both. The doubt still gets recorded, it just has nobody
+  // waiting to answer it, so refusing either would be refusing the mode.
+  it('asks nothing of a run nobody is watching', () => {
     const gate = new RunOutputGate()
     gate.open(RUN, { unattended: true })
-    gate.assertMayClarify(RUN)
     expect(() => gate.assertMayPropose(RUN)).not.toThrow()
   })
 
-  it('gates nothing for a run it never saw open, so an untracked caller is not blocked', () => {
+  // A restart empties this, and how many times a run may submit is settled
+  // from its records, so failing open here costs nothing and wedges nothing.
+  it('asks nothing of a run this process never saw open', () => {
     expect(() => new RunOutputGate().assertMayPropose(RUN)).not.toThrow()
+  })
+
+  it('forgets a run once it is over', () => {
+    const gate = attended()
+    gate.declareNothingToClarify(RUN)
+    gate.close(RUN)
+    expect(() => gate.assertMayPropose(RUN)).not.toThrow()
   })
 })

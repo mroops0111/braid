@@ -29,6 +29,9 @@ import { ConflictError, NotFoundError } from '../errors.js'
 export class Clarification {
   constructor(private readonly data: ClarificationData) {}
 
+  /** Whether a conversation is parked on this answer. */
+  get answerMode(): ClarificationData['answerMode'] { return this.data.answerMode }
+
   get id(): ClarificationId { return this.data.id }
   get workspaceId(): WorkspaceId { return this.data.workspaceId }
   get question(): string { return this.data.question }
@@ -89,6 +92,21 @@ export class Clarification {
       status: 'applied',
       ...(proposalId ? { proposalId } : {}),
     })
+  }
+
+  /**
+   * Stop the run waiting on this, without throwing the question away.
+   *
+   * Skipping discards. Deferring keeps the question and only gives up the
+   * conversation, so it goes back to pending and stands on its own. Answering
+   * it later records the decision for a step that reads answered ones, since
+   * the run that asked has by then carried on without it.
+   */
+  defer(): Clarification {
+    this.requireStatus('pending')
+    if (this.data.answerMode !== 'resumes')
+      throw new ConflictError(`Clarification "${this.data.id}" blocks no run, so there is nothing to defer`)
+    return new Clarification({ ...this.data, answerMode: 'standing' })
   }
 
   markSkipped(userId: UserId): Clarification {

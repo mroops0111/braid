@@ -1,4 +1,5 @@
 import type {
+  ClarificationAnswerMode,
   ClarificationCandidate,
   ClarificationCandidateId,
   ClarificationCreate,
@@ -16,6 +17,7 @@ import type { Clock } from '../domain/Clock.js'
 import type { WorkspaceHistory } from '../domain/history/WorkspaceHistory.js'
 import type { ClarificationRepository } from '../domain/hitl/ClarificationRepository.js'
 import type { ProposalRepository } from '../domain/hitl/ProposalRepository.js'
+import type { RunSubmissionRule } from '../domain/hitl/runSubmission.js'
 import type { ModelRepository } from '../domain/model/ModelRepository.js'
 import type { ModelSerializer } from '../domain/model/ModelSerializer.js'
 import type { RunRepository } from '../domain/skill/RunRepository.js'
@@ -27,9 +29,10 @@ import type { ModelValidationService } from './ModelValidationService.js'
 import type { WorkspaceEventBus } from './WorkspaceEventBus.js'
 import type { WorkspaceService } from './WorkspaceService.js'
 import { SourceId, UserId } from '@braidhq/schema'
-import { ValidationError } from '../domain/errors.js'
+import { ConflictError, ValidationError } from '../domain/errors.js'
 import { Clarification } from '../domain/hitl/Clarification.js'
 import { Proposal } from '../domain/hitl/Proposal.js'
+import { clarificationSubmission, proposalSubmission } from '../domain/hitl/runSubmission.js'
 import { newClarificationCandidateId, newClarificationId, newProposalId } from '../domain/ids.js'
 import { sourceUnitsForRun } from '../domain/source/sourceUnitsForRun.js'
 import { noopUserDirectory } from '../domain/users/UserDirectory.js'
@@ -104,7 +107,58 @@ export class HITLService {
     })))
   }
 
+  /**
+   * What a run has already committed to, read from what it wrote.
+   *
+   * Checked against the records rather than against anything held in memory,
+   * because a process restart must not let a run submit twice. Which rule
+   * applies is the kind's own, so a new kind of output brings a rule with it
+   * rather than another arm of a conditional here.
+   */
+  private async assertRunMaySubmit(
+    workspaceId: WorkspaceId,
+    skillRunId: SkillRunId | undefined,
+    rule: RunSubmissionRule,
+  ): Promise<void> {
+    if (!skillRunId)
+      return
+    const [proposals, pending] = await Promise.all([
+      this.deps.proposalRepository.list({ workspaceId }),
+      this.deps.clarificationRepository.list({ workspaceId, statuses: ['pending'] }),
+    ])
+    const refusal = rule.refuse(skillRunId, {
+      proposals: proposals.filter(proposal => proposal.skillRunId === skillRunId),
+      blocking: pending.filter(
+        clarification => clarification.skillRunId === skillRunId && clarification.answerMode === 'resumes',
+      ),
+    })
+    if (refusal)
+      throw new ConflictError(refusal)
+  }
+
+  /**
+   * Whether a conversation will be parked on this answer.
+   *
+   * A watched run stops and waits, so answering carries it on. An unattended
+   * one has nobody to answer it in time, so its question stands alone from the
+   * moment it is asked. Read from the run's own record, which outlives the
+   * process, rather than from anything the asker says about itself.
+   */
+  private async answerModeFor(
+    workspaceId: WorkspaceId,
+    skillRunId: SkillRunId | undefined,
+  ): Promise<ClarificationAnswerMode | undefined> {
+    if (!skillRunId || !this.deps.runRepository)
+      return undefined
+    const workspace = await this.deps.workspaceService.findById(workspaceId)
+    const record = (await this.deps.runRepository.listRecords(workspace)).find(item => item.runId === skillRunId)
+    if (!record)
+      return undefined
+    return record.unattended ? 'standing' : 'resumes'
+  }
+
   async submitProposal(draft: ProposalCreate & { submitterId?: UserId }): Promise<Proposal> {
+    await this.assertRunMaySubmit(draft.workspaceId, draft.skillRunId, proposalSubmission)
     await this.assertOperationsValid(draft.workspaceId, draft.operations)
     const generatedAt = this.deps.clock.now()
     const sourceUnits = await this.scopeOfRun(draft.workspaceId, draft.skillRunId)
@@ -148,6 +202,8 @@ export class HITLService {
 
   // Candidates are only validated at answer time, since each picks a different op set.
   async submitClarification(draft: ClarificationCreate & { submitterId?: UserId, skillRunId?: SkillRunId }): Promise<Clarification> {
+    await this.assertRunMaySubmit(draft.workspaceId, draft.skillRunId, clarificationSubmission)
+    const answerMode = await this.answerModeFor(draft.workspaceId, draft.skillRunId)
     const submitter = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
     const clarification = new Clarification({
       id: newClarificationId(),
@@ -161,6 +217,7 @@ export class HITLService {
       ...(draft.relatedNode ? { relatedNode: draft.relatedNode } : {}),
       ...(draft.ambiguityType ? { ambiguityType: draft.ambiguityType } : {}),
       ...(draft.skillRunId ? { skillRunId: draft.skillRunId } : {}),
+      ...(answerMode ? { answerMode } : {}),
       owner: draft.submitterId ?? 'system',
       ...(submitter?.displayName ? { ownerDisplayName: submitter.displayName } : {}),
       ...(submitter?.kind ? { ownerKind: submitter.kind } : {}),
@@ -321,6 +378,29 @@ export class HITLService {
         at: this.deps.clock.now(),
       })
       return applied
+    })
+  }
+
+  /**
+   * Stop a run waiting on this question, without giving the question up.
+   *
+   * The run carries on without the answer, so the question stops being an
+   * interrupt and stands on its own. It is still pending, because it still
+   * wants answering, and the step that reads answered ones will pick it up
+   * whenever somebody gets to it.
+   */
+  async deferClarification(clarificationId: ClarificationId, userId: UserId): Promise<Clarification> {
+    const clarification = await this.deps.clarificationRepository.load(clarificationId)
+    return this.withLockedWorkspace(clarification.workspaceId, async (workspace) => {
+      const deferred = clarification.defer()
+      await this.deps.clarificationRepository.save(deferred)
+      await this.commitWorkspaceChange(workspace, {
+        kind: 'clarification-defer',
+        subject: `deferred ${clarificationId}`,
+        userId,
+        clarificationId,
+      })
+      return deferred
     })
   }
 

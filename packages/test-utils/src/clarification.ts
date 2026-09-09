@@ -10,6 +10,8 @@ export interface MakeClarificationOptions {
   readonly answeredBy?: UserId
   /** The run that raised it. Left off, it reads as human-filed. */
   readonly skillRunId?: string
+  /** Whether a conversation is parked on the answer. */
+  readonly answerMode?: 'resumes' | 'standing'
 }
 
 /**
@@ -27,6 +29,7 @@ export function makeClarification(workspaceId: WorkspaceId, overrides: MakeClari
     owner: 'system',
     origin: 'skill',
     ...(overrides.skillRunId ? { skillRunId: overrides.skillRunId as SkillRunId } : {}),
+    ...(overrides.answerMode ? { answerMode: overrides.answerMode } : {}),
     ...(status === 'answered' && overrides.selectedCandidateId
       ? {
           selectedCandidateId: overrides.selectedCandidateId,

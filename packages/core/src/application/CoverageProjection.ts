@@ -327,8 +327,14 @@ function withGraphWideOutput(stage: CoverageStage, context: {
   clarifications: readonly Clarification[]
   records: readonly RunRecord[]
 }): CoverageStage {
+  // Everything already answered and waiting for the step that reads them.
+  // Which step that is comes from its own declared input, so a different
+  // ontology names a different one without this knowing either.
+  const answeredIds = stage.readsAnswered
+    ? context.clarifications.filter(item => item.status === 'answered').map(item => item.id)
+    : []
   if (!stage.global)
-    return stage
+    return { ...stage, answeredIds }
   const runIds = new Set(
     context.records
       .filter(record => record.skillId === stage.skillId && record.args.length === 0)
@@ -336,6 +342,7 @@ function withGraphWideOutput(stage: CoverageStage, context: {
   )
   return {
     ...stage,
+    answeredIds,
     proposalIds: context.proposals
       .filter(proposal => proposal.status === 'pending' && proposal.skillRunId !== undefined && runIds.has(proposal.skillRunId))
       .map(proposal => proposal.id),
@@ -355,8 +362,14 @@ function readStages(skills: readonly SkillManifestData[]): CoverageStage[] {
       global: !(skill.frontmatter.braid?.inputs ?? []).some(
         input => input.kind !== 'text' && input.provider.kind === 'source',
       ),
+      readsAnswered: (skill.frontmatter.braid?.inputs ?? []).some(
+        input => input.kind !== 'text'
+          && input.provider.kind === 'clarify'
+          && input.provider.filter?.status === 'answered',
+      ),
       proposalIds: [],
       clarificationIds: [],
+      answeredIds: [],
     }))
     .sort((a, b) => a.order - b.order)
 }

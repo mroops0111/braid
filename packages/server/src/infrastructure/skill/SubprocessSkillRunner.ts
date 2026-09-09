@@ -158,7 +158,8 @@ export class SubprocessSkillRunner implements SkillRunner {
     // The run's own credential, so what it creates is attributed from the
     // request rather than from a field an agent had to fill in correctly.
     const runToken = this.deps.runTokens?.issue(runId, options.startedBy) ?? options.callerToken
-    this.deps.outputGate?.open(runId, { unattended: options.extraEnv?.BRAID_UNATTENDED === 'true' })
+    const unattended = options.extraEnv?.BRAID_UNATTENDED === 'true'
+    this.deps.outputGate?.open(runId, { unattended })
     const gatewayArgs = [
       'openapi-mcp-gateway',
       '--spec',
@@ -268,6 +269,9 @@ export class SubprocessSkillRunner implements SkillRunner {
       resumed: options.resumeSessionId !== undefined,
       startedAt,
       startedBy: options.startedBy,
+      // Recorded rather than kept in memory, because what this run's questions
+      // mean outlives the process that spawned it.
+      ...(unattended ? { unattended: true } : {}),
       ...(options.resumeSessionId ? { sessionId: options.resumeSessionId } : {}),
     }
     await this.deps.runRepository.saveRecord(workspace, initialRecord)

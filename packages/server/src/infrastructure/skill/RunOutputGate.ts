@@ -2,7 +2,7 @@ import type { SkillRunId } from '@braidhq/schema'
 import { ValidationError } from '@braidhq/core'
 
 /**
- * What a run has already committed to, so it cannot commit to both.
+ * The run's own statement that it found nothing to ask about.
  *
  * A run either raises a question and stops, or says there is nothing to ask
  * and proposes. Told only in a prompt, that held about half the time: a run
@@ -26,61 +26,41 @@ import { ValidationError } from '@braidhq/core'
  * still visible, and refusing one of them would be refusing the mode.
  */
 export class RunOutputGate {
-  private readonly runs = new Map<SkillRunId, { unattended: boolean, asked: boolean, declared: boolean, proposed: boolean }>()
+  private readonly runs = new Map<SkillRunId, { unattended: boolean, declared: boolean }>()
 
   open(runId: SkillRunId, options: { unattended: boolean }): void {
-    this.runs.set(runId, { unattended: options.unattended, asked: false, declared: false, proposed: false })
+    this.runs.set(runId, { unattended: options.unattended, declared: false })
   }
 
   close(runId: SkillRunId): void {
     this.runs.delete(runId)
   }
 
-  /** Called before a clarification is created, throwing when it may not be. */
-  assertMayClarify(runId: SkillRunId | undefined): void {
-    const state = this.stateFor(runId)
-    if (!state || state.unattended)
-      return
-    if (state.proposed) {
-      throw new ValidationError(
-        'This run has already proposed, so it cannot also ask. Raise what you could not decide before you submit anything, since a proposal resting on an unanswered question asks a reviewer to approve what the answer may overturn.',
-      )
-    }
-    state.asked = true
-  }
-
-  /** Called before a proposal is created, throwing when it may not be. */
+  /**
+   * Called before a proposal is created, throwing when nothing was declared.
+   *
+   * Fails open for a run this process never saw open, which is what a restart
+   * leaves behind. Losing a declaration must not wedge a run, because how many
+   * times a run may submit is settled from its records rather than from here.
+   */
   assertMayPropose(runId: SkillRunId | undefined): void {
     const state = this.stateFor(runId)
-    if (!state || state.unattended)
+    if (!state || state.unattended || state.declared)
       return
-    if (state.asked) {
-      throw new ValidationError(
-        'This run has raised a clarification, so it stops here. Answering it continues this same conversation, and you propose then, against the graph as it stands at that moment.',
-      )
-    }
-    if (!state.declared) {
-      throw new ValidationError(
-        'This run has not said whether anything needs clarifying. Call `report_no_clarification` when the sources left you in no doubt, or raise the clarification now. A run either asks or proposes, never both.',
-      )
-    }
-    state.proposed = true
+    throw new ValidationError(
+      'This run has not said whether anything needs clarifying. Call `report_no_clarification` when the sources left you in no doubt, or raise the clarification now, since deciding after the fact costs a reviewer the chance to see the doubt.',
+    )
   }
 
   /** The run's declaration that it found nothing to ask about. */
   declareNothingToClarify(runId: SkillRunId | undefined): void {
     const state = this.stateFor(runId)
-    if (!state || state.unattended)
+    if (!state)
       return
-    if (state.asked) {
-      throw new ValidationError(
-        'This run has already raised a clarification, so it did find something to ask. Nothing further is needed here.',
-      )
-    }
     state.declared = true
   }
 
-  private stateFor(runId: SkillRunId | undefined): { unattended: boolean, asked: boolean, declared: boolean, proposed: boolean } | undefined {
+  private stateFor(runId: SkillRunId | undefined): { unattended: boolean, declared: boolean } | undefined {
     return runId ? this.runs.get(runId) : undefined
   }
 }

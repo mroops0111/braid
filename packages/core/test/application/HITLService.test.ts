@@ -42,6 +42,8 @@ interface HITLFixture {
 
 async function setupFixture(options: {
   pluginRegistry?: PluginRegistry
+  /** Run records the service reads to tell a watched run from an unwatched one. */
+  runs?: readonly { runId: string, unattended?: boolean }[]
 } = {}): Promise<HITLFixture> {
   const workspaceRepo = new InMemoryWorkspaceRepository()
   const workspace = makeWorkspace({ id: mintTestId('ws') }) as Workspace
@@ -62,6 +64,22 @@ async function setupFixture(options: {
     modelValidationService,
     workspaceService,
     clock,
+    ...(options.runs
+      ? {
+          runRepository: {
+            listRecords: async () => options.runs!.map(run => ({
+              runId: run.runId,
+              workspaceId: workspace.id,
+              skillId: 'ddd:extract',
+              args: '',
+              resumed: false,
+              startedBy: 'tester',
+              startedAt: '2026-01-01T00:00:00.000Z',
+              ...(run.unattended ? { unattended: true } : {}),
+            })),
+          } as never,
+        }
+      : {}),
   })
 
   return {
@@ -75,6 +93,81 @@ async function setupFixture(options: {
     service,
   }
 }
+
+describe('runSubmissionLimits', () => {
+  const RUN = 'skill-run-1'
+
+  // Checked against what the run wrote, not against anything held in memory,
+  // so a restarted process cannot let the same run submit twice.
+  it('refuses a second proposal from one run', async () => {
+    const { service, workspaceId, proposalRepository } = await setupFixture()
+    await proposalRepository.save(makeProposal(workspaceId, { id: 'p-1', skillRunId: RUN }))
+    await expect(service.submitProposal({
+      workspaceId,
+      operations: [],
+      generatedBy: 'ddd:extract' as never,
+      rationale: 'second',
+      skillRunId: RUN as never,
+    })).rejects.toThrow(/already proposed/)
+  })
+
+  it('refuses a question from a run that already proposed', async () => {
+    const { service, workspaceId, proposalRepository } = await setupFixture()
+    await proposalRepository.save(makeProposal(workspaceId, { id: 'p-1', skillRunId: RUN }))
+    await expect(service.submitClarification({
+      workspaceId,
+      question: 'which one?',
+      candidates: [],
+      skillRunId: RUN as never,
+    })).rejects.toThrow(/cannot also ask/)
+  })
+
+  it('refuses a proposal from a run parked on a question', async () => {
+    const { service, workspaceId, clarificationRepository } = await setupFixture()
+    await clarificationRepository.save(
+      makeClarification(workspaceId, { id: 'ct-1', skillRunId: RUN, answerMode: 'resumes' }),
+    )
+    await expect(service.submitProposal({
+      workspaceId,
+      operations: [],
+      generatedBy: 'ddd:extract' as never,
+      rationale: 'jumping the gun',
+      skillRunId: RUN as never,
+    })).rejects.toThrow(/stops here/)
+  })
+
+  // Nothing is waiting on an unattended run's question, so it never blocks.
+  it('lets an unattended run propose alongside its own question', async () => {
+    const { service, workspaceId } = await setupFixture({
+      runs: [{ runId: RUN, unattended: true }],
+    })
+    const asked = await service.submitClarification({
+      workspaceId,
+      question: 'which one?',
+      candidates: [],
+      skillRunId: RUN as never,
+    })
+    expect(asked.answerMode).toBe('standing')
+    await expect(service.submitProposal({
+      workspaceId,
+      operations: [],
+      generatedBy: 'ddd:extract' as never,
+      rationale: 'batch output',
+      skillRunId: RUN as never,
+    })).resolves.toBeDefined()
+  })
+
+  it('parks a watched run on its question', async () => {
+    const { service, workspaceId } = await setupFixture({ runs: [{ runId: RUN }] })
+    const asked = await service.submitClarification({
+      workspaceId,
+      question: 'which one?',
+      candidates: [],
+      skillRunId: RUN as never,
+    })
+    expect(asked.answerMode).toBe('resumes')
+  })
+})
 
 describe('HITLService', () => {
   beforeEach(() => {

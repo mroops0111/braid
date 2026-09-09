@@ -95,9 +95,22 @@ export const CoverageStage = z.object({
   summary: z.string().optional(),
   /** True when the step works on the graph as a whole rather than on a unit. */
   global: z.boolean(),
+  /**
+   * True when this step is the one that turns answered questions into
+   * changes, read from its own declared input rather than named here. It is
+   * what a reader who has just worked through a queue needs to press.
+   */
+  readsAnswered: z.boolean(),
   /** What this step left waiting, when it belongs to no single document. */
   proposalIds: z.array(ProposalId),
   clarificationIds: z.array(ClarificationId),
+  /**
+   * Answered questions this step would turn into changes, when it is the one
+   * that reads them. Somebody who has worked through a queue of standing
+   * questions needs to know there is something to run, and this is the count
+   * that says so.
+   */
+  answeredIds: z.array(ClarificationId),
 })
 export type CoverageStage = z.infer<typeof CoverageStage>
 

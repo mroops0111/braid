@@ -1,5 +1,6 @@
-import type { Clarification, Proposal, ProposalId } from '@braidhq/schema'
-import { Inbox as InboxIcon } from 'lucide-react'
+import type { Clarification, CoverageCard, Proposal, ProposalId } from '@braidhq/schema'
+import type { TranslationKey } from '@/lib/i18n'
+import { Inbox as InboxIcon, Loader2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RunBlocks } from '@/components/blocks/RunBlocks'
@@ -7,8 +8,10 @@ import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
 import { SurfaceLayout } from '@/components/SurfaceLayout'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useClarificationByStatus, useProposalsByStatus } from '@/lib/queries'
+import { api } from '@/lib/api'
+import { useClarificationByStatus, useCoverage, useProposalsByStatus } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
 import { cn } from '@/lib/utils'
 import { ClarificationDetail, questionExcerpt } from './Clarification'
@@ -20,12 +23,18 @@ import { ProposalDetail } from './Proposals'
  * The list is shared because a reviewer asks one question of it, what needs me.
  * The detail is not, because answering a question and reviewing a diff are
  * different acts, and collapsing them into one shape would serve neither.
+ *
+ * A parked run is one item however many questions it holds, because one run is
+ * one interrupt and answering the last of them carries that one run on. A
+ * standing question stands alone, because nothing groups it and nothing waits.
  */
-type Item =
-  | { readonly kind: 'clarification', readonly id: string, readonly at?: undefined, readonly record: Clarification }
+export type Item =
+  | { readonly kind: 'running', readonly id: string, readonly card: CoverageCard }
+  | { readonly kind: 'parked', readonly id: string, readonly questions: readonly Clarification[] }
+  | { readonly kind: 'question', readonly id: string, readonly record: Clarification }
   | { readonly kind: 'proposal', readonly id: string, readonly at: string, readonly record: Proposal }
 
-type KindFilter = 'all' | 'clarification' | 'proposal'
+type KindFilter = 'all' | 'asked' | 'proposal'
 
 /**
  * What the reader is looking at, not how they look at it.
@@ -48,29 +57,18 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const clarifications = useClarificationByStatus(workspaceId, 'pending')
+  const answered = useClarificationByStatus(workspaceId, 'answered')
   const proposals = useProposalsByStatus(workspaceId, 'pending')
+  const coverage = useCoverage(workspaceId)
   const isLoading = clarifications.isLoading || proposals.isLoading
 
-  const items = useMemo<Item[]>(() => {
-    const asked: Item[] = (clarifications.data?.items ?? []).map(record => ({
-      kind: 'clarification',
-      id: record.id,
-      record,
-    }))
-    const proposed: Item[] = (proposals.data?.items ?? []).map(record => ({
-      kind: 'proposal',
-      id: record.id,
-      at: record.generatedAt,
-      record,
-    }))
-    // Questions first, since a run is waiting on each of them, then changes
-    // newest first. A clarification carries no raised-at to sort by, and
-    // ordering the two kinds against each other by anything else would be
-    // inventing a sequence the records do not have.
-    return [...asked, ...proposed.sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''))]
-  }, [clarifications.data, proposals.data])
+  const items = useMemo<Item[]>(() => buildItems({
+    pending: clarifications.data?.items ?? [],
+    proposals: proposals.data?.items ?? [],
+    running: (coverage.data?.cards ?? []).filter(card => card.state === 'running'),
+  }), [clarifications.data, proposals.data, coverage.data])
 
-  const shown = kind === 'all' ? items : items.filter(item => item.kind === kind)
+  const shown = kind === 'all' ? items : items.filter(item => matchesFilter(item, kind))
   const selected = shown.find(item => item.id === selectedId) ?? null
 
   // A deep link outranks landing on the first item, and is consumed once so
@@ -93,25 +91,41 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
     setSelectedId(shown[0]!.id)
   }, [selected, isLoading, shown])
 
-  // Answering is what lets the run carry on, so it starts here rather than
-  // waiting for anyone to notice it could. A clarification nobody's run raised
-  // has nothing to continue, and the answer simply stands on its own.
+  /**
+   * Carry the run on, once nothing of its is still open.
+   *
+   * A run parked on three questions is parked on all three, so answering the
+   * first must not restart it and strand the other two pointing at a
+   * conversation that has already moved. Asked of the server rather than of
+   * the cache, because the answer that triggered this is what makes the cache
+   * wrong for exactly as long as it takes to refetch.
+   */
   const continueRun = useCallback((ticket: Clarification) => {
-    if (!ticket.skillRunId)
+    const runId = ticket.skillRunId
+    if (!runId || ticket.answerMode !== 'resumes')
       return
-    void runStore.resumeAfterAnswer({
-      workspaceId,
-      skillId: 'inbox',
-      threadId: ticket.skillRunId,
-      clarificationId: ticket.id,
-    }).catch(() => {
+    void (async () => {
+      const remaining = await api.listClarification(workspaceId, 'pending')
+      const stillOpen = remaining.items.some(
+        item => item.skillRunId === runId && item.answerMode === 'resumes',
+      )
+      if (stillOpen)
+        return
+      await runStore.resumeAfterAnswer({
+        workspaceId,
+        skillId: 'inbox',
+        threadId: runId,
+        clarificationId: ticket.id,
+      })
+    })().catch(() => {
       // The answer is recorded either way. A run that cannot be continued is
       // the clarify skill's to pick up, which is what it is still there for.
     })
   }, [workspaceId])
 
-  const askedCount = items.filter(item => item.kind === 'clarification').length
-  const proposedCount = items.length - askedCount
+  const askedCount = items.filter(item => item.kind === 'parked' || item.kind === 'question').length
+  const proposedCount = items.filter(item => item.kind === 'proposal').length
+  const waitingOnClarify = answered.data?.items.length ?? 0
 
   return (
     // The height context SurfaceLayout needs. Without it the pane lays out at
@@ -125,7 +139,7 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
               <Tabs value={kind} onValueChange={value => setKind(value as KindFilter)}>
                 <TabsList variant="line">
                   <TabsTrigger value="all">{t('inbox.filter.all', { count: items.length })}</TabsTrigger>
-                  <TabsTrigger value="clarification">{t('inbox.filter.asked', { count: askedCount })}</TabsTrigger>
+                  <TabsTrigger value="asked">{t('inbox.filter.asked', { count: askedCount })}</TabsTrigger>
                   <TabsTrigger value="proposal">{t('inbox.filter.proposed', { count: proposedCount })}</TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -140,6 +154,14 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
                 />
               ))}
             </ul>
+            {waitingOnClarify > 0 && (
+              // Answering a standing question changes nothing on its own. The
+              // step that reads answered ones has to be run, and somebody who
+              // has just worked through a queue is the one who needs telling.
+              <p className="shrink-0 border-t border-border px-3 py-2 text-2xs text-muted-foreground">
+                {t('inbox.answeredWaiting', { count: waitingOnClarify })}
+              </p>
+            )}
           </>
         )}
       >
@@ -168,6 +190,44 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
 }
 
 /**
+ * The waiting things, grouped the way they are actually waited on.
+ *
+ * Pure, so what belongs together is a rule rather than a rendering accident.
+ */
+export function buildItems(input: {
+  pending: readonly Clarification[]
+  proposals: readonly Proposal[]
+  running: readonly CoverageCard[]
+}): Item[] {
+  const parked = new Map<string, Clarification[]>()
+  const standing: Clarification[] = []
+  for (const clarification of input.pending) {
+    const runId = clarification.skillRunId
+    if (runId && clarification.answerMode === 'resumes')
+      parked.set(runId, [...(parked.get(runId) ?? []), clarification])
+    else
+      standing.push(clarification)
+  }
+
+  return [
+    // In flight first, because it is the thing most likely to need somebody
+    // next, then what is already waiting, then changes newest first.
+    ...input.running.map<Item>(card => ({ kind: 'running', id: card.lastRun!.runId, card })),
+    ...[...parked.entries()].map<Item>(([runId, questions]) => ({ kind: 'parked', id: runId, questions })),
+    ...standing.map<Item>(record => ({ kind: 'question', id: record.id, record })),
+    ...[...input.proposals]
+      .sort((a, b) => b.generatedAt.localeCompare(a.generatedAt))
+      .map<Item>(record => ({ kind: 'proposal', id: record.id, at: record.generatedAt, record })),
+  ]
+}
+
+function matchesFilter(item: Item, filter: Exclude<KindFilter, 'all'>): boolean {
+  return filter === 'asked'
+    ? item.kind === 'parked' || item.kind === 'question'
+    : item.kind === 'proposal'
+}
+
+/**
  * One waiting item, and the two ways of looking at it.
  *
  * Keyed by the item, so which view is open belongs to the item rather than to
@@ -181,67 +241,99 @@ function ItemDetail({ workspaceId, item, onComplete, onAnswered }: {
   onAnswered: (ticket: Clarification) => void
 }) {
   const { t } = useTranslation()
-  const [view, setView] = useState<DetailView>('record')
+  const [view, setView] = useState<DetailView>(item.kind === 'running' ? 'reasoning' : 'record')
+  // Which of a parked run's questions is open. The run is one item, so moving
+  // between its questions must not move the reader off it.
+  const [questionId, setQuestionId] = useState<string | null>(null)
+
+  const openQuestion = item.kind === 'parked'
+    ? item.questions.find(question => question.id === questionId) ?? item.questions[0]!
+    : item.kind === 'question' ? item.record : null
+
+  const runId = item.kind === 'running'
+    ? item.id
+    : item.kind === 'parked'
+      ? item.id
+      : item.kind === 'question' ? item.record.skillRunId : item.record.skillRunId
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 border-b border-border px-4">
         <Tabs value={view} onValueChange={value => setView(value as DetailView)}>
           <TabsList variant="line">
-            <TabsTrigger value="record">
-              {t(item.kind === 'clarification' ? 'inbox.view.question' : 'inbox.view.change')}
+            {item.kind !== 'running' && (
+              <TabsTrigger value="record">
+                {t(item.kind === 'proposal' ? 'inbox.view.change' : 'inbox.view.question')}
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="reasoning">
+              {t(item.kind === 'running' ? 'inbox.view.live' : 'inbox.view.reasoning')}
             </TabsTrigger>
-            <TabsTrigger value="reasoning">{t('inbox.view.reasoning')}</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
+      {item.kind === 'parked' && item.questions.length > 1 && view === 'record' && (
+        // One run, several doubts. They are answered together, so they share
+        // an item, and this is how a reader moves between them without losing
+        // their place in the queue.
+        <div className="flex shrink-0 flex-wrap gap-1 border-b border-border px-4 py-2">
+          {item.questions.map((question, index) => (
+            <Button
+              key={question.id}
+              size="xs"
+              variant={question.id === openQuestion?.id ? 'secondary' : 'ghost'}
+              className="text-2xs"
+              onClick={() => setQuestionId(question.id)}
+            >
+              {t('inbox.questionIndex', { index: index + 1 })}
+            </Button>
+          ))}
+        </div>
+      )}
       <div className="flex min-h-0 flex-1 flex-col">
         {view === 'reasoning'
           ? (
               <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
-                <RunBlocks workspaceId={workspaceId} runId={item.record.skillRunId} />
+                <RunBlocks workspaceId={workspaceId} runId={runId} />
               </div>
             )
-          : item.kind === 'clarification'
+          : openQuestion
             ? (
                 <ClarificationDetail
+                  key={openQuestion.id}
                   workspaceId={workspaceId}
-                  ticket={item.record}
-                  onComplete={onComplete}
+                  ticket={openQuestion}
+                  onComplete={item.kind === 'parked' && item.questions.length > 1 ? () => {} : onComplete}
                   onAnswered={onAnswered}
                 />
               )
-            : (
-                <ProposalDetail
-                  workspaceId={workspaceId}
-                  proposal={item.record}
-                  onComplete={onComplete}
-                />
-              )}
+            : item.kind === 'proposal'
+              ? (
+                  <ProposalDetail
+                    workspaceId={workspaceId}
+                    proposal={item.record}
+                    onComplete={onComplete}
+                  />
+                )
+              : null}
       </div>
     </div>
   )
 }
 
-/** A run that raised this is one a person can answer back into. */
 function InboxRow({ item, active, onSelect }: { item: Item, active: boolean, onSelect: () => void }) {
   const { t } = useTranslation()
-  const asked = item.kind === 'clarification'
-  const title = asked
-    ? questionExcerpt((item.record as Clarification).question)
-    : (item.record as Proposal).rationale
-  const source = asked
-    ? (item.record as Clarification).skillRunId
-    : (item.record as Proposal).generatedBy
+  const { label, title, source } = describe(item)
 
   return (
     <ListRow active={active} onClick={onSelect} {...(active ? { stripeClassName: 'bg-primary' } : {})}>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-center gap-1.5">
-          {/* Kind, not status. Both of these are pending, and a badge that
+          {/* Kind, not status. Everything here is pending, and a badge that
               said so on every row would carry no information at all. */}
           <Badge variant="outline" className="shrink-0 text-2xs uppercase">
-            {t(asked ? 'inbox.kind.question' : 'inbox.kind.change')}
+            {item.kind === 'running' && <Loader2 className="mr-1 size-2.5 animate-spin" />}
+            {t(label)}
           </Badge>
           {source && (
             <span className="truncate font-mono text-2xs text-muted-foreground">{source}</span>
@@ -253,4 +345,25 @@ function InboxRow({ item, active, onSelect }: { item: Item, active: boolean, onS
       </div>
     </ListRow>
   )
+}
+
+function describe(item: Item): { label: TranslationKey, title: string, source: string | undefined } {
+  switch (item.kind) {
+    case 'running':
+      return { label: 'inbox.kind.running', title: item.card.name, source: item.card.lastRun?.skillId }
+    case 'parked':
+      return {
+        label: item.questions.length > 1 ? 'inbox.kind.questions' : 'inbox.kind.question',
+        title: item.questions.map(question => questionExcerpt(question.question)).join(' · '),
+        source: item.id,
+      }
+    case 'question':
+      return { label: 'inbox.kind.question', title: questionExcerpt(item.record.question), source: item.record.skillRunId }
+    case 'proposal':
+      return { label: 'inbox.kind.change', title: item.record.rationale, source: item.record.generatedBy }
+    default: {
+      const exhaustive: never = item
+      throw new Error(`Unhandled inbox item: ${JSON.stringify(exhaustive)}`)
+    }
+  }
 }
