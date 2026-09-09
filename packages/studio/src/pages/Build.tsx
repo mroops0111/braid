@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RunBlocks } from '@/components/blocks/RunBlocks'
 import { EmptyState } from '@/components/EmptyState'
+import { statusTone } from '@/components/StatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useCoverage, useSkills } from '@/lib/queries'
@@ -28,6 +29,16 @@ const COLUMNS: readonly CoverageState[] = [
 
 /** Where running the per-unit step is the answer, so the column offers it. */
 const ACTIONABLE: ReadonlySet<CoverageState> = new Set<CoverageState>(['uncovered', 'sourceChanged', 'failed'])
+
+const STATE_ICON = {
+  uncovered: CircleDashed,
+  running: Loader2,
+  awaitingDecision: MessageCircleQuestion,
+  failed: CircleSlash,
+  sourceChanged: RefreshCw,
+  conflicted: AlertTriangle,
+  covered: ShieldCheck,
+} as const
 
 /**
  * Every source document, and what the model has made of it.
@@ -82,7 +93,7 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <StageStrip board={board!} workspaceId={workspaceId} canRun={mayRun} />
         <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden scrollbar-thin">
-          <div className="flex h-full min-w-max gap-3 p-4">
+          <div className="flex h-full min-w-max gap-2 p-3">
             {columns.map(column => (
               <Column
                 key={column.state}
@@ -112,46 +123,14 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
   )
 }
 
-const STATE_ICON = {
-  uncovered: CircleDashed,
-  running: Loader2,
-  awaitingDecision: MessageCircleQuestion,
-  failed: CircleSlash,
-  sourceChanged: RefreshCw,
-  conflicted: AlertTriangle,
-  covered: ShieldCheck,
-} as const
-
-// Semantic, not decorative. Attention states carry weight, settled ones do not.
-const STATE_TONE: Record<CoverageState, string> = {
-  uncovered: 'text-muted-foreground',
-  running: 'text-blue-600 dark:text-blue-400',
-  awaitingDecision: 'text-amber-600 dark:text-amber-400',
-  failed: 'text-red-600 dark:text-red-400',
-  sourceChanged: 'text-violet-600 dark:text-violet-400',
-  conflicted: 'text-orange-600 dark:text-orange-400',
-  covered: 'text-emerald-600 dark:text-emerald-400',
-}
-
-const STATE_EDGE: Record<CoverageState, string> = {
-  uncovered: 'border-l-border',
-  running: 'border-l-blue-500',
-  awaitingDecision: 'border-l-amber-500',
-  failed: 'border-l-red-500',
-  sourceChanged: 'border-l-violet-500',
-  conflicted: 'border-l-orange-500',
-  covered: 'border-l-emerald-500',
-}
-
 function keyOf(card: CoverageCard): string {
   return `${card.sourceId} ${card.path}`
 }
 
 /**
- * The ontology's pipeline, and the steps that act on the graph as a whole.
- *
- * Narrow on purpose. It says which steps exist and how far along the work is,
- * which is worth a strip, and it is not a canvas because nobody edits it.
+ * How far along the workspace is, and the steps that act on the graph as a
+ * whole. Narrow on purpose: it says which steps exist, which is worth a strip,
+ * and it is not a canvas because nobody edits the pipeline.
  */
 function StageStrip({ board, workspaceId, canRun }: {
   board: CoverageBoard
@@ -162,22 +141,23 @@ function StageStrip({ board, workspaceId, canRun }: {
   const settled = board.cards.filter(card => card.state === 'covered').length
 
   return (
-    <header className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-4 py-2.5">
+    <header className="flex h-11 shrink-0 items-center gap-4 border-b border-border px-4">
       <div className="flex items-baseline gap-1.5">
         <span className="font-mono text-sm text-foreground">{settled}</span>
         <span className="text-2xs text-muted-foreground">
           {t('build.coveredOf', { total: board.cards.length })}
         </span>
       </div>
-      <ol className="flex flex-wrap items-center gap-1.5">
-        {board.stages.map(stage => (
-          <li key={stage.skillId} className="flex items-center gap-1.5">
+      <ol className="flex items-center gap-1">
+        {board.stages.map((stage, index) => (
+          <li key={stage.skillId} className="flex items-center gap-1">
+            {index > 0 && <span className="pr-1 text-muted-foreground">→</span>}
             <Badge variant="outline" className="font-mono text-2xs">{stage.skillId}</Badge>
             {stage.global && canRun(stage.skillId) && (
               <Button
                 size="xs"
                 variant="ghost"
-                className="[&_svg]:size-2.5"
+                className="text-muted-foreground"
                 onClick={() => void runStore.startUnit({ workspaceId, skillId: stage.skillId, unitPath: '' })}
               >
                 {t('build.runGlobal')}
@@ -190,6 +170,13 @@ function StageStrip({ board, workspaceId, canRun }: {
   )
 }
 
+/**
+ * One state, and the documents in it.
+ *
+ * The lane carries the state's colour so the cards do not have to. A card
+ * repeating what its own column already says is noise, and seven tinted
+ * borders across a board read as decoration rather than as meaning.
+ */
 function Column({ state, cards, selectedKey, onSelect, onRunAll }: {
   state: CoverageState
   cards: readonly CoverageCard[]
@@ -199,80 +186,74 @@ function Column({ state, cards, selectedKey, onSelect, onRunAll }: {
 }) {
   const { t } = useTranslation()
   const Icon = STATE_ICON[state]
-  // A settled column is the count, not the contents. Sixty cards nobody needs
-  // to read would push every column that does need reading off the screen.
-  const [open, setOpen] = useState(state !== 'covered')
 
   return (
-    <section className={cn('flex h-full shrink-0 flex-col', cards.length === 0 ? 'w-40' : 'w-64')}>
-      <header className="flex shrink-0 items-center gap-1.5 px-1 pb-2">
-        <Icon className={cn('size-3', STATE_TONE[state], state === 'running' && 'animate-spin')} />
-        <button
-          type="button"
-          onClick={() => setOpen(!open)}
-          className="text-xs font-medium text-foreground transition-colors hover:text-muted-foreground"
-        >
+    <section className="flex h-full w-64 shrink-0 flex-col rounded-lg bg-muted/60">
+      <header className="flex shrink-0 items-center gap-1.5 px-2.5 py-2">
+        <span className={cn('flex size-4 shrink-0 items-center justify-center rounded border', statusTone(state))}>
+          <Icon className={cn('size-2.5', state === 'running' && 'animate-spin')} />
+        </span>
+        <h2 className="truncate text-2xs font-semibold uppercase tracking-wider text-foreground">
           {t(`build.state.${state}`)}
-        </button>
+        </h2>
         <span className="font-mono text-2xs text-muted-foreground">{cards.length}</span>
         {onRunAll && cards.length > 0 && (
-          <Button size="xs" variant="ghost" className="ml-auto" onClick={onRunAll}>
+          <Button size="xs" variant="ghost" className="ml-auto text-muted-foreground" onClick={onRunAll}>
             {t('build.runColumn')}
           </Button>
         )}
       </header>
-      {open && (
-        <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto scrollbar-thin pr-0.5">
-          {cards.map(card => (
-            <UnitCard
-              key={keyOf(card)}
-              card={card}
-              active={keyOf(card) === selectedKey}
-              onClick={() => onSelect(keyOf(card))}
-            />
-          ))}
-        </ul>
-      )}
+      {cards.length === 0
+        ? <p className="px-2.5 pb-2 text-2xs text-muted-foreground/70">{t('build.columnEmpty')}</p>
+        : (
+            <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto scrollbar-thin px-1.5 pb-1.5">
+              {cards.map(card => (
+                <UnitCard
+                  key={keyOf(card)}
+                  card={card}
+                  active={keyOf(card) === selectedKey}
+                  onClick={() => onSelect(keyOf(card))}
+                />
+              ))}
+            </ul>
+          )}
     </section>
   )
 }
 
 function UnitCard({ card, active, onClick }: { card: CoverageCard, active: boolean, onClick: () => void }) {
   const { t } = useTranslation()
-  const waiting = card.proposalIds.length + card.clarificationIds.length
 
   return (
-    <li>
+    <li className="relative">
+      {active && <span className="absolute inset-y-1.5 left-0 z-10 w-[3px] rounded-r-full bg-primary" />}
       <button
         type="button"
         onClick={onClick}
         className={cn(
-          'flex w-full flex-col gap-1 rounded-md border border-l-2 border-border bg-card px-2.5 py-2 text-left transition-colors duration-150 hover:border-border/60',
-          STATE_EDGE[card.state],
-          active && 'bg-accent',
+          'flex w-full flex-col gap-1 rounded-md border border-border px-2.5 py-2 text-left transition-colors duration-150',
+          active ? 'bg-accent' : 'bg-card hover:bg-accent/50',
         )}
       >
         <span className="line-clamp-2 text-xs leading-snug text-foreground">{card.name}</span>
         <span className="flex items-center gap-2 font-mono text-2xs text-muted-foreground">
           <span className="truncate">{card.sourceId}</span>
-          {card.nodeCount > 0 && <span>{t('build.nodes', { count: card.nodeCount })}</span>}
+          {card.nodeCount > 0 && <span className="shrink-0">{t('build.nodes', { count: card.nodeCount })}</span>}
         </span>
-        {(waiting > 0 || card.driftIssueIds.length > 0) && (
-          <span className="flex flex-wrap gap-1">
-            {card.proposalIds.length > 0 && (
-              <Badge variant="outline" className="text-2xs">{t('build.proposals', { count: card.proposalIds.length })}</Badge>
-            )}
-            {card.clarificationIds.length > 0 && (
-              <Badge variant="outline" className="text-2xs">{t('build.questions', { count: card.clarificationIds.length })}</Badge>
-            )}
-            {card.driftIssueIds.length > 0 && (
-              <Badge variant="outline" className="text-2xs">{t('build.drifts', { count: card.driftIssueIds.length })}</Badge>
-            )}
+        {(card.proposalIds.length > 0 || card.clarificationIds.length > 0 || card.driftIssueIds.length > 0) && (
+          <span className="flex flex-wrap gap-1 pt-0.5">
+            {card.proposalIds.length > 0 && <Chip>{t('build.proposals', { count: card.proposalIds.length })}</Chip>}
+            {card.clarificationIds.length > 0 && <Chip>{t('build.questions', { count: card.clarificationIds.length })}</Chip>}
+            {card.driftIssueIds.length > 0 && <Chip>{t('build.drifts', { count: card.driftIssueIds.length })}</Chip>}
           </span>
         )}
       </button>
     </li>
   )
+}
+
+function Chip({ children }: { children: React.ReactNode }) {
+  return <span className="rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">{children}</span>
 }
 
 /**
@@ -294,30 +275,32 @@ function CardDetail({ workspaceId, card, stage, canRun, onClose }: {
 
   return (
     <aside className="flex w-96 shrink-0 flex-col border-l border-border">
-      <header className="flex shrink-0 flex-col gap-2 border-b border-border px-4 py-3">
-        <div className="flex items-start justify-between gap-2">
-          <h2 className="text-sm font-medium leading-snug text-foreground">{card.name}</h2>
-          <Button size="xs" variant="ghost" onClick={onClose}>{t('common.close')}</Button>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className={cn('text-2xs', STATE_TONE[card.state])}>
-            {t(`build.state.${card.state}`)}
-          </Badge>
-          <span className="font-mono text-2xs text-muted-foreground">{card.sourceId}</span>
-        </div>
-        <p className="break-all font-mono text-2xs text-muted-foreground">{card.path}</p>
-        {stage && canRun && (
-          <Button
-            size="sm"
-            className="self-start"
-            onClick={() => void runStore.startUnit({ workspaceId, skillId: stage.skillId, unitPath: card.path })}
-          >
-            {t('build.runUnit', { skill: stage.skillId })}
-          </Button>
-        )}
+      <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
+        <span className={cn('rounded-md border px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wide', statusTone(card.state))}>
+          {t(`build.state.${card.state}`)}
+        </span>
+        <Button size="xs" variant="ghost" onClick={onClose}>{t('common.close')}</Button>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+        <section className="flex flex-col gap-2 border-b border-border px-4 py-3">
+          <h2 className="text-sm font-medium leading-snug text-foreground">{card.name}</h2>
+          <p className="break-all font-mono text-2xs text-muted-foreground">
+            {card.sourceId}
+            {' / '}
+            {card.path}
+          </p>
+          {stage && canRun && (
+            <Button
+              size="sm"
+              className="mt-1 self-start"
+              onClick={() => void runStore.startUnit({ workspaceId, skillId: stage.skillId, unitPath: card.path })}
+            >
+              {t('build.runUnit', { skill: stage.skillId })}
+            </Button>
+          )}
+        </section>
+
         <section className="flex flex-col gap-1.5 border-b border-border px-4 py-3 text-2xs">
           <Fact label={t('build.fact.nodes')} value={String(card.nodeCount)} />
           {card.incorporatedSha && <Fact label={t('build.fact.incorporated')} value={card.incorporatedSha.slice(0, 12)} />}
@@ -327,8 +310,8 @@ function CardDetail({ workspaceId, card, stage, canRun, onClose }: {
         </section>
 
         {(card.proposalIds.length > 0 || card.clarificationIds.length > 0) && (
-          <section className="flex flex-col gap-1 border-b border-border px-4 py-3">
-            <h3 className="mb-1 text-2xs font-medium uppercase tracking-wider text-muted-foreground">
+          <section className="flex flex-col gap-0.5 border-b border-border px-4 py-3">
+            <h3 className="mb-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
               {t('build.waiting')}
             </h3>
             {card.proposalIds.map(proposalId => (
@@ -336,10 +319,10 @@ function CardDetail({ workspaceId, card, stage, canRun, onClose }: {
                 key={proposalId}
                 type="button"
                 onClick={() => navigation?.focusProposal(proposalId as ProposalId)}
-                className="flex items-center gap-2 rounded px-1.5 py-1 text-left transition-colors hover:bg-accent"
+                className="flex items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-accent"
               >
                 <span className="flex-1 truncate font-mono text-2xs text-foreground">{proposalId}</span>
-                <span className="text-2xs text-muted-foreground">{t('build.decide')}</span>
+                <span className="shrink-0 text-2xs text-muted-foreground">{t('build.decide')}</span>
               </button>
             ))}
             {card.clarificationIds.map(clarificationId => (
@@ -352,7 +335,7 @@ function CardDetail({ workspaceId, card, stage, canRun, onClose }: {
 
         {card.driftIssueIds.length > 0 && (
           <section className="border-b border-border px-4 py-3">
-            <h3 className="mb-1 text-2xs font-medium uppercase tracking-wider text-muted-foreground">
+            <h3 className="mb-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
               {t('build.conflicts')}
             </h3>
             <p className="text-2xs text-muted-foreground">{t('build.conflictsHint', { count: card.driftIssueIds.length })}</p>

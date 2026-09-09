@@ -3,6 +3,7 @@ export const build = {
   emptyTitle: '尚未註冊來源',
   emptyDescription: '在設定裡註冊一個來源，它底下的每份文件都會出現在這裡。',
   coveredOf: '／{total} 份文件已在模型裡',
+  columnEmpty: '目前沒有。',
   runGlobal: '執行',
   runColumn: '全部執行',
   runUnit: '執行 {skill}',

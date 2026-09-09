@@ -13,10 +13,28 @@ const STATUS_STYLES: Record<string, string> = {
   consistent: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30 dark:text-emerald-300',
   conflict: 'bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-300',
   unverifiable: 'bg-zinc-500/15 text-zinc-700 border-zinc-500/30 dark:text-zinc-300',
+  // Where a source document stands against the model. Registered here with
+  // everything else so the board tints from the one table rather than a
+  // second one that would drift away from it.
+  uncovered: 'bg-muted text-muted-foreground border-border',
+  running: 'bg-blue-500/15 text-blue-700 border-blue-500/30 dark:text-blue-300',
+  awaitingDecision: 'bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-300',
+  failed: 'bg-red-500/15 text-red-700 border-red-500/30 dark:text-red-300',
+  sourceChanged: 'bg-violet-500/15 text-violet-700 border-violet-500/30 dark:text-violet-300',
+  conflicted: 'bg-orange-500/15 text-orange-700 border-orange-500/30 dark:text-orange-300',
+  covered: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30 dark:text-emerald-300',
 }
 
-export function StatusBadge({ status, className }: { status: string, className?: string }) {
-  const style = STATUS_STYLES[status] ?? 'bg-muted text-muted-foreground border-border'
+/**
+ * The tint a status carries, for the few places that need the colour without
+ * the badge. Reading it from here is what keeps one vocabulary.
+ */
+export function statusTone(status: string): string {
+  return STATUS_STYLES[status] ?? 'bg-muted text-muted-foreground border-border'
+}
+
+export function StatusBadge({ status, label, className }: { status: string, label?: string, className?: string }) {
+  const style = statusTone(status)
   return (
     <span
       className={cn(
@@ -25,7 +43,7 @@ export function StatusBadge({ status, className }: { status: string, className?:
         className,
       )}
     >
-      {status}
+      {label ?? status}
     </span>
   )
 }

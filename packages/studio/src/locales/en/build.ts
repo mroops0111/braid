@@ -3,6 +3,7 @@ export const build = {
   emptyTitle: 'No Sources Yet',
   emptyDescription: 'Register a source in settings, and every document it holds appears here.',
   coveredOf: 'of {total} documents in the model',
+  columnEmpty: 'Nothing here.',
   runGlobal: 'Run',
   runColumn: 'Run All',
   runUnit: 'Run {skill}',
