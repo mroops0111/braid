@@ -1,6 +1,7 @@
 import type { GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
-import { ArrowDownToDot, ArrowUpFromDot, FileText, X } from 'lucide-react'
+import { ArrowDownToDot, ArrowUpFromDot, FileText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { DetailPanel, SectionTitle } from '@/components/DetailPanel'
 import { Markdown } from '@/components/SkillTranscript/Markdown'
 import { StatusBadge } from '@/components/StatusBadge'
 import { NodeTypeBadge } from './NodeTypeBadge'
@@ -48,82 +49,73 @@ export function NodeDetailPanel({
   const { t } = useTranslation()
   const sources = node.metadata.sourceReferences ?? []
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <header className="relative space-y-1.5 border-b border-border p-4">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={t('graph.detail.closeDetailButton')}
-          className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        >
-          <X className="size-3.5" />
-        </button>
-        <div className="flex items-center gap-1.5">
+    <DetailPanel
+      title={node.name}
+      subtitle={node.id}
+      onClose={onClose}
+      badges={(
+        <>
           <NodeTypeBadge type={node.type} />
           <StatusBadge status={node.status} />
           {change && <ChangeBadge change={change} />}
-        </div>
-        <h2 className="text-sm font-semibold text-foreground">{node.name}</h2>
-        <p className="font-mono text-2xs text-muted-foreground">{node.id}</p>
-      </header>
-
-      <div className="flex-1 space-y-5 overflow-y-auto p-4 scrollbar-thin">
-        {node.description && (
-          <section>
-            <SectionTitle>{t('common.description')}</SectionTitle>
-            <div className="mt-1 text-xs text-foreground/90">
-              <Markdown text={node.description} />
-            </div>
-          </section>
-        )}
-
-        <FlagsSection node={node} />
-
-        <EdgeList
-          title={t('graph.detail.incoming', { count: incoming.length })}
-          icon={ArrowDownToDot}
-          edges={incoming}
-          getOther={edge => edge.fromNodeId}
-          nodesById={nodesById}
-          onSelectNode={onSelectNode}
-        />
-
-        <EdgeList
-          title={t('graph.detail.outgoing', { count: outgoing.length })}
-          icon={ArrowUpFromDot}
-          edges={outgoing}
-          getOther={edge => edge.toNodeId}
-          nodesById={nodesById}
-          onSelectNode={onSelectNode}
-        />
-
+        </>
+      )}
+    >
+      {node.description && (
         <section>
-          <SectionTitle>{t('graph.detail.sources')}</SectionTitle>
-          {sources.length === 0
-            ? <p className="mt-1 text-2xs text-muted-foreground">{t('graph.detail.noSources')}</p>
-            : (
-                <ul className="mt-1 space-y-1.5">
-                  {sources.map((reference, index) => (
-                    <li key={`${reference.sourceId}-${index}`} className="rounded-md border border-border p-2">
-                      <div className="flex items-center gap-1.5 text-2xs">
-                        <FileText className="size-3 text-muted-foreground" />
-                        <span className="font-mono text-foreground">{reference.sourceId}</span>
-                      </div>
-                      <p className="mt-0.5 break-all font-mono text-2xs text-muted-foreground">
-                        {formatLocation(reference.location.uri, reference.location.startLine, reference.location.endLine)}
-                      </p>
-                      {reference.snippet && (
-                        <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-sm bg-muted/40 p-1.5 text-2xs text-foreground/80">
-                          {reference.snippet}
-                        </pre>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
+          <SectionTitle>{t('common.description')}</SectionTitle>
+          <div className="mt-1 text-xs text-foreground/90">
+            <Markdown text={node.description} />
+          </div>
         </section>
-      </div>
-    </div>
+      )}
+
+      <FlagsSection node={node} />
+
+      <EdgeList
+        title={t('graph.detail.incoming', { count: incoming.length })}
+        icon={ArrowDownToDot}
+        edges={incoming}
+        getOther={edge => edge.fromNodeId}
+        nodesById={nodesById}
+        onSelectNode={onSelectNode}
+      />
+
+      <EdgeList
+        title={t('graph.detail.outgoing', { count: outgoing.length })}
+        icon={ArrowUpFromDot}
+        edges={outgoing}
+        getOther={edge => edge.toNodeId}
+        nodesById={nodesById}
+        onSelectNode={onSelectNode}
+      />
+
+      <section>
+        <SectionTitle>{t('graph.detail.sources')}</SectionTitle>
+        {sources.length === 0
+          ? <p className="mt-1 text-2xs text-muted-foreground">{t('graph.detail.noSources')}</p>
+          : (
+              <ul className="mt-1 space-y-1.5">
+                {sources.map((reference, index) => (
+                  <li key={`${reference.sourceId}-${index}`} className="rounded-md border border-border p-2">
+                    <div className="flex items-center gap-1.5 text-2xs">
+                      <FileText className="size-3 text-muted-foreground" />
+                      <span className="font-mono text-foreground">{reference.sourceId}</span>
+                    </div>
+                    <p className="mt-0.5 break-all font-mono text-2xs text-muted-foreground">
+                      {formatLocation(reference.location.uri, reference.location.startLine, reference.location.endLine)}
+                    </p>
+                    {reference.snippet && (
+                      <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-sm bg-muted/40 p-1.5 text-2xs text-foreground/80">
+                        {reference.snippet}
+                      </pre>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+      </section>
+    </DetailPanel>
   )
 }
 
@@ -204,12 +196,6 @@ function ChangeBadge({ change }: { change: NodeChange }) {
     <span className={`inline-flex items-center rounded-sm border px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wider ${className}`}>
       {t(labelKey)}
     </span>
-  )
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{children}</h3>
   )
 }
 

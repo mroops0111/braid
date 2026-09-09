@@ -16,6 +16,8 @@ export const build = {
   busy: 'Building. One at a time.',
   starting: 'Starting…',
   liveCounts: '{reads} read · {blocks} rendered',
+  lastReading: 'Last Reading',
+  lastReadingNote: 'A run did read this document. Nothing of it is in the model, so what it proposed was either turned down or has since been rolled back.',
   runGlobal: 'Run',
   runColumn: 'Run All',
   runUnit: 'Run {skill}',
@@ -41,6 +43,8 @@ export const build = {
     incorporated: 'Applied at',
     onDisk: 'Read at',
     stage: 'Stage',
+    ranAt: '{step}, {when}',
+    failedAt: '{step} failed, {when}',
     lastRun: 'Last run',
   },
 }

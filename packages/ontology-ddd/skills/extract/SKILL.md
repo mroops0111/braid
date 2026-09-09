@@ -5,6 +5,9 @@ argument-hint: "[scope-hint]"
 disable-model-invocation: true
 braid:
   category: build
+  label:
+    en: Extract
+    zh-Hant: 萃取
   order: 100
   summary: Extract domain nodes/edges from PRDs and code
   output:

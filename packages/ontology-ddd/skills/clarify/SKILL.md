@@ -5,6 +5,9 @@ argument-hint: "[clarificationId | all]"
 disable-model-invocation: true
 braid:
   category: build
+  label:
+    en: Clarify
+    zh-Hant: 釐清
   order: 200
   summary: Resolve answered clarifications into proposals
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]

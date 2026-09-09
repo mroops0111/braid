@@ -5,6 +5,9 @@ argument-hint: "[scope-hint | validate]"
 disable-model-invocation: true
 braid:
   category: build
+  label:
+    en: Reconcile
+    zh-Hant: 對齊
   order: 300
   summary: Cross-link sources and validate the graph globally
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]

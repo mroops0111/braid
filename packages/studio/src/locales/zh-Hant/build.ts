@@ -16,6 +16,8 @@ export const build = {
   busy: '建構中，一次只跑一個。',
   starting: '啟動中…',
   liveCounts: '已讀 {reads} 次 · 產出 {blocks} 段',
+  lastReading: '上次讀取的紀錄',
+  lastReadingNote: '這份文件被讀過。模型裡沒有它的任何東西，所以那次的提案不是被拒絕，就是後來被還原掉了。',
   runGlobal: '執行',
   runColumn: '全部執行',
   runUnit: '執行 {skill}',
@@ -41,6 +43,8 @@ export const build = {
     incorporated: '納入版本',
     onDisk: '讀到版本',
     stage: '階段',
+    ranAt: '{when} 由「{step}」讀取',
+    failedAt: '{when}「{step}」讀取失敗',
     lastRun: '最後執行',
   },
 }

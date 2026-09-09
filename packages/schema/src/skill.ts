@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { AgentEffort, AgentKind } from './agent.js'
 import { RenderBlock, RenderCallName } from './block.js'
 import { AbsolutePath, BlockId, PluginId, SkillId, SkillRunId, SourceId, Timestamp, UserId, WorkspaceId } from './common.js'
+import { localizedText } from './locale.js'
 import { McpServerId } from './mcp.js'
 import { SourceRole } from './source.js'
 import { WorkspaceRole } from './workspace.js'
@@ -206,6 +207,15 @@ export const BraidSkillExtension = z.object({
   category: SkillCategory.optional(),
   // Step number within build, Studio sorts by it. Ignored for ask / generate.
   order: z.number().int().positive().optional(),
+  /**
+   * What to call this step in front of a reader.
+   *
+   * A skill id is an address, and `ddd:extract` says nothing to somebody
+   * looking at a board. Localised the same way an ontology's node and edge
+   * types are, since a step of the pipeline is as much its vocabulary as they
+   * are. Absent, a surface falls back to the id, which is at least true.
+   */
+  label: localizedText(z.string().min(1).max(40)).optional(),
   // One-line tagline for narrow Studio surfaces, else description's first sentence.
   summary: z.string().min(1).max(80).optional(),
   // Declarative form for the Actions page. Omitted falls back to the argumentHint textarea.

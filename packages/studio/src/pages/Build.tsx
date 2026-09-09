@@ -1,16 +1,19 @@
-import type { CoverageBoard, CoverageCard, CoverageStage, CoverageState, ProposalId } from '@braidhq/schema'
+import type { CoverageBoard, CoverageCard, CoverageStage, CoverageState, Locale, ProposalId } from '@braidhq/schema'
+import { localize } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { FileText, Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RunBlocks } from '@/components/blocks/RunBlocks'
+import { DetailFact, DetailPanel, SectionTitle } from '@/components/DetailPanel'
 import { EmptyState } from '@/components/EmptyState'
-import { statusDot, statusTone } from '@/components/StatusBadge'
+import { StatusBadge, statusDot, statusTone } from '@/components/StatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { api } from '@/lib/api'
 import { summariseActivity } from '@/lib/blocks/runActivity'
+import { useLocaleFormat } from '@/lib/i18n/datetime'
 import { useBatchStatus, useCoverage, useSkills } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
 import { useRun } from '@/lib/useRun'
@@ -135,6 +138,7 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
           workspaceId={workspaceId}
           card={selected}
           stage={unitStage}
+          stages={board?.stages ?? []}
           canRun={mayRunUnits && !busy}
           onClose={() => setSelectedKey(null)}
         />
@@ -208,6 +212,19 @@ function CoverDialog({ workspaceId, cards, skillId, onClose }: {
   )
 }
 
+/**
+ * What to call a step, in the reader's language.
+ *
+ * A skill id is an address. The ontology declares what its steps are called
+ * and localises it the way it localises its node types, so a board that shows
+ * the id is showing plumbing. Falls back to the id, which is at least true.
+ */
+function stageLabel(stage: CoverageStage | undefined, locale: string): string {
+  if (!stage)
+    return ''
+  return stage.label ? localize(stage.label, locale as Locale) : stage.skillId
+}
+
 function keyOf(card: CoverageCard): string {
   return `${card.sourceId} ${card.path}`
 }
@@ -224,7 +241,8 @@ function StageStrip({ board, workspaceId, canRun, busy, onOpenInbox }: {
   busy: boolean
   onOpenInbox: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const language = i18n.language
   const inModel = board.cards.filter(card => card.nodeCount > 0).length
 
   return (
@@ -243,7 +261,7 @@ function StageStrip({ board, workspaceId, canRun, busy, onOpenInbox }: {
           return (
             <li key={stage.skillId} className="flex items-center gap-1">
               {index > 0 && <span className="pr-1 text-muted-foreground">→</span>}
-              <Badge variant="outline" className="font-mono text-2xs">{stage.skillId}</Badge>
+              <Badge variant="outline" className="text-2xs">{stageLabel(stage, language)}</Badge>
               {waiting > 0 && (
                 <button
                   type="button"
@@ -407,96 +425,106 @@ function Chip({ children }: { children: React.ReactNode }) {
  * than reviewed twice. What this pane adds is the run's own blocks, which is
  * the only place the working behind a card can be read.
  */
-function CardDetail({ workspaceId, card, stage, canRun, onClose }: {
+function CardDetail({ workspaceId, card, stage, stages, canRun, onClose }: {
   workspaceId: string
   card: CoverageCard
   stage: CoverageStage | undefined
+  stages: readonly CoverageStage[]
   canRun: boolean
   onClose: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const language = i18n.language
+  const { formatRelativeTime } = useLocaleFormat()
   const navigation = useTabNavigation()
+  // Worth a line only where the ontology has more than one per-document step.
+  // With one, it says the same thing on every card, which is nothing.
+  const showStage = stages.filter(item => !item.global).length > 1
 
   return (
-    <aside className="flex w-96 shrink-0 flex-col border-l border-border">
-      <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
-        <span className={cn('rounded-md border px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wide', statusTone(card.state))}>
-          {t(`build.state.${card.state}`)}
-        </span>
-        <Button size="xs" variant="ghost" onClick={onClose}>{t('common.close')}</Button>
-      </header>
-
-      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
-        <section className="flex flex-col gap-2 border-b border-border px-4 py-3">
-          <h2 className="text-sm font-medium leading-snug text-foreground">{card.name}</h2>
-          <p className="break-all font-mono text-2xs text-muted-foreground">
-            {card.sourceId}
-            {' / '}
-            {card.path}
-          </p>
-          {stage && canRun && (
-            <Button
-              size="sm"
-              className="mt-1 self-start"
-              onClick={() => void runStore.startUnit({ workspaceId, skillId: stage.skillId, unitPath: card.path })}
-            >
-              {t('build.runUnit', { skill: stage.skillId })}
-            </Button>
+    // The panel owns its chrome, the surface owns its place in the layout,
+    // the same division the graph makes with the same width.
+    <aside className="w-96 shrink-0 border-l border-border">
+      <DetailPanel
+        title={card.name}
+        subtitle={`${card.sourceId} / ${card.path}`}
+        onClose={onClose}
+        badges={<StatusBadge status={card.state} label={t(`build.state.${card.state}`)} />}
+        {...(stage && canRun
+          ? {
+              actions: (
+                <Button
+                  size="sm"
+                  onClick={() => void runStore.startUnit({ workspaceId, skillId: stage.skillId, unitPath: card.path })}
+                >
+                  {t('build.runUnit', { skill: stageLabel(stage, language) })}
+                </Button>
+              ),
+            }
+          : {})}
+      >
+        <section className="flex flex-col gap-1.5">
+          <DetailFact label={t('build.fact.nodes')} value={String(card.nodeCount)} />
+          {card.incorporatedSha && <DetailFact label={t('build.fact.incorporated')} value={card.incorporatedSha.slice(0, 12)} />}
+          {card.sha && card.sha !== card.incorporatedSha && <DetailFact label={t('build.fact.onDisk')} value={card.sha.slice(0, 12)} />}
+          {showStage && card.stage && (
+            <DetailFact label={t('build.fact.stage')} value={stageLabel(stages.find(item => item.skillId === card.stage), language)} />
+          )}
+          {card.lastRun && (
+            <DetailFact
+              label={t('build.fact.lastRun')}
+              value={t(card.lastRun.exitCode === 0 || card.lastRun.exitCode === undefined ? 'build.fact.ranAt' : 'build.fact.failedAt', {
+                step: stageLabel(stages.find(item => item.skillId === card.lastRun!.skillId), language),
+                when: formatRelativeTime(card.lastRun.startedAt),
+              })}
+            />
           )}
         </section>
 
-        <section className="flex flex-col gap-1.5 border-b border-border px-4 py-3 text-2xs">
-          <Fact label={t('build.fact.nodes')} value={String(card.nodeCount)} />
-          {card.incorporatedSha && <Fact label={t('build.fact.incorporated')} value={card.incorporatedSha.slice(0, 12)} />}
-          {card.sha && card.sha !== card.incorporatedSha && <Fact label={t('build.fact.onDisk')} value={card.sha.slice(0, 12)} />}
-          {card.stage && <Fact label={t('build.fact.stage')} value={card.stage} />}
-          {card.lastRun && <Fact label={t('build.fact.lastRun')} value={card.lastRun.skillId} />}
-        </section>
-
         {(card.proposalIds.length > 0 || card.clarificationIds.length > 0) && (
-          <section className="flex flex-col gap-0.5 border-b border-border px-4 py-3">
-            <h3 className="mb-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {t('build.waiting')}
-            </h3>
-            {card.proposalIds.map(proposalId => (
-              <button
-                key={proposalId}
-                type="button"
-                onClick={() => navigation?.focusProposal(proposalId as ProposalId)}
-                className="flex items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-accent"
-              >
-                <span className="flex-1 truncate font-mono text-2xs text-foreground">{proposalId}</span>
-                <span className="shrink-0 text-2xs text-muted-foreground">{t('build.decide')}</span>
-              </button>
-            ))}
-            {card.clarificationIds.map(clarificationId => (
-              <span key={clarificationId} className="px-1.5 py-1 font-mono text-2xs text-muted-foreground">
-                {clarificationId}
-              </span>
-            ))}
+          <section>
+            <SectionTitle>{t('build.waiting')}</SectionTitle>
+            <div className="mt-1 flex flex-col gap-0.5">
+              {card.proposalIds.map(proposalId => (
+                <button
+                  key={proposalId}
+                  type="button"
+                  onClick={() => navigation?.focusProposal(proposalId as ProposalId)}
+                  className="flex min-h-8 items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
+                >
+                  <span className="flex-1 truncate font-mono text-2xs text-foreground">{proposalId}</span>
+                  <span className="shrink-0 text-2xs text-muted-foreground">{t('build.decide')}</span>
+                </button>
+              ))}
+              {card.clarificationIds.map(clarificationId => (
+                <span key={clarificationId} className="px-2 py-1.5 font-mono text-2xs text-muted-foreground">
+                  {clarificationId}
+                </span>
+              ))}
+            </div>
           </section>
         )}
 
         {card.driftIssueIds.length > 0 && (
-          <section className="border-b border-border px-4 py-3">
-            <h3 className="mb-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {t('build.conflicts')}
-            </h3>
-            <p className="text-2xs text-muted-foreground">{t('build.conflictsHint', { count: card.driftIssueIds.length })}</p>
+          <section>
+            <SectionTitle>{t('build.conflicts')}</SectionTitle>
+            <p className="mt-1 text-2xs text-muted-foreground">{t('build.conflictsHint', { count: card.driftIssueIds.length })}</p>
           </section>
         )}
 
-        <RunBlocks workspaceId={workspaceId} runId={card.lastRun?.runId} />
-      </div>
+        {/* A document can have been read and hold nothing, because the change
+            was rejected, or applied and then rolled back. The record of the
+            reading survives either way, since run logs are history rather than
+            model state, so it says which it is rather than reading as a
+            contradiction against the empty node count above it. */}
+        <RunBlocks
+          workspaceId={workspaceId}
+          runId={card.lastRun?.runId}
+          {...(card.nodeCount === 0
+            ? { heading: t('build.lastReading'), note: t('build.lastReadingNote') }
+            : {})}
+        />
+      </DetailPanel>
     </aside>
-  )
-}
-
-function Fact({ label, value }: { label: string, value: string }) {
-  return (
-    <div className="flex items-baseline gap-2">
-      <span className="w-20 shrink-0 text-muted-foreground">{label}</span>
-      <span className="min-w-0 flex-1 truncate font-mono text-foreground">{value}</span>
-    </div>
   )
 }

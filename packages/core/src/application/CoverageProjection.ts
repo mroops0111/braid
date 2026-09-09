@@ -358,6 +358,7 @@ function readStages(skills: readonly SkillManifestData[]): CoverageStage[] {
     .map(skill => ({
       skillId: skill.id,
       order: skill.frontmatter.braid?.order ?? 0,
+      ...(skill.frontmatter.braid?.label ? { label: skill.frontmatter.braid.label } : {}),
       ...(skill.frontmatter.braid?.summary ? { summary: skill.frontmatter.braid.summary } : {}),
       global: !(skill.frontmatter.braid?.inputs ?? []).some(
         input => input.kind !== 'text' && input.provider.kind === 'source',

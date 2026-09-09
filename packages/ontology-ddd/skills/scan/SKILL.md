@@ -5,6 +5,9 @@ argument-hint: ""
 disable-model-invocation: true
 braid:
   category: build
+  label:
+    en: Scan
+    zh-Hant: 掃描
   order: 50
   summary: Scan a codebase and produce extraction units
   required-env: [BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE]

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { ClarificationId, DriftIssueId, ProposalId, SkillId, SkillRunId, SourceId, Timestamp, WorkspaceId } from './common.js'
+import { localizedText } from './locale.js'
 import { SourceUnitSha } from './source-unit.js'
 
 /**
@@ -91,6 +92,8 @@ export type CoverageCard = z.infer<typeof CoverageCard>
  */
 export const CoverageStage = z.object({
   skillId: SkillId,
+  /** What to call this step, as the ontology declared it. Absent falls back to the id. */
+  label: localizedText(z.string().min(1).max(40)).optional(),
   order: z.number().int(),
   summary: z.string().optional(),
   /** True when the step works on the graph as a whole rather than on a unit. */
