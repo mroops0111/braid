@@ -1,6 +1,8 @@
+import type { DriftIssue } from '@braidhq/schema'
 import type { NodeProps } from '@xyflow/react'
 import type { NodeCardNode } from './useGraphLayout'
 import { Handle, Position } from '@xyflow/react'
+import { TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Markdown } from '@/components/SkillTranscript/Markdown'
 import { cn } from '@/lib/utils'
@@ -22,7 +24,8 @@ import { NodeTypeBadge } from './NodeTypeBadge'
  */
 export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
   const { t } = useTranslation()
-  const { node, change, emphasizeAdded } = data
+  const { node, change, emphasizeAdded, spotlit } = data
+  const drifts = unacknowledgedDrifts(node)
   const firstParagraph = node.description?.split(/\n\s*\n/, 1)[0]?.trim() ?? ''
   // Diff signals layer without fighting the type and topology layer.
   //   - Always-on left bar carries node type colour.
@@ -61,6 +64,9 @@ export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
       className={cn(
         'relative w-[200px] rounded-md border bg-card px-3 py-2 transition-colors duration-150',
         selected ? 'border-primary' : (changeBorder ?? 'border-border hover:border-border/80'),
+        // What somebody arrived to look at. A ring rather than a border, so it
+        // layers over the diff border instead of replacing it.
+        spotlit && !selected && 'ring-2 ring-primary/60',
       )}
     >
       {changeDotColor && (
@@ -82,6 +88,15 @@ export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
       <div className="flex items-center gap-1.5">
         <NodeTypeBadge type={node.type} />
         <span className="text-2xs text-muted-foreground">{node.status}</span>
+        {drifts.length > 0 && (
+          <span
+            className="ml-auto flex items-center gap-0.5 text-orange-500"
+            title={drifts.map(drift => drift.description).join('\n')}
+          >
+            <TriangleAlert className="size-3" />
+            {drifts.length > 1 && <span className="font-mono text-2xs">{drifts.length}</span>}
+          </span>
+        )}
       </div>
       <div className="mt-1 truncate text-sm font-medium text-foreground">{node.name}</div>
       {firstParagraph && (
@@ -91,4 +106,16 @@ export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
       )}
     </div>
   )
+}
+
+/**
+ * The drifts a reader has not already settled.
+ *
+ * Acknowledgement is recorded as the description string the drift was raised
+ * with, which is the same match the evidence validator makes, so a card and
+ * an apply gate never disagree about whether something is still open.
+ */
+export function unacknowledgedDrifts(node: NodeCardNode['data']['node']): readonly DriftIssue[] {
+  const acknowledged = new Set(node.metadata.acknowledgedDrifts ?? [])
+  return (node.metadata.driftIssues ?? []).filter(drift => !acknowledged.has(drift.description))
 }

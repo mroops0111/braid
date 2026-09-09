@@ -13,6 +13,11 @@ const STATUS_STYLES: Record<string, { badge: string, dot: string }> = {
   consistent: { badge: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30 dark:text-emerald-300', dot: 'bg-emerald-500' },
   conflict: { badge: 'bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-300', dot: 'bg-amber-500' },
   unverifiable: { badge: 'bg-zinc-500/15 text-zinc-700 border-zinc-500/30 dark:text-zinc-300', dot: 'bg-zinc-500' },
+  // Drift severities, so a conflict is graded in the same vocabulary the rest
+  // of Studio grades everything else in.
+  error: { badge: 'bg-red-500/15 text-red-700 border-red-500/30 dark:text-red-300', dot: 'bg-red-500' },
+  warning: { badge: 'bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-300', dot: 'bg-amber-500' },
+  info: { badge: 'bg-blue-500/15 text-blue-700 border-blue-500/30 dark:text-blue-300', dot: 'bg-blue-500' },
   // Where a source document stands against the model. Registered here with
   // everything else so the board tints from the one table rather than a
   // second one that would drift away from it.

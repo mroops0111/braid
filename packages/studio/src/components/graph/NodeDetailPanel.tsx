@@ -1,9 +1,10 @@
 import type { GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
-import { ArrowDownToDot, ArrowUpFromDot, FileText } from 'lucide-react'
+import { ArrowDownToDot, ArrowUpFromDot, FileText, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { DetailPanel, SectionTitle } from '@/components/DetailPanel'
 import { Markdown } from '@/components/SkillTranscript/Markdown'
 import { StatusBadge } from '@/components/StatusBadge'
+import { unacknowledgedDrifts } from './GraphNodeCard'
 import { NodeTypeBadge } from './NodeTypeBadge'
 
 type NodeChange = 'added' | 'updated' | 'removed'
@@ -71,6 +72,8 @@ export function NodeDetailPanel({
       )}
 
       <FlagsSection node={node} />
+
+      <DriftSection node={node} />
 
       <EdgeList
         title={t('graph.detail.incoming', { count: incoming.length })}
@@ -150,6 +153,50 @@ function EdgeList({ title, icon: Icon, edges, getOther, nodesById, onSelectNode 
             </li>
           )
         })}
+      </ul>
+    </section>
+  )
+}
+
+/**
+ * Where this node and its evidence disagree.
+ *
+ * Named rather than counted, because the whole content of a drift is the two
+ * claims and where each was read. A count says a node is in trouble and gives
+ * a reader nowhere to go with that.
+ *
+ * Read-only. Settling one means adding its description to the node's
+ * acknowledged drifts, which is a graph write and belongs behind the same
+ * gate as any other.
+ */
+function DriftSection({ node }: { node: GraphNode }) {
+  const { t } = useTranslation()
+  const drifts = unacknowledgedDrifts(node)
+  if (drifts.length === 0)
+    return null
+  return (
+    <section>
+      <SectionTitle>{t('graph.detail.drifts', { count: drifts.length })}</SectionTitle>
+      <ul className="mt-1 space-y-1.5">
+        {drifts.map(drift => (
+          <li key={drift.id} className="rounded-md border border-orange-500/30 bg-orange-500/5 p-2">
+            <div className="flex items-center gap-1.5">
+              <TriangleAlert className="size-3 shrink-0 text-orange-500" />
+              <StatusBadge status={drift.severity} />
+            </div>
+            <p className="mt-1 text-2xs leading-relaxed text-foreground">{drift.description}</p>
+            <ul className="mt-1.5 space-y-0.5">
+              {drift.sourceReferences.map((reference, index) => (
+                <li key={`${reference.sourceId}-${index}`} className="flex items-baseline gap-1.5 font-mono text-2xs text-muted-foreground">
+                  <span className="shrink-0 text-foreground/70">{reference.sourceId}</span>
+                  <span className="min-w-0 flex-1 break-all">
+                    {formatLocation(reference.location.uri, reference.location.startLine, reference.location.endLine)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
       </ul>
     </section>
   )
