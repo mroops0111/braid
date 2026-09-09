@@ -12,8 +12,8 @@ function brokerHolding(byToken: Record<string, string>): AgentCredentialBroker {
 }
 
 // Mounted rather than called directly, the way the app wires it.
-// A router asked for `/v1/messages` on its own cannot show what it does with
-// the prefix it is mounted under, which is the part that reaches the vendor.
+// A router asked for `/v1/messages` on its own keeps no prefix,
+// and the prefix is the part that decides what reaches the vendor.
 function router(byToken: Record<string, string>, fetchImpl?: typeof globalThis.fetch) {
   const app = new Hono()
   app.route('/agent-api', createAgentProxyRouter({

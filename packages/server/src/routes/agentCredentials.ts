@@ -35,7 +35,7 @@ const getRoute = createRoute({
   path: '/{agentKind}',
   operationId: 'getAgentCredential',
   summary: 'What the caller has saved for this agent, and what a run would spend.',
-  description: 'Never returns the credential. `hint` carries its last few characters so an owner can recognise which one they saved.',
+  description: 'Never returns the credential. `masked` carries each end of it, so an owner can recognise which one they saved.',
   tags: ['agent-credentials'],
   request: { params: KindParam },
   responses: {

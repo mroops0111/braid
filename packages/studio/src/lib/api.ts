@@ -199,10 +199,16 @@ export interface AgentCredentialStatus {
   source: 'own' | 'server' | 'none'
   credential?: {
     kind: string
-    hint: string
+    masked: string
     updatedAt: string
     lastUsedAt?: string
   }
+}
+
+/** An agent this server can run, and how a person gets a credential for it. */
+export interface AgentSummary {
+  kind: string
+  credentialCommand?: string
 }
 
 export interface AuthWhoami {
@@ -211,6 +217,7 @@ export interface AuthWhoami {
 
 export const api = {
   authConfig: () => fetchJson<AuthConfig>('/auth/config'),
+  listAgents: () => fetchJson<{ agents: AgentSummary[] }>('/agents'),
   getAgentCredential: (agentKind: string) =>
     fetchJson<AgentCredentialStatus>(`/users/me/agent-credentials/${agentKind}`),
   saveAgentCredential: (agentKind: string, credential: string) =>

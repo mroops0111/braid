@@ -46,10 +46,10 @@ export function createAgentProxyRouter(deps: AgentProxyDeps): Hono {
   // Answering keeps it from reading the endpoint as unreachable.
   router.on(['GET', 'HEAD'], '/api/hello', context => context.body(null, 200))
 
-  // Named rather than a bare wildcard, because the captured value is the path
-  // relative to wherever this router was mounted.
-  // `context.req.path` keeps the mount prefix, and forwarding that upstream
-  // asks the vendor for a route it does not have.
+  // Named rather than a bare wildcard.
+  // The captured value is the path relative to wherever this was mounted,
+  // where `context.req.path` keeps the mount prefix,
+  // and forwarding that asks the vendor for a route it does not have.
   router.all('/:upstreamPath{.*}', async (context) => {
     const presented = bearerFrom(context.req.header('authorization'))
     const credential = presented ? await deps.broker.redeem(presented) : undefined

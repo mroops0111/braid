@@ -15,6 +15,7 @@ const CLAUDE_CODE_KIND = 'claude-code' as AgentKind
  */
 export const claudeCodeAgentPlugin: AgentPlugin = defineAgentPlugin({
   kind: CLAUDE_CODE_KIND,
+  credentialCommand: 'claude setup-token',
   createBinding: descriptor => new ClaudeCodeAgentBinding(descriptor),
 })
 

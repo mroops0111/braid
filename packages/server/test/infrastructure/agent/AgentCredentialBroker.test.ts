@@ -1,5 +1,6 @@
 import type { AgentCredentialStore, StoredCredential } from '@braidhq/core'
 import type { AgentKind, SkillRunId, UserId } from '@braidhq/schema'
+import { maskCredential } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { AgentCredentialBroker } from '../../../src/infrastructure/agent/AgentCredentialBroker.js'
 
@@ -19,7 +20,7 @@ function storeWith(held: Record<string, string>): AgentCredentialStore & { reado
     async forget() {},
     async describe(userId, kind): Promise<StoredCredential | undefined> {
       const credential = held[`${userId}--${kind}`]
-      return credential ? { hint: credential.slice(-4), updatedAt: '2026-01-01T00:00:00.000Z' } : undefined
+      return credential ? { masked: maskCredential(credential), updatedAt: '2026-01-01T00:00:00.000Z' } : undefined
     },
     async markUsed(userId, kind) {
       used.push(`${userId}--${kind}`)

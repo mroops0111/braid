@@ -23,7 +23,8 @@ export interface AgentCredentialStore {
 }
 
 export interface StoredCredential {
-  readonly hint: string
+  /** The credential with its middle removed, see `maskCredential`. */
+  readonly masked: string
   readonly updatedAt: string
   readonly lastUsedAt?: string
 }

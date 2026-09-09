@@ -442,8 +442,8 @@ export async function composeFsAppWithRegistry(
         : {}),
     })
     : undefined
-  // Named where the deployment already speaks to the vendor through something
-  // of its own, a corporate gateway or a compatible API.
+  // Named where the deployment reaches the vendor through something of its own,
+  // a corporate gateway, or a compatible API.
   const agentUpstreamUrl = process.env.BRAID_AGENT_UPSTREAM_URL
 
   // Server default agent.

@@ -1,4 +1,4 @@
-import type { AgentCredentialStatus } from '@/lib/api'
+import type { AgentCredentialStatus, AgentSummary } from '@/lib/api'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { KeyRound } from 'lucide-react'
 import { useState } from 'react'
@@ -6,11 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { api } from '@/lib/api'
-import { queryKeys, useAgentCredential } from '@/lib/queries'
-
-// The one agent this deployment ships. A second would turn this into a list,
-// which is why the routes are keyed by kind already.
-const AGENT_KIND = 'claude-code'
+import { queryKeys, useAgentCredential, useAgents } from '@/lib/queries'
 
 // Three tones rather than a badge per source,
 // since a reader acts on whether their runs are their own or refused.
@@ -22,16 +18,53 @@ const SOURCE_TONE = {
 
 export function AgentTab() {
   const { t } = useTranslation()
+  const { data, isLoading } = useAgents()
+
+  if (isLoading)
+    return <p className="text-xs text-muted-foreground">{t('common.loading')}</p>
+
+  const agents = data?.agents ?? []
+  if (agents.length === 0)
+    return <p className="text-xs text-muted-foreground">{t('admin.agent.noAgents')}</p>
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {t('admin.agent.title')}
+        </h2>
+        <p className="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+          {t('admin.agent.description')}
+        </p>
+      </div>
+
+      {agents.map(agent => <AgentCredentialFields key={agent.kind} agent={agent} />)}
+
+      <p className="max-w-2xl text-2xs leading-relaxed text-muted-foreground">
+        {t('admin.agent.storageNote')}
+      </p>
+    </div>
+  )
+}
+
+/**
+ * One agent's credential, saved and forgotten on its own.
+ *
+ * A skill names the agent it wants in its frontmatter,
+ * so a person may be running two and owe a credential to each.
+ */
+function AgentCredentialFields({ agent }: { agent: AgentSummary }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const { data: status, isLoading, error } = useAgentCredential(AGENT_KIND)
+  const { data: status, isLoading, error } = useAgentCredential(agent.kind)
   const [draft, setDraft] = useState('')
 
   const invalidate = (): void => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.agentCredential(AGENT_KIND) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.agentCredential(agent.kind) })
   }
 
   const save = useMutation({
-    mutationFn: () => api.saveAgentCredential(AGENT_KIND, draft.trim()),
+    mutationFn: () => api.saveAgentCredential(agent.kind, draft.trim()),
     onSuccess: () => {
       setDraft('')
       invalidate()
@@ -39,7 +72,7 @@ export function AgentTab() {
   })
 
   const forget = useMutation({
-    mutationFn: () => api.forgetAgentCredential(AGENT_KIND),
+    mutationFn: () => api.forgetAgentCredential(agent.kind),
     onSuccess: invalidate,
   })
 
@@ -52,23 +85,15 @@ export function AgentTab() {
     return <p className="text-xs text-muted-foreground">{t('admin.agent.unavailable')}</p>
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {t('admin.agent.title')}
-        </h2>
-        <p className="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-          {t('admin.agent.description')}
-        </p>
-      </div>
-
+    <div className="space-y-2">
+      <h3 className="font-mono text-2xs text-foreground">{agent.kind}</h3>
       <SourceLine status={status} />
 
       {status.credential
         ? (
             <div className="flex items-center gap-2">
               <span className="font-mono text-2xs text-muted-foreground">
-                {t('admin.agent.savedHint', { hint: status.credential.hint })}
+                {t('admin.agent.savedMasked', { masked: status.credential.masked })}
               </span>
               <Button
                 size="sm"
@@ -88,7 +113,11 @@ export function AgentTab() {
           type="password"
           value={draft}
           onChange={event => setDraft(event.target.value)}
-          placeholder={t('admin.agent.placeholder')}
+          // The command belongs to the agent, not to this page,
+          // so an agent that declares none is asked for plainly.
+          placeholder={agent.credentialCommand
+            ? t('admin.agent.placeholderCommand', { command: agent.credentialCommand })
+            : t('admin.agent.placeholder')}
           className="h-7 max-w-md flex-1 text-2xs"
         />
         <Button
@@ -102,9 +131,6 @@ export function AgentTab() {
           {t('admin.agent.saveButton')}
         </Button>
       </div>
-      <p className="max-w-2xl text-2xs leading-relaxed text-muted-foreground">
-        {t('admin.agent.storageNote')}
-      </p>
     </div>
   )
 }

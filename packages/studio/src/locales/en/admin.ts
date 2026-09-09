@@ -69,13 +69,15 @@ export const admin = {
   },
   agent: {
     title: 'Agent Credential',
-    description: 'Runs you start spend a Claude account. Save your own and they draw on your subscription rather than a seat shared with everyone else, which is what keeps one person\u2019s batch from throttling the rest.',
-    placeholder: 'Paste a token from `claude setup-token`',
+    description: 'Runs you start spend an agent account. Save your own and they draw on your subscription rather than a seat shared with everyone else, which is what keeps one person\u2019s batch from throttling the rest.',
+    placeholder: 'Paste this agent\u2019s credential',
+    placeholderCommand: 'Paste a token from `{command}`',
     saveButton: 'Save',
     forgetButton: 'Forget',
-    savedHint: 'Saved, ending {hint}',
+    savedMasked: 'Saved {masked}',
     storageNote: 'Encrypted before it is written, and no page or API reads it back, including this one. Runs never receive it either. The server spends it on their behalf and lends them a stand-in that expires with the run.',
     unavailable: 'This server stores no credentials, so every run spends its own configuration.',
+    noAgents: 'This server has no agent registered, so there is nothing to save a credential for.',
     source: {
       own: 'Your runs spend your own credential.',
       server: 'Your runs spend this server\u2019s shared credential.',

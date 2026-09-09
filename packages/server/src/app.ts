@@ -13,6 +13,7 @@ import { workspaceIdMiddleware } from './middleware/workspaceId.js'
 import { createAdminRouter } from './routes/admin.js'
 import { createAgentCredentialsRouter } from './routes/agentCredentials.js'
 import { createAgentProxyRouter } from './routes/agentProxy.js'
+import { createAgentsRouter } from './routes/agents.js'
 import { createAuthRouter } from './routes/auth.js'
 import { createBatchRouter } from './routes/batch.js'
 import { createClarificationRouter } from './routes/clarifications.js'
@@ -197,6 +198,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   // sourced from the active PluginRegistry, not hardcoded strings.
   // Installed loaders are identical across workspaces, not scoped to one.
   app.route('/source-loaders', createSourceLoadersRouter({ pluginRegistry: deps.pluginRegistry }))
+  app.route('/agents', createAgentsRouter({ pluginRegistry: deps.pluginRegistry }))
   app.route('/ontologies', createOntologiesRouter({ pluginRegistry: deps.pluginRegistry }))
 
   // Public webhook receivers, authenticated by per-source HMAC secrets,

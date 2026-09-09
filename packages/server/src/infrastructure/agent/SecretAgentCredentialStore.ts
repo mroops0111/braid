@@ -1,13 +1,12 @@
 import type { AgentCredentialStore, StoredCredential } from '@braidhq/core'
 import type { AgentKind, UserId } from '@braidhq/schema'
 import type { SecretStore } from '../secrets/SecretStore.js'
+import { maskCredential } from '@braidhq/core'
 
 const NAMESPACE = 'agent-credential'
-const HINT_LENGTH = 4
 
 interface Stored {
   readonly credential: string
-  readonly hint: string
   readonly updatedAt: string
   readonly lastUsedAt?: string
 }
@@ -31,7 +30,6 @@ export class SecretAgentCredentialStore implements AgentCredentialStore {
   async save(userId: UserId, kind: AgentKind, credential: string): Promise<void> {
     await this.secrets.write(NAMESPACE, keyFor(userId, kind), {
       credential,
-      hint: credential.slice(-HINT_LENGTH),
       updatedAt: this.now(),
     } satisfies Stored)
   }
@@ -45,7 +43,9 @@ export class SecretAgentCredentialStore implements AgentCredentialStore {
     if (!stored)
       return undefined
     return {
-      hint: stored.hint,
+      // Derived here rather than read back,
+      // so a record written under an older shape needs no migration.
+      masked: maskCredential(stored.credential),
       updatedAt: stored.updatedAt,
       ...(stored.lastUsedAt ? { lastUsedAt: stored.lastUsedAt } : {}),
     }

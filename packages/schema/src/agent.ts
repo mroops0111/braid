@@ -29,8 +29,13 @@ export type AgentBindingDescriptor = z.infer<typeof AgentBindingDescriptor>
  */
 export const AgentCredentialSummary = z.object({
   kind: AgentKind,
-  /** Last few characters, so an owner can tell two of their tokens apart. */
-  hint: z.string().min(1).max(8),
+  /**
+   * The credential with its middle removed.
+   *
+   * Enough of each end for an owner to tell two of their own apart,
+   * and far too little for anyone to reconstruct the rest.
+   */
+  masked: z.string().min(1).max(64),
   updatedAt: Timestamp,
   lastUsedAt: Timestamp.optional(),
 }).openapi('AgentCredentialSummary')
@@ -46,3 +51,22 @@ export type AgentCredentialSummary = z.infer<typeof AgentCredentialSummary>
  */
 export const AgentCredentialSource = z.enum(['own', 'server', 'none'])
 export type AgentCredentialSource = z.infer<typeof AgentCredentialSource>
+
+/**
+ * An agent this deployment can run, and how to get a credential for it.
+ *
+ * Served so no page has to name an agent it does not depend on.
+ * A deployment that registers a second agent gets a second entry,
+ * and every reader of this list follows without being changed.
+ */
+export const AgentSummary = z.object({
+  kind: AgentKind,
+  /** The command that produces a credential, where the agent has one. */
+  credentialCommand: z.string().min(1).optional(),
+}).openapi('AgentSummary')
+export type AgentSummary = z.infer<typeof AgentSummary>
+
+export const ListAgentsResponse = z.object({
+  agents: z.array(AgentSummary),
+}).openapi('ListAgentsResponse')
+export type ListAgentsResponse = z.infer<typeof ListAgentsResponse>

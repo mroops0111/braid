@@ -16,6 +16,11 @@ export interface DefineAgentPluginInput {
    * so an author need not wire one just to satisfy `Plugin.configSchema`.
    */
   readonly configSchema?: z.ZodTypeAny
+  /**
+   * The command a person runs to obtain a credential for this agent.
+   * Named on the settings page, so a reader is not left guessing what to paste.
+   */
+  readonly credentialCommand?: string
   /** Required. Construct a runtime binding from a workspace descriptor. */
   readonly createBinding: (descriptor: AgentBindingDescriptor) => AgentBinding
   /** Skills this plugin ships (e.g. a binding-tuning walkthrough). */
@@ -46,6 +51,7 @@ export function defineAgentPlugin(input: DefineAgentPluginInput): AgentPlugin {
     kind: input.kind as AgentKind,
     configSchema,
     skills: input.skills ?? [],
+    ...(input.credentialCommand ? { credentialCommand: input.credentialCommand } : {}),
     createBinding: input.createBinding,
   }
 
