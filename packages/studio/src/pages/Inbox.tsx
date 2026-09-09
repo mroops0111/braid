@@ -5,6 +5,7 @@ import { Inbox as InboxIcon, Loader2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RunBlocks } from '@/components/blocks/RunBlocks'
+import { RunCost } from '@/components/blocks/RunCost'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
 import { SkillTranscript } from '@/components/SkillTranscript'
@@ -14,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
 import { TRANSCRIPT_VIEW } from '@/lib/blocks/audience'
-import { formatStats, readStats } from '@/lib/blocks/runStats'
+import { readStats } from '@/lib/blocks/runStats'
 import { useClarificationByStatus, useCoverage, useProposalsByStatus } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
 import { useRun } from '@/lib/useRun'
@@ -269,12 +270,6 @@ function ItemDetail({ workspaceId, item, onComplete, onAnswered }: {
     ? item.questions.find(question => question.id === questionId) ?? item.questions[0]!
     : item.kind === 'question' ? item.record : null
 
-  const headline = item.kind === 'running'
-    ? item.card.name
-    : item.kind === 'proposal'
-      ? item.record.rationale
-      : questionExcerpt(openQuestion?.question ?? '')
-
   // The same control the Ask surface uses, in the same place: the header row,
   // beside whatever the record can be done to. One band rather than two, and
   // the choice does not move when the view changes.
@@ -299,17 +294,7 @@ function ItemDetail({ workspaceId, item, onComplete, onAnswered }: {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {view !== 'record' && (
-        // The record's own header carries the toggle when it is showing. The
-        // other views have no header of their own, so this is theirs.
-        <header className="flex min-h-11 shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">{headline}</p>
-            {stats && <p className="font-mono text-2xs text-muted-foreground">{formatStats(stats)}</p>}
-          </div>
-          {viewToggle}
-        </header>
-      )}
+      <div className="shrink-0 border-b border-border px-4">{viewToggle}</div>
       {item.kind === 'parked' && item.questions.length > 1 && view === 'record' && (
         // One run, several doubts. They are answered together, so they share
         // an item, and this is how a reader moves between them without losing
@@ -330,7 +315,12 @@ function ItemDetail({ workspaceId, item, onComplete, onAnswered }: {
       )}
       <div className="flex min-h-0 flex-1 flex-col">
         {view === TRANSCRIPT_VIEW
-          ? <SkillTranscript events={[...events]} error={run?.error ?? null} running={run?.phase === 'streaming'} />
+          ? (
+              <div className="flex min-h-0 flex-1 flex-col">
+                <SkillTranscript events={[...events]} error={run?.error ?? null} running={run?.phase === 'streaming'} />
+                <RunCost stats={stats} />
+              </div>
+            )
           : view === 'reasoning'
             ? (
                 <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
@@ -345,7 +335,6 @@ function ItemDetail({ workspaceId, item, onComplete, onAnswered }: {
                     ticket={openQuestion}
                     onComplete={item.kind === 'parked' && item.questions.length > 1 ? () => {} : onComplete}
                     onAnswered={onAnswered}
-                    viewToggle={viewToggle}
                   />
                 )
               : item.kind === 'proposal'
@@ -354,7 +343,6 @@ function ItemDetail({ workspaceId, item, onComplete, onAnswered }: {
                       workspaceId={workspaceId}
                       proposal={item.record}
                       onComplete={onComplete}
-                      viewToggle={viewToggle}
                     />
                   )
                 : null}

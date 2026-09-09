@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next'
  * headers, two paddings, and two heading styles, so the chrome lives here and
  * the subjects supply only their own content.
  */
-export function DetailPanel({ badges, title, subtitle, actions, onClose, children }: {
+export function DetailPanel({ badges, title, subtitle, actions, views, onClose, children }: {
   /** Type, status, and anything else that says what kind of thing this is. */
   badges?: ReactNode
   title: string
@@ -19,6 +19,13 @@ export function DetailPanel({ badges, title, subtitle, actions, onClose, childre
   subtitle?: ReactNode
   /** Anything the reader can do to it, directly under the heading. */
   actions?: ReactNode
+  /**
+   * Which reading of the subject is open, in a band of its own.
+   *
+   * Not in the header row. Sharing that row means the actions decide its
+   * width, so the band moves when the reader changes view.
+   */
+  views?: ReactNode
   onClose: () => void
   children: ReactNode
 }) {
@@ -41,7 +48,9 @@ export function DetailPanel({ badges, title, subtitle, actions, onClose, childre
         {actions && <div className="pt-1">{actions}</div>}
       </header>
 
-      <div className="flex-1 space-y-5 overflow-y-auto p-4 scrollbar-thin">
+      {views && <div className="shrink-0 border-b border-border px-4">{views}</div>}
+
+      <div className="flex min-h-0 flex-1 flex-col space-y-5 overflow-y-auto p-4 scrollbar-thin">
         {children}
       </div>
     </div>

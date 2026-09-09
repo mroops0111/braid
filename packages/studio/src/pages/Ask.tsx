@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { BlockCanvas } from '@/components/blocks/BlockCanvas'
 import { BlockOutline } from '@/components/blocks/BlockOutline'
+import { RunCost } from '@/components/blocks/RunCost'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
 import { MentionTextarea } from '@/components/references/MentionTextarea'
@@ -17,7 +18,7 @@ import { api } from '@/lib/api'
 import { type AnswerView, TRANSCRIPT_VIEW, useAnswerView, visibleBlocks } from '@/lib/blocks/audience'
 import { collectTurns } from '@/lib/blocks/collectBlocks'
 import { summariseActivity } from '@/lib/blocks/runActivity'
-import { formatStats, readStats } from '@/lib/blocks/runStats'
+import { readStats } from '@/lib/blocks/runStats'
 import { EvidenceDetailContext, WorkspaceScopeContext } from '@/lib/blocks/WorkspaceScopeContext'
 import { useOntology, useRuns, useSessionMetadata, useSkills } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
@@ -246,12 +247,8 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
           {askedQuestion
             ? <p className="line-clamp-2 text-sm leading-relaxed text-foreground">{askedQuestion}</p>
             : <p className="text-sm text-muted-foreground">{t('ask.placeholderHeading')}</p>}
-          {stats && (
-            <p className="mt-0.5 font-mono text-2xs text-muted-foreground">{formatStats(stats)}</p>
-          )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <ViewToggle value={view} onChange={setView} audiences={audiences} toolCalls={toolCalls} />
           {activeRunId && (
             <Button variant="ghost" size="sm" disabled={cancel.isPending} onClick={() => cancel.mutate()}>
               <X />
@@ -261,10 +258,15 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
         </div>
       </header>
 
+      <div className="shrink-0 border-b border-border px-4">
+        <ViewToggle value={view} onChange={setView} audiences={audiences} toolCalls={toolCalls} />
+      </div>
+
       {view === TRANSCRIPT_VIEW
         ? (
             <div className="flex min-h-0 flex-1 flex-col">
               <SkillTranscript events={[...conversation.events]} error={error} running={running} />
+              <RunCost stats={stats} />
             </div>
           )
         : (

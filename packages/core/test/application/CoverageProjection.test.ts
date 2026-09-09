@@ -131,7 +131,7 @@ async function cards(options: Parameters<typeof projectionOf>[0], workspace: Wor
 describe('coverageProjection', () => {
   it('gives a document nobody has read a card of its own', async () => {
     const [card] = await cards({})
-    expect(card).toMatchObject({ path: UNIT, state: 'uncovered', nodeCount: 0 })
+    expect(card).toMatchObject({ path: UNIT, state: 'uncovered', nodeIds: [] })
   })
 
   it('names the card by what the document calls itself, not by its path', async () => {
@@ -171,7 +171,7 @@ describe('coverageProjection', () => {
       observations: [observation(OLD)],
       nodes: [node('ctx.a', `intents/source-a/${UNIT}index.md`)],
     })
-    expect(card).toMatchObject({ state: 'covered', nodeCount: 1 })
+    expect(card).toMatchObject({ state: 'covered', nodeIds: ['ctx.a'] })
     expect(card?.incorporatedSha).toBeUndefined()
   })
 
@@ -218,7 +218,7 @@ describe('coverageProjection', () => {
       proposals: [derived({ id: 'p-1', sha: OLD, status: 'applied' })],
       nodes: [node('ctx.a', `intents/source-a/${UNIT}index.md`, ['drift-1'])],
     })
-    expect(card).toMatchObject({ state: 'conflicted', driftIssueIds: ['drift-1'], nodeCount: 1 })
+    expect(card).toMatchObject({ state: 'conflicted', driftIssueIds: ['drift-1'], nodeIds: ['ctx.a'] })
   })
 
   // Reading it again settles the change and makes any conflict under it moot,
@@ -269,7 +269,7 @@ describe('coverageProjection', () => {
     expect(card).toMatchObject({ state: 'failed', lastRun: { runId: 'r-1', exitCode: 1 } })
   })
 
-  it('counts only the nodes whose evidence points inside this unit', async () => {
+  it('names only the nodes whose evidence points inside this unit', async () => {
     const [card] = await cards({
       observations: [observation(OLD)],
       proposals: [derived({ id: 'p-1', sha: OLD, status: 'applied' })],
@@ -278,7 +278,7 @@ describe('coverageProjection', () => {
         node('ctx.b', 'intents/source-a/Another Unit/index.md'),
       ],
     })
-    expect(card?.nodeCount).toBe(1)
+    expect(card?.nodeIds).toEqual(['ctx.a'])
   })
 
   // Filed before the stamp existed, so the run's own arguments stand in. The

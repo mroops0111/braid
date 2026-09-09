@@ -198,7 +198,7 @@ function buildCard(context: CardContext): CoverageCard {
     proposalIds: pending.map(proposal => proposal.id),
     clarificationIds: asked.map(clarification => clarification.id) as ClarificationId[],
     driftIssueIds: drifts as DriftIssueId[],
-    nodeCount: citing.length,
+    nodeIds: citing.map(node => node.id),
   }
 }
 

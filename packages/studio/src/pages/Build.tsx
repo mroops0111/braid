@@ -1,18 +1,25 @@
-import type { CoverageBoard, CoverageCard, CoverageStage, CoverageState, Locale, ProposalId } from '@braidhq/schema'
+import type { CoverageBoard, CoverageCard, CoverageStage, CoverageState, Locale, NodeId, ProposalId } from '@braidhq/schema'
 import { localize } from '@braidhq/schema'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { FileText, Loader2 } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArrowRight, ClipboardCheck, ExternalLink, FileText, Loader2, MessageCircleQuestion } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RunBlocks } from '@/components/blocks/RunBlocks'
+import { RunCost } from '@/components/blocks/RunCost'
 import { DetailFact, DetailPanel, SectionTitle } from '@/components/DetailPanel'
 import { EmptyState } from '@/components/EmptyState'
+import { GraphCanvas } from '@/components/graph/GraphCanvas'
+import { useSubgraphDataSource } from '@/components/graph/GraphDataSource'
+import { SkillTranscript } from '@/components/SkillTranscript'
 import { StatusBadge, statusDot, statusTone } from '@/components/StatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
+import { TRANSCRIPT_VIEW } from '@/lib/blocks/audience'
 import { summariseActivity } from '@/lib/blocks/runActivity'
+import { readStats } from '@/lib/blocks/runStats'
 import { useLocaleFormat } from '@/lib/i18n/datetime'
 import { useBatchStatus, useCoverage, useSkills } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
@@ -243,7 +250,7 @@ function StageStrip({ board, workspaceId, canRun, busy, onOpenInbox }: {
 }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
-  const inModel = board.cards.filter(card => card.nodeCount > 0).length
+  const inModel = board.cards.filter(card => card.nodeIds.length > 0).length
 
   return (
     <header className="flex h-11 shrink-0 items-center gap-4 border-b border-border px-4">
@@ -397,7 +404,7 @@ function UnitCard({ workspaceId, card, active, onClick }: { workspaceId: string,
         <span className="line-clamp-2 text-xs leading-snug text-foreground">{card.name}</span>
         <span className="flex items-center gap-2 font-mono text-2xs text-muted-foreground">
           <span className="truncate">{card.sourceId}</span>
-          {card.nodeCount > 0 && <span className="shrink-0">{t('build.nodes', { count: card.nodeCount })}</span>}
+          {card.nodeIds.length > 0 && <span className="shrink-0">{t('build.nodes', { count: card.nodeIds.length })}</span>}
         </span>
         {card.state === 'running' && card.lastRun && (
           <LiveLine workspaceId={workspaceId} runId={card.lastRun.runId} />
@@ -425,6 +432,14 @@ function Chip({ children }: { children: React.ReactNode }) {
  * than reviewed twice. What this pane adds is the run's own blocks, which is
  * the only place the working behind a card can be read.
  */
+/**
+ * One document's standing, and the record of how it got there.
+ *
+ * Facts and links rather than a second review pane. Deciding on a change is
+ * the Inbox's act and it has the room for it, so what waits here is named and
+ * pointed at. What this pane adds is the document's own slice of the graph and
+ * the run that last read it, which are the two things with no other home.
+ */
 function CardDetail({ workspaceId, card, stage, stages, canRun, onClose }: {
   workspaceId: string
   card: CoverageCard
@@ -437,19 +452,21 @@ function CardDetail({ workspaceId, card, stage, stages, canRun, onClose }: {
   const language = i18n.language
   const { formatRelativeTime } = useLocaleFormat()
   const navigation = useTabNavigation()
+  const [view, setView] = useState<'facts' | 'reasoning' | typeof TRANSCRIPT_VIEW>('facts')
+  const run = useRun(workspaceId, card.lastRun?.runId ?? null)
+  const events = run?.events ?? []
   // Worth a line only where the ontology has more than one per-document step.
   // With one, it says the same thing on every card, which is nothing.
   const showStage = stages.filter(item => !item.global).length > 1
+  const waiting = card.proposalIds.length + card.clarificationIds.length
 
   return (
-    // The panel owns its chrome, the surface owns its place in the layout,
-    // the same division the graph makes with the same width.
-    <aside className="w-96 shrink-0 border-l border-border">
+    <aside className="flex w-96 shrink-0 flex-col border-l border-border">
       <DetailPanel
         title={card.name}
-        subtitle={`${card.sourceId} / ${card.path}`}
         onClose={onClose}
         badges={<StatusBadge status={card.state} label={t(`build.state.${card.state}`)} />}
+        subtitle={<SourceLink workspaceId={workspaceId} card={card} />}
         {...(stage && canRun
           ? {
               actions: (
@@ -462,69 +479,153 @@ function CardDetail({ workspaceId, card, stage, stages, canRun, onClose }: {
               ),
             }
           : {})}
+        views={(
+          <Tabs value={view} onValueChange={next => setView(next as typeof view)}>
+            <TabsList variant="line" className="h-8">
+              <TabsTrigger value="facts" className="text-2xs">{t('build.view.facts')}</TabsTrigger>
+              <TabsTrigger value="reasoning" className="text-2xs">{t('build.view.reasoning')}</TabsTrigger>
+              <TabsTrigger value={TRANSCRIPT_VIEW} className="gap-1.5 text-2xs">
+                {t('ask.view.transcript')}
+                {events.length > 0 && <span className="font-mono text-muted-foreground/60">{events.length}</span>}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
       >
-        <section className="flex flex-col gap-1.5">
-          <DetailFact label={t('build.fact.nodes')} value={String(card.nodeCount)} />
-          {card.incorporatedSha && <DetailFact label={t('build.fact.incorporated')} value={card.incorporatedSha.slice(0, 12)} />}
-          {card.sha && card.sha !== card.incorporatedSha && <DetailFact label={t('build.fact.onDisk')} value={card.sha.slice(0, 12)} />}
-          {showStage && card.stage && (
-            <DetailFact label={t('build.fact.stage')} value={stageLabel(stages.find(item => item.skillId === card.stage), language)} />
-          )}
-          {card.lastRun && (
-            <DetailFact
-              label={t('build.fact.lastRun')}
-              value={t(card.lastRun.exitCode === 0 || card.lastRun.exitCode === undefined ? 'build.fact.ranAt' : 'build.fact.failedAt', {
-                step: stageLabel(stages.find(item => item.skillId === card.lastRun!.skillId), language),
-                when: formatRelativeTime(card.lastRun.startedAt),
-              })}
-            />
-          )}
-        </section>
+        {view === TRANSCRIPT_VIEW
+          ? (
+              <div className="flex min-h-0 flex-1 flex-col">
+                <SkillTranscript events={[...events]} error={run?.error ?? null} running={run?.phase === 'streaming'} />
+                <RunCost stats={readStats(events)} />
+              </div>
+            )
+          : view === 'reasoning'
+            ? (
+                <RunBlocks
+                  workspaceId={workspaceId}
+                  runId={card.lastRun?.runId}
+                  {...(card.nodeIds.length === 0
+                    ? { heading: t('build.lastReading'), note: t('build.lastReadingNote') }
+                    : {})}
+                />
+              )
+            : (
+                <>
+                  {waiting > 0 && (
+                    <section>
+                      <SectionTitle>{t('build.waiting')}</SectionTitle>
+                      <div className="mt-1 flex flex-col gap-0.5">
+                        {card.proposalIds.map(proposalId => (
+                          <button
+                            key={proposalId}
+                            type="button"
+                            onClick={() => navigation?.focusProposal(proposalId as ProposalId)}
+                            className="flex min-h-8 items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
+                          >
+                            <ClipboardCheck className="size-3 shrink-0 text-muted-foreground" />
+                            <span className="flex-1 truncate text-2xs text-foreground">{t('build.reviewChange')}</span>
+                            <ArrowRight className="size-3 shrink-0 text-muted-foreground" />
+                          </button>
+                        ))}
+                        {card.clarificationIds.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => navigation?.openInbox()}
+                            className="flex min-h-8 items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
+                          >
+                            <MessageCircleQuestion className="size-3 shrink-0 text-muted-foreground" />
+                            <span className="flex-1 truncate text-2xs text-foreground">
+                              {t('build.answerQuestions', { count: card.clarificationIds.length })}
+                            </span>
+                            <ArrowRight className="size-3 shrink-0 text-muted-foreground" />
+                          </button>
+                        )}
+                      </div>
+                    </section>
+                  )}
 
-        {(card.proposalIds.length > 0 || card.clarificationIds.length > 0) && (
-          <section>
-            <SectionTitle>{t('build.waiting')}</SectionTitle>
-            <div className="mt-1 flex flex-col gap-0.5">
-              {card.proposalIds.map(proposalId => (
-                <button
-                  key={proposalId}
-                  type="button"
-                  onClick={() => navigation?.focusProposal(proposalId as ProposalId)}
-                  className="flex min-h-8 items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
-                >
-                  <span className="flex-1 truncate font-mono text-2xs text-foreground">{proposalId}</span>
-                  <span className="shrink-0 text-2xs text-muted-foreground">{t('build.decide')}</span>
-                </button>
-              ))}
-              {card.clarificationIds.map(clarificationId => (
-                <span key={clarificationId} className="px-2 py-1.5 font-mono text-2xs text-muted-foreground">
-                  {clarificationId}
-                </span>
-              ))}
-            </div>
-          </section>
-        )}
+                  <section>
+                    <SectionTitle>{t('build.inModel')}</SectionTitle>
+                    <div className="mt-1 flex flex-col gap-1.5">
+                      <DetailFact label={t('build.fact.nodes')} value={String(card.nodeIds.length)} />
+                      {card.incorporatedSha && (
+                        <DetailFact label={t('build.fact.incorporated')} value={card.incorporatedSha.slice(0, 12)} />
+                      )}
+                      {card.driftIssueIds.length > 0 && (
+                        <p className="pt-0.5 text-2xs text-orange-600 dark:text-orange-400">
+                          {t('build.conflictsHint', { count: card.driftIssueIds.length })}
+                        </p>
+                      )}
+                    </div>
+                    {card.nodeIds.length > 0 && (
+                      // The document's own slice, drawn by the graph surface
+                      // itself. Twelve nodes named as a number make a reader go
+                      // and find them, and this is where they are.
+                      <div className="mt-2 h-64 overflow-hidden rounded-md border border-border">
+                        <DocumentSlice workspaceId={workspaceId} nodeIds={card.nodeIds} />
+                      </div>
+                    )}
+                  </section>
 
-        {card.driftIssueIds.length > 0 && (
-          <section>
-            <SectionTitle>{t('build.conflicts')}</SectionTitle>
-            <p className="mt-1 text-2xs text-muted-foreground">{t('build.conflictsHint', { count: card.driftIssueIds.length })}</p>
-          </section>
-        )}
-
-        {/* A document can have been read and hold nothing, because the change
-            was rejected, or applied and then rolled back. The record of the
-            reading survives either way, since run logs are history rather than
-            model state, so it says which it is rather than reading as a
-            contradiction against the empty node count above it. */}
-        <RunBlocks
-          workspaceId={workspaceId}
-          runId={card.lastRun?.runId}
-          {...(card.nodeCount === 0
-            ? { heading: t('build.lastReading'), note: t('build.lastReadingNote') }
-            : {})}
-        />
+                  <section>
+                    <SectionTitle>{t('build.lastRead')}</SectionTitle>
+                    <div className="mt-1 flex flex-col gap-1.5">
+                      {card.lastRun
+                        ? (
+                            <DetailFact
+                              label={t('build.fact.when')}
+                              value={t(card.lastRun.exitCode === 0 || card.lastRun.exitCode === undefined ? 'build.fact.ranAt' : 'build.fact.failedAt', {
+                                step: stageLabel(stages.find(item => item.skillId === card.lastRun!.skillId), language),
+                                when: formatRelativeTime(card.lastRun.startedAt),
+                              })}
+                            />
+                          )
+                        : <p className="text-2xs text-muted-foreground">{t('build.neverRead')}</p>}
+                      {card.sha && <DetailFact label={t('build.fact.observed')} value={card.sha.slice(0, 12)} />}
+                      {showStage && card.stage && (
+                        <DetailFact label={t('build.fact.stage')} value={stageLabel(stages.find(item => item.skillId === card.stage), language)} />
+                      )}
+                    </div>
+                  </section>
+                </>
+              )}
       </DetailPanel>
     </aside>
+  )
+}
+
+/** This document's nodes, drawn the way every other subgraph in Studio is. */
+function DocumentSlice({ workspaceId, nodeIds }: { workspaceId: string, nodeIds: readonly NodeId[] }) {
+  const source = useSubgraphDataSource(workspaceId, nodeIds)
+  if (source.isEmpty)
+    return null
+  return <GraphCanvas workspaceId={workspaceId} source={source} embedded focusMode />
+}
+
+/**
+ * The document itself, wherever it actually lives.
+ *
+ * The loader knows its own host, so this asks rather than assembling a URL,
+ * and a source with no host simply reads as a path.
+ */
+function SourceLink({ workspaceId, card }: { workspaceId: string, card: CoverageCard }) {
+  const { data } = useQuery({
+    queryKey: ['source-ref-url', workspaceId, card.sourceId, card.path],
+    queryFn: () => api.resolveSourceRefUrl(workspaceId, card.sourceId, { uri: card.path }),
+    staleTime: 5 * 60 * 1000,
+  })
+  const label = `${card.sourceId} / ${card.path}`
+  if (!data?.url)
+    return <>{label}</>
+  return (
+    <a
+      href={data.url}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-baseline gap-1 hover:text-foreground hover:underline"
+    >
+      {label}
+      <ExternalLink className="size-2.5 shrink-0 translate-y-0.5" />
+    </a>
   )
 }

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ClarificationId, DriftIssueId, ProposalId, SkillId, SkillRunId, SourceId, Timestamp, WorkspaceId } from './common.js'
+import { ClarificationId, DriftIssueId, NodeId, ProposalId, SkillId, SkillRunId, SourceId, Timestamp, WorkspaceId } from './common.js'
 import { localizedText } from './locale.js'
 import { SourceUnitSha } from './source-unit.js'
 
@@ -77,8 +77,14 @@ export const CoverageCard = z.object({
   proposalIds: z.array(ProposalId),
   clarificationIds: z.array(ClarificationId),
   driftIssueIds: z.array(DriftIssueId),
-  /** How much of the graph rests on this document. */
-  nodeCount: z.number().int().nonnegative(),
+  /**
+   * The nodes whose evidence points inside this document.
+   *
+   * Carried rather than counted, because a reader who sees that twelve nodes
+   * rest on a document wants to look at those twelve, and the count alone
+   * makes them go and find them.
+   */
+  nodeIds: z.array(NodeId),
 })
 export type CoverageCard = z.infer<typeof CoverageCard>
 

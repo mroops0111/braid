@@ -245,19 +245,10 @@ export function ProposalDetail({
   workspaceId,
   proposal,
   onComplete,
-  viewToggle,
 }: {
   workspaceId: string
   proposal: Proposal
   onComplete: () => void
-  /**
-   * Which reading of this run the surface is on, rendered in this header.
-   *
-   * A surface that offers more than one view of a record puts the choice
-   * where every other surface puts it, beside the actions, rather than in a
-   * band of its own above.
-   */
-  viewToggle?: React.ReactNode
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -314,7 +305,6 @@ export function ProposalDetail({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {viewToggle}
           {isPending && canWrite && (
             <>
               <Button

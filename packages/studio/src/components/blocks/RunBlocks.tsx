@@ -21,7 +21,6 @@ import { RunActivity } from './RunActivity'
  * stream has been carrying the whole time: the agent's own narration and what
  * it has read. A pane that says nothing for four minutes reads as broken, and
  * the run was never actually silent.
-
  *
  * The run's own unapplied proposals ride along in context, because a run that
  * proposes drew its slice against the graph it was asking for, not the graph
