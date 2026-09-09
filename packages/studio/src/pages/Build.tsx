@@ -341,9 +341,9 @@ function StageCell({ stage, workspaceId, canRun, busy, onOpenInbox, standing }: 
         {stage.global && canRun && (
           <Button
             size="xs"
-            variant="ghost"
+            variant="outline"
             disabled={idle || busy}
-            className="shrink-0 text-muted-foreground [&_svg]:size-2.5"
+            className="shrink-0 [&_svg]:size-2.5"
             onClick={() => void runStore.startUnit({ workspaceId, skillId: stage.skillId, unitPath: '' })}
           >
             <Play />
@@ -437,7 +437,7 @@ function Group({ workspaceId, state, cards, stage, selectedKey, onSelect, onRunA
           <span className="font-mono text-2xs text-muted-foreground">{cards.length}</span>
         </button>
         {onRunAll && (
-          <Button size="xs" variant="ghost" className="ml-auto text-muted-foreground [&_svg]:size-2.5" onClick={onRunAll}>
+          <Button size="xs" variant="outline" className="ml-auto [&_svg]:size-2.5" onClick={onRunAll}>
             <Play />
             {t(state === 'uncovered' ? 'build.runGroup' : 'build.rerunGroup', { skill: stageLabel(stage, i18n.language) })}
           </Button>
@@ -680,7 +680,7 @@ function CardDetail({ workspaceId, card, stage, stages, canRun, onClose }: {
                       // node clicked inside one has nowhere to put its detail.
                       <button
                         type="button"
-                        onClick={() => graph?.focusNodes(card.nodeIds)}
+                        onClick={() => graph?.focusNodes(card.nodeIds, card.name)}
                         className="mt-2 flex min-h-8 w-full items-center gap-2 rounded-md border border-border px-2 py-1.5 text-left transition-colors hover:bg-accent"
                       >
                         <Network className="size-3 shrink-0 text-muted-foreground" />
