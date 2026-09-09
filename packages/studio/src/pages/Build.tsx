@@ -1,13 +1,14 @@
 import type { CoverageBoard, CoverageCard, CoverageStage, CoverageState, Locale, ProposalId } from '@braidhq/schema'
 import { localize } from '@braidhq/schema'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, ClipboardCheck, ExternalLink, FileText, Loader2, MessageCircleQuestion, Network } from 'lucide-react'
+import { ArrowRight, ChevronRight, ClipboardCheck, ExternalLink, FileText, MessageCircleQuestion, Network, Play } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RunBlocks } from '@/components/blocks/RunBlocks'
 import { RunCost } from '@/components/blocks/RunCost'
 import { DetailFact, DetailPanel, SectionTitle } from '@/components/DetailPanel'
 import { EmptyState } from '@/components/EmptyState'
+import { ListRow } from '@/components/ListRow'
 import { SkillTranscript } from '@/components/SkillTranscript'
 import { StatusBadge, statusDot, statusTone } from '@/components/StatusBadge'
 import { Badge } from '@/components/ui/badge'
@@ -28,30 +29,41 @@ import { cn } from '@/lib/utils'
 import { useWorkspacePolicy } from '@/policy'
 
 /**
- * Left to right, the way a document travels: not read, being read, waiting on
- * a person, broken, out of date, disputed, settled.
+ * The order a reader meets the groups in, which is how directly each can be
+ * acted on. Deliberately not the precedence order: that one settles which
+ * state a document shows when several are true, and answers a different
+ * question from which group deserves the top of the page.
+ *
+ * Conflicts sit low despite mattering, because nothing here resolves one yet.
+ * Putting them above the groups a button does fix would bury those behind
+ * dozens of rows that only ask to be read.
  */
-const COLUMNS: readonly CoverageState[] = [
-  'uncovered',
+const GROUPS: readonly CoverageState[] = [
   'running',
   'awaitingDecision',
   'failed',
   'sourceChanged',
+  'uncovered',
   'conflicted',
   'covered',
 ]
 
-/** Where running the per-unit step is the answer, so the column offers it. */
+/** Where running the per-unit step is the answer, so the group offers it. */
 const ACTIONABLE: ReadonlySet<CoverageState> = new Set<CoverageState>(['uncovered', 'sourceChanged', 'failed'])
 
 /**
  * Every source document, and what the model has made of it.
  *
- * The card is the document, not the run, because the question a reader opens
+ * The row is the document, not the run, because the question a reader opens
  * this with is what the model still does not know rather than what has
- * executed. A document read three times and failed twice is one card.
+ * executed. A document read three times and failed twice is one row.
  *
- * The columns are mechanical and hold for any ontology. The steps across the
+ * Grouped rather than columned. Nothing here is dragged, the states are
+ * derived, and two of them hold almost every document, so lanes of equal
+ * width would spend most of the board on groups that are empty and force a
+ * second scroll axis to reach the ones that are not.
+ *
+ * The groups are mechanical and hold for any ontology. The steps across the
  * top are the ontology's own, read from what it declared, so swapping one
  * changes the pipeline here and nothing else.
  */
@@ -84,10 +96,12 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
     || activePlan?.status === 'deriving'
   const [covering, setCovering] = useState<readonly CoverageCard[] | null>(null)
 
-  const columns = useMemo(() => COLUMNS.map(state => ({
-    state,
-    cards: cards.filter(card => card.state === state),
-  })), [cards])
+  const groups = useMemo(
+    () => GROUPS
+      .map(state => ({ state, cards: cards.filter(card => card.state === state) }))
+      .filter(group => group.cards.length > 0),
+    [cards],
+  )
 
   if (coverage.isLoading)
     return <div className="p-5 text-xs text-muted-foreground">{t('build.loading')}</div>
@@ -103,7 +117,9 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
   }
 
   return (
-    <div className="flex min-h-0 flex-1">
+    // The height context the groups scroll inside. Without it the list lays
+    // out at its content height and the surface clips it with no way down.
+    <div className="flex h-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">
         <StageStrip
           board={board!}
@@ -112,22 +128,22 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
           busy={busy}
           onOpenInbox={() => navigation?.openInbox()}
         />
-        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden scrollbar-thin">
-          <div className="flex h-full min-w-max gap-2 p-3">
-            {columns.map(column => (
-              <Column
-                key={column.state}
-                workspaceId={workspaceId}
-                state={column.state}
-                cards={column.cards}
-                selectedKey={selectedKey}
-                onSelect={setSelectedKey}
-                onRunAll={unitStage && mayRunUnits && !busy && ACTIONABLE.has(column.state)
-                  ? () => setCovering(column.cards)
-                  : undefined}
-              />
-            ))}
-          </div>
+        <CoverageRibbon cards={cards} busy={busy} selectedKey={selectedKey} onSelect={setSelectedKey} />
+        <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+          {groups.map(group => (
+            <Group
+              key={group.state}
+              workspaceId={workspaceId}
+              state={group.state}
+              cards={group.cards}
+              stage={unitStage}
+              selectedKey={selectedKey}
+              onSelect={setSelectedKey}
+              onRunAll={unitStage && mayRunUnits && !busy && ACTIONABLE.has(group.state)
+                ? () => setCovering(group.cards)
+                : undefined}
+            />
+          ))}
         </div>
       </div>
       {covering && (
@@ -154,7 +170,7 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
 }
 
 /**
- * Covering a column, which is a batch.
+ * Covering a group, which is a batch.
  *
  * One plan rather than a loop of runs, because a loop has no order, no
  * checkpoint, and nothing to resume from, and forty documents would start
@@ -236,9 +252,15 @@ function keyOf(card: CoverageCard): string {
 }
 
 /**
- * How far along the workspace is, and the steps that act on the graph as a
- * whole. Narrow on purpose: it says which steps exist, which is worth a strip,
- * and it is not a canvas because nobody edits the pipeline.
+ * The ontology's own pipeline, and where each step stands.
+ *
+ * Two kinds of step sit here and they are marked apart, because a reader who
+ * cannot tell them apart cannot tell why only some of them carry a button. A
+ * per-document step is run from a row or a group. A graph-wide step is run
+ * from here, since it belongs to no document.
+ *
+ * Narrow on purpose: it says which steps exist and what each is waiting on. It
+ * is not a canvas, because nobody edits the pipeline.
  */
 function StageStrip({ board, workspaceId, canRun, busy, onOpenInbox }: {
   board: CoverageBoard
@@ -247,115 +269,202 @@ function StageStrip({ board, workspaceId, canRun, busy, onOpenInbox }: {
   busy: boolean
   onOpenInbox: () => void
 }) {
-  const { t, i18n } = useTranslation()
-  const language = i18n.language
+  const { t } = useTranslation()
   const inModel = board.cards.filter(card => card.nodeIds.length > 0).length
 
   return (
-    <header className="flex h-11 shrink-0 items-center gap-4 border-b border-border px-4">
-      <div className="flex items-baseline gap-1.5">
-        <span className="font-mono text-sm text-foreground">{inModel}</span>
-        <span className="text-2xs text-muted-foreground">
-          {t('build.coveredOf', { total: board.cards.length })}
-        </span>
-      </div>
-      <ol className="flex items-center gap-1">
-        {board.stages.map((stage, index) => {
-          // A graph-wide step belongs to no document, so what it left waiting
-          // is said here or nowhere.
-          const waiting = stage.proposalIds.length + stage.clarificationIds.length
-          return (
-            <li key={stage.skillId} className="flex items-center gap-1">
-              {index > 0 && <span className="pr-1 text-muted-foreground">→</span>}
-              <Badge variant="outline" className="text-2xs">{stageLabel(stage, language)}</Badge>
-              {waiting > 0 && (
-                <button
-                  type="button"
-                  onClick={onOpenInbox}
-                  className={cn('rounded-md border px-1.5 py-0.5 text-2xs font-medium', statusTone('awaitingDecision'))}
-                >
-                  {t('build.stageWaiting', { count: waiting })}
-                </button>
-              )}
-              {stage.global && canRun(stage.skillId) && (
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  className="text-muted-foreground"
-                  onClick={() => void runStore.startUnit({ workspaceId, skillId: stage.skillId, unitPath: '' })}
-                >
-                  {t('build.runGlobal')}
-                </Button>
-              )}
-            </li>
-          )
-        })}
-      </ol>
-      {busy && (
-        <span className="ml-auto flex items-center gap-1.5 text-2xs text-muted-foreground">
-          <Loader2 className="size-2.5 animate-spin" />
-          {t('build.busy')}
-        </span>
-      )}
+    <header className="flex shrink-0 items-stretch bg-sidebar">
+      {board.stages.map(stage => (
+        <StageCell
+          key={stage.skillId}
+          stage={stage}
+          workspaceId={workspaceId}
+          canRun={canRun(stage.skillId)}
+          busy={busy}
+          onOpenInbox={onOpenInbox}
+          standing={stage.global ? undefined : t('build.coveredOf', { done: inModel, total: board.cards.length })}
+        />
+      ))}
     </header>
+  )
+}
+
+/**
+ * One step, and the reason to press it now.
+ *
+ * The reason is a fact the server already holds, never a prompt to guess at:
+ * how many answers are queued for the step that reads them, or when the step
+ * last ran. A step with no reason is still shown, because a pipeline missing
+ * a stage reads as a broken pipeline.
+ */
+function StageCell({ stage, workspaceId, canRun, busy, onOpenInbox, standing }: {
+  stage: CoverageStage
+  workspaceId: string
+  canRun: boolean
+  busy: boolean
+  onOpenInbox: () => void
+  standing?: string | undefined
+}) {
+  const { t, i18n } = useTranslation()
+  const { formatRelativeTime } = useLocaleFormat()
+  const waiting = stage.proposalIds.length + stage.clarificationIds.length
+  // Nothing answered means the run would read an empty queue and cost a
+  // subprocess to say so, which is why the button goes flat rather than eager.
+  const idle = stage.readsAnswered && stage.answeredIds.length === 0
+
+  const reason = standing
+    ?? (stage.readsAnswered
+      ? (idle ? t('build.stage.noneAnswered') : t('build.stage.answeredWaiting', { count: stage.answeredIds.length }))
+      : stage.lastRun
+        ? t('build.stage.lastRunAt', { when: formatRelativeTime(stage.lastRun.startedAt) })
+        : t('build.stage.neverRun'))
+
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-1 border-r border-border px-4 py-2.5 last:border-r-0">
+      <div className="flex items-baseline gap-2">
+        <Badge variant="outline" className={cn('text-2xs', stage.global && 'border-primary/40 text-primary')}>
+          {t(stage.global ? 'build.stage.graphWide' : 'build.stage.perDocument')}
+        </Badge>
+        <span className="truncate text-xs font-medium text-foreground">{stageLabel(stage, i18n.language)}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="min-w-0 flex-1 truncate text-2xs text-muted-foreground">{reason}</span>
+        {waiting > 0 && (
+          <button
+            type="button"
+            onClick={onOpenInbox}
+            className={cn('shrink-0 rounded-md border px-1.5 py-0.5 text-2xs font-medium', statusTone('awaitingDecision'))}
+          >
+            {t('build.stageWaiting', { count: waiting })}
+          </button>
+        )}
+        {stage.global && canRun && (
+          <Button
+            size="xs"
+            variant="ghost"
+            disabled={idle || busy}
+            className="shrink-0 text-muted-foreground [&_svg]:size-2.5"
+            onClick={() => void runStore.startUnit({ workspaceId, skillId: stage.skillId, unitPath: '' })}
+          >
+            <Play />
+            {t('build.runGlobal')}
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Every document at once, one segment each.
+ *
+ * The corpus is the thing being digested, and a count says how far along that
+ * is without ever showing its shape. This does, in one line, and it is the
+ * only place a running batch can be watched moving rather than reported on.
+ */
+function CoverageRibbon({ cards, busy, selectedKey, onSelect }: {
+  cards: readonly CoverageCard[]
+  busy: boolean
+  selectedKey: string | null
+  onSelect: (key: string) => void
+}) {
+  const { t } = useTranslation()
+  const ordered = useMemo(
+    () => [...cards].sort((a, b) => GROUPS.indexOf(a.state) - GROUPS.indexOf(b.state)),
+    [cards],
+  )
+
+  return (
+    <div className="flex shrink-0 items-center gap-3 border-b border-border bg-sidebar px-4 py-2.5">
+      <div className="flex min-w-0 flex-1 gap-px">
+        {ordered.map(card => (
+          <button
+            key={keyOf(card)}
+            type="button"
+            title={card.name}
+            aria-label={card.name}
+            onClick={() => onSelect(keyOf(card))}
+            className={cn(
+              'h-3.5 min-w-0 flex-1 rounded-xs transition-opacity duration-150 hover:opacity-70',
+              statusDot(card.state),
+              card.state === 'running' && 'animate-pulse',
+              keyOf(card) === selectedKey && 'ring-1 ring-foreground',
+            )}
+          />
+        ))}
+      </div>
+      <span className="shrink-0 text-2xs text-muted-foreground">
+        {busy ? t('build.busy') : t('build.documents', { count: cards.length })}
+      </span>
+    </div>
   )
 }
 
 /**
  * One state, and the documents in it.
  *
- * The lane carries the state's colour so the cards do not have to. A card
- * repeating what its own column already says is noise, and seven tinted
- * borders across a board read as decoration rather than as meaning.
+ * The heading carries the state's colour so the rows do not have to, and it
+ * is where a bulk action belongs, because covering a group is one batch rather
+ * than a row of buttons pressed in turn. Settled documents start folded, since
+ * a reader opens this to find what is still asking for something.
  */
-function Column({ workspaceId, state, cards, selectedKey, onSelect, onRunAll }: {
+function Group({ workspaceId, state, cards, stage, selectedKey, onSelect, onRunAll }: {
   workspaceId: string
   state: CoverageState
   cards: readonly CoverageCard[]
+  stage: CoverageStage | undefined
   selectedKey: string | null
   onSelect: (key: string) => void
   onRunAll?: (() => void) | undefined
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const [open, setOpen] = useState(state !== 'covered')
 
   return (
-    <section className="flex h-full w-64 shrink-0 flex-col rounded-lg bg-muted/60">
-      <header className="flex shrink-0 items-center gap-1.5 px-2.5 py-2">
-        <span className={cn('size-2 shrink-0 rounded-full', statusDot(state))} />
-        <h2 className="truncate text-2xs font-semibold uppercase tracking-wider text-foreground">
-          {t(`build.state.${state}`)}
-        </h2>
-        <span className="font-mono text-2xs text-muted-foreground">{cards.length}</span>
-        {onRunAll && cards.length > 0 && (
-          <Button size="xs" variant="ghost" className="ml-auto text-muted-foreground" onClick={onRunAll}>
-            {t('build.runColumn')}
+    <section>
+      <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/60 bg-card/80 px-4 py-2 backdrop-blur">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          className="flex min-w-0 items-center gap-2 text-left"
+        >
+          <ChevronRight className={cn('size-3 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} />
+          <span className={cn('size-2 shrink-0 rounded-full', statusDot(state))} />
+          <h2 className="truncate text-2xs font-semibold uppercase tracking-wider text-foreground">
+            {t(`build.state.${state}`)}
+          </h2>
+          <span className="font-mono text-2xs text-muted-foreground">{cards.length}</span>
+        </button>
+        {onRunAll && (
+          <Button size="xs" variant="ghost" className="ml-auto text-muted-foreground [&_svg]:size-2.5" onClick={onRunAll}>
+            <Play />
+            {t(state === 'uncovered' ? 'build.runGroup' : 'build.rerunGroup', { skill: stageLabel(stage, i18n.language) })}
           </Button>
         )}
       </header>
-      {cards.length === 0
-        ? <p className="px-2.5 pb-2 text-2xs text-muted-foreground/70">{t('build.columnEmpty')}</p>
-        : (
-            <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto scrollbar-thin px-1.5 pb-1.5">
-              {cards.map(card => (
-                <UnitCard
-                  key={keyOf(card)}
-                  workspaceId={workspaceId}
-                  card={card}
-                  active={keyOf(card) === selectedKey}
-                  onClick={() => onSelect(keyOf(card))}
-                />
-              ))}
-            </ul>
-          )}
+      {open && (
+        <ul>
+          {cards.map(card => (
+            <Row
+              key={keyOf(card)}
+              workspaceId={workspaceId}
+              card={card}
+              active={keyOf(card) === selectedKey}
+              onClick={() => onSelect(keyOf(card))}
+            />
+          ))}
+        </ul>
+      )}
     </section>
   )
 }
 
 /**
- * What the run on this card is doing, while it is doing it.
+ * What the run on this row is doing, while it is doing it.
  *
  * A spinner says only that something is happening. The stream has carried the
- * work the whole time, so the card says which file is being read and how much
+ * work the whole time, so the row says which file is being read and how much
  * has come back, and a reader can tell a run that is working from one that is
  * stuck without opening it.
  *
@@ -373,12 +482,12 @@ function LiveLine({ workspaceId, runId }: { workspaceId: string, runId: string }
   const reads = activity.sourceReads + activity.graphQueries
 
   return (
-    <span className="flex flex-col gap-0.5 border-t border-border pt-1">
-      <span className="line-clamp-2 text-2xs leading-snug text-muted-foreground">
+    <span className="flex items-baseline gap-2">
+      <span className="min-w-0 flex-1 truncate text-2xs text-muted-foreground">
         {activity.narration ?? t('build.starting')}
       </span>
       {(reads > 0 || activity.blocks > 0) && (
-        <span className="font-mono text-2xs text-muted-foreground/70">
+        <span className="shrink-0 font-mono text-2xs text-muted-foreground/70">
           {t('build.liveCounts', { reads, blocks: activity.blocks })}
         </span>
       )}
@@ -386,42 +495,48 @@ function LiveLine({ workspaceId, runId }: { workspaceId: string, runId: string }
   )
 }
 
-function UnitCard({ workspaceId, card, active, onClick }: { workspaceId: string, card: CoverageCard, active: boolean, onClick: () => void }) {
+/**
+ * One document, at the width of the surface.
+ *
+ * A row states what is true of it and nothing else. What to do about it lives
+ * on the group heading, where it is one batch, or in the detail pane, where
+ * there is room to say what it would mean.
+ *
+ * One line, until a run is reading it. The counts sit right so the eye can
+ * run down them, and the two that nearly every document has are given fixed
+ * widths so that column holds still while the rest varies.
+ */
+function Row({ workspaceId, card, active, onClick }: {
+  workspaceId: string
+  card: CoverageCard
+  active: boolean
+  onClick: () => void
+}) {
   const { t } = useTranslation()
+  const { formatRelativeTime } = useLocaleFormat()
 
   return (
-    <li className="relative">
-      {active && <span className="absolute inset-y-1.5 left-0 z-10 w-[3px] rounded-r-full bg-primary" />}
-      <button
-        type="button"
-        onClick={onClick}
-        className={cn(
-          'flex w-full flex-col gap-1 rounded-md border border-border px-2.5 py-2 text-left transition-colors duration-150',
-          active ? 'bg-accent' : 'bg-card hover:bg-accent/50',
-        )}
-      >
-        <span className="line-clamp-2 text-xs leading-snug text-foreground">{card.name}</span>
-        <span className="flex items-center gap-2 font-mono text-2xs text-muted-foreground">
-          <span className="truncate">{card.sourceId}</span>
-          {card.nodeIds.length > 0 && <span className="shrink-0">{t('build.nodes', { count: card.nodeIds.length })}</span>}
-        </span>
-        {card.state === 'running' && card.lastRun && (
-          <LiveLine workspaceId={workspaceId} runId={card.lastRun.runId} />
-        )}
-        {(card.proposalIds.length > 0 || card.clarificationIds.length > 0 || card.driftIssueIds.length > 0) && (
-          <span className="flex flex-wrap gap-1 pt-0.5">
-            {card.proposalIds.length > 0 && <Chip>{t('build.proposals', { count: card.proposalIds.length })}</Chip>}
-            {card.clarificationIds.length > 0 && <Chip>{t('build.questions', { count: card.clarificationIds.length })}</Chip>}
-            {card.driftIssueIds.length > 0 && <Chip>{t('build.drifts', { count: card.driftIssueIds.length })}</Chip>}
+    <ListRow active={active} onClick={onClick} className="flex-col gap-1">
+      <span className="flex w-full items-center gap-3">
+        <span className="min-w-0 flex-1 truncate text-xs leading-snug text-foreground">{card.name}</span>
+        <span className="flex shrink-0 items-center gap-3 font-mono text-2xs text-muted-foreground">
+          <span className="w-24 truncate text-right text-muted-foreground/70">{card.sourceId}</span>
+          {card.driftIssueIds.length > 0 && <span>{t('build.drifts', { count: card.driftIssueIds.length })}</span>}
+          {card.proposalIds.length > 0 && <span>{t('build.proposals', { count: card.proposalIds.length })}</span>}
+          {card.clarificationIds.length > 0 && <span>{t('build.questions', { count: card.clarificationIds.length })}</span>}
+          <span className="w-16 text-right">
+            {card.nodeIds.length > 0 ? t('build.nodes', { count: card.nodeIds.length }) : ''}
           </span>
-        )}
-      </button>
-    </li>
+          <span className="w-14 text-right">
+            {card.lastRun ? formatRelativeTime(card.lastRun.startedAt) : ''}
+          </span>
+        </span>
+      </span>
+      {card.state === 'running' && card.lastRun && (
+        <LiveLine workspaceId={workspaceId} runId={card.lastRun.runId} />
+      )}
+    </ListRow>
   )
-}
-
-function Chip({ children }: { children: React.ReactNode }) {
-  return <span className="rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">{children}</span>
 }
 
 /**
@@ -461,7 +576,7 @@ function CardDetail({ workspaceId, card, stage, stages, canRun, onClose }: {
   const waiting = card.proposalIds.length + card.clarificationIds.length
 
   return (
-    <aside className="flex w-96 shrink-0 flex-col border-l border-border">
+    <aside className="flex w-96 shrink-0 flex-col border-l border-border bg-card/40">
       <DetailPanel
         title={card.name}
         onClose={onClose}
@@ -472,9 +587,11 @@ function CardDetail({ workspaceId, card, stage, stages, canRun, onClose }: {
               actions: (
                 <Button
                   size="sm"
+                  className="[&_svg]:size-3"
                   onClick={() => void runStore.startUnit({ workspaceId, skillId: stage.skillId, unitPath: card.path })}
                 >
-                  {t('build.runUnit', { skill: stageLabel(stage, language) })}
+                  <Play />
+                  {t(card.state === 'uncovered' ? 'build.runUnit' : 'build.rerunUnit', { skill: stageLabel(stage, language) })}
                 </Button>
               ),
             }

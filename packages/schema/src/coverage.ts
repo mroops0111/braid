@@ -120,6 +120,12 @@ export const CoverageStage = z.object({
    * that says so.
    */
   answeredIds: z.array(ClarificationId),
+  /**
+   * The last time this step ran across the whole graph. A per-document step
+   * has many, one per document, so it carries none and its standing is read
+   * off the cards instead.
+   */
+  lastRun: CoverageRun.optional(),
 })
 export type CoverageStage = z.infer<typeof CoverageStage>
 

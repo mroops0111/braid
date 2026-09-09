@@ -340,9 +340,11 @@ function withGraphWideOutput(stage: CoverageStage, context: {
       .filter(record => record.skillId === stage.skillId && record.args.length === 0)
       .map(record => record.runId as string),
   )
+  const lastRun = latestRun(runIds, new Map(context.records.map(record => [record.runId as string, record])))
   return {
     ...stage,
     answeredIds,
+    ...(lastRun ? { lastRun } : {}),
     proposalIds: context.proposals
       .filter(proposal => proposal.status === 'pending' && proposal.skillRunId !== undefined && runIds.has(proposal.skillRunId))
       .map(proposal => proposal.id),
