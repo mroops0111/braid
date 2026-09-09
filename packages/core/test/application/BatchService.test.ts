@@ -361,6 +361,24 @@ describe('BatchService', () => {
     expect(final.units[1]!.status).toBe('completed')
   })
 
+  // A board column covering what it holds is the same plan as a first
+  // bootstrap, scoped, so it keeps the ordering, checkpoints, and resume.
+  it('walks only the named documents when a scope is given', async () => {
+    const { service, workspace, planRepository } = await setup()
+    await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY, scope: ['prd/'] })
+    const final = await flushBatch(planRepository)
+    expect(final.units.map(unit => unit.scopeHint)).toEqual(['prd/'])
+  })
+
+  it('refuses a scope naming nothing the workspace holds', async () => {
+    const { service, workspace } = await setup()
+    await expect(service.start(workspace.id, {
+      autoApply: false,
+      startedBy: STARTED_BY,
+      scope: ['no-such-document/'],
+    })).rejects.toThrow(ValidationError)
+  })
+
   it('refuses when workspace has no sources', async () => {
     const { service, workspace } = await setup({ sources: [] })
     await expect(service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })).rejects.toThrow(ValidationError)

@@ -1,4 +1,5 @@
 import type { CoverageBoard, CoverageCard, CoverageStage, CoverageState, ProposalId } from '@braidhq/schema'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CircleDashed, CircleSlash, FileText, Loader2, MessageCircleQuestion, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -7,7 +8,9 @@ import { EmptyState } from '@/components/EmptyState'
 import { statusTone } from '@/components/StatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { useCoverage, useSkills } from '@/lib/queries'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { api } from '@/lib/api'
+import { useBatchStatus, useCoverage, useSkills } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
 import { useTabNavigation } from '@/lib/useTabNavigation'
 import { cn } from '@/lib/utils'
@@ -56,6 +59,7 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
   const coverage = useCoverage(workspaceId)
   const { data: skillsData } = useSkills(workspaceId)
   const policy = useWorkspacePolicy(workspaceId)
+  const navigation = useTabNavigation()
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
 
   const board = coverage.data
@@ -69,6 +73,9 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
     return manifest !== undefined && policy.can('skill.run', { skill: manifest.frontmatter, skillId: manifest.id })
   }
   const mayRunUnits = mayRun(unitStage?.skillId)
+  const { data: activePlan } = useBatchStatus(workspaceId)
+  const batchBusy = activePlan?.status === 'running' || activePlan?.status === 'deriving'
+  const [covering, setCovering] = useState<readonly CoverageCard[] | null>(null)
 
   const columns = useMemo(() => COLUMNS.map(state => ({
     state,
@@ -91,7 +98,7 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
   return (
     <div className="flex min-h-0 flex-1">
       <div className="flex min-w-0 flex-1 flex-col">
-        <StageStrip board={board!} workspaceId={workspaceId} canRun={mayRun} />
+        <StageStrip board={board!} workspaceId={workspaceId} canRun={mayRun} onOpenInbox={() => navigation?.openInbox()} />
         <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden scrollbar-thin">
           <div className="flex h-full min-w-max gap-2 p-3">
             {columns.map(column => (
@@ -101,14 +108,22 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
                 cards={column.cards}
                 selectedKey={selectedKey}
                 onSelect={setSelectedKey}
-                onRunAll={unitStage && mayRunUnits && ACTIONABLE.has(column.state)
-                  ? () => { for (const card of column.cards) void runStore.startUnit({ workspaceId, skillId: unitStage.skillId, unitPath: card.path }) }
+                onRunAll={unitStage && mayRunUnits && !batchBusy && ACTIONABLE.has(column.state)
+                  ? () => setCovering(column.cards)
                   : undefined}
               />
             ))}
           </div>
         </div>
       </div>
+      {covering && (
+        <CoverDialog
+          workspaceId={workspaceId}
+          cards={covering}
+          skillId={unitStage!.skillId}
+          onClose={() => setCovering(null)}
+        />
+      )}
       {selected && (
         <CardDetail
           key={keyOf(selected)}
@@ -123,6 +138,71 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
   )
 }
 
+/**
+ * Covering a column, which is a batch.
+ *
+ * One plan rather than a loop of runs, because a loop has no order, no
+ * checkpoint, and nothing to resume from, and forty documents would start
+ * forty subprocesses at once. The plan is the same one a first bootstrap
+ * builds, scoped to these documents.
+ *
+ * Applying without review is the thing that makes a bootstrap fast, and it is
+ * also the thing that puts unreviewed work in the graph, so it is asked here
+ * rather than assumed either way.
+ */
+function CoverDialog({ workspaceId, cards, skillId, onClose }: {
+  workspaceId: string
+  cards: readonly CoverageCard[]
+  skillId: string
+  onClose: () => void
+}) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [autoApply, setAutoApply] = useState(false)
+
+  const start = useMutation({
+    mutationFn: () => api.startBatch(workspaceId, autoApply, cards.map(card => card.path)),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId], refetchType: 'active' })
+      onClose()
+    },
+  })
+
+  return (
+    <Dialog open onOpenChange={open => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('build.cover.title', { count: cards.length })}</DialogTitle>
+          <DialogDescription>{t('build.cover.description', { skill: skillId })}</DialogDescription>
+        </DialogHeader>
+        <label className="flex items-start gap-2 rounded-md border border-border p-3 text-xs">
+          <input
+            type="checkbox"
+            checked={autoApply}
+            onChange={event => setAutoApply(event.target.checked)}
+            className="mt-0.5 size-3.5 accent-primary"
+          />
+          <span className="flex flex-col gap-0.5">
+            <span className="font-medium text-foreground">{t('build.cover.autoApply')}</span>
+            <span className="text-2xs text-muted-foreground">{t('build.cover.autoApplyHint')}</span>
+          </span>
+        </label>
+        {start.error !== null && (
+          <p className="text-xs text-destructive">
+            {start.error instanceof Error ? start.error.message : String(start.error)}
+          </p>
+        )}
+        <DialogFooter>
+          <Button variant="ghost" size="sm" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button size="sm" disabled={start.isPending} onClick={() => start.mutate()}>
+            {start.isPending ? t('build.cover.starting') : t('build.cover.confirm')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function keyOf(card: CoverageCard): string {
   return `${card.sourceId} ${card.path}`
 }
@@ -132,10 +212,11 @@ function keyOf(card: CoverageCard): string {
  * whole. Narrow on purpose: it says which steps exist, which is worth a strip,
  * and it is not a canvas because nobody edits the pipeline.
  */
-function StageStrip({ board, workspaceId, canRun }: {
+function StageStrip({ board, workspaceId, canRun, onOpenInbox }: {
   board: CoverageBoard
   workspaceId: string
   canRun: (skillId: string) => boolean
+  onOpenInbox: () => void
 }) {
   const { t } = useTranslation()
   const settled = board.cards.filter(card => card.state === 'covered').length
@@ -149,22 +230,36 @@ function StageStrip({ board, workspaceId, canRun }: {
         </span>
       </div>
       <ol className="flex items-center gap-1">
-        {board.stages.map((stage, index) => (
-          <li key={stage.skillId} className="flex items-center gap-1">
-            {index > 0 && <span className="pr-1 text-muted-foreground">→</span>}
-            <Badge variant="outline" className="font-mono text-2xs">{stage.skillId}</Badge>
-            {stage.global && canRun(stage.skillId) && (
-              <Button
-                size="xs"
-                variant="ghost"
-                className="text-muted-foreground"
-                onClick={() => void runStore.startUnit({ workspaceId, skillId: stage.skillId, unitPath: '' })}
-              >
-                {t('build.runGlobal')}
-              </Button>
-            )}
-          </li>
-        ))}
+        {board.stages.map((stage, index) => {
+          // A graph-wide step belongs to no document, so what it left waiting
+          // is said here or nowhere.
+          const waiting = stage.proposalIds.length + stage.clarificationIds.length
+          return (
+            <li key={stage.skillId} className="flex items-center gap-1">
+              {index > 0 && <span className="pr-1 text-muted-foreground">→</span>}
+              <Badge variant="outline" className="font-mono text-2xs">{stage.skillId}</Badge>
+              {waiting > 0 && (
+                <button
+                  type="button"
+                  onClick={onOpenInbox}
+                  className={cn('rounded-md border px-1.5 py-0.5 text-2xs font-medium', statusTone('awaitingDecision'))}
+                >
+                  {t('build.stageWaiting', { count: waiting })}
+                </button>
+              )}
+              {stage.global && canRun(stage.skillId) && (
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  className="text-muted-foreground"
+                  onClick={() => void runStore.startUnit({ workspaceId, skillId: stage.skillId, unitPath: '' })}
+                >
+                  {t('build.runGlobal')}
+                </Button>
+              )}
+            </li>
+          )
+        })}
       </ol>
     </header>
   )

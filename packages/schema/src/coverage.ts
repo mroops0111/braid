@@ -81,13 +81,23 @@ export const CoverageCard = z.object({
 })
 export type CoverageCard = z.infer<typeof CoverageCard>
 
-/** One step of the pipeline the workspace's ontology declares. */
+/**
+ * One step of the pipeline the workspace's ontology declares.
+ *
+ * A step that works on the graph as a whole names no document, so what it
+ * leaves waiting has no card to sit on. It is carried here instead, because a
+ * board that silently drops the output of half its pipeline is worse than one
+ * that has no pipeline at all.
+ */
 export const CoverageStage = z.object({
   skillId: SkillId,
   order: z.number().int(),
   summary: z.string().optional(),
   /** True when the step works on the graph as a whole rather than on a unit. */
   global: z.boolean(),
+  /** What this step left waiting, when it belongs to no single document. */
+  proposalIds: z.array(ProposalId),
+  clarificationIds: z.array(ClarificationId),
 })
 export type CoverageStage = z.infer<typeof CoverageStage>
 

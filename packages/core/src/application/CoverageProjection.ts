@@ -75,7 +75,11 @@ export class CoverageProjection {
       this.deps.skillRegistry.list(workspace),
     ])
 
-    const stages = readStages(skills)
+    const stages = readStages(skills).map(stage => withGraphWideOutput(stage, {
+      proposals,
+      clarifications,
+      records,
+    }))
     const runsById = new Map(records.map(record => [record.runId as string, record]))
     const seeds = new Map<string, { sourceId: SourceId, path: string, name: string }>()
 
@@ -297,6 +301,36 @@ function citesUnit(node: GraphNode, sourceId: SourceId, path: string): boolean {
  * work on the graph as a whole. Read from the declaration rather than from a
  * list of skill ids here, so a different ontology brings its own pipeline.
  */
+/**
+ * What a graph-wide step left waiting.
+ *
+ * Attributed by the run naming no document, which is the same rule that keeps
+ * such a run off every card. A per-document step carries nothing here, since
+ * everything it produced already sits on the document it read.
+ */
+function withGraphWideOutput(stage: CoverageStage, context: {
+  proposals: readonly Proposal[]
+  clarifications: readonly Clarification[]
+  records: readonly RunRecord[]
+}): CoverageStage {
+  if (!stage.global)
+    return stage
+  const runIds = new Set(
+    context.records
+      .filter(record => record.skillId === stage.skillId && record.args.length === 0)
+      .map(record => record.runId as string),
+  )
+  return {
+    ...stage,
+    proposalIds: context.proposals
+      .filter(proposal => proposal.status === 'pending' && proposal.skillRunId !== undefined && runIds.has(proposal.skillRunId))
+      .map(proposal => proposal.id),
+    clarificationIds: context.clarifications
+      .filter(item => item.status === 'pending' && item.skillRunId !== undefined && runIds.has(item.skillRunId))
+      .map(item => item.id) as CoverageStage['clarificationIds'],
+  }
+}
+
 function readStages(skills: readonly SkillManifestData[]): CoverageStage[] {
   return skills
     .filter(skill => skill.frontmatter.braid?.category === 'build' && !skill.frontmatter.braid.hidden)
@@ -307,6 +341,8 @@ function readStages(skills: readonly SkillManifestData[]): CoverageStage[] {
       global: !(skill.frontmatter.braid?.inputs ?? []).some(
         input => input.kind !== 'text' && input.provider.kind === 'source',
       ),
+      proposalIds: [],
+      clarificationIds: [],
     }))
     .sort((a, b) => a.order - b.order)
 }

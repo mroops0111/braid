@@ -8,6 +8,9 @@ import { getWorkspaceId } from '../middleware/workspaceId.js'
 
 const StartBody = z.object({
   autoApply: z.boolean(),
+  // Absent walks every document. Present walks only these, which is how a
+  // board column covers what it holds without a second kind of run.
+  scope: z.array(z.string().min(1)).min(1).optional(),
 })
 
 export interface BatchRouterDeps {
@@ -19,10 +22,11 @@ export function createBatchRouter(deps: BatchRouterDeps): Hono {
 
   router.post('/', zValidator('json', StartBody), async (context) => {
     const workspaceId = getWorkspaceId(context)
-    const { autoApply } = context.req.valid('json')
+    const { autoApply, scope } = context.req.valid('json')
     const callerToken = extractBearerToken(context)
     const plan = await deps.batchService.start(workspaceId, {
       autoApply,
+      ...(scope ? { scope } : {}),
       startedBy: getUserId(context),
       ...(callerToken ? { callerToken } : {}),
     })

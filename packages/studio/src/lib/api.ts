@@ -568,10 +568,11 @@ export const api = {
   deleteHistoryTag: (workspaceId: string, name: string) =>
     fetchJson<void>(`/workspaces/${workspaceId}/history/tags/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 
-  startBatch: (workspaceId: string, autoApply: boolean) =>
+  /** `scope` names the documents to walk. Omitted, the batch walks them all. */
+  startBatch: (workspaceId: string, autoApply: boolean, scope?: readonly string[]) =>
     fetchJson<BatchPlan>(`/workspaces/${workspaceId}/batch`, {
       method: 'POST',
-      body: JSON.stringify({ autoApply }),
+      body: JSON.stringify({ autoApply, ...(scope ? { scope } : {}) }),
     }),
   getBatchStatus: async (workspaceId: string): Promise<BatchPlan | null> => {
     try {

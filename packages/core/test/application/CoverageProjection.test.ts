@@ -329,6 +329,32 @@ describe('coverageProjection', () => {
     ])
   })
 
+  // Half the pipeline works on the graph rather than on a document, and what
+  // it leaves waiting would otherwise be on no card and in no column.
+  it('carries what a graph-wide step left waiting on the step itself', async () => {
+    const board = await projectionOf({
+      proposals: [makeProposal(WORKSPACE.id, { id: 'p-1', skillRunId: 'r-global' })],
+      clarifications: [makeClarification(WORKSPACE.id, { id: 'ct-1', skillRunId: 'r-global' })],
+      records: [record('r-global', { skillId: 'ddd:reconcile' as SkillId, args: '', completedAt: T0, exitCode: 0 })],
+      skills: [makeSkillManifest({ id: 'ddd:reconcile', category: 'build', order: 300 })],
+    }).board(WORKSPACE)
+    expect(board.stages[0]).toMatchObject({
+      skillId: 'ddd:reconcile',
+      proposalIds: ['p-1'],
+      clarificationIds: ['ct-1'],
+    })
+  })
+
+  it('leaves a per-document step carrying nothing, since its output sits on the documents', async () => {
+    const board = await projectionOf({
+      proposals: [derived({ id: 'p-1', sha: OLD, runId: 'r-1' })],
+      records: [record('r-1', { args: UNIT })],
+      skills: [makeSkillManifest({ id: 'ddd:extract', category: 'build', order: 100, sourceInput: true })],
+    }).board(WORKSPACE)
+    expect(board.stages[0]).toMatchObject({ global: false, proposalIds: [], clarificationIds: [] })
+    expect(board.cards[0]?.proposalIds).toEqual(['p-1'])
+  })
+
   it('leaves out anything the ontology did not declare as a build step', async () => {
     const board = await projectionOf({
       skills: [

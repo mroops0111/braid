@@ -91,6 +91,15 @@ export interface StartBatchOptions {
   callerToken?: string
   /** Recorded on every RunRecord the batch writes, so the history names an author. */
   startedBy: UserId
+  /**
+   * The unit paths to walk. Omitted, the batch walks every document the
+   * unit-bearing sources hold, which is what a first bootstrap wants.
+   *
+   * Given, it walks only those, which is what covering the documents a board
+   * column happens to be holding wants. Same plan, same checkpoints, same
+   * resume, so a partial run is not a second mechanism.
+   */
+  scope?: readonly string[]
 }
 
 /**
@@ -125,10 +134,12 @@ export class BatchService {
       const mode = this.resolveMode(workspace, ontology, binding)
       const now = this.deps.clock.now()
       const baselineTag = `batch-baseline-${tagSuffix(now)}`
-      const initialUnits = mode === 'direct' ? await this.buildDirectUnits(workspace) : []
+      const initialUnits = mode === 'direct' ? await this.buildDirectUnits(workspace, options.scope) : []
       if (mode === 'direct' && initialUnits.length === 0) {
         throw new ValidationError(
-          `Workspace "${workspace.id}" has unit-bearing sources registered but no documents inside them.`,
+          options.scope
+            ? `None of the requested documents exist in workspace "${workspace.id}"`
+            : `Workspace "${workspace.id}" has unit-bearing sources registered but no documents inside them.`,
         )
       }
 
@@ -672,9 +683,10 @@ export class BatchService {
     return ontology.batch
   }
 
-  private async buildDirectUnits(workspace: Workspace): Promise<BatchUnit[]> {
+  private async buildDirectUnits(workspace: Workspace, scope?: readonly string[]): Promise<BatchUnit[]> {
     const items = await this.deps.unitLister(workspace)
-    return items.map(item => ({
+    const wanted = scope === undefined ? undefined : new Set(scope)
+    return items.filter(item => wanted === undefined || wanted.has(item.value)).map(item => ({
       id: newBatchUnitId(),
       name: item.label,
       description: `Unit from ${item.sourceName}`,

@@ -140,7 +140,8 @@ function AppInner() {
     setActiveSurface('inbox')
   }, [])
 
-  const tabNavigation = useMemo(() => ({ focusProposal }), [focusProposal])
+  const openInbox = useCallback(() => setActiveSurface('inbox'), [])
+  const tabNavigation = useMemo(() => ({ focusProposal, openInbox }), [focusProposal, openInbox])
 
   return (
     <GraphNavigationContext.Provider value={graphNavigation}>
