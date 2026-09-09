@@ -13,6 +13,7 @@ export const build = {
     starting: '啟動中…',
   },
   stageWaiting: '{count} 件待處理',
+  busy: '建構中，一次只跑一個。',
   runGlobal: '執行',
   runColumn: '全部執行',
   runUnit: '執行 {skill}',

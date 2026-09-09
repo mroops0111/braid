@@ -13,6 +13,7 @@ export const build = {
     starting: 'Starting…',
   },
   stageWaiting: '{count} waiting',
+  busy: 'Building. One at a time.',
   runGlobal: 'Run',
   runColumn: 'Run All',
   runUnit: 'Run {skill}',

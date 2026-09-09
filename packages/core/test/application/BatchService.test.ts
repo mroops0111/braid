@@ -75,6 +75,10 @@ class FakeSkillRunner implements SkillRunner {
   // Whether a live subprocess backs the current run, toggled per test.
   active = false
   readonly cancelCalls: SkillRunId[] = []
+  hasActiveRun(): boolean {
+    return this.active
+  }
+
   isActive(_runId: SkillRunId): boolean { return this.active }
   async cancel(runId: SkillRunId): Promise<void> { this.cancelCalls.push(runId) }
   async forgetSession(): Promise<void> {}

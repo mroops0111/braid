@@ -19,6 +19,7 @@ import type { ProposalRepository } from '../domain/hitl/ProposalRepository.js'
 import type { ModelRepository } from '../domain/model/ModelRepository.js'
 import type { RunRepository } from '../domain/skill/RunRepository.js'
 import type { SkillRegistry } from '../domain/skill/SkillRegistry.js'
+import type { SkillRunner } from '../domain/skill/SkillRunner.js'
 import type { SourceUnitObservationRepository } from '../domain/source/SourceUnitObservationRepository.js'
 import type { Workspace } from '../domain/workspace/Workspace.js'
 import type { UnitLister } from './BatchService.js'
@@ -32,6 +33,11 @@ export interface CoverageProjectionDeps {
   readonly runRepository: RunRepository
   readonly modelRepository: ModelRepository
   readonly skillRegistry: SkillRegistry
+  /**
+   * Asked whether a build is already running. Absent, the board reports none,
+   * which is right for a composition with no runner to start one.
+   */
+  readonly skillRunner?: Pick<SkillRunner, 'hasActiveRun'>
 }
 
 /** Everything true of one unit at once, before precedence picks a single state. */
@@ -110,7 +116,15 @@ export class CoverageProjection {
       stages,
     }))
 
-    return { workspaceId: workspace.id, stages, cards }
+    return {
+      workspaceId: workspace.id,
+      stages,
+      cards,
+      // Read from the runner rather than from the records, because a record
+      // left without an end by a killed process would wedge the board shut
+      // for good, while the runner's own set empties when the process does.
+      building: this.deps.skillRunner?.hasActiveRun(workspace.id, 'build') ?? false,
+    }
   }
 }
 

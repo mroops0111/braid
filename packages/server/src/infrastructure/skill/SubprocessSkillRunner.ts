@@ -10,14 +10,14 @@ import type {
   Workspace,
   WorkspaceEventBus,
 } from '@braidhq/core'
-import type { AbsolutePath, AgentBindingDescriptor, AudienceDescriptor, EmittedBlock, McpServerConfig, RenderBlock, RunRecord, SkillAgentOverride, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, AudienceDescriptor, EmittedBlock, McpServerConfig, RenderBlock, RunRecord, SkillAgentOverride, SkillCategory, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceId } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import type { AgentCredentialBroker } from '../agent/AgentCredentialBroker.js'
 import type { RunOutputGate } from './RunOutputGate.js'
 import type { RunTokenRegistry } from './RunTokenRegistry.js'
 import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { describeViolations, newBlockId, newSkillRunId, NotFoundError, ServiceUnavailableError, validateOutput } from '@braidhq/core'
+import { ConflictError, describeViolations, newBlockId, newSkillRunId, NotFoundError, ServiceUnavailableError, validateOutput } from '@braidhq/core'
 import { AbsolutePath as AbsolutePathSchema, localize, McpServerId, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema, splitSkillId } from '@braidhq/schema'
 import { sessionDirPath } from '../_shared/paths.js'
 import { type AsyncQueue, createAsyncQueue } from './asyncQueue.js'
@@ -109,6 +109,8 @@ export interface SubprocessSkillRunnerDeps {
 
 interface ActiveRun {
   readonly workspace: Workspace
+  /** What the skill is for, so a caller can ask about one kind of run. */
+  readonly category: SkillCategory | undefined
   readonly child: ChildProcess
   /**
    * The run's own event queue. A render call arrives out of band over HTTP
@@ -139,6 +141,17 @@ export class SubprocessSkillRunner implements SkillRunner {
     options: SkillRunOptions,
   ): Promise<SkillRunId> {
     const manifest = await this.deps.skillRegistry.get(workspace, skillId)
+    const category = manifest.frontmatter.braid?.category
+    // The graph only accumulates, so two builds running against it at once
+    // race: each reads a snapshot the other is still changing, and whichever
+    // applies second proposes against a graph that has moved. Refused here
+    // rather than in a caller, because every path that starts a run comes
+    // through this one and a guard anywhere else can be walked around.
+    if (category === 'build' && this.hasActiveRun(workspace.id, 'build')) {
+      throw new ConflictError(
+        `Workspace "${workspace.id}" is already building. The graph only accumulates, so one build runs at a time. Wait for it to finish, or stop it first.`,
+      )
+    }
     const runId = newSkillRunId()
     const sessionDir = await this.resolveSessionDir(workspace, runId, options.resumeSessionId)
     const skillBundleDirs = await this.skillBundleDirsFor(workspace, sessionDir)
@@ -242,7 +255,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     const queue = createAsyncQueue<SkillEvent>()
-    this.running.set(runId, { workspace, child, queue })
+    this.running.set(runId, { workspace, category, child, queue })
 
     // Persist the started record up front,
     // so listing endpoints see the run immediately, before any output.
@@ -307,9 +320,11 @@ export class SubprocessSkillRunner implements SkillRunner {
   }
 
   /** Whether any run currently holds this workspace's sources. */
-  hasActiveRun(workspaceId: WorkspaceId): boolean {
+  hasActiveRun(workspaceId: WorkspaceId, category?: SkillCategory): boolean {
     for (const active of this.running.values()) {
-      if (active.workspace.id === workspaceId)
+      if (active.workspace.id !== workspaceId)
+        continue
+      if (category === undefined || active.category === category)
         return true
     }
     return false

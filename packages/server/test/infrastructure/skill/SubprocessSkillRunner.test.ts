@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { ClaudeCodeAgentBinding } from '@braidhq/agent-claude-code'
 import {
   type AgentBinding,
+  ConflictError,
   ServiceUnavailableError,
   SkillManifest,
   type SkillRegistry,
@@ -37,6 +38,7 @@ interface BuildRunnerInput {
   readonly buildAgentBinding?: (descriptor: AgentBindingDescriptor) => AgentBinding
   readonly coreGateway?: { specUrl: string, uvxBin?: string }
   readonly resolveSourceRoles?: (workspace: Workspace) => readonly SourceRoleDescriptor[]
+  readonly category?: 'ask' | 'build'
 }
 
 interface BuiltRunner {
@@ -48,7 +50,7 @@ interface BuiltRunner {
 }
 
 async function buildRunner(input: BuildRunnerInput): Promise<BuiltRunner> {
-  const skillRegistry = input.skillRegistry ?? await makeSkillRegistry(input.rootPath, input.skillAgent)
+  const skillRegistry = input.skillRegistry ?? await makeSkillRegistry(input.rootPath, input.skillAgent, input.category)
   const runRepository = input.runRepository ?? new FsRunRepository()
   const { spawn, invocations } = createMockSpawn(input.sequence ?? [{ stdoutLines: [], exitCode: 0 }])
   const runner = new SubprocessSkillRunner({
@@ -73,7 +75,7 @@ async function makeWorkspaceRoot(): Promise<AbsolutePath> {
   return (await mkdtemp(join(tmpdir(), 'braid-runner-'))) as AbsolutePath
 }
 
-async function makeSkillRegistry(skillSourceParent: AbsolutePath, agent?: SkillAgentOverride): Promise<SkillRegistry> {
+async function makeSkillRegistry(skillSourceParent: AbsolutePath, agent?: SkillAgentOverride, category?: 'ask' | 'build'): Promise<SkillRegistry> {
   // Materialise a real SKILL.md so the runner's session-dir builder can symlink it.
   // Tests that don't care about the session-dir layout still get a valid manifest.
   const skillDir = join(skillSourceParent, 'ask')
@@ -92,6 +94,7 @@ async function makeSkillRegistry(skillSourceParent: AbsolutePath, agent?: SkillA
         requiredMcpServers: [],
         allowedRoles: ['owner', 'maintainer'],
         ...(agent ? { agent } : {}),
+        ...(category ? { category } : {}),
       },
     },
   })
@@ -142,6 +145,37 @@ describe('SubprocessSkillRunner', () => {
     expect(events.map(event => event.type)).toEqual(['started', 'message', 'tool-call', 'completed'])
     expect(invocations).toHaveLength(1)
     expect(invocations[0]?.command).toBe('claude')
+  })
+
+  // The graph only accumulates, so two builds against it race: each reads a
+  // snapshot the other is changing. Refused at the runner because every path
+  // that starts a run comes through it.
+  it('refuses a second build run while one is already going', async () => {
+    const rootPath = await makeWorkspaceRoot()
+    const { runner, workspace } = await buildRunner({
+      rootPath,
+      category: 'build',
+      sequence: [{ stdoutLines: [], exitCode: 0, hold: true }],
+    })
+
+    await runner.start(workspace, SKILL_ID, '', { startedBy: STARTED_BY })
+    await expect(runner.start(workspace, SKILL_ID, '', { startedBy: STARTED_BY }))
+      .rejects
+      .toThrow(ConflictError)
+  })
+
+  // Answering reads the graph rather than adding to it, so it never has to
+  // wait, and a long bootstrap does not lock the workspace out of questions.
+  it('lets an answer run start beside a build', async () => {
+    const rootPath = await makeWorkspaceRoot()
+    const { runner, workspace } = await buildRunner({
+      rootPath,
+      category: 'ask',
+      sequence: [{ stdoutLines: [], exitCode: 0, hold: true }, { stdoutLines: [], exitCode: 0 }],
+    })
+
+    await runner.start(workspace, SKILL_ID, '', { startedBy: STARTED_BY })
+    await expect(runner.start(workspace, SKILL_ID, '', { startedBy: STARTED_BY })).resolves.toBeDefined()
   })
 
   it('merges a skill agent override onto the server default', async () => {

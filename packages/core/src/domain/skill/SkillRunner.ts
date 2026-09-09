@@ -1,4 +1,4 @@
-import type { EmittedBlock, RenderBlock, SkillEvent, SkillId, SkillRunId, UserId } from '@braidhq/schema'
+import type { EmittedBlock, RenderBlock, SkillCategory, SkillEvent, SkillId, SkillRunId, UserId, WorkspaceId } from '@braidhq/schema'
 import type { AgentMessage } from '../agent/AgentBinding.js'
 import type { Workspace } from '../workspace/Workspace.js'
 
@@ -97,6 +97,15 @@ export interface SkillRunner {
 
   /** True while the run is still draining events. */
   isActive: (runId: SkillRunId) => boolean
+
+  /**
+   * Whether this workspace already has a run in flight.
+   *
+   * `category` narrows it to runs of that kind, which is what a caller asking
+   * about graph-mutating work wants: an answer being written reads the graph
+   * and must not hold up a build, and a build must not start beside another.
+   */
+  hasActiveRun: (workspaceId: WorkspaceId, category?: SkillCategory) => boolean
 
   cancel: (runId: SkillRunId) => Promise<void>
 

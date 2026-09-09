@@ -74,7 +74,13 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
   }
   const mayRunUnits = mayRun(unitStage?.skillId)
   const { data: activePlan } = useBatchStatus(workspaceId)
-  const batchBusy = activePlan?.status === 'running' || activePlan?.status === 'deriving'
+  // One build at a time, because the graph only accumulates. The server
+  // refuses a second, so the surface stops offering one rather than letting a
+  // person find out by error. A batch that has not spawned its first run yet
+  // counts too, since it is about to.
+  const busy = (board?.building ?? false)
+    || activePlan?.status === 'running'
+    || activePlan?.status === 'deriving'
   const [covering, setCovering] = useState<readonly CoverageCard[] | null>(null)
 
   const columns = useMemo(() => COLUMNS.map(state => ({
@@ -98,7 +104,13 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
   return (
     <div className="flex min-h-0 flex-1">
       <div className="flex min-w-0 flex-1 flex-col">
-        <StageStrip board={board!} workspaceId={workspaceId} canRun={mayRun} onOpenInbox={() => navigation?.openInbox()} />
+        <StageStrip
+          board={board!}
+          workspaceId={workspaceId}
+          canRun={skillId => mayRun(skillId) && !busy}
+          busy={busy}
+          onOpenInbox={() => navigation?.openInbox()}
+        />
         <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden scrollbar-thin">
           <div className="flex h-full min-w-max gap-2 p-3">
             {columns.map(column => (
@@ -108,7 +120,7 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
                 cards={column.cards}
                 selectedKey={selectedKey}
                 onSelect={setSelectedKey}
-                onRunAll={unitStage && mayRunUnits && !batchBusy && ACTIONABLE.has(column.state)
+                onRunAll={unitStage && mayRunUnits && !busy && ACTIONABLE.has(column.state)
                   ? () => setCovering(column.cards)
                   : undefined}
               />
@@ -130,7 +142,7 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
           workspaceId={workspaceId}
           card={selected}
           stage={unitStage}
-          canRun={mayRunUnits}
+          canRun={mayRunUnits && !busy}
           onClose={() => setSelectedKey(null)}
         />
       )}
@@ -212,10 +224,11 @@ function keyOf(card: CoverageCard): string {
  * whole. Narrow on purpose: it says which steps exist, which is worth a strip,
  * and it is not a canvas because nobody edits the pipeline.
  */
-function StageStrip({ board, workspaceId, canRun, onOpenInbox }: {
+function StageStrip({ board, workspaceId, canRun, busy, onOpenInbox }: {
   board: CoverageBoard
   workspaceId: string
   canRun: (skillId: string) => boolean
+  busy: boolean
   onOpenInbox: () => void
 }) {
   const { t } = useTranslation()
@@ -261,6 +274,12 @@ function StageStrip({ board, workspaceId, canRun, onOpenInbox }: {
           )
         })}
       </ol>
+      {busy && (
+        <span className="ml-auto flex items-center gap-1.5 text-2xs text-muted-foreground">
+          <Loader2 className="size-2.5 animate-spin" />
+          {t('build.busy')}
+        </span>
+      )}
     </header>
   )
 }

@@ -94,6 +94,7 @@ function derived(options: {
 }
 
 function projectionOf(options: {
+  building?: boolean
   units?: readonly { value: string, label: string, sourceId: string, sourceName: string, title?: string }[]
   observations?: readonly SourceUnitObservation[]
   proposals?: readonly ReturnType<typeof makeProposal>[]
@@ -119,6 +120,7 @@ function projectionOf(options: {
     runRepository: { listRecords: async () => options.records ?? [] } as unknown as RunRepository,
     modelRepository: { listNodes: async () => [...(options.nodes ?? [])] } as unknown as ModelRepository,
     skillRegistry: { list: async () => options.skills ?? [] } as unknown as SkillRegistry,
+    skillRunner: { hasActiveRun: () => options.building ?? false },
   })
 }
 
@@ -353,6 +355,14 @@ describe('coverageProjection', () => {
     }).board(WORKSPACE)
     expect(board.stages[0]).toMatchObject({ global: false, proposalIds: [], clarificationIds: [] })
     expect(board.cards[0]?.proposalIds).toEqual(['p-1'])
+  })
+
+  // The surface stops offering what the server would refuse, so the board has
+  // to be told, and told by the runner rather than by a record a killed
+  // process left without an end.
+  it('says whether a build is already under way', async () => {
+    expect((await projectionOf({}).board(WORKSPACE)).building).toBe(false)
+    expect((await projectionOf({ building: true }).board(WORKSPACE)).building).toBe(true)
   })
 
   it('leaves out anything the ontology did not declare as a build step', async () => {

@@ -436,6 +436,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
       runRepository,
       modelRepository,
       skillRegistry: options.skillRegistry,
+      ...(options.skillRunner ? { skillRunner: options.skillRunner } : {}),
     })
     : undefined
   const reactorService = options.skillRunner && options.unitLister && sourceUnitDigest && !(sourceUnitDigest instanceof FailingSourceUnitDigest)

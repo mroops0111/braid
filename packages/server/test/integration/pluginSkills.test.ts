@@ -72,6 +72,7 @@ const noopSkillRunner: SkillRunner = {
   start: async () => 'fake-run-id' as SkillRunId,
   subscribe: () => ({ unsubscribe: () => {}, positionAtSubscribe: 0 }),
   emitBlock: async () => { throw new Error('noopSkillRunner does not emit blocks') },
+  hasActiveRun: () => false,
   isActive: () => false,
   cancel: async () => {},
   sessionIdFor: async () => undefined,

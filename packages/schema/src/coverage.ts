@@ -112,5 +112,13 @@ export const CoverageBoard = z.object({
   workspaceId: WorkspaceId,
   stages: z.array(CoverageStage),
   cards: z.array(CoverageCard),
+  /**
+   * Whether a build is already under way here.
+   *
+   * The graph only accumulates, so builds run one at a time and the server
+   * refuses a second. Saying so here is what lets the surface stop offering
+   * what would be refused, rather than letting a person find out by error.
+   */
+  building: z.boolean(),
 })
 export type CoverageBoard = z.infer<typeof CoverageBoard>
