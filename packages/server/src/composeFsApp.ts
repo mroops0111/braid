@@ -442,6 +442,9 @@ export async function composeFsAppWithRegistry(
         : {}),
     })
     : undefined
+  // Named where the deployment already speaks to the vendor through something
+  // of its own, a corporate gateway or a compatible API.
+  const agentUpstreamUrl = process.env.BRAID_AGENT_UPSTREAM_URL
 
   // Server default agent.
   // A skill overrides kind, model, or effort in its SKILL.md frontmatter,
@@ -622,6 +625,7 @@ export async function composeFsAppWithRegistry(
     ...(agentCredentialStore && agentCredentialBroker
       ? { agentCredentialStore, agentCredentialBroker }
       : {}),
+    ...(agentUpstreamUrl ? { agentUpstreamUrl: withoutTrailingSlash(agentUpstreamUrl) } : {}),
     mcpResolution: gatewayResolution,
     ...(gatewayResolution.kind === 'ready'
       ? { mcpGatewayUrl: `http://127.0.0.1:${gatewayResolution.config.port}` }
