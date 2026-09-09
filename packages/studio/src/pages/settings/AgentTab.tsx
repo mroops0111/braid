@@ -58,6 +58,9 @@ function AgentCredentialFields({ agent }: { agent: AgentSummary }) {
   const queryClient = useQueryClient()
   const { data: status, isLoading, error } = useAgentCredential(agent.kind)
   const [draft, setDraft] = useState('')
+  // Replacing is one overwrite rather than a forget followed by a save,
+  // so no run in between is refused or charged to the shared seat.
+  const [replacing, setReplacing] = useState(false)
 
   const invalidate = (): void => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.agentCredential(agent.kind) })
@@ -67,6 +70,7 @@ function AgentCredentialFields({ agent }: { agent: AgentSummary }) {
     mutationFn: () => api.saveAgentCredential(agent.kind, draft.trim()),
     onSuccess: () => {
       setDraft('')
+      setReplacing(false)
       invalidate()
     },
   })
@@ -99,6 +103,17 @@ function AgentCredentialFields({ agent }: { agent: AgentSummary }) {
                 size="sm"
                 variant="ghost"
                 className="h-6 text-2xs"
+                onClick={() => {
+                  setDraft('')
+                  setReplacing(!replacing)
+                }}
+              >
+                {replacing ? t('common.cancel') : t('admin.agent.replaceButton')}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 text-2xs"
                 disabled={forget.isPending}
                 onClick={() => forget.mutate()}
               >
@@ -108,7 +123,9 @@ function AgentCredentialFields({ agent }: { agent: AgentSummary }) {
           )
         : null}
 
-      <div className="flex items-center gap-1.5">
+      {/* Hidden once one is saved, since an empty box beside a saved value
+          says nothing about what typing in it would do. */}
+      <div className={`flex items-center gap-1.5 ${status.credential && !replacing ? 'hidden' : ''}`}>
         <Input
           type="password"
           value={draft}

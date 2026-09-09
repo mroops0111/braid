@@ -42,7 +42,8 @@ describe('GET /agents', () => {
     expect(body.agents.map(agent => agent.kind)).toEqual(['claude-code', 'codex'])
   })
 
-  // The field is optional, so a page that reads it must cope with absence
+  // The field is optional.
+  // A page that reads it must cope with absence,
   // rather than printing an instruction the agent never gave.
   it('omits the command for an agent that declares none', async () => {
     const response = await router(agentPlugin('codex')).request('/')

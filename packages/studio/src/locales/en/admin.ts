@@ -73,6 +73,7 @@ export const admin = {
     placeholder: 'Paste this agent\u2019s credential',
     placeholderCommand: 'Paste a token from `{command}`',
     saveButton: 'Save',
+    replaceButton: 'Replace',
     forgetButton: 'Forget',
     savedMasked: 'Saved {masked}',
     storageNote: 'Encrypted before it is written, and no page or API reads it back, including this one. Runs never receive it either. The server spends it on their behalf and lends them a stand-in that expires with the run.',

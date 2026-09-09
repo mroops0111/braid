@@ -75,6 +75,7 @@ const admin: typeof en = {
     placeholder: '貼上這個代理的憑證',
     placeholderCommand: '貼上 `{command}` 產生的 token',
     saveButton: '儲存',
+    replaceButton: '更換',
     forgetButton: '移除',
     savedMasked: '已儲存 {masked}',
     storageNote: '寫入前先加密，沒有任何頁面或 API 讀得回來，包含這一頁。執行也拿不到它。伺服器代為花用，只借給執行一個隨執行失效的替身。',
