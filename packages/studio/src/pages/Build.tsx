@@ -1,11 +1,11 @@
 import type { CoverageBoard, CoverageCard, CoverageStage, CoverageState, ProposalId } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, CircleDashed, CircleSlash, FileText, Loader2, MessageCircleQuestion, RefreshCw, ShieldCheck } from 'lucide-react'
+import { FileText, Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RunBlocks } from '@/components/blocks/RunBlocks'
 import { EmptyState } from '@/components/EmptyState'
-import { statusTone } from '@/components/StatusBadge'
+import { statusDot, statusTone } from '@/components/StatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -34,16 +34,6 @@ const COLUMNS: readonly CoverageState[] = [
 
 /** Where running the per-unit step is the answer, so the column offers it. */
 const ACTIONABLE: ReadonlySet<CoverageState> = new Set<CoverageState>(['uncovered', 'sourceChanged', 'failed'])
-
-const STATE_ICON = {
-  uncovered: CircleDashed,
-  running: Loader2,
-  awaitingDecision: MessageCircleQuestion,
-  failed: CircleSlash,
-  sourceChanged: RefreshCw,
-  conflicted: AlertTriangle,
-  covered: ShieldCheck,
-} as const
 
 /**
  * Every source document, and what the model has made of it.
@@ -235,12 +225,12 @@ function StageStrip({ board, workspaceId, canRun, busy, onOpenInbox }: {
   onOpenInbox: () => void
 }) {
   const { t } = useTranslation()
-  const settled = board.cards.filter(card => card.state === 'covered').length
+  const inModel = board.cards.filter(card => card.nodeCount > 0).length
 
   return (
     <header className="flex h-11 shrink-0 items-center gap-4 border-b border-border px-4">
       <div className="flex items-baseline gap-1.5">
-        <span className="font-mono text-sm text-foreground">{settled}</span>
+        <span className="font-mono text-sm text-foreground">{inModel}</span>
         <span className="text-2xs text-muted-foreground">
           {t('build.coveredOf', { total: board.cards.length })}
         </span>
@@ -303,14 +293,11 @@ function Column({ workspaceId, state, cards, selectedKey, onSelect, onRunAll }: 
   onRunAll?: (() => void) | undefined
 }) {
   const { t } = useTranslation()
-  const Icon = STATE_ICON[state]
 
   return (
     <section className="flex h-full w-64 shrink-0 flex-col rounded-lg bg-muted/60">
       <header className="flex shrink-0 items-center gap-1.5 px-2.5 py-2">
-        <span className={cn('flex size-4 shrink-0 items-center justify-center rounded border', statusTone(state))}>
-          <Icon className={cn('size-2.5', state === 'running' && 'animate-spin')} />
-        </span>
+        <span className={cn('size-2 shrink-0 rounded-full', statusDot(state))} />
         <h2 className="truncate text-2xs font-semibold uppercase tracking-wider text-foreground">
           {t(`build.state.${state}`)}
         </h2>
