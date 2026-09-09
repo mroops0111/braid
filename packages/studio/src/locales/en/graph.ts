@@ -1,4 +1,5 @@
 export const graph = {
+  slice: { showing: 'Showing {count} nodes', clear: 'Show the whole graph' },
   // Shown while the workspace graph snapshot is still loading.
   loadingGraph: 'Loading graph…',
   resetLayoutTooltip: 'Reset Layout',

@@ -1,6 +1,7 @@
 import type { graph as en } from '../en/graph'
 
 const graph: typeof en = {
+  slice: { showing: '目前只顯示 {count} 個節點', clear: '顯示完整圖譜' },
   loadingGraph: '載入圖譜中…',
   resetLayoutTooltip: '重設排列',
   empty: {

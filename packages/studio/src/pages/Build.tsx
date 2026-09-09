@@ -1,15 +1,13 @@
-import type { CoverageBoard, CoverageCard, CoverageStage, CoverageState, Locale, NodeId, ProposalId } from '@braidhq/schema'
+import type { CoverageBoard, CoverageCard, CoverageStage, CoverageState, Locale, ProposalId } from '@braidhq/schema'
 import { localize } from '@braidhq/schema'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, ClipboardCheck, ExternalLink, FileText, Loader2, MessageCircleQuestion } from 'lucide-react'
+import { ArrowRight, ClipboardCheck, ExternalLink, FileText, Loader2, MessageCircleQuestion, Network } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RunBlocks } from '@/components/blocks/RunBlocks'
 import { RunCost } from '@/components/blocks/RunCost'
 import { DetailFact, DetailPanel, SectionTitle } from '@/components/DetailPanel'
 import { EmptyState } from '@/components/EmptyState'
-import { GraphCanvas } from '@/components/graph/GraphCanvas'
-import { useSubgraphDataSource } from '@/components/graph/GraphDataSource'
 import { SkillTranscript } from '@/components/SkillTranscript'
 import { StatusBadge, statusDot, statusTone } from '@/components/StatusBadge'
 import { Badge } from '@/components/ui/badge'
@@ -23,6 +21,7 @@ import { readStats } from '@/lib/blocks/runStats'
 import { useLocaleFormat } from '@/lib/i18n/datetime'
 import { useBatchStatus, useCoverage, useSkills } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
+import { useGraphNavigation } from '@/lib/useGraphNavigation'
 import { useRun } from '@/lib/useRun'
 import { useTabNavigation } from '@/lib/useTabNavigation'
 import { cn } from '@/lib/utils'
@@ -452,6 +451,7 @@ function CardDetail({ workspaceId, card, stage, stages, canRun, onClose }: {
   const language = i18n.language
   const { formatRelativeTime } = useLocaleFormat()
   const navigation = useTabNavigation()
+  const graph = useGraphNavigation()
   const [view, setView] = useState<'facts' | 'reasoning' | typeof TRANSCRIPT_VIEW>('facts')
   const run = useRun(workspaceId, card.lastRun?.runId ?? null)
   const events = run?.events ?? []
@@ -558,12 +558,20 @@ function CardDetail({ workspaceId, card, stage, stages, canRun, onClose }: {
                       )}
                     </div>
                     {card.nodeIds.length > 0 && (
-                      // The document's own slice, drawn by the graph surface
-                      // itself. Twelve nodes named as a number make a reader go
-                      // and find them, and this is where they are.
-                      <div className="mt-2 h-64 overflow-hidden rounded-md border border-border">
-                        <DocumentSlice workspaceId={workspaceId} nodeIds={card.nodeIds} />
-                      </div>
+                      // Opened on the graph surface rather than drawn here. A
+                      // slice this size is unreadable in a side panel, and a
+                      // node clicked inside one has nowhere to put its detail.
+                      <button
+                        type="button"
+                        onClick={() => graph?.focusNodes(card.nodeIds)}
+                        className="mt-2 flex min-h-8 w-full items-center gap-2 rounded-md border border-border px-2 py-1.5 text-left transition-colors hover:bg-accent"
+                      >
+                        <Network className="size-3 shrink-0 text-muted-foreground" />
+                        <span className="flex-1 truncate text-2xs text-foreground">
+                          {t('build.openInGraph', { count: card.nodeIds.length })}
+                        </span>
+                        <ArrowRight className="size-3 shrink-0 text-muted-foreground" />
+                      </button>
                     )}
                   </section>
 
@@ -592,14 +600,6 @@ function CardDetail({ workspaceId, card, stage, stages, canRun, onClose }: {
       </DetailPanel>
     </aside>
   )
-}
-
-/** This document's nodes, drawn the way every other subgraph in Studio is. */
-function DocumentSlice({ workspaceId, nodeIds }: { workspaceId: string, nodeIds: readonly NodeId[] }) {
-  const source = useSubgraphDataSource(workspaceId, nodeIds)
-  if (source.isEmpty)
-    return null
-  return <GraphCanvas workspaceId={workspaceId} source={source} embedded focusMode />
 }
 
 /**

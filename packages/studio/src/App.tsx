@@ -8,6 +8,7 @@ import { BatchInFlightBanner } from './components/BatchInFlightBanner'
 import { CommandPalette } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
 import { EmbeddingRebuildBanner } from './components/EmbeddingRebuildBanner'
+import { useSubgraphDataSource } from './components/graph/GraphDataSource'
 import { InFlightRunBanner } from './components/InFlightRunBanner'
 import { PageActions, PageActionsHost, PageActionsProvider } from './components/PageActions'
 import { ReactorBanner } from './components/ReactorBanner'
@@ -16,6 +17,7 @@ import { ReferenceRegistryProvider } from './components/references/ReferenceRegi
 import { Sidebar } from './components/Sidebar'
 import { SourceAuthBanner } from './components/SourceAuthBanner'
 import { SourceSyncBanner } from './components/SourceSyncBanner'
+import { Button } from './components/ui/button'
 import { TooltipProvider } from './components/ui/tooltip'
 import { UserPicker } from './components/UserPicker'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
@@ -75,7 +77,7 @@ function AppInner() {
   // Lifted out of the palette so a visible control can open it,
   // rather than the shortcut being the only way in.
   const [paletteOpen, setPaletteOpen] = useState(false)
-  const { setSelectedNodeId, setSelectedEdgeId, setFocusMode, requestCenter } = graphSurfaceState
+  const { setSelectedNodeId, setSelectedEdgeId, setFocusMode, requestCenter, setSlice } = graphSurfaceState
   // One-shot deep-link target for the Proposals surface.
   // ProposalsPage consumes and clears it once it selects the matching item.
   const [focusedProposalId, setFocusedProposalId] = useState<ProposalId | null>(null)
@@ -131,10 +133,17 @@ function AppInner() {
     setActiveSurface('graph')
   }, [])
 
-  const graphNavigation = useMemo(() => ({ focusNode, focusEdge }), [focusNode, focusEdge])
+  const focusNodes = useCallback((ids: readonly NodeId[]) => {
+    setSlice(ids)
+    setSelectedNodeId(null)
+    setActiveSurface('graph')
+  }, [setSlice, setSelectedNodeId])
+
+  const graphNavigation = useMemo(() => ({ focusNode, focusEdge, focusNodes }), [focusNode, focusEdge, focusNodes])
 
   // The Inbox is where a change is reviewed, so that is where a link to one
   // lands. The Proposals surface stays reachable for browsing settled records.
+
   const focusProposal = useCallback((id: ProposalId) => {
     setFocusedProposalId(id)
     setActiveSurface('inbox')
@@ -293,7 +302,10 @@ function GraphHomeView({ workspaceId, state, onStartBootstrap, onOpenSearch }: {
   onStartBootstrap: () => void
   onOpenSearch: () => void
 }) {
-  const { view, setView, selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode, centerRequest, requestCenter } = state
+  const { t } = useTranslation()
+  const { view, setView, selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode, centerRequest, requestCenter, slice, clearSlice } = state
+  // Narrowed to what somebody arrived to look at, until they say otherwise.
+  const sliced = useSubgraphDataSource(workspaceId, slice)
 
   // This surface already shows node detail,
   // so a reference swaps that panel rather than opening an identical one.
@@ -315,8 +327,15 @@ function GraphHomeView({ workspaceId, state, onStartBootstrap, onOpenSearch }: {
             onFocusChange={setFocusMode}
           />
         </PageActions>
+        {slice.length > 0 && (
+          <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2">
+            <span className="text-2xs text-muted-foreground">{t('graph.slice.showing', { count: slice.length })}</span>
+            <Button size="xs" variant="ghost" onClick={clearSlice}>{t('graph.slice.clear')}</Button>
+          </div>
+        )}
         <GraphSurface
           workspaceId={workspaceId}
+          {...(slice.length > 0 ? { source: sliced } : {})}
           view={view}
           selectedNodeId={selectedNodeId}
           onSelectNode={setSelectedNodeId}

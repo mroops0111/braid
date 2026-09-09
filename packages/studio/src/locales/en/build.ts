@@ -24,6 +24,7 @@ export const build = {
   reviewChange: 'Review the change',
   answerQuestions: 'Answer {count} questions',
   neverRead: 'Nothing has read this yet.',
+  openInGraph: 'Open {count} nodes in the graph',
   runGlobal: 'Run',
   runColumn: 'Run All',
   runUnit: 'Run {skill}',

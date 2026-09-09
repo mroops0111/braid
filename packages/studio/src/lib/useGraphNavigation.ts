@@ -14,6 +14,15 @@ import { createContext, useContext } from 'react'
 export interface GraphNavigation {
   focusNode: (id: NodeId) => void
   focusEdge: (id: EdgeId) => void
+  /**
+   * Open the graph showing only these nodes and one hop around them.
+   *
+   * A set rather than a node, because what a reader wants to see is often a
+   * slice: everything one document put into the model, say. Drawing that in a
+   * side panel makes it too small to read, and the graph surface is already
+   * the thing built to show it.
+   */
+  focusNodes: (ids: readonly NodeId[]) => void
 }
 
 export const GraphNavigationContext = createContext<GraphNavigation | null>(null)

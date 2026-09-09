@@ -98,18 +98,26 @@ export function GraphSurface({
 }
 
 /** Hook bundling the shared state pages typically hoist for the surface. */
+const NO_SLICE: readonly NodeId[] = Object.freeze([])
+
 export function useGraphSurfaceState(initialView: GraphView = 'visualization') {
   const [view, setView] = useState<GraphView>(initialView)
   const selection = useFocusedSelection()
   // A counter, not a boolean, so two arrivals at the same node both pan.
   const [centerRequest, setCenterRequest] = useState(0)
   const requestCenter = useCallback(() => setCenterRequest(current => current + 1), [])
+  // A slice somebody arrived with, empty when they are reading the whole graph.
+  const [slice, setSlice] = useState<readonly NodeId[]>(NO_SLICE)
+  const clearSlice = useCallback(() => setSlice(NO_SLICE), [])
   return {
     view,
     setView,
     ...selection,
     centerRequest,
     requestCenter,
+    slice,
+    setSlice,
+    clearSlice,
   }
 }
 

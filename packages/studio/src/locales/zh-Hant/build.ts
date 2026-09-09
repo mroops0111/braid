@@ -24,6 +24,7 @@ export const build = {
   reviewChange: '前往審查這筆改動',
   answerQuestions: '回答 {count} 個問題',
   neverRead: '還沒有任何執行讀過它。',
+  openInGraph: '在圖譜中開啟這 {count} 個節點',
   runGlobal: '執行',
   runColumn: '全部執行',
   runUnit: '執行 {skill}',
