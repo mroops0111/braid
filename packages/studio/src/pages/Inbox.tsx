@@ -1,18 +1,22 @@
-import type { Clarification, CoverageCard, Proposal, ProposalId } from '@braidhq/schema'
+import type { Clarification, CoverageCard, CoverageStage, Locale, Proposal, ProposalId } from '@braidhq/schema'
 import type { TranslationKey } from '@/lib/i18n'
+import { localize } from '@braidhq/schema'
 import { Inbox as InboxIcon, Loader2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RunBlocks } from '@/components/blocks/RunBlocks'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
+import { SkillTranscript } from '@/components/SkillTranscript'
 import { SurfaceLayout } from '@/components/SurfaceLayout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
+import { TRANSCRIPT_VIEW } from '@/lib/blocks/audience'
 import { useClarificationByStatus, useCoverage, useProposalsByStatus } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
+import { useRun } from '@/lib/useRun'
 import { cn } from '@/lib/utils'
 import { ClarificationDetail, questionExcerpt } from './Clarification'
 import { ProposalDetail } from './Proposals'
@@ -44,7 +48,7 @@ type KindFilter = 'all' | 'asked' | 'proposal'
  * things a reviewer wants one at a time, the thing to decide and the reasoning
  * behind it, so each takes the pane rather than half of it.
  */
-type DetailView = 'record' | 'reasoning'
+type DetailView = 'record' | 'reasoning' | typeof TRANSCRIPT_VIEW
 
 export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
   workspaceId: string
@@ -149,6 +153,7 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
                 <InboxRow
                   key={item.id}
                   item={item}
+                  stageLabels={coverage.data?.stages ?? []}
                   active={item.id === selectedId}
                   onSelect={() => setSelectedId(item.id)}
                 />
@@ -245,29 +250,41 @@ function ItemDetail({ workspaceId, item, onComplete, onAnswered }: {
   // Which of a parked run's questions is open. The run is one item, so moving
   // between its questions must not move the reader off it.
   const [questionId, setQuestionId] = useState<string | null>(null)
-
-  const openQuestion = item.kind === 'parked'
-    ? item.questions.find(question => question.id === questionId) ?? item.questions[0]!
-    : item.kind === 'question' ? item.record : null
-
   const runId = item.kind === 'running'
     ? item.id
     : item.kind === 'parked'
       ? item.id
       : item.kind === 'question' ? item.record.skillRunId : item.record.skillRunId
+  const run = useRun(workspaceId, runId ?? null)
+  const events = run?.events ?? []
+
+  useEffect(() => {
+    if (runId)
+      runStore.loadRun(workspaceId, runId, 'inbox')
+  }, [workspaceId, runId])
+
+  const openQuestion = item.kind === 'parked'
+    ? item.questions.find(question => question.id === questionId) ?? item.questions[0]!
+    : item.kind === 'question' ? item.record : null
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {/* The same control the Ask surface uses, because these are the same
+          act: choosing which reading of one run you want. */}
       <div className="shrink-0 border-b border-border px-4">
         <Tabs value={view} onValueChange={value => setView(value as DetailView)}>
-          <TabsList variant="line">
+          <TabsList variant="line" className="h-8">
             {item.kind !== 'running' && (
-              <TabsTrigger value="record">
+              <TabsTrigger value="record" className="text-2xs">
                 {t(item.kind === 'proposal' ? 'inbox.view.change' : 'inbox.view.question')}
               </TabsTrigger>
             )}
-            <TabsTrigger value="reasoning">
+            <TabsTrigger value="reasoning" className="text-2xs">
               {t(item.kind === 'running' ? 'inbox.view.live' : 'inbox.view.reasoning')}
+            </TabsTrigger>
+            <TabsTrigger value={TRANSCRIPT_VIEW} className="gap-1.5 text-2xs">
+              {t('ask.view.transcript')}
+              {events.length > 0 && <span className="font-mono text-muted-foreground/60">{events.length}</span>}
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -291,39 +308,48 @@ function ItemDetail({ workspaceId, item, onComplete, onAnswered }: {
         </div>
       )}
       <div className="flex min-h-0 flex-1 flex-col">
-        {view === 'reasoning'
-          ? (
-              <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
-                <RunBlocks workspaceId={workspaceId} runId={runId} />
-              </div>
-            )
-          : openQuestion
+        {view === TRANSCRIPT_VIEW
+          ? <SkillTranscript events={[...events]} error={run?.error ?? null} running={run?.phase === 'streaming'} />
+          : view === 'reasoning'
             ? (
-                <ClarificationDetail
-                  key={openQuestion.id}
-                  workspaceId={workspaceId}
-                  ticket={openQuestion}
-                  onComplete={item.kind === 'parked' && item.questions.length > 1 ? () => {} : onComplete}
-                  onAnswered={onAnswered}
-                />
+                <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+                  <RunBlocks workspaceId={workspaceId} runId={runId} />
+                </div>
               )
-            : item.kind === 'proposal'
+            : openQuestion
               ? (
-                  <ProposalDetail
+                  <ClarificationDetail
+                    key={openQuestion.id}
                     workspaceId={workspaceId}
-                    proposal={item.record}
-                    onComplete={onComplete}
+                    ticket={openQuestion}
+                    onComplete={item.kind === 'parked' && item.questions.length > 1 ? () => {} : onComplete}
+                    onAnswered={onAnswered}
                   />
                 )
-              : null}
+              : item.kind === 'proposal'
+                ? (
+                    <ProposalDetail
+                      workspaceId={workspaceId}
+                      proposal={item.record}
+                      onComplete={onComplete}
+                    />
+                  )
+                : null}
       </div>
     </div>
   )
 }
 
-function InboxRow({ item, active, onSelect }: { item: Item, active: boolean, onSelect: () => void }) {
+function InboxRow({ item, active, onSelect, stageLabels }: {
+  item: Item
+  active: boolean
+  onSelect: () => void
+  /** What the ontology calls each step, so no row shows a skill id. */
+  stageLabels: readonly CoverageStage[]
+}) {
   const { t } = useTranslation()
-  const { label, title, source } = describe(item)
+  const { i18n } = useTranslation()
+  const { label, title, source } = describe(item, stageLabels, i18n.language)
 
   return (
     <ListRow active={active} onClick={onSelect} {...(active ? { stripeClassName: 'bg-primary' } : {})}>
@@ -347,10 +373,21 @@ function InboxRow({ item, active, onSelect }: { item: Item, active: boolean, onS
   )
 }
 
-function describe(item: Item): { label: TranslationKey, title: string, source: string | undefined } {
+function nameStep(skillId: string | undefined, stages: readonly CoverageStage[], locale: string): string | undefined {
+  if (!skillId)
+    return undefined
+  const stage = stages.find(item => item.skillId === skillId)
+  return stage?.label ? localize(stage.label, locale as Locale) : skillId
+}
+
+function describe(
+  item: Item,
+  stages: readonly CoverageStage[],
+  locale: string,
+): { label: TranslationKey, title: string, source: string | undefined } {
   switch (item.kind) {
     case 'running':
-      return { label: 'inbox.kind.running', title: item.card.name, source: item.card.lastRun?.skillId }
+      return { label: 'inbox.kind.running', title: item.card.name, source: nameStep(item.card.lastRun?.skillId, stages, locale) }
     case 'parked':
       return {
         label: item.questions.length > 1 ? 'inbox.kind.questions' : 'inbox.kind.question',
@@ -360,7 +397,7 @@ function describe(item: Item): { label: TranslationKey, title: string, source: s
     case 'question':
       return { label: 'inbox.kind.question', title: questionExcerpt(item.record.question), source: item.record.skillRunId }
     case 'proposal':
-      return { label: 'inbox.kind.change', title: item.record.rationale, source: item.record.generatedBy }
+      return { label: 'inbox.kind.change', title: item.record.rationale, source: nameStep(item.record.generatedBy, stages, locale) }
     default: {
       const exhaustive: never = item
       throw new Error(`Unhandled inbox item: ${JSON.stringify(exhaustive)}`)

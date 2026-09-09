@@ -1,11 +1,13 @@
 import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { collectBlocks } from '@/lib/blocks/collectBlocks'
+import { summariseActivity } from '@/lib/blocks/runActivity'
 import { EvidenceDetailContext, PendingOperationsContext, WorkspaceScopeContext } from '@/lib/blocks/WorkspaceScopeContext'
 import { usePendingProposals } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
 import { useRun } from '@/lib/useRun'
 import { renderBlock } from './renderBlock'
+import { RunActivity } from './RunActivity'
 
 /**
  * The reasoning behind a record, read from the run that produced it.
@@ -15,8 +17,11 @@ import { renderBlock } from './renderBlock'
  * this replays that working beside the thing it produced, using the same
  * renderers the Ask surface uses rather than a second presentation of its own.
  *
- * Renders nothing at all when the run emitted no blocks, which is every run by
- * a skill that has not adopted the protocol. Those still have their transcript.
+ * Blocks arrive near the end of a long run, so until then this shows what the
+ * stream has been carrying the whole time: the agent's own narration and what
+ * it has read. A pane that says nothing for four minutes reads as broken, and
+ * the run was never actually silent.
+
  *
  * The run's own unapplied proposals ride along in context, because a run that
  * proposes drew its slice against the graph it was asking for, not the graph
@@ -48,13 +53,10 @@ export function RunBlocks({ workspaceId, runId, heading, note }: {
 
   if (!runId)
     return null
-  const blocks = collectBlocks(run?.events ?? [])
-  // A long run replays in seconds, not instantly, and rendering nothing until
-  // it lands reads as a broken pane rather than a loading one. Silence is only
-  // right once the run has finished and turned out to have nothing to show.
-  const settled = run?.phase === 'done' || run?.phase === 'error'
-  if (blocks.length === 0 && settled)
-    return null
+  const events = run?.events ?? []
+  const blocks = collectBlocks(events)
+  const running = run?.phase === 'streaming'
+  const activity = summariseActivity(events)
 
   return (
     <WorkspaceScopeContext value={workspaceId}>
@@ -65,11 +67,13 @@ export function RunBlocks({ workspaceId, runId, heading, note }: {
               {heading ?? t('inbox.reasoning')}
             </h2>
             {note && <p className="text-2xs text-muted-foreground">{note}</p>}
-            {blocks.length === 0
-              ? <p className="text-xs text-muted-foreground">{t('inbox.reasoningLoading')}</p>
-              : blocks.map(({ id, block }) => (
-                  <div key={id}>{renderBlock(block)}</div>
-                ))}
+            {running && <RunActivity activity={activity} />}
+            {blocks.map(({ id, block }) => (
+              <div key={id}>{renderBlock(block)}</div>
+            ))}
+            {blocks.length === 0 && !running && events.length === 0 && (
+              <p className="text-xs text-muted-foreground">{t('inbox.reasoningLoading')}</p>
+            )}
           </section>
         </EvidenceDetailContext>
       </PendingOperationsContext>

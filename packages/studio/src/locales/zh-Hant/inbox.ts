@@ -12,6 +12,7 @@ export const inbox = {
   reasoningLoading: '正在讀取執行紀錄…',
   questionIndex: '第 {index} 題',
   answeredWaiting: '{count} 題已回答，等待讀取它們的步驟執行。',
+  transcript: '原始執行紀錄 ({count} 筆事件)',
   untitled: '沒有說明',
 }
 

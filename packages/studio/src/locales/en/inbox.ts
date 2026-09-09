@@ -12,6 +12,7 @@ export const inbox = {
   reasoningLoading: 'Loading the run record…',
   questionIndex: 'Q{index}',
   answeredWaiting: '{count} answered, waiting for the step that reads them.',
+  transcript: 'Run record ({count} events)',
   untitled: 'no description',
 }
 
