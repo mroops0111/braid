@@ -14,6 +14,8 @@ export const build = {
   },
   stageWaiting: '{count} 件待處理',
   busy: '建構中，一次只跑一個。',
+  starting: '啟動中…',
+  liveCounts: '已讀 {reads} 次 · 產出 {blocks} 段',
   runGlobal: '執行',
   runColumn: '全部執行',
   runUnit: '執行 {skill}',

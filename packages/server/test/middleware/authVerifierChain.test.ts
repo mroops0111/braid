@@ -97,3 +97,44 @@ describe('auth verifier chain', () => {
     expect((await app.request('/who', bearer)).status).toBe(200)
   })
 })
+
+describe('stale run credentials under local trust', () => {
+  function localTrustApp(verifiers: readonly AccessTokenVerifier[] = []) {
+    const app = new Hono()
+    app.use('*', authMiddleware({
+      requireAuth: false,
+      defaultPrincipal: 'local-user' as UserId,
+      accessTokenVerifiers: verifiers,
+    }))
+    app.onError((error, context) => context.json({ message: error.message }, 401))
+    app.get('/who', context => context.json({ userId: getUserId(context) }))
+    return app
+  }
+
+  // A credential that was issued and no longer resolves is a credential, not
+  // the absence of one. Letting it through as the anonymous caller is what
+  // let a subprocess outliving its server keep writing, unattributed.
+  it('refuses a run credential nothing recognises', async () => {
+    const response = await localTrustApp().request('/who', {
+      headers: { authorization: 'Bearer braid-run.gone' },
+    })
+    expect(response.status).toBe(401)
+  })
+
+  it('still lets a live run credential through', async () => {
+    const app = localTrustApp([
+      { verify: async () => ({ userId: 'author' as UserId, skillRunId: 'skill-run-1' as never }) },
+    ])
+    const response = await app.request('/who', {
+      headers: { authorization: 'Bearer braid-run.live' },
+    })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ userId: 'author' })
+  })
+
+  // Local trust exists so a browser with no credential at all is allowed.
+  it('leaves the credential-free caller alone', async () => {
+    const response = await localTrustApp().request('/who')
+    expect(await response.json()).toEqual({ userId: 'local-user' })
+  })
+})

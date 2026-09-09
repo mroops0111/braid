@@ -97,6 +97,8 @@ export const review = {
     answerWithCustomButton: 'Answer with Custom',
     answerWithButton: 'Answer with {letter}',
     answerButton: 'Answer',
+    deferButton: 'Later',
+    deferHint: 'Let the run carry on without this answer. The question stays, and the step that reads answered ones picks it up.',
     skipButton: 'Skip…',
     addOwnAnswer: 'Add My Own Answer',
     customAnswer: 'Custom Answer',

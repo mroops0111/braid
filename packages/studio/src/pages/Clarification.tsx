@@ -1,6 +1,6 @@
 import type { Clarification, ClarificationCandidate, ClarificationStatus, ExternalReference, GraphOperation, NodeId, ProposalId } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, ExternalLink, Inbox, Pencil, Plus, SkipForward, X } from 'lucide-react'
+import { Check, Clock, ExternalLink, Inbox, Pencil, Plus, SkipForward, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
@@ -403,6 +403,17 @@ export function ClarificationDetail({
     },
   })
 
+  // Deferring gives up the conversation, not the question. Only a question a
+  // run is actually parked on has a conversation to give up, so it is offered
+  // nowhere else.
+  const defer = useMutation({
+    mutationFn: () => api.deferClarification(workspaceId, ticket.id),
+    onSuccess: () => {
+      invalidateClarification()
+      onComplete()
+    },
+  })
+
   const skip = useMutation({
     mutationFn: (reason: string) =>
       api.skipClarification(workspaceId, ticket.id, reason),
@@ -528,6 +539,18 @@ export function ClarificationDetail({
                     <SkipForward />
                     {t('review.clarify.skipButton')}
                   </Button>
+                  {ticket.answerMode === 'resumes' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title={t('review.clarify.deferHint')}
+                      disabled={answer.isPending || defer.isPending}
+                      onClick={() => defer.mutate()}
+                    >
+                      <Clock />
+                      {t('review.clarify.deferButton')}
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     disabled={!canAnswer}

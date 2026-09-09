@@ -1,7 +1,7 @@
 import type { CoverageBoard, CoverageCard, CoverageStage, CoverageState, ProposalId } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CircleDashed, CircleSlash, FileText, Loader2, MessageCircleQuestion, RefreshCw, ShieldCheck } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RunBlocks } from '@/components/blocks/RunBlocks'
 import { EmptyState } from '@/components/EmptyState'
@@ -10,8 +10,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { api } from '@/lib/api'
+import { summariseActivity } from '@/lib/blocks/runActivity'
 import { useBatchStatus, useCoverage, useSkills } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
+import { useRun } from '@/lib/useRun'
 import { useTabNavigation } from '@/lib/useTabNavigation'
 import { cn } from '@/lib/utils'
 import { useWorkspacePolicy } from '@/policy'
@@ -116,6 +118,7 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
             {columns.map(column => (
               <Column
                 key={column.state}
+                workspaceId={workspaceId}
                 state={column.state}
                 cards={column.cards}
                 selectedKey={selectedKey}
@@ -291,7 +294,8 @@ function StageStrip({ board, workspaceId, canRun, busy, onOpenInbox }: {
  * repeating what its own column already says is noise, and seven tinted
  * borders across a board read as decoration rather than as meaning.
  */
-function Column({ state, cards, selectedKey, onSelect, onRunAll }: {
+function Column({ workspaceId, state, cards, selectedKey, onSelect, onRunAll }: {
+  workspaceId: string
   state: CoverageState
   cards: readonly CoverageCard[]
   selectedKey: string | null
@@ -324,6 +328,7 @@ function Column({ state, cards, selectedKey, onSelect, onRunAll }: {
               {cards.map(card => (
                 <UnitCard
                   key={keyOf(card)}
+                  workspaceId={workspaceId}
                   card={card}
                   active={keyOf(card) === selectedKey}
                   onClick={() => onSelect(keyOf(card))}
@@ -335,7 +340,42 @@ function Column({ state, cards, selectedKey, onSelect, onRunAll }: {
   )
 }
 
-function UnitCard({ card, active, onClick }: { card: CoverageCard, active: boolean, onClick: () => void }) {
+/**
+ * What the run on this card is doing, while it is doing it.
+ *
+ * A spinner says only that something is happening. The stream has carried the
+ * work the whole time, so the card says which file is being read and how much
+ * has come back, and a reader can tell a run that is working from one that is
+ * stuck without opening it.
+ *
+ * Only ever one of these on screen, since one build runs at a time.
+ */
+function LiveLine({ workspaceId, runId }: { workspaceId: string, runId: string }) {
+  const { t } = useTranslation()
+  const run = useRun(workspaceId, runId)
+
+  useEffect(() => {
+    runStore.loadRun(workspaceId, runId, 'build')
+  }, [workspaceId, runId])
+
+  const activity = summariseActivity(run?.events ?? [])
+  const reads = activity.sourceReads + activity.graphQueries
+
+  return (
+    <span className="flex flex-col gap-0.5 border-t border-border pt-1">
+      <span className="line-clamp-2 text-2xs leading-snug text-muted-foreground">
+        {activity.narration ?? t('build.starting')}
+      </span>
+      {(reads > 0 || activity.blocks > 0) && (
+        <span className="font-mono text-2xs text-muted-foreground/70">
+          {t('build.liveCounts', { reads, blocks: activity.blocks })}
+        </span>
+      )}
+    </span>
+  )
+}
+
+function UnitCard({ workspaceId, card, active, onClick }: { workspaceId: string, card: CoverageCard, active: boolean, onClick: () => void }) {
   const { t } = useTranslation()
 
   return (
@@ -354,6 +394,9 @@ function UnitCard({ card, active, onClick }: { card: CoverageCard, active: boole
           <span className="truncate">{card.sourceId}</span>
           {card.nodeCount > 0 && <span className="shrink-0">{t('build.nodes', { count: card.nodeCount })}</span>}
         </span>
+        {card.state === 'running' && card.lastRun && (
+          <LiveLine workspaceId={workspaceId} runId={card.lastRun.runId} />
+        )}
         {(card.proposalIds.length > 0 || card.clarificationIds.length > 0 || card.driftIssueIds.length > 0) && (
           <span className="flex flex-wrap gap-1 pt-0.5">
             {card.proposalIds.length > 0 && <Chip>{t('build.proposals', { count: card.proposalIds.length })}</Chip>}

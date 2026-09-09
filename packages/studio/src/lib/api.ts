@@ -477,6 +477,12 @@ export const api = {
         ...(note ? { note } : {}),
       }),
     }),
+  /** Stop the run waiting on this, keeping the question. Unlike skip, which discards it. */
+  deferClarification: (workspaceId: string, clarificationId: string) =>
+    fetchJson<Clarification>(`/workspaces/${workspaceId}/clarifications/${clarificationId}/defer`, {
+      method: 'POST',
+    }),
+
   skipClarification: (workspaceId: string, clarificationId: string, reason: string) =>
     fetchJson<Clarification>(`/workspaces/${workspaceId}/clarifications/${clarificationId}/skip`, {
       method: 'POST',

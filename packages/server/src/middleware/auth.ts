@@ -4,6 +4,7 @@ import type { AccessTokenVerifier, VerifiedCaller } from '../infrastructure/auth
 import type { SessionStore } from '../infrastructure/auth/SessionStore.js'
 import { UnauthorizedError } from '@braidhq/core'
 import { UserId } from '@braidhq/schema'
+import { RUN_TOKEN_PREFIX } from '../infrastructure/skill/RunTokenRegistry.js'
 
 declare module 'hono' {
   interface ContextVariableMap {
@@ -113,6 +114,12 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
         await next()
         return undefined
       }
+      // A run credential that no longer resolves is a credential, not the
+      // absence of one, so it must not fall through to the anonymous caller
+      // local trust allows. That is what let a run outliving the process that
+      // issued its token keep writing, unattributed, after being reaped.
+      if (token?.startsWith(RUN_TOKEN_PREFIX))
+        throw new UnauthorizedError('That run credential is no longer valid. The run it belonged to is over.')
       const session = token ? await options.sessionStore?.resolve(token) : undefined
       if (session) {
         context.set('userId', session.userId)

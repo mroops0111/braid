@@ -16,9 +16,15 @@ import { randomUUID } from 'node:crypto'
  * reaches exactly what its author could reach, as it did when it carried their
  * own token.
  *
- * Held in memory only. A run does not outlive the process that spawned it, so
- * neither should the credential that lets it call home.
+ * Held in memory only, and deliberately. A subprocess does outlive the process
+ * that spawned it, but its run does not: nothing is draining its events and
+ * the startup reaper has already marked it aborted. Its credential going with
+ * the process is therefore the point, and an unrecognised one is refused
+ * rather than treated as no credential at all.
  */
+/** What every issued run credential starts with, so a stale one is knowable. */
+export const RUN_TOKEN_PREFIX = 'braid-run.'
+
 export class RunTokenRegistry implements AccessTokenVerifier {
   private readonly byToken = new Map<string, { runId: SkillRunId, userId: UserId }>()
   private readonly byRun = new Map<SkillRunId, string>()
@@ -27,7 +33,7 @@ export class RunTokenRegistry implements AccessTokenVerifier {
     const existing = this.byRun.get(runId)
     if (existing)
       return existing
-    const token = `braid-run.${randomUUID()}`
+    const token = `${RUN_TOKEN_PREFIX}${randomUUID()}`
     this.byToken.set(token, { runId, userId })
     this.byRun.set(runId, token)
     return token

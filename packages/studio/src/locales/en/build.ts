@@ -14,6 +14,8 @@ export const build = {
   },
   stageWaiting: '{count} waiting',
   busy: 'Building. One at a time.',
+  starting: 'Starting…',
+  liveCounts: '{reads} read · {blocks} rendered',
   runGlobal: 'Run',
   runColumn: 'Run All',
   runUnit: 'Run {skill}',
