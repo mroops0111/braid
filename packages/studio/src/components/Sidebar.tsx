@@ -540,14 +540,6 @@ function HereSection({
         </div>
       )}
       <ul className="space-y-px">
-        <HereRow
-          collapsed={collapsed}
-          icon={Network}
-          label={t('shell.surfaces.graph')}
-          active={activeSurface === 'graph'}
-          shortcut="G G"
-          onClick={onGoHome}
-        />
         {canAsk && (
           <HereRow
             collapsed={collapsed}
@@ -558,6 +550,14 @@ function HereSection({
             onClick={() => onSelectSurface('ask')}
           />
         )}
+        <HereRow
+          collapsed={collapsed}
+          icon={Network}
+          label={t('shell.surfaces.graph')}
+          active={activeSurface === 'graph'}
+          shortcut="G G"
+          onClick={onGoHome}
+        />
         {canRunActions && (
           <HereRow
             collapsed={collapsed}
