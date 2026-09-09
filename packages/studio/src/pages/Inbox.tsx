@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
 import { TRANSCRIPT_VIEW } from '@/lib/blocks/audience'
+import { formatStats, readStats } from '@/lib/blocks/runStats'
 import { useClarificationByStatus, useCoverage, useProposalsByStatus } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
 import { useRun } from '@/lib/useRun'
@@ -257,6 +258,7 @@ function ItemDetail({ workspaceId, item, onComplete, onAnswered }: {
       : item.kind === 'question' ? item.record.skillRunId : item.record.skillRunId
   const run = useRun(workspaceId, runId ?? null)
   const events = run?.events ?? []
+  const stats = readStats(events)
 
   useEffect(() => {
     if (runId)
@@ -267,28 +269,47 @@ function ItemDetail({ workspaceId, item, onComplete, onAnswered }: {
     ? item.questions.find(question => question.id === questionId) ?? item.questions[0]!
     : item.kind === 'question' ? item.record : null
 
+  const headline = item.kind === 'running'
+    ? item.card.name
+    : item.kind === 'proposal'
+      ? item.record.rationale
+      : questionExcerpt(openQuestion?.question ?? '')
+
+  // The same control the Ask surface uses, in the same place: the header row,
+  // beside whatever the record can be done to. One band rather than two, and
+  // the choice does not move when the view changes.
+  const viewToggle = (
+    <Tabs value={view} onValueChange={value => setView(value as DetailView)}>
+      <TabsList variant="line" className="h-8">
+        {item.kind !== 'running' && (
+          <TabsTrigger value="record" className="text-2xs">
+            {t(item.kind === 'proposal' ? 'inbox.view.change' : 'inbox.view.question')}
+          </TabsTrigger>
+        )}
+        <TabsTrigger value="reasoning" className="text-2xs">
+          {t(item.kind === 'running' ? 'inbox.view.live' : 'inbox.view.reasoning')}
+        </TabsTrigger>
+        <TabsTrigger value={TRANSCRIPT_VIEW} className="gap-1.5 text-2xs">
+          {t('ask.view.transcript')}
+          {events.length > 0 && <span className="font-mono text-muted-foreground/60">{events.length}</span>}
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
+  )
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* The same control the Ask surface uses, because these are the same
-          act: choosing which reading of one run you want. */}
-      <div className="shrink-0 border-b border-border px-4">
-        <Tabs value={view} onValueChange={value => setView(value as DetailView)}>
-          <TabsList variant="line" className="h-8">
-            {item.kind !== 'running' && (
-              <TabsTrigger value="record" className="text-2xs">
-                {t(item.kind === 'proposal' ? 'inbox.view.change' : 'inbox.view.question')}
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="reasoning" className="text-2xs">
-              {t(item.kind === 'running' ? 'inbox.view.live' : 'inbox.view.reasoning')}
-            </TabsTrigger>
-            <TabsTrigger value={TRANSCRIPT_VIEW} className="gap-1.5 text-2xs">
-              {t('ask.view.transcript')}
-              {events.length > 0 && <span className="font-mono text-muted-foreground/60">{events.length}</span>}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+      {view !== 'record' && (
+        // The record's own header carries the toggle when it is showing. The
+        // other views have no header of their own, so this is theirs.
+        <header className="flex min-h-11 shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-foreground">{headline}</p>
+            {stats && <p className="font-mono text-2xs text-muted-foreground">{formatStats(stats)}</p>}
+          </div>
+          {viewToggle}
+        </header>
+      )}
       {item.kind === 'parked' && item.questions.length > 1 && view === 'record' && (
         // One run, several doubts. They are answered together, so they share
         // an item, and this is how a reader moves between them without losing
@@ -324,6 +345,7 @@ function ItemDetail({ workspaceId, item, onComplete, onAnswered }: {
                     ticket={openQuestion}
                     onComplete={item.kind === 'parked' && item.questions.length > 1 ? () => {} : onComplete}
                     onAnswered={onAnswered}
+                    viewToggle={viewToggle}
                   />
                 )
               : item.kind === 'proposal'
@@ -332,6 +354,7 @@ function ItemDetail({ workspaceId, item, onComplete, onAnswered }: {
                       workspaceId={workspaceId}
                       proposal={item.record}
                       onComplete={onComplete}
+                      viewToggle={viewToggle}
                     />
                   )
                 : null}

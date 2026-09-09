@@ -359,6 +359,7 @@ export function ClarificationDetail({
   ticket,
   onComplete,
   onAnswered,
+  viewToggle,
 }: {
   workspaceId: string
   ticket: Clarification
@@ -369,6 +370,8 @@ export function ClarificationDetail({
    * where it stopped instead of waiting for someone to start it again.
    */
   onAnswered?: (ticket: Clarification) => void
+  /** Which reading of this run the surface is on, rendered in this header. */
+  viewToggle?: React.ReactNode
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -490,6 +493,7 @@ export function ClarificationDetail({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {viewToggle}
           <StatusBadge status={ticket.status} />
         </div>
       </header>

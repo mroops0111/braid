@@ -1,4 +1,4 @@
-import type { AudienceDescriptor, EvidenceDetail, Locale, SkillEvent, SkillManifest } from '@braidhq/schema'
+import type { AudienceDescriptor, EvidenceDetail, Locale, SkillManifest } from '@braidhq/schema'
 import { localize } from '@braidhq/schema'
 import { useMutation } from '@tanstack/react-query'
 import { MessageCircleQuestion, PanelLeftClose, PanelLeftOpen, Plus, Send, X } from 'lucide-react'
@@ -17,6 +17,7 @@ import { api } from '@/lib/api'
 import { type AnswerView, TRANSCRIPT_VIEW, useAnswerView, visibleBlocks } from '@/lib/blocks/audience'
 import { collectTurns } from '@/lib/blocks/collectBlocks'
 import { summariseActivity } from '@/lib/blocks/runActivity'
+import { formatStats, readStats } from '@/lib/blocks/runStats'
 import { EvidenceDetailContext, WorkspaceScopeContext } from '@/lib/blocks/WorkspaceScopeContext'
 import { useOntology, useRuns, useSessionMetadata, useSkills } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
@@ -30,39 +31,7 @@ function detailFor(view: AnswerView, audiences: readonly AudienceDescriptor[]): 
   return audiences.find(audience => audience.id === view)?.evidenceDetail ?? 'full'
 }
 
-interface RunStats {
-  readonly turns?: number
-  readonly durationMs?: number
-  readonly costUsd?: number
-}
-
 /** The run's own accounting, so a reader can see what an answer cost to produce. */
-function readStats(events: readonly SkillEvent[]): RunStats | null {
-  const merged: { turns?: number, durationMs?: number, costUsd?: number } = {}
-  let seen = false
-  for (const event of events) {
-    if (event.type !== 'usage')
-      continue
-    seen = true
-    if (event.turns !== undefined)
-      merged.turns = event.turns
-    if (event.durationMs !== undefined)
-      merged.durationMs = event.durationMs
-    if (event.costUsd !== undefined)
-      merged.costUsd = event.costUsd
-  }
-  return seen ? merged : null
-}
-
-function formatStats(stats: RunStats): string {
-  const parts = [
-    stats.turns != null ? `${stats.turns} turns` : null,
-    stats.durationMs != null ? `${(stats.durationMs / 1000 / 60).toFixed(1)}m` : null,
-    stats.costUsd != null ? `$${stats.costUsd.toFixed(2)}` : null,
-  ].filter(Boolean)
-  return parts.join(' · ')
-}
-
 /**
  * The workspace's read surface. An answer is the product, so it holds the page,
  * and the transcript that produced it sits behind a disclosure underneath.
@@ -210,7 +179,12 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
   const stats = readStats(conversation.events)
   // The latest question, not the first. A follow-up is what the reader is
   // looking at now, and the earlier ones head their own section in the canvas.
-  const askedQuestion = conversation.events.filter(event => event.type === 'started').at(-1)?.args ?? null
+  //
+  // Read from the run record. `RUN_STARTED` carries a thread and a run and
+  // nothing about what was asked, so a conversation hydrated from the protocol
+  // has no event that holds the question.
+  const lastTurnId = conversation.turnIds.at(-1)
+  const askedQuestion = (runsData?.items ?? []).find(record => record.runId === lastTurnId)?.args ?? null
   const activeRunId = conversation.phase === 'streaming' ? conversation.turnIds.at(-1) ?? null : null
   const toolCalls = conversation.events.filter(event => event.type === 'tool-call').length
   const activity = summariseActivity(conversation.events)
