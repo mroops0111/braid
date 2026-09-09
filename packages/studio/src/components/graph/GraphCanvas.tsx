@@ -109,11 +109,20 @@ interface GraphCanvasProps {
   onStartBootstrap?: () => void
   /** Opens the command palette from the navigator, not only from the shortcut. */
   onOpenSearch?: () => void
+  /**
+   * Nodes somebody arrived to look at, marked and framed inside whatever is
+   * drawn. Arriving is a fresh intent, so it also opens the type whitelist,
+   * the same relaxation a reference already gets, since a filter set while
+   * browsing must not hide what was just asked for.
+   */
+  spotlightIds?: readonly NodeId[]
 }
 
 const NODE_TYPES = { card: GraphNodeCard }
 
 const READABLE_ZOOM = 0.85
+
+const NO_SPOTLIGHT: readonly NodeId[] = Object.freeze([])
 
 const INITIAL_FILTERS: GraphFilters = {
   search: '',
@@ -126,21 +135,21 @@ const INITIAL_FILTERS: GraphFilters = {
 // so labels appear on a high-level or focused view, not the whole graph.
 const EDGE_LABEL_LIMIT = 40
 
-export function GraphCanvas({ workspaceId, source, embedded, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap, onOpenSearch }: GraphCanvasProps) {
+export function GraphCanvas({ workspaceId, source, embedded, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap, onOpenSearch, spotlightIds }: GraphCanvasProps) {
   const palette = usePalette(workspaceId)
   return (
     <PaletteProvider value={palette}>
       <ReactFlowProvider>
         <CanvasInner
           workspaceId={workspaceId}
-          {...optional({ source, embedded, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap, onOpenSearch })}
+          {...optional({ source, embedded, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap, onOpenSearch, spotlightIds })}
         />
       </ReactFlowProvider>
     </PaletteProvider>
   )
 }
 
-function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: controlledSelected, onSelectNode, selectedEdgeId: controlledEdgeSelected, onSelectEdge, focusMode = false, centerRequest = 0, dimUnchanged = false, emphasizeAdded = false, onStartBootstrap, onOpenSearch }: GraphCanvasProps) {
+function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: controlledSelected, onSelectNode, selectedEdgeId: controlledEdgeSelected, onSelectEdge, focusMode = false, centerRequest = 0, dimUnchanged = false, emphasizeAdded = false, onStartBootstrap, onOpenSearch, spotlightIds = NO_SPOTLIGHT }: GraphCanvasProps) {
   const { t } = useTranslation()
   // React Query dedupes the live snapshot fetch by queryKey,
   // so it is effectively free when `source` is supplied.
@@ -177,7 +186,7 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
 
   const [exporting, setExporting] = useState(false)
 
-  useFilterSeed(ontology, workspaceId, setFilters, diff !== undefined || embedded ? 'all' : 'defaultVisible')
+  useFilterSeed(ontology, workspaceId, setFilters, diff !== undefined || embedded || spotlightIds.length > 0 ? 'all' : 'defaultVisible')
 
   const orphanIds = useMemo(() => orphanNodeIds(allNodes, allEdges), [allNodes, allEdges])
   const filtered = useMemo(
@@ -221,6 +230,7 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
   const reactFlow = useReactFlow()
 
   const { nodesById, incoming, outgoing } = useNodeNeighbors(allNodes, allEdges, selectedNodeId)
+  const spotlight = useMemo(() => new Set<string>(spotlightIds), [spotlightIds])
 
   const reactFlowNodes = useMemo(
     () => laidOut.nodes.map((n) => {
@@ -235,11 +245,11 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
       return {
         ...n,
         selected: n.id === selectedNodeId,
-        data: { ...n.data, change, emphasizeAdded },
+        data: { ...n.data, change, emphasizeAdded, spotlit: spotlight.has(n.data.node.id) },
         ...(dimmed ? { style: { opacity: DIMMED_NODE_OPACITY } } : {}),
       }
     }),
-    [laidOut.nodes, selectedNodeId, diff, focusMode, neighborhood, dimUnchanged, emphasizeAdded],
+    [laidOut.nodes, selectedNodeId, diff, focusMode, neighborhood, dimUnchanged, emphasizeAdded, spotlight],
   )
 
   // Edges keep their type colour so topology is readable.
@@ -341,6 +351,17 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
       didFitChangesRef.current = false
     }
   }, [dimUnchanged, changedNodeIds, reactFlow, navigatorOpen])
+
+  // Arriving frames what was arrived at, so a dozen nodes are legible inside a
+  // graph of a thousand rather than somewhere off screen.
+  useEffect(() => {
+    if (spotlightIds.length === 0)
+      return
+    const present = spotlightIds.filter(id => laidOut.nodes.some(node => node.id === id))
+    if (present.length === 0)
+      return
+    reactFlow.fitView({ nodes: present.map(id => ({ id })), padding: 0.4, maxZoom: 1.2, duration: 300 })
+  }, [spotlightIds, laidOut.nodes, reactFlow])
 
   // Where a node card's title and first description line are legible.
   // Below this, arriving at a node tells the reader where it is,

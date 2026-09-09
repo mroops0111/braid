@@ -1,7 +1,7 @@
 import type { EdgeId, NodeId, ProposalId } from '@braidhq/schema'
 import type { Surface } from './components/CommandPalette'
 import { NODE_REFERENCE_KIND } from '@braidhq/schema'
-import { Settings2, Sparkles } from 'lucide-react'
+import { Settings2, Sparkles, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { BatchInFlightBanner } from './components/BatchInFlightBanner'
@@ -43,6 +43,8 @@ import { LoginPage } from './pages/Login'
 import { ProposalsPage } from './pages/Proposals'
 import { SettingsPage } from './pages/Settings'
 
+const NO_ARRIVAL: readonly NodeId[] = Object.freeze([])
+
 export function App() {
   const gate = useAuthGate()
   if (gate.status === 'loading')
@@ -77,7 +79,7 @@ function AppInner() {
   // Lifted out of the palette so a visible control can open it,
   // rather than the shortcut being the only way in.
   const [paletteOpen, setPaletteOpen] = useState(false)
-  const { setSelectedNodeId, setSelectedEdgeId, setFocusMode, requestCenter, setSlice } = graphSurfaceState
+  const { setSelectedNodeId, setSelectedEdgeId, setFocusMode, requestCenter, setArrival } = graphSurfaceState
   // One-shot deep-link target for the Proposals surface.
   // ProposalsPage consumes and clears it once it selects the matching item.
   const [focusedProposalId, setFocusedProposalId] = useState<ProposalId | null>(null)
@@ -133,11 +135,11 @@ function AppInner() {
     setActiveSurface('graph')
   }, [])
 
-  const focusNodes = useCallback((ids: readonly NodeId[]) => {
-    setSlice(ids)
+  const focusNodes = useCallback((ids: readonly NodeId[], origin: string) => {
+    setArrival({ ids, origin })
     setSelectedNodeId(null)
     setActiveSurface('graph')
-  }, [setSlice, setSelectedNodeId])
+  }, [setArrival, setSelectedNodeId])
 
   const graphNavigation = useMemo(() => ({ focusNode, focusEdge, focusNodes }), [focusNode, focusEdge, focusNodes])
 
@@ -303,9 +305,10 @@ function GraphHomeView({ workspaceId, state, onStartBootstrap, onOpenSearch }: {
   onOpenSearch: () => void
 }) {
   const { t } = useTranslation()
-  const { view, setView, selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode, centerRequest, requestCenter, slice, clearSlice } = state
-  // Narrowed to what somebody arrived to look at, until they say otherwise.
-  const sliced = useSubgraphDataSource(workspaceId, slice)
+  const { view, setView, selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode, centerRequest, requestCenter, arrival, clearArrival, narrowed, setNarrowed } = state
+  // Only fetched once somebody asks to see the arrival on its own. Until
+  // then the whole graph is drawn and the arrival is marked inside it.
+  const narrowedSource = useSubgraphDataSource(workspaceId, narrowed && arrival ? arrival.ids : NO_ARRIVAL)
 
   // This surface already shows node detail,
   // so a reference swaps that panel rather than opening an identical one.
@@ -327,15 +330,29 @@ function GraphHomeView({ workspaceId, state, onStartBootstrap, onOpenSearch }: {
             onFocusChange={setFocusMode}
           />
         </PageActions>
-        {slice.length > 0 && (
-          <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2">
-            <span className="text-2xs text-muted-foreground">{t('graph.slice.showing', { count: slice.length })}</span>
-            <Button size="xs" variant="ghost" onClick={clearSlice}>{t('graph.slice.clear')}</Button>
+        {arrival && (
+          <div className="flex shrink-0 items-center gap-2 border-b border-border bg-card/40 px-4 py-2">
+            <span className="min-w-0 flex-1 truncate text-2xs text-muted-foreground">
+              {t('graph.arrival.from', { origin: arrival.origin, count: arrival.ids.length })}
+            </span>
+            <Button size="xs" variant="outline" onClick={() => setNarrowed(!narrowed)}>
+              {t(narrowed ? 'graph.arrival.showAll' : 'graph.arrival.onlyThese', { count: arrival.ids.length })}
+            </Button>
+            <Button
+              size="xs"
+              variant="ghost"
+              className="text-muted-foreground [&_svg]:size-3"
+              aria-label={t('graph.arrival.dismiss')}
+              onClick={clearArrival}
+            >
+              <X />
+            </Button>
           </div>
         )}
         <GraphSurface
           workspaceId={workspaceId}
-          {...(slice.length > 0 ? { source: sliced } : {})}
+          {...(narrowed && arrival ? { source: narrowedSource } : {})}
+          {...(arrival ? { spotlightIds: arrival.ids } : {})}
           view={view}
           selectedNodeId={selectedNodeId}
           onSelectNode={setSelectedNodeId}

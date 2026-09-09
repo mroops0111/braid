@@ -1,7 +1,12 @@
 import type { graph as en } from '../en/graph'
 
 const graph: typeof en = {
-  slice: { showing: '目前只顯示 {count} 個節點', clear: '顯示完整圖譜' },
+  arrival: {
+    from: '來自「{origin}」的 {count} 個節點',
+    onlyThese: '只看這 {count} 個',
+    showAll: '顯示完整圖譜',
+    dismiss: '取消定位',
+  },
   loadingGraph: '載入圖譜中…',
   resetLayoutTooltip: '重設排列',
   empty: {
@@ -40,6 +45,7 @@ const graph: typeof en = {
     endpoints: '端點',
     fromLabel: '起點',
     toLabel: '終點',
+    drifts: '矛盾 ({count})',
     sources: '來源',
     noSources: '尚未宣告 sourceReferences。',
     centerInGraphButton: '在圖譜中置中',

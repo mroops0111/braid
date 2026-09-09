@@ -22,7 +22,7 @@ export interface GraphNavigation {
    * side panel makes it too small to read, and the graph surface is already
    * the thing built to show it.
    */
-  focusNodes: (ids: readonly NodeId[]) => void
+  focusNodes: (ids: readonly NodeId[], origin: string) => void
 }
 
 export const GraphNavigationContext = createContext<GraphNavigation | null>(null)

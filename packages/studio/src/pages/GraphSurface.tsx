@@ -44,6 +44,8 @@ export interface GraphSurfaceProps {
   dimUnchanged?: boolean
   /** Proposal-preview only: see GraphCanvas for semantics. */
   emphasizeAdded?: boolean
+  /** Nodes somebody arrived to look at: see GraphCanvas for semantics. */
+  spotlightIds?: readonly NodeId[]
   onStartBootstrap?: () => void
 }
 
@@ -59,6 +61,7 @@ export interface GraphSurfaceProps {
 export function GraphSurface({
   workspaceId,
   source,
+  spotlightIds,
   view,
   selectedNodeId,
   onSelectNode,
@@ -75,7 +78,7 @@ export function GraphSurface({
     return (
       <GraphCanvas
         workspaceId={workspaceId}
-        {...optional({ source, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap, onOpenSearch })}
+        {...optional({ source, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap, onOpenSearch, spotlightIds })}
         selectedNodeId={selectedNodeId}
         onSelectNode={onSelectNode}
         selectedEdgeId={selectedEdgeId}
@@ -97,8 +100,20 @@ export function GraphSurface({
   )
 }
 
+/**
+ * A set of nodes somebody arrived to look at, and what sent them.
+ *
+ * Held rather than applied, because arriving and narrowing are two different
+ * asks. Arriving wants the nodes findable in context, narrowing wants only
+ * them, and a reader who has just landed cannot want the second before seeing
+ * the first.
+ */
+export interface GraphArrival {
+  readonly origin: string
+  readonly ids: readonly NodeId[]
+}
+
 /** Hook bundling the shared state pages typically hoist for the surface. */
-const NO_SLICE: readonly NodeId[] = Object.freeze([])
 
 export function useGraphSurfaceState(initialView: GraphView = 'visualization') {
   const [view, setView] = useState<GraphView>(initialView)
@@ -106,18 +121,32 @@ export function useGraphSurfaceState(initialView: GraphView = 'visualization') {
   // A counter, not a boolean, so two arrivals at the same node both pan.
   const [centerRequest, setCenterRequest] = useState(0)
   const requestCenter = useCallback(() => setCenterRequest(current => current + 1), [])
-  // A slice somebody arrived with, empty when they are reading the whole graph.
-  const [slice, setSlice] = useState<readonly NodeId[]>(NO_SLICE)
-  const clearSlice = useCallback(() => setSlice(NO_SLICE), [])
+  // Null when the reader is browsing rather than arriving from somewhere.
+  const [arrival, setArrivalState] = useState<GraphArrival | null>(null)
+  // Landing narrowed, the way a proposal preview opens on its diff rather
+  // than on the whole model. Somebody who followed a document here came for
+  // its nodes, and finding a ring among a thousand is work they did not ask
+  // for. Widening is one press away once they want the context.
+  const [narrowed, setNarrowed] = useState(true)
+  const setArrival = useCallback((next: GraphArrival) => {
+    setArrivalState(next)
+    setNarrowed(true)
+  }, [])
+  const clearArrival = useCallback(() => {
+    setArrivalState(null)
+    setNarrowed(true)
+  }, [])
   return {
     view,
     setView,
     ...selection,
     centerRequest,
     requestCenter,
-    slice,
-    setSlice,
-    clearSlice,
+    arrival,
+    setArrival,
+    clearArrival,
+    narrowed,
+    setNarrowed,
   }
 }
 
