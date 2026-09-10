@@ -38,8 +38,8 @@ describe('driveWebUrl', () => {
       .toBe(`https://docs.google.com/document/d/${FILE_ID}/edit`)
   })
 
-  // Line numbers describe the local export, so only an anchor survives, and
-  // Drive resolves the heading fragment itself.
+  // Line numbers describe the local export, so only an anchor survives,
+  // and Drive resolves the heading fragment itself.
   it('carries an anchor across as a heading fragment', async () => {
     await mirror('Spec Unit')
     const url = await driveWebUrl(input('Spec Unit/index.md', { uri: 'x', anchor: '2.4 一個章節標題', startLine: 10 }))
@@ -62,8 +62,8 @@ describe('driveWebUrl', () => {
     expect(await driveWebUrl(input('/'))).toBeNull()
   })
 
-  // A destination with no manifest was never synced by this loader, so there
-  // is nothing to map the local copy back to.
+  // A destination with no manifest was never synced by this loader,
+  // so there is nothing to map the local copy back to.
   it('gives no address when the mirror has no manifest', async () => {
     expect(await driveWebUrl(input('Spec Unit/index.md'))).toBeNull()
   })

@@ -41,8 +41,8 @@ describe('bucketByGroup', () => {
     expect(buckets.custom.map(s => s.id)).toEqual(['standalone'])
   })
 
-  // Ask has its own surface, so listing it here would offer the same run from
-  // two places, and this is the poorer of the two.
+  // Ask has its own surface, so listing it here offers the same run twice,
+  // and this is the poorer of the two.
   it('leaves an ask skill out, since the Ask surface owns it', () => {
     const buckets = bucketByGroup([
       skill({ id: 'ask-1', category: 'ask' }),
@@ -107,9 +107,9 @@ describe('originLabel', () => {
 
 describe('formatTimestamp', () => {
   it('formats a valid ISO timestamp as YYYY-MM-DDTHH:mm in local time', () => {
-    // Pin the input to UTC and assert via the formatter's local-time
-    // output, not by hard-coding a result. Otherwise the test depends on
-    // whichever TZ CI runs in.
+    // Pin the input to UTC and assert via the formatter's local-time output,
+    // rather than by hard-coding a result.
+    // Otherwise the test depends on whichever TZ CI runs in.
     const iso = '2026-05-21T14:30:00Z'
     const d = new Date(iso)
     const pad = (n: number): string => String(n).padStart(2, '0')
@@ -152,7 +152,7 @@ describe('groupBySession', () => {
   })
 
   it('groups runs that share a sessionId and orders runs within a group oldest-first', () => {
-    // API delivers newest-first; groupBySession reverses inside a session
+    // API delivers newest-first, and groupBySession reverses inside a session,
     // so the transcript replays top-to-bottom.
     const groups = groupBySession([
       rec({ runId: 'r3', sessionId: 'sess-1', startedAt: '2026-05-21T10:30:00Z' }),

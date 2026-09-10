@@ -10,8 +10,9 @@ export interface RunStats {
 /**
  * What the run cost, merged across however many usage events it sent.
  *
- * Null until one arrives, which is the whole run for a live one, so a caller
- * shows nothing rather than zeroes that would read as a finished free run.
+ * Null until one arrives, which is the whole run for a live one,
+ * so a caller shows nothing rather than zeroes,
+ * which would read as a finished run that cost nothing.
  */
 export function readStats(events: readonly SkillEvent[]): RunStats | null {
   const merged: { turns?: number, durationMs?: number, costUsd?: number } = {}

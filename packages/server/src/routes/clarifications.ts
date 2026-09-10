@@ -70,8 +70,9 @@ const ClarificationListResponse = z.object({
 export interface ClarificationRouterDeps {
   hitlService: HITLService
   /**
-   * Holds a run to one outcome, a question or a proposal. Absent, nothing is
-   * gated, which is what an in-memory composition without skills wants.
+   * Holds a run to one outcome, a question or a proposal.
+   * Absent, nothing is gated,
+   * which is what an in-memory composition without skills wants.
    */
   outputGate?: RunOutputGate
   clarificationRepository: ClarificationRepository
@@ -213,9 +214,10 @@ const reportNoClarificationRoute = createRoute(forRuns({
   tags: ['clarifications'],
   request: { params: WorkspaceIdParam },
   responses: {
-    // Nothing is created and nothing is decided here, so there is nothing to
-    // send back. A body restating the status would be paid for in the run's
-    // context for saying what the status line already said.
+    // Nothing is created and nothing is decided here,
+    // so there is nothing to send back.
+    // A body restating the status would be paid for in the run's context,
+    // only to say what the status line already said.
     204: { description: 'The declaration was recorded.' },
     400: ValidationFailureResponse,
   },

@@ -23,8 +23,8 @@ describe('outcomeOf', () => {
     expect(outcomeOf(clarification)?.outcome).toBe('answered')
   })
 
-  // Deferring keeps the question and gives up only the conversation, so the
-  // status stays pending and the mode is what moved.
+  // Deferring keeps the question and gives up only the conversation,
+  // so the status stays pending and the mode is what moved.
   it('reads a deferred question as deferred', () => {
     const clarification = makeClarification(WORKSPACE, { answerMode: 'standing' })
     expect(outcomeOf(clarification)?.outcome).toBe('deferred')
@@ -35,8 +35,8 @@ describe('outcomeOf', () => {
     expect(outcomeOf(clarification)?.outcome).toBe('skipped')
   })
 
-  // A run parked on this one is still rightly waiting, so nothing may carry
-  // it on yet.
+  // A run parked on this one is still rightly waiting,
+  // so nothing may carry it on yet.
   it('reads a question a run is still parked on as unsettled', () => {
     const clarification = makeClarification(WORKSPACE, { answerMode: 'resumes' })
     expect(outcomeOf(clarification)).toBeNull()
@@ -65,12 +65,10 @@ describe('describeContinuation', () => {
     expect(message).toContain('set this question aside')
   })
 
-  // One release can carry three different decisions, and a run that is told
-  // only how many were settled cannot tell which of its questions is which.
-  // The lead says nothing about their state, since deferring leaves a question
-  // open and skipping discards it, and neither is settled.
-  // Deferring leaves a question open and skipping discards it, so nothing may
-  // announce that they were resolved.
+  // One release can carry three different decisions,
+  // and a run told only how many were settled cannot tell which is which.
+  // Deferring leaves a question open and skipping discards it,
+  // so nothing above them may announce that they were resolved.
   it('claims no state the outcomes would contradict', () => {
     const message = describeContinuation([makeClarification(WORKSPACE, { answerMode: 'standing' })])
     expect(message).not.toContain('settled')

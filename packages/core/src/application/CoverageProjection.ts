@@ -54,19 +54,19 @@ export interface UnitFacts {
 /**
  * Every source document, and what the model has made of it.
  *
- * This answers the question somebody actually opens the surface with, which is
- * what the model still does not know and what is being done about it. A list
- * of runs answers a question nobody asks, because a document read three times
- * and failed twice is one thing a reader is tracking rather than five.
+ * This answers the question somebody actually opens the surface with,
+ * which is what the model still does not know and what is being done about it.
+ * A list of runs answers a question nobody asks,
+ * because a document read three times and failed twice is one thing, not five.
  *
- * Read-only over records that already exist. Nothing writes a board, so it
- * holds no state its sources could contradict, and every state is derived here
- * rather than reported by whatever produced the record.
+ * Read-only over records that already exist.
+ * Nothing writes a board, so it holds no state its sources could contradict,
+ * and every state is derived here rather than reported by the record.
  *
  * Ontology-neutral. Which sources yield units is the ontology's declaration,
- * carried in by `unitLister`, and the pipeline is read off its own build
- * skills. The states are mechanical, so swapping the ontology changes the
- * stages on the cards and nothing else here.
+ * carried in by `unitLister`, and the pipeline is read off its build skills.
+ * The states are mechanical,
+ * so swapping the ontology changes the stages on the cards and nothing else.
  */
 export class CoverageProjection {
   constructor(private readonly deps: CoverageProjectionDeps) {}
@@ -91,8 +91,8 @@ export class CoverageProjection {
     const seeds = new Map<string, { sourceId: SourceId, path: string, name: string }>()
 
     // On-disk units first, so a document nobody has read yet still gets a card.
-    // Observations then fill in anything that has left disk but that the model
-    // still rests on, which a reader needs to see rather than silently lose.
+    // Observations then fill in anything that has left disk,
+    // but that the model still rests on and a reader needs to see.
     for (const unit of units) {
       seeds.set(keyOf(unit.sourceId, unit.value), {
         sourceId: unit.sourceId as SourceId,
@@ -121,9 +121,9 @@ export class CoverageProjection {
       workspaceId: workspace.id,
       stages,
       cards,
-      // Read from the runner rather than from the records, because a record
-      // left without an end by a killed process would wedge the board shut
-      // for good, while the runner's own set empties when the process does.
+      // Read from the runner rather than from the records,
+      // because a record left unended by a killed process would wedge the board,
+      // while the runner's own set empties when the process does.
       building: this.deps.skillRunner?.hasActiveRun(workspace.id, 'build') ?? false,
     }
   }
@@ -146,10 +146,10 @@ function buildCard(context: CardContext): CoverageCard {
   const pending = mine.filter(proposal => proposal.status === 'pending')
   const incorporated = latestIncorporation(mine, sourceId, path)
 
-  // Runs are attributed by what they were pointed at, not by what they went on
-  // to produce. Reaching them through proposals would leave a run invisible
-  // until it proposed, so a document being read right now, or one whose run
-  // died before proposing, would both look untouched.
+  // Runs are attributed by what they were pointed at,
+  // never by what they went on to produce.
+  // Reaching them through proposals would leave a run invisible until it proposed,
+  // so a document being read right now would look untouched.
   const runs = context.records.filter(record => scopeCovers(runScope(record), path))
   const runIds = new Set([
     ...runs.map(record => record.runId as string),
@@ -170,20 +170,22 @@ function buildCard(context: CardContext): CoverageCard {
     running: lastRun !== undefined && lastRun.completedAt === undefined,
     awaitingDecision: pending.length > 0 || asked.length > 0,
     failed: lastRun?.exitCode !== undefined && lastRun.exitCode !== 0,
-    // Reading a unit is not incorporating it. Comparing what was last read
-    // against what was last applied is what stops a rejected proposal leaving
-    // the unit looking current while the model reflects none of it. A document
-    // taken in before this was recorded has no version to compare, and is left
-    // unjudged rather than accused of being stale.
+    // Reading a unit is not incorporating it.
+    // A rejected proposal would leave the unit looking current,
+    // while the model reflects none of it,
+    // so what was last read is compared against what was last applied.
+    // A document taken in before this was recorded has no version to compare,
+    // and is left unjudged rather than accused of being stale.
     sourceChanged: incorporated !== undefined
       && context.observation !== undefined
       && context.observation.lastObservedSha !== incorporated.sha,
     conflicted: drifts.length > 0,
-    // The graph is itself the evidence of incorporation. A node citing this
-    // document is the model having taken it in, whether or not the proposal
-    // that did so recorded which version it read. Resting only on the stamp
-    // would call a fully modelled workspace empty until every document had
-    // been read again, which is a worse lie than not knowing the version.
+    // The graph is itself the evidence of incorporation.
+    // A node citing this document is the model having taken it in,
+    // whether or not the proposal recorded which version it read.
+    // Rest only on the stamp and a fully modelled workspace reads as empty,
+    // until every document has been read again,
+    // which is a worse lie than not knowing the version.
     covered: incorporated !== undefined || citing.length > 0,
   }
 
@@ -210,9 +212,9 @@ function keyOf(sourceId: string, path: string): string {
 /**
  * The one state a card shows, from everything true of it.
  *
- * Ordered by `COVERAGE_STATE_PRECEDENCE` rather than by whichever check runs
- * first, so a unit that is both changed at source and holding a conflict lands
- * in the same column every time.
+ * Ordered by `COVERAGE_STATE_PRECEDENCE`, never by whichever check runs first.
+ * A unit can be both changed at source and holding a conflict,
+ * and it lands in the same column every time.
  */
 function pick(facts: UnitFacts): CoverageState {
   for (const state of COVERAGE_STATE_PRECEDENCE) {
@@ -232,10 +234,10 @@ function pick(facts: UnitFacts): CoverageState {
 /**
  * Whether this proposal came from this document.
  *
- * The stamp is the answer when it is there. A proposal filed before the stamp
- * existed falls back to the arguments of the run that made it, which is the
- * same fact the stamp is derived from and just as much the server's own, so
- * the board reads a workspace's history rather than only its future.
+ * The stamp is the answer when it is there.
+ * A proposal filed before the stamp existed falls back to the run's arguments,
+ * which is the same fact the stamp is derived from and as much the server's own,
+ * so the board reads a workspace's history rather than only its future.
  */
 function derivedFrom(
   proposal: Proposal,
@@ -260,8 +262,8 @@ function latestIncorporation(
   for (const proposal of proposals) {
     if (proposal.status !== 'applied')
       continue
-    // A run reading several documents stamps all of them, so the version this
-    // card took in is the entry naming this card, not whichever came first.
+    // A run reading several documents stamps all of them,
+    // so the version this card took in is the entry naming this card.
     const unit = (proposal.sourceUnits ?? []).find(
       candidate => candidate.sourceId === sourceId && candidate.path === path,
     )
@@ -290,8 +292,8 @@ function latestRun(runIds: ReadonlySet<string>, runsById: Map<string, RunRecord>
   }
 }
 
-// The furthest declared step any proposal for this unit came from. A skill the
-// ontology does not declare leaves the stage unsaid rather than inventing one.
+// The furthest declared step any proposal for this unit came from.
+// A skill the ontology does not declare leaves the stage unsaid.
 function furthestStage(proposals: readonly Proposal[], stages: readonly CoverageStage[]): CoverageStage['skillId'] | undefined {
   let best: CoverageStage | undefined
   for (const proposal of proposals) {
@@ -305,10 +307,10 @@ function furthestStage(proposals: readonly Proposal[], stages: readonly Coverage
 /**
  * Whether a node's evidence points inside this unit.
  *
- * Matched on the unit path appearing in the reference's uri, because a
- * reference records where it was read rather than which unit it belongs to,
- * and every loader lays a unit out as a directory of that name. A miss leaves
- * the count low rather than attributing evidence to the wrong document.
+ * Matched on the unit path appearing in the reference's uri,
+ * because a reference records where it was read rather than which unit it is in,
+ * and every loader lays a unit out as a directory of that name.
+ * A miss leaves the count low rather than attributing evidence wrongly.
  */
 function citesUnit(node: GraphNode, sourceId: SourceId, path: string): boolean {
   return node.metadata.sourceReferences.some(
@@ -320,16 +322,18 @@ function citesUnit(node: GraphNode, sourceId: SourceId, path: string): boolean {
  * The ontology's own build pipeline, in the order it declared.
  *
  * A step is per-unit when one of its inputs is fed by the source provider,
- * which is how `extract` earns a place in the flow and `reconcile` is known to
- * work on the graph as a whole. Read from the declaration rather than from a
- * list of skill ids here, so a different ontology brings its own pipeline.
+ * which is how `extract` earns a place in the flow,
+ * and how `reconcile` is known to work on the graph as a whole.
+ * Read from the declaration rather than from a list of skill ids,
+ * so a different ontology brings its own pipeline.
  */
 /**
  * What a graph-wide step left waiting.
  *
- * Attributed by the run naming no document, which is the same rule that keeps
- * such a run off every card. A per-document step carries nothing here, since
- * everything it produced already sits on the document it read.
+ * Attributed by the run naming no document,
+ * which is the same rule that keeps such a run off every card.
+ * A per-document step carries nothing here,
+ * since everything it produced already sits on the document it read.
  */
 function withGraphWideOutput(stage: CoverageStage, context: {
   proposals: readonly Proposal[]
@@ -337,16 +341,16 @@ function withGraphWideOutput(stage: CoverageStage, context: {
   records: readonly RunRecord[]
 }): CoverageStage {
   // Everything already answered and waiting for the step that reads them.
-  // Which step that is comes from its own declared input, so a different
-  // ontology names a different one without this knowing either.
+  // Which step that is comes from its own declared input,
+  // so a different ontology names a different one without this knowing.
   const answeredIds = stage.readsAnswered
     ? context.clarifications.filter(item => item.status === 'answered').map(item => item.id)
     : []
   if (!stage.global)
     return { ...stage, answeredIds }
-  // Every run of a graph-wide step belongs to the step, since the ontology
-  // declared that it works on no single document. Reading the scope instead
-  // would turn on how such a run happens to have been started.
+  // Every run of a graph-wide step belongs to the step,
+  // since the ontology declared that it works on no single document.
+  // Reading the scope instead would turn on how the run was started.
   const runIds = new Set(
     context.records
       .filter(record => record.skillId === stage.skillId)

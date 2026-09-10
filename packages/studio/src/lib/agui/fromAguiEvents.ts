@@ -5,13 +5,14 @@ import { EventType } from '@ag-ui/client'
 /**
  * AG-UI events, read back as Braid's own.
  *
- * The wire format is the protocol's, the shape this app reasons about is
- * Braid's, and this is the one place the two meet. A message spans three
- * events on the wire and is one thing here, so a translator is stateful and
- * belongs to a single run.
+ * The wire format is the protocol's,
+ * the shape this app reasons about is Braid's,
+ * and this is the one place the two meet.
+ * A message spans three events on the wire and is one thing here,
+ * so a translator is stateful and belongs to a single run.
  *
- * No view-framework imports on purpose. A second consumer of the same stream
- * should be able to take this file as it stands.
+ * No view-framework imports on purpose.
+ * A second consumer of the same stream should take this file as it stands.
  */
 export class AguiEventReader {
   private readonly openText = new Map<string, string>()
@@ -20,17 +21,18 @@ export class AguiEventReader {
   private readonly openToolCalls = new Map<string, { tool: string, args: string }>()
 
   /**
-   * Zero or more Braid events. Zero is the common case mid-message, since
-   * nothing is complete until the end event that closes it arrives.
+   * Zero or more Braid events.
+   * Zero is the common case mid-message,
+   * since nothing is complete until the end event that closes it arrives.
    */
   read(event: BaseEvent): SkillEvent[] {
     const raw = event as Record<string, unknown>
     switch (event.type) {
       case EventType.TEXT_MESSAGE_START:
         this.openText.set(String(raw.messageId), '')
-        // A run's prompt travels as the user message that starts the turn, so
-        // who said it is the one thing that tells it apart from the agent's
-        // own narration once both are text on a wire.
+        // A run's prompt travels as the user message that starts the turn,
+        // so who said it is the one thing telling it apart,
+        // from the agent's own narration once both are text on a wire.
         if (raw.role === 'user')
           this.userMessages.add(String(raw.messageId))
         return []
@@ -85,9 +87,9 @@ export class AguiEventReader {
       case EventType.CUSTOM:
         return this.readCustom(raw)
 
-      // The run's own boundaries are the transport's business. What the UI
-      // needs from them travels as `braid.usage` and the block sequence, and a
-      // reader that treated RUN_FINISHED as an event would double-count it
+      // The run's own boundaries are the transport's business.
+      // What the UI needs from them travels as `braid.usage` and the blocks,
+      // and a reader treating RUN_FINISHED as an event would double-count it,
       // against the transcript the log already holds.
       case EventType.RUN_STARTED:
       case EventType.RUN_FINISHED:

@@ -212,9 +212,10 @@ export function createGithubLoader(deps: GithubLoaderDeps): SourceLoaderPlugin {
       }
     },
     /**
-     * A unit here is one issue, written as `<number>.md`, so the link goes to
-     * the issue rather than to a file in a tree. Line numbers describe the
-     * local rendering and mean nothing upstream, so they are dropped.
+     * A unit here is one issue, written as `<number>.md`,
+     * so the link goes to the issue rather than to a file in a tree.
+     * Line numbers describe the local rendering and mean nothing upstream,
+     * so they are dropped.
      */
     webUrlFor: ({ config, unitPath }) => {
       const number = /(\d+)\.md$/.exec(unitPath)?.[1]

@@ -1,11 +1,12 @@
 /**
  * Wait for something the runner does after the request returns.
  *
- * A run drains asynchronously, so a fixed sleep asserts on whatever happened
- * to be true when the timer fired. Under load that is a different moment than
- * on an idle machine, which is how a suite acquires a test that passes here
- * and fails in CI. Polling asks the same condition the production code
- * checks, and fails loudly rather than silently early.
+ * A run drains asynchronously,
+ * so a fixed sleep asserts on whatever was true when the timer fired.
+ * Under load that is a different moment than on an idle machine,
+ * which is how a suite acquires a test that passes here and fails in CI.
+ * Polling asks the same condition the production code checks,
+ * and fails loudly rather than silently early.
  */
 export async function waitFor(
   condition: () => boolean,
@@ -23,11 +24,11 @@ export async function waitFor(
 /**
  * Wait until nothing more is going to happen.
  *
- * A run can spawn a successor once its own teardown is done, so there is a
- * moment where nothing is running and something still will be. One reading of
- * idle would stop there and assert on a half-finished story. Several
- * consecutive readings put a real gap between the two, without the test
- * having to know how many runs it is waiting for.
+ * A run can spawn a successor once its own teardown is done,
+ * so there is a moment where nothing is running and something still will be.
+ * One reading of idle would stop there and assert on a half-finished story.
+ * Several consecutive readings put a real gap between the two,
+ * without the test having to know how many runs it is waiting for.
  */
 export async function waitUntilIdle(
   isIdle: () => boolean,

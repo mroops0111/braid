@@ -161,8 +161,9 @@ describe('coverageProjection', () => {
     expect(card?.state).toBe('uncovered')
   })
 
-  // Every document taken in before the version was recorded would otherwise
-  // read as never read, which is a worse lie than not knowing the version.
+  // Every document taken in before the version was recorded,
+  // would otherwise read as never read,
+  // which is a worse lie than not knowing the version.
   it('counts a unit covered when the graph rests on it, however it got there', async () => {
     const [card] = await cards({
       observations: [observation(OLD)],
@@ -230,8 +231,8 @@ describe('coverageProjection', () => {
     expect(card?.driftIssueIds).toEqual(['drift-1'])
   })
 
-  // A run that has not proposed yet is still a run, and a document being read
-  // right now must not read as untouched.
+  // A run that has not proposed yet is still a run,
+  // and a document being read right now must not read as untouched.
   it('shows a unit as being read from the run alone, before it has proposed', async () => {
     const [card] = await cards({
       observations: [observation(OLD)],
@@ -278,8 +279,8 @@ describe('coverageProjection', () => {
     expect(card?.nodeIds).toEqual(['ctx.a'])
   })
 
-  // Filed before the stamp existed, so the run's own arguments stand in. The
-  // board would otherwise start blank on every workspace that has one.
+  // Filed before the stamp existed, so the run's own arguments stand in.
+  // The board would otherwise start blank on every workspace that has one.
   it('attributes a proposal with no stamp by the arguments its run was given', async () => {
     const unstamped = makeProposal(WORKSPACE.id, { id: 'p-old', skillRunId: 'r-1' })
     const [card] = await cards({
@@ -328,8 +329,8 @@ describe('coverageProjection', () => {
     ])
   })
 
-  // Half the pipeline works on the graph rather than on a document, and what
-  // it leaves waiting would otherwise be on no card and in no column.
+  // Half the pipeline works on the graph rather than on a document,
+  // and what it leaves waiting would otherwise be on no card at all.
   it('carries what a graph-wide step left waiting on the step itself', async () => {
     const board = await projectionOf({
       proposals: [makeProposal(WORKSPACE.id, { id: 'p-1', skillRunId: 'r-global' })],
@@ -354,16 +355,16 @@ describe('coverageProjection', () => {
     expect(board.cards[0]?.proposalIds).toEqual(['p-1'])
   })
 
-  // The surface stops offering what the server would refuse, so the board has
-  // to be told, and told by the runner rather than by a record a killed
-  // process left without an end.
+  // The surface stops offering what the server would refuse,
+  // so the board has to be told, and told by the runner,
+  // rather than by a record a killed process left without an end.
   it('says whether a build is already under way', async () => {
     expect((await projectionOf({}).board(WORKSPACE)).building).toBe(false)
     expect((await projectionOf({ building: true }).board(WORKSPACE)).building).toBe(true)
   })
 
-  // Which step turns answered questions into changes is the ontology's to
-  // declare, so a reader who has worked through a queue is told what to press
+  // Which step turns answered questions into changes is the ontology's,
+  // so a reader who has worked through a queue is told what to press,
   // without this knowing any skill by name.
   it('counts answered questions against the step that declares it reads them', async () => {
     const board = await projectionOf({

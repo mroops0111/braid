@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { formatStats, readStats } from '@/lib/blocks/runStats'
 
 describe('readStats', () => {
-  // Null rather than zeroes, which is the whole of a live run, and zeroes
-  // would read as a finished run that cost nothing.
+  // Null rather than zeroes, which is the whole of a live run,
+  // and zeroes would read as a finished run that cost nothing.
   it('reports nothing until the run says what it spent', () => {
     expect(readStats([{ type: 'message', text: 'working' }])).toBeNull()
   })
@@ -23,8 +23,8 @@ describe('readStats', () => {
     expect(readStats(events)).toEqual({ turns: 4, costUsd: 0.1 })
   })
 
-  // A run that reported an empty usage still reported: an answer of "nothing
-  // recorded" is not the same as "not finished".
+  // A run that reported an empty usage still reported.
+  // An answer of "nothing recorded" is not the same as "not finished".
   it('reports an empty reading rather than nothing when the run sent one', () => {
     expect(readStats([{ type: 'usage' }])).toEqual({})
   })

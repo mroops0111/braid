@@ -6,11 +6,12 @@ import { SurfaceBand } from './SurfaceBand'
 /**
  * The right-hand pane, wherever one thing is being read in full.
  *
- * A node and a source document are different subjects, but a reader arrives at
- * both the same way and expects the same shape: what it is, then its name, then
- * its identifier, then sections. Two panes built separately drifted into two
- * headers, two paddings, and two heading styles, so the chrome lives here and
- * the subjects supply only their own content.
+ * A node and a source document are different subjects,
+ * but a reader arrives at both the same way and expects the same shape,
+ * being what it is, then its name, then its identifier, then sections.
+ * Two panes built separately drifted into two headers, two paddings,
+ * and two heading styles,
+ * so the chrome lives here and the subjects supply only their own content.
  */
 export function DetailPanel({ badges, title, subtitle, actions, views, onClose, children }: {
   /** Type, status, and anything else that says what kind of thing this is. */
@@ -23,8 +24,9 @@ export function DetailPanel({ badges, title, subtitle, actions, views, onClose, 
   /**
    * Which reading of the subject is open, in a band of its own.
    *
-   * Not in the header row. Sharing that row means the actions decide its
-   * width, so the band moves when the reader changes view.
+   * Not in the header row.
+   * Sharing that row means the actions decide its width,
+   * so the band moves when the reader changes view.
    */
   views?: ReactNode
   onClose: () => void

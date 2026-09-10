@@ -147,9 +147,9 @@ describe('SubprocessSkillRunner', () => {
     expect(invocations[0]?.command).toBe('claude')
   })
 
-  // The graph only accumulates, so two builds against it race: each reads a
-  // snapshot the other is changing. Refused at the runner because every path
-  // that starts a run comes through it.
+  // The graph only accumulates, so two builds against it race,
+  // each reading a snapshot the other is changing.
+  // Refused at the runner because every path that starts a run comes through.
   it('refuses a second build run while one is already going', async () => {
     const rootPath = await makeWorkspaceRoot()
     const { runner, workspace } = await buildRunner({
@@ -164,8 +164,8 @@ describe('SubprocessSkillRunner', () => {
       .toThrow(ConflictError)
   })
 
-  // Answering reads the graph rather than adding to it, so it never has to
-  // wait, and a long bootstrap does not lock the workspace out of questions.
+  // Answering reads the graph rather than adding to it, so it never waits,
+  // and a long bootstrap does not lock the workspace out of questions.
   it('lets an answer run start beside a build', async () => {
     const rootPath = await makeWorkspaceRoot()
     const { runner, workspace } = await buildRunner({
@@ -216,8 +216,8 @@ describe('SubprocessSkillRunner', () => {
     expect(sessionCwd).toContain('.braid-sessions/')
     expect(sessionCwd.startsWith(rootPath)).toBe(true)
 
-    // The `braid:ask` skill stages as plugin `braid`, verb dir `ask`, plus a
-    // .claude-plugin/plugin.json manifest naming the namespace.
+    // The `braid:ask` skill stages as plugin `braid`, verb dir `ask`,
+    // plus a .claude-plugin/plugin.json manifest naming the namespace.
     const pluginRoot = join(sessionCwd, '.skill-bundles', 'braid')
     const pluginManifest = JSON.parse(
       await readFile(join(pluginRoot, '.claude-plugin', 'plugin.json'), 'utf-8'),
@@ -377,8 +377,9 @@ describe('SubprocessSkillRunner', () => {
 
     const { events } = await collectRunEvents(runner, workspace, '')
 
-    // The result envelope restates the assistant's text, so it emits no second
-    // message. Only the assistant's own text reaches a reader.
+    // The result envelope restates the assistant's text,
+    // so it emits no second message.
+    // Only the assistant's own text reaches a reader.
     expect(events.map(event => event.type)).toEqual(['started', 'thinking', 'message', 'tool-call', 'completed'])
     const thinking = events[1]
     expect(thinking && 'text' in thinking ? thinking.text : undefined).toBe('hidden')

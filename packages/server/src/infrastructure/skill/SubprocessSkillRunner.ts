@@ -68,10 +68,11 @@ export interface SubprocessSkillRunnerDeps {
   // The gateway fetches the OpenAPI spec from `specUrl`,
   // and exposes the REST surface as MCP tools such as `braid_search_nodes`.
   //
-  // `specUrlFor` names the spec for one kind of run, so a run's tools are
-  // only the operations that kind of run may call. Narrowing the spec is what
-  // narrows the tools: an operation absent from it never reaches the model,
-  // so it costs neither a place in the tool list nor the tokens to describe.
+  // `specUrlFor` names the spec for one kind of run,
+  // so a run's tools are only the operations that kind of run may call.
+  // Narrowing the spec is what narrows the tools,
+  // since an operation absent from it never reaches the model at all,
+  // and costs neither a place in the tool list nor the tokens to describe.
   // `uvxBin` defaults to `'uvx'`, resolved against PATH.
   // The composeFsApp step preflight-checks for its presence at boot.
   //
@@ -83,14 +84,15 @@ export interface SubprocessSkillRunnerDeps {
     readonly uvxBin?: string
   }
   /**
-   * Mints the credential a run calls back with. Wired, a run's identity rides
-   * its bearer token and nothing has to be told which run is calling. Absent,
-   * the run carries its caller's own token as before.
+   * Mints the credential a run calls back with.
+   * Wired, a run's identity rides its bearer token,
+   * and nothing has to be told which run is calling.
+   * Absent, the run carries its caller's own token as before.
    */
   readonly runTokens?: RunTokenRegistry
   /**
-   * Holds each run to one outcome, a question or a proposal. Absent, a run may
-   * do both, which is the batch's mode rather than a person's.
+   * Holds each run to one outcome, a question or a proposal.
+   * Absent, a run may do both, which is the batch's mode rather than a person's.
    */
   readonly outputGate?: RunOutputGate
   // Optional pub/sub for workspace-scoped notifications.
@@ -103,9 +105,10 @@ export interface SubprocessSkillRunnerDeps {
   // Composition wires this from the PluginRegistry, keeping the runner ontology-agnostic.
   readonly resolveSourceRoles?: (workspace: Workspace) => readonly SourceRoleDescriptor[]
   /**
-   * The workspace ontology's declared audiences, serialised for the prompt and
-   * used to check the output contract. Absent means a product whose readers do
-   * not split, and then nothing about audiences is required or injected.
+   * The workspace ontology's declared audiences,
+   * serialised for the prompt and used to check the output contract.
+   * Absent means a product whose readers do not split,
+   * and then nothing about audiences is required or injected.
    */
   readonly resolveAudiences?: (workspace: Workspace) => readonly AudienceDescriptor[]
 }
@@ -116,9 +119,10 @@ interface ActiveRun {
   readonly category: SkillCategory | undefined
   readonly child: ChildProcess
   /**
-   * The run's own event queue. A render call arrives out of band over HTTP
-   * while the subprocess is still writing, so it joins here rather than at
-   * `emit`, keeping one consumer and therefore one order.
+   * The run's own event queue.
+   * A render call arrives out of band over HTTP while the subprocess writes,
+   * so it joins here rather than at `emit`,
+   * keeping one consumer and therefore one order.
    */
   readonly queue: AsyncQueue<SkillEvent>
 }
@@ -145,11 +149,12 @@ export class SubprocessSkillRunner implements SkillRunner {
   ): Promise<SkillRunId> {
     const manifest = await this.deps.skillRegistry.get(workspace, skillId)
     const category = manifest.frontmatter.braid?.category
-    // The graph only accumulates, so two builds running against it at once
-    // race: each reads a snapshot the other is still changing, and whichever
-    // applies second proposes against a graph that has moved. Refused here
-    // rather than in a caller, because every path that starts a run comes
-    // through this one and a guard anywhere else can be walked around.
+    // The graph only accumulates, so two builds running against it race,
+    // each reading a snapshot the other is still changing,
+    // and whichever applies second proposes against a graph that has moved.
+    // Refused here rather than in a caller,
+    // because every path that starts a run comes through this one,
+    // and a guard anywhere else can be walked around.
     if (category === 'build' && this.hasActiveRun(workspace.id, 'build')) {
       throw new ConflictError(
         `Workspace "${workspace.id}" is already building. The graph only accumulates, so one build runs at a time. Wait for it to finish, or stop it first.`,
@@ -158,8 +163,8 @@ export class SubprocessSkillRunner implements SkillRunner {
     const runId = newSkillRunId()
     const sessionDir = await this.resolveSessionDir(workspace, runId, options.resumeSessionId)
     const skillBundleDirs = await this.skillBundleDirsFor(workspace, sessionDir)
-    // The run's own credential, so what it creates is attributed from the
-    // request rather than from a field an agent had to fill in correctly.
+    // The run's own credential, so what it creates is attributed from the request,
+    // rather than from a field an agent had to fill in correctly.
     const runToken = this.deps.runTokens?.issue(runId, options.startedBy) ?? options.callerToken
     const unattended = options.extraEnv?.BRAID_UNATTENDED === 'true'
     this.deps.outputGate?.open(runId, { unattended })
@@ -185,8 +190,8 @@ export class SubprocessSkillRunner implements SkillRunner {
       // eslint-disable-next-line no-template-curly-in-string
       ...(runToken ? ['--auth-type', 'bearer', '--auth-token', '${BRAID_TOKEN}'] : []),
     ]
-    // Compose the MCP server list, the built-in gateway plus any the workspace
-    // declares. The binding writes whatever config its CLI needs from this.
+    // Compose the MCP server list, the built-in gateway plus any declared.
+    // The binding writes whatever config its CLI needs from this.
     const gatewayServers: McpServerConfig[] = this.deps.coreGateway
       ? [{
           id: McpServerId.parse('braid-core'),
@@ -196,12 +201,12 @@ export class SubprocessSkillRunner implements SkillRunner {
         }]
       : []
     const binding = this.bindingFor(manifest.frontmatter.braid.agent)
-    // A caller holding the exchange supplies it. Otherwise this turn is the
-    // whole conversation, which is every run that did not come from a client
-    // keeping its own history.
-    // A continued run is a new run inside an old conversation, and the
-    // conversation still holds the closed run's id. Correcting it here is what
-    // keeps its render calls landing somewhere.
+    // A caller holding the exchange supplies it.
+    // Otherwise this turn is the whole conversation,
+    // which is every run that did not come from a client keeping its history.
+    // A continued run is a new run inside an old conversation,
+    // and the conversation still holds the closed run's id.
+    // Correcting it here is what keeps its render calls landing somewhere.
     const prompt = options.continues ? `${args}\n\n${restateRunId(runId)}` : args
     const messages = options.messages
       ? [...options.messages.slice(0, -1), { role: 'user' as const, content: prompt }]
@@ -243,14 +248,16 @@ export class SubprocessSkillRunner implements SkillRunner {
       env: {
         ...invocation.env,
         BRAID_SESSION_DIR: sessionDir,
-        // The run a render call posts back to. Without it a skill can reach
-        // the render tools but cannot name which run they belong to.
+        // The run a render call posts back to.
+        // Without it a skill reaches the render tools,
+        // but cannot name which run they belong to.
         BRAID_RUN_ID: runId,
         // The active ontology's declared source roles, as JSON.
         // A generic prompt reads this instead of naming role ids.
         ...this.sourceRolesEnv(workspace),
-        // The readers this ontology splits for, so a builtin prompt reads the
-        // vocabulary rather than naming any product's own facets.
+        // The readers this ontology splits for,
+        // so a builtin prompt reads the vocabulary,
+        // rather than naming any product's own facets.
         ...this.audiencesEnv(workspace),
         // Absolute paths to the reference docs a prompt may Read,
         // so no SKILL.md carries a location of its own.
@@ -278,15 +285,15 @@ export class SubprocessSkillRunner implements SkillRunner {
       workspaceId: workspace.id,
       skillId,
       args: prompt,
-      // Held apart only when they differ, which is a continued run: told to
-      // carry on, still reading the document the run before it was reading.
+      // Held apart only when they differ, which is a continued run,
+      // told to carry on and still reading what the run before it was reading.
       ...(options.scope !== undefined && options.scope !== prompt ? { scope: options.scope } : {}),
       ...(options.continues ? { continues: options.continues } : {}),
       resumed: options.resumeSessionId !== undefined,
       startedAt,
       startedBy: options.startedBy,
-      // Recorded rather than kept in memory, because what this run's questions
-      // mean outlives the process that spawned it.
+      // Recorded rather than kept in memory,
+      // because what this run's questions mean outlives the process.
       ...(unattended ? { unattended: true } : {}),
       ...(options.resumeSessionId ? { sessionId: options.resumeSessionId } : {}),
     }
@@ -308,8 +315,8 @@ export class SubprocessSkillRunner implements SkillRunner {
       runId,
       child,
       queue,
-      // A retry inherits the remaining budget, so one correction cannot
-      // become a loop that spends a subscription on the same gap.
+      // A retry inherits the remaining budget,
+      // so one correction cannot become a loop spending a subscription.
       retriesLeft: options.retriesLeft ?? manifest.frontmatter.braid.output?.maxRetries ?? 0,
       parseLine: binding.parseLine,
       skillId,
@@ -365,11 +372,11 @@ export class SubprocessSkillRunner implements SkillRunner {
   /**
    * Hand a run the account of the one it continues.
    *
-   * The alternative was a link between two logs, and a reader then has to
-   * know there is a second one and go and open it. One piece of work reads as
-   * one thread, so the thread is copied rather than pointed at, and the run
-   * that produced it originally still holds its own copy for whatever still
-   * points there.
+   * The alternative was a link between two logs,
+   * and a reader then has to know there is a second one and go and open it.
+   * One piece of work reads as one thread,
+   * so the thread is copied rather than pointed at,
+   * and the run that produced it still holds its own copy for what points there.
    */
   private async carryOver(workspace: Workspace, from: SkillRunId, to: SkillRunId): Promise<void> {
     const earlier: SkillEvent[] = []
@@ -547,12 +554,12 @@ export class SubprocessSkillRunner implements SkillRunner {
       if (this.deps.cleanupSession !== false && !keepForResume)
         await rm(input.sessionDir, { recursive: true, force: true }).catch(() => {})
 
-      // A correction is a new run, so it starts only once this one has been
-      // announced finished and torn down. Started inside the teardown it
-      // could be refused for colliding with itself, and the refusal would
-      // escape a promise nobody is holding.
+      // A correction is a new run,
+      // so it starts only once this one has been announced finished and torn down.
+      // Started inside the teardown it could be refused for colliding with itself,
+      // and the refusal would escape a promise nobody is holding.
       void this.correctOutput(input, rendered, capturedSessionId, exitCode, sawError).catch(() => {
-        // A run whose output missed its contract and could not be corrected
+        // A run whose output missed its contract, and was not corrected,
         // is already recorded as it happened. Nothing here can improve it.
       })
     }
@@ -561,13 +568,15 @@ export class SubprocessSkillRunner implements SkillRunner {
   /**
    * Hands a finished run's contract gap back to the agent for one more turn.
    *
-   * A skill prompt asking for something is not the same as getting it, and a
-   * run that stopped early looks exactly like one that had nothing left to say.
-   * The check runs after the stream drains, and the correction resumes the same
-   * claude session so the agent still has everything it just read.
+   * A skill prompt asking for something is not the same as getting it,
+   * and a run that stopped early looks like one that had nothing left to say.
+   * The check runs after the stream drains,
+   * and the correction resumes the same claude session,
+   * so the agent still has everything it just read.
    *
-   * Silent on a failed or cancelled run, because a gap there is a symptom of
-   * the failure rather than something the agent can fix by trying again.
+   * Silent on a failed or cancelled run,
+   * because a gap there is a symptom of the failure,
+   * rather than something the agent can fix by trying again.
    */
   private async correctOutput(
     input: { workspace: Workspace, runId: SkillRunId, skillId: SkillId, retriesLeft: number, initialRecord: RunRecord },

@@ -10,8 +10,8 @@ import { ShowTraceBlock } from './ShowTraceBlock'
 
 /**
  * One renderer per render call, picked by the call the agent made.
- * Each renderer owns its own chrome, because the calls differ in role:
- * an answer is the document, a finding annotates it, evidence backs it.
+ * Each renderer owns its own chrome, because the calls differ in role.
+ * An answer is the document, a finding annotates it, evidence backs it.
  * A single card wrapper around all of them would flatten that difference.
  */
 export function renderBlock(block: RenderBlock): ReactElement {

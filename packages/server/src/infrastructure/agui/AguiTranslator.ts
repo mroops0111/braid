@@ -16,13 +16,14 @@ const CUSTOM_NAMES = {
  * Braid's own run events, spoken as AG-UI.
  *
  * The translation is one way and happens only here, at the HTTP boundary.
- * Nothing upstream knows AG-UI exists, which is why an agent plugin needs no
- * change to be reachable by an AG-UI client. It parses its agent's output into
- * `SkillEvent` as it always did.
+ * Nothing upstream knows AG-UI exists,
+ * which is why an agent plugin needs no change to be reachable by a client.
+ * It parses its agent's output into `SkillEvent` as it always did.
  *
- * Stateful because AG-UI addresses a message by id across three events, while
- * an agent hands Braid whole messages. The counter is what turns one into the
- * other, so a translator belongs to one run and is not shared.
+ * Stateful because AG-UI addresses a message by id across three events,
+ * while an agent hands Braid whole messages.
+ * The counter is what turns one into the other,
+ * so a translator belongs to one run and is not shared.
  */
 export class AguiTranslator {
   private messageCount = 0
@@ -37,15 +38,16 @@ export class AguiTranslator {
 
   translate(event: SkillEvent): BaseEvent[] {
     switch (event.type) {
-      // One run, one opening frame. A run that carries another on opens
-      // holding that run's account, so a second start arrives inside the same
-      // stream, and the protocol refuses a second `RUN_STARTED` while a run is
-      // still active. The later ones are the carried thread describing itself,
+      // One run, one opening frame.
+      // A run that carries another on opens holding that run's account,
+      // so a second start arrives inside the same stream,
+      // and the protocol refuses a second `RUN_STARTED` while a run is active.
+      // The later ones are the carried thread describing itself,
       // which the log keeps and the wire does not need.
-      // One run, one opening frame, and the instruction behind it travels as
-      // what it is: the user message that starts the turn. The protocol's own
-      // start event carries ids and nothing else, so a reader given only that
-      // sees work with no sight of what was asked for.
+      // The instruction behind it travels as what it is,
+      // the user message that starts the turn.
+      // The protocol's own start event carries ids and nothing else,
+      // so a reader given only that sees work with no sight of the request.
       case 'started': {
         const messageId = this.nextMessageId()
         const prompt: BaseEvent[] = [
@@ -59,9 +61,9 @@ export class AguiTranslator {
         return [{ type: EventType.RUN_STARTED, threadId: this.threadId, runId: this.runId }, ...prompt]
       }
 
-      // A message arrives whole, so the triplet is emitted at once rather than
-      // streamed. A consumer sees a complete message either way, and the shape
-      // stays the one every AG-UI client already handles.
+      // A message arrives whole, so the triplet is emitted at once.
+      // A consumer sees a complete message either way,
+      // and the shape stays the one every AG-UI client already handles.
       case 'message': {
         const messageId = this.nextMessageId()
         return [
@@ -97,9 +99,9 @@ export class AguiTranslator {
           content: event.output,
         }]
 
-      // The block union is Braid's vocabulary, so it rides on CUSTOM rather
-      // than being bent into an AG-UI type that means something else. A client
-      // that does not know the vocabulary skips one named event.
+      // The block union is Braid's vocabulary, so it rides on CUSTOM,
+      // rather than being bent into an AG-UI type that means something else.
+      // A client that does not know the vocabulary skips one named event.
       case 'block':
         return [{ type: EventType.CUSTOM, name: CUSTOM_NAMES.block, value: { id: event.id, block: event.block } }]
 
@@ -119,9 +121,10 @@ export class AguiTranslator {
       case 'usage':
         return [{ type: EventType.CUSTOM, name: CUSTOM_NAMES.usage, value: { ...event, type: undefined } }]
 
-      // Not RUN_ERROR. A Braid run reports an error and keeps going, while
-      // RUN_ERROR ends the stream for a conformant client. What the run
-      // finished as is decided below, by the exit code.
+      // Not RUN_ERROR.
+      // A Braid run reports an error and keeps going,
+      // while RUN_ERROR ends the stream for a conformant client.
+      // What the run finished as is decided below, by the exit code.
       case 'error':
         return [{ type: EventType.CUSTOM, name: CUSTOM_NAMES.error, value: { message: event.message } }]
 

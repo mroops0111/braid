@@ -14,9 +14,10 @@ export interface UrlState {
  *   #/ws/<id>            no surface stated, so the app picks where to land
  *   #/ws/<id>/<surface>  a workspace surface, Graph, Ask, Proposals, Actions, History
  *
- * Graph is a named surface rather than the absence of one. A bare workspace
- * url has to mean "land me somewhere sensible" for an arrival to be able to
- * choose, and it cannot mean that and Graph at the same time.
+ * Graph is a named surface rather than the absence of one.
+ * A bare workspace url has to mean "land me somewhere sensible",
+ * for an arrival to be able to choose,
+ * and it cannot mean that and Graph at the same time.
  *   #/settings           account-level Settings, no workspace context
  *
  * Settings sits at the root because it is not workspace-scoped.

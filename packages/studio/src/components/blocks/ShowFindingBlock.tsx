@@ -5,16 +5,17 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { EvidenceRefs } from './EvidenceRefs'
 
-// A finding interrupts the answer's confidence, so its rule carries the verdict
-// and the surface it sits on stays close to the page.
+// A finding interrupts the answer's confidence,
+// so its rule carries the verdict and its surface stays close to the page.
 const VERDICT_RULE: Record<ShowFinding['verdict'], string> = {
   consistent: 'border-l-emerald-500/60 bg-emerald-500/[0.04]',
   conflict: 'border-l-amber-500/70 bg-amber-500/[0.05]',
   unverifiable: 'border-l-zinc-500/60 bg-zinc-500/[0.04]',
 }
 
-// A second axis from the verdict, so it is stated in the footer rather than on
-// the rule, where it would read as a stronger or weaker version of the verdict.
+// A second axis from the verdict,
+// so it is stated in the footer rather than on the rule,
+// where it would read as a stronger or weaker version of the verdict.
 const SUPPORT_TONE: Record<EvidenceSupport, string> = {
   corroborated: 'text-emerald-600 dark:text-emerald-400',
   partial: 'text-muted-foreground',
@@ -23,8 +24,8 @@ const SUPPORT_TONE: Record<EvidenceSupport, string> = {
 
 /**
  * An annotation on the answer, not a peer of it.
- * Reads as a callout inserted into the reading column, which is what a
- * disagreement between two sources actually is.
+ * Reads as a callout inserted into the reading column,
+ * which is what a disagreement between two sources actually is.
  */
 export function ShowFindingBlock({ block }: { block: ShowFinding }) {
   const { t } = useTranslation()

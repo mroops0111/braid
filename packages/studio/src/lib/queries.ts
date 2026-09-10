@@ -65,8 +65,8 @@ export function useMcpEndpoint() {
   return useQuery({
     queryKey: queryKeys.mcpEndpoint(),
     queryFn: () => api.mcpEndpoint(),
-    // The gateway is supervised and restarts, so a stale `unreachable`
-    // would outlive the gap it described.
+    // The gateway is supervised and restarts,
+    // so a stale `unreachable` would outlive the gap it described.
     refetchInterval: 30_000,
   })
 }

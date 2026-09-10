@@ -33,9 +33,10 @@ interface CommandPaletteProps {
 /**
  * Every surface the shell can show, and the source of truth for the type.
  *
- * Written once as values so the url parser can check against the same list
- * rather than a second copy. Kept apart, `activity` was addressable in the
- * shell and not in a url, and nothing said so.
+ * Written once as values,
+ * so the url parser can check against the same list rather than a copy.
+ * Kept apart, `activity` was addressable in the shell and not in a url,
+ * and nothing said so.
  */
 export const SURFACES = [
   'actions',
@@ -74,9 +75,10 @@ const SURFACE_ITEMS = [
   { id: 'ask', labelKey: 'shell.surfaces.ask', Icon: MessageCircleQuestion, shortcut: 'G Q' },
   { id: 'build', labelKey: 'shell.surfaces.build', Icon: Boxes, shortcut: 'G B' },
   { id: 'inbox', labelKey: 'shell.surfaces.inbox', Icon: Inbox, shortcut: 'G I' },
-  // Everything below folds into a surface above. Each reaches the same records
-  // once they are settled, which is browsing rather than working, so they keep
-  // a way in without taking a sidebar row for it.
+  // Everything below folds into a surface above.
+  // Each reaches the same records once they are settled,
+  // which is browsing rather than working,
+  // so they keep a way in without taking a sidebar row for it.
   { id: 'actions', labelKey: 'shell.surfaces.actions', Icon: Sparkles, shortcut: 'G A' },
   { id: 'clarifications', labelKey: 'shell.surfaces.clarifications', Icon: HelpCircle, shortcut: 'G C' },
   { id: 'proposals', labelKey: 'shell.surfaces.proposals', Icon: ClipboardCheck, shortcut: 'G P' },

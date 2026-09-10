@@ -161,13 +161,14 @@ function EdgeList({ title, icon: Icon, edges, getOther, nodesById, onSelectNode 
 /**
  * Where this node and its evidence disagree.
  *
- * Named rather than counted, because the whole content of a drift is the two
- * claims and where each was read. A count says a node is in trouble and gives
- * a reader nowhere to go with that.
+ * Named rather than counted,
+ * because the whole content of a drift is the two claims,
+ * and where each was read.
+ * A count says a node is in trouble and gives a reader nowhere to go.
  *
- * Read-only. Settling one means adding its description to the node's
- * acknowledged drifts, which is a graph write and belongs behind the same
- * gate as any other.
+ * Read-only.
+ * Settling one means adding its description to the acknowledged drifts,
+ * which is a graph write and belongs behind the same gate as any other.
  */
 function DriftSection({ node }: { node: GraphNode }) {
   const { t } = useTranslation()

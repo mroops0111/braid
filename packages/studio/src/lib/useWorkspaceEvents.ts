@@ -21,10 +21,11 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
       return
     const source = new EventSource(workspaceEventsUrl(workspaceId))
 
-    // The board reads runs, proposals, clarifications, the graph, and the
-    // observation store at once, so every signal that moves one of those moves
-    // a card. Invalidating it alongside each of them is what keeps the columns
-    // live without the board polling for itself.
+    // The board reads runs, proposals, clarifications, the graph,
+    // and the observation store at once,
+    // so every signal that moves one of those moves a card.
+    // Invalidating it alongside each of them keeps the columns live,
+    // without the board polling for itself.
     const invalidateCoverage = (): void => {
       queryClient.invalidateQueries({ queryKey: queryKeys.coverage(workspaceId) })
     }

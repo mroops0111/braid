@@ -60,22 +60,25 @@ export const Proposal = z.object({
   // Applying the proposal transitions that clarification to `applied`.
   clarificationId: ClarificationId.optional(),
   /**
-   * The run that produced this, when a skill did. Absent on a human-authored
-   * proposal. It is what lets a batch tell its own output from anything else
-   * created while it was running, and what links a proposal back to the
-   * conversation that reasoned about it.
+   * The run that produced this, when a skill did.
+   * Absent on a human-authored proposal.
+   * It is what lets a batch tell its own output from anything else,
+   * created while it was running,
+   * and what links a proposal back to the conversation that reasoned about it.
    */
   skillRunId: SkillRunId.optional(),
   /**
    * The source units this was derived from, each at the version that was read.
    *
-   * Stamped by the server from the run's own scope, never reported by the
-   * agent, because which document a run was pointed at and what its content
-   * hashed to are both facts the server already holds.
+   * Stamped by the server from the run's own scope,
+   * never reported by the agent,
+   * because which document a run was pointed at, and what it hashed to,
+   * are both facts the server already holds.
    *
-   * Applying a proposal is what moves a unit into the model, so this is what
-   * makes coverage answerable. Reading a unit is not incorporating it, and
-   * without this a rejected proposal would leave the unit looking current
+   * Applying a proposal is what moves a unit into the model,
+   * so this is what makes coverage answerable.
+   * Reading a unit is not incorporating it,
+   * and without this a rejected proposal would leave the unit looking current,
    * while the model reflected none of it.
    */
   sourceUnits: z.array(SourceUnit).optional(),

@@ -111,9 +111,10 @@ describe('stale run credentials under local trust', () => {
     return app
   }
 
-  // A credential that was issued and no longer resolves is a credential, not
-  // the absence of one. Letting it through as the anonymous caller is what
-  // let a subprocess outliving its server keep writing, unattributed.
+  // A credential that was issued and no longer resolves is a credential,
+  // rather than the absence of one.
+  // Letting it through as the anonymous caller is what let a subprocess,
+  // outliving its server, keep writing unattributed.
   it('refuses a run credential nothing recognises', async () => {
     const response = await localTrustApp().request('/who', {
       headers: { authorization: 'Bearer braid-run.gone' },

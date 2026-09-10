@@ -9,23 +9,26 @@ import { usePendingOperations, useWorkspaceScope } from '@/lib/blocks/WorkspaceS
 /**
  * The slice of the graph an answer stands on, drawn by the graph surface itself.
  *
- * The same canvas, palette, and node cards the Graph view uses, fed a source
- * filtered to these ids. Drawing it any other way would give the product two
- * visual languages for one thing, and a reader would have to learn both.
+ * The same canvas, palette, and node cards the Graph view uses,
+ * fed a source filtered to these ids.
+ * Drawing it any other way would give the product two visual languages,
+ * for one thing, and a reader would have to learn both.
  *
- * The block carries ids only, so names, types, and colours come from the live
- * snapshot and stay right when a node is renamed.
+ * The block carries ids only,
+ * so names, types, and colours come from the live snapshot,
+ * and stay right when a node is renamed.
  */
 export function ShowSubgraphBlock({ block }: { block: ShowSubgraph }) {
   const { t } = useTranslation()
   const workspaceId = useWorkspaceScope()
   const pending = usePendingOperations()
   const source = useSubgraphDataSource(workspaceId ?? '', block.nodes, pending)
-  // A run names the nodes an answer stands on, and a run that proposes names
-  // some it has only proposed. Previewing the pending changes puts those on
-  // the canvas marked as additions, so the slice is whole. Anything still
-  // missing is a citation the graph no longer accounts for, which is worth
-  // saying out loud rather than quietly leaving a gap.
+  // A run names the nodes an answer stands on,
+  // and a run that proposes names some it has only proposed.
+  // Previewing the pending changes puts those on the canvas as additions,
+  // so the slice is whole.
+  // Anything still missing is a citation the graph no longer accounts for,
+  // which is worth saying out loud rather than quietly leaving a gap.
   const drawn = new Set(source.nodes.map(node => node.id))
   const missing = block.nodes.filter(nodeId => !drawn.has(nodeId))
 
@@ -35,8 +38,8 @@ export function ShowSubgraphBlock({ block }: { block: ShowSubgraph }) {
         {block.title ?? t('blocks.subgraph.title')}
       </figcaption>
       {workspaceId && !source.isEmpty && (
-        // Tall enough to read a dozen nodes without panning, short enough that
-        // the answer around it stays the page.
+        // Tall enough to read a dozen nodes without panning,
+        // and short enough that the answer around it stays the page.
         <div className="h-128 overflow-hidden rounded-md border border-border">
           <GraphCanvas
             workspaceId={workspaceId}

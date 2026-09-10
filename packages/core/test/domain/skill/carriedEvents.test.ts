@@ -13,14 +13,14 @@ const THREAD: SkillEvent[] = [
 ]
 
 describe('carriedEvents', () => {
-  // The thread is what a reader follows, so all of it travels: what was asked,
-  // what was read, and what the agent said about it.
+  // The thread is what a reader follows, so all of it travels.
+  // What was asked, what was read, and what the agent said about it.
   it('carries the account of the work', () => {
     expect(carriedEvents(THREAD).map(event => event.type))
       .toEqual(['started', 'message', 'tool-call', 'tool-result'])
   })
 
-  // Copying these would have the new run report the earlier process's ending
+  // Copying these would have the new run report the earlier ending,
   // and bill its spend a second time.
   it('leaves the earlier process its own bookkeeping', () => {
     const types = carriedEvents(THREAD).map(event => event.type)

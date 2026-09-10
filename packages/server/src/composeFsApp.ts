@@ -127,8 +127,8 @@ export type ComposeFsOptions = ComposeFsRuntimeOptions & ExtraPluginOptions
 /**
  * What the fs runtime has already built by the time it asks for a registry.
  * The OAuth-backed loaders need the secret store and the provider clients,
- * both derived from `braidHome` and `apiUrl`, so a caller-supplied plugin
- * reads them from here rather than rebuilding them.
+ * both derived from `braidHome` and `apiUrl`,
+ * so a caller-supplied plugin reads them here rather than rebuilding them.
  * `googleOAuth` and `githubOAuth` are absent when their env is unset.
  */
 export interface FsRuntimeContext {
@@ -237,10 +237,11 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
 
 /**
  * The same filesystem runtime as `composeFsApp`, over a registry you build.
- * Storage and agent resolve from whatever `buildRegistry` registered, under
- * `storageKind` and `agentKind`, so a composition that omits the coding
- * preset's ontology and loaders still gets the subprocess skill runner, the
- * fs unit lister, and every fs repository, and so a batch runs unchanged.
+ * Storage and agent resolve from whatever `buildRegistry` registered,
+ * under `storageKind` and `agentKind`,
+ * so a composition omitting the coding preset's ontology and loaders,
+ * still gets the subprocess skill runner, the fs unit lister,
+ * and every fs repository, and so a batch runs unchanged.
  */
 export async function composeFsAppWithRegistry(
   buildRegistry: PluginRegistryFactory,
@@ -368,12 +369,14 @@ export async function composeFsAppWithRegistry(
   if (loginMode.kind === 'none' && authMode.requiresAuth)
     console.warn(`[braid] Nobody can sign in. ${loginMode.reason}`)
 
-  // A running skill's own credential, tried before any deployment's. It is the
-  // only verifier that is always present, since a run calls back the same way
+  // A running skill's own credential, tried before any deployment's.
+  // It is the only verifier that is always present,
+  // since a run calls back the same way,
   // whether or not this deployment gates people at the door.
   const runTokens = new RunTokenRegistry()
-  // Attended runs are held to one outcome. A batch that applies its own output
-  // opts out per run, since it wants the proposal and the doubt recorded both.
+  // Attended runs are held to one outcome.
+  // A batch that applies its own output opts out per run,
+  // since it wants the proposal and the doubt recorded both.
   const outputGate = new RunOutputGate()
   const accessTokenVerifiers = [
     runTokens,

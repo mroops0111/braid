@@ -13,8 +13,8 @@ function readAll(frames: readonly Record<string, unknown>[]) {
   return frames.flatMap(fields => reader.read(frame(fields)))
 }
 
-// A message spans three frames on the wire and is one thing here, so nothing
-// may be reported until the frame that closes it arrives.
+// A message spans three frames on the wire and is one thing here,
+// so nothing may be reported until the frame that closes it arrives.
 describe('AguiEventReader on a text message', () => {
   it('reports one message once its end arrives, not before', () => {
     const reader = new AguiEventReader()
@@ -25,8 +25,8 @@ describe('AguiEventReader on a text message', () => {
       .toEqual([{ type: 'message', text: 'hello' }])
   })
 
-  // The prompt travels as the user message that opens the turn, and once both
-  // are text on a wire the role is the only thing telling them apart.
+  // The prompt travels as the user message that opens the turn,
+  // and once both are text on a wire the role is all that tells them apart.
   it('keeps who said it when the message is the reader own prompt', () => {
     const events = readAll([
       { type: EventType.TEXT_MESSAGE_START, messageId: 'm1', role: 'user' },
@@ -148,8 +148,8 @@ describe('AguiEventReader on braid custom events', () => {
 })
 
 describe('AguiEventReader on the run boundaries', () => {
-  // What the surface needs from them travels as its own event, and a reader
-  // that reported these would double-count them against the log.
+  // What the surface needs from them travels as its own event,
+  // and a reader reporting these would double-count them against the log.
   it('reports nothing for the frames that open and close the run', () => {
     expect(readAll([
       { type: EventType.RUN_STARTED, threadId: 'th', runId: 'r' },

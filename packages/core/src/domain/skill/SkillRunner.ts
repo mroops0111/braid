@@ -6,14 +6,15 @@ export interface SkillRunOptions {
   /**
    * Continue a conversation the agent itself is holding.
    * The id comes from a prior `session-started` SkillEvent.
-   * A binding may use it to skip replaying `messages`, and one that cannot
-   * still runs correctly, so a caller never has to know which kind it has.
+   * A binding may use it to skip replaying `messages`,
+   * and one that cannot still runs correctly,
+   * so a caller never has to know which kind it has.
    */
   readonly resumeSessionId?: string
   /**
-   * The exchange this turn continues, oldest first, supplied by a caller that
-   * holds it rather than reconstructed here. Omitted, the run is a single turn
-   * whose only message is `args`.
+   * The exchange this turn continues, oldest first,
+   * supplied by a caller that holds it rather than reconstructed here.
+   * Omitted, the run is a single turn whose only message is `args`.
    */
   readonly messages?: readonly AgentMessage[]
   /**
@@ -41,23 +42,25 @@ export interface SkillRunOptions {
   /**
    * What this run is working on, when that is not what it is being told.
    *
-   * `args` is the prompt, and for a fresh run it is also the scope, since a
-   * per-unit run is started by naming its unit. A run that continues another
-   * is told to carry on instead, and recording that sentence as its scope
-   * would lose which document it is reading. Carrying the original scope
-   * forward keeps a continued run attributed to the same work.
+   * `args` is the prompt, and for a fresh run it is also the scope,
+   * since a per-unit run is started by naming its unit.
+   * A run that continues another is told to carry on instead,
+   * and recording that sentence as its scope would lose the document.
+   * Carrying the original scope forward keeps it attributed to the same work.
    */
   readonly scope?: string
   /**
-   * The run this one takes up, recorded so the chain stays walkable. Set
-   * wherever a run is started to carry another on, which is a settled
-   * question releasing it or a corrective turn on its own output.
+   * The run this one takes up, recorded so the chain stays walkable.
+   * Set wherever a run is started to carry another on,
+   * which is a settled question releasing it,
+   * or a corrective turn on its own output.
    */
   readonly continues?: SkillRunId
   /**
-   * Corrective turns still available when this run's output misses its
-   * skill's declared contract. Absent means the manifest decides, which is
-   * what a caller starting a fresh run wants.
+   * Corrective turns still available,
+   * when this run's output misses its skill's declared contract.
+   * Absent means the manifest decides,
+   * which is what a caller starting a fresh run wants.
    */
   readonly retriesLeft?: number
 }
@@ -117,9 +120,10 @@ export interface SkillRunner {
   /**
    * Whether this workspace already has a run in flight.
    *
-   * `category` narrows it to runs of that kind, which is what a caller asking
-   * about graph-mutating work wants: an answer being written reads the graph
-   * and must not hold up a build, and a build must not start beside another.
+   * `category` narrows it to runs of that kind,
+   * which is what a caller asking about graph-mutating work wants.
+   * An answer being written reads the graph and must not hold up a build,
+   * and a build must not start beside another.
    */
   hasActiveRun: (workspaceId: WorkspaceId, category?: SkillCategory) => boolean
 

@@ -18,8 +18,8 @@ describe('sourceUnitsForRun', () => {
     expect(both.map(unit => unit.value)).toEqual(['Unit One With Spaces/', 'Unit Two With Spaces/'])
   })
 
-  // A step working on the graph as a whole names no document, and crediting it
-  // with one would give it coverage it never earned.
+  // A step working on the graph as a whole names no document,
+  // and crediting it with one would give it coverage it never earned.
   it('names nothing for a run that was given no unit', () => {
     expect(sourceUnitsForRun('', units)).toEqual([])
     expect(sourceUnitsForRun('mode=full', units)).toEqual([])

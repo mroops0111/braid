@@ -34,10 +34,11 @@ function fallbackKey(call: RenderBlock['call']):
 }
 
 /**
- * Two things are worth spotting from the index alone: where the sources
- * disagree, and which part of the answer was written for this reader. The
- * rest is shared, and an index that gives every line the same weight cannot
- * say which line is the one they came for.
+ * Two things are worth spotting from the index alone.
+ * Where the sources disagree,
+ * and which part of the answer was written for this reader.
+ * The rest is shared, and an index giving every line the same weight,
+ * cannot say which line is the one they came for.
  */
 function toneFor(block: RenderBlock): string {
   if (block.call === 'showFinding' && block.verdict === 'conflict')
@@ -48,9 +49,10 @@ function toneFor(block: RenderBlock): string {
 }
 
 /**
- * The answer's shape at a glance, and the only way to see how many findings a
- * long answer carries without scrolling it. One line per block, because an
- * index is for finding your place rather than for reading.
+ * The answer's shape at a glance,
+ * and the only way to count a long answer's findings without scrolling it.
+ * One line per block,
+ * because an index is for finding your place rather than for reading.
  */
 export function BlockOutline({ blocks }: { blocks: readonly EmittedBlock[] }) {
   const { t } = useTranslation()

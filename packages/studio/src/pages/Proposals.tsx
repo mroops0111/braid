@@ -540,12 +540,13 @@ function ProposalPreview({ workspaceId, operations, validation, rationale }: {
     = useFocusedSelection()
   // Default to only-changes so a review opens on the diff, not the whole model.
   const [onlyChanges, setOnlyChanges] = useState(true)
-  // One meta panel open at a time, so an expanded list never stacks on the
-  // other and pushes the graph further than one panel's worth.
+  // One meta panel open at a time,
+  // so an expanded list never stacks on the other,
+  // and pushes the graph further than one panel's worth.
   const [openMeta, setOpenMeta] = useState<'validation' | 'rationale' | null>(null)
   const full = useProposalGraphDataSource(workspaceId, operations)
-  // Only-changes narrows what is drawn, rather than dimming what is not. In a
-  // workspace of a thousand nodes, dimming leaves the change lost among them.
+  // Only-changes narrows what is drawn, rather than dimming what is not.
+  // In a workspace of a thousand, dimming leaves the change lost among them.
   const source = useMemo(() => (onlyChanges ? narrowToChanges(full) : full), [onlyChanges, full])
   const flat = flattenOperations(operations)
 

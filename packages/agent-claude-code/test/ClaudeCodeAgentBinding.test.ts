@@ -189,9 +189,9 @@ describe('ClaudeCodeAgentBinding', () => {
     expect(result.args).toContain('--resume')
   })
 
-  // The point of the port carrying messages rather than a session id. An agent
-  // that holds no conversation of its own gets the exchange in the prompt, and
-  // the caller never had to know which kind of agent it was talking to.
+  // The point of the port carrying messages rather than a session id.
+  // An agent holding no conversation of its own gets the exchange in the prompt,
+  // and the caller never had to know which kind of agent it was talking to.
   it('replays the exchange in the prompt when no conversation handle exists', async () => {
     const binding = new ClaudeCodeAgentBinding(descriptor)
 

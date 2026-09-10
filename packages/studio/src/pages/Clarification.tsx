@@ -364,13 +364,15 @@ export function ClarificationDetail({
   ticket: Clarification
   onComplete: () => void
   /**
-   * Called after the answer lands, for a caller that wants to do something
-   * with it. The Inbox continues the run that asked, so the work carries on
-   * where it stopped instead of waiting for someone to start it again.
+   * Called after the answer lands, for a caller that wants to act on it.
+   * The Inbox continues the run that asked,
+   * so the work carries on where it stopped,
+   * instead of waiting for someone to start it again.
    */
   /**
-   * Called once the question is settled, whichever way. A run parked on it is
-   * released by any of the three, so the caller hears about all three.
+   * Called once the question is settled, whichever way.
+   * A run parked on it is released by any of the three,
+   * so the caller hears about all three.
    */
   onSettled?: (ticket: Clarification) => void
 }) {
@@ -407,9 +409,9 @@ export function ClarificationDetail({
     },
   })
 
-  // Deferring gives up the conversation, not the question. Only a question a
-  // run is actually parked on has a conversation to give up, so it is offered
-  // nowhere else.
+  // Deferring gives up the conversation, not the question.
+  // Only a question a run is parked on has a conversation to give up,
+  // so it is offered nowhere else.
   const defer = useMutation({
     mutationFn: () => api.deferClarification(workspaceId, ticket.id),
     onSuccess: () => {

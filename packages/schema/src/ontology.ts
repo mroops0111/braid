@@ -46,8 +46,9 @@ export const EdgeTypeDescriptor = z.object({
 export type EdgeTypeDescriptor = z.infer<typeof EdgeTypeDescriptor>
 
 /**
- * A source role the ontology declares. The framework reads the capabilities
- * here, never the id, so a new ontology adds roles without any core edit.
+ * A source role the ontology declares.
+ * The framework reads the capabilities here, never the id,
+ * so a new ontology adds roles without any core edit.
  */
 export const SourceRoleDescriptor = z.object({
   id: SourceRole,
@@ -64,9 +65,10 @@ export type SourceRoleDescriptor = z.infer<typeof SourceRoleDescriptor>
 /**
  * How much of a reference this reader wants to see.
  *
- * A rendering depth rather than a vocabulary, which is why it is a closed set
- * while the audience id beside it is not. `summary` names the source and its
- * section, `full` adds the line range and the excerpt.
+ * A rendering depth rather than a vocabulary,
+ * which is why it is a closed set while the audience id beside it is not.
+ * `summary` names the source and its section,
+ * and `full` adds the line range and the excerpt.
  */
 export const EvidenceDetail = z.enum(['summary', 'full'])
 export type EvidenceDetail = z.infer<typeof EvidenceDetail>
@@ -74,10 +76,11 @@ export type EvidenceDetail = z.infer<typeof EvidenceDetail>
 /**
  * One reader an answer is split for, declared by the ontology.
  *
- * Declaring none is the honest default for a product whose readers do not
- * split, and Studio then shows no audience switch at all. What belongs in each
- * half is an editorial decision, so it lives in `description` where the skill
- * reads it, not in any check the framework can make.
+ * Declaring none is the honest default for a product whose readers do not split,
+ * and Studio then shows no audience switch at all.
+ * What belongs in each half is an editorial decision,
+ * so it lives in `description` where the skill reads it,
+ * rather than in any check the framework can make.
  */
 export const AudienceDescriptor = z.object({
   id: AudienceId,

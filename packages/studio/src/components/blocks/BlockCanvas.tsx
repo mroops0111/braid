@@ -15,11 +15,13 @@ export function blockAnchorId(id: string): string {
 /**
  * Where a block sits, decided by what kind of block it is.
  *
- * A block carries no layout of its own, so this is the one place that turns an
- * ordered sequence into a page. A trail belongs above what it produced, and
- * everything else reads in order at the width of the column. Findings stay in
- * the flow rather than in a rail, because two sides plus their evidence is
- * wide content that a narrow column turns into a wall of wrapped lines.
+ * A block carries no layout of its own,
+ * so this is the one place that turns an ordered sequence into a page.
+ * A trail belongs above what it produced,
+ * and everything else reads in order at the width of the column.
+ * Findings stay in the flow rather than in a rail,
+ * because two sides plus their evidence is wide content,
+ * which a narrow column turns into a wall of wrapped lines.
  */
 type Slot = 'strip' | 'body'
 
@@ -30,9 +32,10 @@ function slotFor(block: EmittedBlock['block']): Slot {
 /**
  * Body blocks, with anything sharing a group gathered into one run.
  *
- * The skill says which blocks are readings of the same thing, and this decides
- * what that looks like. Grouping is preserved in arrival order, so a group
- * appears where its first member did rather than jumping to the top.
+ * The skill says which blocks are readings of the same thing,
+ * and this decides what that looks like.
+ * Grouping is preserved in arrival order,
+ * so a group appears where its first member did rather than jumping up.
  */
 function groupRuns(blocks: readonly EmittedBlock[]): Array<{ key: string, group: string | null, blocks: EmittedBlock[] }> {
   const runs: Array<{ key: string, group: string | null, blocks: EmittedBlock[] }> = []
@@ -50,10 +53,10 @@ function groupRuns(blocks: readonly EmittedBlock[]): Array<{ key: string, group:
 /**
  * A block written for the reader who is here, rather than for everyone.
  *
- * Most of an answer is addressed to whoever asked, and the few blocks that
- * name an audience are the whole reason the toggle exists. Left looking like
- * the rest, they read as more of the same, and switching reader appears to
- * change nothing.
+ * Most of an answer is addressed to whoever asked,
+ * and the few blocks naming an audience are the whole reason for the toggle.
+ * Left looking like the rest, they read as more of the same,
+ * and switching reader appears to change nothing.
  */
 function forThisReader(block: EmittedBlock['block']): boolean {
   return block.audiences.length > 0
@@ -65,10 +68,10 @@ function Anchored({ entry }: { entry: EmittedBlock }) {
       id={blockAnchorId(entry.id)}
       className={cn(
         'scroll-mt-6',
-        // The same rule a finding wears, since both are an aside on the
-        // answer rather than a peer of it. Only the colour differs, and it is
-        // the one this surface reserves for the reader rather than for a
-        // verdict about the sources.
+        // The same rule a finding wears,
+        // since both are an aside on the answer rather than a peer of it.
+        // Only the colour differs, and it is the one reserved for the reader,
+        // rather than for a verdict about the sources.
         forThisReader(entry.block) && 'rounded-r-md border-l-2 border-l-primary/60 bg-primary/[0.04] py-2.5 pl-3 pr-3',
       )}
     >
@@ -113,9 +116,10 @@ export function BlockCanvas({ turns, running, activity }: {
             {groupRuns(turn.blocks.filter(entry => slotFor(entry.block) === 'body')).map(run => (
               run.blocks.length > 1
                 ? (
-                    // Side by side where the page allows it, stacked where it
-                    // does not. The comparison is the skill's claim, the
-                    // arrangement is this surface's decision.
+                    // Side by side where the page allows it,
+                    // and stacked where it does not.
+                    // The comparison is the skill's claim,
+                    // while the arrangement is this surface's decision.
                     <div key={run.key} className="grid gap-4 lg:grid-cols-2">
                       {run.blocks.map(entry => <Anchored key={entry.id} entry={entry} />)}
                     </div>

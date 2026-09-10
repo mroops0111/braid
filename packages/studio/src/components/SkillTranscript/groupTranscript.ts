@@ -25,10 +25,12 @@ export type TranscriptItem =
  */
 export function groupTranscript(events: readonly SkillEvent[]): TranscriptItem[] {
   const items: TranscriptItem[] = []
-  // A render call produces a block, and the block arrives out of band, between
-  // the call and its result. That breaks the group, so a result would land
-  // alone and read as a tool nobody called. Calls stay reachable across the
-  // break instead, and the result joins the call it belongs to.
+  // A render call produces a block, and the block arrives out of band,
+  // between the call and its result.
+  // That breaks the group, so a result would land alone,
+  // and read as a tool nobody called.
+  // Calls stay reachable across the break instead,
+  // and the result joins the call it belongs to.
   const openCalls = new Map<string, PairedCall>()
   let i = 0
   while (i < events.length) {
@@ -66,7 +68,7 @@ export function groupTranscript(events: readonly SkillEvent[]): TranscriptItem[]
           break
         }
       }
-      // A group left with nothing of its own is a result that found its call
+      // A group left with nothing of its own is a result that found its call,
       // further up, so there is nothing here to show.
       if (calls.length > 0)
         items.push({ kind: 'tool-group', calls, key: `g${startIndex}` })

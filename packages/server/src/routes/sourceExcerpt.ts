@@ -9,11 +9,11 @@ import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
 
-// A window either side of the cited range, so a reader sees the line in its
-// own context instead of a fragment with no surroundings.
+// A window either side of the cited range,
+// so a reader sees the line in its own context, not a bare fragment.
 const CONTEXT_LINES = 4
-// A cited range is evidence, not a file viewer. Anything larger than this is
-// a sign the reference is too broad to read inline anyway.
+// A cited range is evidence, not a file viewer.
+// Anything larger is a sign the reference is too broad to read inline.
 const MAX_LINES = 200
 
 export interface SourceExcerptRouterDeps {
@@ -59,9 +59,10 @@ const excerptRoute = createRoute({
 /**
  * The local copy of a cited location, for reading in place.
  *
- * Distinct from the canonical link, which leaves for the host. This is the
- * mirror already on disk, which is what a reader wants while reading rather
- * than acting, and it is the only one that works for a source with no host.
+ * Distinct from the canonical link, which leaves for the host.
+ * This is the mirror already on disk,
+ * which is what a reader wants while reading rather than acting,
+ * and the only one that works for a source with no host.
  */
 export function createSourceExcerptRouter(deps: SourceExcerptRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
@@ -76,8 +77,8 @@ export function createSourceExcerptRouter(deps: SourceExcerptRouterDeps): OpenAP
 
     const sourceRoot = resolveWithin(source.path, workspace.rootPath)
     const target = resolveWithin(uri, workspace.rootPath)
-    // A reference names a place inside its own source. Anything else is a
-    // path traversal, whether or not whoever wrote it meant one.
+    // A reference names a place inside its own source.
+    // Anything else is a path traversal, whether or not it was meant.
     if (relative(sourceRoot, target).startsWith('..'))
       throw new NotFoundError(`Reference "${uri}" is outside source "${sourceId}"`)
 

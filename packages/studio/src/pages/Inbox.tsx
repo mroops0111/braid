@@ -29,10 +29,11 @@ type KindFilter = 'all' | 'asked' | 'proposal'
 /**
  * What the reader is looking at, not how they look at it.
  *
- * Stacking the run's working above the record cost both of them room, and on a
- * clarification it pushed the answer button off the bottom. They are two
- * things a reviewer wants one at a time, the thing to decide and the reasoning
- * behind it, so each takes the pane rather than half of it.
+ * Stacking the run's working above the record cost both of them room,
+ * and on a clarification it pushed the answer button off the bottom.
+ * They are two things a reviewer wants one at a time,
+ * the thing to decide and the reasoning behind it,
+ * so each takes the pane rather than half of it.
  */
 type DetailView = 'record' | 'reasoning' | typeof TRANSCRIPT_VIEW
 
@@ -62,8 +63,8 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
   const shown = kind === 'all' ? items : items.filter(item => matchesFilter(item, kind))
   const selected = shown.find(item => item.id === selectedId) ?? null
 
-  // A deep link outranks landing on the first item, and is consumed once so
-  // the reader is free to move on without being dragged back.
+  // A deep link outranks landing on the first item, and is consumed once,
+  // so the reader is free to move on without being dragged back.
   useEffect(() => {
     if (!focusedProposalId)
       return
@@ -74,8 +75,9 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
     onFocusConsumed?.()
   }, [focusedProposalId, items, onFocusConsumed])
 
-  // Land on something rather than an empty pane, and re-land after answering
-  // clears the current one. Working a queue should not cost a click per item.
+  // Land on something rather than an empty pane,
+  // and re-land after answering clears the current one.
+  // Working a queue should not cost a click per item.
   useEffect(() => {
     if (selected || isLoading || shown.length === 0)
       return
@@ -85,16 +87,18 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
   /**
    * Carry the run on, once nothing of its is still open.
    *
-   * Answering, deferring, and setting aside all release it, because the run
-   * asked in order to keep going and every one of those is a decision it can
-   * go on from. What it is told each was is the server's to say, read off the
-   * record rather than sent from here.
+   * Answering, deferring, and setting aside all release it,
+   * because the run asked in order to keep going,
+   * and every one of those is a decision it can go on from.
+   * What it is told each was is the server's to say,
+   * read off the record rather than sent from here.
    *
-   * A run parked on three questions is parked on all three, so settling the
-   * first must not restart it and strand the other two pointing at a
-   * conversation that has already moved. Asked of the server rather than of
-   * the cache, because the decision that triggered this is what makes the
-   * cache wrong for exactly as long as it takes to refetch.
+   * A run parked on three questions is parked on all three,
+   * so settling the first must not restart it,
+   * and strand the other two pointing at a conversation that has moved.
+   * Asked of the server rather than of the cache,
+   * because the decision that triggered this is what makes the cache wrong,
+   * for exactly as long as it takes to refetch.
    */
   const continueRun = useCallback((ticket: Clarification) => {
     const runId = ticket.skillRunId
@@ -114,10 +118,11 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
         clarificationId: ticket.id,
       })
     })().catch(() => {
-      // The decision is recorded either way, so nothing is lost that a person
-      // has to enter again. An answer a run cannot take up is still the
-      // clarify skill's to pick up later. A deferral or a set-aside is not,
-      // and that run stays stopped, which nothing here can currently say.
+      // The decision is recorded either way,
+      // so nothing is lost that a person has to enter again.
+      // An answer a run cannot take up is still the clarify skill's to pick up.
+      // A deferral or a set-aside is not, and that run stays stopped,
+      // which nothing here can currently say.
     })
   }, [workspaceId])
 
@@ -126,9 +131,9 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
   const waitingOnClarify = answered.data?.items.length ?? 0
 
   return (
-    // The height context SurfaceLayout needs. Without it the pane lays out at
-    // its content height, and anything pinned to the bottom of a detail, the
-    // answer button among them, ends up below the fold.
+    // The height context SurfaceLayout needs.
+    // Without it the pane lays out at its content height,
+    // and anything pinned to the bottom of a detail ends up below the fold.
     <div className="flex h-full flex-col">
       <SurfaceLayout
         collapse={{ collapsed: !listOpen, onToggle: next => setListOpen(!next), showLabel: t('common.showList') }}
@@ -155,9 +160,9 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
               ))}
             </ul>
             {waitingOnClarify > 0 && (
-              // Answering a standing question changes nothing on its own. The
-              // step that reads answered ones has to be run, and somebody who
-              // has just worked through a queue is the one who needs telling.
+              // Answering a standing question changes nothing on its own.
+              // The step that reads answered ones has to be run,
+              // and somebody who just worked a queue is who needs telling.
               <p className="shrink-0 border-t border-border px-3 py-2 text-2xs text-muted-foreground">
                 {t('inbox.answeredWaiting', { count: waitingOnClarify })}
               </p>
@@ -198,9 +203,10 @@ function matchesFilter(item: Item, filter: Exclude<KindFilter, 'all'>): boolean 
 /**
  * One waiting item, and the two ways of looking at it.
  *
- * Keyed by the item, so which view is open belongs to the item rather than to
- * the pane. Held above, it survived into the next item, and resetting it from
- * an effect fought every re-selection the list made on its own.
+ * Keyed by the item, so which view is open belongs to the item,
+ * rather than to the pane.
+ * Held above, it survived into the next item,
+ * and resetting it from an effect fought every re-selection the list made.
  */
 function ItemDetail({ workspaceId, item, onComplete, onSettled }: {
   workspaceId: string
@@ -210,11 +216,12 @@ function ItemDetail({ workspaceId, item, onComplete, onSettled }: {
 }) {
   const { t } = useTranslation()
   const [view, setView] = useState<DetailView>(item.kind === 'running' ? 'reasoning' : 'record')
-  // Which of a parked run's questions is open. The run is one item, so moving
-  // between its questions must not move the reader off it.
+  // Which of a parked run's questions is open.
+  // The run is one item, so moving between its questions,
+  // must not move the reader off it.
   const [questionId, setQuestionId] = useState<string | null>(null)
-  // A running item and a parked one are keyed by the run itself. Everything
-  // else names the run that produced it.
+  // A running item and a parked one are keyed by the run itself.
+  // Everything else names the run that produced it.
   const runId = item.kind === 'running' || item.kind === 'parked' ? item.id : item.record.skillRunId
   const run = useRun(workspaceId, runId ?? null)
   const events = run?.events ?? []
@@ -228,9 +235,9 @@ function ItemDetail({ workspaceId, item, onComplete, onSettled }: {
     ? item.questions.find(question => question.id === questionId) ?? item.questions[0]!
     : item.kind === 'question' ? item.record : null
 
-  // The same control the Ask surface uses, in the same place: the header row,
-  // beside whatever the record can be done to. One band rather than two, and
-  // the choice does not move when the view changes.
+  // The same control the Ask surface uses, in the same place,
+  // the header row beside whatever the record can be done to.
+  // One band rather than two, and the choice does not move with the view.
   const viewToggle = (
     <Tabs value={view} onValueChange={value => setView(value as DetailView)}>
       <TabsList variant="line">
@@ -254,9 +261,10 @@ function ItemDetail({ workspaceId, item, onComplete, onSettled }: {
     <div className="flex min-h-0 flex-1 flex-col">
       <SurfaceBand className="px-4">{viewToggle}</SurfaceBand>
       {item.kind === 'parked' && item.questions.length > 1 && view === 'record' && (
-        // One run, several doubts. They are answered together, so they share
-        // an item, and this is how a reader moves between them without losing
-        // their place in the queue.
+        // One run, several doubts.
+        // They are answered together, so they share an item,
+        // and this is how a reader moves between them,
+        // without losing their place in the queue.
         <div className="flex shrink-0 flex-wrap gap-1 border-b border-border px-4 py-2">
           {item.questions.map((question, index) => (
             <Button
@@ -361,8 +369,8 @@ function describe(
         source: item.id,
       }
     case 'question':
-      // No source: a standing question has no conversation parked on it, and
-      // naming the run that raised it would say otherwise.
+      // No source, because a standing question has nothing parked on it,
+      // and naming the run that raised it would say otherwise.
       return { label: 'inbox.kind.question', title: questionExcerpt(item.record.question), source: undefined }
     case 'proposal':
       return { label: 'inbox.kind.change', title: item.record.rationale, source: nameStep(item.record.generatedBy, stages, locale) }

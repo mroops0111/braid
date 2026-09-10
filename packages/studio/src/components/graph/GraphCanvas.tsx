@@ -40,10 +40,11 @@ interface GraphCanvasProps {
   /**
    * Rendered inside another surface rather than as the Graph page.
    *
-   * The minimap goes, because a slice small enough to embed is already the
-   * overview a minimap would provide, and every type starts visible, because
-   * an embedded slice was chosen by whoever put it there rather than filtered
-   * down by the reader.
+   * The minimap goes,
+   * because a slice small enough to embed is already the overview it provides,
+   * and every type starts visible,
+   * because an embedded slice was chosen by whoever put it there,
+   * rather than filtered down by the reader.
    */
   embedded?: boolean
   /**
@@ -111,10 +112,11 @@ interface GraphCanvasProps {
   /** Opens the command palette from the navigator, not only from the shortcut. */
   onOpenSearch?: () => void
   /**
-   * Nodes somebody arrived to look at, marked and framed inside whatever is
-   * drawn. Arriving is a fresh intent, so it also opens the type whitelist,
-   * the same relaxation a reference already gets, since a filter set while
-   * browsing must not hide what was just asked for.
+   * Nodes somebody arrived to look at,
+   * marked and framed inside whatever is drawn.
+   * Arriving is a fresh intent, so it also opens the type whitelist,
+   * the same relaxation a reference already gets,
+   * since a filter set while browsing must not hide what was just asked for.
    */
   spotlightIds?: readonly NodeId[]
 }
@@ -173,9 +175,9 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
   // Navigator stays open across tab and preview modes,
   // so the filter chips are visible from the start.
   // Reviewers got stuck in preview mode wondering how to surface types.
-  // An embedded slice starts with the panel folded. The reader came for the
-  // picture, and the slice was already chosen for them, so filters are there
-  // to reach for rather than to greet them.
+  // An embedded slice starts with the panel folded.
+  // The reader came for the picture, and the slice was chosen for them,
+  // so filters are there to reach for rather than to greet them.
   const [navigatorOpen, setNavigatorOpen] = useState(!embedded)
   const canvasRef = useRef<HTMLDivElement>(null)
   /**
@@ -321,8 +323,8 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
    * so it frames a bounds it cannot know yet and lands on `minZoom`.
    * The layout-change fit normally corrects this,
    * because the snapshot usually arrives after mount and moves the key.
-   * A canvas mounted over an already-cached snapshot never gets that second
-   * pass, which is every embedded subgraph, and stays zoomed out.
+   * A canvas mounted over an already-cached snapshot never gets that pass,
+   * which is every embedded subgraph, and stays zoomed out.
    */
   const nodesInitialized = useNodesInitialized()
   const didFitOnInitRef = useRef(false)
@@ -353,8 +355,9 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
     }
   }, [dimUnchanged, changedNodeIds, reactFlow, navigatorOpen])
 
-  // Arriving frames what was arrived at, so a dozen nodes are legible inside a
-  // graph of a thousand rather than somewhere off screen.
+  // Arriving frames what was arrived at,
+  // so a dozen nodes are legible inside a graph of a thousand,
+  // rather than sitting somewhere off screen.
   useEffect(() => {
     if (spotlightIds.length === 0)
       return

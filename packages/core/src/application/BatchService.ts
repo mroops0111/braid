@@ -92,12 +92,14 @@ export interface StartBatchOptions {
   /** Recorded on every RunRecord the batch writes, so the history names an author. */
   startedBy: UserId
   /**
-   * The unit paths to walk. Omitted, the batch walks every document the
-   * unit-bearing sources hold, which is what a first bootstrap wants.
+   * The unit paths to walk.
+   * Omitted, the batch walks every document the unit-bearing sources hold,
+   * which is what a first bootstrap wants.
    *
-   * Given, it walks only those, which is what covering the documents a board
-   * column happens to be holding wants. Same plan, same checkpoints, same
-   * resume, so a partial run is not a second mechanism.
+   * Given, it walks only those,
+   * which is what covering the documents a board column holds wants.
+   * Same plan, same checkpoints, same resume,
+   * so a partial run is not a second mechanism.
    */
   scope?: readonly string[]
 }
@@ -112,15 +114,16 @@ type BatchCaller = Pick<SkillRunOptions, 'callerToken' | 'startedBy'>
 /**
  * Told to a skill when a batch is driving it and applying what it produces.
  *
- * Bootstrap trades settled-ness for coverage on purpose, so a run in this mode
- * proposes what it has rather than stopping on the first thing it cannot
- * decide. What it could not decide is recorded on the node and raised as a
- * clarification, so the doubt is visible in the graph rather than lost in a
- * guess nobody can see.
+ * Bootstrap trades settled-ness for coverage on purpose,
+ * so a run in this mode proposes what it has,
+ * rather than stopping on the first thing it cannot decide.
+ * What it could not decide is recorded on the node and raised as a question,
+ * so the doubt is visible in the graph rather than lost in a silent guess.
  */
-// Nobody watches a batch, whatever it does with what the runs produce. A run
-// that stops to ask inside one is asking a room with no one in it, so it is
-// told that up front and files its questions to be picked up later instead.
+// Nobody watches a batch, whatever it does with what the runs produce.
+// A run that stops to ask inside one is asking a room with no one in it,
+// so it is told that up front,
+// and files its questions to be picked up later instead.
 const UNATTENDED_ENV = { BRAID_UNATTENDED: 'true' } as const
 
 export class BatchService {
@@ -562,9 +565,9 @@ export class BatchService {
   /**
    * What this run produced, not what appeared while it ran.
    *
-   * The before-and-after diff alone would claim anything anyone else created
-   * in the meantime, which for an auto-applying batch means landing a change
-   * nobody reviewed. A record naming this run is the only one it may claim,
+   * The before-and-after diff alone would claim anything anyone else created,
+   * which for an auto-applying batch means landing a change nobody reviewed.
+   * A record naming this run is the only one it may claim,
    * and one naming no run at all was authored by a person.
    */
   private async collectUnitOutput(
@@ -622,9 +625,10 @@ export class BatchService {
     return this.deps.eventBus.subscribe(workspaceId, (event) => {
       if (event.type !== 'proposal.created')
         return
-      // The bus is workspace-wide, so a proposal from anywhere else arrives
-      // here too. Applying one without review because a batch happened to be
-      // running is the reviewer's decision taken away from them.
+      // The bus is workspace-wide,
+      // so a proposal from anywhere else arrives here too.
+      // Applying one without review because a batch happened to be running,
+      // is the reviewer's decision taken away from them.
       if (event.skillRunId !== runId)
         return
       if (applied.has(event.proposalId))

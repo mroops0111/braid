@@ -141,8 +141,9 @@ export interface AuthConfig {
 /**
  * What this deployment does with MCP.
  *
- * Read-only. Whether there is an endpoint follows from the authorization
- * server, which is a deployment decision rather than a Studio one.
+ * Read-only.
+ * Whether there is an endpoint follows from the authorization server,
+ * which is a deployment decision rather than a Studio one.
  */
 export interface McpEndpointStatus {
   state: 'ready' | 'unreachable' | 'incomplete' | 'turnedOff' | 'noAuthorizationServer'
@@ -196,9 +197,10 @@ export const api = {
       }),
     }),
   /**
-   * Where a reference lives on its own host, or null when the source has no
-   * web address. Only the loader knows how to build it, so this asks rather
-   * than guessing at a URL shape.
+   * Where a reference lives on its own host,
+   * or null when the source has no web address.
+   * Only the loader knows how to build it,
+   * so this asks rather than guessing at a URL shape.
    */
   resolveSourceRefUrl: (workspaceId: string, sourceId: string, location: SourceLocation) =>
     fetchJson<{ url: string | null }>(`/workspaces/${encodeURIComponent(workspaceId)}/source-refs/resolve`, {

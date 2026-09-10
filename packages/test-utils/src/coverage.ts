@@ -4,9 +4,10 @@ import { T0 } from './time.js'
 /**
  * One source document, and what the model has made of it.
  *
- * Every field real rather than cast away, so a surface that starts reading a
- * new one stops the tests that fabricate the old shape, which is the whole
- * reason a factory earns its place over a literal.
+ * Every field real rather than cast away,
+ * so a surface that starts reading a new one stops the tests,
+ * that fabricate the old shape,
+ * which is the whole reason a factory earns its place over a literal.
  */
 export function makeCoverageCard(overrides: Partial<CoverageCard> = {}): CoverageCard {
   return {

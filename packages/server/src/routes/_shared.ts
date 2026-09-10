@@ -70,25 +70,28 @@ export function mcpReadTool<T extends object>(
 /**
  * The extension key naming which runs may see an operation at all.
  *
- * Braid's own bookkeeping rather than something the gateway reads, so it
- * travels under its own key and is stripped before the spec goes out.
+ * Braid's own bookkeeping rather than something the gateway reads,
+ * so it travels under its own key and is stripped before the spec goes out.
  */
 export const RUN_CATEGORIES_KEY = 'x-braid-run-categories'
 
 /**
  * Narrow an operation to the kinds of run that have any business calling it.
  *
- * A run's tools come from the spec its gateway is given, so this is where the
- * question belongs: not in a prompt, which holds about half the time, and not
- * in the handler, which would have to learn who is calling to answer it. An
- * operation left unmarked is visible to every run, which is right for a read.
+ * A run's tools come from the spec its gateway is given,
+ * so this is where the question belongs.
+ * Not in a prompt, which holds about half the time,
+ * and not in the handler, which would have to learn who is calling.
+ * An operation left unmarked is visible to every run,
+ * which is right for a read.
  *
- * The list is what may see it, so `[]` means no run may. That is the honest
- * reading for a decision a person makes, such as applying a proposal.
+ * The list is what may see it, so `[]` means no run may.
+ * That is the honest reading for a decision a person makes,
+ * such as applying a proposal.
  *
- * This scopes what a run is offered, not what the API will accept. A run
- * still carries a credential the REST surface honours, so making this a
- * boundary rather than a curation is a separate change to the token.
+ * This scopes what a run is offered, not what the API will accept.
+ * A run still carries a credential the REST surface honours,
+ * so making this a boundary rather than a curation is a change to the token.
  */
 export function forRuns<T extends object>(
   route: T,

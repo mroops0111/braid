@@ -444,9 +444,10 @@ export function bucketByGroup(skills: readonly SkillManifest[]): Record<Group, S
   const out: Record<Group, SkillManifest[]> = { ask: [], build: [], generate: [], custom: [] }
   for (const skill of skills) {
     const category = skill.frontmatter.braid?.category
-    // An ask skill has its own surface, with the question box and the answers
-    // that came out of it. Listing it here too offers the same run twice, and
-    // the copy here is the poorer of the two.
+    // An ask skill has its own surface,
+    // with the question box and the answers that came out of it.
+    // Listing it here too offers the same run twice,
+    // and the copy here is the poorer of the two.
     if (category === 'ask')
       continue
     out[category ?? 'custom'].push(skill)

@@ -10,8 +10,8 @@ export const common = {
   apply: 'Apply',
   reject: 'Reject',
   retry: 'Retry',
-  // One control on every surface that offers a column of things to pick
-  // from, so it says the same thing wherever a reader finds it.
+  // One control on every surface offering a column of things to pick from,
+  // so it says the same thing wherever a reader finds it.
   showList: 'Show list',
   hideList: 'Hide list',
   confirm: 'Confirm',

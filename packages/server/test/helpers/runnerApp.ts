@@ -28,15 +28,16 @@ function defaultManifest(): SkillManifest {
 }
 
 /**
- * Every held process this file has opened, so a failing test cannot leave one
- * behind.
+ * Every held process this file has opened,
+ * so a failing test cannot leave one behind.
  *
- * A scripted process opened with `hold` keeps its stdout open until the test
- * releases it, and the runner's drain promise settles only when it closes. A
- * test that releases it on its last line releases nothing when an earlier
- * assertion throws, and the open handle outlives the test that made it. Which
- * is why this is a list rather than a return value: the cleanup has to reach
- * processes the test never got as far as naming.
+ * A scripted process opened with `hold` keeps its stdout open,
+ * until the test releases it,
+ * and the runner's drain promise settles only when it closes.
+ * A test releasing it on its last line releases nothing when a check throws,
+ * and the open handle outlives the test that made it.
+ * Which is why this is a list rather than a return value,
+ * since the cleanup has to reach processes the test never got as far as naming.
  */
 const held: Array<() => void> = []
 
@@ -58,8 +59,9 @@ export interface RunnerAppOptions {
 /**
  * An app whose runs are scripted rather than real.
  *
- * Four route tests each assembled this by hand, so the runner's constructor
- * had four places to be kept in step and they had already drifted apart.
+ * Four route tests each assembled this by hand,
+ * so the runner's constructor had four places to be kept in step,
+ * and they had already drifted apart.
  */
 export async function buildRunnerApp(options: RunnerAppOptions = {}): Promise<{
   app: ReturnType<typeof createApp>

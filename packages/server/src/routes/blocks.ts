@@ -9,9 +9,10 @@ import { loadWorkspaceById } from './helpers.js'
 
 /**
  * These operations carry no `mcpReadTool` marker on purpose.
- * The per-run gateway serves every operation in the spec, so a skill reaches
- * them anyway, while the long-lived endpoint runs `annotated_only` and so
- * keeps them out of a person's own MCP client, where they mean nothing.
+ * The per-run gateway serves every operation in the spec,
+ * so a skill reaches them anyway,
+ * while the long-lived endpoint runs `annotated_only`,
+ * and so keeps them out of a person's own MCP client where they mean nothing.
  */
 
 export interface BlocksRouterDeps {
@@ -28,18 +29,20 @@ const RunIdParam = WorkspaceIdParam.extend({
 /**
  * What the call produced, and nothing the caller already knows.
  *
- * The status line says it succeeded, so a body repeating that carries no
- * information while still costing tokens: every render call is a tool call
- * whose result re-enters the agent's context, and an answer runs to twenty of
- * them. What the caller cannot know is what the server decided, so that is
- * what comes back.
+ * The status line says it succeeded,
+ * so a body repeating that carries no information while still costing tokens.
+ * Every render call is a tool call whose result re-enters the agent's context,
+ * and an answer runs to twenty of them.
+ * What the caller cannot know is what the server decided,
+ * so that is what comes back.
  */
 const RecordedResponse = z.object({
   blockId: BlockId,
   /**
-   * How well the sides of a finding are sourced, derived here from their
-   * references because a skill asserting its own confidence would be marking
-   * its own work. Only `showFinding` produces one.
+   * How well the sides of a finding are sourced,
+   * derived here from their references,
+   * because a skill asserting its own confidence would be marking its own work.
+   * Only `showFinding` produces one.
    */
   support: EvidenceSupport.optional(),
 }).openapi('BlockRecorded')
@@ -157,14 +160,15 @@ export function createBlocksRouter(deps: BlocksRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
 
   /**
-   * A ref saying it came from the graph is a claim the graph can settle, and a
-   * citation to a node nobody holds is worse than none, because it reads as
-   * corroboration. Refused here so the run is told while it can still fix it,
+   * A ref saying it came from the graph is a claim the graph can settle,
+   * and a citation to a node nobody holds is worse than none,
+   * because it reads as corroboration.
+   * Refused here so the run is told while it can still fix it,
    * rather than a reader finding it later.
    *
-   * Only the ids a block names are resolved, never the whole model. Every
-   * render call would otherwise load the graph, and an answer is a dozen
-   * calls.
+   * Only the ids a block names are resolved, never the whole model.
+   * Every render call would otherwise load the graph,
+   * and an answer is a dozen calls.
    */
   async function checkCitations(
     workspaceId: WorkspaceId,

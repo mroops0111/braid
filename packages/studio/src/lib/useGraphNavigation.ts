@@ -17,10 +17,11 @@ export interface GraphNavigation {
   /**
    * Open the graph showing only these nodes and one hop around them.
    *
-   * A set rather than a node, because what a reader wants to see is often a
-   * slice: everything one document put into the model, say. Drawing that in a
-   * side panel makes it too small to read, and the graph surface is already
-   * the thing built to show it.
+   * A set rather than a node,
+   * because what a reader wants to see is often a slice,
+   * such as everything one document put into the model.
+   * Drawing that in a side panel makes it too small to read,
+   * and the graph surface is already the thing built to show it.
    */
   focusNodes: (ids: readonly NodeId[], origin: string) => void
 }

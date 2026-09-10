@@ -2,9 +2,9 @@ import type { AudienceDescriptor, BatchUnit, EdgeTypeId, LocalizedText, ModelSna
 import type { Plugin } from './Plugin.js'
 
 /**
- * A source role the ontology declares. The framework branches on the
- * capabilities here, never on the id, so a new ontology adds roles with
- * no core edit.
+ * A source role the ontology declares.
+ * The framework branches on the capabilities here, never on the id,
+ * so a new ontology adds roles with no core edit.
  */
 export interface SourceRoleDescriptor {
   readonly id: SourceRole
@@ -143,18 +143,19 @@ export interface OntologyPlugin extends Plugin {
   readonly batch?: OntologyBatchBinding
   /**
    * The source roles this ontology declares, with their capabilities.
-   * The scaffold endpoint rejects a manifest missing any `required` role
-   * with 422, so the wizard can prompt for it. `unitBearing` roles drive
-   * batch unit production and the Reactor. Core reads capabilities, not ids.
+   * The scaffold endpoint rejects a manifest missing a `required` role,
+   * so the wizard can prompt for it.
+   * `unitBearing` roles drive batch unit production and the Reactor.
+   * Core reads capabilities, not ids.
    */
   readonly sourceRoles: readonly SourceRoleDescriptor[]
   /**
    * Readers this ontology splits an answer for, in the order Studio shows them.
    *
-   * Empty, and absent, both mean a product whose readers do not split, which
-   * is the honest default. What belongs in each half is this ontology's own
-   * editorial call, so it travels in the descriptor rather than in any rule
-   * the framework could apply.
+   * Empty, and absent, both mean a product whose readers do not split,
+   * which is the honest default.
+   * What belongs in each half is this ontology's own editorial call,
+   * so it travels in the descriptor rather than in any framework rule.
    */
   readonly audiences?: readonly AudienceDescriptor[]
 }

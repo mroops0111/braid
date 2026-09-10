@@ -7,9 +7,10 @@ function call(tool: string): SkillEvent {
 }
 
 describe('summariseActivity', () => {
-  // Braid's own gateway is the one name this layer knows. What an agent calls
-  // its own tools is its binding's business, so anything else is counted
-  // without being named, and a second agent's work is counted the same.
+  // Braid's own gateway is the one name this layer knows.
+  // What an agent calls its own tools is its binding's business,
+  // so anything else is counted without being named,
+  // and a second agent's work is counted the same.
   it('separates calls against the graph from everything else the agent reached for', () => {
     const activity = summariseActivity([
       call('mcp__braid-core__list_nodes'),
@@ -23,8 +24,8 @@ describe('summariseActivity', () => {
     expect(activity.toolCalls).toBe(3)
   })
 
-  // A render call is already counted as a block, and counting it here too
-  // would report the same output twice.
+  // A render call is already counted as a block,
+  // and counting it here too would report the same output twice.
   it('counts a render call as neither', () => {
     const activity = summariseActivity([call('mcp__braid-core__show_finding')])
 

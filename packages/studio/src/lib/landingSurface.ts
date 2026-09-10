@@ -5,8 +5,8 @@ import { useModelSnapshot, useSkills } from './queries'
 /**
  * Whether this reader can put a question to this workspace.
  *
- * Shared with the sidebar so the entry and the landing decision cannot
- * disagree, which would drop an arrival on a surface with no way back to it.
+ * Shared with the sidebar so the entry and the landing cannot disagree,
+ * which would drop an arrival on a surface with no way back to it.
  */
 export function useCanAsk(workspaceId: string | null): boolean {
   const policy = useWorkspacePolicy(workspaceId)
@@ -21,12 +21,13 @@ export function useCanAsk(workspaceId: string | null): boolean {
 /**
  * Where a bare workspace url puts a reader.
  *
- * Ask, because a workspace exists to be asked about and the graph is the
- * apparatus rather than the point. An empty workspace is the exception, since
- * there is nothing to ask about yet and Graph carries the bootstrap entry.
+ * Ask, because a workspace exists to be asked about,
+ * and the graph is the apparatus rather than the point.
+ * An empty workspace is the exception, since there is nothing to ask yet,
+ * and Graph carries the bootstrap entry.
  *
- * Undefined while the answer is still unknown, so a caller waits rather than
- * landing on Graph and jumping to Ask a moment later.
+ * Undefined while the answer is still unknown, so a caller waits,
+ * rather than landing on Graph and jumping to Ask a moment later.
  */
 export function useLandingSurface(workspaceId: string | null): Surface | undefined {
   const canAsk = useCanAsk(workspaceId)

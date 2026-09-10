@@ -34,9 +34,10 @@ const RejectBody = z.object({
 // Skill-facing create. Body must carry `workspaceId` matching the route param.
 // Zod parses the rest of the ProposalCreate fields,
 // and HITLService.submitProposal validates ops against the live graph.
-// `skillRunId` is not here on purpose. A running skill is identified by the
-// credential it calls with, and a person filing a proposal has no run, so
-// there is nobody left for the field to come from.
+// `skillRunId` is not here on purpose.
+// A running skill is identified by the credential it calls with,
+// and a person filing a proposal has no run,
+// so there is nobody left for the field to come from.
 const CreateBody = ProposalCreate.omit({ workspaceId: true, skillRunId: true }).openapi('ProposalCreateBody')
 
 const ProposalIdParam = WorkspaceIdParam.extend({
@@ -50,8 +51,9 @@ const ProposalListResponse = z.object({
 export interface ProposalsRouterDeps {
   hitlService: HITLService
   /**
-   * Holds a run to one outcome, a question or a proposal. Absent, nothing is
-   * gated, which is what an in-memory composition without skills wants.
+   * Holds a run to one outcome, a question or a proposal.
+   * Absent, nothing is gated,
+   * which is what an in-memory composition without skills wants.
    */
   outputGate?: RunOutputGate
   proposalRepository: ProposalRepository

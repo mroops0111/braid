@@ -225,8 +225,9 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
     const manifest = fillManifestDefaults(draft, deps.defaultOntologyId)
     // Each ontology declares which source roles it needs to function.
     // Reject scaffolds that omit a role the ontology declares required,
-    // before any writes, so the wizard can show a precise "you also need
-    // a source of role x", rather than a post-scaffold validation error.
+    // before any writes,
+    // so the wizard can name the missing role precisely,
+    // rather than reporting a post-scaffold validation error.
     const ontology = deps.pluginRegistry.findOntology(manifest.ontologyId)
     // An unregistered ontology only surfaces later, at the first batch,
     // so a build that registers any at all rejects the mismatch here.

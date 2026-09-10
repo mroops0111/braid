@@ -58,10 +58,11 @@ export const dddOntology = defineOntologyPlugin({
     { id: 'code', required: true, pathSegment: 'codebases' },
   ]),
 
-  // Two readers, because this ontology's whole premise is that intent and code
-  // are written by different people. The split is about how much apparatus each
-  // wants, not about which conclusions they are allowed to see, so a conclusion
-  // names no audience and both readers get it.
+  // Two readers, because this ontology's premise is that intent and code,
+  // come from different people.
+  // The split is about how much apparatus each wants,
+  // rather than which conclusions they are allowed to see,
+  // so a conclusion names no audience and both readers get it.
   audiences: [
     {
       id: AudienceIdSchema.parse('business'),

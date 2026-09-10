@@ -5,9 +5,9 @@ import type { Proposal } from './Proposal.js'
 /**
  * What one run has already written, as the rules need to read it.
  *
- * Loaded from the repositories rather than remembered, because how many times
- * a run may submit has to hold across a restart, and anything kept in memory
- * is gone the moment the process is.
+ * Loaded from the repositories rather than remembered,
+ * because how many times a run may submit has to hold across a restart,
+ * and anything kept in memory is gone the moment the process is.
  */
 export interface RunSubmissions {
   readonly proposals: readonly Proposal[]
@@ -18,8 +18,9 @@ export interface RunSubmissions {
 /**
  * Whether a run may still write one kind of thing.
  *
- * One rule per kind rather than a branch inside one check, so a kind that
- * arrives later brings its own rule instead of another arm of a conditional,
+ * One rule per kind rather than a branch inside one check,
+ * so a kind that arrives later brings its own rule,
+ * instead of another arm of a conditional,
  * and so each rule can be read and tested on its own.
  */
 export interface RunSubmissionRule {
@@ -31,11 +32,11 @@ export interface RunSubmissionRule {
 /**
  * One run reads one thing and proposes one change to it.
  *
- * A second proposal from the same run is the model splitting arbitrarily, and
- * it costs a reviewer two decisions where the run made one. A run parked on a
- * question proposes nothing at all until the answer carries it on, since a
- * proposal resting on an open question asks for approval of what the answer
- * may overturn.
+ * A second proposal from the same run is the model splitting arbitrarily,
+ * and it costs a reviewer two decisions where the run made one.
+ * A run parked on a question proposes nothing until the answer carries it on,
+ * since a proposal resting on an open question asks for approval,
+ * of exactly what the answer may overturn.
  */
 export const proposalSubmission: RunSubmissionRule = {
   kind: 'proposal',
@@ -54,10 +55,11 @@ export const proposalSubmission: RunSubmissionRule = {
 /**
  * Doubt is raised before anything is submitted, never after.
  *
- * A run that has proposed has already decided, so a question from it arrives
- * too late to be worth anything: the reviewer is holding a change that the
- * answer might undo. Asking as many times as it needs to is fine, because
- * they are answered together as the one interrupt the run is parked on.
+ * A run that has proposed has already decided,
+ * so a question from it arrives too late to be worth anything,
+ * with the reviewer already holding a change the answer might undo.
+ * Asking as many times as it needs to is fine,
+ * because they are answered together as the one interrupt it is parked on.
  */
 export const clarificationSubmission: RunSubmissionRule = {
   kind: 'clarify',

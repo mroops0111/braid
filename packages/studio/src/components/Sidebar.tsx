@@ -634,11 +634,12 @@ interface InFlight {
 /**
  * Which surfaces have a run going.
  *
- * Two sources, because neither alone is enough. The local store knows the
- * instant this reader presses a button, and the server's list knows about
- * runs somebody else started. A count of what is waiting cannot stand in for
- * this: work in flight has no length, and a reader who sees nothing until the
- * run produces something reads the wait as a surface that ignored them.
+ * Two sources, because neither alone is enough.
+ * The local store knows the instant this reader presses a button,
+ * and the server's list knows about runs somebody else started.
+ * A count of what is waiting cannot stand in for this.
+ * Work in flight has no length,
+ * and a reader who sees nothing reads the wait as a surface that ignored them.
  */
 function useRunsInFlight(
   workspaceId: string,
@@ -654,8 +655,8 @@ function useRunsInFlight(
     ...(runs?.items ?? []).filter(run => !run.completedAt).map(run => run.skillId),
   ])
   const asking = [...running].some(skillId => categories.get(skillId) === 'ask')
-  // Everything that is not a question lands somewhere to be decided, so the
-  // Inbox is where its reader is waiting even before it has produced a card.
+  // Everything that is not a question lands somewhere to be decided,
+  // so the Inbox is where its reader waits, before it has produced a card.
   const working = [...running].some(skillId => categories.get(skillId) !== 'ask')
   return { asking, working }
 }
@@ -669,10 +670,11 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, running = fa
   /**
    * Something is happening on this surface right now.
    *
-   * Not a count. A queue has a length and work in flight does not, and a
-   * reader who has just started something needs to see it is under way from
-   * wherever they wander off to, not only once it has produced something to
-   * decide.
+   * Not a count.
+   * A queue has a length and work in flight does not,
+   * and a reader who has just started something needs to see it is under way,
+   * from wherever they wander off to,
+   * not only once it has produced something to decide.
    */
   running?: boolean
   shortcut?: string

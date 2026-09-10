@@ -17,8 +17,8 @@ function Count({ value, label }: { value: number, label: string }) {
 
 /**
  * The reading trail, collapsed to its counts.
- * What a run declined to use is the one thing a reader cannot infer
- * from the answer, so `skipped` is surfaced rather than buried.
+ * What a run declined to use cannot be inferred from the answer,
+ * so `skipped` is surfaced rather than buried.
  */
 export function ShowTraceBlock({ block }: { block: ShowTrace }) {
   const { t } = useTranslation()

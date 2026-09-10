@@ -54,9 +54,10 @@ async function runWith(stdoutPerSpawn: readonly string[][]) {
     spawn,
   })
   await runner.start(workspace, manifest.id, 'a question', { startedBy: AUTHOR })
-  // A correction spawns after the first run's drain, so waiting for that one
-  // run is not enough. Nothing left running is the point where the spawn
-  // count can no longer change, which is what every case here asserts on.
+  // A correction spawns after the first run's drain,
+  // so waiting for that one run is not enough.
+  // Nothing left running is the point where the spawn count settles,
+  // which is what every case here asserts on.
   await waitUntilIdle(
     () => !runner.hasActiveRun(workspace.id),
     'the run and any correction it spawned to settle',

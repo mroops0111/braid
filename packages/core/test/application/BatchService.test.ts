@@ -295,8 +295,8 @@ describe('BatchService', () => {
     expect(hitl.applyCalls).toEqual(['p-1', 'p-2', 'p-3'])
   })
 
-  // The event bus is workspace-wide, so a person filing a proposal while a
-  // batch happens to be running would otherwise have it applied for them.
+  // The event bus is workspace-wide,
+  // so a person filing a proposal during a batch would have it applied.
   it('autoApply leaves a proposal that names no run of its own alone', async () => {
     const { service, workspace, proposalRepository, planRepository, skillRunner, hitl } = await setup()
     let counter = 0
@@ -328,8 +328,9 @@ describe('BatchService', () => {
     expect(final.units[1]!.proposalIds).toEqual(['p-2'])
   })
 
-  // Bootstrap wants coverage, so a unit that cannot settle something records
-  // the doubt and carries on rather than leaving the graph empty.
+  // Bootstrap wants coverage,
+  // so a unit that cannot settle something records the doubt and carries on,
+  // rather than leaving the graph empty.
   it('tells each unit nobody is watching when the batch applies its own output', async () => {
     const { service, workspace, planRepository, skillRunner } = await setup()
 
@@ -342,10 +343,11 @@ describe('BatchService', () => {
   })
 
   // Whether a batch applies its own output decides what happens to a proposal.
-  // It says nothing about whether a person is sitting there, and nobody sits
-  // through a batch either way. Left attended, a unit that stops to ask holds
-  // its proposal back for an answer that is not coming, and the document ends
-  // the batch with a question and nothing else.
+  // It says nothing about whether a person is sitting there,
+  // and nobody sits through a batch either way.
+  // Left attended, a unit that stops to ask holds its proposal back,
+  // for an answer that is not coming,
+  // and the document ends the batch with a question and nothing else.
   it('tells each unit nobody is watching even when the batch is to be reviewed', async () => {
     const { service, workspace, planRepository, skillRunner } = await setup()
 
@@ -370,8 +372,8 @@ describe('BatchService', () => {
     expect(final.units[1]!.status).toBe('completed')
   })
 
-  // A board column covering what it holds is the same plan as a first
-  // bootstrap, scoped, so it keeps the ordering, checkpoints, and resume.
+  // A board column covering what it holds is the same plan as a bootstrap,
+  // only scoped, so it keeps the ordering, checkpoints, and resume.
   it('walks only the named documents when a scope is given', async () => {
     const { service, workspace, planRepository } = await setup()
     await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY, scope: ['prd/'] })

@@ -32,8 +32,9 @@ function appWith(store: SessionStore, requireAuth: boolean, defaultPrincipal: Us
 
 describe('authMiddleware', () => {
   // The gateway reads a run's spec before there is a run to authenticate as,
-  // and the document says what shape a call takes rather than anything about
-  // this deployment's data. Gated, every run fails to start.
+  // and the document says what shape a call takes,
+  // rather than anything about this deployment's data.
+  // Gated, every run fails to start.
   it('lets the spec a run is given be read without a credential', async () => {
     const app = appWith(fakeSessionStore({}), true, null)
     expect((await app.request('/openapi/runs/ask/openapi.json')).status).toBe(200)

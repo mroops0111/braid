@@ -16,14 +16,14 @@ describe('scopeCovers', () => {
     expect(scopeCovers('One Unit With Spaces/', 'One Unit With Spaces/')).toBe(true)
   })
 
-  // A scope naming several joins them with a comma, and a unit path may hold
-  // spaces, so the comma is the only separator there is.
+  // A scope naming several joins them with a comma,
+  // and a unit path may hold spaces, so the comma is the only separator.
   it('matches any of several the run was pointed at', () => {
     expect(scopeCovers('First Unit/,Second Unit/', 'Second Unit/')).toBe(true)
   })
 
-  // One path can be contained in another. Containment would have the
-  // shorter claim the longer's work as its own.
+  // One path can be contained in another.
+  // Containment would have the shorter claim the longer's work as its own.
   it('does not let one unit claim another whose path contains it', () => {
     expect(scopeCovers('a/b/c/', 'a/b/')).toBe(false)
     expect(scopeCovers('a/b/', 'a/b/c/')).toBe(false)

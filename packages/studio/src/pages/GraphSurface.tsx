@@ -103,10 +103,10 @@ export function GraphSurface({
 /**
  * A set of nodes somebody arrived to look at, and what sent them.
  *
- * Held rather than applied, because arriving and narrowing are two different
- * asks. Arriving wants the nodes findable in context, narrowing wants only
- * them, and a reader who has just landed cannot want the second before seeing
- * the first.
+ * Held rather than applied,
+ * because arriving and narrowing are two different asks.
+ * Arriving wants the nodes findable in context, narrowing wants only them,
+ * and a reader who has just landed cannot want the second before the first.
  */
 export interface GraphArrival {
   readonly origin: string
@@ -123,10 +123,11 @@ export function useGraphSurfaceState(initialView: GraphView = 'visualization') {
   const requestCenter = useCallback(() => setCenterRequest(current => current + 1), [])
   // Null when the reader is browsing rather than arriving from somewhere.
   const [arrival, setArrivalState] = useState<GraphArrival | null>(null)
-  // Landing narrowed, the way a proposal preview opens on its diff rather
-  // than on the whole model. Somebody who followed a document here came for
-  // its nodes, and finding a ring among a thousand is work they did not ask
-  // for. Widening is one press away once they want the context.
+  // Landing narrowed, the way a proposal preview opens on its diff,
+  // rather than on the whole model.
+  // Somebody who followed a document here came for its nodes,
+  // and finding a ring among a thousand is work they did not ask for.
+  // Widening is one press away once they want the context.
   const [narrowed, setNarrowed] = useState(true)
   const setArrival = useCallback((next: GraphArrival) => {
     setArrivalState(next)

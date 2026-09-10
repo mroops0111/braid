@@ -39,10 +39,10 @@ export interface DefineSourceLoaderInput<TSchema extends z.ZodTypeAny> {
 /**
  * Build a SourceLoader plugin from a declarative spec.
  *
- * The wrapper validates the config against `configSchema`
+ * The wrapper validates the config against `configSchema`,
  * before each call to `provision` and `sync`,
  * so the loader body always receives a statically-typed config object,
- * without having to parse it itself.
+ * and never has to parse it itself.
  *
  * `TSchema` is inferred from the declared schema,
  * so the callback's `config` is `z.infer<TSchema>`,

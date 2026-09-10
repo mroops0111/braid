@@ -336,8 +336,8 @@ describe('HITLService', () => {
   })
 
   describe('answerClarification', () => {
-    // A run often proposes new nodes and asks about them in one go, so the
-    // answer fails on a node that exists only in the proposal beside it.
+    // A run often proposes new nodes and asks about them in one go,
+    // so the answer fails on a node that exists only in the proposal.
     it('names the pending proposal that would supply a node the answer needs', async () => {
       const fixture = await setupFixture()
       const nodeId = 'cmd.notYetApplied' as NodeId

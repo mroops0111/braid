@@ -13,10 +13,11 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
   }
 
   async resolveSpawn(input: AgentSpawnInput): Promise<SpawnInvocation> {
-    // Claude keeps the conversation itself, so a continued run sends only the
-    // new turn and the earlier exchange stays where it already is. Without that
-    // handle the exchange travels in the prompt, which is what a binding for an
-    // agent that holds no conversation state would always do.
+    // Claude keeps the conversation itself,
+    // so a continued run sends only the new turn,
+    // and the earlier exchange stays where it already is.
+    // Without that handle the exchange travels in the prompt,
+    // which a binding for an agent holding no conversation state always does.
     const promptArg = input.conversationId
       ? latestTurn(input.messages)
       : openingPrompt(input)
@@ -78,13 +79,15 @@ function latestTurn(messages: readonly AgentMessage[]): string {
 /**
  * The prompt that opens a claude conversation.
  *
- * A skill is invoked as a slash command, so the first user message becomes its
- * argument. A skill with an EXTEND.md is pointed at the file rather than having
- * it inlined, so the `*.md` links inside it still resolve.
+ * A skill is invoked as a slash command,
+ * so the first user message becomes its argument.
+ * A skill with an EXTEND.md is pointed at the file rather than inlining it,
+ * so the `*.md` links inside it still resolve.
  *
- * Anything after that first message is an exchange claude has not seen, which
- * only happens when the caller holds the conversation and we have no handle for
- * it. Replaying it in the prompt is the whole reason the port carries messages.
+ * Anything after that first message is an exchange claude has not seen,
+ * which only happens when the caller holds the conversation,
+ * and we have no handle for it.
+ * Replaying it in the prompt is why the port carries messages at all.
  */
 function openingPrompt(input: AgentSpawnInput): string {
   const [opening, ...rest] = input.messages

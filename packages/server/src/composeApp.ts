@@ -124,8 +124,9 @@ export interface AppDependencies {
   /**
    * How this deployment resolved the endpoint at boot.
    *
-   * Separate from `mcpGatewayUrl`, which only exists once there is one to
-   * forward to. Studio needs the cases where there is not, and why.
+   * Separate from `mcpGatewayUrl`,
+   * which only exists once there is one to forward to.
+   * Studio needs the cases where there is not, and why.
    */
   mcpResolution?: McpGatewayResolution
   /**
@@ -229,14 +230,15 @@ export interface AppDependencies {
  */
 export interface ComposeOptions {
   /**
-   * Holds a run to one outcome, a question or a proposal. Wired where skills
-   * run, absent in a composition that has none.
+   * Holds a run to one outcome, a question or a proposal.
+   * Wired where skills run, absent in a composition that has none.
    */
   readonly outputGate?: RunOutputGate
   /**
    * Credentials this composition accepts, beyond the sessions Braid issues.
-   * A running skill's own token is one, so what a run creates is attributed
-   * from the request rather than from a field it had to fill in.
+   * A running skill's own token is one,
+   * so what a run creates is attributed from the request,
+   * rather than from a field it had to fill in.
    */
   readonly accessTokenVerifiers?: readonly AccessTokenVerifier[]
   // Infrastructure singletons.
@@ -298,8 +300,8 @@ export interface ComposeOptions {
 export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const clock = options.clock ?? new SystemClock()
   const proposalRepository = options.proposalRepository ?? new InMemoryProposalRepository()
-  // Hoisted because three consumers read it, and a second Noop instance would
-  // be a second empty history rather than the same one.
+  // Hoisted because three consumers read it,
+  // and a second Noop instance would be a second empty history.
   const runRepository = options.runRepository ?? new NoopRunRepository()
   const clarificationRepository = options.clarificationRepository ?? new InMemoryClarificationRepository()
   const modelRepository = options.modelRepository ?? new InMemoryModelRepository()
@@ -372,9 +374,9 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     clock,
     eventBus,
     workspaceLock,
-    // All three needed to stamp which documents a proposal came from, and at
-    // which version, so coverage is a fact the server watched rather than one
-    // it was told.
+    // All three needed to stamp which documents a proposal came from,
+    // and at which version,
+    // so coverage is a fact the server watched rather than one it was told.
     runRepository,
     ...(options.unitLister ? { unitLister: options.unitLister } : {}),
     ...(sourceUnitDigest instanceof FailingSourceUnitDigest ? {} : { sourceUnitDigest }),
@@ -425,8 +427,9 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   // whose ProductManifest.reactor.enabled is true.
   const reactorCycleRepository: ReactorCycleRepository
     = options.reactorCycleRepository ?? new InMemoryReactorCycleRepository()
-  // Always wired. It only reads, so a deployment missing one of the three
-  // sources shows fewer jobs rather than failing to show the board.
+  // Always wired. It only reads,
+  // so a deployment missing one of the three sources shows fewer jobs,
+  // rather than failing to show the board.
   const coverageProjection = options.unitLister && options.skillRegistry
     ? new CoverageProjection({
       unitLister: options.unitLister,

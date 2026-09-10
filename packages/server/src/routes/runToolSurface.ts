@@ -9,8 +9,8 @@ const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'tr
 
 function visibleTo(operation: Operation, category: SkillCategory): boolean {
   const declared = operation[RUN_CATEGORIES_KEY]
-  // Unmarked is visible, which is right for a read and keeps the marking to
-  // the operations that actually need narrowing.
+  // Unmarked is visible, which is right for a read,
+  // and keeps the marking to the operations that actually need narrowing.
   if (!Array.isArray(declared))
     return true
   return (declared as readonly string[]).includes(category)
@@ -19,14 +19,16 @@ function visibleTo(operation: Operation, category: SkillCategory): boolean {
 /**
  * The spec a run's gateway is given, holding only what that run may call.
  *
- * A run's tools come from its spec, so narrowing the spec is what narrows the
- * tools. The alternative was a prompt that asks a skill not to reach for
- * something it can see, and the operation still costs a place in the tool
- * list and the tokens to describe it whether or not it is ever called.
+ * A run's tools come from its spec,
+ * so narrowing the spec is what narrows the tools.
+ * The alternative was a prompt asking a skill not to reach for what it sees,
+ * and the operation still costs a place in the tool list,
+ * and the tokens to describe it, whether or not it is ever called.
  *
- * Braid's own marker is dropped on the way out. It says which runs may see an
- * operation, which is answered by the time the document is built, and the
- * gateway has no use for it.
+ * Braid's own marker is dropped on the way out.
+ * It says which runs may see an operation,
+ * which is answered by the time the document is built,
+ * and the gateway has no use for it.
  */
 export function toolSurfaceFor(document: Record<string, unknown>, category: SkillCategory): Record<string, unknown> {
   const paths = document.paths as Record<string, PathItem> | undefined

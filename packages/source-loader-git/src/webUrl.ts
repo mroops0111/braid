@@ -1,9 +1,10 @@
 import type { SourceWebUrlInput } from '@braidhq/core'
 
 /**
- * A git remote in any of the forms a config may carry, reduced to the two
- * parts a web URL needs. Credentials are stripped, since the caller of the
- * link is a browser carrying its own session, not the mirror's fetch token.
+ * A git remote in any of the forms a config may carry,
+ * reduced to the two parts a web URL needs.
+ * Credentials are stripped, since the caller of the link is a browser,
+ * carrying its own session rather than the mirror's fetch token.
  */
 export interface RemoteTarget {
   readonly origin: string
@@ -41,11 +42,11 @@ export function parseRemote(url: string): RemoteTarget | null {
 /**
  * A blob URL on the host the mirror came from.
  *
- * GitHub and GitLab agree on `/-`-free `blob/<ref>/<path>#L<start>-L<end>`
- * closely enough that one builder serves both, and a host that disagrees
- * still lands on a page rather than a 404. Pinning to the revision matters
- * more than the fragment, because a line number against a moving branch
- * points at whatever happens to be there later.
+ * GitHub and GitLab agree on `/-`-free `blob/<ref>/<path>#L<start>-L<end>`,
+ * closely enough that one builder serves both,
+ * and a host that disagrees still lands on a page rather than a 404.
+ * Pinning to the revision matters more than the fragment,
+ * because a line number against a moving branch points at whatever is there.
  */
 export function gitWebUrl(input: SourceWebUrlInput, defaultRef: string): string | null {
   const config = input.config as { url?: unknown, branch?: unknown } | null

@@ -101,8 +101,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     app.use('/*', serveStatic({ root, index: 'index.html' }))
   }
 
-  // Identity and auth gate. Resolves the caller's `userId` from a Bearer session
-  // when auth is enforced, else the `X-Braid-User` header or the default principal.
+  // Identity and auth gate.
+  // Resolves the caller's `userId` from a Bearer session when auth is enforced,
+  // else the `X-Braid-User` header or the default principal.
   // Non-public routes that lack a required Bearer token are rejected.
   // Sessions first, since the browser is the common case,
   // and every other verifier would repeat that lookup before declining.
@@ -131,8 +132,8 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   // Host-level routes, not scoped to a single workspace.
   app.route('/health', healthRouter)
 
-  // What this deployment does with MCP, so Studio can show it rather than
-  // leaving an operator to read the logs.
+  // What this deployment does with MCP,
+  // so Studio can show it rather than leaving an operator to read the logs.
   if (deps.mcpResolution) {
     app.route('/mcp-endpoint', createMcpStatusRouter({
       resolution: deps.mcpResolution,
@@ -310,8 +311,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       skillRunner: deps.skillRunner,
       workspaceRepository: deps.workspaceRepository,
     }))
-    // Second mount under the same prefix, because the render operations must
-    // reach the OpenAPI doc for the gateway to serve them as tools,
+    // Second mount under the same prefix,
+    // because the render operations must reach the OpenAPI doc,
+    // for the gateway to serve them as tools,
     // and the runs router above is a plain Hono sub-app.
     workspaceScoped.route('/runs', createBlocksRouter({
       skillRunner: deps.skillRunner,
@@ -411,8 +413,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   }
   app.doc31('/openapi.json', specConfig)
 
-  // The spec a run's own gateway reads, holding only the operations that kind
-  // of run may call. A question about who may do what is answered once, here,
+  // The spec a run's own gateway reads,
+  // holding only the operations that kind of run may call.
+  // A question about who may do what is answered once, here,
   // rather than by every handler learning who is calling it.
   app.get('/openapi/runs/:category/openapi.json', (context) => {
     const category = SkillCategory.safeParse(context.req.param('category'))

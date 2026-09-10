@@ -4,8 +4,8 @@ import { renderBlock } from './renderBlock'
 
 /**
  * The run's rendered output, above the transcript that produced it.
- * A run that renders nothing shows nothing here, so a skill adopting the
- * protocol is the only thing that changes what a reader sees.
+ * A run that renders nothing shows nothing here,
+ * so a skill adopting the protocol is the only thing that changes the view.
  */
 export function BlockList({ blocks }: { blocks: readonly EmittedBlock[] }) {
   const { t } = useTranslation()

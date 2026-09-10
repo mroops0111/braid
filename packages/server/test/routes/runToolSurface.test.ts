@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { buildRunnerApp, endAllSpawned } from '../helpers/runnerApp.js'
 
-// The full composition, because the render operations only reach the document
-// when a skill runner is wired, and they are half of what a run is offered.
+// The full composition,
+// because the render operations only reach the document with a runner wired,
+// and they are half of what a run is offered.
 async function surface(category: string): Promise<Record<string, Record<string, unknown>>> {
   const { app } = await buildRunnerApp()
   const response = await app.request(`/openapi/runs/${category}/openapi.json`)
@@ -22,9 +23,9 @@ function operations(paths: Record<string, Record<string, unknown>>): string[] {
 describe('the spec a run is given', () => {
   afterEach(endAllSpawned)
 
-  // A run's tools come from its spec, so a question about what a kind of run
-  // may do is answered once, here, rather than by every handler learning who
-  // is calling it.
+  // A run's tools come from its spec,
+  // so a question about what a kind of run may do is answered once, here,
+  // rather than by every handler learning who is calling it.
   it('keeps proposing and clarifying out of an ask run', async () => {
     const ids = operations(await surface('ask'))
     expect(ids).not.toContain('createProposal')
@@ -39,8 +40,8 @@ describe('the spec a run is given', () => {
     expect(ids).toContain('reportNoClarification')
   })
 
-  // Reads carry no marking, which is what keeps the marking to the operations
-  // that actually need narrowing.
+  // Reads carry no marking,
+  // which keeps the marking to the operations that actually need narrowing.
   it('gives every run the reads, and the render calls', async () => {
     for (const category of ['ask', 'build', 'generate']) {
       const ids = operations(await surface(category))

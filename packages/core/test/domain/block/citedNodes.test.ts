@@ -49,8 +49,8 @@ describe('graphCitations', () => {
     expect(citations).toEqual([{ nodeId: 'n-1', describedAs: 'n-1' }])
   })
 
-  // The claim is made either way, so withholding the id cannot be the way out
-  // of having it checked.
+  // The claim is made either way,
+  // so withholding the id cannot be the way out of having it checked.
   it('keeps a graph ref that names no node, under the location it does carry', () => {
     const citations = graphCitations({
       call: 'showEvidence',

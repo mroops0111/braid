@@ -21,9 +21,9 @@ export interface AguiRouterDeps {
 }
 
 /**
- * Only the roles an agent is given as conversation. A tool message is the
- * agent's own bookkeeping from a previous turn, and replaying it as if a person
- * wrote it would put words in their mouth.
+ * Only the roles an agent is given as conversation.
+ * A tool message is the agent's own bookkeeping from a previous turn,
+ * and replaying it as if a person wrote it would put words in their mouth.
  */
 function toAgentMessages(input: { messages: readonly { role: string, content?: unknown }[] }): AgentMessage[] {
   return input.messages
@@ -36,9 +36,11 @@ function toAgentMessages(input: { messages: readonly { role: string, content?: u
 }
 
 /**
- * SSE only, deliberately. The encoder also speaks protobuf, but offering a
- * binary path with no consumer would ship an untested branch, and a client
- * asking for it is better told plainly than served a stream it did not request.
+ * SSE only, deliberately.
+ * The encoder also speaks protobuf,
+ * but a binary path with no consumer would ship an untested branch,
+ * and a client asking for it is better told plainly,
+ * than served a stream it did not request.
  */
 function sseEncoder(): EventEncoder {
   return new EventEncoder({ accept: 'text/event-stream' })
@@ -48,9 +50,9 @@ function sseEncoder(): EventEncoder {
  * The questions this run left open, spoken as the protocol's own interrupts.
  *
  * A run that could not decide something raised a Clarification and stopped.
- * Ending such a run with a plain `RUN_FINISHED` would tell a client the work
- * is over when it is only waiting, so the outcome names what it waits on and a
- * client resumes by answering.
+ * Ending such a run with a plain `RUN_FINISHED` would say the work is over,
+ * when it is only waiting,
+ * so the outcome names what it waits on and a client resumes by answering.
  */
 async function openInterrupts(
   deps: AguiRouterDeps,
@@ -80,9 +82,9 @@ async function writeAll(
 /**
  * A resumed turn, built from the answer rather than from what the client says.
  *
- * The client names the interrupt it resolved. Everything else, which run to
- * continue and which conversation that run holds, is looked up here, so a
- * caller cannot resume a run it did not answer for.
+ * The client names the interrupt it resolved.
+ * Everything else, which run to continue and which conversation it holds,
+ * is looked up here, so a caller cannot resume a run it did not answer for.
  */
 async function resolveResume(
   deps: AguiRouterDeps,
@@ -99,9 +101,10 @@ async function resolveResume(
     const clarification = await deps.clarificationRepository.load(ClarificationId.parse(entry.interruptId))
     if (clarification.workspaceId !== workspace.id)
       throw new NotFoundError(`Clarification "${entry.interruptId}" not found`)
-    // Answered, deferred, and set aside are three ways of settling one
-    // question, and every one of them releases the run. What is refused is a
-    // question still open, because that run is still rightly waiting.
+    // Answered, deferred, and set aside are three ways of settling a question,
+    // and every one of them releases the run.
+    // What is refused is a question still open,
+    // because that run is still rightly waiting.
     if (!outcomeOf(clarification))
       throw new ValidationError(`Clarification "${entry.interruptId}" is still open, so there is nothing to resume with`)
     if (!clarification.skillRunId)
@@ -120,9 +123,9 @@ async function resolveResume(
   if (!parked)
     throw new NotFoundError(`Run "${runId}" not found`)
 
-  // The continuation carries the scope of the run it continues, so a document
-  // being read stays attributed to the run reading it rather than to the
-  // sentence that released it.
+  // The continuation carries the scope of the run it continues,
+  // so a document being read stays attributed to the run reading it,
+  // rather than to the sentence that released it.
   return {
     skillId: parked.skillId,
     resumeSessionId: sessionId,
@@ -135,8 +138,8 @@ async function resolveResume(
 /**
  * Close the stream, as a finish or as a wait.
  *
- * The translator cannot know which, since it reads one event at a time and the
- * answer lives in the workspace rather than in the stream.
+ * The translator cannot know which, since it reads one event at a time,
+ * and the answer lives in the workspace rather than in the stream.
  */
 async function writeTerminal(
   deps: AguiRouterDeps,
@@ -166,16 +169,17 @@ async function writeTerminal(
 /**
  * Braid's runs, spoken as AG-UI.
  *
- * Outside the OpenAPI spec on purpose. This is somebody else's protocol rather
- * than part of Braid's REST surface, and every operation in the spec is
- * projected into MCP tools, where an endpoint that streams a whole run would
- * mean nothing to an agent.
+ * Outside the OpenAPI spec on purpose.
+ * This is somebody else's protocol rather than part of Braid's REST surface,
+ * and every operation in the spec is projected into MCP tools,
+ * where an endpoint streaming a whole run would mean nothing to an agent.
  */
 export function createAguiRouter(deps: AguiRouterDeps): Hono {
   const router = new Hono()
 
-  // The protocol's own shape. A client POSTs the conversation and reads the
-  // events, which is what asking a question already was.
+  // The protocol's own shape.
+  // A client POSTs the conversation and reads the events,
+  // which is what asking a question already was.
   router.post('/', async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const parsed = RunAgentInputSchema.safeParse(await context.req.json())
@@ -213,10 +217,10 @@ export function createAguiRouter(deps: AguiRouterDeps): Hono {
     const encoder = sseEncoder()
     const translator = new AguiTranslator(input.threadId, runId)
     return streamSSE(context, async (stream) => {
-      // The run is already draining by the time `start` returns, so anything
-      // emitted before this subscription lands is only in the log. Backfilling
-      // to the subscription point is what makes the stream whole rather than
-      // whatever happened to arrive after the listener attached.
+      // The run is already draining by the time `start` returns,
+      // so anything emitted before this subscription lands is only in the log.
+      // Backfilling to the subscription point is what makes the stream whole,
+      // rather than whatever happened to arrive after the listener attached.
       const queue = createAsyncQueue<SkillEvent>()
       const { unsubscribe, positionAtSubscribe } = deps.skillRunner.subscribe(runId, event => queue.push(event))
       try {
@@ -246,10 +250,10 @@ export function createAguiRouter(deps: AguiRouterDeps): Hono {
     })
   })
 
-  // Reading an answer again, and rejoining one still being written, are the
-  // same act: replay what the log holds, then keep going if there is more. The
-  // protocol has no endpoint for either, but the events are the protocol's, so
-  // a client consumes this exactly as it consumes a live run.
+  // Reading an answer again, and rejoining one still being written,
+  // are the same act, replaying the log and then keeping going if there is more.
+  // The protocol has no endpoint for either, but the events are the protocol's,
+  // so a client consumes this exactly as it consumes a live run.
   router.get('/runs/:runId', async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const runId = SkillRunId.parse(context.req.param('runId'))
@@ -269,8 +273,8 @@ export function createAguiRouter(deps: AguiRouterDeps): Hono {
         return
       }
 
-      // Subscribe before reading the log, so the position snapshot tells us
-      // exactly how much of the log the live listener has not already covered.
+      // Subscribe before reading the log,
+      // so the position snapshot says how much the live listener missed.
       const queue = createAsyncQueue<SkillEvent>()
       const { unsubscribe, positionAtSubscribe } = deps.skillRunner.subscribe(runId, event => queue.push(event))
       try {

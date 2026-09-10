@@ -28,14 +28,13 @@ import { cn } from '@/lib/utils'
 import { useWorkspacePolicy } from '@/policy'
 
 /**
- * The order a reader meets the groups in, which is how directly each can be
- * acted on. Deliberately not the precedence order: that one settles which
- * state a document shows when several are true, and answers a different
- * question from which group deserves the top of the page.
+ * Groups are met in the order of how directly each can be acted on,
+ * never in the precedence order, which answers a different question.
+ * That one settles which state a document shows when several are true.
  *
  * Conflicts sit low despite mattering, because nothing here resolves one yet.
- * Putting them above the groups a button does fix would bury those behind
- * dozens of rows that only ask to be read.
+ * Placed above the groups a button does fix,
+ * they would bury those behind dozens of rows that only ask to be read.
  */
 const GROUPS: readonly CoverageState[] = [
   'running',
@@ -53,18 +52,18 @@ const ACTIONABLE: ReadonlySet<CoverageState> = new Set<CoverageState>(['uncovere
 /**
  * Every source document, and what the model has made of it.
  *
- * The row is the document, not the run, because the question a reader opens
- * this with is what the model still does not know rather than what has
- * executed. A document read three times and failed twice is one row.
+ * The row is the document rather than the run,
+ * because a reader opens this asking what the model still does not know,
+ * rather than what has executed. A document read three times is still one row.
  *
- * Grouped rather than columned. Nothing here is dragged, the states are
- * derived, and two of them hold almost every document, so lanes of equal
- * width would spend most of the board on groups that are empty and force a
- * second scroll axis to reach the ones that are not.
+ * Grouped rather than columned. Nothing here is dragged,
+ * the states are derived, and two of them hold almost every document.
+ * Lanes of equal width would spend most of the board on empty groups,
+ * and force a second scroll axis to reach the ones that are not.
  *
- * The groups are mechanical and hold for any ontology. The steps across the
- * top are the ontology's own, read from what it declared, so swapping one
- * changes the pipeline here and nothing else.
+ * The groups are mechanical and hold for any ontology.
+ * The steps across the top are the ontology's own, read from what it declared,
+ * so swapping one changes the pipeline here and nothing else.
  */
 export function BuildPage({ workspaceId }: { workspaceId: string }) {
   const { t } = useTranslation()
@@ -78,18 +77,18 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
   const cards = board?.cards ?? []
   const selected = cards.find(card => keyOf(card) === selectedKey) ?? null
   const unitStage = board?.stages.find(stage => !stage.global)
-  // Permission belongs to the skill, and the manifest is where a workspace
-  // records who may run it, so a stage id alone cannot answer the question.
+  // Permission belongs to the skill, and the manifest records who may run it,
+  // so a stage id on its own cannot answer the question.
   const mayRun = (skillId: string | undefined): boolean => {
     const manifest = (skillsData?.items ?? []).find(skill => skill.id === skillId)
     return manifest !== undefined && policy.can('skill.run', { skill: manifest.frontmatter, skillId: manifest.id })
   }
   const mayRunUnits = mayRun(unitStage?.skillId)
   const { data: activePlan } = useBatchStatus(workspaceId)
-  // One build at a time, because the graph only accumulates. The server
-  // refuses a second, so the surface stops offering one rather than letting a
-  // person find out by error. A batch that has not spawned its first run yet
-  // counts too, since it is about to.
+  // One build at a time, because the graph only accumulates.
+  // The server refuses a second, so the surface stops offering one,
+  // rather than letting a person find out by error.
+  // A batch that has not spawned its first run counts too, since it is about to.
   const busy = (board?.building ?? false)
     || activePlan?.status === 'running'
     || activePlan?.status === 'deriving'
@@ -116,8 +115,9 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
   }
 
   return (
-    // The height context the groups scroll inside. Without it the list lays
-    // out at its content height and the surface clips it with no way down.
+    // The height context the groups scroll inside.
+    // Without it the list lays out at its content height,
+    // and the surface clips it with no way down.
     <div className="flex h-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">
         <StageStrip
@@ -171,14 +171,14 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
 /**
  * Covering a group, which is a batch.
  *
- * One plan rather than a loop of runs, because a loop has no order, no
- * checkpoint, and nothing to resume from, and forty documents would start
- * forty subprocesses at once. The plan is the same one a first bootstrap
- * builds, scoped to these documents.
+ * One plan rather than a loop of runs, because a loop has no order,
+ * no checkpoint, and nothing to resume from,
+ * and forty documents would start forty subprocesses at once.
+ * The plan is the same one a first bootstrap builds, scoped to these.
  *
- * Applying without review is the thing that makes a bootstrap fast, and it is
- * also the thing that puts unreviewed work in the graph, so it is asked here
- * rather than assumed either way.
+ * Applying without review is what makes a bootstrap fast,
+ * and it is also what puts unreviewed work in the graph,
+ * so it is asked here rather than assumed either way.
  */
 function CoverDialog({ workspaceId, cards, skillId, onClose }: {
   workspaceId: string
@@ -236,9 +236,10 @@ function CoverDialog({ workspaceId, cards, skillId, onClose }: {
 /**
  * What to call a step, in the reader's language.
  *
- * A skill id is an address. The ontology declares what its steps are called
- * and localises it the way it localises its node types, so a board that shows
- * the id is showing plumbing. Falls back to the id, which is at least true.
+ * A skill id is an address. The ontology declares what its steps are called,
+ * and localises that the way it localises its node types,
+ * so a board showing the id is showing plumbing.
+ * Falls back to the id, which is at least true.
  */
 function stageLabel(stage: CoverageStage | undefined, locale: string): string {
   if (!stage)
@@ -253,13 +254,13 @@ function keyOf(card: CoverageCard): string {
 /**
  * The ontology's own pipeline, and where each step stands.
  *
- * Two kinds of step sit here and they are marked apart, because a reader who
- * cannot tell them apart cannot tell why only some of them carry a button. A
- * per-document step is run from a row or a group. A graph-wide step is run
- * from here, since it belongs to no document.
+ * Two kinds of step sit here and they are marked apart.
+ * A reader who cannot tell them apart cannot tell why only some carry a button.
+ * A per-document step is run from a row or a group.
+ * A graph-wide step is run from here, since it belongs to no document.
  *
- * Narrow on purpose: it says which steps exist and what each is waiting on. It
- * is not a canvas, because nobody edits the pipeline.
+ * Narrow on purpose, saying which steps exist and what each is waiting on.
+ * Not a canvas, because nobody edits the pipeline.
  */
 function StageStrip({ board, workspaceId, canRun, busy, onOpenInbox }: {
   board: CoverageBoard
@@ -291,10 +292,10 @@ function StageStrip({ board, workspaceId, canRun, busy, onOpenInbox }: {
 /**
  * One step, and the reason to press it now.
  *
- * The reason is a fact the server already holds, never a prompt to guess at:
- * how many answers are queued for the step that reads them, or when the step
- * last ran. A step with no reason is still shown, because a pipeline missing
- * a stage reads as a broken pipeline.
+ * The reason is a fact the server already holds, never a prompt to guess at,
+ * such as how many answers are queued or when the step last ran.
+ * A step with no reason is still shown,
+ * because a pipeline missing a stage reads as a broken pipeline.
  */
 function StageCell({ stage, workspaceId, canRun, busy, onOpenInbox, standing }: {
   stage: CoverageStage
@@ -308,12 +309,12 @@ function StageCell({ stage, workspaceId, canRun, busy, onOpenInbox, standing }: 
   const { formatRelativeTime } = useLocaleFormat()
   const [asking, setAsking] = useState(false)
   const { data: skills } = useSkills(workspaceId)
-  // Read from the manifest rather than from the coverage projection, which
-  // describes what a step has done and not what it asks for first.
+  // Read from the manifest rather than from the coverage projection,
+  // which describes what a step has done and not what it asks for first.
   const inputs = skills?.items.find(skill => skill.id === stage.skillId)?.frontmatter.braid.inputs ?? []
   const waiting = stage.proposalIds.length + stage.clarificationIds.length
-  // Nothing answered means the run would read an empty queue and cost a
-  // subprocess to say so, which is why the button goes flat rather than eager.
+  // Nothing answered means the run would read an empty queue,
+  // and cost a subprocess to say so, so the button goes flat rather than eager.
   const idle = stage.readsAnswered && stage.answeredIds.length === 0
 
   const reason = standing
@@ -389,9 +390,10 @@ function StageCell({ stage, workspaceId, canRun, busy, onOpenInbox, standing }: 
 /**
  * Every document at once, one segment each.
  *
- * The corpus is the thing being digested, and a count says how far along that
- * is without ever showing its shape. This does, in one line, and it is the
- * only place a running batch can be watched moving rather than reported on.
+ * The corpus is the thing being digested,
+ * and a count says how far along that is without ever showing its shape.
+ * This shows the shape in one line,
+ * the only place a running batch is watched moving rather than reported on.
  */
 function CoverageRibbon({ cards, busy, selectedKey, onSelect }: {
   cards: readonly CoverageCard[]
@@ -434,10 +436,11 @@ function CoverageRibbon({ cards, busy, selectedKey, onSelect }: {
 /**
  * One state, and the documents in it.
  *
- * The heading carries the state's colour so the rows do not have to, and it
- * is where a bulk action belongs, because covering a group is one batch rather
- * than a row of buttons pressed in turn. Settled documents start folded, since
- * a reader opens this to find what is still asking for something.
+ * The heading carries the state's colour so the rows do not have to,
+ * and it is where a bulk action belongs,
+ * because covering a group is one batch rather than a row of buttons.
+ * Settled documents start folded,
+ * since a reader opens this to find what is still asking for something.
  */
 function Group({ workspaceId, state, cards, stage, selectedKey, onSelect, onRunAll }: {
   workspaceId: string
@@ -494,10 +497,10 @@ function Group({ workspaceId, state, cards, stage, selectedKey, onSelect, onRunA
 /**
  * What the run on this row is doing, while it is doing it.
  *
- * A spinner says only that something is happening. The stream has carried the
- * work the whole time, so the row says which file is being read and how much
- * has come back, and a reader can tell a run that is working from one that is
- * stuck without opening it.
+ * A spinner says only that something is happening.
+ * The stream has carried the work the whole time,
+ * so the row says which file is being read and how much has come back,
+ * and a reader can tell a working run from a stuck one without opening it.
  *
  * Only ever one of these on screen, since one build runs at a time.
  */
@@ -529,13 +532,14 @@ function LiveLine({ workspaceId, runId }: { workspaceId: string, runId: string }
 /**
  * One document, at the width of the surface.
  *
- * A row states what is true of it and nothing else. What to do about it lives
- * on the group heading, where it is one batch, or in the detail pane, where
- * there is room to say what it would mean.
+ * A row states what is true of it and nothing else.
+ * What to do about it lives on the group heading, where it is one batch,
+ * or in the detail pane, where there is room to say what it would mean.
  *
- * One line, until a run is reading it. The counts sit right so the eye can
- * run down them, and the two that nearly every document has are given fixed
- * widths so that column holds still while the rest varies.
+ * One line, until a run is reading it.
+ * The counts sit right so the eye can run down them,
+ * and the two that nearly every document has are given fixed widths,
+ * so that column holds still while the rest varies.
  */
 function Row({ workspaceId, card, active, onClick }: {
   workspaceId: string
@@ -573,17 +577,19 @@ function Row({ workspaceId, card, active, onClick }: {
 /**
  * One document's standing, and the reasoning that produced it.
  *
- * Deciding happens in the Inbox, so what waits here is named and linked rather
- * than reviewed twice. What this pane adds is the run's own blocks, which is
+ * Deciding happens in the Inbox,
+ * so what waits here is named and linked rather than reviewed twice.
+ * What this pane adds is the run's own blocks,
  * the only place the working behind a card can be read.
  */
 /**
  * One document's standing, and the record of how it got there.
  *
- * Facts and links rather than a second review pane. Deciding on a change is
- * the Inbox's act and it has the room for it, so what waits here is named and
- * pointed at. What this pane adds is the document's own slice of the graph and
- * the run that last read it, which are the two things with no other home.
+ * Facts and links rather than a second review pane.
+ * Deciding on a change is the Inbox's act and it has the room for it,
+ * so what waits here is named and pointed at.
+ * What this pane adds is the document's own slice of the graph,
+ * and the run that last read it, the two things with no other home.
  */
 function CardDetail({ workspaceId, card, stage, stages, canRun, onClose }: {
   workspaceId: string
@@ -703,9 +709,9 @@ function CardDetail({ workspaceId, card, stage, stages, canRun, onClose }: {
                       )}
                     </div>
                     {card.nodeIds.length > 0 && (
-                      // Opened on the graph surface rather than drawn here. A
-                      // slice this size is unreadable in a side panel, and a
-                      // node clicked inside one has nowhere to put its detail.
+                      // Opened on the graph surface rather than drawn here.
+                      // A slice this size is unreadable in a side panel,
+                      // and a node clicked inside one cannot show its detail.
                       <button
                         type="button"
                         onClick={() => graph?.focusNodes(card.nodeIds, card.name)}

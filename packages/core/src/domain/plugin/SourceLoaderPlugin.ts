@@ -79,14 +79,14 @@ export interface SourceLoaderPlugin extends Plugin {
    * Turns a location inside this source into a URL on the host it came from,
    * so evidence reaches the canonical copy rather than the local mirror.
    *
-   * Only the loader knows how to address its own host, which is why this lives
-   * here rather than in the surface that renders the link. The framework passes
-   * the location through and never parses what comes back, the same discipline
-   * `ProvisionReport.revision` already follows.
+   * Only the loader knows how to address its own host,
+   * which is why this lives here rather than in the surface rendering the link.
+   * The framework passes the location through and never parses what comes back,
+   * the same discipline `ProvisionReport.revision` already follows.
    *
-   * Return null when this location has no addressable form, and omit the method
-   * entirely when the host has no web presence at all, as a plain local
-   * directory does.
+   * Return null when this location has no addressable form,
+   * and omit the method entirely when the host has no web presence at all,
+   * as a plain local directory does.
    */
   webUrlFor?: (input: SourceWebUrlInput) => Promise<string | null> | string | null
 
@@ -107,14 +107,16 @@ export interface SourceWebUrlInput {
   readonly unitPath: string
   readonly location: SourceLocation
   /**
-   * Where the mirror lives locally. A loader whose upstream address is not
-   * derivable from config alone reads its own state from here, as a Drive
-   * mirror does when it needs the file id behind a folder name.
+   * Where the mirror lives locally.
+   * A loader whose upstream address is not derivable from config,
+   * reads its own state from here,
+   * as a Drive mirror does when it needs the file id behind a folder name.
    */
   readonly destination: AbsolutePath
   /**
-   * The upstream state the local mirror currently sits on, when the loader
-   * reported one. A permalink needs it, and a link built without it drifts
+   * The upstream state the local mirror currently sits on,
+   * when the loader reported one.
+   * A permalink needs it, and a link built without it drifts,
    * the moment the branch moves.
    */
   readonly revision?: string

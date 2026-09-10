@@ -6,9 +6,9 @@ export { visibleBlocks } from './visibleBlocks.js'
 /**
  * Which view of a run a reader is on.
  *
- * `transcript` is the run seen as the log that produced it, a peer of the
- * answer's views rather than something tucked underneath them. Everything
- * else is an audience the ontology declared, so the set is open.
+ * `transcript` is the run seen as the log that produced it,
+ * a peer of the answer's views rather than something tucked underneath.
+ * Everything else is an audience the ontology declared, so the set is open.
  */
 export const TRANSCRIPT_VIEW = 'transcript'
 export type AnswerView = AudienceId | typeof TRANSCRIPT_VIEW
@@ -25,9 +25,9 @@ function read(): string | null {
 }
 
 /**
- * The reader's stored view, resolved against what this ontology actually
- * declares. A stored id an ontology no longer has falls back rather than
- * showing an empty answer.
+ * The reader's stored view, resolved against what this ontology declares.
+ * A stored id an ontology no longer has falls back,
+ * rather than showing an empty answer.
  */
 export function useAnswerView(audiences: readonly AudienceDescriptor[]): [AnswerView, (next: AnswerView) => void] {
   const stored = useSyncExternalStore(

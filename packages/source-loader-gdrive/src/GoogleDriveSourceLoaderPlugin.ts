@@ -92,9 +92,10 @@ interface CandidateDoc {
 }
 
 /**
- * Build a Google Drive source loader. Walks a Drive folder, exports every
- * Google Doc inside as markdown, extracts inlined base64 images into
- * sibling files, and lays everything out as:
+ * Build a Google Drive source loader.
+ * Walks a Drive folder, exports every Google Doc inside as markdown,
+ * extracts inlined base64 images into sibling files,
+ * and lays everything out as:
  *
  *   <destination>/
  *     <sanitised-doc-title>/

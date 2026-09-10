@@ -8,8 +8,8 @@ import { getWorkspaceId } from '../middleware/workspaceId.js'
 
 const StartBody = z.object({
   autoApply: z.boolean(),
-  // Absent walks every document. Present walks only these, which is how a
-  // board column covers what it holds without a second kind of run.
+  // Absent walks every document. Present walks only these,
+  // which is how a board column covers what it holds without a second run.
   scope: z.array(z.string().min(1)).min(1).optional(),
 })
 

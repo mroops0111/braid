@@ -11,8 +11,8 @@ function entry(id: string, audiences: readonly AudienceId[]): EmittedBlock {
 }
 
 describe('visibleBlocks', () => {
-  // A conclusion belongs to whoever asked, so naming nobody is the common
-  // case and means everyone.
+  // A conclusion belongs to whoever asked,
+  // so naming nobody is the common case and means everyone.
   it('shows a block that names nobody to every reader', () => {
     const shared = entry('shared', [])
     expect(visibleBlocks([shared], BUSINESS)).toEqual([shared])
@@ -30,8 +30,8 @@ describe('visibleBlocks', () => {
     expect(visibleBlocks([both], ENGINEERING)).toEqual([both])
   })
 
-  // What switching reader actually changes: the shared blocks stay, and only
-  // the addressed one is swapped.
+  // What switching reader actually changes.
+  // The shared blocks stay, and only the addressed one is swapped.
   it('keeps the shared blocks and swaps only what was addressed', () => {
     const blocks = [entry('shared', []), entry('b', [BUSINESS]), entry('e', [ENGINEERING])]
     expect(visibleBlocks(blocks, BUSINESS).map(item => item.id)).toEqual(['shared', 'b'])

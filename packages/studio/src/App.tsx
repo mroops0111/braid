@@ -96,9 +96,9 @@ function AppInner() {
 
   useWorkspaceEvents(activeId)
 
-  // A bare workspace url states no surface, so the shell picks one. Waiting
-  // for the answer beats landing on Graph and jumping a moment later, and the
-  // reader keeps whatever they choose from here, including Graph itself.
+  // A bare workspace url states no surface, so the shell picks one.
+  // Waiting for the answer beats landing on Graph and jumping a moment later,
+  // and the reader keeps whatever they choose from here, including Graph.
   const landing = useLandingSurface(activeId)
   useEffect(() => {
     if (activeSurface === null && landing !== undefined)
@@ -143,8 +143,8 @@ function AppInner() {
 
   const graphNavigation = useMemo(() => ({ focusNode, focusEdge, focusNodes }), [focusNode, focusEdge, focusNodes])
 
-  // The Inbox is where a change is reviewed, so that is where a link to one
-  // lands. The Proposals surface stays reachable for browsing settled records.
+  // The Inbox is where a change is reviewed, so a link to one lands there.
+  // The Proposals surface stays reachable for browsing settled records.
 
   const focusProposal = useCallback((id: ProposalId) => {
     setFocusedProposalId(id)
@@ -306,8 +306,8 @@ function GraphHomeView({ workspaceId, state, onStartBootstrap, onOpenSearch }: {
 }) {
   const { t } = useTranslation()
   const { view, setView, selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode, centerRequest, requestCenter, arrival, clearArrival, narrowed, setNarrowed } = state
-  // Only fetched once somebody asks to see the arrival on its own. Until
-  // then the whole graph is drawn and the arrival is marked inside it.
+  // Only fetched once somebody asks to see the arrival on its own.
+  // Until then the whole graph is drawn and the arrival is marked inside it.
   const narrowedSource = useSubgraphDataSource(workspaceId, narrowed && arrival ? arrival.ids : NO_ARRIVAL)
 
   // This surface already shows node detail,

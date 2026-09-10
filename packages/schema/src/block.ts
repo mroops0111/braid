@@ -2,11 +2,12 @@ import { z } from 'zod'
 import { AudienceId, BlockId, DriftIssueId, NodeId, SourceReference } from './common.js'
 
 /**
- * Where a reference came from. `graph` was copied verbatim off a node's
- * `metadata.sourceReferences`, `agent` is a location the run opened itself.
- * A run exists to find what the model does not know yet, so the second kind
- * carries the findings the graph could not have produced. Studio renders it
- * as unverified rather than dropping it.
+ * Where a reference came from.
+ * `graph` was copied verbatim off a node's `metadata.sourceReferences`,
+ * and `agent` is a location the run opened itself.
+ * A run exists to find what the model does not know yet,
+ * so the second kind carries findings the graph could not have produced.
+ * Studio renders it as unverified rather than dropping it.
  */
 export const RefProvenance = z.enum(['graph', 'agent'])
 export type RefProvenance = z.infer<typeof RefProvenance>
@@ -23,22 +24,25 @@ const blockBase = {
   /**
    * Readers this block is only for, from the audiences the ontology declares.
    *
-   * Empty is the common case and means every reader sees it, because a
-   * conclusion belongs to whoever asked. Naming an audience is for content
-   * that genuinely says nothing to the others, such as a search trail. What
-   * differs between readers is usually how much of a reference is shown,
-   * which the audience's own `evidenceDetail` decides, not whether the
-   * finding above it exists.
+   * Empty is the common case and means every reader sees it,
+   * because a conclusion belongs to whoever asked.
+   * Naming an audience is for content that says nothing to the others,
+   * such as a search trail.
+   * What differs between readers is usually how much of a reference is shown,
+   * which the audience's own `evidenceDetail` decides,
+   * rather than whether the finding above it exists.
    */
   audiences: z.array(AudienceId).default([]),
   /**
    * Blocks that belong together, named by a shared free string.
    *
-   * This says the blocks are two readings of one comparison, not where to put
-   * them. The surface lays a group out side by side when there is room and
-   * stacks it when there is not, which is why a block still carries no
-   * position and no size. Two flows being compared share a group, a flow and
-   * the matrix summarising it do not.
+   * This says the blocks are two readings of one comparison,
+   * never where to put them.
+   * The surface lays a group out side by side when there is room,
+   * and stacks it when there is not,
+   * which is why a block still carries no position and no size.
+   * Two flows being compared share a group,
+   * while a flow and the matrix summarising it do not.
    */
   group: z.string().min(1).max(80).optional(),
   title: z.string().min(1).max(200).optional(),
@@ -78,9 +82,10 @@ export type FindingSide = z.infer<typeof FindingSide>
 /**
  * How much the references behind a finding actually carry it.
  *
- * Derived from the sides, never stated by the skill. A model asked for its own
- * confidence returns a number in a narrow band whatever the evidence, so the
- * figure reads like a measurement while carrying no information.
+ * Derived from the sides, never stated by the skill.
+ * A model asked for its own confidence returns a number in a narrow band,
+ * whatever the evidence,
+ * so the figure reads like a measurement while carrying no information.
  */
 export const EvidenceSupport = z.enum(['corroborated', 'partial', 'thin'])
 export type EvidenceSupport = z.infer<typeof EvidenceSupport>
@@ -99,8 +104,9 @@ export const ShowFinding = z.object({
   driftId: DriftIssueId.optional(),
   sides: z.array(FindingSide).min(2),
   // Computed from the sides when the block is recorded, never sent by the skill.
-  // Optional because a run log is append-only and holds blocks written before
-  // this was derived, and dropping those lines would erase recorded history.
+  // Optional because a run log is append-only,
+  // and holds blocks written before this was derived,
+  // where dropping those lines would erase recorded history.
   support: EvidenceSupport.optional(),
   // Only for the unverifiable case, naming what would settle it.
   suggestedSource: z.string().min(1).max(400).optional(),
@@ -108,9 +114,10 @@ export const ShowFinding = z.object({
 export type ShowFinding = z.infer<typeof ShowFinding>
 
 /**
- * How a matrix cell reads at a glance. The label beside it is free text the
- * skill chooses, so an ontology names its own states while a renderer only
- * needs to know which of five ways to colour them.
+ * How a matrix cell reads at a glance.
+ * The label beside it is free text the skill chooses,
+ * so an ontology names its own states,
+ * while a renderer only needs to know which of five ways to colour them.
  */
 export const CellTone = z.enum(['affirmed', 'denied', 'conditional', 'conflict', 'not-applicable'])
 export type CellTone = z.infer<typeof CellTone>
@@ -166,8 +173,8 @@ export type TraceSkip = z.infer<typeof TraceSkip>
 
 /**
  * What the run searched, read, cited, and deliberately left out.
- * Renders to both audiences, because what was not looked at is the one thing
- * a reader cannot infer from the answer.
+ * Renders to both audiences,
+ * because what was not looked at cannot be inferred from the answer.
  */
 export const ShowTrace = z.object({
   ...blockBase,
@@ -182,9 +189,10 @@ export type ShowTrace = z.infer<typeof ShowTrace>
 /**
  * A diagram, as a mermaid definition.
  *
- * The renderer already exists for node descriptions, so this carries the
- * definition and nothing else. Use it for a flow or a state machine, where the
- * shape of the thing is the point and a table would flatten it.
+ * The renderer already exists for node descriptions,
+ * so this carries the definition and nothing else.
+ * Use it for a flow or a state machine,
+ * where the shape of the thing is the point and a table would flatten it.
  */
 export const ShowDiagram = z.object({
   ...blockBase,
@@ -204,8 +212,9 @@ export type SubgraphEdge = z.infer<typeof SubgraphEdge>
 /**
  * A slice of the graph the answer stands on.
  *
- * Node ids and the edges between them, nothing else. The surface resolves each
- * id to its own name, type, and colour, so this carries no ontology vocabulary
+ * Node ids and the edges between them, nothing else.
+ * The surface resolves each id to its own name, type, and colour,
+ * so this carries no ontology vocabulary,
  * and stays correct when a node is renamed.
  */
 export const ShowSubgraph = z.object({

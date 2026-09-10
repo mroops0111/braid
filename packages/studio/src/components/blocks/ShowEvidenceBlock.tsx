@@ -6,8 +6,8 @@ import { EvidenceRefs } from './EvidenceRefs'
 
 /**
  * Reference apparatus, not a peer of the answer.
- * Collapsed by default and set quiet, because it is consulted on demand
- * rather than read straight through.
+ * Collapsed by default and set quiet,
+ * because it is consulted on demand rather than read straight through.
  */
 export function ShowEvidenceBlock({ block }: { block: ShowEvidence }) {
   const { t } = useTranslation()

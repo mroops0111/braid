@@ -46,15 +46,15 @@ describe('emphasizeAddedFor', () => {
     expect(emphasizeAddedFor(source(drawn, [], diffOf(['n0', 'n1'])))).toBe(true)
   })
 
-  // A fresh extraction touches nearly everything, and a green border on every
-  // node would drown the type colour the cards are read by.
+  // A fresh extraction touches nearly everything,
+  // and a green border on every node would drown the type colour.
   it('leaves a change that touches most of what is drawn unemphasised', () => {
     const drawn = ['a', 'b', 'c']
     expect(emphasizeAddedFor(source(drawn, [], diffOf(drawn)))).toBe(false)
   })
 
-  // Nothing drawn is not an incremental change, it is no change, and the
-  // ratio has to fall on that side or an empty canvas reads as a diff.
+  // Nothing drawn is not an incremental change, it is no change,
+  // and the ratio must fall on that side or an empty canvas reads as a diff.
   it('treats an empty source as unemphasised', () => {
     expect(emphasizeAddedFor(source([], []))).toBe(false)
   })

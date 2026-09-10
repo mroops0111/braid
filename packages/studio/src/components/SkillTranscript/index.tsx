@@ -63,9 +63,10 @@ export function SkillTranscript({ events, error, running }: SkillTranscriptProps
 /**
  * What a run was asked for.
  *
- * The same box whether it arrives as the log's own start event or as the user
- * message the protocol carries it in, because a reader is looking at one
- * thing and should not be able to tell which door it came through.
+ * The same box whether it arrives as the log's own start event,
+ * or as the user message the protocol carries it in,
+ * because a reader is looking at one thing,
+ * and should not be able to tell which door it came through.
  */
 function Prompt({ text, resumed }: { text: string, resumed: boolean }) {
   const { t } = useTranslation()

@@ -59,16 +59,17 @@ export interface DefineOntologyInput {
   /** Optional explicit plugin id, defaults to `ontology.<ontologyId>`. */
   readonly pluginId?: string
   /**
-   * Optional batch and reactor binding. Declare which skill processes one
-   * intent unit, the optional checkpoint configuration, and the optional
-   * derive-units skill. Without it the workspace cannot start a batch under
-   * this ontology.
+   * Optional batch and reactor binding.
+   * Declare which skill processes one unit, the checkpoint configuration,
+   * and the derive-units skill.
+   * Without it the workspace cannot start a batch under this ontology.
    */
   readonly batch?: OntologyBatchBinding
   /**
    * The source roles this ontology declares, with their capabilities.
-   * A `required` role missing from a manifest is rejected with 422, so the
-   * wizard can prompt for it. `unitBearing` roles feed batch and the Reactor.
+   * A `required` role missing from a manifest is rejected,
+   * so the wizard can prompt for it.
+   * `unitBearing` roles feed batch and the Reactor.
    */
   readonly sourceRoles?: readonly SourceRoleInput[]
   /**

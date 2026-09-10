@@ -28,9 +28,10 @@ const PUBLIC_EXACT_PATHS = new Set(['/openapi.json', '/.well-known/oauth-protect
 // checked inside the handler rather than via a Bearer token.
 // Listing providers one by one, rather than the broad `/webhooks/`,
 // keeps a future admin or metrics webhook from inheriting the bypass.
-// A run's own spec is the same document narrowed to what that kind of run may
-// call, so it is public for the same reason: shape, not data. It also has to
-// be, since the gateway reads it before a run exists to authenticate as.
+// A run's own spec is the same document narrowed to what that run may call,
+// so it is public for the same reason, being shape rather than data.
+// It also has to be,
+// since the gateway reads it before a run exists to authenticate as.
 const PUBLIC_PATH_PREFIXES = ['/auth/', '/health', '/webhooks/github/', '/openapi/runs/']
 
 // Any OAuth provider callback is anonymous. It is a browser redirect,
@@ -91,9 +92,9 @@ export function extractBearerToken(context: { req: { header: (name: string) => s
  * Establish the caller's identity, and gate when auth is enforced.
  * The single place a request's `userId` is resolved.
  *
- * Under local trust, identity comes from `X-Braid-User`, else the default
- * principal, on every path so public routes like `/auth/whoami` see the caller.
- * Nothing is rejected.
+ * Under local trust, identity comes from `X-Braid-User`,
+ * else the default principal, on every path,
+ * so public routes like `/auth/whoami` see the caller. Nothing is rejected.
  *
  * When auth is enforced, identity comes only from a valid Bearer session,
  * and a missing or invalid token on a non-public route is a 401.
@@ -109,18 +110,20 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
       // so an internal caller like the reactor is identified as its service account.
       // Studio under local trust sends no Bearer, so this never shadows it.
       const token = extractBearerToken(context)
-      // A skill calls back with a run credential even here, so its work is
-      // attributed to the run rather than to whoever the deployment assumes.
+      // A skill calls back with a run credential even here,
+      // so its work is attributed to the run,
+      // rather than to whoever the deployment assumes.
       const caller = token ? await resolveCaller(token, options.accessTokenVerifiers) : null
       if (caller) {
         setCaller(context, caller)
         await next()
         return undefined
       }
-      // A run credential that no longer resolves is a credential, not the
-      // absence of one, so it must not fall through to the anonymous caller
-      // local trust allows. That is what let a run outliving the process that
-      // issued its token keep writing, unattributed, after being reaped.
+      // A run credential that no longer resolves is a credential,
+      // rather than the absence of one,
+      // so it must not fall through to the anonymous caller local trust allows.
+      // That is what let a run outliving the process that issued its token,
+      // keep writing, unattributed, after being reaped.
       if (token?.startsWith(RUN_TOKEN_PREFIX))
         throw new UnauthorizedError('That run credential is no longer valid. The run it belonged to is over.')
       const session = token ? await options.sessionStore?.resolve(token) : undefined
@@ -189,8 +192,8 @@ export function getUserId(context: Context): UserIdType {
 /**
  * The run that is calling, when one is.
  *
- * Read from the credential rather than from the request body, so a record can
- * be attributed to its run without anyone being asked which run that is.
+ * Read from the credential rather than from the request body,
+ * so a record is attributed to its run without anyone being asked which.
  */
 export function getSkillRunId(context: Context): SkillRunIdType | undefined {
   return context.get('skillRunId')

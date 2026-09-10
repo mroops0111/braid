@@ -27,8 +27,8 @@ export interface NodeCardData extends Record<string, unknown> {
    */
   emphasizeAdded?: boolean
   /**
-   * Set by `GraphCanvas` for the nodes somebody arrived to look at, so the
-   * whole graph stays drawn and the arrival is still findable inside it.
+   * Set by `GraphCanvas` for the nodes somebody arrived to look at,
+   * so the whole graph stays drawn and the arrival is findable inside it.
    */
   spotlit?: boolean
 }

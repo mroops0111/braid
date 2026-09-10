@@ -6,14 +6,14 @@ import { Button } from './ui/button'
 /**
  * The one control that puts a column away and brings it back.
  *
- * One glyph pair, one size, one hit area, wherever a surface offers it. Built
- * per place it had become a ghost button here and a bordered chip there, so a
- * reader crossing between two surfaces could not tell it was the same control.
+ * One glyph pair, one size, one hit area, wherever a surface offers it.
+ * Built per place, it had become a ghost button here and a chip there,
+ * so a reader crossing between surfaces could not tell it was one control.
  *
  * `floating` is the single exception, for a control with no band to sit in.
- * Laid over a canvas it needs a ground of its own or it disappears into
- * whatever is drawn behind it, which is a legibility problem rather than a
- * second opinion about how the control should look.
+ * Laid over a canvas it needs a ground of its own,
+ * or it disappears into whatever is drawn behind it,
+ * which is a legibility problem rather than a second opinion about looks.
  */
 export function PanelToggle({ open, label, onToggle, floating = false, className }: {
   open: boolean
@@ -39,14 +39,14 @@ export function PanelToggle({ open, label, onToggle, floating = false, className
 /**
  * Shared master-detail frame for workspace surfaces.
  *
- * The list-column width and the detail region live here once, so every
- * surface reads as the same product instead of drifting per page. Sized as a
- * flex-1 child, so it fills a `flex h-full flex-col` page root, below any
- * PageActions header the page mounts.
+ * The list-column width and the detail region live here once,
+ * so every surface reads as the same product instead of drifting per page.
+ * Sized as a flex-1 child, so it fills a `flex h-full flex-col` page root,
+ * below any PageActions header the page mounts.
  *
- * Collapsing belongs here too. Written per page it existed on exactly one
- * surface, which taught a reader an affordance that then went missing
- * wherever else they looked for it.
+ * Collapsing belongs here too.
+ * Written per page it existed on exactly one surface,
+ * which taught a reader an affordance that then went missing elsewhere.
  */
 export function SurfaceLayout({ list, listClassName, collapse, children }: {
   list: ReactNode
@@ -54,9 +54,9 @@ export function SurfaceLayout({ list, listClassName, collapse, children }: {
   /**
    * Offered only when the page can do without its list.
    *
-   * `collapsed` is the page's state rather than this component's, since a
-   * surface that lands with the list already put away has to say so before
-   * anything renders.
+   * `collapsed` is the page's state rather than this component's,
+   * since a surface landing with the list already put away,
+   * has to say so before anything renders.
    */
   collapse?: {
     readonly collapsed: boolean
@@ -68,11 +68,11 @@ export function SurfaceLayout({ list, listClassName, collapse, children }: {
 }) {
   if (collapse?.collapsed) {
     return (
-      // No narrow column left behind. A 36px strip with a border down its
-      // full height reads as a column that happens to be empty, and the one
-      // thing in it is a button. The reader gets a gutter the control sits
-      // in instead, which is what the graph has always done beside its
-      // canvas.
+      // No narrow column left behind.
+      // A 36px strip bordered down its full height reads as a column,
+      // one that happens to be empty, and the one thing in it is a button.
+      // The reader gets a gutter the control sits in instead,
+      // which is what the graph has always done beside its canvas.
       <div className="relative flex min-h-0 flex-1">
         <div className="absolute left-1.5 top-2 z-10">
           <PanelToggle open={false} label={collapse.showLabel} onToggle={() => collapse.onToggle(false)} />

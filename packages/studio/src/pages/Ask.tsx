@@ -155,12 +155,13 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
     ? turns
     : turns.map(turn => ({ ...turn, blocks: visibleBlocks(turn.blocks, view) }))
   const stats = readStats(conversation.events)
-  // The latest question, not the first. A follow-up is what the reader is
-  // looking at now, and the earlier ones head their own section in the canvas.
+  // The latest question, not the first.
+  // A follow-up is what the reader is looking at now,
+  // and the earlier ones head their own section in the canvas.
   //
-  // Read from the run record. `RUN_STARTED` carries a thread and a run and
-  // nothing about what was asked, so a conversation hydrated from the protocol
-  // has no event that holds the question.
+  // Read from the run record.
+  // `RUN_STARTED` carries a thread and a run and nothing about what was asked,
+  // so a conversation hydrated from the protocol has no event holding it.
   const lastTurnId = conversation.turnIds.at(-1)
   const askedQuestion = (runsData?.items ?? []).find(record => record.runId === lastTurnId)?.args ?? null
   const activeRunId = conversation.phase === 'streaming' ? conversation.turnIds.at(-1) ?? null : null
@@ -194,12 +195,13 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
     }
   }
 
-  // A run that missed its output contract is resumed by the server, so a turn
-  // can appear that this client never started. Adopt it, or the correction's
-  // blocks never reach the canvas.
+  // A run that missed its output contract is resumed by the server,
+  // so a turn can appear that this client never started.
+  // Adopt it, or the correction's blocks never reach the canvas.
   //
-  // Keyed on the run ids rather than on the live turn list, because adopting
-  // changes that list, and depending on what you mutate re-fires forever.
+  // Keyed on the run ids rather than on the live turn list,
+  // because adopting changes that list,
+  // and depending on what you mutate re-fires forever.
   const sessionId = conversation.sessionId
   const sessionRunIds = (runsData?.items ?? [])
     .filter(record => sessionId !== null && record.sessionId === sessionId)
@@ -302,8 +304,9 @@ function ViewToggle({ value, onChange, audiences, toolCalls }: {
             <TabsTrigger
               key={audience.id}
               value={audience.id}
-              // `title` gives the hover description, and would otherwise become
-              // the accessible name, so the short label is pinned explicitly.
+              // `title` gives the hover description,
+              // and would otherwise become the accessible name,
+              // so the short label is pinned explicitly.
               aria-label={label}
               {...(audience.description ? { title: audience.description } : {})}
             >

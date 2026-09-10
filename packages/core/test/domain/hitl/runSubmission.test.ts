@@ -23,8 +23,8 @@ describe('proposalSubmission', () => {
     expect(proposalSubmission.refuse(RUN, NOTHING)).toBeNull()
   })
 
-  // Two proposals from one run is the model splitting arbitrarily, and it
-  // costs a reviewer two decisions where the run made one.
+  // Two proposals from one run is the model splitting arbitrarily,
+  // and it costs a reviewer two decisions where the run made one.
   it('refuses a second proposal from the same run', () => {
     expect(proposalSubmission.refuse(RUN, wrote({ proposals: 1 }))).toMatch(/already proposed/)
   })
@@ -33,8 +33,9 @@ describe('proposalSubmission', () => {
     expect(proposalSubmission.refuse(RUN, wrote({ blocking: 1 }))).toMatch(/ct-0/)
   })
 
-  // Asking is what makes a run stop, so having asked is checked before having
-  // proposed would ever come up, and the message that fits is the first one.
+  // Asking is what makes a run stop,
+  // so having asked is checked before having proposed comes up,
+  // and the message that fits is the first one.
   it('names the proposal it already made when both are true', () => {
     expect(proposalSubmission.refuse(RUN, wrote({ proposals: 1, blocking: 1 }))).toMatch(/already proposed/)
   })
@@ -46,8 +47,8 @@ describe('clarificationSubmission', () => {
     expect(clarificationSubmission.refuse(RUN, wrote({ blocking: 3 }))).toBeNull()
   })
 
-  // A question from a run that has decided arrives too late to be worth
-  // anything, since the reviewer already holds what the answer might undo.
+  // A question from a run that has decided arrives too late to matter,
+  // since the reviewer already holds what the answer might undo.
   it('refuses a question from a run that already proposed', () => {
     expect(clarificationSubmission.refuse(RUN, wrote({ proposals: 1 }))).toMatch(/cannot also ask/)
   })

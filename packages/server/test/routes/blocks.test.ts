@@ -20,8 +20,8 @@ async function buildApp() {
     compose: { accessTokenVerifiers: [runTokens] },
   })
   const { deps, workspace, runRepository, skillRunner, endAll } = built
-  // A ref claiming the graph is checked against it, so a test citing a node
-  // needs that node to exist, the same as a real run does.
+  // A ref claiming the graph is checked against it,
+  // so a test citing a node needs that node to exist, as a real run does.
   await deps.modelRepository.applyOperations(workspace.id, [
     {
       operation: 'addNode',
@@ -30,8 +30,9 @@ async function buildApp() {
         name: 'Signing',
         id: CITED,
         status: 'draft',
-        // Every node must show where it came from, and a proposal filed later
-        // is validated against the whole graph, this node included.
+        // Every node must show where it came from,
+        // and a proposal filed later is validated against the whole graph,
+        // this node included.
         metadata: { sourceReferences: [{ sourceId: 'spec' as SourceId, location: { uri: 'a/b.md', startLine: 1 } }] },
       },
     },
@@ -61,9 +62,9 @@ async function readEvents(
 }
 
 describe('render routes', () => {
-  // A held process outlives a test that threw before releasing it, and its
-  // drain promise never settles. Released here so one failure cannot leave a
-  // handle open for the rest of the worker.
+  // A held process outlives a test that threw before releasing it,
+  // and its drain promise never settles.
+  // Released here so one failure cannot leave a handle open for the worker.
   afterEach(endAllSpawned)
 
   it('records a showAnswer call on the run that made it', async () => {
@@ -118,7 +119,7 @@ describe('render routes', () => {
     expect(block?.type === 'block' && block.block.call === 'showFinding' && block.block.sides).toHaveLength(2)
     // Neither side carried a reference, so the derived support is the weakest.
     expect(block?.type === 'block' && block.block.call === 'showFinding' && block.block.support).toBe('thin')
-    // The skill is told what was derived, since it cannot compute this itself
+    // The skill is told what was derived, since it cannot compute it itself,
     // and its own wording should match the strength the reader is shown.
     expect(recorded).toMatchObject({ support: 'thin' })
   })
@@ -202,9 +203,10 @@ describe('render routes', () => {
     endAll()
   })
 
-  // The declaration creates nothing and decides nothing, so it has nothing to
-  // send back, and a body saying "success" would be paid for in the run's own
-  // context to repeat the status line.
+  // The declaration creates nothing and decides nothing,
+  // so it has nothing to send back,
+  // and a body saying "success" would be paid for in the run's own context,
+  // only to repeat the status line.
   it('answers the no-clarification declaration with no content at all', async () => {
     const { app, workspace, runTokens, startedBy, endAll } = await buildApp()
     const runId = await startRun(app, workspace.id)
@@ -243,8 +245,8 @@ describe('render routes', () => {
     endAll()
   })
 
-  // Claiming the graph while naming nothing makes the same claim and withholds
-  // the only thing that would let anyone test it.
+  // Claiming the graph while naming nothing makes the same claim,
+  // and withholds the only thing that would let anyone test it.
   it('refuses a block claiming the graph without naming what it took', async () => {
     const { app, workspace, endAll } = await buildApp()
     const runId = await startRun(app, workspace.id)
@@ -264,8 +266,9 @@ describe('render routes', () => {
     endAll()
   })
 
-  // The run's own reading rests on nothing but itself, so there is nothing for
-  // the graph to settle and refusing it would refuse the ordinary case.
+  // The run's own reading rests on nothing but itself,
+  // so there is nothing for the graph to settle,
+  // and refusing it would refuse the ordinary case.
   it('records a ref the run read for itself, which the graph cannot settle', async () => {
     const { app, workspace, endAll } = await buildApp()
     const runId = await startRun(app, workspace.id)
@@ -285,9 +288,9 @@ describe('render routes', () => {
     endAll()
   })
 
-  // The run id is a fact the server holds, so nothing is asked for it. A
-  // resumed run once read the id off the record it was answering and
-  // attributed its work to the finished run that had asked.
+  // The run id is a fact the server holds, so nothing is asked for it.
+  // A resumed run once read the id off the record it was answering,
+  // and attributed its work to the finished run that had asked.
   it('attributes a proposal to the run whose credential created it', async () => {
     const { app, workspace, runTokens, startedBy, endAll } = await buildApp()
     const runId = await startRun(app, workspace.id)

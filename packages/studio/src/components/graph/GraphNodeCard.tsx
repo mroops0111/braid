@@ -64,8 +64,8 @@ export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
       className={cn(
         'relative w-[200px] rounded-md border bg-card px-3 py-2 transition-colors duration-150',
         selected ? 'border-primary' : (changeBorder ?? 'border-border hover:border-border/80'),
-        // What somebody arrived to look at. A ring rather than a border, so it
-        // layers over the diff border instead of replacing it.
+        // What somebody arrived to look at. A ring rather than a border,
+        // so it layers over the diff border instead of replacing it.
         spotlit && !selected && 'ring-2 ring-primary/60',
       )}
     >
@@ -111,9 +111,9 @@ export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
 /**
  * The drifts a reader has not already settled.
  *
- * Acknowledgement is recorded as the description string the drift was raised
- * with, which is the same match the evidence validator makes, so a card and
- * an apply gate never disagree about whether something is still open.
+ * Acknowledgement is recorded as the description the drift was raised with,
+ * which is the same match the evidence validator makes,
+ * so a card and an apply gate never disagree about what is still open.
  */
 export function unacknowledgedDrifts(node: NodeCardNode['data']['node']): readonly DriftIssue[] {
   const acknowledged = new Set(node.metadata.acknowledgedDrifts ?? [])

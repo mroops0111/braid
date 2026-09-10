@@ -14,8 +14,8 @@ export interface OutputViolation {
  * Checks a finished run's blocks against the contract its skill declared.
  *
  * Pure and total, so the retry decision stays testable without a subprocess.
- * A contract that asks for nothing yields no violations, which is what an
- * undeclared skill gets.
+ * A contract that asks for nothing yields no violations,
+ * which is what an undeclared skill gets.
  */
 export function validateOutput(
   contract: SkillOutputContract,
@@ -46,8 +46,9 @@ export function validateOutput(
 }
 
 /**
- * The correction handed back to the agent, phrased as the gap rather than as
- * a repeat of the original request, so the next turn adds instead of redoing.
+ * The correction handed back to the agent,
+ * phrased as the gap rather than as a repeat of the original request,
+ * so the next turn adds instead of redoing.
  */
 export function describeViolations(violations: readonly OutputViolation[]): string {
   const lines = violations.map((violation) => {

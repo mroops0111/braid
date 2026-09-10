@@ -19,8 +19,8 @@ const ResolveBody = z.object({
 }).openapi('SourceRefUrlRequest')
 
 /**
- * `url` is null whenever the source cannot be addressed on a host, which is
- * the normal answer for a plain local directory rather than an error.
+ * `url` is null whenever the source cannot be addressed on a host,
+ * which is the normal answer for a local directory rather than an error.
  */
 const ResolveResponse = z.object({
   url: z.string().url().nullable(),
@@ -48,9 +48,9 @@ const resolveRoute = createRoute({
 /**
  * Turns a reference into a link on the host its source came from.
  *
- * The framework never parses what a loader returns and never learns that any
- * particular host exists, which is what keeps a new host a plugin change
- * rather than a change here.
+ * The framework never parses what a loader returns,
+ * and never learns that any particular host exists,
+ * which is what keeps a new host a plugin change rather than a change here.
  */
 export function createSourceRefUrlRouter(deps: SourceRefUrlRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
@@ -67,11 +67,12 @@ export function createSourceRefUrlRouter(deps: SourceRefUrlRouterDeps): OpenAPIH
     if (!loader?.webUrlFor)
       return context.json({ url: null }, 200)
 
-    // A descriptor's path may be written relative to the workspace, so it is
-    // resolved before anything compares it against a reference's own uri.
+    // A descriptor's path may be written relative to the workspace,
+    // so it is resolved before anything compares it against a reference.
     const destination = resolveWithin(source.path, workspace.rootPath)
-    // A ref's uri is workspace-relative, while a loader addresses paths from
-    // its own root, so the source's own directory is subtracted first.
+    // A ref's uri is workspace-relative,
+    // while a loader addresses paths from its own root,
+    // so the source's own directory is subtracted first.
     const unitPath = toUnitPath(location.uri, destination, workspace.rootPath)
     const state = await deps.sourceSyncStateRepository.find(workspace.id, sourceId)
 

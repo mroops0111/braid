@@ -86,8 +86,8 @@ describe('agui route', () => {
     const events = readEvents(await (await postRun(app, workspace.id, runInput())).text())
     const openings = events.filter(event => event.type === EventType.TEXT_MESSAGE_START)
 
-    // The prompt first, as the user message that starts the turn, then the
-    // agent's own. Each spelled as the three events addressing one id.
+    // The prompt first, as the user message that starts the turn,
+    // then the agent's own, each spelled as three events addressing one id.
     expect(openings.map(event => event.role)).toEqual(['user', 'assistant'])
     expect(events.filter(event => String(event.type).startsWith('TEXT_MESSAGE')).map(event => event.type))
       .toEqual([
@@ -100,8 +100,8 @@ describe('agui route', () => {
       ])
   })
 
-  // Reloading onto a finished run replays the same events, so the prompt is
-  // there whether a reader watched it happen or arrived afterwards.
+  // Reloading onto a finished run replays the same events,
+  // so the prompt is there whether a reader watched it or arrived later.
   it('replays a finished run with the prompt it was given', async () => {
     const { app, workspace } = await buildApp([assistantLine('An answer.')])
     const live = readEvents(await (await postRun(app, workspace.id, runInput())).text())
@@ -115,8 +115,9 @@ describe('agui route', () => {
     expect(content!.delta).toBe('how do templates differ')
   })
 
-  // The conversation is the contract. Without a handle for an agent-held
-  // conversation, the whole exchange has to reach the agent some other way.
+  // The conversation is the contract.
+  // Without a handle for an agent-held conversation,
+  // the whole exchange has to reach the agent some other way.
   it('hands the whole conversation to the agent when there is no handle for it', async () => {
     const { app, workspace, invocations } = await buildApp([assistantLine('An answer.')])
 
@@ -167,8 +168,8 @@ describe('agui route', () => {
     expect(response.status).toBe(400)
   })
 
-  // A run that stopped to ask is not finished, and a client that reads it as
-  // finished would never come back with the answer.
+  // A run that stopped to ask is not finished,
+  // and a client that reads it as finished never comes back with the answer.
   it('ends a run that left a question open as an interrupt, not a plain finish', async () => {
     const { app, workspace, deps } = await buildApp([assistantLine('I need a decision.')])
     const live = readEvents(await (await postRun(app, workspace.id, runInput())).text())
@@ -209,9 +210,10 @@ describe('agui route', () => {
   })
 
   /**
-   * The three ways out of a question all release the run, because it asked in
-   * order to keep going. What differs is the sentence it is handed, and these
-   * pin that down where it actually reaches the agent, in the prompt.
+   * The three ways out of a question all release the run,
+   * because it asked in order to keep going.
+   * What differs is the sentence it is handed,
+   * and these pin that down where it reaches the agent, in the prompt.
    */
   it.each([
     { verb: 'deferred', settle: 'defer', expected: 'answer this later' },
@@ -246,26 +248,29 @@ describe('agui route', () => {
     expect(prompt).toContain(expected)
     expect(prompt).toContain('do not raise it again')
 
-    // A continuation resumes a conversation that already read the closed run's
-    // id from its environment, so every render call it makes would land on a
-    // run nothing is listening to unless it is told the new one.
+    // A continuation resumes a conversation that already read the closed id,
+    // from its environment,
+    // so every render call it makes would land on a run nothing listens to,
+    // unless it is told the new one.
     const records = await deps.runRepository.listRecords(workspace)
     const carriedRun = records.find(record => record.continues === runId)!
     expect(prompt).toContain(carriedRun.runId)
     expect(prompt).toContain('read $BRAID_RUN_ID again')
 
-    // The record keeps both: what was actually sent, so an audit reads true,
-    // and what the run works on, so a continued run stays attributed to the
-    // document it is still reading rather than to the sentence that released
-    // it. It also names the run it took up.
+    // The record keeps both, what was actually sent so an audit reads true,
+    // and what the run works on,
+    // so a continued run stays attributed to the document it is reading,
+    // rather than to the sentence that released it.
+    // It also names the run it took up.
     const carried = carriedRun
     expect(carried.args).toContain(expected)
     expect(carried.scope).toBe('how do templates differ')
     expect(carried.continues).toBe(runId)
 
-    // And it opens holding the earlier run's account, so the thread reads in
-    // one place: the first prompt, the work, the question, then the sentence
-    // that released it. Without this a reader lands mid-thought.
+    // And it opens holding the earlier run's account,
+    // so the thread reads in one place, from the first prompt through the work,
+    // to the question and the sentence that released it.
+    // Without this a reader lands mid-thought.
     const thread: string[] = []
     for await (const event of deps.runRepository.readEvents(workspace, carried.runId))
       thread.push(event.type)

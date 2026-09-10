@@ -34,8 +34,8 @@ const TONE_LABEL_KEY = {
 
 /**
  * A dot carries no meaning on its own, so the grid states what its colours mean.
- * Only the tones actually used are listed, because a legend for absent states
- * is noise the reader has to filter.
+ * Only the tones actually used are listed,
+ * because a legend for absent states is noise the reader has to filter.
  */
 function ToneLegend({ tones }: { tones: readonly CellTone[] }) {
   const { t } = useTranslation()

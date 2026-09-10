@@ -51,9 +51,10 @@ export interface HITLServiceDeps {
   workspaceService: WorkspaceService
   clock: Clock
   /**
-   * All three needed to stamp which source units a proposal came from, and at
-   * which version. Absent, the proposal carries none, and coverage falls back
-   * to reading the run's own arguments.
+   * All three needed to stamp which source units a proposal came from,
+   * and at which version.
+   * Absent, the proposal carries none,
+   * and coverage falls back to reading the run's own arguments.
    */
   runRepository?: RunRepository
   unitLister?: UnitLister
@@ -84,10 +85,11 @@ export class HITLService {
   /**
    * The source units the run that produced this was pointed at.
    *
-   * Read from the run's own arguments and the observation store, never from
-   * the caller. A proposal that could name its own scope could name a document
-   * it never read, and coverage would then rest on the model's account of
-   * itself rather than on what the server watched it do.
+   * Read from the run's own arguments and the observation store,
+   * never from the caller.
+   * A proposal naming its own scope could name a document it never read,
+   * and coverage would then rest on the model's account of itself,
+   * rather than on what the server watched it do.
    */
   private async scopeOfRun(workspaceId: WorkspaceId, skillRunId: SkillRunId | undefined): Promise<SourceUnit[]> {
     const { runRepository, unitLister, sourceUnitDigest } = this.deps
@@ -98,9 +100,9 @@ export class HITLService {
     if (!record)
       return []
     const named = sourceUnitsForRun(runScope(record), await unitLister(workspace))
-    // Hashed here rather than read from the observation store, which records
-    // what a completed run saw and so is either absent or one version behind
-    // at the moment a proposal is filed.
+    // Hashed here rather than read from the observation store,
+    // which records what a completed run saw,
+    // and so is either absent or one version behind when a proposal is filed.
     return Promise.all(named.map(async unit => ({
       sourceId: SourceId.parse(unit.sourceId),
       path: unit.value,
@@ -112,8 +114,9 @@ export class HITLService {
    * What a run has already committed to, read from what it wrote.
    *
    * Checked against the records rather than against anything held in memory,
-   * because a process restart must not let a run submit twice. Which rule
-   * applies is the kind's own, so a new kind of output brings a rule with it
+   * because a process restart must not let a run submit twice.
+   * Which rule applies is the kind's own,
+   * so a new kind of output brings a rule with it,
    * rather than another arm of a conditional here.
    */
   private async assertRunMaySubmit(
@@ -140,10 +143,11 @@ export class HITLService {
   /**
    * Whether a conversation will be parked on this answer.
    *
-   * A watched run stops and waits, so answering carries it on. An unattended
-   * one has nobody to answer it in time, so its question stands alone from the
-   * moment it is asked. Read from the run's own record, which outlives the
-   * process, rather than from anything the asker says about itself.
+   * A watched run stops and waits, so answering carries it on.
+   * An unattended one has nobody to answer it in time,
+   * so its question stands alone from the moment it is asked.
+   * Read from the run's own record, which outlives the process,
+   * rather than from anything the asker says about itself.
    */
   private async answerModeFor(
     workspaceId: WorkspaceId,
@@ -385,10 +389,10 @@ export class HITLService {
   /**
    * Stop a run waiting on this question, without giving the question up.
    *
-   * The run carries on without the answer, so the question stops being an
-   * interrupt and stands on its own. It is still pending, because it still
-   * wants answering, and the step that reads answered ones will pick it up
-   * whenever somebody gets to it.
+   * The run carries on without the answer,
+   * so the question stops being an interrupt and stands on its own.
+   * It is still pending, because it still wants answering,
+   * and the step that reads answered ones will pick it up eventually.
    */
   async deferClarification(clarificationId: ClarificationId, userId: UserId): Promise<Clarification> {
     const clarification = await this.deps.clarificationRepository.load(clarificationId)
@@ -458,10 +462,10 @@ export class HITLService {
   /**
    * Name the pending proposal that would supply what is missing.
    *
-   * A run often proposes new nodes and asks a question about them in the same
-   * breath, so answering before applying fails on a node that does exist, just
-   * not yet. A bare id leaves the reviewer to work that out, and they have no
-   * way to see which proposal holds it.
+   * A run often proposes new nodes and asks about them in the same breath,
+   * so answering before applying fails on a node that does exist, just not yet.
+   * A bare id leaves the reviewer to work that out,
+   * and they have no way to see which proposal holds it.
    */
   private async blameUnappliedProposal(
     workspaceId: WorkspaceId,

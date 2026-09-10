@@ -3,8 +3,9 @@ import { Markdown } from '@/components/SkillTranscript/Markdown'
 
 /**
  * The conclusion, and therefore the document itself.
- * No card, no border, no tinted surface. A frame around the answer would
- * make it read as one widget among several rather than as the thing asked for.
+ * No card, no border, no tinted surface.
+ * A frame around the answer would make it read as one widget among several,
+ * rather than as the thing that was asked for.
  */
 export function ShowAnswerBlock({ block }: { block: ShowAnswer }) {
   return (

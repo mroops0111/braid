@@ -31,9 +31,9 @@ const tabsListVariants = cva(
     variants: {
       variant: {
         default: 'bg-muted',
-        // The band a surface sets over a list or a record, so its height and
-        // type belong to the variant rather than to each of the four places
-        // that reach for it.
+        // The band a surface sets over a list or a record,
+        // so its height and type belong to the variant,
+        // rather than to each of the four places that reach for it.
         line: 'gap-1 bg-transparent group-data-[orientation=horizontal]/tabs:h-8',
       },
     },

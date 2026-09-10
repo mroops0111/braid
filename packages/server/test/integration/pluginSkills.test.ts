@@ -13,11 +13,11 @@ import { readJson } from '../helpers/readJson.js'
 import { makeSkillFileContents } from '../helpers/skillFixtures.js'
 
 /**
- * End-to-end check that a plugin-shipped SKILL.md surfaces through the
- * HTTP API. Composes the full server stack with a PluginRegistry that
- * contains one fake ontology contributing a skill, registers a
- * workspace, then hits `GET /workspaces/:ws/skills` to assert the
- * skill comes back with `origin: 'plugin'`.
+ * End-to-end check that a plugin-shipped SKILL.md surfaces through the API.
+ * Composes the full server stack with a PluginRegistry,
+ * holding one fake ontology that contributes a skill,
+ * registers a workspace, then hits `GET /workspaces/:ws/skills`,
+ * to assert the skill comes back with `origin: 'plugin'`.
  *
  * This exercises the integration of:
  *   - Plugin.skills declaration
