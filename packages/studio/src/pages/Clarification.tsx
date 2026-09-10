@@ -358,7 +358,7 @@ export function ClarificationDetail({
   workspaceId,
   ticket,
   onComplete,
-  onAnswered,
+  onSettled,
 }: {
   workspaceId: string
   ticket: Clarification
@@ -368,7 +368,11 @@ export function ClarificationDetail({
    * with it. The Inbox continues the run that asked, so the work carries on
    * where it stopped instead of waiting for someone to start it again.
    */
-  onAnswered?: (ticket: Clarification) => void
+  /**
+   * Called once the question is settled, whichever way. A run parked on it is
+   * released by any of the three, so the caller hears about all three.
+   */
+  onSettled?: (ticket: Clarification) => void
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -398,7 +402,7 @@ export function ClarificationDetail({
       api.answerClarification(workspaceId, ticket.id, input.selection, input.note),
     onSuccess: () => {
       invalidateClarification()
-      onAnswered?.(ticket)
+      onSettled?.(ticket)
       onComplete()
     },
   })
@@ -410,6 +414,7 @@ export function ClarificationDetail({
     mutationFn: () => api.deferClarification(workspaceId, ticket.id),
     onSuccess: () => {
       invalidateClarification()
+      onSettled?.(ticket)
       onComplete()
     },
   })
@@ -419,6 +424,7 @@ export function ClarificationDetail({
       api.skipClarification(workspaceId, ticket.id, reason),
     onSuccess: () => {
       invalidateClarification()
+      onSettled?.(ticket)
       onComplete()
     },
   })

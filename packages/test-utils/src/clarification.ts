@@ -1,10 +1,10 @@
-import type { ClarificationCandidate, ClarificationCandidateId, ClarificationId, SkillRunId, UserId, WorkspaceId } from '@braidhq/schema'
+import type { ClarificationCandidate, ClarificationCandidateId, ClarificationId, ClarificationStatus, SkillRunId, UserId, WorkspaceId } from '@braidhq/schema'
 import { Clarification } from '@braidhq/core'
 import { mintTestId } from './ids.js'
 
 export interface MakeClarificationOptions {
   readonly id?: string
-  readonly status?: 'pending' | 'answered'
+  readonly status?: ClarificationStatus
   readonly candidates?: readonly ClarificationCandidate[]
   readonly selectedCandidateId?: ClarificationCandidateId
   readonly answeredBy?: UserId
