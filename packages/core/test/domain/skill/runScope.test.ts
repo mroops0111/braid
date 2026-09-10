@@ -19,14 +19,14 @@ describe('scopeCovers', () => {
   // A scope naming several joins them with a comma, and a unit path may hold
   // spaces, so the comma is the only separator there is.
   it('matches any of several the run was pointed at', () => {
-    expect(scopeCovers('A Spec/,B Spec/', 'B Spec/')).toBe(true)
+    expect(scopeCovers('First Unit/,Second Unit/', 'Second Unit/')).toBe(true)
   })
 
-  // `a/b` is contained in `a/b/v2`. Containment would have the
-  // parent claim every nested unit's work as its own.
-  it('does not let a parent claim a nested unit', () => {
-    expect(scopeCovers('a/b/v2/', 'a/b/')).toBe(false)
-    expect(scopeCovers('a/b/', 'a/b/v2/')).toBe(false)
+  // One path can be contained in another. Containment would have the
+  // shorter claim the longer's work as its own.
+  it('does not let one unit claim another whose path contains it', () => {
+    expect(scopeCovers('a/b/c/', 'a/b/')).toBe(false)
+    expect(scopeCovers('a/b/', 'a/b/c/')).toBe(false)
   })
 
   it('matches nothing for a run that names no unit', () => {
@@ -37,14 +37,14 @@ describe('scopeCovers', () => {
 
 describe('uriWithinUnit', () => {
   it('reads a file inside the unit as evidence of it', () => {
-    expect(uriWithinUnit('intents/prd/A Spec/index.md', 'A Spec/')).toBe(true)
+    expect(uriWithinUnit('source/root/A Unit/index.md', 'A Unit/')).toBe(true)
   })
 
   it('anchors on segment boundaries, so a prefix is not a unit', () => {
-    expect(uriWithinUnit('intents/prd/v2/index.md', 'prd/v')).toBe(false)
+    expect(uriWithinUnit('source/root/bc/index.md', 'root/b')).toBe(false)
   })
 
   it('reads nothing for a unit with no path', () => {
-    expect(uriWithinUnit('intents/prd/index.md', '')).toBe(false)
+    expect(uriWithinUnit('source/root/index.md', '')).toBe(false)
   })
 })

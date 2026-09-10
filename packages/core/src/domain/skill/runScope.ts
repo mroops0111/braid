@@ -17,8 +17,8 @@ export function runScope(record: Pick<RunRecord, 'args' | 'scope'>): string {
  *
  * A scope naming several units joins them with a comma, and a unit path may
  * hold spaces, so the comma is the only separator. Compared whole rather than
- * by containment, because `a/b` is contained in `a/b/v2` and a
- * parent would otherwise claim every nested unit's work as its own.
+ * by containment, because one unit's path can be contained in
+ * another's, and the shorter would then claim the longer's work as its own.
  */
 export function scopeCovers(scope: string, path: string): boolean {
   const wanted = normalisePath(path)
@@ -32,7 +32,7 @@ export function scopeCovers(scope: string, path: string): boolean {
  *
  * A reference records a file, a unit is the directory holding it, so this is
  * containment rather than equality. Anchored on segment boundaries all the
- * same, so `prd/v2/index.md` is not read as evidence for `prd/v`.
+ * same, so `a/bc/index.md` is not read as evidence for `a/b`.
  */
 export function uriWithinUnit(uri: string, path: string): boolean {
   const unit = normalisePath(path)
