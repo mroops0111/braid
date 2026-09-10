@@ -11,3 +11,39 @@ import type { RunRecord } from '@braidhq/schema'
 export function runScope(record: Pick<RunRecord, 'args' | 'scope'>): string {
   return record.scope ?? record.args
 }
+
+/**
+ * Whether a run was pointed at this unit.
+ *
+ * A scope naming several units joins them with a comma, and a unit path may
+ * hold spaces, so the comma is the only separator. Compared whole rather than
+ * by containment, because `a/b` is contained in `a/b/v2` and a
+ * parent would otherwise claim every nested unit's work as its own.
+ */
+export function scopeCovers(scope: string, path: string): boolean {
+  const wanted = normalisePath(path)
+  if (wanted === '')
+    return false
+  return scope.split(',').map(normalisePath).includes(wanted)
+}
+
+/**
+ * Whether a reference was read from inside this unit.
+ *
+ * A reference records a file, a unit is the directory holding it, so this is
+ * containment rather than equality. Anchored on segment boundaries all the
+ * same, so `prd/v2/index.md` is not read as evidence for `prd/v`.
+ */
+export function uriWithinUnit(uri: string, path: string): boolean {
+  const unit = normalisePath(path)
+  if (unit === '')
+    return false
+  const segments = normalisePath(uri).split('/')
+  const wanted = unit.split('/')
+  return segments.some((_, index) =>
+    wanted.every((segment, offset) => segments[index + offset] === segment))
+}
+
+function normalisePath(value: string): string {
+  return value.trim().replace(/^\/+|\/+$/g, '')
+}

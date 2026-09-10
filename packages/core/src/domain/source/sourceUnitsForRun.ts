@@ -1,3 +1,4 @@
+import { scopeCovers } from '../skill/runScope.js'
 /** A unit on disk, as the lister reports it. Narrowed to what matching needs. */
 export interface ListedUnit {
   readonly sourceId: string
@@ -23,5 +24,5 @@ export interface ListedUnit {
 export function sourceUnitsForRun<T extends ListedUnit>(args: string, units: readonly T[]): T[] {
   if (args.length === 0)
     return []
-  return units.filter(unit => unit.value.length > 0 && args.includes(unit.value))
+  return units.filter(unit => unit.value.length > 0 && scopeCovers(args, unit.value))
 }
