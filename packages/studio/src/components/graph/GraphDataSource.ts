@@ -85,14 +85,19 @@ export function useProposalGraphDataSource(
  * a new edge has a visible other end, is what makes the change readable.
  */
 export function narrowToChanges(source: GraphDataSource): GraphDataSource {
-  if (!source.diff || source.diff.nodes.size === 0)
+  if (!source.diff || (source.diff.nodes.size === 0 && source.diff.edges.size === 0))
     return source
   const changed = new Set(source.diff.nodes.keys())
   const context = new Set<string>(changed)
   for (const edge of source.edges) {
-    if (changed.has(edge.fromNodeId))
+    // A changed edge is a change with no node of its own, so both its ends
+    // are what there is to look at. Narrowing on touched nodes alone leaves a
+    // proposal that only draws edges between existing nodes with nothing to
+    // narrow to, and the control for it does nothing when pressed.
+    const edgeChanged = source.diff.edges.has(edge.id)
+    if (edgeChanged || changed.has(edge.fromNodeId))
       context.add(edge.toNodeId)
-    if (changed.has(edge.toNodeId))
+    if (edgeChanged || changed.has(edge.toNodeId))
       context.add(edge.fromNodeId)
   }
   const nodes = source.nodes.filter(node => context.has(node.id))
