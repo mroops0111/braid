@@ -4,6 +4,7 @@ import type { RunActivity as Activity } from '@/lib/blocks/runActivity'
 import { MessageCircleQuestion } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
+import { cn } from '@/lib/utils'
 import { renderBlock } from './renderBlock'
 import { RunActivity } from './RunActivity'
 
@@ -46,9 +47,31 @@ function groupRuns(blocks: readonly EmittedBlock[]): Array<{ key: string, group:
   return runs
 }
 
+/**
+ * A block written for the reader who is here, rather than for everyone.
+ *
+ * Most of an answer is addressed to whoever asked, and the few blocks that
+ * name an audience are the whole reason the toggle exists. Left looking like
+ * the rest, they read as more of the same, and switching reader appears to
+ * change nothing.
+ */
+function forThisReader(block: EmittedBlock['block']): boolean {
+  return block.audiences.length > 0
+}
+
 function Anchored({ entry }: { entry: EmittedBlock }) {
   return (
-    <div id={blockAnchorId(entry.id)} className="scroll-mt-6">
+    <div
+      id={blockAnchorId(entry.id)}
+      className={cn(
+        'scroll-mt-6',
+        // The same rule a finding wears, since both are an aside on the
+        // answer rather than a peer of it. Only the colour differs, and it is
+        // the one this surface reserves for the reader rather than for a
+        // verdict about the sources.
+        forThisReader(entry.block) && 'rounded-r-md border-l-2 border-l-primary/60 bg-primary/[0.04] py-2.5 pl-3 pr-3',
+      )}
+    >
       {renderBlock(entry.block)}
     </div>
   )

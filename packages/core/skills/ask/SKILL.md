@@ -87,7 +87,6 @@ Map the two forms like this:
 | `### Search Scope` | `show_trace`, once, before the answer |
 | A flow, a state machine, or an ordering | `show_diagram` |
 | A handful of nodes whose relationships carry the answer | `show_subgraph` |
-
 | What the answer means for one reader in particular | `show_answer` naming that audience, a few sentences, after the shared blocks |
 
 Leave `audiences` empty on all of these except the last. They are conclusions and the evidence behind them, so every reader gets them, and the surface adjusts how much of a reference it shows from the reader's own `evidenceDetail`. See `$BRAID_SHARED_REFERENCE/block-protocol.md`.

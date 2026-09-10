@@ -33,10 +33,17 @@ function fallbackKey(call: RenderBlock['call']):
   }
 }
 
-/** A conflict is the one thing worth spotting from the index alone. */
+/**
+ * Two things are worth spotting from the index alone: where the sources
+ * disagree, and which part of the answer was written for this reader. The
+ * rest is shared, and an index that gives every line the same weight cannot
+ * say which line is the one they came for.
+ */
 function toneFor(block: RenderBlock): string {
   if (block.call === 'showFinding' && block.verdict === 'conflict')
     return 'text-amber-600 dark:text-amber-400'
+  if (block.audiences.length > 0)
+    return 'font-medium text-foreground'
   return 'text-muted-foreground'
 }
 
