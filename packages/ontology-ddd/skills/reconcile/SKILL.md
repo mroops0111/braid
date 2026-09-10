@@ -20,17 +20,17 @@ braid:
         options:
           - value: ""
             label: Build + Validate
-            description: Add missing edges and run all validators.
+            description: Adds the relationships that only show up across documents, then runs every check.
           - value: validate
             label: Validate Only
-            description: Skip the build pass; report on the graph as-is.
+            description: Runs every check against the graph as it stands, and adds nothing to it.
       default: ""
     - name: scope
       label: Scope
       description: Bounded context to focus on, or the whole graph.
       kind: pick
       optional: true
-      placeholder: Whole graph
+      placeholder: Whole Graph
       provider:
         kind: graph-node
         filter:
