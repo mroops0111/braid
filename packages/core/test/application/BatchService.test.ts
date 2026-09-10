@@ -341,7 +341,12 @@ describe('BatchService', () => {
     expect(modes.every(mode => mode === 'true')).toBe(true)
   })
 
-  it('leaves a reviewed batch attended, so a unit still stops to ask', async () => {
+  // Whether a batch applies its own output decides what happens to a proposal.
+  // It says nothing about whether a person is sitting there, and nobody sits
+  // through a batch either way. Left attended, a unit that stops to ask holds
+  // its proposal back for an answer that is not coming, and the document ends
+  // the batch with a question and nothing else.
+  it('tells each unit nobody is watching even when the batch is to be reviewed', async () => {
     const { service, workspace, planRepository, skillRunner } = await setup()
 
     await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
@@ -349,7 +354,7 @@ describe('BatchService', () => {
 
     const modes = skillRunner.startCalls.map(call => call.options?.extraEnv?.BRAID_UNATTENDED)
     expect(modes.length).toBeGreaterThan(0)
-    expect(modes.every(mode => mode === undefined)).toBe(true)
+    expect(modes.every(mode => mode === 'true')).toBe(true)
   })
 
   it('marks a unit failed when extract exits non-zero, continues to next', async () => {

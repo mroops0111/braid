@@ -525,7 +525,6 @@ export class SubprocessSkillRunner implements SkillRunner {
       this.deps.agentCredentials?.release(input.runId)
       this.deps.runTokens?.revoke(input.runId)
       this.deps.outputGate?.close(input.runId)
-      await this.correctOutput(input, rendered, capturedSessionId, exitCode, sawError)
       this.deps.eventBus?.publish({
         type: 'run.completed',
         workspaceId: input.workspace.id,
@@ -541,6 +540,15 @@ export class SubprocessSkillRunner implements SkillRunner {
       const keepForResume = capturedSessionId !== null
       if (this.deps.cleanupSession !== false && !keepForResume)
         await rm(input.sessionDir, { recursive: true, force: true }).catch(() => {})
+
+      // A correction is a new run, so it starts only once this one has been
+      // announced finished and torn down. Started inside the teardown it
+      // could be refused for colliding with itself, and the refusal would
+      // escape a promise nobody is holding.
+      void this.correctOutput(input, rendered, capturedSessionId, exitCode, sawError).catch(() => {
+        // A run whose output missed its contract and could not be corrected
+        // is already recorded as it happened. Nothing here can improve it.
+      })
     }
   }
 

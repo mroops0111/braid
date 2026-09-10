@@ -118,6 +118,9 @@ type BatchCaller = Pick<SkillRunOptions, 'callerToken' | 'startedBy'>
  * clarification, so the doubt is visible in the graph rather than lost in a
  * guess nobody can see.
  */
+// Nobody watches a batch, whatever it does with what the runs produce. A run
+// that stops to ask inside one is asking a room with no one in it, so it is
+// told that up front and files its questions to be picked up later instead.
 const UNATTENDED_ENV = { BRAID_UNATTENDED: 'true' } as const
 
 export class BatchService {
@@ -363,7 +366,6 @@ export class BatchService {
     const unitsById = new Map(plan.units.map(unit => [unit.id, unit] as const))
     const units = unitIds.map(id => unitsById.get(id)).filter((unit): unit is BatchUnit => !!unit)
     const extraEnv = checkpoint.extraEnv?.(units)
-    const hasEnv = !!extraEnv && Object.keys(extraEnv).length > 0
     let runId: SkillRunId | undefined
     try {
       const startedAt = this.deps.clock.now()
@@ -374,7 +376,7 @@ export class BatchService {
         checkpoint.skillId,
         '',
         {
-          ...(hasEnv || plan.autoApply ? { extraEnv: { ...extraEnv, ...(plan.autoApply ? UNATTENDED_ENV : {}) } } : {}),
+          extraEnv: { ...extraEnv, ...UNATTENDED_ENV },
           ...caller,
         },
       )
@@ -488,7 +490,7 @@ export class BatchService {
         argsFor(unit),
         {
           ...caller,
-          ...(plan.autoApply ? { extraEnv: UNATTENDED_ENV } : {}),
+          extraEnv: UNATTENDED_ENV,
           // A retry continues the agent's own session,
           // so a unit interrupted part way does not read the document again.
           ...(unit.resumeSessionId ? { resumeSessionId: unit.resumeSessionId } : {}),
