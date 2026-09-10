@@ -28,7 +28,10 @@ const PUBLIC_EXACT_PATHS = new Set(['/openapi.json', '/.well-known/oauth-protect
 // checked inside the handler rather than via a Bearer token.
 // Listing providers one by one, rather than the broad `/webhooks/`,
 // keeps a future admin or metrics webhook from inheriting the bypass.
-const PUBLIC_PATH_PREFIXES = ['/auth/', '/health', '/webhooks/github/']
+// A run's own spec is the same document narrowed to what that kind of run may
+// call, so it is public for the same reason: shape, not data. It also has to
+// be, since the gateway reads it before a run exists to authenticate as.
+const PUBLIC_PATH_PREFIXES = ['/auth/', '/health', '/webhooks/github/', '/openapi/runs/']
 
 // Any OAuth provider callback is anonymous. It is a browser redirect,
 // so it carries no Bearer,

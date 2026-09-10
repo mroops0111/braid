@@ -7,17 +7,6 @@ import { api } from '@/lib/api'
 import { useEvidenceDetail, useWorkspaceScope } from '@/lib/blocks/WorkspaceScopeContext'
 import { cn } from '@/lib/utils'
 
-function formatLocation(ref: BlockRef): string {
-  const { uri, startLine, endLine, anchor } = ref.reference.location
-  if (anchor)
-    return `${uri}#${anchor}`
-  if (startLine === undefined)
-    return uri
-  return endLine !== undefined && endLine !== startLine
-    ? `${uri}:${startLine}-${endLine}`
-    : `${uri}:${startLine}`
-}
-
 // A file whose name says nothing about the document it holds. The folder
 // around it carries the title, which is the convention for a spec per folder.
 const GENERIC_FILE_NAMES = new Set(['index', 'readme', 'main', 'doc', 'spec'])
@@ -171,16 +160,22 @@ function InlineExcerpt({ reference }: { reference: BlockRef['reference'] }) {
 function EvidenceRow({ entry }: { entry: BlockRef }) {
   const { t } = useTranslation()
   const detail = useEvidenceDetail()
-  const [open, setOpen] = useState(false)
-  const unrecorded = entry.provenance === 'agent'
-  // Anyone may open anything. The audience sets how much is shown by default,
-  // never what may be reached, and a spec is the business reader's own
-  // document, so gating the excerpt on evidence depth locked them out of it.
   const readable = entry.reference.location.startLine !== undefined
-  // Every reader gets the same first line, so one person can name a piece of
-  // evidence to another. Depth adds the path below it rather than replacing
-  // the name with it, which is what made the two views describe one reference
-  // in two vocabularies that did not obviously match.
+  // Anyone may open anything. What the audience settles is whether it starts
+  // open, never what may be reached, and a spec is the business reader's own
+  // document, so gating the excerpt on evidence depth locked them out of it.
+  //
+  // One form, two starting states. Depth used to add a path line and a
+  // preview of the recorded snippet, which put a second rendering of the same
+  // reference beside the first, in a different vocabulary, and then swapped
+  // it for a third when the reader expanded it. The reference reads one way
+  // now, and a reader who wants the code sees it without asking twice.
+  // Held as an override rather than as the state itself, so changing reader
+  // changes what a reference opens as, while a row this reader has already
+  // opened or shut stays the way they left it.
+  const [override, setOverride] = useState<boolean | null>(null)
+  const open = override ?? (readable && detail === 'full')
+  const unrecorded = entry.provenance === 'agent'
   const label = summariseLocation(entry)
 
   return (
@@ -194,7 +189,7 @@ function EvidenceRow({ entry }: { entry: BlockRef }) {
             ? (
                 <button
                   type="button"
-                  onClick={() => setOpen(value => !value)}
+                  onClick={() => setOverride(!open)}
                   className="inline-flex items-center gap-0.5 text-2xs break-words text-muted-foreground transition-colors duration-150 hover:text-foreground"
                 >
                   {open ? <ChevronDown className="size-2.5 shrink-0" /> : <ChevronRight className="size-2.5 shrink-0" />}
@@ -209,14 +204,6 @@ function EvidenceRow({ entry }: { entry: BlockRef }) {
             </span>
           )}
         </span>
-        {detail === 'full' && (
-          <p className="font-mono text-2xs break-all text-muted-foreground/60">{formatLocation(entry)}</p>
-        )}
-        {!open && detail === 'full' && entry.reference.snippet && (
-          <p className="mt-0.5 border-l-2 border-border pl-2 font-mono text-2xs text-muted-foreground/80">
-            {entry.reference.snippet}
-          </p>
-        )}
         {open && <InlineExcerpt reference={entry.reference} />}
       </div>
     </li>
