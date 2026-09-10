@@ -24,7 +24,7 @@ import type { SourceUnitObservationRepository } from '../domain/source/SourceUni
 import type { Workspace } from '../domain/workspace/Workspace.js'
 import type { UnitLister } from './BatchService.js'
 import { COVERAGE_STATE_PRECEDENCE } from '@braidhq/schema'
-import { runScope } from '../domain/skill/runScope.js'
+import { runScope, scopeCovers, uriWithinUnit } from '../domain/skill/runScope.js'
 
 export interface CoverageProjectionDeps {
   readonly unitLister: UnitLister
@@ -75,8 +75,8 @@ export class CoverageProjection {
     const [units, observations, proposals, clarifications, records, nodes, skills] = await Promise.all([
       this.deps.unitLister(workspace),
       this.deps.sourceUnitObservationRepository.listByWorkspace(workspace.id),
-      this.deps.proposalRepository.list(),
-      this.deps.clarificationRepository.list(),
+      this.deps.proposalRepository.list({ workspaceId: workspace.id }),
+      this.deps.clarificationRepository.list({ workspaceId: workspace.id }),
       this.deps.runRepository.listRecords(workspace),
       this.deps.modelRepository.listNodes(workspace.id),
       this.deps.skillRegistry.list(workspace),
@@ -144,16 +144,13 @@ function buildCard(context: CardContext): CoverageCard {
   const { sourceId, path, name } = context.seed
   const mine = context.proposals.filter(proposal => derivedFrom(proposal, sourceId, path, context.runsById))
   const pending = mine.filter(proposal => proposal.status === 'pending')
-  const incorporated = latestIncorporation(mine)
+  const incorporated = latestIncorporation(mine, sourceId, path)
 
   // Runs are attributed by what they were pointed at, not by what they went on
   // to produce. Reaching them through proposals would leave a run invisible
   // until it proposed, so a document being read right now, or one whose run
   // died before proposing, would both look untouched.
-  const runs = context.records.filter((record) => {
-    const scope = runScope(record)
-    return scope.length > 0 && scope.includes(path)
-  })
+  const runs = context.records.filter(record => scopeCovers(runScope(record), path))
   const runIds = new Set([
     ...runs.map(record => record.runId as string),
     ...mine.flatMap(proposal => (proposal.skillRunId ? [proposal.skillRunId as string] : [])),
@@ -250,16 +247,24 @@ function derivedFrom(
   if (stamped !== undefined)
     return stamped.some(unit => unit.sourceId === sourceId && unit.path === path)
   const record = proposal.skillRunId ? runsById.get(proposal.skillRunId) : undefined
-  return record !== undefined && runScope(record).length > 0 && runScope(record).includes(path)
+  return record !== undefined && scopeCovers(runScope(record), path)
 }
 
 /** The version of this unit the model last actually took in. */
-function latestIncorporation(proposals: readonly Proposal[]): { sha: CoverageCard['sha'], at: string } | undefined {
+function latestIncorporation(
+  proposals: readonly Proposal[],
+  sourceId: SourceId,
+  path: string,
+): { sha: CoverageCard['sha'], at: string } | undefined {
   let best: { sha: CoverageCard['sha'], at: string } | undefined
   for (const proposal of proposals) {
     if (proposal.status !== 'applied')
       continue
-    const unit = (proposal.sourceUnits ?? [])[0]
+    // A run reading several documents stamps all of them, so the version this
+    // card took in is the entry naming this card, not whichever came first.
+    const unit = (proposal.sourceUnits ?? []).find(
+      candidate => candidate.sourceId === sourceId && candidate.path === path,
+    )
     const at = proposal.reviewedAt ?? proposal.generatedAt
     if (unit && (best === undefined || at > best.at))
       best = { sha: unit.sha, at }
@@ -307,7 +312,7 @@ function furthestStage(proposals: readonly Proposal[], stages: readonly Coverage
  */
 function citesUnit(node: GraphNode, sourceId: SourceId, path: string): boolean {
   return node.metadata.sourceReferences.some(
-    reference => reference.sourceId === sourceId && reference.location.uri.includes(path),
+    reference => reference.sourceId === sourceId && uriWithinUnit(reference.location.uri, path),
   )
 }
 
@@ -339,9 +344,12 @@ function withGraphWideOutput(stage: CoverageStage, context: {
     : []
   if (!stage.global)
     return { ...stage, answeredIds }
+  // Every run of a graph-wide step belongs to the step, since the ontology
+  // declared that it works on no single document. Reading the scope instead
+  // would turn on how such a run happens to have been started.
   const runIds = new Set(
     context.records
-      .filter(record => record.skillId === stage.skillId && runScope(record).length === 0)
+      .filter(record => record.skillId === stage.skillId)
       .map(record => record.runId as string),
   )
   const lastRun = latestRun(runIds, new Map(context.records.map(record => [record.runId as string, record])))
