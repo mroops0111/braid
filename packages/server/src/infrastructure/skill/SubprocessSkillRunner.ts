@@ -17,7 +17,7 @@ import type { RunOutputGate } from './RunOutputGate.js'
 import type { RunTokenRegistry } from './RunTokenRegistry.js'
 import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { ConflictError, describeViolations, newBlockId, newSkillRunId, NotFoundError, ServiceUnavailableError, validateOutput } from '@braidhq/core'
+import { carriedEvents, ConflictError, describeViolations, newBlockId, newSkillRunId, NotFoundError, restateRunId, runScope, ServiceUnavailableError, validateOutput } from '@braidhq/core'
 import { AbsolutePath as AbsolutePathSchema, localize, McpServerId, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema, splitSkillId } from '@braidhq/schema'
 import { sessionDirPath } from '../_shared/paths.js'
 import { type AsyncQueue, createAsyncQueue } from './asyncQueue.js'
@@ -193,7 +193,13 @@ export class SubprocessSkillRunner implements SkillRunner {
     // A caller holding the exchange supplies it. Otherwise this turn is the
     // whole conversation, which is every run that did not come from a client
     // keeping its own history.
-    const messages = options.messages ?? [{ role: 'user' as const, content: args }]
+    // A continued run is a new run inside an old conversation, and the
+    // conversation still holds the closed run's id. Correcting it here is what
+    // keeps its render calls landing somewhere.
+    const prompt = options.continues ? `${args}\n\n${restateRunId(runId)}` : args
+    const messages = options.messages
+      ? [...options.messages.slice(0, -1), { role: 'user' as const, content: prompt }]
+      : [{ role: 'user' as const, content: prompt }]
     const invocation = await binding.resolveSpawn({
       skillId,
       messages,
@@ -265,7 +271,11 @@ export class SubprocessSkillRunner implements SkillRunner {
       runId,
       workspaceId: workspace.id,
       skillId,
-      args,
+      args: prompt,
+      // Held apart only when they differ, which is a continued run: told to
+      // carry on, still reading the document the run before it was reading.
+      ...(options.scope !== undefined && options.scope !== prompt ? { scope: options.scope } : {}),
+      ...(options.continues ? { continues: options.continues } : {}),
       resumed: options.resumeSessionId !== undefined,
       startedAt,
       startedBy: options.startedBy,
@@ -275,6 +285,8 @@ export class SubprocessSkillRunner implements SkillRunner {
       ...(options.resumeSessionId ? { sessionId: options.resumeSessionId } : {}),
     }
     await this.deps.runRepository.saveRecord(workspace, initialRecord)
+    if (options.continues)
+      await this.carryOver(workspace, options.continues, runId)
     this.deps.eventBus?.publish({
       type: 'run.started',
       workspaceId: workspace.id,
@@ -342,6 +354,23 @@ export class SubprocessSkillRunner implements SkillRunner {
     const emitted: EmittedBlock = { id: newBlockId(), block }
     active.queue.push(SkillEventSchema.parse({ type: 'block', ...emitted }))
     return emitted
+  }
+
+  /**
+   * Hand a run the account of the one it continues.
+   *
+   * The alternative was a link between two logs, and a reader then has to
+   * know there is a second one and go and open it. One piece of work reads as
+   * one thread, so the thread is copied rather than pointed at, and the run
+   * that produced it originally still holds its own copy for whatever still
+   * points there.
+   */
+  private async carryOver(workspace: Workspace, from: SkillRunId, to: SkillRunId): Promise<void> {
+    const earlier: SkillEvent[] = []
+    for await (const event of this.deps.runRepository.readEvents(workspace, from))
+      earlier.push(event)
+    for (const event of carriedEvents(earlier))
+      await this.emit(workspace, to, event)
   }
 
   async cancel(runId: SkillRunId): Promise<void> {
@@ -546,6 +575,8 @@ export class SubprocessSkillRunner implements SkillRunner {
 
     await this.start(input.workspace, input.skillId, describeViolations(violations), {
       resumeSessionId: sessionId,
+      scope: runScope(input.initialRecord),
+      continues: input.runId,
       retriesLeft: input.retriesLeft - 1,
       // A correction belongs to whoever asked the original question,
       // so run history never grows an entry with nobody behind it.

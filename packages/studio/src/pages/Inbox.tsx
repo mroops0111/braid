@@ -5,17 +5,15 @@ import { Inbox as InboxIcon, Loader2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RunBlocks } from '@/components/blocks/RunBlocks'
-import { RunCost } from '@/components/blocks/RunCost'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
-import { SkillTranscript } from '@/components/SkillTranscript'
+import { RunTranscript } from '@/components/RunTranscript'
 import { SurfaceLayout } from '@/components/SurfaceLayout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
 import { TRANSCRIPT_VIEW } from '@/lib/blocks/audience'
-import { readStats } from '@/lib/blocks/runStats'
 import { useClarificationByStatus, useCoverage, useProposalsByStatus } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
 import { useRun } from '@/lib/useRun'
@@ -100,11 +98,16 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
   /**
    * Carry the run on, once nothing of its is still open.
    *
-   * A run parked on three questions is parked on all three, so answering the
+   * Answering, deferring, and setting aside all release it, because the run
+   * asked in order to keep going and every one of those is a decision it can
+   * go on from. What it is told each was is the server's to say, read off the
+   * record rather than sent from here.
+   *
+   * A run parked on three questions is parked on all three, so settling the
    * first must not restart it and strand the other two pointing at a
    * conversation that has already moved. Asked of the server rather than of
-   * the cache, because the answer that triggered this is what makes the cache
-   * wrong for exactly as long as it takes to refetch.
+   * the cache, because the decision that triggered this is what makes the
+   * cache wrong for exactly as long as it takes to refetch.
    */
   const continueRun = useCallback((ticket: Clarification) => {
     const runId = ticket.skillRunId
@@ -124,8 +127,10 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
         clarificationId: ticket.id,
       })
     })().catch(() => {
-      // The answer is recorded either way. A run that cannot be continued is
-      // the clarify skill's to pick up, which is what it is still there for.
+      // The decision is recorded either way, so nothing is lost that a person
+      // has to enter again. An answer a run cannot take up is still the
+      // clarify skill's to pick up later. A deferral or a set-aside is not,
+      // and that run stays stopped, which nothing here can currently say.
     })
   }, [workspaceId])
 
@@ -188,7 +193,7 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
                 workspaceId={workspaceId}
                 item={selected}
                 onComplete={() => setSelectedId(null)}
-                onAnswered={continueRun}
+                onSettled={continueRun}
               />
             )}
       </SurfaceLayout>
@@ -241,11 +246,11 @@ function matchesFilter(item: Item, filter: Exclude<KindFilter, 'all'>): boolean 
  * the pane. Held above, it survived into the next item, and resetting it from
  * an effect fought every re-selection the list made on its own.
  */
-function ItemDetail({ workspaceId, item, onComplete, onAnswered }: {
+function ItemDetail({ workspaceId, item, onComplete, onSettled }: {
   workspaceId: string
   item: Item
   onComplete: () => void
-  onAnswered: (ticket: Clarification) => void
+  onSettled: (ticket: Clarification) => void
 }) {
   const { t } = useTranslation()
   const [view, setView] = useState<DetailView>(item.kind === 'running' ? 'reasoning' : 'record')
@@ -259,7 +264,6 @@ function ItemDetail({ workspaceId, item, onComplete, onAnswered }: {
       : item.kind === 'question' ? item.record.skillRunId : item.record.skillRunId
   const run = useRun(workspaceId, runId ?? null)
   const events = run?.events ?? []
-  const stats = readStats(events)
 
   useEffect(() => {
     if (runId)
@@ -316,10 +320,7 @@ function ItemDetail({ workspaceId, item, onComplete, onAnswered }: {
       <div className="flex min-h-0 flex-1 flex-col">
         {view === TRANSCRIPT_VIEW
           ? (
-              <div className="flex min-h-0 flex-1 flex-col">
-                <SkillTranscript events={[...events]} error={run?.error ?? null} running={run?.phase === 'streaming'} />
-                <RunCost stats={stats} />
-              </div>
+              <RunTranscript workspaceId={workspaceId} runId={runId} />
             )
           : view === 'reasoning'
             ? (
@@ -334,7 +335,7 @@ function ItemDetail({ workspaceId, item, onComplete, onAnswered }: {
                     workspaceId={workspaceId}
                     ticket={openQuestion}
                     onComplete={item.kind === 'parked' && item.questions.length > 1 ? () => {} : onComplete}
-                    onAnswered={onAnswered}
+                    onSettled={onSettled}
                   />
                 )
               : item.kind === 'proposal'
@@ -406,7 +407,9 @@ function describe(
         source: item.id,
       }
     case 'question':
-      return { label: 'inbox.kind.question', title: questionExcerpt(item.record.question), source: item.record.skillRunId }
+      // No source: a standing question has no conversation parked on it, and
+      // naming the run that raised it would say otherwise.
+      return { label: 'inbox.kind.question', title: questionExcerpt(item.record.question), source: undefined }
     case 'proposal':
       return { label: 'inbox.kind.change', title: item.record.rationale, source: nameStep(item.record.generatedBy, stages, locale) }
     default: {

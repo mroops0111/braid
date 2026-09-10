@@ -3,7 +3,7 @@ import type { SkillEvent, SkillRunId as SkillRunIdType, WorkspaceId } from '@bra
 import type { SSEStreamingApi } from 'hono/streaming'
 import { EventType, RunAgentInputSchema } from '@ag-ui/core'
 import { EventEncoder } from '@ag-ui/encoder'
-import { NotFoundError, ValidationError } from '@braidhq/core'
+import { describeContinuation, NotFoundError, outcomeOf, runScope, ValidationError } from '@braidhq/core'
 import { ClarificationId, SkillId, SkillRunId } from '@braidhq/schema'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
@@ -88,46 +88,48 @@ async function resolveResume(
   deps: AguiRouterDeps,
   workspace: Workspace,
   entries: readonly { interruptId: string, status?: string }[],
-): Promise<{ skillId: SkillId, resumeSessionId: string, message: string } | null> {
+): Promise<{ skillId: SkillId, resumeSessionId: string, message: string, scope: string, continues: SkillRunIdType } | null> {
   const resolved = entries.filter(entry => entry.status !== 'cancelled')
   if (resolved.length === 0)
     return null
 
-  const answers: string[] = []
+  const settled: Clarification[] = []
   let runId: SkillRunIdType | undefined
   for (const entry of resolved) {
     const clarification = await deps.clarificationRepository.load(ClarificationId.parse(entry.interruptId))
     if (clarification.workspaceId !== workspace.id)
       throw new NotFoundError(`Clarification "${entry.interruptId}" not found`)
-    if (clarification.status !== 'answered')
-      throw new ValidationError(`Clarification "${entry.interruptId}" is ${clarification.status}, so there is nothing to resume with`)
+    // Answered, deferred, and set aside are three ways of settling one
+    // question, and every one of them releases the run. What is refused is a
+    // question still open, because that run is still rightly waiting.
+    if (!outcomeOf(clarification))
+      throw new ValidationError(`Clarification "${entry.interruptId}" is still open, so there is nothing to resume with`)
     if (!clarification.skillRunId)
       throw new ValidationError(`Clarification "${entry.interruptId}" was not raised by a run, so it has no conversation to continue`)
     runId ??= clarification.skillRunId
     if (clarification.skillRunId !== runId)
       throw new ValidationError('Every answer in one resume must belong to the same run')
-    answers.push(`${clarification.question}\n${describeAnswer(clarification)}`)
+    settled.push(clarification)
   }
 
   const sessionId = runId ? await deps.skillRunner.sessionIdFor(workspace, runId) : undefined
   if (!runId || !sessionId)
     throw new ValidationError('That run holds no conversation to continue, so the answer needs a fresh run')
   const records = await deps.runRepository.listRecords(workspace)
-  const skillId = records.find(record => record.runId === runId)?.skillId
-  if (!skillId)
+  const parked = records.find(record => record.runId === runId)
+  if (!parked)
     throw new NotFoundError(`Run "${runId}" not found`)
 
+  // The continuation carries the scope of the run it continues, so a document
+  // being read stays attributed to the run reading it rather than to the
+  // sentence that released it.
   return {
-    skillId,
+    skillId: parked.skillId,
     resumeSessionId: sessionId,
-    message: `These clarifications have been answered. Continue where you stopped, and do not ask them again.\n\n${answers.join('\n\n')}`,
+    message: describeContinuation(settled),
+    scope: runScope(parked),
+    continues: parked.runId,
   }
-}
-
-/** What the reviewer picked, in the words they saw. */
-function describeAnswer(clarification: Clarification): string {
-  const chosen = clarification.candidates.find(candidate => candidate.id === clarification.selectedCandidateId)
-  return chosen ? `Answer: ${chosen.description}` : 'Answer: recorded, with no candidate named'
 }
 
 /**
@@ -204,6 +206,7 @@ export function createAguiRouter(deps: AguiRouterDeps): Hono {
       startedBy: getUserId(context),
       messages,
       ...(resumeSessionId ? { resumeSessionId } : {}),
+      ...(resumed ? { scope: resumed.scope, continues: resumed.continues } : {}),
       ...(callerToken ? { callerToken } : {}),
     })
 

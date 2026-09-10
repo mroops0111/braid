@@ -18,16 +18,21 @@ function makeSkillRegistry(): SkillRegistry {
   return { list: async () => [manifest], find: async () => manifest, get: async () => manifest }
 }
 
+/** The line claude opens a session with, which is what a resume needs. */
+function initLine(sessionId: string): string {
+  return JSON.stringify({ type: 'system', subtype: 'init', session_id: sessionId })
+}
+
 /** One claude stream line per scripted agent turn. */
 function assistantLine(text: string): string {
   return JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text }] } })
 }
 
-async function buildApp(stdoutLines: readonly string[]) {
+async function buildApp(stdoutLines: readonly string[], ...laterRuns: readonly (readonly string[])[]) {
   const rootPath = (await mkdtemp(join(tmpdir(), 'braid-agui-route-'))) as AbsolutePath
   const workspace = makeWorkspace({ rootPath })
   const runRepository = new FsRunRepository()
-  const { spawn, invocations } = createMockSpawn([{ stdoutLines, exitCode: 0 }])
+  const { spawn, invocations } = createMockSpawn([{ stdoutLines, exitCode: 0 }, ...laterRuns.map(lines => ({ stdoutLines: lines, exitCode: 0 }))])
   const skillRegistry = makeSkillRegistry()
   const skillRunner = new SubprocessSkillRunner({
     skillRegistry,
@@ -206,6 +211,71 @@ describe('agui route', () => {
     }))
 
     expect(response.status).toBe(400)
+  })
+
+  /**
+   * The three ways out of a question all release the run, because it asked in
+   * order to keep going. What differs is the sentence it is handed, and these
+   * pin that down where it actually reaches the agent, in the prompt.
+   */
+  it.each([
+    { verb: 'deferred', settle: 'defer', expected: 'answer this later' },
+    { verb: 'set aside', settle: 'skip', expected: 'set this question aside' },
+  ])('carries a run on when its question is $verb', async ({ settle, expected }) => {
+    const { app, workspace, deps, invocations } = await buildApp(
+      [initLine('sess-parked'), assistantLine('I need a decision.')],
+      [assistantLine('Carrying on without it.')],
+    )
+    const live = readEvents(await (await postRun(app, workspace.id, runInput())).text())
+    const runId = live[0]!.runId as string
+    const clarification = await deps.hitlService.submitClarification({
+      workspaceId: workspace.id,
+      question: 'Should a loan and a reservation share one ledger?',
+      candidates: [],
+      skillRunId: runId as never,
+    })
+    expect(clarification.answerMode).toBe('resumes')
+
+    await (settle === 'defer'
+      ? deps.hitlService.deferClarification(clarification.id, 'u-1' as never)
+      : deps.hitlService.skipClarification(clarification.id, 'not now', 'u-1' as never))
+
+    const response = await postRun(app, workspace.id, runInput({
+      resume: [{ interruptId: clarification.id, status: 'resolved' }],
+    }))
+
+    expect(response.status).toBe(200)
+    const args = invocations[1]!.args
+    expect(args).toContain('--resume')
+    const prompt = args[args.indexOf('-p') + 1]!
+    expect(prompt).toContain(expected)
+    expect(prompt).toContain('do not raise it again')
+
+    // A continuation resumes a conversation that already read the closed run's
+    // id from its environment, so every render call it makes would land on a
+    // run nothing is listening to unless it is told the new one.
+    const records = await deps.runRepository.listRecords(workspace)
+    const carriedRun = records.find(record => record.resumed)!
+    expect(prompt).toContain(carriedRun.runId)
+    expect(prompt).toContain('read $BRAID_RUN_ID again')
+
+    // The record keeps both: what was actually sent, so an audit reads true,
+    // and what the run works on, so a continued run stays attributed to the
+    // document it is still reading rather than to the sentence that released
+    // it. It also names the run it took up.
+    const carried = carriedRun
+    expect(carried.args).toContain(expected)
+    expect(carried.scope).toBe('how do templates differ')
+    expect(carried.continues).toBe(runId)
+
+    // And it opens holding the earlier run's account, so the thread reads in
+    // one place: the first prompt, the work, the question, then the sentence
+    // that released it. Without this a reader lands mid-thought.
+    const thread: string[] = []
+    for await (const event of deps.runRepository.readEvents(workspace, carried.runId))
+      thread.push(event.type)
+    expect(thread.filter(type => type === 'started')).toHaveLength(2)
+    expect(thread).toContain('message')
   })
 
   it('replays a finished run as the same events a live one produced', async () => {
