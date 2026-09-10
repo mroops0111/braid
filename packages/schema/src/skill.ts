@@ -279,6 +279,13 @@ export const SkillEventSessionStarted = z.object({
 export const SkillEventMessage = z.object({
   type: z.literal('message'),
   text: z.string(),
+  /**
+   * Who said it. Absent reads as the agent, which is what a message was
+   * before anything else could produce one, so nothing recorded earlier
+   * changes meaning. A run's own prompt is the one thing the user says, and
+   * it is said once, at the start.
+   */
+  role: z.enum(['user', 'agent']).optional(),
 })
 
 export const SkillEventToolCall = z.object({

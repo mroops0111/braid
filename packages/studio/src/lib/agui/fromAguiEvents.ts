@@ -15,6 +15,7 @@ import { EventType } from '@ag-ui/client'
  */
 export class AguiEventReader {
   private readonly openText = new Map<string, string>()
+  private readonly userMessages = new Set<string>()
   private readonly openReasoning = new Map<string, string>()
   private readonly openToolCalls = new Map<string, { tool: string, args: string }>()
 
@@ -27,13 +28,22 @@ export class AguiEventReader {
     switch (event.type) {
       case EventType.TEXT_MESSAGE_START:
         this.openText.set(String(raw.messageId), '')
+        // A run's prompt travels as the user message that starts the turn, so
+        // who said it is the one thing that tells it apart from the agent's
+        // own narration once both are text on a wire.
+        if (raw.role === 'user')
+          this.userMessages.add(String(raw.messageId))
         return []
       case EventType.TEXT_MESSAGE_CONTENT:
         return this.appendTo(this.openText, raw)
       case EventType.TEXT_MESSAGE_END: {
-        const text = this.openText.get(String(raw.messageId))
-        this.openText.delete(String(raw.messageId))
-        return text === undefined ? [] : [{ type: 'message', text }]
+        const messageId = String(raw.messageId)
+        const text = this.openText.get(messageId)
+        const fromUser = this.userMessages.delete(messageId)
+        this.openText.delete(messageId)
+        if (text === undefined)
+          return []
+        return [{ type: 'message', text, ...(fromUser ? { role: 'user' as const } : {}) }]
       }
 
       case EventType.REASONING_MESSAGE_START:

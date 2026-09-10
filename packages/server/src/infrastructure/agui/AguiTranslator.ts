@@ -42,11 +42,21 @@ export class AguiTranslator {
       // stream, and the protocol refuses a second `RUN_STARTED` while a run is
       // still active. The later ones are the carried thread describing itself,
       // which the log keeps and the wire does not need.
+      // One run, one opening frame, and the instruction behind it travels as
+      // what it is: the user message that starts the turn. The protocol's own
+      // start event carries ids and nothing else, so a reader given only that
+      // sees work with no sight of what was asked for.
       case 'started': {
+        const messageId = this.nextMessageId()
+        const prompt: BaseEvent[] = [
+          { type: EventType.TEXT_MESSAGE_START, messageId, role: 'user' },
+          { type: EventType.TEXT_MESSAGE_CONTENT, messageId, delta: event.args },
+          { type: EventType.TEXT_MESSAGE_END, messageId },
+        ] as BaseEvent[]
         if (this.opened)
-          return []
+          return prompt
         this.opened = true
-        return [{ type: EventType.RUN_STARTED, threadId: this.threadId, runId: this.runId }]
+        return [{ type: EventType.RUN_STARTED, threadId: this.threadId, runId: this.runId }, ...prompt]
       }
 
       // A message arrives whole, so the triplet is emitted at once rather than
@@ -55,7 +65,7 @@ export class AguiTranslator {
       case 'message': {
         const messageId = this.nextMessageId()
         return [
-          { type: EventType.TEXT_MESSAGE_START, messageId, role: 'assistant' },
+          { type: EventType.TEXT_MESSAGE_START, messageId, role: event.role === 'user' ? 'user' : 'assistant' },
           { type: EventType.TEXT_MESSAGE_CONTENT, messageId, delta: event.text },
           { type: EventType.TEXT_MESSAGE_END, messageId },
         ]

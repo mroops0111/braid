@@ -21,10 +21,18 @@ const started: SkillEvent = {
 }
 
 describe('aguiTranslator', () => {
-  it('opens the stream with a run started carrying both ids', () => {
-    expect(translator().translate(started)).toEqual([
-      { type: EventType.RUN_STARTED, threadId: 'thread-1', runId: 'skill-run-1' },
+  // The protocol's start event carries ids and nothing else, so what the run
+  // was told travels as what it is: the user message that starts the turn.
+  // Without it a reader is handed work with no sight of the instruction.
+  it('opens the stream with a run started carrying both ids, then what was asked for', () => {
+    const events = translator().translate(started)
+    expect(events[0]).toEqual({ type: EventType.RUN_STARTED, threadId: 'thread-1', runId: 'skill-run-1' })
+    expect(events.slice(1).map(event => event.type)).toEqual([
+      EventType.TEXT_MESSAGE_START,
+      EventType.TEXT_MESSAGE_CONTENT,
+      EventType.TEXT_MESSAGE_END,
     ])
+    expect(events[1]).toMatchObject({ role: 'user' })
   })
 
   it('spells a whole message as the three events that address one id', () => {

@@ -111,13 +111,35 @@ describe('agui route', () => {
     const { app, workspace } = await buildApp([assistantLine('An answer.')])
 
     const events = readEvents(await (await postRun(app, workspace.id, runInput())).text())
-    const messageEvents = events.filter(event => String(event.type).startsWith('TEXT_MESSAGE'))
+    const openings = events.filter(event => event.type === EventType.TEXT_MESSAGE_START)
 
-    expect(messageEvents.map(event => event.type)).toEqual([
-      EventType.TEXT_MESSAGE_START,
-      EventType.TEXT_MESSAGE_CONTENT,
-      EventType.TEXT_MESSAGE_END,
-    ])
+    // The prompt first, as the user message that starts the turn, then the
+    // agent's own. Each spelled as the three events addressing one id.
+    expect(openings.map(event => event.role)).toEqual(['user', 'assistant'])
+    expect(events.filter(event => String(event.type).startsWith('TEXT_MESSAGE')).map(event => event.type))
+      .toEqual([
+        EventType.TEXT_MESSAGE_START,
+        EventType.TEXT_MESSAGE_CONTENT,
+        EventType.TEXT_MESSAGE_END,
+        EventType.TEXT_MESSAGE_START,
+        EventType.TEXT_MESSAGE_CONTENT,
+        EventType.TEXT_MESSAGE_END,
+      ])
+  })
+
+  // Reloading onto a finished run replays the same events, so the prompt is
+  // there whether a reader watched it happen or arrived afterwards.
+  it('replays a finished run with the prompt it was given', async () => {
+    const { app, workspace } = await buildApp([assistantLine('An answer.')])
+    const live = readEvents(await (await postRun(app, workspace.id, runInput())).text())
+    const runId = live[0]!.runId as string
+
+    const replayed = readEvents(await (await app.request(`/workspaces/${workspace.id}/agui/runs/${runId}?threadId=t`)).text())
+    const prompt = replayed.find(event => event.type === EventType.TEXT_MESSAGE_START && event.role === 'user')
+    expect(prompt).toBeDefined()
+    const content = replayed.find(event =>
+      event.type === EventType.TEXT_MESSAGE_CONTENT && event.messageId === prompt!.messageId)
+    expect(content!.delta).toBe('how do templates differ')
   })
 
   // The conversation is the contract. Without a handle for an agent-held
