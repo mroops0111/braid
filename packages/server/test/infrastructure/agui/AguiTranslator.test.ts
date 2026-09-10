@@ -77,10 +77,14 @@ describe('aguiTranslator', () => {
     ])
   })
 
+  // A Braid run reports an error and keeps going, while RUN_ERROR ends the
+  // stream for a conformant client. Asserting the whole list is what makes
+  // "without ending the stream" a claim: nothing terminal may follow either.
   it('reports a mid-run error without ending the stream', () => {
     const events = translator().translate({ type: 'error', message: 'boom', at: AT })
-    expect(events[0]!.type).toBe(EventType.CUSTOM)
-    expect(events[0]!.type).not.toBe(EventType.RUN_ERROR)
+    expect(events).toEqual([
+      { type: EventType.CUSTOM, name: 'braid.error', value: { message: 'boom' } },
+    ])
   })
 
   it('closes a clean exit with run finished', () => {

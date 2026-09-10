@@ -11,6 +11,7 @@ import { FsRunRepository } from '../../../src/infrastructure/skill/FsRunReposito
 import { SubprocessSkillRunner } from '../../../src/infrastructure/skill/SubprocessSkillRunner.js'
 import { DEFAULT_AGENT_BINDING, makeWorkspace } from '../../helpers/fakes.js'
 import { createMockSpawn } from '../../helpers/mockSpawn.js'
+import { waitUntilIdle } from '../../helpers/settle.js'
 
 const AUTHOR = 'user-1' as UserId
 
@@ -53,8 +54,13 @@ async function runWith(stdoutPerSpawn: readonly string[][]) {
     spawn,
   })
   await runner.start(workspace, manifest.id, 'a question', { startedBy: AUTHOR })
-  // Let both the first drain and any correction settle.
-  await new Promise(resolve => setTimeout(resolve, 120))
+  // A correction spawns after the first run's drain, so waiting for that one
+  // run is not enough. Nothing left running is the point where the spawn
+  // count can no longer change, which is what every case here asserts on.
+  await waitUntilIdle(
+    () => !runner.hasActiveRun(workspace.id),
+    'the run and any correction it spawned to settle',
+  )
   return { invocations, workspace, runRepository }
 }
 
