@@ -12,6 +12,7 @@ import type {
 } from '@braidhq/core'
 import type { AbsolutePath, AgentBindingDescriptor, McpServerConfig, RunRecord, SkillAgentOverride, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceId } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
+import type { AgentCredentialBroker } from '../agent/AgentCredentialBroker.js'
 import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { newSkillRunId, NotFoundError, ServiceUnavailableError } from '@braidhq/core'
@@ -51,6 +52,13 @@ export interface SubprocessSkillRunnerDeps {
   readonly referenceDirs?: readonly SkillReferenceDir[]
   // Delete the per-run session directory after the run. Default `true`.
   readonly cleanupSession?: boolean
+  /**
+   * Lends a run the credential its author resolved to.
+   *
+   * Absent on a deployment that models no users,
+   * where the agent's own configuration is the only credential there is.
+   */
+  readonly agentCredentials?: AgentCredentialBroker
   // Enables the built-in `braid-core` MCP gateway.
   // When set, every spawned skill gets a stdio MCP server entry,
   // running `<uvxBin> openapi-mcp-gateway --spec <specUrl> --transport stdio`.
@@ -151,6 +159,19 @@ export class SubprocessSkillRunner implements SkillRunner {
       ...(options.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
     })
 
+    // Resolved before the process exists,
+    // so a run with nothing to spend is refused here,
+    // rather than reaching an upstream rejection nobody can act on.
+    const lease = this.deps.agentCredentials
+      ? await this.deps.agentCredentials.lease(runId, options.startedBy, binding.descriptor.kind)
+      : { source: 'server' as const, env: {} }
+    if (lease.source === 'none') {
+      throw new ServiceUnavailableError(
+        'No agent credential is available for this run. '
+        + 'Add yours under Settings, or ask an admin to configure one for this server.',
+      )
+    }
+
     const spawnFn = this.deps.spawn ?? (await defaultSpawn())
     // Fail fast when the braid-core gateway cannot turn the spec into tools,
     // rather than spawning an agent that discovers the missing tools mid-run.
@@ -173,6 +194,10 @@ export class SubprocessSkillRunner implements SkillRunner {
         // and by any shell-level callback (curl in a SKILL.md),
         // so the subprocess can authenticate against the running server.
         ...(options.callerToken ? { BRAID_TOKEN: options.callerToken } : {}),
+        // After the agent's own environment, so a run's credential wins.
+        // A configured key would otherwise take precedence,
+        // and the broker would go unused.
+        ...lease.env,
         ...(options.extraEnv ?? {}),
       },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -390,6 +415,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     }
     finally {
       this.running.delete(input.runId)
+      this.deps.agentCredentials?.release(input.runId)
       this.deps.eventBus?.publish({
         type: 'run.completed',
         workspaceId: input.workspace.id,

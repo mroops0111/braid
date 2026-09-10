@@ -109,7 +109,10 @@ The static handler sits ahead of the auth gate, because the app shell is what a 
 | `BRAID_GOOGLE_CLIENT_ID` / `_SECRET` | Google sign-in |
 | `BRAID_ALLOWED_DOMAINS` | Restricts sign-in to your domains |
 | `BRAID_ADMIN_EMAILS` | Who may create workspaces and manage the roster |
-| `CLAUDE_CODE_OAUTH_TOKEN` | The agent's credential, from `claude setup-token` |
+| `CLAUDE_CODE_OAUTH_TOKEN` | The agent's credential, from `claude setup-token`. The shared seat everyone falls back to |
+| `BRAID_SECRET_KEY` | 32 bytes, base64. Encrypts the credentials people save for themselves. Unset, none can be saved |
+| `BRAID_SECRET_KEY_PREVIOUS` | The key being rotated out. Records written under it are read and rewritten under the current one |
+| `BRAID_AGENT_UPSTREAM_URL` | The API agent runs reach through this server. Unset, the vendor's own |
 | `BRAID_CORS_ORIGINS` | Extra browser origins, only for a Studio served elsewhere |
 | `BRAID_OIDC_ISSUER` | An authorization server. Set it and both doors answer to it, and the MCP endpoint turns on |
 | `BRAID_OIDC_CLIENT_ID` / `_SECRET` | Braid's own client there, for the browser sign-in |
@@ -123,6 +126,12 @@ Naming a real `BRAID_STUDIO_URL` stops localhost being trusted, so a dev origin 
 `BRAID_API_URL` is the address the outside world uses. Both Google redirects derive from it, `/auth/google/callback` for signing in and `/oauth/google/callback` for connecting a Drive source, and each has to be registered in the Google console exactly as derived. Agents and the MCP gateway ignore it and call back on loopback, so a proxy, a split-horizon DNS, or a private certificate never breaks a skill run.
 
 `CLAUDE_CODE_OAUTH_TOKEN` is one person's subscription, so every user's runs draw on that seat's limits. A Console API key bills more honestly for a shared server. Do not set `ANTHROPIC_API_KEY` alongside it, the key wins and the subscription goes unused.
+
+Set `BRAID_SECRET_KEY` and each person can save their own credential under Settings, and their runs spend it instead of the shared seat. A run never receives the credential. It is pointed at this server and given a stand-in that expires with the run, so a planted skill reading its whole environment finds nothing worth taking. Without the key nothing is stored, since encrypting under a key the code could derive would read as protection while offering none.
+
+```bash
+openssl rand -base64 32
+```
 
 For the desktop client, `pnpm bundle:remote` builds a shell without the embedded server, which is what someone connecting to a deployed server wants.
 

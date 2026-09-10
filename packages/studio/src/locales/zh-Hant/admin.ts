@@ -6,6 +6,7 @@ const admin: typeof en = {
     servers: '伺服器',
     users: '使用者',
     appearance: '外觀',
+    agent: '代理',
     about: '關於',
   },
   users: {
@@ -67,6 +68,24 @@ const admin: typeof en = {
     turnedOffHint: '此部署已關閉。',
     noAuthorizationServerHint: '沒有端點，因為此伺服器未設定身分提供者。MCP 呼叫者各自以自己的身分登入，沒有身分提供者就無從分辨。',
     incompleteHint: '此部署可以提供端點，但還無法啟動。仍缺少：',
+  },
+  agent: {
+    title: '代理憑證',
+    description: '你發起的執行會花用一個代理帳號。存入自己的憑證，執行就走你的訂閱，而不是與所有人共用的席次。這也是避免一個人的批次拖慢其他人的方式。',
+    placeholder: '貼上這個代理的憑證',
+    placeholderCommand: '貼上 `{command}` 產生的 token',
+    saveButton: '儲存',
+    replaceButton: '更換',
+    forgetButton: '移除',
+    savedMasked: '已儲存 {masked}',
+    storageNote: '寫入前先加密，沒有任何頁面或 API 讀得回來，包含這一頁。執行也拿不到它，伺服器代為花用，只借給執行一個隨執行失效的替身。',
+    unavailable: '此伺服器不儲存憑證，所有執行都使用自身設定。',
+    noAgents: '此伺服器沒有註冊任何代理，沒有可以存入憑證的對象。',
+    source: {
+      own: '你的執行使用你自己的憑證。',
+      server: '你的執行使用此伺服器的共用憑證。',
+      none: '你的執行會被拒絕。請先存入憑證。',
+    },
   },
   about: {
     title: '關於',

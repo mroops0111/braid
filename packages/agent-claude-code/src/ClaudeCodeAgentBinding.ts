@@ -1,6 +1,7 @@
 import type { AgentBinding, AgentSpawnInput, SpawnInvocation } from '@braidhq/core'
 import type { AgentBindingDescriptor, SkillEvent } from '@braidhq/schema'
 import process from 'node:process'
+import { inheritableSpawnEnvironment } from '@braidhq/core'
 import { writeClaudeMcpConfig } from './claudeMcpConfig.js'
 import { parseClaudeLine } from './claudeStream.js'
 
@@ -59,7 +60,10 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
     }
 
     const env: Record<string, string> = {
-      ...filterEnv(process.env),
+      ...inheritableSpawnEnvironment(process.env),
+      // The credential arrives here rather than being inherited,
+      // so one place decides which account a run spends,
+      // and a run without one fails saying so.
       ...this.descriptor.env,
       BRAID_WORKSPACE: input.workspace.rootPath,
       BRAID_WORKSPACE_ID: input.workspace.id,
@@ -71,13 +75,4 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
 
   // Claude streams newline-delimited JSON, so the runner hands each line here.
   parseLine = (line: string, now: string): SkillEvent[] => parseClaudeLine(line, now)
-}
-
-function filterEnv(source: NodeJS.ProcessEnv): Record<string, string> {
-  const result: Record<string, string> = {}
-  for (const [key, value] of Object.entries(source)) {
-    if (typeof value === 'string')
-      result[key] = value
-  }
-  return result
 }

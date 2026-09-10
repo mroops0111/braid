@@ -8,8 +8,10 @@ export const queryKeys = {
   adminInvites: () => ['admin', 'invites'] as const,
   adminUsers: () => ['admin', 'users'] as const,
   mcpEndpoint: () => ['mcp-endpoint'] as const,
+  agentCredential: (kind: string) => ['agent-credential', kind] as const,
   workspaces: () => ['workspaces'] as const,
   sourceLoaders: () => ['source-loaders'] as const,
+  agents: () => ['agents'] as const,
   workspaceMembers: (workspaceId: string) => ['workspaces', workspaceId, 'members'] as const,
   workspaceDetail: (workspaceId: string) => ['workspaces', workspaceId, 'detail'] as const,
   skills: (workspaceId: string) => ['workspaces', workspaceId, 'skills'] as const,
@@ -65,6 +67,23 @@ export function useMcpEndpoint() {
     // The gateway is supervised and restarts, so a stale `unreachable`
     // would outlive the gap it described.
     refetchInterval: 30_000,
+  })
+}
+
+export function useAgentCredential(agentKind: string) {
+  return useQuery({
+    queryKey: queryKeys.agentCredential(agentKind),
+    queryFn: () => api.getAgentCredential(agentKind),
+    // A deployment that stores no credentials answers 404,
+    // which is a configuration fact rather than a failure worth retrying.
+    retry: false,
+  })
+}
+
+export function useAgents() {
+  return useQuery({
+    queryKey: queryKeys.agents(),
+    queryFn: () => api.listAgents(),
   })
 }
 

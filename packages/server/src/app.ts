@@ -11,6 +11,9 @@ import { errorHandler } from './middleware/error.js'
 import { workspaceAccessMiddleware } from './middleware/workspaceAccess.js'
 import { workspaceIdMiddleware } from './middleware/workspaceId.js'
 import { createAdminRouter } from './routes/admin.js'
+import { createAgentCredentialsRouter } from './routes/agentCredentials.js'
+import { createAgentProxyRouter } from './routes/agentProxy.js'
+import { createAgentsRouter } from './routes/agents.js'
 import { createAuthRouter } from './routes/auth.js'
 import { createBatchRouter } from './routes/batch.js'
 import { createClarificationRouter } from './routes/clarifications.js'
@@ -71,6 +74,14 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     const mcpProxy = createMcpProxyRouter({ gatewayUrl: deps.mcpGatewayUrl })
     app.route('/braid', mcpProxy)
     app.route('/.well-known/oauth-protected-resource/braid', mcpProxy)
+  }
+  // Ahead of the auth gate,
+  // because a run authenticates with the stand-in this server lent it.
+  if (deps.agentCredentialBroker) {
+    app.route('/agent-api', createAgentProxyRouter({
+      broker: deps.agentCredentialBroker,
+      upstreamUrl: deps.agentUpstreamUrl ?? 'https://api.anthropic.com',
+    }))
   }
   // The app shell is what a signed-out visitor loads in order to sign in,
   // so it mounts before the auth gate.
@@ -157,6 +168,12 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       workspaceService: deps.workspaceService,
     }))
   }
+  if (deps.agentCredentialStore && deps.agentCredentialBroker) {
+    app.route('/users/me/agent-credentials', createAgentCredentialsRouter({
+      store: deps.agentCredentialStore,
+      broker: deps.agentCredentialBroker,
+    }))
+  }
   app.route('/workspaces', createWorkspacesRouter({
     workspaceService: deps.workspaceService,
     sourceLoaderRunner: deps.sourceLoaderRunner,
@@ -181,6 +198,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   // sourced from the active PluginRegistry, not hardcoded strings.
   // Installed loaders are identical across workspaces, not scoped to one.
   app.route('/source-loaders', createSourceLoadersRouter({ pluginRegistry: deps.pluginRegistry }))
+  app.route('/agents', createAgentsRouter({ pluginRegistry: deps.pluginRegistry }))
   app.route('/ontologies', createOntologiesRouter({ pluginRegistry: deps.pluginRegistry }))
 
   // Public webhook receivers, authenticated by per-source HMAC secrets,

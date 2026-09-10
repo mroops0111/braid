@@ -189,12 +189,44 @@ export interface McpEndpointStatus {
   missing: string[]
 }
 
+/**
+ * Which account a run would spend, and what the caller saved towards it.
+ *
+ * `credential` never carries the credential itself,
+ * only enough for its owner to recognise which one they saved.
+ */
+export interface AgentCredentialStatus {
+  source: 'own' | 'server' | 'none'
+  credential?: {
+    kind: string
+    masked: string
+    updatedAt: string
+    lastUsedAt?: string
+  }
+}
+
+/** An agent this server can run, and how a person gets a credential for it. */
+export interface AgentSummary {
+  kind: string
+  credentialCommand?: string
+}
+
 export interface AuthWhoami {
   user: User | null
 }
 
 export const api = {
   authConfig: () => fetchJson<AuthConfig>('/auth/config'),
+  listAgents: () => fetchJson<{ agents: AgentSummary[] }>('/agents'),
+  getAgentCredential: (agentKind: string) =>
+    fetchJson<AgentCredentialStatus>(`/users/me/agent-credentials/${agentKind}`),
+  saveAgentCredential: (agentKind: string, credential: string) =>
+    fetchJson<AgentCredentialStatus>(`/users/me/agent-credentials/${agentKind}`, {
+      method: 'PUT',
+      body: JSON.stringify({ credential }),
+    }),
+  forgetAgentCredential: (agentKind: string) =>
+    fetchJson<AgentCredentialStatus>(`/users/me/agent-credentials/${agentKind}`, { method: 'DELETE' }),
   mcpEndpoint: () => fetchJson<McpEndpointStatus>('/mcp-endpoint'),
   whoami: () => fetchJson<AuthWhoami>('/auth/whoami'),
   startSignIn: (provider: string, returnTo: string) =>

@@ -1,4 +1,5 @@
 import type {
+  AgentCredentialStore,
   BatchPlanRepository,
   ClarificationRepository,
   Clock,
@@ -23,6 +24,7 @@ import type {
 } from '@braidhq/core'
 import type { AbsolutePath, OntologyId, WorkspaceId } from '@braidhq/schema'
 import type { AuthMode } from './authMode.js'
+import type { AgentCredentialBroker } from './infrastructure/agent/AgentCredentialBroker.js'
 import type { AccessPolicy } from './infrastructure/auth/AccessPolicy.js'
 import type { AccessTokenVerifier } from './infrastructure/auth/AccessTokenVerifier.js'
 import type { LoginProvider } from './infrastructure/auth/LoginProvider.js'
@@ -123,6 +125,16 @@ export interface AppDependencies {
    * forward to. Studio needs the cases where there is not, and why.
    */
   mcpResolution?: McpGatewayResolution
+  /**
+   * Where a person's own agent credential lives, and what lends it to a run.
+   *
+   * Both absent where the deployment supplied no `BRAID_SECRET_KEY`,
+   * since storing a credential without one means storing it in the clear.
+   */
+  agentCredentialStore?: AgentCredentialStore
+  agentCredentialBroker?: AgentCredentialBroker
+  /** The API the broker stands in front of. Overridden in tests. */
+  agentUpstreamUrl?: string
   /**
    * The one browser sign-in this deployment offers.
    *
