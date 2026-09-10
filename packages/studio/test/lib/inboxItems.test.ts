@@ -1,27 +1,33 @@
-import type { Clarification, CoverageCard, Proposal } from '@braidhq/schema'
+import type { Clarification, CoverageCard, Proposal, SkillRunId, WorkspaceId } from '@braidhq/schema'
+import { makeClarification, makeCoverageCard, makeCoverageRun, makeProposal } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
-import { buildItems } from '@/pages/Inbox'
+import { buildItems } from '@/lib/inboxItems'
 
+const WORKSPACE = 'w-1' as WorkspaceId
+
+// Built through the schema's own factories rather than cast into shape, so a
+// field the grouping starts to read cannot go missing here while the surface
+// that reads it keeps working.
 function asked(id: string, options: { runId?: string, resumes?: boolean } = {}): Clarification {
-  return {
+  const built = makeClarification(WORKSPACE, {
     id,
-    workspaceId: 'w-1',
-    question: `q ${id}`,
-    candidates: [],
-    status: 'pending',
-    owner: 'system',
-    origin: 'skill',
     ...(options.runId ? { skillRunId: options.runId } : {}),
-    ...(options.resumes ? { answerMode: 'resumes' } : {}),
-  } as unknown as Clarification
+    answerMode: options.resumes ? 'resumes' : 'standing',
+  }).toData()
+  return { ...built, question: `q ${id}` }
 }
 
+// Spread over a complete record rather than assembled from the few fields the
+// grouping reads, so the starting point is always a valid one.
 function change(id: string, at: string): Proposal {
-  return { id, generatedAt: at, rationale: id, generatedBy: 'ddd:extract' } as unknown as Proposal
+  return { ...makeProposal(WORKSPACE, { id, rationale: id }).toData(), generatedAt: at }
 }
 
 function inFlight(runId: string): CoverageCard {
-  return { name: 'a doc', state: 'running', lastRun: { runId, skillId: 'ddd:extract' } } as unknown as CoverageCard
+  return makeCoverageCard({
+    state: 'running',
+    lastRun: makeCoverageRun({ runId: runId as SkillRunId }),
+  })
 }
 
 describe('buildItems', () => {

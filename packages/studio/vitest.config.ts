@@ -34,6 +34,13 @@ export default defineConfig({
         'src/components/references/rehypeReferences.ts',
         'src/components/SkillTranscript/formatArgsPreview.ts',
         'src/components/SkillTranscript/groupTranscript.ts',
+        'src/components/graph/GraphDataSource.ts',
+        'src/lib/agui/fromAguiEvents.ts',
+        'src/lib/blocks/collectBlocks.ts',
+        'src/lib/blocks/runActivity.ts',
+        'src/lib/blocks/runStats.ts',
+        'src/lib/blocks/visibleBlocks.ts',
+        'src/lib/inboxItems.ts',
       ],
       thresholds: {
         statements: 80,
