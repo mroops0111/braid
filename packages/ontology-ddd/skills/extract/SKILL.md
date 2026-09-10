@@ -177,6 +177,26 @@ Call them as each part settles, never batched at the end. A reviewer watches
 the reasoning assemble, which is what makes a proposal reviewable rather than
 merely present.
 
+#### What `show_subgraph` Says That The Proposal Does Not
+
+The proposal is the change: every operation, in full, gated by review. Repeating
+it as a picture adds nothing and costs a reviewer a second reading of the same
+list. So a `show_subgraph` that draws the nodes you are creating is wasted, and
+its title giving away that it is the proposal again is the sign you drew the
+wrong thing.
+
+What the proposal cannot show is the graph it lands in. It names the nodes it
+creates and the edges it adds, but a reviewer deciding whether a new boundary
+is drawn in the right place needs the nodes already there that it attaches to,
+and how far its edges reach into them. That neighbourhood is what this call is
+for.
+
+So include the existing nodes the proposal connects to, and the new ones only
+where an edge between the two is the point. Leave out any new node that touches
+nothing existing, since it has no position to show yet. If the proposal
+attaches to nothing at all, skip the call: an empty graph is not a place, and
+saying so is the honest answer.
+
 Leave `audiences` empty on all of them, and write nothing addressed to one
 reader. The graph is one canonical model, and a proposal against it is read by
 whoever holds the gate, so there is no second perspective to split. Rendering
