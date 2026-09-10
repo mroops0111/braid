@@ -22,6 +22,9 @@ function runKey(workspaceId: string, runId: string): string {
 
 const NO_TURNS: readonly string[] = Object.freeze([])
 
+/** What a graph-wide step is told, since it names no document. */
+const WHOLE_GRAPH = 'Run against the whole graph.'
+
 function turnsKey(workspaceId: string, skillId: string): string {
   return `${workspaceId}|${skillId}`
 }
@@ -172,11 +175,16 @@ class RunStore {
   async startUnit(options: {
     readonly workspaceId: string
     readonly skillId: string
+    /** Empty for a step that works on the graph as a whole. */
     readonly unitPath: string
   }): Promise<void> {
     const { workspaceId, skillId, unitPath } = options
     this.currentTurns.delete(turnsKey(workspaceId, skillId))
-    await this.startTurn({ workspaceId, skillId, question: unitPath, threadId: `${workspaceId}|${skillId}|${unitPath}` })
+    // A run is started by naming what it is to work on, and a graph-wide step
+    // names nothing. An empty message is no message at all, so the step says
+    // what it is instead, which is also what the record then reads as.
+    const question = unitPath === '' ? WHOLE_GRAPH : unitPath
+    await this.startTurn({ workspaceId, skillId, question, threadId: `${workspaceId}|${skillId}|${unitPath}` })
   }
 
   async startTurn(options: {

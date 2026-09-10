@@ -255,7 +255,7 @@ describe('agui route', () => {
     // id from its environment, so every render call it makes would land on a
     // run nothing is listening to unless it is told the new one.
     const records = await deps.runRepository.listRecords(workspace)
-    const carriedRun = records.find(record => record.resumed)!
+    const carriedRun = records.find(record => record.continues === runId)!
     expect(prompt).toContain(carriedRun.runId)
     expect(prompt).toContain('read $BRAID_RUN_ID again')
 

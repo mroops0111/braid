@@ -28,6 +28,8 @@ export class AguiTranslator {
   private messageCount = 0
   private toolCallCount = 0
 
+  private opened = false
+
   constructor(
     private readonly threadId: string,
     private readonly runId: string,
@@ -35,8 +37,17 @@ export class AguiTranslator {
 
   translate(event: SkillEvent): BaseEvent[] {
     switch (event.type) {
-      case 'started':
+      // One run, one opening frame. A run that carries another on opens
+      // holding that run's account, so a second start arrives inside the same
+      // stream, and the protocol refuses a second `RUN_STARTED` while a run is
+      // still active. The later ones are the carried thread describing itself,
+      // which the log keeps and the wire does not need.
+      case 'started': {
+        if (this.opened)
+          return []
+        this.opened = true
         return [{ type: EventType.RUN_STARTED, threadId: this.threadId, runId: this.runId }]
+      }
 
       // A message arrives whole, so the triplet is emitted at once rather than
       // streamed. A consumer sees a complete message either way, and the shape
