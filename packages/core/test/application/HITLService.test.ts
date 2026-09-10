@@ -4,12 +4,13 @@ import type {
   NodeStatus,
   NodeTypeId,
   ProposalId,
+  SkillRunId,
   UserId,
   ValidationCode,
   WorkspaceId,
 } from '@braidhq/schema'
 import type { Workspace } from '../../src/index.js'
-import { FixedClock, makeClarification, makeOntology, makeProposal, makeWorkspace, mintTestId, resetTestIds } from '@braidhq/test-utils'
+import { FixedClock, inertRunRepository, makeClarification, makeOntology, makeProposal, makeRunRecord, makeWorkspace, mintTestId, resetTestIds } from '@braidhq/test-utils'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   InMemoryClarificationRepository,
@@ -43,7 +44,7 @@ interface HITLFixture {
 async function setupFixture(options: {
   pluginRegistry?: PluginRegistry
   /** Run records the service reads to tell a watched run from an unwatched one. */
-  runs?: readonly { runId: string, unattended?: boolean }[]
+  runs?: readonly { runId: SkillRunId, unattended?: boolean }[]
 } = {}): Promise<HITLFixture> {
   const workspaceRepo = new InMemoryWorkspaceRepository()
   const workspace = makeWorkspace({ id: mintTestId('ws') }) as Workspace
@@ -67,17 +68,14 @@ async function setupFixture(options: {
     ...(options.runs
       ? {
           runRepository: {
-            listRecords: async () => options.runs!.map(run => ({
+            ...inertRunRepository(),
+            listRecords: async () => options.runs!.map(run => makeRunRecord({
               runId: run.runId,
               workspaceId: workspace.id,
-              skillId: 'ddd:extract',
               args: '',
-              resumed: false,
-              startedBy: 'tester',
-              startedAt: '2026-01-01T00:00:00.000Z',
               ...(run.unattended ? { unattended: true } : {}),
             })),
-          } as never,
+          },
         }
       : {}),
   })
@@ -95,7 +93,7 @@ async function setupFixture(options: {
 }
 
 describe('runSubmissionLimits', () => {
-  const RUN = 'skill-run-1'
+  const RUN = 'skill-run-1' as SkillRunId
 
   // Checked against what the run wrote, not against anything held in memory,
   // so a restarted process cannot let the same run submit twice.

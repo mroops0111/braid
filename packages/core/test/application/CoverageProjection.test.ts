@@ -10,10 +10,10 @@ import type {
   SourceId,
   SourceUnitObservation,
   SourceUnitSha,
-  UserId,
+
 } from '@braidhq/schema'
 import type { ModelRepository, RunRepository, SkillRegistry, SourceUnitObservationRepository, Workspace } from '../../src/index.js'
-import { makeClarification, makeProposal, makeSkillManifest, makeWorkspace, T0 } from '@braidhq/test-utils'
+import { makeClarification, makeProposal, makeRunRecord, makeSkillManifest, makeWorkspace, T0 } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { InMemoryClarificationRepository, InMemoryProposalRepository } from '../../src/in-memory.js'
 import { CoverageProjection } from '../../src/index.js'
@@ -35,16 +35,13 @@ function observation(sha: SourceUnitSha, path = UNIT): SourceUnitObservation {
 }
 
 function record(runId: string, overrides: Partial<RunRecord> = {}): RunRecord {
-  return {
+  return makeRunRecord({
     runId: runId as SkillRunId,
     workspaceId: WORKSPACE.id,
     skillId: 'ddd:extract' as SkillId,
     args: UNIT,
-    resumed: false,
-    startedBy: 'tester' as UserId,
-    startedAt: T0,
     ...overrides,
-  }
+  })
 }
 
 function node(id: string, uri: string, drifts: readonly string[] = []): GraphNode {
