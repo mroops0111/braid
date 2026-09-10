@@ -78,7 +78,7 @@ Produce the output twice over, in two forms that carry the same content.
 
 Map the two forms like this:
 
-| Written section | Render call |
+| Written Section | Render Call |
 |---|---|
 | `## Answer` and `### Related Context` | `show_answer`, one call per idea |
 | `### Sources` and `### Source Detail` | `show_evidence`, placed next to the claim it supports |
