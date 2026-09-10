@@ -68,7 +68,10 @@ export interface SubprocessSkillRunnerDeps {
   // The gateway fetches the OpenAPI spec from `specUrl`,
   // and exposes the REST surface as MCP tools such as `braid_search_nodes`.
   //
-  // `specUrl` is typically `${apiUrl}/openapi.json`.
+  // `specUrlFor` names the spec for one kind of run, so a run's tools are
+  // only the operations that kind of run may call. Narrowing the spec is what
+  // narrows the tools: an operation absent from it never reaches the model,
+  // so it costs neither a place in the tool list nor the tokens to describe.
   // `uvxBin` defaults to `'uvx'`, resolved against PATH.
   // The composeFsApp step preflight-checks for its presence at boot.
   //
@@ -76,7 +79,7 @@ export interface SubprocessSkillRunnerDeps {
   // A skill needing `braid-core` then surfaces as not-ready,
   // via SkillManifest.readinessIssuesFor.
   readonly coreGateway?: {
-    readonly specUrl: string
+    readonly specUrlFor: (category: SkillCategory) => string
     readonly uvxBin?: string
   }
   /**
@@ -160,10 +163,13 @@ export class SubprocessSkillRunner implements SkillRunner {
     const runToken = this.deps.runTokens?.issue(runId, options.startedBy) ?? options.callerToken
     const unattended = options.extraEnv?.BRAID_UNATTENDED === 'true'
     this.deps.outputGate?.open(runId, { unattended })
+    // A skill that says nothing about what it does gets the reading surface.
+    // Writing to the graph is a claim a skill has to make for itself.
+    const toolSurface = category ?? 'ask'
     const gatewayArgs = [
       'openapi-mcp-gateway',
       '--spec',
-      this.deps.coreGateway?.specUrl ?? '',
+      this.deps.coreGateway?.specUrlFor(toolSurface) ?? '',
       '--transport',
       'stdio',
       '--name',
@@ -228,7 +234,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     const spawnFn = this.deps.spawn ?? (await defaultSpawn())
     // Fail fast when the braid-core gateway cannot turn the spec into tools,
     // rather than spawning an agent that discovers the missing tools mid-run.
-    await this.ensureGatewayReady(spawnFn)
+    await this.ensureGatewayReady(spawnFn, toolSurface)
     // BRAID_SESSION_DIR resolves ambiguity in SKILL.md paths.
     // claude sees both `BRAID_WORKSPACE` and a cwd inside it,
     // and would otherwise guess which one `.claude/skills/...` is rooted in.
@@ -400,11 +406,11 @@ export class SubprocessSkillRunner implements SkillRunner {
    * Runs `openapi-mcp-gateway --dry-run`, memoised per spec,
    * so only the first run pays it.
    */
-  private async ensureGatewayReady(spawnFn: SpawnFn): Promise<void> {
+  private async ensureGatewayReady(spawnFn: SpawnFn, category: SkillCategory): Promise<void> {
     const gateway = this.deps.coreGateway
     if (!gateway)
       return
-    const { specUrl } = gateway
+    const specUrl = gateway.specUrlFor(category)
     let pending = this.gatewayReadyBySpec.get(specUrl)
     if (!pending) {
       pending = this.probeGateway(spawnFn, gateway.uvxBin ?? 'uvx', specUrl)

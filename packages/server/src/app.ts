@@ -1,5 +1,6 @@
 import type { AbsolutePath, Timestamp, UserId } from '@braidhq/schema'
 import type { AppDependencies } from './composeApp.js'
+import { SkillCategory } from '@braidhq/schema'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { OpenAPIHono } from '@hono/zod-openapi'
 import { withoutTrailingSlash } from './infrastructure/_shared/urls.js'
@@ -35,6 +36,7 @@ import { createProposalsRouter } from './routes/proposals.js'
 import { createProtectedResourceRouter } from './routes/protectedResource.js'
 import { createReactorCyclesRouter } from './routes/reactorCycles.js'
 import { createRunsRouter } from './routes/runs.js'
+import { toolSurfaceFor } from './routes/runToolSurface.js'
 import { createSkillInputOptionsRouter } from './routes/skillInputOptions.js'
 import { createSkillsRouter } from './routes/skills.js'
 import { createSourceConnectionRouter } from './routes/sourceConnection.js'
@@ -398,14 +400,25 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   // the dialect a tool `input_schema` is validated against.
   // A 3.0 doc emits `nullable` and boolean `exclusiveMinimum`,
   // which the model API rejects once the gateway forwards them as MCP tool schemas.
-  app.doc31('/openapi.json', {
-    openapi: '3.1.0',
+  const specConfig = {
+    openapi: '3.1.0' as const,
     info: {
       title: 'Braid REST API',
       version: '0.0.1',
       description: 'REST surface exposed by @braidhq/server. Each operation also becomes an MCP tool via openapi-mcp-gateway.',
     },
     ...(options.apiUrl ? { servers: [{ url: options.apiUrl }] } : {}),
+  }
+  app.doc31('/openapi.json', specConfig)
+
+  // The spec a run's own gateway reads, holding only the operations that kind
+  // of run may call. A question about who may do what is answered once, here,
+  // rather than by every handler learning who is calling it.
+  app.get('/openapi/runs/:category/openapi.json', (context) => {
+    const category = SkillCategory.safeParse(context.req.param('category'))
+    if (!category.success)
+      return context.json({ error: 'Unknown run category' }, 404)
+    return context.json(toolSurfaceFor(app.getOpenAPI31Document(specConfig) as unknown as Record<string, unknown>, category.data))
   })
 
   return app

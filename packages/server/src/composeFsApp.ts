@@ -1,5 +1,5 @@
 import type { AgentPlugin, OntologyPlugin, SourceLoaderPlugin, StoragePlugin } from '@braidhq/core'
-import type { AbsolutePath, AgentBindingDescriptor, AgentEffort, OntologyId, StorageKind, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, AgentEffort, OntologyId, SkillCategory, StorageKind, WorkspaceId } from '@braidhq/schema'
 import type { AppDependencies } from './composeApp.js'
 import type { LoginProvider } from './infrastructure/auth/LoginProvider.js'
 import { spawn } from 'node:child_process'
@@ -551,7 +551,7 @@ export async function composeFsAppWithRegistry(
     eventBus,
     ...(agentCredentialBroker ? { agentCredentials: agentCredentialBroker } : {}),
     ...(uvxBin
-      ? { coreGateway: { specUrl: `${loopbackApiUrl}/openapi.json`, uvxBin } }
+      ? { coreGateway: { specUrlFor: (category: SkillCategory) => `${loopbackApiUrl}/openapi/runs/${category}/openapi.json`, uvxBin } }
       : {}),
     referenceDirs: [
       { skillNamespace: BUILTIN_SKILL_NAMESPACE, path: join(builtinSkillsRoot, 'shared') as AbsolutePath },

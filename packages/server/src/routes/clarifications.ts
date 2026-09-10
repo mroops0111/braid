@@ -6,7 +6,7 @@ import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getSkillRunId, getUserId } from '../middleware/auth.js'
 import { getViewerContext, requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
-import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
+import { forRuns, NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 import { assertEntityInWorkspace } from './helpers.js'
 
 const ListQuery = z.object({
@@ -77,7 +77,7 @@ export interface ClarificationRouterDeps {
   clarificationRepository: ClarificationRepository
 }
 
-const createClarificationRoute = createRoute({
+const createClarificationRoute = createRoute(forRuns({
   method: 'post',
   path: '/',
   operationId: 'createClarification',
@@ -94,7 +94,7 @@ const createClarificationRoute = createRoute({
     },
     400: ValidationFailureResponse,
   },
-})
+}, ['build']))
 
 const listClarificationRoute = createRoute({
   method: 'get',
@@ -130,7 +130,7 @@ const getClarificationRoute = createRoute({
   },
 })
 
-const answerClarificationRoute = createRoute({
+const answerClarificationRoute = createRoute(forRuns({
   method: 'post',
   path: '/{clarificationId}/answer',
   operationId: 'answerClarification',
@@ -147,9 +147,9 @@ const answerClarificationRoute = createRoute({
     },
     404: NotFoundResponse,
   },
-})
+}, []))
 
-const applyClarificationRoute = createRoute({
+const applyClarificationRoute = createRoute(forRuns({
   method: 'patch',
   path: '/{clarificationId}',
   operationId: 'markClarificationApplied',
@@ -167,9 +167,9 @@ const applyClarificationRoute = createRoute({
     },
     404: NotFoundResponse,
   },
-})
+}, ['build']))
 
-const deferClarificationRoute = createRoute({
+const deferClarificationRoute = createRoute(forRuns({
   method: 'post',
   path: '/{clarificationId}/defer',
   operationId: 'deferClarification',
@@ -184,9 +184,9 @@ const deferClarificationRoute = createRoute({
     },
     404: NotFoundResponse,
   },
-})
+}, []))
 
-const skipClarificationRoute = createRoute({
+const skipClarificationRoute = createRoute(forRuns({
   method: 'post',
   path: '/{clarificationId}/skip',
   operationId: 'skipClarification',
@@ -203,9 +203,9 @@ const skipClarificationRoute = createRoute({
     },
     404: NotFoundResponse,
   },
-})
+}, []))
 
-const reportNoClarificationRoute = createRoute({
+const reportNoClarificationRoute = createRoute(forRuns({
   method: 'post',
   path: '/none',
   operationId: 'reportNoClarification',
@@ -219,7 +219,7 @@ const reportNoClarificationRoute = createRoute({
     204: { description: 'The declaration was recorded.' },
     400: ValidationFailureResponse,
   },
-})
+}, ['build']))
 
 export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()

@@ -1,4 +1,4 @@
-import type { BatchPlan, Clarification, ClarificationCreateBody, CommitMeta, CommitSha, CoverageBoard, EmbeddingCoverage, FileDiff, GraphEdge, GraphNode, ListSourceLoadersResponse, McpServerConfig, ModelDiffEnvelope, ModelSnapshot, OntologyListResponse, OntologyResponse, ProductManifestCreate, Proposal, ReactorCycle, ReactorCycleId, RunRecord, SessionMetadata, SkillEvent, SkillInputOptionsResponse, SkillManifest, SourceDescriptor, SourceId, SourceLocation, SourceSyncPolicy, SourceSyncState, SourceUnitDiff, SourceUnitObservation, TagMeta, User, UserUpdate, ValidationResult, Workspace, WorkspaceMember, WorkspacePollingConfig, WorkspaceRole } from '@braidhq/schema'
+import type { BatchPlan, Clarification, ClarificationCreateBody, CommitMeta, CommitSha, CoverageBoard, EmbeddingCoverage, FileDiff, GraphEdge, GraphNode, ListSourceLoadersResponse, McpServerConfig, ModelDiffEnvelope, ModelSnapshot, OntologyListResponse, OntologyResponse, ProductManifestCreate, Proposal, ReactorCycle, ReactorCycleId, RunRecord, SessionMetadata, SkillInputOptionsResponse, SkillManifest, SourceDescriptor, SourceId, SourceLocation, SourceSyncPolicy, SourceSyncState, SourceUnitDiff, SourceUnitObservation, TagMeta, User, UserUpdate, ValidationResult, Workspace, WorkspaceMember, WorkspacePollingConfig, WorkspaceRole } from '@braidhq/schema'
 import { getAuthToken } from './authToken.js'
 import { getCurrentUserId } from './currentUser.js'
 import { getTokenFor } from './remotes.js'
@@ -512,16 +512,6 @@ export const api = {
 
   listRuns: (workspaceId: string) =>
     fetchJson<ItemList<RunRecord>>(`/workspaces/${workspaceId}/runs`),
-  runEventsUrl: (workspaceId: string, runId: string) => {
-    const base = `${getServerUrl()}/workspaces/${workspaceId}/runs/${runId}/events`
-    const token = getAuthToken()
-    return token ? `${base}?token=${encodeURIComponent(token)}` : base
-  },
-  /** The persisted log in one response, for a run with nothing left to tail. */
-  runEvents: (workspaceId: string, runId: string) =>
-    fetchJson<{ items: SkillEvent[], active: boolean }>(
-      `/workspaces/${encodeURIComponent(workspaceId)}/runs/${encodeURIComponent(runId)}/events.json`,
-    ),
   cancelRun: (workspaceId: string, runId: string) =>
     fetchJson<void>(`/workspaces/${workspaceId}/runs/${runId}/cancel`, { method: 'POST' }),
   forgetSession: (workspaceId: string, sessionId: string) =>

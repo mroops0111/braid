@@ -5,7 +5,7 @@ import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getSkillRunId, getUserId } from '../middleware/auth.js'
 import { getViewerContext, requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
-import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
+import { forRuns, NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 import { assertEntityInWorkspace } from './helpers.js'
 
 const ListQuery = z.object({
@@ -60,7 +60,7 @@ export interface ProposalsRouterDeps {
   workspaceService: WorkspaceService
 }
 
-const createProposalRoute = createRoute({
+const createProposalRoute = createRoute(forRuns({
   method: 'post',
   path: '/',
   operationId: 'createProposal',
@@ -78,7 +78,7 @@ const createProposalRoute = createRoute({
     },
     400: ValidationFailureResponse,
   },
-})
+}, ['build']))
 
 const listProposalsRoute = createRoute({
   method: 'get',
@@ -130,7 +130,7 @@ const validateProposalRoute = createRoute({
   },
 })
 
-const applyProposalRoute = createRoute({
+const applyProposalRoute = createRoute(forRuns({
   method: 'post',
   path: '/{proposalId}/apply',
   operationId: 'applyProposal',
@@ -147,9 +147,9 @@ const applyProposalRoute = createRoute({
     },
     404: NotFoundResponse,
   },
-})
+}, []))
 
-const rejectProposalRoute = createRoute({
+const rejectProposalRoute = createRoute(forRuns({
   method: 'post',
   path: '/{proposalId}/reject',
   operationId: 'rejectProposal',
@@ -166,7 +166,7 @@ const rejectProposalRoute = createRoute({
     },
     404: NotFoundResponse,
   },
-})
+}, []))
 
 export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()

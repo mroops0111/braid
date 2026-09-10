@@ -1,4 +1,4 @@
-import type { AbsolutePath, AgentBindingDescriptor, SkillAgentOverride, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceEvent } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, SkillAgentOverride, SkillCategory, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceEvent } from '@braidhq/schema'
 import { mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -36,7 +36,7 @@ interface BuildRunnerInput {
   readonly skillRegistry?: SkillRegistry
   readonly skillAgent?: SkillAgentOverride
   readonly buildAgentBinding?: (descriptor: AgentBindingDescriptor) => AgentBinding
-  readonly coreGateway?: { specUrl: string, uvxBin?: string }
+  readonly coreGateway?: { specUrlFor: (category: SkillCategory) => string, uvxBin?: string }
   readonly resolveSourceRoles?: (workspace: Workspace) => readonly SourceRoleDescriptor[]
   readonly category?: 'ask' | 'build'
 }
@@ -283,7 +283,7 @@ describe('SubprocessSkillRunner', () => {
     const rootPath = await makeWorkspaceRoot()
     const { runner, workspace, invocations } = await buildRunner({
       rootPath,
-      coreGateway: { specUrl: 'http://localhost:4321/openapi.json' },
+      coreGateway: { specUrlFor: category => `http://localhost:4321/openapi/runs/${category}/openapi.json` },
       sequence: [{ stdoutLines: ['Invalid, ParameterInfo schema_type'], exitCode: 1 }],
     })
 
@@ -297,7 +297,7 @@ describe('SubprocessSkillRunner', () => {
     const rootPath = await makeWorkspaceRoot()
     const { runner, workspace, invocations } = await buildRunner({
       rootPath,
-      coreGateway: { specUrl: 'http://localhost:4321/openapi.json' },
+      coreGateway: { specUrlFor: category => `http://localhost:4321/openapi/runs/${category}/openapi.json` },
       sequence: [{ stdoutLines: [], exitCode: 0 }, { stdoutLines: [], exitCode: 0 }],
     })
 
@@ -311,7 +311,7 @@ describe('SubprocessSkillRunner', () => {
     let gatewayArgs: readonly string[] | undefined
     const { runner, workspace } = await buildRunner({
       rootPath,
-      coreGateway: { specUrl: 'http://localhost:4321/openapi.json' },
+      coreGateway: { specUrlFor: category => `http://localhost:4321/openapi/runs/${category}/openapi.json` },
       sequence: [{ stdoutLines: [], exitCode: 0 }, { stdoutLines: [], exitCode: 0 }],
       buildAgentBinding: (descriptor) => {
         const inner = new ClaudeCodeAgentBinding(descriptor)
