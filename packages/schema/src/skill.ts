@@ -258,6 +258,15 @@ export const SkillEventStarted = z.object({
   args: z.string(),
   // True when this run resumed an existing claude session.
   resumed: z.boolean().default(false),
+  /**
+   * The run this one takes up, when it takes one up.
+   *
+   * `resumed` says a conversation was continued, not which one. Without the
+   * link, the reasoning that led a run to stop has no route back once the
+   * thing that pointed at it is settled, and a piece of work spread over
+   * three runs reports three separate costs that nothing adds up.
+   */
+  continues: SkillRunId.optional(),
   at: Timestamp,
 })
 
@@ -378,8 +387,27 @@ export const RunRecord = z.object({
   runId: SkillRunId,
   workspaceId: WorkspaceId,
   skillId: SkillId,
+  /** What the agent was told, verbatim. The record of what actually went out. */
   args: z.string(),
+  /**
+   * What the run works on, when that is not what it was told.
+   *
+   * A fresh per-unit run is started by naming its unit, so the two are the
+   * same and this stays absent. A run carrying another on is told to continue
+   * instead, and every surface attributes work by matching a document against
+   * this, so without it a continued run detaches from what it is reading.
+   */
+  scope: z.string().optional(),
   resumed: z.boolean().default(false),
+  /**
+   * The run this one takes up, when it takes one up.
+   *
+   * `resumed` says a conversation was continued, not which one. Without the
+   * link, the reasoning that led a run to stop has no route back once the
+   * thing that pointed at it is settled, and a piece of work spread over
+   * three runs reports three separate costs that nothing adds up.
+   */
+  continues: SkillRunId.optional(),
   // Whose identity the run acts under, matching the caller token it carries.
   // A person for anything a route starts, batch included,
   // and the service account itself for an autonomous run such as the reactor's.

@@ -39,6 +39,22 @@ export interface SkillRunOptions {
    */
   readonly startedBy: UserId
   /**
+   * What this run is working on, when that is not what it is being told.
+   *
+   * `args` is the prompt, and for a fresh run it is also the scope, since a
+   * per-unit run is started by naming its unit. A run that continues another
+   * is told to carry on instead, and recording that sentence as its scope
+   * would lose which document it is reading. Carrying the original scope
+   * forward keeps a continued run attributed to the same work.
+   */
+  readonly scope?: string
+  /**
+   * The run this one takes up, recorded so the chain stays walkable. Set
+   * wherever a run is started to carry another on, which is a settled
+   * question releasing it or a corrective turn on its own output.
+   */
+  readonly continues?: SkillRunId
+  /**
    * Corrective turns still available when this run's output misses its
    * skill's declared contract. Absent means the manifest decides, which is
    * what a caller starting a fresh run wants.

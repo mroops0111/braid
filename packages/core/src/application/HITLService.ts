@@ -34,6 +34,7 @@ import { Clarification } from '../domain/hitl/Clarification.js'
 import { Proposal } from '../domain/hitl/Proposal.js'
 import { clarificationSubmission, proposalSubmission } from '../domain/hitl/runSubmission.js'
 import { newClarificationCandidateId, newClarificationId, newProposalId } from '../domain/ids.js'
+import { runScope } from '../domain/skill/runScope.js'
 import { sourceUnitsForRun } from '../domain/source/sourceUnitsForRun.js'
 import { noopUserDirectory } from '../domain/users/UserDirectory.js'
 import { enrichCommitAuthor } from './enrichCommitAuthor.js'
@@ -96,7 +97,7 @@ export class HITLService {
     const record = (await runRepository.listRecords(workspace)).find(item => item.runId === skillRunId)
     if (!record)
       return []
-    const named = sourceUnitsForRun(record.args, await unitLister(workspace))
+    const named = sourceUnitsForRun(runScope(record), await unitLister(workspace))
     // Hashed here rather than read from the observation store, which records
     // what a completed run saw and so is either absent or one version behind
     // at the moment a proposal is filed.

@@ -24,6 +24,7 @@ import type { SourceUnitObservationRepository } from '../domain/source/SourceUni
 import type { Workspace } from '../domain/workspace/Workspace.js'
 import type { UnitLister } from './BatchService.js'
 import { COVERAGE_STATE_PRECEDENCE } from '@braidhq/schema'
+import { runScope } from '../domain/skill/runScope.js'
 
 export interface CoverageProjectionDeps {
   readonly unitLister: UnitLister
@@ -149,7 +150,10 @@ function buildCard(context: CardContext): CoverageCard {
   // to produce. Reaching them through proposals would leave a run invisible
   // until it proposed, so a document being read right now, or one whose run
   // died before proposing, would both look untouched.
-  const runs = context.records.filter(record => record.args.length > 0 && record.args.includes(path))
+  const runs = context.records.filter((record) => {
+    const scope = runScope(record)
+    return scope.length > 0 && scope.includes(path)
+  })
   const runIds = new Set([
     ...runs.map(record => record.runId as string),
     ...mine.flatMap(proposal => (proposal.skillRunId ? [proposal.skillRunId as string] : [])),
@@ -246,7 +250,7 @@ function derivedFrom(
   if (stamped !== undefined)
     return stamped.some(unit => unit.sourceId === sourceId && unit.path === path)
   const record = proposal.skillRunId ? runsById.get(proposal.skillRunId) : undefined
-  return record !== undefined && record.args.length > 0 && record.args.includes(path)
+  return record !== undefined && runScope(record).length > 0 && runScope(record).includes(path)
 }
 
 /** The version of this unit the model last actually took in. */
@@ -337,7 +341,7 @@ function withGraphWideOutput(stage: CoverageStage, context: {
     return { ...stage, answeredIds }
   const runIds = new Set(
     context.records
-      .filter(record => record.skillId === stage.skillId && record.args.length === 0)
+      .filter(record => record.skillId === stage.skillId && runScope(record).length === 0)
       .map(record => record.runId as string),
   )
   const lastRun = latestRun(runIds, new Map(context.records.map(record => [record.runId as string, record])))
