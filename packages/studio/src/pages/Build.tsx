@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, ChevronRight, ClipboardCheck, ExternalLink, FileText, MessageCircleQuestion, Network, Play } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ActionInputForm } from '@/components/ActionInputForm'
 import { RunBlocks } from '@/components/blocks/RunBlocks'
 import { DetailFact, DetailPanel, SectionTitle } from '@/components/DetailPanel'
 import { EmptyState } from '@/components/EmptyState'
@@ -305,6 +306,11 @@ function StageCell({ stage, workspaceId, canRun, busy, onOpenInbox, standing }: 
 }) {
   const { t, i18n } = useTranslation()
   const { formatRelativeTime } = useLocaleFormat()
+  const [asking, setAsking] = useState(false)
+  const { data: skills } = useSkills(workspaceId)
+  // Read from the manifest rather than from the coverage projection, which
+  // describes what a step has done and not what it asks for first.
+  const inputs = skills?.items.find(skill => skill.id === stage.skillId)?.frontmatter.braid.inputs ?? []
   const waiting = stage.proposalIds.length + stage.clarificationIds.length
   // Nothing answered means the run would read an empty queue and cost a
   // subprocess to say so, which is why the button goes flat rather than eager.
@@ -337,16 +343,43 @@ function StageCell({ stage, workspaceId, canRun, busy, onOpenInbox, standing }: 
           </button>
         )}
         {stage.global && canRun && (
-          <Button
-            size="xs"
-            variant="outline"
-            disabled={idle || busy}
-            className="shrink-0 [&_svg]:size-2.5"
-            onClick={() => void runStore.startUnit({ workspaceId, skillId: stage.skillId, unitPath: '' })}
-          >
-            <Play />
-            {t('build.runGlobal')}
-          </Button>
+          <>
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={idle || busy}
+              className="shrink-0 [&_svg]:size-2.5"
+              onClick={() => (inputs.length > 0
+                ? setAsking(true)
+                : void runStore.startUnit({ workspaceId, skillId: stage.skillId, unitPath: '' }))}
+            >
+              <Play />
+              {t('build.runGlobal')}
+            </Button>
+            {/* A step that declares inputs is asking something before it runs,
+                and pressing past the question would answer it with silence.
+                The form is the skill's own declaration, rendered by the same
+                component the skill list has always used for it. */}
+            <Dialog open={asking} onOpenChange={setAsking}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{stageLabel(stage, i18n.language)}</DialogTitle>
+                  {stage.summary && <DialogDescription>{stage.summary}</DialogDescription>}
+                </DialogHeader>
+                <ActionInputForm
+                  workspaceId={workspaceId}
+                  inputs={inputs}
+                  disabled={busy}
+                  submitLabel={t('build.runGlobal')}
+                  onSubmit={(runs) => {
+                    setAsking(false)
+                    for (const run of runs)
+                      void runStore.startUnit({ workspaceId, skillId: stage.skillId, unitPath: '', args: run.args })
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
+          </>
         )}
       </div>
     </div>

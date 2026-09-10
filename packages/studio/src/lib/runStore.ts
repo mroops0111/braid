@@ -194,13 +194,19 @@ class RunStore {
     readonly skillId: string
     /** Empty for a step that works on the graph as a whole. */
     readonly unitPath: string
+    /**
+     * What the step was told, when it asked. A step declaring inputs is
+     * answered before it starts, and the answer is the instruction, so it
+     * replaces the stand-in a step with nothing to ask would send.
+     */
+    readonly args?: string
   }): Promise<void> {
     const { workspaceId, skillId, unitPath } = options
     this.currentTurns.delete(turnsKey(workspaceId, skillId))
     // A run is started by naming what it is to work on, and a graph-wide step
     // names nothing. An empty message is no message at all, so the step says
     // what it is instead, which is also what the record then reads as.
-    const question = unitPath === '' ? WHOLE_GRAPH : unitPath
+    const question = options.args?.trim() ? options.args : (unitPath === '' ? WHOLE_GRAPH : unitPath)
     await this.startTurn({ workspaceId, skillId, question, threadId: `${workspaceId}|${skillId}|${unitPath}` })
   }
 
