@@ -5,11 +5,10 @@ import { ArrowRight, ChevronRight, ClipboardCheck, ExternalLink, FileText, Messa
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RunBlocks } from '@/components/blocks/RunBlocks'
-import { RunCost } from '@/components/blocks/RunCost'
 import { DetailFact, DetailPanel, SectionTitle } from '@/components/DetailPanel'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
-import { SkillTranscript } from '@/components/SkillTranscript'
+import { RunTranscript } from '@/components/RunTranscript'
 import { StatusBadge, statusDot, statusTone } from '@/components/StatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -18,7 +17,6 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
 import { TRANSCRIPT_VIEW } from '@/lib/blocks/audience'
 import { summariseActivity } from '@/lib/blocks/runActivity'
-import { readStats } from '@/lib/blocks/runStats'
 import { useLocaleFormat } from '@/lib/i18n/datetime'
 import { useBatchStatus, useCoverage, useSkills } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
@@ -611,10 +609,7 @@ function CardDetail({ workspaceId, card, stage, stages, canRun, onClose }: {
       >
         {view === TRANSCRIPT_VIEW
           ? (
-              <div className="flex min-h-0 flex-1 flex-col">
-                <SkillTranscript events={[...events]} error={run?.error ?? null} running={run?.phase === 'streaming'} />
-                <RunCost stats={readStats(events)} />
-              </div>
+              <RunTranscript workspaceId={workspaceId} runId={card.lastRun?.runId} />
             )
           : view === 'reasoning'
             ? (

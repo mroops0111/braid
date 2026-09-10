@@ -141,15 +141,13 @@ class RunStore {
     const key = runKey(workspaceId, runId)
     if (this.streams.has(key))
       return
-    // A settled run is already whole, and reading it again costs the same
-    // seconds as the first time. The stream handle is dropped once hydration
-    // ends, so without this every revisit refetches what is already here.
-    const loaded = this.runs.get(key)
-    if (loaded && loaded.phase !== 'streaming')
+    // Anything already in the store is already being fed. A settled run is
+    // whole, and a streaming one has a live POST behind it that is not
+    // registered here, so replaying either appends a second copy of every
+    // event on top of the first.
+    if (this.runs.has(key))
       return
-    if (!loaded) {
-      this.runs.set(key, { workspaceId, runId, skillId, events: [], phase: 'streaming' })
-    }
+    this.runs.set(key, { workspaceId, runId, skillId, events: [], phase: 'streaming' })
     const controller = new AbortController()
     this.streams.set(key, controller)
     void this.hydrate(workspaceId, runId, controller)
@@ -208,7 +206,11 @@ class RunStore {
         if (event.type === EventType.RUN_STARTED) {
           runId = String((event as unknown as { runId: string }).runId)
           const key = runKey(workspaceId, runId)
-          this.runs.set(key, { workspaceId, runId, skillId, events: [], phase: 'streaming' })
+          // A run that carries another on opens holding that run's account, so
+          // a second start arrives mid-stream. Only the first one opens a
+          // slot, otherwise the account it was handed is thrown away.
+          if (!this.runs.has(key))
+            this.runs.set(key, { workspaceId, runId, skillId, events: [], phase: 'streaming' })
           // Claimed so a later `openStream` for the same run does not open a
           // second reader onto a stream this call is already draining.
           this.streams.set(key, new AbortController())
@@ -269,7 +271,11 @@ class RunStore {
       onEvent: (event) => {
         if (event.type === EventType.RUN_STARTED) {
           runId = String((event as unknown as { runId: string }).runId)
-          this.runs.set(runKey(workspaceId, runId), { workspaceId, runId, skillId, events: [], phase: 'streaming' })
+          const key = runKey(workspaceId, runId)
+          // Same reason as above: the account it was handed arrives before its
+          // own start, so a second start must not clear it.
+          if (!this.runs.has(key))
+            this.runs.set(key, { workspaceId, runId, skillId, events: [], phase: 'streaming' })
           this.notify()
           return
         }

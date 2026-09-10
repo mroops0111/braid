@@ -164,6 +164,23 @@ export function useRuns(workspaceId: string | undefined) {
   })
 }
 
+/**
+ * A run's own log, as Braid recorded it.
+ *
+ * Not the live stream. That is the protocol's shape, and the protocol has no
+ * field for what a run was told, so a prompt does not survive the trip. This
+ * is the record itself, which is what a reader auditing a run came for. Polled
+ * while the run is still going, since the record grows as it does.
+ */
+export function useRunEvents(workspaceId: string | undefined, runId: string | undefined) {
+  return useQuery({
+    queryKey: ['run-events', workspaceId, runId],
+    queryFn: () => api.runEvents(workspaceId!, runId!),
+    enabled: !!workspaceId && !!runId,
+    refetchInterval: query => (query.state.data?.active ? 2000 : false),
+  })
+}
+
 export function useSessionMetadata(workspaceId: string | undefined) {
   return useQuery({
     queryKey: workspaceId ? queryKeys.sessionMetadata(workspaceId) : ['session-metadata', 'none'],
