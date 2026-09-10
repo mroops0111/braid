@@ -5,7 +5,7 @@ export const blocks = {
   activity: {
     starting: 'Starting…',
     graphQueries: 'graph queries',
-    sourceReads: 'source reads',
+    toolCalls: 'tool calls',
     rendered: 'blocks',
   },
   canvas: {

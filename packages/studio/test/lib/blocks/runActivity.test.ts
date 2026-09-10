@@ -7,24 +7,29 @@ function call(tool: string): SkillEvent {
 }
 
 describe('summariseActivity', () => {
-  it('separates graph queries from source reads', () => {
+  // Braid's own gateway is the one name this layer knows. What an agent calls
+  // its own tools is its binding's business, so anything else is counted
+  // without being named, and a second agent's work is counted the same.
+  it('separates calls against the graph from everything else the agent reached for', () => {
     const activity = summariseActivity([
       call('mcp__braid-core__list_nodes'),
       call('mcp__braid-core__get_node_scope'),
       call('Bash'),
       call('Read'),
-      call('Grep'),
+      call('some_other_agents_tool'),
     ])
 
     expect(activity.graphQueries).toBe(2)
-    expect(activity.sourceReads).toBe(3)
+    expect(activity.toolCalls).toBe(3)
   })
 
-  it('does not count a render call as work done looking things up', () => {
+  // A render call is already counted as a block, and counting it here too
+  // would report the same output twice.
+  it('counts a render call as neither', () => {
     const activity = summariseActivity([call('mcp__braid-core__show_finding')])
 
     expect(activity.graphQueries).toBe(0)
-    expect(activity.otherCalls).toBe(1)
+    expect(activity.toolCalls).toBe(0)
   })
 
   it('keeps the agent\'s latest narration and ignores plumbing', () => {
@@ -49,8 +54,7 @@ describe('summariseActivity', () => {
     expect(summariseActivity([])).toEqual({
       narration: null,
       graphQueries: 0,
-      sourceReads: 0,
-      otherCalls: 0,
+      toolCalls: 0,
       blocks: 0,
     })
   })

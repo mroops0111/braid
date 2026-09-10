@@ -144,10 +144,13 @@ export function emphasizeAddedFor(source: GraphDataSource): boolean {
  * the proposal review uses, so new and existing read apart without the block
  * needing a visual vocabulary of its own.
  */
+/** Shared, so a caller passing nothing does not defeat the memo below. */
+const NO_OPERATIONS: readonly GraphOperation[] = Object.freeze([])
+
 export function useSubgraphDataSource(
   workspaceId: string,
   nodeIds: readonly NodeId[],
-  operations: readonly GraphOperation[] = [],
+  operations: readonly GraphOperation[] = NO_OPERATIONS,
 ): GraphDataSource {
   const { data, isLoading } = useModelSnapshot(workspaceId)
   const key = nodeIds.join(',')

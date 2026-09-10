@@ -257,11 +257,9 @@ function ItemDetail({ workspaceId, item, onComplete, onSettled }: {
   // Which of a parked run's questions is open. The run is one item, so moving
   // between its questions must not move the reader off it.
   const [questionId, setQuestionId] = useState<string | null>(null)
-  const runId = item.kind === 'running'
-    ? item.id
-    : item.kind === 'parked'
-      ? item.id
-      : item.kind === 'question' ? item.record.skillRunId : item.record.skillRunId
+  // A running item and a parked one are keyed by the run itself. Everything
+  // else names the run that produced it.
+  const runId = item.kind === 'running' || item.kind === 'parked' ? item.id : item.record.skillRunId
   const run = useRun(workspaceId, runId ?? null)
   const events = run?.events ?? []
 

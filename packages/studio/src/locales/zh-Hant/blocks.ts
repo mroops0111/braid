@@ -4,7 +4,7 @@ export const blocks = {
   activity: {
     starting: '啟動中…',
     graphQueries: '次圖譜查詢',
-    sourceReads: '次來源讀取',
+    toolCalls: '次工具呼叫',
     rendered: '個區塊',
   },
   canvas: {

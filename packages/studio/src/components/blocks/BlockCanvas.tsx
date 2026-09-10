@@ -1,4 +1,5 @@
 import type { EmittedBlock } from '@braidhq/schema'
+import type { BlockTurn } from '@/lib/blocks/collectBlocks'
 import type { RunActivity as Activity } from '@/lib/blocks/runActivity'
 import { MessageCircleQuestion } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -8,13 +9,6 @@ import { RunActivity } from './RunActivity'
 
 export function blockAnchorId(id: string): string {
   return `block-anchor-${id}`
-}
-
-/** Blocks that arrived under one question, in the order the run emitted them. */
-export interface AnswerTurn {
-  readonly key: string
-  readonly question: string | null
-  readonly blocks: readonly EmittedBlock[]
 }
 
 /**
@@ -61,7 +55,7 @@ function Anchored({ entry }: { entry: EmittedBlock }) {
 }
 
 export function BlockCanvas({ turns, running, activity }: {
-  turns: readonly AnswerTurn[]
+  turns: readonly BlockTurn[]
   running: boolean
   activity: Activity
 }) {

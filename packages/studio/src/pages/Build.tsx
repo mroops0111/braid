@@ -477,7 +477,7 @@ function LiveLine({ workspaceId, runId }: { workspaceId: string, runId: string }
   }, [workspaceId, runId])
 
   const activity = summariseActivity(run?.events ?? [])
-  const reads = activity.sourceReads + activity.graphQueries
+  const reads = activity.toolCalls + activity.graphQueries
 
   return (
     <span className="flex items-baseline gap-2">

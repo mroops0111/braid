@@ -168,7 +168,7 @@ function InlineExcerpt({ reference }: { reference: BlockRef['reference'] }) {
  * A reference the run opened itself reads as unrecorded,
  * because no node in the graph cites it yet.
  */
-function EvidenceRow({ ref: entry }: { ref: BlockRef }) {
+function EvidenceRow({ entry }: { entry: BlockRef }) {
   const { t } = useTranslation()
   const detail = useEvidenceDetail()
   const [open, setOpen] = useState(false)
@@ -229,7 +229,7 @@ export function EvidenceRefs({ refs, className }: { refs: readonly BlockRef[], c
   return (
     <ul className={cn('space-y-1', className)}>
       {refs.map((entry, index) => (
-        <EvidenceRow key={`${entry.reference.sourceId}-${index}`} ref={entry} />
+        <EvidenceRow key={`${entry.reference.sourceId}-${index}`} entry={entry} />
       ))}
     </ul>
   )
