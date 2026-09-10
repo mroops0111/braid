@@ -9,7 +9,9 @@ import { EmptyState } from '@/components/EmptyState'
 import { GraphCanvas } from '@/components/graph/GraphCanvas'
 import { ListRow } from '@/components/ListRow'
 import { NodeReferenceTag } from '@/components/references/ReferenceTag'
+import { SurfaceBand } from '@/components/SurfaceBand'
 import { SurfaceLayout } from '@/components/SurfaceLayout'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -99,21 +101,29 @@ export function HistoryPage({ workspaceId }: HistoryPageProps) {
       <SurfaceLayout
         list={(
           <>
-            {pickingCompare && (
-              <div className="flex shrink-0 items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-2xs text-muted-foreground">
-                <ArrowLeftRight className="size-3" />
-                <span>{t('history.compareBanner')}</span>
-                <button
-                  type="button"
-                  onClick={() => setPickingCompare(false)}
-                  className="ml-auto rounded p-0.5 hover:bg-background/80"
-                  title={t('common.cancel')}
-                  aria-label={t('common.cancel')}
-                >
-                  <X className="size-3" />
-                </button>
-              </div>
-            )}
+            <SurfaceBand title={t('shell.surfaces.history')}>
+              {/* In the band rather than above the list, because a banner
+                  inserted over the commits pushes every row down the moment a
+                  reader starts choosing one. */}
+              {pickingCompare && (
+                <>
+                  <span className="flex items-center gap-1 truncate text-2xs text-muted-foreground">
+                    <ArrowLeftRight className="size-3 shrink-0" />
+                    {t('history.compareBanner')}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    className="[&_svg]:size-3"
+                    title={t('common.cancel')}
+                    aria-label={t('common.cancel')}
+                    onClick={() => setPickingCompare(false)}
+                  >
+                    <X />
+                  </Button>
+                </>
+              )}
+            </SurfaceBand>
             {isLoading
               ? <div className="p-4 text-sm text-muted-foreground">{t('common.loading')}</div>
               : commits.length === 0
@@ -188,13 +198,13 @@ function CommitRow({ commit, tags, active, compareActive, dimmed, onSelect }: {
       )}
     >
       <div className="flex w-full items-center gap-1.5">
-        <span className={cn('rounded border px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider', KIND_TONE[commit.message.kind])}>
+        <Badge variant="outline" className={cn('shrink-0 text-2xs uppercase', KIND_TONE[commit.message.kind])}>
           {t(KIND_LABEL_KEY[commit.message.kind])}
-        </span>
+        </Badge>
         {compareActive && (
-          <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider text-amber-700 dark:text-amber-300">
+          <Badge variant="outline" className="shrink-0 border-amber-500/40 bg-amber-500/10 text-2xs uppercase text-amber-700 dark:text-amber-300">
             {t('history.compareBadge')}
-          </span>
+          </Badge>
         )}
         <span className="ml-auto truncate font-mono text-2xs text-muted-foreground">
           {commit.sha.slice(0, 7)}

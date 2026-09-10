@@ -596,10 +596,10 @@ function CardDetail({ workspaceId, card, stage, stages, canRun, onClose }: {
           : {})}
         views={(
           <Tabs value={view} onValueChange={next => setView(next as typeof view)}>
-            <TabsList variant="line" className="h-8">
-              <TabsTrigger value="facts" className="text-2xs">{t('build.view.facts')}</TabsTrigger>
-              <TabsTrigger value="reasoning" className="text-2xs">{t('build.view.reasoning')}</TabsTrigger>
-              <TabsTrigger value={TRANSCRIPT_VIEW} className="gap-1.5 text-2xs">
+            <TabsList variant="line">
+              <TabsTrigger value="facts">{t('build.view.facts')}</TabsTrigger>
+              <TabsTrigger value="reasoning">{t('build.view.reasoning')}</TabsTrigger>
+              <TabsTrigger value={TRANSCRIPT_VIEW} className="gap-1.5">
                 {t('ask.view.transcript')}
                 {events.length > 0 && <span className="font-mono text-muted-foreground/60">{events.length}</span>}
               </TabsTrigger>

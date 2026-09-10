@@ -70,3 +70,24 @@ export function ListRow({ active, onClick, variant = 'content', className, title
     </li>
   )
 }
+
+/**
+ * A row's title, clamped to two lines.
+ *
+ * The clamp sits on a block child rather than on the flex item itself. A flex
+ * item's display is blockified, so `-webkit-box` silently becomes `flow-root`,
+ * the clamp stops working, and the box still cuts the last line in half. Every
+ * list here puts its rows in a flex container, so every one of them had it.
+ *
+ * Two lines rather than each list choosing, because rows of wildly different
+ * heights are what stops three queues reading as one product.
+ */
+export function ListRowTitle({ className, children }: { className?: string, children: ReactNode }) {
+  return (
+    <div className="min-w-0 flex-1">
+      <p className={cn('line-clamp-2 break-words text-xs leading-relaxed text-foreground/90', className)}>
+        {children}
+      </p>
+    </div>
+  )
+}

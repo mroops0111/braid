@@ -7,8 +7,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RunBlocks } from '@/components/blocks/RunBlocks'
 import { EmptyState } from '@/components/EmptyState'
-import { ListRow } from '@/components/ListRow'
+import { ListRow, ListRowTitle } from '@/components/ListRow'
 import { RunTranscript } from '@/components/RunTranscript'
+import { SurfaceBand } from '@/components/SurfaceBand'
 import { SurfaceLayout } from '@/components/SurfaceLayout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,7 +20,6 @@ import { buildItems } from '@/lib/inboxItems'
 import { useClarificationByStatus, useCoverage, useProposalsByStatus } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
 import { useRun } from '@/lib/useRun'
-import { cn } from '@/lib/utils'
 
 import { ClarificationDetail, questionExcerpt } from './Clarification'
 import { ProposalDetail } from './Proposals'
@@ -132,7 +132,7 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
       <SurfaceLayout
         list={(
           <>
-            <div className="border-b border-border px-3 pt-3">
+            <SurfaceBand className="justify-start">
               <Tabs value={kind} onValueChange={value => setKind(value as KindFilter)}>
                 <TabsList variant="line">
                   <TabsTrigger value="all">{t('inbox.filter.all', { count: items.length })}</TabsTrigger>
@@ -140,7 +140,7 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
                   <TabsTrigger value="proposal">{t('inbox.filter.proposed', { count: proposedCount })}</TabsTrigger>
                 </TabsList>
               </Tabs>
-            </div>
+            </SurfaceBand>
             <ul className="flex-1 overflow-y-auto scrollbar-thin">
               {shown.map(item => (
                 <InboxRow
@@ -231,16 +231,16 @@ function ItemDetail({ workspaceId, item, onComplete, onSettled }: {
   // the choice does not move when the view changes.
   const viewToggle = (
     <Tabs value={view} onValueChange={value => setView(value as DetailView)}>
-      <TabsList variant="line" className="h-8">
+      <TabsList variant="line">
         {item.kind !== 'running' && (
-          <TabsTrigger value="record" className="text-2xs">
+          <TabsTrigger value="record">
             {t(item.kind === 'proposal' ? 'inbox.view.change' : 'inbox.view.question')}
           </TabsTrigger>
         )}
-        <TabsTrigger value="reasoning" className="text-2xs">
+        <TabsTrigger value="reasoning">
           {t(item.kind === 'running' ? 'inbox.view.live' : 'inbox.view.reasoning')}
         </TabsTrigger>
-        <TabsTrigger value={TRANSCRIPT_VIEW} className="gap-1.5 text-2xs">
+        <TabsTrigger value={TRANSCRIPT_VIEW} className="gap-1.5">
           {t('ask.view.transcript')}
           {events.length > 0 && <span className="font-mono text-muted-foreground/60">{events.length}</span>}
         </TabsTrigger>
@@ -250,7 +250,7 @@ function ItemDetail({ workspaceId, item, onComplete, onSettled }: {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-border px-4">{viewToggle}</div>
+      <SurfaceBand className="justify-start px-4">{viewToggle}</SurfaceBand>
       {item.kind === 'parked' && item.questions.length > 1 && view === 'record' && (
         // One run, several doubts. They are answered together, so they share
         // an item, and this is how a reader moves between them without losing
@@ -329,9 +329,9 @@ function InboxRow({ item, active, onSelect, stageLabels }: {
             <span className="truncate font-mono text-2xs text-muted-foreground">{source}</span>
           )}
         </div>
-        <span className={cn('line-clamp-2 text-xs', active ? 'text-foreground' : 'text-foreground/85')}>
+        <ListRowTitle {...(active ? { className: 'text-foreground' } : {})}>
           {title || t('inbox.untitled')}
-        </span>
+        </ListRowTitle>
       </div>
     </ListRow>
   )

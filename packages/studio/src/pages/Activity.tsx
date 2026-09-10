@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
+import { SurfaceBand } from '@/components/SurfaceBand'
 import { SurfaceLayout } from '@/components/SurfaceLayout'
 import { useLocaleFormat } from '@/lib/i18n'
 import { useReactorCycle, useReactorCycles } from '@/lib/queries'
@@ -33,9 +34,7 @@ export function ActivityPage({ workspaceId }: ActivityPageProps) {
         listClassName="bg-card/30"
         list={(
           <>
-            <header className="border-b border-border px-3 py-2 text-2xs font-medium uppercase tracking-wider text-muted-foreground">
-              {t('history.activity.reactorPasses')}
-            </header>
+            <SurfaceBand title={t('history.activity.reactorPasses')} />
             {list.isLoading && <p className="px-3 py-2 text-xs text-muted-foreground">{t('common.loading')}</p>}
             {list.error && <p className="px-3 py-2 text-xs text-destructive">{t('history.activity.failedToLoad')}</p>}
             {!list.isLoading && passes.length === 0 && (

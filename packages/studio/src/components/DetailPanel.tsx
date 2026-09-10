@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { SurfaceBand } from './SurfaceBand'
 
 /**
  * The right-hand pane, wherever one thing is being read in full.
@@ -48,7 +49,7 @@ export function DetailPanel({ badges, title, subtitle, actions, views, onClose, 
         {actions && <div className="pt-1">{actions}</div>}
       </header>
 
-      {views && <div className="shrink-0 border-b border-border px-4">{views}</div>}
+      {views && <SurfaceBand className="justify-start px-4">{views}</SurfaceBand>}
 
       <div className="flex min-h-0 flex-1 flex-col space-y-5 overflow-y-auto p-4 scrollbar-thin">
         {children}

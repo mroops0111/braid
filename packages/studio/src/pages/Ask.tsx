@@ -1,17 +1,18 @@
 import type { AudienceDescriptor, EvidenceDetail, Locale, SkillManifest } from '@braidhq/schema'
 import { localize } from '@braidhq/schema'
 import { useMutation } from '@tanstack/react-query'
-import { MessageCircleQuestion, PanelLeftClose, PanelLeftOpen, Plus, Send, X } from 'lucide-react'
+import { MessageCircleQuestion, Plus, Send, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { BlockCanvas } from '@/components/blocks/BlockCanvas'
 import { BlockOutline } from '@/components/blocks/BlockOutline'
 import { RunCost } from '@/components/blocks/RunCost'
 import { EmptyState } from '@/components/EmptyState'
-import { ListRow } from '@/components/ListRow'
+import { ListRow, ListRowTitle } from '@/components/ListRow'
 import { MentionTextarea } from '@/components/references/MentionTextarea'
 import { SkillTranscript } from '@/components/SkillTranscript'
-import { SurfaceLayout } from '@/components/SurfaceLayout'
+import { SurfaceBand } from '@/components/SurfaceBand'
+import { CollapseListButton, SurfaceLayout } from '@/components/SurfaceLayout'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
@@ -67,37 +68,23 @@ export function AskPage({ workspaceId }: { workspaceId: string }) {
 
   return (
     <div className="flex h-full flex-col">
-      {listOpen
-        ? (
-            <SurfaceLayout
-              list={(
-                <AnswerList
-                  workspaceId={workspaceId}
-                  skill={askSkill}
-                  answers={answers}
-                  onCollapse={() => setListOpen(false)}
-                />
-              )}
-            >
-              <Answer workspaceId={workspaceId} skill={askSkill} />
-            </SurfaceLayout>
-          )
-        : (
-            <div className="flex min-h-0 flex-1">
-              <div className="flex w-9 shrink-0 flex-col items-center border-r border-border pt-2.5">
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  className="[&_svg]:size-3.5"
-                  title={t('ask.showAnswers')}
-                  onClick={() => setListOpen(true)}
-                >
-                  <PanelLeftOpen />
-                </Button>
-              </div>
-              <Answer workspaceId={workspaceId} skill={askSkill} />
-            </div>
-          )}
+      <SurfaceLayout
+        collapse={{
+          collapsed: !listOpen,
+          onToggle: next => setListOpen(!next),
+          showLabel: t('ask.showAnswers'),
+        }}
+        list={(
+          <AnswerList
+            workspaceId={workspaceId}
+            skill={askSkill}
+            answers={answers}
+            onCollapse={() => setListOpen(false)}
+          />
+        )}
+      >
+        <Answer workspaceId={workspaceId} skill={askSkill} />
+      </SurfaceLayout>
     </div>
   )
 }
@@ -113,31 +100,18 @@ function AnswerList({ workspaceId, skill, answers, onCollapse }: {
 
   return (
     <>
-      <div className="flex h-11 shrink-0 items-center justify-between border-b border-border px-3">
-        <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
-          {t('ask.answersHeading')}
-        </span>
-        <div className="flex items-center gap-0.5">
-          <Button
-            variant="ghost"
-            size="xs"
-            className="[&_svg]:size-3"
-            onClick={() => runStore.clearTurns(workspaceId, skill.id)}
-          >
-            <Plus />
-            {t('ask.newQuestion')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="xs"
-            className="[&_svg]:size-3.5"
-            title={t('ask.hideAnswers')}
-            onClick={onCollapse}
-          >
-            <PanelLeftClose />
-          </Button>
-        </div>
-      </div>
+      <SurfaceBand title={t('ask.answersHeading')}>
+        <Button
+          variant="ghost"
+          size="xs"
+          className="[&_svg]:size-3"
+          onClick={() => runStore.clearTurns(workspaceId, skill.id)}
+        >
+          <Plus />
+          {t('ask.newQuestion')}
+        </Button>
+        <CollapseListButton label={t('ask.hideAnswers')} onCollapse={onCollapse} />
+      </SurfaceBand>
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         {answers.length === 0
           ? (
@@ -149,10 +123,8 @@ function AnswerList({ workspaceId, skill, answers, onCollapse }: {
                 active={activeTurns.includes(group.records[0]?.runId ?? '')}
                 onClick={() => runStore.setTurns(workspaceId, skill.id, group.records.map(record => record.runId))}
               >
-                <p className="line-clamp-3 text-xs leading-relaxed text-foreground/90">
-                  {group.title ?? group.firstPrompt}
-                </p>
-                <p className="mt-1 text-2xs text-muted-foreground">{formatTimestamp(group.lastStartedAt)}</p>
+                <ListRowTitle>{group.title ?? group.firstPrompt}</ListRowTitle>
+                <p className="ml-2 shrink-0 text-2xs text-muted-foreground">{formatTimestamp(group.lastStartedAt)}</p>
               </ListRow>
             ))}
       </div>
@@ -258,9 +230,9 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
         </div>
       </header>
 
-      <div className="shrink-0 border-b border-border px-4">
+      <SurfaceBand className="justify-start px-4">
         <ViewToggle value={view} onChange={setView} audiences={audiences} toolCalls={toolCalls} />
-      </div>
+      </SurfaceBand>
 
       {view === TRANSCRIPT_VIEW
         ? (
@@ -315,7 +287,7 @@ function ViewToggle({ value, onChange, audiences, toolCalls }: {
   const { t, i18n } = useTranslation()
   return (
     <Tabs value={value} onValueChange={next => onChange(next as AnswerView)}>
-      <TabsList variant="line" className="h-8">
+      <TabsList variant="line">
         {/* The description rides on `title` rather than a Tooltip wrapper.
             Wrapping a trigger stopped Radix marking it selected, and a tab
             that never looks active is worse than a plainer hover. */}
@@ -325,7 +297,6 @@ function ViewToggle({ value, onChange, audiences, toolCalls }: {
             <TabsTrigger
               key={audience.id}
               value={audience.id}
-              className="text-2xs"
               // `title` gives the hover description, and would otherwise become
               // the accessible name, so the short label is pinned explicitly.
               aria-label={label}
@@ -335,7 +306,7 @@ function ViewToggle({ value, onChange, audiences, toolCalls }: {
             </TabsTrigger>
           )
         })}
-        <TabsTrigger value={TRANSCRIPT_VIEW} className="gap-1.5 text-2xs">
+        <TabsTrigger value={TRANSCRIPT_VIEW} className="gap-1.5">
           {t('ask.view.transcript')}
           {toolCalls > 0 && <span className="font-mono text-muted-foreground/60">{toolCalls}</span>}
         </TabsTrigger>
