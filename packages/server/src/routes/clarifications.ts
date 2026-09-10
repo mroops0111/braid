@@ -213,10 +213,10 @@ const reportNoClarificationRoute = createRoute({
   tags: ['clarifications'],
   request: { params: WorkspaceIdParam },
   responses: {
-    200: {
-      description: 'The declaration was recorded.',
-      content: { 'application/json': { schema: z.object({ ok: z.literal(true) }).openapi('NoClarificationAccepted') } },
-    },
+    // Nothing is created and nothing is decided here, so there is nothing to
+    // send back. A body restating the status would be paid for in the run's
+    // context for saying what the status line already said.
+    204: { description: 'The declaration was recorded.' },
     400: ValidationFailureResponse,
   },
 })
@@ -233,7 +233,7 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
 
   router.openapi(reportNoClarificationRoute, async (context) => {
     deps.outputGate?.declareNothingToClarify(getSkillRunId(context))
-    return context.json({ ok: true } as const, 200)
+    return context.body(null, 204)
   })
 
   router.openapi(createClarificationRoute, async (context) => {

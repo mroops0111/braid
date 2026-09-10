@@ -1,7 +1,7 @@
-import type { SkillRunner, WorkspaceRepository } from '@braidhq/core'
-import type { RenderBlock } from '@braidhq/schema'
-import { evidenceSupport } from '@braidhq/core'
-import { ShowAnswer, ShowDiagram, ShowEvidence, ShowFinding, ShowMatrix, ShowSubgraph, ShowTrace, SkillRunId } from '@braidhq/schema'
+import type { ModelRepository, SkillRunner, WorkspaceRepository } from '@braidhq/core'
+import type { EmittedBlock, RenderBlock, WorkspaceId } from '@braidhq/schema'
+import { evidenceSupport, graphCitations, NotFoundError, ValidationError } from '@braidhq/core'
+import { BlockId, EvidenceSupport, ShowAnswer, ShowDiagram, ShowEvidence, ShowFinding, ShowMatrix, ShowSubgraph, ShowTrace, SkillRunId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
@@ -17,6 +17,8 @@ import { loadWorkspaceById } from './helpers.js'
 export interface BlocksRouterDeps {
   readonly skillRunner: SkillRunner
   readonly workspaceRepository: WorkspaceRepository
+  /** Asked what the graph holds, so a citation to it can be checked. */
+  readonly modelRepository: ModelRepository
 }
 
 const RunIdParam = WorkspaceIdParam.extend({
@@ -24,11 +26,23 @@ const RunIdParam = WorkspaceIdParam.extend({
 })
 
 /**
- * Deliberately just an acknowledgement.
- * Every render call is a tool call whose result re-enters the agent's context,
- * so an answer of twenty blocks pays for this body twenty times.
+ * What the call produced, and nothing the caller already knows.
+ *
+ * The status line says it succeeded, so a body repeating that carries no
+ * information while still costing tokens: every render call is a tool call
+ * whose result re-enters the agent's context, and an answer runs to twenty of
+ * them. What the caller cannot know is what the server decided, so that is
+ * what comes back.
  */
-const AcceptedResponse = z.object({ ok: z.literal(true) }).openapi('BlockAccepted')
+const RecordedResponse = z.object({
+  blockId: BlockId,
+  /**
+   * How well the sides of a finding are sourced, derived here from their
+   * references because a skill asserting its own confidence would be marking
+   * its own work. Only `showFinding` produces one.
+   */
+  support: EvidenceSupport.optional(),
+}).openapi('BlockRecorded')
 
 const ShowAnswerBody = ShowAnswer.omit({ call: true }).openapi('ShowAnswerBody')
 const ShowEvidenceBody = ShowEvidence.omit({ call: true }).openapi('ShowEvidenceBody')
@@ -40,9 +54,9 @@ const ShowDiagramBody = ShowDiagram.omit({ call: true }).openapi('ShowDiagramBod
 const ShowSubgraphBody = ShowSubgraph.omit({ call: true }).openapi('ShowSubgraphBody')
 
 const renderResponses = {
-  200: {
+  201: {
     description: 'The block was recorded on the run.',
-    content: { 'application/json': { schema: AcceptedResponse } },
+    content: { 'application/json': { schema: RecordedResponse } },
   },
   404: NotFoundResponse,
   400: ValidationFailureResponse,
@@ -142,60 +156,97 @@ const showSubgraphRoute = createRoute({
 export function createBlocksRouter(deps: BlocksRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
 
+  /**
+   * A ref saying it came from the graph is a claim the graph can settle, and a
+   * citation to a node nobody holds is worse than none, because it reads as
+   * corroboration. Refused here so the run is told while it can still fix it,
+   * rather than a reader finding it later.
+   *
+   * Only the ids a block names are resolved, never the whole model. Every
+   * render call would otherwise load the graph, and an answer is a dozen
+   * calls.
+   */
+  async function checkCitations(
+    workspaceId: WorkspaceId,
+    block: RenderBlock,
+  ): Promise<void> {
+    const unsettled: string[] = []
+    for (const citation of graphCitations(block)) {
+      if (citation.nodeId === undefined) {
+        unsettled.push(citation.describedAs)
+        continue
+      }
+      try {
+        await deps.modelRepository.getNode(workspaceId, citation.nodeId)
+      }
+      catch (error) {
+        if (!(error instanceof NotFoundError))
+          throw error
+        unsettled.push(citation.describedAs)
+      }
+    }
+    if (unsettled.length === 0)
+      return
+    throw new ValidationError(
+      `This block cites the graph for ${unsettled.join(', ')}, which the model does not hold. `
+      + 'Set `nodeId` to the node the reference was copied from, '
+      + 'or set `provenance` to `agent` to mark it as your own reading.',
+    )
+  }
+
   async function record(
     workspaceId: ReturnType<typeof getWorkspaceId>,
     runId: string,
     block: RenderBlock,
-  ): Promise<void> {
-    await loadWorkspaceById(workspaceId, deps.workspaceRepository)
-    await deps.skillRunner.emitBlock(SkillRunId.parse(runId), block)
+  ): Promise<EmittedBlock['id']> {
+    const workspace = await loadWorkspaceById(workspaceId, deps.workspaceRepository)
+    await checkCitations(workspace.id, block)
+    const { id } = await deps.skillRunner.emitBlock(SkillRunId.parse(runId), block)
+    return id
   }
 
   router.openapi(showAnswerRoute, async (context) => {
     const { runId } = context.req.valid('param')
-    await record(getWorkspaceId(context), runId, { call: 'showAnswer', ...context.req.valid('json') })
-    return context.json({ ok: true } as const, 200)
+    const blockId = await record(getWorkspaceId(context), runId, { call: 'showAnswer', ...context.req.valid('json') })
+    return context.json({ blockId }, 201)
   })
 
   router.openapi(showEvidenceRoute, async (context) => {
     const { runId } = context.req.valid('param')
-    await record(getWorkspaceId(context), runId, { call: 'showEvidence', ...context.req.valid('json') })
-    return context.json({ ok: true } as const, 200)
+    const blockId = await record(getWorkspaceId(context), runId, { call: 'showEvidence', ...context.req.valid('json') })
+    return context.json({ blockId }, 201)
   })
 
   router.openapi(showFindingRoute, async (context) => {
     const { runId } = context.req.valid('param')
     const finding = context.req.valid('json')
-    await record(getWorkspaceId(context), runId, {
-      call: 'showFinding',
-      ...finding,
-      support: evidenceSupport(finding.sides),
-    })
-    return context.json({ ok: true } as const, 200)
+    const support = evidenceSupport(finding.sides)
+    const blockId = await record(getWorkspaceId(context), runId, { call: 'showFinding', ...finding, support })
+    return context.json({ blockId, support }, 201)
   })
 
   router.openapi(showMatrixRoute, async (context) => {
     const { runId } = context.req.valid('param')
-    await record(getWorkspaceId(context), runId, { call: 'showMatrix', ...context.req.valid('json') })
-    return context.json({ ok: true } as const, 200)
+    const blockId = await record(getWorkspaceId(context), runId, { call: 'showMatrix', ...context.req.valid('json') })
+    return context.json({ blockId }, 201)
   })
 
   router.openapi(showTraceRoute, async (context) => {
     const { runId } = context.req.valid('param')
-    await record(getWorkspaceId(context), runId, { call: 'showTrace', ...context.req.valid('json') })
-    return context.json({ ok: true } as const, 200)
+    const blockId = await record(getWorkspaceId(context), runId, { call: 'showTrace', ...context.req.valid('json') })
+    return context.json({ blockId }, 201)
   })
 
   router.openapi(showDiagramRoute, async (context) => {
     const { runId } = context.req.valid('param')
-    await record(getWorkspaceId(context), runId, { call: 'showDiagram', ...context.req.valid('json') })
-    return context.json({ ok: true } as const, 200)
+    const blockId = await record(getWorkspaceId(context), runId, { call: 'showDiagram', ...context.req.valid('json') })
+    return context.json({ blockId }, 201)
   })
 
   router.openapi(showSubgraphRoute, async (context) => {
     const { runId } = context.req.valid('param')
-    await record(getWorkspaceId(context), runId, { call: 'showSubgraph', ...context.req.valid('json') })
-    return context.json({ ok: true } as const, 200)
+    const blockId = await record(getWorkspaceId(context), runId, { call: 'showSubgraph', ...context.req.valid('json') })
+    return context.json({ blockId }, 201)
   })
 
   return router

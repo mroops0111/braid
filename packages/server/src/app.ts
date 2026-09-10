@@ -314,6 +314,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     workspaceScoped.route('/runs', createBlocksRouter({
       skillRunner: deps.skillRunner,
       workspaceRepository: deps.workspaceRepository,
+      modelRepository: deps.modelRepository,
     }))
     workspaceScoped.route('/agui', createAguiRouter({
       skillRunner: deps.skillRunner,

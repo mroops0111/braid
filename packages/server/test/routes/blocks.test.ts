@@ -1,5 +1,5 @@
 import type { SkillRegistry } from '@braidhq/core'
-import type { AbsolutePath, SkillEvent } from '@braidhq/schema'
+import type { AbsolutePath, NodeId, NodeTypeId, SkillEvent, SourceId } from '@braidhq/schema'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -13,6 +13,9 @@ import { RunTokenRegistry } from '../../src/infrastructure/skill/RunTokenRegistr
 import { SubprocessSkillRunner } from '../../src/infrastructure/skill/SubprocessSkillRunner.js'
 import { DEFAULT_AGENT_BINDING, makeSkillManifest, makeWorkspace } from '../helpers/fakes.js'
 import { createMockSpawn } from '../helpers/mockSpawn.js'
+
+/** The one node the graph holds, for a ref that says it came from there. */
+const CITED = 'node-signing' as NodeId
 
 function makeSkillRegistry(): SkillRegistry {
   const manifest = makeSkillManifest({ id: 'braid:ask', path: '/abs/SKILL.md' as AbsolutePath })
@@ -43,6 +46,22 @@ async function buildApp() {
   })
   const deps = composeApp({ skillRegistry, skillRunner, accessTokenVerifiers: [runTokens] })
   await deps.workspaceRepository.save(workspace)
+  // A ref claiming the graph is checked against it, so a test citing a node
+  // needs that node to exist, the same as a real run does.
+  await deps.modelRepository.applyOperations(workspace.id, [
+    {
+      operation: 'addNode',
+      payload: {
+        type: 'aggregate' as NodeTypeId,
+        name: 'Signing',
+        id: CITED,
+        status: 'draft',
+        // Every node must show where it came from, and a proposal filed later
+        // is validated against the whole graph, this node included.
+        metadata: { sourceReferences: [{ sourceId: 'spec' as SourceId, location: { uri: 'a/b.md', startLine: 1 } }] },
+      },
+    },
+  ])
   return { app: createApp(deps), workspace, runRepository, skillRunner, runTokens, startedBy: UserId.parse('local-user'), endAll }
 }
 
@@ -94,8 +113,9 @@ describe('render routes', () => {
       body: JSON.stringify({ audience: 'business', markdown: 'A shared template is a state of @node:ctx.documentTemplate.' }),
     })
 
-    expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ ok: true })
+    expect(response.status).toBe(201)
+    // The id is the one thing the caller could not already know.
+    expect(await response.json()).toEqual({ blockId: expect.stringMatching(/^block-/) })
 
     endAll()
     await waitForRunToEnd(skillRunner, runId)
@@ -124,7 +144,8 @@ describe('render routes', () => {
       }),
     })
 
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(201)
+    const recorded = await response.json() as { support?: string }
 
     endAll()
     await waitForRunToEnd(skillRunner, runId)
@@ -134,6 +155,9 @@ describe('render routes', () => {
     expect(block?.type === 'block' && block.block.call === 'showFinding' && block.block.sides).toHaveLength(2)
     // Neither side carried a reference, so the derived support is the weakest.
     expect(block?.type === 'block' && block.block.call === 'showFinding' && block.block.support).toBe('thin')
+    // The skill is told what was derived, since it cannot compute this itself
+    // and its own wording should match the strength the reader is shown.
+    expect(recorded).toMatchObject({ support: 'thin' })
   })
 
   it('derives corroborated support when every side cites the graph', async () => {
@@ -141,6 +165,7 @@ describe('render routes', () => {
     const runId = await startRun(app, workspace.id)
     const ref = (provenance: string) => ({
       provenance,
+      ...(provenance === 'graph' ? { nodeId: CITED } : {}),
       reference: { sourceId: 'spec', location: { uri: 'docs/spec.md', startLine: 3 } },
     })
 
@@ -156,7 +181,7 @@ describe('render routes', () => {
         ],
       }),
     })
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(201)
 
     endAll()
     await waitForRunToEnd(skillRunner, runId)
@@ -170,6 +195,7 @@ describe('render routes', () => {
     const runId = await startRun(app, workspace.id)
     const ref = (provenance: string) => ({
       provenance,
+      ...(provenance === 'graph' ? { nodeId: CITED } : {}),
       reference: { sourceId: 'spec', location: { uri: 'docs/spec.md', startLine: 3 } },
     })
 
@@ -185,7 +211,7 @@ describe('render routes', () => {
         ],
       }),
     })
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(201)
 
     endAll()
     await waitForRunToEnd(skillRunner, runId)
@@ -210,6 +236,89 @@ describe('render routes', () => {
     })
 
     expect(response.status).toBe(400)
+    endAll()
+  })
+
+  // The declaration creates nothing and decides nothing, so it has nothing to
+  // send back, and a body saying "success" would be paid for in the run's own
+  // context to repeat the status line.
+  it('answers the no-clarification declaration with no content at all', async () => {
+    const { app, workspace, runTokens, startedBy, endAll } = await buildApp()
+    const runId = await startRun(app, workspace.id)
+    const token = runTokens.issue(runId as never, startedBy)
+
+    const response = await app.request(`/workspaces/${workspace.id}/clarifications/none`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    expect(response.status).toBe(204)
+    expect(await response.text()).toBe('')
+    endAll()
+  })
+
+  // A ref saying it came from the graph is the one claim this side can settle,
+  // so it is settled here rather than left for a reader to trip over.
+  it('refuses a block citing the graph for a node the model does not hold', async () => {
+    const { app, workspace, endAll } = await buildApp()
+    const runId = await startRun(app, workspace.id)
+
+    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/evidence`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        refs: [{
+          provenance: 'graph',
+          nodeId: 'node-never-existed',
+          reference: { sourceId: 'spec', location: { uri: 'a/b.md', startLine: 1 } },
+        }],
+      }),
+    })
+
+    expect(response.status).toBe(400)
+    expect(await response.text()).toContain('node-never-existed')
+    endAll()
+  })
+
+  // Claiming the graph while naming nothing makes the same claim and withholds
+  // the only thing that would let anyone test it.
+  it('refuses a block claiming the graph without naming what it took', async () => {
+    const { app, workspace, endAll } = await buildApp()
+    const runId = await startRun(app, workspace.id)
+
+    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/evidence`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        refs: [{
+          provenance: 'graph',
+          reference: { sourceId: 'spec', location: { uri: 'a/b.md', startLine: 1 } },
+        }],
+      }),
+    })
+
+    expect(response.status).toBe(400)
+    endAll()
+  })
+
+  // The run's own reading rests on nothing but itself, so there is nothing for
+  // the graph to settle and refusing it would refuse the ordinary case.
+  it('records a ref the run read for itself, which the graph cannot settle', async () => {
+    const { app, workspace, endAll } = await buildApp()
+    const runId = await startRun(app, workspace.id)
+
+    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/evidence`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        refs: [{
+          provenance: 'agent',
+          reference: { sourceId: 'spec', location: { uri: 'a/b.md', startLine: 1 } },
+        }],
+      }),
+    })
+
+    expect(response.status).toBe(201)
     endAll()
   })
 
@@ -276,7 +385,7 @@ describe('render routes', () => {
       }),
     })
 
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(201)
 
     endAll()
     await waitForRunToEnd(skillRunner, runId)
@@ -301,7 +410,7 @@ describe('render routes', () => {
       }),
     })
 
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(201)
 
     endAll()
     await waitForRunToEnd(skillRunner, runId)
@@ -323,7 +432,7 @@ describe('render routes', () => {
       }),
     })
 
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(201)
 
     endAll()
     await waitForRunToEnd(skillRunner, runId)
