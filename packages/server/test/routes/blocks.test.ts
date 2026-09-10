@@ -1,51 +1,25 @@
-import type { SkillRegistry } from '@braidhq/core'
-import type { AbsolutePath, NodeId, NodeTypeId, SkillEvent, SourceId } from '@braidhq/schema'
-import { mkdtemp } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { ClaudeCodeAgentBinding } from '@braidhq/agent-claude-code'
+import type { NodeId, NodeTypeId, SkillEvent, SourceId } from '@braidhq/schema'
+import type { createApp } from '../../src/app.js'
+import type { FsRunRepository } from '../../src/infrastructure/skill/FsRunRepository.js'
 import { UserId } from '@braidhq/schema'
-import { describe, expect, it } from 'vitest'
-import { createApp } from '../../src/app.js'
-import { composeApp } from '../../src/composeApp.js'
-import { FsRunRepository } from '../../src/infrastructure/skill/FsRunRepository.js'
+import { afterEach, describe, expect, it } from 'vitest'
 import { RunTokenRegistry } from '../../src/infrastructure/skill/RunTokenRegistry.js'
-import { SubprocessSkillRunner } from '../../src/infrastructure/skill/SubprocessSkillRunner.js'
-import { DEFAULT_AGENT_BINDING, makeSkillManifest, makeWorkspace } from '../helpers/fakes.js'
-import { createMockSpawn } from '../helpers/mockSpawn.js'
+import { buildRunnerApp, endAllSpawned } from '../helpers/runnerApp.js'
+import { waitForRunToEnd } from '../helpers/settle.js'
 
 /** The one node the graph holds, for a ref that says it came from there. */
 const CITED = 'node-signing' as NodeId
 
-function makeSkillRegistry(): SkillRegistry {
-  const manifest = makeSkillManifest({ id: 'braid:ask', path: '/abs/SKILL.md' as AbsolutePath })
-  return {
-    list: async () => [manifest],
-    find: async () => manifest,
-    get: async () => manifest,
-  }
-}
-
 async function buildApp() {
-  const rootPath = (await mkdtemp(join(tmpdir(), 'braid-blocks-route-'))) as AbsolutePath
-  const workspace = makeWorkspace({ rootPath })
-  const runRepository = new FsRunRepository()
   const runTokens = new RunTokenRegistry()
   // The run must outlive the request that posts a block,
   // so the scripted process holds its stdout open until the test releases it.
-  const { spawn, endAll } = createMockSpawn([{ stdoutLines: [], hold: true }])
-  const skillRegistry = makeSkillRegistry()
-  const skillRunner = new SubprocessSkillRunner({
+  const built = await buildRunnerApp({
+    spawns: [{ stdoutLines: [], hold: true }],
     runTokens,
-    skillRegistry,
-    buildAgentBinding: descriptor => new ClaudeCodeAgentBinding(descriptor),
-    defaultAgent: DEFAULT_AGENT_BINDING,
-    apiUrl: 'http://localhost:4321',
-    runRepository,
-    spawn,
+    compose: { accessTokenVerifiers: [runTokens] },
   })
-  const deps = composeApp({ skillRegistry, skillRunner, accessTokenVerifiers: [runTokens] })
-  await deps.workspaceRepository.save(workspace)
+  const { deps, workspace, runRepository, skillRunner, endAll } = built
   // A ref claiming the graph is checked against it, so a test citing a node
   // needs that node to exist, the same as a real run does.
   await deps.modelRepository.applyOperations(workspace.id, [
@@ -62,7 +36,7 @@ async function buildApp() {
       },
     },
   ])
-  return { app: createApp(deps), workspace, runRepository, skillRunner, runTokens, startedBy: UserId.parse('local-user'), endAll }
+  return { app: built.app, workspace, runRepository, skillRunner, runTokens, startedBy: UserId.parse('local-user'), endAll }
 }
 
 async function startRun(app: ReturnType<typeof createApp>, workspaceId: string): Promise<string> {
@@ -73,22 +47,6 @@ async function startRun(app: ReturnType<typeof createApp>, workspaceId: string):
   })
   const body = await response.json() as { runId: string }
   return body.runId
-}
-
-/**
- * The run drains asynchronously, so a fixed sleep flakes under load.
- * Poll the runner instead, which is the same condition the route checks.
- */
-async function waitForRunToEnd(
-  skillRunner: Awaited<ReturnType<typeof buildApp>>['skillRunner'],
-  runId: string,
-): Promise<void> {
-  for (let attempt = 0; attempt < 200; attempt += 1) {
-    if (!skillRunner.isActive(runId as never))
-      return
-    await new Promise(resolve => setTimeout(resolve, 10))
-  }
-  throw new Error(`Run "${runId}" never finished draining`)
 }
 
 async function readEvents(
@@ -103,6 +61,11 @@ async function readEvents(
 }
 
 describe('render routes', () => {
+  // A held process outlives a test that threw before releasing it, and its
+  // drain promise never settles. Released here so one failure cannot leave a
+  // handle open for the rest of the worker.
+  afterEach(endAllSpawned)
+
   it('records a showAnswer call on the run that made it', async () => {
     const { app, workspace, runRepository, skillRunner, endAll } = await buildApp()
     const runId = await startRun(app, workspace.id)

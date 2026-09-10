@@ -1,22 +1,6 @@
-import type { SkillRegistry } from '@braidhq/core'
-import type { AbsolutePath } from '@braidhq/schema'
-import { mkdtemp } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { EventSchemas, EventType } from '@ag-ui/core'
-import { ClaudeCodeAgentBinding } from '@braidhq/agent-claude-code'
-import { describe, expect, it } from 'vitest'
-import { createApp } from '../../src/app.js'
-import { composeApp } from '../../src/composeApp.js'
-import { FsRunRepository } from '../../src/infrastructure/skill/FsRunRepository.js'
-import { SubprocessSkillRunner } from '../../src/infrastructure/skill/SubprocessSkillRunner.js'
-import { DEFAULT_AGENT_BINDING, makeSkillManifest, makeWorkspace } from '../helpers/fakes.js'
-import { createMockSpawn } from '../helpers/mockSpawn.js'
-
-function makeSkillRegistry(): SkillRegistry {
-  const manifest = makeSkillManifest({ id: 'braid:ask', path: '/abs/SKILL.md' as AbsolutePath })
-  return { list: async () => [manifest], find: async () => manifest, get: async () => manifest }
-}
+import { afterEach, describe, expect, it } from 'vitest'
+import { buildRunnerApp, endAllSpawned } from '../helpers/runnerApp.js'
 
 /** The line claude opens a session with, which is what a resume needs. */
 function initLine(sessionId: string): string {
@@ -29,22 +13,9 @@ function assistantLine(text: string): string {
 }
 
 async function buildApp(stdoutLines: readonly string[], ...laterRuns: readonly (readonly string[])[]) {
-  const rootPath = (await mkdtemp(join(tmpdir(), 'braid-agui-route-'))) as AbsolutePath
-  const workspace = makeWorkspace({ rootPath })
-  const runRepository = new FsRunRepository()
-  const { spawn, invocations } = createMockSpawn([{ stdoutLines, exitCode: 0 }, ...laterRuns.map(lines => ({ stdoutLines: lines, exitCode: 0 }))])
-  const skillRegistry = makeSkillRegistry()
-  const skillRunner = new SubprocessSkillRunner({
-    skillRegistry,
-    buildAgentBinding: descriptor => new ClaudeCodeAgentBinding(descriptor),
-    defaultAgent: DEFAULT_AGENT_BINDING,
-    apiUrl: 'http://localhost:4321',
-    runRepository,
-    spawn,
+  return buildRunnerApp({
+    spawns: [stdoutLines, ...laterRuns].map(lines => ({ stdoutLines: lines, exitCode: 0 })),
   })
-  const deps = composeApp({ skillRegistry, skillRunner, runRepository })
-  await deps.workspaceRepository.save(workspace)
-  return { app: createApp(deps), workspace, skillRunner, invocations, deps }
 }
 
 /** Parse an SSE body back into the events a conformant client would see. */
@@ -69,7 +40,7 @@ function runInput(overrides: Record<string, unknown> = {}): Record<string, unkno
   }
 }
 
-async function postRun(app: ReturnType<typeof createApp>, workspaceId: string, body: Record<string, unknown>) {
+async function postRun(app: Awaited<ReturnType<typeof buildApp>>['app'], workspaceId: string, body: Record<string, unknown>) {
   return app.request(`/workspaces/${workspaceId}/agui`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
@@ -78,6 +49,8 @@ async function postRun(app: ReturnType<typeof createApp>, workspaceId: string, b
 }
 
 describe('agui route', () => {
+  afterEach(endAllSpawned)
+
   it('streams a run as events the protocol itself accepts', async () => {
     const { app, workspace } = await buildApp([assistantLine('Templates differ by audience.')])
 
