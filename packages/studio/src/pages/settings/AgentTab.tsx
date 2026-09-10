@@ -8,6 +8,9 @@ import { Input } from '@/components/ui/input'
 import { api } from '@/lib/api'
 import { queryKeys, useAgentCredential, useAgents } from '@/lib/queries'
 
+// Both full stops, since a catalog may be written in either script.
+const SENTENCE_END = /(?<=[.。])\s*/
+
 // Three tones rather than a badge per source,
 // since a reader acts on whether their runs are their own or refused.
 const SOURCE_TONE = {
@@ -33,16 +36,18 @@ export function AgentTab() {
         <h2 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t('admin.agent.title')}
         </h2>
-        <p className="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-          {t('admin.agent.description')}
-        </p>
+        <Sentences
+          className="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground"
+          text={t('admin.agent.description')}
+        />
       </div>
 
       {agents.map(agent => <AgentCredentialFields key={agent.kind} agent={agent} />)}
 
-      <p className="max-w-2xl text-2xs leading-relaxed text-muted-foreground">
-        {t('admin.agent.storageNote')}
-      </p>
+      <Sentences
+        className="max-w-2xl text-2xs leading-relaxed text-muted-foreground"
+        text={t('admin.agent.storageNote')}
+      />
     </div>
   )
 }
@@ -149,6 +154,24 @@ function AgentCredentialFields({ agent }: { agent: AgentSummary }) {
         </Button>
       </div>
     </div>
+  )
+}
+
+/**
+ * A paragraph that breaks where its writer put a full stop.
+ *
+ * A browser breaks wherever the box runs out,
+ * which lands mid clause and reads as though the sentence changed direction.
+ * Each sentence is its own block instead,
+ * so a break falls at a full stop wherever one still has to happen.
+ */
+function Sentences({ text, className }: { text: string, className: string }) {
+  return (
+    <p className={className}>
+      {text.split(SENTENCE_END).filter(Boolean).map(sentence => (
+        <span key={sentence} className="block">{sentence}</span>
+      ))}
+    </p>
   )
 }
 

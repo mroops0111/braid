@@ -69,7 +69,7 @@ export const admin = {
   },
   agent: {
     title: 'Agent Credential',
-    description: 'Runs you start spend an agent account. Save your own and they draw on your subscription rather than a seat shared with everyone else, which is what keeps one person\u2019s batch from throttling the rest.',
+    description: 'Runs you start spend an agent account. Save your own and they draw on your subscription, not a seat shared with everyone else. That is what keeps one person\u2019s batch from throttling the rest.',
     placeholder: 'Paste this agent\u2019s credential',
     placeholderCommand: 'Paste a token from `{command}`',
     saveButton: 'Save',
