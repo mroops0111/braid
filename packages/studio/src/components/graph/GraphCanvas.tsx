@@ -5,10 +5,11 @@ import type { NodeCardNode } from './useGraphLayout'
 import { localize } from '@braidhq/schema'
 import { Background, BackgroundVariant, ControlButton, Controls, getNodesBounds, MarkerType, MiniMap, ReactFlow, ReactFlowProvider, useNodesInitialized, useReactFlow } from '@xyflow/react'
 import { toPng, toSvg } from 'html-to-image'
-import { Download, GitBranch, PanelLeftClose, PanelLeftOpen, RotateCcw, Sparkles, Target } from 'lucide-react'
+import { Download, GitBranch, RotateCcw, Sparkles, Target } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
+import { PanelToggle } from '@/components/SurfaceLayout'
 import { Button } from '@/components/ui/button'
 import { asEdgeId } from '@/lib/brands'
 import { useLocale } from '@/lib/i18n'
@@ -573,14 +574,12 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
 
       <div ref={canvasRef} className="relative flex-1 bg-background">
         <div className="absolute left-3 top-3 z-10">
-          <button
-            type="button"
-            onClick={() => setNavigatorOpen(open => !open)}
-            aria-label={navigatorOpen ? t('graph.navigator.collapseButton') : t('graph.navigator.showButton')}
-            className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
-          >
-            {navigatorOpen ? <PanelLeftClose className="size-3.5" /> : <PanelLeftOpen className="size-3.5" />}
-          </button>
+          <PanelToggle
+            open={navigatorOpen}
+            label={navigatorOpen ? t('graph.navigator.collapseButton') : t('graph.navigator.showButton')}
+            onToggle={() => setNavigatorOpen(open => !open)}
+            floating
+          />
         </div>
         {filtered.nodes.length > 0 && (
           <div

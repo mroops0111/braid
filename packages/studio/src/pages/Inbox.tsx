@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { ListRow, ListRowTitle } from '@/components/ListRow'
 import { RunTranscript } from '@/components/RunTranscript'
 import { SurfaceBand } from '@/components/SurfaceBand'
-import { SurfaceLayout } from '@/components/SurfaceLayout'
+import { CollapseListButton, SurfaceLayout } from '@/components/SurfaceLayout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -44,6 +44,7 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
 }) {
   const { t } = useTranslation()
   const [kind, setKind] = useState<KindFilter>('all')
+  const [listOpen, setListOpen] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const clarifications = useClarificationByStatus(workspaceId, 'pending')
@@ -130,9 +131,10 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
     // answer button among them, ends up below the fold.
     <div className="flex h-full flex-col">
       <SurfaceLayout
+        collapse={{ collapsed: !listOpen, onToggle: next => setListOpen(!next), showLabel: t('common.showList') }}
         list={(
           <>
-            <SurfaceBand className="justify-start">
+            <SurfaceBand trailing={<CollapseListButton label={t('common.hideList')} onCollapse={() => setListOpen(false)} />}>
               <Tabs value={kind} onValueChange={value => setKind(value as KindFilter)}>
                 <TabsList variant="line">
                   <TabsTrigger value="all">{t('inbox.filter.all', { count: items.length })}</TabsTrigger>
@@ -250,7 +252,7 @@ function ItemDetail({ workspaceId, item, onComplete, onSettled }: {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <SurfaceBand className="justify-start px-4">{viewToggle}</SurfaceBand>
+      <SurfaceBand className="px-4">{viewToggle}</SurfaceBand>
       {item.kind === 'parked' && item.questions.length > 1 && view === 'record' && (
         // One run, several doubts. They are answered together, so they share
         // an item, and this is how a reader moves between them without losing

@@ -72,7 +72,7 @@ export function AskPage({ workspaceId }: { workspaceId: string }) {
         collapse={{
           collapsed: !listOpen,
           onToggle: next => setListOpen(!next),
-          showLabel: t('ask.showAnswers'),
+          showLabel: t('common.showList'),
         }}
         list={(
           <AnswerList
@@ -100,18 +100,23 @@ function AnswerList({ workspaceId, skill, answers, onCollapse }: {
 
   return (
     <>
-      <SurfaceBand title={t('ask.answersHeading')}>
-        <Button
-          variant="ghost"
-          size="xs"
-          className="[&_svg]:size-3"
-          onClick={() => runStore.clearTurns(workspaceId, skill.id)}
-        >
-          <Plus />
-          {t('ask.newQuestion')}
-        </Button>
-        <CollapseListButton label={t('ask.hideAnswers')} onCollapse={onCollapse} />
-      </SurfaceBand>
+      <SurfaceBand
+        title={t('ask.answersHeading')}
+        trailing={(
+          <>
+            <Button
+              variant="ghost"
+              size="xs"
+              className="[&_svg]:size-3"
+              onClick={() => runStore.clearTurns(workspaceId, skill.id)}
+            >
+              <Plus />
+              {t('ask.newQuestion')}
+            </Button>
+            <CollapseListButton label={t('common.hideList')} onCollapse={onCollapse} />
+          </>
+        )}
+      />
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         {answers.length === 0
           ? (
@@ -230,7 +235,7 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
         </div>
       </header>
 
-      <SurfaceBand className="justify-start px-4">
+      <SurfaceBand className="px-4">
         <ViewToggle value={view} onChange={setView} audiences={audiences} toolCalls={toolCalls} />
       </SurfaceBand>
 

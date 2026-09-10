@@ -11,6 +11,8 @@ const common: typeof en = {
   apply: '套用',
   reject: '拒絕',
   retry: '重試',
+  showList: '顯示清單',
+  hideList: '收起清單',
   confirm: '確認',
   submit: '送出',
   create: '建立',

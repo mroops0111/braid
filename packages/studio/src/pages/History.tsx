@@ -10,7 +10,7 @@ import { GraphCanvas } from '@/components/graph/GraphCanvas'
 import { ListRow } from '@/components/ListRow'
 import { NodeReferenceTag } from '@/components/references/ReferenceTag'
 import { SurfaceBand } from '@/components/SurfaceBand'
-import { SurfaceLayout } from '@/components/SurfaceLayout'
+import { CollapseListButton, SurfaceLayout } from '@/components/SurfaceLayout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -68,6 +68,7 @@ export function HistoryPage({ workspaceId }: HistoryPageProps) {
   const [selectedSha, setSelectedSha] = useState<CommitSha | null>(null)
   const [compareSha, setCompareSha] = useState<CommitSha | null>(null)
   const [pickingCompare, setPickingCompare] = useState(false)
+  const [listOpen, setListOpen] = useState(true)
 
   const commits = data?.items ?? []
   const tagsBySha = groupTagsBySha(tags?.items ?? [])
@@ -99,31 +100,38 @@ export function HistoryPage({ workspaceId }: HistoryPageProps) {
   return (
     <div className="flex h-full flex-col">
       <SurfaceLayout
+        collapse={{ collapsed: !listOpen, onToggle: next => setListOpen(!next), showLabel: t('common.showList') }}
         list={(
           <>
-            <SurfaceBand title={t('shell.surfaces.history')}>
-              {/* In the band rather than above the list, because a banner
-                  inserted over the commits pushes every row down the moment a
-                  reader starts choosing one. */}
-              {pickingCompare && (
+            <SurfaceBand
+              title={t('shell.surfaces.history')}
+              trailing={(
                 <>
-                  <span className="flex items-center gap-1 truncate text-2xs text-muted-foreground">
-                    <ArrowLeftRight className="size-3 shrink-0" />
-                    {t('history.compareBanner')}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    className="[&_svg]:size-3"
-                    title={t('common.cancel')}
-                    aria-label={t('common.cancel')}
-                    onClick={() => setPickingCompare(false)}
-                  >
-                    <X />
-                  </Button>
+                  {/* In the band rather than above the list, because a banner
+                      inserted over the commits pushes every row down the
+                      moment a reader starts choosing one. */}
+                  {pickingCompare && (
+                    <>
+                      <span className="flex items-center gap-1 truncate text-2xs text-muted-foreground">
+                        <ArrowLeftRight className="size-3 shrink-0" />
+                        {t('history.compareBanner')}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        className="[&_svg]:size-3"
+                        title={t('common.cancel')}
+                        aria-label={t('common.cancel')}
+                        onClick={() => setPickingCompare(false)}
+                      >
+                        <X />
+                      </Button>
+                    </>
+                  )}
+                  <CollapseListButton label={t('common.hideList')} onCollapse={() => setListOpen(false)} />
                 </>
               )}
-            </SurfaceBand>
+            />
             {isLoading
               ? <div className="p-4 text-sm text-muted-foreground">{t('common.loading')}</div>
               : commits.length === 0

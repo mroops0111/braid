@@ -49,7 +49,7 @@ export function DetailPanel({ badges, title, subtitle, actions, views, onClose, 
         {actions && <div className="pt-1">{actions}</div>}
       </header>
 
-      {views && <SurfaceBand className="justify-start px-4">{views}</SurfaceBand>}
+      {views && <SurfaceBand className="px-4">{views}</SurfaceBand>}
 
       <div className="flex min-h-0 flex-1 flex-col space-y-5 overflow-y-auto p-4 scrollbar-thin">
         {children}
