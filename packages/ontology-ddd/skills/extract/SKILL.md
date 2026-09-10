@@ -95,21 +95,11 @@ You can't tell whether two sources are describing the *same* concept (alias or d
 
 What you do next depends on whether anyone is waiting to answer.
 
-**Attended, the default.** Emit a Clarification per Step 5, then stop. See
-§ Step 4 for what the server will and will not let you do here.
+**Attended, the default.** Emit a Clarification per Step 5, then stop. See § Step 4 for what the server will and will not let you do here.
 
-**Unattended, when `$BRAID_UNATTENDED` is `true`.** A batch is driving you and
-applying what you produce, so stopping would leave the graph empty rather than
-approximate, which is the wrong trade during a bootstrap. Model it the
-splittable way instead: keep the readings as separate nodes rather than merging
-them into one, since merging two nodes later is mechanical while splitting one
-is not, its references have already been pooled and nothing records which
-belonged where. Set `status: 'unclear'` on every node the doubt touches, attach
-a `DriftIssue` naming the two readings, and still emit the Clarification per
-Step 5. Then carry on and submit the proposal.
+**Unattended, when `$BRAID_UNATTENDED` is `true`.** A batch is driving you and applying what you produce, so stopping would leave the graph empty rather than approximate, which is the wrong trade during a bootstrap. Model it the splittable way instead: keep the readings as separate nodes rather than merging them into one, since merging two nodes later is mechanical while splitting one is not, its references have already been pooled and nothing records which belonged where. Set `status: 'unclear'` on every node the doubt touches, attach a `DriftIssue` naming the two readings, and still emit the Clarification per Step 5. Then carry on and submit the proposal.
 
-Never guess silently in either mode. The difference is whether the doubt stops
-the run or is recorded in the graph, not whether it is recorded at all.
+Never guess silently in either mode. The difference is whether the doubt stops the run or is recorded in the graph, not whether it is recorded at all.
 
 #### Field-Level Drift: DriftIssue Attached to the Node
 
@@ -119,23 +109,14 @@ This split is load-bearing: Clarifications are "the human must decide what this 
 
 ### Step 4: Submit the Proposal
 
-**Say first whether anything needs clarifying.** A run either raises a question
-and stops, or reports that it found none and proposes. The server holds you to
-that, so `proposal-create` is refused until you have done one of the two:
+**Say first whether anything needs clarifying.** A run either raises a question and stops, or reports that it found none and proposes. The server holds you to that, so `proposal-create` is refused until you have done one of the two:
 
-- Something you cannot decide: raise it per Step 5. This run ends there. The
-  answer continues this same conversation, and you propose then, against the
-  graph as it stands at that moment rather than as it stands now.
-- Nothing you cannot decide: call the `braid-core` no-clarification capability
-  once, then propose.
+- Something you cannot decide: raise it per Step 5. This run ends there. The answer continues this same conversation, and you propose then, against the graph as it stands at that moment rather than as it stands now.
+- Nothing you cannot decide: call the `braid-core` no-clarification capability once, then propose.
 
-This is not bookkeeping. A proposal resting on an unanswered question asks a
-reviewer to approve what the answer may overturn, and its operations would name
-nodes that do not exist yet. Deciding before you submit is what keeps the two
-apart.
+This is not bookkeeping. A proposal resting on an unanswered question asks a reviewer to approve what the answer may overturn, and its operations would name nodes that do not exist yet. Deciding before you submit is what keeps the two apart.
 
-A batch that applies its own output is exempt, and there both are wanted. See
-§ Identity-Level Disagreement for what that mode does instead.
+A batch that applies its own output is exempt, and there both are wanted. See § Identity-Level Disagreement for what that mode does instead.
 
 Submit the Proposal via the `braid-core` proposal-create capability:
 
@@ -159,10 +140,7 @@ Two forms, and the render calls are the one a person reads.
 
 ### Render Calls
 
-A reviewer decides whether to apply what you propose, and a stdout summary
-gives them nothing to decide with. Show your working as you go, using the
-`braid-core` render tools with `$BRAID_RUN_ID`. Follow
-`$BRAID_SHARED_REFERENCE/block-protocol.md` for what each call carries.
+A reviewer decides whether to apply what you propose, and a stdout summary gives them nothing to decide with. Show your working as you go, using the `braid-core` render tools with `$BRAID_RUN_ID`. Follow `$BRAID_SHARED_REFERENCE/block-protocol.md` for what each call carries.
 
 | When | Call | Carries |
 |---|---|---|
@@ -173,35 +151,17 @@ gives them nothing to decide with. Show your working as you go, using the
 | Only when the spec itself is a sequence you had to follow to model it | `show_diagram` | A mermaid diagram of that sequence. Skip it otherwise, a reviewer is deciding whether these nodes are right, and a picture of a flow does not help with that. |
 | When the proposal touches nodes already in the graph | `show_subgraph` | The ids it lands next to, so a reviewer sees where it attaches. |
 
-Call them as each part settles, never batched at the end. A reviewer watches
-the reasoning assemble, which is what makes a proposal reviewable rather than
-merely present.
+Call them as each part settles, never batched at the end. A reviewer watches the reasoning assemble, which is what makes a proposal reviewable rather than merely present.
 
 #### What `show_subgraph` Says That The Proposal Does Not
 
-The proposal is the change: every operation, in full, gated by review. Repeating
-it as a picture adds nothing and costs a reviewer a second reading of the same
-list. So a `show_subgraph` that draws the nodes you are creating is wasted, and
-its title giving away that it is the proposal again is the sign you drew the
-wrong thing.
+The proposal is the change: every operation, in full, gated by review. Repeating it as a picture adds nothing and costs a reviewer a second reading of the same list. So a `show_subgraph` that draws the nodes you are creating is wasted, and its title giving away that it is the proposal again is the sign you drew the wrong thing.
 
-What the proposal cannot show is the graph it lands in. It names the nodes it
-creates and the edges it adds, but a reviewer deciding whether a new boundary
-is drawn in the right place needs the nodes already there that it attaches to,
-and how far its edges reach into them. That neighbourhood is what this call is
-for.
+What the proposal cannot show is the graph it lands in. It names the nodes it creates and the edges it adds, but a reviewer deciding whether a new boundary is drawn in the right place needs the nodes already there that it attaches to, and how far its edges reach into them. That neighbourhood is what this call is for.
 
-So include the existing nodes the proposal connects to, and the new ones only
-where an edge between the two is the point. Leave out any new node that touches
-nothing existing, since it has no position to show yet. If the proposal
-attaches to nothing at all, skip the call: an empty graph is not a place, and
-saying so is the honest answer.
+So include the existing nodes the proposal connects to, and the new ones only where an edge between the two is the point. Leave out any new node that touches nothing existing, since it has no position to show yet. If the proposal attaches to nothing at all, skip the call: an empty graph is not a place, and saying so is the honest answer.
 
-Leave `audiences` empty on all of them, and write nothing addressed to one
-reader. The graph is one canonical model, and a proposal against it is read by
-whoever holds the gate, so there is no second perspective to split. Rendering
-what this means for one audience or another belongs to a skill that answers a
-question, not to one that proposes a change.
+Leave `audiences` empty on all of them, and write nothing addressed to one reader. The graph is one canonical model, and a proposal against it is read by whoever holds the gate, so there is no second perspective to split. Rendering what this means for one audience or another belongs to a skill that answers a question, not to one that proposes a change.
 
 ### Stdout
 
