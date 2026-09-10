@@ -76,7 +76,7 @@ export const admin = {
     replaceButton: 'Replace',
     forgetButton: 'Forget',
     savedMasked: 'Saved {masked}',
-    storageNote: 'Encrypted before it is written, and no page or API reads it back, including this one. Runs never receive it either. The server spends it on their behalf and lends them a stand-in that expires with the run.',
+    storageNote: 'Encrypted before it is written, and no page or API reads it back, including this one. Runs never receive it either, so the server spends it on their behalf and lends a stand-in that expires with the run.',
     unavailable: 'This server stores no credentials, so every run spends its own configuration.',
     noAgents: 'This server has no agent registered, so there is nothing to save a credential for.',
     source: {

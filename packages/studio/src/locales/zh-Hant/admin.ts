@@ -78,7 +78,7 @@ const admin: typeof en = {
     replaceButton: '更換',
     forgetButton: '移除',
     savedMasked: '已儲存 {masked}',
-    storageNote: '寫入前先加密，沒有任何頁面或 API 讀得回來，包含這一頁。執行也拿不到它。伺服器代為花用，只借給執行一個隨執行失效的替身。',
+    storageNote: '寫入前先加密，沒有任何頁面或 API 讀得回來，包含這一頁。執行也拿不到它，伺服器代為花用，只借給執行一個隨執行失效的替身。',
     unavailable: '此伺服器不儲存憑證，所有執行都使用自身設定。',
     noAgents: '此伺服器沒有註冊任何代理，沒有可以存入憑證的對象。',
     source: {
