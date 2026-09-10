@@ -1,4 +1,5 @@
 export const actionInput = {
+  anyOption: 'Any',
   submitDefaultButton: 'Start',
   // Plain Enter stays a newline here, since inputs can be multi-sentence.
   submitShortcutHint: '⌘ + Enter',

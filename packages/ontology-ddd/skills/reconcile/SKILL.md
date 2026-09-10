@@ -27,9 +27,10 @@ braid:
       default: ""
     - name: scope
       label: Scope
-      description: Bounded context to focus on. Leave empty for a full-graph pass.
+      description: Bounded context to focus on, or the whole graph.
       kind: pick
       optional: true
+      placeholder: Whole graph
       provider:
         kind: graph-node
         filter:

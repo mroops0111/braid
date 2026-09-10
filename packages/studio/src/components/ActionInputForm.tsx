@@ -65,13 +65,22 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
 
   // Required inputs must be filled.
   // Multi-pick required = one selection,
-  // scalar required = a non-empty value.
+  // free text required = a non-empty value.
+  //
+  // A pick is different: what makes it filled is that the value names one of
+  // its options, not that the value is non-empty. A skill is free to give an
+  // option the empty value, and reconcile does, since "build and validate" is
+  // the mode you get by passing no mode at all. Read as free text, that
+  // choice looked like no choice and the run button never enabled.
   const missingRequired = inputs.filter((input) => {
     if (input.optional)
       return false
     if (input.kind === 'multi-pick')
       return (multiValues[input.name]?.length ?? 0) === 0
-    return (scalarValues[input.name] ?? '').trim() === ''
+    const value = scalarValues[input.name] ?? ''
+    if (input.kind === 'pick' && input.provider.kind === 'static')
+      return !input.provider.options.some(option => option.value === value)
+    return value.trim() === ''
   })
   // Refuse more than one multi-pick per skill.
   // The cartesian product gets too big and the transcript unreadable.
@@ -418,21 +427,32 @@ function SelectControl({
   disabled: boolean
   options: readonly SkillInputDynamicOption[]
 }) {
+  const { t } = useTranslation()
+  const chosen = options.find(option => option.value === value)
   return (
-    <select
-      id={`input-${input.name}`}
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      disabled={disabled}
-      className="mt-1 w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
-    >
-      {input.optional && <option value="">{input.placeholder ?? `Select ${input.label}…`}</option>}
-      {options.map(option => (
-        <option key={option.value} value={option.value} title={option.description ?? undefined}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+    <>
+      <select
+        id={`input-${input.name}`}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        disabled={disabled}
+        className="mt-1 w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+      >
+        {input.optional && <option value="">{input.placeholder ?? t('actionInput.anyOption')}</option>}
+        {options.map(option => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {/* Under the field rather than on the option's `title`. A skill that
+          bothered to say what a choice does was saying it to a tooltip that
+          a reader has to hover a closed dropdown to find, which is to say it
+          was saying it to nobody. */}
+      {chosen?.description && (
+        <p className="mt-1 text-2xs text-muted-foreground">{chosen.description}</p>
+      )}
+    </>
   )
 }
 
