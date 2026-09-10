@@ -1,7 +1,7 @@
-import type { Workspace } from '@braidhq/schema'
+import type { SkillManifest, Workspace } from '@braidhq/schema'
 import type { Sparkles } from 'lucide-react'
 import type { Surface } from './CommandPalette'
-import { Boxes, GitGraph, Globe, Inbox, Laptop, LogIn, MessageCircleQuestion, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings } from 'lucide-react'
+import { Boxes, GitGraph, Globe, Inbox, Laptop, Loader2, LogIn, MessageCircleQuestion, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import braidLogo from '@/assets/braid-logo.svg'
@@ -9,6 +9,7 @@ import { usePendingClarification, usePendingProposals, useRuns, useSkills } from
 import { setActiveRemoteId, useActiveRemoteId } from '@/lib/remotes'
 import { startSignIn } from '@/lib/signIn'
 import { type RemoteSummary, type RemoteWorkspacesResult, useAllRemoteWorkspaces } from '@/lib/useRemoteWorkspaces'
+import { useRunningSkills } from '@/lib/useRun'
 import { cn } from '@/lib/utils'
 import { useWorkspacePolicy } from '@/policy'
 import { CreateWorkspaceWizard } from './CreateWorkspaceWizard'
@@ -531,6 +532,7 @@ function HereSection({
     && policy.can('skill.run', { skill: s.frontmatter, skillId: s.id }),
   )
   const canSeeHistory = policy.effectiveRole !== null && policy.effectiveRole !== 'guest'
+  const inFlight = useRunsInFlight(workspaceId, skills?.items ?? [])
 
   return (
     <div className={cn('shrink-0 px-2 pb-2', collapsed ? 'pt-1.5' : 'pt-2')}>
@@ -546,6 +548,7 @@ function HereSection({
             icon={MessageCircleQuestion}
             label={t('shell.surfaces.ask')}
             active={activeSurface === 'ask'}
+            running={inFlight.asking}
             shortcut="G Q"
             onClick={() => onSelectSurface('ask')}
           />
@@ -576,6 +579,7 @@ function HereSection({
             active={activeSurface === 'inbox'}
             shortcut="G I"
             count={pendingClarification + pendingProposals}
+            running={inFlight.working}
             onClick={() => onSelectSurface('inbox')}
           />
         )}
@@ -620,17 +624,62 @@ function AccountSection({
   )
 }
 
-function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, onClick }: {
+interface InFlight {
+  /** A run on the Ask surface is going. */
+  readonly asking: boolean
+  /** A run whose outcome lands in the Inbox is going. */
+  readonly working: boolean
+}
+
+/**
+ * Which surfaces have a run going.
+ *
+ * Two sources, because neither alone is enough. The local store knows the
+ * instant this reader presses a button, and the server's list knows about
+ * runs somebody else started. A count of what is waiting cannot stand in for
+ * this: work in flight has no length, and a reader who sees nothing until the
+ * run produces something reads the wait as a surface that ignored them.
+ */
+function useRunsInFlight(
+  workspaceId: string,
+  skills: readonly SkillManifest[],
+): InFlight {
+  const local = useRunningSkills(workspaceId)
+  const { data: runs } = useRuns(workspaceId)
+  const categories = new Map<string, string | undefined>(
+    skills.map(skill => [skill.id, skill.frontmatter.braid.category]),
+  )
+  const running = new Set<string>([
+    ...local,
+    ...(runs?.items ?? []).filter(run => !run.completedAt).map(run => run.skillId),
+  ])
+  const asking = [...running].some(skillId => categories.get(skillId) === 'ask')
+  // Everything that is not a question lands somewhere to be decided, so the
+  // Inbox is where its reader is waiting even before it has produced a card.
+  const working = [...running].some(skillId => categories.get(skillId) !== 'ask')
+  return { asking, working }
+}
+
+function HereRow({ collapsed, icon: Icon, label, active, count = 0, running = false, shortcut, onClick }: {
   collapsed: boolean
   icon: typeof Sparkles
   label: string
   active: boolean
   count?: number
+  /**
+   * Something is happening on this surface right now.
+   *
+   * Not a count. A queue has a length and work in flight does not, and a
+   * reader who has just started something needs to see it is under way from
+   * wherever they wander off to, not only once it has produced something to
+   * decide.
+   */
+  running?: boolean
   shortcut?: string
   onClick: () => void
 }) {
   const { t } = useTranslation()
-  const collapsedTitle = [label, count > 0 ? `(${count})` : null, shortcut].filter(Boolean).join(' ')
+  const collapsedTitle = [label, running ? t('shell.sidebar.running') : null, count > 0 ? `(${count})` : null, shortcut].filter(Boolean).join(' ')
   return (
     <ListRow
       variant="sidebar"
@@ -648,9 +697,11 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, on
               >
                 <Icon className="size-3.5" />
               </div>
-              {count > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-primary ring-2 ring-sidebar" />
-              )}
+              {running
+                ? <Loader2 className="absolute -right-1 -top-1 size-2.5 animate-spin text-primary" />
+                : count > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-primary ring-2 ring-sidebar" />
+                )}
             </div>
           )
         : (
@@ -659,6 +710,9 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, shortcut, on
                 <Icon className="size-4" />
               </div>
               <span className="flex-1 truncate text-left font-medium">{label}</span>
+              {running && (
+                <Loader2 className="size-3 shrink-0 animate-spin text-primary" aria-label={t('shell.sidebar.running')} />
+              )}
               {count > 0 && (
                 <span
                   className="rounded bg-sidebar-accent px-1.5 py-0.5 text-2xs font-medium text-sidebar-foreground/80"

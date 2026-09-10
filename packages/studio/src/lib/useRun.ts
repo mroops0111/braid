@@ -9,6 +9,34 @@ export function useRun(workspaceId: string | null, runId: string | null | undefi
   )
 }
 
+const EMPTY_SKILLS: readonly string[] = Object.freeze([])
+
+const runningCache = new Map<string, readonly string[]>()
+
+/**
+ * The skills with a run going, as a subscription.
+ *
+ * The snapshot is cached against the last one, since `useSyncExternalStore`
+ * compares by identity and a fresh array every render reads as a change that
+ * never settles.
+ */
+export function useRunningSkills(workspaceId: string | null): readonly string[] {
+  return useSyncExternalStore(
+    cb => runStore.subscribe(cb),
+    () => {
+      if (!workspaceId)
+        return EMPTY_SKILLS
+      const next = runStore.runningSkills(workspaceId)
+      const cached = runningCache.get(workspaceId)
+      if (cached && shallowEqualReadonly(cached, next))
+        return cached
+      runningCache.set(workspaceId, next)
+      return next
+    },
+    () => EMPTY_SKILLS,
+  )
+}
+
 const EMPTY_TURNS: readonly string[] = Object.freeze([])
 
 /**

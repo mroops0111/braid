@@ -68,6 +68,23 @@ class RunStore {
     return this.runs.get(runKey(workspaceId, runId))
   }
 
+  /**
+   * Which skills have a run going right now, in this workspace.
+   *
+   * Skill ids rather than run ids, because the reader who wants this is
+   * deciding whether a surface has work under way, not which run it is. The
+   * server's run list answers the same question one refetch later, and a
+   * reader who has just pressed a button should not have to wait for it.
+   */
+  runningSkills(workspaceId: string): readonly string[] {
+    const running = new Set<string>()
+    for (const state of this.runs.values()) {
+      if (state.workspaceId === workspaceId && state.phase === 'streaming')
+        running.add(state.skillId)
+    }
+    return [...running].sort()
+  }
+
   getTurns(workspaceId: string, skillId: string): readonly string[] {
     // One shared empty array, never a fresh one. A subscriber compares
     // snapshots by identity, so returning a new `[]` each call reads as a

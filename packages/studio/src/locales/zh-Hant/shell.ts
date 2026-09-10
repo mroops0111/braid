@@ -36,6 +36,7 @@ const shell: typeof en = {
     detailsLabel: '詳細資料',
     hereTitle: '目前位置',
     pendingCount: '{count} 個待處理',
+    running: '執行中',
     runsInFlight: '{count, plural, one {# 個執行進行中} other {# 個執行進行中}}',
     pendingClarifications: '{count, plural, one {# 個待釐清} other {# 個待釐清}}',
     pendingProposals: '{count, plural, one {# 個待審提案} other {# 個待審提案}}',

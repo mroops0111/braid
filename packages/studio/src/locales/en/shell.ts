@@ -40,6 +40,7 @@ export const shell = {
     detailsLabel: 'Details',
     hereTitle: 'Here',
     pendingCount: '{count} pending',
+    running: 'Running now',
     runsInFlight: '{count, plural, one {# run in flight} other {# runs in flight}}',
     pendingClarifications: '{count, plural, one {# pending clarification} other {# pending clarifications}}',
     pendingProposals: '{count, plural, one {# pending proposal} other {# pending proposals}}',
