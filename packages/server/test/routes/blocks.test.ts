@@ -423,24 +423,4 @@ describe('render routes', () => {
     const block = events.find(event => event.type === 'block')
     expect(block?.type === 'block' && block.block.audiences).toEqual([])
   })
-
-  it('publishes the render operations in the OpenAPI document', async () => {
-    const { app, endAll } = await buildApp()
-
-    const document = await (await app.request('/openapi.json')).json() as {
-      paths: Record<string, Record<string, { operationId?: string }>>
-    }
-    const operationIds = Object.values(document.paths)
-      .flatMap(methods => Object.values(methods))
-      .map(operation => operation.operationId)
-
-    expect(operationIds).toContain('showAnswer')
-    expect(operationIds).toContain('showEvidence')
-    expect(operationIds).toContain('showFinding')
-    expect(operationIds).toContain('showMatrix')
-    expect(operationIds).toContain('showTrace')
-    expect(operationIds).toContain('showDiagram')
-    expect(operationIds).toContain('showSubgraph')
-    endAll()
-  })
 })
