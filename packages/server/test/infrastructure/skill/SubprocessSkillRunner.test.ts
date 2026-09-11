@@ -1,10 +1,11 @@
-import type { AbsolutePath, AgentBindingDescriptor, SkillAgentOverride, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceEvent } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, SkillAgentOverride, SkillCategory, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceEvent } from '@braidhq/schema'
 import { mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ClaudeCodeAgentBinding } from '@braidhq/agent-claude-code'
 import {
   type AgentBinding,
+  ConflictError,
   ServiceUnavailableError,
   SkillManifest,
   type SkillRegistry,
@@ -35,8 +36,9 @@ interface BuildRunnerInput {
   readonly skillRegistry?: SkillRegistry
   readonly skillAgent?: SkillAgentOverride
   readonly buildAgentBinding?: (descriptor: AgentBindingDescriptor) => AgentBinding
-  readonly coreGateway?: { specUrl: string, uvxBin?: string }
+  readonly coreGateway?: { specUrlFor: (category: SkillCategory) => string, uvxBin?: string }
   readonly resolveSourceRoles?: (workspace: Workspace) => readonly SourceRoleDescriptor[]
+  readonly category?: 'ask' | 'build'
 }
 
 interface BuiltRunner {
@@ -48,7 +50,7 @@ interface BuiltRunner {
 }
 
 async function buildRunner(input: BuildRunnerInput): Promise<BuiltRunner> {
-  const skillRegistry = input.skillRegistry ?? await makeSkillRegistry(input.rootPath, input.skillAgent)
+  const skillRegistry = input.skillRegistry ?? await makeSkillRegistry(input.rootPath, input.skillAgent, input.category)
   const runRepository = input.runRepository ?? new FsRunRepository()
   const { spawn, invocations } = createMockSpawn(input.sequence ?? [{ stdoutLines: [], exitCode: 0 }])
   const runner = new SubprocessSkillRunner({
@@ -73,7 +75,7 @@ async function makeWorkspaceRoot(): Promise<AbsolutePath> {
   return (await mkdtemp(join(tmpdir(), 'braid-runner-'))) as AbsolutePath
 }
 
-async function makeSkillRegistry(skillSourceParent: AbsolutePath, agent?: SkillAgentOverride): Promise<SkillRegistry> {
+async function makeSkillRegistry(skillSourceParent: AbsolutePath, agent?: SkillAgentOverride, category?: 'ask' | 'build'): Promise<SkillRegistry> {
   // Materialise a real SKILL.md so the runner's session-dir builder can symlink it.
   // Tests that don't care about the session-dir layout still get a valid manifest.
   const skillDir = join(skillSourceParent, 'ask')
@@ -92,6 +94,7 @@ async function makeSkillRegistry(skillSourceParent: AbsolutePath, agent?: SkillA
         requiredMcpServers: [],
         allowedRoles: ['owner', 'maintainer'],
         ...(agent ? { agent } : {}),
+        ...(category ? { category } : {}),
       },
     },
   })
@@ -144,6 +147,37 @@ describe('SubprocessSkillRunner', () => {
     expect(invocations[0]?.command).toBe('claude')
   })
 
+  // The graph only accumulates, so two builds against it race,
+  // each reading a snapshot the other is changing.
+  // Refused at the runner because every path that starts a run comes through.
+  it('refuses a second build run while one is already going', async () => {
+    const rootPath = await makeWorkspaceRoot()
+    const { runner, workspace } = await buildRunner({
+      rootPath,
+      category: 'build',
+      sequence: [{ stdoutLines: [], exitCode: 0, hold: true }],
+    })
+
+    await runner.start(workspace, SKILL_ID, '', { startedBy: STARTED_BY })
+    await expect(runner.start(workspace, SKILL_ID, '', { startedBy: STARTED_BY }))
+      .rejects
+      .toThrow(ConflictError)
+  })
+
+  // Answering reads the graph rather than adding to it, so it never waits,
+  // and a long bootstrap does not lock the workspace out of questions.
+  it('lets an answer run start beside a build', async () => {
+    const rootPath = await makeWorkspaceRoot()
+    const { runner, workspace } = await buildRunner({
+      rootPath,
+      category: 'ask',
+      sequence: [{ stdoutLines: [], exitCode: 0, hold: true }, { stdoutLines: [], exitCode: 0 }],
+    })
+
+    await runner.start(workspace, SKILL_ID, '', { startedBy: STARTED_BY })
+    await expect(runner.start(workspace, SKILL_ID, '', { startedBy: STARTED_BY })).resolves.toBeDefined()
+  })
+
   it('merges a skill agent override onto the server default', async () => {
     const rootPath = await makeWorkspaceRoot()
     let captured: AgentBindingDescriptor | undefined
@@ -182,8 +216,8 @@ describe('SubprocessSkillRunner', () => {
     expect(sessionCwd).toContain('.braid-sessions/')
     expect(sessionCwd.startsWith(rootPath)).toBe(true)
 
-    // The `braid:ask` skill stages as plugin `braid`, verb dir `ask`, plus a
-    // .claude-plugin/plugin.json manifest naming the namespace.
+    // The `braid:ask` skill stages as plugin `braid`, verb dir `ask`,
+    // plus a .claude-plugin/plugin.json manifest naming the namespace.
     const pluginRoot = join(sessionCwd, '.skill-bundles', 'braid')
     const pluginManifest = JSON.parse(
       await readFile(join(pluginRoot, '.claude-plugin', 'plugin.json'), 'utf-8'),
@@ -249,7 +283,7 @@ describe('SubprocessSkillRunner', () => {
     const rootPath = await makeWorkspaceRoot()
     const { runner, workspace, invocations } = await buildRunner({
       rootPath,
-      coreGateway: { specUrl: 'http://localhost:4321/openapi.json' },
+      coreGateway: { specUrlFor: category => `http://localhost:4321/openapi/runs/${category}/openapi.json` },
       sequence: [{ stdoutLines: ['Invalid, ParameterInfo schema_type'], exitCode: 1 }],
     })
 
@@ -263,7 +297,7 @@ describe('SubprocessSkillRunner', () => {
     const rootPath = await makeWorkspaceRoot()
     const { runner, workspace, invocations } = await buildRunner({
       rootPath,
-      coreGateway: { specUrl: 'http://localhost:4321/openapi.json' },
+      coreGateway: { specUrlFor: category => `http://localhost:4321/openapi/runs/${category}/openapi.json` },
       sequence: [{ stdoutLines: [], exitCode: 0 }, { stdoutLines: [], exitCode: 0 }],
     })
 
@@ -277,7 +311,7 @@ describe('SubprocessSkillRunner', () => {
     let gatewayArgs: readonly string[] | undefined
     const { runner, workspace } = await buildRunner({
       rootPath,
-      coreGateway: { specUrl: 'http://localhost:4321/openapi.json' },
+      coreGateway: { specUrlFor: category => `http://localhost:4321/openapi/runs/${category}/openapi.json` },
       sequence: [{ stdoutLines: [], exitCode: 0 }, { stdoutLines: [], exitCode: 0 }],
       buildAgentBinding: (descriptor) => {
         const inner = new ClaudeCodeAgentBinding(descriptor)
@@ -343,8 +377,9 @@ describe('SubprocessSkillRunner', () => {
 
     const { events } = await collectRunEvents(runner, workspace, '')
 
-    // The result envelope restates the assistant's text, so it emits no second
-    // message. Only the assistant's own text reaches a reader.
+    // The result envelope restates the assistant's text,
+    // so it emits no second message.
+    // Only the assistant's own text reaches a reader.
     expect(events.map(event => event.type)).toEqual(['started', 'thinking', 'message', 'tool-call', 'completed'])
     const thinking = events[1]
     expect(thinking && 'text' in thinking ? thinking.text : undefined).toBe('hidden')

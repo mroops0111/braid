@@ -211,6 +211,19 @@ export function createGithubLoader(deps: GithubLoaderDeps): SourceLoaderPlugin {
         fetchedAt: new Date().toISOString() as Timestamp,
       }
     },
+    /**
+     * A unit here is one issue, written as `<number>.md`,
+     * so the link goes to the issue rather than to a file in a tree.
+     * Line numbers describe the local rendering and mean nothing upstream,
+     * so they are dropped.
+     */
+    webUrlFor: ({ config, unitPath }) => {
+      const number = /(\d+)\.md$/.exec(unitPath)?.[1]
+      if (!number)
+        return null
+      return `https://github.com/${config.owner}/${config.repo}/issues/${number}`
+    },
+
     webhook: {
       // Deliveries come from the web host, not the API host,
       // so drop the `api.` prefix. Knowing that mapping is fine here,

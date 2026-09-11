@@ -1,6 +1,6 @@
 import type { Clarification, ClarificationCandidate, ClarificationStatus, ExternalReference, GraphOperation, NodeId, ProposalId } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, ExternalLink, Inbox, Pencil, Plus, SkipForward, X } from 'lucide-react'
+import { Check, Clock, ExternalLink, Inbox, Pencil, Plus, SkipForward, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
@@ -354,14 +354,27 @@ function ClarificationListItem({
   )
 }
 
-function ClarificationDetail({
+export function ClarificationDetail({
   workspaceId,
   ticket,
   onComplete,
+  onSettled,
 }: {
   workspaceId: string
   ticket: Clarification
   onComplete: () => void
+  /**
+   * Called after the answer lands, for a caller that wants to act on it.
+   * The Inbox continues the run that asked,
+   * so the work carries on where it stopped,
+   * instead of waiting for someone to start it again.
+   */
+  /**
+   * Called once the question is settled, whichever way.
+   * A run parked on it is released by any of the three,
+   * so the caller hears about all three.
+   */
+  onSettled?: (ticket: Clarification) => void
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -391,6 +404,19 @@ function ClarificationDetail({
       api.answerClarification(workspaceId, ticket.id, input.selection, input.note),
     onSuccess: () => {
       invalidateClarification()
+      onSettled?.(ticket)
+      onComplete()
+    },
+  })
+
+  // Deferring gives up the conversation, not the question.
+  // Only a question a run is parked on has a conversation to give up,
+  // so it is offered nowhere else.
+  const defer = useMutation({
+    mutationFn: () => api.deferClarification(workspaceId, ticket.id),
+    onSuccess: () => {
+      invalidateClarification()
+      onSettled?.(ticket)
       onComplete()
     },
   })
@@ -400,6 +426,7 @@ function ClarificationDetail({
       api.skipClarification(workspaceId, ticket.id, reason),
     onSuccess: () => {
       invalidateClarification()
+      onSettled?.(ticket)
       onComplete()
     },
   })
@@ -520,6 +547,18 @@ function ClarificationDetail({
                     <SkipForward />
                     {t('review.clarify.skipButton')}
                   </Button>
+                  {ticket.answerMode === 'resumes' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title={t('review.clarify.deferHint')}
+                      disabled={answer.isPending || defer.isPending}
+                      onClick={() => defer.mutate()}
+                    >
+                      <Clock />
+                      {t('review.clarify.deferButton')}
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     disabled={!canAnswer}

@@ -1,13 +1,14 @@
 import type { EdgeId, NodeId, ProposalId } from '@braidhq/schema'
 import type { Surface } from './components/CommandPalette'
 import { NODE_REFERENCE_KIND } from '@braidhq/schema'
-import { Settings2, Sparkles } from 'lucide-react'
+import { Settings2, Sparkles, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { BatchInFlightBanner } from './components/BatchInFlightBanner'
 import { CommandPalette } from './components/CommandPalette'
 import { CreateWorkspaceWizard } from './components/CreateWorkspaceWizard'
 import { EmbeddingRebuildBanner } from './components/EmbeddingRebuildBanner'
+import { useSubgraphDataSource } from './components/graph/GraphDataSource'
 import { InFlightRunBanner } from './components/InFlightRunBanner'
 import { PageActions, PageActionsHost, PageActionsProvider } from './components/PageActions'
 import { ReactorBanner } from './components/ReactorBanner'
@@ -16,10 +17,12 @@ import { ReferenceRegistryProvider } from './components/references/ReferenceRegi
 import { Sidebar } from './components/Sidebar'
 import { SourceAuthBanner } from './components/SourceAuthBanner'
 import { SourceSyncBanner } from './components/SourceSyncBanner'
+import { Button } from './components/ui/button'
 import { TooltipProvider } from './components/ui/tooltip'
 import { UserPicker } from './components/UserPicker'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
 import { asNodeId } from './lib/brands'
+import { useLandingSurface } from './lib/landingSurface'
 import { useBatchStatus, useReactorCycles, useWorkspaces } from './lib/queries'
 import { useAuthGate } from './lib/useAuthGate'
 import { GraphNavigationContext } from './lib/useGraphNavigation'
@@ -29,13 +32,18 @@ import { readUrl, useUrlSync } from './lib/useUrlState'
 import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
 import { ActionsPage } from './pages/Actions'
 import { ActivityPage } from './pages/Activity'
+import { AskPage } from './pages/Ask'
 import { BatchPage } from './pages/Batch'
+import { BuildPage } from './pages/Build'
 import { ClarificationPage } from './pages/Clarification'
 import { GraphSurface, GraphSurfaceActions, useGraphSurfaceState } from './pages/GraphSurface'
 import { HistoryPage } from './pages/History'
+import { InboxPage } from './pages/Inbox'
 import { LoginPage } from './pages/Login'
 import { ProposalsPage } from './pages/Proposals'
 import { SettingsPage } from './pages/Settings'
+
+const NO_ARRIVAL: readonly NodeId[] = Object.freeze([])
 
 export function App() {
   const gate = useAuthGate()
@@ -71,7 +79,7 @@ function AppInner() {
   // Lifted out of the palette so a visible control can open it,
   // rather than the shortcut being the only way in.
   const [paletteOpen, setPaletteOpen] = useState(false)
-  const { setSelectedNodeId, setSelectedEdgeId, setFocusMode, requestCenter } = graphSurfaceState
+  const { setSelectedNodeId, setSelectedEdgeId, setFocusMode, requestCenter, setArrival } = graphSurfaceState
   // One-shot deep-link target for the Proposals surface.
   // ProposalsPage consumes and clears it once it selects the matching item.
   const [focusedProposalId, setFocusedProposalId] = useState<ProposalId | null>(null)
@@ -87,6 +95,15 @@ function AppInner() {
   }, [activeId, workspaces])
 
   useWorkspaceEvents(activeId)
+
+  // A bare workspace url states no surface, so the shell picks one.
+  // Waiting for the answer beats landing on Graph and jumping a moment later,
+  // and the reader keeps whatever they choose from here, including Graph.
+  const landing = useLandingSurface(activeId)
+  useEffect(() => {
+    if (activeSurface === null && landing !== undefined)
+      setActiveSurface(landing)
+  }, [activeSurface, landing])
 
   const { data: activeBatchPlan } = useBatchStatus(activeId ?? undefined)
   const hasActiveBatch = activeBatchPlan?.status === 'running' || activeBatchPlan?.status === 'deriving'
@@ -111,27 +128,37 @@ function AppInner() {
     setSelectedEdgeId(null)
     setFocusMode(true)
     requestCenter()
-    setActiveSurface(null)
+    setActiveSurface('graph')
   }, [setSelectedNodeId, setSelectedEdgeId, setFocusMode, requestCenter])
 
   const focusEdge = useCallback((_id: EdgeId) => {
-    setActiveSurface(null)
+    setActiveSurface('graph')
   }, [])
 
-  const graphNavigation = useMemo(() => ({ focusNode, focusEdge }), [focusNode, focusEdge])
+  const focusNodes = useCallback((ids: readonly NodeId[], origin: string) => {
+    setArrival({ ids, origin })
+    setSelectedNodeId(null)
+    setActiveSurface('graph')
+  }, [setArrival, setSelectedNodeId])
+
+  const graphNavigation = useMemo(() => ({ focusNode, focusEdge, focusNodes }), [focusNode, focusEdge, focusNodes])
+
+  // The Inbox is where a change is reviewed, so a link to one lands there.
+  // The Proposals surface stays reachable for browsing settled records.
 
   const focusProposal = useCallback((id: ProposalId) => {
     setFocusedProposalId(id)
-    setActiveSurface('proposals')
+    setActiveSurface('inbox')
   }, [])
 
-  const tabNavigation = useMemo(() => ({ focusProposal }), [focusProposal])
+  const openInbox = useCallback(() => setActiveSurface('inbox'), [])
+  const tabNavigation = useMemo(() => ({ focusProposal, openInbox }), [focusProposal, openInbox])
 
   return (
     <GraphNavigationContext.Provider value={graphNavigation}>
       <TabNavigationContext.Provider value={tabNavigation}>
         <ReferenceRegistryProvider workspaceId={activeId ?? undefined}>
-          <ReferencePeekProvider resetKey={activeSurface ?? 'graph'}>
+          <ReferencePeekProvider resetKey={activeSurface ?? 'landing'}>
             <PageActionsProvider>
               <TooltipProvider>
                 <div className="flex h-screen overflow-hidden bg-background text-foreground">
@@ -142,10 +169,10 @@ function AppInner() {
                     onSelect={(id) => {
                       setActiveId(id)
                       if (activeSurface === 'settings')
-                        setActiveSurface(null)
+                        setActiveSurface('graph')
                     }}
                     onOpenDetails={openDetails}
-                    onGoHome={() => setActiveSurface(null)}
+                    onGoHome={() => setActiveSurface('graph')}
                     onSelectSurface={setActiveSurface}
                   />
                   <main className="flex flex-1 flex-col overflow-hidden">
@@ -172,12 +199,12 @@ function AppInner() {
                               // Suppress on surfaces that render the run themselves,
                               // or when a batch banner already shows it.
                               // Both would point at the same in-flight extract subprocess.
-                              suppress={activeSurface === 'actions' || activeSurface === 'batch' || hasActiveBatch || hasActiveReactor}
+                              suppress={activeSurface === 'ask' || activeSurface === 'actions' || activeSurface === 'batch' || hasActiveBatch || hasActiveReactor}
                             />
                             {activeId
                               ? (
-                                  <div key={activeSurface ?? 'graph'} className="relative flex-1 overflow-hidden duration-150 animate-in fade-in-0">
-                                    {activeSurface === null && (
+                                  <div key={activeSurface ?? 'landing'} className="relative flex-1 overflow-hidden duration-150 animate-in fade-in-0">
+                                    {activeSurface === 'graph' && (
                                       <GraphHomeView
                                         workspaceId={activeId}
                                         state={graphSurfaceState}
@@ -185,8 +212,21 @@ function AppInner() {
                                         onOpenSearch={() => setPaletteOpen(true)}
                                       />
                                     )}
+                                    {activeSurface === 'ask' && (
+                                      <AskPage workspaceId={activeId} />
+                                    )}
                                     {activeSurface === 'actions' && (
                                       <ActionsPage workspaceId={activeId} />
+                                    )}
+                                    {activeSurface === 'build' && (
+                                      <BuildPage workspaceId={activeId} />
+                                    )}
+                                    {activeSurface === 'inbox' && (
+                                      <InboxPage
+                                        workspaceId={activeId}
+                                        focusedProposalId={focusedProposalId}
+                                        onFocusConsumed={() => setFocusedProposalId(null)}
+                                      />
                                     )}
                                     {activeSurface === 'clarifications' && (
                                       <ClarificationPage workspaceId={activeId} />
@@ -264,7 +304,11 @@ function GraphHomeView({ workspaceId, state, onStartBootstrap, onOpenSearch }: {
   onStartBootstrap: () => void
   onOpenSearch: () => void
 }) {
-  const { view, setView, selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode, centerRequest, requestCenter } = state
+  const { t } = useTranslation()
+  const { view, setView, selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode, centerRequest, requestCenter, arrival, clearArrival, narrowed, setNarrowed } = state
+  // Only fetched once somebody asks to see the arrival on its own.
+  // Until then the whole graph is drawn and the arrival is marked inside it.
+  const narrowedSource = useSubgraphDataSource(workspaceId, narrowed && arrival ? arrival.ids : NO_ARRIVAL)
 
   // This surface already shows node detail,
   // so a reference swaps that panel rather than opening an identical one.
@@ -286,8 +330,29 @@ function GraphHomeView({ workspaceId, state, onStartBootstrap, onOpenSearch }: {
             onFocusChange={setFocusMode}
           />
         </PageActions>
+        {arrival && (
+          <div className="flex shrink-0 items-center gap-2 border-b border-border bg-card/40 px-4 py-2">
+            <span className="min-w-0 flex-1 truncate text-2xs text-muted-foreground">
+              {t('graph.arrival.from', { origin: arrival.origin, count: arrival.ids.length })}
+            </span>
+            <Button size="xs" variant="outline" onClick={() => setNarrowed(!narrowed)}>
+              {t(narrowed ? 'graph.arrival.showAll' : 'graph.arrival.onlyThese', { count: arrival.ids.length })}
+            </Button>
+            <Button
+              size="xs"
+              variant="ghost"
+              className="text-muted-foreground [&_svg]:size-3"
+              aria-label={t('graph.arrival.dismiss')}
+              onClick={clearArrival}
+            >
+              <X />
+            </Button>
+          </div>
+        )}
         <GraphSurface
           workspaceId={workspaceId}
+          {...(narrowed && arrival ? { source: narrowedSource } : {})}
+          {...(arrival ? { spotlightIds: arrival.ids } : {})}
           view={view}
           selectedNodeId={selectedNodeId}
           onSelectNode={setSelectedNodeId}
@@ -312,15 +377,17 @@ function WorkspaceHeader({ workspaceId, activeSurface, onOpenDetails }: {
   // Surface nav lives in the Sidebar's HERE section now. The header reports where you are,
   // workspace name plus optional surface, and hosts page-specific tools on the right.
   const surfaceLabel
-    = activeSurface === 'actions'
-      ? t('shell.surfaces.actions')
-      : activeSurface === 'clarifications'
-        ? t('shell.surfaces.clarifications')
-        : activeSurface === 'proposals'
-          ? t('shell.surfaces.proposals')
-          : activeSurface === 'history'
-            ? t('shell.surfaces.history')
-            : null
+    = activeSurface === 'ask'
+      ? t('shell.surfaces.ask')
+      : activeSurface === 'actions'
+        ? t('shell.surfaces.actions')
+        : activeSurface === 'clarifications'
+          ? t('shell.surfaces.clarifications')
+          : activeSurface === 'proposals'
+            ? t('shell.surfaces.proposals')
+            : activeSurface === 'history'
+              ? t('shell.surfaces.history')
+              : null
 
   return (
     <header className="flex h-11 items-center justify-between gap-3 border-b border-border px-4">

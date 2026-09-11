@@ -91,6 +91,17 @@ export interface StartBatchOptions {
   callerToken?: string
   /** Recorded on every RunRecord the batch writes, so the history names an author. */
   startedBy: UserId
+  /**
+   * The unit paths to walk.
+   * Omitted, the batch walks every document the unit-bearing sources hold,
+   * which is what a first bootstrap wants.
+   *
+   * Given, it walks only those,
+   * which is what covering the documents a board column holds wants.
+   * Same plan, same checkpoints, same resume,
+   * so a partial run is not a second mechanism.
+   */
+  scope?: readonly string[]
 }
 
 /**
@@ -99,6 +110,21 @@ export interface StartBatchOptions {
  * rather than threading each field through every signature in the loop.
  */
 type BatchCaller = Pick<SkillRunOptions, 'callerToken' | 'startedBy'>
+
+/**
+ * Told to a skill when a batch is driving it and applying what it produces.
+ *
+ * Bootstrap trades settled-ness for coverage on purpose,
+ * so a run in this mode proposes what it has,
+ * rather than stopping on the first thing it cannot decide.
+ * What it could not decide is recorded on the node and raised as a question,
+ * so the doubt is visible in the graph rather than lost in a silent guess.
+ */
+// Nobody watches a batch, whatever it does with what the runs produce.
+// A run that stops to ask inside one is asking a room with no one in it,
+// so it is told that up front,
+// and files its questions to be picked up later instead.
+const UNATTENDED_ENV = { BRAID_UNATTENDED: 'true' } as const
 
 export class BatchService {
   private readonly stopRequested = new Set<WorkspaceId>()
@@ -114,10 +140,12 @@ export class BatchService {
       const mode = this.resolveMode(workspace, ontology, binding)
       const now = this.deps.clock.now()
       const baselineTag = `batch-baseline-${tagSuffix(now)}`
-      const initialUnits = mode === 'direct' ? await this.buildDirectUnits(workspace) : []
+      const initialUnits = mode === 'direct' ? await this.buildDirectUnits(workspace, options.scope) : []
       if (mode === 'direct' && initialUnits.length === 0) {
         throw new ValidationError(
-          `Workspace "${workspace.id}" has unit-bearing sources registered but no documents inside them.`,
+          options.scope
+            ? `None of the requested documents exist in workspace "${workspace.id}"`
+            : `Workspace "${workspace.id}" has unit-bearing sources registered but no documents inside them.`,
         )
       }
 
@@ -341,7 +369,6 @@ export class BatchService {
     const unitsById = new Map(plan.units.map(unit => [unit.id, unit] as const))
     const units = unitIds.map(id => unitsById.get(id)).filter((unit): unit is BatchUnit => !!unit)
     const extraEnv = checkpoint.extraEnv?.(units)
-    const hasEnv = !!extraEnv && Object.keys(extraEnv).length > 0
     let runId: SkillRunId | undefined
     try {
       const startedAt = this.deps.clock.now()
@@ -352,7 +379,7 @@ export class BatchService {
         checkpoint.skillId,
         '',
         {
-          ...(hasEnv ? { extraEnv } : {}),
+          extraEnv: { ...extraEnv, ...UNATTENDED_ENV },
           ...caller,
         },
       )
@@ -466,6 +493,7 @@ export class BatchService {
         argsFor(unit),
         {
           ...caller,
+          extraEnv: UNATTENDED_ENV,
           // A retry continues the agent's own session,
           // so a unit interrupted part way does not read the document again.
           ...(unit.resumeSessionId ? { resumeSessionId: unit.resumeSessionId } : {}),
@@ -534,14 +562,33 @@ export class BatchService {
     }
   }
 
-  private async collectUnitOutput(workspaceId: WorkspaceId, before: { proposals: Set<ProposalId>, clarifications: Set<ClarificationId> }): Promise<{
-    proposalIds: ProposalId[]
-    clarificationIds: ClarificationId[]
-  }> {
-    const after = await this.snapshotIds(workspaceId)
+  /**
+   * What this run produced, not what appeared while it ran.
+   *
+   * The before-and-after diff alone would claim anything anyone else created,
+   * which for an auto-applying batch means landing a change nobody reviewed.
+   * A record naming this run is the only one it may claim,
+   * and one naming no run at all was authored by a person.
+   */
+  private async collectUnitOutput(
+    workspaceId: WorkspaceId,
+    runId: SkillRunId,
+    before: { proposals: Set<ProposalId>, clarifications: Set<ClarificationId> },
+  ): Promise<{
+      proposalIds: ProposalId[]
+      clarificationIds: ClarificationId[]
+    }> {
+    const [proposals, clarifications] = await Promise.all([
+      this.deps.proposalRepository.list({ workspaceId }),
+      this.deps.clarificationRepository.list({ workspaceId }),
+    ])
     return {
-      proposalIds: [...after.proposals].filter(id => !before.proposals.has(id)),
-      clarificationIds: [...after.clarifications].filter(id => !before.clarifications.has(id)),
+      proposalIds: proposals
+        .filter(proposal => !before.proposals.has(proposal.id) && proposal.skillRunId === runId)
+        .map(proposal => proposal.id),
+      clarificationIds: clarifications
+        .filter(clarification => !before.clarifications.has(clarification.id) && clarification.skillRunId === runId)
+        .map(clarification => clarification.id),
     }
   }
 
@@ -556,7 +603,7 @@ export class BatchService {
   ): Promise<{ proposalIds: ProposalId[], clarificationIds: ClarificationId[] }> {
     const applied = new Set<ProposalId>()
     const unsubscribe = autoApply
-      ? this.streamApplyProposals(workspace.id, applied)
+      ? this.streamApplyProposals(workspace.id, runId, applied)
       : () => {}
     try {
       await waitForCompletion(this.deps.skillRunner, runId)
@@ -564,7 +611,7 @@ export class BatchService {
     finally {
       unsubscribe()
     }
-    const output = await this.collectUnitOutput(workspace.id, before)
+    const output = await this.collectUnitOutput(workspace.id, runId, before)
     if (autoApply) {
       const remaining = output.proposalIds.filter(id => !applied.has(id))
       await this.autoApply(remaining)
@@ -572,11 +619,17 @@ export class BatchService {
     return output
   }
 
-  private streamApplyProposals(workspaceId: WorkspaceId, applied: Set<ProposalId>): () => void {
+  private streamApplyProposals(workspaceId: WorkspaceId, runId: SkillRunId, applied: Set<ProposalId>): () => void {
     if (!this.deps.eventBus)
       return () => {}
     return this.deps.eventBus.subscribe(workspaceId, (event) => {
       if (event.type !== 'proposal.created')
+        return
+      // The bus is workspace-wide,
+      // so a proposal from anywhere else arrives here too.
+      // Applying one without review because a batch happened to be running,
+      // is the reviewer's decision taken away from them.
+      if (event.skillRunId !== runId)
         return
       if (applied.has(event.proposalId))
         return
@@ -636,9 +689,10 @@ export class BatchService {
     return ontology.batch
   }
 
-  private async buildDirectUnits(workspace: Workspace): Promise<BatchUnit[]> {
+  private async buildDirectUnits(workspace: Workspace, scope?: readonly string[]): Promise<BatchUnit[]> {
     const items = await this.deps.unitLister(workspace)
-    return items.map(item => ({
+    const wanted = scope === undefined ? undefined : new Set(scope)
+    return items.filter(item => wanted === undefined || wanted.has(item.value)).map(item => ({
       id: newBatchUnitId(),
       name: item.label,
       description: `Unit from ${item.sourceName}`,

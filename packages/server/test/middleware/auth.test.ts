@@ -25,10 +25,22 @@ function appWith(store: SessionStore, requireAuth: boolean, defaultPrincipal: Us
     accessTokenVerifiers: [new SessionTokenVerifier(store)],
   }))
   app.get('/who', c => c.json({ userId: getUserId(c) ?? null }))
+  app.get('/openapi.json', c => c.json({ ok: true }))
+  app.get('/openapi/runs/:category/openapi.json', c => c.json({ ok: true }))
   return app
 }
 
 describe('authMiddleware', () => {
+  // The gateway reads a run's spec before there is a run to authenticate as,
+  // and the document says what shape a call takes,
+  // rather than anything about this deployment's data.
+  // Gated, every run fails to start.
+  it('lets the spec a run is given be read without a credential', async () => {
+    const app = appWith(fakeSessionStore({}), true, null)
+    expect((await app.request('/openapi/runs/ask/openapi.json')).status).toBe(200)
+    expect((await app.request('/openapi.json')).status).toBe(200)
+  })
+
   it('under local trust, a valid Bearer session wins over the default principal', async () => {
     const store = fakeSessionStore({ 'reactor-token': 'reactor' as UserId })
     const app = appWith(store, false, 'local-user' as UserId)

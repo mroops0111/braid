@@ -1,9 +1,13 @@
 import type { en } from '../en'
 import actionInput from './actionInput'
 import admin from './admin'
+import ask from './ask'
+import blocks from './blocks'
+import build from './build'
 import common from './common'
 import graph from './graph'
 import history from './history'
+import inbox from './inbox'
 import references from './references'
 import review from './review'
 import settings from './settings'
@@ -17,8 +21,12 @@ const zhHant: typeof en = {
   settings,
   actionInput,
   admin,
+  ask,
+  blocks,
+  build,
   graph,
   history,
+  inbox,
   references,
   review,
   shell,

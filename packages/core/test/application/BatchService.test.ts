@@ -1,19 +1,4 @@
-import type {
-  AbsolutePath,
-  CommitMeta,
-  CommitSha,
-  ProposalId,
-  SkillEvent,
-  SkillId,
-  SkillRunId,
-  SourceDescriptor,
-  SourceId,
-  SourceRole,
-  SourceUnitSha,
-  TagMeta,
-  UserId,
-  WorkspaceId,
-} from '@braidhq/schema'
+import type { AbsolutePath, CommitMeta, CommitSha, EmittedBlock, ProposalId, SkillEvent, SkillId, SkillRunId, SourceDescriptor, SourceId, SourceRole, SourceUnitSha, TagMeta, UserId, WorkspaceId } from '@braidhq/schema'
 import type { BatchPlanRepository, HistoryService, HITLService, SkillEventListener, SkillRunner, SkillRunOptions, SkillRunSubscription, SourceUnitDigest, Workspace } from '../../src/index.js'
 import { BatchPlanId, BatchUnitId, SkillId as SkillIdSchema, UserId as UserIdSchema } from '@braidhq/schema'
 import { FixedClock, makeOntology, makeProposal, makeWorkspace, mintTestId, resetTestIds, T0 } from '@braidhq/test-utils'
@@ -49,6 +34,10 @@ class FakeSkillRunner implements SkillRunner {
   // Fires after start resolves and before the completed event.
   // Lets a test create proposals the orchestrator attributes by set difference.
   onStart?: (skillId: SkillId, runId: SkillRunId) => Promise<void>
+
+  async emitBlock(): Promise<EmittedBlock> {
+    throw new Error('FakeSkillRunner does not emit blocks')
+  }
 
   async start(_workspace: Workspace, skillId: SkillId, args: string, options?: SkillRunOptions): Promise<SkillRunId> {
     const runId = `r-${this.startCalls.length}` as SkillRunId
@@ -86,6 +75,10 @@ class FakeSkillRunner implements SkillRunner {
   // Whether a live subprocess backs the current run, toggled per test.
   active = false
   readonly cancelCalls: SkillRunId[] = []
+  hasActiveRun(): boolean {
+    return this.active
+  }
+
   isActive(_runId: SkillRunId): boolean { return this.active }
   async cancel(runId: SkillRunId): Promise<void> { this.cancelCalls.push(runId) }
   async forgetSession(): Promise<void> {}
@@ -265,9 +258,9 @@ describe('BatchService', () => {
   it('direct mode walks one unit per unit-bearing source, completes the plan', async () => {
     const { service, workspace, proposalRepository, planRepository, skillRunner } = await setup()
     let counter = 0
-    skillRunner.onStart = async () => {
+    skillRunner.onStart = async (_skillId, runId) => {
       counter += 1
-      await proposalRepository.save(makeProposal(workspace.id, { id: `p-${counter}` }))
+      await proposalRepository.save(makeProposal(workspace.id, { id: `p-${counter}`, skillRunId: runId }))
     }
 
     await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
@@ -289,9 +282,9 @@ describe('BatchService', () => {
   it('autoApply forwards each fresh proposal to HITLService.applyProposal', async () => {
     const { service, workspace, proposalRepository, planRepository, skillRunner, hitl } = await setup()
     let counter = 0
-    skillRunner.onStart = async () => {
+    skillRunner.onStart = async (_skillId, runId) => {
       counter += 1
-      await proposalRepository.save(makeProposal(workspace.id, { id: `p-${counter}` }))
+      await proposalRepository.save(makeProposal(workspace.id, { id: `p-${counter}`, skillRunId: runId }))
     }
 
     await service.start(workspace.id, { autoApply: true, startedBy: STARTED_BY })
@@ -300,6 +293,70 @@ describe('BatchService', () => {
     // 2 extracts and 1 final checkpoint make 3 skill runs, each produces a fresh proposal. With autoApply on,
     // all three get applied.
     expect(hitl.applyCalls).toEqual(['p-1', 'p-2', 'p-3'])
+  })
+
+  // The event bus is workspace-wide,
+  // so a person filing a proposal during a batch would have it applied.
+  it('autoApply leaves a proposal that names no run of its own alone', async () => {
+    const { service, workspace, proposalRepository, planRepository, skillRunner, hitl } = await setup()
+    let counter = 0
+    skillRunner.onStart = async (_skillId, runId) => {
+      counter += 1
+      await proposalRepository.save(makeProposal(workspace.id, { id: `p-${counter}`, skillRunId: runId }))
+      await proposalRepository.save(makeProposal(workspace.id, { id: `human-${counter}` }))
+    }
+
+    await service.start(workspace.id, { autoApply: true, startedBy: STARTED_BY })
+    await flushBatch(planRepository)
+
+    expect(hitl.applyCalls).toEqual(['p-1', 'p-2', 'p-3'])
+  })
+
+  it('does not count another run\'s output as this unit\'s', async () => {
+    const { service, workspace, proposalRepository, planRepository, skillRunner } = await setup()
+    let counter = 0
+    skillRunner.onStart = async (_skillId, runId) => {
+      counter += 1
+      await proposalRepository.save(makeProposal(workspace.id, { id: `p-${counter}`, skillRunId: runId }))
+      await proposalRepository.save(makeProposal(workspace.id, { id: `other-${counter}` }))
+    }
+
+    await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
+    const final = await flushBatch(planRepository)
+
+    expect(final.units[0]!.proposalIds).toEqual(['p-1'])
+    expect(final.units[1]!.proposalIds).toEqual(['p-2'])
+  })
+
+  // Bootstrap wants coverage,
+  // so a unit that cannot settle something records the doubt and carries on,
+  // rather than leaving the graph empty.
+  it('tells each unit nobody is watching when the batch applies its own output', async () => {
+    const { service, workspace, planRepository, skillRunner } = await setup()
+
+    await service.start(workspace.id, { autoApply: true, startedBy: STARTED_BY })
+    await flushBatch(planRepository)
+
+    const modes = skillRunner.startCalls.map(call => call.options?.extraEnv?.BRAID_UNATTENDED)
+    expect(modes.length).toBeGreaterThan(0)
+    expect(modes.every(mode => mode === 'true')).toBe(true)
+  })
+
+  // Whether a batch applies its own output decides what happens to a proposal.
+  // It says nothing about whether a person is sitting there,
+  // and nobody sits through a batch either way.
+  // Left attended, a unit that stops to ask holds its proposal back,
+  // for an answer that is not coming,
+  // and the document ends the batch with a question and nothing else.
+  it('tells each unit nobody is watching even when the batch is to be reviewed', async () => {
+    const { service, workspace, planRepository, skillRunner } = await setup()
+
+    await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
+    await flushBatch(planRepository)
+
+    const modes = skillRunner.startCalls.map(call => call.options?.extraEnv?.BRAID_UNATTENDED)
+    expect(modes.length).toBeGreaterThan(0)
+    expect(modes.every(mode => mode === 'true')).toBe(true)
   })
 
   it('marks a unit failed when extract exits non-zero, continues to next', async () => {
@@ -313,6 +370,24 @@ describe('BatchService', () => {
     expect(final.units[0]!.status).toBe('failed')
     expect(final.units[0]!.error).toMatch(/exited with code 1/)
     expect(final.units[1]!.status).toBe('completed')
+  })
+
+  // A board column covering what it holds is the same plan as a bootstrap,
+  // only scoped, so it keeps the ordering, checkpoints, and resume.
+  it('walks only the named documents when a scope is given', async () => {
+    const { service, workspace, planRepository } = await setup()
+    await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY, scope: ['prd/'] })
+    const final = await flushBatch(planRepository)
+    expect(final.units.map(unit => unit.scopeHint)).toEqual(['prd/'])
+  })
+
+  it('refuses a scope naming nothing the workspace holds', async () => {
+    const { service, workspace } = await setup()
+    await expect(service.start(workspace.id, {
+      autoApply: false,
+      startedBy: STARTED_BY,
+      scope: ['no-such-document/'],
+    })).rejects.toThrow(ValidationError)
   })
 
   it('refuses when workspace has no sources', async () => {

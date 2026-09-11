@@ -9,7 +9,9 @@ import { EmptyState } from '@/components/EmptyState'
 import { GraphCanvas } from '@/components/graph/GraphCanvas'
 import { ListRow } from '@/components/ListRow'
 import { NodeReferenceTag } from '@/components/references/ReferenceTag'
-import { SurfaceLayout } from '@/components/SurfaceLayout'
+import { SurfaceBand } from '@/components/SurfaceBand'
+import { CollapseListButton, SurfaceLayout } from '@/components/SurfaceLayout'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -34,6 +36,7 @@ const KIND_LABEL_KEY: Record<CommitKind, TranslationKey> = {
   'clarification-submit': 'history.kind.ask',
   'clarification-answer': 'history.kind.answer',
   'clarification-apply': 'history.kind.closed',
+  'clarification-defer': 'history.kind.defer',
   'clarification-skip': 'history.kind.skip',
   'config': 'history.kind.config',
   'restore': 'history.kind.restore',
@@ -49,6 +52,7 @@ const KIND_TONE: Record<CommitKind, string> = {
   'clarification-submit': 'border-sky-500/30 bg-sky-500/5 text-sky-700 dark:text-sky-300',
   'clarification-answer': 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300',
   'clarification-apply': 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300',
+  'clarification-defer': 'border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-300',
   'clarification-skip': 'border-zinc-400/40 bg-zinc-400/10 text-zinc-600 dark:text-zinc-400',
   'config': 'border-teal-500/40 bg-teal-500/10 text-teal-700 dark:text-teal-300',
   'restore': 'border-orange-500/40 bg-orange-500/10 text-orange-700 dark:text-orange-300',
@@ -64,6 +68,7 @@ export function HistoryPage({ workspaceId }: HistoryPageProps) {
   const [selectedSha, setSelectedSha] = useState<CommitSha | null>(null)
   const [compareSha, setCompareSha] = useState<CommitSha | null>(null)
   const [pickingCompare, setPickingCompare] = useState(false)
+  const [listOpen, setListOpen] = useState(true)
 
   const commits = data?.items ?? []
   const tagsBySha = groupTagsBySha(tags?.items ?? [])
@@ -95,23 +100,38 @@ export function HistoryPage({ workspaceId }: HistoryPageProps) {
   return (
     <div className="flex h-full flex-col">
       <SurfaceLayout
+        collapse={{ collapsed: !listOpen, onToggle: next => setListOpen(!next), showLabel: t('common.showList') }}
         list={(
           <>
-            {pickingCompare && (
-              <div className="flex shrink-0 items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-2xs text-muted-foreground">
-                <ArrowLeftRight className="size-3" />
-                <span>{t('history.compareBanner')}</span>
-                <button
-                  type="button"
-                  onClick={() => setPickingCompare(false)}
-                  className="ml-auto rounded p-0.5 hover:bg-background/80"
-                  title={t('common.cancel')}
-                  aria-label={t('common.cancel')}
-                >
-                  <X className="size-3" />
-                </button>
-              </div>
-            )}
+            <SurfaceBand
+              title={t('shell.surfaces.history')}
+              trailing={(
+                <>
+                  {/* In the band rather than above the list, because a banner
+                      inserted over the commits pushes every row down the
+                      moment a reader starts choosing one. */}
+                  {pickingCompare && (
+                    <>
+                      <span className="flex items-center gap-1 truncate text-2xs text-muted-foreground">
+                        <ArrowLeftRight className="size-3 shrink-0" />
+                        {t('history.compareBanner')}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        className="[&_svg]:size-3"
+                        title={t('common.cancel')}
+                        aria-label={t('common.cancel')}
+                        onClick={() => setPickingCompare(false)}
+                      >
+                        <X />
+                      </Button>
+                    </>
+                  )}
+                  <CollapseListButton label={t('common.hideList')} onCollapse={() => setListOpen(false)} />
+                </>
+              )}
+            />
             {isLoading
               ? <div className="p-4 text-sm text-muted-foreground">{t('common.loading')}</div>
               : commits.length === 0
@@ -186,13 +206,13 @@ function CommitRow({ commit, tags, active, compareActive, dimmed, onSelect }: {
       )}
     >
       <div className="flex w-full items-center gap-1.5">
-        <span className={cn('rounded border px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider', KIND_TONE[commit.message.kind])}>
+        <Badge variant="outline" className={cn('shrink-0 text-2xs uppercase', KIND_TONE[commit.message.kind])}>
           {t(KIND_LABEL_KEY[commit.message.kind])}
-        </span>
+        </Badge>
         {compareActive && (
-          <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider text-amber-700 dark:text-amber-300">
+          <Badge variant="outline" className="shrink-0 border-amber-500/40 bg-amber-500/10 text-2xs uppercase text-amber-700 dark:text-amber-300">
             {t('history.compareBadge')}
-          </span>
+          </Badge>
         )}
         <span className="ml-auto truncate font-mono text-2xs text-muted-foreground">
           {commit.sha.slice(0, 7)}

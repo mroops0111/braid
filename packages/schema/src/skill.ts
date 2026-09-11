@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { AgentEffort, AgentKind } from './agent.js'
-import { AbsolutePath, PluginId, SkillId, SkillRunId, SourceId, Timestamp, UserId, WorkspaceId } from './common.js'
+import { RenderBlock, RenderCallName } from './block.js'
+import { AbsolutePath, BlockId, PluginId, SkillId, SkillRunId, SourceId, Timestamp, UserId, WorkspaceId } from './common.js'
+import { localizedText } from './locale.js'
 import { McpServerId } from './mcp.js'
 import { SourceRole } from './source.js'
 import { WorkspaceRole } from './workspace.js'
@@ -172,6 +174,32 @@ export type SkillAgentOverride = z.infer<typeof SkillAgentOverride>
  * Braid-specific fields under the braid: key, so they never collide with Claude Code's own.
  * Read by SubprocessSkillRunner for preflight (env / path / MCP) before spawning.
  */
+/**
+ * What a finished run must have rendered for its output to count as complete.
+ *
+ * A prompt asking for something is not the same as getting it,
+ * and a run that stops early looks like one that had nothing more to say.
+ * Declaring the contract lets the framework check the output,
+ * and hand the gap back to the agent rather than leaving a reader to find it.
+ */
+export const SkillOutputContract = z.object({
+  // Calls the run must have made at least once.
+  requiredCalls: z.array(RenderCallName).default([]),
+  /**
+   * Blocks each audience the ontology declares must be able to see.
+   *
+   * Named by count rather than by audience,
+   * so a builtin skill can require coverage,
+   * without knowing which readers a product splits on.
+   * A block with no audience counts toward every one of them.
+   */
+  coverDeclaredAudiences: z.number().int().positive().optional(),
+  // How many corrective retries the framework may spend before giving up.
+  // One is usually enough, and a loop here burns a subscription.
+  maxRetries: z.number().int().min(0).max(3).default(1),
+})
+export type SkillOutputContract = z.infer<typeof SkillOutputContract>
+
 export const BraidSkillExtension = z.object({
   requiredEnv: z.array(z.string()).default([]),
   requiredMcpServers: z.array(McpServerId).default([]),
@@ -180,6 +208,16 @@ export const BraidSkillExtension = z.object({
   category: SkillCategory.optional(),
   // Step number within build, Studio sorts by it. Ignored for ask / generate.
   order: z.number().int().positive().optional(),
+  /**
+   * What to call this step in front of a reader.
+   *
+   * A skill id is an address,
+   * and `ddd:extract` says nothing to somebody looking at a board.
+   * Localised the same way an ontology's node and edge types are,
+   * since a step of the pipeline is as much its vocabulary as they are.
+   * Absent, a surface falls back to the id, which is at least true.
+   */
+  label: localizedText(z.string().min(1).max(40)).optional(),
   // One-line tagline for narrow Studio surfaces, else description's first sentence.
   summary: z.string().min(1).max(80).optional(),
   // Declarative form for the Actions page. Omitted falls back to the argumentHint textarea.
@@ -189,6 +227,8 @@ export const BraidSkillExtension = z.object({
   // Roles allowed to run this by default (owner implicit). Defaults to owner + maintainer.
   // Add guest for read-only skills. Per-member skillOverrides take precedence.
   allowedRoles: z.array(WorkspaceRole).min(1).default(['owner', 'maintainer']),
+  // Checked when the run exits, with the gap handed back for one more turn.
+  output: SkillOutputContract.optional(),
 })
 export type BraidSkillExtension = z.infer<typeof BraidSkillExtension>
 
@@ -220,6 +260,15 @@ export const SkillEventStarted = z.object({
   args: z.string(),
   // True when this run resumed an existing claude session.
   resumed: z.boolean().default(false),
+  /**
+   * The run this one takes up, when it takes one up.
+   *
+   * `resumed` says a conversation was continued, not which one.
+   * Without the link, the reasoning that led a run to stop has no route back,
+   * once the thing that pointed at it is settled,
+   * and work spread over three runs reports three costs nothing adds up.
+   */
+  continues: SkillRunId.optional(),
   at: Timestamp,
 })
 
@@ -232,6 +281,14 @@ export const SkillEventSessionStarted = z.object({
 export const SkillEventMessage = z.object({
   type: z.literal('message'),
   text: z.string(),
+  /**
+   * Who said it.
+   * Absent reads as the agent,
+   * which is what a message was before anything else could produce one,
+   * so nothing recorded earlier changes meaning.
+   * A run's own prompt is the one thing the user says, and it is said once.
+   */
+  role: z.enum(['user', 'agent']).optional(),
 })
 
 export const SkillEventToolCall = z.object({
@@ -259,6 +316,17 @@ export const SkillEventArtifactWritten = z.object({
   path: AbsolutePath,
 })
 
+/**
+ * A render call the run made, lifted out of its tool call.
+ * Surfaces compose these instead of reading the transcript,
+ * so a skill that makes none still renders as prose.
+ */
+export const SkillEventBlock = z.object({
+  type: z.literal('block'),
+  id: BlockId,
+  block: RenderBlock,
+})
+
 export const SkillEventCompleted = z.object({
   type: z.literal('completed'),
   runId: SkillRunId,
@@ -273,8 +341,9 @@ export const SkillEventError = z.object({
 })
 
 /**
- * The agent's private reasoning, surfaced so a reviewer can see why a skill
- * proposed what it did. Studio renders it collapsed, it is not the output.
+ * The agent's private reasoning,
+ * surfaced so a reviewer can see why a skill proposed what it did.
+ * Studio renders it collapsed, since it is not the output.
  */
 export const SkillEventThinking = z.object({
   type: z.literal('thinking'),
@@ -282,8 +351,9 @@ export const SkillEventThinking = z.object({
 })
 
 /**
- * The agent hit a usage limit. Only emitted when the run is actually
- * throttled, so a stalled transcript reads as waiting rather than frozen.
+ * The agent hit a usage limit.
+ * Only emitted when the run is actually throttled,
+ * so a stalled transcript reads as waiting rather than frozen.
  */
 export const SkillEventRateLimit = z.object({
   type: z.literal('rate-limit'),
@@ -293,8 +363,9 @@ export const SkillEventRateLimit = z.object({
 })
 
 /**
- * Cost and effort of a finished run, surfaced so the reviewer sees what each
- * skill run spent. Every field is optional, agents report a different subset.
+ * Cost and effort of a finished run,
+ * surfaced so the reviewer sees what each skill run spent.
+ * Every field is optional, since agents report a different subset.
  */
 export const SkillEventUsage = z.object({
   type: z.literal('usage'),
@@ -312,6 +383,7 @@ export const SkillEvent = z.discriminatedUnion('type', [
   SkillEventToolCall,
   SkillEventToolResult,
   SkillEventArtifactWritten,
+  SkillEventBlock,
   SkillEventCompleted,
   SkillEventError,
   SkillEventThinking,
@@ -328,8 +400,28 @@ export const RunRecord = z.object({
   runId: SkillRunId,
   workspaceId: WorkspaceId,
   skillId: SkillId,
+  /** What the agent was told, verbatim. The record of what actually went out. */
   args: z.string(),
+  /**
+   * What the run works on, when that is not what it was told.
+   *
+   * A fresh per-unit run is started by naming its unit,
+   * so the two are the same and this stays absent.
+   * A run carrying another on is told to continue instead,
+   * and every surface attributes work by matching a document against this,
+   * so without it a continued run detaches from what it is reading.
+   */
+  scope: z.string().optional(),
   resumed: z.boolean().default(false),
+  /**
+   * The run this one takes up, when it takes one up.
+   *
+   * `resumed` says a conversation was continued, not which one.
+   * Without the link, the reasoning that led a run to stop has no route back,
+   * once the thing that pointed at it is settled,
+   * and work spread over three runs reports three costs nothing adds up.
+   */
+  continues: SkillRunId.optional(),
   // Whose identity the run acts under, matching the caller token it carries.
   // A person for anything a route starts, batch included,
   // and the service account itself for an autonomous run such as the reactor's.
@@ -339,6 +431,13 @@ export const RunRecord = z.object({
   startedAt: Timestamp,
   completedAt: Timestamp.optional(),
   exitCode: z.number().int().optional(),
+  /**
+   * True when nobody was watching,
+   * so nothing it asks will be answered in time to carry it on.
+   * Recorded rather than held in memory,
+   * because what a run's questions mean outlives the process that spawned it.
+   */
+  unattended: z.boolean().optional(),
 })
 export type RunRecord = z.infer<typeof RunRecord>
 

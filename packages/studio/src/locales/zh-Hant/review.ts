@@ -94,6 +94,8 @@ const review: typeof en = {
     answerWithCustomButton: '以自訂內容回答',
     answerWithButton: '以 {letter} 回答',
     answerButton: '回答',
+    deferButton: '稍後回答',
+    deferHint: '讓執行不等這個答案先走。問題會留著，之後由讀取已答問題的那一步接手。',
     skipButton: '略過…',
     addOwnAnswer: '新增我自己的答案',
     customAnswer: '自訂答案',

@@ -1,13 +1,16 @@
-import type { UserId as UserIdType } from '@braidhq/schema'
+import type { SkillRunId as SkillRunIdType, UserId as UserIdType } from '@braidhq/schema'
 import type { Context, MiddlewareHandler } from 'hono'
-import type { AccessTokenVerifier } from '../infrastructure/auth/AccessTokenVerifier.js'
+import type { AccessTokenVerifier, VerifiedCaller } from '../infrastructure/auth/AccessTokenVerifier.js'
 import type { SessionStore } from '../infrastructure/auth/SessionStore.js'
 import { UnauthorizedError } from '@braidhq/core'
 import { UserId } from '@braidhq/schema'
+import { RUN_TOKEN_PREFIX } from '../infrastructure/skill/RunTokenRegistry.js'
 
 declare module 'hono' {
   interface ContextVariableMap {
     userId: UserIdType
+    /** Present only when a running skill is the caller. */
+    skillRunId: SkillRunIdType
   }
 }
 
@@ -25,7 +28,11 @@ const PUBLIC_EXACT_PATHS = new Set(['/openapi.json', '/.well-known/oauth-protect
 // checked inside the handler rather than via a Bearer token.
 // Listing providers one by one, rather than the broad `/webhooks/`,
 // keeps a future admin or metrics webhook from inheriting the bypass.
-const PUBLIC_PATH_PREFIXES = ['/auth/', '/health', '/webhooks/github/']
+// A run's own spec is the same document narrowed to what that run may call,
+// so it is public for the same reason, being shape rather than data.
+// It also has to be,
+// since the gateway reads it before a run exists to authenticate as.
+const PUBLIC_PATH_PREFIXES = ['/auth/', '/health', '/webhooks/github/', '/openapi/runs/']
 
 // Any OAuth provider callback is anonymous. It is a browser redirect,
 // so it carries no Bearer,
@@ -85,9 +92,9 @@ export function extractBearerToken(context: { req: { header: (name: string) => s
  * Establish the caller's identity, and gate when auth is enforced.
  * The single place a request's `userId` is resolved.
  *
- * Under local trust, identity comes from `X-Braid-User`, else the default
- * principal, on every path so public routes like `/auth/whoami` see the caller.
- * Nothing is rejected.
+ * Under local trust, identity comes from `X-Braid-User`,
+ * else the default principal, on every path,
+ * so public routes like `/auth/whoami` see the caller. Nothing is rejected.
  *
  * When auth is enforced, identity comes only from a valid Bearer session,
  * and a missing or invalid token on a non-public route is a 401.
@@ -103,6 +110,22 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
       // so an internal caller like the reactor is identified as its service account.
       // Studio under local trust sends no Bearer, so this never shadows it.
       const token = extractBearerToken(context)
+      // A skill calls back with a run credential even here,
+      // so its work is attributed to the run,
+      // rather than to whoever the deployment assumes.
+      const caller = token ? await resolveCaller(token, options.accessTokenVerifiers) : null
+      if (caller) {
+        setCaller(context, caller)
+        await next()
+        return undefined
+      }
+      // A run credential that no longer resolves is a credential,
+      // rather than the absence of one,
+      // so it must not fall through to the anonymous caller local trust allows.
+      // That is what let a run outliving the process that issued its token,
+      // keep writing, unattributed, after being reaped.
+      if (token?.startsWith(RUN_TOKEN_PREFIX))
+        throw new UnauthorizedError('That run credential is no longer valid. The run it belonged to is over.')
       const session = token ? await options.sessionStore?.resolve(token) : undefined
       if (session) {
         context.set('userId', session.userId)
@@ -130,10 +153,10 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
       token = context.req.query('token') || undefined
     if (!token)
       throw new UnauthorizedError('Missing or invalid Authorization header. Sign in to continue.')
-    const userId = await resolveCaller(token, options.accessTokenVerifiers)
-    if (!userId)
+    const caller = await resolveCaller(token, options.accessTokenVerifiers)
+    if (!caller)
       throw new UnauthorizedError('Session expired or revoked. Sign in again.')
-    context.set('userId', userId)
+    setCaller(context, caller)
     await next()
     return undefined
   }
@@ -147,15 +170,31 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
  * One that recognises and refuses throws instead,
  * which is why an expired token reports as expired rather than as unknown.
  */
-async function resolveCaller(token: string, verifiers: readonly AccessTokenVerifier[]): Promise<UserIdType | null> {
+async function resolveCaller(token: string, verifiers: readonly AccessTokenVerifier[]): Promise<VerifiedCaller | null> {
   for (const verifier of verifiers) {
     const caller = await verifier.verify(token)
     if (caller)
-      return caller.userId
+      return caller
   }
   return null
 }
 
+function setCaller(context: Context, caller: VerifiedCaller): void {
+  context.set('userId', caller.userId)
+  if (caller.skillRunId)
+    context.set('skillRunId', caller.skillRunId)
+}
+
 export function getUserId(context: Context): UserIdType {
   return context.get('userId')
+}
+
+/**
+ * The run that is calling, when one is.
+ *
+ * Read from the credential rather than from the request body,
+ * so a record is attributed to its run without anyone being asked which.
+ */
+export function getSkillRunId(context: Context): SkillRunIdType | undefined {
+  return context.get('skillRunId')
 }

@@ -4,6 +4,7 @@ import process from 'node:process'
 import { defineSourceLoaderPlugin } from '@braidhq/sdk'
 import { simpleGit } from 'simple-git'
 import { z } from 'zod'
+import { gitWebUrl } from './webUrl.js'
 
 export const GitLoaderConfig = z.object({
   /** Remote URL. Supports `${VAR}` interpolation for tokens (e.g. `https://x-access-token:${GH_TOKEN}@github.com/...`). */
@@ -90,6 +91,8 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
       fetchedAt: new Date().toISOString() as never,
     }
   },
+  webUrlFor: input => gitWebUrl(input, 'master'),
+
   webhook: {
     // Host and path come from the literal URL, never the credential portion.
     // `${VAR}` placeholders are deliberately left uninterpolated,

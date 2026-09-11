@@ -1,12 +1,4 @@
-import type {
-  ProvisionReport,
-  SourceLoaderContext,
-  SourceLoaderPlugin,
-  SourceUpstream,
-  SyncReport,
-  WebhookCapability,
-  WebhookDelivery,
-} from '@braidhq/core'
+import type { ProvisionReport, SourceLoaderContext, SourceLoaderPlugin, SourceUpstream, SourceWebUrlInput, SyncReport, WebhookCapability, WebhookDelivery } from '@braidhq/core'
 import type { AbsolutePath, LoaderKind, PluginId } from '@braidhq/schema'
 import type { z } from 'zod'
 import type { PluginSkillRef } from './types.js'
@@ -32,6 +24,12 @@ export interface DefineSourceLoaderInput<TSchema extends z.ZodTypeAny> {
     readonly upstream: (config: z.infer<TSchema>) => SourceUpstream | undefined
     readonly shouldDispatch?: (config: z.infer<TSchema>, delivery: WebhookDelivery) => boolean
   }
+  /**
+   * Optional. Turn a location inside a source into a URL on its own host,
+   * so evidence can reach the canonical copy instead of the local mirror.
+   * Omit it when the host has no web presence, as a local directory has none.
+   */
+  readonly webUrlFor?: (input: SourceWebUrlInput & { readonly config: z.infer<TSchema> }) => Promise<string | null> | string | null
   /** Skills this plugin ships (e.g. a migration walkthrough). */
   readonly skills?: readonly PluginSkillRef[]
   /** Optional explicit plugin id, defaults to `source-loader.<kind>`. */
@@ -41,10 +39,10 @@ export interface DefineSourceLoaderInput<TSchema extends z.ZodTypeAny> {
 /**
  * Build a SourceLoader plugin from a declarative spec.
  *
- * The wrapper validates the config against `configSchema`
+ * The wrapper validates the config against `configSchema`,
  * before each call to `provision` and `sync`,
  * so the loader body always receives a statically-typed config object,
- * without having to parse it itself.
+ * and never has to parse it itself.
  *
  * `TSchema` is inferred from the declared schema,
  * so the callback's `config` is `z.infer<TSchema>`,
@@ -84,6 +82,9 @@ export function defineSourceLoaderPlugin<TSchema extends z.ZodTypeAny>(
       ? { sync: async (rawConfig: unknown, destination: AbsolutePath, context: SourceLoaderContext) => input.sync!(parse(rawConfig), destination, context) }
       : {}),
     ...(webhook ? { webhook } : {}),
+    ...(input.webUrlFor
+      ? { webUrlFor: (urlInput: SourceWebUrlInput) => input.webUrlFor!({ ...urlInput, config: parse(urlInput.config) }) }
+      : {}),
   }
 
   return Object.freeze(loader)

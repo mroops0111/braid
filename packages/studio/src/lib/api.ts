@@ -1,42 +1,4 @@
-import type {
-  BatchPlan,
-  Clarification,
-  ClarificationCreateBody,
-  CommitMeta,
-  CommitSha,
-  EmbeddingCoverage,
-  FileDiff,
-  GraphEdge,
-  GraphNode,
-  ListSourceLoadersResponse,
-  McpServerConfig,
-  ModelDiffEnvelope,
-  ModelSnapshot,
-  OntologyListResponse,
-  OntologyResponse,
-  ProductManifestCreate,
-  Proposal,
-  ReactorCycle,
-  ReactorCycleId,
-  RunRecord,
-  SessionMetadata,
-  SkillInputOptionsResponse,
-  SkillManifest,
-  SourceDescriptor,
-  SourceId,
-  SourceSyncPolicy,
-  SourceSyncState,
-  SourceUnitDiff,
-  SourceUnitObservation,
-  TagMeta,
-  User,
-  UserUpdate,
-  ValidationResult,
-  Workspace,
-  WorkspaceMember,
-  WorkspacePollingConfig,
-  WorkspaceRole,
-} from '@braidhq/schema'
+import type { BatchPlan, Clarification, ClarificationCreateBody, CommitMeta, CommitSha, CoverageBoard, EmbeddingCoverage, FileDiff, GraphEdge, GraphNode, ListSourceLoadersResponse, McpServerConfig, ModelDiffEnvelope, ModelSnapshot, OntologyListResponse, OntologyResponse, ProductManifestCreate, Proposal, ReactorCycle, ReactorCycleId, RunRecord, SessionMetadata, SkillInputOptionsResponse, SkillManifest, SourceDescriptor, SourceId, SourceLocation, SourceSyncPolicy, SourceSyncState, SourceUnitDiff, SourceUnitObservation, TagMeta, User, UserUpdate, ValidationResult, Workspace, WorkspaceMember, WorkspacePollingConfig, WorkspaceRole } from '@braidhq/schema'
 import { getAuthToken } from './authToken.js'
 import { getCurrentUserId } from './currentUser.js'
 import { getTokenFor } from './remotes.js'
@@ -179,8 +141,9 @@ export interface AuthConfig {
 /**
  * What this deployment does with MCP.
  *
- * Read-only. Whether there is an endpoint follows from the authorization
- * server, which is a deployment decision rather than a Studio one.
+ * Read-only.
+ * Whether there is an endpoint follows from the authorization server,
+ * which is a deployment decision rather than a Studio one.
  */
 export interface McpEndpointStatus {
   state: 'ready' | 'unreachable' | 'incomplete' | 'turnedOff' | 'noAuthorizationServer'
@@ -216,6 +179,34 @@ export interface AuthWhoami {
 }
 
 export const api = {
+  /** The cited lines from the local mirror, for reading without leaving the page. */
+  readSourceExcerpt: (workspaceId: string, sourceId: string, location: SourceLocation) =>
+    fetchJson<{
+      firstLine: number
+      lines: string[]
+      highlightFrom: number
+      highlightTo: number
+      truncated: boolean
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/source-refs/excerpt`, {
+      method: 'POST',
+      body: JSON.stringify({
+        sourceId,
+        uri: location.uri,
+        ...(location.startLine !== undefined ? { startLine: location.startLine } : {}),
+        ...(location.endLine !== undefined ? { endLine: location.endLine } : {}),
+      }),
+    }),
+  /**
+   * Where a reference lives on its own host,
+   * or null when the source has no web address.
+   * Only the loader knows how to build it,
+   * so this asks rather than guessing at a URL shape.
+   */
+  resolveSourceRefUrl: (workspaceId: string, sourceId: string, location: SourceLocation) =>
+    fetchJson<{ url: string | null }>(`/workspaces/${encodeURIComponent(workspaceId)}/source-refs/resolve`, {
+      method: 'POST',
+      body: JSON.stringify({ sourceId, location }),
+    }),
   authConfig: () => fetchJson<AuthConfig>('/auth/config'),
   listAgents: () => fetchJson<{ agents: AgentSummary[] }>('/agents'),
   getAgentCredential: (agentKind: string) =>
@@ -380,6 +371,9 @@ export const api = {
     return fetchJson<{ items: SourceUnitObservation[] }>(`/workspaces/${workspaceId}/source-unit-states${qs}`)
   },
 
+  getCoverageBoard: (workspaceId: string) =>
+    fetchJson<CoverageBoard>(`/workspaces/${workspaceId}/coverage`),
+
   listReactorCycles: (workspaceId: string) =>
     fetchJson<{ items: ReactorCycle[] }>(`/workspaces/${workspaceId}/reactor-cycles`),
   getReactorCycle: (workspaceId: string, cycleId: ReactorCycleId) =>
@@ -485,6 +479,12 @@ export const api = {
         ...(note ? { note } : {}),
       }),
     }),
+  /** Stop the run waiting on this, keeping the question. Unlike skip, which discards it. */
+  deferClarification: (workspaceId: string, clarificationId: string) =>
+    fetchJson<Clarification>(`/workspaces/${workspaceId}/clarifications/${clarificationId}/defer`, {
+      method: 'POST',
+    }),
+
   skipClarification: (workspaceId: string, clarificationId: string, reason: string) =>
     fetchJson<Clarification>(`/workspaces/${workspaceId}/clarifications/${clarificationId}/skip`, {
       method: 'POST',
@@ -514,11 +514,6 @@ export const api = {
 
   listRuns: (workspaceId: string) =>
     fetchJson<ItemList<RunRecord>>(`/workspaces/${workspaceId}/runs`),
-  runEventsUrl: (workspaceId: string, runId: string) => {
-    const base = `${getServerUrl()}/workspaces/${workspaceId}/runs/${runId}/events`
-    const token = getAuthToken()
-    return token ? `${base}?token=${encodeURIComponent(token)}` : base
-  },
   cancelRun: (workspaceId: string, runId: string) =>
     fetchJson<void>(`/workspaces/${workspaceId}/runs/${runId}/cancel`, { method: 'POST' }),
   forgetSession: (workspaceId: string, sessionId: string) =>
@@ -571,10 +566,11 @@ export const api = {
   deleteHistoryTag: (workspaceId: string, name: string) =>
     fetchJson<void>(`/workspaces/${workspaceId}/history/tags/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 
-  startBatch: (workspaceId: string, autoApply: boolean) =>
+  /** `scope` names the documents to walk. Omitted, the batch walks them all. */
+  startBatch: (workspaceId: string, autoApply: boolean, scope?: readonly string[]) =>
     fetchJson<BatchPlan>(`/workspaces/${workspaceId}/batch`, {
       method: 'POST',
-      body: JSON.stringify({ autoApply }),
+      body: JSON.stringify({ autoApply, ...(scope ? { scope } : {}) }),
     }),
   getBatchStatus: async (workspaceId: string): Promise<BatchPlan | null> => {
     try {

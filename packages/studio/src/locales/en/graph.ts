@@ -1,4 +1,10 @@
 export const graph = {
+  arrival: {
+    from: '{count} nodes from "{origin}"',
+    onlyThese: 'Only These {count}',
+    showAll: 'Show Whole Graph',
+    dismiss: 'Dismiss',
+  },
   // Shown while the workspace graph snapshot is still loading.
   loadingGraph: 'Loading graph…',
   resetLayoutTooltip: 'Reset Layout',
@@ -40,6 +46,7 @@ export const graph = {
     endpoints: 'Endpoints',
     fromLabel: 'From',
     toLabel: 'To',
+    drifts: 'Conflicts ({count})',
     sources: 'Sources',
     noSources: 'No sourceReferences declared.',
     centerInGraphButton: 'Center in Graph',

@@ -5,6 +5,9 @@ argument-hint: "[scope-hint | validate]"
 disable-model-invocation: true
 braid:
   category: build
+  label:
+    en: Reconcile
+    zh-Hant: 對齊
   order: 300
   summary: Cross-link sources and validate the graph globally
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
@@ -17,16 +20,17 @@ braid:
         options:
           - value: ""
             label: Build + Validate
-            description: Add missing edges and run all validators.
+            description: Adds the relationships that only show up across documents, then runs every check.
           - value: validate
             label: Validate Only
-            description: Skip the build pass; report on the graph as-is.
+            description: Runs every check against the graph as it stands, and adds nothing to it.
       default: ""
     - name: scope
       label: Scope
-      description: Bounded context to focus on. Leave empty for a full-graph pass.
+      description: Bounded context to focus on, or the whole graph.
       kind: pick
       optional: true
+      placeholder: Whole Graph
       provider:
         kind: graph-node
         filter:

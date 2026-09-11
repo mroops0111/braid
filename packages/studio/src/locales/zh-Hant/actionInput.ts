@@ -1,6 +1,7 @@
 import type { actionInput as en } from '../en/actionInput'
 
 const actionInput: typeof en = {
+  anyOption: '不限',
   submitDefaultButton: '開始',
   submitShortcutHint: '⌘ + Enter',
   runsSuffix: '{label} ({count, plural, other {# 次執行}})',

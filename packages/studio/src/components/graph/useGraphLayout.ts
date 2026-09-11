@@ -26,6 +26,11 @@ export interface NodeCardData extends Record<string, unknown> {
    * when only a small fraction of the graph changes.
    */
   emphasizeAdded?: boolean
+  /**
+   * Set by `GraphCanvas` for the nodes somebody arrived to look at,
+   * so the whole graph stays drawn and the arrival is findable inside it.
+   */
+  spotlit?: boolean
 }
 
 export interface EdgeCardData extends Record<string, unknown> {

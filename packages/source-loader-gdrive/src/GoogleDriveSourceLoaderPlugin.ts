@@ -6,6 +6,7 @@ import { defineSourceLoaderPlugin } from '@braidhq/sdk'
 import { z } from 'zod'
 import { DriveClient, type DriveFileMetadata, type FetchFn } from './DriveClient.js'
 import { type Manifest, type ManifestEntry, readManifest, writeManifest } from './Manifest.js'
+import { driveWebUrl } from './webUrl.js'
 
 const FOLDER_MIME = 'application/vnd.google-apps.folder'
 const DOC_MIME = 'application/vnd.google-apps.document'
@@ -91,9 +92,10 @@ interface CandidateDoc {
 }
 
 /**
- * Build a Google Drive source loader. Walks a Drive folder, exports every
- * Google Doc inside as markdown, extracts inlined base64 images into
- * sibling files, and lays everything out as:
+ * Build a Google Drive source loader.
+ * Walks a Drive folder, exports every Google Doc inside as markdown,
+ * extracts inlined base64 images into sibling files,
+ * and lays everything out as:
  *
  *   <destination>/
  *     <sanitised-doc-title>/
@@ -116,6 +118,7 @@ export function createGoogleDriveLoader(deps: GoogleDriveLoaderDeps): SourceLoad
   return defineSourceLoaderPlugin({
     kind: 'gdrive',
     configSchema: GoogleDriveLoaderConfig,
+    webUrlFor: driveWebUrl,
     provision: async (config, destination, context) => {
       await rm(destination, { recursive: true, force: true })
       await mkdir(destination, { recursive: true })

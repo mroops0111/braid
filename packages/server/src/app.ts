@@ -1,5 +1,6 @@
 import type { AbsolutePath, Timestamp, UserId } from '@braidhq/schema'
 import type { AppDependencies } from './composeApp.js'
+import { SkillCategory } from '@braidhq/schema'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { OpenAPIHono } from '@hono/zod-openapi'
 import { withoutTrailingSlash } from './infrastructure/_shared/urls.js'
@@ -14,9 +15,12 @@ import { createAdminRouter } from './routes/admin.js'
 import { createAgentCredentialsRouter } from './routes/agentCredentials.js'
 import { createAgentProxyRouter } from './routes/agentProxy.js'
 import { createAgentsRouter } from './routes/agents.js'
+import { createAguiRouter } from './routes/agui.js'
 import { createAuthRouter } from './routes/auth.js'
 import { createBatchRouter } from './routes/batch.js'
+import { createBlocksRouter } from './routes/blocks.js'
 import { createClarificationRouter } from './routes/clarifications.js'
+import { createCoverageRouter } from './routes/coverage.js'
 import { createEdgesRouter } from './routes/edges.js'
 import { createEmbeddingsRouter } from './routes/embeddings.js'
 import { healthRouter } from './routes/health.js'
@@ -32,10 +36,13 @@ import { createProposalsRouter } from './routes/proposals.js'
 import { createProtectedResourceRouter } from './routes/protectedResource.js'
 import { createReactorCyclesRouter } from './routes/reactorCycles.js'
 import { createRunsRouter } from './routes/runs.js'
+import { toolSurfaceFor } from './routes/runToolSurface.js'
 import { createSkillInputOptionsRouter } from './routes/skillInputOptions.js'
 import { createSkillsRouter } from './routes/skills.js'
 import { createSourceConnectionRouter } from './routes/sourceConnection.js'
+import { createSourceExcerptRouter } from './routes/sourceExcerpt.js'
 import { createSourceLoadersRouter } from './routes/sourceLoaders.js'
+import { createSourceRefUrlRouter } from './routes/sourceRefUrl.js'
 import { createSourceUnitObservationsRouter } from './routes/sourceUnitObservations.js'
 import { createGithubWebhookReceiver, createSourceWebhooksAdminRouter } from './routes/sourceWebhooks.js'
 import { createUsersRouter } from './routes/users.js'
@@ -94,8 +101,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     app.use('/*', serveStatic({ root, index: 'index.html' }))
   }
 
-  // Identity and auth gate. Resolves the caller's `userId` from a Bearer session
-  // when auth is enforced, else the `X-Braid-User` header or the default principal.
+  // Identity and auth gate.
+  // Resolves the caller's `userId` from a Bearer session when auth is enforced,
+  // else the `X-Braid-User` header or the default principal.
   // Non-public routes that lack a required Bearer token are rejected.
   // Sessions first, since the browser is the common case,
   // and every other verifier would repeat that lookup before declining.
@@ -124,8 +132,8 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   // Host-level routes, not scoped to a single workspace.
   app.route('/health', healthRouter)
 
-  // What this deployment does with MCP, so Studio can show it rather than
-  // leaving an operator to read the logs.
+  // What this deployment does with MCP,
+  // so Studio can show it rather than leaving an operator to read the logs.
   if (deps.mcpResolution) {
     app.route('/mcp-endpoint', createMcpStatusRouter({
       resolution: deps.mcpResolution,
@@ -250,8 +258,17 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     ...(deps.embeddingService ? { embeddingService: deps.embeddingService } : {}),
   }))
   workspaceScoped.route('/edges', createEdgesRouter({ modelService: deps.modelService }))
+  workspaceScoped.route('/source-refs', createSourceExcerptRouter({
+    workspaceRepository: deps.workspaceRepository,
+  }))
+  workspaceScoped.route('/source-refs', createSourceRefUrlRouter({
+    workspaceRepository: deps.workspaceRepository,
+    pluginRegistry: deps.pluginRegistry,
+    sourceSyncStateRepository: deps.syncStateRepository,
+  }))
   workspaceScoped.route('/proposals', createProposalsRouter({
     hitlService: deps.hitlService,
+    ...(deps.outputGate ? { outputGate: deps.outputGate } : {}),
     proposalRepository: deps.proposalRepository,
     modelRepository: deps.modelRepository,
     modelValidationService: deps.modelValidationService,
@@ -259,6 +276,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   }))
   workspaceScoped.route('/clarifications', createClarificationRouter({
     hitlService: deps.hitlService,
+    ...(deps.outputGate ? { outputGate: deps.outputGate } : {}),
     clarificationRepository: deps.clarificationRepository,
   }))
   workspaceScoped.route('/source-unit-states', createSourceUnitObservationsRouter({
@@ -293,6 +311,21 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       skillRunner: deps.skillRunner,
       workspaceRepository: deps.workspaceRepository,
     }))
+    // Second mount under the same prefix,
+    // because the render operations must reach the OpenAPI doc,
+    // for the gateway to serve them as tools,
+    // and the runs router above is a plain Hono sub-app.
+    workspaceScoped.route('/runs', createBlocksRouter({
+      skillRunner: deps.skillRunner,
+      workspaceRepository: deps.workspaceRepository,
+      modelRepository: deps.modelRepository,
+    }))
+    workspaceScoped.route('/agui', createAguiRouter({
+      skillRunner: deps.skillRunner,
+      runRepository: deps.runRepository,
+      workspaceRepository: deps.workspaceRepository,
+      clarificationRepository: deps.clarificationRepository,
+    }))
   }
   if (deps.historyService) {
     workspaceScoped.route('/history', createHistoryRouter({ historyService: deps.historyService }))
@@ -303,6 +336,12 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   workspaceScoped.route('/reactor-cycles', createReactorCyclesRouter({
     reactorCycleRepository: deps.reactorCycleRepository,
   }))
+  if (deps.coverageProjection) {
+    workspaceScoped.route('/coverage', createCoverageRouter({
+      coverageProjection: deps.coverageProjection,
+      workspaceRepository: deps.workspaceRepository,
+    }))
+  }
   if (deps.secretStore) {
     workspaceScoped.route('/source-webhooks', createSourceWebhooksAdminRouter({
       workspaceService: deps.workspaceService,
@@ -363,14 +402,26 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   // the dialect a tool `input_schema` is validated against.
   // A 3.0 doc emits `nullable` and boolean `exclusiveMinimum`,
   // which the model API rejects once the gateway forwards them as MCP tool schemas.
-  app.doc31('/openapi.json', {
-    openapi: '3.1.0',
+  const specConfig = {
+    openapi: '3.1.0' as const,
     info: {
       title: 'Braid REST API',
       version: '0.0.1',
       description: 'REST surface exposed by @braidhq/server. Each operation also becomes an MCP tool via openapi-mcp-gateway.',
     },
     ...(options.apiUrl ? { servers: [{ url: options.apiUrl }] } : {}),
+  }
+  app.doc31('/openapi.json', specConfig)
+
+  // The spec a run's own gateway reads,
+  // holding only the operations that kind of run may call.
+  // A question about who may do what is answered once, here,
+  // rather than by every handler learning who is calling it.
+  app.get('/openapi/runs/:category/openapi.json', (context) => {
+    const category = SkillCategory.safeParse(context.req.param('category'))
+    if (!category.success)
+      return context.json({ error: 'Unknown run category' }, 404)
+    return context.json(toolSurfaceFor(app.getOpenAPI31Document(specConfig) as unknown as Record<string, unknown>, category.data))
   })
 
   return app

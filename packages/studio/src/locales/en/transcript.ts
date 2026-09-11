@@ -13,6 +13,7 @@ export const transcript = {
   rateLimitWaiting: 'waiting on rate limit',
   rateLimitReset: '(resets {time})',
   // Terminal-style event lines. Bracket tags stay verbatim.
+  blockLine: '[block] {call}',
   artifactLine: '[artifact] {kind} {id}: {path}',
   completedLine: '[completed] exit={code}',
   errorLine: '[error] {message}',

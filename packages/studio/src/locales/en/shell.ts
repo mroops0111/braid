@@ -1,7 +1,11 @@
 export const shell = {
   // Surface names shared across the sidebar, header breadcrumb, and command palette.
   surfaces: {
+    inbox: 'Inbox',
+    ask: 'Ask',
     graph: 'Graph',
+    batch: 'Bootstrap',
+    build: 'Build',
     actions: 'Actions',
     clarifications: 'Clarifications',
     proposals: 'Proposals',
@@ -36,6 +40,7 @@ export const shell = {
     detailsLabel: 'Details',
     hereTitle: 'Here',
     pendingCount: '{count} pending',
+    running: 'Running now',
     runsInFlight: '{count, plural, one {# run in flight} other {# runs in flight}}',
     pendingClarifications: '{count, plural, one {# pending clarification} other {# pending clarifications}}',
     pendingProposals: '{count, plural, one {# pending proposal} other {# pending proposals}}',

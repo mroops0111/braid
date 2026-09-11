@@ -4,9 +4,11 @@ import { ClarificationId, CommitSha, ProposalId, SkillId, SkillRunId, SourceId, 
 import { ReactorCycleId } from './reactor.js'
 
 // Workspace-scoped runtime notifications, the SSE contract between server and Studio.
-// Studio's useWorkspaceEvents hook reads these to invalidate react-query caches the moment
-// a server mutation happens. NOT persisted, NOT replayable, a restart drops anything in flight.
-// Keep payloads small, only the identifiers a subscriber needs to pick which query keys to drop.
+// Studio's useWorkspaceEvents hook reads these to invalidate react-query caches,
+// the moment a server mutation happens.
+// Not persisted and not replayable, so a restart drops anything in flight.
+// Keep payloads small, only the identifiers a subscriber needs,
+// to pick which query keys to drop.
 // Events are signals, not deliveries, the fresh value lives behind the list and detail endpoints.
 
 // The envelope every event carries. Each type below extends it with its own fields.
@@ -33,6 +35,13 @@ export type RunCompletedEvent = z.infer<typeof RunCompletedEvent>
 export const ProposalCreatedEvent = WorkspaceEventBase.extend({
   type: z.literal('proposal.created'),
   proposalId: ProposalId,
+  /**
+   * The run that produced it, when a skill did.
+   * A subscriber acting on its own output needs this to tell it apart,
+   * from anything else created while it was running,
+   * since the bus is workspace-wide.
+   */
+  skillRunId: SkillRunId.optional(),
 })
 export type ProposalCreatedEvent = z.infer<typeof ProposalCreatedEvent>
 
@@ -257,7 +266,8 @@ export const ReactorUnitCompletedEvent = WorkspaceEventBase.extend({
 export type ReactorUnitCompletedEvent = z.infer<typeof ReactorUnitCompletedEvent>
 
 /**
- * Checkpoint skill about to start, fires only when at least one per-unit dispatch succeeded
+ * Checkpoint skill about to start,
+ * firing only when at least one per-unit dispatch succeeded,
  * and the ontology declares a checkpoint binding.
  */
 export const ReactorCheckpointStartedEvent = WorkspaceEventBase.extend({

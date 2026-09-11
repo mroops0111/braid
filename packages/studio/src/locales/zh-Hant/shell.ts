@@ -2,7 +2,11 @@ import type { shell as en } from '../en/shell'
 
 const shell: typeof en = {
   surfaces: {
+    inbox: '收件匣',
+    ask: '提問',
     graph: '圖譜',
+    batch: '初始建模',
+    build: '建構',
     actions: '動作',
     clarifications: '釐清',
     proposals: '提案',
@@ -32,6 +36,7 @@ const shell: typeof en = {
     detailsLabel: '詳細資料',
     hereTitle: '目前位置',
     pendingCount: '{count} 個待處理',
+    running: '執行中',
     runsInFlight: '{count, plural, one {# 個執行進行中} other {# 個執行進行中}}',
     pendingClarifications: '{count, plural, one {# 個待釐清} other {# 個待釐清}}',
     pendingProposals: '{count, plural, one {# 個待審提案} other {# 個待審提案}}',

@@ -1,11 +1,12 @@
 import type { ClarificationRepository, HITLService } from '@braidhq/core'
+import type { RunOutputGate } from '../infrastructure/skill/RunOutputGate.js'
 import { newClarificationCandidateId } from '@braidhq/core'
 import { Clarification, ClarificationCandidateId, ClarificationCreateBody, ClarificationId, ClarificationStatus, ProposalId, UserId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
-import { getUserId } from '../middleware/auth.js'
+import { getSkillRunId, getUserId } from '../middleware/auth.js'
 import { getViewerContext, requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
-import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
+import { forRuns, NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 import { assertEntityInWorkspace } from './helpers.js'
 
 const ListQuery = z.object({
@@ -68,10 +69,16 @@ const ClarificationListResponse = z.object({
 
 export interface ClarificationRouterDeps {
   hitlService: HITLService
+  /**
+   * Holds a run to one outcome, a question or a proposal.
+   * Absent, nothing is gated,
+   * which is what an in-memory composition without skills wants.
+   */
+  outputGate?: RunOutputGate
   clarificationRepository: ClarificationRepository
 }
 
-const createClarificationRoute = createRoute({
+const createClarificationRoute = createRoute(forRuns({
   method: 'post',
   path: '/',
   operationId: 'createClarification',
@@ -88,7 +95,7 @@ const createClarificationRoute = createRoute({
     },
     400: ValidationFailureResponse,
   },
-})
+}, ['build']))
 
 const listClarificationRoute = createRoute({
   method: 'get',
@@ -124,7 +131,7 @@ const getClarificationRoute = createRoute({
   },
 })
 
-const answerClarificationRoute = createRoute({
+const answerClarificationRoute = createRoute(forRuns({
   method: 'post',
   path: '/{clarificationId}/answer',
   operationId: 'answerClarification',
@@ -141,9 +148,9 @@ const answerClarificationRoute = createRoute({
     },
     404: NotFoundResponse,
   },
-})
+}, []))
 
-const applyClarificationRoute = createRoute({
+const applyClarificationRoute = createRoute(forRuns({
   method: 'patch',
   path: '/{clarificationId}',
   operationId: 'markClarificationApplied',
@@ -161,9 +168,26 @@ const applyClarificationRoute = createRoute({
     },
     404: NotFoundResponse,
   },
-})
+}, ['build']))
 
-const skipClarificationRoute = createRoute({
+const deferClarificationRoute = createRoute(forRuns({
+  method: 'post',
+  path: '/{clarificationId}/defer',
+  operationId: 'deferClarification',
+  summary: 'Stop a run waiting on this question, keeping the question.',
+  description: 'Skipping discards a question. Deferring keeps it and only gives up the conversation, so it stays pending and stands on its own. The run carries on without the answer, and the step that reads answered clarifications picks it up whenever somebody gets to it.',
+  tags: ['clarify'],
+  request: { params: ClarificationIdParam },
+  responses: {
+    200: {
+      description: 'The updated clarification.',
+      content: { 'application/json': { schema: Clarification } },
+    },
+    404: NotFoundResponse,
+  },
+}, []))
+
+const skipClarificationRoute = createRoute(forRuns({
   method: 'post',
   path: '/{clarificationId}/skip',
   operationId: 'skipClarification',
@@ -180,7 +204,24 @@ const skipClarificationRoute = createRoute({
     },
     404: NotFoundResponse,
   },
-})
+}, []))
+
+const reportNoClarificationRoute = createRoute(forRuns({
+  method: 'post',
+  path: '/none',
+  operationId: 'reportNoClarification',
+  summary: 'Say that this run found nothing it could not decide. Call it before proposing.',
+  tags: ['clarifications'],
+  request: { params: WorkspaceIdParam },
+  responses: {
+    // Nothing is created and nothing is decided here,
+    // so there is nothing to send back.
+    // A body restating the status would be paid for in the run's context,
+    // only to say what the status line already said.
+    204: { description: 'The declaration was recorded.' },
+    400: ValidationFailureResponse,
+  },
+}, ['build']))
 
 export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
@@ -189,7 +230,13 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
   // Guests never see the tab, but a direct curl still 403s here.
   router.use('/:clarificationId/answer', requirePermission('clarification.write'))
   router.use('/:clarificationId/skip', requirePermission('clarification.write'))
+  router.use('/:clarificationId/defer', requirePermission('clarification.write'))
   router.use('/:clarificationId', requirePermission('clarification.write'))
+
+  router.openapi(reportNoClarificationRoute, async (context) => {
+    deps.outputGate?.declareNothingToClarify(getSkillRunId(context))
+    return context.body(null, 204)
+  })
 
   router.openapi(createClarificationRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
@@ -199,7 +246,14 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
       ...c,
       id: c.id ?? newClarificationCandidateId(),
     }))
-    const clarification = await deps.hitlService.submitClarification({ ...body, workspaceId, candidates, submitterId })
+    const skillRunId = getSkillRunId(context)
+    const clarification = await deps.hitlService.submitClarification({
+      ...body,
+      workspaceId,
+      candidates,
+      ...(skillRunId ? { skillRunId } : {}),
+      submitterId,
+    })
     return context.json(clarification.toData(), 201)
   })
 
@@ -258,6 +312,15 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
     assertEntityInWorkspace(workspaceId, clarification.workspaceId, 'Clarification', clarificationId)
     const applied = await deps.hitlService.markClarificationApplied(clarificationId, userId, proposalId)
     return context.json(applied.toData(), 200)
+  })
+
+  router.openapi(deferClarificationRoute, async (context) => {
+    const workspaceId = getWorkspaceId(context)
+    const { clarificationId } = context.req.valid('param')
+    const clarification = await deps.clarificationRepository.load(clarificationId)
+    assertEntityInWorkspace(workspaceId, clarification.workspaceId, 'Clarification', clarificationId)
+    const deferred = await deps.hitlService.deferClarification(clarificationId, getUserId(context))
+    return context.json(deferred.toData(), 200)
   })
 
   router.openapi(skipClarificationRoute, async (context) => {

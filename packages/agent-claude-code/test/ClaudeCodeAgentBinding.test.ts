@@ -71,7 +71,7 @@ function buildSkillManifest(extensionPath?: AbsolutePath): SkillManifest {
 function makeInput(overrides: Partial<AgentSpawnInput> = {}): AgentSpawnInput {
   return {
     skillId: 'braid:ask' as SkillId,
-    args: 'what is voidTask',
+    messages: [{ role: 'user', content: 'what is voidTask' }],
     workspace: buildWorkspace(),
     manifest: buildSkillManifest(),
     apiUrl: 'http://localhost:4321',
@@ -143,7 +143,7 @@ describe('ClaudeCodeAgentBinding', () => {
   it('forwards workspace path, workspace id, api url, and descriptor env into the child env', async () => {
     const binding = new ClaudeCodeAgentBinding(descriptor)
 
-    const result = await binding.resolveSpawn(makeInput({ args: '' }))
+    const result = await binding.resolveSpawn(makeInput({ messages: [{ role: 'user', content: '' }] }))
 
     expect(result.env.BRAID_WORKSPACE).toBe('/abs/ws')
     expect(result.env.BRAID_WORKSPACE_ID).toBe('ws-1')
@@ -175,13 +175,39 @@ describe('ClaudeCodeAgentBinding', () => {
     const binding = new ClaudeCodeAgentBinding(descriptor)
 
     const result = await binding.resolveSpawn(makeInput({
-      args: 'follow-up question',
+      messages: [
+        { role: 'user', content: 'what is voidTask' },
+        { role: 'assistant', content: 'It archives a task.' },
+        { role: 'user', content: 'follow-up question' },
+      ],
       manifest: buildSkillManifest('/abs/ws/skill-extensions/braid-ask/EXTEND.md' as AbsolutePath),
-      resumeSessionId: 'sess-1',
+      conversationId: 'sess-1',
     }))
 
     const prompt = result.args[result.args.indexOf('-p') + 1]
     expect(prompt).toBe('follow-up question')
+    expect(result.args).toContain('--resume')
+  })
+
+  // The point of the port carrying messages rather than a session id.
+  // An agent holding no conversation of its own gets the exchange in the prompt,
+  // and the caller never had to know which kind of agent it was talking to.
+  it('replays the exchange in the prompt when no conversation handle exists', async () => {
+    const binding = new ClaudeCodeAgentBinding(descriptor)
+
+    const result = await binding.resolveSpawn(makeInput({
+      messages: [
+        { role: 'user', content: 'what is voidTask' },
+        { role: 'assistant', content: 'It archives a task.' },
+        { role: 'user', content: 'and who may call it' },
+      ],
+    }))
+
+    const prompt = result.args[result.args.indexOf('-p') + 1]!
+    expect(prompt).toContain('/braid:ask what is voidTask')
+    expect(prompt).toContain('Assistant: It archives a task.')
+    expect(prompt).toContain('User: and who may call it')
+    expect(result.args).not.toContain('--resume')
   })
 
   it('throws when the binding descriptor is not claude-code', () => {

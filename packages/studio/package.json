@@ -26,6 +26,13 @@
     "test": "vitest run --coverage",
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@ag-ui/client": "0.0.59",
+    "@ag-ui/core": "0.0.59"
+  },
   "devDependencies": {
     "@braidhq/schema": "workspace:*",
     "@braidhq/test-utils": "workspace:*",
@@ -66,8 +73,5 @@
     "vite": "^8.2.1",
     "vitest": "^4.1.10",
     "zod": "^4.2.1"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }

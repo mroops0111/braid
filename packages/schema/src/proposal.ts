@@ -7,6 +7,7 @@ import {
   NodeId,
   ProposalId,
   SkillId,
+  SkillRunId,
   Timestamp,
   UserId,
   WorkspaceId,
@@ -19,6 +20,7 @@ import {
   GraphNodeCreate,
   GraphNodeUpdate,
 } from './model.js'
+import { SourceUnit } from './source-unit.js'
 import { UserKind } from './user.js'
 
 // Only the hard contract here. Authoring rules (length, tone, language) live in the skill layer.
@@ -57,6 +59,29 @@ export const Proposal = z.object({
   // Set when the clarify skill materialised this from an answered clarification.
   // Applying the proposal transitions that clarification to `applied`.
   clarificationId: ClarificationId.optional(),
+  /**
+   * The run that produced this, when a skill did.
+   * Absent on a human-authored proposal.
+   * It is what lets a batch tell its own output from anything else,
+   * created while it was running,
+   * and what links a proposal back to the conversation that reasoned about it.
+   */
+  skillRunId: SkillRunId.optional(),
+  /**
+   * The source units this was derived from, each at the version that was read.
+   *
+   * Stamped by the server from the run's own scope,
+   * never reported by the agent,
+   * because which document a run was pointed at, and what it hashed to,
+   * are both facts the server already holds.
+   *
+   * Applying a proposal is what moves a unit into the model,
+   * so this is what makes coverage answerable.
+   * Reading a unit is not incorporating it,
+   * and without this a rejected proposal would leave the unit looking current,
+   * while the model reflected none of it.
+   */
+  sourceUnits: z.array(SourceUnit).optional(),
   // The user who created it, or 'system' for autonomous ones. Pending is owner-only.
   owner: Actor,
   // Name at submit time, survives renames. Absent for the 'system' owner.
@@ -75,6 +100,7 @@ export const ProposalCreate = z.object({
   externalReferences: z.array(ExternalReference).optional(),
   // Links the proposal back to the clarification it resolves, when any.
   clarificationId: ClarificationId.optional(),
+  skillRunId: SkillRunId.optional(),
 })
 export type ProposalCreate = z.infer<typeof ProposalCreate>
 

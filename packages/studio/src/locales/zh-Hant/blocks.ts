@@ -1,0 +1,78 @@
+export const blocks = {
+  title: '答案區塊',
+  findingsHeading: '{count} 項一致性檢查',
+  activity: {
+    starting: '啟動中…',
+    graphQueries: '次圖譜查詢',
+    toolCalls: '次工具呼叫',
+    rendered: '個區塊',
+  },
+  canvas: {
+    emptyTitle: '尚無答案',
+    emptyDescription: '在下方提出問題，答案會逐一在這裡呈現。',
+    workingTitle: '進行中',
+    workingDescription: '每完成一個段落，這裡就會新增一個區塊。',
+  },
+  matrix: {
+    cellHint: '點選任一格可查看該格的證據。',
+    tone: {
+      affirmed: '成立',
+      denied: '不成立',
+      conditional: '有條件',
+      conflict: '不一致',
+      notApplicable: '不適用',
+    },
+  },
+  subgraph: {
+    notInGraph: '其中 {count} 個節點不在圖裡，也不在待審的提案裡，所以沒有畫在上面。',
+    title: '圖譜切片',
+  },
+  trace: {
+    searches: '次搜尋',
+    hits: '筆命中',
+    read: '份來源',
+    cited: '筆引用',
+    skipped: '讀取後未引用 {count} 份',
+    searchedHeading: '搜尋條件',
+    citedHeading: '引用的節點',
+    readHeading: '讀取的來源',
+    skippedHeading: '讀取後未引用',
+    hitCount: '{count} 筆',
+  },
+  outline: {
+    showAnswer: '答案',
+    showEvidence: '證據',
+    showFinding: '一致性',
+    showMatrix: '對照表',
+    showTrace: '檢索軌跡',
+    showDiagram: '圖解',
+    showSubgraph: '圖譜切片',
+    consistency: '一致性',
+    findingSummary: '檢查 {total} 項，{conflicts} 項有落差',
+  },
+  evidence: {
+    title: '證據',
+    unrecorded: '未收錄',
+    unrecordedHint: '此位置由本次執行自行開啟，圖譜尚無節點引用它。',
+    openCanonical: '在來源出處開啟',
+    excerptMissing: '本地鏡像已不包含此位置。',
+    snippetDrifted: '這幾行已非當初引用的內容，來源在那之後有所變動。',
+    refCount: '{count} 份來源',
+  },
+  finding: {
+    support: {
+      corroborated: '佐證完整',
+      corroboratedHint: '每一側都以圖譜已引用的位置為佐證。',
+      partial: '佐證部分',
+      partialHint: '每一側都有來源，但至少有一側尚未收錄於圖譜。',
+      thin: '佐證單薄',
+      thinHint: '至少有一側完全沒有來源。',
+    },
+    recorded: '已收錄',
+    unrecorded: '未收錄',
+    unrecordedHint: '圖譜沒有這筆 drift 紀錄，由本次執行發現。',
+    suggestedSource: '足以定論的來源：{source}',
+  },
+}
+
+export default blocks
