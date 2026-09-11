@@ -3,12 +3,13 @@ import type { NodeChange } from '@xyflow/react'
 import type { GraphDataSource } from './GraphDataSource'
 import type { NodeCardNode } from './useGraphLayout'
 import { localize } from '@braidhq/schema'
-import { Background, BackgroundVariant, ControlButton, Controls, getNodesBounds, MarkerType, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react'
+import { Background, BackgroundVariant, ControlButton, Controls, getNodesBounds, MarkerType, MiniMap, ReactFlow, ReactFlowProvider, useNodesInitialized, useReactFlow } from '@xyflow/react'
 import { toPng, toSvg } from 'html-to-image'
-import { Download, GitBranch, PanelLeftClose, PanelLeftOpen, RotateCcw, Sparkles, Target } from 'lucide-react'
+import { Download, GitBranch, RotateCcw, Sparkles, Target } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
+import { PanelToggle } from '@/components/SurfaceLayout'
 import { Button } from '@/components/ui/button'
 import { asEdgeId } from '@/lib/brands'
 import { useLocale } from '@/lib/i18n'
@@ -36,6 +37,16 @@ import '@xyflow/react/dist/style.css'
 
 interface GraphCanvasProps {
   workspaceId: string
+  /**
+   * Rendered inside another surface rather than as the Graph page.
+   *
+   * The minimap goes,
+   * because a slice small enough to embed is already the overview it provides,
+   * and every type starts visible,
+   * because an embedded slice was chosen by whoever put it there,
+   * rather than filtered down by the reader.
+   */
+  embedded?: boolean
   /**
    * Optional data source override. Defaults to the live workspace snapshot.
    * Proposal previews pass a derived source carrying a `diff` overlay,
@@ -100,11 +111,21 @@ interface GraphCanvasProps {
   onStartBootstrap?: () => void
   /** Opens the command palette from the navigator, not only from the shortcut. */
   onOpenSearch?: () => void
+  /**
+   * Nodes somebody arrived to look at,
+   * marked and framed inside whatever is drawn.
+   * Arriving is a fresh intent, so it also opens the type whitelist,
+   * the same relaxation a reference already gets,
+   * since a filter set while browsing must not hide what was just asked for.
+   */
+  spotlightIds?: readonly NodeId[]
 }
 
 const NODE_TYPES = { card: GraphNodeCard }
 
 const READABLE_ZOOM = 0.85
+
+const NO_SPOTLIGHT: readonly NodeId[] = Object.freeze([])
 
 const INITIAL_FILTERS: GraphFilters = {
   search: '',
@@ -117,21 +138,21 @@ const INITIAL_FILTERS: GraphFilters = {
 // so labels appear on a high-level or focused view, not the whole graph.
 const EDGE_LABEL_LIMIT = 40
 
-export function GraphCanvas({ workspaceId, source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap, onOpenSearch }: GraphCanvasProps) {
+export function GraphCanvas({ workspaceId, source, embedded, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap, onOpenSearch, spotlightIds }: GraphCanvasProps) {
   const palette = usePalette(workspaceId)
   return (
     <PaletteProvider value={palette}>
       <ReactFlowProvider>
         <CanvasInner
           workspaceId={workspaceId}
-          {...optional({ source, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap, onOpenSearch })}
+          {...optional({ source, embedded, selectedNodeId, onSelectNode, selectedEdgeId, onSelectEdge, focusMode, centerRequest, dimUnchanged, emphasizeAdded, onStartBootstrap, onOpenSearch, spotlightIds })}
         />
       </ReactFlowProvider>
     </PaletteProvider>
   )
 }
 
-function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, onSelectNode, selectedEdgeId: controlledEdgeSelected, onSelectEdge, focusMode = false, centerRequest = 0, dimUnchanged = false, emphasizeAdded = false, onStartBootstrap, onOpenSearch }: GraphCanvasProps) {
+function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: controlledSelected, onSelectNode, selectedEdgeId: controlledEdgeSelected, onSelectEdge, focusMode = false, centerRequest = 0, dimUnchanged = false, emphasizeAdded = false, onStartBootstrap, onOpenSearch, spotlightIds = NO_SPOTLIGHT }: GraphCanvasProps) {
   const { t } = useTranslation()
   // React Query dedupes the live snapshot fetch by queryKey,
   // so it is effectively free when `source` is supplied.
@@ -154,7 +175,10 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   // Navigator stays open across tab and preview modes,
   // so the filter chips are visible from the start.
   // Reviewers got stuck in preview mode wondering how to surface types.
-  const [navigatorOpen, setNavigatorOpen] = useState(true)
+  // An embedded slice starts with the panel folded.
+  // The reader came for the picture, and the slice was chosen for them,
+  // so filters are there to reach for rather than to greet them.
+  const [navigatorOpen, setNavigatorOpen] = useState(!embedded)
   const canvasRef = useRef<HTMLDivElement>(null)
   /**
    * How the viewport was last framed on purpose,
@@ -165,7 +189,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
 
   const [exporting, setExporting] = useState(false)
 
-  useFilterSeed(ontology, workspaceId, setFilters, diff !== undefined ? 'all' : 'defaultVisible')
+  useFilterSeed(ontology, workspaceId, setFilters, diff !== undefined || embedded || spotlightIds.length > 0 ? 'all' : 'defaultVisible')
 
   const orphanIds = useMemo(() => orphanNodeIds(allNodes, allEdges), [allNodes, allEdges])
   const filtered = useMemo(
@@ -209,6 +233,7 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
   const reactFlow = useReactFlow()
 
   const { nodesById, incoming, outgoing } = useNodeNeighbors(allNodes, allEdges, selectedNodeId)
+  const spotlight = useMemo(() => new Set<string>(spotlightIds), [spotlightIds])
 
   const reactFlowNodes = useMemo(
     () => laidOut.nodes.map((n) => {
@@ -223,11 +248,11 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
       return {
         ...n,
         selected: n.id === selectedNodeId,
-        data: { ...n.data, change, emphasizeAdded },
+        data: { ...n.data, change, emphasizeAdded, spotlit: spotlight.has(n.data.node.id) },
         ...(dimmed ? { style: { opacity: DIMMED_NODE_OPACITY } } : {}),
       }
     }),
-    [laidOut.nodes, selectedNodeId, diff, focusMode, neighborhood, dimUnchanged, emphasizeAdded],
+    [laidOut.nodes, selectedNodeId, diff, focusMode, neighborhood, dimUnchanged, emphasizeAdded, spotlight],
   )
 
   // Edges keep their type colour so topology is readable.
@@ -291,6 +316,28 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
     }, []),
   })
 
+  /**
+   * Fit once the nodes have been measured.
+   *
+   * ReactFlow's own `fitView` prop runs before a node reports its size,
+   * so it frames a bounds it cannot know yet and lands on `minZoom`.
+   * The layout-change fit normally corrects this,
+   * because the snapshot usually arrives after mount and moves the key.
+   * A canvas mounted over an already-cached snapshot never gets that pass,
+   * which is every embedded subgraph, and stays zoomed out.
+   */
+  const nodesInitialized = useNodesInitialized()
+  const didFitOnInitRef = useRef(false)
+  useEffect(() => {
+    if (!nodesInitialized || didFitOnInitRef.current || laidOut.nodes.length === 0)
+      return
+    didFitOnInitRef.current = true
+    // The changed-node framing below is more specific, so leave it alone.
+    if (dimUnchanged && (diff?.nodes.size ?? 0) > 0)
+      return
+    reactFlow.fitView({ padding: 0.15 })
+  }, [nodesInitialized, laidOut.nodes.length, dimUnchanged, diff, reactFlow])
+
   // Only-changes zooms the viewport onto the changed nodes,
   // so a small diff is enlarged rather than lost in the dimmed full graph.
   // Toggling it off restores the whole-graph frame.
@@ -307,6 +354,18 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
       didFitChangesRef.current = false
     }
   }, [dimUnchanged, changedNodeIds, reactFlow, navigatorOpen])
+
+  // Arriving frames what was arrived at,
+  // so a dozen nodes are legible inside a graph of a thousand,
+  // rather than sitting somewhere off screen.
+  useEffect(() => {
+    if (spotlightIds.length === 0)
+      return
+    const present = spotlightIds.filter(id => laidOut.nodes.some(node => node.id === id))
+    if (present.length === 0)
+      return
+    reactFlow.fitView({ nodes: present.map(id => ({ id })), padding: 0.4, maxZoom: 1.2, duration: 300 })
+  }, [spotlightIds, laidOut.nodes, reactFlow])
 
   // Where a node card's title and first description line are legible.
   // Below this, arriving at a node tells the reader where it is,
@@ -518,14 +577,12 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
 
       <div ref={canvasRef} className="relative flex-1 bg-background">
         <div className="absolute left-3 top-3 z-10">
-          <button
-            type="button"
-            onClick={() => setNavigatorOpen(open => !open)}
-            aria-label={navigatorOpen ? t('graph.navigator.collapseButton') : t('graph.navigator.showButton')}
-            className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
-          >
-            {navigatorOpen ? <PanelLeftClose className="size-3.5" /> : <PanelLeftOpen className="size-3.5" />}
-          </button>
+          <PanelToggle
+            open={navigatorOpen}
+            label={navigatorOpen ? t('graph.navigator.collapseButton') : t('graph.navigator.showButton')}
+            onToggle={() => setNavigatorOpen(open => !open)}
+            floating
+          />
         </div>
         {filtered.nodes.length > 0 && (
           <div
@@ -583,21 +640,23 @@ function CanvasInner({ workspaceId, source, selectedNodeId: controlledSelected, 
                 nodesConnectable={false}
               >
                 <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="hsl(var(--border))" />
-                <MiniMap
-                  pannable
-                  zoomable
-                  // Mask alpha kept low (0.25), so type-coloured nodes stay legible.
-                  // A higher alpha washes the minimap into one block.
-                  maskColor={theme === 'dark' ? 'oklch(0.17 0 0 / 0.25)' : 'oklch(0.97 0 0 / 0.25)'}
-                  nodeColor={(n) => {
-                    const data = n.data as { node?: { type?: string } } | undefined
-                    const type = data?.node?.type
-                    return type ? palette.nodeColor(type as never) : 'oklch(0.55 0 0)'
-                  }}
-                  nodeStrokeColor={theme === 'dark' ? 'oklch(0.85 0 0)' : 'oklch(0.3 0 0)'}
-                  nodeStrokeWidth={1.5}
-                  className="!bg-card !border !border-border"
-                />
+                {!embedded && (
+                  <MiniMap
+                    pannable
+                    zoomable
+                    // Mask alpha kept low (0.25), so type-coloured nodes stay legible.
+                    // A higher alpha washes the minimap into one block.
+                    maskColor={theme === 'dark' ? 'oklch(0.17 0 0 / 0.25)' : 'oklch(0.97 0 0 / 0.25)'}
+                    nodeColor={(n) => {
+                      const data = n.data as { node?: { type?: string } } | undefined
+                      const type = data?.node?.type
+                      return type ? palette.nodeColor(type as never) : 'oklch(0.55 0 0)'
+                    }}
+                    nodeStrokeColor={theme === 'dark' ? 'oklch(0.85 0 0)' : 'oklch(0.3 0 0)'}
+                    nodeStrokeWidth={1.5}
+                    className="!bg-card !border !border-border"
+                  />
+                )}
                 <Controls
                   showInteractive={false}
                   // ReactFlow fills control icons,

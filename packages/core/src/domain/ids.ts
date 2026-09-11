@@ -1,6 +1,7 @@
 import type {
   BatchPlanId,
   BatchUnitId,
+  BlockId,
   ClarificationCandidateId,
   ClarificationId,
   DriftIssueId,
@@ -33,3 +34,4 @@ export const newDriftIssueId = (): DriftIssueId => mint('drift-issue')
 export const newUserId = (): UserId => mint('user')
 export const newNodeId = (): NodeId => mint('node')
 export const newEdgeId = (): EdgeId => mint('edge')
+export const newBlockId = (): BlockId => mint('block')

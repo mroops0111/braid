@@ -6,6 +6,7 @@ import {
   ExternalReference,
   NodeId,
   ProposalId,
+  SkillRunId,
   SourceReference,
   UserId,
   WorkspaceId,
@@ -16,6 +17,15 @@ import { UserKind } from './user.js'
 // Only the hard contract here. Authoring rules (length, tone, language) live in the skill layer.
 const clarificationQuestion = z.string().min(1).max(400).describe('The single question shown to the reviewer.')
 
+/**
+ * Whether the question still needs an answer, and what became of it.
+ *
+ * Deferring is not a status.
+ * A deferred question is still pending, because it still wants an answer,
+ * and what changed is only that nothing waits on it any more.
+ * That lives on `answerMode`, so the two questions stay separable,
+ * where skipping throws a question away and deferring keeps it.
+ */
 export const ClarificationStatus = z.enum(['pending', 'answered', 'applied', 'skipped'])
 export type ClarificationStatus = z.infer<typeof ClarificationStatus>
 
@@ -34,6 +44,9 @@ export const ClarificationCandidate = z.object({
   proposedOperations: z.array(GraphOperation).default([]),
 })
 export type ClarificationCandidate = z.infer<typeof ClarificationCandidate>
+
+export const ClarificationAnswerMode = z.enum(['resumes', 'standing'])
+export type ClarificationAnswerMode = z.infer<typeof ClarificationAnswerMode>
 
 export const Clarification = z.object({
   id: ClarificationId,
@@ -54,6 +67,27 @@ export const Clarification = z.object({
   // Set when the resolution becomes a Proposal, so the UI can link the two.
   proposalId: ProposalId.optional(),
   externalReferences: z.array(ExternalReference).optional(),
+  /**
+   * The run that raised this, when a skill did. Absent on a human-filed one.
+   * A run that can still be continued is answered by resuming it,
+   * so the work carries on in the conversation that already read the sources,
+   * rather than starting over in a second skill.
+   */
+  skillRunId: SkillRunId.optional(),
+  /**
+   * Whether a conversation is parked on this answer.
+   *
+   * `resumes` means a run stopped here and answering carries it on.
+   * `standing` means nothing is waiting,
+   * so the answer is recorded for a later step to pick up.
+   * Which one it is depends on whether anybody was watching the run,
+   * so the server decides it and the asker is never consulted.
+   *
+   * Absent on a human-filed one, and on everything recorded before this,
+   * which reads as standing,
+   * correct in both cases since neither has a conversation to continue.
+   */
+  answerMode: ClarificationAnswerMode.optional(),
   origin: ClarificationOrigin,
   // Free-form background on a human-filed issue. Skill clarifications leave it empty.
   context: z.string().max(2000).optional(),

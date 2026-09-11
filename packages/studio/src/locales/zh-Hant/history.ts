@@ -33,6 +33,7 @@ const history: typeof en = {
     ask: '送出釐清',
     answer: '回答釐清',
     closed: '結束釐清',
+    defer: '延後',
     skip: '略過釐清',
     config: '設定',
     restore: '還原',

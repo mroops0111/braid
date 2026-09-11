@@ -10,15 +10,17 @@ import type {
   Workspace,
   WorkspaceEventBus,
 } from '@braidhq/core'
-import type { AbsolutePath, AgentBindingDescriptor, McpServerConfig, RunRecord, SkillAgentOverride, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, AudienceDescriptor, EmittedBlock, McpServerConfig, RenderBlock, RunRecord, SkillAgentOverride, SkillCategory, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceId } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import type { AgentCredentialBroker } from '../agent/AgentCredentialBroker.js'
+import type { RunOutputGate } from './RunOutputGate.js'
+import type { RunTokenRegistry } from './RunTokenRegistry.js'
 import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { newSkillRunId, NotFoundError, ServiceUnavailableError } from '@braidhq/core'
+import { carriedEvents, ConflictError, describeViolations, newBlockId, newSkillRunId, NotFoundError, restateRunId, runScope, ServiceUnavailableError, validateOutput } from '@braidhq/core'
 import { AbsolutePath as AbsolutePathSchema, localize, McpServerId, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema, splitSkillId } from '@braidhq/schema'
 import { sessionDirPath } from '../_shared/paths.js'
-import { createAsyncQueue } from './asyncQueue.js'
+import { type AsyncQueue, createAsyncQueue } from './asyncQueue.js'
 import { BUILTIN_SKILL_NAMESPACE } from './FsSkillRegistry.js'
 import { attachOutputBuffers, type LineParser } from './subprocessEventStream.js'
 
@@ -66,7 +68,11 @@ export interface SubprocessSkillRunnerDeps {
   // The gateway fetches the OpenAPI spec from `specUrl`,
   // and exposes the REST surface as MCP tools such as `braid_search_nodes`.
   //
-  // `specUrl` is typically `${apiUrl}/openapi.json`.
+  // `specUrlFor` names the spec for one kind of run,
+  // so a run's tools are only the operations that kind of run may call.
+  // Narrowing the spec is what narrows the tools,
+  // since an operation absent from it never reaches the model at all,
+  // and costs neither a place in the tool list nor the tokens to describe.
   // `uvxBin` defaults to `'uvx'`, resolved against PATH.
   // The composeFsApp step preflight-checks for its presence at boot.
   //
@@ -74,9 +80,21 @@ export interface SubprocessSkillRunnerDeps {
   // A skill needing `braid-core` then surfaces as not-ready,
   // via SkillManifest.readinessIssuesFor.
   readonly coreGateway?: {
-    readonly specUrl: string
+    readonly specUrlFor: (category: SkillCategory) => string
     readonly uvxBin?: string
   }
+  /**
+   * Mints the credential a run calls back with.
+   * Wired, a run's identity rides its bearer token,
+   * and nothing has to be told which run is calling.
+   * Absent, the run carries its caller's own token as before.
+   */
+  readonly runTokens?: RunTokenRegistry
+  /**
+   * Holds each run to one outcome, a question or a proposal.
+   * Absent, a run may do both, which is the batch's mode rather than a person's.
+   */
+  readonly outputGate?: RunOutputGate
   // Optional pub/sub for workspace-scoped notifications.
   // Studio uses it to invalidate run and proposal lists live, without polling.
   // Tests can leave this undefined.
@@ -86,11 +104,27 @@ export interface SubprocessSkillRunnerDeps {
   // so a generic prompt reads the role vocabulary rather than naming role ids.
   // Composition wires this from the PluginRegistry, keeping the runner ontology-agnostic.
   readonly resolveSourceRoles?: (workspace: Workspace) => readonly SourceRoleDescriptor[]
+  /**
+   * The workspace ontology's declared audiences,
+   * serialised for the prompt and used to check the output contract.
+   * Absent means a product whose readers do not split,
+   * and then nothing about audiences is required or injected.
+   */
+  readonly resolveAudiences?: (workspace: Workspace) => readonly AudienceDescriptor[]
 }
 
 interface ActiveRun {
   readonly workspace: Workspace
+  /** What the skill is for, so a caller can ask about one kind of run. */
+  readonly category: SkillCategory | undefined
   readonly child: ChildProcess
+  /**
+   * The run's own event queue.
+   * A render call arrives out of band over HTTP while the subprocess writes,
+   * so it joins here rather than at `emit`,
+   * keeping one consumer and therefore one order.
+   */
+  readonly queue: AsyncQueue<SkillEvent>
 }
 
 export class SubprocessSkillRunner implements SkillRunner {
@@ -114,13 +148,33 @@ export class SubprocessSkillRunner implements SkillRunner {
     options: SkillRunOptions,
   ): Promise<SkillRunId> {
     const manifest = await this.deps.skillRegistry.get(workspace, skillId)
+    const category = manifest.frontmatter.braid?.category
+    // The graph only accumulates, so two builds running against it race,
+    // each reading a snapshot the other is still changing,
+    // and whichever applies second proposes against a graph that has moved.
+    // Refused here rather than in a caller,
+    // because every path that starts a run comes through this one,
+    // and a guard anywhere else can be walked around.
+    if (category === 'build' && this.hasActiveRun(workspace.id, 'build')) {
+      throw new ConflictError(
+        `Workspace "${workspace.id}" is already building. The graph only accumulates, so one build runs at a time. Wait for it to finish, or stop it first.`,
+      )
+    }
     const runId = newSkillRunId()
     const sessionDir = await this.resolveSessionDir(workspace, runId, options.resumeSessionId)
     const skillBundleDirs = await this.skillBundleDirsFor(workspace, sessionDir)
+    // The run's own credential, so what it creates is attributed from the request,
+    // rather than from a field an agent had to fill in correctly.
+    const runToken = this.deps.runTokens?.issue(runId, options.startedBy) ?? options.callerToken
+    const unattended = options.extraEnv?.BRAID_UNATTENDED === 'true'
+    this.deps.outputGate?.open(runId, { unattended })
+    // A skill that says nothing about what it does gets the reading surface.
+    // Writing to the graph is a claim a skill has to make for itself.
+    const toolSurface = category ?? 'ask'
     const gatewayArgs = [
       'openapi-mcp-gateway',
       '--spec',
-      this.deps.coreGateway?.specUrl ?? '',
+      this.deps.coreGateway?.specUrlFor(toolSurface) ?? '',
       '--transport',
       'stdio',
       '--name',
@@ -134,10 +188,10 @@ export class SubprocessSkillRunner implements SkillRunner {
       // The gateway resolves `${BRAID_TOKEN}` against its process env at startup.
       // Without this the server's auth middleware rejects every callback with 401.
       // eslint-disable-next-line no-template-curly-in-string
-      ...(options.callerToken ? ['--auth-type', 'bearer', '--auth-token', '${BRAID_TOKEN}'] : []),
+      ...(runToken ? ['--auth-type', 'bearer', '--auth-token', '${BRAID_TOKEN}'] : []),
     ]
-    // Compose the MCP server list, the built-in gateway plus any the workspace
-    // declares. The binding writes whatever config its CLI needs from this.
+    // Compose the MCP server list, the built-in gateway plus any declared.
+    // The binding writes whatever config its CLI needs from this.
     const gatewayServers: McpServerConfig[] = this.deps.coreGateway
       ? [{
           id: McpServerId.parse('braid-core'),
@@ -147,16 +201,26 @@ export class SubprocessSkillRunner implements SkillRunner {
         }]
       : []
     const binding = this.bindingFor(manifest.frontmatter.braid.agent)
+    // A caller holding the exchange supplies it.
+    // Otherwise this turn is the whole conversation,
+    // which is every run that did not come from a client keeping its history.
+    // A continued run is a new run inside an old conversation,
+    // and the conversation still holds the closed run's id.
+    // Correcting it here is what keeps its render calls landing somewhere.
+    const prompt = options.continues ? `${args}\n\n${restateRunId(runId)}` : args
+    const messages = options.messages
+      ? [...options.messages.slice(0, -1), { role: 'user' as const, content: prompt }]
+      : [{ role: 'user' as const, content: prompt }]
     const invocation = await binding.resolveSpawn({
       skillId,
-      args,
+      messages,
       workspace,
       manifest,
       apiUrl: this.deps.apiUrl,
       mcpServers: [...gatewayServers, ...workspace.mcpServers],
       sessionDir: AbsolutePathSchema.parse(sessionDir),
       skillBundleDirs,
-      ...(options.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
+      ...(options.resumeSessionId ? { conversationId: options.resumeSessionId } : {}),
     })
 
     // Resolved before the process exists,
@@ -175,7 +239,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     const spawnFn = this.deps.spawn ?? (await defaultSpawn())
     // Fail fast when the braid-core gateway cannot turn the spec into tools,
     // rather than spawning an agent that discovers the missing tools mid-run.
-    await this.ensureGatewayReady(spawnFn)
+    await this.ensureGatewayReady(spawnFn, toolSurface)
     // BRAID_SESSION_DIR resolves ambiguity in SKILL.md paths.
     // claude sees both `BRAID_WORKSPACE` and a cwd inside it,
     // and would otherwise guess which one `.claude/skills/...` is rooted in.
@@ -184,16 +248,24 @@ export class SubprocessSkillRunner implements SkillRunner {
       env: {
         ...invocation.env,
         BRAID_SESSION_DIR: sessionDir,
+        // The run a render call posts back to.
+        // Without it a skill reaches the render tools,
+        // but cannot name which run they belong to.
+        BRAID_RUN_ID: runId,
         // The active ontology's declared source roles, as JSON.
         // A generic prompt reads this instead of naming role ids.
         ...this.sourceRolesEnv(workspace),
+        // The readers this ontology splits for,
+        // so a builtin prompt reads the vocabulary,
+        // rather than naming any product's own facets.
+        ...this.audiencesEnv(workspace),
         // Absolute paths to the reference docs a prompt may Read,
         // so no SKILL.md carries a location of its own.
         ...this.referenceEnv(workspace, sessionDir),
         // BRAID_TOKEN is read by the braid-core MCP gateway,
         // and by any shell-level callback (curl in a SKILL.md),
         // so the subprocess can authenticate against the running server.
-        ...(options.callerToken ? { BRAID_TOKEN: options.callerToken } : {}),
+        ...(runToken ? { BRAID_TOKEN: runToken } : {}),
         // After the agent's own environment, so a run's credential wins.
         // A configured key would otherwise take precedence,
         // and the broker would go unused.
@@ -202,7 +274,8 @@ export class SubprocessSkillRunner implements SkillRunner {
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
-    this.running.set(runId, { workspace, child })
+    const queue = createAsyncQueue<SkillEvent>()
+    this.running.set(runId, { workspace, category, child, queue })
 
     // Persist the started record up front,
     // so listing endpoints see the run immediately, before any output.
@@ -211,13 +284,22 @@ export class SubprocessSkillRunner implements SkillRunner {
       runId,
       workspaceId: workspace.id,
       skillId,
-      args,
+      args: prompt,
+      // Held apart only when they differ, which is a continued run,
+      // told to carry on and still reading what the run before it was reading.
+      ...(options.scope !== undefined && options.scope !== prompt ? { scope: options.scope } : {}),
+      ...(options.continues ? { continues: options.continues } : {}),
       resumed: options.resumeSessionId !== undefined,
       startedAt,
       startedBy: options.startedBy,
+      // Recorded rather than kept in memory,
+      // because what this run's questions mean outlives the process.
+      ...(unattended ? { unattended: true } : {}),
       ...(options.resumeSessionId ? { sessionId: options.resumeSessionId } : {}),
     }
     await this.deps.runRepository.saveRecord(workspace, initialRecord)
+    if (options.continues)
+      await this.carryOver(workspace, options.continues, runId)
     this.deps.eventBus?.publish({
       type: 'run.started',
       workspaceId: workspace.id,
@@ -232,6 +314,10 @@ export class SubprocessSkillRunner implements SkillRunner {
       workspace,
       runId,
       child,
+      queue,
+      // A retry inherits the remaining budget,
+      // so one correction cannot become a loop spending a subscription.
+      retriesLeft: options.retriesLeft ?? manifest.frontmatter.braid.output?.maxRetries ?? 0,
       parseLine: binding.parseLine,
       skillId,
       args,
@@ -263,12 +349,41 @@ export class SubprocessSkillRunner implements SkillRunner {
   }
 
   /** Whether any run currently holds this workspace's sources. */
-  hasActiveRun(workspaceId: WorkspaceId): boolean {
+  hasActiveRun(workspaceId: WorkspaceId, category?: SkillCategory): boolean {
     for (const active of this.running.values()) {
-      if (active.workspace.id === workspaceId)
+      if (active.workspace.id !== workspaceId)
+        continue
+      if (category === undefined || active.category === category)
         return true
     }
     return false
+  }
+
+  async emitBlock(runId: SkillRunId, block: RenderBlock): Promise<EmittedBlock> {
+    const validated = SkillRunIdSchema.parse(runId)
+    const active = this.running.get(validated)
+    if (!active)
+      throw new NotFoundError(`SkillRun "${validated}" not active`)
+    const emitted: EmittedBlock = { id: newBlockId(), block }
+    active.queue.push(SkillEventSchema.parse({ type: 'block', ...emitted }))
+    return emitted
+  }
+
+  /**
+   * Hand a run the account of the one it continues.
+   *
+   * The alternative was a link between two logs,
+   * and a reader then has to know there is a second one and go and open it.
+   * One piece of work reads as one thread,
+   * so the thread is copied rather than pointed at,
+   * and the run that produced it still holds its own copy for what points there.
+   */
+  private async carryOver(workspace: Workspace, from: SkillRunId, to: SkillRunId): Promise<void> {
+    const earlier: SkillEvent[] = []
+    for await (const event of this.deps.runRepository.readEvents(workspace, from))
+      earlier.push(event)
+    for (const event of carriedEvents(earlier))
+      await this.emit(workspace, to, event)
   }
 
   async cancel(runId: SkillRunId): Promise<void> {
@@ -298,11 +413,11 @@ export class SubprocessSkillRunner implements SkillRunner {
    * Runs `openapi-mcp-gateway --dry-run`, memoised per spec,
    * so only the first run pays it.
    */
-  private async ensureGatewayReady(spawnFn: SpawnFn): Promise<void> {
+  private async ensureGatewayReady(spawnFn: SpawnFn, category: SkillCategory): Promise<void> {
     const gateway = this.deps.coreGateway
     if (!gateway)
       return
-    const { specUrl } = gateway
+    const specUrl = gateway.specUrlFor(category)
     let pending = this.gatewayReadyBySpec.get(specUrl)
     if (!pending) {
       pending = this.probeGateway(spawnFn, gateway.uvxBin ?? 'uvx', specUrl)
@@ -354,6 +469,8 @@ export class SubprocessSkillRunner implements SkillRunner {
     workspace: Workspace
     runId: SkillRunId
     child: ChildProcess
+    queue: AsyncQueue<SkillEvent>
+    retriesLeft: number
     parseLine: LineParser
     skillId: SkillId
     args: string
@@ -366,6 +483,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     let capturedSessionId: string | null = input.resumeSessionId ?? null
     let sawError = false
     let exitCode = 0
+    const rendered: EmittedBlock[] = []
 
     try {
       await this.emit(input.workspace, input.runId, SkillEventSchema.parse({
@@ -377,7 +495,7 @@ export class SubprocessSkillRunner implements SkillRunner {
         at: input.startedAt,
       }))
 
-      const queue = createAsyncQueue<SkillEvent>()
+      const queue = input.queue
       const buffers = attachOutputBuffers(input.child, input.parseLine, queue.push, () => this.now())
 
       input.child.on('close', (code, signal) => {
@@ -408,6 +526,8 @@ export class SubprocessSkillRunner implements SkillRunner {
           exitCode = event.exitCode
           await this.deps.runRepository.saveRecord(input.workspace, record)
         }
+        if (event.type === 'block')
+          rendered.push({ id: event.id, block: event.block })
         if (event.type === 'error')
           sawError = true
         await this.emit(input.workspace, input.runId, event)
@@ -416,6 +536,8 @@ export class SubprocessSkillRunner implements SkillRunner {
     finally {
       this.running.delete(input.runId)
       this.deps.agentCredentials?.release(input.runId)
+      this.deps.runTokens?.revoke(input.runId)
+      this.deps.outputGate?.close(input.runId)
       this.deps.eventBus?.publish({
         type: 'run.completed',
         workspaceId: input.workspace.id,
@@ -431,7 +553,58 @@ export class SubprocessSkillRunner implements SkillRunner {
       const keepForResume = capturedSessionId !== null
       if (this.deps.cleanupSession !== false && !keepForResume)
         await rm(input.sessionDir, { recursive: true, force: true }).catch(() => {})
+
+      // A correction is a new run,
+      // so it starts only once this one has been announced finished and torn down.
+      // Started inside the teardown it could be refused for colliding with itself,
+      // and the refusal would escape a promise nobody is holding.
+      void this.correctOutput(input, rendered, capturedSessionId, exitCode, sawError).catch(() => {
+        // A run whose output missed its contract, and was not corrected,
+        // is already recorded as it happened. Nothing here can improve it.
+      })
     }
+  }
+
+  /**
+   * Hands a finished run's contract gap back to the agent for one more turn.
+   *
+   * A skill prompt asking for something is not the same as getting it,
+   * and a run that stopped early looks like one that had nothing left to say.
+   * The check runs after the stream drains,
+   * and the correction resumes the same claude session,
+   * so the agent still has everything it just read.
+   *
+   * Silent on a failed or cancelled run,
+   * because a gap there is a symptom of the failure,
+   * rather than something the agent can fix by trying again.
+   */
+  private async correctOutput(
+    input: { workspace: Workspace, runId: SkillRunId, skillId: SkillId, retriesLeft: number, initialRecord: RunRecord },
+    rendered: readonly EmittedBlock[],
+    sessionId: string | null,
+    exitCode: number,
+    sawError: boolean,
+  ): Promise<void> {
+    if (sawError || exitCode !== 0 || input.retriesLeft <= 0 || sessionId === null)
+      return
+    const manifest = await this.deps.skillRegistry.get(input.workspace, input.skillId)
+    const contract = manifest.frontmatter.braid.output
+    if (!contract)
+      return
+    const declared = (this.deps.resolveAudiences?.(input.workspace) ?? []).map(audience => audience.id)
+    const violations = validateOutput(contract, rendered, declared)
+    if (violations.length === 0)
+      return
+
+    await this.start(input.workspace, input.skillId, describeViolations(violations), {
+      resumeSessionId: sessionId,
+      scope: runScope(input.initialRecord),
+      continues: input.runId,
+      retriesLeft: input.retriesLeft - 1,
+      // A correction belongs to whoever asked the original question,
+      // so run history never grows an entry with nobody behind it.
+      startedBy: input.initialRecord.startedBy,
+    })
   }
 
   // Persist first, then broadcast.
@@ -598,6 +771,20 @@ export class SubprocessSkillRunner implements SkillRunner {
       unitBearing: role.unitBearing === true,
     }))
     return { BRAID_SOURCE_ROLES: JSON.stringify(wire) }
+  }
+
+  /** The readers this workspace splits an answer for, as the prompt's vocabulary. */
+  private audiencesEnv(workspace: Workspace): Record<string, string> {
+    const audiences = this.deps.resolveAudiences?.(workspace) ?? []
+    if (audiences.length === 0)
+      return {}
+    const wire = audiences.map(audience => ({
+      id: audience.id,
+      label: localize(audience.label, 'en'),
+      ...(audience.description ? { description: audience.description } : {}),
+      evidenceDetail: audience.evidenceDetail,
+    }))
+    return { BRAID_AUDIENCES: JSON.stringify(wire) }
   }
 
   private now(): string {

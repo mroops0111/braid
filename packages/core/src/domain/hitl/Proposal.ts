@@ -7,6 +7,8 @@ import type {
   ProposalId,
   ProposalStatus,
   SkillId,
+  SkillRunId,
+  SourceUnit,
   Timestamp,
   UserId,
   WorkspaceId,
@@ -29,6 +31,9 @@ export class Proposal {
   get ownerKind(): ProposalData['ownerKind'] { return this.data.ownerKind }
   get externalReferences(): readonly ExternalReference[] | undefined { return this.data.externalReferences }
   get clarificationId(): ClarificationId | undefined { return this.data.clarificationId }
+  get skillRunId(): SkillRunId | undefined { return this.data.skillRunId }
+  get reviewedAt(): Timestamp | undefined { return this.data.reviewedAt }
+  get sourceUnits(): readonly SourceUnit[] | undefined { return this.data.sourceUnits }
 
   // Returns a new Proposal in 'applied' state. Caller must persist the new instance and run the operations,
   // we keep the entity pure with no side effects.

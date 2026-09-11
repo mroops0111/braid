@@ -24,6 +24,7 @@ describe('CommitKind', () => {
       'clarification-answer',
       'clarification-apply',
       'clarification-skip',
+      'clarification-defer',
       'config',
       'restore',
       'snapshot',

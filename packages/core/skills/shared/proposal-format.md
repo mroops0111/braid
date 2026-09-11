@@ -79,6 +79,7 @@ The order is consumed by Studio's detail panel and `braid:generate-doc` as "the 
 
 `StructuralValidator` (in `validators.md`) enforces `fromNodeId`'s type ∈ `edgeTypes[<type>].fromTypes` and `toNodeId`'s likewise for `toTypes`.
 
+
 ## Status Semantics
 
 - `draft`: extracted, not yet reviewed.

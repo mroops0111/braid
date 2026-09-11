@@ -60,26 +60,43 @@ export function SkillTranscript({ events, error, running }: SkillTranscriptProps
   )
 }
 
+/**
+ * What a run was asked for.
+ *
+ * The same box whether it arrives as the log's own start event,
+ * or as the user message the protocol carries it in,
+ * because a reader is looking at one thing,
+ * and should not be able to tell which door it came through.
+ */
+function Prompt({ text, resumed }: { text: string, resumed: boolean }) {
+  const { t } = useTranslation()
+  return (
+    <div className="my-3 rounded-r border-l-2 border-primary bg-primary/5 py-1.5 pl-3 pr-2 font-sans first:mt-0">
+      <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+        {t(resumed ? 'transcript.followUpLabel' : 'transcript.promptLabel')}
+      </div>
+      <div className="mt-0.5 text-sm text-foreground">
+        <ReferenceText text={text} />
+      </div>
+    </div>
+  )
+}
+
 function TranscriptLine({ event }: { event: SkillEvent }) {
   const { t } = useTranslation()
   const { formatTime } = useLocaleFormat()
   switch (event.type) {
     case 'started':
-      return (
-        <div className="my-3 rounded-r border-l-2 border-primary bg-primary/5 py-1.5 pl-3 pr-2 font-sans first:mt-0">
-          <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-            {event.resumed ? t('transcript.followUpLabel') : t('transcript.promptLabel')}
-          </div>
-          <div className="mt-0.5 text-sm text-foreground">
-            <ReferenceText text={event.args} />
-          </div>
-        </div>
-      )
+      return <Prompt text={event.args} resumed={event.resumed} />
     case 'session-started':
       // Side-channel event, the session id is captured by the runner state.
       return null
     case 'message':
-      return <Markdown text={event.text} />
+      // A run's own prompt arrives as the user message that starts the turn,
+      // and reads as an instruction rather than as the agent narrating.
+      return event.role === 'user'
+        ? <Prompt text={event.text} resumed={false} />
+        : <Markdown text={event.text} />
     case 'tool-call':
     case 'tool-result':
       return null
@@ -118,6 +135,14 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
             {event.text}
           </div>
         </details>
+      )
+    case 'block':
+      // The block itself renders above the transcript.
+      // This line keeps the audit trail showing when the run emitted it.
+      return (
+        <div className="text-muted-foreground/60">
+          {t('transcript.blockLine', { call: event.block.call })}
+        </div>
       )
     case 'rate-limit': {
       // A warning carries nothing the reader can act on,

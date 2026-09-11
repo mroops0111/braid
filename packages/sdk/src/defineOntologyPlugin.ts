@@ -5,14 +5,7 @@ import type {
   OntologyPlugin,
   OntologyValidator,
 } from '@braidhq/core'
-import type {
-  EdgeTypeId,
-  LocalizedText,
-  NodeTypeId,
-  OntologyId,
-  PluginId,
-  SourceRole,
-} from '@braidhq/schema'
+import type { AudienceDescriptor, EdgeTypeId, LocalizedText, NodeTypeId, OntologyId, PluginId, SourceRole } from '@braidhq/schema'
 import type { PluginReferenceDirRef, PluginSkillRef } from './types.js'
 import { OntologyTypeValidator, StructuralValidator } from '@braidhq/core'
 import { SourceRole as SourceRoleSchema } from '@braidhq/schema'
@@ -66,18 +59,24 @@ export interface DefineOntologyInput {
   /** Optional explicit plugin id, defaults to `ontology.<ontologyId>`. */
   readonly pluginId?: string
   /**
-   * Optional batch and reactor binding. Declare which skill processes one
-   * intent unit, the optional checkpoint configuration, and the optional
-   * derive-units skill. Without it the workspace cannot start a batch under
-   * this ontology.
+   * Optional batch and reactor binding.
+   * Declare which skill processes one unit, the checkpoint configuration,
+   * and the derive-units skill.
+   * Without it the workspace cannot start a batch under this ontology.
    */
   readonly batch?: OntologyBatchBinding
   /**
    * The source roles this ontology declares, with their capabilities.
-   * A `required` role missing from a manifest is rejected with 422, so the
-   * wizard can prompt for it. `unitBearing` roles feed batch and the Reactor.
+   * A `required` role missing from a manifest is rejected,
+   * so the wizard can prompt for it.
+   * `unitBearing` roles feed batch and the Reactor.
    */
   readonly sourceRoles?: readonly SourceRoleInput[]
+  /**
+   * Readers an answer is split for, in the order Studio shows them.
+   * Omit for a product whose readers do not split, which shows no switch.
+   */
+  readonly audiences?: readonly AudienceDescriptor[]
 }
 
 /**
@@ -145,6 +144,7 @@ export function defineOntologyPlugin(input: DefineOntologyInput): OntologyPlugin
     skillNamespace: input.ontologyId,
     ...(input.referenceDir ? { referenceDir: input.referenceDir } : {}),
     validators: [],
+    ...(input.audiences ? { audiences: input.audiences } : {}),
     sourceRoles: [
       ...(input.extends?.sourceRoles ?? []),
       ...(input.sourceRoles ?? []).map(role => ({

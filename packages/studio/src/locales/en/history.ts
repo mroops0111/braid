@@ -32,6 +32,7 @@ export const history = {
     ask: 'Ask',
     answer: 'Answer',
     closed: 'Closed',
+    defer: 'Deferred',
     skip: 'Skip',
     config: 'Config',
     restore: 'Restore',

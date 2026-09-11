@@ -1,5 +1,5 @@
 import type { AgentPlugin, OntologyPlugin, SourceLoaderPlugin, StoragePlugin } from '@braidhq/core'
-import type { AbsolutePath, AgentBindingDescriptor, AgentEffort, OntologyId, StorageKind, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, AgentEffort, OntologyId, SkillCategory, StorageKind, WorkspaceId } from '@braidhq/schema'
 import type { AppDependencies } from './composeApp.js'
 import type { LoginProvider } from './infrastructure/auth/LoginProvider.js'
 import { spawn } from 'node:child_process'
@@ -51,6 +51,8 @@ import { EncryptedSecretStore, readSecretKey } from './infrastructure/secrets/En
 import { FsSecretStore, type SecretStore } from './infrastructure/secrets/SecretStore.js'
 import { FsRunRepository } from './infrastructure/skill/FsRunRepository.js'
 import { BUILTIN_SKILL_NAMESPACE, FsSkillRegistry } from './infrastructure/skill/FsSkillRegistry.js'
+import { RunOutputGate } from './infrastructure/skill/RunOutputGate.js'
+import { RunTokenRegistry } from './infrastructure/skill/RunTokenRegistry.js'
 import { SubprocessSkillRunner } from './infrastructure/skill/SubprocessSkillRunner.js'
 import { FsSourceSyncStateRepository } from './infrastructure/source/FsSourceSyncStateRepository.js'
 import { FsSourceUnitDigest } from './infrastructure/source/FsSourceUnitDigest.js'
@@ -125,8 +127,8 @@ export type ComposeFsOptions = ComposeFsRuntimeOptions & ExtraPluginOptions
 /**
  * What the fs runtime has already built by the time it asks for a registry.
  * The OAuth-backed loaders need the secret store and the provider clients,
- * both derived from `braidHome` and `apiUrl`, so a caller-supplied plugin
- * reads them from here rather than rebuilding them.
+ * both derived from `braidHome` and `apiUrl`,
+ * so a caller-supplied plugin reads them here rather than rebuilding them.
  * `googleOAuth` and `githubOAuth` are absent when their env is unset.
  */
 export interface FsRuntimeContext {
@@ -235,10 +237,11 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
 
 /**
  * The same filesystem runtime as `composeFsApp`, over a registry you build.
- * Storage and agent resolve from whatever `buildRegistry` registered, under
- * `storageKind` and `agentKind`, so a composition that omits the coding
- * preset's ontology and loaders still gets the subprocess skill runner, the
- * fs unit lister, and every fs repository, and so a batch runs unchanged.
+ * Storage and agent resolve from whatever `buildRegistry` registered,
+ * under `storageKind` and `agentKind`,
+ * so a composition omitting the coding preset's ontology and loaders,
+ * still gets the subprocess skill runner, the fs unit lister,
+ * and every fs repository, and so a batch runs unchanged.
  */
 export async function composeFsAppWithRegistry(
   buildRegistry: PluginRegistryFactory,
@@ -366,9 +369,21 @@ export async function composeFsAppWithRegistry(
   if (loginMode.kind === 'none' && authMode.requiresAuth)
     console.warn(`[braid] Nobody can sign in. ${loginMode.reason}`)
 
-  const accessTokenVerifiers = oidcIssuer
-    ? [new OidcTokenVerifier({ issuer: oidcIssuer, audience: oidcAudience, userRegistry, accessPolicy })]
-    : []
+  // A running skill's own credential, tried before any deployment's.
+  // It is the only verifier that is always present,
+  // since a run calls back the same way,
+  // whether or not this deployment gates people at the door.
+  const runTokens = new RunTokenRegistry()
+  // Attended runs are held to one outcome.
+  // A batch that applies its own output opts out per run,
+  // since it wants the proposal and the doubt recorded both.
+  const outputGate = new RunOutputGate()
+  const accessTokenVerifiers = [
+    runTokens,
+    ...(oidcIssuer
+      ? [new OidcTokenVerifier({ issuer: oidcIssuer, audience: oidcAudience, userRegistry, accessPolicy })]
+      : []),
+  ]
 
   // Serving Studio ourselves puts the UI and the API on one origin,
   // so the browser never reaches for CORS on the path that matters.
@@ -527,6 +542,8 @@ export async function composeFsAppWithRegistry(
     return { skillNamespace: ref.skillNamespace, path: dir as AbsolutePath }
   })
   const skillRunner = new SubprocessSkillRunner({
+    runTokens,
+    outputGate,
     skillRegistry,
     buildAgentBinding: descriptor => pluginRegistry.requireAgentPlugin(descriptor.kind).createBinding(descriptor),
     defaultAgent,
@@ -537,7 +554,7 @@ export async function composeFsAppWithRegistry(
     eventBus,
     ...(agentCredentialBroker ? { agentCredentials: agentCredentialBroker } : {}),
     ...(uvxBin
-      ? { coreGateway: { specUrl: `${loopbackApiUrl}/openapi.json`, uvxBin } }
+      ? { coreGateway: { specUrlFor: (category: SkillCategory) => `${loopbackApiUrl}/openapi/runs/${category}/openapi.json`, uvxBin } }
       : {}),
     referenceDirs: [
       { skillNamespace: BUILTIN_SKILL_NAMESPACE, path: join(builtinSkillsRoot, 'shared') as AbsolutePath },
@@ -549,6 +566,10 @@ export async function composeFsAppWithRegistry(
     resolveSourceRoles: (workspace) => {
       const ontology = pluginRegistry.findOntology(workspace.productManifest.ontologyId)
       return ontology?.sourceRoles ?? []
+    },
+    resolveAudiences: (workspace) => {
+      const ontology = pluginRegistry.findOntology(workspace.productManifest.ontologyId)
+      return ontology?.audiences ?? []
     },
   })
 
@@ -620,6 +641,7 @@ export async function composeFsAppWithRegistry(
     accessPolicy,
     studioUrl,
     ...(accessTokenVerifiers.length > 0 ? { accessTokenVerifiers } : {}),
+    outputGate,
     loginProviders,
     ...(mcpGateway ? { mcpGateway } : {}),
     ...(agentCredentialStore && agentCredentialBroker

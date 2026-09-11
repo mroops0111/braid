@@ -25,6 +25,13 @@ export type TranscriptItem =
  */
 export function groupTranscript(events: readonly SkillEvent[]): TranscriptItem[] {
   const items: TranscriptItem[] = []
+  // A render call produces a block, and the block arrives out of band,
+  // between the call and its result.
+  // That breaks the group, so a result would land alone,
+  // and read as a tool nobody called.
+  // Calls stay reachable across the break instead,
+  // and the result joins the call it belongs to.
+  const openCalls = new Map<string, PairedCall>()
   let i = 0
   while (i < events.length) {
     const ev = events[i]!
@@ -37,14 +44,17 @@ export function groupTranscript(events: readonly SkillEvent[]): TranscriptItem[]
         if (cur.type === 'tool-call') {
           const paired: PairedCall = { call: cur }
           calls.push(paired)
-          if (cur.toolCallId)
+          if (cur.toolCallId) {
             byId.set(cur.toolCallId, paired)
+            openCalls.set(cur.toolCallId, paired)
+          }
           i++
         }
         else if (cur.type === 'tool-result') {
-          const matched = byId.get(cur.toolCallId)
+          const matched = byId.get(cur.toolCallId) ?? openCalls.get(cur.toolCallId)
           if (matched) {
             matched.result = cur
+            openCalls.delete(cur.toolCallId)
           }
           else {
             calls.push({
@@ -58,7 +68,10 @@ export function groupTranscript(events: readonly SkillEvent[]): TranscriptItem[]
           break
         }
       }
-      items.push({ kind: 'tool-group', calls, key: `g${startIndex}` })
+      // A group left with nothing of its own is a result that found its call,
+      // further up, so there is nothing here to show.
+      if (calls.length > 0)
+        items.push({ kind: 'tool-group', calls, key: `g${startIndex}` })
     }
     else {
       items.push({ kind: 'event', event: ev, key: `e${i}` })

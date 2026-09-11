@@ -1,14 +1,22 @@
-import type { SkillEvent, SkillId, SkillRunId, UserId } from '@braidhq/schema'
+import type { EmittedBlock, RenderBlock, SkillCategory, SkillEvent, SkillId, SkillRunId, UserId, WorkspaceId } from '@braidhq/schema'
+import type { AgentMessage } from '../agent/AgentBinding.js'
 import type { Workspace } from '../workspace/Workspace.js'
 
 export interface SkillRunOptions {
   /**
-   * Continue a previous claude conversation.
+   * Continue a conversation the agent itself is holding.
    * The id comes from a prior `session-started` SkillEvent.
-   * When set, the agent binding passes `--resume <sessionId>`,
-   * so the model keeps its context.
+   * A binding may use it to skip replaying `messages`,
+   * and one that cannot still runs correctly,
+   * so a caller never has to know which kind it has.
    */
   readonly resumeSessionId?: string
+  /**
+   * The exchange this turn continues, oldest first,
+   * supplied by a caller that holds it rather than reconstructed here.
+   * Omitted, the run is a single turn whose only message is `args`.
+   */
+  readonly messages?: readonly AgentMessage[]
   /**
    * Extra environment variables merged into the spawned skill's env.
    * Used by orchestration code when the single positional `args` is taken,
@@ -31,6 +39,30 @@ export interface SkillRunOptions {
    * so the history never holds an anonymous run.
    */
   readonly startedBy: UserId
+  /**
+   * What this run is working on, when that is not what it is being told.
+   *
+   * `args` is the prompt, and for a fresh run it is also the scope,
+   * since a per-unit run is started by naming its unit.
+   * A run that continues another is told to carry on instead,
+   * and recording that sentence as its scope would lose the document.
+   * Carrying the original scope forward keeps it attributed to the same work.
+   */
+  readonly scope?: string
+  /**
+   * The run this one takes up, recorded so the chain stays walkable.
+   * Set wherever a run is started to carry another on,
+   * which is a settled question releasing it,
+   * or a corrective turn on its own output.
+   */
+  readonly continues?: SkillRunId
+  /**
+   * Corrective turns still available,
+   * when this run's output misses its skill's declared contract.
+   * Absent means the manifest decides,
+   * which is what a caller starting a fresh run wants.
+   */
+  readonly retriesLeft?: number
 }
 
 export type SkillEventListener = (event: SkillEvent) => void
@@ -74,8 +106,26 @@ export interface SkillRunner {
    */
   subscribe: (runId: SkillRunId, listener: SkillEventListener) => SkillRunSubscription
 
+  /**
+   * Record a render call the running agent made, ordered with its own output.
+   * The agent reaches this through an HTTP tool rather than its stdout,
+   * so the block arrives out of band while the run is still draining.
+   * Throws `NotFoundError` once the run is over.
+   */
+  emitBlock: (runId: SkillRunId, block: RenderBlock) => Promise<EmittedBlock>
+
   /** True while the run is still draining events. */
   isActive: (runId: SkillRunId) => boolean
+
+  /**
+   * Whether this workspace already has a run in flight.
+   *
+   * `category` narrows it to runs of that kind,
+   * which is what a caller asking about graph-mutating work wants.
+   * An answer being written reads the graph and must not hold up a build,
+   * and a build must not start beside another.
+   */
+  hasActiveRun: (workspaceId: WorkspaceId, category?: SkillCategory) => boolean
 
   cancel: (runId: SkillRunId) => Promise<void>
 

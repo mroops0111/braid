@@ -21,14 +21,25 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
       return
     const source = new EventSource(workspaceEventsUrl(workspaceId))
 
+    // The board reads runs, proposals, clarifications, the graph,
+    // and the observation store at once,
+    // so every signal that moves one of those moves a card.
+    // Invalidating it alongside each of them keeps the columns live,
+    // without the board polling for itself.
+    const invalidateCoverage = (): void => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.coverage(workspaceId) })
+    }
     const invalidateRuns = (): void => {
       queryClient.invalidateQueries({ queryKey: queryKeys.runs(workspaceId) })
+      invalidateCoverage()
     }
     const invalidateProposals = (): void => {
       queryClient.invalidateQueries({ queryKey: queryKeys.proposals(workspaceId) })
+      invalidateCoverage()
     }
     const invalidateClarification = (): void => {
       queryClient.invalidateQueries({ queryKey: queryKeys.clarifications(workspaceId) })
+      invalidateCoverage()
     }
     const invalidateGraph = (): void => {
       queryClient.invalidateQueries({ queryKey: queryKeys.modelSnapshot(workspaceId) })
@@ -37,6 +48,7 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
       // Pre-validation results depend on the current graph. Re-fetch after any mutation,
       // so the Proposals tab can't show stale "no issues" after a change.
       queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId, 'proposals'], exact: false })
+      invalidateCoverage()
     }
     const invalidateWorkspace = (): void => {
       queryClient.invalidateQueries({ queryKey: queryKeys.workspaceDetail(workspaceId) })
@@ -105,6 +117,7 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
       // Per-option badges (processed / stale) live behind the diff endpoint.
       // Refresh them when the reactor finishes a cycle, so the dropdown's freshness chips reflect the new ledger.
       queryClient.invalidateQueries({ queryKey: ['source-unit-diff', workspaceId], exact: false })
+      invalidateCoverage()
       // Reactor writes Proposals through the per-unit skill it dispatches.
       invalidateProposals()
       invalidateGraph()

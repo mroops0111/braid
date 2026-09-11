@@ -1,9 +1,9 @@
-import type { AbsolutePath, PluginId, SkillRunId, SourceId, SourceRole, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, PluginId, SourceId, SourceRole, WorkspaceId } from '@braidhq/schema'
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { type Plugin, PluginRegistry, type SkillRunner, type Workspace } from '@braidhq/core'
-import { makeWorkspace as makeBaseWorkspace } from '@braidhq/test-utils'
+import { type Plugin, PluginRegistry, type Workspace } from '@braidhq/core'
+import { inertSkillRunner, makeWorkspace as makeBaseWorkspace } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { createApp } from '../../src/app.js'
@@ -13,11 +13,11 @@ import { readJson } from '../helpers/readJson.js'
 import { makeSkillFileContents } from '../helpers/skillFixtures.js'
 
 /**
- * End-to-end check that a plugin-shipped SKILL.md surfaces through the
- * HTTP API. Composes the full server stack with a PluginRegistry that
- * contains one fake ontology contributing a skill, registers a
- * workspace, then hits `GET /workspaces/:ws/skills` to assert the
- * skill comes back with `origin: 'plugin'`.
+ * End-to-end check that a plugin-shipped SKILL.md surfaces through the API.
+ * Composes the full server stack with a PluginRegistry,
+ * holding one fake ontology that contributes a skill,
+ * registers a workspace, then hits `GET /workspaces/:ws/skills`,
+ * to assert the skill comes back with `origin: 'plugin'`.
  *
  * This exercises the integration of:
  *   - Plugin.skills declaration
@@ -68,15 +68,6 @@ function fakeOntologyWithSkill(pluginId: string, skillNamespace: string, directo
   }
 }
 
-const noopSkillRunner: SkillRunner = {
-  start: async () => 'fake-run-id' as SkillRunId,
-  subscribe: () => ({ unsubscribe: () => {}, positionAtSubscribe: 0 }),
-  isActive: () => false,
-  cancel: async () => {},
-  sessionIdFor: async () => undefined,
-  forgetSession: async () => {},
-}
-
 interface SkillsResponseBody {
   items: Array<{ id: string, origin: string, frontmatter: { name: string } }>
 }
@@ -98,7 +89,7 @@ describe('plugin-shipped skills (integration)', () => {
     const deps = composeApp({
       pluginRegistry,
       skillRegistry,
-      skillRunner: noopSkillRunner,
+      skillRunner: inertSkillRunner(),
     })
     await deps.workspaceRepository.save(makeWorkspace(wsRoot))
     const app = createApp(deps)
@@ -124,7 +115,7 @@ describe('plugin-shipped skills (integration)', () => {
     await writePluginSkill(join(wsRoot, 'skills'), 'design', 'design-local')
 
     const skillRegistry = new FsSkillRegistry({ builtinSkillsRoot, pluginRegistry })
-    const deps = composeApp({ pluginRegistry, skillRegistry, skillRunner: noopSkillRunner })
+    const deps = composeApp({ pluginRegistry, skillRegistry, skillRunner: inertSkillRunner() })
     await deps.workspaceRepository.save(makeWorkspace(wsRoot))
     const app = createApp(deps)
 

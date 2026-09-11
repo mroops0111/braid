@@ -1,4 +1,4 @@
-import type { SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
+import type { BlockId, SkillEvent, SkillId, SkillRunId } from '@braidhq/schema'
 import { T0 as now } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { groupTranscript } from '@/components/SkillTranscript/groupTranscript'
@@ -11,6 +11,9 @@ function result(id: string, isError = false, output = 'ok'): SkillEvent {
 }
 function message(text: string): SkillEvent {
   return { type: 'message', text }
+}
+function block(id: string): SkillEvent {
+  return { type: 'block', id: id as BlockId, block: { call: 'showAnswer', audiences: [], markdown: 'hello' } }
 }
 function started(): SkillEvent {
   return {
@@ -125,5 +128,31 @@ describe('groupTranscript', () => {
     if (group.kind !== 'tool-group')
       throw new Error('expected tool-group')
     expect(group.calls.map(c => c.call.tool)).toEqual(['Bash', 'Read', 'Bash'])
+  })
+
+  // A render call produces a block, and the block arrives out of band,
+  // landing between the call and its result.
+  // Grouping only within a run of adjacent tool events left the result alone,
+  // and a lone result renders as a tool nobody called.
+  describe('with a block between a call and its result', () => {
+    const events = [call('a', 'mcp__braid-core__show_answer'), block('b-1'), result('a')]
+
+    it('joins the result to the call it belongs to', () => {
+      const groups = groupTranscript(events).filter(item => item.kind === 'tool-group')
+      expect(groups).toHaveLength(1)
+      expect(groups[0]!.calls).toHaveLength(1)
+      expect(groups[0]!.calls[0]!.call.tool).toBe('mcp__braid-core__show_answer')
+      expect(groups[0]!.calls[0]!.result?.output).toBe('ok')
+    })
+
+    it('leaves no group for a result that found its call further up', () => {
+      expect(groupTranscript(events).map(item => item.kind)).toEqual(['tool-group', 'event'])
+    })
+  })
+
+  it('still shows a result whose call was never seen', () => {
+    const items = groupTranscript([result('never-called')])
+    expect(items).toHaveLength(1)
+    expect(items[0]!.kind).toBe('tool-group')
   })
 })

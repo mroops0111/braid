@@ -9,6 +9,51 @@ export function useRun(workspaceId: string | null, runId: string | null | undefi
   )
 }
 
+const EMPTY_SKILLS: readonly string[] = Object.freeze([])
+
+const runningCache = new Map<string, readonly string[]>()
+
+/**
+ * The skills with a run going, as a subscription.
+ *
+ * The snapshot is cached against the last one,
+ * since `useSyncExternalStore` compares by identity,
+ * and a fresh array every render reads as a change that never settles.
+ */
+export function useRunningSkills(workspaceId: string | null): readonly string[] {
+  return useSyncExternalStore(
+    cb => runStore.subscribe(cb),
+    () => {
+      if (!workspaceId)
+        return EMPTY_SKILLS
+      const next = runStore.runningSkills(workspaceId)
+      const cached = runningCache.get(workspaceId)
+      if (cached && shallowEqualReadonly(cached, next))
+        return cached
+      runningCache.set(workspaceId, next)
+      return next
+    },
+    () => EMPTY_SKILLS,
+  )
+}
+
+const EMPTY_TURNS: readonly string[] = Object.freeze([])
+
+/**
+ * The current turn list for a conversation, as a subscription.
+ *
+ * Reading `runStore.getTurns` during render looks the same but is not,
+ * since nothing tells the component when the list changes,
+ * so a selection highlight updates only on some other re-render.
+ */
+export function useTurns(workspaceId: string | null, skillId: string | null): readonly string[] {
+  return useSyncExternalStore(
+    cb => runStore.subscribe(cb),
+    () => (workspaceId && skillId ? runStore.getTurns(workspaceId, skillId) : EMPTY_TURNS),
+    () => EMPTY_TURNS,
+  )
+}
+
 export interface ConversationView {
   readonly turnIds: readonly string[]
   readonly events: readonly SkillEvent[]

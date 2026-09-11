@@ -3,7 +3,7 @@ import type { LocalizedText } from '@braidhq/schema'
 import type { SourceRoleInput } from '@braidhq/sdk'
 import { pathToFileURL } from 'node:url'
 import { resolveSkillsDir } from '@braidhq/core'
-import { EdgeTypeId, NodeTypeId, SkillId } from '@braidhq/schema'
+import { AudienceId as AudienceIdSchema, EdgeTypeId, NodeTypeId, SkillId } from '@braidhq/schema'
 import { defineOntologyPlugin } from '@braidhq/sdk'
 import enLabels from './locales/en/labels.js'
 import zhHantLabels from './locales/zh-Hant/labels.js'
@@ -57,6 +57,27 @@ export const dddOntology = defineOntologyPlugin({
     { id: 'intent', required: false, unitBearing: true, pathSegment: 'intents' },
     { id: 'code', required: true, pathSegment: 'codebases' },
   ]),
+
+  // Two readers, because this ontology's premise is that intent and code,
+  // come from different people.
+  // The split is about how much apparatus each wants,
+  // rather than which conclusions they are allowed to see,
+  // so a conclusion names no audience and both readers get it.
+  audiences: [
+    {
+      id: AudienceIdSchema.parse('business'),
+      label: localeLabel('audiences', 'business'),
+      description: 'Product, delivery, and support. Wants the conclusion and what it means for a customer. Names a document and its section, never a file and a line.',
+      evidenceDetail: 'summary' as const,
+      default: true,
+    },
+    {
+      id: AudienceIdSchema.parse('engineering'),
+      label: localeLabel('audiences', 'engineering'),
+      description: 'Whoever has to change the code. Wants the same conclusions plus the paths, line ranges, and excerpts that let them check them.',
+      evidenceDetail: 'full' as const,
+    },
+  ],
 
   // SKILL.md prompts shipped with this ontology.
   // They encode DDD-specific reasoning, like the Context Mapping edges,

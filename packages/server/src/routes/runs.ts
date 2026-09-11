@@ -71,6 +71,22 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
     return context.json({ items: items.filter(visibleToCaller(context)) })
   })
 
+  // The whole persisted log in one response.
+  //
+  // Replaying history over SSE pins a connection for what is not a stream,
+  // and a browser allows only a handful per host,
+  // so a few finished runs are enough to stall every request after them.
+  // A finished run has nothing left to tail, so it is a plain fetch.
+  router.get('/:runId/events.json', async (context) => {
+    const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
+    const runId = SkillRunId.parse(context.req.param('runId'))
+    await requireVisibleRun(context, workspace, runId)
+    const items: SkillEvent[] = []
+    for await (const event of deps.runRepository.readEvents(workspace, runId))
+      items.push(event)
+    return context.json({ items, active: deps.skillRunner.isActive(runId) })
+  })
+
   // Replay the persisted JSONL log,
   // and if the run is still active, tail new events as they arrive.
   // Clients can open, close, and reopen this stream freely,

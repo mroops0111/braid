@@ -8,6 +8,7 @@ const transcript: typeof en = {
   thinkingTitle: '思考中',
   rateLimitWaiting: '正在等待速率限制解除',
   rateLimitReset: '(於 {time} 解除)',
+  blockLine: '[block] {call}',
   artifactLine: '[artifact] {kind} {id}: {path}',
   completedLine: '[completed] exit={code}',
   errorLine: '[error] {message}',

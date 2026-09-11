@@ -46,3 +46,4 @@ The threshold for emitting one:
 - **Field-level disagreement on a shared identity** (sources agree what this node is, disagree on a limit / state / sequence): emit a `DriftIssue` on the node's metadata. See `drift-detection.md`.
 
 Conflating these buries field drift in clarification prose where the validator can't gate Apply.
+

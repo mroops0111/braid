@@ -1,7 +1,14 @@
-import type { UserId } from '@braidhq/schema'
+import type { SkillRunId, UserId } from '@braidhq/schema'
 
 export interface VerifiedCaller {
   readonly userId: UserId
+  /**
+   * Set when the credential belongs to a running skill,
+   * rather than to a person at a keyboard.
+   * What a run creates is then attributed from the request itself,
+   * so nothing has to be told which run it is.
+   */
+  readonly skillRunId?: SkillRunId
 }
 
 /**

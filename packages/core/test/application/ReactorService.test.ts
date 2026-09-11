@@ -1,4 +1,4 @@
-import type { AbsolutePath, SkillEvent, SkillId, SkillRunId, SourceDescriptor, SourceId, SourceRole, SourceUnitSha, Timestamp, UserId, WorkspaceEvent, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, EmittedBlock, SkillEvent, SkillId, SkillRunId, SourceDescriptor, SourceId, SourceRole, SourceUnitSha, Timestamp, UserId, WorkspaceEvent, WorkspaceId } from '@braidhq/schema'
 import type {
   SkillEventListener,
   SkillRunner,
@@ -58,6 +58,10 @@ class FakeSkillRunner implements SkillRunner {
   private readonly pending: Array<() => void> = []
   exitCodes: number[] = []
 
+  async emitBlock(): Promise<EmittedBlock> {
+    throw new Error('FakeSkillRunner does not emit blocks')
+  }
+
   async start(_workspace: unknown, skillId: SkillId, args: string, options: { startedBy: UserId, callerToken?: string }): Promise<SkillRunId> {
     const runId = `r-${this.startCalls.length}` as SkillRunId
     this.startCalls.push({ skillId, args, startedBy: options.startedBy, ...(options.callerToken ? { callerToken: options.callerToken } : {}) })
@@ -92,6 +96,7 @@ class FakeSkillRunner implements SkillRunner {
     }
   }
 
+  hasActiveRun(): boolean { return false }
   isActive(): boolean { return false }
   async cancel(): Promise<void> {}
   async sessionIdFor(): Promise<string | undefined> {

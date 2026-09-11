@@ -1,4 +1,4 @@
-import type { AgentBinding, AgentSpawnInput, SpawnInvocation } from '@braidhq/core'
+import type { AgentBinding, AgentMessage, AgentSpawnInput, SpawnInvocation } from '@braidhq/core'
 import type { AgentBindingDescriptor, SkillEvent } from '@braidhq/schema'
 import process from 'node:process'
 import { inheritableSpawnEnvironment } from '@braidhq/core'
@@ -13,19 +13,14 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
   }
 
   async resolveSpawn(input: AgentSpawnInput): Promise<SpawnInvocation> {
-    // On resume the prompt is just the follow-up text,
-    // since claude still holds the conversation and slash command from earlier.
-    // A fresh run invokes the slash command, and for a skill with an EXTEND.md,
-    // point claude at that file rather than inline it so its *.md links resolve.
-    // The skill id is already `namespace:verb`,
-    // claude's plugin-skill invocation once `--plugin-dir` loads the bundles.
-    const slashCommand = `/${input.skillId} ${input.args}`
-    const extensionPath = input.manifest.extensionPath
-    const promptArg = input.resumeSessionId
-      ? input.args
-      : extensionPath
-        ? `${slashCommand}\n\nThis workspace extends this skill. Read and follow ${extensionPath} before you begin.`
-        : slashCommand
+    // Claude keeps the conversation itself,
+    // so a continued run sends only the new turn,
+    // and the earlier exchange stays where it already is.
+    // Without that handle the exchange travels in the prompt,
+    // which a binding for an agent holding no conversation state always does.
+    const promptArg = input.conversationId
+      ? latestTurn(input.messages)
+      : openingPrompt(input)
     const baseArgs: string[] = [
       '-p',
       promptArg,
@@ -36,8 +31,8 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
       '--model',
       this.descriptor.model,
     ]
-    if (input.resumeSessionId) {
-      baseArgs.push('--resume', input.resumeSessionId)
+    if (input.conversationId) {
+      baseArgs.push('--resume', input.conversationId)
     }
     if (this.descriptor.effort) {
       baseArgs.push('--effort', this.descriptor.effort)
@@ -75,4 +70,36 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
 
   // Claude streams newline-delimited JSON, so the runner hands each line here.
   parseLine = (line: string, now: string): SkillEvent[] => parseClaudeLine(line, now)
+}
+
+function latestTurn(messages: readonly AgentMessage[]): string {
+  return messages.at(-1)?.content ?? ''
+}
+
+/**
+ * The prompt that opens a claude conversation.
+ *
+ * A skill is invoked as a slash command,
+ * so the first user message becomes its argument.
+ * A skill with an EXTEND.md is pointed at the file rather than inlining it,
+ * so the `*.md` links inside it still resolve.
+ *
+ * Anything after that first message is an exchange claude has not seen,
+ * which only happens when the caller holds the conversation,
+ * and we have no handle for it.
+ * Replaying it in the prompt is why the port carries messages at all.
+ */
+function openingPrompt(input: AgentSpawnInput): string {
+  const [opening, ...rest] = input.messages
+  const slashCommand = `/${input.skillId} ${opening?.content ?? ''}`
+  const extensionPath = input.manifest.extensionPath
+  const head = extensionPath
+    ? `${slashCommand}\n\nThis workspace extends this skill. Read and follow ${extensionPath} before you begin.`
+    : slashCommand
+  if (rest.length === 0)
+    return head
+  const transcript = rest
+    .map(message => `${message.role === 'user' ? 'User' : 'Assistant'}: ${message.content}`)
+    .join('\n\n')
+  return `${head}\n\nThe conversation so far, which you did not see:\n\n${transcript}`
 }

@@ -4,12 +4,13 @@ import type {
   NodeStatus,
   NodeTypeId,
   ProposalId,
+  SkillRunId,
   UserId,
   ValidationCode,
   WorkspaceId,
 } from '@braidhq/schema'
 import type { Workspace } from '../../src/index.js'
-import { FixedClock, makeClarification, makeOntology, makeProposal, makeWorkspace, mintTestId, resetTestIds } from '@braidhq/test-utils'
+import { FixedClock, inertRunRepository, makeClarification, makeOntology, makeProposal, makeRunRecord, makeWorkspace, mintTestId, resetTestIds } from '@braidhq/test-utils'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   InMemoryClarificationRepository,
@@ -42,6 +43,8 @@ interface HITLFixture {
 
 async function setupFixture(options: {
   pluginRegistry?: PluginRegistry
+  /** Run records the service reads to tell a watched run from an unwatched one. */
+  runs?: readonly { runId: SkillRunId, unattended?: boolean }[]
 } = {}): Promise<HITLFixture> {
   const workspaceRepo = new InMemoryWorkspaceRepository()
   const workspace = makeWorkspace({ id: mintTestId('ws') }) as Workspace
@@ -62,6 +65,19 @@ async function setupFixture(options: {
     modelValidationService,
     workspaceService,
     clock,
+    ...(options.runs
+      ? {
+          runRepository: {
+            ...inertRunRepository(),
+            listRecords: async () => options.runs!.map(run => makeRunRecord({
+              runId: run.runId,
+              workspaceId: workspace.id,
+              args: '',
+              ...(run.unattended ? { unattended: true } : {}),
+            })),
+          },
+        }
+      : {}),
   })
 
   return {
@@ -75,6 +91,81 @@ async function setupFixture(options: {
     service,
   }
 }
+
+describe('runSubmissionLimits', () => {
+  const RUN = 'skill-run-1' as SkillRunId
+
+  // Checked against what the run wrote, not against anything held in memory,
+  // so a restarted process cannot let the same run submit twice.
+  it('refuses a second proposal from one run', async () => {
+    const { service, workspaceId, proposalRepository } = await setupFixture()
+    await proposalRepository.save(makeProposal(workspaceId, { id: 'p-1', skillRunId: RUN }))
+    await expect(service.submitProposal({
+      workspaceId,
+      operations: [],
+      generatedBy: 'ddd:extract' as never,
+      rationale: 'second',
+      skillRunId: RUN as never,
+    })).rejects.toThrow(/already proposed/)
+  })
+
+  it('refuses a question from a run that already proposed', async () => {
+    const { service, workspaceId, proposalRepository } = await setupFixture()
+    await proposalRepository.save(makeProposal(workspaceId, { id: 'p-1', skillRunId: RUN }))
+    await expect(service.submitClarification({
+      workspaceId,
+      question: 'which one?',
+      candidates: [],
+      skillRunId: RUN as never,
+    })).rejects.toThrow(/cannot also ask/)
+  })
+
+  it('refuses a proposal from a run parked on a question', async () => {
+    const { service, workspaceId, clarificationRepository } = await setupFixture()
+    await clarificationRepository.save(
+      makeClarification(workspaceId, { id: 'ct-1', skillRunId: RUN, answerMode: 'resumes' }),
+    )
+    await expect(service.submitProposal({
+      workspaceId,
+      operations: [],
+      generatedBy: 'ddd:extract' as never,
+      rationale: 'jumping the gun',
+      skillRunId: RUN as never,
+    })).rejects.toThrow(/stops here/)
+  })
+
+  // Nothing is waiting on an unattended run's question, so it never blocks.
+  it('lets an unattended run propose alongside its own question', async () => {
+    const { service, workspaceId } = await setupFixture({
+      runs: [{ runId: RUN, unattended: true }],
+    })
+    const asked = await service.submitClarification({
+      workspaceId,
+      question: 'which one?',
+      candidates: [],
+      skillRunId: RUN as never,
+    })
+    expect(asked.answerMode).toBe('standing')
+    await expect(service.submitProposal({
+      workspaceId,
+      operations: [],
+      generatedBy: 'ddd:extract' as never,
+      rationale: 'batch output',
+      skillRunId: RUN as never,
+    })).resolves.toBeDefined()
+  })
+
+  it('parks a watched run on its question', async () => {
+    const { service, workspaceId } = await setupFixture({ runs: [{ runId: RUN }] })
+    const asked = await service.submitClarification({
+      workspaceId,
+      question: 'which one?',
+      candidates: [],
+      skillRunId: RUN as never,
+    })
+    expect(asked.answerMode).toBe('resumes')
+  })
+})
 
 describe('HITLService', () => {
   beforeEach(() => {
@@ -245,6 +336,37 @@ describe('HITLService', () => {
   })
 
   describe('answerClarification', () => {
+    // A run often proposes new nodes and asks about them in one go,
+    // so the answer fails on a node that exists only in the proposal.
+    it('names the pending proposal that would supply a node the answer needs', async () => {
+      const fixture = await setupFixture()
+      const nodeId = 'cmd.notYetApplied' as NodeId
+      const otherId = mintTestId('n') as NodeId
+      await fixture.modelRepository.applyOperations(fixture.workspaceId, [
+        { operation: 'addNode', payload: { type: 'command' as NodeTypeId, name: 'here', id: otherId, status: 'draft' as NodeStatus } },
+      ])
+      await fixture.proposalRepository.save(makeProposal(fixture.workspaceId, {
+        id: 'proposal-supplies-it',
+        nodeId,
+      }))
+      const candidateId = mintTestId('cc') as ClarificationCandidateId
+      const clarification = makeClarification(fixture.workspaceId, {
+        candidates: [{
+          id: candidateId,
+          description: 'link them',
+          sourceReferences: [],
+          proposedOperations: [{ operation: 'removeNode', nodeId }],
+        }],
+      })
+      await fixture.clarificationRepository.save(clarification)
+
+      await expect(fixture.service.answerClarification({
+        clarificationId: clarification.id,
+        selection: { kind: 'existing', candidateId },
+        userId,
+      })).rejects.toThrow(/proposal-supplies-it/)
+    })
+
     it('records the chosen candidate as answered without mutating the graph', async () => {
       // The user's answer is just a selection signal, graph writes go through the ddd:clarify skill's Proposal path,
       // not here.

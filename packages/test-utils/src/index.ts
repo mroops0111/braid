@@ -1,6 +1,7 @@
 export * from './batch.js'
 export * from './clarification.js'
 export * from './clock.js'
+export * from './coverage.js'
 export * from './graph.js'
 export * from './ids.js'
 export * from './ontology.js'

@@ -15,6 +15,7 @@ export const CommitKind = z.enum([
   'clarification-answer',
   'clarification-apply',
   'clarification-skip',
+  'clarification-defer',
   'config',
   'restore',
   'snapshot',

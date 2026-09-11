@@ -12,10 +12,11 @@ export default defineConfig({
     environment: 'node',
     coverage: {
       provider: 'v8',
-      // Studio is a React UI. JSX presentation is verified visually, so the
-      // gate scopes to the pure-logic surface, the transforms and helpers
-      // that run without a render. A new logic module joins this list with
-      // its test, keeping the same 80% bar the backend packages hold.
+      // Studio is a React UI. JSX presentation is verified visually,
+      // so the gate scopes to the pure-logic surface,
+      // the transforms and helpers that run without a render.
+      // A new logic module joins this list with its test,
+      // keeping the same 80% bar the backend packages hold.
       include: [
         'src/lib/brands.ts',
         'src/lib/currentUser.ts',
@@ -34,6 +35,13 @@ export default defineConfig({
         'src/components/references/rehypeReferences.ts',
         'src/components/SkillTranscript/formatArgsPreview.ts',
         'src/components/SkillTranscript/groupTranscript.ts',
+        'src/components/graph/GraphDataSource.ts',
+        'src/lib/agui/fromAguiEvents.ts',
+        'src/lib/blocks/collectBlocks.ts',
+        'src/lib/blocks/runActivity.ts',
+        'src/lib/blocks/runStats.ts',
+        'src/lib/blocks/visibleBlocks.ts',
+        'src/lib/inboxItems.ts',
       ],
       thresholds: {
         statements: 80,

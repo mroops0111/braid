@@ -4,6 +4,7 @@ import { Check, ChevronDown, ChevronUp, Lock, MessageCircleQuestion, MessageSqua
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActionInputForm } from '@/components/ActionInputForm'
+import { BlockList } from '@/components/blocks/BlockList'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow } from '@/components/ListRow'
 import { MentionTextarea } from '@/components/references/MentionTextarea'
@@ -13,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { api } from '@/lib/api'
+import { collectBlocks } from '@/lib/blocks/collectBlocks'
 import { useLocaleFormat } from '@/lib/i18n'
 import { queryKeys, useRuns, useSessionMetadata, useSkills, useUsers } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
@@ -377,7 +379,7 @@ function ConversationRow({ workspaceId, group, onResume }: {
   )
 }
 
-function SidebarSection({ icon: Icon, title, children }: {
+export function SidebarSection({ icon: Icon, title, children }: {
   icon: typeof Sparkles
   title: string
   children: React.ReactNode
@@ -393,11 +395,11 @@ function SidebarSection({ icon: Icon, title, children }: {
   )
 }
 
-function SidebarEmpty({ children }: { children: React.ReactNode }) {
+export function SidebarEmpty({ children }: { children: React.ReactNode }) {
   return <li className="px-3 py-1.5 text-2xs text-muted-foreground/70">{children}</li>
 }
 
-function SkillRow({ skill, active, onClick, step, locked }: {
+export function SkillRow({ skill, active, onClick, step, locked }: {
   skill: SkillManifest
   active: boolean
   onClick: () => void
@@ -442,6 +444,12 @@ export function bucketByGroup(skills: readonly SkillManifest[]): Record<Group, S
   const out: Record<Group, SkillManifest[]> = { ask: [], build: [], generate: [], custom: [] }
   for (const skill of skills) {
     const category = skill.frontmatter.braid?.category
+    // An ask skill has its own surface,
+    // with the question box and the answers that came out of it.
+    // Listing it here too offers the same run twice,
+    // and the copy here is the poorer of the two.
+    if (category === 'ask')
+      continue
     out[category ?? 'custom'].push(skill)
   }
   // Sort the Build group by `order` so the numbered steps line up,
@@ -465,7 +473,7 @@ interface ConversationProps {
   locked?: boolean
 }
 
-function Conversation({ workspaceId, skill, locked = false }: ConversationProps) {
+export function Conversation({ workspaceId, skill, locked = false }: ConversationProps) {
   const { t } = useTranslation()
   const conversation = useConversation(workspaceId, skill.id)
   const [prompt, setPrompt] = useState('')
@@ -565,6 +573,7 @@ function Conversation({ workspaceId, skill, locked = false }: ConversationProps)
           )}
         </div>
       </div>
+      <BlockList blocks={collectBlocks(conversation.events)} />
       <SkillTranscript events={[...conversation.events]} error={transcriptError} running={running} />
       {locked && (
         <div className="flex items-start gap-2 border-t border-border bg-muted/40 px-4 py-2 text-2xs text-muted-foreground">
