@@ -847,8 +847,12 @@ function MembersSection({ workspaceId }: { workspaceId: string }) {
   const policy = useWorkspacePolicy(workspaceId)
   const canManageMembers = policy.can('workspace.write')
 
+  // Admitting everyone edits the workspace itself and backfills the list,
+  // so one such save leaves both of them stale,
+  // and the toggle below reads its own state from the workspace rather than here.
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: queryKeys.workspaceMembers(workspaceId) })
+    queryClient.invalidateQueries({ queryKey: queryKeys.workspaces() })
   }
 
   if (isLoading) {
@@ -926,20 +930,24 @@ function AutoJoinControl({ workspaceId, onChanged }: {
   })
 
   return (
-    <div className="mt-3 flex items-start gap-2 border-t border-border pt-3">
+    // The size sits on the row, not on the two spans inside it.
+    // A label carries the strut of whatever it inherits,
+    // so a span cannot shrink the line box, and the box beside it
+    // ends up centred on a taller line than the one it can see.
+    <div className="mt-3 flex items-start gap-2 border-t border-border pt-3 text-2xs">
       <input
         type="checkbox"
         id={`auto-join-${workspaceId}`}
         checked={admitting}
         disabled={save.isPending}
         onChange={event => save.mutate(event.target.checked)}
-        className="mt-0.5 size-3 accent-primary"
+        className="mt-0.5 size-3 shrink-0 accent-primary"
       />
-      <label className="flex-1" htmlFor={`auto-join-${workspaceId}`}>
-        <span className="text-2xs font-medium text-foreground">
+      <label className="flex flex-1 flex-col gap-0.5" htmlFor={`auto-join-${workspaceId}`}>
+        <span className="font-medium text-foreground">
           {t('workspace.details.autoJoinTitle')}
         </span>
-        <span className="mt-0.5 block text-2xs leading-relaxed text-muted-foreground">
+        <span className="leading-relaxed text-muted-foreground">
           {t('workspace.details.autoJoinHint')}
         </span>
       </label>
