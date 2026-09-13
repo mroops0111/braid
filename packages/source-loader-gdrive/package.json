@@ -28,7 +28,7 @@
     "@braidhq/core": "workspace:*",
     "@braidhq/schema": "workspace:*",
     "@braidhq/sdk": "workspace:*",
-    "zod": "^4.2.1"
+    "zod": "^4.6.1"
   },
   "devDependencies": {
     "@braidhq/test-utils": "workspace:*",
