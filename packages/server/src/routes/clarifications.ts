@@ -1,11 +1,13 @@
-import type { ClarificationRepository, HITLService } from '@braidhq/core'
+import type { Clarification as ClarificationEntity, ClarificationRepository, HITLService } from '@braidhq/core'
+import type { Context } from 'hono'
 import type { RunOutputGate } from '../infrastructure/skill/RunOutputGate.js'
-import { newClarificationCandidateId } from '@braidhq/core'
+import { handoffVisibleTo, newClarificationCandidateId, NotFoundError } from '@braidhq/core'
 import { Clarification, ClarificationCandidateId, ClarificationCreateBody, ClarificationId, ClarificationStatus, ProposalId, UserId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getSkillRunId, getUserId } from '../middleware/auth.js'
 import { getViewerContext, requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
+import { defaultPermissionRegistry } from '../policy/index.js'
 import { forRuns, NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 import { assertEntityInWorkspace } from './helpers.js'
 
@@ -13,7 +15,7 @@ const ListQuery = z.object({
   status: z.union([ClarificationStatus, z.array(ClarificationStatus)]).optional().openapi({ description: 'Filter by clarification status. Pass one or many.' }),
   limit: z.coerce.number().int().positive().optional(),
   offset: z.coerce.number().int().nonnegative().optional(),
-  showAll: z.coerce.boolean().optional().openapi({ description: 'Owner-only: bypass the personal-pending filter so every member\'s open questions are visible.' }),
+  showAll: z.coerce.boolean().optional().openapi({ description: 'Requires workspace.manage: drop the personal filter, so every member\'s open questions are visible.' }),
 })
 
 // Reviewer-facing answer body.
@@ -225,13 +227,36 @@ const reportNoClarificationRoute = createRoute(forRuns({
 
 export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
-  // Answer, skip, and mark-applied are HITL decisions,
+  // Reading the queue is the Build surface's lower half, gated as one resource.
+  // Creating is a run handing a question over, carried by its own run token,
+  // so it stays outside the gate a person passes.
+  router.on('GET', ['/', '/:clarificationId'], requirePermission('handoff.read'))
+  // Answering, skipping, deferring, and marking applied all settle a handoff,
   // Owner and Maintainer only.
-  // Guests never see the tab, but a direct curl still 403s here.
-  router.use('/:clarificationId/answer', requirePermission('clarification.write'))
-  router.use('/:clarificationId/skip', requirePermission('clarification.write'))
-  router.use('/:clarificationId/defer', requirePermission('clarification.write'))
-  router.use('/:clarificationId', requirePermission('clarification.write'))
+  // Guests never see the queue, so this is what makes a direct curl 403.
+  router.on('PATCH', '/:clarificationId', requirePermission('handoff.write'))
+  router.use('/:clarificationId/answer', requirePermission('handoff.write'))
+  router.use('/:clarificationId/skip', requirePermission('handoff.write'))
+  router.use('/:clarificationId/defer', requirePermission('handoff.write'))
+
+  /** Whether this caller sees every member's work, rather than only their own. */
+  function seesEveryone(context: Context): boolean {
+    const viewer = getViewerContext(context)
+    return viewer !== undefined && defaultPermissionRegistry.can('workspace.manage', viewer)
+  }
+
+  /**
+   * Refuse a clarification that belongs to somebody else.
+   *
+   * Reported as absent rather than forbidden,
+   * so the answer never confirms that another person's question exists.
+   */
+  function requireVisible(context: Context, clarification: ClarificationEntity): void {
+    if (!getViewerContext(context) || seesEveryone(context))
+      return
+    if (!handoffVisibleTo(clarification.toData(), getUserId(context)))
+      throw new NotFoundError(`Clarification "${clarification.id}" not found`)
+  }
 
   router.openapi(reportNoClarificationRoute, async (context) => {
     deps.outputGate?.declareNothingToClarify(getSkillRunId(context))
@@ -261,17 +286,18 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
     const workspaceId = getWorkspaceId(context)
     const { status, limit, offset, showAll } = context.req.valid('query')
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
-    const viewer = getViewerContext(context)
-    const isOwner = viewer?.effectiveRole === 'owner'
-    // No viewer is an open composition (in-memory), which applies no personal filter.
-    const viewerId = (!viewer || (showAll && isOwner)) ? undefined : getUserId(context)
-    // Owners also see service-owned (autonomous) pending, since only they can act on it.
+    // Show All is the one way to read another person's unsettled work,
+    // so everyone else is narrowed whatever they send.
+    // No viewer is an open composition (in-memory), which narrows nothing.
+    const viewerId = (!getViewerContext(context) || (showAll && seesEveryone(context)))
+      ? undefined
+      : getUserId(context)
     const clarifications = await deps.clarificationRepository.list({
       workspaceId,
       statuses,
       limit,
       offset,
-      ...(viewerId ? { viewerId, includeServiceOwned: isOwner } : {}),
+      ...(viewerId ? { viewerId } : {}),
     })
     return context.json({ items: clarifications.map(clarification => clarification.toData()) }, 200)
   })
@@ -281,6 +307,7 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
     const { clarificationId } = context.req.valid('param')
     const clarification = await deps.clarificationRepository.load(clarificationId)
     assertEntityInWorkspace(workspaceId, clarification.workspaceId, 'Clarification', clarificationId)
+    requireVisible(context, clarification)
     return context.json(clarification.toData(), 200)
   })
 
@@ -291,6 +318,7 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
     const userId = body.userId ?? getUserId(context)
     const clarification = await deps.clarificationRepository.load(clarificationId)
     assertEntityInWorkspace(workspaceId, clarification.workspaceId, 'Clarification', clarificationId)
+    requireVisible(context, clarification)
     const selection = body.candidateId
       ? { kind: 'existing' as const, candidateId: body.candidateId }
       : { kind: 'custom' as const, description: body.customCandidate!.description }
@@ -310,6 +338,7 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
     const userId = bodyUserId ?? getUserId(context)
     const clarification = await deps.clarificationRepository.load(clarificationId)
     assertEntityInWorkspace(workspaceId, clarification.workspaceId, 'Clarification', clarificationId)
+    requireVisible(context, clarification)
     const applied = await deps.hitlService.markClarificationApplied(clarificationId, userId, proposalId)
     return context.json(applied.toData(), 200)
   })
@@ -319,6 +348,7 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
     const { clarificationId } = context.req.valid('param')
     const clarification = await deps.clarificationRepository.load(clarificationId)
     assertEntityInWorkspace(workspaceId, clarification.workspaceId, 'Clarification', clarificationId)
+    requireVisible(context, clarification)
     const deferred = await deps.hitlService.deferClarification(clarificationId, getUserId(context))
     return context.json(deferred.toData(), 200)
   })
@@ -330,6 +360,7 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
     const userId = bodyUserId ?? getUserId(context)
     const clarification = await deps.clarificationRepository.load(clarificationId)
     assertEntityInWorkspace(workspaceId, clarification.workspaceId, 'Clarification', clarificationId)
+    requireVisible(context, clarification)
     const skipped = await deps.hitlService.skipClarification(clarificationId, reason, userId)
     return context.json(skipped.toData(), 200)
   })

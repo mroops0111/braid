@@ -8,7 +8,7 @@ import type {
   Workspace,
   WorkspaceRepository,
 } from '@braidhq/core'
-import type { SkillEvent, SkillId, SkillRunId as SkillRunIdType } from '@braidhq/schema'
+import type { SkillEvent, SkillRunId as SkillRunIdType } from '@braidhq/schema'
 import { createLogger, unitBearingRoleIds, ValidationError } from '@braidhq/core'
 import { SkillId as SkillIdSchema, SkillManifest, SkillRunId, SourceId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
@@ -16,7 +16,7 @@ import { extractBearerToken, getUserId } from '../middleware/auth.js'
 import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, WorkspaceIdParam } from './_shared.js'
-import { loadWorkspaceById } from './helpers.js'
+import { loadWorkspaceById, resolvePerUnitSkillId } from './helpers.js'
 
 // Long enough for a cold shallow fetch across a handful of repos,
 // short enough that an unresponsive remote does not look like a hung submit.
@@ -229,11 +229,6 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
   })
 
   return router
-}
-
-function resolvePerUnitSkillId(pluginRegistry: PluginRegistry, workspace: Workspace): SkillId | undefined {
-  const ontology = pluginRegistry.findOntology(workspace.productManifest.ontologyId)
-  return ontology?.batch?.perUnit?.skillId
 }
 
 const recordLogger = createLogger('skills.recordObservation')

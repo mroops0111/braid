@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import {
-  Actor,
   ClarificationCandidateId,
   ClarificationId,
   ExternalReference,
@@ -11,8 +10,8 @@ import {
   UserId,
   WorkspaceId,
 } from './common.js'
+import { HandoffFilter, HandoffOwner } from './handoff.js'
 import { GraphOperation } from './proposal.js'
-import { UserKind } from './user.js'
 
 // Only the hard contract here. Authoring rules (length, tone, language) live in the skill layer.
 const clarificationQuestion = z.string().min(1).max(400).describe('The single question shown to the reviewer.')
@@ -48,7 +47,7 @@ export type ClarificationCandidate = z.infer<typeof ClarificationCandidate>
 export const ClarificationAnswerMode = z.enum(['resumes', 'standing'])
 export type ClarificationAnswerMode = z.infer<typeof ClarificationAnswerMode>
 
-export const Clarification = z.object({
+export const Clarification = HandoffOwner.extend({
   id: ClarificationId,
   workspaceId: WorkspaceId,
   question: clarificationQuestion,
@@ -57,13 +56,6 @@ export const Clarification = z.object({
   answeredBy: UserId.optional(),
   selectedCandidateId: ClarificationCandidateId.optional(),
   resolution: z.array(GraphOperation).optional(),
-  // The user who filed it, or 'system' for autonomous ones. Pending is owner-only.
-  owner: Actor,
-  // Display-name snapshot at submit time. Absent for the 'system' owner.
-  ownerDisplayName: z.string().min(1).optional(),
-  // Owner's kind snapshotted at submit time.
-  // Absent means a human's private clarification, 'service' is autonomous and owner-visible.
-  ownerKind: UserKind.optional(),
   // Set when the resolution becomes a Proposal, so the UI can link the two.
   proposalId: ProposalId.optional(),
   externalReferences: z.array(ExternalReference).optional(),
@@ -118,14 +110,7 @@ export const ClarificationCreateBody = ClarificationCreate
   .extend({ candidates: z.array(ClarificationCandidate.partial({ id: true })) })
 export type ClarificationCreateBody = z.infer<typeof ClarificationCreateBody>
 
-export const ClarificationFilter = z.object({
-  workspaceId: WorkspaceId.optional(),
+export const ClarificationFilter = HandoffFilter.extend({
   statuses: z.array(ClarificationStatus).optional(),
-  limit: z.number().int().positive().optional(),
-  offset: z.number().int().nonnegative().optional(),
-  // When set, hides others' pending clarifications. Non-pending stay visible, absent shows all.
-  viewerId: UserId.optional(),
-  // Owner-only, also shows service-owned (autonomous) pending to this viewer.
-  includeServiceOwned: z.boolean().optional(),
 })
 export type ClarificationFilter = z.infer<typeof ClarificationFilter>

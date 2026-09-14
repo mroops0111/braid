@@ -1,4 +1,4 @@
-import type { GenerateViewInput, ViewService } from '@braidhq/core'
+import type { GenerateViewInput, SkillRegistry, ViewService, WorkspaceRepository } from '@braidhq/core'
 import type { EmittedBlock, GeneratedView, GenerateViewResponse, ViewContent } from '@braidhq/schema'
 import { NotFoundError, ValidationError } from '@braidhq/core'
 import { FIXTURE_FORM, FIXTURE_FORMAT, FIXTURE_KIND, makeGeneratedView, makeViewForm, makeViewKind } from '@braidhq/test-utils'
@@ -40,7 +40,13 @@ function viewService(overrides: Partial<ViewService> = {}): ViewService {
 function app(service: ViewService) {
   const scoped = new OpenAPIHono()
   scoped.use('*', workspaceIdMiddleware)
-  scoped.route('/views', createViewsRouter({ viewService: service }))
+  // No membership middleware here, so `requirePermission` skips its gate,
+  // and the resource builder these two would serve is never called.
+  scoped.route('/views', createViewsRouter({
+    viewService: service,
+    skillRegistry: {} as unknown as SkillRegistry,
+    workspaceRepository: {} as unknown as WorkspaceRepository,
+  }))
   const root = new OpenAPIHono()
   root.onError(errorHandler)
   root.route('/workspaces/:workspaceId', scoped)

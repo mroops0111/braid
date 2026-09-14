@@ -4,7 +4,6 @@ import type { SecretStore } from '../infrastructure/secrets/SecretStore.js'
 import { SourceId, WorkspaceId } from '@braidhq/schema'
 import { Hono } from 'hono'
 import { OAUTH_PROVIDERS } from '../infrastructure/oauth/providers.js'
-import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 
 // OAuth namespaces a source credential can live under,
@@ -46,7 +45,7 @@ export interface SourceConnectionRouterDeps {
 export function createSourceConnectionRouter(deps: SourceConnectionRouterDeps): HonoType {
   const router = new Hono()
 
-  router.get('/', requirePermission('workspace.read'), async (context) => {
+  router.get('/', async (context) => {
     const workspaceId = getWorkspaceId(context)
     const workspace = await deps.workspaceService.findById(WorkspaceId.parse(workspaceId))
     const connections: SourceConnectionSummary[] = []
@@ -58,7 +57,7 @@ export function createSourceConnectionRouter(deps: SourceConnectionRouterDeps): 
     return context.json({ connections })
   })
 
-  router.get('/:sourceId', requirePermission('workspace.read'), async (context) => {
+  router.get('/:sourceId', async (context) => {
     return context.json(await readStatus(deps.secretStore, getWorkspaceId(context), SourceId.parse(context.req.param('sourceId'))))
   })
 

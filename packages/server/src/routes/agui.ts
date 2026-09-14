@@ -12,6 +12,7 @@ import { createAsyncQueue } from '../infrastructure/skill/asyncQueue.js'
 import { extractBearerToken, getUserId } from '../middleware/auth.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { loadWorkspaceById } from './helpers.js'
+import { requireVisibleRun } from './runVisibility.js'
 
 export interface AguiRouterDeps {
   readonly skillRunner: SkillRunner
@@ -257,6 +258,9 @@ export function createAguiRouter(deps: AguiRouterDeps): Hono {
   router.get('/runs/:runId', async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const runId = SkillRunId.parse(context.req.param('runId'))
+    // The events are the run, so replaying them answers as fully as the run
+    // endpoints do, and has to refuse the same runs they refuse.
+    await requireVisibleRun(context, workspace, runId, deps.runRepository)
     const threadId = context.req.query('threadId') ?? runId
     const encoder = sseEncoder()
     const translator = new AguiTranslator(threadId, runId)

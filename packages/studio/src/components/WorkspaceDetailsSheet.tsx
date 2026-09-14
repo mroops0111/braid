@@ -76,6 +76,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
       <div className="flex-1 space-y-6 overflow-y-auto p-4 scrollbar-thin">
         <RenameSection
           workspace={workspace}
+          canWrite={canWrite}
           onRenamed={(newId) => {
             invalidate()
             onRenamed(newId)
@@ -83,7 +84,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
         />
 
         <section>
-          <SectionHeader title={t('workspace.details.sourcesTitle')} onAdd={() => setAddSourceOpen(true)} addLabel={t('workspace.details.addSource')} />
+          <SectionHeader title={t('workspace.details.sourcesTitle')} onAdd={() => setAddSourceOpen(true)} addLabel={t('workspace.details.addSource')} disabled={!canWrite} />
           <AutoRefreshSwitch
             workspaceId={workspaceId}
             enabled={workspace.productManifest.polling?.enabled !== false}
@@ -114,7 +115,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
             : (
                 <ul className="mt-2 space-y-1.5">
                   {workspace.productManifest.mcpServers.map(server => (
-                    <McpRow key={server.id} workspaceId={workspaceId} server={server} onChange={invalidate} />
+                    <McpRow key={server.id} workspaceId={workspaceId} server={server} canWrite={canWrite} onChange={invalidate} />
                   ))}
                 </ul>
               )}
@@ -132,6 +133,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
 
       <div className="border-t border-border p-4">
         <UnregisterButton
+          canWrite={canWrite}
           workspaceId={workspaceId}
           onUnregistered={() => {
             invalidate()
@@ -190,12 +192,17 @@ function AutoRefreshSwitch({ workspaceId, enabled, canWrite, onChange }: {
   )
 }
 
-function SectionHeader({ title, onAdd, addLabel }: { title: string, onAdd?: (() => void) | undefined, addLabel?: string | undefined }) {
+function SectionHeader({ title, onAdd, addLabel, disabled = false }: {
+  title: string
+  onAdd?: (() => void) | undefined
+  addLabel?: string | undefined
+  disabled?: boolean
+}) {
   return (
     <div className="flex items-center justify-between">
       <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
       {onAdd && (
-        <Button variant="ghost" size="sm" onClick={onAdd} className="h-6 text-2xs">
+        <Button variant="ghost" size="sm" onClick={onAdd} disabled={disabled} className="h-6 text-2xs">
           {addLabel}
         </Button>
       )}
@@ -203,7 +210,7 @@ function SectionHeader({ title, onAdd, addLabel }: { title: string, onAdd?: (() 
   )
 }
 
-function RenameSection({ workspace, onRenamed }: { workspace: Workspace, onRenamed: (newId: string) => void }) {
+function RenameSection({ workspace, canWrite, onRenamed }: { workspace: Workspace, canWrite: boolean, onRenamed: (newId: string) => void }) {
   const { t } = useTranslation()
   const [name, setName] = useState(workspace.productManifest.name)
   const [description, setDescription] = useState(workspace.productManifest.description ?? '')
@@ -223,7 +230,7 @@ function RenameSection({ workspace, onRenamed }: { workspace: Workspace, onRenam
     <section className="space-y-2">
       <div className="space-y-1.5">
         <Label htmlFor="rename">{t('common.name')}</Label>
-        <Input id="rename" value={name} onChange={e => setName(e.target.value)} />
+        <Input id="rename" value={name} disabled={!canWrite} onChange={e => setName(e.target.value)} />
       </div>
       <MarkdownDescriptionField
         id="desc"
@@ -233,7 +240,7 @@ function RenameSection({ workspace, onRenamed }: { workspace: Workspace, onRenam
       />
       {patch.error && <p className="text-2xs text-destructive">{humaniseApiError(patch.error)}</p>}
       <div className="flex justify-end">
-        <Button size="sm" disabled={!dirty || patch.isPending} onClick={() => patch.mutate()}>
+        <Button size="sm" disabled={!canWrite || !dirty || patch.isPending} onClick={() => patch.mutate()}>
           {patch.isPending ? t('common.saving') : t('common.save')}
         </Button>
       </div>
@@ -296,13 +303,14 @@ function SourceRow({ workspaceId, source, paused, onChange }: {
               <RefreshCw className={sync.isPending ? 'animate-spin' : ''} />
             </Button>
           )}
-          <Button variant="ghost" size="icon" onClick={() => remove.mutate()} disabled={remove.isPending} title={t('common.remove')} aria-label={t('common.remove')}>
+          <Button variant="ghost" size="icon" onClick={() => remove.mutate()} disabled={!canWrite || remove.isPending} title={t('common.remove')} aria-label={t('common.remove')}>
             <Trash2 />
           </Button>
         </div>
       </div>
       <p className="mt-1 break-all font-mono text-2xs text-muted-foreground">{detail}</p>
       <InlineDescriptionEditor
+        canWrite={canWrite}
         idPrefix={`src-${source.id}`}
         stored={source.description}
         draft={draftDescription}
@@ -676,9 +684,10 @@ function SyncSummary({ report }: { report: { changed?: boolean, added?: number, 
   return <span className="font-mono">{parts.length === 0 ? t('workspace.details.noChangeLabel') : parts.join(' ')}</span>
 }
 
-function McpRow({ workspaceId, server, onChange }: {
+function McpRow({ workspaceId, server, canWrite, onChange }: {
   workspaceId: string
   server: McpServerConfig
+  canWrite: boolean
   onChange: () => void
 }) {
   const { t } = useTranslation()
@@ -701,6 +710,7 @@ function McpRow({ workspaceId, server, onChange }: {
         {server.transport === 'stdio' ? `${server.command}${server.args ? ` ${server.args.join(' ')}` : ''}` : server.url}
       </p>
       <InlineDescriptionEditor
+        canWrite={canWrite}
         idPrefix={`mcp-${server.id}`}
         stored={server.description}
         draft={draftDescription}
@@ -724,6 +734,7 @@ function McpRow({ workspaceId, server, onChange }: {
 }
 
 function InlineDescriptionEditor({
+  canWrite,
   idPrefix,
   stored,
   draft,
@@ -736,6 +747,7 @@ function InlineDescriptionEditor({
   error,
   emptyHint,
 }: {
+  canWrite: boolean
   idPrefix: string
   stored: string | undefined
   draft: string
@@ -750,6 +762,13 @@ function InlineDescriptionEditor({
 }) {
   const { t } = useTranslation()
   if (!editing) {
+    if (!canWrite) {
+      return (
+        <p className="mt-1 py-0.5 text-2xs text-muted-foreground/90">
+          {stored ?? <span className="italic text-muted-foreground/60">{emptyHint}</span>}
+        </p>
+      )
+    }
     return (
       <button
         type="button"
@@ -803,7 +822,7 @@ function MetaField({ icon: Icon, label, value }: { icon: typeof Database, label:
 
 function SkillPermissionsForOwners({ workspaceId }: { workspaceId: string }) {
   const policy = useWorkspacePolicy(workspaceId)
-  if (!policy.can('workspace.write'))
+  if (!policy.can('workspace.manage'))
     return null
   return <WorkspaceSkillPermissions workspaceId={workspaceId} />
 }
@@ -845,7 +864,7 @@ function MembersSection({ workspaceId }: { workspaceId: string }) {
   const { data: allUsers } = useUsers()
   const { data: me } = useMe()
   const policy = useWorkspacePolicy(workspaceId)
-  const canManageMembers = policy.can('workspace.write')
+  const canManageMembers = policy.can('workspace.manage')
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: queryKeys.workspaceMembers(workspaceId) })
@@ -1217,7 +1236,7 @@ function AddMemberControl({ workspaceId, candidates, onAdded }: {
   )
 }
 
-function UnregisterButton({ workspaceId, onUnregistered }: { workspaceId: string, onUnregistered: () => void }) {
+function UnregisterButton({ workspaceId, canWrite, onUnregistered }: { workspaceId: string, canWrite: boolean, onUnregistered: () => void }) {
   const { t } = useTranslation()
   const [armed, setArmed] = useState(false)
   const action = useMutation({
@@ -1227,7 +1246,7 @@ function UnregisterButton({ workspaceId, onUnregistered }: { workspaceId: string
 
   if (!armed) {
     return (
-      <Button variant="ghost" size="sm" onClick={() => setArmed(true)} className="w-full text-destructive">
+      <Button variant="ghost" size="sm" disabled={!canWrite} onClick={() => setArmed(true)} className="w-full text-destructive">
         {t('workspace.details.deleteWorkspace')}
       </Button>
     )

@@ -160,7 +160,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
 
   // Server-scope gate for creation, admin-only.
   // Skips without userRegistry, so in-memory tests stay open.
-  const serverCreate = requireServerCapability('workspace.create', deps.userRegistry)
+  const serverCreate = requireServerCapability('server.write', deps.userRegistry)
 
   // Workspace-scope gate composed inline per :workspaceId route below.
   // `workspaceIdMiddleware` resolves the path param onto the context,
@@ -195,7 +195,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
     return context.json({ items: visible.map(workspace => workspace.toData()) }, 200)
   })
 
-  router.get('/:workspaceId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.read'), async (context) => {
+  router.get('/:workspaceId', workspaceIdMiddleware, wsAccess, async (context) => {
     const workspaceId = getWorkspaceId(context)
     const workspace = await deps.workspaceService.findById(workspaceId)
     return context.json(workspace.toData())
@@ -392,7 +392,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
   // so Studio can show a stale or failing mirror without opening each source,
   // and monitoring can alert on one that has not succeeded in a while.
   // Read-only, so any member sees it, matching the source-connection route.
-  router.get('/:workspaceId/source-sync-states', workspaceIdMiddleware, wsAccess, requirePermission('workspace.read'), async (context) => {
+  router.get('/:workspaceId/source-sync-states', workspaceIdMiddleware, wsAccess, async (context) => {
     const states = await deps.syncStateRepository.listByWorkspace(getWorkspaceId(context))
     return context.json({ states })
   })

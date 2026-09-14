@@ -1,7 +1,10 @@
 import type { CoverageProjection, WorkspaceRepository } from '@braidhq/core'
+import type { CoverageBoard as CoverageBoardType } from '@braidhq/schema'
 import { CoverageBoard } from '@braidhq/schema'
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
+import { getViewerContext } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
+import { defaultPermissionRegistry } from '../policy/index.js'
 import { WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
 
@@ -31,8 +34,33 @@ export function createCoverageRouter(deps: CoverageRouterDeps): OpenAPIHono {
 
   router.openapi(boardRoute, async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
-    return context.json(await deps.coverageProjection.board(workspace), 200)
+    const board = await deps.coverageProjection.board(workspace)
+    const viewer = getViewerContext(context)
+    const readsHandoffs = !viewer || defaultPermissionRegistry.can('handoff.read', viewer)
+    return context.json(readsHandoffs ? board : withoutHandoffs(board), 200)
   })
 
   return router
+}
+
+/**
+ * The board as somebody who may not read the queue sees it.
+ *
+ * Counting what is waiting is still reading the queue,
+ * so the ids come off here rather than the surface being trusted
+ * not to render them.
+ * Every state stays, since what a document is still waiting on
+ * is the board's whole point, and it names nobody's work.
+ */
+function withoutHandoffs(board: CoverageBoardType): CoverageBoardType {
+  return {
+    ...board,
+    cards: board.cards.map(card => ({ ...card, proposalIds: [], clarificationIds: [] })),
+    stages: board.stages.map(stage => ({
+      ...stage,
+      proposalIds: [],
+      clarificationIds: [],
+      answeredIds: [],
+    })),
+  }
 }

@@ -1,5 +1,5 @@
 import type { AbsolutePath, ProposalFilter, ProposalId, WorkspaceId } from '@braidhq/schema'
-import { paginate, Proposal, type ProposalRepository } from '@braidhq/core'
+import { handoffVisibleTo, paginate, Proposal, type ProposalRepository } from '@braidhq/core'
 import { Proposal as ProposalSchema } from '@braidhq/schema'
 import { PROPOSAL_STATUSES, proposalsDir } from '../_shared/paths.js'
 import { StatusedJsonStore } from './StatusedJsonStore.js'
@@ -36,15 +36,10 @@ export class FsProposalRepository implements ProposalRepository {
       const skills = filter.generatedBy
       proposals = proposals.filter(proposal => skills.includes(proposal.generatedBy))
     }
-    // Pending proposals are personal, only the owner sees them.
-    // Applied and rejected stay as workspace-shared audit history.
-    // Absent viewerId means no filter, for Owner Show All and legacy callers.
+    // Absent viewerId means no narrowing, which is what `workspace.manage` grants.
     if (filter?.viewerId !== undefined) {
       const viewerId = filter.viewerId
-      const includeServiceOwned = filter.includeServiceOwned ?? false
-      proposals = proposals.filter(proposal =>
-        proposal.status !== 'pending' || proposal.owner === viewerId || (includeServiceOwned && proposal.ownerKind === 'service'),
-      )
+      proposals = proposals.filter(proposal => handoffVisibleTo(proposal, viewerId))
     }
     return paginate(proposals, filter?.limit, filter?.offset)
   }

@@ -6,35 +6,30 @@ import type { CapabilityCheck } from './CapabilityCheck.js'
  * The server is the authoritative gate.
  * The client copy lets Studio render locked affordances, without hitting a 403.
  *
- * Workspace-scope verbs collapse to read and write per resource.
- * `workspace.create` is server-scope, resolved with no member.
+ * Server-scope checks read `serverRole` rather than `effectiveRole`,
+ * since they resolve with no member and a workspace owner is an owner too.
+ *
+ * A resource every member may read has no check here at all.
+ * `workspaceAccessMiddleware` already refused everybody else,
+ * so a check that only repeats it would never decide anything.
+ *
  * `skill.run` keeps its own verb for its three-step resolution,
  * covering owner short-circuit, per-member override, allowedRoles,
  * which does not fit a read or write pair.
  */
 export const checks: readonly CapabilityCheck[] = [
-  { id: 'workspace.create', evaluate: v => v.effectiveRole === 'owner' },
-  // Server admin reads serverRole directly, not effectiveRole,
-  // since a workspace owner also resolves to an owner effectiveRole.
-  { id: 'server.admin', evaluate: v => v.user.serverRole === 'admin' },
-  { id: 'workspace.read', evaluate: v => v.effectiveRole !== null },
+  { id: 'server.write', evaluate: v => v.user.serverRole === 'admin' },
+  { id: 'server.manage', evaluate: v => v.user.serverRole === 'admin' },
+  {
+    id: 'handoff.read',
+    evaluate: v => v.effectiveRole === 'owner' || v.effectiveRole === 'maintainer',
+  },
+  {
+    id: 'handoff.write',
+    evaluate: v => v.effectiveRole === 'owner' || v.effectiveRole === 'maintainer',
+  },
   { id: 'workspace.write', evaluate: v => v.effectiveRole === 'owner' },
-  {
-    id: 'proposal.read',
-    evaluate: v => v.effectiveRole === 'owner' || v.effectiveRole === 'maintainer',
-  },
-  {
-    id: 'proposal.write',
-    evaluate: v => v.effectiveRole === 'owner' || v.effectiveRole === 'maintainer',
-  },
-  {
-    id: 'clarification.read',
-    evaluate: v => v.effectiveRole === 'owner' || v.effectiveRole === 'maintainer',
-  },
-  {
-    id: 'clarification.write',
-    evaluate: v => v.effectiveRole === 'owner' || v.effectiveRole === 'maintainer',
-  },
+  { id: 'workspace.manage', evaluate: v => v.effectiveRole === 'owner' },
   { id: 'history.write', evaluate: v => v.effectiveRole === 'owner' },
   {
     id: 'skill.run',

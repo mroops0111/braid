@@ -1,6 +1,7 @@
 import type { ProposalFilter, ProposalId } from '@braidhq/schema'
 import type { Proposal } from '../../domain/hitl/Proposal.js'
 import type { ProposalRepository } from '../../domain/hitl/ProposalRepository.js'
+import { handoffVisibleTo } from '../../domain/hitl/handoffVisibility.js'
 import { paginate } from '../../domain/paginate.js'
 import { InMemoryKeyedStore } from './InMemoryKeyedStore.js'
 
@@ -23,10 +24,7 @@ export class InMemoryProposalRepository implements ProposalRepository {
     }
     if (filter?.viewerId !== undefined) {
       const viewerId = filter.viewerId
-      const includeServiceOwned = filter.includeServiceOwned ?? false
-      proposals = proposals.filter(proposal =>
-        proposal.status !== 'pending' || proposal.owner === viewerId || (includeServiceOwned && proposal.ownerKind === 'service'),
-      )
+      proposals = proposals.filter(proposal => handoffVisibleTo(proposal, viewerId))
     }
     return paginate(proposals, filter?.limit, filter?.offset)
   }

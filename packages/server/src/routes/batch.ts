@@ -1,10 +1,12 @@
-import type { BatchService } from '@braidhq/core'
+import type { BatchService, PluginRegistry, SkillRegistry, WorkspaceRepository } from '@braidhq/core'
 import { NotFoundError } from '@braidhq/core'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { extractBearerToken, getUserId } from '../middleware/auth.js'
+import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
+import { loadWorkspaceById, resolvePerUnitSkillId } from './helpers.js'
 
 const StartBody = z.object({
   autoApply: z.boolean(),
@@ -15,10 +17,26 @@ const StartBody = z.object({
 
 export interface BatchRouterDeps {
   batchService: BatchService
+  workspaceRepository: WorkspaceRepository
+  skillRegistry: SkillRegistry
+  pluginRegistry: PluginRegistry
 }
 
 export function createBatchRouter(deps: BatchRouterDeps): Hono {
   const router = new Hono()
+
+  // A batch is the per-unit skill run many times over,
+  // so whoever may run that skill may drive the batch, and nobody else.
+  // Reading the plan is left open, since it is the same standing
+  // the coverage board already gives every member.
+  router.on('POST', ['/', '/stop', '/resume', '/archive'], requirePermission('skill.run', async (context) => {
+    const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
+    const skillId = resolvePerUnitSkillId(deps.pluginRegistry, workspace)
+    if (!skillId)
+      return undefined
+    const manifest = await deps.skillRegistry.get(workspace, skillId)
+    return { skill: manifest.toData().frontmatter, skillId }
+  }))
 
   router.post('/', zValidator('json', StartBody), async (context) => {
     const workspaceId = getWorkspaceId(context)

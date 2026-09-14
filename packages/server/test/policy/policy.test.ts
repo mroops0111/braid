@@ -74,45 +74,53 @@ describe('resolveViewer', () => {
 describe('PermissionRegistry (default)', () => {
   const registry = buildDefaultPermissionRegistry()
 
-  it('owners get read + write on everything', () => {
+  it('owners get every workspace-scope capability', () => {
     const v = resolveViewer(makeUser('user'), makeMember('owner'))
-    const all: Capability[] = ['workspace.read', 'workspace.write', 'proposal.read', 'proposal.write', 'clarification.read', 'clarification.write', 'history.write']
+    const all: Capability[] = ['workspace.write', 'workspace.manage', 'handoff.read', 'handoff.write', 'history.write']
     for (const cap of all)
       expect(registry.can(cap, v)).toBe(true)
   })
 
-  it('maintainers get reads + proposal/clarifications write, no workspace.write or history.write', () => {
+  it('maintainers settle handoffs, but govern nothing', () => {
     const v = resolveViewer(makeUser('user'), makeMember('maintainer'))
-    expect(registry.can('workspace.read', v)).toBe(true)
-    expect(registry.can('proposal.read', v)).toBe(true)
-    expect(registry.can('proposal.write', v)).toBe(true)
-    expect(registry.can('clarification.read', v)).toBe(true)
-    expect(registry.can('clarification.write', v)).toBe(true)
+    expect(registry.can('handoff.read', v)).toBe(true)
+    expect(registry.can('handoff.write', v)).toBe(true)
     expect(registry.can('workspace.write', v)).toBe(false)
+    expect(registry.can('workspace.manage', v)).toBe(false)
     expect(registry.can('history.write', v)).toBe(false)
   })
 
-  it('guests get workspace.read but no proposal/clarifications access', () => {
+  it('guests read the workspace, but never reach the handoff queue', () => {
     const v = resolveViewer(makeUser('user'), makeMember('guest'))
-    expect(registry.can('workspace.read', v)).toBe(true)
-    expect(registry.can('proposal.read', v)).toBe(false)
-    expect(registry.can('proposal.write', v)).toBe(false)
-    expect(registry.can('clarification.read', v)).toBe(false)
-    expect(registry.can('clarification.write', v)).toBe(false)
+    expect(v.effectiveRole).toBe('guest')
+    expect(registry.can('handoff.read', v)).toBe(false)
+    expect(registry.can('handoff.write', v)).toBe(false)
     expect(registry.can('workspace.write', v)).toBe(false)
+    expect(registry.can('workspace.manage', v)).toBe(false)
     expect(registry.can('history.write', v)).toBe(false)
   })
 
   it('outsiders (no member, not admin) get nothing', () => {
     const v = resolveViewer(makeUser('user'), undefined)
-    expect(registry.can('workspace.read', v)).toBe(false)
-    expect(registry.can('proposal.write', v)).toBe(false)
+    expect(registry.can('handoff.read', v)).toBe(false)
+    expect(registry.can('handoff.write', v)).toBe(false)
+    expect(registry.can('workspace.write', v)).toBe(false)
+  })
+
+  it('server scope reads serverRole, so a workspace owner is not a server admin', () => {
+    const owner = resolveViewer(makeUser('user'), makeMember('owner'))
+    expect(registry.can('server.write', owner)).toBe(false)
+    expect(registry.can('server.manage', owner)).toBe(false)
+    const admin = resolveViewer(makeUser('admin'), undefined)
+    expect(registry.can('server.write', admin)).toBe(true)
+    expect(registry.can('server.manage', admin)).toBe(true)
   })
 
   it('admin who joined as guest still gets owner-level permissions', () => {
     const v = resolveViewer(makeUser('admin'), makeMember('guest'))
     expect(registry.can('workspace.write', v)).toBe(true)
-    expect(registry.can('proposal.write', v)).toBe(true)
+    expect(registry.can('workspace.manage', v)).toBe(true)
+    expect(registry.can('handoff.write', v)).toBe(true)
     expect(registry.can('history.write', v)).toBe(true)
   })
 })
@@ -175,7 +183,7 @@ describe('PermissionRegistry', () => {
 
   it('register returns the registry for chaining', () => {
     const r = new PermissionRegistry()
-    expect(r.register({ id: 'workspace.read', evaluate: () => true })).toBe(r)
-    expect(r.has('workspace.read')).toBe(true)
+    expect(r.register({ id: 'workspace.write', evaluate: () => true })).toBe(r)
+    expect(r.has('workspace.write')).toBe(true)
   })
 })

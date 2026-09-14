@@ -1,10 +1,13 @@
-import type { HITLService, ModelRepository, ModelValidationService, ProposalRepository, WorkspaceService } from '@braidhq/core'
+import type { HITLService, ModelRepository, ModelValidationService, Proposal as ProposalEntity, ProposalRepository, WorkspaceService } from '@braidhq/core'
+import type { Context } from 'hono'
 import type { RunOutputGate } from '../infrastructure/skill/RunOutputGate.js'
+import { handoffVisibleTo, NotFoundError } from '@braidhq/core'
 import { Proposal, ProposalCreate, ProposalId, ProposalStatus, UserId, ValidationResult } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getSkillRunId, getUserId } from '../middleware/auth.js'
 import { getViewerContext, requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
+import { defaultPermissionRegistry } from '../policy/index.js'
 import { forRuns, NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 import { assertEntityInWorkspace } from './helpers.js'
 
@@ -12,7 +15,7 @@ const ListQuery = z.object({
   status: z.union([ProposalStatus, z.array(ProposalStatus)]).optional().openapi({ description: 'Filter by proposal status. Pass one or many.' }),
   limit: z.coerce.number().int().positive().optional(),
   offset: z.coerce.number().int().nonnegative().optional(),
-  showAll: z.coerce.boolean().optional().openapi({ description: 'Owner-only: bypass the personal-pending filter so every member\'s drafts are visible.' }),
+  showAll: z.coerce.boolean().optional().openapi({ description: 'Requires workspace.manage: drop the personal filter, so every member\'s unsettled work is visible.' }),
 })
 
 // Body `userId` is a back-compat shim.
@@ -172,11 +175,33 @@ const rejectProposalRoute = createRoute(forRuns({
 
 export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
-  // Apply and reject are HITL decisions, Owner and Maintainer only.
-  // Guests never see the buttons, the UI hides the tab.
-  // Defence-in-depth here means a direct curl from a Guest still 403s.
-  router.use('/:proposalId/apply', requirePermission('proposal.write'))
-  router.use('/:proposalId/reject', requirePermission('proposal.write'))
+  // Reading the queue is the Build surface's lower half, gated as one resource.
+  // Creating is a run handing something over, carried by its own run token,
+  // so it stays outside the gate a person passes.
+  router.on('GET', ['/', '/:proposalId', '/:proposalId/validate'], requirePermission('handoff.read'))
+  // Apply and reject settle a handoff, Owner and Maintainer only.
+  // Guests never see the buttons, so this is what makes a direct curl 403.
+  router.use('/:proposalId/apply', requirePermission('handoff.write'))
+  router.use('/:proposalId/reject', requirePermission('handoff.write'))
+
+  /** Whether this caller sees every member's work, rather than only their own. */
+  function seesEveryone(context: Context): boolean {
+    const viewer = getViewerContext(context)
+    return viewer !== undefined && defaultPermissionRegistry.can('workspace.manage', viewer)
+  }
+
+  /**
+   * Refuse a proposal that belongs to somebody else.
+   *
+   * Reported as absent rather than forbidden,
+   * so the answer never confirms that another person's proposal exists.
+   */
+  function requireVisible(context: Context, proposal: ProposalEntity): void {
+    if (!getViewerContext(context) || seesEveryone(context))
+      return
+    if (!handoffVisibleTo(proposal.toData(), getUserId(context)))
+      throw new NotFoundError(`Proposal "${proposal.id}" not found`)
+  }
 
   router.openapi(createProposalRoute, async (context) => {
     const workspaceId = getWorkspaceId(context)
@@ -197,20 +222,18 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     const workspaceId = getWorkspaceId(context)
     const { status, limit, offset, showAll } = context.req.valid('query')
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
-    // Show All bypass is gated to the workspace owner.
-    // Everyone else is forced through the personal-pending filter,
-    // whatever they send.
-    const viewer = getViewerContext(context)
-    const isOwner = viewer?.effectiveRole === 'owner'
-    // No viewer is an open composition (in-memory), which applies no personal filter.
-    const viewerId = (!viewer || (showAll && isOwner)) ? undefined : getUserId(context)
-    // Owners also see service-owned (autonomous) pending, since only they can apply it.
+    // Show All is the one way to read another person's unsettled work,
+    // so everyone else is narrowed whatever they send.
+    // No viewer is an open composition (in-memory), which narrows nothing.
+    const viewerId = (!getViewerContext(context) || (showAll && seesEveryone(context)))
+      ? undefined
+      : getUserId(context)
     const proposals = await deps.proposalRepository.list({
       workspaceId,
       statuses,
       limit,
       offset,
-      ...(viewerId ? { viewerId, includeServiceOwned: isOwner } : {}),
+      ...(viewerId ? { viewerId } : {}),
     })
     return context.json({ items: proposals.map(proposal => proposal.toData()) }, 200)
   })
@@ -220,6 +243,7 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     const { proposalId } = context.req.valid('param')
     const proposal = await deps.proposalRepository.load(proposalId)
     assertEntityInWorkspace(workspaceId, proposal.workspaceId, 'Proposal', proposalId)
+    requireVisible(context, proposal)
     return context.json(proposal.toData(), 200)
   })
 
@@ -228,6 +252,7 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     const { proposalId } = context.req.valid('param')
     const proposal = await deps.proposalRepository.load(proposalId)
     assertEntityInWorkspace(workspaceId, proposal.workspaceId, 'Proposal', proposalId)
+    requireVisible(context, proposal)
     const workspace = await deps.workspaceService.findById(workspaceId)
     const snapshot = await deps.modelRepository.load(workspaceId)
     const result = await deps.modelValidationService.validateOperations(snapshot, proposal.operations, workspace)
@@ -241,6 +266,7 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     const userId = body.userId ?? getUserId(context)
     const proposal = await deps.proposalRepository.load(proposalId)
     assertEntityInWorkspace(workspaceId, proposal.workspaceId, 'Proposal', proposalId)
+    requireVisible(context, proposal)
     const applied = await deps.hitlService.applyProposal(proposalId, userId)
     return context.json(applied.toData(), 200)
   })
@@ -252,6 +278,7 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     const userId = bodyUserId ?? getUserId(context)
     const proposal = await deps.proposalRepository.load(proposalId)
     assertEntityInWorkspace(workspaceId, proposal.workspaceId, 'Proposal', proposalId)
+    requireVisible(context, proposal)
     const rejected = await deps.hitlService.rejectProposal(proposalId, reason, userId)
     return context.json(rejected.toData(), 200)
   })

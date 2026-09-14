@@ -14,6 +14,11 @@ export const inbox = {
   answeredWaiting: '{count} answered, waiting for the step that reads them.',
   transcript: 'Run record ({count} events)',
   untitled: 'no description',
+  showingAll: 'Showing All',
+  mineOnly: 'Mine Only',
+  showingAllTooltip: 'Showing what every member is waiting on',
+  mineOnlyTooltip: 'Showing only yours, and what the system raised',
+  bySystem: 'System',
 }
 
 export default inbox

@@ -14,6 +14,11 @@ export const inbox = {
   answeredWaiting: '{count} 題已回答，等待讀取它們的步驟執行。',
   transcript: '原始執行紀錄 ({count} 筆事件)',
   untitled: '沒有說明',
+  showingAll: '顯示全部',
+  mineOnly: '僅顯示我的',
+  showingAllTooltip: '顯示所有成員待處理的項目',
+  mineOnlyTooltip: '僅顯示你自己的，以及系統提出的',
+  bySystem: '系統',
 }
 
 export default inbox
