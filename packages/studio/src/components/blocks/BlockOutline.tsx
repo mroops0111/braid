@@ -10,7 +10,10 @@ function fallbackKey(call: RenderBlock['call']):
   | 'blocks.outline.showMatrix'
   | 'blocks.outline.showTrace'
   | 'blocks.outline.showDiagram'
-  | 'blocks.outline.showSubgraph' {
+  | 'blocks.outline.showSubgraph'
+  | 'blocks.outline.showSection'
+  | 'blocks.outline.showCheck'
+  | 'blocks.outline.showCustom' {
   switch (call) {
     case 'showAnswer':
       return 'blocks.outline.showAnswer'
@@ -26,6 +29,12 @@ function fallbackKey(call: RenderBlock['call']):
       return 'blocks.outline.showDiagram'
     case 'showSubgraph':
       return 'blocks.outline.showSubgraph'
+    case 'showSection':
+      return 'blocks.outline.showSection'
+    case 'showCheck':
+      return 'blocks.outline.showCheck'
+    case 'showCustom':
+      return 'blocks.outline.showCustom'
     default: {
       const exhaustive: never = call
       throw new Error(`Unhandled: ${JSON.stringify(exhaustive)}`)

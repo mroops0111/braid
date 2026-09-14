@@ -46,6 +46,8 @@ import { createSourceRefUrlRouter } from './routes/sourceRefUrl.js'
 import { createSourceUnitObservationsRouter } from './routes/sourceUnitObservations.js'
 import { createGithubWebhookReceiver, createSourceWebhooksAdminRouter } from './routes/sourceWebhooks.js'
 import { createUsersRouter } from './routes/users.js'
+import { createViewKindsRouter } from './routes/viewKinds.js'
+import { createViewsRouter } from './routes/views.js'
 import { createWorkspaceEventsRouter } from './routes/workspaceEvents.js'
 import { createTransferOwnershipRouter, createWorkspaceMembersRouter } from './routes/workspaceMembers.js'
 import { createWorkspacesRouter } from './routes/workspaces.js'
@@ -208,6 +210,8 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   app.route('/source-loaders', createSourceLoadersRouter({ pluginRegistry: deps.pluginRegistry }))
   app.route('/agents', createAgentsRouter({ pluginRegistry: deps.pluginRegistry }))
   app.route('/ontologies', createOntologiesRouter({ pluginRegistry: deps.pluginRegistry }))
+  if (deps.viewService)
+    app.route('/view-kinds', createViewKindsRouter({ viewService: deps.viewService }))
 
   // Public webhook receivers, authenticated by per-source HMAC secrets,
   // inside the handler, not by a Bearer token.
@@ -319,6 +323,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       skillRunner: deps.skillRunner,
       workspaceRepository: deps.workspaceRepository,
       modelRepository: deps.modelRepository,
+      ...(deps.viewService ? { blockKindSchema: kind => deps.viewService?.blockKindSchema(kind) } : {}),
     }))
     workspaceScoped.route('/agui', createAguiRouter({
       skillRunner: deps.skillRunner,
@@ -333,6 +338,8 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   if (deps.batchService) {
     workspaceScoped.route('/batch', createBatchRouter({ batchService: deps.batchService }))
   }
+  if (deps.viewService)
+    workspaceScoped.route('/views', createViewsRouter({ viewService: deps.viewService }))
   workspaceScoped.route('/reactor-cycles', createReactorCyclesRouter({
     reactorCycleRepository: deps.reactorCycleRepository,
   }))

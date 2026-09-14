@@ -1,10 +1,10 @@
 import type { ModelRepository, SkillRunner, WorkspaceRepository } from '@braidhq/core'
-import type { EmittedBlock, RenderBlock, WorkspaceId } from '@braidhq/schema'
+import type { BlockKind, EmittedBlock, RenderBlock, WorkspaceId } from '@braidhq/schema'
 import { evidenceSupport, graphCitations, NotFoundError, ValidationError } from '@braidhq/core'
-import { BlockId, EvidenceSupport, ShowAnswer, ShowDiagram, ShowEvidence, ShowFinding, ShowMatrix, ShowSubgraph, ShowTrace, SkillRunId } from '@braidhq/schema'
+import { BlockId, CHOICE_NEEDS_ANSWER, EvidenceSupport, namesItsAnswer, ShowAnswer, ShowCheckFields, ShowCustom, ShowDiagram, ShowEvidence, ShowFinding, ShowMatrix, ShowSection, ShowSubgraph, ShowTrace, SkillRunId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
-import { NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
+import { forRuns, NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
 
 /**
@@ -20,6 +20,14 @@ export interface BlocksRouterDeps {
   readonly workspaceRepository: WorkspaceRepository
   /** Asked what the graph holds, so a citation to it can be checked. */
   readonly modelRepository: ModelRepository
+  /**
+   * The shape a plugin declared for one of its own block kinds.
+   *
+   * Nothing back means no plugin claims the kind, and the block is refused.
+   * Braid validates what it will never draw,
+   * so a stored document cannot carry a shape its own surface would reject.
+   */
+  readonly blockKindSchema?: (kind: BlockKind) => z.ZodTypeAny | undefined
 }
 
 const RunIdParam = WorkspaceIdParam.extend({
@@ -55,6 +63,12 @@ const ShowMatrixBody = ShowMatrix.omit({ call: true }).openapi('ShowMatrixBody')
 const ShowTraceBody = ShowTrace.omit({ call: true }).openapi('ShowTraceBody')
 const ShowDiagramBody = ShowDiagram.omit({ call: true }).openapi('ShowDiagramBody')
 const ShowSubgraphBody = ShowSubgraph.omit({ call: true }).openapi('ShowSubgraphBody')
+const ShowSectionBody = ShowSection.omit({ call: true }).openapi('ShowSectionBody')
+const ShowCheckBody = ShowCheckFields.omit({ call: true }).check((context) => {
+  if (!namesItsAnswer(context.value))
+    context.issues.push({ code: 'custom', input: context.value, path: ['correct'], message: CHOICE_NEEDS_ANSWER })
+}).openapi('ShowCheckBody')
+const ShowCustomBody = ShowCustom.omit({ call: true }).openapi('ShowCustomBody')
 
 const renderResponses = {
   201: {
@@ -65,7 +79,7 @@ const renderResponses = {
   400: ValidationFailureResponse,
 } as const
 
-const showAnswerRoute = createRoute({
+const showAnswerRoute = createRoute(forRuns({
   method: 'post',
   path: '/{runId}/blocks/answer',
   operationId: 'showAnswer',
@@ -76,9 +90,9 @@ const showAnswerRoute = createRoute({
     body: { content: { 'application/json': { schema: ShowAnswerBody } }, required: true },
   },
   responses: renderResponses,
-})
+}, ['ask', 'build', 'generate']))
 
-const showEvidenceRoute = createRoute({
+const showEvidenceRoute = createRoute(forRuns({
   method: 'post',
   path: '/{runId}/blocks/evidence',
   operationId: 'showEvidence',
@@ -89,9 +103,9 @@ const showEvidenceRoute = createRoute({
     body: { content: { 'application/json': { schema: ShowEvidenceBody } }, required: true },
   },
   responses: renderResponses,
-})
+}, ['ask', 'generate']))
 
-const showFindingRoute = createRoute({
+const showFindingRoute = createRoute(forRuns({
   method: 'post',
   path: '/{runId}/blocks/finding',
   operationId: 'showFinding',
@@ -102,9 +116,9 @@ const showFindingRoute = createRoute({
     body: { content: { 'application/json': { schema: ShowFindingBody } }, required: true },
   },
   responses: renderResponses,
-})
+}, ['ask', 'build']))
 
-const showMatrixRoute = createRoute({
+const showMatrixRoute = createRoute(forRuns({
   method: 'post',
   path: '/{runId}/blocks/matrix',
   operationId: 'showMatrix',
@@ -115,9 +129,9 @@ const showMatrixRoute = createRoute({
     body: { content: { 'application/json': { schema: ShowMatrixBody } }, required: true },
   },
   responses: renderResponses,
-})
+}, ['ask', 'generate']))
 
-const showTraceRoute = createRoute({
+const showTraceRoute = createRoute(forRuns({
   method: 'post',
   path: '/{runId}/blocks/trace',
   operationId: 'showTrace',
@@ -128,9 +142,9 @@ const showTraceRoute = createRoute({
     body: { content: { 'application/json': { schema: ShowTraceBody } }, required: true },
   },
   responses: renderResponses,
-})
+}, ['ask', 'build']))
 
-const showDiagramRoute = createRoute({
+const showDiagramRoute = createRoute(forRuns({
   method: 'post',
   path: '/{runId}/blocks/diagram',
   operationId: 'showDiagram',
@@ -141,9 +155,9 @@ const showDiagramRoute = createRoute({
     body: { content: { 'application/json': { schema: ShowDiagramBody } }, required: true },
   },
   responses: renderResponses,
-})
+}, ['ask', 'build', 'generate']))
 
-const showSubgraphRoute = createRoute({
+const showSubgraphRoute = createRoute(forRuns({
   method: 'post',
   path: '/{runId}/blocks/subgraph',
   operationId: 'showSubgraph',
@@ -154,7 +168,46 @@ const showSubgraphRoute = createRoute({
     body: { content: { 'application/json': { schema: ShowSubgraphBody } }, required: true },
   },
   responses: renderResponses,
-})
+}, ['ask', 'build', 'generate']))
+
+const showSectionRoute = createRoute(forRuns({
+  method: 'post',
+  path: '/{runId}/blocks/section',
+  operationId: 'showSection',
+  summary: 'Open a part of the document, naming what it is about. Call this before the prose under it.',
+  tags: ['render'],
+  request: {
+    params: RunIdParam,
+    body: { content: { 'application/json': { schema: ShowSectionBody } }, required: true },
+  },
+  responses: renderResponses,
+}, ['generate']))
+
+const showCheckRoute = createRoute(forRuns({
+  method: 'post',
+  path: '/{runId}/blocks/check',
+  operationId: 'showCheck',
+  summary: 'Ask the reader one question about what they just read, with the answer held back until they commit.',
+  tags: ['render'],
+  request: {
+    params: RunIdParam,
+    body: { content: { 'application/json': { schema: ShowCheckBody } }, required: true },
+  },
+  responses: renderResponses,
+}, ['generate']))
+
+const showCustomRoute = createRoute(forRuns({
+  method: 'post',
+  path: '/{runId}/blocks/custom',
+  operationId: 'showCustom',
+  summary: 'Render a block shape your own plugin declares, which Braid stores and your own surface draws.',
+  tags: ['render'],
+  request: {
+    params: RunIdParam,
+    body: { content: { 'application/json': { schema: ShowCustomBody } }, required: true },
+  },
+  responses: renderResponses,
+}, ['generate']))
 
 export function createBlocksRouter(deps: BlocksRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
@@ -208,6 +261,34 @@ export function createBlocksRouter(deps: BlocksRouterDeps): OpenAPIHono {
     const { id } = await deps.skillRunner.emitBlock(SkillRunId.parse(runId), block)
     return id
   }
+
+  router.openapi(showSectionRoute, async (context) => {
+    const { runId } = context.req.valid('param')
+    const blockId = await record(getWorkspaceId(context), runId, { call: 'showSection', ...context.req.valid('json') })
+    return context.json({ blockId }, 201)
+  })
+
+  router.openapi(showCheckRoute, async (context) => {
+    const { runId } = context.req.valid('param')
+    const blockId = await record(getWorkspaceId(context), runId, { call: 'showCheck', ...context.req.valid('json') })
+    return context.json({ blockId }, 201)
+  })
+
+  router.openapi(showCustomRoute, async (context) => {
+    const { runId } = context.req.valid('param')
+    const custom = context.req.valid('json')
+    const schema = deps.blockKindSchema?.(custom.kind)
+    // Refused rather than stored,
+    // because a block nobody claims is one no surface can draw,
+    // and a document holding it is broken from the day it is written.
+    if (schema === undefined)
+      throw new ValidationError(`No plugin declares the block kind "${custom.kind}"`)
+    const payload = schema.safeParse(custom.payload)
+    if (!payload.success)
+      throw new ValidationError(`A "${custom.kind}" block does not match the shape its plugin declares`)
+    const blockId = await record(getWorkspaceId(context), runId, { call: 'showCustom', ...custom, payload: payload.data })
+    return context.json({ blockId }, 201)
+  })
 
   router.openapi(showAnswerRoute, async (context) => {
     const { runId } = context.req.valid('param')

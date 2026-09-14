@@ -139,8 +139,8 @@ export class FsSkillRegistry implements SkillRegistry {
         await stat(extendPath)
         // The extension dir is `<namespace>-<verb>`, filesystem-safe.
         // The first hyphen maps back to the id's `:` separator,
-        // so `ddd-extract` targets `ddd:extract` and `braid:generate-doc`
-        // targets `braid:generate-doc`.
+        // so `ddd-extract` targets `ddd:extract`,
+        // and `doc-reference` targets `doc:reference`.
         const skillId = SkillIdSchema.parse(entry.name.replace('-', ':'))
         results.push({ id: skillId, path: extendPath })
       }

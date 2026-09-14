@@ -1,19 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { buildRunnerApp, endAllSpawned } from '../helpers/runnerApp.js'
 
-// Every render call Braid publishes.
-// A run that cannot reach one of them has no way to say that shape of thing,
-// so the whole list is checked rather than one example of it.
-const RENDER_TOOLS = [
-  'showAnswer',
-  'showDiagram',
-  'showEvidence',
-  'showFinding',
-  'showMatrix',
-  'showSubgraph',
-  'showTrace',
-]
-
 /**
  * One document per category, read once and kept.
  *
@@ -70,13 +57,48 @@ describe('the spec a run is given', () => {
 
   // Reads carry no marking,
   // which keeps the marking to the operations that actually need narrowing.
-  it('gives every run the reads, and every render call', async () => {
+  it('gives every run the reads', async () => {
     for (const category of ['ask', 'build', 'generate']) {
       const ids = operations(await surface(category))
       expect(ids).toContain('listNodes')
-      for (const tool of RENDER_TOOLS)
-        expect(ids).toContain(tool)
     }
+  })
+
+  // A render call costs a place in the tool list,
+  // and the tokens to describe it, whether or not it is ever made,
+  // so a run is offered only the calls its own kind of work owes.
+  it('offers prose and a drawing to every kind of run', async () => {
+    for (const category of ['ask', 'build', 'generate']) {
+      const ids = operations(await surface(category))
+      expect(ids).toContain('showAnswer')
+      expect(ids).toContain('showDiagram')
+      expect(ids).toContain('showSubgraph')
+    }
+  })
+
+  it('keeps the document calls out of an ask and a build run', async () => {
+    for (const category of ['ask', 'build']) {
+      const ids = operations(await surface(category))
+      expect(ids).not.toContain('showSection')
+      expect(ids).not.toContain('showCheck')
+      expect(ids).not.toContain('showCustom')
+    }
+  })
+
+  it('gives a generate run the calls a document is written from', async () => {
+    const ids = operations(await surface('generate'))
+    expect(ids).toContain('showSection')
+    expect(ids).toContain('showCheck')
+    expect(ids).toContain('showCustom')
+    expect(ids).toContain('showEvidence')
+  })
+
+  // A finding is two sides disagreeing and a trail is what a run searched,
+  // and a document is neither.
+  it('keeps findings and trails out of a generate run', async () => {
+    const ids = operations(await surface('generate'))
+    expect(ids).not.toContain('showFinding')
+    expect(ids).not.toContain('showTrace')
   })
 
   // Applying and rejecting are decisions a person makes.

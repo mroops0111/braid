@@ -17,6 +17,7 @@ import type {
   SourceUnitObservationRepository,
   UnitLister,
   UserDirectory,
+  ViewRepository,
   WorkspaceBootstrapService,
   WorkspaceEventBus,
   WorkspaceHistory,
@@ -39,6 +40,7 @@ import type { UserRegistryFile } from './infrastructure/users/UserRegistryFile.j
 import type { WorkspaceRegistryFile } from './infrastructure/workspace/WorkspaceRegistryFile.js'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import process from 'node:process'
 import {
   BatchService,
   CoverageProjection,
@@ -58,6 +60,7 @@ import {
   SystemClock,
   SystemScheduler,
   TaskCoalescer,
+  ViewService,
   WorkspaceLock,
   WorkspaceService,
 } from '@braidhq/core'
@@ -177,6 +180,11 @@ export interface AppDependencies {
   skillRegistry: SkillRegistry | undefined
   skillRunner: SkillRunner | undefined
 
+  // Documents, the projection and the forms that write it out.
+  // Absent without a runner, since nothing could write one.
+  viewService?: ViewService
+  viewRepository?: ViewRepository
+
   // Infrastructure singletons.
   eventBus: WorkspaceEventBus
   pluginRegistry: PluginRegistry
@@ -279,6 +287,9 @@ export interface ComposeOptions {
   // Skills.
   skillRegistry?: SkillRegistry
   skillRunner?: SkillRunner
+
+  // Where written documents and the material behind them are kept.
+  viewRepository?: ViewRepository
 
   // History and git authorship, both required together,
   // HITL skips git hooks when absent.
@@ -460,9 +471,26 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     })
     : undefined
 
+  // Documents need a runner to write them and somewhere to keep them,
+  // so a composition without either offers no document surface at all,
+  // rather than one that lists an empty shelf nothing can fill.
+  const viewService = options.skillRunner && options.viewRepository
+    ? new ViewService({
+      pluginRegistry,
+      workspaceService,
+      modelService,
+      viewRepository: options.viewRepository,
+      skillRunner: options.skillRunner,
+      runRepository,
+      environment: process.env,
+    })
+    : undefined
+
   return {
     workspaceService,
     hitlService,
+    ...(viewService ? { viewService } : {}),
+    ...(options.viewRepository ? { viewRepository: options.viewRepository } : {}),
     ...(historyService ? { historyService } : {}),
     ...(batchService ? { batchService } : {}),
     ...(embeddingService ? { embeddingService } : {}),

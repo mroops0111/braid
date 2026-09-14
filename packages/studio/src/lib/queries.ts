@@ -35,6 +35,9 @@ export const queryKeys = {
     ['workspaces', workspaceId, 'history', 'graph-diff', fromSha, toSha] as const,
   historyTags: (workspaceId: string) => ['workspaces', workspaceId, 'history', 'tags'] as const,
   batch: (workspaceId: string) => ['workspaces', workspaceId, 'batch'] as const,
+  viewKinds: () => ['view-kinds'] as const,
+  views: (workspaceId: string) => ['workspaces', workspaceId, 'views'] as const,
+  view: (workspaceId: string, path: string) => ['workspaces', workspaceId, 'views', path] as const,
 }
 
 export function useUsers() {
@@ -306,5 +309,25 @@ export function useReactorCycle(workspaceId: string | null | undefined, cycleId:
     queryKey: ['reactor-cycles', workspaceId ?? null, cycleId],
     queryFn: () => api.getReactorCycle(workspaceId!, cycleId!),
     enabled: !!workspaceId && cycleId !== null,
+  })
+}
+
+export function useViewKinds() {
+  return useQuery({ queryKey: queryKeys.viewKinds(), queryFn: () => api.listViewKinds() })
+}
+
+export function useViews(workspaceId: string) {
+  return useQuery({
+    queryKey: queryKeys.views(workspaceId),
+    queryFn: () => api.listViews(workspaceId),
+    enabled: workspaceId !== '',
+  })
+}
+
+export function useView(workspaceId: string, path: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.view(workspaceId, path ?? ''),
+    queryFn: () => api.readView(workspaceId, path ?? ''),
+    enabled: workspaceId !== '' && path !== undefined,
   })
 }

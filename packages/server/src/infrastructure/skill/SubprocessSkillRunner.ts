@@ -261,7 +261,7 @@ export class SubprocessSkillRunner implements SkillRunner {
         ...this.audiencesEnv(workspace),
         // Absolute paths to the reference docs a prompt may Read,
         // so no SKILL.md carries a location of its own.
-        ...this.referenceEnv(workspace, sessionDir),
+        ...this.referenceEnv(workspace, skillId, sessionDir),
         // BRAID_TOKEN is read by the braid-core MCP gateway,
         // and by any shell-level callback (curl in a SKILL.md),
         // so the subprocess can authenticate against the running server.
@@ -781,20 +781,28 @@ export class SubprocessSkillRunner implements SkillRunner {
   /**
    * Absolute paths to the mounted reference dirs,
    * `BRAID_SHARED_REFERENCE` for framework contracts,
-   * and `BRAID_ONTOLOGY_REFERENCE` for the active ontology.
+   * `BRAID_ONTOLOGY_REFERENCE` for the active ontology,
+   * and `BRAID_SKILL_REFERENCE` for whatever plugin ships the running skill.
    * A variable is set only when that namespace ships reference docs,
    * so a prompt can branch on absence instead of reading a dangling path.
    * Paths derive from the session dir, so a resumed run resolves them unchanged.
    */
-  private referenceEnv(workspace: Workspace, sessionDir: string): Record<string, string> {
+  private referenceEnv(workspace: Workspace, skillId: SkillId, sessionDir: string): Record<string, string> {
     const mounted = new Set((this.deps.referenceDirs ?? []).map(reference => reference.skillNamespace))
     const ontologyNamespace = workspace.productManifest.ontologyId
+    const own = splitSkillId(skillId).namespace
     return {
       ...(mounted.has(BUILTIN_SKILL_NAMESPACE)
         ? { BRAID_SHARED_REFERENCE: this.referenceDir(sessionDir, BUILTIN_SKILL_NAMESPACE) }
         : {}),
       ...(mounted.has(ontologyNamespace)
         ? { BRAID_ONTOLOGY_REFERENCE: this.referenceDir(sessionDir, ontologyNamespace) }
+        : {}),
+      // Named for the running skill rather than for one plugin axis,
+      // so a plugin of any kind reaches its own docs,
+      // without the runner learning what kind it is.
+      ...(mounted.has(own) && own !== BUILTIN_SKILL_NAMESPACE && own !== ontologyNamespace
+        ? { BRAID_SKILL_REFERENCE: this.referenceDir(sessionDir, own) }
         : {}),
     }
   }

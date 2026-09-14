@@ -42,6 +42,7 @@ export default defineConfig({
         'src/lib/blocks/runStats.ts',
         'src/lib/blocks/visibleBlocks.ts',
         'src/lib/inboxItems.ts',
+        'src/lib/views.ts',
       ],
       thresholds: {
         statements: 80,
