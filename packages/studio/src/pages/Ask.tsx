@@ -1,4 +1,4 @@
-import type { AudienceDescriptor, EvidenceDetail, Locale, SkillManifest } from '@braidhq/schema'
+import type { AudienceDescriptor, EvidenceDetail, Locale, RunRecord, SkillManifest } from '@braidhq/schema'
 import { localize } from '@braidhq/schema'
 import { useMutation } from '@tanstack/react-query'
 import { MessageCircleQuestion, Plus, Send, X } from 'lucide-react'
@@ -137,6 +137,32 @@ function AnswerList({ workspaceId, skill, answers, onCollapse }: {
   )
 }
 
+/** The runs that carry another on, which the record holds whatever the log does. */
+function carriedOnRuns(records: readonly RunRecord[]): ReadonlySet<string> {
+  return new Set(records.filter(record => record.continues !== undefined).map(record => record.runId))
+}
+
+/**
+ * The question that opened the conversation.
+ *
+ * A follow-up heads its own section in the canvas,
+ * so carrying the latest one up here prints the same sentence twice.
+ * A correction is told the gap it must close rather than a question,
+ * and is skipped for the same reason it heads no section.
+ *
+ * Read from the run record.
+ * `RUN_STARTED` carries a thread and a run and nothing about what was asked,
+ * so a conversation hydrated from the protocol has no event holding it.
+ */
+function openingQuestion(turnIds: readonly string[], records: readonly RunRecord[]): string | null {
+  for (const turnId of turnIds) {
+    const record = records.find(entry => entry.runId === turnId)
+    if (record && record.continues === undefined)
+      return record.args
+  }
+  return null
+}
+
 function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManifest }) {
   const { t } = useTranslation()
   const conversation = useConversation(workspaceId, skill.id)
@@ -149,21 +175,14 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
   const [localError, setLocalError] = useState<string | null>(null)
 
   const running = conversation.phase === 'streaming' || submitting
-  const turns = collectTurns(conversation.events)
+  const records = runsData?.items ?? []
+  const turns = collectTurns(conversation.events, carriedOnRuns(records))
   // The transcript is not an audience, so it filters nothing.
   const shownTurns = view === TRANSCRIPT_VIEW
     ? turns
     : turns.map(turn => ({ ...turn, blocks: visibleBlocks(turn.blocks, view) }))
   const stats = readStats(conversation.events)
-  // The latest question, not the first.
-  // A follow-up is what the reader is looking at now,
-  // and the earlier ones head their own section in the canvas.
-  //
-  // Read from the run record.
-  // `RUN_STARTED` carries a thread and a run and nothing about what was asked,
-  // so a conversation hydrated from the protocol has no event holding it.
-  const lastTurnId = conversation.turnIds.at(-1)
-  const askedQuestion = (runsData?.items ?? []).find(record => record.runId === lastTurnId)?.args ?? null
+  const askedQuestion = openingQuestion(conversation.turnIds, records)
   const activeRunId = conversation.phase === 'streaming' ? conversation.turnIds.at(-1) ?? null : null
   const toolCalls = conversation.events.filter(event => event.type === 'tool-call').length
   const activity = summariseActivity(conversation.events)

@@ -1,5 +1,6 @@
 import type { SkillEvent } from '@braidhq/schema'
 import { useSyncExternalStore } from 'react'
+import { ownEvents } from './conversationEvents'
 import { type RunPhase, type RunState, runStore } from './runStore'
 
 export function useRun(workspaceId: string | null, runId: string | null | undefined): RunState | undefined {
@@ -106,13 +107,14 @@ function getConversationSnapshot(workspaceId: string | null, skillId: string | n
     return EMPTY_CONVERSATION
   }
   const events: SkillEvent[] = []
+  const present = new Set(turnIds)
   let sessionId: string | null = null
   let phase: RunPhase | 'idle' = 'idle'
   let error: string | undefined
   for (const state of states) {
     if (!state)
       continue
-    events.push(...state.events)
+    events.push(...ownEvents(state.runId, state.events, present))
     if (state.sessionId)
       sessionId = state.sessionId
     phase = state.phase
