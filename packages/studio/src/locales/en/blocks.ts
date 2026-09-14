@@ -13,6 +13,7 @@ export const blocks = {
     emptyDescription: 'Ask a question below and the answer appears here, one block at a time.',
     workingTitle: 'Working',
     workingDescription: 'A block appears here as each part of the answer settles.',
+    followUp: 'Follow-up',
   },
   matrix: {
     cellHint: 'Select a cell to see the evidence behind it.',

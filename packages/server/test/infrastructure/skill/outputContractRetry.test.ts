@@ -1,11 +1,11 @@
-import type { SkillRegistry } from '@braidhq/core'
-import type { AbsolutePath, UserId } from '@braidhq/schema'
+import type { SkillRegistry, Workspace } from '@braidhq/core'
+import type { AbsolutePath, BlockId, SkillRunId, UserId } from '@braidhq/schema'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ClaudeCodeAgentBinding } from '@braidhq/agent-claude-code'
 import { SkillManifest } from '@braidhq/core'
-import { makeSkillManifestData } from '@braidhq/test-utils'
+import { makeRunRecord, makeSkillManifestData } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { FsRunRepository } from '../../../src/infrastructure/skill/FsRunRepository.js'
 import { SubprocessSkillRunner } from '../../../src/infrastructure/skill/SubprocessSkillRunner.js'
@@ -32,7 +32,11 @@ function askOwingATrace(): SkillManifest {
 
 const SESSION_LINE = JSON.stringify({ type: 'system', subtype: 'init', session_id: 'session-1' })
 
-async function runWith(stdoutPerSpawn: readonly string[][]) {
+async function runWith(stdoutPerSpawn: readonly string[][], options: {
+  /** An earlier turn of the same conversation, already on the page. */
+  readonly seedEarlierTurn?: (workspace: Workspace, runRepository: FsRunRepository) => Promise<void>
+  readonly resumeSessionId?: string
+} = {}) {
   const rootPath = (await mkdtemp(join(tmpdir(), 'braid-contract-'))) as AbsolutePath
   const workspace = makeWorkspace({ rootPath })
   const manifest = askOwingATrace()
@@ -53,7 +57,11 @@ async function runWith(stdoutPerSpawn: readonly string[][]) {
     runRepository,
     spawn,
   })
-  await runner.start(workspace, manifest.id, 'a question', { startedBy: AUTHOR })
+  await options.seedEarlierTurn?.(workspace, runRepository)
+  await runner.start(workspace, manifest.id, 'a question', {
+    startedBy: AUTHOR,
+    ...(options.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
+  })
   // A correction spawns after the first run's drain,
   // so waiting for that one run is not enough.
   // Nothing left running is the point where the spawn count settles,
@@ -92,6 +100,27 @@ describe('output contract retry', () => {
 
   it('leaves a run alone when it never opened a session to resume', async () => {
     const { invocations } = await runWith([[]])
+
+    expect(invocations).toHaveLength(1)
+  })
+
+  it('owes nothing a turn before it in the same conversation already rendered', async () => {
+    const { invocations } = await runWith([[SESSION_LINE], [SESSION_LINE]], {
+      resumeSessionId: 'session-1',
+      seedEarlierTurn: async (workspace, runRepository) => {
+        const earlier = makeRunRecord({
+          runId: 'run-earlier' as SkillRunId,
+          workspaceId: workspace.id,
+          sessionId: 'session-1',
+        })
+        await runRepository.saveRecord(workspace, earlier)
+        await runRepository.appendEvent(workspace, earlier.runId, {
+          type: 'block',
+          id: 'block-earlier' as BlockId,
+          block: { call: 'showTrace', audiences: [], searched: [], read: [], cited: [], skipped: [] },
+        })
+      },
+    })
 
     expect(invocations).toHaveLength(1)
   })

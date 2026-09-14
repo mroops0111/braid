@@ -310,7 +310,7 @@ function ConversationRow({ workspaceId, group, onResume }: {
           </span>
           <div className="flex items-center gap-1">
             <Badge variant="outline" className="text-2xs uppercase">
-              {t('review.actions.turnCount', { count: group.records.length })}
+              {t('review.actions.turnCount', { count: askedTurns(group) })}
             </Badge>
             {canRename && (
               <button
@@ -353,7 +353,7 @@ function ConversationRow({ workspaceId, group, onResume }: {
           <DialogHeader>
             <DialogTitle>{t('review.actions.deleteDialogTitle')}</DialogTitle>
             <DialogDescription>
-              {t('review.actions.deleteDialogDescription', { count: group.records.length })}
+              {t('review.actions.deleteDialogDescription', { count: askedTurns(group) })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -482,7 +482,8 @@ export function Conversation({ workspaceId, skill, locked = false }: Conversatio
 
   const running = conversation.phase === 'streaming' || submitting
   const isFollowUp = conversation.sessionId !== null
-  const turnCount = conversation.events.filter(e => e.type === 'started').length
+  // A correction is a second process over one turn, so it is not one of them.
+  const turnCount = conversation.events.filter(e => e.type === 'started' && !e.continues).length
   // Cancel targets the in-flight turn (the last runId),
   // only meaningful while the runner is actively streaming.
   // During `submitting` we do not have a runId yet,
@@ -637,6 +638,16 @@ export function Conversation({ workspaceId, skill, locked = false }: Conversatio
           )}
     </div>
   )
+}
+
+/**
+ * How many times someone asked, which is not how many runs it took.
+ *
+ * A correction is a second process over one turn,
+ * so counting runs reports a conversation nobody had.
+ */
+export function askedTurns(group: SessionGroup): number {
+  return group.records.filter(record => record.continues === undefined).length
 }
 
 export function groupBySession(

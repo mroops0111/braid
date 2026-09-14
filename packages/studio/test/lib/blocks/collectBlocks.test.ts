@@ -46,6 +46,11 @@ describe('collectTurns', () => {
     return { type: 'started', runId: runId as never, skillId: 'braid:ask' as never, args, resumed: false, at: '2026-09-05T00:00:00Z' as never }
   }
 
+  /** A run started to close a contract gap, told the gap rather than a question. */
+  function correcting(runId: string, continues: string): SkillEvent {
+    return { ...started(runId, 'You never called `showTrace`'), resumed: true, continues: continues as never } as SkillEvent
+  }
+
   it('splits blocks at each question the reader asked', () => {
     const events: SkillEvent[] = [
       started('run-1', 'first question'),
@@ -59,6 +64,42 @@ describe('collectTurns', () => {
 
     expect(turns.map(turn => turn.question)).toEqual(['first question', 'follow-up question'])
     expect(turns.map(turn => turn.blocks.length)).toEqual([1, 2])
+  })
+
+  it('keeps a correction in the turn it carries on', () => {
+    const events: SkillEvent[] = [
+      started('run-1', 'first question'),
+      blockEvent('block-1', 'answer one'),
+      correcting('run-2', 'run-1'),
+      blockEvent('block-2', 'the audience block it owed'),
+    ]
+
+    const turns = collectTurns(events)
+
+    expect(turns).toHaveLength(1)
+    expect(turns[0]?.question).toBe('first question')
+    expect(turns[0]?.blocks).toHaveLength(2)
+  })
+
+  it('takes the link from the caller when the log does not carry it', () => {
+    const events: SkillEvent[] = [
+      started('run-1', 'first question'),
+      blockEvent('block-1', 'answer one'),
+      started('run-2', 'You never called `showTrace`'),
+      blockEvent('block-2', 'the block it owed'),
+    ]
+
+    const turns = collectTurns(events, new Set(['run-2']))
+
+    expect(turns).toHaveLength(1)
+    expect(turns[0]?.question).toBe('first question')
+  })
+
+  it('heads a correction that opens a replay with no question at all', () => {
+    const turns = collectTurns([correcting('run-2', 'run-1'), blockEvent('block-1', 'answer')])
+
+    expect(turns).toHaveLength(1)
+    expect(turns[0]?.question).toBeNull()
   })
 
   it('keeps a block whose start event was lost, rather than dropping it', () => {

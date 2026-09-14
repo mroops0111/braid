@@ -12,6 +12,7 @@ export const blocks = {
     emptyDescription: '在下方提出問題，答案會逐一在這裡呈現。',
     workingTitle: '進行中',
     workingDescription: '每完成一個段落，這裡就會新增一個區塊。',
+    followUp: '追問',
   },
   matrix: {
     cellHint: '點選任一格可查看該格的證據。',

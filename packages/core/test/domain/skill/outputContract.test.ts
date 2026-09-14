@@ -75,6 +75,6 @@ describe('describeViolations', () => {
 
     expect(text).toContain('showTrace')
     expect(text).toContain('engineering')
-    expect(text).toContain('Do not repeat what you')
+    expect(text).toContain('Do not repeat what this')
   })
 })
