@@ -451,3 +451,27 @@ export const SessionMetadata = z.object({
   updatedAt: Timestamp,
 })
 export type SessionMetadata = z.infer<typeof SessionMetadata>
+
+/**
+ * One person let into one conversation.
+ *
+ * The session is the unit rather than the run,
+ * because a resumed conversation spans several runs,
+ * and sharing one of them would leave the reader half a transcript.
+ *
+ * Append-only at artifacts/runs/shares.jsonl,
+ * last-wins per sessionId and grantee together.
+ * Withdrawal appends a record carrying `revokedAt`,
+ * so replaying the file in order still ends on the current answer.
+ */
+export const SessionShare = z.object({
+  sessionId: z.string().min(1),
+  /** Who may read it. One member per record, no roles and no wildcards. */
+  grantee: UserId,
+  /** Who let them in. Only the person who started the session can. */
+  grantedBy: UserId,
+  grantedAt: Timestamp,
+  /** Set when the grant is withdrawn, which ends the read. */
+  revokedAt: Timestamp.optional(),
+})
+export type SessionShare = z.infer<typeof SessionShare>

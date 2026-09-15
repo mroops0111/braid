@@ -28,9 +28,12 @@ export const Capability = z.enum([
   'workspace.manage', // members and roles, plus everyone's handoffs and conversations
   'history.write', // restore a past commit, manage tags
 
-  // Running carries a per-member override matrix on top of the role default,
-  // so it keeps its own verb rather than folding into a write.
+  // Two verbs no role decides on its own.
+  // Running carries a per-member override matrix on top of the role default.
+  // Sharing a conversation is settled by authorship,
+  // so not even `workspace.manage` holds it for a run it did not start.
   'skill.run',
+  'run.share', // let another member read one conversation you started
 ])
 export type Capability = z.infer<typeof Capability>
 

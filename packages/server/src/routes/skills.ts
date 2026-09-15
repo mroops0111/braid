@@ -17,6 +17,7 @@ import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById, resolvePerUnitSkillId } from './helpers.js'
+import { requireOwnedSession } from './runVisibility.js'
 
 // Long enough for a cold shallow fetch across a handful of repos,
 // short enough that an unresponsive remote does not look like a hung submit.
@@ -169,6 +170,11 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
     const { skillId } = context.req.valid('param')
     const { args, resumeSessionId, sourceUnit } = context.req.valid('json')
     const callerToken = extractBearerToken(context)
+    // A conversation lent to you is read-only,
+    // and the recipient learns its session id the moment they read it,
+    // so without this the grant would hand over a write.
+    if (resumeSessionId)
+      await requireOwnedSession(context, workspace, resumeSessionId, deps.runRepository)
     // Attribute the run to whoever asked for it,
     // since one workspace's run history is shared by every member.
     const options = {

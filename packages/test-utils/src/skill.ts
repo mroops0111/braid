@@ -1,4 +1,4 @@
-import type { RunRepository, SkillRunner } from '@braidhq/core'
+import type { RunRepository, SessionShareRepository, SkillRunner } from '@braidhq/core'
 import type {
   AbsolutePath,
   McpServerId,
@@ -161,5 +161,14 @@ export function makeRunRecord(overrides: Partial<RunRecord> = {}): RunRecord {
     startedAt: T0,
     unattended: false,
     ...overrides,
+  }
+}
+
+/** The share port a test satisfies but never drives, same reason as the rest. */
+export function inertSessionShareRepository(): SessionShareRepository {
+  return {
+    saveSessionShare: async () => {},
+    listSessionShares: async () => [],
+    deleteSessionShares: async () => {},
   }
 }

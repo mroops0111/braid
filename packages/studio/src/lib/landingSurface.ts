@@ -93,7 +93,6 @@ export function useSurfaceReach(workspaceId: string | null): (surface: Surface |
         return isMember
       case 'ask':
         return canAsk
-      case 'actions':
       case 'batch':
         return canRunSkills
       case 'inbox':

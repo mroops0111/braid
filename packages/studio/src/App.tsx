@@ -30,7 +30,6 @@ import { useResetOnRemoteChange } from './lib/useRemoteWorkspaces'
 import { TabNavigationContext } from './lib/useTabNavigation'
 import { readUrl, useUrlSync } from './lib/useUrlState'
 import { useWorkspaceEvents } from './lib/useWorkspaceEvents'
-import { ActionsPage } from './pages/Actions'
 import { ActivityPage } from './pages/Activity'
 import { AskPage } from './pages/Ask'
 import { BatchPage } from './pages/Batch'
@@ -199,7 +198,7 @@ function AppInner() {
                               // Suppress on surfaces that render the run themselves,
                               // or when a batch banner already shows it.
                               // Both would point at the same in-flight extract subprocess.
-                              suppress={activeSurface === 'ask' || activeSurface === 'actions' || activeSurface === 'batch' || hasActiveBatch || hasActiveReactor}
+                              suppress={activeSurface === 'ask' || activeSurface === 'batch' || hasActiveBatch || hasActiveReactor}
                             />
                             {activeId
                               ? (
@@ -214,9 +213,6 @@ function AppInner() {
                                     )}
                                     {activeSurface === 'ask' && (
                                       <AskPage workspaceId={activeId} />
-                                    )}
-                                    {activeSurface === 'actions' && (
-                                      <ActionsPage workspaceId={activeId} />
                                     )}
                                     {activeSurface === 'build' && (
                                       <BuildPage workspaceId={activeId} />
@@ -374,11 +370,9 @@ function WorkspaceHeader({ workspaceId, activeSurface, onOpenDetails }: {
       ? t('shell.surfaces.ask')
       : activeSurface === 'documents'
         ? t('shell.surfaces.documents')
-        : activeSurface === 'actions'
-          ? t('shell.surfaces.actions')
-          : activeSurface === 'history'
-            ? t('shell.surfaces.history')
-            : null
+        : activeSurface === 'history'
+          ? t('shell.surfaces.history')
+          : null
 
   return (
     <header className="flex h-11 items-center justify-between gap-3 border-b border-border px-4">

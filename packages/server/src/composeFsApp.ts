@@ -50,7 +50,7 @@ import { OidcTokenVerifier } from './infrastructure/oidc/OidcTokenVerifier.js'
 import { FsReactorCycleRepository } from './infrastructure/reactor/FsReactorCycleRepository.js'
 import { EncryptedSecretStore, readSecretKey } from './infrastructure/secrets/EncryptedSecretStore.js'
 import { FsSecretStore, type SecretStore } from './infrastructure/secrets/SecretStore.js'
-import { FsRunRepository } from './infrastructure/skill/FsRunRepository.js'
+import { FsRunRepository, FsSessionShareRepository } from './infrastructure/skill/FsRunRepository.js'
 import { BUILTIN_SKILL_NAMESPACE, FsSkillRegistry } from './infrastructure/skill/FsSkillRegistry.js'
 import { RunOutputGate } from './infrastructure/skill/RunOutputGate.js'
 import { RunTokenRegistry } from './infrastructure/skill/RunTokenRegistry.js'
@@ -488,6 +488,7 @@ export async function composeFsAppWithRegistry(
   }
 
   const runRepository = new FsRunRepository()
+  const sessionShareRepository = new FsSessionShareRepository()
 
   // Built after pluginRegistry is populated,
   // so plugin-shipped SKILL.md files mount under the `plugin` origin,
@@ -600,6 +601,7 @@ export async function composeFsAppWithRegistry(
     skillRegistry,
     skillRunner,
     runRepository,
+    sessionShareRepository,
     pluginRegistry,
     eventBus,
     workspacesRoot,

@@ -10,6 +10,7 @@ import type {
   ProposalRepository,
   ReactorCycleRepository,
   RunRepository,
+  SessionShareRepository,
   SkillRegistry,
   SkillRunner,
   SourceSyncStateRepository,
@@ -74,6 +75,7 @@ import {
   InMemoryWorkspaceEventBus,
   InMemoryWorkspaceRepository,
   NoopRunRepository,
+  NoopSessionShareRepository,
 } from '@braidhq/core/in-memory'
 import { localTrust } from './authMode.js'
 
@@ -165,6 +167,7 @@ export interface AppDependencies {
   proposalRepository: ProposalRepository
   clarificationRepository: ClarificationRepository
   runRepository: RunRepository
+  sessionShareRepository: SessionShareRepository
   // Always wired, the Activity page renders an empty list before any cycle.
   reactorCycleRepository: ReactorCycleRepository
   // Reads every source document against the model. Absent without a unit lister,
@@ -262,6 +265,7 @@ export interface ComposeOptions {
   proposalRepository?: ProposalRepository
   clarificationRepository?: ClarificationRepository
   runRepository?: RunRepository
+  sessionShareRepository?: SessionShareRepository
   // Swapped fs-backed by `composeFsApp`, so records survive restart.
   reactorCycleRepository?: ReactorCycleRepository
   sourceUnitObservationRepository?: SourceUnitObservationRepository
@@ -314,6 +318,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   // Hoisted because three consumers read it,
   // and a second Noop instance would be a second empty history.
   const runRepository = options.runRepository ?? new NoopRunRepository()
+  const sessionShareRepository = options.sessionShareRepository ?? new NoopSessionShareRepository()
   const clarificationRepository = options.clarificationRepository ?? new InMemoryClarificationRepository()
   const modelRepository = options.modelRepository ?? new InMemoryModelRepository()
   const workspaceRepository = options.workspaceRepository ?? new InMemoryWorkspaceRepository()
@@ -519,6 +524,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     ...(options.accessTokenVerifiers ? { accessTokenVerifiers: options.accessTokenVerifiers } : {}),
     ...(options.outputGate ? { outputGate: options.outputGate } : {}),
     runRepository,
+    sessionShareRepository,
     workspacesRoot: options.workspacesRoot ?? (join(tmpdir(), 'braid-workspaces') as AbsolutePath),
     ...(defaultOntologyId ? { defaultOntologyId } : {}),
     // `composeApp` is the test and in-memory composition entry.
