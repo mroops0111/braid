@@ -36,6 +36,7 @@ import { AskPage } from './pages/Ask'
 import { BatchPage } from './pages/Batch'
 import { BuildPage } from './pages/Build'
 import { ClarificationPage } from './pages/Clarification'
+import { DocumentsPage } from './pages/Documents'
 import { GraphSurface, GraphSurfaceActions, useGraphSurfaceState } from './pages/GraphSurface'
 import { HistoryPage } from './pages/History'
 import { InboxPage } from './pages/Inbox'
@@ -228,6 +229,9 @@ function AppInner() {
                                         onFocusConsumed={() => setFocusedProposalId(null)}
                                       />
                                     )}
+                                    {activeSurface === 'documents' && (
+                                      <DocumentsPage workspaceId={activeId} onSelectNode={focusNode} />
+                                    )}
                                     {activeSurface === 'clarifications' && (
                                       <ClarificationPage workspaceId={activeId} />
                                     )}
@@ -379,15 +383,17 @@ function WorkspaceHeader({ workspaceId, activeSurface, onOpenDetails }: {
   const surfaceLabel
     = activeSurface === 'ask'
       ? t('shell.surfaces.ask')
-      : activeSurface === 'actions'
-        ? t('shell.surfaces.actions')
-        : activeSurface === 'clarifications'
-          ? t('shell.surfaces.clarifications')
-          : activeSurface === 'proposals'
-            ? t('shell.surfaces.proposals')
-            : activeSurface === 'history'
-              ? t('shell.surfaces.history')
-              : null
+      : activeSurface === 'documents'
+        ? t('shell.surfaces.documents')
+        : activeSurface === 'actions'
+          ? t('shell.surfaces.actions')
+          : activeSurface === 'clarifications'
+            ? t('shell.surfaces.clarifications')
+            : activeSurface === 'proposals'
+              ? t('shell.surfaces.proposals')
+              : activeSurface === 'history'
+                ? t('shell.surfaces.history')
+                : null
 
   return (
     <header className="flex h-11 items-center justify-between gap-3 border-b border-border px-4">

@@ -37,6 +37,11 @@ export const ValidationFailureResponse = {
   content: ProblemJsonResponseContent,
 } as const
 
+export const ConflictResponse = {
+  description: 'The deployment is not configured for this action.',
+  content: ProblemJsonResponseContent,
+} as const
+
 /** What a marked operation may say about the tool it becomes. */
 interface McpToolOverride {
   /** Shown to the model instead of the operation's `summary`. */

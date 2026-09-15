@@ -1,5 +1,5 @@
 import type { NodeId, SkillManifest, Workspace } from '@braidhq/schema'
-import { Activity, Boxes, ClipboardCheck, GitGraph, HelpCircle, Inbox, MessageCircleQuestion, Network, Settings, Settings2, Sparkles } from 'lucide-react'
+import { Activity, Boxes, ClipboardCheck, FileText, GitGraph, HelpCircle, Inbox, MessageCircleQuestion, Network, Settings, Settings2, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -45,6 +45,7 @@ export const SURFACES = [
   'batch',
   'build',
   'clarifications',
+  'documents',
   'graph',
   'history',
   'inbox',
@@ -62,6 +63,7 @@ function chordSecondKey(key: string): ChordTarget | undefined {
     case 'a': return { kind: 'surface', surface: 'actions' }
     case 'i': return { kind: 'surface', surface: 'inbox' }
     case 'b': return { kind: 'surface', surface: 'activity' }
+    case 'd': return { kind: 'surface', surface: 'documents' }
     case 'h': return { kind: 'surface', surface: 'history' }
     case 's': return { kind: 'surface', surface: 'settings' }
     case 'w': return { kind: 'workspace-details' }
@@ -75,6 +77,7 @@ const SURFACE_ITEMS = [
   { id: 'ask', labelKey: 'shell.surfaces.ask', Icon: MessageCircleQuestion, shortcut: 'G Q' },
   { id: 'build', labelKey: 'shell.surfaces.build', Icon: Boxes, shortcut: 'G B' },
   { id: 'inbox', labelKey: 'shell.surfaces.inbox', Icon: Inbox, shortcut: 'G I' },
+  { id: 'documents', labelKey: 'shell.surfaces.documents', Icon: FileText, shortcut: 'G D' },
   // Everything below folds into a surface above.
   // Each reaches the same records once they are settled,
   // which is browsing rather than working,

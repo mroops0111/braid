@@ -5,6 +5,7 @@ import ask from './ask'
 import blocks from './blocks'
 import build from './build'
 import common from './common'
+import documents from './documents'
 import graph from './graph'
 import history from './history'
 import inbox from './inbox'
@@ -18,6 +19,7 @@ import workspace from './workspace'
 
 const zhHant: typeof en = {
   common,
+  documents,
   settings,
   actionInput,
   admin,

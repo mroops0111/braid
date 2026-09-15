@@ -1,7 +1,7 @@
 import type { SkillManifest, Workspace } from '@braidhq/schema'
 import type { Sparkles } from 'lucide-react'
 import type { Surface } from './CommandPalette'
-import { Boxes, GitGraph, Globe, Inbox, Laptop, Loader2, LogIn, MessageCircleQuestion, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings } from 'lucide-react'
+import { Boxes, FileText, GitGraph, Globe, Inbox, Laptop, Loader2, LogIn, MessageCircleQuestion, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import braidLogo from '@/assets/braid-logo.svg'
@@ -583,6 +583,15 @@ function HereSection({
             onClick={() => onSelectSurface('inbox')}
           />
         )}
+        <HereRow
+          collapsed={collapsed}
+          icon={FileText}
+          label={t('shell.surfaces.documents')}
+          active={activeSurface === 'documents'}
+          running={inFlight.writing}
+          shortcut="G D"
+          onClick={() => onSelectSurface('documents')}
+        />
         {canSeeHistory && (
           <HereRow
             collapsed={collapsed}
@@ -629,6 +638,8 @@ interface InFlight {
   readonly asking: boolean
   /** A run whose outcome lands in the Inbox is going. */
   readonly working: boolean
+  /** A run writing a document is going. */
+  readonly writing: boolean
 }
 
 /**
@@ -654,11 +665,16 @@ function useRunsInFlight(
     ...local,
     ...(runs?.items ?? []).filter(run => !run.completedAt).map(run => run.skillId),
   ])
-  const asking = [...running].some(skillId => categories.get(skillId) === 'ask')
-  // Everything that is not a question lands somewhere to be decided,
+  const categoryOf = (skillId: string): string | undefined => categories.get(skillId)
+  const asking = [...running].some(skillId => categoryOf(skillId) === 'ask')
+  const writing = [...running].some(skillId => categoryOf(skillId) === 'generate')
+  // A build run lands somewhere to be decided,
   // so the Inbox is where its reader waits, before it has produced a card.
-  const working = [...running].some(skillId => categories.get(skillId) !== 'ask')
-  return { asking, working }
+  // A question and a document both land on a surface of their own,
+  // so neither waits here.
+  const working = [...running].some(skillId =>
+    categoryOf(skillId) !== 'ask' && categoryOf(skillId) !== 'generate')
+  return { asking, working, writing }
 }
 
 function HereRow({ collapsed, icon: Icon, label, active, count = 0, running = false, shortcut, onClick }: {

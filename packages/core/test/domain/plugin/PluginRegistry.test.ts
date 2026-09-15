@@ -9,10 +9,9 @@ import type {
   PluginType,
   StorageDescriptor,
   StorageKind,
-  ViewArtifactFormat,
   ViewKind,
 } from '@braidhq/schema'
-import { T0 } from '@braidhq/test-utils'
+import { FIXTURE_FORMAT, T0 } from '@braidhq/test-utils'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   type AgentBinding,
@@ -43,7 +42,8 @@ function fakeViewGenerator(id: string, viewKind: string): ViewGeneratorPlugin {
     ...fakePlugin(id, 'view-generator'),
     type: 'view-generator',
     viewKind: viewKind as ViewKind,
-    render: async () => ({ kind: viewKind as ViewKind, format: 'markdown' as ViewArtifactFormat, files: [] }),
+    forms: [],
+    render: async () => ({ kind: viewKind as ViewKind, format: FIXTURE_FORMAT, files: [] }),
   }
 }
 

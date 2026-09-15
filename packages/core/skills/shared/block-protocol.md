@@ -2,11 +2,21 @@
 
 How a skill puts structure on the screen. Instead of writing one document and hoping a reader finds the part addressed to them, a skill calls a render tool per piece of its output. Each call is an ordered block on the surface that shows the run.
 
-These are `braid-core` tools like any other. They take the run they belong to, which the framework injects as `$BRAID_RUN_ID`, and they return an acknowledgement, nothing you need to read. The gateway names them in snake case, so the tool list shows `show_answer`, `show_evidence`, `show_finding`, `show_matrix`, and `show_trace`. Confirm the names against the tool list before the first call rather than assuming them.
+These are `braid-core` tools like any other. They take the run they belong to, which the framework injects as `$BRAID_RUN_ID`, and they return an acknowledgement, nothing you need to read. The gateway names them in snake case, so a call named `showAnswer` here reaches you as `show_answer`.
+
+Which calls you are offered depends on the kind of work you are doing, so the list is shorter than the one below. Read the tool list before the first call rather than assuming a name is there.
 
 Calling none of them is valid. A skill that renders no blocks still shows its transcript, so adopting this is per skill, not all at once.
 
 A skill may also declare an output contract in its frontmatter, naming the calls it owes and how many blocks each audience is due. When a run ends without meeting it, the framework resumes the same session once with the gap spelled out. Treat that correction as a request to add what is missing, not to redo the answer.
+
+## Never Write What The Surface Will Draw
+
+Wherever a call takes node ids, it takes ids and nothing else. The surface resolves each one to that node's own name, description, status, and colour, straight from the graph. So a block naming ten nodes costs you ten ids, and the reader sees ten fully drawn nodes.
+
+Copying a node's description into your prose is the most expensive mistake available here. It doubles what you pay to produce, it goes stale the moment somebody edits the node, and the reader was going to be shown the real thing anyway. Say what the nodes mean together. Let the surface say what each one is.
+
+The same holds for status. The surface reads `draft` or `unclear` off the graph and marks it, and it stays right after somebody settles one. A sentence of yours announcing a status is wrong the day after it is written.
 
 ## Prose In A Block
 
@@ -143,3 +153,34 @@ The slice of the graph the answer stands on.
 - `edges`: `from`, `to`, and an optional short `label`, for relationships worth showing.
 
 Use it when the answer turns on how a handful of nodes relate. Do not dump every node you touched, that is what `show_trace` records.
+
+### `show_section`
+
+Opens a part of a document, and exists because a document has a shape where an answer has only an order.
+
+- `heading`: what this part is, in words a reader could pick out of a list.
+- `level`: 1, 2, or 3.
+- `covers`: the nodes this part is about. This is what lets one part be told it has gone out of date while the rest has not, so name the nodes the part actually explains rather than every node it mentions.
+
+Call it before the prose that sits under it, never after.
+
+### `show_check`
+
+One question about what the reader just read, with the answer held back until they commit. A reader who has just read something believes they know it and is usually wrong.
+
+- `prompt`: the question, one sentence.
+- `choices`: send them where picking is the honest test, and send none where the reader should produce the answer first.
+- `correct`: which choice is right, by its id. Required when you send choices, since a question nobody can be wrong about teaches nothing.
+- `answer`: what the reader should have arrived at, shown after they commit.
+- `level`: `recall` asks what the material said, `apply` what follows from it, `judge` what would settle something it left open.
+
+Depth is not difficulty. An obscure fact dressed up as `judge` is still recall, and the reader learns only that the question was unfair.
+
+### `show_custom`
+
+A shape only your own plugin understands. Braid checks the payload against the schema that plugin registered, refuses it when no plugin claims the kind, and stores it.
+
+- `kind`: the kind your plugin registered.
+- `payload`: whatever that kind's schema says.
+
+Braid's own surface does not draw one and says plainly that it cannot, so reach for this when your own application is what renders the result.

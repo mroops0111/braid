@@ -18,11 +18,17 @@ export function refsOf(block: RenderBlock): BlockRef[] {
     case 'showTrace':
       return [...block.read]
     // These carry no references of their own.
-    // Prose, a drawing, and a set of nodes to draw,
+    // Prose, a drawing, a set of nodes to draw, a heading, a question,
+    // and a shape only its own plugin understands,
     // each of which rests on the blocks around it.
+    // The ones naming `covers` name nodes rather than sources,
+    // so they make no claim this side could check.
     case 'showAnswer':
     case 'showDiagram':
     case 'showSubgraph':
+    case 'showSection':
+    case 'showCheck':
+    case 'showCustom':
       return []
     default: {
       const exhaustive: never = block

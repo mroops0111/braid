@@ -1,0 +1,52 @@
+{
+  "name": "@braidhq/view-generator-doc",
+  "type": "module",
+  "version": "0.6.0",
+  "description": "Built-in view generator for Braid. Projects a container node into document material, and ships the reference and tutorial forms that write it out.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mroops0111/braid.git",
+    "directory": "packages/view-generator-doc"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": [
+    "README.md",
+    "dist",
+    "skills"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+    "test": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --coverage --passWithNoTests",
+    "clean": "rm -rf dist .turbo *.tsbuildinfo coverage"
+  },
+  "dependencies": {
+    "@braidhq/core": "workspace:*",
+    "@braidhq/schema": "workspace:*",
+    "@braidhq/sdk": "workspace:*",
+    "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@braidhq/test-utils": "workspace:*",
+    "@vitest/coverage-v8": "^4.1.10",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  },
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  }
+}

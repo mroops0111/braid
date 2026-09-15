@@ -1,4 +1,4 @@
-import type { BatchPlan, Clarification, ClarificationCreateBody, CommitMeta, CommitSha, CoverageBoard, EmbeddingCoverage, FileDiff, GraphEdge, GraphNode, ListSourceLoadersResponse, McpServerConfig, ModelDiffEnvelope, ModelSnapshot, OntologyListResponse, OntologyResponse, ProductManifestCreate, Proposal, ReactorCycle, ReactorCycleId, RunRecord, SessionMetadata, SkillInputOptionsResponse, SkillManifest, SourceDescriptor, SourceId, SourceLocation, SourceSyncPolicy, SourceSyncState, SourceUnitDiff, SourceUnitObservation, TagMeta, User, UserUpdate, ValidationResult, Workspace, WorkspaceMember, WorkspacePollingConfig, WorkspaceRole } from '@braidhq/schema'
+import type { BatchPlan, Clarification, ClarificationCreateBody, CommitMeta, CommitSha, CoverageBoard, EmbeddingCoverage, FileDiff, GeneratedView, GenerateViewRequest, GenerateViewResponse, GraphEdge, GraphNode, ListSourceLoadersResponse, ListViewKindsResponse, McpServerConfig, ModelDiffEnvelope, ModelSnapshot, OntologyListResponse, OntologyResponse, ProductManifestCreate, Proposal, ReactorCycle, ReactorCycleId, RunRecord, SessionMetadata, SkillInputOptionsResponse, SkillManifest, SourceDescriptor, SourceId, SourceLocation, SourceSyncPolicy, SourceSyncState, SourceUnitDiff, SourceUnitObservation, TagMeta, User, UserUpdate, ValidationResult, ViewContent, Workspace, WorkspaceMember, WorkspacePollingConfig, WorkspaceRole } from '@braidhq/schema'
 import { getAuthToken } from './authToken.js'
 import { getCurrentUserId } from './currentUser.js'
 import { getTokenFor } from './remotes.js'
@@ -514,6 +514,20 @@ export const api = {
 
   listRuns: (workspaceId: string) =>
     fetchJson<ItemList<RunRecord>>(`/workspaces/${workspaceId}/runs`),
+  listViewKinds: () => fetchJson<ListViewKindsResponse>('/view-kinds'),
+  listViews: (workspaceId: string) =>
+    fetchJson<ItemList<GeneratedView>>(`/workspaces/${workspaceId}/views`),
+  // Each segment is escaped alone,
+  // so a name carrying a slash cannot be read as a directory of its own.
+  readView: (workspaceId: string, path: string) =>
+    fetchJson<ViewContent>(
+      `/workspaces/${workspaceId}/views/${path.split('/').map(encodeURIComponent).join('/')}`,
+    ),
+  generateView: (workspaceId: string, body: GenerateViewRequest) =>
+    fetchJson<GenerateViewResponse>(`/workspaces/${workspaceId}/views`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   cancelRun: (workspaceId: string, runId: string) =>
     fetchJson<void>(`/workspaces/${workspaceId}/runs/${runId}/cancel`, { method: 'POST' }),
   forgetSession: (workspaceId: string, sessionId: string) =>
