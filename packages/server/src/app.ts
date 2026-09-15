@@ -312,8 +312,10 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     }))
     workspaceScoped.route('/runs', createRunsRouter({
       runRepository: deps.runRepository,
+      sessionShareRepository: deps.sessionShareRepository,
       skillRunner: deps.skillRunner,
       workspaceRepository: deps.workspaceRepository,
+      ...(deps.workspaceRegistry ? { workspaceRegistry: deps.workspaceRegistry } : {}),
     }))
     // Second mount under the same prefix,
     // because the render operations must reach the OpenAPI doc,
@@ -328,6 +330,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     workspaceScoped.route('/agui', createAguiRouter({
       skillRunner: deps.skillRunner,
       runRepository: deps.runRepository,
+      sessionShareRepository: deps.sessionShareRepository,
       workspaceRepository: deps.workspaceRepository,
       clarificationRepository: deps.clarificationRepository,
     }))

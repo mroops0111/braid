@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import { api } from '@/lib/api'
 import { queryKeys, useMe, useSkills, useUsers, useWorkspaceMembers } from '@/lib/queries'
-import { bucketByGroup } from '@/pages/Actions'
+import { bucketByGroup } from '@/lib/skillGroups'
 
 type CellState = 'allow' | 'deny' | 'inherit'
 

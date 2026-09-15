@@ -1,4 +1,4 @@
-import type { SkillFrontmatter, User, WorkspaceMember, WorkspaceRole } from '@braidhq/schema'
+import type { SkillFrontmatter, User, UserId, WorkspaceMember, WorkspaceRole } from '@braidhq/schema'
 
 /**
  * The single resolved-identity object that every capability check reads.
@@ -15,6 +15,7 @@ import type { SkillFrontmatter, User, WorkspaceMember, WorkspaceRole } from '@br
  *
  * `resource` is the per-action context the check needs.
  * skill.run reads `skill`, the manifest, along with `skillId`.
+ * run.share reads `sessionStartedBy`, who opened the conversation.
  * Future checks can extend it without breaking siblings.
  */
 export interface ViewerContext {
@@ -27,4 +28,9 @@ export interface ViewerContext {
 export interface ViewerResource {
   readonly skill?: SkillFrontmatter
   readonly skillId?: string
+  /**
+   * Who started the conversation being acted on.
+   * Read by run.share, which is settled by authorship and not by role.
+   */
+  readonly sessionStartedBy?: UserId
 }

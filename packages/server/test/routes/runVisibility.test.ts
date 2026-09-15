@@ -1,38 +1,14 @@
 import type { WorkspaceId } from '@braidhq/schema'
 import type { OpenAPIHono } from '@hono/zod-openapi'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { REACTOR_USER_ID } from '@braidhq/core'
 import { describe, expect, it } from 'vitest'
 import { asUser, buildMultiUserApp } from '../helpers/multiUser.js'
+import { seedRuns } from '../helpers/runs.js'
 
 interface RunList {
   items: ReadonlyArray<{ runId: string }>
-}
-
-/**
- * Seed the append-only index the run repository reads.
- * Writing the file directly keeps the test independent of the runner,
- * which would otherwise have to spawn a subprocess per record.
- */
-async function seedRuns(
-  workspaceRootPath: string,
-  workspaceId: WorkspaceId,
-  records: ReadonlyArray<{ runId: string, startedBy: string, sessionId?: string }>,
-): Promise<void> {
-  const dir = join(workspaceRootPath, 'artifacts', 'runs')
-  await mkdir(dir, { recursive: true })
-  const lines = records.map(record => JSON.stringify({
-    runId: record.runId,
-    workspaceId,
-    skillId: 'braid:ask',
-    args: 'a question',
-    resumed: false,
-    startedAt: '2026-05-21T10:00:00.000Z',
-    startedBy: record.startedBy,
-    ...(record.sessionId ? { sessionId: record.sessionId } : {}),
-  }))
-  await writeFile(join(dir, 'index.jsonl'), `${lines.join('\n')}\n`, 'utf-8')
 }
 
 async function listRuns(app: OpenAPIHono, workspaceId: WorkspaceId, userId: string): Promise<string[]> {

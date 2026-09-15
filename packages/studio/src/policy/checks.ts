@@ -30,6 +30,16 @@ export const checks: readonly CapabilityCheck[] = [
   { id: 'workspace.manage', evaluate: v => v.effectiveRole === 'owner' },
   { id: 'history.write', evaluate: v => v.effectiveRole === 'owner' },
   {
+    id: 'run.share',
+    // Authorship, not role.
+    // An owner reads every run already,
+    // but letting them hand someone else's conversation to a third party,
+    // would make a run readable without its author ever acting,
+    // so the grant stays with whoever opened it.
+    evaluate: v => v.resource?.sessionStartedBy !== undefined
+      && v.resource.sessionStartedBy === v.user.id,
+  },
+  {
     id: 'skill.run',
     evaluate: (v) => {
       const skill = v.resource?.skill

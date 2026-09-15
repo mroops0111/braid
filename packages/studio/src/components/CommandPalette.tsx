@@ -1,5 +1,6 @@
-import type { NodeId, SkillManifest, Workspace } from '@braidhq/schema'
-import { Activity, Boxes, FileText, GitGraph, Inbox, MessageCircleQuestion, Network, Settings, Settings2, Sparkles } from 'lucide-react'
+import type { NodeId, Workspace } from '@braidhq/schema'
+import type { Sparkles } from 'lucide-react'
+import { Activity, Boxes, FileText, GitGraph, Inbox, MessageCircleQuestion, Network, Settings, Settings2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -12,7 +13,7 @@ import {
   CommandShortcut,
 } from '@/components/ui/command'
 import { useSurfaceReach } from '@/lib/landingSurface'
-import { useNodeSearch, useSkills } from '@/lib/queries'
+import { useNodeSearch } from '@/lib/queries'
 import { useDebounced } from '@/lib/useDebounced'
 import { useEmbeddingProgress } from '@/lib/useEmbeddingProgress'
 import { WorkspaceSwatch } from './WorkspaceSwatch'
@@ -40,7 +41,6 @@ interface CommandPaletteProps {
  * and nothing said so.
  */
 export const SURFACES = [
-  'actions',
   'activity',
   'ask',
   'batch',
@@ -96,7 +96,6 @@ const SURFACE_ITEMS = [
   // Each reaches the same records once they are settled,
   // which is browsing rather than working,
   // so they keep a way in without taking a sidebar row or a chord for it.
-  { id: 'actions', labelKey: 'shell.surfaces.actions', Icon: Sparkles },
   { id: 'activity', labelKey: 'shell.surfaces.activity', Icon: Activity },
   { id: 'batch', labelKey: 'shell.surfaces.batch', Icon: Boxes },
 ] as const satisfies readonly { id: Surface | null, labelKey: string, Icon: typeof Sparkles, shortcut?: string }[]
@@ -132,7 +131,6 @@ export function CommandPalette({
     activeWorkspaceId ?? undefined,
     debouncedQuery,
   )
-  const { data: skillData } = useSkills(activeWorkspaceId ?? undefined)
   const reaches = useSurfaceReach(activeWorkspaceId)
   const { rebuilding } = useEmbeddingProgress(open ? activeWorkspaceId : null)
 
@@ -190,7 +188,6 @@ export function CommandPalette({
     return () => window.removeEventListener('keydown', onKey)
   }, [activeWorkspaceId, onSelectSurface, onOpenWorkspaceDetails, reaches])
 
-  const skills = (skillData?.items ?? []).filter((s: SkillManifest) => !s.frontmatter.braid.hidden)
   const nodes = nodeData?.items ?? []
   // A rebuild leaves out any node whose vector no longer matches its text,
   // so the list is short for a reason worth naming.
@@ -284,28 +281,6 @@ export function CommandPalette({
           </CommandGroup>
         )}
 
-        {skills.length > 0 && (
-          <CommandGroup heading={t('shell.commandPalette.actionsTitle')}>
-            {skills.map((skill: SkillManifest) => (
-              <CommandItem
-                key={skill.id}
-                onSelect={() => {
-                  onSelectSurface('actions')
-                  setOpen(false)
-                }}
-              >
-                <Sparkles />
-                <span className="font-mono">
-                  /
-                  {skill.frontmatter.name}
-                </span>
-                <span className="ml-2 truncate text-xs text-muted-foreground">
-                  {skill.frontmatter.description}
-                </span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        )}
       </CommandList>
     </CommandDialog>
   )
