@@ -1,6 +1,19 @@
 export const blocks = {
   title: '答案區塊',
   findingsHeading: '{count} 項一致性檢查',
+  check: {
+    level: {
+      recall: '記憶',
+      apply: '應用',
+      judge: '判斷',
+    },
+    reveal: '顯示答案',
+    right: '答對了',
+    wrong: '不是這個',
+  },
+  custom: {
+    notDrawn: '這個區塊由產生它的應用程式負責繪製，不在這裡。它的種類是',
+  },
   activity: {
     starting: '啟動中…',
     graphQueries: '次圖譜查詢',
@@ -12,6 +25,7 @@ export const blocks = {
     emptyDescription: '在下方提出問題，答案會逐一在這裡呈現。',
     workingTitle: '進行中',
     workingDescription: '每完成一個段落，這裡就會新增一個區塊。',
+    followUp: '追問',
   },
   matrix: {
     cellHint: '點選任一格可查看該格的證據。',
@@ -40,6 +54,9 @@ export const blocks = {
     hitCount: '{count} 筆',
   },
   outline: {
+    showSection: '章節',
+    showCheck: '問題',
+    showCustom: '外掛區塊',
     showAnswer: '答案',
     showEvidence: '證據',
     showFinding: '一致性',

@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import {
-  Actor,
   ClarificationId,
   EdgeId,
   ExternalReference,
@@ -12,6 +11,7 @@ import {
   UserId,
   WorkspaceId,
 } from './common.js'
+import { HandoffFilter, HandoffOwner } from './handoff.js'
 import {
   GraphEdge,
   GraphEdgeCreate,
@@ -21,7 +21,6 @@ import {
   GraphNodeUpdate,
 } from './model.js'
 import { SourceUnit } from './source-unit.js'
-import { UserKind } from './user.js'
 
 // Only the hard contract here. Authoring rules (length, tone, language) live in the skill layer.
 const proposalRationale = z.string().min(1).max(1500).describe('One-paragraph plain-text summary of what changed and why.')
@@ -45,7 +44,7 @@ export type GraphOperation = z.infer<typeof GraphOperation>
 export const ProposalStatus = z.enum(['pending', 'applied', 'rejected'])
 export type ProposalStatus = z.infer<typeof ProposalStatus>
 
-export const Proposal = z.object({
+export const Proposal = HandoffOwner.extend({
   id: ProposalId,
   workspaceId: WorkspaceId,
   status: ProposalStatus,
@@ -82,13 +81,6 @@ export const Proposal = z.object({
    * while the model reflected none of it.
    */
   sourceUnits: z.array(SourceUnit).optional(),
-  // The user who created it, or 'system' for autonomous ones. Pending is owner-only.
-  owner: Actor,
-  // Name at submit time, survives renames. Absent for the 'system' owner.
-  ownerDisplayName: z.string().min(1).optional(),
-  // Owner's kind snapshotted at submit time.
-  // Absent means a human's private draft, 'service' is autonomous and owner-visible.
-  ownerKind: UserKind.optional(),
 })
 export type Proposal = z.infer<typeof Proposal>
 
@@ -104,15 +96,8 @@ export const ProposalCreate = z.object({
 })
 export type ProposalCreate = z.infer<typeof ProposalCreate>
 
-export const ProposalFilter = z.object({
-  workspaceId: WorkspaceId.optional(),
+export const ProposalFilter = HandoffFilter.extend({
   statuses: z.array(ProposalStatus).optional(),
   generatedBy: z.array(SkillId).optional(),
-  limit: z.number().int().positive().optional(),
-  offset: z.number().int().nonnegative().optional(),
-  // When set, hides others' pending proposals. Non-pending stay visible, absent shows all.
-  viewerId: UserId.optional(),
-  // Owner-only, also shows service-owned (autonomous) pending to this viewer.
-  includeServiceOwned: z.boolean().optional(),
 })
 export type ProposalFilter = z.infer<typeof ProposalFilter>

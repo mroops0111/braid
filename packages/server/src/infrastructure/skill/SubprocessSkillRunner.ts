@@ -261,7 +261,7 @@ export class SubprocessSkillRunner implements SkillRunner {
         ...this.audiencesEnv(workspace),
         // Absolute paths to the reference docs a prompt may Read,
         // so no SKILL.md carries a location of its own.
-        ...this.referenceEnv(workspace, sessionDir),
+        ...this.referenceEnv(workspace, skillId, sessionDir),
         // BRAID_TOKEN is read by the braid-core MCP gateway,
         // and by any shell-level callback (curl in a SKILL.md),
         // so the subprocess can authenticate against the running server.
@@ -325,6 +325,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       resumeSessionId: options.resumeSessionId,
       startedAt,
       initialRecord,
+      ...(options.continues ? { continues: options.continues } : {}),
     })
 
     return runId
@@ -478,6 +479,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     resumeSessionId: string | undefined
     startedAt: string
     initialRecord: RunRecord
+    continues?: SkillRunId
   }): Promise<void> {
     let record = input.initialRecord
     let capturedSessionId: string | null = input.resumeSessionId ?? null
@@ -492,6 +494,9 @@ export class SubprocessSkillRunner implements SkillRunner {
         skillId: input.skillId,
         args: input.args,
         resumed: input.resumeSessionId !== undefined,
+        // The link travels on the event as well as on the record,
+        // since the stream alone cannot tell a correction from a typed follow-up.
+        ...(input.continues ? { continues: input.continues } : {}),
         at: input.startedAt,
       }))
 
@@ -592,11 +597,21 @@ export class SubprocessSkillRunner implements SkillRunner {
     if (!contract)
       return
     const declared = (this.deps.resolveAudiences?.(input.workspace) ?? []).map(audience => audience.id)
-    const violations = validateOutput(contract, rendered, declared)
-    if (violations.length === 0)
+    if (validateOutput(contract, rendered, declared).length === 0)
+      return
+    // A conversation is read as one answer,
+    // so a turn owes only what no turn before it rendered.
+    // Judged on its own, a follow-up owes the whole contract again,
+    // and the correction then repeats an answer already on the page.
+    const outstanding = validateOutput(
+      contract,
+      [...await this.conversationBlocks(input.workspace, input.initialRecord, sessionId), ...rendered],
+      declared,
+    )
+    if (outstanding.length === 0)
       return
 
-    await this.start(input.workspace, input.skillId, describeViolations(violations), {
+    await this.start(input.workspace, input.skillId, describeViolations(outstanding), {
       resumeSessionId: sessionId,
       scope: runScope(input.initialRecord),
       continues: input.runId,
@@ -605,6 +620,34 @@ export class SubprocessSkillRunner implements SkillRunner {
       // so run history never grows an entry with nobody behind it.
       startedBy: input.initialRecord.startedBy,
     })
+  }
+
+  /**
+   * What the earlier turns of this conversation already put on the page.
+   *
+   * Read only once a run has been found wanting on its own,
+   * so a conversation that never needs correcting never pays for the walk.
+   * A continued run holds a copy of the account it carried on,
+   * which is why a block is taken once by id rather than once per log.
+   */
+  private async conversationBlocks(
+    workspace: Workspace,
+    record: RunRecord,
+    sessionId: string,
+  ): Promise<readonly EmittedBlock[]> {
+    const records = await this.deps.runRepository.listRecords(workspace)
+    const earlier = records.filter(entry => entry.sessionId === sessionId && entry.runId !== record.runId)
+    const blocks: EmittedBlock[] = []
+    const seen = new Set<string>()
+    for (const entry of earlier) {
+      for await (const event of this.deps.runRepository.readEvents(workspace, entry.runId)) {
+        if (event.type !== 'block' || seen.has(event.id))
+          continue
+        seen.add(event.id)
+        blocks.push({ id: event.id, block: event.block })
+      }
+    }
+    return blocks
   }
 
   // Persist first, then broadcast.
@@ -738,20 +781,28 @@ export class SubprocessSkillRunner implements SkillRunner {
   /**
    * Absolute paths to the mounted reference dirs,
    * `BRAID_SHARED_REFERENCE` for framework contracts,
-   * and `BRAID_ONTOLOGY_REFERENCE` for the active ontology.
+   * `BRAID_ONTOLOGY_REFERENCE` for the active ontology,
+   * and `BRAID_SKILL_REFERENCE` for whatever plugin ships the running skill.
    * A variable is set only when that namespace ships reference docs,
    * so a prompt can branch on absence instead of reading a dangling path.
    * Paths derive from the session dir, so a resumed run resolves them unchanged.
    */
-  private referenceEnv(workspace: Workspace, sessionDir: string): Record<string, string> {
+  private referenceEnv(workspace: Workspace, skillId: SkillId, sessionDir: string): Record<string, string> {
     const mounted = new Set((this.deps.referenceDirs ?? []).map(reference => reference.skillNamespace))
     const ontologyNamespace = workspace.productManifest.ontologyId
+    const own = splitSkillId(skillId).namespace
     return {
       ...(mounted.has(BUILTIN_SKILL_NAMESPACE)
         ? { BRAID_SHARED_REFERENCE: this.referenceDir(sessionDir, BUILTIN_SKILL_NAMESPACE) }
         : {}),
       ...(mounted.has(ontologyNamespace)
         ? { BRAID_ONTOLOGY_REFERENCE: this.referenceDir(sessionDir, ontologyNamespace) }
+        : {}),
+      // Named for the running skill rather than for one plugin axis,
+      // so a plugin of any kind reaches its own docs,
+      // without the runner learning what kind it is.
+      ...(mounted.has(own) && own !== BUILTIN_SKILL_NAMESPACE && own !== ontologyNamespace
+        ? { BRAID_SKILL_REFERENCE: this.referenceDir(sessionDir, own) }
         : {}),
     }
   }

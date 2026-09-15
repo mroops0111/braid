@@ -1,17 +1,17 @@
 import type { SkillManifest, Workspace } from '@braidhq/schema'
 import type { Sparkles } from 'lucide-react'
 import type { Surface } from './CommandPalette'
-import { Boxes, GitGraph, Globe, Inbox, Laptop, Loader2, LogIn, MessageCircleQuestion, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings } from 'lucide-react'
+import { Boxes, FileText, GitGraph, Globe, Inbox, Laptop, Loader2, LogIn, MessageCircleQuestion, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import braidLogo from '@/assets/braid-logo.svg'
+import { useSurfaceReach } from '@/lib/landingSurface'
 import { usePendingClarification, usePendingProposals, useRuns, useSkills } from '@/lib/queries'
 import { setActiveRemoteId, useActiveRemoteId } from '@/lib/remotes'
 import { startSignIn } from '@/lib/signIn'
 import { type RemoteSummary, type RemoteWorkspacesResult, useAllRemoteWorkspaces } from '@/lib/useRemoteWorkspaces'
 import { useRunningSkills } from '@/lib/useRun'
 import { cn } from '@/lib/utils'
-import { useWorkspacePolicy } from '@/policy'
 import { CreateWorkspaceWizard } from './CreateWorkspaceWizard'
 import { ListRow } from './ListRow'
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
@@ -517,21 +517,10 @@ function HereSection({
   const { t } = useTranslation()
   const { data: proposals } = usePendingProposals(workspaceId)
   const { data: clarifications } = usePendingClarification(workspaceId)
-  const policy = useWorkspacePolicy(workspaceId)
   const { data: skills } = useSkills(workspaceId)
   const pendingProposals = proposals?.items.length ?? 0
   const pendingClarification = clarifications?.items.length ?? 0
-  const canSeeProposals = policy.can('proposal.read')
-  const canSeeClarification = policy.can('clarification.read')
-  const canRunActions = (skills?.items ?? []).some(s =>
-    !s.frontmatter.braid.hidden && policy.can('skill.run', { skill: s.frontmatter, skillId: s.id }),
-  )
-  const canAsk = (skills?.items ?? []).some(s =>
-    s.frontmatter.braid.category === 'ask'
-    && !s.frontmatter.braid.hidden
-    && policy.can('skill.run', { skill: s.frontmatter, skillId: s.id }),
-  )
-  const canSeeHistory = policy.effectiveRole !== null && policy.effectiveRole !== 'guest'
+  const reaches = useSurfaceReach(workspaceId)
   const inFlight = useRunsInFlight(workspaceId, skills?.items ?? [])
 
   return (
@@ -542,14 +531,14 @@ function HereSection({
         </div>
       )}
       <ul className="space-y-px">
-        {canAsk && (
+        {reaches('ask') && (
           <HereRow
             collapsed={collapsed}
             icon={MessageCircleQuestion}
             label={t('shell.surfaces.ask')}
             active={activeSurface === 'ask'}
             running={inFlight.asking}
-            shortcut="G Q"
+            shortcut="G A"
             onClick={() => onSelectSurface('ask')}
           />
         )}
@@ -561,7 +550,7 @@ function HereSection({
           shortcut="G G"
           onClick={onGoHome}
         />
-        {canRunActions && (
+        {reaches('build') && (
           <HereRow
             collapsed={collapsed}
             icon={Boxes}
@@ -571,7 +560,7 @@ function HereSection({
             onClick={() => onSelectSurface('build')}
           />
         )}
-        {(canSeeClarification || canSeeProposals) && (
+        {reaches('inbox') && (
           <HereRow
             collapsed={collapsed}
             icon={Inbox}
@@ -583,7 +572,18 @@ function HereSection({
             onClick={() => onSelectSurface('inbox')}
           />
         )}
-        {canSeeHistory && (
+        {reaches('documents') && (
+          <HereRow
+            collapsed={collapsed}
+            icon={FileText}
+            label={t('shell.surfaces.documents')}
+            active={activeSurface === 'documents'}
+            running={inFlight.writing}
+            shortcut="G D"
+            onClick={() => onSelectSurface('documents')}
+          />
+        )}
+        {reaches('history') && (
           <HereRow
             collapsed={collapsed}
             icon={GitGraph}
@@ -629,6 +629,8 @@ interface InFlight {
   readonly asking: boolean
   /** A run whose outcome lands in the Inbox is going. */
   readonly working: boolean
+  /** A run writing a document is going. */
+  readonly writing: boolean
 }
 
 /**
@@ -654,11 +656,16 @@ function useRunsInFlight(
     ...local,
     ...(runs?.items ?? []).filter(run => !run.completedAt).map(run => run.skillId),
   ])
-  const asking = [...running].some(skillId => categories.get(skillId) === 'ask')
-  // Everything that is not a question lands somewhere to be decided,
+  const categoryOf = (skillId: string): string | undefined => categories.get(skillId)
+  const asking = [...running].some(skillId => categoryOf(skillId) === 'ask')
+  const writing = [...running].some(skillId => categoryOf(skillId) === 'generate')
+  // A build run lands somewhere to be decided,
   // so the Inbox is where its reader waits, before it has produced a card.
-  const working = [...running].some(skillId => categories.get(skillId) !== 'ask')
-  return { asking, working }
+  // A question and a document both land on a surface of their own,
+  // so neither waits here.
+  const working = [...running].some(skillId =>
+    categoryOf(skillId) !== 'ask' && categoryOf(skillId) !== 'generate')
+  return { asking, working, writing }
 }
 
 function HereRow({ collapsed, icon: Icon, label, active, count = 0, running = false, shortcut, onClick }: {

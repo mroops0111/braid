@@ -1,6 +1,6 @@
 import type { EdgeId, GraphOperation, NodeId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
-import { candidateLetter, formatOpsSummary, questionExcerpt, summarizeOps } from '../../src/pages/Clarification'
+import { candidateLetter, formatOpsSummary, questionExcerpt, summarizeOps } from '../../../src/components/handoff/ClarificationDetail'
 
 function addNode(id: string): GraphOperation {
   return {

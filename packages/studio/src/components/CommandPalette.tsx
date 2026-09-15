@@ -1,5 +1,6 @@
-import type { NodeId, SkillManifest, Workspace } from '@braidhq/schema'
-import { Activity, Boxes, ClipboardCheck, GitGraph, HelpCircle, Inbox, MessageCircleQuestion, Network, Settings, Settings2, Sparkles } from 'lucide-react'
+import type { NodeId, Workspace } from '@braidhq/schema'
+import type { Sparkles } from 'lucide-react'
+import { Activity, Boxes, FileText, GitGraph, Inbox, MessageCircleQuestion, Network, Settings, Settings2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -11,7 +12,8 @@ import {
   CommandList,
   CommandShortcut,
 } from '@/components/ui/command'
-import { useNodeSearch, useSkills } from '@/lib/queries'
+import { useSurfaceReach } from '@/lib/landingSurface'
+import { useNodeSearch } from '@/lib/queries'
 import { useDebounced } from '@/lib/useDebounced'
 import { useEmbeddingProgress } from '@/lib/useEmbeddingProgress'
 import { WorkspaceSwatch } from './WorkspaceSwatch'
@@ -39,16 +41,14 @@ interface CommandPaletteProps {
  * and nothing said so.
  */
 export const SURFACES = [
-  'actions',
   'activity',
   'ask',
   'batch',
   'build',
-  'clarifications',
+  'documents',
   'graph',
   'history',
   'inbox',
-  'proposals',
   'settings',
 ] as const
 
@@ -56,12 +56,24 @@ export type Surface = typeof SURFACES[number]
 
 type ChordTarget = { kind: 'surface', surface: Surface | null } | { kind: 'workspace-details' }
 
+/**
+ * A chord goes to a surface the sidebar keeps a row for, and to nothing else.
+ *
+ * Held to that, every one of them is its own first letter,
+ * which is the only mapping a reader can guess.
+ * Widening it past the sidebar would not survive the second letter,
+ * since Ask, Actions, and Activity all open with the same one,
+ * as do Build and Batch.
+ * Those three are reached by name in this palette,
+ * and each already has a way in of its own.
+ */
 function chordSecondKey(key: string): ChordTarget | undefined {
   switch (key) {
     case 'g': return { kind: 'surface', surface: 'graph' }
-    case 'a': return { kind: 'surface', surface: 'actions' }
+    case 'a': return { kind: 'surface', surface: 'ask' }
+    case 'b': return { kind: 'surface', surface: 'build' }
     case 'i': return { kind: 'surface', surface: 'inbox' }
-    case 'b': return { kind: 'surface', surface: 'activity' }
+    case 'd': return { kind: 'surface', surface: 'documents' }
     case 'h': return { kind: 'surface', surface: 'history' }
     case 's': return { kind: 'surface', surface: 'settings' }
     case 'w': return { kind: 'workspace-details' }
@@ -70,23 +82,23 @@ function chordSecondKey(key: string): ChordTarget | undefined {
 }
 
 // `as const` keeps labelKey literal so t() validates each against the typed catalog.
+// A shortcut is printed only where `chordSecondKey` answers it,
+// so the hint never promises a key that does nothing.
 const SURFACE_ITEMS = [
   { id: null, labelKey: 'shell.commandPalette.graphHome', Icon: Network, shortcut: 'G G' },
-  { id: 'ask', labelKey: 'shell.surfaces.ask', Icon: MessageCircleQuestion, shortcut: 'G Q' },
+  { id: 'ask', labelKey: 'shell.surfaces.ask', Icon: MessageCircleQuestion, shortcut: 'G A' },
   { id: 'build', labelKey: 'shell.surfaces.build', Icon: Boxes, shortcut: 'G B' },
   { id: 'inbox', labelKey: 'shell.surfaces.inbox', Icon: Inbox, shortcut: 'G I' },
+  { id: 'documents', labelKey: 'shell.surfaces.documents', Icon: FileText, shortcut: 'G D' },
+  { id: 'history', labelKey: 'shell.surfaces.history', Icon: GitGraph, shortcut: 'G H' },
+  { id: 'settings', labelKey: 'shell.surfaces.settings', Icon: Settings, shortcut: 'G S' },
   // Everything below folds into a surface above.
   // Each reaches the same records once they are settled,
   // which is browsing rather than working,
-  // so they keep a way in without taking a sidebar row for it.
-  { id: 'actions', labelKey: 'shell.surfaces.actions', Icon: Sparkles, shortcut: 'G A' },
-  { id: 'clarifications', labelKey: 'shell.surfaces.clarifications', Icon: HelpCircle, shortcut: 'G C' },
-  { id: 'proposals', labelKey: 'shell.surfaces.proposals', Icon: ClipboardCheck, shortcut: 'G P' },
-  { id: 'activity', labelKey: 'shell.surfaces.activity', Icon: Activity, shortcut: 'G R' },
-  { id: 'batch', labelKey: 'shell.surfaces.batch', Icon: Boxes, shortcut: 'G T' },
-  { id: 'history', labelKey: 'shell.surfaces.history', Icon: GitGraph, shortcut: 'G H' },
-  { id: 'settings', labelKey: 'shell.surfaces.settings', Icon: Settings, shortcut: 'G S' },
-] as const satisfies readonly { id: Surface | null, labelKey: string, Icon: typeof Sparkles, shortcut: string }[]
+  // so they keep a way in without taking a sidebar row or a chord for it.
+  { id: 'activity', labelKey: 'shell.surfaces.activity', Icon: Activity },
+  { id: 'batch', labelKey: 'shell.surfaces.batch', Icon: Boxes },
+] as const satisfies readonly { id: Surface | null, labelKey: string, Icon: typeof Sparkles, shortcut?: string }[]
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement))
@@ -119,7 +131,7 @@ export function CommandPalette({
     activeWorkspaceId ?? undefined,
     debouncedQuery,
   )
-  const { data: skillData } = useSkills(activeWorkspaceId ?? undefined)
+  const reaches = useSurfaceReach(activeWorkspaceId)
   const { rebuilding } = useEmbeddingProgress(open ? activeWorkspaceId : null)
 
   useEffect(() => {
@@ -167,13 +179,15 @@ export function CommandPalette({
       }
       if (target.surface !== 'settings' && !activeWorkspaceId)
         return
+      // A chord is a shortcut to a surface, never a way around it.
+      if (!reaches(target.surface))
+        return
       onSelectSurface(target.surface)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [activeWorkspaceId, onSelectSurface, onOpenWorkspaceDetails])
+  }, [activeWorkspaceId, onSelectSurface, onOpenWorkspaceDetails, reaches])
 
-  const skills = (skillData?.items ?? []).filter((s: SkillManifest) => !s.frontmatter.braid.hidden)
   const nodes = nodeData?.items ?? []
   // A rebuild leaves out any node whose vector no longer matches its text,
   // so the list is short for a reason worth naming.
@@ -216,20 +230,24 @@ export function CommandPalette({
         )}
 
         <CommandGroup heading={t('shell.commandPalette.goToTitle')}>
-          {SURFACE_ITEMS.map(({ id, labelKey, Icon, shortcut }) => (
-            <CommandItem
-              key={id ?? 'home'}
-              onSelect={() => {
-                onSelectSurface(id)
-                setOpen(false)
-              }}
-              disabled={(id !== 'settings' && !activeWorkspaceId) || activeSurface === id}
-            >
-              <Icon />
-              <span>{t(labelKey)}</span>
-              <CommandShortcut>{shortcut}</CommandShortcut>
-            </CommandItem>
-          ))}
+          {SURFACE_ITEMS.filter(({ id }) => reaches(id)).map((item) => {
+            const { id, labelKey, Icon } = item
+            const shortcut = 'shortcut' in item ? item.shortcut : undefined
+            return (
+              <CommandItem
+                key={id ?? 'home'}
+                onSelect={() => {
+                  onSelectSurface(id)
+                  setOpen(false)
+                }}
+                disabled={(id !== 'settings' && !activeWorkspaceId) || activeSurface === id}
+              >
+                <Icon />
+                <span>{t(labelKey)}</span>
+                {shortcut && <CommandShortcut>{shortcut}</CommandShortcut>}
+              </CommandItem>
+            )
+          })}
           {activeWorkspaceId && (
             <CommandItem
               key="workspace-details"
@@ -263,28 +281,6 @@ export function CommandPalette({
           </CommandGroup>
         )}
 
-        {skills.length > 0 && (
-          <CommandGroup heading={t('shell.commandPalette.actionsTitle')}>
-            {skills.map((skill: SkillManifest) => (
-              <CommandItem
-                key={skill.id}
-                onSelect={() => {
-                  onSelectSurface('actions')
-                  setOpen(false)
-                }}
-              >
-                <Sparkles />
-                <span className="font-mono">
-                  /
-                  {skill.frontmatter.name}
-                </span>
-                <span className="ml-2 truncate text-xs text-muted-foreground">
-                  {skill.frontmatter.description}
-                </span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        )}
       </CommandList>
     </CommandDialog>
   )

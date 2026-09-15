@@ -2,12 +2,12 @@ import type { shell as en } from '../en/shell'
 
 const shell: typeof en = {
   surfaces: {
+    documents: '文件',
     inbox: '收件匣',
     ask: '提問',
     graph: '圖譜',
     batch: '初始建模',
     build: '建構',
-    actions: '動作',
     clarifications: '釐清',
     proposals: '提案',
     activity: '活動',
@@ -51,7 +51,6 @@ const shell: typeof en = {
     nodesSearching: '排序中…',
     goToTitle: '前往',
     workspacesTitle: '工作區',
-    actionsTitle: '動作',
     graphHome: '圖譜 (首頁)',
     workspaceSettings: '工作區設定',
   },

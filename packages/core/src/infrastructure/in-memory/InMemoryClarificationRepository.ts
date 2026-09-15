@@ -1,6 +1,7 @@
 import type { ClarificationFilter, ClarificationId } from '@braidhq/schema'
 import type { Clarification } from '../../domain/hitl/Clarification.js'
 import type { ClarificationRepository } from '../../domain/hitl/ClarificationRepository.js'
+import { handoffVisibleTo } from '../../domain/hitl/handoffVisibility.js'
 import { paginate } from '../../domain/paginate.js'
 import { InMemoryKeyedStore } from './InMemoryKeyedStore.js'
 
@@ -19,10 +20,7 @@ export class InMemoryClarificationRepository implements ClarificationRepository 
     }
     if (filter?.viewerId !== undefined) {
       const viewerId = filter.viewerId
-      const includeServiceOwned = filter.includeServiceOwned ?? false
-      clarifications = clarifications.filter(clarification =>
-        clarification.status !== 'pending' || clarification.owner === viewerId || (includeServiceOwned && clarification.ownerKind === 'service'),
-      )
+      clarifications = clarifications.filter(clarification => handoffVisibleTo(clarification, viewerId))
     }
     return paginate(clarifications, filter?.limit, filter?.offset)
   }

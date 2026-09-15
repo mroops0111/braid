@@ -1,245 +1,21 @@
-import type { EdgeId, GraphEdgeCreate, GraphNodeCreate, GraphOperation, NodeId, Proposal, ProposalId, ProposalStatus, ValidationIssue, ValidationSeverity } from '@braidhq/schema'
+import type { EdgeId, GraphEdgeCreate, GraphNodeCreate, GraphOperation, NodeId, Proposal, ValidationIssue, ValidationSeverity } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, AlertTriangle, Check, ChevronDown, ChevronRight, Inbox, Info, MinusCircle, PencilLine, PlusCircle, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { AlertCircle, AlertTriangle, Check, ChevronDown, ChevronRight, Info, MinusCircle, PencilLine, PlusCircle, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { EmptyState } from '@/components/EmptyState'
 import { emphasizeAddedFor, narrowToChanges, useProposalGraphDataSource } from '@/components/graph/GraphDataSource'
 import { FocusToggle, OnlyChangesToggle } from '@/components/graph/GraphToolbar'
 import { useFocusedSelection } from '@/components/graph/useFocusedSelection'
-import { ListRow } from '@/components/ListRow'
-import { PageActions } from '@/components/PageActions'
 import { NodeReferenceTag } from '@/components/references/ReferenceTag'
 import { ReferenceText } from '@/components/references/ReferenceText'
 import { StatusBadge } from '@/components/StatusBadge'
-import { SurfaceLayout } from '@/components/SurfaceLayout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
-import { queryKeys, useProposalsByStatus, useProposalValidation, useWorkspaceMembers } from '@/lib/queries'
+import { queryKeys, useProposalValidation } from '@/lib/queries'
 import { useGraphNavigation } from '@/lib/useGraphNavigation'
+import { GraphSurface } from '@/pages/GraphSurface'
 import { useWorkspacePolicy } from '@/policy'
-import { GraphSurface } from './GraphSurface'
-
-interface ProposalsPageProps {
-  workspaceId: string
-  /**
-   * One-shot deep-link target.
-   * When set, such as clicking "Proposal #abc" on an applied Clarification,
-   * the page scans its current list for the matching proposal.
-   * If found in the current status filter, it is selected,
-   * otherwise the page sweeps the other statuses,
-   * and switches the filter to wherever the proposal actually lives.
-   */
-  focusedProposalId?: ProposalId | null
-  onFocusConsumed?: () => void
-}
-
-type StatusFilter = Extract<ProposalStatus, 'pending' | 'applied' | 'rejected'>
-
-export function ProposalsPage({ workspaceId, focusedProposalId, onFocusConsumed }: ProposalsPageProps) {
-  const { t } = useTranslation()
-  // Status filter is both the list query and the detail pane's read-only cue.
-  // Switching status clears the selected proposal,
-  // so the right pane cannot show an item that no longer matches.
-  const [status, setStatus] = useState<StatusFilter>('pending')
-  const [showAll, setShowAll] = useState(false)
-  const { data, isLoading } = useProposalsByStatus(workspaceId, status, showAll)
-  const [selected, setSelected] = useState<Proposal | null>(null)
-  // Tracks an in-progress sweep across statuses for a deep-link focus.
-  // Each entry remembers which status filters we've already checked,
-  // so we don't loop on an id that doesn't exist in any list.
-  const [focusSweep, setFocusSweep] = useState<{ proposalId: ProposalId, attempted: Set<StatusFilter> } | null>(null)
-
-  function changeStatus(next: StatusFilter): void {
-    setStatus(next)
-    setSelected(null)
-  }
-
-  // Seed the sweep when a new focusedProposalId arrives.
-  // Status is intentionally excluded from deps,
-  // this effect must fire only on the externally driven id change,
-  // not when the user is mid-sweep switching filters.
-  useEffect(() => {
-    if (focusedProposalId)
-      setFocusSweep(prev => prev?.proposalId === focusedProposalId ? prev : { proposalId: focusedProposalId, attempted: new Set([status]) })
-  }, [focusedProposalId, status])
-
-  // Drive the sweep. Try the current list,
-  // if no match advance to the next unchecked status.
-  // Consumes the focus once we select the proposal or exhaust the statuses.
-  useEffect(() => {
-    if (!focusSweep || isLoading || !data)
-      return
-    const match = data.items.find(p => p.id === focusSweep.proposalId)
-    if (match) {
-      setSelected(match)
-      setFocusSweep(null)
-      onFocusConsumed?.()
-      return
-    }
-    const candidates: StatusFilter[] = ['pending', 'applied', 'rejected']
-    const next = candidates.find(s => !focusSweep.attempted.has(s))
-    if (!next) {
-      setFocusSweep(null)
-      onFocusConsumed?.()
-      return
-    }
-    setStatus(next)
-    setFocusSweep({ proposalId: focusSweep.proposalId, attempted: new Set([...focusSweep.attempted, next]) })
-  }, [focusSweep, data, isLoading, onFocusConsumed])
-
-  // Auto-select the first item when entering a list with no selection.
-  // Covers initial mount, status switch, and complete-and-clear from detail.
-  // Skip while a deep-link focus sweep is in flight,
-  // so we do not race the sweep's setSelected call.
-  useEffect(() => {
-    if (focusSweep || selected || isLoading || !data?.items.length)
-      return
-    setSelected(data.items[0]!)
-  }, [data, selected, isLoading, focusSweep])
-
-  return (
-    <div className="flex h-full flex-col">
-      <PageActions>
-        <ProposalsStatusFilter workspaceId={workspaceId} status={status} onChange={changeStatus} />
-        <ShowAllToggle workspaceId={workspaceId} status={status} showAll={showAll} onToggle={setShowAll} />
-      </PageActions>
-      <SurfaceLayout
-        list={(
-          <>
-            {isLoading
-              ? (
-                  <div className="p-4 text-sm text-muted-foreground">{t('common.loading')}</div>
-                )
-              : !data || data.items.length === 0
-                  ? null
-                  : (
-                      <ul className="flex-1 overflow-y-auto scrollbar-thin">
-                        {data.items.map(proposal => (
-                          <ListRow
-                            key={proposal.id}
-                            active={selected?.id === proposal.id}
-                            onClick={() => setSelected(proposal)}
-                            className="flex-col gap-1"
-                          >
-                            <div className="flex w-full items-center justify-between gap-2">
-                              <span className="break-all font-mono text-xs text-foreground">{proposal.id}</span>
-                              <StatusBadge status={proposal.status} />
-                            </div>
-                            <div className="text-2xs text-muted-foreground">
-                              {t('review.proposals.operationsBy', { count: proposal.operations.length, name: proposal.generatedBy })}
-                            </div>
-                          </ListRow>
-                        ))}
-                      </ul>
-                    )}
-          </>
-        )}
-      >
-        <div className="flex-1 overflow-hidden">
-          {selected
-            ? (
-                <ProposalDetail
-                  workspaceId={workspaceId}
-                  proposal={selected}
-                  onComplete={() => setSelected(null)}
-                  key={selected.id}
-                />
-              )
-            : (
-                <EmptyState
-                  icon={Inbox}
-                  title={data?.items.length ? t('review.proposals.pickTitle') : t(`review.proposals.empty.${status}.title`)}
-                  description={
-                    data?.items.length
-                      ? status === 'pending'
-                        ? t('review.proposals.pickPendingDescription')
-                        : t('review.proposals.pickTerminalDescription')
-                      : t(`review.proposals.empty.${status}.description`)
-                  }
-                />
-              )}
-        </div>
-      </SurfaceLayout>
-    </div>
-  )
-}
-
-/**
- * Owner-only toggle that flips the personal-pending filter to "everyone's".
- * Only rendered on the pending tab,
- * applied and rejected lists are shared by definition,
- * so a toggle there would do nothing.
- * Cmd-click suppression keeps it small and tucked next to the status tabs.
- */
-function ShowAllToggle({
-  workspaceId,
-  status,
-  showAll,
-  onToggle,
-}: {
-  workspaceId: string
-  status: StatusFilter
-  showAll: boolean
-  onToggle: (next: boolean) => void
-}) {
-  const { t } = useTranslation()
-  const { effectiveRole } = useWorkspacePolicy(workspaceId)
-  const { data: members } = useWorkspaceMembers(workspaceId)
-  // Nothing to disambiguate on a solo workspace, every proposal is yours.
-  const multiMember = (members?.items.length ?? 0) > 1
-  if (effectiveRole !== 'owner' || status !== 'pending' || !multiMember)
-    return null
-  return (
-    <Button
-      variant={showAll ? 'default' : 'ghost'}
-      size="sm"
-      className="h-7 text-2xs"
-      onClick={() => onToggle(!showAll)}
-      title={showAll ? t('review.proposals.showingAllTooltip') : t('review.proposals.mineOnlyTooltip')}
-    >
-      {showAll ? t('review.proposals.showingAll') : t('review.proposals.mineOnly')}
-    </Button>
-  )
-}
-
-// Pending, Applied, Rejected segment.
-// Rendered via PageActions into the top tab row,
-// so it takes no row of its own.
-// Pending wears a live count badge, the only one worth surfacing.
-// Applied and rejected lists grow monotonically, a count there is noise.
-function ProposalsStatusFilter({
-  workspaceId,
-  status,
-  onChange,
-}: {
-  workspaceId: string
-  status: StatusFilter
-  onChange: (next: StatusFilter) => void
-}) {
-  const { t } = useTranslation()
-  const { data: pending } = useProposalsByStatus(workspaceId, 'pending')
-  const pendingCount = pending?.items.length ?? 0
-  return (
-    <Tabs value={status} onValueChange={value => onChange(value as StatusFilter)}>
-      <TabsList className={FILTER_TABS_LIST}>
-        <TabsTrigger value="pending" className={FILTER_TAB_TRIGGER}>
-          {t('review.proposals.tabPending')}
-          {pendingCount > 0 && (
-            <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-2xs font-medium leading-none text-primary">
-              {pendingCount}
-            </span>
-          )}
-        </TabsTrigger>
-        <TabsTrigger value="applied" className={FILTER_TAB_TRIGGER}>{t('review.proposals.tabApplied')}</TabsTrigger>
-        <TabsTrigger value="rejected" className={FILTER_TAB_TRIGGER}>{t('review.proposals.tabRejected')}</TabsTrigger>
-      </TabsList>
-    </Tabs>
-  )
-}
 
 export function ProposalDetail({
   workspaceId,
@@ -258,7 +34,7 @@ export function ProposalDetail({
   // Apply and Reject are only meaningful while the proposal is pending.
   // Applied and rejected entries are read-only history.
   const isPending = proposal.status === 'pending'
-  const canWrite = useWorkspacePolicy(workspaceId).can('proposal.write')
+  const canWrite = useWorkspacePolicy(workspaceId).can('handoff.write')
 
   const validation = useProposalValidation(workspaceId, isPending ? proposal.id : null)
   const errorCount = validation.data?.issues.filter(issue => issue.severity === 'error').length ?? 0

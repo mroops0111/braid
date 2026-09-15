@@ -1,12 +1,12 @@
 export const shell = {
   // Surface names shared across the sidebar, header breadcrumb, and command palette.
   surfaces: {
+    documents: 'Documents',
     inbox: 'Inbox',
     ask: 'Ask',
     graph: 'Graph',
     batch: 'Bootstrap',
     build: 'Build',
-    actions: 'Actions',
     clarifications: 'Clarifications',
     proposals: 'Proposals',
     activity: 'Activity',
@@ -56,7 +56,6 @@ export const shell = {
     nodesSearching: 'Ranking…',
     goToTitle: 'Go To',
     workspacesTitle: 'Workspaces',
-    actionsTitle: 'Actions',
     graphHome: 'Graph (home)',
     workspaceSettings: 'Workspace Settings',
   },

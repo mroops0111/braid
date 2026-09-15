@@ -11,7 +11,12 @@ export interface OutputViolation {
 }
 
 /**
- * Checks a finished run's blocks against the contract its skill declared.
+ * Checks blocks against the contract the skill declared.
+ *
+ * What the caller passes decides what the contract binds.
+ * A conversation is read as one answer,
+ * so the caller hands in every block its turns rendered,
+ * and a follow-up then owes only what no turn before it covered.
  *
  * Pure and total, so the retry decision stays testable without a subprocess.
  * A contract that asks for nothing yields no violations,
@@ -53,16 +58,18 @@ export function validateOutput(
 export function describeViolations(violations: readonly OutputViolation[]): string {
   const lines = violations.map((violation) => {
     if (violation.kind === 'missing-call')
-      return `- You never called \`${violation.target}\`, which this skill's output contract requires.`
-    return `- You rendered ${violation.found} block(s) for the \`${violation.target}\` audience, and the contract requires ${violation.required}.`
+      return `- Nothing in this conversation has called \`${violation.target}\`, which this skill's output contract requires.`
+    return `- This conversation holds ${violation.found} block(s) for the \`${violation.target}\` audience, and the contract requires ${violation.required}.`
   })
   return [
-    'Your run ended, but its output does not satisfy the contract this skill declares:',
+    'Your run ended, and this conversation still does not satisfy the contract this skill declares:',
     '',
     ...lines,
     '',
-    'Emit only what is missing, using the render tools. Do not repeat what you',
-    'already rendered, and do not restate the answer. If a gap genuinely has no',
-    'content behind it, say so in one sentence rather than padding it.',
+    'Emit only what is missing, using the render tools.',
+    'Do not repeat what this conversation already rendered,',
+    'since those blocks are still on the page, and do not restate the answer.',
+    'If a gap genuinely has no content behind it,',
+    'say so in one sentence rather than padding it.',
   ].join('\n')
 }

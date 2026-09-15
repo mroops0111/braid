@@ -1,4 +1,4 @@
-import type { BatchPlan, Clarification, ClarificationCreateBody, CommitMeta, CommitSha, CoverageBoard, EmbeddingCoverage, FileDiff, GraphEdge, GraphNode, ListSourceLoadersResponse, McpServerConfig, ModelDiffEnvelope, ModelSnapshot, OntologyListResponse, OntologyResponse, ProductManifestCreate, Proposal, ReactorCycle, ReactorCycleId, RunRecord, SessionMetadata, SkillInputOptionsResponse, SkillManifest, SourceDescriptor, SourceId, SourceLocation, SourceSyncPolicy, SourceSyncState, SourceUnitDiff, SourceUnitObservation, TagMeta, User, UserUpdate, ValidationResult, Workspace, WorkspaceMember, WorkspacePollingConfig, WorkspaceRole } from '@braidhq/schema'
+import type { BatchPlan, Clarification, ClarificationCreateBody, CommitMeta, CommitSha, CoverageBoard, EmbeddingCoverage, FileDiff, GeneratedView, GenerateViewRequest, GenerateViewResponse, GraphEdge, GraphNode, ListSourceLoadersResponse, ListViewKindsResponse, McpServerConfig, ModelDiffEnvelope, ModelSnapshot, OntologyListResponse, OntologyResponse, ProductManifestCreate, Proposal, ReactorCycle, ReactorCycleId, RunRecord, SessionMetadata, SessionShare, SkillInputOptionsResponse, SkillManifest, SourceDescriptor, SourceId, SourceLocation, SourceSyncPolicy, SourceSyncState, SourceUnitDiff, SourceUnitObservation, TagMeta, User, UserUpdate, ValidationResult, ViewContent, Workspace, WorkspaceMember, WorkspacePollingConfig, WorkspaceRole } from '@braidhq/schema'
 import { getAuthToken } from './authToken.js'
 import { getCurrentUserId } from './currentUser.js'
 import { getTokenFor } from './remotes.js'
@@ -514,15 +514,22 @@ export const api = {
 
   listRuns: (workspaceId: string) =>
     fetchJson<ItemList<RunRecord>>(`/workspaces/${workspaceId}/runs`),
+  listViewKinds: () => fetchJson<ListViewKindsResponse>('/view-kinds'),
+  listViews: (workspaceId: string) =>
+    fetchJson<ItemList<GeneratedView>>(`/workspaces/${workspaceId}/views`),
+  // Each segment is escaped alone,
+  // so a name carrying a slash cannot be read as a directory of its own.
+  readView: (workspaceId: string, path: string) =>
+    fetchJson<ViewContent>(
+      `/workspaces/${workspaceId}/views/${path.split('/').map(encodeURIComponent).join('/')}`,
+    ),
+  generateView: (workspaceId: string, body: GenerateViewRequest) =>
+    fetchJson<GenerateViewResponse>(`/workspaces/${workspaceId}/views`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   cancelRun: (workspaceId: string, runId: string) =>
     fetchJson<void>(`/workspaces/${workspaceId}/runs/${runId}/cancel`, { method: 'POST' }),
-  forgetSession: (workspaceId: string, sessionId: string) =>
-    fetch(`${getServerUrl()}/workspaces/${workspaceId}/runs/sessions/${sessionId}`, { method: 'DELETE' })
-      .then((r) => {
-        if (!r.ok && r.status !== 404)
-          throw new Error(`forgetSession failed: ${r.status} ${r.statusText}`)
-      }),
-
   listSessionMetadata: (workspaceId: string) =>
     fetchJson<ItemList<SessionMetadata>>(`/workspaces/${workspaceId}/runs/sessions`),
   /** `title = null` clears the custom title and falls back to the first prompt. */
@@ -531,12 +538,26 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ title }),
     }),
-  /** Deletes the cwd and drops every RunRecord + event log for the session. */
+  /** Drops the agent's working directory, every run record, and every event log. */
   deleteSession: (workspaceId: string, sessionId: string) =>
-    fetchJson<void>(`/workspaces/${workspaceId}/runs/sessions/${sessionId}?purge=true`, { method: 'DELETE' }),
-  /** Orphan-row delete: single RunRecord by runId. */
+    fetchJson<void>(`/workspaces/${workspaceId}/runs/sessions/${sessionId}`, { method: 'DELETE' }),
+  /** Deletes one run, for a row with no session to anchor against. */
   deleteRun: (workspaceId: string, runId: string) =>
     fetchJson<void>(`/workspaces/${workspaceId}/runs/${runId}`, { method: 'DELETE' }),
+
+  /** Live grants the viewer is party to, whether they gave or received them. */
+  listSessionShares: (workspaceId: string) =>
+    fetchJson<ItemList<SessionShare>>(`/workspaces/${workspaceId}/runs/shares`),
+  /** Lets one member read one conversation. Read only, and only the author can. */
+  shareSession: (workspaceId: string, sessionId: string, userId: string) =>
+    fetchJson<SessionShare>(`/workspaces/${workspaceId}/runs/sessions/${sessionId}/shares`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    }),
+  unshareSession: (workspaceId: string, sessionId: string, userId: string) =>
+    fetchJson<void>(`/workspaces/${workspaceId}/runs/sessions/${sessionId}/shares/${userId}`, {
+      method: 'DELETE',
+    }),
 
   listHistory: (workspaceId: string, options?: { since?: CommitSha, limit?: number }) => {
     const params = new URLSearchParams()

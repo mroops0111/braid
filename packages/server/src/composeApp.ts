@@ -10,6 +10,7 @@ import type {
   ProposalRepository,
   ReactorCycleRepository,
   RunRepository,
+  SessionShareRepository,
   SkillRegistry,
   SkillRunner,
   SourceSyncStateRepository,
@@ -17,6 +18,7 @@ import type {
   SourceUnitObservationRepository,
   UnitLister,
   UserDirectory,
+  ViewRepository,
   WorkspaceBootstrapService,
   WorkspaceEventBus,
   WorkspaceHistory,
@@ -39,6 +41,7 @@ import type { UserRegistryFile } from './infrastructure/users/UserRegistryFile.j
 import type { WorkspaceRegistryFile } from './infrastructure/workspace/WorkspaceRegistryFile.js'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import process from 'node:process'
 import {
   BatchService,
   CoverageProjection,
@@ -58,6 +61,7 @@ import {
   SystemClock,
   SystemScheduler,
   TaskCoalescer,
+  ViewService,
   WorkspaceLock,
   WorkspaceService,
 } from '@braidhq/core'
@@ -71,6 +75,7 @@ import {
   InMemoryWorkspaceEventBus,
   InMemoryWorkspaceRepository,
   NoopRunRepository,
+  NoopSessionShareRepository,
 } from '@braidhq/core/in-memory'
 import { localTrust } from './authMode.js'
 
@@ -162,6 +167,7 @@ export interface AppDependencies {
   proposalRepository: ProposalRepository
   clarificationRepository: ClarificationRepository
   runRepository: RunRepository
+  sessionShareRepository: SessionShareRepository
   // Always wired, the Activity page renders an empty list before any cycle.
   reactorCycleRepository: ReactorCycleRepository
   // Reads every source document against the model. Absent without a unit lister,
@@ -176,6 +182,11 @@ export interface AppDependencies {
   // Skills, the registry and the subprocess runner.
   skillRegistry: SkillRegistry | undefined
   skillRunner: SkillRunner | undefined
+
+  // Documents, the projection and the forms that write it out.
+  // Absent without a runner, since nothing could write one.
+  viewService?: ViewService
+  viewRepository?: ViewRepository
 
   // Infrastructure singletons.
   eventBus: WorkspaceEventBus
@@ -254,6 +265,7 @@ export interface ComposeOptions {
   proposalRepository?: ProposalRepository
   clarificationRepository?: ClarificationRepository
   runRepository?: RunRepository
+  sessionShareRepository?: SessionShareRepository
   // Swapped fs-backed by `composeFsApp`, so records survive restart.
   reactorCycleRepository?: ReactorCycleRepository
   sourceUnitObservationRepository?: SourceUnitObservationRepository
@@ -280,6 +292,9 @@ export interface ComposeOptions {
   skillRegistry?: SkillRegistry
   skillRunner?: SkillRunner
 
+  // Where written documents and the material behind them are kept.
+  viewRepository?: ViewRepository
+
   // History and git authorship, both required together,
   // HITL skips git hooks when absent.
   history?: WorkspaceHistory
@@ -303,6 +318,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   // Hoisted because three consumers read it,
   // and a second Noop instance would be a second empty history.
   const runRepository = options.runRepository ?? new NoopRunRepository()
+  const sessionShareRepository = options.sessionShareRepository ?? new NoopSessionShareRepository()
   const clarificationRepository = options.clarificationRepository ?? new InMemoryClarificationRepository()
   const modelRepository = options.modelRepository ?? new InMemoryModelRepository()
   const workspaceRepository = options.workspaceRepository ?? new InMemoryWorkspaceRepository()
@@ -460,9 +476,26 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     })
     : undefined
 
+  // Documents need a runner to write them and somewhere to keep them,
+  // so a composition without either offers no document surface at all,
+  // rather than one that lists an empty shelf nothing can fill.
+  const viewService = options.skillRunner && options.viewRepository
+    ? new ViewService({
+      pluginRegistry,
+      workspaceService,
+      modelService,
+      viewRepository: options.viewRepository,
+      skillRunner: options.skillRunner,
+      runRepository,
+      environment: process.env,
+    })
+    : undefined
+
   return {
     workspaceService,
     hitlService,
+    ...(viewService ? { viewService } : {}),
+    ...(options.viewRepository ? { viewRepository: options.viewRepository } : {}),
     ...(historyService ? { historyService } : {}),
     ...(batchService ? { batchService } : {}),
     ...(embeddingService ? { embeddingService } : {}),
@@ -491,6 +524,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     ...(options.accessTokenVerifiers ? { accessTokenVerifiers: options.accessTokenVerifiers } : {}),
     ...(options.outputGate ? { outputGate: options.outputGate } : {}),
     runRepository,
+    sessionShareRepository,
     workspacesRoot: options.workspacesRoot ?? (join(tmpdir(), 'braid-workspaces') as AbsolutePath),
     ...(defaultOntologyId ? { defaultOntologyId } : {}),
     // `composeApp` is the test and in-memory composition entry.

@@ -1,10 +1,13 @@
 import type { RenderBlock } from '@braidhq/schema'
 import type { ReactElement } from 'react'
 import { ShowAnswerBlock } from './ShowAnswerBlock'
+import { ShowCheckBlock } from './ShowCheckBlock'
+import { ShowCustomBlock } from './ShowCustomBlock'
 import { ShowDiagramBlock } from './ShowDiagramBlock'
 import { ShowEvidenceBlock } from './ShowEvidenceBlock'
 import { ShowFindingBlock } from './ShowFindingBlock'
 import { ShowMatrixBlock } from './ShowMatrixBlock'
+import { ShowSectionBlock } from './ShowSectionBlock'
 import { ShowSubgraphBlock } from './ShowSubgraphBlock'
 import { ShowTraceBlock } from './ShowTraceBlock'
 
@@ -30,6 +33,12 @@ export function renderBlock(block: RenderBlock): ReactElement {
       return <ShowDiagramBlock block={block} />
     case 'showSubgraph':
       return <ShowSubgraphBlock block={block} />
+    case 'showSection':
+      return <ShowSectionBlock block={block} />
+    case 'showCheck':
+      return <ShowCheckBlock block={block} />
+    case 'showCustom':
+      return <ShowCustomBlock block={block} />
     default: {
       const exhaustive: never = block
       throw new Error(`Unhandled: ${JSON.stringify(exhaustive)}`)

@@ -1,23 +1,16 @@
-import type { Clarification, ClarificationCandidate, ClarificationStatus, ExternalReference, GraphOperation, NodeId, ProposalId } from '@braidhq/schema'
+import type { Clarification, ClarificationCandidate, ExternalReference, GraphOperation, NodeId, ProposalId } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, Clock, ExternalLink, Inbox, Pencil, Plus, SkipForward, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Check, Clock, ExternalLink, Pencil, SkipForward, X } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { EmptyState } from '@/components/EmptyState'
-import { ListRow } from '@/components/ListRow'
-import { PageActions } from '@/components/PageActions'
 import { MentionTextarea } from '@/components/references/MentionTextarea'
 import { NodeReferenceTag } from '@/components/references/ReferenceTag'
 import { ReferenceText } from '@/components/references/ReferenceText'
 import { StatusBadge } from '@/components/StatusBadge'
-import { SubmitIssueForm } from '@/components/SubmitIssueForm'
-import { SurfaceLayout } from '@/components/SurfaceLayout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { FILTER_TAB_TRIGGER, FILTER_TABS_LIST } from '@/components/ui/filterTabs'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
-import { queryKeys, useClarificationByStatus, useClarificationDetail, usePendingClarification, useWorkspaceMembers } from '@/lib/queries'
+import { queryKeys, useClarificationDetail } from '@/lib/queries'
 import { useTabNavigation } from '@/lib/useTabNavigation'
 import { useWorkspacePolicy } from '@/policy'
 
@@ -105,255 +98,6 @@ export function questionExcerpt(question: string, max = 80): string {
   return `${trimmed.slice(0, max - 1)}…`
 }
 
-interface ClarificationPageProps {
-  workspaceId: string
-}
-
-type StatusFilter = ClarificationStatus
-
-export function ClarificationPage({ workspaceId }: ClarificationPageProps) {
-  const { t } = useTranslation()
-  // Same shape as Proposals. Status drives the list query,
-  // and the detail pane reads only from the selected ticket,
-  // so it cannot show an item that no longer matches the active filter.
-  const [status, setStatus] = useState<StatusFilter>('pending')
-  const [showAll, setShowAll] = useState(false)
-  const [selected, setSelected] = useState<Clarification | null>(null)
-  // When `true`, the detail pane renders the inline SubmitIssueForm,
-  // instead of the selected ticket.
-  // Mutually exclusive with `selected`,
-  // the compose surface fills the same area,
-  // so the reviewer is never doing two things at once.
-  const [composing, setComposing] = useState(false)
-  const { data, isLoading } = useClarificationByStatus(workspaceId, status, showAll)
-
-  // Auto-select the first ticket when entering a list with no selection,
-  // on initial mount, after a status switch,
-  // or after answer or skip clears the detail pane.
-  // Saves the reviewer one click per ticket when working through a queue.
-  useEffect(() => {
-    if (composing || selected || isLoading || !data?.items.length)
-      return
-    setSelected(data.items[0]!)
-  }, [data, selected, isLoading, composing])
-
-  function changeStatus(next: StatusFilter): void {
-    setStatus(next)
-    setSelected(null)
-    setComposing(false)
-  }
-
-  function startComposing(): void {
-    setSelected(null)
-    setComposing(true)
-  }
-
-  // The "submit an issue" affordance is meaningful only on the Pending tab,
-  // the other statuses are post-resolution archives.
-  // Keeping it pending-only also reduces surprise,
-  // you would never expect to file a new issue while browsing rejected ones.
-  const canSubmitIssue = status === 'pending'
-
-  return (
-    <div className="flex h-full flex-col">
-      <PageActions>
-        <ClarificationHeaderActions
-          workspaceId={workspaceId}
-          status={status}
-          onChange={changeStatus}
-        />
-        <ClarificationShowAllToggle
-          workspaceId={workspaceId}
-          status={status}
-          showAll={showAll}
-          onToggle={setShowAll}
-        />
-      </PageActions>
-      <SurfaceLayout
-        list={(
-          <>
-            {isLoading
-              ? (
-                  <div className="p-4 text-sm text-muted-foreground">{t('common.loading')}</div>
-                )
-              : (
-                  <>
-                    {data && data.items.length > 0 && (
-                      <ul className="flex-1 overflow-y-auto scrollbar-thin">
-                        {data.items.map(ticket => (
-                          <ClarificationListItem
-                            key={ticket.id}
-                            ticket={ticket}
-                            active={selected?.id === ticket.id}
-                            onSelect={() => {
-                              setComposing(false)
-                              setSelected(ticket)
-                            }}
-                          />
-                        ))}
-                      </ul>
-                    )}
-                    {canSubmitIssue && (
-                      <button
-                        type="button"
-                        onClick={startComposing}
-                        className="m-2 flex items-center justify-center gap-1.5 rounded-md border border-dashed border-border/60 py-2 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
-                      >
-                        <Plus className="size-3.5" />
-                        {t('review.clarify.submitQuestionButton')}
-                      </button>
-                    )}
-                  </>
-                )}
-          </>
-        )}
-      >
-        <div className="flex-1 overflow-hidden">
-          {composing
-            ? (
-                <SubmitIssueForm
-                  workspaceId={workspaceId}
-                  onCancel={() => setComposing(false)}
-                  onSubmitted={(ticket) => {
-                    // SSE clarification.created already invalidates the list.
-                    // Selecting the new ticket also dismisses compose mode,
-                    // so the reviewer lands on the freshly filed issue.
-                    setComposing(false)
-                    setStatus('pending')
-                    setSelected(ticket)
-                  }}
-                />
-              )
-            : selected
-              ? (
-                  <ClarificationDetail
-                    workspaceId={workspaceId}
-                    ticket={selected}
-                    onComplete={() => setSelected(null)}
-                    key={selected.id}
-                  />
-                )
-              : (
-                  <EmptyState
-                    icon={Inbox}
-                    title={data?.items.length ? t('review.clarify.pickTitle') : t(`review.clarify.empty.${status}.title`)}
-                    description={
-                      data?.items.length
-                        ? status === 'pending'
-                          ? t('review.clarify.pickPendingDescription')
-                          : t('review.clarify.pickTerminalDescription')
-                        : t(`review.clarify.empty.${status}.description`)
-                    }
-                  />
-                )}
-        </div>
-      </SurfaceLayout>
-    </div>
-  )
-}
-
-/**
- * Header strip: status filter with a live badge on pending.
- * The "submit a question" affordance lives inline,
- * at the bottom of the list panel rather than here,
- * so the header stays focused on navigation.
- */
-function ClarificationShowAllToggle({
-  workspaceId,
-  status,
-  showAll,
-  onToggle,
-}: {
-  workspaceId: string
-  status: StatusFilter
-  showAll: boolean
-  onToggle: (next: boolean) => void
-}) {
-  const { t } = useTranslation()
-  const { effectiveRole } = useWorkspacePolicy(workspaceId)
-  const { data: members } = useWorkspaceMembers(workspaceId)
-  // Nothing to disambiguate on a solo workspace, every question is yours.
-  const multiMember = (members?.items.length ?? 0) > 1
-  if (effectiveRole !== 'owner' || status !== 'pending' || !multiMember)
-    return null
-  return (
-    <Button
-      variant={showAll ? 'default' : 'ghost'}
-      size="sm"
-      className="h-7 text-2xs"
-      onClick={() => onToggle(!showAll)}
-      title={showAll ? t('review.clarify.showingAllTooltip') : t('review.clarify.mineOnlyTooltip')}
-    >
-      {showAll ? t('review.clarify.showingAll') : t('review.clarify.mineOnly')}
-    </Button>
-  )
-}
-
-function ClarificationHeaderActions({
-  workspaceId,
-  status,
-  onChange,
-}: {
-  workspaceId: string
-  status: StatusFilter
-  onChange: (next: StatusFilter) => void
-}) {
-  const { t } = useTranslation()
-  const { data: pending } = usePendingClarification(workspaceId)
-  const pendingCount = pending?.items.length ?? 0
-  return (
-    <Tabs value={status} onValueChange={value => onChange(value as StatusFilter)}>
-      <TabsList className={FILTER_TABS_LIST}>
-        <TabsTrigger value="pending" className={FILTER_TAB_TRIGGER}>
-          {t('review.clarify.tabPending')}
-          {pendingCount > 0 && (
-            <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-2xs font-medium leading-none text-primary">
-              {pendingCount}
-            </span>
-          )}
-        </TabsTrigger>
-        <TabsTrigger value="answered" className={FILTER_TAB_TRIGGER}>{t('review.clarify.tabAnswered')}</TabsTrigger>
-        <TabsTrigger value="applied" className={FILTER_TAB_TRIGGER}>{t('review.clarify.tabApplied')}</TabsTrigger>
-        <TabsTrigger value="skipped" className={FILTER_TAB_TRIGGER}>{t('review.clarify.tabSkipped')}</TabsTrigger>
-      </TabsList>
-    </Tabs>
-  )
-}
-
-function ClarificationListItem({
-  ticket,
-  active,
-  onSelect,
-}: {
-  ticket: Clarification
-  active: boolean
-  onSelect: () => void
-}) {
-  const { t } = useTranslation()
-  return (
-    <ListRow active={active} onClick={onSelect} className="flex-col gap-1">
-      <div className="flex w-full items-start justify-between gap-2">
-        <span className="break-words text-xs text-foreground/90">
-          {questionExcerpt(ticket.question, 90)}
-        </span>
-        <StatusBadge status={ticket.status} />
-      </div>
-      <div className="flex w-full items-center justify-between gap-2 text-2xs text-muted-foreground">
-        <span>
-          {t('review.clarify.candidateCount', { count: ticket.candidates.length })}
-        </span>
-        {ticket.proposalId && (
-          <span className="font-mono text-muted-foreground/80" title={t('review.clarify.linkedToProposal', { id: ticket.proposalId })}>
-            →
-            {' '}
-            {ticket.proposalId}
-          </span>
-        )}
-      </div>
-    </ListRow>
-  )
-}
-
 export function ClarificationDetail({
   workspaceId,
   ticket,
@@ -378,7 +122,7 @@ export function ClarificationDetail({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const canWrite = useWorkspacePolicy(workspaceId).can('clarification.write')
+  const canWrite = useWorkspacePolicy(workspaceId).can('handoff.write')
   const isPending = ticket.status === 'pending'
   // The two answer paths are mutually exclusive.
   // Picking an existing candidate closes the custom-answer form,

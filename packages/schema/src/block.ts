@@ -225,6 +225,135 @@ export const ShowSubgraph = z.object({
 }).openapi('ShowSubgraph')
 export type ShowSubgraph = z.infer<typeof ShowSubgraph>
 
+/** How deep a part sits, closed so a renderer can style each one. */
+export const SectionLevel = z.union([z.literal(1), z.literal(2), z.literal(3)])
+export type SectionLevel = z.infer<typeof SectionLevel>
+
+/**
+ * A part of a document, and what it is about.
+ *
+ * `title` on a block names one thing, and a document is a shape,
+ * so nesting needs a level a title cannot carry.
+ * `covers` is the citation for the part rather than for the whole,
+ * which is what lets one section be told it has gone stale,
+ * while the rest of the document has not.
+ */
+export const ShowSection = z.object({
+  ...blockBase,
+  call: z.literal('showSection'),
+  heading: z.string().min(1).max(120),
+  /** 1 opens a part, 2 a chapter inside it, 3 a passage inside that. */
+  level: SectionLevel,
+  covers: z.array(NodeId).default([]),
+}).openapi('ShowSection')
+export type ShowSection = z.infer<typeof ShowSection>
+
+/** How deep a question reaches, which is not the same as how hard it is. */
+export const CheckLevel = z.enum(['recall', 'apply', 'judge'])
+export type CheckLevel = z.infer<typeof CheckLevel>
+
+export const CheckChoice = z.object({
+  id: z.string().min(1).max(40),
+  text: z.string().min(1).max(400),
+})
+export type CheckChoice = z.infer<typeof CheckChoice>
+
+/**
+ * The fields of a check, without the rule that ties two of them together.
+ *
+ * Kept apart because a refined schema cannot be narrowed with `.omit()`,
+ * and the route serving this call has to drop `call` from the body.
+ * Both the union member and the route body apply the rule themselves.
+ */
+export const ShowCheckFields = z.object({
+  ...blockBase,
+  call: z.literal('showCheck'),
+  prompt: z.string().min(1).max(1000),
+  level: CheckLevel,
+  /** Choices present means the reader picks, absent means they write. */
+  choices: z.array(CheckChoice).default([]),
+  /**
+   * Which choice is right, by its id.
+   *
+   * Without it a surface can show the explanation and nothing else,
+   * so a reader who picked wrong works out from prose whether they did.
+   * Being told plainly is most of what a question is for.
+   */
+  correct: z.string().min(1).optional(),
+  /** Why that is the answer, which a reader sees once they have committed. */
+  answer: z.string().min(1),
+  /** The nodes this question is asking about. */
+  covers: z.array(NodeId).default([]),
+})
+
+/**
+ * Whether a question that offers choices says which of them is right.
+ *
+ * A predicate rather than a zod check,
+ * so the union member and the route body can each wrap it,
+ * without the rule itself being written twice.
+ */
+export function namesItsAnswer(check: {
+  readonly choices: readonly { readonly id: string }[]
+  readonly correct?: string | undefined
+}): boolean {
+  if (check.choices.length === 0)
+    return true
+  return check.correct !== undefined && check.choices.some(choice => choice.id === check.correct)
+}
+
+export const CHOICE_NEEDS_ANSWER = 'A question with choices names which one is right, by its id'
+
+/**
+ * One question the reader answers before they are shown the answer.
+ *
+ * A reader who has just read something believes they know it,
+ * and is usually wrong,
+ * so a passage that never asks cannot tell whether it landed.
+ * Prose cannot carry this,
+ * because holding the answer back until the reader commits,
+ * is a state the surface owns rather than a sentence.
+ *
+ * `answer` travels to the reader's own machine,
+ * so this checks understanding,
+ * rather than guarding against a reader who wants to cheat themselves.
+ *
+ * Depth is not difficulty.
+ * A recall question can be brutally hard and is still recall,
+ * because what makes it hard is how obscure the fact was,
+ * rather than how much of the reader's understanding it draws on.
+ */
+export const ShowCheck = ShowCheckFields.check((context) => {
+  if (!namesItsAnswer(context.value))
+    context.issues.push({ code: 'custom', input: context.value, path: ['correct'], message: CHOICE_NEEDS_ANSWER })
+}).openapi('ShowCheck')
+export type ShowCheck = z.infer<typeof ShowCheck>
+
+/**
+ * A block shape the framework does not know, named by whoever ships it.
+ *
+ * Open the way a view kind and an agent kind are open,
+ * so a plugin with a shape of its own is not blocked on a change here.
+ * The plugin registers a schema and the server validates against it,
+ * which keeps a malformed block out of a stored document.
+ *
+ * Braid's own surface does not draw one.
+ * It renders the calls it knows and says so plainly about the rest,
+ * because a framework cannot be responsible for looks it did not design.
+ * A plugin that wants its shape drawn draws it in its own surface.
+ */
+export const BlockKind = z.string().min(1).brand<'BlockKind'>()
+export type BlockKind = z.infer<typeof BlockKind>
+
+export const ShowCustom = z.object({
+  ...blockBase,
+  call: z.literal('showCustom'),
+  kind: BlockKind,
+  payload: z.unknown(),
+  covers: z.array(NodeId).default([]),
+}).openapi('ShowCustom')
+export type ShowCustom = z.infer<typeof ShowCustom>
+
 export const RenderBlock = z.discriminatedUnion('call', [
   ShowAnswer,
   ShowEvidence,
@@ -233,12 +362,15 @@ export const RenderBlock = z.discriminatedUnion('call', [
   ShowTrace,
   ShowDiagram,
   ShowSubgraph,
+  ShowSection,
+  ShowCheck,
+  ShowCustom,
 ])
 export type RenderBlock = z.infer<typeof RenderBlock>
 
 export type RenderCall = RenderBlock['call']
 
-export const RENDER_CALLS = ['showAnswer', 'showEvidence', 'showFinding', 'showMatrix', 'showTrace', 'showDiagram', 'showSubgraph'] as const
+export const RENDER_CALLS = ['showAnswer', 'showEvidence', 'showFinding', 'showMatrix', 'showTrace', 'showDiagram', 'showSubgraph', 'showSection', 'showCheck', 'showCustom'] as const
 
 /** The call names as a schema, so a skill can declare which ones it owes. */
 export const RenderCallName = z.enum(RENDER_CALLS)

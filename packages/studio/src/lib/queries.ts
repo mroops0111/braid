@@ -29,12 +29,16 @@ export const queryKeys = {
   nodeSearch: (workspaceId: string, query: string) => ['nodeSearch', workspaceId, query] as const,
   embeddingCoverage: (workspaceId: string) => ['workspaces', workspaceId, 'embeddings'] as const,
   sessionMetadata: (workspaceId: string) => ['workspaces', workspaceId, 'runs', 'sessions'] as const,
+  sessionShares: (workspaceId: string) => ['workspaces', workspaceId, 'runs', 'shares'] as const,
   history: (workspaceId: string) => ['workspaces', workspaceId, 'history'] as const,
   historyCommit: (workspaceId: string, sha: string) => ['workspaces', workspaceId, 'history', sha] as const,
   historyModelDiff: (workspaceId: string, fromSha: string, toSha: string) =>
     ['workspaces', workspaceId, 'history', 'graph-diff', fromSha, toSha] as const,
   historyTags: (workspaceId: string) => ['workspaces', workspaceId, 'history', 'tags'] as const,
   batch: (workspaceId: string) => ['workspaces', workspaceId, 'batch'] as const,
+  viewKinds: () => ['view-kinds'] as const,
+  views: (workspaceId: string) => ['workspaces', workspaceId, 'views'] as const,
+  view: (workspaceId: string, path: string) => ['workspaces', workspaceId, 'views', path] as const,
 }
 
 export function useUsers() {
@@ -168,6 +172,15 @@ export function useSessionMetadata(workspaceId: string | undefined) {
   return useQuery({
     queryKey: workspaceId ? queryKeys.sessionMetadata(workspaceId) : ['session-metadata', 'none'],
     queryFn: () => api.listSessionMetadata(workspaceId!),
+    enabled: !!workspaceId,
+  })
+}
+
+/** Who holds a read on one of the viewer's conversations, and what they were lent. */
+export function useSessionShares(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: workspaceId ? queryKeys.sessionShares(workspaceId) : ['session-shares', 'none'],
+    queryFn: () => api.listSessionShares(workspaceId!),
     enabled: !!workspaceId,
   })
 }
@@ -306,5 +319,25 @@ export function useReactorCycle(workspaceId: string | null | undefined, cycleId:
     queryKey: ['reactor-cycles', workspaceId ?? null, cycleId],
     queryFn: () => api.getReactorCycle(workspaceId!, cycleId!),
     enabled: !!workspaceId && cycleId !== null,
+  })
+}
+
+export function useViewKinds() {
+  return useQuery({ queryKey: queryKeys.viewKinds(), queryFn: () => api.listViewKinds() })
+}
+
+export function useViews(workspaceId: string) {
+  return useQuery({
+    queryKey: queryKeys.views(workspaceId),
+    queryFn: () => api.listViews(workspaceId),
+    enabled: workspaceId !== '',
+  })
+}
+
+export function useView(workspaceId: string, path: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.view(workspaceId, path ?? ''),
+    queryFn: () => api.readView(workspaceId, path ?? ''),
+    enabled: workspaceId !== '' && path !== undefined,
   })
 }

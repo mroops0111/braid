@@ -1,4 +1,4 @@
-import type { Capability, SkillFrontmatter, WorkspaceMember, WorkspaceRole } from '@braidhq/schema'
+import type { Capability, SkillFrontmatter, UserId, WorkspaceMember, WorkspaceRole } from '@braidhq/schema'
 import { useMemo } from 'react'
 import { useMe, useWorkspaceMembers } from '@/lib/queries'
 import { defaultPermissionRegistry } from './defaultRegistry'
@@ -23,7 +23,7 @@ export interface ViewerPolicy {
   /** True while either /users/me or /members is still loading. */
   readonly loading: boolean
   /** Capability check. Pass a resource object when the capability needs one (e.g. skill.run). */
-  can: (capability: Capability, resource?: { skill?: SkillFrontmatter, skillId?: string }) => boolean
+  can: (capability: Capability, resource?: { skill?: SkillFrontmatter, skillId?: string, sessionStartedBy?: UserId }) => boolean
 }
 
 /**

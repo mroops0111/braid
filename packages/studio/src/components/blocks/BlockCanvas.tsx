@@ -1,7 +1,7 @@
 import type { EmittedBlock } from '@braidhq/schema'
 import type { BlockTurn } from '@/lib/blocks/collectBlocks'
 import type { RunActivity as Activity } from '@/lib/blocks/runActivity'
-import { MessageCircleQuestion } from 'lucide-react'
+import { CornerDownRight, MessageCircleQuestion } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
 import { cn } from '@/lib/utils'
@@ -86,8 +86,12 @@ export function BlockCanvas({ turns, running, activity }: {
   activity: Activity
 }) {
   const { t } = useTranslation()
-  const populated = turns.filter(turn => turn.blocks.length > 0)
-  const total = populated.reduce((count, turn) => count + turn.blocks.length, 0)
+  // A section keeps the place of the turn it came from,
+  // so a first turn that rendered nothing does not hand that place away.
+  const populated = turns
+    .map((turn, index) => ({ turn, followUp: index > 0 }))
+    .filter(entry => entry.turn.blocks.length > 0)
+  const total = populated.reduce((count, entry) => count + entry.turn.blocks.length, 0)
 
   if (total === 0 && !running) {
     return (
@@ -105,10 +109,16 @@ export function BlockCanvas({ turns, running, activity }: {
     <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-5">
       <div className="flex flex-col gap-7">
         {running && <RunActivity activity={activity} />}
-        {populated.map((turn, index) => (
+        {populated.map(({ turn, followUp }) => (
           <section key={turn.key} className="flex flex-col gap-4">
-            {turn.question && index > 0 && (
-              <p className="border-t border-border pt-6 text-xs text-muted-foreground">{turn.question}</p>
+            {turn.question && followUp && (
+              <div className="flex flex-col gap-1.5 border-t border-border pt-6">
+                <span className="flex items-center gap-1.5 text-2xs uppercase tracking-wider text-muted-foreground">
+                  <CornerDownRight className="size-2.5" />
+                  {t('blocks.canvas.followUp')}
+                </span>
+                <p className="text-xs text-foreground">{turn.question}</p>
+              </div>
             )}
             {turn.blocks.filter(entry => slotFor(entry.block) === 'strip').map(entry => (
               <Anchored key={entry.id} entry={entry} />

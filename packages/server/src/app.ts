@@ -46,6 +46,8 @@ import { createSourceRefUrlRouter } from './routes/sourceRefUrl.js'
 import { createSourceUnitObservationsRouter } from './routes/sourceUnitObservations.js'
 import { createGithubWebhookReceiver, createSourceWebhooksAdminRouter } from './routes/sourceWebhooks.js'
 import { createUsersRouter } from './routes/users.js'
+import { createViewKindsRouter } from './routes/viewKinds.js'
+import { createViewsRouter } from './routes/views.js'
 import { createWorkspaceEventsRouter } from './routes/workspaceEvents.js'
 import { createTransferOwnershipRouter, createWorkspaceMembersRouter } from './routes/workspaceMembers.js'
 import { createWorkspacesRouter } from './routes/workspaces.js'
@@ -208,6 +210,8 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   app.route('/source-loaders', createSourceLoadersRouter({ pluginRegistry: deps.pluginRegistry }))
   app.route('/agents', createAgentsRouter({ pluginRegistry: deps.pluginRegistry }))
   app.route('/ontologies', createOntologiesRouter({ pluginRegistry: deps.pluginRegistry }))
+  if (deps.viewService)
+    app.route('/view-kinds', createViewKindsRouter({ viewService: deps.viewService }))
 
   // Public webhook receivers, authenticated by per-source HMAC secrets,
   // inside the handler, not by a Bearer token.
@@ -308,8 +312,10 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     }))
     workspaceScoped.route('/runs', createRunsRouter({
       runRepository: deps.runRepository,
+      sessionShareRepository: deps.sessionShareRepository,
       skillRunner: deps.skillRunner,
       workspaceRepository: deps.workspaceRepository,
+      ...(deps.workspaceRegistry ? { workspaceRegistry: deps.workspaceRegistry } : {}),
     }))
     // Second mount under the same prefix,
     // because the render operations must reach the OpenAPI doc,
@@ -319,10 +325,12 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       skillRunner: deps.skillRunner,
       workspaceRepository: deps.workspaceRepository,
       modelRepository: deps.modelRepository,
+      ...(deps.viewService ? { blockKindSchema: kind => deps.viewService?.blockKindSchema(kind) } : {}),
     }))
     workspaceScoped.route('/agui', createAguiRouter({
       skillRunner: deps.skillRunner,
       runRepository: deps.runRepository,
+      sessionShareRepository: deps.sessionShareRepository,
       workspaceRepository: deps.workspaceRepository,
       clarificationRepository: deps.clarificationRepository,
     }))
@@ -330,8 +338,20 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   if (deps.historyService) {
     workspaceScoped.route('/history', createHistoryRouter({ historyService: deps.historyService }))
   }
-  if (deps.batchService) {
-    workspaceScoped.route('/batch', createBatchRouter({ batchService: deps.batchService }))
+  if (deps.batchService && deps.skillRegistry) {
+    workspaceScoped.route('/batch', createBatchRouter({
+      batchService: deps.batchService,
+      workspaceRepository: deps.workspaceRepository,
+      skillRegistry: deps.skillRegistry,
+      pluginRegistry: deps.pluginRegistry,
+    }))
+  }
+  if (deps.viewService && deps.skillRegistry) {
+    workspaceScoped.route('/views', createViewsRouter({
+      viewService: deps.viewService,
+      skillRegistry: deps.skillRegistry,
+      workspaceRepository: deps.workspaceRepository,
+    }))
   }
   workspaceScoped.route('/reactor-cycles', createReactorCyclesRouter({
     reactorCycleRepository: deps.reactorCycleRepository,

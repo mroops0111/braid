@@ -63,7 +63,7 @@ A node usually has more than one place it could cite, spread across the workspac
 
 Source role is **not** a fixed order. Lead with whichever role genuinely defines the node today: when only one role carries it, that role leads; when several align, lead with whichever is more concrete for that node's type. Apply the same principle inside one role too (e.g. a handler before its tests, a model before its migrations).
 
-The order is consumed by Studio's detail panel and `braid:generate-doc` as "the link a reader should click first." Drift detection treats every entry equally regardless of order.
+The order is consumed by Studio's detail panel and the document forms as "the link a reader should click first." Drift detection treats every entry equally regardless of order.
 
 ## NewGraphEdge Payload
 

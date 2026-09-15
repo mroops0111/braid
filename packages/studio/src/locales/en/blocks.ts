@@ -2,6 +2,19 @@ export const blocks = {
   // Section heading above a run's rendered output.
   title: 'Answer Blocks',
   findingsHeading: '{count, plural, one {# Finding} other {# Findings}}',
+  check: {
+    level: {
+      recall: 'Recall',
+      apply: 'Apply',
+      judge: 'Judgement',
+    },
+    reveal: 'Show Answer',
+    right: 'Right',
+    wrong: 'Not quite',
+  },
+  custom: {
+    notDrawn: 'This block is drawn by the application that produced it, not here. Its kind is',
+  },
   activity: {
     starting: 'Starting…',
     graphQueries: 'graph queries',
@@ -13,6 +26,7 @@ export const blocks = {
     emptyDescription: 'Ask a question below and the answer appears here, one block at a time.',
     workingTitle: 'Working',
     workingDescription: 'A block appears here as each part of the answer settles.',
+    followUp: 'Follow-up',
   },
   matrix: {
     cellHint: 'Select a cell to see the evidence behind it.',
@@ -41,6 +55,9 @@ export const blocks = {
     hitCount: '{count, plural, one {# hit} other {# hits}}',
   },
   outline: {
+    showSection: 'Section',
+    showCheck: 'Question',
+    showCustom: 'Plugin block',
     showAnswer: 'Answer',
     showEvidence: 'Evidence',
     showFinding: 'Finding',

@@ -15,7 +15,17 @@ interface ReferenceTagProps {
   className?: string
 }
 
-const BASE_TOKEN_CLASS = 'rounded-sm px-1 py-px font-mono transition-colors'
+const BASE_TOKEN_CLASS = 'rounded-sm px-1 py-px transition-colors'
+
+/**
+ * An id nobody could resolve is an address, so it is set as one.
+ * A resolved reference shows the name instead, in the surrounding type,
+ * because a reader meeting `ctx.remoteSigningTask` mid-sentence,
+ * has been handed the machinery rather than the thing.
+ * The id stays a hover away,
+ * where somebody who wants to paste it can still reach it.
+ */
+const UNRESOLVED_TOKEN_CLASS = 'font-mono'
 
 /**
  * Renders one reference as a highlighted token with a hover card.
@@ -46,7 +56,7 @@ export function ReferenceTag({ reference, className }: ReferenceTagProps) {
   if (!resolved) {
     return (
       <span
-        className={cn(BASE_TOKEN_CLASS, 'bg-muted/60 text-muted-foreground underline decoration-dotted underline-offset-2', className)}
+        className={cn(BASE_TOKEN_CLASS, UNRESOLVED_TOKEN_CLASS, 'bg-muted/60 text-muted-foreground underline decoration-dotted underline-offset-2', className)}
         title={t('references.unknownTooltip', { kind: reference.kind })}
       >
         {reference.id}
@@ -81,11 +91,11 @@ export function ReferenceTag({ reference, className }: ReferenceTagProps) {
                 onPointerLeave={() => { suppressCardRef.current = false }}
                 className={tokenClass}
               >
-                {reference.id}
+                {resolved.title}
               </button>
             )
           : (
-              <span className={tokenClass}>{reference.id}</span>
+              <span className={tokenClass}>{resolved.title}</span>
             )}
       </HoverCardTrigger>
       <HoverCardContent align="start" side="top" className="w-72 space-y-1.5 p-3">

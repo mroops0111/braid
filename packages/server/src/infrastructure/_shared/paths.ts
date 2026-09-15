@@ -119,6 +119,10 @@ export function runSessionsMetadataPath(workspaceRoot: AbsolutePath): string {
   return join(runsDir(workspaceRoot), 'sessions.jsonl')
 }
 
+export function runSessionSharesPath(workspaceRoot: AbsolutePath): string {
+  return join(runsDir(workspaceRoot), 'shares.jsonl')
+}
+
 /**
  * claude stores conversation memory keyed by cwd,
  * so resume must spawn from the same dir as the first turn.

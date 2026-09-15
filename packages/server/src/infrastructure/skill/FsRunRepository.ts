@@ -1,17 +1,18 @@
-import type { RunRepository, Workspace } from '@braidhq/core'
-import type { AbsolutePath, RunRecord, SessionMetadata, SkillEvent, SkillRunId } from '@braidhq/schema'
+import type { RunRepository, SessionShareRepository, Workspace } from '@braidhq/core'
+import type { AbsolutePath, RunRecord, SessionMetadata, SessionShare, SkillEvent, SkillRunId } from '@braidhq/schema'
 import { createReadStream } from 'node:fs'
 import { appendFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import process from 'node:process'
 import { createInterface } from 'node:readline/promises'
-import { RunRecord as RunRecordSchema, SessionMetadata as SessionMetadataSchema, SkillEvent as SkillEventSchema } from '@braidhq/schema'
-import { runEventsPath, runIndexPath, runsDir, runSessionsMetadataPath } from '../_shared/paths.js'
+import { RunRecord as RunRecordSchema, SessionMetadata as SessionMetadataSchema, SessionShare as SessionShareSchema, SkillEvent as SkillEventSchema } from '@braidhq/schema'
+import { runEventsPath, runIndexPath, runsDir, runSessionSharesPath, runSessionsMetadataPath } from '../_shared/paths.js'
 
 /**
  * File-system adapter for skill-run recording.
  *
  *   <workspaceRoot>/artifacts/runs/
  *     ├── index.jsonl                (append-only summary, last-wins per runId)
+ *     ├── sessions.jsonl             (reviewer titles, last-wins per session)
  *     └── <runId>.jsonl              (full SkillEvent stream for one run)
  *
  * The index is append-only because every write of one workspace goes,
@@ -145,6 +146,74 @@ export class FsRunRepository implements RunRepository {
   }
 }
 
+/**
+ * File-system adapter for conversation read grants.
+ *
+ *   <workspaceRoot>/artifacts/runs/shares.jsonl
+ *
+ * Append-only, last-wins per session and grantee together,
+ * so a withdrawal is a later line rather than an edit of an earlier one.
+ */
+export class FsSessionShareRepository implements SessionShareRepository {
+  async saveSessionShare(workspace: Workspace, share: SessionShare): Promise<void> {
+    const root = workspace.rootPath
+    await mkdir(runsDir(root), { recursive: true })
+    const line = `${JSON.stringify(share)}\n`
+    await appendFile(runSessionSharesPath(root), line, 'utf-8')
+  }
+
+  async listSessionShares(workspace: Workspace): Promise<readonly SessionShare[]> {
+    let raw: string
+    try {
+      raw = await readFile(runSessionSharesPath(workspace.rootPath), 'utf-8')
+    }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+        return []
+      throw error
+    }
+    // One grant per session and grantee pair,
+    // so a withdrawal appended later replaces the grant it withdraws.
+    const byGrant = new Map<string, SessionShare>()
+    for (const line of raw.split('\n')) {
+      if (line.length === 0)
+        continue
+      const parsed = safeParseSessionShare(line)
+      if (parsed)
+        byGrant.set(`${parsed.sessionId}\u0000${parsed.grantee}`, parsed)
+    }
+    return Array.from(byGrant.values())
+  }
+
+  async deleteSessionShares(workspace: Workspace, sessionId: string): Promise<void> {
+    const path = runSessionSharesPath(workspace.rootPath)
+    let raw: string
+    try {
+      raw = await readFile(path, 'utf-8')
+    }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+        return
+      throw error
+    }
+    // Every occurrence goes, not just the winning one.
+    // Last-wins replay would otherwise resurrect the grant,
+    // from a line written before the one that settled it.
+    const kept: string[] = []
+    for (const line of raw.split('\n')) {
+      if (line.length === 0)
+        continue
+      const parsed = safeParseSessionShare(line)
+      if (parsed && parsed.sessionId === sessionId)
+        continue
+      kept.push(line)
+    }
+    const tmp = `${path}.tmp-${process.pid}-${Date.now()}`
+    await writeFile(tmp, kept.length === 0 ? '' : `${kept.join('\n')}\n`, 'utf-8')
+    await rename(tmp, path)
+  }
+}
+
 function safeParseRecord(line: string): RunRecord | undefined {
   try {
     return RunRecordSchema.parse(JSON.parse(line))
@@ -166,6 +235,15 @@ function safeParseEvent(line: string): SkillEvent | undefined {
 function safeParseSessionMetadata(line: string): SessionMetadata | undefined {
   try {
     return SessionMetadataSchema.parse(JSON.parse(line))
+  }
+  catch {
+    return undefined
+  }
+}
+
+function safeParseSessionShare(line: string): SessionShare | undefined {
+  try {
+    return SessionShareSchema.parse(JSON.parse(line))
   }
   catch {
     return undefined

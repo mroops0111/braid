@@ -1,4 +1,4 @@
-import type { AgentPlugin, OntologyPlugin, SourceLoaderPlugin, StoragePlugin } from '@braidhq/core'
+import type { AgentPlugin, OntologyPlugin, SourceLoaderPlugin, StoragePlugin, ViewGeneratorPlugin } from '@braidhq/core'
 import type { AbsolutePath, AgentBindingDescriptor, AgentEffort, OntologyId, SkillCategory, StorageKind, WorkspaceId } from '@braidhq/schema'
 import type { AppDependencies } from './composeApp.js'
 import type { LoginProvider } from './infrastructure/auth/LoginProvider.js'
@@ -22,6 +22,7 @@ import { gitLoader } from '@braidhq/source-loader-git'
 import { createGithubLoader } from '@braidhq/source-loader-github'
 import { createMcpLoader } from '@braidhq/source-loader-mcp'
 import { kuzuStoragePlugin } from '@braidhq/storage-kuzu'
+import { docViewGeneratorPlugin } from '@braidhq/view-generator-doc'
 import { authenticated, localTrust } from './authMode.js'
 import { composeApp } from './composeApp.js'
 import { defaultOntologyPlugins } from './defaultOntologyPlugins.js'
@@ -49,7 +50,7 @@ import { OidcTokenVerifier } from './infrastructure/oidc/OidcTokenVerifier.js'
 import { FsReactorCycleRepository } from './infrastructure/reactor/FsReactorCycleRepository.js'
 import { EncryptedSecretStore, readSecretKey } from './infrastructure/secrets/EncryptedSecretStore.js'
 import { FsSecretStore, type SecretStore } from './infrastructure/secrets/SecretStore.js'
-import { FsRunRepository } from './infrastructure/skill/FsRunRepository.js'
+import { FsRunRepository, FsSessionShareRepository } from './infrastructure/skill/FsRunRepository.js'
 import { BUILTIN_SKILL_NAMESPACE, FsSkillRegistry } from './infrastructure/skill/FsSkillRegistry.js'
 import { RunOutputGate } from './infrastructure/skill/RunOutputGate.js'
 import { RunTokenRegistry } from './infrastructure/skill/RunTokenRegistry.js'
@@ -61,6 +62,7 @@ import { listUnitItems, unitBearingRolesOf } from './infrastructure/source/unitS
 import { ensureWorkspaceOwners } from './infrastructure/users/ensureWorkspaceOwners.js'
 import { UserDirectoryFromRegistry } from './infrastructure/users/UserDirectoryFromRegistry.js'
 import { UserRegistryFile } from './infrastructure/users/UserRegistryFile.js'
+import { FsViewRepository } from './infrastructure/view/FsViewRepository.js'
 import { FsWorkspaceRepository } from './infrastructure/workspace/FsWorkspaceRepository.js'
 import { discoverCanonicalWorkspaces } from './infrastructure/workspace/WorkspaceDiscovery.js'
 import { WorkspaceRegistryFile } from './infrastructure/workspace/WorkspaceRegistryFile.js'
@@ -120,6 +122,7 @@ export interface ExtraPluginOptions {
   readonly extraOntologyPlugins?: readonly OntologyPlugin[]
   readonly extraSourceLoaderPlugins?: readonly SourceLoaderPlugin[]
   readonly extraAgentPlugins?: readonly AgentPlugin[]
+  readonly extraViewGeneratorPlugins?: readonly ViewGeneratorPlugin[]
 }
 
 export type ComposeFsOptions = ComposeFsRuntimeOptions & ExtraPluginOptions
@@ -216,6 +219,10 @@ export function defaultPluginRegistry(context: FsRuntimeContext, options: ExtraP
 
   pluginRegistry.register(claudeCodeAgentPlugin)
   for (const plugin of options.extraAgentPlugins ?? [])
+    pluginRegistry.register(plugin)
+
+  pluginRegistry.register(docViewGeneratorPlugin)
+  for (const plugin of options.extraViewGeneratorPlugins ?? [])
     pluginRegistry.register(plugin)
 
   return pluginRegistry
@@ -481,6 +488,7 @@ export async function composeFsAppWithRegistry(
   }
 
   const runRepository = new FsRunRepository()
+  const sessionShareRepository = new FsSessionShareRepository()
 
   // Built after pluginRegistry is populated,
   // so plugin-shipped SKILL.md files mount under the `plugin` origin,
@@ -593,6 +601,7 @@ export async function composeFsAppWithRegistry(
     skillRegistry,
     skillRunner,
     runRepository,
+    sessionShareRepository,
     pluginRegistry,
     eventBus,
     workspacesRoot,
@@ -600,6 +609,7 @@ export async function composeFsAppWithRegistry(
     modelSerializer,
     bootstrap,
     batchPlanRepository: new FsBatchPlanRepository(),
+    viewRepository: new FsViewRepository(),
     embeddingRepository,
     ...(embedder ? { embedder } : {}),
     unitLister: workspace => listUnitItems(workspace, unitBearingRolesOf(pluginRegistry, workspace)),
