@@ -1,12 +1,16 @@
-import type { ViewService } from '@braidhq/core'
+import type { SkillRegistry, ViewService, WorkspaceRepository } from '@braidhq/core'
 import { GeneratedView, GenerateViewRequest, GenerateViewResponse, ListViewsResponse, ViewContent } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { extractBearerToken, getUserId } from '../middleware/auth.js'
+import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { ConflictResponse, NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
+import { loadWorkspaceById } from './helpers.js'
 
 export interface ViewsRouterDeps {
   viewService: ViewService
+  skillRegistry: SkillRegistry
+  workspaceRepository: WorkspaceRepository
 }
 
 /**
@@ -82,6 +86,20 @@ const generateRoute = createRoute({
 
 export function createViewsRouter(deps: ViewsRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
+
+  // Writing a document is the form's skill run on a projected subject,
+  // so whoever may run that skill may write one, and nobody else.
+  // Reading is left open, since a document is a reading of the graph,
+  // and anybody who may read the graph may read what was written out of it.
+  // The resource builder refuses an unknown kind or form the way `generate`
+  // does, so a bad request is still answered as a bad request.
+  router.on('POST', '/', requirePermission('skill.run', async (context) => {
+    const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
+    const body = GenerateViewRequest.parse(await context.req.json())
+    const skillId = deps.viewService.skillIdFor(body.kind, body.form)
+    const manifest = await deps.skillRegistry.get(workspace, skillId)
+    return { skill: manifest.toData().frontmatter, skillId }
+  }))
 
   router.openapi(listRoute, async (context) => {
     const items = await deps.viewService.list(getWorkspaceId(context))

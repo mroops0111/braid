@@ -22,7 +22,7 @@ import { TooltipProvider } from './components/ui/tooltip'
 import { UserPicker } from './components/UserPicker'
 import { WorkspaceDetailsSheet } from './components/WorkspaceDetailsSheet'
 import { asNodeId } from './lib/brands'
-import { useLandingSurface } from './lib/landingSurface'
+import { useLandingSurface, useSurfaceReach } from './lib/landingSurface'
 import { useBatchStatus, useReactorCycles, useWorkspaces } from './lib/queries'
 import { useAuthGate } from './lib/useAuthGate'
 import { GraphNavigationContext } from './lib/useGraphNavigation'
@@ -35,13 +35,11 @@ import { ActivityPage } from './pages/Activity'
 import { AskPage } from './pages/Ask'
 import { BatchPage } from './pages/Batch'
 import { BuildPage } from './pages/Build'
-import { ClarificationPage } from './pages/Clarification'
 import { DocumentsPage } from './pages/Documents'
 import { GraphSurface, GraphSurfaceActions, useGraphSurfaceState } from './pages/GraphSurface'
 import { HistoryPage } from './pages/History'
 import { InboxPage } from './pages/Inbox'
 import { LoginPage } from './pages/Login'
-import { ProposalsPage } from './pages/Proposals'
 import { SettingsPage } from './pages/Settings'
 
 const NO_ARRIVAL: readonly NodeId[] = Object.freeze([])
@@ -101,6 +99,7 @@ function AppInner() {
   // Waiting for the answer beats landing on Graph and jumping a moment later,
   // and the reader keeps whatever they choose from here, including Graph.
   const landing = useLandingSurface(activeId)
+  const reaches = useSurfaceReach(activeId)
   useEffect(() => {
     if (activeSurface === null && landing !== undefined)
       setActiveSurface(landing)
@@ -209,7 +208,7 @@ function AppInner() {
                                       <GraphHomeView
                                         workspaceId={activeId}
                                         state={graphSurfaceState}
-                                        onStartBootstrap={() => setActiveSurface('batch')}
+                                        {...(reaches('batch') ? { onStartBootstrap: () => setActiveSurface('batch') } : {})}
                                         onOpenSearch={() => setPaletteOpen(true)}
                                       />
                                     )}
@@ -231,16 +230,6 @@ function AppInner() {
                                     )}
                                     {activeSurface === 'documents' && (
                                       <DocumentsPage workspaceId={activeId} onSelectNode={focusNode} />
-                                    )}
-                                    {activeSurface === 'clarifications' && (
-                                      <ClarificationPage workspaceId={activeId} />
-                                    )}
-                                    {activeSurface === 'proposals' && (
-                                      <ProposalsPage
-                                        workspaceId={activeId}
-                                        focusedProposalId={focusedProposalId}
-                                        onFocusConsumed={() => setFocusedProposalId(null)}
-                                      />
                                     )}
                                     {activeSurface === 'activity' && (
                                       <ActivityPage workspaceId={activeId} />
@@ -305,7 +294,7 @@ function AppInner() {
 function GraphHomeView({ workspaceId, state, onStartBootstrap, onOpenSearch }: {
   workspaceId: string
   state: ReturnType<typeof useGraphSurfaceState>
-  onStartBootstrap: () => void
+  onStartBootstrap?: (() => void) | undefined
   onOpenSearch: () => void
 }) {
   const { t } = useTranslation()
@@ -365,7 +354,7 @@ function GraphHomeView({ workspaceId, state, onStartBootstrap, onOpenSearch }: {
           focusMode={focusMode}
           centerRequest={centerRequest}
           onOpenSearch={onOpenSearch}
-          onStartBootstrap={onStartBootstrap}
+          {...(onStartBootstrap ? { onStartBootstrap } : {})}
         />
       </div>
     </ReferencePeekOverride>
@@ -387,13 +376,9 @@ function WorkspaceHeader({ workspaceId, activeSurface, onOpenDetails }: {
         ? t('shell.surfaces.documents')
         : activeSurface === 'actions'
           ? t('shell.surfaces.actions')
-          : activeSurface === 'clarifications'
-            ? t('shell.surfaces.clarifications')
-            : activeSurface === 'proposals'
-              ? t('shell.surfaces.proposals')
-              : activeSurface === 'history'
-                ? t('shell.surfaces.history')
-                : null
+          : activeSurface === 'history'
+            ? t('shell.surfaces.history')
+            : null
 
   return (
     <header className="flex h-11 items-center justify-between gap-3 border-b border-border px-4">

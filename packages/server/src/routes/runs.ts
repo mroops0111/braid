@@ -4,7 +4,7 @@ import type {
   Workspace,
   WorkspaceRepository,
 } from '@braidhq/core'
-import type { RunRecord, SessionMetadata, SkillEvent, SkillRunId as SkillRunIdType } from '@braidhq/schema'
+import type { SessionMetadata, SkillEvent, SkillRunId as SkillRunIdType } from '@braidhq/schema'
 import type { Context } from 'hono'
 import { ConflictError, NotFoundError, ValidationError } from '@braidhq/core'
 import { SkillRunId } from '@braidhq/schema'
@@ -12,10 +12,13 @@ import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { z } from 'zod'
 import { createAsyncQueue } from '../infrastructure/skill/asyncQueue.js'
-import { getUserId } from '../middleware/auth.js'
-import { getViewerContext } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { loadWorkspaceById } from './helpers.js'
+import {
+  requireVisibleRun as requireRunVisible,
+  requireVisibleSession as requireSessionVisible,
+  visibleToCaller,
+} from './runVisibility.js'
 
 export interface RunsRouterDeps {
   readonly runRepository: RunRepository
@@ -25,45 +28,10 @@ export interface RunsRouterDeps {
 
 export function createRunsRouter(deps: RunsRouterDeps): Hono {
   const router = new Hono()
-
-  /**
-   * Which runs this caller may read or act on.
-   *
-   * An owner reviews the workspace as a whole, so every run is theirs.
-   * Everyone else sees only what they asked for.
-   */
-  function visibleToCaller(context: Context): (record: RunRecord) => boolean {
-    const viewer = getViewerContext(context)
-    // No viewer is an open composition (in-memory), which applies no filter.
-    if (!viewer || viewer.effectiveRole === 'owner')
-      return () => true
-    const userId = getUserId(context)
-    return record => record.startedBy === userId
-  }
-
-  /**
-   * Refuse a run belonging to someone else.
-   *
-   * Reported as absent rather than forbidden,
-   * so the answer never confirms that another person's run exists.
-   * An id with no record is left alone,
-   * since the endpoints below already answer for a run they cannot find.
-   */
-  async function requireVisibleRun(context: Context, workspace: Workspace, runId: SkillRunIdType): Promise<void> {
-    const records = await deps.runRepository.listRecords(workspace)
-    const record = records.find(candidate => candidate.runId === runId)
-    if (record && !visibleToCaller(context)(record))
-      throw new NotFoundError(`Run "${runId}" not found`)
-  }
-
-  /** The same rule for a session, which is visible through any run under it. */
-  async function requireVisibleSession(context: Context, workspace: Workspace, sessionId: string): Promise<void> {
-    const records = await deps.runRepository.listRecords(workspace)
-    const under = records.filter(record => record.sessionId === sessionId)
-    const canSee = visibleToCaller(context)
-    if (under.length > 0 && !under.some(canSee))
-      throw new NotFoundError(`Session "${sessionId}" not found`)
-  }
+  const requireVisibleRun = (context: Context, workspace: Workspace, runId: SkillRunIdType): Promise<void> =>
+    requireRunVisible(context, workspace, runId, deps.runRepository)
+  const requireVisibleSession = (context: Context, workspace: Workspace, sessionId: string): Promise<void> =>
+    requireSessionVisible(context, workspace, sessionId, deps.runRepository)
 
   router.get('/', async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)

@@ -10,6 +10,7 @@ import type {
   ViewArtifact,
   ViewArtifactFormat,
   ViewContent,
+  ViewFormDescriptor,
   ViewFormId,
   ViewKind,
   ViewKindDescriptor,
@@ -141,6 +142,29 @@ export class ViewService {
   }
 
   /**
+   * The skill a form runs to write its document.
+   *
+   * Exposed so a caller can ask who may run it before anything is projected,
+   * since writing a document is that skill run,
+   * and permission to write one is permission to run it.
+   * Refuses an unknown kind or form the way `generate` does,
+   * so a bad request is answered as a bad request rather than as a refusal.
+   */
+  skillIdFor(kind: ViewKind, form: ViewFormId): SkillId {
+    const generator = this.deps.pluginRegistry.requireViewGenerator(kind)
+    return skillFor(generator, this.requireForm(generator, kind, form).id)
+  }
+
+  private requireForm(generator: ViewGeneratorPlugin, kind: ViewKind, form: ViewFormId): ViewFormDescriptor {
+    const match = formOfId(generator.forms, form)
+    if (match === undefined) {
+      const named = generator.forms.map(one => one.id).join(', ')
+      throw new ValidationError(`A "${kind}" view is written in one of ${named}`)
+    }
+    return match
+  }
+
+  /**
    * Project the subject, then set a form writing it out.
    *
    * Writing takes a minute or so,
@@ -148,11 +172,7 @@ export class ViewService {
    */
   async generate(input: GenerateViewInput): Promise<GenerateViewResponse> {
     const generator = this.deps.pluginRegistry.requireViewGenerator(input.kind)
-    const form = formOfId(generator.forms, input.form)
-    if (form === undefined) {
-      const named = generator.forms.map(one => one.id).join(', ')
-      throw new ValidationError(`A "${input.kind}" view is written in one of ${named}`)
-    }
+    const form = this.requireForm(generator, input.kind, input.form)
 
     const environment = this.deps.environment ?? {}
     const unset = unsetRequirements(form, environment)

@@ -185,7 +185,7 @@ function serviceAccountRefusal(userId: string): string {
 
 export function createAdminRouter(deps: AdminRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
-  router.use('*', requireServerCapability('server.admin', deps.userRegistry))
+  router.use('*', requireServerCapability('server.manage', deps.userRegistry))
 
   router.openapi(listInvitesRoute, async (context) => {
     const items = await deps.accessPolicy.listInvites()

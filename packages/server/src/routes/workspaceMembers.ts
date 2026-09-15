@@ -33,7 +33,7 @@ export interface WorkspaceMembersRouterDeps {
 
 export function createWorkspaceMembersRouter(deps: WorkspaceMembersRouterDeps): Hono {
   const router = new Hono()
-  const ownerOnly = requirePermission('workspace.write')
+  const ownerOnly = requirePermission('workspace.manage')
 
   // List is open to every member of the workspace.
   // The access middleware upstream already enforced membership.
@@ -87,7 +87,7 @@ export function createWorkspaceMembersRouter(deps: WorkspaceMembersRouterDeps): 
 
 export function createTransferOwnershipRouter(deps: WorkspaceMembersRouterDeps): Hono {
   const router = new Hono()
-  router.post('/', requirePermission('workspace.write'), zValidator('json', TransferBody), async (context) => {
+  router.post('/', requirePermission('workspace.manage'), zValidator('json', TransferBody), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const { newOwnerId } = context.req.valid('json')
     const workspace = await deps.workspaceService.findById(workspaceId)

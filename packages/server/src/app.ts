@@ -335,11 +335,21 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   if (deps.historyService) {
     workspaceScoped.route('/history', createHistoryRouter({ historyService: deps.historyService }))
   }
-  if (deps.batchService) {
-    workspaceScoped.route('/batch', createBatchRouter({ batchService: deps.batchService }))
+  if (deps.batchService && deps.skillRegistry) {
+    workspaceScoped.route('/batch', createBatchRouter({
+      batchService: deps.batchService,
+      workspaceRepository: deps.workspaceRepository,
+      skillRegistry: deps.skillRegistry,
+      pluginRegistry: deps.pluginRegistry,
+    }))
   }
-  if (deps.viewService)
-    workspaceScoped.route('/views', createViewsRouter({ viewService: deps.viewService }))
+  if (deps.viewService && deps.skillRegistry) {
+    workspaceScoped.route('/views', createViewsRouter({
+      viewService: deps.viewService,
+      skillRegistry: deps.skillRegistry,
+      workspaceRepository: deps.workspaceRepository,
+    }))
+  }
   workspaceScoped.route('/reactor-cycles', createReactorCyclesRouter({
     reactorCycleRepository: deps.reactorCycleRepository,
   }))

@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { api } from '@/lib/api'
 import { EvidenceDetailContext, WorkspaceScopeContext } from '@/lib/blocks/WorkspaceScopeContext'
 import { useLocale } from '@/lib/i18n'
+import { useCanWriteDocuments } from '@/lib/landingSurface'
 import { queryKeys, useModelSnapshot, useOntology, useView, useViewKinds, useViews } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
 import { useRun } from '@/lib/useRun'
@@ -95,6 +96,7 @@ export function DocumentsPage({ workspaceId, onSelectNode }: {
   }
 
   const busy = runId !== null
+  const canWrite = useCanWriteDocuments(workspaceId)
 
   // Three situations read as one blank column,
   // and each has a different next move.
@@ -116,7 +118,7 @@ export function DocumentsPage({ workspaceId, onSelectNode }: {
                   variant="ghost"
                   size="xs"
                   className="[&_svg]:size-3"
-                  disabled={busy || !writable}
+                  disabled={busy || !writable || !canWrite}
                   onClick={() => setWriting(true)}
                 >
                   <Plus />
@@ -181,6 +183,7 @@ export function DocumentsPage({ workspaceId, onSelectNode }: {
                 locale={locale}
                 busy={busy}
                 onSelectNode={onSelectNode}
+                canWrite={canWrite}
                 onRegenerate={() => write(open.kind, open.form, open.subject, {})}
               />
             )}
@@ -248,7 +251,7 @@ function DocumentRow({ group, name, forms, openPath, onOpen, locale, staleLabel 
   )
 }
 
-function DocumentReader({ workspaceId, view, form, title, locale, busy, onSelectNode, onRegenerate }: {
+function DocumentReader({ workspaceId, view, form, title, locale, busy, canWrite, onSelectNode, onRegenerate }: {
   workspaceId: string
   view: GeneratedView
   form: ViewFormDescriptor | undefined
@@ -256,6 +259,7 @@ function DocumentReader({ workspaceId, view, form, title, locale, busy, onSelect
   locale: Locale
   busy: boolean
   onSelectNode: (nodeId: NodeId) => void
+  canWrite: boolean
   onRegenerate: () => void
 }) {
   const { t } = useTranslation()
@@ -266,7 +270,7 @@ function DocumentReader({ workspaceId, view, form, title, locale, busy, onSelect
       <SurfaceBand
         title={form === undefined ? view.form : localize(form.label, locale)}
         trailing={(
-          <Button size="xs" variant="ghost" className="[&_svg]:size-3" disabled={busy} onClick={onRegenerate}>
+          <Button size="xs" variant="ghost" className="[&_svg]:size-3" disabled={busy || !canWrite} onClick={onRegenerate}>
             <RefreshCw />
             {busy ? t('documents.writing') : t('documents.regenerate')}
           </Button>

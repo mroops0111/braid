@@ -66,7 +66,7 @@ describe('FsProposalRepository', () => {
     expect(pending.map(p => p.id)).toEqual(['p-1'])
   })
 
-  it('shows service-owned pending only when includeServiceOwned is set (owner view)', async () => {
+  it('narrows to the viewer\'s own plus whatever a service handed over', async () => {
     const root = await makeWorkspaceRoot()
     const workspaceId = 'ws-1' as WorkspaceId
     const repository = new FsProposalRepository({
@@ -77,11 +77,12 @@ describe('FsProposalRepository', () => {
     await repository.save(makeProposal('p-reactor', workspaceId, 'pending', 'reactor' as UserId, 'service'))
     await repository.save(makeProposal('p-bob', workspaceId, 'pending', 'bob' as UserId))
 
-    const personal = await repository.list({ workspaceId, viewerId: alice })
-    expect(personal.map(p => p.id).sort()).toEqual(['p-mine'])
+    const narrowed = await repository.list({ workspaceId, viewerId: alice })
+    expect(narrowed.map(p => p.id).sort()).toEqual(['p-mine', 'p-reactor'])
 
-    const asOwner = await repository.list({ workspaceId, viewerId: alice, includeServiceOwned: true })
-    expect(asOwner.map(p => p.id).sort()).toEqual(['p-mine', 'p-reactor'])
+    // No viewer is what `workspace.manage` grants, and it reaches Bob's too.
+    const everyone = await repository.list({ workspaceId })
+    expect(everyone.map(p => p.id).sort()).toEqual(['p-bob', 'p-mine', 'p-reactor'])
   })
 
   it('load throws NotFoundError when proposal missing', async () => {

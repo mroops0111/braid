@@ -1,5 +1,5 @@
-import type { Workspace, WorkspaceRepository } from '@braidhq/core'
-import type { WorkspaceId } from '@braidhq/schema'
+import type { PluginRegistry, Workspace, WorkspaceRepository } from '@braidhq/core'
+import type { SkillId, WorkspaceId } from '@braidhq/schema'
 import { NotFoundError } from '@braidhq/core'
 
 export function assertEntityInWorkspace(
@@ -22,4 +22,15 @@ export async function loadWorkspaceById(
   if (!match)
     throw new NotFoundError(`Workspace "${workspaceId}" not registered`)
   return match
+}
+
+/**
+ * The skill a batch runs once per document, declared by the ontology.
+ *
+ * Absent means this ontology has no per-unit step,
+ * so there is nothing for a batch to run and nothing to authorise.
+ */
+export function resolvePerUnitSkillId(pluginRegistry: PluginRegistry, workspace: Workspace): SkillId | undefined {
+  const ontology = pluginRegistry.findOntology(workspace.productManifest.ontologyId)
+  return ontology?.batch?.perUnit?.skillId
 }

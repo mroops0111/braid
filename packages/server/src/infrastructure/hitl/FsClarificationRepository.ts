@@ -4,7 +4,7 @@ import type {
   ClarificationId,
   WorkspaceId,
 } from '@braidhq/schema'
-import { Clarification, type ClarificationRepository, paginate } from '@braidhq/core'
+import { Clarification, type ClarificationRepository, handoffVisibleTo, paginate } from '@braidhq/core'
 import { Clarification as ClarificationSchema } from '@braidhq/schema'
 import { clarificationDir, CLARIFY_STATUSES } from '../_shared/paths.js'
 import { StatusedJsonStore } from './StatusedJsonStore.js'
@@ -37,14 +37,10 @@ export class FsClarificationRepository implements ClarificationRepository {
       ...(filter?.workspaceId !== undefined ? { workspaceId: filter.workspaceId } : {}),
       ...(filter?.statuses !== undefined ? { statuses: filter.statuses } : {}),
     })
-    // Pending clarifications are personal, only the owner sees them.
-    // Answered, applied, and skipped clarifications stay workspace-shared.
+    // Absent viewerId means no narrowing, which is what `workspace.manage` grants.
     if (filter?.viewerId !== undefined) {
       const viewerId = filter.viewerId
-      const includeServiceOwned = filter.includeServiceOwned ?? false
-      clarifications = clarifications.filter(clarification =>
-        clarification.status !== 'pending' || clarification.owner === viewerId || (includeServiceOwned && clarification.ownerKind === 'service'),
-      )
+      clarifications = clarifications.filter(clarification => handoffVisibleTo(clarification, viewerId))
     }
     return paginate(clarifications, filter?.limit, filter?.offset)
   }

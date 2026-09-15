@@ -7,6 +7,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RunBlocks } from '@/components/blocks/RunBlocks'
 import { EmptyState } from '@/components/EmptyState'
+import { ClarificationDetail, questionExcerpt } from '@/components/handoff/ClarificationDetail'
+import { ProposalDetail } from '@/components/handoff/ProposalDetail'
 import { ListRow, ListRowTitle } from '@/components/ListRow'
 import { RunTranscript } from '@/components/RunTranscript'
 import { SurfaceBand } from '@/components/SurfaceBand'
@@ -17,12 +19,11 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
 import { TRANSCRIPT_VIEW } from '@/lib/blocks/audience'
 import { buildItems } from '@/lib/inboxItems'
-import { useClarificationByStatus, useCoverage, useProposalsByStatus } from '@/lib/queries'
+import { useClarificationByStatus, useCoverage, useMe, useProposalsByStatus, useWorkspaceMembers } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
-import { useRun } from '@/lib/useRun'
 
-import { ClarificationDetail, questionExcerpt } from './Clarification'
-import { ProposalDetail } from './Proposals'
+import { useRun } from '@/lib/useRun'
+import { useWorkspacePolicy } from '@/policy'
 
 type KindFilter = 'all' | 'asked' | 'proposal'
 
@@ -47,10 +48,14 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
   const [kind, setKind] = useState<KindFilter>('all')
   const [listOpen, setListOpen] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [showAll, setShowAll] = useState(false)
+  const { data: me } = useMe()
+  const { data: members } = useWorkspaceMembers(workspaceId)
+  const seesEveryone = useWorkspacePolicy(workspaceId).can('workspace.manage')
 
-  const clarifications = useClarificationByStatus(workspaceId, 'pending')
+  const clarifications = useClarificationByStatus(workspaceId, 'pending', showAll)
   const answered = useClarificationByStatus(workspaceId, 'answered')
-  const proposals = useProposalsByStatus(workspaceId, 'pending')
+  const proposals = useProposalsByStatus(workspaceId, 'pending', showAll)
   const coverage = useCoverage(workspaceId)
   const isLoading = clarifications.isLoading || proposals.isLoading
 
@@ -139,7 +144,24 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
         collapse={{ collapsed: !listOpen, onToggle: next => setListOpen(!next), showLabel: t('common.showList') }}
         list={(
           <>
-            <SurfaceBand trailing={<CollapseListButton label={t('common.hideList')} onCollapse={() => setListOpen(false)} />}>
+            <SurfaceBand trailing={(
+              <div className="flex items-center gap-1">
+                {/* Nothing to disambiguate on a solo workspace, every item is yours. */}
+                {seesEveryone && (members?.items.length ?? 0) > 1 && (
+                  <Button
+                    variant={showAll ? 'default' : 'ghost'}
+                    size="sm"
+                    className="h-7 text-2xs"
+                    onClick={() => setShowAll(!showAll)}
+                    title={showAll ? t('inbox.showingAllTooltip') : t('inbox.mineOnlyTooltip')}
+                  >
+                    {showAll ? t('inbox.showingAll') : t('inbox.mineOnly')}
+                  </Button>
+                )}
+                <CollapseListButton label={t('common.hideList')} onCollapse={() => setListOpen(false)} />
+              </div>
+            )}
+            >
               <Tabs value={kind} onValueChange={value => setKind(value as KindFilter)}>
                 <TabsList variant="line">
                   <TabsTrigger value="all">{t('inbox.filter.all', { count: items.length })}</TabsTrigger>
@@ -154,6 +176,7 @@ export function InboxPage({ workspaceId, focusedProposalId, onFocusConsumed }: {
                   key={item.id}
                   item={item}
                   stageLabels={coverage.data?.stages ?? []}
+                  viewerId={me?.id}
                   active={item.id === selectedId}
                   onSelect={() => setSelectedId(item.id)}
                 />
@@ -314,16 +337,19 @@ function ItemDetail({ workspaceId, item, onComplete, onSettled }: {
   )
 }
 
-function InboxRow({ item, active, onSelect, stageLabels }: {
+function InboxRow({ item, active, onSelect, stageLabels, viewerId }: {
   item: Item
   active: boolean
   onSelect: () => void
   /** What the ontology calls each step, so no row shows a skill id. */
   stageLabels: readonly CoverageStage[]
+  /** Who is reading, so a row says whose it is only when it is not theirs. */
+  viewerId: string | undefined
 }) {
   const { t } = useTranslation()
   const { i18n } = useTranslation()
   const { label, title, source } = describe(item, stageLabels, i18n.language)
+  const raisedBy = originOf(item, viewerId, t('inbox.bySystem'))
 
   return (
     <ListRow active={active} onClick={onSelect} {...(active ? { stripeClassName: 'bg-primary' } : {})}>
@@ -338,6 +364,9 @@ function InboxRow({ item, active, onSelect, stageLabels }: {
           {source && (
             <span className="truncate font-mono text-2xs text-muted-foreground">{source}</span>
           )}
+          {raisedBy && (
+            <Badge variant="secondary" className="shrink-0 text-2xs">{raisedBy}</Badge>
+          )}
         </div>
         <ListRowTitle {...(active ? { className: 'text-foreground' } : {})}>
           {title || t('inbox.untitled')}
@@ -345,6 +374,28 @@ function InboxRow({ item, active, onSelect, stageLabels }: {
       </div>
     </ListRow>
   )
+}
+
+/**
+ * Whose handoff this is, when it is not the reader's own.
+ *
+ * Their own is left unlabelled, since a name on every row would say nothing.
+ * A service handoff belongs to the workspace rather than to anybody,
+ * so it is named for what raised it rather than for a person.
+ */
+function originOf(item: Item, viewerId: string | undefined, systemLabel: string): string | undefined {
+  const record = item.kind === 'proposal'
+    ? item.record
+    : item.kind === 'question'
+      ? item.record
+      : item.kind === 'parked' ? item.questions[0] : undefined
+  if (!record)
+    return undefined
+  if (record.ownerKind === 'service')
+    return systemLabel
+  if (!viewerId || record.owner === viewerId)
+    return undefined
+  return record.ownerDisplayName ?? record.owner
 }
 
 function nameStep(skillId: string | undefined, stages: readonly CoverageStage[], locale: string): string | undefined {
