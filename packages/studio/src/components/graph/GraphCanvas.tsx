@@ -5,7 +5,7 @@ import type { NodeCardNode } from './useGraphLayout'
 import { localize } from '@braidhq/schema'
 import { Background, BackgroundVariant, ControlButton, Controls, getNodesBounds, MarkerType, MiniMap, ReactFlow, ReactFlowProvider, useNodesInitialized, useReactFlow } from '@xyflow/react'
 import { toPng, toSvg } from 'html-to-image'
-import { Download, GitBranch, RotateCcw, Sparkles, Target } from 'lucide-react'
+import { Download, EyeOff, GitBranch, RotateCcw, Sparkles, Target } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
@@ -195,6 +195,11 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
   const filtered = useMemo(
     () => applyFilters(allNodes, allEdges, filters, orphanIds),
     [allNodes, allEdges, filters, orphanIds],
+  )
+  const hiddenTypeCount = useMemo(() => countHiddenTypes(allNodes, filters.types), [allNodes, filters.types])
+  const showEveryType = useCallback(
+    () => setFilters(f => ({ ...f, types: Array.from(new Set(allNodes.map(n => n.type))) })),
+    [allNodes],
   )
 
   const neighborhood = useMemo(
@@ -576,13 +581,21 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
       )}
 
       <div ref={canvasRef} className="relative flex-1 bg-background">
-        <div className="absolute left-3 top-3 z-10">
+        <div className="absolute left-3 top-3 z-10 flex items-center gap-1.5">
           <PanelToggle
             open={navigatorOpen}
             label={navigatorOpen ? t('graph.navigator.collapseButton') : t('graph.navigator.showButton')}
             onToggle={() => setNavigatorOpen(open => !open)}
             floating
           />
+          {hiddenTypeCount > 0 && filtered.nodes.length > 0 && (
+            <HiddenTypesNotice
+              shownCount={filtered.nodes.length}
+              totalCount={allNodes.length}
+              typeCount={hiddenTypeCount}
+              onShowAll={showEveryType}
+            />
+          )}
         </div>
         {filtered.nodes.length > 0 && (
           <div
@@ -720,6 +733,61 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
       )}
     </div>
   )
+}
+
+/**
+ * States how much of the graph is on screen, over the canvas itself.
+ *
+ * Every other filter UI can lean on the reader having applied the filter,
+ * and this one cannot. The canvas opens already narrowed,
+ * by a default nobody chose, so a workspace can hide most of itself,
+ * and read as the whole graph.
+ *
+ * Counted first, the way a result list says how many of how many it shows,
+ * since the reader's question is whether this is everything,
+ * not which types went missing. The type clause follows as the reason,
+ * and points at the navigator's list, where the filter is actually tuned.
+ * Suppressed once the filter empties the canvas,
+ * where `FilteredEmpty` already says it and offers the same way out.
+ */
+function HiddenTypesNotice({ shownCount, totalCount, typeCount, onShowAll }: {
+  shownCount: number
+  totalCount: number
+  typeCount: number
+  onShowAll: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div
+      className="flex h-6 items-center gap-1.5 rounded-md border border-border bg-card px-2 shadow-sm"
+      title={t('graph.hiddenTypes.tooltip')}
+    >
+      <EyeOff className="size-2.5 text-muted-foreground" aria-hidden />
+      <span className="text-2xs text-muted-foreground">
+        {t('graph.hiddenTypes.notice', { shownCount, totalCount, typeCount })}
+      </span>
+      <button
+        type="button"
+        onClick={onShowAll}
+        className="text-2xs font-medium text-primary transition-colors duration-150 hover:text-foreground"
+      >
+        {t('graph.hiddenTypes.showAllButton')}
+      </button>
+    </div>
+  )
+}
+
+/** How many node types present in the workspace the whitelist drops. */
+function countHiddenTypes(
+  nodes: readonly GraphNode[],
+  visibleTypes: readonly NodeTypeId[],
+): number {
+  const hidden = new Set<NodeTypeId>()
+  for (const node of nodes) {
+    if (!visibleTypes.includes(node.type))
+      hidden.add(node.type)
+  }
+  return hidden.size
 }
 
 function FilteredEmpty({ onClear }: { onClear: () => void }) {

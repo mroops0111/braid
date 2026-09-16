@@ -19,6 +19,11 @@ const graph: typeof en = {
     description: '沒有節點符合目前的篩選條件。',
     resetButton: '重設篩選條件',
   },
+  hiddenTypes: {
+    notice: '顯示 {shownCount} / {totalCount} 個節點 · 已隱藏 {typeCount, plural, other {# 種型別}}',
+    showAllButton: '全部顯示',
+    tooltip: '畫布預設只呈現高層型別，其餘是被篩選掉，不是不存在。',
+  },
   table: {
     nodesTitle: '節點 ({count})',
     edgesTitle: '邊 ({count})',

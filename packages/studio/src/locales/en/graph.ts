@@ -18,6 +18,11 @@ export const graph = {
     description: 'No nodes match the current filter.',
     resetButton: 'Reset Filters',
   },
+  hiddenTypes: {
+    notice: 'Showing {shownCount} of {totalCount} nodes · {typeCount, plural, one {# type} other {# types}} hidden',
+    showAllButton: 'Show All',
+    tooltip: 'The canvas opens on the high-level types. The rest are filtered out, not missing.',
+  },
   table: {
     nodesTitle: 'Nodes ({count})',
     edgesTitle: 'Edges ({count})',
