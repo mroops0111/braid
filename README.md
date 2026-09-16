@@ -10,6 +10,8 @@ _A harness framework that keeps AI and your team building one domain model toget
 
 ![Braid Studio: answering a clarification, running clarify, then reviewing and applying the proposal to the domain model](demo.gif)
 
+_A finished model is in the repository. [`examples/conciergent`](examples/conciergent/) is 120 nodes and 159 edges Braid derived from one real codebase with no intent documents, the clarifications it raised and the proposals a person applied alongside it._
+
 **A shared model of your business, not another code graph.** Code is what shipped. Intent is what the team meant. They drift apart every sprint, and the team ends up arguing about which one is right.
 
 Braid _braids_ them back into one domain model that engineers and PMs can both read. The default ontology is Domain-Driven Design (DDD), so people and the AI both speak the ubiquitous language of the domain instead of class names and package paths.
@@ -22,24 +24,6 @@ Braid _braids_ them back into one domain model that engineers and PMs can both r
 - **Typed Output, Shaped for a Reader**: a skill fills in a fixed set of typed calls instead of writing a page, so a surface decides the layout rather than the model does, and the readers an ontology declares decide how much of a reference each one is shown. The whole run travels over AG-UI.
 - **Any Kind of View**: the graph projects into whatever a view generator declares. A document is one kind, written from material off the graph rather than kept in sync by hand, and the next kind is a plugin rather than a fork.
 - **Continuous Reaction**: as sources change, Braid feeds the diff back as a fresh Proposal, so the one canonical graph keeps up instead of becoming a snapshot of the day it was built.
-
-## A Model Braid Built
-
-[`examples/conciergent`](examples/conciergent/) is a workspace Braid produced from one real codebase and no intent documents at all. It scanned the repository, split it into eight business units, extracted each one, and every change landed as a reviewed proposal.
-
-![A DDD model Braid derived from the conciergent codebase](examples/conciergent/graph.png)
-
-That is 120 nodes and 159 edges, 49 of them business rules. One rule reads like this.
-
-> **Scaffolding Never Overwrites**
->
-> Asking for a starter settings file where one already exists stops with a message. Nothing is replaced and nothing is merged in.
->
-> The business cares because that file is the only place somebody's own credentials, their assistant's instructions and their platform choices live, and it is edited by hand over weeks. Quietly replacing it with the shipped example would erase all of that with no way back, in answer to a command most people re-run out of habit.
-
-That paragraph appears nowhere in the conciergent source, and nobody on the team typed it. It was drawn from `src/conciergent/cli.py` lines 30 to 34 and `tests/test_cli.py` lines 30 to 33, and the node carries both references, which is what makes the claim checkable rather than merely plausible.
-
-The whole workspace is in this repository, the clarifications the agent raised and the proposals a person applied included.
 
 ## Motivation
 
