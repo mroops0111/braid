@@ -1,7 +1,7 @@
-import type { AudienceDescriptor, EvidenceDetail, Locale, RunRecord, SkillManifest } from '@braidhq/schema'
+import type { AudienceDescriptor, EvidenceDetail, Locale, OutputForm, RunRecord, SkillManifest } from '@braidhq/schema'
 import { localize } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Lock, MessageCircleQuestion, MoreHorizontal, Pencil, Plus, Send, Share2, Trash2, X } from 'lucide-react'
+import { AlignLeft, Layers, Lock, MessageCircleQuestion, MoreHorizontal, Pencil, Plus, Send, Share2, Trash2, X } from 'lucide-react'
 import { DropdownMenu as DropdownPrimitive } from 'radix-ui'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -23,6 +23,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
 import { type AnswerView, TRANSCRIPT_VIEW, useAnswerView, visibleBlocks } from '@/lib/blocks/audience'
 import { collectTurns } from '@/lib/blocks/collectBlocks'
+import { formOfConversation, useOutputForm } from '@/lib/blocks/outputForm'
 import { summariseActivity } from '@/lib/blocks/runActivity'
 import { readStats } from '@/lib/blocks/runStats'
 import { EvidenceDetailContext, WorkspaceScopeContext } from '@/lib/blocks/WorkspaceScopeContext'
@@ -417,13 +418,21 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
   const { data: ontology } = useOntology(workspaceId)
   const policy = useWorkspacePolicy(workspaceId)
   const audiences = ontology?.audiences ?? []
-  const [view, setView] = useAnswerView(audiences)
   const [question, setQuestion] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
 
   const running = conversation.phase === 'streaming' || submitting
   const records = runsData?.items ?? []
+  const [preferredForm, setPreferredForm] = useOutputForm()
+  // A conversation already under way is read in the form its author asked for,
+  // so somebody reading one lent to them sees what was made,
+  // rather than an answer emptied of the blocks their own habit hides.
+  const settledForm = formOfConversation(records, conversation.sessionId)
+  const outputForm = settledForm ?? preferredForm
+  // A prose run rendered nothing, so it has no audience to read it as.
+  const readableAs = outputForm === 'prose' ? [] : audiences
+  const [view, setView] = useAnswerView(readableAs)
   const openedBy = records.find(record => record.sessionId === conversation.sessionId)?.startedBy ?? null
   const share = useSessionShareState(workspaceId, conversation.sessionId, openedBy)
   // A conversation somebody lent you is read-only.
@@ -463,6 +472,7 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
         skillId: skill.id,
         question: asked,
         ...(conversation.sessionId ? { resumeSessionId: conversation.sessionId } : {}),
+        outputForm,
       })
     }
     catch (error) {
@@ -515,9 +525,13 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
         </div>
       </header>
 
-      <SurfaceBand className="px-4">
-        <ViewToggle value={view} onChange={setView} audiences={audiences} toolCalls={toolCalls} />
-      </SurfaceBand>
+      {/* A prose run rendered nothing, so the only view left is the one it wrote,
+          and a toggle offering a single choice is a control that does nothing. */}
+      {readableAs.length > 0 && (
+        <SurfaceBand className="px-4">
+          <ViewToggle value={view} onChange={setView} audiences={readableAs} toolCalls={toolCalls} />
+        </SurfaceBand>
+      )}
 
       {view === TRANSCRIPT_VIEW
         ? (
@@ -560,12 +574,48 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
             }
           }}
         />
+        <FormToggle
+          value={outputForm}
+          onChange={setPreferredForm}
+          settled={settledForm !== null}
+          disabled={running || isBorrowed}
+        />
         <Button size="sm" disabled={running || isBorrowed || !question.trim()} onClick={() => void send()}>
           <Send />
           {running ? t('ask.asking') : t('ask.send')}
         </Button>
       </div>
     </div>
+  )
+}
+
+/**
+ * Which form the next run produces.
+ *
+ * Beside the question rather than in a setting,
+ * because it decides what the run is charged for
+ * and cannot be changed once the answer exists.
+ */
+function FormToggle({ value, onChange, settled, disabled }: {
+  value: OutputForm
+  onChange: (next: OutputForm) => void
+  settled: boolean
+  disabled: boolean
+}) {
+  const { t } = useTranslation()
+  const next = value === 'prose' ? 'blocks' : 'prose'
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="gap-1.5 text-muted-foreground [&_svg]:size-3"
+      disabled={disabled || settled}
+      title={settled ? t('ask.form.settled') : t(value === 'prose' ? 'ask.form.proseHint' : 'ask.form.blocksHint')}
+      onClick={() => onChange(next)}
+    >
+      {value === 'prose' ? <AlignLeft /> : <Layers />}
+      {t(value === 'prose' ? 'ask.form.prose' : 'ask.form.blocks')}
+    </Button>
   )
 }
 

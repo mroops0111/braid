@@ -41,6 +41,36 @@ export const SkillCategory = z.enum(['ask', 'build', 'generate'])
 export type SkillCategory = z.infer<typeof SkillCategory>
 
 /**
+ * The form a run's output takes, decided before it starts.
+ *
+ * `blocks` is the default: the run renders typed blocks a surface draws,
+ * carrying evidence a reader can open and findings they can act on.
+ * `prose` is the answer written out and nothing else,
+ * chosen by a reader who wants the answer rather than what it rests on.
+ *
+ * The two are alternatives rather than a pair.
+ * A run that renders blocks has already said everything it has to say,
+ * and writing the same answer out again is paid for twice and read once.
+ *
+ * Recorded on the run rather than held as a reader's preference,
+ * because it decides what the run produces.
+ * A conversation lent to somebody else therefore reads
+ * the way its author made it, not the way its reader would have asked for.
+ */
+export const OutputForm = z.enum(['blocks', 'prose'])
+export type OutputForm = z.infer<typeof OutputForm>
+
+/**
+ * Whether a run of this kind may be asked for prose.
+ *
+ * A `generate` run's blocks are the document rather than a rendering of it,
+ * so a prose one would finish having produced nothing.
+ */
+export function mayRunAsProse(category: SkillCategory): boolean {
+  return category !== 'generate'
+}
+
+/**
  * Declarative form schema rendered by Studio's Actions page.
  * Skills without an inputs block fall back to the legacy argumentHint textarea.
  */
@@ -452,6 +482,13 @@ export const RunRecord = z.object({
    * because what a run's questions mean outlives the process that spawned it.
    */
   unattended: z.boolean().optional(),
+  /**
+   * The form this run was asked to produce.
+   *
+   * Absent on every run made before the question could be asked,
+   * and those rendered blocks, which is what the default reads as.
+   */
+  outputForm: OutputForm.default('blocks'),
 })
 export type RunRecord = z.infer<typeof RunRecord>
 

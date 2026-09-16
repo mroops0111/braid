@@ -1,4 +1,4 @@
-import type { AbsolutePath, AgentBindingDescriptor, SkillAgentOverride, SkillCategory, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceEvent } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, OutputForm, SkillAgentOverride, SkillCategory, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceEvent } from '@braidhq/schema'
 import { mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -36,9 +36,9 @@ interface BuildRunnerInput {
   readonly skillRegistry?: SkillRegistry
   readonly skillAgent?: SkillAgentOverride
   readonly buildAgentBinding?: (descriptor: AgentBindingDescriptor) => AgentBinding
-  readonly coreGateway?: { specUrlFor: (category: SkillCategory) => string, uvxBin?: string }
+  readonly coreGateway?: { specUrlFor: (category: SkillCategory, form: OutputForm) => string, uvxBin?: string }
   readonly resolveSourceRoles?: (workspace: Workspace) => readonly SourceRoleDescriptor[]
-  readonly category?: 'ask' | 'build'
+  readonly category?: SkillCategory
 }
 
 interface BuiltRunner {
@@ -75,7 +75,7 @@ async function makeWorkspaceRoot(): Promise<AbsolutePath> {
   return (await mkdtemp(join(tmpdir(), 'braid-runner-'))) as AbsolutePath
 }
 
-async function makeSkillRegistry(skillSourceParent: AbsolutePath, agent?: SkillAgentOverride, category?: 'ask' | 'build'): Promise<SkillRegistry> {
+async function makeSkillRegistry(skillSourceParent: AbsolutePath, agent?: SkillAgentOverride, category?: SkillCategory): Promise<SkillRegistry> {
   // Materialise a real SKILL.md so the runner's session-dir builder can symlink it.
   // Tests that don't care about the session-dir layout still get a valid manifest.
   const skillDir = join(skillSourceParent, 'ask')
@@ -283,7 +283,7 @@ describe('SubprocessSkillRunner', () => {
     const rootPath = await makeWorkspaceRoot()
     const { runner, workspace, invocations } = await buildRunner({
       rootPath,
-      coreGateway: { specUrlFor: category => `http://localhost:4321/openapi/runs/${category}/openapi.json` },
+      coreGateway: { specUrlFor: (category, form) => `http://localhost:4321/openapi/runs/${category}/${form}/openapi.json` },
       sequence: [{ stdoutLines: ['Invalid, ParameterInfo schema_type'], exitCode: 1 }],
     })
 
@@ -297,7 +297,7 @@ describe('SubprocessSkillRunner', () => {
     const rootPath = await makeWorkspaceRoot()
     const { runner, workspace, invocations } = await buildRunner({
       rootPath,
-      coreGateway: { specUrlFor: category => `http://localhost:4321/openapi/runs/${category}/openapi.json` },
+      coreGateway: { specUrlFor: (category, form) => `http://localhost:4321/openapi/runs/${category}/${form}/openapi.json` },
       sequence: [{ stdoutLines: [], exitCode: 0 }, { stdoutLines: [], exitCode: 0 }],
     })
 
@@ -311,7 +311,7 @@ describe('SubprocessSkillRunner', () => {
     let gatewayArgs: readonly string[] | undefined
     const { runner, workspace } = await buildRunner({
       rootPath,
-      coreGateway: { specUrlFor: category => `http://localhost:4321/openapi/runs/${category}/openapi.json` },
+      coreGateway: { specUrlFor: (category, form) => `http://localhost:4321/openapi/runs/${category}/${form}/openapi.json` },
       sequence: [{ stdoutLines: [], exitCode: 0 }, { stdoutLines: [], exitCode: 0 }],
       buildAgentBinding: (descriptor) => {
         const inner = new ClaudeCodeAgentBinding(descriptor)
@@ -387,6 +387,57 @@ describe('SubprocessSkillRunner', () => {
     expect(message && 'text' in message ? message.text : undefined).toBe('Found 3 nodes.')
     const toolCall = events[3]
     expect(toolCall && 'tool' in toolCall ? toolCall.tool : undefined).toBe('Read')
+  })
+
+  describe('the form a run produces', () => {
+    it('records blocks when the caller asked for nothing', async () => {
+      const rootPath = await makeWorkspaceRoot()
+      const { runner, workspace, runRepository } = await buildRunner({ rootPath })
+
+      const runId = await runner.start(workspace, SKILL_ID, 'what is X', { startedBy: STARTED_BY })
+
+      const record = (await runRepository.listRecords(workspace)).find(entry => entry.runId === runId)
+      expect(record?.outputForm).toBe('blocks')
+    })
+
+    it('points the gateway at a spec with no render operations', async () => {
+      const rootPath = await makeWorkspaceRoot()
+      const { runner, workspace, invocations } = await buildRunner({
+        rootPath,
+        coreGateway: { specUrlFor: (category, form) => `http://localhost:4321/openapi/runs/${category}/${form}/openapi.json` },
+        sequence: [{ stdoutLines: [], exitCode: 0 }, { stdoutLines: [], exitCode: 0 }],
+      })
+
+      await runner.start(workspace, SKILL_ID, 'what is X', { startedBy: STARTED_BY, outputForm: 'prose' })
+
+      const spec = invocations.flatMap(invocation => invocation.args).find(arg => arg.includes('/openapi/runs/'))
+      expect(spec).toContain('/prose/')
+    })
+
+    // The spec holds no render operation, so this is unreachable through the
+    // gateway. It is refused here for anything arriving by another route.
+    it('refuses to render on a run asked for prose', async () => {
+      const rootPath = await makeWorkspaceRoot()
+      const { runner, workspace } = await buildRunner({ rootPath })
+
+      const runId = await runner.start(workspace, SKILL_ID, 'what is X', { startedBy: STARTED_BY, outputForm: 'prose' })
+
+      await expect(runner.emitBlock(runId, {
+        call: 'showAnswer',
+        audiences: [],
+        markdown: 'the answer again',
+      })).rejects.toThrow(ConflictError)
+    })
+
+    it('still renders for a run whose kind has no prose form', async () => {
+      const rootPath = await makeWorkspaceRoot()
+      const { runner, workspace, runRepository } = await buildRunner({ rootPath, category: 'generate' })
+
+      const runId = await runner.start(workspace, SKILL_ID, 'write it up', { startedBy: STARTED_BY, outputForm: 'prose' })
+
+      const record = (await runRepository.listRecords(workspace)).find(entry => entry.runId === runId)
+      expect(record?.outputForm).toBe('blocks')
+    })
   })
 
   it('carries the original args and resumed=false on the started event for a fresh run', async () => {

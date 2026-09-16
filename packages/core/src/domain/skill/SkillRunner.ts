@@ -1,4 +1,4 @@
-import type { EmittedBlock, RenderBlock, SkillCategory, SkillEvent, SkillId, SkillRunId, UserId, WorkspaceId } from '@braidhq/schema'
+import type { EmittedBlock, OutputForm, RenderBlock, SkillCategory, SkillEvent, SkillId, SkillRunId, UserId, WorkspaceId } from '@braidhq/schema'
 import type { AgentMessage } from '../agent/AgentBinding.js'
 import type { Workspace } from '../workspace/Workspace.js'
 
@@ -56,6 +56,15 @@ export interface SkillRunOptions {
    * or a corrective turn on its own output.
    */
   readonly continues?: SkillRunId
+  /**
+   * The form this run's output should take.
+   *
+   * Absent means blocks, which is what every caller wanted
+   * before the question could be asked.
+   * A kind of run with no prose form renders regardless,
+   * since a run that can say nothing is worse than a run that says it in blocks.
+   */
+  readonly outputForm?: OutputForm
   /**
    * Corrective turns still available,
    * when this run's output misses its skill's declared contract.

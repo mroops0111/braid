@@ -160,6 +160,7 @@ export function makeRunRecord(overrides: Partial<RunRecord> = {}): RunRecord {
     startedBy: 'tester' as UserId,
     startedAt: T0,
     unattended: false,
+    outputForm: 'blocks',
     ...overrides,
   }
 }

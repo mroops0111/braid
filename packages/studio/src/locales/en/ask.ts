@@ -40,6 +40,14 @@ export const ask = {
   view: {
     transcript: 'Transcript',
   },
+  // The form a run is asked to produce, chosen before it starts.
+  form: {
+    blocks: 'Blocks',
+    prose: 'Prose',
+    blocksHint: 'The answer with its evidence, as blocks you can open.',
+    proseHint: 'The answer written out, with no evidence to open. Costs less.',
+    settled: 'A conversation keeps the form it started in.',
+  },
 }
 
 export default ask

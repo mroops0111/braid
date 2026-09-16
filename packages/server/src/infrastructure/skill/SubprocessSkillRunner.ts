@@ -10,7 +10,7 @@ import type {
   Workspace,
   WorkspaceEventBus,
 } from '@braidhq/core'
-import type { AbsolutePath, AgentBindingDescriptor, AudienceDescriptor, EmittedBlock, McpServerConfig, RenderBlock, RunRecord, SkillAgentOverride, SkillCategory, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, AudienceDescriptor, EmittedBlock, McpServerConfig, OutputForm, RenderBlock, RunRecord, SkillAgentOverride, SkillCategory, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceId } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import type { AgentCredentialBroker } from '../agent/AgentCredentialBroker.js'
 import type { RunOutputGate } from './RunOutputGate.js'
@@ -18,7 +18,7 @@ import type { RunTokenRegistry } from './RunTokenRegistry.js'
 import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { carriedEvents, ConflictError, describeViolations, newBlockId, newSkillRunId, NotFoundError, restateRunId, runScope, ServiceUnavailableError, validateOutput } from '@braidhq/core'
-import { AbsolutePath as AbsolutePathSchema, localize, McpServerId, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema, splitSkillId } from '@braidhq/schema'
+import { AbsolutePath as AbsolutePathSchema, localize, mayRunAsProse, McpServerId, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema, splitSkillId } from '@braidhq/schema'
 import { sessionDirPath } from '../_shared/paths.js'
 import { type AsyncQueue, createAsyncQueue } from './asyncQueue.js'
 import { BUILTIN_SKILL_NAMESPACE } from './FsSkillRegistry.js'
@@ -68,8 +68,9 @@ export interface SubprocessSkillRunnerDeps {
   // The gateway fetches the OpenAPI spec from `specUrl`,
   // and exposes the REST surface as MCP tools such as `braid_search_nodes`.
   //
-  // `specUrlFor` names the spec for one kind of run,
-  // so a run's tools are only the operations that kind of run may call.
+  // `specUrlFor` names the spec for one run,
+  // so a run's tools are only the operations that run may call,
+  // narrowed by its kind and by the form its output takes.
   // Narrowing the spec is what narrows the tools,
   // since an operation absent from it never reaches the model at all,
   // and costs neither a place in the tool list nor the tokens to describe.
@@ -80,7 +81,7 @@ export interface SubprocessSkillRunnerDeps {
   // A skill needing `braid-core` then surfaces as not-ready,
   // via SkillManifest.readinessIssuesFor.
   readonly coreGateway?: {
-    readonly specUrlFor: (category: SkillCategory) => string
+    readonly specUrlFor: (category: SkillCategory, form: OutputForm) => string
     readonly uvxBin?: string
   }
   /**
@@ -118,6 +119,14 @@ interface ActiveRun {
   /** What the skill is for, so a caller can ask about one kind of run. */
   readonly category: SkillCategory | undefined
   readonly child: ChildProcess
+  /**
+   * The form this run produces, settled when it started.
+   *
+   * Held beside the process rather than read back off the record,
+   * because it is consulted once per render call
+   * and the answer cannot change while the run is alive.
+   */
+  readonly outputForm: OutputForm
   /**
    * The run's own event queue.
    * A render call arrives out of band over HTTP while the subprocess writes,
@@ -171,10 +180,14 @@ export class SubprocessSkillRunner implements SkillRunner {
     // A skill that says nothing about what it does gets the reading surface.
     // Writing to the graph is a claim a skill has to make for itself.
     const toolSurface = category ?? 'ask'
+    // A run only leaves the render tools behind where its kind has a prose form,
+    // so asking for one where there is none renders as usual
+    // rather than producing a run with no way to say anything.
+    const outputForm = options.outputForm === 'prose' && mayRunAsProse(toolSurface) ? 'prose' : 'blocks'
     const gatewayArgs = [
       'openapi-mcp-gateway',
       '--spec',
-      this.deps.coreGateway?.specUrlFor(toolSurface) ?? '',
+      this.deps.coreGateway?.specUrlFor(toolSurface, outputForm) ?? '',
       '--transport',
       'stdio',
       '--name',
@@ -239,7 +252,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     const spawnFn = this.deps.spawn ?? (await defaultSpawn())
     // Fail fast when the braid-core gateway cannot turn the spec into tools,
     // rather than spawning an agent that discovers the missing tools mid-run.
-    await this.ensureGatewayReady(spawnFn, toolSurface)
+    await this.ensureGatewayReady(spawnFn, toolSurface, outputForm)
     // BRAID_SESSION_DIR resolves ambiguity in SKILL.md paths.
     // claude sees both `BRAID_WORKSPACE` and a cwd inside it,
     // and would otherwise guess which one `.claude/skills/...` is rooted in.
@@ -275,7 +288,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     const queue = createAsyncQueue<SkillEvent>()
-    this.running.set(runId, { workspace, category, child, queue })
+    this.running.set(runId, { workspace, category, child, outputForm, queue })
 
     // Persist the started record up front,
     // so listing endpoints see the run immediately, before any output.
@@ -292,6 +305,9 @@ export class SubprocessSkillRunner implements SkillRunner {
       resumed: options.resumeSessionId !== undefined,
       startedAt,
       startedBy: options.startedBy,
+      // The form settled above rather than the one asked for,
+      // so a record never claims a run held back tools it was in fact offered.
+      outputForm,
       // Recorded rather than kept in memory,
       // because what this run's questions mean outlives the process.
       ...(unattended ? { unattended: true } : {}),
@@ -365,6 +381,16 @@ export class SubprocessSkillRunner implements SkillRunner {
     const active = this.running.get(validated)
     if (!active)
       throw new NotFoundError(`SkillRun "${validated}" not active`)
+    // The spec a prose run reads holds no render operation,
+    // so this is unreachable through the gateway and is refused here
+    // for anything that arrives with the run's token by another route.
+    // Without it, "a prose run has no blocks" would be a convention,
+    // and a surface cannot fall back on a convention.
+    if (active.outputForm === 'prose') {
+      throw new ConflictError(
+        `SkillRun "${validated}" was asked for prose, so it renders no blocks. Write the answer out instead.`,
+      )
+    }
     const emitted: EmittedBlock = { id: newBlockId(), block }
     active.queue.push(SkillEventSchema.parse({ type: 'block', ...emitted }))
     return emitted
@@ -414,11 +440,11 @@ export class SubprocessSkillRunner implements SkillRunner {
    * Runs `openapi-mcp-gateway --dry-run`, memoised per spec,
    * so only the first run pays it.
    */
-  private async ensureGatewayReady(spawnFn: SpawnFn, category: SkillCategory): Promise<void> {
+  private async ensureGatewayReady(spawnFn: SpawnFn, category: SkillCategory, form: OutputForm): Promise<void> {
     const gateway = this.deps.coreGateway
     if (!gateway)
       return
-    const specUrl = gateway.specUrlFor(category)
+    const specUrl = gateway.specUrlFor(category, form)
     let pending = this.gatewayReadyBySpec.get(specUrl)
     if (!pending) {
       pending = this.probeGateway(spawnFn, gateway.uvxBin ?? 'uvx', specUrl)
@@ -582,6 +608,12 @@ export class SubprocessSkillRunner implements SkillRunner {
    * Silent on a failed or cancelled run,
    * because a gap there is a symptom of the failure,
    * rather than something the agent can fix by trying again.
+   *
+   * Silent on a prose run too.
+   * Its contract names calls whose tools it was never given,
+   * so every one of them reads as missing,
+   * and the correction would be a whole extra turn
+   * spent asking for what the run was deliberately not offered.
    */
   private async correctOutput(
     input: { workspace: Workspace, runId: SkillRunId, skillId: SkillId, retriesLeft: number, initialRecord: RunRecord },
@@ -591,6 +623,8 @@ export class SubprocessSkillRunner implements SkillRunner {
     sawError: boolean,
   ): Promise<void> {
     if (sawError || exitCode !== 0 || input.retriesLeft <= 0 || sessionId === null)
+      return
+    if (input.initialRecord.outputForm === 'prose')
       return
     const manifest = await this.deps.skillRegistry.get(input.workspace, input.skillId)
     const contract = manifest.frontmatter.braid.output

@@ -8,6 +8,8 @@ Which calls you are offered depends on the kind of work you are doing, so the li
 
 Calling none of them is valid. A skill that renders no blocks still shows its transcript, so adopting this is per skill, not all at once.
 
+A tool list holding none of them means something else: this run was asked for its answer in prose, and the render operations were left out of the spec it was given. Write the answer out, and read no further here.
+
 A skill may also declare an output contract in its frontmatter, naming the calls it owes and how many blocks each audience is due. When a run ends without meeting it, the framework resumes the same session once with the gap spelled out. Treat that correction as a request to add what is missing, not to redo the answer.
 
 ## Never Write What The Surface Will Draw

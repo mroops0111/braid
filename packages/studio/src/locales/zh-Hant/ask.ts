@@ -37,6 +37,14 @@ export const ask = {
   view: {
     transcript: '執行紀錄',
   },
+  // The form a run is asked to produce, chosen before it starts.
+  form: {
+    blocks: '區塊',
+    prose: '純文字',
+    blocksHint: '答案連同佐證，以可展開的區塊呈現。',
+    proseHint: '只寫出答案，沒有可展開的佐證，花費較少。',
+    settled: '一段對話會維持它開始時的形式。',
+  },
 }
 
 export default ask
