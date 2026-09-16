@@ -4,6 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![AG-UI](https://img.shields.io/badge/AG--UI-protocol-6E56CF.svg)](https://github.com/ag-ui-protocol/ag-ui)
 
 _A harness framework that keeps AI and your team building one domain model together, in a loop where the AI drafts and asks, and people decide._
 
@@ -15,20 +16,37 @@ Braid _braids_ them back into one domain model that engineers and PMs can both r
 
 ## Features
 
-- **Human-in-the-Loop Gate**: the AI drafts and asks, but a person decides before any change lands.
+- **Human-in-the-Loop Gate**: the AI drafts and asks, but a person decides before any change lands, and every decision commits to Git, so any point in the model's history is restorable.
 - **Evidence-Backed Claims**: every node traces back to the file or document it was drawn from.
-- **Typed Output, Not Prose**: a run renders by calling a tool with a schema, so what arrives is a sequence of typed blocks rather than a wall of text.
-- **A Standard Protocol on the Wire**: a run is read over AG-UI, and Studio consumes it with a stock client, so any other AG-UI client reaches Braid the same way.
+- **Typed Output on a Standard Wire**: a run renders by calling a tool with a schema, so what arrives is a sequence of typed blocks rather than a wall of text, and it travels over AG-UI, which Studio reads with a stock client.
 - **Docs That Never Drift**: a document is written from material projected off the model, so when the graph moves the document is marked stale instead of quietly going wrong.
 - **Continuous Reaction**: as sources change, Braid feeds the diff back as a fresh Proposal instead of going stale.
-- **Git-Versioned History**: every human-gated write commits to Git, so any point in the model's history is restorable.
+
+## A Model Braid Built
+
+[`examples/conciergent`](examples/conciergent/) is a workspace Braid produced from one real codebase and no intent documents at all. It scanned the repository, split it into eight business units, extracted each one, and every change landed as a reviewed proposal.
+
+![A DDD model Braid derived from the conciergent codebase](examples/conciergent/graph.png)
+
+That is 120 nodes and 159 edges, 49 of them business rules. One rule reads like this.
+
+> **Scaffolding Never Overwrites**
+>
+> Asking for a starter settings file where one already exists stops with a message. Nothing is replaced and nothing is merged in.
+>
+> The business cares because that file is the only place somebody's own credentials, their assistant's instructions and their platform choices live, and it is edited by hand over weeks. Quietly replacing it with the shipped example would erase all of that with no way back, in answer to a command most people re-run out of habit.
+
+That paragraph appears nowhere in the conciergent source, and nobody on the team typed it. It was drawn from `src/conciergent/cli.py` lines 30 to 34 and `tests/test_cli.py` lines 30 to 33, and the node carries both references, which is what makes the claim checkable rather than merely plausible.
+
+The whole workspace is in this repository, the clarifications the agent raised and the proposals a person applied included.
 
 ## Motivation
 
-Braid is built against two failure modes.
+Braid is built against three failure modes.
 
 - **Code-Only Graphs**: tools that pull a graph straight from source are honest about what runs, but the result is a class-and-call-site graph. It cannot tell you why a feature exists, who asked for it, or what trade-off shaped its rules. PMs cannot read it.
 - **Doc-Only Knowledge**: PRDs, design docs, Notion, and Confluence speak the domain, but nobody keeps them in sync once the code lands. Several months later, nobody trusts them.
+- **Retrieval Alone**: pointing a capable agent at the repository answers the question you asked, then throws the reasoning away. Braid's graph is not an index that makes the next retrieval faster. It is where a person's judgement is put so it outlives the conversation that produced it, which is the one thing a fresh context cannot rebuild.
 
 ## Design
 
@@ -87,7 +105,7 @@ Get a workspace running, then work the review loop in Studio.
 
 ### Quick Start
 
-Braid runs from the monorepo today. Clone it, install, and start the dev stack.
+Braid runs from the monorepo today. You need Node 20 or later, pnpm, and the `claude` CLI signed in, since a skill run is a subprocess of it and nothing runs without one.
 
 ```bash
 git clone https://github.com/mroops0111/braid
@@ -97,7 +115,7 @@ cd braid && pnpm install && pnpm dev
 
 Open Studio and create a workspace with the Wizard, then add your intent and code sources. The default ontology is DDD.
 
-`5173` is Vite's dev server, which exists only in a checkout. A deployment serves the built bundle from the API process instead, so there is one origin and one port. See Deployment below.
+`5173` is Vite's dev server and exists only in a checkout. A deployment serves the built bundle from the API process instead, on one origin and one port. `compose.yaml` is a working example, and [`@braidhq/server`](packages/server/README.md#deployment) names every variable the server reads and what each does when absent.
 
 ### The Loop
 
@@ -107,15 +125,6 @@ Once the dev server is running, work the loop in Studio at `http://localhost:517
 - **Review**: open the Inbox, which is one queue. A question the run stopped on and a change it proposed are two kinds of card in the same list, because answering the question is what carries the run on.
 - **Apply**: land the change when it is green, or reject it with a reason.
 - **Read**: ask a one-off question on Ask, or write the graph into a document on Documents and pick the form it should take.
-
-### Deployment
-
-A deployment is one container serving the API and the UI on one origin. `compose.yaml` at the root is a working example, and [`@braidhq/server`](packages/server/README.md#deployment) documents every variable the server reads.
-
-Two of them decide whether a deployment works at all.
-
-- **`BRAID_STUDIO_ROOT`**: the built Studio files this process should serve. `@braidhq/studio` ships them and its `assets` entry reports the path. Unset, the server serves no UI and answering `/` is the API's job, which is what a bare JSON `401` at the root means.
-- **`BRAID_HOME`**: the directory holding the workspaces, the registries, the source mirrors, and each workspace's git history. Unset it falls back to `~/.braid`, so a container started without it comes up healthy, reads a fresh empty directory, and reports no workspaces.
 
 ## Packages
 
@@ -175,6 +184,10 @@ Walk `intent/` and `code/`. Emit proposals that add boundedContext, aggregate, a
 ```
 
 The `braid:` block is preflighted before the agent spawns, so a missing env var or MCP server fails fast with a clear error.
+
+## Status
+
+Braid is at `0.6.0` and pre-1.0. It is used against real workspaces, and the shape of the graph, the review loop, and the human gate have held for months. The surfaces and the plugin contracts still move between minor versions, and a release that breaks one says so.
 
 ## License
 
