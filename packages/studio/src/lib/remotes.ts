@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { STORAGE_KEYS } from './storage'
 import { getToken as readToken, setToken as writeToken } from './tokenStore'
 
 /**
@@ -17,8 +18,8 @@ export interface RemoteServer {
   addedAt: string
 }
 
-const KEY_REMOTES = 'braid:remotes'
-const KEY_ACTIVE = 'braid:activeRemoteId'
+const KEY_REMOTES = STORAGE_KEYS.remotes
+const KEY_ACTIVE = STORAGE_KEYS.activeRemoteId
 const LEGACY_SERVER_URL = 'braid:serverUrl'
 const LEGACY_AUTH_TOKEN = 'braid:authToken'
 
@@ -55,8 +56,10 @@ function writeJson<T>(key: string, value: T): void {
  * from the old single-server keys `braid:serverUrl` and `braid:authToken`.
  * Without this an upgrade silently bounces the user to Login.
  *
- * Legacy keys are left in place so a downgrade still works,
- * and a later major version can sweep them up.
+ * The legacy keys are dropped once read.
+ * Leaving them was a bet on a downgrade,
+ * and the cost of that bet is a credential sitting in storage
+ * that nothing reads and nothing rotates.
  */
 let legacyMigrationDone = false
 
@@ -82,6 +85,9 @@ function maybeMigrateLegacy(): void {
       writeToken(id, legacyToken)
     localStorage.setItem(KEY_ACTIVE, id)
   }
+  // Last, so every read above has already taken what it needs.
+  localStorage.removeItem(LEGACY_AUTH_TOKEN)
+  localStorage.removeItem(LEGACY_SERVER_URL)
 }
 
 export function listRemotes(): RemoteServer[] {

@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
+import { readStored, STORAGE_KEYS, writeStored } from './storage.js'
 
 export type Theme = 'light' | 'dark'
-
-const STORAGE_KEY = 'braid-theme'
 
 function isTheme(value: unknown): value is Theme {
   return value === 'light' || value === 'dark'
@@ -17,22 +16,16 @@ function isTheme(value: unknown): value is Theme {
  * That is the trade for a simple two-state toggle without a `system` mode.
  */
 function initialTheme(): Theme {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (isTheme(stored))
-      return stored
-  }
-  catch {}
+  const stored = readStored(STORAGE_KEYS.theme)
+  if (isTheme(stored))
+    return stored
   if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches)
     return 'dark'
   return 'light'
 }
 
 function writeStoredTheme(theme: Theme): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, theme)
-  }
-  catch {}
+  writeStored(STORAGE_KEYS.theme, theme)
 }
 
 /** Toggle the `dark` class on <html> so Tailwind's `dark:` variants pick up. */

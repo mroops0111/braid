@@ -49,7 +49,7 @@ describe('initialLocale', () => {
   })
 
   it('ignores a stored value that is no longer supported', () => {
-    localStorage.setItem('braid-locale', 'zh-Hans')
+    localStorage.setItem('braid:locale', 'zh-Hans')
     setNavigatorLanguage('en-US')
     expect(initialLocale()).toBe('en')
   })
@@ -73,7 +73,7 @@ describe('initialLocale', () => {
 describe('writeStoredLocale', () => {
   it('persists the locale under the storage key', () => {
     writeStoredLocale('zh-Hant')
-    expect(localStorage.getItem('braid-locale')).toBe('zh-Hant')
+    expect(localStorage.getItem('braid:locale')).toBe('zh-Hant')
   })
 })
 
