@@ -16,11 +16,11 @@ Braid _braids_ them back into one domain model that engineers and PMs can both r
 
 ## Features
 
-- **Human-in-the-Loop Gate**: the AI drafts and asks, but a person decides before any change lands, and every decision commits to Git, so any point in the model's history is restorable.
-- **Evidence-Backed Claims**: every node traces back to the file or document it was drawn from.
-- **Typed Output on a Standard Wire**: a run renders by calling a tool with a schema, so what arrives is a sequence of typed blocks rather than a wall of text, and it travels over AG-UI, which Studio reads with a stock client.
-- **Docs That Never Drift**: a document is written from material projected off the model, so when the graph moves the document is marked stale instead of quietly going wrong.
-- **Continuous Reaction**: as sources change, Braid feeds the diff back as a fresh Proposal instead of going stale.
+- **Human-in-the-Loop Gate**: the AI drafts and asks, but a person decides before any change lands, and the decision commits to Git, so any point in the model's history is restorable.
+- **Evidence Down to the Line**: a node names the source it was drawn from and the lines it came from, and a node still missing evidence for a source the ontology asks for says which one.
+- **Named Disagreement**: a source that merely changed is read again, which is mechanical. A model that disagrees with its own evidence, or two sources that disagree with each other, is raised as a finding carrying every reference involved, because that one needs a person to say which is right.
+- **Typed Output, Shaped for a Reader**: a skill fills in a fixed set of typed calls instead of writing a page, so a surface decides the layout rather than the model does, and the readers an ontology declares decide how much of a reference each one is shown. The whole run travels over AG-UI.
+- **Documents Regenerated, Not Maintained**: a document is written from material projected off the graph rather than kept in sync by hand, and when the graph moves past it the shelf says so instead of letting it read as current.
 
 ## A Model Braid Built
 
@@ -95,7 +95,7 @@ The server is the composition root. Sources feed an event-driven engine that pro
 - **Surfaces**: Studio (web UI), Desktop, and MCP clients all talk to one server. The graph, the queues, and the workspace are REST with an SSE event stream beside them, and a run is read over AG-UI. The CLI reads no run at all, it scaffolds a workspace and boots the stack.
 - **Sources**: Intent (PRDs, RFCs, issues) and Code (repositories) are pulled in by Source Loader plugins for git, github, gdrive, and any API a single MCP tool can page through.
 - **Engine (The HITL Loop)**: the Agent runs Skills as subprocesses, and a Skill renders its output as typed blocks. Where a run reaches a point only a person can settle it emits a Handoff, either a Proposal (a proposed change to the model) or a Clarification (a question to resolve ambiguity). Both land in one queue, because what makes them one kind is who must act next.
-- **Model**: an Ontology types the graph, the Graph is the single source of truth, and a Storage plugin such as Kuzu persists it.
+- **Model**: an Ontology types the graph, the Graph is the single source of truth, and a Storage plugin such as Kuzu persists it. Where a node and its evidence part company the disagreement is recorded on the node, re-derived on every build, and either fixed at the source or acknowledged as intended.
 - **Reads**: Ask answers a one-off question over the graph as blocks, and a View Generator declares the view kinds it can write and the forms it writes them in, which the Documents surface shelves by subject rather than by filename.
 - **History**: every human-gated write commits to Git. The graph state travels alongside the code as a `model.json` snapshot, so any commit is restorable.
 
