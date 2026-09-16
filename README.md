@@ -20,7 +20,8 @@ Braid _braids_ them back into one domain model that engineers and PMs can both r
 - **Evidence Down to the Line**: a node names the source it was drawn from and the lines it came from, and a node still missing evidence for a source the ontology asks for says which one.
 - **Named Disagreement**: a source that merely changed is read again, which is mechanical. A model that disagrees with its own evidence, or two sources that disagree with each other, is raised as a finding carrying every reference involved, because that one needs a person to say which is right.
 - **Typed Output, Shaped for a Reader**: a skill fills in a fixed set of typed calls instead of writing a page, so a surface decides the layout rather than the model does, and the readers an ontology declares decide how much of a reference each one is shown. The whole run travels over AG-UI.
-- **Documents Regenerated, Not Maintained**: a document is written from material projected off the graph rather than kept in sync by hand, and when the graph moves past it the shelf says so instead of letting it read as current.
+- **Any Kind of View**: the graph projects into whatever a view generator declares. A document is one kind, written from material off the graph rather than kept in sync by hand, and the next kind is a plugin rather than a fork.
+- **Continuous Reaction**: as sources change, Braid feeds the diff back as a fresh Proposal, so the one canonical graph keeps up instead of becoming a snapshot of the day it was built.
 
 ## A Model Braid Built
 
@@ -46,7 +47,7 @@ Braid is built against three failure modes.
 
 - **Code-Only Graphs**: tools that pull a graph straight from source are honest about what runs, but the result is a class-and-call-site graph. It cannot tell you why a feature exists, who asked for it, or what trade-off shaped its rules. PMs cannot read it.
 - **Doc-Only Knowledge**: PRDs, design docs, Notion, and Confluence speak the domain, but nobody keeps them in sync once the code lands. Several months later, nobody trusts them.
-- **Retrieval Alone**: pointing a capable agent at the repository answers the question you asked, then throws the reasoning away. Braid's graph is not an index that makes the next retrieval faster. It is where a person's judgement is put so it outlives the conversation that produced it, which is the one thing a fresh context cannot rebuild.
+- **Retrieval Alone**: pointing a capable agent at the repository does answer the question, and answers it again from scratch the next time somebody asks. Whatever a reviewer worked out and accepted is not written down anywhere the next question can reach, so the same judgement gets made again, by a different reader, and possibly differently. Braid's graph is where that judgement is kept.
 
 ## Design
 
@@ -60,31 +61,23 @@ Every axis is a plugin, and the defaults are a starting point rather than a buil
 - **Framework Invariants**: the human-in-the-loop gate, the evidence requirement, and the branded type discipline are enforced by the type system and cannot be swapped out.
 - **Braid Anything**: the domain lives in the ontology, not the engine, so the same loop, gate, and provenance carry over whether you braid a codebase, a research corpus, or a product spec.
 
-### Typed Blocks
+### A Run's Output
 
-A skill does not write prose. It renders by calling a tool, and each render call is a route on Braid's own OpenAPI spec and therefore a named MCP tool with its own schema, so the agent fills in fields instead of formatting a page.
+A skill does not write a page. It renders by calling a tool, and each render call is a route on Braid's own OpenAPI spec and therefore a named MCP tool with its own schema, so the model fills in fields and never picks a presentation.
 
-- **One Definition, Three Jobs**: `RenderBlock` lives in `@braidhq/schema`, the one layer the server and Studio both see, so a single zod object is the route body, the tool schema, and the renderer's type at once.
-- **No Layout in a Block**: a block says what it is and never how it sits, which is what lets the same sequence be a scrolling answer on Ask and a page on Documents.
-- **Ten Calls**: `showAnswer`, `showEvidence`, `showFinding`, `showMatrix`, `showTrace`, `showDiagram`, `showSubgraph`, `showSection`, `showCheck`, and `showCustom`.
+- **One Definition, Three Jobs**: `RenderBlock` lives in `@braidhq/schema`, the one layer the server and Studio both see, so a single zod object is the route body, the tool schema, and the renderer's type at once. Ten calls, from `showAnswer` and `showEvidence` to `showSubgraph` and `showCheck`.
+- **The Surface Decides the Layout**: a block says what it is and never how it sits, which is what lets one sequence be a scrolling answer on Ask and a page on Documents, drawn by one set of components.
+- **Written for a Reader**: the ontology declares its audiences, and a block may name one. Most of an answer names nobody and everyone sees it. What differs is the part written for the reader who is here, and how much of a reference that reader is shown.
 - **Scoped to the Run**: an operation declares which kinds of run may see it, and the spec a run's gateway reads is narrowed before it goes out. An `ask` run does not decline to propose, it cannot see the call.
+- **Carried by AG-UI**: the run travels over [AG-UI](https://github.com/ag-ui-protocol/ag-ui) at `GET /workspaces/:workspaceId/agui`, and Studio reads it with the protocol's own `HttpAgent`. Using the stock client is the only objective test that the endpoint is the protocol rather than something shaped like it, and any other AG-UI client reaches Braid the same way.
 
-### AG-UI on the Wire
+### Reading the Graph
 
-A run is read over [AG-UI](https://github.com/ag-ui-protocol/ag-ui), at `GET /workspaces/:workspaceId/agui`. This is a claim a reader can check rather than take on trust.
+Three ways out, and none of them is an export.
 
-- **A Stock Client**: Studio consumes the endpoint with AG-UI's own `HttpAgent`, which is the only objective test that the endpoint is the protocol rather than something shaped like it.
-- **One Translation, at the Edge**: the mapping from agent events to protocol events happens only at the server's boundary and leaks no agent knowledge, so a second agent that speaks AG-UI natively moves the translation rather than the surfaces.
-- **Open to Other Clients**: any AG-UI client reaches Braid the same way Studio does.
-
-### Documents as Projections
-
-A document is not a file somebody exported. It is a stored sequence of render calls, written in two halves.
-
-- **The Projection Is a Function**: a view generator projects a subject into material JSON off the graph, so the same graph and subject give the same bytes, and nothing deterministic passes through model output.
-- **The Wording Is a Skill**: each form ships its own skill that reads that material and writes the page. `@braidhq/view-generator-doc` ships `reference` and `tutorial`, and neither is handed a template.
-- **Order Comes From the Ontology**: the projection walks `renderHint`, so a second ontology gets documents without that package changing.
-- **Staleness Falls Out**: project the subject again and compare it against the material the document was written from. An edit that changes nothing a reader would read leaves the document current.
+- **Ask**: a one-off question answered over the graph, as blocks.
+- **Views**: a view kind is a plugin axis, so a document is one kind of view rather than the only one there can be. A generator declares what it may be written about and the forms it writes, projects the subject into material off the graph, and one skill per form writes the page. Because the projection is a function, re-projecting and comparing is what tells a reader the graph has moved past a view, without anything tracking it.
+- **MCP**: a read-only MCP endpoint at `<api>/braid/mcp` over streamable-http, carrying seven operations: the workspace list, node search, one node, a node's neighbourhood, the edges, the ontology, and the whole snapshot. It exchanges each caller's own token, so somebody's MCP client reads the graph as them and the run history says who asked.
 
 ### Architecture
 
@@ -96,7 +89,7 @@ The server is the composition root. Sources feed an event-driven engine that pro
 - **Sources**: Intent (PRDs, RFCs, issues) and Code (repositories) are pulled in by Source Loader plugins for git, github, gdrive, and any API a single MCP tool can page through.
 - **Engine (The HITL Loop)**: the Agent runs Skills as subprocesses, and a Skill renders its output as typed blocks. Where a run reaches a point only a person can settle it emits a Handoff, either a Proposal (a proposed change to the model) or a Clarification (a question to resolve ambiguity). Both land in one queue, because what makes them one kind is who must act next.
 - **Model**: an Ontology types the graph, the Graph is the single source of truth, and a Storage plugin such as Kuzu persists it. Where a node and its evidence part company the disagreement is recorded on the node, re-derived on every build, and either fixed at the source or acknowledged as intended.
-- **Reads**: Ask answers a one-off question over the graph as blocks, and a View Generator declares the view kinds it can write and the forms it writes them in, which the Documents surface shelves by subject rather than by filename.
+- **Reads**: Ask answers a one-off question over the graph as blocks, a View Generator projects it into whatever kind of view it declares, and a read-only MCP endpoint serves the graph to a person's own client. See Reading the Graph above.
 - **History**: every human-gated write commits to Git. The graph state travels alongside the code as a `model.json` snapshot, so any commit is restorable.
 
 ## Usage
