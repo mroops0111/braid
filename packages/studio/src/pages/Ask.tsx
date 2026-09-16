@@ -275,69 +275,72 @@ function AnswerRow({ workspaceId, group, active, onOpen }: {
     )
   }
 
+  // Beside the row rather than inside it, since a button cannot nest in one.
+  const menu = canShare || canWrite
+    ? (
+        <DropdownPrimitive.Root open={menuOpen} onOpenChange={setMenuOpen}>
+          <DropdownPrimitive.Trigger asChild>
+            <button
+              type="button"
+              title={t('ask.answerActions')}
+              aria-label={t('ask.answerActions')}
+              className={cn(
+                'shrink-0 rounded p-0.5 text-muted-foreground/60 transition-colors duration-150',
+                'hover:bg-accent hover:text-foreground',
+                menuOpen ? 'inline-flex text-foreground' : 'hidden group-hover/row:inline-flex',
+              )}
+            >
+              <MoreHorizontal className="size-3" />
+            </button>
+          </DropdownPrimitive.Trigger>
+          <DropdownPrimitive.Portal>
+            <DropdownPrimitive.Content
+              align="end"
+              sideOffset={4}
+              onClick={event => event.stopPropagation()}
+              className="z-50 min-w-36 rounded-md border border-border bg-popover p-1 text-xs shadow-md data-[state=open]:animate-in data-[state=open]:fade-in-0"
+            >
+              {canShare && (
+                <DropdownPrimitive.Item
+                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none hover:bg-accent focus:bg-accent"
+                  onSelect={() => setShareOpen(true)}
+                >
+                  <Share2 className="size-3" />
+                  {t('ask.share')}
+                </DropdownPrimitive.Item>
+              )}
+              {canWrite && group.sessionId && (
+                <DropdownPrimitive.Item
+                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none hover:bg-accent focus:bg-accent"
+                  onSelect={() => setEditing(true)}
+                >
+                  <Pencil className="size-3" />
+                  {t('ask.rename')}
+                </DropdownPrimitive.Item>
+              )}
+              {canWrite && (
+                <>
+                  <DropdownPrimitive.Separator className="my-1 h-px bg-border" />
+                  <DropdownPrimitive.Item
+                    className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-destructive outline-none hover:bg-destructive/10 focus:bg-destructive/10"
+                    onSelect={() => setConfirmOpen(true)}
+                  >
+                    <Trash2 className="size-3" />
+                    {t('common.delete')}
+                  </DropdownPrimitive.Item>
+                </>
+              )}
+            </DropdownPrimitive.Content>
+          </DropdownPrimitive.Portal>
+        </DropdownPrimitive.Root>
+      )
+    : null
+
   return (
     <>
-      <ListRow active={active} onClick={onOpen} className="group/row flex-col items-start gap-1">
+      <ListRow active={active} onClick={onOpen} className="flex-col items-start gap-1" trailing={menu}>
         <div className="flex w-full items-start gap-2">
           <ListRowTitle><ReferenceLabel text={group.title ?? group.firstPrompt} /></ListRowTitle>
-          {(canShare || canWrite) && (
-            <DropdownPrimitive.Root open={menuOpen} onOpenChange={setMenuOpen}>
-              <DropdownPrimitive.Trigger asChild>
-                <button
-                  type="button"
-                  onClick={event => event.stopPropagation()}
-                  title={t('ask.answerActions')}
-                  aria-label={t('ask.answerActions')}
-                  className={cn(
-                    'shrink-0 rounded p-0.5 text-muted-foreground/60 transition-colors duration-150',
-                    'hover:bg-accent hover:text-foreground',
-                    menuOpen ? 'inline-flex text-foreground' : 'hidden group-hover/row:inline-flex',
-                  )}
-                >
-                  <MoreHorizontal className="size-3" />
-                </button>
-              </DropdownPrimitive.Trigger>
-              <DropdownPrimitive.Portal>
-                <DropdownPrimitive.Content
-                  align="end"
-                  sideOffset={4}
-                  onClick={event => event.stopPropagation()}
-                  className="z-50 min-w-36 rounded-md border border-border bg-popover p-1 text-xs shadow-md data-[state=open]:animate-in data-[state=open]:fade-in-0"
-                >
-                  {canShare && (
-                    <DropdownPrimitive.Item
-                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none hover:bg-accent focus:bg-accent"
-                      onSelect={() => setShareOpen(true)}
-                    >
-                      <Share2 className="size-3" />
-                      {t('ask.share')}
-                    </DropdownPrimitive.Item>
-                  )}
-                  {canWrite && group.sessionId && (
-                    <DropdownPrimitive.Item
-                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none hover:bg-accent focus:bg-accent"
-                      onSelect={() => setEditing(true)}
-                    >
-                      <Pencil className="size-3" />
-                      {t('ask.rename')}
-                    </DropdownPrimitive.Item>
-                  )}
-                  {canWrite && (
-                    <>
-                      <DropdownPrimitive.Separator className="my-1 h-px bg-border" />
-                      <DropdownPrimitive.Item
-                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-destructive outline-none hover:bg-destructive/10 focus:bg-destructive/10"
-                        onSelect={() => setConfirmOpen(true)}
-                      >
-                        <Trash2 className="size-3" />
-                        {t('common.delete')}
-                      </DropdownPrimitive.Item>
-                    </>
-                  )}
-                </DropdownPrimitive.Content>
-              </DropdownPrimitive.Portal>
-            </DropdownPrimitive.Root>
-          )}
         </div>
         <div className="flex w-full items-center gap-1.5 text-2xs text-muted-foreground">
           <span className="shrink-0">{formatTimestamp(group.lastStartedAt)}</span>
