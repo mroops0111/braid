@@ -1,5 +1,6 @@
 import type { EvidenceSupport, ShowFinding } from '@braidhq/schema'
 import { useTranslation } from 'react-i18next'
+import { ReferenceText } from '@/components/references/ReferenceText'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -34,7 +35,7 @@ export function ShowFindingBlock({ block }: { block: ShowFinding }) {
     <aside className={cn('rounded-r-md border-l-2 py-2.5 pl-3 pr-3', VERDICT_RULE[block.verdict])}>
       <div className="flex items-baseline gap-2">
         <StatusBadge status={block.verdict} className="shrink-0" />
-        <p className="flex-1 text-xs leading-relaxed text-foreground">{block.statement}</p>
+        <p className="flex-1 text-xs leading-relaxed text-foreground"><ReferenceText text={block.statement} /></p>
       </div>
 
       <ol className="mt-2 space-y-1.5">
@@ -44,7 +45,7 @@ export function ShowFindingBlock({ block }: { block: ShowFinding }) {
               {String.fromCodePoint(65 + index)}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-xs leading-relaxed text-foreground/85">{side.summary}</p>
+              <p className="text-xs leading-relaxed text-foreground/85"><ReferenceText text={side.summary} /></p>
               <EvidenceRefs refs={side.refs} className="mt-1" />
             </div>
           </li>

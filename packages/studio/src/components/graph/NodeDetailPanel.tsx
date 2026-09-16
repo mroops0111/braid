@@ -2,6 +2,7 @@ import type { GraphEdge, GraphNode, NodeId } from '@braidhq/schema'
 import { ArrowDownToDot, ArrowUpFromDot, FileText, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { DetailPanel, SectionTitle } from '@/components/DetailPanel'
+import { ReferenceText } from '@/components/references/ReferenceText'
 import { Markdown } from '@/components/SkillTranscript/Markdown'
 import { StatusBadge } from '@/components/StatusBadge'
 import { unacknowledgedDrifts } from './GraphNodeCard'
@@ -185,7 +186,7 @@ function DriftSection({ node }: { node: GraphNode }) {
               <TriangleAlert className="size-3 shrink-0 text-orange-500" />
               <StatusBadge status={drift.severity} />
             </div>
-            <p className="mt-1 text-2xs leading-relaxed text-foreground">{drift.description}</p>
+            <p className="mt-1 text-2xs leading-relaxed text-foreground"><ReferenceText text={drift.description} /></p>
             <ul className="mt-1.5 space-y-0.5">
               {drift.sourceReferences.map((reference, index) => (
                 <li key={`${reference.sourceId}-${index}`} className="flex items-baseline gap-1.5 font-mono text-2xs text-muted-foreground">

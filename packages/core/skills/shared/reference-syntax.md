@@ -19,11 +19,19 @@ This is the one exception to `content-conventions.md` § Common Rules, which oth
 - **`clarification.context`.** The engineering-notes field, the field `content-conventions.md` already designates for exact node ids.
 - **`proposal.rationale`.** When a sentence names a specific node rather than a count.
 - **`node.description`.** When the description points at a neighbouring node.
+- **Render-call prose.** The sentences a reviewer reads off a block, which is
+  `showAnswer.markdown`, `showFinding.statement` and each side's `summary`,
+  `showCheck.prompt`, `choices[].text`, and `answer`, `showDiagram.caption`,
+  and a matrix cell's `note`. A finding naming the node it disagrees about is
+  the case this exists for, since `ctx.signTask` in a sentence is an id the
+  reader has to go and look up.
 
 ## Where Not to Use It
 
 - **`clarify.question` and `candidate.description`.** Their audience rule is unchanged. Those fields speak the ontology's ubiquitous language, never graph topology. Lower the ids into `context` as before.
 - **`node.name`.** A name is a display string, not prose.
+- **`showSection.heading`.** A heading names a part of a document rather than
+  describing it, so it reads as a title for the same reason a name does.
 - **Fenced code and inline code.** Studio leaves those literal on purpose, so a reader quoting a token sees the token.
 
 ## Rules

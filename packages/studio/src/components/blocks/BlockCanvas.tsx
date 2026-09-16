@@ -4,6 +4,7 @@ import type { RunActivity as Activity } from '@/lib/blocks/runActivity'
 import { CornerDownRight, MessageCircleQuestion } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/EmptyState'
+import { ReferenceText } from '@/components/references/ReferenceText'
 import { cn } from '@/lib/utils'
 import { renderBlock } from './renderBlock'
 import { RunActivity } from './RunActivity'
@@ -117,7 +118,7 @@ export function BlockCanvas({ turns, running, activity }: {
                   <CornerDownRight className="size-2.5" />
                   {t('blocks.canvas.followUp')}
                 </span>
-                <p className="text-xs text-foreground">{turn.question}</p>
+                <p className="text-xs text-foreground"><ReferenceText text={turn.question} /></p>
               </div>
             )}
             {turn.blocks.filter(entry => slotFor(entry.block) === 'strip').map(entry => (

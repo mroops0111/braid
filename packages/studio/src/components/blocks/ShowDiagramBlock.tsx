@@ -1,4 +1,5 @@
 import type { ShowDiagram } from '@braidhq/schema'
+import { ReferenceText } from '@/components/references/ReferenceText'
 import { Mermaid } from '@/components/SkillTranscript/Mermaid'
 
 export function ShowDiagramBlock({ block }: { block: ShowDiagram }) {
@@ -11,7 +12,7 @@ export function ShowDiagramBlock({ block }: { block: ShowDiagram }) {
         <Mermaid definition={block.mermaid} />
       </div>
       {block.caption && (
-        <figcaption className="mt-1.5 text-2xs text-muted-foreground">{block.caption}</figcaption>
+        <figcaption className="mt-1.5 text-2xs text-muted-foreground"><ReferenceText text={block.caption} /></figcaption>
       )}
     </figure>
   )

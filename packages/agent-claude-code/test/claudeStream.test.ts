@@ -57,6 +57,31 @@ describe('parseClaudeLine', () => {
     expect(events[1]).toMatchObject({ type: 'tool-call', tool: 'Bash', toolCallId: 'toolu_abc' })
   })
 
+  it('maps a text_delta stream_event into a message-delta', () => {
+    expect(parse({
+      type: 'stream_event',
+      event: { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'partly' } },
+    })).toEqual([{ type: 'message-delta', text: 'partly' }])
+  })
+
+  // Reasoning is collapsed on the surface and tool args are not prose,
+  // so neither has a waiting reader to inform.
+  it('ignores every stream_event that is not typed text', () => {
+    expect(parse({
+      type: 'stream_event',
+      event: { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'weighing' } },
+    })).toEqual([])
+    expect(parse({
+      type: 'stream_event',
+      event: { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: '{"a"' } },
+    })).toEqual([])
+    expect(parse({ type: 'stream_event', event: { type: 'message_start' } })).toEqual([])
+    expect(parse({
+      type: 'stream_event',
+      event: { type: 'content_block_delta', delta: { type: 'text_delta', text: '' } },
+    })).toEqual([])
+  })
+
   it('maps result.is_error into an error event, with the run-failed fallback message', () => {
     expect(parse({ type: 'result', is_error: true, result: 'boom' })[0]).toMatchObject({ type: 'error', message: 'boom' })
     expect(parse({ type: 'result', is_error: true })[0]).toMatchObject({ type: 'error', message: 'skill run failed' })

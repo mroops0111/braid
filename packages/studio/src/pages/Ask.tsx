@@ -11,6 +11,8 @@ import { RunCost } from '@/components/blocks/RunCost'
 import { EmptyState } from '@/components/EmptyState'
 import { ListRow, ListRowTitle } from '@/components/ListRow'
 import { MentionTextarea } from '@/components/references/MentionTextarea'
+import { ReferenceLabel } from '@/components/references/ReferenceLabel'
+import { ReferenceText } from '@/components/references/ReferenceText'
 import { ShareConversationDialog } from '@/components/ShareConversationDialog'
 import { SkillTranscript } from '@/components/SkillTranscript'
 import { SurfaceBand } from '@/components/SurfaceBand'
@@ -277,7 +279,7 @@ function AnswerRow({ workspaceId, group, active, onOpen }: {
     <>
       <ListRow active={active} onClick={onOpen} className="group/row flex-col items-start gap-1">
         <div className="flex w-full items-start gap-2">
-          <ListRowTitle>{group.title ?? group.firstPrompt}</ListRowTitle>
+          <ListRowTitle><ReferenceLabel text={group.title ?? group.firstPrompt} /></ListRowTitle>
           {(canShare || canWrite) && (
             <DropdownPrimitive.Root open={menuOpen} onOpenChange={setMenuOpen}>
               <DropdownPrimitive.Trigger asChild>
@@ -497,7 +499,7 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
       <header className="flex min-h-11 shrink-0 items-start justify-between gap-4 border-b border-border px-5 py-2.5">
         <div className="min-w-0 flex-1">
           {askedQuestion
-            ? <p className="line-clamp-2 text-sm leading-relaxed text-foreground">{askedQuestion}</p>
+            ? <p className="line-clamp-2 text-sm leading-relaxed text-foreground"><ReferenceText text={askedQuestion} /></p>
             : <p className="text-sm text-muted-foreground">{t('ask.placeholderHeading')}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-2">

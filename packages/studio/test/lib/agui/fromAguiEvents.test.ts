@@ -14,15 +14,27 @@ function readAll(frames: readonly Record<string, unknown>[]) {
 }
 
 // A message spans three frames on the wire and is one thing here,
-// so nothing may be reported until the frame that closes it arrives.
+// so the whole is reported only once the frame that closes it arrives.
+// Each piece is also reported as it lands, which is what a waiting reader sees.
 describe('AguiEventReader on a text message', () => {
-  it('reports one message once its end arrives, not before', () => {
+  it('reports each piece as it lands, and the whole once its end arrives', () => {
     const reader = new AguiEventReader()
     expect(reader.read(frame({ type: EventType.TEXT_MESSAGE_START, messageId: 'm1', role: 'assistant' }))).toEqual([])
-    expect(reader.read(frame({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: 'm1', delta: 'he' }))).toEqual([])
-    expect(reader.read(frame({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: 'm1', delta: 'llo' }))).toEqual([])
+    expect(reader.read(frame({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: 'm1', delta: 'he' })))
+      .toEqual([{ type: 'message-delta', text: 'he' }])
+    expect(reader.read(frame({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: 'm1', delta: 'llo' })))
+      .toEqual([{ type: 'message-delta', text: 'llo' }])
     expect(reader.read(frame({ type: EventType.TEXT_MESSAGE_END, messageId: 'm1' })))
       .toEqual([{ type: 'message', text: 'hello' }])
+  })
+
+  // The prompt is text this client sent, not text being typed at it,
+  // so showing it forming would replay the reader's own question back at them.
+  it('reports no pieces for the reader own prompt', () => {
+    const reader = new AguiEventReader()
+    reader.read(frame({ type: EventType.TEXT_MESSAGE_START, messageId: 'm1', role: 'user' }))
+    expect(reader.read(frame({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: 'm1', delta: 'what changed' })))
+      .toEqual([])
   })
 
   // The prompt travels as the user message that opens the turn,
@@ -46,6 +58,7 @@ describe('AguiEventReader on a text message', () => {
       { type: EventType.TEXT_MESSAGE_END, messageId: 'm2' },
     ])
     expect(events).toEqual([
+      { type: 'message-delta', text: 'second' },
       { type: 'message', text: 'first', role: 'user' },
       { type: 'message', text: 'second' },
     ])
@@ -68,6 +81,7 @@ describe('AguiEventReader on a text message', () => {
     ])
     expect(events).toEqual([
       { type: 'message', text: 'asked', role: 'user' },
+      { type: 'message-delta', text: 'answered' },
       { type: 'message', text: 'answered' },
     ])
   })

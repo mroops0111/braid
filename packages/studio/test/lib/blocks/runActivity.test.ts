@@ -43,6 +43,17 @@ describe('summariseActivity', () => {
     expect(activity.narration).toBe('I have enough to answer.')
   })
 
+  // A sentence still being typed accounts for the run sooner than a finished one,
+  // which is the whole reason the delta reaches this layer.
+  it('narrates from a message still being typed', () => {
+    const activity = summariseActivity([
+      { type: 'message', text: 'Searching the graph.' },
+      { type: 'message-delta', text: 'Comparing the PRD against' },
+    ])
+
+    expect(activity.narration).toBe('Comparing the PRD against')
+  })
+
   it('counts blocks already rendered, so progress reads as output', () => {
     const activity = summariseActivity([
       { type: 'block', id: 'b1' as BlockId, block: { call: 'showAnswer', audiences: [], markdown: 'x' } },

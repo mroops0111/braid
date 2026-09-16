@@ -30,6 +30,27 @@ function turnsKey(workspaceId: string, skillId: string): string {
 }
 
 /**
+ * The events so far, with the one that just arrived.
+ *
+ * Deltas are folded into the one before them rather than piling up,
+ * because a long answer is thousands of fragments,
+ * and this list is copied on every arrival.
+ * The whole message then replaces what its own deltas were standing in for,
+ * which leaves the list exactly as it would have been without them.
+ */
+export function withEvent(events: readonly SkillEvent[], event: SkillEvent): readonly SkillEvent[] {
+  const last = events.at(-1)
+  if (event.type === 'message-delta') {
+    return last?.type === 'message-delta'
+      ? [...events.slice(0, -1), { type: 'message-delta' as const, text: last.text + event.text }]
+      : [...events, event]
+  }
+  if (event.type === 'message' && last?.type === 'message-delta')
+    return [...events.slice(0, -1), event]
+  return [...events, event]
+}
+
+/**
  * Centralised, app-level state for in-flight and completed skill runs.
  *
  * It is a module-level store rather than per-component React state,
@@ -395,7 +416,7 @@ class RunStore {
       return
     const next: RunState = {
       ...state,
-      events: [...state.events, event],
+      events: withEvent(state.events, event),
       ...(event.type === 'session-started' ? { sessionId: event.sessionId } : {}),
       ...(event.type === 'completed' ? { phase: 'done' as const } : {}),
       ...(event.type === 'error' ? { phase: 'error' as const, error: event.message } : {}),

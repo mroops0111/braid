@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
 import { useReferenceRegistry } from '@/lib/references/ReferenceRegistryContext'
 import { cn } from '@/lib/utils'
+import { ReferenceLabel } from './ReferenceLabel'
 import { useReferencePeek } from './ReferencePeek'
 
 interface ReferenceTagProps {
@@ -121,7 +122,7 @@ function ReferenceCard({ resolved, onOpen }: { resolved: ResolvedReference, onOp
       )}
       <p className="text-sm font-medium text-foreground">{resolved.title}</p>
       {resolved.description && (
-        <p className="line-clamp-4 text-xs leading-relaxed text-muted-foreground">{resolved.description}</p>
+        <p className="line-clamp-4 text-xs leading-relaxed text-muted-foreground"><ReferenceLabel text={resolved.description} /></p>
       )}
       <div className="flex items-center justify-between gap-2 border-t border-border pt-1.5">
         <span className="truncate font-mono text-2xs text-muted-foreground">{resolved.reference.id}</span>

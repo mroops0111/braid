@@ -36,6 +36,49 @@ describe('aguiTranslator', () => {
     expect(events[1]).toMatchObject({ role: 'user' })
   })
 
+  // Deltas open the message and the whole only closes it,
+  // so a client that concatenated both would be handed the text twice.
+  it('lets deltas carry the text and the whole message only close it', () => {
+    const one = translator()
+    const first = one.translate({ type: 'message-delta', text: 'he' })
+    expect(first.map(event => event.type)).toEqual([
+      EventType.TEXT_MESSAGE_START,
+      EventType.TEXT_MESSAGE_CONTENT,
+    ])
+    expect(first[1]).toMatchObject({ delta: 'he' })
+
+    const second = one.translate({ type: 'message-delta', text: 'llo' })
+    expect(second.map(event => event.type)).toEqual([EventType.TEXT_MESSAGE_CONTENT])
+    expect(second[0]).toMatchObject({ delta: 'llo' })
+
+    const whole = one.translate({ type: 'message', text: 'hello' })
+    expect(whole.map(event => event.type)).toEqual([EventType.TEXT_MESSAGE_END])
+    expect(whole[0]).toMatchObject({ messageId: (first[0] as { messageId: string }).messageId })
+  })
+
+  // A replayed run holds no deltas, so it reads exactly as it did before them.
+  it('still spells a whole message in full when no delta opened one', () => {
+    const one = translator()
+    one.translate({ type: 'message-delta', text: 'first' })
+    one.translate({ type: 'message', text: 'first' })
+    expect(one.translate({ type: 'message', text: 'second' }).map(event => event.type)).toEqual([
+      EventType.TEXT_MESSAGE_START,
+      EventType.TEXT_MESSAGE_CONTENT,
+      EventType.TEXT_MESSAGE_END,
+    ])
+  })
+
+  // A run that dies mid-sentence would otherwise leave a message open on the wire.
+  it('closes a message the deltas left open when the run ends', () => {
+    const one = translator()
+    one.translate({ type: 'message-delta', text: 'half a sen' })
+    const events = one.translate({ type: 'completed', runId: RUN_ID, exitCode: 0, at: AT })
+    expect(events.map(event => event.type)).toEqual([
+      EventType.TEXT_MESSAGE_END,
+      EventType.RUN_FINISHED,
+    ])
+  })
+
   it('spells a whole message as the three events that address one id', () => {
     const events = translator().translate({ type: 'message', text: 'hello' })
     expect(events.map(event => event.type)).toEqual([

@@ -2,6 +2,8 @@ import type { ShowCheck } from '@braidhq/schema'
 import { Check, HelpCircle, X } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ReferenceLabel } from '@/components/references/ReferenceLabel'
+import { ReferenceText } from '@/components/references/ReferenceText'
 import { Markdown } from '@/components/SkillTranscript/Markdown'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -50,7 +52,7 @@ export function ShowCheckBlock({ block }: { block: ShowCheck }) {
         )}
       </div>
 
-      <p className="text-xs leading-relaxed text-foreground">{block.prompt}</p>
+      <p className="text-xs leading-relaxed text-foreground"><ReferenceText text={block.prompt} /></p>
 
       {choosing && (
         <ul className="mt-2.5 space-y-1">
@@ -72,7 +74,7 @@ export function ShowCheckBlock({ block }: { block: ShowCheck }) {
                 >
                   {isCorrect && <Check className="mt-0.5 size-3 shrink-0 text-emerald-600 dark:text-emerald-400" />}
                   {isMistake && <X className="mt-0.5 size-3 shrink-0 text-amber-600 dark:text-amber-400" />}
-                  <span>{choice.text}</span>
+                  <span><ReferenceLabel text={choice.text} /></span>
                 </button>
               </li>
             )
