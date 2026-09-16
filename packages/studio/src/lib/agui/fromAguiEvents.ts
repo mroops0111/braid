@@ -36,8 +36,16 @@ export class AguiEventReader {
         if (raw.role === 'user')
           this.userMessages.add(String(raw.messageId))
         return []
-      case EventType.TEXT_MESSAGE_CONTENT:
-        return this.appendTo(this.openText, raw)
+      // Surfaced as it arrives as well as accumulated,
+      // so a surface can show the sentence forming.
+      // A user message is the prompt we already sent, so only the agent's shows.
+      case EventType.TEXT_MESSAGE_CONTENT: {
+        this.appendTo(this.openText, raw)
+        const delta = String(raw.delta ?? '')
+        if (delta.length === 0 || this.userMessages.has(String(raw.messageId)))
+          return []
+        return [{ type: 'message-delta', text: delta }]
+      }
       case EventType.TEXT_MESSAGE_END: {
         const messageId = String(raw.messageId)
         const text = this.openText.get(messageId)

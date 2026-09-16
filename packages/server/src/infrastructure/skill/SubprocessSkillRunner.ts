@@ -652,10 +652,23 @@ export class SubprocessSkillRunner implements SkillRunner {
 
   // Persist first, then broadcast.
   // This guarantees a just-subscribed listener receives every event strictly past its positionAtSubscribe.
+  //
+  // A delta is the exception, broadcast without being kept.
+  // Its whole arrives moments later, so keeping both would say it twice,
+  // and leave a replayed run stuttering through text it already holds.
+  // Out of the position count too, since a missed fragment is nothing missed.
   private async emit(workspace: Workspace, runId: SkillRunId, event: SkillEvent): Promise<void> {
+    if (event.type === 'message-delta') {
+      this.broadcast(runId, event)
+      return
+    }
     await this.deps.runRepository.appendEvent(workspace, runId, event)
     const next = (this.positions.get(runId) ?? 0) + 1
     this.positions.set(runId, next)
+    this.broadcast(runId, event)
+  }
+
+  private broadcast(runId: SkillRunId, event: SkillEvent): void {
     const listeners = this.subscribers.get(runId)
     if (!listeners)
       return

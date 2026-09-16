@@ -44,7 +44,9 @@ export function summariseActivity(events: readonly SkillEvent[]): RunActivity {
   let blocks = 0
 
   for (const event of events) {
-    if (event.type === 'message') {
+    // A message still being typed accounts for the run sooner than a whole one.
+    // The store folds the fragments into one, so this reads the text so far.
+    if (event.type === 'message' || event.type === 'message-delta') {
       // `[stderr]` lines are plumbing, not the agent accounting for itself.
       const text = event.text.trim()
       if (text.length > 0 && !text.startsWith('[stderr]'))

@@ -21,6 +21,13 @@ interface ListRowProps {
    */
   stripeClassName?: string
   stripeDim?: boolean
+  /**
+   * A control at the row's trailing edge, beside the click target not inside it,
+   * since a button cannot be a descendant of a button.
+   * The row reserves its width whether or not it is showing,
+   * so a title does not reflow when a pointer arrives.
+   */
+  trailing?: ReactNode
   children: ReactNode
 }
 
@@ -31,7 +38,7 @@ interface ListRowProps {
  * so the visual language stays consistent,
  * across hover transition, active bg, and bar position.
  */
-export function ListRow({ active, onClick, variant = 'content', className, title, stripeClassName, stripeDim, children }: ListRowProps) {
+export function ListRow({ active, onClick, variant = 'content', className, title, stripeClassName, stripeDim, trailing, children }: ListRowProps) {
   const tokens = variant === 'sidebar'
     ? {
         bar: 'inset-y-1',
@@ -39,17 +46,23 @@ export function ListRow({ active, onClick, variant = 'content', className, title
           'group flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors duration-150',
           'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground',
           active && 'bg-sidebar-accent text-sidebar-foreground',
+          trailing && 'pr-8',
         ),
+        trailing: 'right-2.5 top-2',
       }
     : {
         bar: 'inset-y-2',
         button: cn(
           'flex w-full border-b border-border px-4 py-3 text-left transition-colors duration-150 hover:bg-accent',
           active && 'bg-accent',
+          trailing && 'pr-10',
         ),
+        trailing: 'right-4 top-3',
       }
+  // The group is the row rather than the click target,
+  // so a trailing control outside that target still knows the pointer is here.
   return (
-    <li className="relative">
+    <li className="group/row relative">
       {stripeClassName && (
         <span
           className={cn(
@@ -67,6 +80,7 @@ export function ListRow({ active, onClick, variant = 'content', className, title
       <button type="button" onClick={onClick} title={title} className={cn(tokens.button, className)}>
         {children}
       </button>
+      {trailing && <div className={cn('absolute flex items-start', tokens.trailing)}>{trailing}</div>}
     </li>
   )
 }

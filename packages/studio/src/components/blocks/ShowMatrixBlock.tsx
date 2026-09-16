@@ -1,6 +1,7 @@
 import type { CellTone, MatrixCell, ShowMatrix } from '@braidhq/schema'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ReferenceText } from '@/components/references/ReferenceText'
 import { cn } from '@/lib/utils'
 import { EvidenceRefs } from './EvidenceRefs'
 
@@ -119,7 +120,7 @@ export function ShowMatrixBlock({ block }: { block: ShowMatrix }) {
       </div>
       {selected && (
         <div className="mt-1.5 rounded-md border border-border bg-muted/20 px-2.5 py-2">
-          {selected.note && <p className="text-2xs leading-relaxed text-foreground/80">{selected.note}</p>}
+          {selected.note && <p className="text-2xs leading-relaxed text-foreground/80"><ReferenceText text={selected.note} /></p>}
           <EvidenceRefs refs={selected.refs} className={selected.note ? 'mt-1.5' : ''} />
         </div>
       )}

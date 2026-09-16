@@ -12,6 +12,7 @@ interface RawContentPart { readonly type?: string, readonly [key: string]: unkno
  *   - `user`: echoes a `tool_result`, only its `is_error` flag surfaces.
  *   - `result`: the outcome, `is_error` picks a message or error, plus usage.
  *   - `rate_limit_event`: surfaced only when the run is actually throttled.
+ *   - `stream_event`: partial text, live only, never kept.
  *
  * Legacy flat shapes are kept for tests and older tools,
  * `text`, `tool_use`, `artifact-written`, and `error`.
@@ -44,6 +45,20 @@ export function parseClaudeLine(line: string, now: string): SkillEvent[] {
         status: info.status,
         ...(typeof info.resetsAt === 'number' ? { resetsAt: info.resetsAt } : {}),
       }))
+    }
+    return out
+  }
+
+  // Text as it is typed, from `--include-partial-messages`.
+  // Only `text_delta`, since reasoning is collapsed and tool args are not prose.
+  // The finished message still arrives on its own line, and that is the record.
+  if (raw.type === 'stream_event') {
+    const event = raw.event as { type?: unknown, delta?: { type?: unknown, text?: unknown } } | undefined
+    if (event?.type === 'content_block_delta'
+      && event.delta?.type === 'text_delta'
+      && typeof event.delta.text === 'string'
+      && event.delta.text.length > 0) {
+      out.push(SkillEventSchema.parse({ type: 'message-delta', text: event.delta.text }))
     }
     return out
   }

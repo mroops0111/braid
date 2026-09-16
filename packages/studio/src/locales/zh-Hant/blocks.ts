@@ -16,9 +16,9 @@ export const blocks = {
   },
   activity: {
     starting: '啟動中…',
-    graphQueries: '次圖譜查詢',
-    toolCalls: '次工具呼叫',
-    rendered: '個區塊',
+    graphQueries: '{count, plural, one {次圖譜查詢} other {次圖譜查詢}}',
+    toolCalls: '{count, plural, one {次工具呼叫} other {次工具呼叫}}',
+    rendered: '{count, plural, one {個區塊} other {個區塊}}',
   },
   canvas: {
     emptyTitle: '尚無答案',

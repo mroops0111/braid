@@ -100,6 +100,9 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
     case 'tool-call':
     case 'tool-result':
       return null
+    // A fragment of the message on the next line, so drawing it would double it.
+    case 'message-delta':
+      return null
     case 'artifact-written':
       return (
         <div className="text-emerald-400">

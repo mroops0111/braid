@@ -32,9 +32,9 @@ export function RunActivity({ activity }: { activity: Activity }) {
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-5">
-        <Count value={activity.graphQueries} label={t('blocks.activity.graphQueries')} />
-        <Count value={activity.toolCalls} label={t('blocks.activity.toolCalls')} />
-        <Count value={activity.blocks} label={t('blocks.activity.rendered')} />
+        <Count value={activity.graphQueries} label={t('blocks.activity.graphQueries', { count: activity.graphQueries })} />
+        <Count value={activity.toolCalls} label={t('blocks.activity.toolCalls', { count: activity.toolCalls })} />
+        <Count value={activity.blocks} label={t('blocks.activity.rendered', { count: activity.blocks })} />
       </div>
     </div>
   )

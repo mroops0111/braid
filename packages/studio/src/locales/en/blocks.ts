@@ -17,9 +17,9 @@ export const blocks = {
   },
   activity: {
     starting: 'Starting…',
-    graphQueries: 'graph queries',
-    toolCalls: 'tool calls',
-    rendered: 'blocks',
+    graphQueries: '{count, plural, one {graph query} other {graph queries}}',
+    toolCalls: '{count, plural, one {tool call} other {tool calls}}',
+    rendered: '{count, plural, one {block} other {blocks}}',
   },
   canvas: {
     emptyTitle: 'No Answer Yet',

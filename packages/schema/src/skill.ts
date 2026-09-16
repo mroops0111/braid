@@ -291,6 +291,19 @@ export const SkillEventMessage = z.object({
   role: z.enum(['user', 'agent']).optional(),
 })
 
+/**
+ * A piece of a message still being written.
+ *
+ * Live only, never appended to a run's log.
+ * The whole message follows and is what the log keeps,
+ * so a replayed run reads exactly as it did before deltas existed.
+ */
+export const SkillEventMessageDelta = z.object({
+  type: z.literal('message-delta'),
+  // The increment, not the text so far, so a consumer accumulates or ignores.
+  text: z.string(),
+})
+
 export const SkillEventToolCall = z.object({
   type: z.literal('tool-call'),
   tool: z.string().min(1),
@@ -380,6 +393,7 @@ export const SkillEvent = z.discriminatedUnion('type', [
   SkillEventStarted,
   SkillEventSessionStarted,
   SkillEventMessage,
+  SkillEventMessageDelta,
   SkillEventToolCall,
   SkillEventToolResult,
   SkillEventArtifactWritten,

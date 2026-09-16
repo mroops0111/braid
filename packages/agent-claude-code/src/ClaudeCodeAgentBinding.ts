@@ -26,6 +26,9 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
       promptArg,
       '--output-format',
       'stream-json',
+      // Text as it is typed, all a reader has while the blocks are still coming.
+      // The whole message follows, and that is what is kept.
+      '--include-partial-messages',
       '--verbose',
       '--dangerously-skip-permissions',
       '--model',

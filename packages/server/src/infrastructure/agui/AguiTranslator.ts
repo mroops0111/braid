@@ -31,6 +31,9 @@ export class AguiTranslator {
 
   private opened = false
 
+  /** The message deltas are currently filling, so its whole only has to close it. */
+  private openDeltaMessageId: string | null = null
+
   constructor(
     private readonly threadId: string,
     private readonly runId: string,
@@ -61,10 +64,26 @@ export class AguiTranslator {
         return [{ type: EventType.RUN_STARTED, threadId: this.threadId, runId: this.runId }, ...prompt]
       }
 
+      // Text as it is typed, which is what the protocol's own delta is for.
+      // The first opens the message and the rest fill it.
+      case 'message-delta': {
+        const opening: BaseEvent[] = []
+        if (this.openDeltaMessageId === null) {
+          this.openDeltaMessageId = this.nextMessageId()
+          opening.push({ type: EventType.TEXT_MESSAGE_START, messageId: this.openDeltaMessageId, role: 'assistant' } as BaseEvent)
+        }
+        return [...opening, { type: EventType.TEXT_MESSAGE_CONTENT, messageId: this.openDeltaMessageId, delta: event.text }]
+      }
+
       // A message arrives whole, so the triplet is emitted at once.
       // A consumer sees a complete message either way,
       // and the shape stays the one every AG-UI client already handles.
+      //
+      // Unless deltas already carried it, where only the close is still owed.
+      // A replayed run holds none, so it takes the triplet as before.
       case 'message': {
+        if (this.openDeltaMessageId !== null && event.role !== 'user')
+          return [this.closeOpenDelta()]
         const messageId = this.nextMessageId()
         return [
           { type: EventType.TEXT_MESSAGE_START, messageId, role: event.role === 'user' ? 'user' : 'assistant' },
@@ -128,16 +147,28 @@ export class AguiTranslator {
       case 'error':
         return [{ type: EventType.CUSTOM, name: CUSTOM_NAMES.error, value: { message: event.message } }]
 
-      case 'completed':
-        return event.exitCode === 0
-          ? [{ type: EventType.RUN_FINISHED, threadId: this.threadId, runId: this.runId }]
-          : [{ type: EventType.RUN_ERROR, message: `Run exited with code ${event.exitCode}`, code: String(event.exitCode) }]
+      // A run that died mid-sentence leaves a message open, so close it here.
+      case 'completed': {
+        const closing = this.openDeltaMessageId !== null ? [this.closeOpenDelta()] : []
+        return [
+          ...closing,
+          event.exitCode === 0
+            ? { type: EventType.RUN_FINISHED, threadId: this.threadId, runId: this.runId }
+            : { type: EventType.RUN_ERROR, message: `Run exited with code ${event.exitCode}`, code: String(event.exitCode) },
+        ]
+      }
 
       default: {
         const exhaustive: never = event
         throw new Error(`Unhandled: ${JSON.stringify(exhaustive)}`)
       }
     }
+  }
+
+  private closeOpenDelta(): BaseEvent {
+    const messageId = this.openDeltaMessageId
+    this.openDeltaMessageId = null
+    return { type: EventType.TEXT_MESSAGE_END, messageId } as BaseEvent
   }
 
   private nextMessageId(): string {
