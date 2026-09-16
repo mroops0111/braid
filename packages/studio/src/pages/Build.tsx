@@ -327,7 +327,7 @@ function StageCell({ stage, workspaceId, canRun, busy, onOpenInbox, standing }: 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-1 border-r border-border px-4 py-2.5 last:border-r-0">
       <div className="flex items-baseline gap-2">
-        <Badge variant="outline" className={cn('text-2xs', stage.global && 'border-primary/40 text-primary')}>
+        <Badge variant="outline" className={cn('text-2xs uppercase tracking-wider', stage.global ? 'border-primary/40 text-primary' : 'text-muted-foreground')}>
           {t(stage.global ? 'build.stage.graphWide' : 'build.stage.perDocument')}
         </Badge>
         <span className="truncate text-xs font-medium text-foreground">{stageLabel(stage, i18n.language)}</span>
@@ -548,13 +548,13 @@ function Row({ workspaceId, card, active, onClick }: {
   onClick: () => void
 }) {
   const { t } = useTranslation()
-  const { formatRelativeTime } = useLocaleFormat()
+  const { formatRelativeTimeShort } = useLocaleFormat()
 
   return (
     <ListRow active={active} onClick={onClick} className="flex-col gap-1">
       <span className="flex w-full items-center gap-3">
         <span className="min-w-0 flex-1 truncate text-xs leading-snug text-foreground">{card.name}</span>
-        <span className="flex shrink-0 items-center gap-3 font-mono text-2xs text-muted-foreground">
+        <span className="flex shrink-0 items-center gap-3 whitespace-nowrap font-mono text-2xs text-muted-foreground">
           <span className="w-24 truncate text-right text-muted-foreground/70">{card.sourceId}</span>
           {card.driftIssueIds.length > 0 && <span>{t('build.drifts', { count: card.driftIssueIds.length })}</span>}
           {card.proposalIds.length > 0 && <span>{t('build.proposals', { count: card.proposalIds.length })}</span>}
@@ -562,8 +562,8 @@ function Row({ workspaceId, card, active, onClick }: {
           <span className="w-16 text-right">
             {card.nodeIds.length > 0 ? t('build.nodes', { count: card.nodeIds.length }) : ''}
           </span>
-          <span className="w-14 text-right">
-            {card.lastRun ? formatRelativeTime(card.lastRun.startedAt) : ''}
+          <span className="w-16 text-right">
+            {card.lastRun ? formatRelativeTimeShort(card.lastRun.startedAt) : ''}
           </span>
         </span>
       </span>

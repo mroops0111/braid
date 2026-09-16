@@ -1,5 +1,5 @@
 export { i18next } from './config'
-export { type DateInput, formatDateIn, formatDateTimeIn, formatRelativeTimeIn, formatTimeIn, type LocaleFormatters, useLocaleFormat } from './datetime'
+export { type DateInput, formatDateIn, formatDateTimeIn, formatRelativeTimeIn, formatRelativeTimeShortIn, formatTimeIn, type LocaleFormatters, useLocaleFormat } from './datetime'
 export { isLocale, type Locale, type LocaleOption, SUPPORTED_LOCALES } from './locale'
 export { useLocale } from './useLocale'
 export type { ParseKeys as TranslationKey } from 'i18next'

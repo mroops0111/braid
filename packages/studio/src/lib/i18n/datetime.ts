@@ -7,6 +7,7 @@ export interface LocaleFormatters {
   formatTime: (value: DateInput) => string
   formatDateTime: (value: DateInput) => string
   formatRelativeTime: (value: DateInput) => string
+  formatRelativeTimeShort: (value: DateInput) => string
 }
 
 const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
@@ -35,14 +36,28 @@ export function formatDateTimeIn(locale: string, value: DateInput): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(toDate(value))
 }
 
-export function formatRelativeTimeIn(locale: string, value: DateInput): string {
+function relativeIn(locale: string, value: DateInput, options: Intl.RelativeTimeFormatOptions): string {
   const deltaSeconds = (toDate(value).getTime() - Date.now()) / 1000
   const magnitude = Math.abs(deltaSeconds)
+  const format = new Intl.RelativeTimeFormat(locale, options)
   for (const [unit, unitSeconds] of RELATIVE_UNITS) {
     if (magnitude >= unitSeconds)
-      return new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(Math.round(deltaSeconds / unitSeconds), unit)
+      return format.format(Math.round(deltaSeconds / unitSeconds), unit)
   }
-  return new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(0, 'second')
+  return format.format(0, 'second')
+}
+
+export function formatRelativeTimeIn(locale: string, value: DateInput): string {
+  return relativeIn(locale, value, { numeric: 'auto' })
+}
+
+/**
+ * The same instant for a metadata column: `3w ago` rather than `3 weeks ago`.
+ * Narrow keeps it on one line at any width the column is given,
+ * and always-numeric keeps `yesterday` from breaking the shape of the column.
+ */
+export function formatRelativeTimeShortIn(locale: string, value: DateInput): string {
+  return relativeIn(locale, value, { numeric: 'always', style: 'narrow' })
 }
 
 /**
@@ -59,5 +74,6 @@ export function useLocaleFormat(): LocaleFormatters {
     formatTime: value => formatTimeIn(locale, value),
     formatDateTime: value => formatDateTimeIn(locale, value),
     formatRelativeTime: value => formatRelativeTimeIn(locale, value),
+    formatRelativeTimeShort: value => formatRelativeTimeShortIn(locale, value),
   }
 }
