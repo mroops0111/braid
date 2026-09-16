@@ -10,7 +10,7 @@ _A harness framework that keeps AI and your team building one domain model toget
 
 ![Braid Studio: answering a clarification, running clarify, then reviewing and applying the proposal to the domain model](demo.gif)
 
-_A finished model is in the repository. [`examples/conciergent`](examples/conciergent/) is 120 nodes and 159 edges Braid derived from one real codebase with no intent documents, the clarifications it raised and the proposals a person applied alongside it._
+_A finished model: [`examples/conciergent`](examples/conciergent/), 120 nodes Braid drew from one codebase with no intent docs._
 
 **A shared model of your business, not another code graph.** Code is what shipped. Intent is what the team meant. They drift apart every sprint, and the team ends up arguing about which one is right.
 
