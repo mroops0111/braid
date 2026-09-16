@@ -4,6 +4,25 @@ Mirrors an API-backed source into markdown by calling one MCP tool until its
 pages run out. One file per item, which is what makes an issue tracker or a
 wiki a tracked source rather than a lookup an agent happens to make mid-run.
 
+## Role
+
+The package is a `SourceLoaderPlugin` for the `mcp` loader kind. It fills a directory and owns nothing else.
+
+- **The Walk**: Calls one configured tool until its pages run out, since a gateway maps one call onto one upstream request and does not loop.
+- **The Mapping**: Reads a reply through configured paths rather than a fixed envelope, so a server nobody here controls is named rather than adapted to.
+- **The Mark**: Records the newest `updatedAt` it saw, so the next sync starts from there instead of re-reading the history.
+
+## Structure
+
+```
+src/
+├── McpSourceLoaderPlugin.ts   the defineSourceLoaderPlugin value, the cursor file, the write
+├── config.ts                  the loader config schema and its defaults
+├── client.ts                  the streamable-http session and one tool call
+├── mirror.ts                  the walk across the tool's pages
+└── item.ts                    one item into one markdown file
+```
+
 ## The Shape It Expects
 
 The loader knows a tool name and where the parts of a reply live. Nothing else.
@@ -90,16 +109,14 @@ paging cannot advance at all.
 is raised, because a sync that quietly mirrors nothing is worse than one that
 stops.
 
-## Transport
+## Boundaries
 
-Streamable HTTP only. The MCP server is a process the operator runs, so this
-speaks to it and never manages its lifetime. Handling stdio would put spawning,
-timeouts, and orphan reaping inside the Braid server for a case nobody has
-asked for yet.
+- **Streamable HTTP Only**: The MCP server is a process the operator runs, so this speaks to it and never manages its lifetime. Handling stdio would put spawning, timeouts, and orphan reaping inside the Braid server for a case nobody has asked for yet.
+- **A Directory, Not a Source Kind**: `loader.kind: mcp` is not `kind: mcp`, the source kind in the schema. A source using this loader is a `filesystem` source, because what it produces is a directory of files. Only the way that directory gets filled is MCP. The two never appear in the same position.
+- **No Credential On Disk**: `${VAR}` resolves against the server's environment at sync time, so `PRODUCT.md` records which variable is needed and never its value.
+- **Mirrors, Never Reads**: The loader fills a directory. What the documents mean is the ontology's business, and nothing here knows an issue from a wiki page.
 
-## A Note On The Name
+## Dependencies
 
-`loader.kind: mcp` is not the same as `kind: mcp`, the source kind in the
-schema. A source using this loader is a `filesystem` source, because what it
-produces is a directory of files. Only the way that directory gets filled is
-MCP. The two never appear in the same position.
+- **Depends On**: `@braidhq/core` for the port, `@braidhq/schema` for shared types, `@braidhq/sdk` for `defineSourceLoaderPlugin`, `@modelcontextprotocol/client` for the connection, and `yaml` and `zod`.
+- **Consumed By**: The server composition root, where `composeFsApp` registers it in the default plugin bundle.

@@ -9,6 +9,7 @@ Schema is the root of the monorepo. It says what data looks like, and nothing ab
 - **The Shapes**: Every entity, message, and config as a zod schema with an inferred type, so validation and typing come from one definition.
 - **The Ids**: Branded identifiers, so a `NodeId` can never be passed where a `ProposalId` belongs.
 - **The Vocabulary**: The closed enums and open brands that decide which sets are fixed and which are extensible.
+- **The Render Calls**: `RenderBlock` and its ten calls. Because this is the one layer the server and Studio both see, a single zod object is the route body, the MCP tool schema, and the renderer's type at once.
 
 ## Structure
 
@@ -25,17 +26,18 @@ src/
 
 The modules group into a few families.
 
-- **Graph**: `model`, `ontology`, `graph-validation`. The graph shapes and their type descriptors.
-- **Review**: `proposal`, `proposal-preview`, `clarify`. The HITL artifacts a human approves.
-- **Orchestration**: `batch`, `reactor`, `skill`, `source-unit`. Records of automated runs over sources.
-- **Config**: `source`, `mcp`, `storage`, `agent`, `workspace`. The product manifest and what it declares.
-- **Cross-Cutting**: `common`, `error`, `event`, `history`, `user`, `view`, `plugin`. Primitives and contracts shared across the rest.
+- **Graph**: `model`, `ontology`, `graph-validation`, `reference`. The graph shapes, their type descriptors, and the evidence a claim rests on.
+- **Handoff**: `handoff`, `proposal`, `proposal-preview`, `clarification`. A point a run reached that only a person can settle, always from a run to a person and never the reverse.
+- **Output**: `block`. The typed calls a run renders with, and therefore what every surface draws.
+- **Orchestration**: `batch`, `reactor`, `skill`, `source-unit`, `source-sync`, `coverage`. Records of automated runs over sources, and what the model has so far made of each document.
+- **Config**: `source`, `mcp`, `storage`, `agent`, `embedding`, `workspace`. The product manifest and what it declares.
+- **Cross-Cutting**: `common`, `error`, `event`, `history`, `user`, `capability`, `locale`, `view`, `plugin`. Primitives and contracts shared across the rest.
 
 ## Boundaries
 
 These are the rules that keep schema a pure contract. They are enforced in review.
 
-- **Validated or Shared**: A shape earns a place here when it crosses a trust boundary, either parsed from outside the process (an HTTP body, a file on disk, config) or shared as a wire contract between packages (the SSE event stream). Pure in-process types stay in the package that uses them.
+- **Validated or Shared**: A shape earns a place here when it crosses a trust boundary, either parsed from outside the process (an HTTP body, a file on disk, config) or shared as a wire contract between packages (the SSE event stream, a render call). Pure in-process types stay in the package that uses them.
 - **Only Zod Lives Here**: Every schema is defined once in this package. No other package redeclares a shape.
 - **No Side Effects**: Shapes, validation, and pure helpers only. No I/O, and no import from another Braid package.
 - **Closed or Open**: A fixed set is a `z.enum`, an extensible one is a branded string, and that choice is the extension boundary for plugins.

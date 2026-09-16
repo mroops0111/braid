@@ -9,6 +9,8 @@ Server is the composition root and the presentation layer. It turns the framewor
 - **The Wiring**: The composition root that binds core's ports to concrete adapters, the one place infrastructure is instantiated.
 - **The Adapters**: Filesystem and git implementations of core's repositories and history, plus the subprocess runner that executes skills.
 - **The API**: A REST and SSE surface built on Hono, one router per resource, with authentication, workspace scoping, and an OpenAPI 3 spec at `GET /openapi.json`.
+- **The Run Wire**: A run is read over AG-UI at `GET /workspaces/:workspaceId/agui`. The translation from an agent's own events sits at this edge and nowhere else.
+- **The Render Calls**: The routes a skill calls to draw its output. Each is an operation on the spec above, so it is also a named MCP tool with a schema, and the agent fills in fields rather than formatting prose.
 
 ## Positioning: framework kernel and worldview preset
 
@@ -35,11 +37,12 @@ src/
 ├── composeFsApp.ts    the coding preset, filesystem and vendor adapters
 ├── startup.ts         blocking per-workspace boot steps
 ├── authMode.ts        AuthMode strategy, localTrust and authenticated
-├── routes/            one router per resource
+├── routes/            one router per resource, including agui, blocks, and views
 ├── middleware/        auth, cors, error mapping, workspace scoping
 ├── policy/            authorization rules
 └── infrastructure/   adapters behind core ports, one folder per domain concern
     ├── hitl/         proposal and clarification stores
+    ├── agui/         the translation from agent events to AG-UI events
     ├── workspace/    workspace repository, registry, discovery, PRODUCT.md writer
     ├── skill/        skill registry, run store, subprocess runner and its event stream
     ├── source/       source unit observations, digests, intent listing
@@ -55,6 +58,7 @@ src/
 - **startup**: The two boot passes, `startupBeforeServe` and `startupAfterServe`. See Startup below for the full order.
 - **infrastructure**: The real adapters behind core's ports, grouped by domain concern to mirror `core/domain`, never by storage technology. Each folder owns one aggregate's adapter, so a future SQLite or Postgres store lands beside the filesystem one instead of in a separate `sql/` tree. `hitl/` persists proposals and clarifications, `workspace/` the graph and workspace files, `history/` records every change as a git commit, `skill/` runs a skill as a subprocess and streams its events back. `_shared/` holds the cross-cutting fs plumbing, its underscore marking it as the one folder that is not a domain concern, matching `routes/_shared.ts`. `users/ auth/ secrets/ oauth/` are host services with no core port.
 - **routes**: One `createXxxRouter(deps)` per resource, each taking only the services it needs. Bodies validate through zod, path ids parse through their branded schema.
+- **agui**: The only place an agent's own event shape is known. Everything downstream reads the normalised protocol form, so a second agent that speaks AG-UI natively moves this translation rather than the surfaces.
 - **middleware**: The cross-cutting edge. Auth resolves the user, workspace middleware scopes and authorizes the request, and the error middleware maps `BraidError` subclasses to problem+json status codes.
 
 ## Startup
@@ -227,7 +231,7 @@ These are the rules for anyone editing server. They are enforced in review rathe
 
 Server sits at the outer edge, above core and the plugin packages the coding preset bundles as defaults.
 
-- **Depends On**: `@braidhq/core` and `@braidhq/schema`, `hono` for HTTP, `simple-git` for history, and, only through the coding preset, the default plugin bundle of `storage-kuzu`, `agent-claude-code`, `ontology-ddd`, and `source-loader-*`. The kernel itself needs none of the plugin packages; they leave with the preset when it extracts. See Positioning.
+- **Depends On**: `@braidhq/core` and `@braidhq/schema`, `hono` for HTTP, `@ag-ui/core` and `@ag-ui/encoder` for the run wire, `simple-git` for history, and, only through the coding preset, the default plugin bundle of `storage-kuzu`, `agent-claude-code`, `ontology-ddd`, and `source-loader-*`. The kernel itself needs none of the plugin packages; they leave with the preset when it extracts. See Positioning.
 - **Consumed By**: `cli` and the `desktop` Tauri shell, which run it as their backend.
 
 ## MCP Gateway
@@ -236,7 +240,9 @@ Nothing here implements MCP. An off-the-shelf translator, `openapi-mcp-gateway`,
 
 ### Per skill run
 
-Skills run as coding-agent subprocesses and reach this server's REST API as MCP tools, not by curl. That gateway speaks stdio, is spawned per run and torn down with it, and exposes the whole spec as `braid-core`. No long-lived process, no open port, no network auth to manage.
+Skills run as coding-agent subprocesses and reach this server's REST API as MCP tools, not by curl. That gateway speaks stdio, is spawned per run and torn down with it, and is registered as `braid-core`. No long-lived process, no open port, no network auth to manage.
+
+What it reads is not the whole spec. An operation declares which run categories may see it, beside the route it describes, and `GET /openapi/runs/:category/openapi.json` serves the narrowed result. An `ask` run is not asked to refrain from proposing, `proposal-create` is not in the spec it is handed. An absent operation costs neither a place in the tool list nor the tokens to describe it. That route is public, since the gateway reads it before a run exists to authenticate as. This scopes what a run is offered, not what the API accepts.
 
 SSE streams and the OAuth HTML callback are deliberately absent from the spec, they are not one-shot MCP tools. The `GET /openapi.json` test in `test/app.test.ts` pins that boundary.
 

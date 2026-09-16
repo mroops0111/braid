@@ -7,7 +7,7 @@ Braid keeps a product's intent and its code aligned by extracting both into one 
 Core is the framework layer every other package builds on. It owns the rules and leaves the plumbing to others.
 
 - **The Model**: The knowledge graph as a domain aggregate, with the invariants that keep it valid.
-- **The Flows**: Review, batch, and reactor services that turn agent output into committed graph changes.
+- **The Flows**: Review, batch, and reactor services that turn agent output into committed graph changes, plus the view service that turns the graph back into something a person reads.
 - **The Ports**: Interfaces for storage, agents, and history, implemented by sibling packages rather than here.
 
 ## Structure
@@ -27,10 +27,10 @@ src/
 
 - **domain**: Entities, ports, and value objects, one folder per aggregate. Pure, with no I/O.
   - **model/**: The `Model` aggregate with its repository and serializer.
-  - **hitl/**: `Proposal` and `ClarifyTicket` with their repositories.
+  - **hitl/**: `Proposal` and `Clarification` with their repositories, and the visibility rule they share. Both are handoffs, a point a run reached that only a person can settle, which is why one queue holds them and one permission covers them.
   - **plugin/**: Port interfaces for ontology, storage, agents, and loaders.
   - **validation/**: Pure graph invariants, such as evidence, orphan edges, and the ontology type and structural rules.
-- **application**: Services that run one use case each, such as `HITLService`, `BatchService`, and `ReactorService`.
+- **application**: Services that run one use case each, such as `HITLService`, `BatchService`, `ReactorService`, and `ViewService`.
 - **infrastructure**: In-memory default adapters for the domain ports. Vendor adapters such as Kuzu live in sibling packages.
 
 ## Naming
