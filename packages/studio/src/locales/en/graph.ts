@@ -21,7 +21,7 @@ export const graph = {
   hiddenTypes: {
     notice: 'Showing {shownCount} of {totalCount} nodes · {typeCount, plural, one {# type} other {# types}} hidden',
     showAllButton: 'Show All',
-    tooltip: 'The canvas opens on the high-level types. The rest are filtered out, not missing.',
+    tooltip: 'The canvas opens on the types the ontology marks as default. Turn the rest on under Filter by Type.',
   },
   table: {
     nodesTitle: 'Nodes ({count})',

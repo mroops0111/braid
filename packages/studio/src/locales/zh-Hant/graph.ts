@@ -20,9 +20,9 @@ const graph: typeof en = {
     resetButton: '重設篩選條件',
   },
   hiddenTypes: {
-    notice: '顯示 {shownCount} / {totalCount} 個節點 · 已隱藏 {typeCount, plural, other {# 種型別}}',
+    notice: '顯示 {shownCount} / {totalCount} 個節點 · 已隱藏 {typeCount, plural, other {# 種類型}}',
     showAllButton: '全部顯示',
-    tooltip: '畫布預設只呈現高層型別，其餘是被篩選掉，不是不存在。',
+    tooltip: '預設只顯示本體論指定的主要類型，其餘可在左側「依類型篩選」開啟。',
   },
   table: {
     nodesTitle: '節點 ({count})',
