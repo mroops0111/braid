@@ -33,10 +33,8 @@ function turnsKey(workspaceId: string, skillId: string): string {
  * The events so far, with the one that just arrived.
  *
  * Deltas are folded into the one before them rather than piling up,
- * because a long answer is thousands of fragments,
- * and this list is copied on every arrival.
- * The whole message then replaces what its own deltas were standing in for,
- * which leaves the list exactly as it would have been without them.
+ * since a long answer is thousands of fragments and this list is copied each time.
+ * The whole message then replaces what its own deltas stood in for.
  */
 export function withEvent(events: readonly SkillEvent[], event: SkillEvent): readonly SkillEvent[] {
   const last = events.at(-1)

@@ -654,12 +654,9 @@ export class SubprocessSkillRunner implements SkillRunner {
   // This guarantees a just-subscribed listener receives every event strictly past its positionAtSubscribe.
   //
   // A delta is the exception, broadcast without being kept.
-  // It is a piece of a message whose whole arrives moments later,
-  // so writing both would record what was said twice,
+  // Its whole arrives moments later, so keeping both would say it twice,
   // and leave a replayed run stuttering through text it already holds.
-  // It is left out of the position count for the same reason,
-  // since that count says how far into the log a listener came in,
-  // and a listener that missed a fragment has missed nothing.
+  // Out of the position count too, since a missed fragment is nothing missed.
   private async emit(workspace: Workspace, runId: SkillRunId, event: SkillEvent): Promise<void> {
     if (event.type === 'message-delta') {
       this.broadcast(runId, event)

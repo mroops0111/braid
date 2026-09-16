@@ -65,8 +65,7 @@ export class AguiTranslator {
       }
 
       // Text as it is typed, which is what the protocol's own delta is for.
-      // The first one opens the message and the rest fill it,
-      // so a client renders a sentence appearing rather than a sentence landing.
+      // The first opens the message and the rest fill it.
       case 'message-delta': {
         const opening: BaseEvent[] = []
         if (this.openDeltaMessageId === null) {
@@ -81,8 +80,7 @@ export class AguiTranslator {
       // and the shape stays the one every AG-UI client already handles.
       //
       // Unless deltas already carried it, where only the close is still owed.
-      // Sending the text again would say it twice,
-      // and a replayed run holds no deltas, so it takes the triplet as before.
+      // A replayed run holds none, so it takes the triplet as before.
       case 'message': {
         if (this.openDeltaMessageId !== null && event.role !== 'user')
           return [this.closeOpenDelta()]
@@ -149,8 +147,7 @@ export class AguiTranslator {
       case 'error':
         return [{ type: EventType.CUSTOM, name: CUSTOM_NAMES.error, value: { message: event.message } }]
 
-      // A run that died mid-sentence leaves a message open on the wire,
-      // so it is closed here rather than left for a client to time out on.
+      // A run that died mid-sentence leaves a message open, so close it here.
       case 'completed': {
         const closing = this.openDeltaMessageId !== null ? [this.closeOpenDelta()] : []
         return [

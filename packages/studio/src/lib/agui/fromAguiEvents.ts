@@ -37,10 +37,8 @@ export class AguiEventReader {
           this.userMessages.add(String(raw.messageId))
         return []
       // Surfaced as it arrives as well as accumulated,
-      // so a surface can show the sentence forming,
-      // and still receive the whole message once it closes.
-      // A user message is never typed at us, it is the prompt we already sent,
-      // so only the agent's own text is worth showing twice.
+      // so a surface can show the sentence forming.
+      // A user message is the prompt we already sent, so only the agent's shows.
       case EventType.TEXT_MESSAGE_CONTENT: {
         this.appendTo(this.openText, raw)
         const delta = String(raw.delta ?? '')

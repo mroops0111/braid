@@ -50,10 +50,8 @@ export function parseClaudeLine(line: string, now: string): SkillEvent[] {
   }
 
   // Text as it is typed, from `--include-partial-messages`.
-  // Only `text_delta`, because this exists to keep a waiting reader informed,
-  // and reasoning is collapsed on the surface while tool args are not prose.
-  // The finished message still arrives as its own `assistant` line,
-  // so nothing here is the record of what was said.
+  // Only `text_delta`, since reasoning is collapsed and tool args are not prose.
+  // The finished message still arrives on its own line, and that is the record.
   if (raw.type === 'stream_event') {
     const event = raw.event as { type?: unknown, delta?: { type?: unknown, text?: unknown } } | undefined
     if (event?.type === 'content_block_delta'

@@ -64,8 +64,7 @@ describe('parseClaudeLine', () => {
     })).toEqual([{ type: 'message-delta', text: 'partly' }])
   })
 
-  // Reasoning is collapsed on the surface and tool args are not prose,
-  // so neither has a waiting reader to inform.
+  // Reasoning is collapsed on the surface, and tool args are not prose.
   it('ignores every stream_event that is not typed text', () => {
     expect(parse({
       type: 'stream_event',

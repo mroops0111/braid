@@ -5,13 +5,11 @@ import { useReferenceRegistry } from '@/lib/references/ReferenceRegistryContext'
 /**
  * A field whose `@kind:id` tokens read as the names they stand for, as text.
  *
- * `ReferenceText` is the one to reach for, since a tag is worth more than a
- * name. This is for the two places a tag cannot go: inside a control, where a
- * button within a button is invalid, and inside a card a tag already opened,
- * where a second tag offers a card behind the card being read.
+ * `ReferenceText` is the one to reach for, since a tag is worth more than a name.
+ * This is for where a tag cannot go,
+ * inside a control, or inside a card a tag already opened.
  *
- * An unresolved token falls back to its id rather than to the token,
- * because the id is the part a reader could have looked up either way.
+ * An unresolved token falls back to its id, which a reader could have read anyway.
  */
 export function ReferenceLabel({ text }: { text: string }) {
   const registry = useReferenceRegistry()

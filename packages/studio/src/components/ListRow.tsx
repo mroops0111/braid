@@ -22,9 +22,8 @@ interface ListRowProps {
   stripeClassName?: string
   stripeDim?: boolean
   /**
-   * A control at the row's trailing edge, beside the click target rather than
-   * inside it. A button cannot be a descendant of a button, and a row's menu
-   * is a second control rather than part of the first.
+   * A control at the row's trailing edge, beside the click target not inside it,
+   * since a button cannot be a descendant of a button.
    * The row reserves its width whether or not it is showing,
    * so a title does not reflow when a pointer arrives.
    */

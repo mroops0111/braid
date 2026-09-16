@@ -43,8 +43,7 @@ describe('summariseActivity', () => {
     expect(activity.narration).toBe('I have enough to answer.')
   })
 
-  // A sentence still being typed accounts for the run sooner than a finished one,
-  // which is the whole reason the delta reaches this layer.
+  // A sentence still being typed accounts for the run sooner than a finished one.
   it('narrates from a message still being typed', () => {
     const activity = summariseActivity([
       { type: 'message', text: 'Searching the graph.' },

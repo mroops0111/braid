@@ -5,8 +5,8 @@ import { withEvent } from '@/lib/runStore'
 const delta = (text: string): SkillEvent => ({ type: 'message-delta', text })
 const message = (text: string): SkillEvent => ({ type: 'message', text })
 
-// The list is copied on every arrival, and a long answer is thousands of
-// fragments, so deltas may never accumulate as separate entries.
+// The list is copied on every arrival and a long answer is thousands of fragments,
+// so deltas may never accumulate as separate entries.
 describe('withEvent', () => {
   it('folds a delta into the one before it rather than appending', () => {
     const events = [delta('he'), delta('l'), delta('lo')].reduce<readonly SkillEvent[]>(withEvent, [])

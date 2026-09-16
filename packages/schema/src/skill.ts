@@ -295,9 +295,8 @@ export const SkillEventMessage = z.object({
  * A piece of a message still being written.
  *
  * Live only, never appended to a run's log.
- * The whole message follows as `message` and is what the log keeps,
- * so a replayed run reads exactly as it did before deltas existed,
- * and a reader joining late is not owed the fragments they missed.
+ * The whole message follows and is what the log keeps,
+ * so a replayed run reads exactly as it did before deltas existed.
  */
 export const SkillEventMessageDelta = z.object({
   type: z.literal('message-delta'),

@@ -97,8 +97,7 @@ describe('ClaudeCodeAgentBinding', () => {
     expect(result.args).toContain('--add-dir')
     expect(result.args).toContain('/abs/code/api')
     expect(result.args).toContain('--verbose-stream')
-    // Blocks land near the end of a run, so the text being typed is the only
-    // thing a waiting reader can be shown.
+    // Blocks land near the end, so the text being typed is all a reader has.
     expect(result.args).toContain('--include-partial-messages')
   })
 
