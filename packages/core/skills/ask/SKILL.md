@@ -141,7 +141,7 @@ Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERE
 | `$BRAID_SHARED_REFERENCE/block-protocol.md` | Before the first render call | Which render tool carries which part of the output, how `$BRAID_AUDIENCES` works, and the provenance rule for every reference. |
 | `$BRAID_SHARED_REFERENCE/drift-detection.md` | Step 5, when describing a finding | What counts as drift, and the description pattern for writing it so reviewers can act on it. |
 | `$BRAID_ONTOLOGY_REFERENCE/concept.md` | Step 5, before classifying a finding | The dimensions this ontology considers worth checking. Read the list rather than assuming one. |
-| `$BRAID_SHARED_REFERENCE/content-conventions.md` | When composing the Output sections | Plain-text rule, length targets, structural conventions for the Answer / Sources / Consistency prose. |
+| `$BRAID_SHARED_REFERENCE/content-conventions.md` | When writing any prose a block carries | Plain-text rule, length targets, and what belongs in a reference rather than in a sentence. |
 | `$BRAID_SHARED_REFERENCE/reference-syntax.md` | Whenever prose names a node | Token grammar for node references, and which fields accept them. |
 
 ## Notes
