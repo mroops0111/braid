@@ -141,7 +141,7 @@ describe('FsSkillRegistry', () => {
       const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
       await expect(registry.list(workspace)).resolves.toEqual([])
       const unloadable = await registry.listUnloadable(workspace)
-      expect(unloadable[0]?.issues.some(issue => issue.kind === 'frontmatter')).toBe(true)
+      expect(unloadable[0]?.issues.some(issue => issue.kind === 'unparsable-frontmatter')).toBe(true)
     })
 
     it('still stops everything when the file is a builtin', async () => {
@@ -167,9 +167,27 @@ describe('FsSkillRegistry', () => {
       expect.objectContaining({
         origin: 'extension',
         id: 'ddd:extract',
-        issues: [expect.objectContaining({ kind: 'extension-target' })],
+        issues: [expect.objectContaining({ kind: 'missing-extension-target' })],
       }),
     ])
+  })
+
+  it('reports an extension directory that does not name a skill at all', async () => {
+    const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
+    const { workspace, root } = await makeWorkspace()
+    const extensionDir = join(root, 'skill-extensions', 'notaskillid')
+    await mkdir(extensionDir, { recursive: true })
+    await writeFile(join(extensionDir, 'EXTEND.md'), '# extra context', 'utf-8')
+
+    const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
+    const unloadable = await registry.listUnloadable(workspace)
+    expect(unloadable).toEqual([
+      expect.objectContaining({
+        origin: 'extension',
+        issues: [expect.objectContaining({ kind: 'unparsable-extension-name', target: 'notaskillid' })],
+      }),
+    ])
+    expect(unloadable[0]?.id).toBeUndefined()
   })
 
   describe('plugin-shipped skills', () => {

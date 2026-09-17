@@ -1,6 +1,6 @@
 import type { SkillFrontmatter } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
-import { validateSkillStructure } from '../../../src/infrastructure/skill/SkillStructureValidator.js'
+import { validateSkillStructure } from '../../../src/domain/skill/SkillStructureValidator.js'
 
 const ALL_SECTIONS = [
   'Role',
@@ -158,7 +158,7 @@ describe('validateSkillStructure', () => {
     const result = validateSkillStructure({ body: text, frontmatter: frontmatter('ask') })
     expect(result.ok).toBe(false)
     expect(result.issues).toEqual([
-      expect.objectContaining({ kind: 'companion-doc-path' }),
+      expect.objectContaining({ kind: 'unreachable-companion-doc' }),
     ])
   })
 
