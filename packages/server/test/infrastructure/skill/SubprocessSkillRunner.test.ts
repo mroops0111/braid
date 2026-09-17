@@ -122,6 +122,7 @@ async function makeSkillRegistry(skillSourceParent: AbsolutePath, declares: {
   })
   return {
     list: async () => [manifest],
+    listUnloadable: async () => [],
     find: async () => manifest,
     get: async () => manifest,
   }

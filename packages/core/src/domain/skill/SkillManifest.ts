@@ -7,13 +7,11 @@ import type {
   SkillId,
   SkillManifest as SkillManifestData,
   SkillOrigin,
+  SkillReadinessIssue,
 } from '@braidhq/schema'
 import type { Workspace } from '../workspace/Workspace.js'
 
-export interface SkillReadinessIssue {
-  readonly kind: 'missing-env' | 'missing-path' | 'missing-mcp-server'
-  readonly target: string
-}
+export type { SkillReadinessIssue }
 
 export class SkillManifest {
   constructor(private readonly data: SkillManifestData) {}

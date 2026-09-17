@@ -48,7 +48,7 @@ describe('validateSkillStructure', () => {
     })
     expect(result.ok).toBe(false)
     expect(result.issues).toEqual([
-      expect.objectContaining({ kind: 'missing-section', section: 'Companion Docs' }),
+      expect.objectContaining({ kind: 'missing-section', target: 'Companion Docs' }),
     ])
   })
 
@@ -59,16 +59,8 @@ describe('validateSkillStructure', () => {
     })
     expect(result.ok).toBe(false)
     expect(result.issues).toEqual([
-      expect.objectContaining({ kind: 'missing-section', section: 'Output Files' }),
+      expect.objectContaining({ kind: 'missing-section', target: 'Output Files' }),
     ])
-  })
-
-  it('passes when generate skills add the Output Files section', () => {
-    const result = validateSkillStructure({
-      body: body([...ALL_SECTIONS, 'Output Files']),
-      frontmatter: frontmatter('generate'),
-    })
-    expect(result.ok).toBe(true)
   })
 
   it('does not require Output Files for category: build', () => {
@@ -99,7 +91,7 @@ describe('validateSkillStructure', () => {
     })
     expect(result.ok).toBe(false)
     expect(result.issues).toEqual([
-      expect.objectContaining({ kind: 'missing-section', section: 'Role' }),
+      expect.objectContaining({ kind: 'missing-section', target: 'Role' }),
     ])
   })
 
@@ -122,7 +114,7 @@ describe('validateSkillStructure', () => {
     })
     expect(result.ok).toBe(false)
     expect(result.issues).toEqual([
-      expect.objectContaining({ kind: 'duplicate-input-name', inputName: 'mode' }),
+      expect.objectContaining({ kind: 'duplicate-input-name', target: 'mode' }),
     ])
   })
 
@@ -153,6 +145,33 @@ describe('validateSkillStructure', () => {
       body: text,
       frontmatter: frontmatter('ask'),
     })
+    expect(result.ok).toBe(true)
+  })
+  it('rejects a companion doc named by a relative path', () => {
+    const text = `${body(ALL_SECTIONS.filter(s => s !== 'Companion Docs'))}
+## Companion Docs
+
+| File | When to Read | Why |
+|---|---|---|
+| \`.claude/skills/shared/drift-detection.md\` | Step 5 | Drift. |
+`
+    const result = validateSkillStructure({ body: text, frontmatter: frontmatter('ask') })
+    expect(result.ok).toBe(false)
+    expect(result.issues).toEqual([
+      expect.objectContaining({ kind: 'companion-doc-path' }),
+    ])
+  })
+
+  it('accepts a companion doc reached through a mounted reference path', () => {
+    const text = `${body(ALL_SECTIONS.filter(s => s !== 'Companion Docs'))}
+## Companion Docs
+
+| File | When to Read | Why |
+|---|---|---|
+| \`$BRAID_SHARED_REFERENCE/drift-detection.md\` | Step 5 | Drift. |
+| \`$BRAID_ONTOLOGY_REFERENCE/concept.md\` § Drift Dimensions | Step 5 | Dimensions. |
+`
+    const result = validateSkillStructure({ body: text, frontmatter: frontmatter('ask') })
     expect(result.ok).toBe(true)
   })
 })

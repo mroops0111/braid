@@ -42,6 +42,7 @@ async function runWith(stdoutPerSpawn: readonly string[][], options: {
   const manifest = askOwingATrace()
   const skillRegistry: SkillRegistry = {
     list: async () => [manifest],
+    listUnloadable: async () => [],
     find: async () => manifest,
     get: async () => manifest,
   }
