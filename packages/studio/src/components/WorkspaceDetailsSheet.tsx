@@ -1,6 +1,6 @@
-import type { McpServerConfig, SourceDescriptor, User, Workspace, WorkspaceMember, WorkspaceRole } from '@braidhq/schema'
+import type { McpServerConfig, SkillReadinessIssue, SourceDescriptor, UnloadableSkill, User, Workspace, WorkspaceMember, WorkspaceRole } from '@braidhq/schema'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Crown, Database, GitBranch, HardDrive, MoreHorizontal, Plug, RefreshCw, Trash2, UserMinus, UserRound, UserRoundCheck, UserRoundCog, Webhook } from 'lucide-react'
+import { Crown, Database, FileWarning, GitBranch, HardDrive, MoreHorizontal, Plug, RefreshCw, Trash2, TriangleAlert, UserMinus, UserRound, UserRoundCheck, UserRoundCog, Webhook } from 'lucide-react'
 import { DropdownMenu as DropdownPrimitive } from 'radix-ui'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { api } from '@/lib/api'
 import { humaniseApiError } from '@/lib/errors'
 import { useLocaleFormat } from '@/lib/i18n'
-import { queryKeys, useMe, useSourceLoaders, useUsers, useWorkspaceMembers, useWorkspaces } from '@/lib/queries'
+import { queryKeys, useMe, useSkills, useSourceLoaders, useUsers, useWorkspaceMembers, useWorkspaces } from '@/lib/queries'
 import { useGithubOAuth } from '@/lib/useGithubOAuth'
 import { useGoogleOAuth } from '@/lib/useGoogleOAuth'
 import { useWorkspacePolicy } from '@/policy'
@@ -121,6 +121,8 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
               )}
         </section>
 
+        <SkillHealthSection workspaceId={workspaceId} />
+
         <MembersSection workspaceId={workspaceId} />
 
         <SkillPermissionsForOwners workspaceId={workspaceId} />
@@ -190,6 +192,77 @@ function AutoRefreshSwitch({ workspaceId, enabled, canWrite, onChange }: {
       {save.error && <span className="text-destructive">{humaniseApiError(save.error)}</span>}
     </div>
   )
+}
+
+/**
+ * Skill files that did not load, and skills that cannot run here yet.
+ *
+ * Absent entirely when there is nothing wrong, since a healthy workspace
+ * gains nothing from a row saying so, and the section is a diagnosis.
+ * Whoever can fix one of these is whoever opened this panel,
+ * which is why it is reported here rather than left in the server log.
+ */
+function SkillHealthSection({ workspaceId }: { workspaceId: string }) {
+  const { t } = useTranslation()
+  const { data } = useSkills(workspaceId)
+  const unloadable = data?.unloadable ?? []
+  const notReady = (data?.items ?? []).filter(skill => skill.readiness.length > 0)
+  if (unloadable.length === 0 && notReady.length === 0)
+    return null
+  return (
+    <section>
+      <SectionHeader title={t('workspace.details.skillHealthTitle')} />
+      <ul className="mt-2 space-y-1.5">
+        {unloadable.map(skill => (
+          <UnloadableSkillRow key={skill.path} skill={skill} />
+        ))}
+        {notReady.map(skill => (
+          <li key={skill.id} className="rounded-md border border-border p-2">
+            <div className="flex items-center gap-2">
+              <TriangleAlert className="size-3 text-amber-400" />
+              <span className="font-mono text-xs">{skill.id}</span>
+              <Badge variant="outline" className="text-2xs uppercase">{t('workspace.details.skillNotReady')}</Badge>
+            </div>
+            <ul className="mt-1 space-y-0.5">
+              {skill.readiness.map(issue => (
+                <li key={`${issue.kind}-${issue.target}`} className="text-2xs text-muted-foreground">
+                  {t(readinessKey(issue), { target: issue.target })}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function UnloadableSkillRow({ skill }: { skill: UnloadableSkill }) {
+  const { t } = useTranslation()
+  return (
+    <li className="rounded-md border border-destructive/30 bg-destructive/5 p-2">
+      <div className="flex items-center gap-2">
+        <FileWarning className="size-3 text-destructive" />
+        <span className="font-mono text-xs">{skill.id ?? skill.path.split('/').slice(-2)[0]}</span>
+        <Badge variant="outline" className="text-2xs uppercase">{t('workspace.details.skillDidNotLoad')}</Badge>
+      </div>
+      <p className="mt-1 break-all font-mono text-2xs text-muted-foreground">{skill.path}</p>
+      <ul className="mt-1 space-y-0.5">
+        {skill.issues.map(issue => (
+          <li key={`${issue.kind}-${issue.target ?? ''}`} className="text-2xs text-destructive">{issue.message}</li>
+        ))}
+      </ul>
+    </li>
+  )
+}
+
+/** Readiness is a small closed set, so it reads in the reader's language. */
+function readinessKey(issue: SkillReadinessIssue) {
+  if (issue.kind === 'missing-env')
+    return 'workspace.details.readinessMissingEnv' as const
+  if (issue.kind === 'missing-mcp-server')
+    return 'workspace.details.readinessMissingMcpServer' as const
+  return 'workspace.details.readinessMissingPath' as const
 }
 
 function SectionHeader({ title, onAdd, addLabel, disabled = false }: {

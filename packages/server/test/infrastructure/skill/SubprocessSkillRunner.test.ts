@@ -100,6 +100,7 @@ async function makeSkillRegistry(skillSourceParent: AbsolutePath, agent?: SkillA
   })
   return {
     list: async () => [manifest],
+    listUnloadable: async () => [],
     find: async () => manifest,
     get: async () => manifest,
   }

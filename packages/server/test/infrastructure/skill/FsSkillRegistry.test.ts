@@ -91,6 +91,87 @@ describe('FsSkillRegistry', () => {
     await expect(registry.get(workspace, 'missing' as SkillId)).rejects.toThrow(NotFoundError)
   })
 
+  describe('a skill file that will not load', () => {
+    async function writeBrokenSkill(dir: string, verb: string): Promise<void> {
+      const skillDir = join(dir, verb)
+      await mkdir(skillDir, { recursive: true })
+      // Everything but `## Procedure`, which the contract requires.
+      const body = ['Role', 'Design Principles', 'Initialization', 'Output', 'Completion Checklist', 'Companion Docs']
+        .map(section => `## ${section}\n\nBody.`)
+        .join('\n\n')
+      await writeFile(join(skillDir, 'SKILL.md'), `---\nname: ${verb}\ndescription: broken\n---\n\n${body}\n`, 'utf-8')
+    }
+
+    it('keeps the rest of the workspace working', async () => {
+      const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
+      await writeSkillFile(builtinRoot, 'ask', 'ask')
+
+      const { workspace, root } = await makeWorkspace()
+      await writeSkillFile(join(root, 'skills'), 'good', 'good')
+      await writeBrokenSkill(join(root, 'skills'), 'broken')
+
+      const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
+      const ids = (await registry.list(workspace)).map(manifest => manifest.id).sort()
+      expect(ids).toEqual(['braid:ask', 'workspace:good'])
+    })
+
+    it('is reported with its path and its reasons', async () => {
+      const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
+      const { workspace, root } = await makeWorkspace()
+      await writeBrokenSkill(join(root, 'skills'), 'broken')
+
+      const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
+      const unloadable = await registry.listUnloadable(workspace)
+      expect(unloadable).toHaveLength(1)
+      expect(unloadable[0]?.id).toBe('workspace:broken')
+      expect(unloadable[0]?.origin).toBe('workspace')
+      expect(unloadable[0]?.path).toContain('broken')
+      expect(unloadable[0]?.issues).toEqual([
+        expect.objectContaining({ kind: 'missing-section', target: 'Procedure' }),
+      ])
+    })
+
+    it('reports frontmatter that will not parse, rather than throwing', async () => {
+      const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
+      const { workspace, root } = await makeWorkspace()
+      const skillDir = join(root, 'skills', 'nameless')
+      await mkdir(skillDir, { recursive: true })
+      await writeFile(join(skillDir, 'SKILL.md'), '---\ndescription: no name\n---\n\n## Role\n', 'utf-8')
+
+      const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
+      await expect(registry.list(workspace)).resolves.toEqual([])
+      const unloadable = await registry.listUnloadable(workspace)
+      expect(unloadable[0]?.issues.some(issue => issue.kind === 'frontmatter')).toBe(true)
+    })
+
+    it('still stops everything when the file is a builtin', async () => {
+      const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
+      await writeBrokenSkill(builtinRoot, 'ask')
+
+      const { workspace } = await makeWorkspace()
+      const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
+      await expect(registry.list(workspace)).rejects.toThrow(/structure contract/)
+    })
+  })
+
+  it('reports an extension that names a skill this workspace does not have', async () => {
+    const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
+    const { workspace, root } = await makeWorkspace()
+    const extensionDir = join(root, 'skill-extensions', 'ddd-extract')
+    await mkdir(extensionDir, { recursive: true })
+    await writeFile(join(extensionDir, 'EXTEND.md'), '# extra context', 'utf-8')
+
+    const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
+    const unloadable = await registry.listUnloadable(workspace)
+    expect(unloadable).toEqual([
+      expect.objectContaining({
+        origin: 'extension',
+        id: 'ddd:extract',
+        issues: [expect.objectContaining({ kind: 'extension-target' })],
+      }),
+    ])
+  })
+
   describe('plugin-shipped skills', () => {
     function fakeOntologyWithSkill(pluginId: string, skillNamespace: string, directory: string): Plugin {
       return {

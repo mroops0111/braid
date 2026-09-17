@@ -25,6 +25,7 @@ function makeMultiSkillRegistry(skillIds: readonly string[]): SkillRegistry {
   )
   return {
     list: async () => manifests,
+    listUnloadable: async () => [],
     find: async (_workspace, id) => manifests.find(m => m.toData().id === id),
     get: async (_workspace, id) => {
       const found = manifests.find(m => m.toData().id === id)

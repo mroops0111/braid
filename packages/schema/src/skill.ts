@@ -241,6 +241,49 @@ export const SkillFrontmatter = ClaudeCodeSkillFrontmatter.extend({
 })
 export type SkillFrontmatter = z.infer<typeof SkillFrontmatter>
 
+/**
+ * One reason a SKILL.md would break at run time, reported rather than logged.
+ *
+ * Every kind names a mechanical fault. House style is not one of them,
+ * so nothing here withholds a skill over a heading's casing or its length.
+ */
+export const SkillLoadIssue = z.object({
+  kind: z.enum([
+    'frontmatter',
+    'missing-section',
+    'duplicate-input-name',
+    'companion-doc-path',
+    'extension-target',
+  ]),
+  message: z.string().min(1),
+  // The heading, input name, or path the finding is about, when it has one.
+  target: z.string().optional(),
+})
+export type SkillLoadIssue = z.infer<typeof SkillLoadIssue>
+
+/**
+ * A skill file that did not load, kept so a surface can name it.
+ *
+ * Only a workspace or extension origin reaches here.
+ * A builtin or plugin skill that will not parse still stops the boot,
+ * since nobody but its publisher can fix it.
+ */
+export const UnloadableSkill = z.object({
+  // Composed from the directory when that much was readable.
+  id: SkillId.optional(),
+  origin: SkillOrigin,
+  path: AbsolutePath,
+  issues: z.array(SkillLoadIssue).min(1),
+})
+export type UnloadableSkill = z.infer<typeof UnloadableSkill>
+
+/** Why a skill cannot run here yet, as opposed to why it would not load. */
+export const SkillReadinessIssue = z.object({
+  kind: z.enum(['missing-env', 'missing-path', 'missing-mcp-server']),
+  target: z.string(),
+})
+export type SkillReadinessIssue = z.infer<typeof SkillReadinessIssue>
+
 export const SkillManifest = z.object({
   id: SkillId,
   origin: SkillOrigin,
