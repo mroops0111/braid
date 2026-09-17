@@ -4,7 +4,7 @@ import { readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { NotFoundError, type PluginRegistry, SkillManifest, type SkillRegistry, validateSkillStructure, type Workspace } from '@braidhq/core'
-import { AbsolutePath as AbsolutePathSchema, SkillFrontmatter as SkillFrontmatterSchema, SkillId as SkillIdSchema } from '@braidhq/schema'
+import { AbsolutePath as AbsolutePathSchema, SkillFrontmatter as SkillFrontmatterSchema, SkillId as SkillIdSchema, splitSkillId } from '@braidhq/schema'
 import { parseMarkdownFrontmatter } from '../_shared/frontmatter.js'
 import { workspaceSkillExtensionsDir, workspaceSkillsDir } from '../_shared/paths.js'
 
@@ -97,24 +97,24 @@ export class FsSkillRegistry implements SkillRegistry {
       const extendPath = AbsolutePathSchema.parse(join(extensionsRoot, entry.name, 'EXTEND.md'))
       if (!await this.exists(extendPath))
         continue
-      // The extension dir is `<namespace>-<verb>`, filesystem-safe.
-      // The first hyphen maps back to the id's `:` separator,
-      // so `ddd-extract` targets `ddd:extract`,
-      // and `doc-reference` targets `doc:reference`.
-      const parsed = SkillIdSchema.safeParse(entry.name.replace('-', ':'))
-      const target = parsed.success ? manifests.get(parsed.data) : undefined
+      const targetId = extensionTargetId(entry.name)
+      const target = targetId ? manifests.get(targetId) : undefined
       if (!target) {
         unloadable.push({
           origin: 'extension',
           path: extendPath,
-          ...(parsed.success ? { id: parsed.data } : {}),
-          issues: [{
-            kind: 'extension-target',
-            message: parsed.success
-              ? `This extension targets skill "${parsed.data}", which this workspace does not have. The directory name is read as <namespace>-<verb>.`
-              : `Directory "${entry.name}" does not name a skill. An extension directory is <namespace>-<verb>, such as "braid-ask".`,
-            target: entry.name,
-          }],
+          ...(targetId ? { id: targetId } : {}),
+          issues: [targetId
+            ? {
+                kind: 'missing-extension-target',
+                message: `This extension targets skill "${targetId}", which this workspace does not have.`,
+                target: targetId,
+              }
+            : {
+                kind: 'unparsable-extension-name',
+                message: `Directory "${entry.name}" does not name a skill. An extension directory is <namespace>-<verb>, such as "braid-ask".`,
+                target: entry.name,
+              }],
         })
         continue
       }
@@ -275,8 +275,27 @@ export class FsSkillRegistry implements SkillRegistry {
   }
 }
 
+/**
+ * The skill an extension directory targets, or undefined when it names none.
+ *
+ * The directory is `<namespace>-<verb>`, filesystem-safe, and its first
+ * hyphen maps back to the id's `:` separator, so `ddd-extract` targets
+ * `ddd:extract`. `SkillId` itself is any non-empty string, so the grammar
+ * is checked by the one function that defines it.
+ */
+function extensionTargetId(directoryName: string): SkillId | undefined {
+  const candidate = SkillIdSchema.parse(directoryName.replace('-', ':'))
+  try {
+    splitSkillId(candidate)
+    return candidate
+  }
+  catch {
+    return undefined
+  }
+}
+
 function frontmatterIssue(message: string): SkillLoadIssue {
-  return { kind: 'frontmatter', message }
+  return { kind: 'unparsable-frontmatter', message }
 }
 
 function describeRejection(skillFile: AbsolutePath, issues: readonly SkillLoadIssue[]): string {

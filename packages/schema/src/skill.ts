@@ -246,14 +246,17 @@ export type SkillFrontmatter = z.infer<typeof SkillFrontmatter>
  *
  * Every kind names a mechanical fault. House style is not one of them,
  * so nothing here withholds a skill over a heading's casing or its length.
+ * Each reads as the fault then its subject, the way a readiness issue does,
+ * and the list runs in the order a load meets them.
  */
 export const SkillLoadIssue = z.object({
   kind: z.enum([
-    'frontmatter',
+    'unparsable-frontmatter',
     'missing-section',
     'duplicate-input-name',
-    'companion-doc-path',
-    'extension-target',
+    'unreachable-companion-doc',
+    'unparsable-extension-name',
+    'missing-extension-target',
   ]),
   message: z.string().min(1),
   // The heading, input name, or path the finding is about, when it has one.
