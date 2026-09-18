@@ -16,7 +16,7 @@ _A finished model: [`examples/conciergent`](examples/conciergent/), 120 nodes Br
 
 Braid _braids_ them back into one domain model that engineers and PMs can both read. The default ontology is Domain-Driven Design (DDD), so people and the AI both speak the ubiquitous language of the domain instead of class names and package paths.
 
-Braid harnesses a coding agent, Claude Code today. Each run sees only the tools its kind of run may call, and a node that cites nothing is refused. What comes out is a model, not a patch.
+Braid harnesses a coding agent, Claude Code. Each run sees only the tools its kind of run may call, and a node that cites nothing is refused. The harness is what lets an AI be the author here.
 
 ## Features
 
