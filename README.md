@@ -3,6 +3,7 @@
 [![CI](https://github.com/mroops0111/braid/actions/workflows/ci.yml/badge.svg)](https://github.com/mroops0111/braid/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@braidhq/cli.svg)](https://www.npmjs.com/package/@braidhq/cli)
 [![npm downloads](https://img.shields.io/npm/dm/@braidhq/cli.svg)](https://www.npmjs.com/package/@braidhq/cli)
+[![Node Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmroops0111%2Fbraid%2Fmaster%2Fpackage.json&query=%24.engines.node&label=node&color=339933&logo=node.js&logoColor=white)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 _A framework for one reviewed model of your domain. Agents draft it from your sources, people decide what lands, and every node cites what it was drawn from._
@@ -11,7 +12,7 @@ _A framework for one reviewed model of your domain. Agents draft it from your so
 
 _A finished model: [`examples/conciergent`](examples/conciergent/), 120 nodes Braid drew from one codebase with no intent docs._
 
-**Software by default. A shared model of your business, not another code graph.** Code is what shipped. Intent is what the team meant. They drift apart every sprint, and the team ends up arguing about which one is right.
+**A shared model of your business, not another code graph.** Code is what shipped. Intent is what the team meant. They drift apart every sprint, and the team ends up arguing about which one is right.
 
 Braid _braids_ them back into one domain model that engineers and PMs can both read. The default ontology is Domain-Driven Design (DDD), so people and the AI both speak the ubiquitous language of the domain instead of class names and package paths.
 
