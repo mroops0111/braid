@@ -1,24 +1,17 @@
 #!/bin/sh
 # Provisions the realm Braid signs people in against.
-#
-# Idempotent, so a redeploy re-asserts the shape without disturbing users
-# who already signed in. Every secret arrives by environment, so nothing
-# here holds one.
-#
-# Google sits behind Keycloak rather than beside it. Braid offers one
-# identity provider, so a deployment that adds Keycloak would otherwise
-# take Google sign-in away from the people already using it.
+# Idempotent, so a redeploy re-asserts the shape without disturbing users.
+# Every secret arrives by environment, so nothing here holds one.
+# Google sits behind Keycloak, not beside it, since Braid offers one provider.
 set -eu
 
 KC=/opt/keycloak/bin/kcadm.sh
-# Reached over the compose network, not through any proxy, so provisioning
-# does not wait on the public name resolving.
+# Over the compose network, so provisioning never waits on the public name.
 SERVER=${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080}
 REALM=${KEYCLOAK_REALM:-braid}
 
-# The gateway exchanges a caller's token for one Braid accepts, and
-# Keycloak resolves the requested audience to a client by its id, so the
-# API's own URL has to name a client.
+# Keycloak resolves a requested audience to a client by its id,
+# so the API's own URL has to name a client.
 API_CLIENT="$BRAID_API_URL"
 MCP_CLIENT="$BRAID_API_URL/braid/mcp"
 
@@ -50,8 +43,7 @@ upsert_client () {
   fi
 }
 
-# Studio's browser login. Confidential, since Braid holds the secret
-# server side and the browser never sees a token it could replay.
+# Studio's browser login. Confidential, so the browser holds no token.
 upsert_client "$BRAID_OIDC_CLIENT_ID" \
   -s enabled=true \
   -s publicClient=false \
@@ -62,17 +54,15 @@ upsert_client "$BRAID_OIDC_CLIENT_ID" \
   -s "webOrigins=[\"$BRAID_API_URL\"]" \
   -s "attributes.\"post.logout.redirect.uris\"=$BRAID_API_URL/*"
 
-# Named for the API rather than for a person, because its only job is to
-# be an audience the exchanged token can carry.
+# Named for the API, since its only job is to be an audience a token carries.
 upsert_client "$API_CLIENT" \
   -s enabled=true \
   -s publicClient=false \
   -s standardFlowEnabled=false \
   -s "secret=$KEYCLOAK_API_SECRET"
 
-# What the gateway authenticates as. Token exchange is what lets it turn
-# a caller's own token into one Braid accepts, so the caller stays
-# themselves rather than collapsing into a shared service identity.
+# What the gateway authenticates as. Exchange keeps the caller themselves,
+# rather than collapsing every call into one service identity.
 upsert_client "$MCP_CLIENT" \
   -s enabled=true \
   -s publicClient=false \
@@ -82,8 +72,7 @@ upsert_client "$MCP_CLIENT" \
   -s 'attributes."standard.token.exchange.enabled"=true'
 
 # hostedDomain narrows Google to one workspace domain.
-# Left empty, any Google account reaches the door,
-# and BRAID_ALLOWED_DOMAINS is then the only thing narrowing it.
+# Left empty, BRAID_ALLOWED_DOMAINS is the only thing narrowing it.
 if $KC get identity-provider/instances/google -r "$REALM" >/dev/null 2>&1; then
   $KC update identity-provider/instances/google -r "$REALM" \
     -s "config.clientId=$BRAID_GOOGLE_CLIENT_ID" \
@@ -99,23 +88,17 @@ else
   echo "Created Google identity provider."
 fi
 
-# Keycloak's client-scopes endpoint ignores a name filter and answers with
-# the whole list, so matching has to happen here. Asking it to filter and
-# taking the first row silently returns an unrelated built-in scope.
+# The client-scopes endpoint ignores a name filter and answers with the whole
+# list, so filtering there and taking row one returns an unrelated scope.
 scope_id_of () {
   $KC get client-scopes -r "$REALM" --fields id,name --format csv --noquotes 2>/dev/null \
     | grep ",$1\$" | cut -d, -f1 | head -1
 }
 
-# Two audiences have to be arranged, and neither client can ask for its own.
-#
-# An MCP client registers itself, so it cannot know to request the endpoint
-# as an audience. A realm default scope gives every client one, including
-# a client that appeared without an operator.
-#
-# The exchange then targets Braid's API, and Keycloak only issues an
-# audience the requesting client's scope already covers, so the gateway
-# carries a scope naming it.
+# Two audiences to arrange, and neither client can ask for its own.
+# An MCP client registers itself, so a realm default scope gives it one.
+# The exchange then targets the API, and Keycloak only issues an audience
+# the requesting client's scope already covers.
 upsert_scope () {
   scope_name="$1"
   audience_key="$2"
@@ -151,18 +134,15 @@ mcp_id=$($KC get clients -r "$REALM" -q "clientId=$MCP_CLIENT" --fields id --for
 $KC update "clients/$mcp_id/default-client-scopes/$SCOPE_ID" -r "$REALM" >/dev/null 2>&1 || true
 echo "Gateway can now exchange for the API audience."
 
-# Nobody signs in against Keycloak itself here, since every account arrives
-# from Google. Left alone the browser flow would show a username and password
-# form first, so the redirector is given a default and the hop is invisible.
-# This covers an MCP client too, which cannot pass `kc_idp_hint` of its own.
-# The executions listing carries the config id once one is attached, which
-# is the only signal that says whether this has already been done. Asking
-# the config endpoint instead answers nothing either way, so a rerun would
-# keep adding another.
+# Every account arrives from Google, so the username form is a dead hop.
+# A default on the redirector skips it, for an MCP client too,
+# which cannot pass `kc_idp_hint` of its own.
 redirector_row=$($KC get "authentication/flows/browser/executions" -r "$REALM" \
   --fields id,providerId,authenticationConfig --format csv --noquotes 2>/dev/null \
   | grep ",identity-provider-redirector")
 redirector=$(echo "$redirector_row" | cut -d, -f1 | head -1)
+# The listing carries the config id once attached, the only signal saying
+# whether this ran before. The config endpoint answers neither way.
 existing=$(echo "$redirector_row" | cut -d, -f3 | head -1)
 if [ -n "$redirector" ]; then
   if [ -z "$existing" ]; then
