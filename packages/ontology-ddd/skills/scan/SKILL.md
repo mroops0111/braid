@@ -10,8 +10,10 @@ braid:
     zh-Hant: 掃描
   order: 50
   summary: Scan a codebase and produce extraction units
-  required-env: [BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE]
   hidden: true
+  required-env: [BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE]
+  output:
+    forms: [prose]
 ---
 
 ## Role

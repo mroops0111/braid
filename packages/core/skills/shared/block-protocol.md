@@ -8,7 +8,7 @@ Which calls you are offered depends on the kind of work you are doing, so the li
 
 Calling none of them is valid. A skill that renders no blocks still shows its transcript, so adopting this is per skill, not all at once.
 
-A tool list holding none of them means something else. This run was asked for its answer in prose, and the render operations were left out of the spec it was given. Write the answer out, and read no further here.
+This document assumes `$BRAID_OUTPUT_FORM` is `blocks`. Any other value means this run renders nothing, and `output-forms.md` rather than this file says what it owes.
 
 A skill may also declare an output contract in its frontmatter, naming the calls it owes and how many blocks each audience is due. When a run ends without meeting it, the framework resumes the same session once with the gap spelled out. Treat that correction as a request to add what is missing, not to redo the answer.
 
@@ -25,6 +25,8 @@ The same holds for status. The surface reads `draft` or `unclear` off the graph 
 Block text lands in the same surface as the product's own labels, so it follows the same typography. Never write an em dash or an en dash, in any language. Split the sentence in two, or use a comma or parentheses. The same goes for a decorative arrow, which is reserved for naming the two ends of a relationship. Write three periods as the ellipsis character when you need one at all.
 
 This applies to every string you pass, including a title, a matrix cell, and a diagram label.
+
+Every string you pass is text, never markup. Write `&` as `&`, never as `&amp;`, and the same for every other HTML entity. Nothing here is parsed as HTML, so an entity reaches the reader exactly as you typed it.
 
 ## Audience
 

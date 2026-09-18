@@ -10,9 +10,10 @@ braid:
     zh-Hant: 萃取
   order: 100
   summary: Extract domain nodes/edges from PRDs and code
-  output:
-    required-calls: [showTrace, showAnswer]
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
+  output:
+    forms: [blocks, prose]
+    required-calls: [showTrace, showAnswer]
   inputs:
     - name: scope
       label: Intent
@@ -97,7 +98,7 @@ What you do next depends on whether anyone is waiting to answer.
 
 **Attended, the default.** Emit a Clarification per Step 5, then stop. See § Step 4 for what the server will and will not let you do here.
 
-**Unattended, when `$BRAID_UNATTENDED` is `true`.** A batch is driving you and applying what you produce, so stopping would leave the graph empty rather than approximate, which is the wrong trade during a bootstrap. Model it the splittable way instead: keep the readings as separate nodes rather than merging them into one, since merging two nodes later is mechanical while splitting one is not, its references have already been pooled and nothing records which belonged where. Set `status: 'unclear'` on every node the doubt touches, attach a `DriftIssue` naming the two readings, and still emit the Clarification per Step 5. Then carry on and submit the proposal.
+**Unattended, when `$BRAID_UNATTENDED` is `true`.** A batch or a reactor cycle is driving you and nobody is waiting to answer, so stopping would leave the graph empty rather than approximate, which is the wrong trade during a bootstrap. Model it the splittable way instead: keep the readings as separate nodes rather than merging them into one, since merging two nodes later is mechanical while splitting one is not, its references have already been pooled and nothing records which belonged where. Set `status: 'unclear'` on every node the doubt touches, attach a `DriftIssue` naming the two readings, and still emit the Clarification per Step 5. Then carry on and submit the proposal.
 
 Never guess silently in either mode. The difference is whether the doubt stops the run or is recorded in the graph, not whether it is recorded at all.
 
@@ -135,6 +136,8 @@ Write each candidate as **what that reading means**, and leave `proposedOperatio
 Before writing the `question` and each `candidate.description`, re-read `$BRAID_ONTOLOGY_REFERENCE/concept.md` § Clarifications: Reviewer Pool and Vocabulary. The reviewer pool for DDD workspaces is the cross-functional team (PM, RD, QA, designer); the clarification fields must read in their ubiquitous language, not in graph topology or code identifiers. Lower graph terms, exact node ids, and the engineering reasoning into the clarification's `context` field instead, which has no audience constraint.
 
 ## Output
+
+`$BRAID_OUTPUT_FORM` names the form this run produces. Anything other than `blocks` means `$BRAID_SHARED_REFERENCE/output-forms.md` is the whole of what you owe, and where it calls for a summary, § Stdout below is the one it means. Nothing else in this section applies.
 
 Two forms, and the render calls are the one a person reads.
 
@@ -185,18 +188,13 @@ Produced N proposals + M clarifications:
 - [ ] Each Clarification candidate carries `proposedOperations`.
 - [ ] Final stdout lists outcomes (or, if proposal-create kept returning 400 after 3 rounds, lists the remaining issues).
 
-## Referencing Nodes
-
-When any prose you write names a graph node, write it as the token `@node:<id>` instead of a bare id. Studio renders the token as a live tag carrying the node's name and description. This applies to your narration, to `clarification.context`, to `proposal.rationale`, and to `node.description`. It does not apply to `clarify.question` or `candidate.description`, whose audience rule is unchanged. Full grammar in `$BRAID_SHARED_REFERENCE/reference-syntax.md`.
-
 ## Companion Docs
-
-Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
 
 | File | When to Read | Why |
 |---|---|---|
 | `$BRAID_ONTOLOGY_REFERENCE/concept.md` | **Before Step 2 and any time you author a node / edge** | The DDD vocabulary, wiring rules, policy pattern, Context Mapping rules, ID prefix conventions, and per-type description aspects. The contract for everything Step 2 does. |
 | `$BRAID_SHARED_REFERENCE/proposal-format.md` | Before Step 4 | `GraphOperation` discriminated union, `DriftIssue` shape, status semantics, sizing. |
+| `$BRAID_SHARED_REFERENCE/output-forms.md` | When `$BRAID_OUTPUT_FORM` is not `blocks` | What to write when this run renders nothing, and how much of it. |
 | `$BRAID_SHARED_REFERENCE/block-protocol.md` | Before the first render call | Which render tool carries which part of the working, and the provenance rule for every reference. |
 | `$BRAID_SHARED_REFERENCE/clarification-format.md` | Before Step 5 | `Clarification` request body and candidate shape. |
 | `$BRAID_SHARED_REFERENCE/content-conventions.md` | Whenever writing a `name`, `description`, `rationale`, or `question` | Plain-text rule, length caps, structural conventions for every user-facing string field. |

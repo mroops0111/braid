@@ -77,10 +77,6 @@ A `typeLabel` is either a plain string or a map of locale to string. Where it is
 5. Use `show_diagram` only where a flow or a state machine is the point and prose would flatten it.
 6. Close with `show_evidence` carrying the sources behind the document, each marked with its provenance as `block-protocol.md` describes.
 
-## Plain Text, Not Markup
-
-Every string you pass is text. Write `&` as `&`, never as `&amp;`, and the same for every other HTML entity. Nothing here is parsed as HTML, so an entity reaches the reader exactly as you typed it.
-
 ## Output
 
 An ordered sequence of blocks. There is no file to write and no markup to compose. The surface owns how every block looks.
@@ -99,7 +95,7 @@ None. The framework takes the blocks this run rendered and keeps them as the doc
 
 ## Companion Docs
 
-| Doc | When | What it carries |
+| File | When to Read | Why |
 |---|---|---|
 | `$BRAID_SHARED_REFERENCE/block-protocol.md` | Before the first render call | Tool names, audiences, grouping, provenance, and the typography rules. |
 | `$BRAID_SHARED_REFERENCE/reference-syntax.md` | When prose names a node | The `@node:<id>` grammar the surface renders as a live tag. |

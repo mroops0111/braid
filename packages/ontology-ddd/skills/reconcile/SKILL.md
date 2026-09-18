@@ -11,6 +11,8 @@ braid:
   order: 300
   summary: Cross-link sources and validate the graph globally
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
+  output:
+    forms: [prose]
   inputs:
     - name: mode
       label: Mode
@@ -130,7 +132,7 @@ For each node with a source `ref`, scan for known coverage gaps the ontology car
 
 Submit the Proposal via the `braid-core` proposal-create capability:
 
-- `operations`: the bridge / containment / DriftIssue / status-flip ops you derived in Steps 1–6.
+- `operations`: the bridge / containment / DriftIssue / status-flip ops you derived in Steps 1 to 6.
 - `generatedBy`: `"ddd:reconcile"`.
 - `rationale`: `"global structure pass + validation: <one-line summary of bridges added, drift attached, content fills>"`.
 
@@ -163,13 +165,7 @@ In `validate` mode, omit the `bridges` figure and prefix with `(validate-only)`.
 - [ ] Coverage gaps reported in the proposal `rationale`.
 - [ ] (validate mode) Stale `driftIssues` entries that no longer reproduce are cleared from affected nodes.
 
-## Referencing Nodes
-
-When any prose you write names a graph node, write it as the token `@node:<id>` instead of a bare id. Studio renders the token as a live tag carrying the node's name and description. This applies to your narration, to `clarification.context`, to `proposal.rationale`, and to `node.description`. It does not apply to `clarify.question` or `candidate.description`, whose audience rule is unchanged. Full grammar in `$BRAID_SHARED_REFERENCE/reference-syntax.md`.
-
 ## Companion Docs
-
-Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
 
 | File | When to Read | Why |
 |---|---|---|

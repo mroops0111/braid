@@ -9,6 +9,7 @@ braid:
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_RUN_ID, BRAID_SOURCE_ROLES, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
   allowed-roles: [owner, maintainer, guest]
   output:
+    forms: [blocks, prose]
     required-calls: [showAnswer, showTrace]
     cover-declared-audiences: 3
     max-retries: 1
@@ -71,10 +72,7 @@ Compare the sources against each other on the dimensions relevant to the questio
 
 ## Output
 
-Read your tool list before writing anything, because there are two ways this run can answer and the list says which one you are in.
-
-- **Without the Render Calls**: this run was asked for the answer in prose. Write it out as markdown. The answer first, then the sources behind each claim with their locations, then any disagreement you found between them. That is the whole of your output, so there is no stdout summary to add and nothing is waiting to be drawn. Skip the rest of this section.
-- **With Them**: the rest of this section applies.
+`$BRAID_OUTPUT_FORM` names the form this run produces. Anything other than `blocks` means `$BRAID_SHARED_REFERENCE/output-forms.md` is the whole of what you owe, and where it calls for a summary, § Stdout below is the one it means. Nothing else in this section applies.
 
 The render calls are the answer. Make each one as that part of the answer settles, using the `braid-core` render tools with `$BRAID_RUN_ID`. Follow `$BRAID_SHARED_REFERENCE/block-protocol.md` for what each call carries. Do not batch them to the end, a reader watches the answer assemble.
 
@@ -128,16 +126,11 @@ Writing out one answer for a business reader and a second for an engineer is the
 - [ ] Every stored reference the answer leans on was opened and confirmed to still support the claim, and any that had moved was reported as a finding rather than silently repointed.
 - [ ] Every finding was checked against `metadata.driftIssues` on the nodes involved, and an already-recorded drift carries `registered` and its `driftId`.
 
-## Referencing Nodes
-
-When any prose you write names a graph node, write it as the token `@node:<id>` instead of a bare id. Studio renders the token as a live tag carrying the node's name and description. This applies to your narration, to `clarification.context`, to `proposal.rationale`, and to `node.description`. It does not apply to `clarify.question` or `candidate.description`, whose audience rule is unchanged. Full grammar in `$BRAID_SHARED_REFERENCE/reference-syntax.md`.
-
 ## Companion Docs
-
-Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
 
 | File | When to Read | Why |
 |---|---|---|
+| `$BRAID_SHARED_REFERENCE/output-forms.md` | When `$BRAID_OUTPUT_FORM` is not `blocks` | What to write when this run renders nothing, and how much of it. |
 | `$BRAID_SHARED_REFERENCE/block-protocol.md` | Before the first render call | Which render tool carries which part of the output, how `$BRAID_AUDIENCES` works, and the provenance rule for every reference. |
 | `$BRAID_SHARED_REFERENCE/drift-detection.md` | Step 5, when describing a finding | What counts as drift, and the description pattern for writing it so reviewers can act on it. |
 | `$BRAID_ONTOLOGY_REFERENCE/concept.md` | Step 5, before classifying a finding | The dimensions this ontology considers worth checking. Read the list rather than assuming one. |

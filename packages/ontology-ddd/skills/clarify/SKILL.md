@@ -11,6 +11,8 @@ braid:
   order: 200
   summary: Resolve answered clarifications into proposals
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
+  output:
+    forms: [prose]
   inputs:
     - name: clarification
       label: Clarification
@@ -123,13 +125,7 @@ Processed N clarifications: M proposals produced, K new clarifications raised, L
 - [ ] Each no-impact Clarification was closed to `applied` in Step 4. Each Clarification with a Proposal was left `answered` for the reviewer to apply.
 - [ ] Final stdout lists each clarification's outcome.
 
-## Referencing Nodes
-
-When any prose you write names a graph node, write it as the token `@node:<id>` instead of a bare id. Studio renders the token as a live tag carrying the node's name and description. This applies to your narration, to `clarification.context`, to `proposal.rationale`, and to `node.description`. It does not apply to `clarify.question` or `candidate.description`, whose audience rule is unchanged. Full grammar in `$BRAID_SHARED_REFERENCE/reference-syntax.md`.
-
 ## Companion Docs
-
-Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
 
 | File | When to Read | Why |
 |---|---|---|

@@ -61,10 +61,6 @@ The order of `holds` is the order the ontology says this graph nests. Keep it, a
 6. `answer` explains why, and never opens by naming the choice. The surface already marks which one was right, so an explanation that opens by repeating it spends its first words on what the reader can already see.
 7. Use `show_diagram` wherever a picture beats a paragraph.
 
-## Plain Text, Not Markup
-
-Every string you pass is text. Write `&` as `&`, never as `&amp;`, and the same for every other HTML entity. Nothing here is parsed as HTML, so an entity reaches the reader exactly as you typed it.
-
 ## Output
 
 An ordered sequence of blocks, written for someone who has never met the subject. There is no file to write and no markup to compose.
@@ -84,7 +80,7 @@ None. The framework takes the blocks this run rendered and keeps them as the doc
 
 ## Companion Docs
 
-| Doc | When | What it carries |
+| File | When to Read | Why |
 |---|---|---|
 | `$BRAID_SHARED_REFERENCE/block-protocol.md` | Before the first render call | Tool names, audiences, grouping, provenance, and the typography rules. |
 | `$BRAID_SHARED_REFERENCE/reference-syntax.md` | When prose names a node | The `@node:<id>` grammar the surface renders as a live tag. |
