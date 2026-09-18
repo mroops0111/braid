@@ -18,7 +18,7 @@ import type { RunTokenRegistry } from './RunTokenRegistry.js'
 import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { carriedEvents, ConflictError, describeViolations, newBlockId, newSkillRunId, NotFoundError, restateRunId, runScope, ServiceUnavailableError, validateOutput } from '@braidhq/core'
-import { AbsolutePath as AbsolutePathSchema, localize, mayRunAsProse, McpServerId, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema, splitSkillId } from '@braidhq/schema'
+import { AbsolutePath as AbsolutePathSchema, localize, McpServerId, rendersBlocks, settleOutputForm, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema, splitSkillId } from '@braidhq/schema'
 import { sessionDirPath } from '../_shared/paths.js'
 import { type AsyncQueue, createAsyncQueue } from './asyncQueue.js'
 import { BUILTIN_SKILL_NAMESPACE } from './FsSkillRegistry.js'
@@ -175,15 +175,19 @@ export class SubprocessSkillRunner implements SkillRunner {
     // The run's own credential, so what it creates is attributed from the request,
     // rather than from a field an agent had to fill in correctly.
     const runToken = this.deps.runTokens?.issue(runId, options.startedBy) ?? options.callerToken
-    const unattended = options.extraEnv?.BRAID_UNATTENDED === 'true'
+    const unattended = options.unattended === true
     this.deps.outputGate?.open(runId, { unattended })
     // A skill that says nothing about what it does gets the reading surface.
     // Writing to the graph is a claim a skill has to make for itself.
     const toolSurface = category ?? 'ask'
-    // A run only leaves the render tools behind where its kind has a prose form,
-    // so asking for one where there is none renders as usual
-    // rather than producing a run with no way to say anything.
-    const outputForm = options.outputForm === 'prose' && mayRunAsProse(toolSurface) ? 'prose' : 'blocks'
+    // A skill declares the forms it can produce, and nothing outside that list
+    // can be reached by asking, so a request a skill never offered
+    // renders as usual rather than making a run with no way to say anything.
+    const outputForm = settleOutputForm({
+      declared: manifest.frontmatter.braid.output?.forms,
+      requested: options.outputForm,
+      unattended,
+    })
     const gatewayArgs = [
       'openapi-mcp-gateway',
       '--spec',
@@ -275,6 +279,16 @@ export class SubprocessSkillRunner implements SkillRunner {
         // Absolute paths to the reference docs a prompt may Read,
         // so no SKILL.md carries a location of its own.
         ...this.referenceEnv(workspace, skillId, sessionDir),
+        // The form this run was settled on, told rather than left to be inferred.
+        // The spec is what enforces it, since the operations are genuinely absent,
+        // but a prompt that had to notice their absence went looking for them,
+        // and in an agent whose tools are searched rather than listed
+        // that search costs several calls before it concludes what this says.
+        BRAID_OUTPUT_FORM: outputForm,
+        // Read by a prompt deciding whether to stop and ask.
+        // A run nobody is watching files its question and carries on,
+        // since holding its work back waits on an answer that is not coming.
+        ...(unattended ? { BRAID_UNATTENDED: 'true' } : {}),
         // BRAID_TOKEN is read by the braid-core MCP gateway,
         // and by any shell-level callback (curl in a SKILL.md),
         // so the subprocess can authenticate against the running server.
@@ -381,14 +395,14 @@ export class SubprocessSkillRunner implements SkillRunner {
     const active = this.running.get(validated)
     if (!active)
       throw new NotFoundError(`SkillRun "${validated}" not active`)
-    // The spec a prose run reads holds no render operation,
+    // The spec a non-rendering run reads holds no render operation,
     // so this is unreachable through the gateway and is refused here
     // for anything that arrives with the run's token by another route.
-    // Without it, "a prose run has no blocks" would be a convention,
+    // Without it, "this run has no blocks" would be a convention,
     // and a surface cannot fall back on a convention.
-    if (active.outputForm === 'prose') {
+    if (!rendersBlocks(active.outputForm)) {
       throw new ConflictError(
-        `SkillRun "${validated}" was asked for prose, so it renders no blocks. Write the answer out instead.`,
+        `SkillRun "${validated}" produces ${active.outputForm}, so it renders no blocks. Write the answer out instead.`,
       )
     }
     const emitted: EmittedBlock = { id: newBlockId(), block }
@@ -624,7 +638,7 @@ export class SubprocessSkillRunner implements SkillRunner {
   ): Promise<void> {
     if (sawError || exitCode !== 0 || input.retriesLeft <= 0 || sessionId === null)
       return
-    if (input.initialRecord.outputForm === 'prose')
+    if (!rendersBlocks(input.initialRecord.outputForm))
       return
     const manifest = await this.deps.skillRegistry.get(input.workspace, input.skillId)
     const contract = manifest.frontmatter.braid.output

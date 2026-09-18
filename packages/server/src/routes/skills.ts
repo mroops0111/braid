@@ -37,8 +37,8 @@ const RunBody = z.object({
   // Studio sends this when the user picks a `source` option.
   // Only `ddd:extract` consumes it today, other skills ignore it.
   sourceUnit: SourceUnitRef.optional(),
-  // The form the caller wants back, absent meaning blocks.
-  // A run whose kind has no prose form renders regardless,
+  // The form the caller wants back, absent meaning the skill's own default.
+  // A request for a form the skill never declared renders as usual,
   // which the runner settles rather than this route refusing the request.
   outputForm: OutputForm.optional(),
 }).openapi('SkillRunBody')

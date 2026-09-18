@@ -1,6 +1,6 @@
 import type { RunRecord, SkillId, SkillRunId, UserId, WorkspaceId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
-import { formOfConversation } from '../../../src/lib/blocks/outputForm'
+import { formOfConversation } from '../../src/lib/outputForm'
 
 function makeRecord(overrides: Partial<RunRecord>): RunRecord {
   return {

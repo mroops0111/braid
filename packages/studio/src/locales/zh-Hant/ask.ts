@@ -39,10 +39,10 @@ export const ask = {
   },
   // The form a run is asked to produce, chosen before it starts.
   form: {
-    blocks: '區塊',
+    blocks: '互動',
     prose: '純文字',
-    blocksHint: '答案連同佐證，以可展開的區塊呈現。',
-    proseHint: '只寫出答案，沒有可展開的佐證，花費較少。',
+    blocksHint: '答案以可展開的區塊呈現，適合閱讀、理解和比較。',
+    proseHint: '答案直接寫出來，一樣會引用來源，但只是文字，不能點開。花費較少。',
     settled: '一段對話會維持它開始時的形式。',
   },
 }

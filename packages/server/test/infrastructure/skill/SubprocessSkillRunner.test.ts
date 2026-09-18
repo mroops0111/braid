@@ -39,6 +39,7 @@ interface BuildRunnerInput {
   readonly coreGateway?: { specUrlFor: (category: SkillCategory, form: OutputForm) => string, uvxBin?: string }
   readonly resolveSourceRoles?: (workspace: Workspace) => readonly SourceRoleDescriptor[]
   readonly category?: SkillCategory
+  readonly forms?: readonly OutputForm[]
 }
 
 interface BuiltRunner {
@@ -50,7 +51,11 @@ interface BuiltRunner {
 }
 
 async function buildRunner(input: BuildRunnerInput): Promise<BuiltRunner> {
-  const skillRegistry = input.skillRegistry ?? await makeSkillRegistry(input.rootPath, input.skillAgent, input.category)
+  const skillRegistry = input.skillRegistry ?? await makeSkillRegistry(input.rootPath, {
+    ...(input.skillAgent ? { agent: input.skillAgent } : {}),
+    ...(input.category ? { category: input.category } : {}),
+    ...(input.forms ? { forms: input.forms } : {}),
+  })
   const runRepository = input.runRepository ?? new FsRunRepository()
   const { spawn, invocations } = createMockSpawn(input.sequence ?? [{ stdoutLines: [], exitCode: 0 }])
   const runner = new SubprocessSkillRunner({
@@ -75,7 +80,11 @@ async function makeWorkspaceRoot(): Promise<AbsolutePath> {
   return (await mkdtemp(join(tmpdir(), 'braid-runner-'))) as AbsolutePath
 }
 
-async function makeSkillRegistry(skillSourceParent: AbsolutePath, agent?: SkillAgentOverride, category?: SkillCategory): Promise<SkillRegistry> {
+async function makeSkillRegistry(skillSourceParent: AbsolutePath, declares: {
+  readonly agent?: SkillAgentOverride
+  readonly category?: SkillCategory
+  readonly forms?: readonly OutputForm[]
+} = {}): Promise<SkillRegistry> {
   // Materialise a real SKILL.md so the runner's session-dir builder can symlink it.
   // Tests that don't care about the session-dir layout still get a valid manifest.
   const skillDir = join(skillSourceParent, 'ask')
@@ -93,8 +102,9 @@ async function makeSkillRegistry(skillSourceParent: AbsolutePath, agent?: SkillA
         requiredEnv: [],
         requiredMcpServers: [],
         allowedRoles: ['owner', 'maintainer'],
-        ...(agent ? { agent } : {}),
-        ...(category ? { category } : {}),
+        ...(declares.agent ? { agent: declares.agent } : {}),
+        ...(declares.category ? { category: declares.category } : {}),
+        ...(declares.forms ? { output: { forms: [...declares.forms], requiredCalls: [], maxRetries: 1 } } : {}),
       },
     },
   })
@@ -404,6 +414,7 @@ describe('SubprocessSkillRunner', () => {
       const rootPath = await makeWorkspaceRoot()
       const { runner, workspace, invocations } = await buildRunner({
         rootPath,
+        forms: ['blocks', 'prose'],
         coreGateway: { specUrlFor: (category, form) => `http://localhost:4321/openapi/runs/${category}/${form}/openapi.json` },
         sequence: [{ stdoutLines: [], exitCode: 0 }, { stdoutLines: [], exitCode: 0 }],
       })
@@ -416,9 +427,9 @@ describe('SubprocessSkillRunner', () => {
 
     // The spec holds no render operation, so this is unreachable through the
     // gateway. It is refused here for anything arriving by another route.
-    it('refuses to render on a run asked for prose', async () => {
+    it('refuses to render on a run that produces no blocks', async () => {
       const rootPath = await makeWorkspaceRoot()
-      const { runner, workspace } = await buildRunner({ rootPath })
+      const { runner, workspace } = await buildRunner({ rootPath, forms: ['blocks', 'prose'] })
 
       const runId = await runner.start(workspace, SKILL_ID, 'what is X', { startedBy: STARTED_BY, outputForm: 'prose' })
 
@@ -429,11 +440,59 @@ describe('SubprocessSkillRunner', () => {
       })).rejects.toThrow(ConflictError)
     })
 
-    it('still renders for a run whose kind has no prose form', async () => {
+    // Asking cannot reach a form the skill never offered,
+    // which is what keeps a skill whose blocks are its product rendering.
+    it('ignores a form the skill never declared', async () => {
       const rootPath = await makeWorkspaceRoot()
-      const { runner, workspace, runRepository } = await buildRunner({ rootPath, category: 'generate' })
+      const { runner, workspace, runRepository } = await buildRunner({ rootPath })
 
       const runId = await runner.start(workspace, SKILL_ID, 'write it up', { startedBy: STARTED_BY, outputForm: 'prose' })
+
+      const record = (await runRepository.listRecords(workspace)).find(entry => entry.runId === runId)
+      expect(record?.outputForm).toBe('blocks')
+    })
+
+    // Told rather than left to be inferred.
+    // A prompt that had to notice the render tools were gone went looking,
+    // and in an agent whose tools are searched rather than listed
+    // that search cost several calls before it concluded what this says.
+    it('tells the run which form it was settled on', async () => {
+      const rootPath = await makeWorkspaceRoot()
+      const { runner, workspace, invocations } = await buildRunner({ rootPath, forms: ['blocks', 'prose'] })
+
+      await runner.start(workspace, SKILL_ID, 'what is X', { startedBy: STARTED_BY, outputForm: 'prose' })
+
+      expect(invocations[0]!.options.env?.BRAID_OUTPUT_FORM).toBe('prose')
+    })
+
+    it('tells a rendering run the same way, so the prompt reads one thing', async () => {
+      const rootPath = await makeWorkspaceRoot()
+      const { runner, workspace, invocations } = await buildRunner({ rootPath })
+
+      await runner.start(workspace, SKILL_ID, 'what is X', { startedBy: STARTED_BY })
+
+      expect(invocations[0]!.options.env?.BRAID_OUTPUT_FORM).toBe('blocks')
+    })
+
+    // Rendering is paid for by whoever produces it,
+    // so a batch or a reactor cycle stops paying for a surface nobody opens.
+    it('leaves the render calls behind when nobody is watching', async () => {
+      const rootPath = await makeWorkspaceRoot()
+      const { runner, workspace, runRepository } = await buildRunner({ rootPath, forms: ['blocks', 'prose'] })
+
+      const runId = await runner.start(workspace, SKILL_ID, 'extract it', { startedBy: STARTED_BY, unattended: true })
+
+      const record = (await runRepository.listRecords(workspace)).find(entry => entry.runId === runId)
+      expect(record?.outputForm).toBe('prose')
+    })
+
+    // Blocks that are the artefact rather than a rendering of one
+    // are still owed when the run has no reader at all.
+    it('still renders with nobody watching when blocks are all the skill offers', async () => {
+      const rootPath = await makeWorkspaceRoot()
+      const { runner, workspace, runRepository } = await buildRunner({ rootPath })
+
+      const runId = await runner.start(workspace, SKILL_ID, 'write it up', { startedBy: STARTED_BY, unattended: true })
 
       const record = (await runRepository.listRecords(workspace)).find(entry => entry.runId === runId)
       expect(record?.outputForm).toBe('blocks')

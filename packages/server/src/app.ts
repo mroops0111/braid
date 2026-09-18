@@ -1,6 +1,6 @@
 import type { AbsolutePath, Timestamp, UserId } from '@braidhq/schema'
 import type { AppDependencies } from './composeApp.js'
-import { mayRunAsProse, OutputForm, SkillCategory } from '@braidhq/schema'
+import { OutputForm, SkillCategory } from '@braidhq/schema'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { OpenAPIHono } from '@hono/zod-openapi'
 import { withoutTrailingSlash } from './infrastructure/_shared/urls.js'
@@ -438,6 +438,10 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   // which is its kind and the form its output takes.
   // A question about who may do what is answered once, here,
   // rather than by every handler learning who is calling it.
+  //
+  // Which forms a run can be in is the skill's to declare, not this route's,
+  // so a pairing no skill offers is served rather than refused.
+  // Nothing requests one, since the runner settles the pair before asking.
   app.get('/openapi/runs/:category/:form/openapi.json', (context) => {
     const category = SkillCategory.safeParse(context.req.param('category'))
     if (!category.success)
@@ -445,8 +449,6 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     const form = OutputForm.safeParse(context.req.param('form'))
     if (!form.success)
       return context.json({ error: 'Unknown output form' }, 404)
-    if (form.data === 'prose' && !mayRunAsProse(category.data))
-      return context.json({ error: `A ${category.data} run has no prose form, since its blocks are what it produces.` }, 404)
     const document = app.getOpenAPI31Document(specConfig) as unknown as Record<string, unknown>
     return context.json(toolSurfaceFor(document, category.data, form.data))
   })

@@ -1,5 +1,5 @@
 import type { AudienceDescriptor, EvidenceDetail, Locale, OutputForm, RunRecord, SkillManifest } from '@braidhq/schema'
-import { localize } from '@braidhq/schema'
+import { localize, rendersBlocks } from '@braidhq/schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlignLeft, Layers, Lock, MessageCircleQuestion, MoreHorizontal, Pencil, Plus, Send, Share2, Trash2, X } from 'lucide-react'
 import { DropdownMenu as DropdownPrimitive } from 'radix-ui'
@@ -20,14 +20,15 @@ import { CollapseListButton, SurfaceLayout } from '@/components/SurfaceLayout'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { api } from '@/lib/api'
 import { type AnswerView, TRANSCRIPT_VIEW, useAnswerView, visibleBlocks } from '@/lib/blocks/audience'
 import { collectTurns } from '@/lib/blocks/collectBlocks'
-import { formOfConversation, useOutputForm } from '@/lib/blocks/outputForm'
 import { summariseActivity } from '@/lib/blocks/runActivity'
 import { readStats } from '@/lib/blocks/runStats'
 import { EvidenceDetailContext, WorkspaceScopeContext } from '@/lib/blocks/WorkspaceScopeContext'
 import { formatTimestamp, groupBySession, type SessionGroup } from '@/lib/conversations'
+import { formOfConversation, useOutputForm } from '@/lib/outputForm'
 import { queryKeys, useMe, useOntology, useRuns, useSessionMetadata, useSkills, useUsers } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
 import { useConversation, useTurns } from '@/lib/useRun'
@@ -424,14 +425,14 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
 
   const running = conversation.phase === 'streaming' || submitting
   const records = runsData?.items ?? []
-  const [preferredForm, setPreferredForm] = useOutputForm()
+  const [requestedForm, setOutputForm] = useOutputForm()
   // A conversation already under way is read in the form its author asked for,
   // so somebody reading one lent to them sees what was made,
   // rather than an answer emptied of the blocks their own habit hides.
   const settledForm = formOfConversation(records, conversation.sessionId)
-  const outputForm = settledForm ?? preferredForm
-  // A prose run rendered nothing, so it has no audience to read it as.
-  const readableAs = outputForm === 'prose' ? [] : audiences
+  const outputForm = settledForm ?? requestedForm
+  // A run that rendered nothing has no audience to read it as.
+  const readableAs = rendersBlocks(outputForm) ? audiences : []
   const [view, setView] = useAnswerView(readableAs)
   const openedBy = records.find(record => record.sessionId === conversation.sessionId)?.startedBy ?? null
   const share = useSessionShareState(workspaceId, conversation.sessionId, openedBy)
@@ -576,7 +577,7 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
         />
         <FormToggle
           value={outputForm}
-          onChange={setPreferredForm}
+          onChange={setOutputForm}
           settled={settledForm !== null}
           disabled={running || isBorrowed}
         />
@@ -605,17 +606,25 @@ function FormToggle({ value, onChange, settled, disabled }: {
   const { t } = useTranslation()
   const next = value === 'prose' ? 'blocks' : 'prose'
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="gap-1.5 text-muted-foreground [&_svg]:size-3"
-      disabled={disabled || settled}
-      title={settled ? t('ask.form.settled') : t(value === 'prose' ? 'ask.form.proseHint' : 'ask.form.blocksHint')}
-      onClick={() => onChange(next)}
-    >
-      {value === 'prose' ? <AlignLeft /> : <Layers />}
-      {t(value === 'prose' ? 'ask.form.prose' : 'ask.form.blocks')}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 text-muted-foreground [&_svg]:size-3"
+          disabled={disabled || settled}
+          onClick={() => onChange(next)}
+        >
+          {value === 'prose' ? <AlignLeft /> : <Layers />}
+          {t(value === 'prose' ? 'ask.form.prose' : 'ask.form.blocks')}
+        </Button>
+      </TooltipTrigger>
+      {/* A disabled trigger swallows pointer events, so the reason it is
+          disabled has to be readable from the wrapper rather than the button. */}
+      <TooltipContent side="top" className="max-w-xs">
+        {settled ? t('ask.form.settled') : t(value === 'prose' ? 'ask.form.proseHint' : 'ask.form.blocksHint')}
+      </TooltipContent>
+    </Tooltip>
   )
 }
 

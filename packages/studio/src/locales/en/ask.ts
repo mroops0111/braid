@@ -42,10 +42,10 @@ export const ask = {
   },
   // The form a run is asked to produce, chosen before it starts.
   form: {
-    blocks: 'Blocks',
-    prose: 'Prose',
-    blocksHint: 'The answer with its evidence, as blocks you can open.',
-    proseHint: 'The answer written out, with no evidence to open. Costs less.',
+    blocks: 'Interactive',
+    prose: 'Plain Text',
+    blocksHint: 'The answer as blocks you can open, easier to read, to follow, and to compare.',
+    proseHint: 'The answer written out. It still cites its sources, but as text you cannot open. Costs less.',
     settled: 'A conversation keeps the form it started in.',
   },
 }

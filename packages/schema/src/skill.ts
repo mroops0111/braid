@@ -46,7 +46,8 @@ export type SkillCategory = z.infer<typeof SkillCategory>
  * `blocks` is the default: the run renders typed blocks a surface draws,
  * carrying evidence a reader can open and findings they can act on.
  * `prose` is the answer written out and nothing else,
- * chosen by a reader who wants the answer rather than what it rests on.
+ * which is what a reader wanting the answer rather than what it rests on gets,
+ * and what a run nobody is watching gets whether it asked or not.
  *
  * The two are alternatives rather than a pair.
  * A run that renders blocks has already said everything it has to say,
@@ -61,13 +62,57 @@ export const OutputForm = z.enum(['blocks', 'prose'])
 export type OutputForm = z.infer<typeof OutputForm>
 
 /**
- * Whether a run of this kind may be asked for prose.
+ * What each form leaves behind, so adding one is adding a row here.
  *
- * A `generate` run's blocks are the document rather than a rendering of it,
- * so a prose one would finish having produced nothing.
+ * Every decision a form drives asks this one question.
+ * A run either renders blocks a surface draws, or writes its answer out,
+ * and what narrows its tool surface, what `emit_block` refuses,
+ * and what an unattended run falls to all read it from here.
+ * Held as a table rather than as comparisons against `'prose'`,
+ * so a third form is a row and a value in a skill's `forms`,
+ * rather than an edit to every branch that ever named a form.
  */
-export function mayRunAsProse(category: SkillCategory): boolean {
-  return category !== 'generate'
+const OUTPUT_FORM_TRAITS: Record<OutputForm, { readonly rendersBlocks: boolean }> = {
+  blocks: { rendersBlocks: true },
+  prose: { rendersBlocks: false },
+}
+
+/** Whether a run in this form is offered the render operations at all. */
+export function rendersBlocks(form: OutputForm): boolean {
+  return OUTPUT_FORM_TRAITS[form].rendersBlocks
+}
+
+/**
+ * What a skill produces when it declares nothing.
+ *
+ * Blocks alone, which is what every skill did before a form could be asked for,
+ * and what a skill whose blocks are the artefact rather than a rendering
+ * must keep producing however little of it anybody reads.
+ */
+export const DEFAULT_OUTPUT_FORMS: readonly OutputForm[] = ['blocks']
+
+/**
+ * The form one run produces, settled from what is on offer and who is reading.
+ *
+ * A skill declares the forms it can produce, and nothing outside that list
+ * can be reached by asking, which is what keeps a skill whose blocks
+ * are its artefact rendering even when no one is watching.
+ * Within the list, a run nobody is watching takes the form that renders nothing,
+ * since rendering is paid for by whoever produces it and read by nobody,
+ * and an attended run takes what its reader asked for.
+ */
+export function settleOutputForm(input: {
+  readonly declared?: readonly OutputForm[] | undefined
+  readonly requested?: OutputForm | undefined
+  readonly unattended?: boolean | undefined
+}): OutputForm {
+  const offered = input.declared?.length ? input.declared : DEFAULT_OUTPUT_FORMS
+  const fallback = offered[0]!
+  if (input.unattended)
+    return offered.find(form => !rendersBlocks(form)) ?? fallback
+  if (input.requested && offered.includes(input.requested))
+    return input.requested
+  return fallback
 }
 
 /**
@@ -205,7 +250,7 @@ export type SkillAgentOverride = z.infer<typeof SkillAgentOverride>
  * Read by SubprocessSkillRunner for preflight (env / path / MCP) before spawning.
  */
 /**
- * What a finished run must have rendered for its output to count as complete.
+ * What this skill's output is, and what a finished run owes before it counts.
  *
  * A prompt asking for something is not the same as getting it,
  * and a run that stops early looks like one that had nothing more to say.
@@ -213,6 +258,17 @@ export type SkillAgentOverride = z.infer<typeof SkillAgentOverride>
  * and hand the gap back to the agent rather than leaving a reader to find it.
  */
 export const SkillOutputContract = z.object({
+  /**
+   * The forms a run of this skill can produce, richest first.
+   *
+   * The first is what an attended run gets when nobody asks for another,
+   * so a list is an ordering as much as it is a set.
+   * Declaring `prose` says the prompt can answer without the render calls,
+   * which is what lets a run nobody is watching stop paying for them.
+   * A skill leaving this out renders, which is what every skill did
+   * before the question could be asked.
+   */
+  forms: z.array(OutputForm).min(1).default([...DEFAULT_OUTPUT_FORMS]),
   // Calls the run must have made at least once.
   requiredCalls: z.array(RenderCallName).default([]),
   /**

@@ -13,15 +13,6 @@ export const STORAGE_KEYS = {
   sidebarCollapsed: 'braid:sidebarCollapsed',
   /** Which audience a reader reads an answer as, their own habit either way. */
   answerView: 'braid:answerView',
-  /**
-   * Which form to ask for when starting a run, and nothing else.
-   *
-   * Never consulted to display a run that already exists.
-   * The form a run was produced in is a fact recorded on the run,
-   * so a conversation lent to somebody else reads the way its author made it,
-   * rather than the way its reader happens to prefer.
-   */
-  outputForm: 'braid:outputForm',
   tokens: 'braid:tokens',
   remotes: 'braid:remotes',
   activeRemoteId: 'braid:activeRemoteId',

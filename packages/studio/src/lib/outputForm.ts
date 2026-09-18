@@ -1,18 +1,20 @@
 import type { OutputForm, RunRecord } from '@braidhq/schema'
-import { usePreference } from '../preference.js'
-import { STORAGE_KEYS } from '../storage.js'
+import { useState } from 'react'
 
 /**
  * The form the reader wants the next run to produce.
  *
- * A standing habit rather than a decision per question,
- * because somebody who turned prose on to stop paying for evidence
- * wants that to hold until they say otherwise.
- * It is still shown beside the question rather than filed away in a setting,
+ * A decision per conversation, not a habit that follows the reader around.
+ * Rendering is what a run gives back that its transcript cannot,
+ * so anything able to produce blocks starts out producing them,
+ * and asking for prose is the exception a reader makes once, deliberately,
+ * rather than a setting left on from a question they no longer remember.
+ * Shown beside the question rather than filed away in a setting,
  * since it costs money and cannot be undone once the run has finished.
  */
 export function useOutputForm(): [OutputForm, (next: OutputForm) => void] {
-  return usePreference(STORAGE_KEYS.outputForm, stored => stored === 'prose' ? 'prose' : 'blocks')
+  const [form, setForm] = useState<OutputForm>('blocks')
+  return [form, setForm]
 }
 
 /**

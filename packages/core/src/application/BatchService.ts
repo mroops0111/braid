@@ -112,19 +112,17 @@ export interface StartBatchOptions {
 type BatchCaller = Pick<SkillRunOptions, 'callerToken' | 'startedBy'>
 
 /**
- * Told to a skill when a batch is driving it and applying what it produces.
+ * Nobody watches a batch, whatever it does with what the runs produce.
  *
  * Bootstrap trades settled-ness for coverage on purpose,
- * so a run in this mode proposes what it has,
+ * so a run driven by one proposes what it has,
  * rather than stopping on the first thing it cannot decide.
  * What it could not decide is recorded on the node and raised as a question,
  * so the doubt is visible in the graph rather than lost in a silent guess.
+ * It also decides what the run produces for a reader,
+ * which for a run with no reader is a summary rather than a rendering.
  */
-// Nobody watches a batch, whatever it does with what the runs produce.
-// A run that stops to ask inside one is asking a room with no one in it,
-// so it is told that up front,
-// and files its questions to be picked up later instead.
-const UNATTENDED_ENV = { BRAID_UNATTENDED: 'true' } as const
+const UNATTENDED = { unattended: true } as const
 
 export class BatchService {
   private readonly stopRequested = new Set<WorkspaceId>()
@@ -379,8 +377,9 @@ export class BatchService {
         checkpoint.skillId,
         '',
         {
-          extraEnv: { ...extraEnv, ...UNATTENDED_ENV },
+          ...(extraEnv ? { extraEnv } : {}),
           ...caller,
+          ...UNATTENDED,
         },
       )
       const running = plan.startCheckpointPhase(startedAt, runId, unitIds)
@@ -463,7 +462,7 @@ export class BatchService {
       )
     }
     const skillId = binding.deriveUnits.skillId
-    const runId = await this.deps.skillRunner.start(workspace, skillId, '', caller)
+    const runId = await this.deps.skillRunner.start(workspace, skillId, '', { ...caller, ...UNATTENDED })
     await waitForCompletion(this.deps.skillRunner, runId)
     const updated = await this.deps.batchPlanRepository.load(workspace)
     if (!updated)
@@ -493,7 +492,7 @@ export class BatchService {
         argsFor(unit),
         {
           ...caller,
-          extraEnv: UNATTENDED_ENV,
+          ...UNATTENDED,
           // A retry continues the agent's own session,
           // so a unit interrupted part way does not read the document again.
           ...(unit.resumeSessionId ? { resumeSessionId: unit.resumeSessionId } : {}),

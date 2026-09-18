@@ -22,6 +22,7 @@ function block(
 }
 
 const contract: SkillOutputContract = {
+  forms: ['blocks'],
   requiredCalls: ['showAnswer', 'showTrace'],
   coverDeclaredAudiences: 2,
   maxRetries: 1,
@@ -62,7 +63,7 @@ describe('validateOutput', () => {
   })
 
   it('finds nothing to report when the contract asks for nothing', () => {
-    const empty: SkillOutputContract = { requiredCalls: [], maxRetries: 0 }
+    const empty: SkillOutputContract = { forms: ['blocks'], requiredCalls: [], maxRetries: 0 }
 
     expect(validateOutput(empty, [], DECLARED)).toEqual([])
   })

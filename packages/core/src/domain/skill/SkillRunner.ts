@@ -57,12 +57,22 @@ export interface SkillRunOptions {
    */
   readonly continues?: SkillRunId
   /**
-   * The form this run's output should take.
+   * Whether anybody is watching this run.
    *
-   * Absent means blocks, which is what every caller wanted
-   * before the question could be asked.
-   * A kind of run with no prose form renders regardless,
-   * since a run that can say nothing is worse than a run that says it in blocks.
+   * A batch and a reactor cycle both drive their runs with nobody there,
+   * so a question one of them raises is put to an empty room,
+   * and an answer written for a reader has no reader to read it.
+   * Set by the orchestration driving the run rather than by a route,
+   * since somebody who started a run themselves is watching it by definition.
+   */
+  readonly unattended?: boolean
+  /**
+   * The form the caller would like this run's output to take.
+   *
+   * A preference rather than an instruction.
+   * The skill declares which forms it can produce and the runner settles one,
+   * so a request for a form a skill never offered renders as usual,
+   * and a run nobody is watching drops its rendering whatever was asked.
    */
   readonly outputForm?: OutputForm
   /**

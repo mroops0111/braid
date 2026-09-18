@@ -67,9 +67,9 @@ describe('renamed preference keys', () => {
 describe('reading and writing', () => {
   it('reads back what it wrote', async () => {
     const { readStored, STORAGE_KEYS, writeStored } = await freshStorage()
-    writeStored(STORAGE_KEYS.outputForm, 'prose')
+    writeStored(STORAGE_KEYS.answerView, 'engineering')
 
-    expect(readStored(STORAGE_KEYS.outputForm)).toBe('prose')
+    expect(readStored(STORAGE_KEYS.answerView)).toBe('engineering')
   })
 
   it('reports nothing stored where storage is barred', async () => {

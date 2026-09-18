@@ -154,10 +154,11 @@ describe('the spec a run is given', () => {
     expect((await app.request('/openapi/runs/ask/sonnet/openapi.json')).status).toBe(404)
   })
 
-  // A generate run's blocks are the document rather than a rendering of it,
-  // so a prose one would finish having produced nothing.
-  it('refuses a prose form to a run whose blocks are its product', async () => {
+  // Which forms a run can take is the skill's to declare, not this route's,
+  // so a pairing no skill offers is served rather than judged.
+  // Nothing requests one, since the runner settles the pair before asking.
+  it('serves a pairing no skill offers rather than refusing it', async () => {
     const { app } = await buildRunnerApp()
-    expect((await app.request('/openapi/runs/generate/prose/openapi.json')).status).toBe(404)
+    expect((await app.request('/openapi/runs/generate/prose/openapi.json')).status).toBe(200)
   })
 })

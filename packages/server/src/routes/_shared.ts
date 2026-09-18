@@ -85,8 +85,9 @@ export const RUN_CATEGORIES_KEY = 'x-braid-run-categories'
  *
  * A second axis rather than more values on the first,
  * because it varies within a kind of run rather than across kinds.
- * The same `ask` skill renders blocks for one reader and writes prose
- * for the next, and only the render operations differ between them.
+ * One skill renders blocks for a reader who asked to watch the answer assemble,
+ * and writes for the next reader who did not, or for the batch that has none,
+ * and only the render operations differ between those runs.
  *
  * Unmarked is visible to both, which is right for everything
  * that is not a way of drawing on a surface.
