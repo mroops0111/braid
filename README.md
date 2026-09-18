@@ -61,12 +61,11 @@ The server is the composition root. Sources feed an event-driven engine that pro
 
 ![Braid architecture](.github/assets/architecture.png)
 
-- **Surfaces**: Studio (web UI), Desktop, and MCP clients all talk to one server, over REST with an SSE event stream beside it. The CLI scaffolds a workspace and boots the stack.
-- **Sources**: Intent and Code are pulled into the workspace by Source Loader plugins, and kept in sync from there.
-- **Engine**: the Agent runs Skills as subprocesses. Where a run reaches a point only a person can settle it emits a Handoff, either a Proposal or a Clarification, and both land in one queue, because what makes them one kind is who must act next.
-- **Model**: the Ontology types the graph, a Storage plugin such as Kuzu persists it, and where a node and its evidence part company the disagreement is recorded on the node.
-- **Reads**: the graph itself, a read-only MCP endpoint over it, and Ask and projected views composed out of it.
-- **History**: every human-gated write commits to Git, and the graph travels with the code as a `model.json` snapshot.
+- **Surfaces**: Studio (web UI), Desktop, and MCP clients all talk to one server, over REST with an SSE event stream and AG-UI beside it. The CLI scaffolds a workspace and boots the stack.
+- **Sources**: Intent and Code are pulled into the workspace by Source Loader plugins, and the Reactor re-syncs them as they change, wherever a workspace opts in.
+- **Engine**: the Agent is a plugin like the rest, and the Skills it runs each see only their own tools. Where a run reaches a point only a person can settle it emits a Handoff, either a Proposal or a Clarification, and both land in one queue, because what makes them one kind is who must act next. What a person lands commits to the versioned workspace tree.
+- **Model**: the Ontology types the graph, the graph is the single source of truth, a Storage plugin such as Kuzu persists it, and a `model.json` snapshot travels with the code.
+- **Reads**: read-only MCP tools over the graph, Ask for a question a run answers, and Views projected by a generator, one artifact per reason to read.
 
 ### AI-Native Design
 
@@ -125,10 +124,10 @@ Either way, open Studio and create a workspace with the Wizard, then add your in
 
 Four steps, and a person ends every one of them.
 
-- **Build**: open Build, which lists every source document and what the model has made of it. Run the ontology's pipeline over one document or over a group.
-- **Review**: open the Inbox, which is one queue. A question the run stopped on and a change it proposed are two kinds of card in the same list, because answering the question is what carries the run on.
-- **Apply**: land the change when it is green, or reject it with a reason.
-- **Read**: put a question to Ask, or write the graph into a document on Documents and pick the form it takes.
+- **Build**: run the ontology's pipeline over one source document or over a group. Build lists every document and what the model has made of it so far.
+- **Review**: read what the run left in the Inbox, where a question it stopped on and a change it proposed sit as two kinds of card in one queue.
+- **Apply**: land the change when its validation is green, or reject it with a reason. The queue moves to the next card either way.
+- **Read**: put a question to Ask, or write a subject into a document on Documents and pick the form it takes.
 
 ## Packages
 
