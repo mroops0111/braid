@@ -93,7 +93,7 @@ And: every `DriftIssue` attached to a node's `metadata.driftIssues[]` is surface
 }
 ```
 
-Each issue carries an `nodeId` or `edgeId` pinning the offending artifact. Fix the cited issues and resend. Cap retries at **3 rounds**; after that, list remaining issues in stdout and stop.
+Each issue carries an `nodeId` or `edgeId` pinning the offending artifact. Fix the cited issues and resend. Cap retries at **3 rounds**, after that list the remaining issues in your run summary and stop.
 
 ## What's Not Enforced Server-Side
 

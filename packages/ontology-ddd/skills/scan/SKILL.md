@@ -34,7 +34,7 @@ This skill runs once when bootstrapping a workspace that has no intent docs (onl
 
 ## Initialization
 
-1. Read `$BRAID_WORKSPACE/PRODUCT.md` to discover the `role: code` sources and their `path` fields. Skip any `role: intent` sources.
+1. Read `$BRAID_SHARED_REFERENCE/run-environment.md` and take the workspace, the source roles, and the readers from it.
 2. Verify the Knowledge Graph is empty via the `braid-core` MCP server. If non-empty, exit non-zero with a clear error. Scan is for empty graphs only.
 3. Read `$BRAID_WORKSPACE/artifacts/batch-plan.json` and confirm `plan.status === 'deriving'` per `$BRAID_SHARED_REFERENCE/batch-plan.md`.
 
@@ -65,6 +65,7 @@ Rewrite `$BRAID_WORKSPACE/artifacts/batch-plan.json` per the write contract in `
 
 | File | When to Read | Why |
 |---|---|---|
+| `$BRAID_SHARED_REFERENCE/run-environment.md` | Initialization | What the framework injected, and the rule that the injected lists are the whole vocabulary. |
 | `$BRAID_SHARED_REFERENCE/batch-plan.md` | Initialization step 3 and Output | The plan-file write contract: preconditions, the required unit shape, which fields to leave untouched, and the atomic-write rule. |
 
 The downstream `ddd:extract` skill owns its own companion docs (ontology-specific shared/*.md files) when it picks up the unit.

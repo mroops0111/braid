@@ -8,7 +8,7 @@ What a run produces for a person, and how to tell which one this run owes.
 
 The render operations were left out of the spec your gateway was given. They are absent by design, not missing. Do not go looking for them, and do not search your tools for a name you remember: nothing you do here will turn one up, and every search spends a call to learn what this sentence already told you.
 
-Do not open `block-protocol.md` either. It describes calls you do not have.
+Do not open `block-protocol.md` or anything under `calls/` either. They describe calls you do not have.
 
 Whatever you were producing besides the rendering, a proposal or a clarification, is unaffected by the form and still owed in full.
 
@@ -23,3 +23,13 @@ Whatever you were producing besides the rendering, a proposal or a clarification
 ## Typography
 
 What you write reaches a reader through the same surface as the product's own labels, so it follows the same rules. Never write an em dash or an en dash, in any language. Split the sentence in two, or use a comma or parentheses. The same goes for a decorative arrow, which is reserved for naming the two ends of a relationship. Write three periods as the ellipsis character when you need one at all.
+
+## What A Writing Run Owes
+
+Check these before you finish. They hold for every skill answering without the render calls.
+
+- [ ] The answer comes first, before the sources it rests on.
+- [ ] Every claim names where it came from, as a node id or a location a reader could open.
+- [ ] Any disagreement between sources is named with both sides, rather than resolved silently.
+- [ ] Nothing was written twice. Where `$BRAID_UNATTENDED` is unset there is no summary after the answer, and where it is `true` there is the summary and nothing else.
+- [ ] Whatever the run produces besides its words, a proposal or a clarification, went out in full.

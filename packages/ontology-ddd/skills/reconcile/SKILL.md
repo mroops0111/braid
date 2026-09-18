@@ -12,7 +12,9 @@ braid:
   summary: Cross-link sources and validate the graph globally
   required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
   output:
-    forms: [prose]
+    forms: [blocks, prose]
+    calls: [showTrace, showAnswer, showEvidence, showFinding, showSubgraph]
+    required-calls: [showTrace, showFinding]
   inputs:
     - name: mode
       label: Mode
@@ -71,12 +73,11 @@ This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its 
 
 ## Initialization
 
-1. Read `$BRAID_WORKSPACE/PRODUCT.md` to learn the active `ontologyId`.
-2. Note `$BRAID_SHARED_REFERENCE` (framework contracts) and `$BRAID_ONTOLOGY_REFERENCE` (the active ontology). Companion docs (§ Companion Docs) live under those paths; concatenate when you Read them.
-3. Fetch the active ontology via `braid-core` so every type id you reference is canonical. Every `node.type` / `edge.type` you emit MUST equal one of the ids the ontology declares. Case-sensitive.
-4. Fetch the model snapshot via `braid-core`, then run two node-search calls filtering by `status: 'draft'` and `status: 'unclear'` to enumerate work-in-progress nodes for validation.
-5. Parse `$ARGUMENTS` (scope-hint / `validate` / empty) and pick the mode.
-6. Check `$BRAID_CHANGED_UNITS` (optional, newline-separated `<sourceId>::<path>` entries set by BatchService or Reactor). When present, prioritise the build pass around the listed units (bridges, containment, drift involving any of their nodes); when absent, walk the whole graph as before. The validate pass always covers the full graph regardless of this hint.
+1. Read `$BRAID_SHARED_REFERENCE/run-environment.md` and take the workspace, the source roles, and the readers from it.
+2. Fetch the active ontology via `braid-core` so every type id you reference is canonical. Every `node.type` / `edge.type` you emit MUST equal one of the ids the ontology declares. Case-sensitive.
+3. Fetch the model snapshot via `braid-core`, then run two node-search calls filtering by `status: 'draft'` and `status: 'unclear'` to enumerate work-in-progress nodes for validation.
+4. Parse `$ARGUMENTS` (scope-hint / `validate` / empty) and pick the mode.
+5. Check `$BRAID_CHANGED_UNITS` (optional, newline-separated `<sourceId>::<path>` entries set by BatchService or Reactor). When present, prioritise the build pass around the listed units (bridges, containment, drift involving any of their nodes); when absent, walk the whole graph as before. The validate pass always covers the full graph regardless of this hint.
 
 ## Procedure
 
@@ -146,7 +147,38 @@ Before writing the `question` and each `candidate.description`, re-read `$BRAID_
 
 ## Output
 
-stdout summary at the end:
+`$BRAID_OUTPUT_FORM` says which contract this run answers under.
+
+| Form | Read |
+|---|---|
+| `blocks` | `$BRAID_SHARED_REFERENCE/block-protocol.md`, plus `calls/` for each call you use |
+| anything else | `$BRAID_SHARED_REFERENCE/output-forms.md`, and render nothing |
+
+What this skill owes on top of that contract:
+
+- The proposal is the change. The blocks are the working behind it.
+- Where `ddd:extract` shows how it read one document, you show what only the whole graph reveals, so the working a reviewer needs is different in kind rather than merely larger.
+- Call them as each part settles, never batched at the end.
+- Leave `audiences` empty throughout. The graph is one canonical model and a proposal against it is read by whoever holds the gate.
+- Close with § Run Summary.
+
+| When | Call | Carries |
+|---|---|---|
+| Before proposing anything | `show_trace` | What you walked and what you deliberately left alone. A global pass touches far more than it changes, and a reviewer cannot otherwise tell an untouched node from an unexamined one. |
+| For each drift you found | `show_finding` | The disagreement and every side, one call per statement. This is the same `DriftIssue` you attach to the node, shown where a reviewer can weigh it before it is buried in metadata. |
+| Behind a side whose sources need spelling out | `show_evidence` | The locations, each with its provenance. Reach for it where a finding turns on which line says what, and leave it out where the sides already name their own references. |
+| Once the structural picture settles | `show_answer` | What the graph turned out to be, in the ubiquitous language: what was disconnected, what the pass joined up, and what it could not settle. |
+| For the neighbourhood a bridge edge crosses | `show_subgraph` | The existing nodes on both ends and the edge between them, so a reviewer sees what the join actually connects. |
+
+### What A Reviewer Cannot Get From The Proposal
+
+A proposal lists operations. For a per-document pass that is nearly enough, because the reader already knows which document it read. This pass has no such anchor: an edge deleted here and one added there are the same shape in a list, and nothing in it says which of the graph's disagreements the run went looking for.
+
+So the trail and the findings carry this run rather than the answer does. A reconcile that renders one summary block and thirty operations has told a reviewer what changed and nothing about why it was safe.
+
+### Run Summary
+
+Your last message, a count rather than a second telling:
 
 ```
 ddd:reconcile (build + validate): proposal p-2026-05-12-abc (18 ops; 4 bridges, 5 driftIssues, 9 content fills)
@@ -154,6 +186,8 @@ ddd:reconcile raised 2 clarifications (ct-..., ct-...)
 ```
 
 In `validate` mode, omit the `bridges` figure and prefix with `(validate-only)`.
+
+Where `$BRAID_OUTPUT_FORM` is not `blocks`, this is the summary `output-forms.md` refers to.
 
 ## Completion Checklist
 
@@ -170,6 +204,10 @@ In `validate` mode, omit the `bridges` figure and prefix with `(validate-only)`.
 | File | When to Read | Why |
 |---|---|---|
 | `$BRAID_ONTOLOGY_REFERENCE/concept.md` | **Before Steps 1-3 and any time you author a bridge edge** | The DDD vocabulary, wiring rules, policy pattern, Context Mapping rules. Anchors every structural decision Part 1 makes. |
+| `$BRAID_SHARED_REFERENCE/run-environment.md` | Initialization | What the framework injected, and the rule that the injected lists are the whole vocabulary. |
+| `$BRAID_SHARED_REFERENCE/output-forms.md` | When `$BRAID_OUTPUT_FORM` is not `blocks` | What to write when this run renders nothing, and how much of it. |
+| `$BRAID_SHARED_REFERENCE/block-protocol.md` | Before the first render call | The rules across every call, the provenance rule, and what a rendering run owes. |
+| `$BRAID_SHARED_REFERENCE/calls/<call>.md` | Before your first use of that call | What that one call carries and the mistakes it invites. Read only the ones you were given. |
 | `$BRAID_SHARED_REFERENCE/proposal-format.md` | Before Step 7 | `GraphOperation` discriminated union, `DriftIssue` shape, status semantics. |
 | `$BRAID_SHARED_REFERENCE/clarification-format.md` | Before Step 8 | `Clarification` request body and candidate shape. |
 | `$BRAID_SHARED_REFERENCE/content-conventions.md` | Whenever writing a `name`, `description`, `rationale`, or `question` | Plain-text rule, length caps, structural conventions for every user-facing string field. |

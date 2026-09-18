@@ -12,6 +12,7 @@ braid:
   hidden: true
   required-env: [BRAID_WORKSPACE, BRAID_RUN_ID, BRAID_SHARED_REFERENCE]
   output:
+    calls: [showSection, showAnswer, showCheck, showDiagram, showSubgraph]
     required-calls: [showSection, showAnswer, showCheck]
     max-retries: 1
 ---
@@ -36,12 +37,13 @@ Nothing in this file is addressed to the reader. These are your constraints, not
 
 ## Initialization
 
-1. `$ARGUMENTS` begins with a path, relative to `$BRAID_WORKSPACE`, to the material this container was projected into. Read it.
-2. What follows the path is what the reader asked for, as `key=value`. Read it and obey it. A key that is not here is one you can ignore.
+1. Read `$BRAID_SHARED_REFERENCE/run-environment.md` and take the workspace, the source roles, and the readers from it.
+2. `$ARGUMENTS` begins with a path, relative to `$BRAID_WORKSPACE`, to the material this container was projected into. Read it.
+3. What follows the path is what the reader asked for, as `key=value`. Read it and obey it. A key that is not here is one you can ignore.
+4. Read `$BRAID_SHARED_REFERENCE/block-protocol.md` before the first render call.
    - `depth=plain`. Assume nothing. Every term is introduced in ordinary words before it is used, and no jargon survives that the material did not need.
    - `depth=standard`. The reader is comfortable in a neighbouring field. Introduce what is particular to this subject and let the surrounding vocabulary stand.
    - `depth=deep`. The reader wants the edges. Spend the chapters on what the graph leaves unsettled rather than on the parts that are finished.
-3. Read `$BRAID_SHARED_REFERENCE/block-protocol.md` before the first render call.
 
 The material is shaped as the `reference` form's own file describes, and a `typeLabel` is either a plain string or a map of locale to string. Where it is a map, use the one matching the language the descriptions are written in.
 
@@ -71,18 +73,20 @@ None. The framework takes the blocks this run rendered and keeps them as the doc
 
 ## Completion Checklist
 
-- [ ] Every chapter ends in exactly one `show_check`.
+- [ ] Every chapter ends in exactly one check.
 - [ ] Every check asks about its own chapter, not the subject at large.
 - [ ] Chapters follow the order the material gave, unreordered.
 - [ ] What the reader asked for was obeyed, and nothing else assumed.
-- [ ] No node description copied into prose that `show_subgraph` already draws.
+- [ ] No node description copied into prose the surface already draws from the graph.
 - [ ] No sentence announcing a node's status.
 
 ## Companion Docs
 
 | File | When to Read | Why |
 |---|---|---|
-| `$BRAID_SHARED_REFERENCE/block-protocol.md` | Before the first render call | Tool names, audiences, grouping, provenance, and the typography rules. |
+| `$BRAID_SHARED_REFERENCE/run-environment.md` | Initialization | What the framework injected, and the rule that the injected lists are the whole vocabulary. |
+| `$BRAID_SHARED_REFERENCE/block-protocol.md` | Before the first render call | The rules across every call, how `$BRAID_AUDIENCES` works, the provenance rule, and what a rendering run owes. |
+| `$BRAID_SHARED_REFERENCE/calls/<call>.md` | Before your first use of that call | What that one call carries and the mistakes it invites. Read only the ones you were given. |
 | `$BRAID_SHARED_REFERENCE/reference-syntax.md` | When prose names a node | The `@node:<id>` grammar the surface renders as a live tag. |
 
 ## Notes
