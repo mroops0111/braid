@@ -97,7 +97,7 @@ None. The framework takes the blocks this run rendered and keeps them as the doc
 - [ ] No sentence announcing a node's status.
 - [ ] `show_evidence` closes the document.
 
-## Companion Docs
+## Reference Documents
 
 | Doc | When | What it carries |
 |---|---|---|

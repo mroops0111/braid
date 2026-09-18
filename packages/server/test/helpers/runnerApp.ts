@@ -18,6 +18,7 @@ import { createMockSpawn } from './mockSpawn.js'
 export function makeSingleSkillRegistry(manifest: SkillManifest = defaultManifest()): SkillRegistry {
   return {
     list: async () => [manifest],
+    listUnloadable: async () => [],
     find: async () => manifest,
     get: async () => manifest,
   }

@@ -1,4 +1,4 @@
-import type { BatchPlan, Clarification, ClarificationCreateBody, CommitMeta, CommitSha, CoverageBoard, EmbeddingCoverage, FileDiff, GeneratedView, GenerateViewRequest, GenerateViewResponse, GraphEdge, GraphNode, ListSourceLoadersResponse, ListViewKindsResponse, McpServerConfig, ModelDiffEnvelope, ModelSnapshot, OntologyListResponse, OntologyResponse, ProductManifestCreate, Proposal, ReactorCycle, ReactorCycleId, RunRecord, SessionMetadata, SessionShare, SkillInputOptionsResponse, SkillManifest, SourceDescriptor, SourceId, SourceLocation, SourceSyncPolicy, SourceSyncState, SourceUnitDiff, SourceUnitObservation, TagMeta, User, UserUpdate, ValidationResult, ViewContent, Workspace, WorkspaceMember, WorkspacePollingConfig, WorkspaceRole } from '@braidhq/schema'
+import type { BatchPlan, Clarification, ClarificationCreateBody, CommitMeta, CommitSha, CoverageBoard, EmbeddingCoverage, FileDiff, GeneratedView, GenerateViewRequest, GenerateViewResponse, GraphEdge, GraphNode, ListSourceLoadersResponse, ListViewKindsResponse, McpServerConfig, ModelDiffEnvelope, ModelSnapshot, OntologyListResponse, OntologyResponse, ProductManifestCreate, Proposal, ReactorCycle, ReactorCycleId, RunRecord, SessionMetadata, SessionShare, SkillAvailabilityIssue, SkillInputOptionsResponse, SkillManifest, SourceDescriptor, SourceId, SourceLocation, SourceSyncPolicy, SourceSyncState, SourceUnitDiff, SourceUnitObservation, TagMeta, UnloadableSkill, User, UserUpdate, ValidationResult, ViewContent, Workspace, WorkspaceMember, WorkspacePollingConfig, WorkspaceRole } from '@braidhq/schema'
 import { getAuthToken } from './authToken.js'
 import { getCurrentUserId } from './currentUser.js'
 import { getTokenFor } from './remotes.js'
@@ -13,6 +13,14 @@ export function workspaceEventsUrl(workspaceId: string): string {
 }
 
 export interface ItemList<T> { items: T[] }
+
+/** A skill with why this workspace cannot run it, beside files that would not load at all. */
+export type SkillListItem = SkillManifest & { availability: SkillAvailabilityIssue[] }
+
+export interface SkillListResponse {
+  items: SkillListItem[]
+  unloadable: UnloadableSkill[]
+}
 
 export interface Invite {
   email: string
@@ -380,7 +388,7 @@ export const api = {
     fetchJson<ReactorCycle>(`/workspaces/${workspaceId}/reactor-cycles/${cycleId}`),
 
   listSkills: (workspaceId: string) =>
-    fetchJson<ItemList<SkillManifest>>(`/workspaces/${workspaceId}/skills`),
+    fetchJson<SkillListResponse>(`/workspaces/${workspaceId}/skills`),
 
   modelSnapshot: (workspaceId: string) =>
     fetchJson<ModelSnapshot>(`/workspaces/${workspaceId}/model/snapshot`),

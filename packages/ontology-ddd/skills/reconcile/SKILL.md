@@ -70,7 +70,7 @@ This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its 
 ## Initialization
 
 1. Read `$BRAID_WORKSPACE/PRODUCT.md` to learn the active `ontologyId`.
-2. Note `$BRAID_SHARED_REFERENCE` (framework contracts) and `$BRAID_ONTOLOGY_REFERENCE` (the active ontology). Companion docs (§ Companion Docs) live under those paths; concatenate when you Read them.
+2. Note `$BRAID_SHARED_REFERENCE` (framework contracts) and `$BRAID_ONTOLOGY_REFERENCE` (the active ontology). Reference documents (§ Reference Documents) live under those paths; concatenate when you Read them.
 3. Fetch the active ontology via `braid-core` so every type id you reference is canonical. Every `node.type` / `edge.type` you emit MUST equal one of the ids the ontology declares. Case-sensitive.
 4. Fetch the model snapshot via `braid-core`, then run two node-search calls filtering by `status: 'draft'` and `status: 'unclear'` to enumerate work-in-progress nodes for validation.
 5. Parse `$ARGUMENTS` (scope-hint / `validate` / empty) and pick the mode.
@@ -134,7 +134,7 @@ Submit the Proposal via the `braid-core` proposal-create capability:
 - `generatedBy`: `"ddd:reconcile"`.
 - `rationale`: `"global structure pass + validation: <one-line summary of bridges added, drift attached, content fills>"`.
 
-Operation names and payload shapes are in `$BRAID_SHARED_REFERENCE/proposal-format.md` (see § Companion Docs). Follow that file rather than freelancing JSON.
+Operation names and payload shapes are in `$BRAID_SHARED_REFERENCE/proposal-format.md` (see § Reference Documents). Follow that file rather than freelancing JSON.
 
 #### Step 8: Emit Clarifications
 
@@ -167,9 +167,9 @@ In `validate` mode, omit the `bridges` figure and prefix with `(validate-only)`.
 
 When any prose you write names a graph node, write it as the token `@node:<id>` instead of a bare id. Studio renders the token as a live tag carrying the node's name and description. This applies to your narration, to `clarification.context`, to `proposal.rationale`, and to `node.description`. It does not apply to `clarify.question` or `candidate.description`, whose audience rule is unchanged. Full grammar in `$BRAID_SHARED_REFERENCE/reference-syntax.md`.
 
-## Companion Docs
+## Reference Documents
 
-Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
+Reference documents live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
 
 | File | When to Read | Why |
 |---|---|---|

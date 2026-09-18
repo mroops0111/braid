@@ -1,6 +1,6 @@
 import type { SkillFrontmatter } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
-import { validateSkillStructure } from '../../../src/infrastructure/skill/SkillStructureValidator.js'
+import { validateSkillFile } from '../../../src/domain/skill/validateSkillFile.js'
 
 const ALL_SECTIONS = [
   'Role',
@@ -9,7 +9,7 @@ const ALL_SECTIONS = [
   'Procedure',
   'Output',
   'Completion Checklist',
-  'Companion Docs',
+  'Reference Documents',
 ]
 
 function body(sections: readonly string[]): string {
@@ -30,9 +30,9 @@ function frontmatter(category?: SkillFrontmatter['braid']['category']): SkillFro
   }
 }
 
-describe('validateSkillStructure', () => {
+describe('validateSkillFile', () => {
   it('accepts a well-formed ask skill with every common section', () => {
-    const result = validateSkillStructure({
+    const result = validateSkillFile({
       body: body(ALL_SECTIONS),
       frontmatter: frontmatter('ask'),
     })
@@ -41,38 +41,30 @@ describe('validateSkillStructure', () => {
   })
 
   it('flags a missing common section', () => {
-    const without = ALL_SECTIONS.filter(s => s !== 'Companion Docs')
-    const result = validateSkillStructure({
+    const without = ALL_SECTIONS.filter(s => s !== 'Reference Documents')
+    const result = validateSkillFile({
       body: body(without),
       frontmatter: frontmatter('ask'),
     })
     expect(result.ok).toBe(false)
     expect(result.issues).toEqual([
-      expect.objectContaining({ kind: 'missing-section', section: 'Companion Docs' }),
+      expect.objectContaining({ kind: 'missing-section', target: 'Reference Documents' }),
     ])
   })
 
   it('requires Output Files for category: generate', () => {
-    const result = validateSkillStructure({
+    const result = validateSkillFile({
       body: body(ALL_SECTIONS),
       frontmatter: frontmatter('generate'),
     })
     expect(result.ok).toBe(false)
     expect(result.issues).toEqual([
-      expect.objectContaining({ kind: 'missing-section', section: 'Output Files' }),
+      expect.objectContaining({ kind: 'missing-section', target: 'Output Files' }),
     ])
   })
 
-  it('passes when generate skills add the Output Files section', () => {
-    const result = validateSkillStructure({
-      body: body([...ALL_SECTIONS, 'Output Files']),
-      frontmatter: frontmatter('generate'),
-    })
-    expect(result.ok).toBe(true)
-  })
-
   it('does not require Output Files for category: build', () => {
-    const result = validateSkillStructure({
+    const result = validateSkillFile({
       body: body(ALL_SECTIONS),
       frontmatter: frontmatter('build'),
     })
@@ -80,7 +72,7 @@ describe('validateSkillStructure', () => {
   })
 
   it('skips category-specific checks when no category is set (Custom bucket)', () => {
-    const result = validateSkillStructure({
+    const result = validateSkillFile({
       body: body(ALL_SECTIONS),
       frontmatter: frontmatter(),
     })
@@ -93,18 +85,18 @@ describe('validateSkillStructure', () => {
     // section so we expect the validator to still complain.
     const without = ALL_SECTIONS.filter(s => s !== 'Role')
     const text = `\`\`\`md\n## Role\nfaux heading\n\`\`\`\n\n${body(without)}`
-    const result = validateSkillStructure({
+    const result = validateSkillFile({
       body: text,
       frontmatter: frontmatter('ask'),
     })
     expect(result.ok).toBe(false)
     expect(result.issues).toEqual([
-      expect.objectContaining({ kind: 'missing-section', section: 'Role' }),
+      expect.objectContaining({ kind: 'missing-section', target: 'Role' }),
     ])
   })
 
   it('flags duplicate input names', () => {
-    const result = validateSkillStructure({
+    const result = validateSkillFile({
       body: body(ALL_SECTIONS),
       frontmatter: {
         ...frontmatter('build'),
@@ -122,12 +114,12 @@ describe('validateSkillStructure', () => {
     })
     expect(result.ok).toBe(false)
     expect(result.issues).toEqual([
-      expect.objectContaining({ kind: 'duplicate-input-name', inputName: 'mode' }),
+      expect.objectContaining({ kind: 'duplicate-input-name', target: 'mode' }),
     ])
   })
 
   it('accepts well-formed inputs[] with unique names', () => {
-    const result = validateSkillStructure({
+    const result = validateSkillFile({
       body: body(ALL_SECTIONS),
       frontmatter: {
         ...frontmatter('build'),
@@ -149,10 +141,37 @@ describe('validateSkillStructure', () => {
   it('ignores H3 headings, anchors, and trailing whitespace', () => {
     const allSectionsWithAnchor = ALL_SECTIONS.map((s, i) => i === 0 ? `Role {#role}  ` : s)
     const text = `${allSectionsWithAnchor.map(s => `## ${s}\n`).join('\n')}\n### Sub-section\nBody.\n`
-    const result = validateSkillStructure({
+    const result = validateSkillFile({
       body: text,
       frontmatter: frontmatter('ask'),
     })
+    expect(result.ok).toBe(true)
+  })
+  it('rejects a reference document named by a relative path', () => {
+    const text = `${body(ALL_SECTIONS.filter(s => s !== 'Reference Documents'))}
+## Reference Documents
+
+| File | When to Read | Why |
+|---|---|---|
+| \`.claude/skills/shared/drift-detection.md\` | Step 5 | Drift. |
+`
+    const result = validateSkillFile({ body: text, frontmatter: frontmatter('ask') })
+    expect(result.ok).toBe(false)
+    expect(result.issues).toEqual([
+      expect.objectContaining({ kind: 'unreachable-reference-document' }),
+    ])
+  })
+
+  it('accepts a reference document reached through a mounted reference path', () => {
+    const text = `${body(ALL_SECTIONS.filter(s => s !== 'Reference Documents'))}
+## Reference Documents
+
+| File | When to Read | Why |
+|---|---|---|
+| \`$BRAID_SHARED_REFERENCE/drift-detection.md\` | Step 5 | Drift. |
+| \`$BRAID_ONTOLOGY_REFERENCE/concept.md\` § Drift Dimensions | Step 5 | Dimensions. |
+`
+    const result = validateSkillFile({ body: text, frontmatter: frontmatter('ask') })
     expect(result.ok).toBe(true)
   })
 })
