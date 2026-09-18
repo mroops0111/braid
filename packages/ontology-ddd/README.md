@@ -7,7 +7,7 @@ Braid extracts a product's intent and code into one knowledge graph. `@braidhq/o
 The package is an `OntologyPlugin` for DDD. It says what a DDD graph is made of, and supplies the reasoning that fills it.
 
 - **The Vocabulary**: Eight node types (bounded context, aggregate, command, query, event, rule, actor, policy) and fifteen edge types, each tagged with the sub-domain and canonical source it comes from.
-- **The Skills**: The `ddd:extract`, `ddd:clarify`, and `ddd:reconcile` SKILL.md prompts, plus the shared reference docs they all consult. Each directory is the bare verb, the `ddd` namespace comes from the ontology.
+- **The Skills**: The `ddd:scan`, `ddd:extract`, `ddd:clarify`, and `ddd:reconcile` SKILL.md prompts, plus the shared reference docs they all consult. Each directory is the bare verb, the `ddd` namespace comes from the ontology. Each declares its `order` and its `label`, which is what Build reads to draw the pipeline across the top.
 - **The Binding**: The required source roles, and the batch and reactor loop that drives per-unit extraction with periodic reconcile checkpoints.
 
 ## Structure
@@ -20,6 +20,7 @@ src/
 ├── types.ts               the DDDNodeType and DDDEdgeType enums
 └── index.ts
 skills/
+├── scan/       decompose a codebase into extraction units when no intent docs exist
 ├── extract/    per-unit extraction prompt
 ├── clarify/    clarification prompt
 ├── reconcile/  cross-link the slices and validate the whole graph
@@ -34,7 +35,7 @@ skills/
 
 A DDD graph reads outward from a bounded context: a `contains` edge holds its aggregates, an aggregate `accepts` commands and queries, a command `emits` events, an event `triggers` downstream work, and a policy `enacts` the command that reacts to it. Operations are `constrainedBy` rules and `performedBy` actors. A separate Context Mapping family wires bounded contexts to one another, partnership, conformist, anticorruption layer, and the rest.
 
-Editing a type here flows through the ontology contract to Studio's palette and legend, the structural and ontology-type validators, and the `GET /workspaces/:ws/ontology` API, with no change needed on those sides.
+Editing a type here flows through the ontology contract to Studio's palette and legend, the structural and ontology-type validators, and the `GET /workspaces/:ws/ontology` API, with no change needed on those sides. `renderHint` carries further than the canvas. The document projection reads it to decide what a page covers and how it nests, so `container: true` opens a document and an `expandedUnder` chain gives its sections.
 
 ## Boundaries
 

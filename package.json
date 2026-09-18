@@ -7,7 +7,7 @@
   "description": "Domain model framework that merges product intent with shipped code into a single HITL-validated model the whole team can read.",
   "license": "MIT",
   "engines": {
-    "node": ">=20",
+    "node": ">=22",
     "pnpm": ">=10"
   },
   "scripts": {

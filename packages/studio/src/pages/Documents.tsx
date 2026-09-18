@@ -133,7 +133,12 @@ export function DocumentsPage({ workspaceId, onSelectNode }: {
                 onChange={event => setQuery(event.target.value)}
               />
             </SurfaceBand>
+            {/* The empty state shares this box instead of sitting below it, */}
+            {/* since two flex-1 siblings split the column and leave it low. */}
             <div className="min-h-0 flex-1 overflow-y-auto">
+              {shelves.length === 0 && (
+                <EmptyState icon={FileText} title={empty.title} description={empty.description} />
+              )}
               {shelves.map(shelf => (
                 <section key={shelf.typeId}>
                   {shelves.length > 1 && (
@@ -158,11 +163,6 @@ export function DocumentsPage({ workspaceId, onSelectNode }: {
                 </section>
               ))}
             </div>
-            {shelves.length === 0 && (
-              <div className="flex-1">
-                <EmptyState icon={FileText} title={empty.title} description={empty.description} />
-              </div>
-            )}
           </>
         )}
       >
@@ -222,7 +222,9 @@ function DocumentRow({ group, name, forms, openPath, onOpen, locale, staleLabel 
         <div className="flex items-center gap-2">
           <span className="truncate text-sm text-foreground">{name}</span>
           {group.stale && (
-            <Badge variant="outline" className="shrink-0 border-amber-500/30 bg-amber-500/5 text-2xs text-amber-600 dark:text-amber-400">
+            // Every other outline badge here is uppercase with wider tracking.
+            // This one was the exception, so a status read as a phrase here.
+            <Badge variant="outline" className="shrink-0 border-amber-500/30 bg-amber-500/5 text-2xs uppercase tracking-wider text-amber-600 dark:text-amber-400">
               {staleLabel}
             </Badge>
           )}

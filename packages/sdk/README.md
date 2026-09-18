@@ -37,7 +37,7 @@ Each factory maps a declarative spec to one plugin type on a distinct axis. All 
 - **`defineOntologyPlugin`**: Node and edge types, validators, and the skills bundled with a domain. Composes over a base via `extends`, auto-attaches the type and structural validators, and defaults the skill namespace to the ontology id. Id `ontology.<ontologyId>`.
 - **`defineSourceLoaderPlugin`**: How a source kind provisions and syncs its content into a workspace, plus an optional webhook capability. Id `source-loader.<kind>`.
 - **`defineStoragePlugin`**: How a storage kind builds its per-process `ModelRepository`. Id `storage.<kind>`.
-- **`defineViewGeneratorPlugin`**: How a view kind renders a model snapshot into an artifact. Id `view-generator.<viewKind>`.
+- **`defineViewGeneratorPlugin`**: How a view kind is written. Each form declares what it asks before it is written, what `format` it writes, and the skill that writes it, and the kind declares through `subjects` which nodes it can be written about. Id `view-generator.<viewKind>`.
 - **`defineAgentPlugin`**: How an agent kind constructs its runtime binding. The binding is built synchronously because the subprocess spawn is lazy. Id `agent.<kind>`.
 
 ## Boundaries

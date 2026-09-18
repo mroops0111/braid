@@ -1,9 +1,11 @@
+import type { Locale } from '@braidhq/schema'
+import { localize } from '@braidhq/schema'
 import { useMutation } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
-import { useRuns } from '@/lib/queries'
+import { useRuns, useSkills } from '@/lib/queries'
 import { TopBanner } from './TopBanner'
 import { Button } from './ui/button'
 
@@ -43,8 +45,14 @@ function ActiveBanner({ workspaceId, runId, skillId, startedAt }: {
   skillId: string
   startedAt: string
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const { data: skills } = useSkills(workspaceId)
   const elapsed = useElapsed(startedAt)
+  // A skill id is an address, so `/ddd:extract` on a banner shows plumbing.
+  // The skill names itself for a reader, localised like the ontology's types.
+  // Absent, the id stands, which is at least true.
+  const declared = skills?.items.find(skill => skill.id === skillId)?.frontmatter.braid.label
+  const label = declared ? localize(declared, i18n.language as Locale) : `/${skillId}`
   const cancel = useMutation({
     mutationFn: () => api.cancelRun(workspaceId, runId),
   })
@@ -52,7 +60,7 @@ function ActiveBanner({ workspaceId, runId, skillId, startedAt }: {
   return (
     <TopBanner
       tone="run"
-      label={`/${skillId}`}
+      label={label}
       detail={t('review.banners.runningElapsed', { elapsed })}
       actions={(
         <Button

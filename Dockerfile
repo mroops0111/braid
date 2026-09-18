@@ -12,7 +12,7 @@
 # ---------------------------------------------------------------------------
 # deps: install the workspace and build the UI
 # ---------------------------------------------------------------------------
-FROM node:20-slim AS deps
+FROM node:22-slim AS deps
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 # pnpm asks before clearing a modules directory, and there is no TTY to answer.
@@ -39,7 +39,7 @@ RUN pnpm --filter @braidhq/studio build
 # ---------------------------------------------------------------------------
 # uv: fetch uvx here so curl never enters the runtime
 # ---------------------------------------------------------------------------
-FROM node:20-slim AS uv
+FROM node:22-slim AS uv
 RUN apt-get update \
   && apt-get install -y --no-install-recommends curl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
@@ -48,7 +48,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 # ---------------------------------------------------------------------------
 # runtime
 # ---------------------------------------------------------------------------
-FROM node:20-slim AS runtime
+FROM node:22-slim AS runtime
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable

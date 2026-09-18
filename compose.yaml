@@ -4,29 +4,62 @@ services:
     ports:
       - '4321:4321'
     volumes:
-      # Everything that must survive a redeploy. Without it every source
-      # re-clones on each boot, and the graph and its git history are lost.
+      # Everything that must survive a redeploy.
+      # Without it every source re-clones, and the graph and its history go.
       - braid-data:/data
+    # What one deployment differs from another by.
+    # Copy .env.example to .env and fill it in, Compose reads it from here.
     environment:
-      # Real authentication. Leaving this true trusts every caller.
+      # -------------------------------------------------------------------
+      # required
+      # -------------------------------------------------------------------
+      # server: real authentication. Left true, every caller is trusted.
       BRAID_LOCAL_TRUST: 'false'
-      # Where users reach Studio. Also the only browser origin trusted by
-      # default, so a wrong value here is what a CORS failure looks like.
+      # server: where users reach Studio, and the one origin trusted by default.
+      # A wrong value here is what a CORS failure looks like.
       BRAID_STUDIO_URL: ${BRAID_STUDIO_URL:?set this to the URL users open}
-      # This server serves Studio, so the API answers on that same origin.
-      # Both OAuth redirects derive from it, and each has to be registered
-      # in the Google console exactly as derived.
+      # server: the same origin, since this process serves Studio.
+      # Both Google redirects derive from it, so each must match the console.
       BRAID_API_URL: ${BRAID_STUDIO_URL}
+      # server: who may create workspaces and manage the roster.
+      BRAID_ADMIN_EMAILS: ${BRAID_ADMIN_EMAILS:?at least one admin is required}
+      # server signs people in with these.
+      # source-loader-gdrive connects a Drive source with them too.
       BRAID_GOOGLE_CLIENT_ID: ${BRAID_GOOGLE_CLIENT_ID:?}
       BRAID_GOOGLE_CLIENT_SECRET: ${BRAID_GOOGLE_CLIENT_SECRET:?}
-      BRAID_ALLOWED_DOMAINS: ${BRAID_ALLOWED_DOMAINS:-}
-      BRAID_ADMIN_EMAILS: ${BRAID_ADMIN_EMAILS:?at least one admin is required}
-      # Subscription credential for the agent. See the deployment notes in
-      # packages/server/README.md for how it is minted and what it costs.
+      # agent-claude-code: the seat every run draws on.
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:?}
-      # Read access for private git remotes, referenced from PRODUCT.md as
-      # `https://oauth2:${GIT_TOKEN}@host/group/repo.git`.
+
+      # -------------------------------------------------------------------
+      # optional
+      # -------------------------------------------------------------------
+      # An empty value leaves each of these off.
+      # server: restricts sign-in to these domains, comma separated.
+      BRAID_ALLOWED_DOMAINS: ${BRAID_ALLOWED_DOMAINS:-}
+      # source-loader-git: read access for a private remote.
       GIT_TOKEN: ${GIT_TOKEN:-}
+      # source-loader-github: an Issues source, connected per source.
+      BRAID_GITHUB_CLIENT_ID: ${BRAID_GITHUB_CLIENT_ID:-}
+      BRAID_GITHUB_CLIENT_SECRET: ${BRAID_GITHUB_CLIENT_SECRET:-}
+      # server: sign-in through your own authorization server.
+      # An issuer displaces the Google client and turns on the MCP endpoint.
+      BRAID_OIDC_ISSUER: ${BRAID_OIDC_ISSUER:-}
+      BRAID_OIDC_CLIENT_ID: ${BRAID_OIDC_CLIENT_ID:-}
+      BRAID_OIDC_CLIENT_SECRET: ${BRAID_OIDC_CLIENT_SECRET:-}
+      # BRAID_OIDC_AUDIENCE is absent on purpose.
+      # It defaults to the API url, and an empty value would not read as unset.
+      # server: the MCP endpoint's own client at that issuer.
+      BRAID_MCP_GATEWAY_CLIENT_ID: ${BRAID_MCP_GATEWAY_CLIENT_ID:-}
+      BRAID_MCP_GATEWAY_CLIENT_SECRET: ${BRAID_MCP_GATEWAY_CLIENT_SECRET:-}
+      # server: lets each person save their own agent credential.
+      # Without it none can, and every run spends the shared seat.
+      BRAID_SECRET_KEY: ${BRAID_SECRET_KEY:-}
+      BRAID_SECRET_KEY_PREVIOUS: ${BRAID_SECRET_KEY_PREVIOUS:-}
+      # server: search by meaning. The address is the switch.
+      # Any OpenAI-compatible endpoint, Ollama included.
+      BRAID_EMBEDDING_HOST: ${BRAID_EMBEDDING_HOST:-}
+      BRAID_EMBEDDING_MODEL: ${BRAID_EMBEDDING_MODEL:-}
+      BRAID_EMBEDDING_API_KEY: ${BRAID_EMBEDDING_API_KEY:-}
     restart: unless-stopped
 
 volumes:

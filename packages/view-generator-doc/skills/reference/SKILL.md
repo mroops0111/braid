@@ -5,6 +5,9 @@ argument-hint: "[path-to-material]"
 disable-model-invocation: true
 braid:
   category: generate
+  label:
+    en: Reference
+    zh-Hant: 手冊
   summary: Write a container up as a document to look things up in
   hidden: true
   required-env: [BRAID_WORKSPACE, BRAID_RUN_ID, BRAID_SHARED_REFERENCE]
