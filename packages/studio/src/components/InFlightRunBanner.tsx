@@ -48,8 +48,8 @@ function ActiveBanner({ workspaceId, runId, skillId, startedAt }: {
   const { t, i18n } = useTranslation()
   const { data: skills } = useSkills(workspaceId)
   const elapsed = useElapsed(startedAt)
-  // A skill id is an address, so a banner showing `/ddd:extract` shows plumbing.
-  // The skill names itself for a reader, localised like the ontology's own types.
+  // A skill id is an address, so `/ddd:extract` on a banner shows plumbing.
+  // The skill names itself for a reader, localised like the ontology's types.
   // Absent, the id stands, which is at least true.
   const declared = skills?.items.find(skill => skill.id === skillId)?.frontmatter.braid.label
   const label = declared ? localize(declared, i18n.language as Locale) : `/${skillId}`

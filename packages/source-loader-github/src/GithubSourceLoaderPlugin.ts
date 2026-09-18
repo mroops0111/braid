@@ -424,7 +424,7 @@ async function fetchLinkedMergedPRs(
   if (payload.errors && payload.errors.length > 0)
     throw new Error(`githubLoader: GraphQL errors for issue ${issueNumber}: ${payload.errors.map(e => e.message).join('; ')}`)
   // A GitHub App reads only the repositories it is installed on,
-  // and an uninstalled one comes back as a null repository rather than an error.
+  // and an uninstalled one answers with a null repository, not an error.
   // Reading that as "no linked PR" files every issue as unrealized,
   // and reports a clean sync that wrote nothing,
   // which is the one outcome nobody can diagnose from the outside.

@@ -88,8 +88,8 @@ else
   echo "Created Google identity provider."
 fi
 
-# The client-scopes endpoint ignores a name filter and answers with the whole
-# list, so filtering there and taking row one returns an unrelated scope.
+# The client-scopes endpoint ignores a name filter and answers with everything,
+# so filtering there and taking row one returns an unrelated scope.
 scope_id_of () {
   $KC get client-scopes -r "$REALM" --fields id,name --format csv --noquotes 2>/dev/null \
     | grep ",$1\$" | cut -d, -f1 | head -1
@@ -97,8 +97,8 @@ scope_id_of () {
 
 # Two audiences to arrange, and neither client can ask for its own.
 # An MCP client registers itself, so a realm default scope gives it one.
-# The exchange then targets the API, and Keycloak only issues an audience
-# the requesting client's scope already covers.
+# The exchange then targets the API,
+# and Keycloak only issues an audience the client's scope already covers.
 upsert_scope () {
   scope_name="$1"
   audience_key="$2"
@@ -141,8 +141,9 @@ redirector_row=$($KC get "authentication/flows/browser/executions" -r "$REALM" \
   --fields id,providerId,authenticationConfig --format csv --noquotes 2>/dev/null \
   | grep ",identity-provider-redirector")
 redirector=$(echo "$redirector_row" | cut -d, -f1 | head -1)
-# The listing carries the config id once attached, the only signal saying
-# whether this ran before. The config endpoint answers neither way.
+# The listing carries the config id once attached,
+# which is the only signal saying whether this ran before.
+# The config endpoint answers neither way.
 existing=$(echo "$redirector_row" | cut -d, -f3 | head -1)
 if [ -n "$redirector" ]; then
   if [ -z "$existing" ]; then

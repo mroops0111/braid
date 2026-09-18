@@ -133,7 +133,7 @@ export function DocumentsPage({ workspaceId, onSelectNode }: {
                 onChange={event => setQuery(event.target.value)}
               />
             </SurfaceBand>
-            {/* The empty state shares this box rather than sitting below it, */}
+            {/* The empty state shares this box instead of sitting below it, */}
             {/* since two flex-1 siblings split the column and leave it low. */}
             <div className="min-h-0 flex-1 overflow-y-auto">
               {shelves.length === 0 && (
@@ -222,9 +222,8 @@ function DocumentRow({ group, name, forms, openPath, onOpen, locale, staleLabel 
         <div className="flex items-center gap-2">
           <span className="truncate text-sm text-foreground">{name}</span>
           {group.stale && (
-            // Every other outline badge in Studio is set in uppercase with
-            // wider tracking. This one was the exception, so a status read
-            // as a status everywhere else read as a phrase here.
+            // Every other outline badge here is uppercase with wider tracking.
+            // This one was the exception, so a status read as a phrase here.
             <Badge variant="outline" className="shrink-0 border-amber-500/30 bg-amber-500/5 text-2xs uppercase tracking-wider text-amber-600 dark:text-amber-400">
               {staleLabel}
             </Badge>
