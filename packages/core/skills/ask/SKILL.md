@@ -110,7 +110,9 @@ What the contract for your form owes is listed there. These are this skill's own
 - [ ] Every disagreement was checked against `metadata.driftIssues` on the nodes involved, and an already-recorded one carries `registered` and its `driftId`.
 - [ ] Nothing was invented to look better sourced, no path, no line number, no node id.
 
-## Companion Docs
+## Reference Documents
+
+Reference documents live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
 
 | File | When to Read | Why |
 |---|---|---|

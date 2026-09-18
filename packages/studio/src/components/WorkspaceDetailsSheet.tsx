@@ -1,4 +1,4 @@
-import type { McpServerConfig, SkillReadinessIssue, SourceDescriptor, UnloadableSkill, User, Workspace, WorkspaceMember, WorkspaceRole } from '@braidhq/schema'
+import type { McpServerConfig, SourceDescriptor, UnloadableSkill, User, Workspace, WorkspaceMember, WorkspaceRole } from '@braidhq/schema'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Crown, Database, FileWarning, GitBranch, HardDrive, MoreHorizontal, Plug, RefreshCw, Trash2, TriangleAlert, UserMinus, UserRound, UserRoundCheck, UserRoundCog, Webhook } from 'lucide-react'
 import { DropdownMenu as DropdownPrimitive } from 'radix-ui'
@@ -121,7 +121,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
               )}
         </section>
 
-        <SkillHealthSection workspaceId={workspaceId} />
+        <SkillIssuesSection workspaceId={workspaceId} />
 
         <MembersSection workspaceId={workspaceId} />
 
@@ -195,38 +195,40 @@ function AutoRefreshSwitch({ workspaceId, enabled, canWrite, onChange }: {
 }
 
 /**
- * Skill files that did not load, and skills that cannot run here yet.
+ * Skill files that did not load, and skills this workspace cannot run.
  *
  * Absent entirely when there is nothing wrong, since a healthy workspace
  * gains nothing from a row saying so, and the section is a diagnosis.
  * Whoever can fix one of these is whoever opened this panel,
  * which is why it is reported here rather than left in the server log.
+ * What only a starting run can answer is not here, since this list is
+ * built long before one starts.
  */
-function SkillHealthSection({ workspaceId }: { workspaceId: string }) {
+function SkillIssuesSection({ workspaceId }: { workspaceId: string }) {
   const { t } = useTranslation()
   const { data } = useSkills(workspaceId)
   const unloadable = data?.unloadable ?? []
-  const notReady = (data?.items ?? []).filter(skill => skill.readiness.length > 0)
-  if (unloadable.length === 0 && notReady.length === 0)
+  const unavailable = (data?.items ?? []).filter(skill => skill.availability.length > 0)
+  if (unloadable.length === 0 && unavailable.length === 0)
     return null
   return (
     <section>
-      <SectionHeader title={t('workspace.details.skillHealthTitle')} />
+      <SectionHeader title={t('workspace.details.skillIssuesTitle')} />
       <ul className="mt-2 space-y-1.5">
         {unloadable.map(skill => (
           <UnloadableSkillRow key={skill.path} skill={skill} />
         ))}
-        {notReady.map(skill => (
+        {unavailable.map(skill => (
           <li key={skill.id} className="rounded-md border border-border p-2">
             <div className="flex items-center gap-2">
               <TriangleAlert className="size-3 text-amber-400" />
               <span className="font-mono text-xs">{skill.id}</span>
-              <Badge variant="outline" className="text-2xs uppercase">{t('workspace.details.skillNotReady')}</Badge>
+              <Badge variant="outline" className="text-2xs uppercase">{t('workspace.details.skillUnavailable')}</Badge>
             </div>
             <ul className="mt-1 space-y-0.5">
-              {skill.readiness.map(issue => (
+              {skill.availability.map(issue => (
                 <li key={`${issue.kind}-${issue.target}`} className="text-2xs text-muted-foreground">
-                  {t(readinessKey(issue), { target: issue.target })}
+                  {t('workspace.details.skillMissingMcpServer', { target: issue.target })}
                 </li>
               ))}
             </ul>
@@ -254,15 +256,6 @@ function UnloadableSkillRow({ skill }: { skill: UnloadableSkill }) {
       </ul>
     </li>
   )
-}
-
-/** Readiness is a small closed set, so it reads in the reader's language. */
-function readinessKey(issue: SkillReadinessIssue) {
-  if (issue.kind === 'missing-env')
-    return 'workspace.details.readinessMissingEnv' as const
-  if (issue.kind === 'missing-mcp-server')
-    return 'workspace.details.readinessMissingMcpServer' as const
-  return 'workspace.details.readinessMissingPath' as const
 }
 
 function SectionHeader({ title, onAdd, addLabel, disabled = false }: {

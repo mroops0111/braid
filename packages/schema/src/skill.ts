@@ -389,19 +389,35 @@ export const SkillFrontmatter = ClaudeCodeSkillFrontmatter.extend({
 export type SkillFrontmatter = z.infer<typeof SkillFrontmatter>
 
 /**
- * One reason a SKILL.md would break at run time, reported rather than logged.
+ * A skill is held to three checks, and each one can first be answered
+ * at a different moment, which is what separates them.
+ *
+ * Load reads the file alone, so its answer is the same in every workspace
+ * and on every run, and a file that fails it is broken until someone edits it.
+ * Availability reads the file against one workspace, so the same file
+ * passes in one and fails in the next.
+ * Start reads it against the environment assembled for one run, which is
+ * the first moment the runner-injected variables exist at all.
+ *
+ * A load or availability fault is reported, since a reader can act on it.
+ * A start fault throws, since it is a precondition for work about to begin.
+ *
+ * Every kind reads as the fault then its subject.
+ */
+
+/**
+ * Why a SKILL.md is not a usable skill, found by reading the file.
  *
  * Every kind names a mechanical fault. House style is not one of them,
  * so nothing here withholds a skill over a heading's casing or its length.
- * Each reads as the fault then its subject, the way a readiness issue does,
- * and the list runs in the order a load meets them.
+ * The list runs in the order a load meets them.
  */
 export const SkillLoadIssue = z.object({
   kind: z.enum([
     'unparsable-frontmatter',
     'missing-section',
     'duplicate-input-name',
-    'unreachable-companion-doc',
+    'unreachable-reference-document',
     'unparsable-extension-name',
     'missing-extension-target',
   ]),
@@ -427,12 +443,17 @@ export const UnloadableSkill = z.object({
 })
 export type UnloadableSkill = z.infer<typeof UnloadableSkill>
 
-/** Why a skill cannot run here yet, as opposed to why it would not load. */
-export const SkillReadinessIssue = z.object({
-  kind: z.enum(['missing-env', 'missing-path', 'missing-mcp-server']),
+/**
+ * Why a loaded skill cannot run in one workspace, though it runs in others.
+ *
+ * Answered from what the workspace declares, so it is settled at list time
+ * and travels with the skill rather than waiting for someone to press run.
+ */
+export const SkillAvailabilityIssue = z.object({
+  kind: z.enum(['missing-mcp-server']),
   target: z.string(),
 })
-export type SkillReadinessIssue = z.infer<typeof SkillReadinessIssue>
+export type SkillAvailabilityIssue = z.infer<typeof SkillAvailabilityIssue>
 
 export const SkillManifest = z.object({
   id: SkillId,

@@ -64,28 +64,23 @@ describe('SkillManifest claude / braid field projections', () => {
   })
 })
 
-describe('SkillManifest.readinessIssuesFor', () => {
-  it('reports no issues when env and MCP requirements are satisfied', () => {
-    const manifest = makeSkillManifest({
-      requiredEnv: ['BRAID_API_URL'],
-      requiredMcpServers: ['redmine' as McpServerId],
-    })
+describe('SkillManifest.availabilityIssuesIn', () => {
+  it('reports nothing when the workspace declares every server the skill needs', () => {
+    const manifest = makeSkillManifest({ requiredMcpServers: ['redmine' as McpServerId] })
 
-    const issues = manifest.readinessIssuesFor(workspaceWith(), { BRAID_API_URL: 'http://localhost' })
-    expect(issues).toEqual([])
-  })
-
-  it('reports a missing-env issue for each unset required environment variable', () => {
-    const manifest = makeSkillManifest({ requiredEnv: ['JIRA_TOKEN'] })
-
-    const issues = manifest.readinessIssuesFor(workspaceWith(), {})
-    expect(issues).toEqual([{ kind: 'missing-env', target: 'JIRA_TOKEN' }])
+    expect(manifest.availabilityIssuesIn(workspaceWith('redmine' as McpServerId))).toEqual([])
   })
 
   it('reports a missing-mcp-server issue when the workspace does not declare the server', () => {
     const manifest = makeSkillManifest({ requiredMcpServers: ['xwiki' as McpServerId] })
 
-    const issues = manifest.readinessIssuesFor(workspaceWith('redmine' as McpServerId), {})
+    const issues = manifest.availabilityIssuesIn(workspaceWith('redmine' as McpServerId))
     expect(issues).toEqual([{ kind: 'missing-mcp-server', target: 'xwiki' }])
+  })
+
+  it('says nothing about environment, which only a starting run can answer', () => {
+    const manifest = makeSkillManifest({ requiredEnv: ['JIRA_TOKEN'] })
+
+    expect(manifest.availabilityIssuesIn(workspaceWith())).toEqual([])
   })
 })

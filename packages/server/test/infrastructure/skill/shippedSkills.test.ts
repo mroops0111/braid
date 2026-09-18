@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { validateSkillStructure } from '@braidhq/core'
+import { validateSkillFile } from '@braidhq/core'
 import { SkillFrontmatter } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { parseMarkdownFrontmatter } from '../../../src/infrastructure/_shared/frontmatter.js'
@@ -36,9 +36,9 @@ describe('shipped skills', () => {
     expect(skills.length).toBeGreaterThan(0)
   })
 
-  it.each(skills)('$id satisfies the structure contract', ({ file }) => {
+  it.each(skills)('$id is a usable skill', ({ file }) => {
     const { frontmatter: raw, body } = parseMarkdownFrontmatter<unknown>(readFileSync(file, 'utf-8'))
-    const result = validateSkillStructure({ body, frontmatter: SkillFrontmatter.parse(raw) })
+    const result = validateSkillFile({ body, frontmatter: SkillFrontmatter.parse(raw) })
     expect(result.issues.map(issue => issue.message)).toEqual([])
   })
 })

@@ -1,7 +1,7 @@
 /**
  * SKILL.md fixtures for tests that materialise a real file on disk.
  *
- * The repo's `SkillStructureValidator` requires a fixed set of H2
+ * The repo's `validateSkillFile` requires a fixed set of H2
  * sections per skill category; a SKILL.md missing one is rejected by
  * `FsSkillRegistry` at load time. Tests don't care about prose
  * content, they care that the structural contract is satisfied — so
@@ -22,7 +22,7 @@ export interface MakeSkillFileOptions {
 
 /**
  * Returns a complete SKILL.md text (frontmatter + body) that passes
- * `SkillStructureValidator`. The body contains all required H2 sections
+ * `validateSkillFile`. The body contains all required H2 sections
  * with one-line placeholder content.
  */
 export function makeSkillFileContents(opts: MakeSkillFileOptions): string {
@@ -41,7 +41,7 @@ export function makeSkillFileContents(opts: MakeSkillFileOptions): string {
     'Procedure',
     'Output',
     'Completion Checklist',
-    'Companion Docs',
+    'Reference Documents',
   ]
   const categorySections = opts.category === 'generate' ? ['Output Files'] : []
   const sections = [...commonSections, ...categorySections]

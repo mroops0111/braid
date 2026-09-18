@@ -9,9 +9,8 @@ import type {
   WorkspaceRepository,
 } from '@braidhq/core'
 import type { SkillEvent, SkillRunId as SkillRunIdType } from '@braidhq/schema'
-import process from 'node:process'
 import { createLogger, unitBearingRoleIds, ValidationError } from '@braidhq/core'
-import { OutputForm, SkillId as SkillIdSchema, SkillManifest, SkillReadinessIssue, SkillRunId, SourceId, UnloadableSkill } from '@braidhq/schema'
+import { OutputForm, SkillAvailabilityIssue, SkillId as SkillIdSchema, SkillManifest, SkillRunId, SourceId, UnloadableSkill } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { extractBearerToken, getUserId } from '../middleware/auth.js'
 import { requirePermission } from '../middleware/workspaceAccess.js'
@@ -42,10 +41,12 @@ const SkillIdParam = WorkspaceIdParam.extend({
   skillId: SkillIdSchema.openapi({ param: { name: 'skillId', in: 'path' } }),
 })
 
-// A skill carries why it cannot run here alongside what it is,
+// A skill carries why this workspace cannot run it alongside what it is,
 // so a surface shows the gap on the same row rather than on a second trip.
+// What a run's own environment supplies is not answerable here,
+// and is asserted as the run starts instead.
 const SkillListItem = SkillManifest.extend({
-  readiness: z.array(SkillReadinessIssue),
+  availability: z.array(SkillAvailabilityIssue),
 }).openapi('SkillListItem')
 
 const SkillListResponse = z.object({
@@ -171,7 +172,7 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
     return context.json({
       items: manifests.map(manifest => ({
         ...manifest.toData(),
-        readiness: [...manifest.readinessIssuesFor(workspace, process.env)],
+        availability: [...manifest.availabilityIssuesIn(workspace)],
       })),
       unloadable: [...unloadable],
     }, 200)

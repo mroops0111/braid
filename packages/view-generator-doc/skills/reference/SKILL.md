@@ -94,7 +94,7 @@ None. The framework takes the blocks this run rendered and keeps them as the doc
 - [ ] No sentence announcing a node's status.
 - [ ] The document closes on the sources it rests on.
 
-## Companion Docs
+## Reference Documents
 
 | File | When to Read | Why |
 |---|---|---|
