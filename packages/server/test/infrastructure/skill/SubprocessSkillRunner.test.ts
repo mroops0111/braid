@@ -453,9 +453,9 @@ describe('SubprocessSkillRunner', () => {
     })
 
     // Told rather than left to be inferred.
-    // A prompt that had to notice the render tools were gone went looking,
-    // and in an agent whose tools are searched rather than listed
-    // that search cost several calls before it concluded what this says.
+    // A prompt left to notice the render tools were gone goes looking,
+    // and where tools are searched rather than listed,
+    // that search spends several calls to reach what this states.
     it('tells the run which form it was settled on', async () => {
       const rootPath = await makeWorkspaceRoot()
       const { runner, workspace, invocations } = await buildRunner({ rootPath, forms: ['blocks', 'prose'] })
@@ -486,8 +486,8 @@ describe('SubprocessSkillRunner', () => {
       expect(record?.outputForm).toBe('prose')
     })
 
-    // Blocks that are the artefact rather than a rendering of one
-    // are still owed when the run has no reader at all.
+    // Blocks that are the artefact rather than a rendering are still owed,
+    // even when the run has no reader at all.
     it('still renders with nobody watching when blocks are all the skill offers', async () => {
       const rootPath = await makeWorkspaceRoot()
       const { runner, workspace, runRepository } = await buildRunner({ rootPath })

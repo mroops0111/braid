@@ -85,34 +85,34 @@ export function rendersBlocks(form: OutputForm): boolean {
 /**
  * What a skill produces when it declares nothing.
  *
- * Blocks alone, which is what every skill did before a form could be asked for,
- * and what a skill whose blocks are the artefact rather than a rendering
- * must keep producing however little of it anybody reads.
+ * Blocks alone, which is what every skill did before a form could be asked for.
+ * A skill whose blocks are its artefact keeps producing them,
+ * however little of it anybody reads.
  */
 export const DEFAULT_OUTPUT_FORMS: readonly OutputForm[] = ['blocks']
 
 /**
  * The form one run produces, settled from what is on offer and who is reading.
  *
- * A skill declares the forms it can produce, and nothing outside that list
- * can be reached by asking, which is what keeps a skill whose blocks
- * are its artefact rendering even when no one is watching.
+ * Nothing outside a skill's own list can be reached by asking,
+ * so a skill whose blocks are its artefact keeps rendering,
+ * even when no one is watching.
  * Within the list, a run nobody is watching takes the form that renders nothing,
  * since rendering is paid for by whoever produces it and read by nobody,
  * and an attended run takes what its reader asked for.
  */
 export function settleOutputForm(input: {
-  readonly declared?: readonly OutputForm[] | undefined
-  readonly requested?: OutputForm | undefined
+  readonly declaredForms?: readonly OutputForm[] | undefined
+  readonly requestedForm?: OutputForm | undefined
   readonly unattended?: boolean | undefined
 }): OutputForm {
-  const offered = input.declared?.length ? input.declared : DEFAULT_OUTPUT_FORMS
-  const fallback = offered[0]!
+  const offeredForms = input.declaredForms?.length ? input.declaredForms : DEFAULT_OUTPUT_FORMS
+  const defaultForm = offeredForms[0]!
   if (input.unattended)
-    return offered.find(form => !rendersBlocks(form)) ?? fallback
-  if (input.requested && offered.includes(input.requested))
-    return input.requested
-  return fallback
+    return offeredForms.find(form => !rendersBlocks(form)) ?? defaultForm
+  if (input.requestedForm && offeredForms.includes(input.requestedForm))
+    return input.requestedForm
+  return defaultForm
 }
 
 /**
@@ -265,8 +265,7 @@ export const SkillOutputContract = z.object({
    * so a list is an ordering as much as it is a set.
    * Declaring `prose` says the prompt can answer without the render calls,
    * which is what lets a run nobody is watching stop paying for them.
-   * A skill leaving this out renders, which is what every skill did
-   * before the question could be asked.
+   * A skill leaving this out renders, as every skill did before this existed.
    */
   forms: z.array(OutputForm).min(1).default([...DEFAULT_OUTPUT_FORMS]),
   // Calls the run must have made at least once.

@@ -180,12 +180,12 @@ export class SubprocessSkillRunner implements SkillRunner {
     // A skill that says nothing about what it does gets the reading surface.
     // Writing to the graph is a claim a skill has to make for itself.
     const toolSurface = category ?? 'ask'
-    // A skill declares the forms it can produce, and nothing outside that list
-    // can be reached by asking, so a request a skill never offered
-    // renders as usual rather than making a run with no way to say anything.
+    // Nothing outside a skill's own list can be reached by asking,
+    // so a request it never offered renders as usual,
+    // rather than making a run with no way to say anything.
     const outputForm = settleOutputForm({
-      declared: manifest.frontmatter.braid.output?.forms,
-      requested: options.outputForm,
+      declaredForms: manifest.frontmatter.braid.output?.forms,
+      requestedForm: options.outputForm,
       unattended,
     })
     const gatewayArgs = [
@@ -280,10 +280,10 @@ export class SubprocessSkillRunner implements SkillRunner {
         // so no SKILL.md carries a location of its own.
         ...this.referenceEnv(workspace, skillId, sessionDir),
         // The form this run was settled on, told rather than left to be inferred.
-        // The spec is what enforces it, since the operations are genuinely absent,
-        // but a prompt that had to notice their absence went looking for them,
-        // and in an agent whose tools are searched rather than listed
-        // that search costs several calls before it concludes what this says.
+        // The spec is what enforces it, since the operations are genuinely absent.
+        // A prompt left to notice their absence goes looking for them,
+        // and where tools are searched rather than listed,
+        // that search spends several calls to reach what this states.
         BRAID_OUTPUT_FORM: outputForm,
         // Read by a prompt deciding whether to stop and ask.
         // A run nobody is watching files its question and carries on,

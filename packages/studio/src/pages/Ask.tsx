@@ -526,7 +526,7 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
         </div>
       </header>
 
-      {/* A prose run rendered nothing, so the only view left is the one it wrote,
+      {/* A run that rendered nothing leaves one view, the one it wrote,
           and a toggle offering a single choice is a control that does nothing. */}
       {readableAs.length > 0 && (
         <SurfaceBand className="px-4">
@@ -604,7 +604,10 @@ function FormToggle({ value, onChange, settled, disabled }: {
   disabled: boolean
 }) {
   const { t } = useTranslation()
-  const next = value === 'prose' ? 'blocks' : 'prose'
+  // Two forms make this a flip rather than a picker.
+  // A third would need a menu, which is a different control,
+  // so the pair is named here rather than hidden behind a lookup.
+  const next: OutputForm = rendersBlocks(value) ? 'prose' : 'blocks'
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -615,14 +618,14 @@ function FormToggle({ value, onChange, settled, disabled }: {
           disabled={disabled || settled}
           onClick={() => onChange(next)}
         >
-          {value === 'prose' ? <AlignLeft /> : <Layers />}
-          {t(value === 'prose' ? 'ask.form.prose' : 'ask.form.blocks')}
+          {rendersBlocks(value) ? <Layers /> : <AlignLeft />}
+          {t(`ask.form.${value}`)}
         </Button>
       </TooltipTrigger>
-      {/* A disabled trigger swallows pointer events, so the reason it is
-          disabled has to be readable from the wrapper rather than the button. */}
+      {/* A disabled trigger swallows its own pointer events,
+          so the reason it is disabled has to live on the wrapper. */}
       <TooltipContent side="top" className="max-w-xs">
-        {settled ? t('ask.form.settled') : t(value === 'prose' ? 'ask.form.proseHint' : 'ask.form.blocksHint')}
+        {settled ? t('ask.form.settled') : t(`ask.form.${value}Hint`)}
       </TooltipContent>
     </Tooltip>
   )

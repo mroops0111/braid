@@ -279,9 +279,9 @@ describe('ReactorService', () => {
     expect(skillRunner.startCalls.every(call => call.startedBy === REACTOR_USER_ID)).toBe(true)
   })
 
-  // A cycle runs off a timer, so a question one of its runs raises
-  // waits for whoever next opens the graph rather than for the person
-  // who started it, and its output is written for a log rather than drawn.
+  // A cycle runs off a timer, so nothing it dispatches has a reader.
+  // A question one of its runs raises waits for whoever next opens the graph,
+  // and its output is written for a log rather than drawn.
   it('tells every dispatched run that nobody is watching', async () => {
     const { workspace, eventBus, skillRunner } = await setup({ hasCheckpoint: true })
     emitSync(eventBus, workspace.id, 'issues')
