@@ -2,10 +2,13 @@ import { T0 as isoTimestamp } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 
 import {
+  RENDER_CALL_CATEGORIES,
+  renderCallsFor,
   rendersBlocks,
   RunRecord,
   SessionMetadata,
   settleOutputForm,
+  settleRenderCalls,
   SkillAgentOverride,
   SkillArtifactKind,
   SkillCategory,
@@ -469,5 +472,55 @@ describe('rendersBlocks', () => {
   it('separates the form that draws from the form that writes', () => {
     expect(rendersBlocks('blocks')).toBe(true)
     expect(rendersBlocks('prose')).toBe(false)
+  })
+})
+
+describe('renderCallsFor', () => {
+  it('gives each kind of run its own ceiling', () => {
+    expect(renderCallsFor('ask')).toContain('showMatrix')
+    expect(renderCallsFor('build')).not.toContain('showMatrix')
+    expect(renderCallsFor('generate')).toContain('showSection')
+    expect(renderCallsFor('build')).not.toContain('showSection')
+  })
+
+  // A build run shows its working to a reviewer,
+  // so the sources behind a claim are within reach of one that wants them.
+  it('lets a build run reach the sources behind a claim', () => {
+    expect(renderCallsFor('build')).toContain('showEvidence')
+  })
+
+  it('names every call in the table, so a new one cannot be forgotten', () => {
+    const named = new Set(Object.keys(RENDER_CALL_CATEGORIES))
+    const offered = new Set([...renderCallsFor('ask'), ...renderCallsFor('build'), ...renderCallsFor('generate')])
+    expect(offered).toEqual(named)
+  })
+})
+
+describe('settleRenderCalls', () => {
+  it('offers nothing to a run that renders nothing', () => {
+    expect(settleRenderCalls({ category: 'ask', form: 'prose', declaredCalls: ['showAnswer'] })).toEqual([])
+  })
+
+  it('leaves the ceiling in place when a skill declares nothing', () => {
+    expect(settleRenderCalls({ category: 'build', form: 'blocks' })).toEqual(renderCallsFor('build'))
+  })
+
+  // Two skills of one kind stop carrying each other's calls.
+  it('narrows to what the skill declared', () => {
+    const settled = settleRenderCalls({
+      category: 'build',
+      form: 'blocks',
+      declaredCalls: ['showTrace', 'showAnswer'],
+    })
+    expect(settled).toEqual(['showAnswer', 'showTrace'])
+  })
+
+  it('gives the overlap rather than the wish', () => {
+    const settled = settleRenderCalls({
+      category: 'build',
+      form: 'blocks',
+      declaredCalls: ['showAnswer', 'showSection'],
+    })
+    expect(settled).toEqual(['showAnswer'])
   })
 })

@@ -10,7 +10,7 @@ import type {
   Workspace,
   WorkspaceEventBus,
 } from '@braidhq/core'
-import type { AbsolutePath, AgentBindingDescriptor, AudienceDescriptor, EmittedBlock, McpServerConfig, OutputForm, RenderBlock, RunRecord, SkillAgentOverride, SkillCategory, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceId } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, AudienceDescriptor, EmittedBlock, McpServerConfig, OutputForm, RenderBlock, RenderCallName, RunRecord, SkillAgentOverride, SkillCategory, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceId } from '@braidhq/schema'
 import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import type { AgentCredentialBroker } from '../agent/AgentCredentialBroker.js'
 import type { RunOutputGate } from './RunOutputGate.js'
@@ -18,7 +18,7 @@ import type { RunTokenRegistry } from './RunTokenRegistry.js'
 import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { carriedEvents, ConflictError, describeViolations, newBlockId, newSkillRunId, NotFoundError, restateRunId, runScope, ServiceUnavailableError, validateOutput } from '@braidhq/core'
-import { AbsolutePath as AbsolutePathSchema, localize, McpServerId, rendersBlocks, settleOutputForm, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema, splitSkillId } from '@braidhq/schema'
+import { AbsolutePath as AbsolutePathSchema, localize, McpServerId, rendersBlocks, settleOutputForm, settleRenderCalls, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema, splitSkillId } from '@braidhq/schema'
 import { sessionDirPath } from '../_shared/paths.js'
 import { type AsyncQueue, createAsyncQueue } from './asyncQueue.js'
 import { BUILTIN_SKILL_NAMESPACE } from './FsSkillRegistry.js'
@@ -81,7 +81,7 @@ export interface SubprocessSkillRunnerDeps {
   // A skill needing `braid-core` then surfaces as not-ready,
   // via SkillManifest.readinessIssuesFor.
   readonly coreGateway?: {
-    readonly specUrlFor: (category: SkillCategory, form: OutputForm) => string
+    readonly specUrlFor: (category: SkillCategory, form: OutputForm, calls: readonly RenderCallName[]) => string
     readonly uvxBin?: string
   }
   /**
@@ -188,10 +188,17 @@ export class SubprocessSkillRunner implements SkillRunner {
       requestedForm: options.outputForm,
       unattended,
     })
+    // Settled here rather than in the spec route,
+    // so the record and the gateway agree on what this run was offered.
+    const renderCalls = settleRenderCalls({
+      category: toolSurface,
+      form: outputForm,
+      declaredCalls: manifest.frontmatter.braid.output?.calls,
+    })
     const gatewayArgs = [
       'openapi-mcp-gateway',
       '--spec',
-      this.deps.coreGateway?.specUrlFor(toolSurface, outputForm) ?? '',
+      this.deps.coreGateway?.specUrlFor(toolSurface, outputForm, renderCalls) ?? '',
       '--transport',
       'stdio',
       '--name',
@@ -256,7 +263,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     const spawnFn = this.deps.spawn ?? (await defaultSpawn())
     // Fail fast when the braid-core gateway cannot turn the spec into tools,
     // rather than spawning an agent that discovers the missing tools mid-run.
-    await this.ensureGatewayReady(spawnFn, toolSurface, outputForm)
+    await this.ensureGatewayReady(spawnFn, toolSurface, outputForm, renderCalls)
     // BRAID_SESSION_DIR resolves ambiguity in SKILL.md paths.
     // claude sees both `BRAID_WORKSPACE` and a cwd inside it,
     // and would otherwise guess which one `.claude/skills/...` is rooted in.
@@ -454,11 +461,11 @@ export class SubprocessSkillRunner implements SkillRunner {
    * Runs `openapi-mcp-gateway --dry-run`, memoised per spec,
    * so only the first run pays it.
    */
-  private async ensureGatewayReady(spawnFn: SpawnFn, category: SkillCategory, form: OutputForm): Promise<void> {
+  private async ensureGatewayReady(spawnFn: SpawnFn, category: SkillCategory, form: OutputForm, calls: readonly RenderCallName[]): Promise<void> {
     const gateway = this.deps.coreGateway
     if (!gateway)
       return
-    const specUrl = gateway.specUrlFor(category, form)
+    const specUrl = gateway.specUrlFor(category, form, calls)
     let pending = this.gatewayReadyBySpec.get(specUrl)
     if (!pending) {
       pending = this.probeGateway(spawnFn, gateway.uvxBin ?? 'uvx', specUrl)

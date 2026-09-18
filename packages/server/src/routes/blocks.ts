@@ -4,7 +4,7 @@ import { evidenceSupport, graphCitations, NotFoundError, ValidationError } from 
 import { BlockId, CHOICE_NEEDS_ANSWER, EvidenceSupport, namesItsAnswer, ShowAnswer, ShowCheckFields, ShowCustom, ShowDiagram, ShowEvidence, ShowFinding, ShowMatrix, ShowSection, ShowSubgraph, ShowTrace, SkillRunId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
-import { forRuns, NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
+import { forRenderCall, NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
 
 /**
@@ -79,7 +79,7 @@ const renderResponses = {
   400: ValidationFailureResponse,
 } as const
 
-const showAnswerRoute = createRoute(forRuns({
+const showAnswerRoute = createRoute(forRenderCall({
   method: 'post',
   path: '/{runId}/blocks/answer',
   operationId: 'showAnswer',
@@ -90,9 +90,9 @@ const showAnswerRoute = createRoute(forRuns({
     body: { content: { 'application/json': { schema: ShowAnswerBody } }, required: true },
   },
   responses: renderResponses,
-}, ['ask', 'build', 'generate'], ['blocks']))
+}, 'showAnswer'))
 
-const showEvidenceRoute = createRoute(forRuns({
+const showEvidenceRoute = createRoute(forRenderCall({
   method: 'post',
   path: '/{runId}/blocks/evidence',
   operationId: 'showEvidence',
@@ -103,9 +103,9 @@ const showEvidenceRoute = createRoute(forRuns({
     body: { content: { 'application/json': { schema: ShowEvidenceBody } }, required: true },
   },
   responses: renderResponses,
-}, ['ask', 'generate'], ['blocks']))
+}, 'showEvidence'))
 
-const showFindingRoute = createRoute(forRuns({
+const showFindingRoute = createRoute(forRenderCall({
   method: 'post',
   path: '/{runId}/blocks/finding',
   operationId: 'showFinding',
@@ -116,9 +116,9 @@ const showFindingRoute = createRoute(forRuns({
     body: { content: { 'application/json': { schema: ShowFindingBody } }, required: true },
   },
   responses: renderResponses,
-}, ['ask', 'build'], ['blocks']))
+}, 'showFinding'))
 
-const showMatrixRoute = createRoute(forRuns({
+const showMatrixRoute = createRoute(forRenderCall({
   method: 'post',
   path: '/{runId}/blocks/matrix',
   operationId: 'showMatrix',
@@ -129,9 +129,9 @@ const showMatrixRoute = createRoute(forRuns({
     body: { content: { 'application/json': { schema: ShowMatrixBody } }, required: true },
   },
   responses: renderResponses,
-}, ['ask', 'generate'], ['blocks']))
+}, 'showMatrix'))
 
-const showTraceRoute = createRoute(forRuns({
+const showTraceRoute = createRoute(forRenderCall({
   method: 'post',
   path: '/{runId}/blocks/trace',
   operationId: 'showTrace',
@@ -142,9 +142,9 @@ const showTraceRoute = createRoute(forRuns({
     body: { content: { 'application/json': { schema: ShowTraceBody } }, required: true },
   },
   responses: renderResponses,
-}, ['ask', 'build'], ['blocks']))
+}, 'showTrace'))
 
-const showDiagramRoute = createRoute(forRuns({
+const showDiagramRoute = createRoute(forRenderCall({
   method: 'post',
   path: '/{runId}/blocks/diagram',
   operationId: 'showDiagram',
@@ -155,9 +155,9 @@ const showDiagramRoute = createRoute(forRuns({
     body: { content: { 'application/json': { schema: ShowDiagramBody } }, required: true },
   },
   responses: renderResponses,
-}, ['ask', 'build', 'generate'], ['blocks']))
+}, 'showDiagram'))
 
-const showSubgraphRoute = createRoute(forRuns({
+const showSubgraphRoute = createRoute(forRenderCall({
   method: 'post',
   path: '/{runId}/blocks/subgraph',
   operationId: 'showSubgraph',
@@ -168,9 +168,9 @@ const showSubgraphRoute = createRoute(forRuns({
     body: { content: { 'application/json': { schema: ShowSubgraphBody } }, required: true },
   },
   responses: renderResponses,
-}, ['ask', 'build', 'generate'], ['blocks']))
+}, 'showSubgraph'))
 
-const showSectionRoute = createRoute(forRuns({
+const showSectionRoute = createRoute(forRenderCall({
   method: 'post',
   path: '/{runId}/blocks/section',
   operationId: 'showSection',
@@ -181,9 +181,9 @@ const showSectionRoute = createRoute(forRuns({
     body: { content: { 'application/json': { schema: ShowSectionBody } }, required: true },
   },
   responses: renderResponses,
-}, ['generate'], ['blocks']))
+}, 'showSection'))
 
-const showCheckRoute = createRoute(forRuns({
+const showCheckRoute = createRoute(forRenderCall({
   method: 'post',
   path: '/{runId}/blocks/check',
   operationId: 'showCheck',
@@ -194,9 +194,9 @@ const showCheckRoute = createRoute(forRuns({
     body: { content: { 'application/json': { schema: ShowCheckBody } }, required: true },
   },
   responses: renderResponses,
-}, ['generate'], ['blocks']))
+}, 'showCheck'))
 
-const showCustomRoute = createRoute(forRuns({
+const showCustomRoute = createRoute(forRenderCall({
   method: 'post',
   path: '/{runId}/blocks/custom',
   operationId: 'showCustom',
@@ -207,7 +207,7 @@ const showCustomRoute = createRoute(forRuns({
     body: { content: { 'application/json': { schema: ShowCustomBody } }, required: true },
   },
   responses: renderResponses,
-}, ['generate'], ['blocks']))
+}, 'showCustom'))
 
 export function createBlocksRouter(deps: BlocksRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()

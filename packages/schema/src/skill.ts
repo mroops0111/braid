@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { AgentEffort, AgentKind } from './agent.js'
-import { RenderBlock, RenderCallName } from './block.js'
+import { RENDER_CALLS, RenderBlock, RenderCallName } from './block.js'
 import { AbsolutePath, BlockId, PluginId, SkillId, SkillRunId, SourceId, Timestamp, UserId, WorkspaceId } from './common.js'
 import { localizedText } from './locale.js'
 import { McpServerId } from './mcp.js'
@@ -39,6 +39,34 @@ export type ClaudeCodeSkillFrontmatter = z.infer<typeof ClaudeCodeSkillFrontmatt
 /** Studio sidebar section, mapped 1:1. ask: read-only Q&A. build: mutate the graph. generate: produce artifacts. */
 export const SkillCategory = z.enum(['ask', 'build', 'generate'])
 export type SkillCategory = z.infer<typeof SkillCategory>
+
+/**
+ * The most any run of a kind may be offered, before its skill narrows further.
+ *
+ * A ceiling rather than the surface itself.
+ * What a run of a kind could never sensibly call is settled here,
+ * and which of the rest it actually gets is the skill's own declaration,
+ * so two skills of one kind need not carry each other's calls.
+ * Held in one table, since a route marking its own gave ten chances
+ * to disagree with what a validator checks against.
+ */
+export const RENDER_CALL_CATEGORIES: Record<RenderCallName, readonly SkillCategory[]> = {
+  showAnswer: ['ask', 'build', 'generate'],
+  showEvidence: ['ask', 'build', 'generate'],
+  showFinding: ['ask', 'build'],
+  showMatrix: ['ask', 'generate'],
+  showTrace: ['ask', 'build'],
+  showDiagram: ['ask', 'build', 'generate'],
+  showSubgraph: ['ask', 'build', 'generate'],
+  showSection: ['generate'],
+  showCheck: ['generate'],
+  showCustom: ['generate'],
+}
+
+/** The calls a run of this kind may be offered at most. */
+export function renderCallsFor(category: SkillCategory): readonly RenderCallName[] {
+  return RENDER_CALLS.filter(call => RENDER_CALL_CATEGORIES[call].includes(category))
+}
 
 /**
  * The form a run's output takes, decided before it starts.
@@ -90,6 +118,27 @@ export function rendersBlocks(form: OutputForm): boolean {
  * however little of it anybody reads.
  */
 export const DEFAULT_OUTPUT_FORMS: readonly OutputForm[] = ['blocks']
+
+/**
+ * The render calls one run is offered, narrowed from its kind's ceiling.
+ *
+ * A run that renders nothing is offered none, whatever its skill declares,
+ * since the form is settled first and the surface follows it.
+ * A skill declaring nothing keeps the ceiling, and one declaring
+ * a call its kind never offers gets the overlap, not the wish.
+ */
+export function settleRenderCalls(input: {
+  readonly category: SkillCategory
+  readonly form: OutputForm
+  readonly declaredCalls?: readonly RenderCallName[] | undefined
+}): readonly RenderCallName[] {
+  if (!rendersBlocks(input.form))
+    return []
+  const ceiling = renderCallsFor(input.category)
+  if (!input.declaredCalls)
+    return ceiling
+  return ceiling.filter(call => input.declaredCalls!.includes(call))
+}
 
 /**
  * The form one run produces, settled from what is on offer and who is reading.
@@ -268,7 +317,16 @@ export const SkillOutputContract = z.object({
    * A skill leaving this out renders, as every skill did before this existed.
    */
   forms: z.array(OutputForm).min(1).default([...DEFAULT_OUTPUT_FORMS]),
-  // Calls the run must have made at least once.
+  /**
+   * The render calls a run of this skill may make.
+   *
+   * The kind of run sets a ceiling, and this narrows within it,
+   * so two skills of one kind stop carrying each other's calls.
+   * Absent leaves the ceiling in place, which is what a skill
+   * declaring nothing got before it could say.
+   */
+  calls: z.array(RenderCallName).optional(),
+  // Calls the run must have made at least once, a subset of `calls`.
   requiredCalls: z.array(RenderCallName).default([]),
   /**
    * Blocks each audience the ontology declares must be able to see.

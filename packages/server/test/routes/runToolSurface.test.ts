@@ -15,13 +15,14 @@ const surfaces = new Map<string, Record<string, Record<string, unknown>>>()
 // The full composition,
 // because the render operations only reach the document with a runner wired,
 // and they are half of what a run is offered.
-async function surface(category: string, form: string = 'blocks'): Promise<Record<string, Record<string, unknown>>> {
-  const key = `${category}/${form}`
+async function surface(category: string, form: string = 'blocks', calls?: readonly string[]): Promise<Record<string, Record<string, unknown>>> {
+  const query = calls ? `?calls=${calls.join(',')}` : ''
+  const key = `${category}/${form}${query}`
   const read = surfaces.get(key)
   if (read)
     return read
   const { app } = await buildRunnerApp()
-  const response = await app.request(`/openapi/runs/${category}/${form}/openapi.json`)
+  const response = await app.request(`/openapi/runs/${category}/${form}/openapi.json${query}`)
   expect(response.status).toBe(200)
   const document = await response.json() as { paths: Record<string, Record<string, unknown>> }
   surfaces.set(key, document.paths)
@@ -152,6 +153,35 @@ describe('the spec a run is given', () => {
   it('answers 404 for a form no run can take', async () => {
     const { app } = await buildRunnerApp()
     expect((await app.request('/openapi/runs/ask/sonnet/openapi.json')).status).toBe(404)
+  })
+
+  // The kind of run sets a ceiling and the skill narrows within it,
+  // so two skills of one kind stop paying for each other's calls.
+  it('narrows the render calls to the ones a skill declared', async () => {
+    const ids = operations(await surface('build', 'blocks', ['showTrace', 'showAnswer']))
+    expect(ids).toContain('showAnswer')
+    expect(ids).toContain('showTrace')
+    expect(ids).not.toContain('showFinding')
+    expect(ids).not.toContain('showSubgraph')
+  })
+
+  it('leaves everything that is not a render call alone', async () => {
+    const narrowed = operations(await surface('build', 'blocks', ['showAnswer']))
+    expect(narrowed).toContain('listNodes')
+    expect(narrowed).toContain('createProposal')
+  })
+
+  // A build skill wanting the sources behind a claim can now ask for them,
+  // and one that does not ask keeps paying nothing for them.
+  it('offers a build run show_evidence only when its skill declared it', async () => {
+    expect(operations(await surface('build', 'blocks', ['showEvidence']))).toContain('showEvidence')
+    expect(operations(await surface('build', 'blocks', ['showAnswer']))).not.toContain('showEvidence')
+  })
+
+  it('takes a declared call its kind never offers as no call at all', async () => {
+    const ids = operations(await surface('build', 'blocks', ['showAnswer', 'showSection']))
+    expect(ids).toContain('showAnswer')
+    expect(ids).not.toContain('showSection')
   })
 
   // Which forms a run can take is the skill's to declare, not this route's,

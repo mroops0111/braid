@@ -7,8 +7,8 @@
  * naming `workspaceId` in its own `request.params`.
  * Use `WorkspaceIdParam` to keep the declaration consistent.
  */
-import type { OutputForm, SkillCategory } from '@braidhq/schema'
-import { BraidProblemJson, WorkspaceId } from '@braidhq/schema'
+import type { OutputForm, RenderCallName, SkillCategory } from '@braidhq/schema'
+import { BraidProblemJson, RENDER_CALL_CATEGORIES, WorkspaceId } from '@braidhq/schema'
 import { z } from '@hono/zod-openapi'
 
 export const WorkspaceIdParam = z.object({
@@ -115,6 +115,21 @@ export const RUN_OUTPUT_FORMS_KEY = 'x-braid-run-output-forms'
  * A run still carries a credential the REST surface honours,
  * so making this a boundary rather than a curation is a change to the token.
  */
+/**
+ * Narrow a render operation to the runs that may draw with it.
+ *
+ * The call names itself and the categories come from the one table,
+ * so a route cannot drift from what a skill's declaration is checked against.
+ * Every render operation is a `blocks` operation by definition,
+ * which is why the form is not a parameter here.
+ */
+export function forRenderCall<T extends object>(
+  route: T,
+  call: RenderCallName,
+): T & Record<typeof RUN_CATEGORIES_KEY, readonly SkillCategory[]> {
+  return forRuns(route, RENDER_CALL_CATEGORIES[call], ['blocks'])
+}
+
 export function forRuns<T extends object>(
   route: T,
   categories: readonly SkillCategory[],

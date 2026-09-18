@@ -1,4 +1,4 @@
-import type { AbsolutePath, AgentBindingDescriptor, OutputForm, SkillAgentOverride, SkillCategory, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceEvent } from '@braidhq/schema'
+import type { AbsolutePath, AgentBindingDescriptor, OutputForm, RenderCallName, SkillAgentOverride, SkillCategory, SkillEvent, SkillId, SkillRunId, SourceRoleDescriptor, WorkspaceEvent } from '@braidhq/schema'
 import { mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -36,10 +36,11 @@ interface BuildRunnerInput {
   readonly skillRegistry?: SkillRegistry
   readonly skillAgent?: SkillAgentOverride
   readonly buildAgentBinding?: (descriptor: AgentBindingDescriptor) => AgentBinding
-  readonly coreGateway?: { specUrlFor: (category: SkillCategory, form: OutputForm) => string, uvxBin?: string }
+  readonly coreGateway?: { specUrlFor: (category: SkillCategory, form: OutputForm, calls: readonly RenderCallName[]) => string, uvxBin?: string }
   readonly resolveSourceRoles?: (workspace: Workspace) => readonly SourceRoleDescriptor[]
   readonly category?: SkillCategory
   readonly forms?: readonly OutputForm[]
+  readonly calls?: readonly RenderCallName[]
 }
 
 interface BuiltRunner {
@@ -55,6 +56,7 @@ async function buildRunner(input: BuildRunnerInput): Promise<BuiltRunner> {
     ...(input.skillAgent ? { agent: input.skillAgent } : {}),
     ...(input.category ? { category: input.category } : {}),
     ...(input.forms ? { forms: input.forms } : {}),
+    ...(input.calls ? { calls: input.calls } : {}),
   })
   const runRepository = input.runRepository ?? new FsRunRepository()
   const { spawn, invocations } = createMockSpawn(input.sequence ?? [{ stdoutLines: [], exitCode: 0 }])
@@ -84,6 +86,7 @@ async function makeSkillRegistry(skillSourceParent: AbsolutePath, declares: {
   readonly agent?: SkillAgentOverride
   readonly category?: SkillCategory
   readonly forms?: readonly OutputForm[]
+  readonly calls?: readonly RenderCallName[]
 } = {}): Promise<SkillRegistry> {
   // Materialise a real SKILL.md so the runner's session-dir builder can symlink it.
   // Tests that don't care about the session-dir layout still get a valid manifest.
@@ -104,7 +107,16 @@ async function makeSkillRegistry(skillSourceParent: AbsolutePath, declares: {
         allowedRoles: ['owner', 'maintainer'],
         ...(declares.agent ? { agent: declares.agent } : {}),
         ...(declares.category ? { category: declares.category } : {}),
-        ...(declares.forms ? { output: { forms: [...declares.forms], requiredCalls: [], maxRetries: 1 } } : {}),
+        ...(declares.forms || declares.calls
+          ? {
+              output: {
+                forms: [...(declares.forms ?? ['blocks'])],
+                ...(declares.calls ? { calls: [...declares.calls] } : {}),
+                requiredCalls: [],
+                maxRetries: 1,
+              },
+            }
+          : {}),
       },
     },
   })
@@ -293,7 +305,7 @@ describe('SubprocessSkillRunner', () => {
     const rootPath = await makeWorkspaceRoot()
     const { runner, workspace, invocations } = await buildRunner({
       rootPath,
-      coreGateway: { specUrlFor: (category, form) => `http://localhost:4321/openapi/runs/${category}/${form}/openapi.json` },
+      coreGateway: { specUrlFor: (category, form, calls) => `http://localhost:4321/openapi/runs/${category}/${form}/openapi.json?calls=${calls.join(',')}` },
       sequence: [{ stdoutLines: ['Invalid, ParameterInfo schema_type'], exitCode: 1 }],
     })
 
@@ -307,7 +319,7 @@ describe('SubprocessSkillRunner', () => {
     const rootPath = await makeWorkspaceRoot()
     const { runner, workspace, invocations } = await buildRunner({
       rootPath,
-      coreGateway: { specUrlFor: (category, form) => `http://localhost:4321/openapi/runs/${category}/${form}/openapi.json` },
+      coreGateway: { specUrlFor: (category, form, calls) => `http://localhost:4321/openapi/runs/${category}/${form}/openapi.json?calls=${calls.join(',')}` },
       sequence: [{ stdoutLines: [], exitCode: 0 }, { stdoutLines: [], exitCode: 0 }],
     })
 
@@ -321,7 +333,7 @@ describe('SubprocessSkillRunner', () => {
     let gatewayArgs: readonly string[] | undefined
     const { runner, workspace } = await buildRunner({
       rootPath,
-      coreGateway: { specUrlFor: (category, form) => `http://localhost:4321/openapi/runs/${category}/${form}/openapi.json` },
+      coreGateway: { specUrlFor: (category, form, calls) => `http://localhost:4321/openapi/runs/${category}/${form}/openapi.json?calls=${calls.join(',')}` },
       sequence: [{ stdoutLines: [], exitCode: 0 }, { stdoutLines: [], exitCode: 0 }],
       buildAgentBinding: (descriptor) => {
         const inner = new ClaudeCodeAgentBinding(descriptor)
@@ -415,7 +427,7 @@ describe('SubprocessSkillRunner', () => {
       const { runner, workspace, invocations } = await buildRunner({
         rootPath,
         forms: ['blocks', 'prose'],
-        coreGateway: { specUrlFor: (category, form) => `http://localhost:4321/openapi/runs/${category}/${form}/openapi.json` },
+        coreGateway: { specUrlFor: (category, form, calls) => `http://localhost:4321/openapi/runs/${category}/${form}/openapi.json?calls=${calls.join(',')}` },
         sequence: [{ stdoutLines: [], exitCode: 0 }, { stdoutLines: [], exitCode: 0 }],
       })
 
@@ -450,6 +462,40 @@ describe('SubprocessSkillRunner', () => {
 
       const record = (await runRepository.listRecords(workspace)).find(entry => entry.runId === runId)
       expect(record?.outputForm).toBe('blocks')
+    })
+
+    // The skill's declaration reaches the gateway,
+    // since the spec is what makes a call absent rather than discouraged.
+    it('points the gateway at the calls its skill declared', async () => {
+      const rootPath = await makeWorkspaceRoot()
+      const { runner, workspace, invocations } = await buildRunner({
+        rootPath,
+        calls: ['showTrace', 'showAnswer'],
+        coreGateway: { specUrlFor: (category, form, calls) => `http://localhost:4321/openapi/runs/${category}/${form}/openapi.json?calls=${calls.join(',')}` },
+        sequence: [{ stdoutLines: [], exitCode: 0 }, { stdoutLines: [], exitCode: 0 }],
+      })
+
+      await runner.start(workspace, SKILL_ID, 'what is X', { startedBy: STARTED_BY })
+
+      const spec = invocations.flatMap(invocation => invocation.args).find(arg => arg.includes('/openapi/runs/'))
+      expect(spec).toContain('calls=showAnswer,showTrace')
+    })
+
+    it('asks for no call at all on a run that renders nothing', async () => {
+      const rootPath = await makeWorkspaceRoot()
+      const { runner, workspace, invocations } = await buildRunner({
+        rootPath,
+        forms: ['blocks', 'prose'],
+        calls: ['showTrace', 'showAnswer'],
+        coreGateway: { specUrlFor: (category, form, calls) => `http://localhost:4321/openapi/runs/${category}/${form}/openapi.json?calls=${calls.join(',')}` },
+        sequence: [{ stdoutLines: [], exitCode: 0 }, { stdoutLines: [], exitCode: 0 }],
+      })
+
+      await runner.start(workspace, SKILL_ID, 'what is X', { startedBy: STARTED_BY, outputForm: 'prose' })
+
+      const spec = invocations.flatMap(invocation => invocation.args).find(arg => arg.includes('/openapi/runs/'))
+      expect(spec).toContain('calls=')
+      expect(spec).not.toContain('showAnswer')
     })
 
     // Told rather than left to be inferred.

@@ -1,4 +1,4 @@
-import type { OutputForm, SkillCategory } from '@braidhq/schema'
+import type { OutputForm, RenderCallName, SkillCategory } from '@braidhq/schema'
 import { RUN_CATEGORIES_KEY, RUN_OUTPUT_FORMS_KEY } from './_shared.js'
 
 type Operation = Record<string, unknown>
@@ -16,9 +16,23 @@ function permits(operation: Operation, key: string, value: string): boolean {
   return (declared as readonly string[]).includes(value)
 }
 
-function visibleTo(operation: Operation, category: SkillCategory, form: OutputForm): boolean {
-  return permits(operation, RUN_CATEGORIES_KEY, category)
-    && permits(operation, RUN_OUTPUT_FORMS_KEY, form)
+// A render operation is the one kind a skill narrows for itself,
+// and it is exactly the kind that marks which forms may see it.
+function isRenderCall(operation: Operation): boolean {
+  return Array.isArray(operation[RUN_OUTPUT_FORMS_KEY])
+}
+
+function visibleTo(
+  operation: Operation,
+  category: SkillCategory,
+  form: OutputForm,
+  calls: readonly RenderCallName[] | undefined,
+): boolean {
+  if (!permits(operation, RUN_CATEGORIES_KEY, category) || !permits(operation, RUN_OUTPUT_FORMS_KEY, form))
+    return false
+  if (!calls || !isRenderCall(operation))
+    return true
+  return calls.includes(operation.operationId as RenderCallName)
 }
 
 /**
@@ -33,6 +47,11 @@ function visibleTo(operation: Operation, category: SkillCategory, form: OutputFo
  * a run asked for prose is not told to leave the render tools alone,
  * it is never shown them.
  *
+ * `calls` narrows the same way one step further in.
+ * The kind of run sets a ceiling, and its skill says which of those
+ * it actually draws with, so two skills of one kind stop paying
+ * for each other's calls. Absent leaves the ceiling in place.
+ *
  * Braid's own markers are dropped on the way out.
  * They say which runs may see an operation,
  * which is answered by the time the document is built,
@@ -42,6 +61,7 @@ export function toolSurfaceFor(
   document: Record<string, unknown>,
   category: SkillCategory,
   form: OutputForm = 'blocks',
+  calls?: readonly RenderCallName[],
 ): Record<string, unknown> {
   const paths = document.paths as Record<string, PathItem> | undefined
   if (!paths)
@@ -57,7 +77,7 @@ export function toolSurfaceFor(
         continue
       }
       const operation = value as Operation
-      if (!visibleTo(operation, category, form))
+      if (!visibleTo(operation, category, form, calls))
         continue
       anyOperation = true
       const { [RUN_CATEGORIES_KEY]: _categories, [RUN_OUTPUT_FORMS_KEY]: _forms, ...rest } = operation
