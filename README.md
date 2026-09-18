@@ -1,37 +1,37 @@
 # Braid
 
 [![CI](https://github.com/mroops0111/braid/actions/workflows/ci.yml/badge.svg)](https://github.com/mroops0111/braid/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/@braidhq/cli.svg)](https://www.npmjs.com/package/@braidhq/cli)
+[![npm downloads](https://img.shields.io/npm/dm/@braidhq/cli.svg)](https://www.npmjs.com/package/@braidhq/cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D20-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![AG-UI](https://img.shields.io/badge/AG--UI-protocol-6E56CF.svg)](https://github.com/ag-ui-protocol/ag-ui)
 
-_A harness framework that keeps AI and your team building one domain model together, in a loop where the AI drafts and asks, and people decide._
+_A framework for one reviewed model of your domain. Agents draft it from your sources, people decide what lands, and every node cites what it was drawn from._
 
-![Braid Studio: answering a clarification, running clarify, then reviewing and applying the proposal to the domain model](demo.gif)
+![Braid Studio: running extract over one issue, reading the evidence and the operations behind a proposal, then applying it](.github/assets/review-loop.webp)
 
 _A finished model: [`examples/conciergent`](examples/conciergent/), 120 nodes Braid drew from one codebase with no intent docs._
 
-**A shared model of your business, not another code graph.** Code is what shipped. Intent is what the team meant. They drift apart every sprint, and the team ends up arguing about which one is right.
+**Software by default. A shared model of your business, not another code graph.** Code is what shipped. Intent is what the team meant. They drift apart every sprint, and the team ends up arguing about which one is right.
 
 Braid _braids_ them back into one domain model that engineers and PMs can both read. The default ontology is Domain-Driven Design (DDD), so people and the AI both speak the ubiquitous language of the domain instead of class names and package paths.
 
+Braid harnesses a coding agent, Claude Code today. Each run sees only the tools its kind of run may call, and a node that cites nothing is refused. What comes out is a model, not a patch.
+
 ## Features
 
-- **Human-in-the-Loop Gate**: the AI drafts and asks, but a person decides before any change lands, and the decision commits to Git, so any point in the model's history is restorable.
-- **Evidence Down to the Line**: a node names the source it was drawn from and the lines it came from, and a node still missing evidence for a source the ontology asks for says which one.
-- **Named Disagreement**: a source that merely changed is read again, which is mechanical. A model that disagrees with its own evidence, or two sources that disagree with each other, is raised as a finding carrying every reference involved, because that one needs a person to say which is right.
-- **Typed Output, Shaped for a Reader**: a skill fills in a fixed set of typed calls instead of writing a page, so a surface decides the layout rather than the model does, and the readers an ontology declares decide how much of a reference each one is shown. The whole run travels over AG-UI.
-- **Any Kind of View**: the graph projects into whatever a view generator declares. A document is one kind, written from material off the graph rather than kept in sync by hand, and the next kind is a plugin rather than a fork.
-- **Continuous Reaction**: as sources change, Braid feeds the diff back as a fresh Proposal, so the one canonical graph keeps up instead of becoming a snapshot of the day it was built.
+- **Human-in-the-Loop Gate**: the AI drafts and asks, but a person decides before any change lands, and every decision it lands commits to Git.
+- **Cross-Source Comparison**: intent and code are read against each other, each recorded with the lines it came from. Where the two disagree, Braid records it with both references and leaves which one is right to a person.
+- **Rendered Output**: what a run produces arrives as the shapes that suit it, a table, a matrix, a finding, a piece of the graph. The model picks which shapes it needs. How they look belongs to the UI, so every run reads the same way.
+- **Projected Views**: one model, and an artifact for each reason to read it, a reference or a tutorial, each saying when it falls behind. Not one PRD with one viewpoint, stale for everyone at once.
+- **Continuous Reaction**: as sources change, Braid feeds the diff back as a fresh Proposal, so the canonical graph keeps up instead of becoming a snapshot of the day it was built.
 
 ## Motivation
 
 Braid is built against three failure modes.
 
 - **Code-Only Graphs**: tools that pull a graph straight from source are honest about what runs, but the result is a class-and-call-site graph. It cannot tell you why a feature exists, who asked for it, or what trade-off shaped its rules. PMs cannot read it.
-- **Doc-Only Knowledge**: PRDs, design docs, Notion, and Confluence speak the domain, but nobody keeps them in sync once the code lands. Several months later, nobody trusts them.
-- **Retrieval Alone**: pointing a capable agent at the repository does answer the question, and answers it again from scratch the next time somebody asks. Whatever a reviewer worked out and accepted is not written down anywhere the next question can reach, so the same judgement gets made again, by a different reader, and possibly differently. Braid's graph is where that judgement is kept.
+- **Doc-Only Knowledge**: PRDs, design docs, Notion, and Confluence speak the domain, but nothing ties a sentence to the code behind it. Once the code moves nobody can say which parts still hold, so the whole set stops being trusted.
+- **Folder-Only Structure**: nesting is the only relationship a set of documents has. One document is a workflow, the next a state machine, the next a rule that constrains half the product, and nothing can record that the third governs the other two.
 
 ## Design
 
@@ -43,38 +43,54 @@ Every axis is a plugin, and the defaults are a starting point rather than a buil
 
 - **Swappable Axes**: the ontology, source loaders, storage, agent, and view generators are all plugins, each overridable in one manifest field.
 - **Framework Invariants**: the human-in-the-loop gate, the evidence requirement, and the branded type discipline are enforced by the type system and cannot be swapped out.
-- **Braid Anything**: the domain lives in the ontology, not the engine, so the same loop, gate, and provenance carry over whether you braid a codebase, a research corpus, or a product spec.
+- **Braid Anything**: the same loop, gate, and provenance carry over whether you braid a codebase, a research corpus, or a product spec.
 
-### A Run's Output
+### The Ontology
 
-A skill does not write a page. It renders by calling a tool, and each render call is a route on Braid's own OpenAPI spec and therefore a named MCP tool with its own schema, so the model fills in fields and never picks a presentation.
+Of the five axes this is the one a workspace feels, because it decides what the graph is made of and in whose words. Four things every ontology declares, answered below by the DDD one a workspace gets unless it names another.
 
-- **One Definition, Three Jobs**: `RenderBlock` lives in `@braidhq/schema`, the one layer the server and Studio both see, so a single zod object is the route body, the tool schema, and the renderer's type at once. Ten calls, from `showAnswer` and `showEvidence` to `showSubgraph` and `showCheck`.
-- **The Surface Decides the Layout**: a block says what it is and never how it sits, which is what lets one sequence be a scrolling answer on Ask and a page on Documents, drawn by one set of components.
-- **Written for a Reader**: the ontology declares its audiences, and a block may name one. Most of an answer names nobody and everyone sees it. What differs is the part written for the reader who is here, and how much of a reference that reader is shown.
-- **Scoped to the Run**: an operation declares which kinds of run may see it, and the spec a run's gateway reads is narrowed before it goes out. An `ask` run does not decline to propose, it cannot see the call.
-- **Carried by AG-UI**: the run travels over [AG-UI](https://github.com/ag-ui-protocol/ag-ui) at `GET /workspaces/:workspaceId/agui`, and Studio reads it with the protocol's own `HttpAgent`. Using the stock client is the only objective test that the endpoint is the protocol rather than something shaped like it, and any other AG-UI client reaches Braid the same way.
-
-### Reading the Graph
-
-Three ways out, and none of them is an export.
-
-- **Ask**: a one-off question answered over the graph, as blocks.
-- **Views**: a view kind is a plugin axis, so a document is one kind of view rather than the only one there can be. A generator declares what it may be written about and the forms it writes, projects the subject into material off the graph, and one skill per form writes the page. Because the projection is a function, re-projecting and comparing is what tells a reader the graph has moved past a view, without anything tracking it.
-- **MCP**: a read-only MCP endpoint at `<api>/braid/mcp` over streamable-http, carrying seven operations: the workspace list, node search, one node, a node's neighbourhood, the edges, the ontology, and the whole snapshot. It exchanges each caller's own token, so somebody's MCP client reads the graph as them and the run history says who asked.
+- **Types and Named Edges**: what a node may be, and which relationships may hold between them. DDD ships eight types and fifteen edges, so a rule constraining an operation is recorded as that edge, and the graph can be asked which rules reach it.
+- **Source Roles**: what a workspace must supply. DDD requires code and takes intent wherever there is any.
+- **Audiences**: who an answer is written for, and how much of a reference each one sees. DDD splits business from engineering.
+- **Build Skills**: the pipeline itself. Build reads the steps, their order, and their labels from here, so swapping the ontology changes the pipeline and nothing else.
 
 ### Architecture
 
 The server is the composition root. Sources feed an event-driven engine that produces reviewable changes, a human gate lands them in one canonical model, and every write is versioned in Git.
 
-![Braid architecture](architecture.png)
+![Braid architecture](.github/assets/architecture.png)
 
-- **Surfaces**: Studio (web UI), Desktop, and MCP clients all talk to one server. The graph, the queues, and the workspace are REST with an SSE event stream beside them, and a run is read over AG-UI. The CLI reads no run at all, it scaffolds a workspace and boots the stack.
-- **Sources**: Intent (PRDs, RFCs, issues) and Code (repositories) are pulled in by Source Loader plugins for git, github, gdrive, and any API a single MCP tool can page through.
-- **Engine (The HITL Loop)**: the Agent runs Skills as subprocesses, and a Skill renders its output as typed blocks. Where a run reaches a point only a person can settle it emits a Handoff, either a Proposal (a proposed change to the model) or a Clarification (a question to resolve ambiguity). Both land in one queue, because what makes them one kind is who must act next.
-- **Model**: an Ontology types the graph, the Graph is the single source of truth, and a Storage plugin such as Kuzu persists it. Where a node and its evidence part company the disagreement is recorded on the node, re-derived on every build, and either fixed at the source or acknowledged as intended.
-- **Reads**: Ask answers a one-off question over the graph as blocks, a View Generator projects it into whatever kind of view it declares, and a read-only MCP endpoint serves the graph to a person's own client. See Reading the Graph above.
-- **History**: every human-gated write commits to Git. The graph state travels alongside the code as a `model.json` snapshot, so any commit is restorable.
+- **Surfaces**: Studio (web UI), Desktop, and MCP clients all talk to one server, over REST with an SSE event stream beside it. The CLI scaffolds a workspace and boots the stack.
+- **Sources**: Intent and Code are pulled into the workspace by Source Loader plugins, and kept in sync from there.
+- **Engine**: the Agent runs Skills as subprocesses. Where a run reaches a point only a person can settle it emits a Handoff, either a Proposal or a Clarification, and both land in one queue, because what makes them one kind is who must act next.
+- **Model**: the Ontology types the graph, a Storage plugin such as Kuzu persists it, and where a node and its evidence part company the disagreement is recorded on the node.
+- **Reads**: the graph itself, a read-only MCP endpoint over it, and Ask and projected views composed out of it.
+- **History**: every human-gated write commits to Git, and the graph travels with the code as a `model.json` snapshot.
+
+### AI-Native Design
+
+The AI is the author and a person is the reviewer, which is the reverse of the usual arrangement. Everything below follows from that one inversion.
+
+- **No Authoring Surface**: there is no form for creating a node. The graph grows only when a run proposes and a person applies, and every node carries the source it was drawn from. Both are invariants, not settings.
+- **Composed at Run Time**: what a run does is not written in code. A skill supplies the instruction, and the tools it may call are handed to it as a set narrowed to that kind of run, so an `ask` run does not decline to propose, it cannot see the call. Change either and the behaviour changes, with nothing in the engine touched.
+- **A Standard Wire**: a run streams over [AG-UI](https://github.com/ag-ui-protocol/ag-ui), a protocol Braid did not invent, so any client that speaks it can drive or display a run. Studio reads it with the protocol's own client, which is what makes that claim checkable.
+
+### Reading the Graph
+
+The graph is readable on its own, and readable through something that composes an answer out of it.
+
+[![Braid Studio: the command palette answering "how a chat message becomes a reply" with nodes that never use those words](.github/assets/graph-and-ask.png)](.github/assets/graph-and-ask.webp)
+
+_The question says message and reply. `Run Turn` and `Conversation Turn Lifecycle` say neither, and they are what it was asking for. [Play the clip](.github/assets/graph-and-ask.webp) to see one opened, then the same question put to Ask._
+
+[![Braid Studio showing the tutorial written out of one subsystem, with the reference of the same subsystem beside it in the row, both marked out of date](.github/assets/reference-and-tutorial.png)](.github/assets/reference-and-tutorial.webp)
+
+_One subject, two forms, both already out of date because the graph moved under them. [Play the clip](.github/assets/reference-and-tutorial.webp) to read down each of them._
+
+- **The Graph Surface**: the canvas and the table, search, and a node with its evidence and its neighbours. Point an embedding endpoint at a workspace and search ranks by meaning as well as by name, so a question finds a node that never uses its words.
+- **MCP**: a read-only endpoint at `<api>/braid/mcp` carrying seven operations, from node search to the whole snapshot. It exchanges each caller's own token, so a person's client reads the graph as them.
+- **Ask**: a question a run answers over the graph, composed as blocks.
+- **Views**: a generator declares what it may be written about and the forms it writes, projects the subject into material, and one skill per form writes the page.
 
 ## Usage
 
@@ -82,7 +98,9 @@ Get a workspace running, then work the review loop in Studio.
 
 ### Quick Start
 
-Braid runs from the monorepo today. You need Node 20 or later, pnpm, and the `claude` CLI signed in, since a skill run is a subprocess of it and nothing runs without one.
+Two ways in. Both need the `claude` CLI signed in, since a skill run is a subprocess of it and nothing runs without one.
+
+**From a checkout**, for working on Braid itself. Node 22 or later, and pnpm.
 
 ```bash
 git clone https://github.com/mroops0111/braid
@@ -90,18 +108,26 @@ cd braid && pnpm install && pnpm dev
 # Studio at http://localhost:5173, server at :4321
 ```
 
-Open Studio and create a workspace with the Wizard, then add your intent and code sources. The default ontology is DDD.
+**From the container**, which is what a deployment runs. One image serves the API and the built Studio on one origin, so there is no Vite in the picture.
 
-`5173` is Vite's dev server and exists only in a checkout. A deployment serves the built bundle from the API process instead, on one origin and one port. `compose.yaml` is a working example, and [`@braidhq/server`](packages/server/README.md#deployment) names every variable the server reads and what each does when absent.
+```bash
+cp .env.example .env   # fill in the four required values
+docker compose up
+# Studio and the API at http://localhost:4321
+```
+
+Either way, open Studio and create a workspace with the Wizard, then add your intent and code sources.
+
+`.env.example` names what a deployment sets and what each value turns on. `compose.oidc.yaml` adds Keycloak for a deployment that wants its own authorization server, which is also what turns the MCP endpoint on. [`@braidhq/server`](packages/server/README.md#deployment) documents every variable the server reads and what each does when absent.
 
 ### The Loop
 
-Once the dev server is running, work the loop in Studio at `http://localhost:5173`.
+Four steps, and a person ends every one of them.
 
-- **Build**: open Build, which lists every source document and what the model has made of it. Run the ontology's pipeline over one document or over a group. The steps across the top are read from the ontology's own build skills, so swapping the ontology changes the pipeline and nothing else.
+- **Build**: open Build, which lists every source document and what the model has made of it. Run the ontology's pipeline over one document or over a group.
 - **Review**: open the Inbox, which is one queue. A question the run stopped on and a change it proposed are two kinds of card in the same list, because answering the question is what carries the run on.
 - **Apply**: land the change when it is green, or reject it with a reason.
-- **Read**: ask a one-off question on Ask, or write the graph into a document on Documents and pick the form it should take.
+- **Read**: put a question to Ask, or write the graph into a document on Documents and pick the form it takes.
 
 ## Packages
 
@@ -117,7 +143,7 @@ Once the dev server is running, work the loop in Studio at `http://localhost:517
 
 | Package | Description |
 |---|---|
-| [`@braidhq/ontology-ddd`](packages/ontology-ddd/) | Default DDD ontology: boundedContext, aggregate, command, query, event, rule, and actor. |
+| [`@braidhq/ontology-ddd`](packages/ontology-ddd/) | Default DDD ontology: boundedContext, aggregate, command, query, event, rule, actor, and policy. |
 | [`@braidhq/storage-kuzu`](packages/storage-kuzu/) | Embedded Kuzu graph store, a zero-infra single-binary alternative to Neo4j. |
 | [`@braidhq/source-loader-git`](packages/source-loader-git/) | Clone a repository and sync it automatically. |
 | [`@braidhq/source-loader-github`](packages/source-loader-github/) | Sync a GitHub repository over the API, OAuth on first use. |
@@ -130,22 +156,24 @@ Once the dev server is running, work the loop in Studio at `http://localhost:517
 
 | Package | Description |
 |---|---|
-| [`@braidhq/server`](packages/server/) | REST and SSE server, the composition root. |
+| [`@braidhq/server`](packages/server/) | REST, SSE, and AG-UI server, the composition root. |
 | [`@braidhq/cli`](packages/cli/) | Command-line entry point. |
 | [`@braidhq/studio`](packages/studio/) | Web UI. |
 | [`@braidhq/desktop`](packages/desktop/) | Tauri desktop shell. |
 
 ## Extending Braid
 
-Braid has two extension surfaces, and neither touches the core. A TypeScript plugin adds a swappable axis. A Markdown skill adds an AI capability.
+Two extension surfaces, neither touching the core. Both are files on disk, not forms in Studio.
 
-A plugin implements a port and registers at server start-up, then a workspace opts in by name. See [`@braidhq/sdk`](packages/sdk/) for the five `define*Plugin` builders. The shipped plugins, such as [`@braidhq/storage-kuzu`](packages/storage-kuzu/) and [`@braidhq/source-loader-git`](packages/source-loader-git/), are reference implementations to copy from. A view generator is the one axis that ships skills of its own, because it decides what a document covers and in what order while leaving what the sentences say to a skill.
+**A plugin** adds a swappable axis. It implements a port, and you register it where you start the server, `startServer({ extraOntologyPlugins: [mine] })`, so swapping an axis means owning the entry point rather than configuring `braid serve`. See [`@braidhq/sdk`](packages/sdk/) for the five `define*Plugin` builders, and the shipped plugins for implementations to copy.
 
-A skill is a `SKILL.md` file at `<workspace>/skills/<verb>/SKILL.md`, invoked as `/workspace:<verb>`. Its `category` decides where it belongs and what it is offered.
+**A skill** adds an AI capability. It is a `SKILL.md` at `<workspace>/skills/<verb>/SKILL.md`, invoked as `/workspace:<verb>`, and its `category` decides where it belongs.
 
-- **`ask`**: answers a question on Ask, and is offered the render calls but no way to write to the model.
-- **`build`**: runs from Build over a source document, and may propose. `order` places it in the pipeline across the top and `label` is what a reader sees there, since `ddd:extract` is an address and not a name. One build runs at a time, since the graph only accumulates.
-- **`generate`**: writes a document, and is the only category offered `showSection`, `showCheck`, and `showCustom`.
+- **`build`**: its own stage on Build, running over a source document, and may propose. One run at a time. The one category a workspace can add by itself.
+- **`ask`**: answers on Ask, offered the render calls but no way to write. Ask reaches for one such skill, today the built-in one, so a second is read and not yet offered.
+- **`generate`**: writes a document, and the only category offered `showSection`, `showCheck`, and `showCustom`. A form and its writer are declared together by a view generator, so this one arrives with a plugin.
+
+An `EXTEND.md` at `<workspace>/skill-extensions/<verb>/` adds rules to a built-in skill instead of replacing it.
 
 ```markdown
 ---
@@ -157,7 +185,7 @@ braid:
   category: build
   requiredEnv: [GITHUB_TOKEN]
 ---
-Walk `intent/` and `code/`. Emit proposals that add boundedContext, aggregate, and command nodes. Cite the source file or doc each claim came from.
+Walk `intent/` and `code/`. Emit proposals that add boundedContext, aggregate, and command nodes. Cite the source and the lines each node was drawn from.
 ```
 
 The `braid:` block is preflighted before the agent spawns, so a missing env var or MCP server fails fast with a clear error.

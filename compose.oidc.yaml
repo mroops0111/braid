@@ -1,0 +1,101 @@
+# Braid behind your own authorization server, with Keycloak as the example.
+#
+#   docker compose -f compose.yaml -f compose.oidc.yaml up
+#
+# Braid depends on no particular one. It reads BRAID_OIDC_ISSUER and speaks
+# OIDC, so Auth0, Okta, Entra, or Zitadel substitute for the service below.
+#
+# An issuer does two things. Both doors move onto it, displacing the Google
+# client, and the read-only MCP endpoint turns on.
+#
+# Google still signs everybody in, from behind Keycloak rather than beside
+# it. Braid offers one identity provider, so putting Keycloak in front would
+# otherwise take Google away from the people already using it.
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    command:
+      - start-dev
+    environment:
+      # Bootstrap only. Change the password after the first sign-in.
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:?set an admin password}
+      # The issuer every token is checked against.
+      # It has to be the name Braid and its MCP callers both use.
+      KC_HOSTNAME: ${KEYCLOAK_URL:?set this to the URL Keycloak answers on}
+      # Serves /health/ready on the management port, which the check reads.
+      KC_HEALTH_ENABLED: 'true'
+    ports:
+      - '8080:8080'
+    volumes:
+      # Users federated from Google live here.
+      # Losing it locks nobody out, since Braid falls back to the email,
+      # but every returning person would look new.
+      - keycloak-data:/opt/keycloak/data
+    restart: unless-stopped
+    healthcheck:
+      # The image ships no curl, so this is Keycloak's own bash workaround.
+      test: >-
+        exec 3<>/dev/tcp/127.0.0.1/9000
+        && echo -e 'GET /health/ready HTTP/1.1\nhost: localhost\n' >&3
+        && cat <&3 | grep -q '200 OK'
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+
+  # Runs once per deploy and exits.
+  # Idempotent, so it re-asserts the realm without disturbing anyone.
+  keycloak-init:
+    image: quay.io/keycloak/keycloak:26.4
+    depends_on:
+      keycloak:
+        condition: service_started
+    entrypoint:
+      - sh
+      - /init.sh
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:?}
+      BRAID_API_URL: ${BRAID_STUDIO_URL}
+      BRAID_OIDC_CLIENT_ID: ${BRAID_OIDC_CLIENT_ID:?}
+      BRAID_OIDC_CLIENT_SECRET: ${BRAID_OIDC_CLIENT_SECRET:?}
+      BRAID_GOOGLE_CLIENT_ID: ${BRAID_GOOGLE_CLIENT_ID:?}
+      BRAID_GOOGLE_CLIENT_SECRET: ${BRAID_GOOGLE_CLIENT_SECRET:?}
+      # The two clients the script creates alongside Braid's own.
+      # One is an audience the exchanged token can carry,
+      # the other is what the MCP gateway authenticates as.
+      KEYCLOAK_API_SECRET: ${KEYCLOAK_API_SECRET:?}
+      KEYCLOAK_GATEWAY_SECRET: ${KEYCLOAK_GATEWAY_SECRET:?}
+      # Narrows Google to one workspace domain. Empty lets any account in.
+      GOOGLE_HOSTED_DOMAIN: ${GOOGLE_HOSTED_DOMAIN:-}
+    volumes:
+      - ./keycloak/init.sh:/init.sh:ro
+    # eslint-disable-next-line yaml/plain-scalar -- unquoted `no` parses as false, which compose rejects
+    restart: 'no'
+
+  braid:
+    depends_on:
+      keycloak-init:
+        condition: service_completed_successfully
+    environment:
+      # server: the realm url, and Braid's own client for the browser sign-in.
+      BRAID_OIDC_ISSUER: ${BRAID_OIDC_ISSUER:?the realm url, not the server root}
+      BRAID_OIDC_CLIENT_ID: ${BRAID_OIDC_CLIENT_ID:?}
+      BRAID_OIDC_CLIENT_SECRET: ${BRAID_OIDC_CLIENT_SECRET:?}
+      # server: the MCP endpoint's own client, used to exchange a caller's
+      # token (RFC 8693) for one whose audience names this API.
+      BRAID_MCP_GATEWAY_CLIENT_ID: ${BRAID_API_URL:-${BRAID_STUDIO_URL}}/braid/mcp
+      BRAID_MCP_GATEWAY_CLIENT_SECRET: ${KEYCLOAK_GATEWAY_SECRET:?}
+    networks:
+      default:
+        # The gateway inside Braid reaches the issuer by its public name,
+        # since that name is what every token is checked against.
+        # A host does not route a container back to its own public address,
+        # so the alias resolves it on this network instead.
+        aliases:
+          - ${KEYCLOAK_HOSTNAME:-keycloak}
+
+volumes:
+  keycloak-data:

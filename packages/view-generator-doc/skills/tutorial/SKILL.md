@@ -5,6 +5,9 @@ argument-hint: "[path-to-material] [depth=…]"
 disable-model-invocation: true
 braid:
   category: generate
+  label:
+    en: Tutorial
+    zh-Hant: 教學
   summary: Teach a container to someone new to the subject
   hidden: true
   required-env: [BRAID_WORKSPACE, BRAID_RUN_ID, BRAID_SHARED_REFERENCE]

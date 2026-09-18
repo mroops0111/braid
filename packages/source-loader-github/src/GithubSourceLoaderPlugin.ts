@@ -423,7 +423,19 @@ async function fetchLinkedMergedPRs(
   const payload = await response.json() as TimelineQueryResponse
   if (payload.errors && payload.errors.length > 0)
     throw new Error(`githubLoader: GraphQL errors for issue ${issueNumber}: ${payload.errors.map(e => e.message).join('; ')}`)
-  const nodes = payload.data?.repository?.issue?.timelineItems?.nodes ?? []
+  // A GitHub App reads only the repositories it is installed on,
+  // and an uninstalled one comes back as a null repository rather than an error.
+  // Reading that as "no linked PR" files every issue as unrealized,
+  // and reports a clean sync that wrote nothing,
+  // which is the one outcome nobody can diagnose from the outside.
+  const repository = payload.data?.repository
+  if (!repository || !repository.issue) {
+    throw new Error(
+      `githubLoader: GitHub returned no issue ${issueNumber} on ${config.owner}/${config.repo}. `
+      + 'Install the GitHub App on that repository and grant it read access to issues and pull requests.',
+    )
+  }
+  const nodes = repository.issue.timelineItems?.nodes ?? []
   const seen = new Set<number>()
   const out: MergedPRRef[] = []
   for (const node of nodes) {

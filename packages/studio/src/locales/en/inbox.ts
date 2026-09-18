@@ -1,7 +1,7 @@
 export const inbox = {
   filter: {
     all: 'All {count}',
-    asked: 'Asked {count}',
+    asked: 'Questions {count}',
     proposed: 'Changes {count}',
   },
   emptyTitle: 'Nothing Waiting',

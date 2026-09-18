@@ -307,7 +307,7 @@ export function AddSourceDialog({ workspaceId, open, onOpenChange, onAdded }: Ad
               <p className="text-2xs text-muted-foreground">
                 {t('sources.addDialog.githubAuthPrefix')}
                 {' '}
-                <code className="font-mono">$GH_TOKEN</code>
+                <code className="font-mono">BRAID_GITHUB_CLIENT_ID</code>
                 {' '}
                 {t('sources.addDialog.githubAuthSuffix')}
               </p>
