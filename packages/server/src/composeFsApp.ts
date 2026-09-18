@@ -503,9 +503,8 @@ export async function composeFsAppWithRegistry(
   // running `uvx openapi-mcp-gateway --transport stdio`.
   // The gateway lifecycle tracks the claude subprocess,
   // with no separate long-running server, and needs `uv` on PATH.
-  // If `uv` is missing, the entry is skipped.
-  // Skills that require `braid-core` then surface as not-ready,
-  // via SkillManifest.readinessIssuesFor, with a clear pointer.
+  // If `uv` is missing, the entry is skipped,
+  // and a run needing `braid-core` fails its gateway preflight with a pointer.
   const uvxBin = await detectUvx()
   if (!uvxBin) {
     console.warn(

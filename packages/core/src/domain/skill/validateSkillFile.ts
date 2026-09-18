@@ -7,44 +7,44 @@ import type { SkillCategory, SkillFrontmatter, SkillLoadIssue } from '@braidhq/s
  * The validator does not enforce order, only presence.
  * Ordering is style-guide-level.
  */
-const COMMON_REQUIRED_SECTIONS = [
+const REQUIRED_SECTIONS = [
   'Role',
   'Design Principles',
   'Initialization',
   'Procedure',
   'Output',
   'Completion Checklist',
-  'Companion Docs',
+  'Reference Documents',
 ] as const
 
 /**
  * Sections required on top of the common set, keyed by skill category.
  * A skill with no category declared is held to the common contract only.
  */
-const CATEGORY_SPECIFIC_REQUIRED_SECTIONS: Record<SkillCategory, readonly string[]> = {
+const REQUIRED_SECTIONS_BY_CATEGORY: Record<SkillCategory, readonly string[]> = {
   ask: [],
   build: [],
   generate: ['Output Files'],
 }
 
-const COMPANION_DOCS_SECTION = 'Companion Docs'
+const REFERENCE_DOCUMENTS_SECTION = 'Reference Documents'
 
 /**
- * A companion doc is reached through a mounted reference directory,
+ * A reference document is reached through a mounted reference directory,
  * whose absolute path the runner injects as an environment variable.
  * A relative path is the one form that cannot work,
  * since the agent's Read tool resolves neither the session dir nor `$PWD`.
  */
 const REFERENCE_PATH_PREFIX = '$BRAID_'
 
-export interface ValidateSkillStructureInput {
+export interface SkillFileInput {
   /** The full SKILL.md body, with frontmatter already stripped. */
   readonly body: string
   /** The parsed frontmatter (already validated against `SkillFrontmatter`). */
   readonly frontmatter: SkillFrontmatter
 }
 
-export interface SkillStructureValidationResult {
+export interface SkillFileValidation {
   readonly ok: boolean
   readonly issues: readonly SkillLoadIssue[]
 }
@@ -56,50 +56,54 @@ export interface SkillStructureValidationResult {
  * since a prompt quotes headings and tables inside them,
  * and a check that forgot to skip a fence would read those as real.
  */
-interface ReadableSkill {
+interface ReadableSkillFile {
   readonly frontmatter: SkillFrontmatter
   /** Body lines outside fenced code blocks, in document order. */
   readonly lines: readonly string[]
 }
 
-type SkillStructureCheck = (skill: ReadableSkill) => SkillLoadIssue[]
+type SkillFileCheck = (file: ReadableSkillFile) => SkillLoadIssue[]
 
 /**
  * Each check names one mechanical fault and reads the same input,
  * so adding a fourth is an entry here rather than an edit to the caller.
  */
-const CHECKS: readonly SkillStructureCheck[] = [
+const CHECKS: readonly SkillFileCheck[] = [
   missingSectionIssues,
-  unreachableCompanionDocIssues,
+  unreachableReferenceDocumentIssues,
   duplicateInputNameIssues,
 ]
 
 /**
- * Pure parser and checker over one SKILL.md body.
+ * Whether a SKILL.md is a usable skill, answered from the file alone.
  *
- * Every check names a way the file breaks at run time:
+ * This is the earliest of the three moments a skill is checked at, and the
+ * only one whose answer holds in every workspace and on every run, which is
+ * why a failure here keeps the file out of the list rather than flagging it.
+ *
+ * Every check names a way the file breaks once an agent reads it:
  * a section the prompt tells the agent to follow that is not there,
- * a companion doc path the Read tool cannot resolve,
+ * a reference document path the Read tool cannot resolve,
  * two inputs the form would bind to one name.
  *
  * House style is deliberately absent. Heading case, dash choice, section
  * order, and prompt length are review matters, and a skill withheld over
  * one of those costs its author more than the rule saves.
  *
- * The validator is intentionally text-level, not AST-level.
+ * The checks are text-level, not AST-level.
  */
-export function validateSkillStructure(input: ValidateSkillStructureInput): SkillStructureValidationResult {
-  const skill: ReadableSkill = { frontmatter: input.frontmatter, lines: proseLines(input.body) }
-  const issues = CHECKS.flatMap(check => check(skill))
+export function validateSkillFile(input: SkillFileInput): SkillFileValidation {
+  const file: ReadableSkillFile = { frontmatter: input.frontmatter, lines: proseLines(input.body) }
+  const issues = CHECKS.flatMap(check => check(file))
   return { ok: issues.length === 0, issues }
 }
 
-function missingSectionIssues(skill: ReadableSkill): SkillLoadIssue[] {
-  const present = new Set(skill.lines.map(headingText).filter(heading => heading !== undefined))
-  const category = skill.frontmatter.braid.category
+function missingSectionIssues(file: ReadableSkillFile): SkillLoadIssue[] {
+  const present = new Set(file.lines.map(headingText).filter(heading => heading !== undefined))
+  const category = file.frontmatter.braid.category
   const required = [
-    ...COMMON_REQUIRED_SECTIONS,
-    ...(category === undefined ? [] : CATEGORY_SPECIFIC_REQUIRED_SECTIONS[category]),
+    ...REQUIRED_SECTIONS,
+    ...(category === undefined ? [] : REQUIRED_SECTIONS_BY_CATEGORY[category]),
   ]
   return required
     .filter(section => !present.has(section))
@@ -111,31 +115,31 @@ function missingSectionIssues(skill: ReadableSkill): SkillLoadIssue[] {
 }
 
 /**
- * Every row of the Companion Docs table names a file through a mounted path.
- * Only the first cell is read, since that is the column the path lives in,
- * and the prose columns quote field names freely.
+ * Every row of the Reference Documents table names a file through a mounted
+ * path. Only the first cell is read, since that is the column the path lives
+ * in, and the prose columns quote field names freely.
  */
-function unreachableCompanionDocIssues(skill: ReadableSkill): SkillLoadIssue[] {
+function unreachableReferenceDocumentIssues(file: ReadableSkillFile): SkillLoadIssue[] {
   const issues: SkillLoadIssue[] = []
-  for (const row of tableRows(linesUnder(skill.lines, COMPANION_DOCS_SECTION))) {
+  for (const row of tableRows(linesUnder(file.lines, REFERENCE_DOCUMENTS_SECTION))) {
     const path = (row[0] ?? '').match(/`([^`]+)`/)?.[1]
     if (path === undefined || path.startsWith(REFERENCE_PATH_PREFIX))
       continue
     issues.push({
-      kind: 'unreachable-companion-doc',
-      message: `Companion doc "${path}" is not reached through a mounted reference path. Name it from one of the ${REFERENCE_PATH_PREFIX}* directories the runner injects, since a relative path does not resolve inside a run.`,
+      kind: 'unreachable-reference-document',
+      message: `Reference document "${path}" is not reached through a mounted reference path. Name it from one of the ${REFERENCE_PATH_PREFIX}* directories the runner injects, since a relative path does not resolve inside a run.`,
       target: path,
     })
   }
   return issues
 }
 
-function duplicateInputNameIssues(skill: ReadableSkill): SkillLoadIssue[] {
+function duplicateInputNameIssues(file: ReadableSkillFile): SkillLoadIssue[] {
   // zod enforces each entry's own shape and the kind discriminator,
   // but uniqueness across the list is a cross-cutting rule that lives here.
   const issues: SkillLoadIssue[] = []
   const seen = new Set<string>()
-  for (const declaration of skill.frontmatter.braid.inputs ?? []) {
+  for (const declaration of file.frontmatter.braid.inputs ?? []) {
     if (seen.has(declaration.name)) {
       issues.push({
         kind: 'duplicate-input-name',

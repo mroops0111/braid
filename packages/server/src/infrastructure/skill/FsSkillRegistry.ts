@@ -3,7 +3,7 @@ import { Buffer } from 'node:buffer'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { NotFoundError, type PluginRegistry, SkillManifest, type SkillRegistry, validateSkillStructure, type Workspace } from '@braidhq/core'
+import { NotFoundError, type PluginRegistry, SkillManifest, type SkillRegistry, validateSkillFile, type Workspace } from '@braidhq/core'
 import { AbsolutePath as AbsolutePathSchema, SkillFrontmatter as SkillFrontmatterSchema, SkillId as SkillIdSchema, splitSkillId } from '@braidhq/schema'
 import { parseMarkdownFrontmatter } from '../_shared/frontmatter.js'
 import { workspaceSkillExtensionsDir, workspaceSkillsDir } from '../_shared/paths.js'
@@ -200,7 +200,7 @@ export class FsSkillRegistry implements SkillRegistry {
   }
 
   /**
-   * Parse one SKILL.md and hold it to the structure contract.
+   * Parse one SKILL.md and hold it to the load-time checks.
    *
    * Frontmatter that will not parse and a body missing a required section
    * are the same class of fault to a caller, so both come back as `rejected`
@@ -238,10 +238,9 @@ export class FsSkillRegistry implements SkillRegistry {
       }
     }
 
-    // Structural contract: SKILL.md must declare the required H2 sections,
-    // per its `braid.category`. Were `## Procedure` absent, the skill would
-    // burn an entire run before the agent ever noticed the missing section.
-    const validation = validateSkillStructure({ body, frontmatter: frontmatter.data })
+    // Were `## Procedure` absent, the skill would burn an entire run
+    // before the agent ever noticed the missing section.
+    const validation = validateSkillFile({ body, frontmatter: frontmatter.data })
     if (!validation.ok)
       return { kind: 'rejected', issues: validation.issues }
     return { kind: 'loaded', frontmatter: frontmatter.data }
@@ -300,5 +299,5 @@ function frontmatterIssue(message: string): SkillLoadIssue {
 
 function describeRejection(skillFile: AbsolutePath, issues: readonly SkillLoadIssue[]): string {
   const lines = issues.map(issue => `- ${issue.message}`).join('\n')
-  return `SKILL.md at ${skillFile} fails the structure contract:\n${lines}`
+  return `SKILL.md at ${skillFile} is not a usable skill:\n${lines}`
 }

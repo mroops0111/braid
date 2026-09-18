@@ -46,7 +46,7 @@ This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its 
 ## Initialization
 
 1. Read `$BRAID_WORKSPACE/PRODUCT.md` to learn the active `ontologyId`, sources, and any extra MCP servers.
-2. Note `$BRAID_SHARED_REFERENCE` (framework contracts) and `$BRAID_ONTOLOGY_REFERENCE` (the active ontology). Companion docs (§ Companion Docs) live under those paths; concatenate when you Read them.
+2. Note `$BRAID_SHARED_REFERENCE` (framework contracts) and `$BRAID_ONTOLOGY_REFERENCE` (the active ontology). Reference documents (§ Reference Documents) live under those paths; concatenate when you Read them.
 3. Fetch the active ontology via `braid-core` to learn the canonical list of valid node and edge type ids. Every `node.type` / `edge.type` you emit MUST equal one of `nodeTypes[].id` / `edgeTypes[].id`. Case-sensitive. If you find yourself wanting `context` or `CONTAINS`, re-read the ontology response.
 4. Fetch the current graph snapshot via `braid-core` to know what's already there.
 5. Parse `$ARGUMENTS` (bounded-context name, file path, sub-dir, or empty).
@@ -189,9 +189,9 @@ Produced N proposals + M clarifications:
 
 When any prose you write names a graph node, write it as the token `@node:<id>` instead of a bare id. Studio renders the token as a live tag carrying the node's name and description. This applies to your narration, to `clarification.context`, to `proposal.rationale`, and to `node.description`. It does not apply to `clarify.question` or `candidate.description`, whose audience rule is unchanged. Full grammar in `$BRAID_SHARED_REFERENCE/reference-syntax.md`.
 
-## Companion Docs
+## Reference Documents
 
-Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
+Reference documents live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
 
 | File | When to Read | Why |
 |---|---|---|

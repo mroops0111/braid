@@ -43,7 +43,7 @@ You answer the question and surface discrepancies between what the sources say. 
 
 1. Read `$BRAID_WORKSPACE/PRODUCT.md` for source paths and declared MCP servers.
 2. Parse `$BRAID_SOURCE_ROLES`: a JSON array of the workspace ontology's source roles, each `{ id, label, pathSegment, unitBearing }`. This is your source vocabulary for the rest of the run. A role's sources live under `$BRAID_WORKSPACE/<pathSegment>/`. Never name a role the list does not contain.
-3. Note `$BRAID_SHARED_REFERENCE` (framework contracts) and `$BRAID_ONTOLOGY_REFERENCE` (the active ontology). Companion docs (§ Companion Docs) live under those paths; concatenate when you Read them.
+3. Note `$BRAID_SHARED_REFERENCE` (framework contracts) and `$BRAID_ONTOLOGY_REFERENCE` (the active ontology). Reference documents (§ Reference Documents) live under those paths; concatenate when you Read them.
 4. Detect whether the graph is populated by calling the `braid-core` node-search capability with `limit: 1`. If the result has zero items, the graph isn't yet built; fall back to the declared source roles.
 5. Parse the question argument; identify keywords and scope hints.
 
@@ -175,9 +175,9 @@ Produce two sections separated by `---`.
 
 When any prose you write names a graph node, write it as the token `@node:<id>` instead of a bare id. Studio renders the token as a live tag carrying the node's name and description. This applies to your narration, to `clarification.context`, to `proposal.rationale`, and to `node.description`. It does not apply to `clarify.question` or `candidate.description`, whose audience rule is unchanged. Full grammar in `$BRAID_SHARED_REFERENCE/reference-syntax.md`.
 
-## Companion Docs
+## Reference Documents
 
-Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
+Reference documents live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
 
 | File | When to Read | Why |
 |---|---|---|

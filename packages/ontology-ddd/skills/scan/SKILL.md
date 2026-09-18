@@ -59,10 +59,10 @@ Rewrite `$BRAID_WORKSPACE/artifacts/batch-plan.json` per the write contract in `
 - [ ] batch-plan.json was rewritten atomically, with the `units` array replaced and other fields untouched.
 - [ ] Exit code 0.
 
-## Companion Docs
+## Reference Documents
 
 | File | When to Read | Why |
 |---|---|---|
 | `$BRAID_SHARED_REFERENCE/batch-plan.md` | Initialization step 3 and Output | The plan-file write contract: preconditions, the required unit shape, which fields to leave untouched, and the atomic-write rule. |
 
-The downstream `ddd:extract` skill owns its own companion docs (ontology-specific shared/*.md files) when it picks up the unit.
+The downstream `ddd:extract` skill owns its own reference documents (ontology-specific shared/*.md files) when it picks up the unit.

@@ -79,7 +79,7 @@ None. The framework takes the blocks this run rendered and keeps them as the doc
 - [ ] No node description copied into prose that `show_subgraph` already draws.
 - [ ] No sentence announcing a node's status.
 
-## Companion Docs
+## Reference Documents
 
 | Doc | When | What it carries |
 |---|---|---|
