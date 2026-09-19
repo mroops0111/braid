@@ -8,7 +8,7 @@ import type {
   GraphOperation,
   ProposalCreate,
   ProposalId,
-  SkillId,
+  RunRecord,
   SkillRunId,
   SourceUnit,
   ValidationIssue,
@@ -93,27 +93,29 @@ export class HITLService {
    * rather than on what the server watched it do.
    */
   /**
-   * Which skill a run belongs to, so a handoff names it without being told.
+   * What a run recorded about itself, and the workspace it ran in.
    *
-   * A skill naming itself is a field it can get wrong on every call,
-   * and the run record already holds the answer.
+   * Both are what a handoff is filled in from, so they are read together.
+   * A skill naming itself, or the documents it read,
+   * is a field it can get wrong on every call,
+   * while the record already holds the answer.
    */
-  private async skillOfRun(workspaceId: WorkspaceId, skillRunId: SkillRunId | undefined): Promise<SkillId | undefined> {
+  private async runBehind(
+    workspaceId: WorkspaceId,
+    skillRunId: SkillRunId | undefined,
+  ): Promise<{ workspace: Workspace, record: RunRecord } | undefined> {
     if (!skillRunId || !this.deps.runRepository)
       return undefined
     const workspace = await this.deps.workspaceService.findById(workspaceId)
-    const records = await this.deps.runRepository.listRecords(workspace)
-    return records.find(record => record.runId === skillRunId)?.skillId
+    const record = (await this.deps.runRepository.listRecords(workspace)).find(item => item.runId === skillRunId)
+    return record ? { workspace, record } : undefined
   }
 
-  private async scopeOfRun(workspaceId: WorkspaceId, skillRunId: SkillRunId | undefined): Promise<SourceUnit[]> {
-    const { runRepository, unitLister, sourceUnitDigest } = this.deps
-    if (!skillRunId || !runRepository || !unitLister || !sourceUnitDigest)
+  private async scopeOf(run: { workspace: Workspace, record: RunRecord } | undefined): Promise<SourceUnit[]> {
+    const { unitLister, sourceUnitDigest } = this.deps
+    if (!run || !unitLister || !sourceUnitDigest)
       return []
-    const workspace = await this.deps.workspaceService.findById(workspaceId)
-    const record = (await runRepository.listRecords(workspace)).find(item => item.runId === skillRunId)
-    if (!record)
-      return []
+    const { workspace, record } = run
     const named = sourceUnitsForRun(runScope(record), await unitLister(workspace))
     // Hashed here rather than read from the observation store,
     // which records what a completed run saw,
@@ -180,11 +182,12 @@ export class HITLService {
   async submitProposal(draft: ProposalCreate & { submitterId?: UserId }): Promise<Proposal> {
     await this.assertRunMaySubmit(draft.workspaceId, draft.skillRunId, proposalSubmission)
     await this.assertOperationsValid(draft.workspaceId, draft.operations)
-    const generatedBy = await this.skillOfRun(draft.workspaceId, draft.skillRunId) ?? draft.generatedBy
+    const run = await this.runBehind(draft.workspaceId, draft.skillRunId)
+    const generatedBy = run?.record.skillId ?? draft.generatedBy
     if (!generatedBy)
       throw new ValidationError('A proposal must name the skill that produced it, or be filed by a run that does.')
     const generatedAt = this.deps.clock.now()
-    const sourceUnits = await this.scopeOfRun(draft.workspaceId, draft.skillRunId)
+    const sourceUnits = await this.scopeOf(run)
     const submitter = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
     const proposal = new Proposal({
       id: newProposalId(),
@@ -227,7 +230,7 @@ export class HITLService {
   async submitClarification(draft: ClarificationCreate & { submitterId?: UserId, skillRunId?: SkillRunId }): Promise<Clarification> {
     await this.assertRunMaySubmit(draft.workspaceId, draft.skillRunId, clarificationSubmission)
     const answerMode = await this.answerModeFor(draft.workspaceId, draft.skillRunId)
-    const generatedBy = await this.skillOfRun(draft.workspaceId, draft.skillRunId)
+    const generatedBy = (await this.runBehind(draft.workspaceId, draft.skillRunId))?.record.skillId
     const submitter = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
     const clarification = new Clarification({
       id: newClarificationId(),

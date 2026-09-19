@@ -450,8 +450,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     if (!form.success)
       return context.json({ error: 'Unknown output form' }, 404)
     // A skill narrows the render calls within its kind's ceiling.
-    // Absent leaves the ceiling in place, and a name nothing answers to
-    // simply matches no operation, so a typo costs a tool rather than a 404.
+    // Absent leaves the ceiling in place,
+    // and a name nothing answers to matches no operation,
+    // so a typo costs a tool rather than a 404.
     const declared = context.req.query('calls')
     const calls = declared === undefined
       ? undefined

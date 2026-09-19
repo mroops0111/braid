@@ -2,6 +2,7 @@ import type { RenderCallName, SkillCategory } from '@braidhq/schema'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { dddOntology } from '@braidhq/ontology-ddd'
 import { renderCallsFor, SkillFrontmatter } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { parseMarkdownFrontmatter } from '../../../src/infrastructure/_shared/frontmatter.js'
@@ -27,7 +28,19 @@ interface ShippedSkill {
   readonly body: string
 }
 
-async function readShippedSkills(): Promise<ShippedSkill[]> {
+/**
+ * Read once and kept.
+ * Every check below reads the same files,
+ * and the shipped set does not change while the suite runs.
+ */
+let shipped: Promise<ShippedSkill[]> | undefined
+
+function readShippedSkills(): Promise<ShippedSkill[]> {
+  shipped ??= scanShippedSkills()
+  return shipped
+}
+
+async function scanShippedSkills(): Promise<ShippedSkill[]> {
   const skills: ShippedSkill[] = []
   for (const root of SKILL_ROOTS) {
     const dir = join(PACKAGES, root)
@@ -59,20 +72,45 @@ async function readShippedSkills(): Promise<ShippedSkill[]> {
   return skills
 }
 
-// A framework skill runs against every ontology, so a role, a reader, or a
-// type it names by hand answers correctly for one workspace by accident.
-const ONTOLOGY_VOCABULARY = [
+/**
+ * Ids one ontology declares that could not be ordinary prose.
+ *
+ * A framework skill runs against every ontology.
+ * A type, a role, or a reader named by hand fits one workspace by accident,
+ * and misdescribes every other.
+ * Read from the plugin rather than listed here,
+ * so an id added later is checked without anyone remembering to add it.
+ *
+ * Only the compound ids, since most of this ontology's are ordinary words.
+ * A prompt saying `query` or `rule` is almost always writing English,
+ * and failing on that would teach the next author to skip the check.
+ */
+function declaredIdsOf(ontology: typeof dddOntology): readonly string[] {
+  return [
+    ...ontology.nodeTypes.map(type => String(type.id)),
+    ...ontology.sourceRoles.map(role => String(role.id)),
+    ...(ontology.audiences ?? []).map(audience => String(audience.id)),
+  ].filter(id => /[a-z][A-Z]/.test(id))
+}
+
+/**
+ * Prose that names one ontology's world without quoting an id.
+ *
+ * A sample rather than a proof.
+ * The leaks this caught were sentences rather than identifiers,
+ * and no list finds every sentence somebody might write.
+ * It holds the ones already found, so they cannot come back.
+ */
+const ONTOLOGY_PROSE = [
   /\bbusiness reader\b/i,
   /\ban engineer\b/i,
   /\bspec and the code\b/i,
-  /\bboundedContext\b/,
-  /\baggregate\b/i,
 ]
 
 describe('every shipped skill', () => {
-  // The kind of run is a ceiling. A skill naming a call outside it wrote an
-  // instruction its run can never carry out, which is how `ddd:extract` came
-  // to tell a build run to call `show_evidence` when no build run had it.
+  // The kind of run is a ceiling.
+  // A skill naming a call outside it wrote an instruction nothing can carry out.
+  // That is how extract came to instruct a call no build run has ever had.
   it('declares only calls its kind can be offered', async () => {
     for (const skill of await readShippedSkills()) {
       if (!skill.declaredCalls || !skill.category)
@@ -113,15 +151,19 @@ describe('every framework skill', () => {
     const skills = (await readShippedSkills()).filter(skill => skill.origin === 'core')
     expect(skills.length).toBeGreaterThan(0)
     for (const skill of skills) {
-      const named = ONTOLOGY_VOCABULARY.filter(pattern => pattern.test(skill.body)).map(String)
+      const named = [
+        ...declaredIdsOf(dddOntology).filter(id => new RegExp(`\\b${id}\\b`).test(skill.body)),
+        ...ONTOLOGY_PROSE.filter(pattern => pattern.test(skill.body)).map(String),
+      ]
       expect({ skill: skill.name, named }).toEqual({ skill: skill.name, named: [] })
     }
   })
 })
 
 describe('every skill that can write instead of render', () => {
-  // A checklist item naming a render call cannot be met by a run that was
-  // handed none, so what each form owes lives with that form's contract.
+  // A checklist item naming a render call cannot be met,
+  // by a run that was handed none,
+  // so what each form owes lives with that form's contract.
   it('keeps render calls out of its own checklist', async () => {
     for (const skill of await readShippedSkills()) {
       const checklist = skill.body.match(/## Completion Checklist\n([\s\S]*?)(?=\n## )/)?.[1] ?? ''
@@ -179,8 +221,8 @@ describe('every shipped skill declares the environment it reads', () => {
     }
   })
 
-  // A declaration nothing reads is a claim on the environment that no run
-  // can justify, and it outlives whatever once made it true.
+  // A declaration nothing reads is a claim no run can justify,
+  // and it outlives whatever once made it true.
   it('declares nothing it never reads', async () => {
     for (const skill of await readShippedSkills()) {
       const used = await readWith(skill)

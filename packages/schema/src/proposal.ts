@@ -90,9 +90,10 @@ export const ProposalCreate = z.object({
   /**
    * Which skill produced this, taken from the run that filed it.
    *
-   * Optional on the way in because a running skill is identified by the
-   * credential it calls with, so the server already knows. A caller with no
-   * run has nothing to derive it from and must say.
+   * Optional on the way in,
+   * since a running skill is identified by the credential it calls with,
+   * so the server already knows.
+   * A caller with no run has nothing to derive it from and must say.
    */
   generatedBy: SkillId.optional(),
   rationale: proposalRationale,

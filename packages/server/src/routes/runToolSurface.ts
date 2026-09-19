@@ -48,9 +48,10 @@ function visibleTo(
  * it is never shown them.
  *
  * `calls` narrows the same way one step further in.
- * The kind of run sets a ceiling, and its skill says which of those
- * it actually draws with, so two skills of one kind stop paying
- * for each other's calls. Absent leaves the ceiling in place.
+ * The kind of run sets a ceiling,
+ * and its skill says which of those it actually draws with,
+ * so two skills of one kind stop paying for each other's calls.
+ * Absent leaves the ceiling in place.
  *
  * Braid's own markers are dropped on the way out.
  * They say which runs may see an operation,

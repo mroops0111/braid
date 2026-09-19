@@ -59,8 +59,8 @@ export const Clarification = HandoffOwner.extend({
   /**
    * When somebody answered, the counterpart to a proposal's `reviewedAt`.
    *
-   * Absent while a question is still open, and on everything recorded
-   * before the field existed.
+   * Absent while a question is still open,
+   * and on everything recorded before the field existed.
    */
   answeredAt: Timestamp.optional(),
   selectedCandidateId: ClarificationCandidateId.optional(),
@@ -78,12 +78,13 @@ export const Clarification = HandoffOwner.extend({
   /**
    * When the run handed this over, named as a proposal's is.
    *
-   * Producing a handoff is one act whichever shape it takes, so the two
-   * carry it under one word. Settling them is two different acts, which is
-   * why `answeredBy` and a proposal's `reviewedBy` stay apart.
+   * Producing a handoff is one act whichever shape it takes,
+   * so the two carry it under one word.
+   * Settling them is two different acts,
+   * which is why `answeredBy` and a proposal's `reviewedBy` stay apart.
    *
-   * Absent on everything recorded before the field existed, which is why a
-   * surface treats it as unknown rather than as the beginning of time.
+   * Absent on everything recorded before the field existed,
+   * so a surface reads it as unknown rather than as the beginning of time.
    */
   generatedAt: Timestamp.optional(),
   /**

@@ -252,9 +252,10 @@ export function createBlocksRouter(deps: BlocksRouterDeps): OpenAPIHono {
   /**
    * The run this call belongs to, taken from the credential it arrived with.
    *
-   * A run is identified by what it carries, the same way a proposal's author
-   * is, so naming one in the path let a run draw into another and gave the
-   * model a parameter to get wrong on every call.
+   * A run is identified by what it carries,
+   * the same way a proposal's author is.
+   * Naming one in the path let a run draw into another,
+   * and gave the model a parameter to get wrong on every call.
    */
   function requireRun(context: Context): SkillRunIdType {
     const runId = getSkillRunId(context)

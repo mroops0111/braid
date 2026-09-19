@@ -62,8 +62,8 @@ async function readEvents(
 }
 
 /**
- * The credential a run calls with, which is how the server knows whose
- * block this is. Naming the run in the path let one run draw into another.
+ * The credential a run calls with,
+ * which is how the server knows whose block this is.
  */
 function asRun(runTokens: RunTokenRegistry, runId: string): Record<string, string> {
   return {
@@ -318,8 +318,8 @@ describe('render routes', () => {
     endAll()
   })
 
-  // The run a block lands on is the one the credential names, so there is
-  // no id left to aim somewhere else.
+  // The run a block lands on is the one the credential names,
+  // so there is no id left to aim somewhere else.
   it('refuses to render for a caller carrying no run', async () => {
     const { app, workspace, endAll } = await buildApp()
     await startRun(app, workspace.id)

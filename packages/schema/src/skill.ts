@@ -47,8 +47,9 @@ export type SkillCategory = z.infer<typeof SkillCategory>
  * What a run of a kind could never sensibly call is settled here,
  * and which of the rest it actually gets is the skill's own declaration,
  * so two skills of one kind need not carry each other's calls.
- * Held in one table, since a route marking its own gave ten chances
- * to disagree with what a validator checks against.
+ * Held in one table.
+ * Ten routes each marking their own gave ten chances to disagree,
+ * against the one table a validator checks a declaration against.
  */
 export const RENDER_CALL_CATEGORIES: Record<RenderCallName, readonly SkillCategory[]> = {
   showAnswer: ['ask', 'build', 'generate'],
@@ -124,8 +125,9 @@ export const DEFAULT_OUTPUT_FORMS: readonly OutputForm[] = ['blocks']
  *
  * A run that renders nothing is offered none, whatever its skill declares,
  * since the form is settled first and the surface follows it.
- * A skill declaring nothing keeps the ceiling, and one declaring
- * a call its kind never offers gets the overlap, not the wish.
+ * A skill declaring nothing keeps the ceiling,
+ * and one declaring a call its kind never offers gets the overlap,
+ * not the wish.
  */
 export function settleRenderCalls(input: {
   readonly category: SkillCategory
@@ -322,8 +324,8 @@ export const SkillOutputContract = z.object({
    *
    * The kind of run sets a ceiling, and this narrows within it,
    * so two skills of one kind stop carrying each other's calls.
-   * Absent leaves the ceiling in place, which is what a skill
-   * declaring nothing got before it could say.
+   * Absent leaves the ceiling in place,
+   * which is what a skill declaring nothing got before it could say.
    */
   calls: z.array(RenderCallName).optional(),
   // Calls the run must have made at least once, a subset of `calls`.
@@ -332,10 +334,11 @@ export const SkillOutputContract = z.object({
    * Blocks each declared reader must be able to see, at least.
    *
    * A block naming nobody is addressed to everyone, so it counts for each,
-   * which makes this a floor on the answer's size rather than a rule
-   * about addressing anyone in particular.
-   * Named by count rather than by reader, so a builtin skill can hold
-   * a floor without knowing which readers a product splits on.
+   * so this is a floor on the answer's size,
+   * rather than a rule about addressing anyone in particular.
+   * Named by count rather than by reader,
+   * so a builtin skill holds a floor,
+   * without knowing which readers a product splits on.
    */
   minBlocksPerReader: z.number().int().positive().optional(),
   // How many corrective retries the framework may spend before giving up.

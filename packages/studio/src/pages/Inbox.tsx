@@ -369,8 +369,8 @@ function InboxRow({ item, active, onSelect, stageLabels, viewerId }: {
         <ListRowTitle {...(active ? { className: 'text-foreground' } : {})}>
           {title || t('inbox.untitled')}
         </ListRowTitle>
-        {/* When it arrived and what raised it, the two things a reader scans
-            a queue by. The same shape the answers list uses. */}
+        {/* When it arrived and what raised it,
+            in the shape the answers list already uses. */}
         <div className="flex w-full items-center gap-1.5 text-2xs text-muted-foreground">
           {at && <span className="shrink-0">{formatTimestamp(at)}</span>}
           {at && source && <span aria-hidden className="shrink-0">·</span>}
@@ -414,9 +414,10 @@ function nameStep(skillId: string | undefined, stages: readonly CoverageStage[],
  * What a row says about one handoff.
  *
  * `source` is what the ontology calls the step that raised it, never an id.
- * A run id on screen names something no reader can look up, and a skill id
- * names it in the framework's vocabulary rather than the product's.
- * `at` is when it arrived, which is what a reader sorts and scans by.
+ * A run id on screen names something no reader can look up,
+ * and a skill id names it in the framework's vocabulary,
+ * rather than in the product's.
+ * `at` is when it arrived, which is what a reader scans a queue by.
  */
 function describe(
   item: Item,

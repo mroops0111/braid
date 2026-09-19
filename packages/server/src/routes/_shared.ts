@@ -119,7 +119,7 @@ export const RUN_OUTPUT_FORMS_KEY = 'x-braid-run-output-forms'
  * Narrow a render operation to the runs that may draw with it.
  *
  * The call names itself and the categories come from the one table,
- * so a route cannot drift from what a skill's declaration is checked against.
+ * so a route cannot drift from what a declaration is checked against.
  * Every render operation is a `blocks` operation by definition,
  * which is why the form is not a parameter here.
  */
