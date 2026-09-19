@@ -4,7 +4,7 @@ import type { SSEStreamingApi } from 'hono/streaming'
 import { EventType, RunAgentInputSchema } from '@ag-ui/core'
 import { EventEncoder } from '@ag-ui/encoder'
 import { describeContinuation, NotFoundError, outcomeOf, runScope, ValidationError } from '@braidhq/core'
-import { ClarificationId, SkillId, SkillRunId } from '@braidhq/schema'
+import { ClarificationId, OutputForm, SkillId, SkillRunId } from '@braidhq/schema'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { AguiTranslator } from '../infrastructure/agui/AguiTranslator.js'
@@ -189,7 +189,7 @@ export function createAguiRouter(deps: AguiRouterDeps): Hono {
       throw new ValidationError(`Not a RunAgentInput: ${parsed.error.message}`)
     const input = parsed.data
 
-    const forwarded = (input.forwardedProps ?? {}) as { skillId?: unknown, resumeSessionId?: unknown }
+    const forwarded = (input.forwardedProps ?? {}) as { skillId?: unknown, resumeSessionId?: unknown, outputForm?: unknown }
     const resumed = await resolveResume(deps, workspace, input.resume ?? [])
 
     const skillId = resumed?.skillId
@@ -207,6 +207,13 @@ export function createAguiRouter(deps: AguiRouterDeps): Hono {
     const resumeSessionId = resumed?.resumeSessionId
       ?? (typeof forwarded.resumeSessionId === 'string' ? forwarded.resumeSessionId : undefined)
 
+    // A turn released by a settled question carries the form of the run it takes up,
+    // since one conversation reads as one answer
+    // and half of it in blocks would not.
+    const outputForm = resumed
+      ? undefined
+      : OutputForm.safeParse(forwarded.outputForm).data
+
     const callerToken = extractBearerToken(context)
     const runId = await deps.skillRunner.start(workspace, skillId, latest.content, {
       startedBy: getUserId(context),
@@ -214,6 +221,7 @@ export function createAguiRouter(deps: AguiRouterDeps): Hono {
       ...(resumeSessionId ? { resumeSessionId } : {}),
       ...(resumed ? { scope: resumed.scope, continues: resumed.continues } : {}),
       ...(callerToken ? { callerToken } : {}),
+      ...(outputForm ? { outputForm } : {}),
     })
 
     const encoder = sseEncoder()

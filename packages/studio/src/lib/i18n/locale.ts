@@ -1,11 +1,10 @@
 import type { Locale } from '@braidhq/schema'
 import { FALLBACK_LOCALE, isLocale } from '@braidhq/schema'
+import { readStored, STORAGE_KEYS, writeStored } from '../storage.js'
 
 // The shared cross-package locale core comes from schema.
 // Studio adds only the browser-side glue below.
 export { FALLBACK_LOCALE, isLocale, type Locale, type LocaleOption, SUPPORTED_LOCALES } from '@braidhq/schema'
-
-const STORAGE_KEY = 'braid-locale'
 
 /**
  * Locale to use on first paint.
@@ -14,12 +13,9 @@ const STORAGE_KEY = 'braid-locale'
  * otherwise English.
  */
 export function initialLocale(): Locale {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (isLocale(stored))
-      return stored
-  }
-  catch {}
+  const stored = readStored(STORAGE_KEYS.locale)
+  if (isLocale(stored))
+    return stored
   return detectBrowserLocale()
 }
 
@@ -33,10 +29,7 @@ function detectBrowserLocale(): Locale {
 }
 
 export function writeStoredLocale(locale: Locale): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, locale)
-  }
-  catch {}
+  writeStored(STORAGE_KEYS.locale, locale)
 }
 
 /** Reflect the active locale on <html lang> for a11y and native text selection. */

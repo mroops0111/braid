@@ -5,8 +5,10 @@ import {
   ExternalReference,
   NodeId,
   ProposalId,
+  SkillId,
   SkillRunId,
   SourceReference,
+  Timestamp,
   UserId,
   WorkspaceId,
 } from './common.js'
@@ -54,6 +56,13 @@ export const Clarification = HandoffOwner.extend({
   candidates: z.array(ClarificationCandidate),
   status: ClarificationStatus,
   answeredBy: UserId.optional(),
+  /**
+   * When somebody answered, the counterpart to a proposal's `reviewedAt`.
+   *
+   * Absent while a question is still open,
+   * and on everything recorded before the field existed.
+   */
+  answeredAt: Timestamp.optional(),
   selectedCandidateId: ClarificationCandidateId.optional(),
   resolution: z.array(GraphOperation).optional(),
   // Set when the resolution becomes a Proposal, so the UI can link the two.
@@ -66,6 +75,26 @@ export const Clarification = HandoffOwner.extend({
    * rather than starting over in a second skill.
    */
   skillRunId: SkillRunId.optional(),
+  /**
+   * When the run handed this over, named as a proposal's is.
+   *
+   * Producing a handoff is one act whichever shape it takes,
+   * so the two carry it under one word.
+   * Settling them is two different acts,
+   * which is why `answeredBy` and a proposal's `reviewedBy` stay apart.
+   *
+   * Absent on everything recorded before the field existed,
+   * so a surface reads it as unknown rather than as the beginning of time.
+   */
+  generatedAt: Timestamp.optional(),
+  /**
+   * Which skill raised this, taken from the run that filed it.
+   *
+   * Set by the server rather than sent, the same way a proposal's is.
+   * A reader wants to know which step of the pipeline stopped to ask,
+   * and the run record already holds the answer.
+   */
+  generatedBy: SkillId.optional(),
   /**
    * Whether a conversation is parked on this answer.
    *

@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
 import { TRANSCRIPT_VIEW } from '@/lib/blocks/audience'
+import { formatTimestamp } from '@/lib/conversations'
 import { buildItems } from '@/lib/inboxItems'
 import { useClarificationByStatus, useCoverage, useMe, useProposalsByStatus, useWorkspaceMembers } from '@/lib/queries'
 import { runStore } from '@/lib/runStore'
@@ -348,7 +349,7 @@ function InboxRow({ item, active, onSelect, stageLabels, viewerId }: {
 }) {
   const { t } = useTranslation()
   const { i18n } = useTranslation()
-  const { label, title, source } = describe(item, stageLabels, i18n.language)
+  const { label, title, source, at } = describe(item, stageLabels, i18n.language)
   const raisedBy = originOf(item, viewerId, t('inbox.bySystem'))
 
   return (
@@ -361,9 +362,6 @@ function InboxRow({ item, active, onSelect, stageLabels, viewerId }: {
             {item.kind === 'running' && <Loader2 className="mr-1 size-2.5 animate-spin" />}
             {t(label)}
           </Badge>
-          {source && (
-            <span className="truncate font-mono text-2xs text-muted-foreground">{source}</span>
-          )}
           {raisedBy && (
             <Badge variant="secondary" className="shrink-0 text-2xs">{raisedBy}</Badge>
           )}
@@ -371,6 +369,13 @@ function InboxRow({ item, active, onSelect, stageLabels, viewerId }: {
         <ListRowTitle {...(active ? { className: 'text-foreground' } : {})}>
           {title || t('inbox.untitled')}
         </ListRowTitle>
+        {/* When it arrived and what raised it,
+            in the shape the answers list already uses. */}
+        <div className="flex w-full items-center gap-1.5 text-2xs text-muted-foreground">
+          {at && <span className="shrink-0">{formatTimestamp(at)}</span>}
+          {at && source && <span aria-hidden className="shrink-0">·</span>}
+          {source && <span className="truncate">{source}</span>}
+        </div>
       </div>
     </ListRow>
   )
@@ -405,26 +410,49 @@ function nameStep(skillId: string | undefined, stages: readonly CoverageStage[],
   return stage?.label ? localize(stage.label, locale as Locale) : skillId
 }
 
+/**
+ * What a row says about one handoff.
+ *
+ * `source` is what the ontology calls the step that raised it, never an id.
+ * A run id on screen names something no reader can look up,
+ * and a skill id names it in the framework's vocabulary,
+ * rather than in the product's.
+ * `at` is when it arrived, which is what a reader scans a queue by.
+ */
 function describe(
   item: Item,
   stages: readonly CoverageStage[],
   locale: string,
-): { label: TranslationKey, title: string, source: string | undefined } {
+): { label: TranslationKey, title: string, source: string | undefined, at: string | undefined } {
   switch (item.kind) {
     case 'running':
-      return { label: 'inbox.kind.running', title: item.card.name, source: nameStep(item.card.lastRun?.skillId, stages, locale) }
+      return {
+        label: 'inbox.kind.running',
+        title: item.card.name,
+        source: nameStep(item.card.lastRun?.skillId, stages, locale),
+        at: item.card.lastRun?.startedAt,
+      }
     case 'parked':
       return {
         label: item.questions.length > 1 ? 'inbox.kind.questions' : 'inbox.kind.question',
         title: item.questions.map(question => questionExcerpt(question.question)).join(' · '),
-        source: item.id,
+        source: nameStep(item.questions[0]?.generatedBy, stages, locale),
+        at: item.questions[0]?.generatedAt,
       }
     case 'question':
-      // No source, because a standing question has nothing parked on it,
-      // and naming the run that raised it would say otherwise.
-      return { label: 'inbox.kind.question', title: questionExcerpt(item.record.question), source: undefined }
+      return {
+        label: 'inbox.kind.question',
+        title: questionExcerpt(item.record.question),
+        source: nameStep(item.record.generatedBy, stages, locale),
+        at: item.record.generatedAt,
+      }
     case 'proposal':
-      return { label: 'inbox.kind.change', title: item.record.rationale, source: nameStep(item.record.generatedBy, stages, locale) }
+      return {
+        label: 'inbox.kind.change',
+        title: item.record.rationale,
+        source: nameStep(item.record.generatedBy, stages, locale),
+        at: item.record.generatedAt,
+      }
     default: {
       const exhaustive: never = item
       throw new Error(`Unhandled inbox item: ${JSON.stringify(exhaustive)}`)

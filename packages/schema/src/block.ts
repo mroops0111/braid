@@ -374,6 +374,7 @@ export const RENDER_CALLS = ['showAnswer', 'showEvidence', 'showFinding', 'showM
 
 /** The call names as a schema, so a skill can declare which ones it owes. */
 export const RenderCallName = z.enum(RENDER_CALLS)
+export type RenderCallName = z.infer<typeof RenderCallName>
 
 /** A block as it reaches a surface, the call plus the identity the server minted. */
 export const EmittedBlock = z.object({

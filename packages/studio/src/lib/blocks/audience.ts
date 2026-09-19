@@ -1,5 +1,6 @@
 import type { AudienceDescriptor, AudienceId } from '@braidhq/schema'
-import { useCallback, useSyncExternalStore } from 'react'
+import { usePreference } from '../preference.js'
+import { STORAGE_KEYS } from '../storage.js'
 
 export { visibleBlocks } from './visibleBlocks.js'
 
@@ -13,40 +14,18 @@ export { visibleBlocks } from './visibleBlocks.js'
 export const TRANSCRIPT_VIEW = 'transcript'
 export type AnswerView = AudienceId | typeof TRANSCRIPT_VIEW
 
-const STORAGE_KEY = 'braid.answerView'
-
-// A reading habit rather than a workspace policy, so it lives with the reader.
-const listeners = new Set<() => void>()
-
-function read(): string | null {
-  if (typeof window === 'undefined')
-    return null
-  return window.localStorage.getItem(STORAGE_KEY)
-}
-
 /**
  * The reader's stored view, resolved against what this ontology declares.
  * A stored id an ontology no longer has falls back,
  * rather than showing an empty answer.
+ *
+ * A reading habit rather than a workspace policy, so it lives with the reader.
  */
 export function useAnswerView(audiences: readonly AudienceDescriptor[]): [AnswerView, (next: AnswerView) => void] {
-  const stored = useSyncExternalStore(
-    (onChange) => {
-      listeners.add(onChange)
-      return () => listeners.delete(onChange)
-    },
-    read,
-    () => null,
-  )
-  const setView = useCallback((next: AnswerView) => {
-    window.localStorage.setItem(STORAGE_KEY, next)
-    for (const listener of listeners)
-      listener()
-  }, [])
-
-  const known = new Set<string>([TRANSCRIPT_VIEW, ...audiences.map(audience => audience.id)])
-  const fallback = defaultView(audiences)
-  return [stored !== null && known.has(stored) ? stored as AnswerView : fallback, setView]
+  return usePreference(STORAGE_KEYS.answerView, (stored) => {
+    const known = new Set<string>([TRANSCRIPT_VIEW, ...audiences.map(audience => audience.id)])
+    return stored !== null && known.has(stored) ? stored as AnswerView : defaultView(audiences)
+  })
 }
 
 function defaultView(audiences: readonly AudienceDescriptor[]): AnswerView {

@@ -9,6 +9,7 @@ import type {
   UserId,
   WorkspaceId,
 } from '@braidhq/schema'
+import { T0 as answeredAt } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { Clarification, ConflictError, NotFoundError } from '../../../src/index.js'
 
@@ -55,7 +56,7 @@ describe('Clarification', () => {
 
   describe('markAnswered', () => {
     it('moves pending → answered, stamping selectedCandidateId + resolution + answeredBy', () => {
-      const answered = new Clarification(data()).markAnswered('cc-1' as ClarificationCandidateId, userId)
+      const answered = new Clarification(data()).markAnswered('cc-1' as ClarificationCandidateId, userId, answeredAt)
 
       expect(answered.status).toBe('answered')
       expect(answered.selectedCandidateId).toBe('cc-1')
@@ -64,12 +65,12 @@ describe('Clarification', () => {
 
     it('throws ConflictError when clarification is not pending', () => {
       const clarification = new Clarification(data({ status: 'answered' }))
-      expect(() => clarification.markAnswered('cc-1' as ClarificationCandidateId, userId)).toThrow(ConflictError)
+      expect(() => clarification.markAnswered('cc-1' as ClarificationCandidateId, userId, answeredAt)).toThrow(ConflictError)
     })
 
     it('throws NotFoundError when candidate id missing', () => {
       const clarification = new Clarification(data())
-      expect(() => clarification.markAnswered('missing' as ClarificationCandidateId, userId)).toThrow(NotFoundError)
+      expect(() => clarification.markAnswered('missing' as ClarificationCandidateId, userId, answeredAt)).toThrow(NotFoundError)
     })
   })
 
@@ -98,13 +99,13 @@ describe('Clarification', () => {
 
   describe('markSkipped', () => {
     it('returns a new clarification in skipped status', () => {
-      const skipped = new Clarification(data()).markSkipped(userId)
+      const skipped = new Clarification(data()).markSkipped(userId, answeredAt)
       expect(skipped.status).toBe('skipped')
     })
 
     it('throws ConflictError when clarification is not pending', () => {
       const clarification = new Clarification(data({ status: 'skipped' }))
-      expect(() => clarification.markSkipped(userId)).toThrow(ConflictError)
+      expect(() => clarification.markSkipped(userId, answeredAt)).toThrow(ConflictError)
     })
   })
 

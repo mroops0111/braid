@@ -1,4 +1,4 @@
-import type { EmittedBlock, RenderBlock, SkillCategory, SkillEvent, SkillId, SkillRunId, UserId, WorkspaceId } from '@braidhq/schema'
+import type { EmittedBlock, OutputForm, RenderBlock, SkillCategory, SkillEvent, SkillId, SkillRunId, UserId, WorkspaceId } from '@braidhq/schema'
 import type { AgentMessage } from '../agent/AgentBinding.js'
 import type { Workspace } from '../workspace/Workspace.js'
 
@@ -56,6 +56,25 @@ export interface SkillRunOptions {
    * or a corrective turn on its own output.
    */
   readonly continues?: SkillRunId
+  /**
+   * Whether anybody is watching this run.
+   *
+   * A batch and a reactor cycle both drive their runs with nobody there,
+   * so a question one of them raises is put to an empty room,
+   * and an answer written for a reader has no reader to read it.
+   * Set by the orchestration driving the run rather than by a route,
+   * since somebody who started a run themselves is watching it by definition.
+   */
+  readonly unattended?: boolean
+  /**
+   * The form the caller would like this run's output to take.
+   *
+   * A preference rather than an instruction.
+   * The skill declares which forms it can produce and the runner settles one,
+   * so a request for a form a skill never offered renders as usual,
+   * and a run nobody is watching drops its rendering whatever was asked.
+   */
+  readonly outputForm?: OutputForm
   /**
    * Corrective turns still available,
    * when this run's output misses its skill's declared contract.

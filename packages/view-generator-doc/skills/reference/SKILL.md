@@ -10,10 +10,10 @@ braid:
     zh-Hant: 手冊
   summary: Write a container up as a document to look things up in
   hidden: true
-  required-env: [BRAID_WORKSPACE, BRAID_RUN_ID, BRAID_SHARED_REFERENCE]
+  required-env: [BRAID_WORKSPACE, BRAID_AUDIENCES, BRAID_OUTPUT_FORM, BRAID_SHARED_REFERENCE]
   output:
+    calls: [showSection, showAnswer, showEvidence, showMatrix, showDiagram, showSubgraph]
     required-calls: [showSection, showAnswer, showSubgraph, showEvidence]
-    max-retries: 1
 ---
 
 ## Role
@@ -34,9 +34,10 @@ Nothing in this file is addressed to the reader. These are your constraints, not
 
 ## Initialization
 
-1. `$ARGUMENTS` is a path, relative to `$BRAID_WORKSPACE`, to the material this container was projected into. Read it.
-2. Read `$BRAID_SHARED_REFERENCE/block-protocol.md` before the first render call. It carries the tool names, the provenance rule for every reference, and the typography every string you pass has to follow.
-3. That material file is the whole of what you know. Do not go looking for more.
+1. Read `$BRAID_SHARED_REFERENCE/run-environment.md` and take the workspace, the source roles, and the readers from it.
+2. `$ARGUMENTS` is a path, relative to `$BRAID_WORKSPACE`, to the material this container was projected into. Read it.
+3. Read `$BRAID_SHARED_REFERENCE/block-protocol.md` before the first render call. It carries the tool names, the provenance rule for every reference, and the typography every string you pass has to follow.
+4. That material file is the whole of what you know. Do not go looking for more.
 
 The material is shaped like this.
 
@@ -77,10 +78,6 @@ A `typeLabel` is either a plain string or a map of locale to string. Where it is
 5. Use `show_diagram` only where a flow or a state machine is the point and prose would flatten it.
 6. Close with `show_evidence` carrying the sources behind the document, each marked with its provenance as `block-protocol.md` describes.
 
-## Plain Text, Not Markup
-
-Every string you pass is text. Write `&` as `&`, never as `&amp;`, and the same for every other HTML entity. Nothing here is parsed as HTML, so an entity reaches the reader exactly as you typed it.
-
 ## Output
 
 An ordered sequence of blocks. There is no file to write and no markup to compose. The surface owns how every block looks.
@@ -91,17 +88,19 @@ None. The framework takes the blocks this run rendered and keeps them as the doc
 
 ## Completion Checklist
 
-- [ ] Every part of the material reached the screen as a render call.
-- [ ] No node description copied into prose that `show_subgraph` already draws.
+- [ ] Every part of the material reached the screen.
+- [ ] No node description copied into prose the surface already draws from the graph.
 - [ ] No path, code identifier, or type id anywhere in the prose.
 - [ ] No sentence announcing a node's status.
-- [ ] `show_evidence` closes the document.
+- [ ] The document closes on the sources it rests on.
 
 ## Companion Docs
 
-| Doc | When | What it carries |
+| File | When to Read | Why |
 |---|---|---|
-| `$BRAID_SHARED_REFERENCE/block-protocol.md` | Before the first render call | Tool names, audiences, grouping, provenance, and the typography rules. |
+| `$BRAID_SHARED_REFERENCE/run-environment.md` | Initialization | What the framework injected, and the rule that the injected lists are the whole vocabulary. |
+| `$BRAID_SHARED_REFERENCE/block-protocol.md` | Before the first render call | The rules across every call, how `$BRAID_AUDIENCES` works, the provenance rule, and what a rendering run owes. |
+| `$BRAID_SHARED_REFERENCE/calls/<call>.md` | Before your first use of that call | What that one call carries and the mistakes it invites. Read only the ones you were given. |
 | `$BRAID_SHARED_REFERENCE/reference-syntax.md` | When prose names a node | The `@node:<id>` grammar the surface renders as a live tag. |
 
 ## Notes

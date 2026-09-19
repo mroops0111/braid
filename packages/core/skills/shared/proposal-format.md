@@ -1,6 +1,6 @@
 # Proposal Format
 
-What a skill puts on the wire for the `braid-core` proposal-create capability that the MCP tool schema can't describe on its own. The envelope shape (`operations`, `generatedBy`, `rationale`, `externalReferences`) is in the MCP tool's `inputSchema` and not repeated here. What this doc covers:
+What a skill puts on the wire for the `braid-core` proposal-create capability that the MCP tool schema can't describe on its own. The envelope shape (`operations`, `rationale`, `externalReferences`) is in the MCP tool's `inputSchema` and not repeated here. Which skill filed it and who was running are read off the credential the call arrives with, so neither is yours to send. What this doc covers:
 
 - The 12 `GraphOperation` variants the gateway flattens to `dict[str, Any]` in MCP.
 - `NewGraphNode` / `NewGraphEdge` payload shapes (same reason).

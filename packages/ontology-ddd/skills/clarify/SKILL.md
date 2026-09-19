@@ -10,7 +10,7 @@ braid:
     zh-Hant: 釐清
   order: 200
   summary: Resolve answered clarifications into proposals
-  required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
+  required-env: [BRAID_WORKSPACE, BRAID_AUDIENCES, BRAID_OUTPUT_FORM, BRAID_UNATTENDED, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
   inputs:
     - name: clarification
       label: Clarification
@@ -21,6 +21,10 @@ braid:
         kind: clarify
         filter: { status: answered }
       fallback: disabled
+  output:
+    forms: [blocks, prose]
+    calls: [showTrace, showAnswer, showSubgraph]
+    required-calls: [showAnswer]
 ---
 
 ## Role
@@ -41,12 +45,11 @@ The reviewer's chosen candidate is the contract. You do not reinvent the answer.
 
 ## Initialization
 
-1. Read `$BRAID_WORKSPACE/PRODUCT.md` to confirm the workspace id and ontology id.
-2. Note `$BRAID_SHARED_REFERENCE` (framework contracts) and `$BRAID_ONTOLOGY_REFERENCE` (the active ontology). Companion docs (§ Companion Docs) live under those paths; concatenate when you Read them.
-3. Parse `$ARGUMENTS`:
+1. Read `$BRAID_SHARED_REFERENCE/run-environment.md` and take the workspace, the source roles, and the readers from it.
+2. Parse `$ARGUMENTS`:
+3. Fetch the current graph snapshot via `braid-core` once and cache it locally; subsequent sanity checks compare candidate ops against this snapshot without refetching per op.
    - A specific clarification id: process that one.
    - `all` or empty: use the `braid-core` clarification-list capability with `status: 'answered'` and iterate.
-4. Fetch the current graph snapshot via `braid-core` once and cache it locally; subsequent sanity checks compare candidate ops against this snapshot without refetching per op.
 
 ## Procedure
 
@@ -82,7 +85,6 @@ A "minor" supplementary op is one that preserves the reviewer's intent (their an
 Submit a Proposal via the `braid-core` proposal-create capability:
 
 - `operations`: the resolution (plus any Step-2 supplementary ops)
-- `generatedBy`: `"ddd:clarify"`
 - `clarificationId`: the id of the Clarification being resolved, so applying the Proposal later closes it.
 - `rationale`: `"Materialised from Clarification <id>, candidate <candidateId>."`
 
@@ -97,7 +99,7 @@ Outcomes:
 
 A Clarification that produced a Proposal stays `answered`. Applying that Proposal in Studio is what transitions the Clarification to `applied`, so do not close it here.
 
-Only when the chosen candidate had no graph impact (Step 3 was skipped, so no Proposal exists) do you close the Clarification directly. Use the `braid-core` clarification-apply capability with `status: 'applied'` and `userId: $BRAID_USER_ID`, and omit the proposal id. The server holds the state machine, never write to the `artifacts/clarifications/` directory directly.
+Only when the chosen candidate had no graph impact (Step 3 was skipped, so no Proposal exists) do you close the Clarification directly. Use the `braid-core` clarification-apply capability with `status: 'applied'`, and omit both the proposal id and the user. The server reads who you are from the credential this run carries, so naming a user yourself would be a guess where it already knows. The server holds the state machine, never write to the `artifacts/clarifications/` directory directly.
 
 Outcomes:
 
@@ -106,7 +108,36 @@ Outcomes:
 
 ## Output
 
-One line per clarification processed, plus a final summary.
+`$BRAID_OUTPUT_FORM` says which contract this run answers under.
+
+| Form | Read |
+|---|---|
+| `blocks` | `$BRAID_SHARED_REFERENCE/block-protocol.md`, plus `calls/` for each call you use |
+| anything else | `$BRAID_SHARED_REFERENCE/output-forms.md`, and render nothing |
+
+What this skill owes on top of that contract:
+
+- The proposal is the change. The blocks are the working behind it.
+- You are carrying out a decision somebody already made, so the working is narrow by design: which answer you were given, and what follows from it. Render less than a pass that went looking for something.
+- One set of blocks per clarification processed. A run handling four of them is four short pieces of working, not one merged account.
+- Leave `audiences` empty throughout. A proposal against the graph is read by whoever holds the gate.
+- Close with § Run Summary.
+
+| When | Call | Carries |
+|---|---|---|
+| Before proposing anything | `show_trace` | The clarification you read, the chosen candidate, and the nodes you checked it against. Skip it where nothing was answered and the run has only skips to report. |
+| For each clarification you materialise | `show_answer` | What the chosen answer means in the ubiquitous language, and why these operations follow from it rather than the ones the candidate sketched. Name the clarification id and the nodes as `@node:<id>`. |
+| When the operations land on nodes already in the graph | `show_subgraph` | The existing nodes they attach to, so a reviewer sees where a settled question put them. |
+
+### Why This Is Worth Rendering At All
+
+A candidate's `proposedOperations` are left empty when the question is raised, so the operations in your proposal were worked out here, against the graph as it stands now rather than as it stood when somebody asked. A reviewer applying them is trusting a derivation they never saw.
+
+That derivation is short, which is the point. One block saying what the answer meant and one showing where it lands is usually the whole of it. Rendering more is padding, and rendering none leaves a reviewer approving operations whose only justification is that a question was once answered.
+
+### Run Summary
+
+Your last message, one line per clarification processed plus a count:
 
 ```
 ct-2026-05-12-abc: proposal p-2026-05-12-def created (3 ops), awaiting reviewer apply
@@ -116,24 +147,24 @@ ct-2026-05-12-hard: escalated as new clarification ct-2026-05-12-zzz (resolution
 Processed N clarifications: M proposals produced, K new clarifications raised, L skipped.
 ```
 
+Where `$BRAID_OUTPUT_FORM` is not `blocks`, this is the summary `output-forms.md` refers to.
+
 ## Completion Checklist
 
 - [ ] Every `answered` Clarification has an outcome (Proposal submitted, new Clarification raised, or skipped with reason).
 - [ ] Each produced Proposal's `rationale` cites the source Clarification id + candidate id.
 - [ ] Each no-impact Clarification was closed to `applied` in Step 4. Each Clarification with a Proposal was left `answered` for the reviewer to apply.
-- [ ] Final stdout lists each clarification's outcome.
-
-## Referencing Nodes
-
-When any prose you write names a graph node, write it as the token `@node:<id>` instead of a bare id. Studio renders the token as a live tag carrying the node's name and description. This applies to your narration, to `clarification.context`, to `proposal.rationale`, and to `node.description`. It does not apply to `clarify.question` or `candidate.description`, whose audience rule is unchanged. Full grammar in `$BRAID_SHARED_REFERENCE/reference-syntax.md`.
+- [ ] The run summary lists each clarification's outcome.
 
 ## Companion Docs
 
-Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
-
 | File | When to Read | Why |
 |---|---|---|
-| `$BRAID_ONTOLOGY_REFERENCE/concept.md` | Before Step 2 | DDD wiring rules; needed when sanity-checking the reviewer's chosen ops against current invariants. |
+| `$BRAID_SHARED_REFERENCE/run-environment.md` | Initialization | What the framework injected, and the rule that the injected lists are the whole vocabulary. |
+| `$BRAID_SHARED_REFERENCE/output-forms.md` | When `$BRAID_OUTPUT_FORM` is not `blocks` | What to write when this run renders nothing, and how much of it. |
+| `$BRAID_SHARED_REFERENCE/block-protocol.md` | Before the first render call | The rules across every call, the provenance rule, and what a rendering run owes. |
+| `$BRAID_SHARED_REFERENCE/calls/<call>.md` | Before your first use of that call | What that one call carries and the mistakes it invites. Read only the ones you were given. |
+| `$BRAID_ONTOLOGY_REFERENCE/concept.md` | Before Step 2 | DDD wiring rules, needed when sanity-checking the reviewer's chosen ops against current invariants. |
 | `$BRAID_SHARED_REFERENCE/proposal-format.md` | Before Step 3 | `GraphOperation` variants, status semantics, sizing. |
 | `$BRAID_SHARED_REFERENCE/content-conventions.md` | If you author a new Clarification in Step 2 | Question / candidate-description / rationale conventions. |
 | `$BRAID_SHARED_REFERENCE/validators.md` | Before Step 3 | The four server-side validators; self-check supplementary ops here so they don't hit a 400 unnecessarily. |

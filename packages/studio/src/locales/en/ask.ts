@@ -40,6 +40,14 @@ export const ask = {
   view: {
     transcript: 'Transcript',
   },
+  // The form a run is asked to produce, chosen before it starts.
+  form: {
+    blocks: 'Interactive',
+    prose: 'Plain Text',
+    blocksHint: 'The answer as blocks you can open, easier to read, to follow, and to compare.',
+    proseHint: 'The answer written out. It still cites its sources, but as text you cannot open. Costs less.',
+    settled: 'A conversation keeps the form it started in.',
+  },
 }
 
 export default ask

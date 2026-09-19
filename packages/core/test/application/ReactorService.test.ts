@@ -50,7 +50,7 @@ function secondarySource(id: string): SourceDescriptor {
 }
 
 class FakeSkillRunner implements SkillRunner {
-  readonly startCalls: Array<{ skillId: SkillId, args: string, startedBy: UserId, callerToken?: string }> = []
+  readonly startCalls: Array<{ skillId: SkillId, args: string, startedBy: UserId, callerToken?: string, unattended?: boolean }> = []
   private readonly listeners = new Map<SkillRunId, SkillEventListener>()
   // When set, start() defers completion until flushOne fires it.
   controlled = false
@@ -62,9 +62,15 @@ class FakeSkillRunner implements SkillRunner {
     throw new Error('FakeSkillRunner does not emit blocks')
   }
 
-  async start(_workspace: unknown, skillId: SkillId, args: string, options: { startedBy: UserId, callerToken?: string }): Promise<SkillRunId> {
+  async start(_workspace: unknown, skillId: SkillId, args: string, options: { startedBy: UserId, callerToken?: string, unattended?: boolean }): Promise<SkillRunId> {
     const runId = `r-${this.startCalls.length}` as SkillRunId
-    this.startCalls.push({ skillId, args, startedBy: options.startedBy, ...(options.callerToken ? { callerToken: options.callerToken } : {}) })
+    this.startCalls.push({
+      skillId,
+      args,
+      startedBy: options.startedBy,
+      ...(options.callerToken ? { callerToken: options.callerToken } : {}),
+      ...(options.unattended !== undefined ? { unattended: options.unattended } : {}),
+    })
     const code = this.exitCodes.shift() ?? 0
     const fire = () => {
       const listener = this.listeners.get(runId)
@@ -271,6 +277,18 @@ describe('ReactorService', () => {
     // rather than leaving the author of an autonomous run unrecorded.
     expect(skillRunner.startCalls.length).toBeGreaterThan(0)
     expect(skillRunner.startCalls.every(call => call.startedBy === REACTOR_USER_ID)).toBe(true)
+  })
+
+  // A cycle runs off a timer, so nothing it dispatches has a reader.
+  // A question one of its runs raises waits for whoever next opens the graph,
+  // and its output is written for a log rather than drawn.
+  it('tells every dispatched run that nobody is watching', async () => {
+    const { workspace, eventBus, skillRunner } = await setup({ hasCheckpoint: true })
+    emitSync(eventBus, workspace.id, 'issues')
+    await tick(100)
+
+    expect(skillRunner.startCalls.length).toBeGreaterThan(0)
+    expect(skillRunner.startCalls.every(call => call.unattended === true)).toBe(true)
   })
 
   it('runs tokenless when no reactor token is provided', async () => {

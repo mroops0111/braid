@@ -7,8 +7,8 @@
  * naming `workspaceId` in its own `request.params`.
  * Use `WorkspaceIdParam` to keep the declaration consistent.
  */
-import type { SkillCategory } from '@braidhq/schema'
-import { BraidProblemJson, WorkspaceId } from '@braidhq/schema'
+import type { OutputForm, RenderCallName, SkillCategory } from '@braidhq/schema'
+import { BraidProblemJson, RENDER_CALL_CATEGORIES, WorkspaceId } from '@braidhq/schema'
 import { z } from '@hono/zod-openapi'
 
 export const WorkspaceIdParam = z.object({
@@ -81,7 +81,24 @@ export function mcpReadTool<T extends object>(
 export const RUN_CATEGORIES_KEY = 'x-braid-run-categories'
 
 /**
- * Narrow an operation to the kinds of run that have any business calling it.
+ * Which output forms an operation is offered to, on the same mechanism.
+ *
+ * A second axis rather than more values on the first,
+ * because it varies within a kind of run rather than across kinds.
+ * One skill renders blocks for a reader who asked to watch the answer assemble,
+ * and writes for the next reader who did not, or for the batch that has none,
+ * and only the render operations differ between those runs.
+ *
+ * Unmarked is visible to both, which is right for everything
+ * that is not a way of drawing on a surface.
+ */
+export const RUN_OUTPUT_FORMS_KEY = 'x-braid-run-output-forms'
+
+/**
+ * Narrow an operation to the runs that have any business calling it.
+ *
+ * `categories` is the kind of run, and `forms` the shape of its output,
+ * left off wherever the operation has nothing to do with how a run is drawn.
  *
  * A run's tools come from the spec its gateway is given,
  * so this is where the question belongs.
@@ -98,9 +115,29 @@ export const RUN_CATEGORIES_KEY = 'x-braid-run-categories'
  * A run still carries a credential the REST surface honours,
  * so making this a boundary rather than a curation is a change to the token.
  */
+/**
+ * Narrow a render operation to the runs that may draw with it.
+ *
+ * The call names itself and the categories come from the one table,
+ * so a route cannot drift from what a declaration is checked against.
+ * Every render operation is a `blocks` operation by definition,
+ * which is why the form is not a parameter here.
+ */
+export function forRenderCall<T extends object>(
+  route: T,
+  call: RenderCallName,
+): T & Record<typeof RUN_CATEGORIES_KEY, readonly SkillCategory[]> {
+  return forRuns(route, RENDER_CALL_CATEGORIES[call], ['blocks'])
+}
+
 export function forRuns<T extends object>(
   route: T,
   categories: readonly SkillCategory[],
+  forms?: readonly OutputForm[],
 ): T & Record<typeof RUN_CATEGORIES_KEY, readonly SkillCategory[]> {
-  return { ...route, [RUN_CATEGORIES_KEY]: categories } as T & Record<typeof RUN_CATEGORIES_KEY, readonly SkillCategory[]>
+  return {
+    ...route,
+    [RUN_CATEGORIES_KEY]: categories,
+    ...(forms ? { [RUN_OUTPUT_FORMS_KEY]: forms } : {}),
+  } as T & Record<typeof RUN_CATEGORIES_KEY, readonly SkillCategory[]>
 }

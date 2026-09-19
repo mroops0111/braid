@@ -8,6 +8,7 @@ import type {
   GraphOperation,
   ProposalCreate,
   ProposalId,
+  RunRecord,
   SkillRunId,
   SourceUnit,
   ValidationIssue,
@@ -91,14 +92,30 @@ export class HITLService {
    * and coverage would then rest on the model's account of itself,
    * rather than on what the server watched it do.
    */
-  private async scopeOfRun(workspaceId: WorkspaceId, skillRunId: SkillRunId | undefined): Promise<SourceUnit[]> {
-    const { runRepository, unitLister, sourceUnitDigest } = this.deps
-    if (!skillRunId || !runRepository || !unitLister || !sourceUnitDigest)
-      return []
+  /**
+   * What a run recorded about itself, and the workspace it ran in.
+   *
+   * Both are what a handoff is filled in from, so they are read together.
+   * A skill naming itself, or the documents it read,
+   * is a field it can get wrong on every call,
+   * while the record already holds the answer.
+   */
+  private async runBehind(
+    workspaceId: WorkspaceId,
+    skillRunId: SkillRunId | undefined,
+  ): Promise<{ workspace: Workspace, record: RunRecord } | undefined> {
+    if (!skillRunId || !this.deps.runRepository)
+      return undefined
     const workspace = await this.deps.workspaceService.findById(workspaceId)
-    const record = (await runRepository.listRecords(workspace)).find(item => item.runId === skillRunId)
-    if (!record)
+    const record = (await this.deps.runRepository.listRecords(workspace)).find(item => item.runId === skillRunId)
+    return record ? { workspace, record } : undefined
+  }
+
+  private async scopeOf(run: { workspace: Workspace, record: RunRecord } | undefined): Promise<SourceUnit[]> {
+    const { unitLister, sourceUnitDigest } = this.deps
+    if (!run || !unitLister || !sourceUnitDigest)
       return []
+    const { workspace, record } = run
     const named = sourceUnitsForRun(runScope(record), await unitLister(workspace))
     // Hashed here rather than read from the observation store,
     // which records what a completed run saw,
@@ -165,15 +182,19 @@ export class HITLService {
   async submitProposal(draft: ProposalCreate & { submitterId?: UserId }): Promise<Proposal> {
     await this.assertRunMaySubmit(draft.workspaceId, draft.skillRunId, proposalSubmission)
     await this.assertOperationsValid(draft.workspaceId, draft.operations)
+    const run = await this.runBehind(draft.workspaceId, draft.skillRunId)
+    const generatedBy = run?.record.skillId ?? draft.generatedBy
+    if (!generatedBy)
+      throw new ValidationError('A proposal must name the skill that produced it, or be filed by a run that does.')
     const generatedAt = this.deps.clock.now()
-    const sourceUnits = await this.scopeOfRun(draft.workspaceId, draft.skillRunId)
+    const sourceUnits = await this.scopeOf(run)
     const submitter = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
     const proposal = new Proposal({
       id: newProposalId(),
       workspaceId: draft.workspaceId,
       status: 'pending',
       operations: draft.operations,
-      generatedBy: draft.generatedBy,
+      generatedBy,
       generatedAt,
       rationale: draft.rationale,
       ...(draft.externalReferences ? { externalReferences: draft.externalReferences } : {}),
@@ -209,10 +230,13 @@ export class HITLService {
   async submitClarification(draft: ClarificationCreate & { submitterId?: UserId, skillRunId?: SkillRunId }): Promise<Clarification> {
     await this.assertRunMaySubmit(draft.workspaceId, draft.skillRunId, clarificationSubmission)
     const answerMode = await this.answerModeFor(draft.workspaceId, draft.skillRunId)
+    const generatedBy = (await this.runBehind(draft.workspaceId, draft.skillRunId))?.record.skillId
     const submitter = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
     const clarification = new Clarification({
       id: newClarificationId(),
       workspaceId: draft.workspaceId,
+      generatedAt: this.deps.clock.now(),
+      ...(generatedBy ? { generatedBy } : {}),
       question: draft.question,
       candidates: draft.candidates,
       status: 'pending',
@@ -340,7 +364,7 @@ export class HITLService {
     await this.assertOperationsValid(clarification.workspaceId, operations)
 
     return this.withLockedWorkspace(clarification.workspaceId, async (workspace) => {
-      const answered = clarification.markAnswered(candidateId, userId)
+      const answered = clarification.markAnswered(candidateId, userId, this.deps.clock.now())
       await this.deps.clarificationRepository.save(answered)
       await this.commitWorkspaceChange(workspace, {
         kind: 'clarification-answer',
@@ -416,7 +440,7 @@ export class HITLService {
   ): Promise<Clarification> {
     const clarification = await this.deps.clarificationRepository.load(clarificationId)
     return this.withLockedWorkspace(clarification.workspaceId, async (workspace) => {
-      const skipped = clarification.markSkipped(userId)
+      const skipped = clarification.markSkipped(userId, this.deps.clock.now())
       await this.deps.clarificationRepository.save(skipped)
       await this.commitWorkspaceChange(workspace, {
         kind: 'clarification-skip',
