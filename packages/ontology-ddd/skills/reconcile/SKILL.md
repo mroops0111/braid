@@ -10,11 +10,7 @@ braid:
     zh-Hant: 對齊
   order: 300
   summary: Cross-link sources and validate the graph globally
-  required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
-  output:
-    forms: [blocks, prose]
-    calls: [showTrace, showAnswer, showEvidence, showFinding, showSubgraph]
-    required-calls: [showTrace, showFinding]
+  required-env: [BRAID_WORKSPACE, BRAID_SOURCE_ROLES, BRAID_AUDIENCES, BRAID_OUTPUT_FORM, BRAID_UNATTENDED, BRAID_CHANGED_UNITS, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
   inputs:
     - name: mode
       label: Mode
@@ -40,6 +36,10 @@ braid:
         filter:
           types: [boundedContext]
       fallback: text
+  output:
+    forms: [blocks, prose]
+    calls: [showTrace, showAnswer, showEvidence, showFinding, showSubgraph]
+    required-calls: [showTrace, showFinding]
 ---
 
 ## Role
@@ -83,7 +83,7 @@ This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its 
 
 Build mode runs Steps 1-3 (graph mutations + cross-source drift), then Steps 4-6 (validation). `validate` mode skips to Step 4. Step 7 always emits the proposal; Step 8 emits any clarifications.
 
-### Step 1: Fix Wrong Edges Extract Emitted (build)
+### Step 1: Fix Wrong Edges Extract Emitted (`build`)
 
 Each extract run sees one slice. From the global view, some edges land on the wrong target. Walk the graph and flag:
 
@@ -97,13 +97,13 @@ Each extract run sees one slice. From the global view, some edges land on the wr
 | Command or query with no `performedBy` edge to any actor | For each command and query, check sibling commands on the same aggregate: if the aggregate's other operations have `performedBy` edges to a consistent actor set, propose the same wiring for the gap and add a one-line rationale. If sibling coverage is inconsistent or absent, raise a Clarification asking which actor performs the operation. Single-aggregate orphans without sibling coverage are the most common gap from per-slice extracts. |
 | Aggregate with commands but no events, or events with no source command / aggregate | Cross-check the source references on the aggregate. If sibling commands emit events of a consistent shape (e.g. `*Created`, `*Updated`, `*Deleted`) but one command is missing its event, raise a Clarification asking whether the missing event was intentionally omitted (intermediate state change with no domain significance) or simply not extracted. |
 
-### Step 2: Add Missing Containment (build)
+### Step 2: Add Missing Containment (`build`)
 
 For every aggregate without a `contains`-style edge from a context, decide its owning bounded context based on naming + cross-edges to peers. Create the missing edge in the proposal. If two contexts are plausible, raise a Clarification instead.
 
 Only aggregates carry `contains` from a BoundedContext. Commands / queries / events / rules already have their parent aggregate via `accepts` / `emits` / `constrainedBy`; never add a `contains` edge from BC to them.
 
-### Step 3: Add Bridge Edges + Cross-Source Drift (build)
+### Step 3: Add Bridge Edges and Cross-Source Drift (`build`)
 
 Add `triggers`, `dependsOn`, `policy` chains, and aggregate-wide `constrainedBy` edges per concept.md's wiring rules. Context Mapping edges (the 7 strategic relationships) are never auto-emitted; raise a Clarification.
 
@@ -134,7 +134,6 @@ For each node with a source `ref`, scan for known coverage gaps the ontology car
 Submit the Proposal via the `braid-core` proposal-create capability:
 
 - `operations`: the bridge / containment / DriftIssue / status-flip ops you derived in Steps 1 to 6.
-- `generatedBy`: `"ddd:reconcile"`.
 - `rationale`: `"global structure pass + validation: <one-line summary of bridges added, drift attached, content fills>"`.
 
 Operation names and payload shapes are in `$BRAID_SHARED_REFERENCE/proposal-format.md` (see § Companion Docs). Follow that file rather than freelancing JSON.

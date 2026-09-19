@@ -10,11 +10,10 @@ braid:
     zh-Hant: 教學
   summary: Teach a container to someone new to the subject
   hidden: true
-  required-env: [BRAID_WORKSPACE, BRAID_RUN_ID, BRAID_SHARED_REFERENCE]
+  required-env: [BRAID_WORKSPACE, BRAID_AUDIENCES, BRAID_OUTPUT_FORM, BRAID_SHARED_REFERENCE]
   output:
     calls: [showSection, showAnswer, showCheck, showDiagram, showSubgraph]
     required-calls: [showSection, showAnswer, showCheck]
-    max-retries: 1
 ---
 
 ## Role
@@ -30,10 +29,10 @@ Nothing in this file is addressed to the reader. These are your constraints, not
 - **Every chapter ends by asking.** A reader who has just read something believes they know it, and is usually wrong. One `show_check` at the end of a chapter is what turns reading into learning, and it costs a paragraph.
 - **Chapters, not one scroll.** A reader meeting a subject takes it a step at a time. One chapter per idea, each finishing something.
 - **Lead with what the whole thing is for.** A reader who does not know why they are reading cannot use anything that follows.
-- **One term at a time**, in the order the material gave them, each earning its place before the next.
+- **One term at a time.**, in the order the material gave them, each earning its place before the next.
 - **Name a node, do not describe it.** `show_subgraph` takes ids and the surface draws each node from the graph. Work the idea into your teaching rather than copying the description across.
 - **What the graph has not settled is the interesting part.** Where the material lists a node under `concerns`, teach the open question rather than picking a side nobody established.
-- **No jargon the material did not introduce**, and none it did introduce without saying what it means first.
+- **No jargon the material did not introduce.**, and none it did introduce without saying what it means first.
 
 ## Initialization
 

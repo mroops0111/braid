@@ -10,11 +10,7 @@ braid:
     zh-Hant: 萃取
   order: 100
   summary: Extract domain nodes/edges from PRDs and code
-  required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
-  output:
-    forms: [blocks, prose]
-    calls: [showTrace, showAnswer, showFinding, showDiagram, showSubgraph]
-    required-calls: [showTrace, showAnswer]
+  required-env: [BRAID_WORKSPACE, BRAID_SOURCE_ROLES, BRAID_AUDIENCES, BRAID_OUTPUT_FORM, BRAID_UNATTENDED, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
   inputs:
     - name: scope
       label: Intent
@@ -26,6 +22,10 @@ braid:
         filter:
           role: intent
       fallback: text
+  output:
+    forms: [blocks, prose]
+    calls: [showTrace, showAnswer, showFinding, showDiagram, showSubgraph]
+    required-calls: [showTrace, showAnswer]
 ---
 
 ## Role
@@ -122,7 +122,6 @@ A batch that applies its own output is exempt, and there both are wanted. See §
 Submit the Proposal via the `braid-core` proposal-create capability:
 
 - `operations`: the GraphOperation array you derived in Step 2.
-- `generatedBy`: `"ddd:extract"`.
 - `rationale`: one paragraph stating what was extracted, from which sources, and why this scope split.
 
 Outcomes: 201 means move on. 400 (`code: BRAID-VAL`) means fix the cited `issues[]` and resubmit, max 3 rounds; after that list remaining issues and stop. 409 (id collision) means mint a fresh id. 5xx means bail and report. `warning` issues don't block apply; mention them in `rationale` if intentional.

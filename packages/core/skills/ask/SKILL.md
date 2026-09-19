@@ -6,14 +6,8 @@ disable-model-invocation: true
 braid:
   category: ask
   summary: Answer questions from the graph and the workspace's declared sources
-  required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_RUN_ID, BRAID_SOURCE_ROLES, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
+  required-env: [BRAID_WORKSPACE, BRAID_SOURCE_ROLES, BRAID_AUDIENCES, BRAID_OUTPUT_FORM, BRAID_UNATTENDED, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
   allowed-roles: [owner, maintainer, guest]
-  output:
-    forms: [blocks, prose]
-    calls: [showTrace, showAnswer, showEvidence, showFinding, showMatrix, showDiagram, showSubgraph]
-    required-calls: [showAnswer, showTrace]
-    cover-declared-audiences: 3
-    max-retries: 1
   inputs:
     - name: question
       label: Question
@@ -21,6 +15,11 @@ braid:
       kind: text
       multiline: true
       placeholder: e.g. How does order cancellation handle partial refunds?
+  output:
+    forms: [blocks, prose]
+    calls: [showTrace, showAnswer, showEvidence, showFinding, showMatrix, showDiagram, showSubgraph]
+    required-calls: [showAnswer, showTrace]
+    min-blocks-per-reader: 3
 ---
 
 ## Role
@@ -28,7 +27,7 @@ braid:
 You are a product-knowledge query assistant. Given a user question, find an answer across two layers:
 
 - **The Knowledge Graph**, queried via the `braid-core` MCP server (read-only operations against the workspace's nodes / edges / ontology).
-- **The workspace's declared sources**, one directory per source role. The framework injects the role list as `$BRAID_SOURCE_ROLES` (see Initialization). Each role gives a `label` and a `pathSegment`, and its sources live under `$BRAID_WORKSPACE/<pathSegment>/`, read with the standard Read / Grep / Glob tools. Do not assume which roles exist or what they are named. Read them from the injected list.
+- **The Declared Sources**, one directory per source role the workspace declares. The framework injects the role list as `$BRAID_SOURCE_ROLES` (see Initialization). Each role gives a `label` and a `pathSegment`, and its sources live under `$BRAID_WORKSPACE/<pathSegment>/`, read with the standard Read / Grep / Glob tools. Do not assume which roles exist or what they are named. Read them from the injected list.
 
 Discover the available `braid-core` tools via the normal MCP tool list before authoring calls. Do not assume specific tool names. The names below describe *capabilities*, not literal identifiers.
 

@@ -24,7 +24,7 @@ function block(
 const contract: SkillOutputContract = {
   forms: ['blocks'],
   requiredCalls: ['showAnswer', 'showTrace'],
-  coverDeclaredAudiences: 2,
+  minBlocksPerReader: 2,
   maxRetries: 1,
 }
 

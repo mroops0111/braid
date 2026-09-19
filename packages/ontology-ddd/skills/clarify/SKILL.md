@@ -10,11 +10,7 @@ braid:
     zh-Hant: 釐清
   order: 200
   summary: Resolve answered clarifications into proposals
-  required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
-  output:
-    forms: [blocks, prose]
-    calls: [showTrace, showAnswer, showSubgraph]
-    required-calls: [showAnswer]
+  required-env: [BRAID_WORKSPACE, BRAID_AUDIENCES, BRAID_OUTPUT_FORM, BRAID_UNATTENDED, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
   inputs:
     - name: clarification
       label: Clarification
@@ -25,6 +21,10 @@ braid:
         kind: clarify
         filter: { status: answered }
       fallback: disabled
+  output:
+    forms: [blocks, prose]
+    calls: [showTrace, showAnswer, showSubgraph]
+    required-calls: [showAnswer]
 ---
 
 ## Role
@@ -85,7 +85,6 @@ A "minor" supplementary op is one that preserves the reviewer's intent (their an
 Submit a Proposal via the `braid-core` proposal-create capability:
 
 - `operations`: the resolution (plus any Step-2 supplementary ops)
-- `generatedBy`: `"ddd:clarify"`
 - `clarificationId`: the id of the Clarification being resolved, so applying the Proposal later closes it.
 - `rationale`: `"Materialised from Clarification <id>, candidate <candidateId>."`
 
@@ -100,7 +99,7 @@ Outcomes:
 
 A Clarification that produced a Proposal stays `answered`. Applying that Proposal in Studio is what transitions the Clarification to `applied`, so do not close it here.
 
-Only when the chosen candidate had no graph impact (Step 3 was skipped, so no Proposal exists) do you close the Clarification directly. Use the `braid-core` clarification-apply capability with `status: 'applied'` and `userId: $BRAID_USER_ID`, and omit the proposal id. The server holds the state machine, never write to the `artifacts/clarifications/` directory directly.
+Only when the chosen candidate had no graph impact (Step 3 was skipped, so no Proposal exists) do you close the Clarification directly. Use the `braid-core` clarification-apply capability with `status: 'applied'`, and omit both the proposal id and the user. The server reads who you are from the credential this run carries, so naming a user yourself would be a guess where it already knows. The server holds the state machine, never write to the `artifacts/clarifications/` directory directly.
 
 Outcomes:
 

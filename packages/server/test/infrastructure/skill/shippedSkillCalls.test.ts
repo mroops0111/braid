@@ -15,6 +15,9 @@ const SKILL_ROOTS = [
 ]
 
 interface ShippedSkill {
+  readonly requiredEnv: readonly string[]
+  /** Shared docs the prompt tells itself to read, by path. */
+  readonly reads: readonly string[]
   readonly name: string
   readonly origin: string
   readonly category: SkillCategory | undefined
@@ -41,6 +44,8 @@ async function readShippedSkills(): Promise<ShippedSkill[]> {
       const { frontmatter, body } = parseMarkdownFrontmatter<unknown>(raw)
       const parsed = SkillFrontmatter.parse(frontmatter)
       skills.push({
+        requiredEnv: parsed.braid.requiredEnv,
+        reads: [...raw.matchAll(/\$BRAID_SHARED_REFERENCE\/([\w./<>-]+\.md)/g)].map(match => match[1]!),
         name: entry.name,
         origin: root.split('/')[0]!,
         forms: parsed.braid.output?.forms ?? ['blocks'],
@@ -130,6 +135,57 @@ describe('every skill that can write instead of render', () => {
     for (const skill of await readShippedSkills()) {
       const routes = skill.body.includes('output-forms.md')
       expect({ skill: skill.name, routes }).toEqual({ skill: skill.name, routes: skill.forms.length > 1 })
+    }
+  })
+})
+
+// The glossary names every variable in order to explain it,
+// so reading it is not a dependency on any one of them.
+const GLOSSARY = 'run-environment.md'
+
+function variablesIn(text: string): Set<string> {
+  return new Set([...text.matchAll(/\$(BRAID_[A-Z_]+)/g)].map(match => match[1]!))
+}
+
+describe('every shipped skill declares the environment it reads', () => {
+  async function readWith(skill: ShippedSkill): Promise<Set<string>> {
+    const shared = join(PACKAGES, 'core/skills/shared')
+    const used = variablesIn(skill.body)
+    for (const rel of new Set(skill.reads)) {
+      if (rel === GLOSSARY)
+        continue
+      // One row stands for every call file, so widen it to the folder.
+      const paths = rel.includes('<')
+        ? (await readdir(join(shared, 'calls'))).map(file => join('calls', file))
+        : [rel]
+      for (const path of paths) {
+        try {
+          for (const name of variablesIn(await readFile(join(shared, path), 'utf-8')))
+            used.add(name)
+        }
+        catch { /* a row naming no file is the structure validator's business */ }
+      }
+    }
+    return used
+  }
+
+  // A prompt reading a variable nobody set fails halfway through,
+  // which is the failure a declaration exists to turn into a refusal.
+  it('declares every variable it or the docs it reads will use', async () => {
+    for (const skill of await readShippedSkills()) {
+      const used = [...await readWith(skill)].sort()
+      const undeclared = used.filter(name => !skill.requiredEnv.includes(name))
+      expect({ skill: skill.name, undeclared }).toEqual({ skill: skill.name, undeclared: [] })
+    }
+  })
+
+  // A declaration nothing reads is a claim on the environment that no run
+  // can justify, and it outlives whatever once made it true.
+  it('declares nothing it never reads', async () => {
+    for (const skill of await readShippedSkills()) {
+      const used = await readWith(skill)
+      const unused = skill.requiredEnv.filter(name => !used.has(name)).sort()
+      expect({ skill: skill.name, unused }).toEqual({ skill: skill.name, unused: [] })
     }
   })
 })

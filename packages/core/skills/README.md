@@ -61,6 +61,11 @@ The form and the calls are enforced rather than advised. A run that renders noth
 - **Checklists carry work, not protocol.** A checklist item naming a render call cannot be satisfied by a run that writes instead of renders. What each form owes lives with that form's contract.
 - **Read one call's file, not all ten.** `calls/` is per call so a run pays for what it draws with.
 - **One table shape everywhere.** `File | When to Read | Why`, with `$BRAID_` paths in the first column.
+- **Frontmatter reads in one order.** `category`, `label`, `order`, `summary`, `hidden`, `required-env`, `allowed-roles`, `inputs`, `output`. What a run takes in comes before what it gives back.
+- **Declare the environment you read.** `required-env` names every `$BRAID_` variable the prompt reads, including those a doc it opens tells it to read. `run-environment.md` is the exception: it names every variable in order to explain them, so reading it depends on none of them. A variable the framework injects unconditionally still gets declared, since the declaration says what this run needs rather than what the framework happens to provide.
+- **Never name the user.** Every write carries the run's own credential, so the server knows who acted. A prompt filling in a user id is guessing at something already settled, and guessing is not reproducible.
+- **Never restate a default.** `max-retries` defaults to 1, so declaring 1 says nothing and rots when the default moves.
+- **One casing per list.** A list of names takes Title Case throughout, a list of sentences takes sentence case and a full stop throughout. Mixing the two inside one list reads as a mistake.
 - **No em dash, en dash, or decorative arrow**, in any language. `block-protocol.md` § Prose In A Block carries the rest of the typography.
 
 ## Boundaries

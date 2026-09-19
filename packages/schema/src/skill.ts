@@ -329,14 +329,15 @@ export const SkillOutputContract = z.object({
   // Calls the run must have made at least once, a subset of `calls`.
   requiredCalls: z.array(RenderCallName).default([]),
   /**
-   * Blocks each audience the ontology declares must be able to see.
+   * Blocks each declared reader must be able to see, at least.
    *
-   * Named by count rather than by audience,
-   * so a builtin skill can require coverage,
-   * without knowing which readers a product splits on.
-   * A block with no audience counts toward every one of them.
+   * A block naming nobody is addressed to everyone, so it counts for each,
+   * which makes this a floor on the answer's size rather than a rule
+   * about addressing anyone in particular.
+   * Named by count rather than by reader, so a builtin skill can hold
+   * a floor without knowing which readers a product splits on.
    */
-  coverDeclaredAudiences: z.number().int().positive().optional(),
+  minBlocksPerReader: z.number().int().positive().optional(),
   // How many corrective retries the framework may spend before giving up.
   // One is usually enough, and a loop here burns a subscription.
   maxRetries: z.number().int().min(0).max(3).default(1),
