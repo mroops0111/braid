@@ -274,7 +274,10 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
       const dimmedByDiff = dimUnchanged && !change
       const dimmed = dimmedByFocus || dimmedByDiff
       const baseColor = palette.edgeColor(edge.data!.edge.type)
-      const stroke = selected || incident
+      // Fading the unselected helps a reader find the few edges that matter
+      // in a graph they did not choose. An embedded slice was chosen for
+      // them, so every edge in it already matters and none of it fades.
+      const stroke = selected || incident || embedded
         ? baseColor
         : withAlpha(baseColor, change === 'removed' ? EDGE_DIM_REMOVED : EDGE_DIM_DEFAULT)
       const strokeWidth = selected
