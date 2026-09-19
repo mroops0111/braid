@@ -9,6 +9,7 @@ import type {
   GraphOperation,
   ProposalId,
   SkillRunId,
+  Timestamp,
   UserId,
   WorkspaceId,
 } from '@braidhq/schema'
@@ -73,7 +74,7 @@ export class Clarification {
     })
   }
 
-  markAnswered(candidateId: ClarificationCandidateId, userId: UserId): Clarification {
+  markAnswered(candidateId: ClarificationCandidateId, userId: UserId, answeredAt: Timestamp): Clarification {
     this.requireStatus('pending')
     const operations = this.resolveCandidate(candidateId)
     return new Clarification({
@@ -81,6 +82,7 @@ export class Clarification {
       status: 'answered',
       selectedCandidateId: candidateId,
       answeredBy: userId,
+      answeredAt,
       resolution: [...operations],
     })
   }
@@ -110,12 +112,13 @@ export class Clarification {
     return new Clarification({ ...this.data, answerMode: 'standing' })
   }
 
-  markSkipped(userId: UserId): Clarification {
+  markSkipped(userId: UserId, answeredAt: Timestamp): Clarification {
     this.requireStatus('pending')
     return new Clarification({
       ...this.data,
       status: 'skipped',
       answeredBy: userId,
+      answeredAt,
     })
   }
 

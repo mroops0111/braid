@@ -87,7 +87,14 @@ export type Proposal = z.infer<typeof Proposal>
 export const ProposalCreate = z.object({
   workspaceId: WorkspaceId,
   operations: z.array(GraphOperation),
-  generatedBy: SkillId,
+  /**
+   * Which skill produced this, taken from the run that filed it.
+   *
+   * Optional on the way in because a running skill is identified by the
+   * credential it calls with, so the server already knows. A caller with no
+   * run has nothing to derive it from and must say.
+   */
+  generatedBy: SkillId.optional(),
   rationale: proposalRationale,
   externalReferences: z.array(ExternalReference).optional(),
   // Links the proposal back to the clarification it resolves, when any.

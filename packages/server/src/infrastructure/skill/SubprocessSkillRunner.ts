@@ -272,10 +272,6 @@ export class SubprocessSkillRunner implements SkillRunner {
       env: {
         ...invocation.env,
         BRAID_SESSION_DIR: sessionDir,
-        // The run a render call posts back to.
-        // Without it a skill reaches the render tools,
-        // but cannot name which run they belong to.
-        BRAID_RUN_ID: runId,
         // The active ontology's declared source roles, as JSON.
         // A generic prompt reads this instead of naming role ids.
         ...this.sourceRolesEnv(workspace),

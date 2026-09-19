@@ -1,8 +1,10 @@
 import type { ModelRepository, SkillRunner, WorkspaceRepository } from '@braidhq/core'
-import type { BlockKind, EmittedBlock, RenderBlock, WorkspaceId } from '@braidhq/schema'
+import type { BlockKind, EmittedBlock, RenderBlock, SkillRunId as SkillRunIdType, WorkspaceId } from '@braidhq/schema'
+import type { Context } from 'hono'
 import { evidenceSupport, graphCitations, NotFoundError, ValidationError } from '@braidhq/core'
-import { BlockId, CHOICE_NEEDS_ANSWER, EvidenceSupport, namesItsAnswer, ShowAnswer, ShowCheckFields, ShowCustom, ShowDiagram, ShowEvidence, ShowFinding, ShowMatrix, ShowSection, ShowSubgraph, ShowTrace, SkillRunId } from '@braidhq/schema'
+import { BlockId, CHOICE_NEEDS_ANSWER, EvidenceSupport, namesItsAnswer, ShowAnswer, ShowCheckFields, ShowCustom, ShowDiagram, ShowEvidence, ShowFinding, ShowMatrix, ShowSection, ShowSubgraph, ShowTrace } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
+import { getSkillRunId } from '../middleware/auth.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { forRenderCall, NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
@@ -29,10 +31,6 @@ export interface BlocksRouterDeps {
    */
   readonly blockKindSchema?: (kind: BlockKind) => z.ZodTypeAny | undefined
 }
-
-const RunIdParam = WorkspaceIdParam.extend({
-  runId: SkillRunId.openapi({ param: { name: 'runId', in: 'path' } }),
-})
 
 /**
  * What the call produced, and nothing the caller already knows.
@@ -81,12 +79,12 @@ const renderResponses = {
 
 const showAnswerRoute = createRoute(forRenderCall({
   method: 'post',
-  path: '/{runId}/blocks/answer',
+  path: '/blocks/answer',
   operationId: 'showAnswer',
   summary: 'Render a passage of the answer. Use `@node:<id>` where prose names a graph node.',
   tags: ['render'],
   request: {
-    params: RunIdParam,
+    params: WorkspaceIdParam,
     body: { content: { 'application/json': { schema: ShowAnswerBody } }, required: true },
   },
   responses: renderResponses,
@@ -94,12 +92,12 @@ const showAnswerRoute = createRoute(forRenderCall({
 
 const showEvidenceRoute = createRoute(forRenderCall({
   method: 'post',
-  path: '/{runId}/blocks/evidence',
+  path: '/blocks/evidence',
   operationId: 'showEvidence',
   summary: 'Render the sources behind a claim, each marked as read from the graph or opened by this run.',
   tags: ['render'],
   request: {
-    params: RunIdParam,
+    params: WorkspaceIdParam,
     body: { content: { 'application/json': { schema: ShowEvidenceBody } }, required: true },
   },
   responses: renderResponses,
@@ -107,12 +105,12 @@ const showEvidenceRoute = createRoute(forRenderCall({
 
 const showFindingRoute = createRoute(forRenderCall({
   method: 'post',
-  path: '/{runId}/blocks/finding',
+  path: '/blocks/finding',
   operationId: 'showFinding',
   summary: 'Render one consistency statement, with the two or more sides that disagree or agree.',
   tags: ['render'],
   request: {
-    params: RunIdParam,
+    params: WorkspaceIdParam,
     body: { content: { 'application/json': { schema: ShowFindingBody } }, required: true },
   },
   responses: renderResponses,
@@ -120,12 +118,12 @@ const showFindingRoute = createRoute(forRenderCall({
 
 const showMatrixRoute = createRoute(forRenderCall({
   method: 'post',
-  path: '/{runId}/blocks/matrix',
+  path: '/blocks/matrix',
   operationId: 'showMatrix',
   summary: 'Render two axes crossing, each cell a state with its own evidence. Both axes are yours to choose.',
   tags: ['render'],
   request: {
-    params: RunIdParam,
+    params: WorkspaceIdParam,
     body: { content: { 'application/json': { schema: ShowMatrixBody } }, required: true },
   },
   responses: renderResponses,
@@ -133,12 +131,12 @@ const showMatrixRoute = createRoute(forRenderCall({
 
 const showTraceRoute = createRoute(forRenderCall({
   method: 'post',
-  path: '/{runId}/blocks/trace',
+  path: '/blocks/trace',
   operationId: 'showTrace',
   summary: 'Render what this run searched, read, cited, and deliberately left out.',
   tags: ['render'],
   request: {
-    params: RunIdParam,
+    params: WorkspaceIdParam,
     body: { content: { 'application/json': { schema: ShowTraceBody } }, required: true },
   },
   responses: renderResponses,
@@ -146,12 +144,12 @@ const showTraceRoute = createRoute(forRenderCall({
 
 const showDiagramRoute = createRoute(forRenderCall({
   method: 'post',
-  path: '/{runId}/blocks/diagram',
+  path: '/blocks/diagram',
   operationId: 'showDiagram',
   summary: 'Render a mermaid diagram, for a flow or a state machine a table would flatten.',
   tags: ['render'],
   request: {
-    params: RunIdParam,
+    params: WorkspaceIdParam,
     body: { content: { 'application/json': { schema: ShowDiagramBody } }, required: true },
   },
   responses: renderResponses,
@@ -159,12 +157,12 @@ const showDiagramRoute = createRoute(forRenderCall({
 
 const showSubgraphRoute = createRoute(forRenderCall({
   method: 'post',
-  path: '/{runId}/blocks/subgraph',
+  path: '/blocks/subgraph',
   operationId: 'showSubgraph',
   summary: 'Render the slice of the graph this answer stands on, as node ids and the edges between them.',
   tags: ['render'],
   request: {
-    params: RunIdParam,
+    params: WorkspaceIdParam,
     body: { content: { 'application/json': { schema: ShowSubgraphBody } }, required: true },
   },
   responses: renderResponses,
@@ -172,12 +170,12 @@ const showSubgraphRoute = createRoute(forRenderCall({
 
 const showSectionRoute = createRoute(forRenderCall({
   method: 'post',
-  path: '/{runId}/blocks/section',
+  path: '/blocks/section',
   operationId: 'showSection',
   summary: 'Open a part of the document, naming what it is about. Call this before the prose under it.',
   tags: ['render'],
   request: {
-    params: RunIdParam,
+    params: WorkspaceIdParam,
     body: { content: { 'application/json': { schema: ShowSectionBody } }, required: true },
   },
   responses: renderResponses,
@@ -185,12 +183,12 @@ const showSectionRoute = createRoute(forRenderCall({
 
 const showCheckRoute = createRoute(forRenderCall({
   method: 'post',
-  path: '/{runId}/blocks/check',
+  path: '/blocks/check',
   operationId: 'showCheck',
   summary: 'Ask the reader one question about what they just read, with the answer held back until they commit.',
   tags: ['render'],
   request: {
-    params: RunIdParam,
+    params: WorkspaceIdParam,
     body: { content: { 'application/json': { schema: ShowCheckBody } }, required: true },
   },
   responses: renderResponses,
@@ -198,12 +196,12 @@ const showCheckRoute = createRoute(forRenderCall({
 
 const showCustomRoute = createRoute(forRenderCall({
   method: 'post',
-  path: '/{runId}/blocks/custom',
+  path: '/blocks/custom',
   operationId: 'showCustom',
   summary: 'Render a block shape your own plugin declares, which Braid stores and your own surface draws.',
   tags: ['render'],
   request: {
-    params: RunIdParam,
+    params: WorkspaceIdParam,
     body: { content: { 'application/json': { schema: ShowCustomBody } }, required: true },
   },
   responses: renderResponses,
@@ -251,31 +249,45 @@ export function createBlocksRouter(deps: BlocksRouterDeps): OpenAPIHono {
     )
   }
 
+  /**
+   * The run this call belongs to, taken from the credential it arrived with.
+   *
+   * A run is identified by what it carries, the same way a proposal's author
+   * is, so naming one in the path let a run draw into another and gave the
+   * model a parameter to get wrong on every call.
+   */
+  function requireRun(context: Context): SkillRunIdType {
+    const runId = getSkillRunId(context)
+    if (!runId)
+      throw new ValidationError('Only a running skill can render a block, and this request carries no run.')
+    return runId
+  }
+
   async function record(
     workspaceId: ReturnType<typeof getWorkspaceId>,
-    runId: string,
+    runId: SkillRunIdType,
     block: RenderBlock,
   ): Promise<EmittedBlock['id']> {
     const workspace = await loadWorkspaceById(workspaceId, deps.workspaceRepository)
     await checkCitations(workspace.id, block)
-    const { id } = await deps.skillRunner.emitBlock(SkillRunId.parse(runId), block)
+    const { id } = await deps.skillRunner.emitBlock(runId, block)
     return id
   }
 
   router.openapi(showSectionRoute, async (context) => {
-    const { runId } = context.req.valid('param')
+    const runId = requireRun(context)
     const blockId = await record(getWorkspaceId(context), runId, { call: 'showSection', ...context.req.valid('json') })
     return context.json({ blockId }, 201)
   })
 
   router.openapi(showCheckRoute, async (context) => {
-    const { runId } = context.req.valid('param')
+    const runId = requireRun(context)
     const blockId = await record(getWorkspaceId(context), runId, { call: 'showCheck', ...context.req.valid('json') })
     return context.json({ blockId }, 201)
   })
 
   router.openapi(showCustomRoute, async (context) => {
-    const { runId } = context.req.valid('param')
+    const runId = requireRun(context)
     const custom = context.req.valid('json')
     const schema = deps.blockKindSchema?.(custom.kind)
     // Refused rather than stored,
@@ -291,19 +303,19 @@ export function createBlocksRouter(deps: BlocksRouterDeps): OpenAPIHono {
   })
 
   router.openapi(showAnswerRoute, async (context) => {
-    const { runId } = context.req.valid('param')
+    const runId = requireRun(context)
     const blockId = await record(getWorkspaceId(context), runId, { call: 'showAnswer', ...context.req.valid('json') })
     return context.json({ blockId }, 201)
   })
 
   router.openapi(showEvidenceRoute, async (context) => {
-    const { runId } = context.req.valid('param')
+    const runId = requireRun(context)
     const blockId = await record(getWorkspaceId(context), runId, { call: 'showEvidence', ...context.req.valid('json') })
     return context.json({ blockId }, 201)
   })
 
   router.openapi(showFindingRoute, async (context) => {
-    const { runId } = context.req.valid('param')
+    const runId = requireRun(context)
     const finding = context.req.valid('json')
     const support = evidenceSupport(finding.sides)
     const blockId = await record(getWorkspaceId(context), runId, { call: 'showFinding', ...finding, support })
@@ -311,25 +323,25 @@ export function createBlocksRouter(deps: BlocksRouterDeps): OpenAPIHono {
   })
 
   router.openapi(showMatrixRoute, async (context) => {
-    const { runId } = context.req.valid('param')
+    const runId = requireRun(context)
     const blockId = await record(getWorkspaceId(context), runId, { call: 'showMatrix', ...context.req.valid('json') })
     return context.json({ blockId }, 201)
   })
 
   router.openapi(showTraceRoute, async (context) => {
-    const { runId } = context.req.valid('param')
+    const runId = requireRun(context)
     const blockId = await record(getWorkspaceId(context), runId, { call: 'showTrace', ...context.req.valid('json') })
     return context.json({ blockId }, 201)
   })
 
   router.openapi(showDiagramRoute, async (context) => {
-    const { runId } = context.req.valid('param')
+    const runId = requireRun(context)
     const blockId = await record(getWorkspaceId(context), runId, { call: 'showDiagram', ...context.req.valid('json') })
     return context.json({ blockId }, 201)
   })
 
   router.openapi(showSubgraphRoute, async (context) => {
-    const { runId } = context.req.valid('param')
+    const runId = requireRun(context)
     const blockId = await record(getWorkspaceId(context), runId, { call: 'showSubgraph', ...context.req.valid('json') })
     return context.json({ blockId }, 201)
   })

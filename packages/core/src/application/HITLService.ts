@@ -8,6 +8,7 @@ import type {
   GraphOperation,
   ProposalCreate,
   ProposalId,
+  SkillId,
   SkillRunId,
   SourceUnit,
   ValidationIssue,
@@ -91,6 +92,20 @@ export class HITLService {
    * and coverage would then rest on the model's account of itself,
    * rather than on what the server watched it do.
    */
+  /**
+   * Which skill a run belongs to, so a handoff names it without being told.
+   *
+   * A skill naming itself is a field it can get wrong on every call,
+   * and the run record already holds the answer.
+   */
+  private async skillOfRun(workspaceId: WorkspaceId, skillRunId: SkillRunId | undefined): Promise<SkillId | undefined> {
+    if (!skillRunId || !this.deps.runRepository)
+      return undefined
+    const workspace = await this.deps.workspaceService.findById(workspaceId)
+    const records = await this.deps.runRepository.listRecords(workspace)
+    return records.find(record => record.runId === skillRunId)?.skillId
+  }
+
   private async scopeOfRun(workspaceId: WorkspaceId, skillRunId: SkillRunId | undefined): Promise<SourceUnit[]> {
     const { runRepository, unitLister, sourceUnitDigest } = this.deps
     if (!skillRunId || !runRepository || !unitLister || !sourceUnitDigest)
@@ -165,6 +180,9 @@ export class HITLService {
   async submitProposal(draft: ProposalCreate & { submitterId?: UserId }): Promise<Proposal> {
     await this.assertRunMaySubmit(draft.workspaceId, draft.skillRunId, proposalSubmission)
     await this.assertOperationsValid(draft.workspaceId, draft.operations)
+    const generatedBy = await this.skillOfRun(draft.workspaceId, draft.skillRunId) ?? draft.generatedBy
+    if (!generatedBy)
+      throw new ValidationError('A proposal must name the skill that produced it, or be filed by a run that does.')
     const generatedAt = this.deps.clock.now()
     const sourceUnits = await this.scopeOfRun(draft.workspaceId, draft.skillRunId)
     const submitter = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
@@ -173,7 +191,7 @@ export class HITLService {
       workspaceId: draft.workspaceId,
       status: 'pending',
       operations: draft.operations,
-      generatedBy: draft.generatedBy,
+      generatedBy,
       generatedAt,
       rationale: draft.rationale,
       ...(draft.externalReferences ? { externalReferences: draft.externalReferences } : {}),
@@ -209,10 +227,13 @@ export class HITLService {
   async submitClarification(draft: ClarificationCreate & { submitterId?: UserId, skillRunId?: SkillRunId }): Promise<Clarification> {
     await this.assertRunMaySubmit(draft.workspaceId, draft.skillRunId, clarificationSubmission)
     const answerMode = await this.answerModeFor(draft.workspaceId, draft.skillRunId)
+    const generatedBy = await this.skillOfRun(draft.workspaceId, draft.skillRunId)
     const submitter = draft.submitterId ? await this.userDirectory.resolve(draft.submitterId) : null
     const clarification = new Clarification({
       id: newClarificationId(),
       workspaceId: draft.workspaceId,
+      generatedAt: this.deps.clock.now(),
+      ...(generatedBy ? { generatedBy } : {}),
       question: draft.question,
       candidates: draft.candidates,
       status: 'pending',
@@ -340,7 +361,7 @@ export class HITLService {
     await this.assertOperationsValid(clarification.workspaceId, operations)
 
     return this.withLockedWorkspace(clarification.workspaceId, async (workspace) => {
-      const answered = clarification.markAnswered(candidateId, userId)
+      const answered = clarification.markAnswered(candidateId, userId, this.deps.clock.now())
       await this.deps.clarificationRepository.save(answered)
       await this.commitWorkspaceChange(workspace, {
         kind: 'clarification-answer',
@@ -416,7 +437,7 @@ export class HITLService {
   ): Promise<Clarification> {
     const clarification = await this.deps.clarificationRepository.load(clarificationId)
     return this.withLockedWorkspace(clarification.workspaceId, async (workspace) => {
-      const skipped = clarification.markSkipped(userId)
+      const skipped = clarification.markSkipped(userId, this.deps.clock.now())
       await this.deps.clarificationRepository.save(skipped)
       await this.commitWorkspaceChange(workspace, {
         kind: 'clarification-skip',

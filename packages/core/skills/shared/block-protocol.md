@@ -2,7 +2,7 @@
 
 How a skill puts structure on the screen. Instead of writing one document and hoping a reader finds the part addressed to them, a skill calls a render tool per piece of its output. Each call is an ordered block on the surface that shows the run.
 
-These are `braid-core` tools like any other. They take the run they belong to, which the framework injects as `$BRAID_RUN_ID`, and they return an acknowledgement, nothing you need to read. The gateway names them in snake case, so a call named `showAnswer` here reaches you as `show_answer`.
+These are `braid-core` tools like any other. They know which run they belong to from the credential this run carries, so there is no run to name, and they return an acknowledgement, nothing you need to read. The gateway names them in snake case, so a call named `showAnswer` here reaches you as `show_answer`.
 
 This document assumes `$BRAID_OUTPUT_FORM` is `blocks`. Any other value means this run renders nothing, and `output-forms.md` rather than this file says what it owes.
 
