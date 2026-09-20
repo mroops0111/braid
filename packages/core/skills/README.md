@@ -17,12 +17,16 @@ skills/
 ├── README.md                  this file
 ├── <verb>/SKILL.md            one skill, one directory
 └── shared/
-    ├── run-environment.md     what the framework injects
-    ├── prose-protocol.md        what a run that renders nothing owes
-    ├── block-protocol.md      what a run that renders owes, across every call
-    ├── calls/<call>.md        one file per render call
-    └── *.md                   formats and conventions, read as needed
+    ├── run-environment.md    what the framework injects
+    ├── block-protocol.md     the contract for a run that renders
+    ├── prose-protocol.md     the contract for a run that writes
+    ├── calls/<call>.md       one file per render call
+    └── *.md                  formats and conventions, read as needed
 ```
+
+A shared file is named `<subject>-<aspect>`, and its H1 is that name in Title
+Case. Two sides of one contract take the same aspect, which is why the two
+protocols read as a pair.
 
 Ontology packages hold their own skills under the same layout, plus a `$BRAID_ONTOLOGY_REFERENCE` of their own.
 
@@ -35,6 +39,9 @@ Sections appear in this order. The structure validator requires the seven common
 - **`## Initialization`**: reads `run-environment.md`, then whatever else this skill needs before it starts.
 - **`## Procedure`**: the steps. This is the skill, and the least shareable part of it.
 - **`## Output`**: a router by form, then what this skill owes on top of that contract, then `### Run Summary`.
+  A run summary is the run's last message, not a second channel. The agent's
+  stdout is the event stream the framework parses, so a line written outside
+  it is discarded without a word.
 - **`## Completion Checklist`**: what is true of the work, whatever form carried it. Never a render call by name.
 - **`## Companion Docs`**: a table of `File | When to Read | Why`. The `When` is a condition or a step, not a vague time.
 - **`## Notes`**: the `EXTEND.md` hook and anything left over.
@@ -53,6 +60,18 @@ Nothing in a prompt should restate something one of these already settles.
 
 The form and the calls are enforced rather than advised. A run that renders nothing is handed no render operation, and a call a skill did not declare is absent from its tool list, so a prompt naming one describes a tool that does not exist.
 
+**The branch is taken once.** A skill's `## Output` chooses which contract this run answers under, in the one section always loaded. A contract says only what it is the contract for, and does not know the other exists. Written the other way, a reader meets the routing more often than the rule.
+
+## What The Server Already Knows
+
+A run carries a credential, and the credential says which run it is and who started it. Everything derivable from that is the server's to fill in, never the prompt's to supply.
+
+- The run a render call belongs to. Naming it in a request let one run draw into another, and gave the model a parameter to get wrong on every call.
+- Which skill filed a proposal or raised a clarification. It is a fact about the run, and the run record holds it.
+- Who acted. A prompt filling in a user id is guessing at something already settled.
+
+The test is whether two runs of the same prompt could disagree. Where the server can answer, they must not be allowed to.
+
 ## Rules
 
 - **No framework mechanism in a skill.** If two skills would write the same paragraph, it belongs in `shared/`.
@@ -63,8 +82,10 @@ The form and the calls are enforced rather than advised. A run that renders noth
 - **One table shape everywhere.** `File | When to Read | Why`, with `$BRAID_` paths in the first column.
 - **Frontmatter reads in one order.** `category`, `label`, `order`, `summary`, `hidden`, `required-env`, `allowed-roles`, `inputs`, `output`. What a run takes in comes before what it gives back.
 - **Declare the environment you read.** `required-env` names every `$BRAID_` variable the prompt reads, including those a doc it opens tells it to read. `run-environment.md` is the exception: it names every variable in order to explain them, so reading it depends on none of them. A variable the framework injects unconditionally still gets declared, since the declaration says what this run needs rather than what the framework happens to provide.
-- **Never name the user.** Every write carries the run's own credential, so the server knows who acted. A prompt filling in a user id is guessing at something already settled, and guessing is not reproducible.
 - **Never restate a default.** `max-retries` defaults to 1, so declaring 1 says nothing and rots when the default moves.
+
+## Writing Rules
+
 - **One casing per list.** A list of names takes Title Case throughout, a list of sentences takes sentence case and a full stop throughout. Mixing the two inside one list reads as a mistake.
 - **No em dash, en dash, or decorative arrow**, in any language. `block-protocol.md` § Prose In A Block carries the rest of the typography.
 
