@@ -175,7 +175,7 @@ describe('every skill that can write instead of render', () => {
   // The branch is only reachable where a skill has more than one form.
   it('points at the writing contract when it declares more than one form', async () => {
     for (const skill of await readShippedSkills()) {
-      const routes = skill.body.includes('output-forms.md')
+      const routes = skill.body.includes('prose-protocol.md')
       expect({ skill: skill.name, routes }).toEqual({ skill: skill.name, routes: skill.forms.length > 1 })
     }
   })

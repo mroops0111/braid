@@ -1,4 +1,4 @@
-# Server-Side Validators
+# Validator Rules
 
 The server runs four validators on every proposal submission (and on Apply). If any reports a `severity: 'error'` issue, the call returns `400` with a `code: BRAID-VAL` body and an `issues[]` array naming each violation. `warning` issues don't block apply but do appear on the proposal review pane.
 

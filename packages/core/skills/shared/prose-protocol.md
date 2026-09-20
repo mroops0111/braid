@@ -1,16 +1,10 @@
-# Output Forms
+# Prose Protocol
 
-What a run produces for a person, and how to tell which one this run owes.
-
-`$BRAID_OUTPUT_FORM` names it, settled before you started. `blocks` means you render, and `block-protocol.md` is the contract for that. Read this file only when it says anything else.
-
-## Nothing Here Renders
+How a skill answers in words rather than on a surface. This is the whole contract for that, and the only one such a run reads.
 
 The render operations were left out of the spec your gateway was given. They are absent by design, not missing. Do not go looking for them, and do not search your tools for a name you remember: nothing you do here will turn one up, and every search spends a call to learn what this sentence already told you.
 
-Do not open `block-protocol.md` or anything under `calls/` either. They describe calls you do not have.
-
-Whatever you were producing besides the rendering, a proposal or a clarification, is unaffected by the form and still owed in full.
+Whatever you were producing besides the rendering, a proposal or a clarification, is unaffected and still owed in full.
 
 ## How Much To Write
 

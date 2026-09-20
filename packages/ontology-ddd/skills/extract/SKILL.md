@@ -141,7 +141,7 @@ Before writing the `question` and each `candidate.description`, re-read `$BRAID_
 | Form | Read |
 |---|---|
 | `blocks` | `$BRAID_SHARED_REFERENCE/block-protocol.md`, plus `calls/` for each call you use |
-| anything else | `$BRAID_SHARED_REFERENCE/output-forms.md`, and render nothing |
+| anything else | `$BRAID_SHARED_REFERENCE/prose-protocol.md`, and render nothing |
 
 What this skill owes on top of that contract:
 
@@ -177,7 +177,7 @@ Produced N proposals + M clarifications:
   - ct-2026-05-12-xyz (question: cancelOrder vs revokeOrder)
 ```
 
-Where `$BRAID_OUTPUT_FORM` is not `blocks`, this is the summary `output-forms.md` refers to.
+Where `$BRAID_OUTPUT_FORM` is not `blocks`, this is the summary `prose-protocol.md` refers to.
 
 ## Completion Checklist
 
@@ -197,12 +197,12 @@ Where `$BRAID_OUTPUT_FORM` is not `blocks`, this is the summary `output-forms.md
 | `$BRAID_ONTOLOGY_REFERENCE/concept.md` | **Before Step 2 and any time you author a node / edge** | The DDD vocabulary, wiring rules, policy pattern, Context Mapping rules, ID prefix conventions, and per-type description aspects. The contract for everything Step 2 does. |
 | `$BRAID_SHARED_REFERENCE/proposal-format.md` | Before Step 4 | `GraphOperation` discriminated union, `DriftIssue` shape, status semantics, sizing. |
 | `$BRAID_SHARED_REFERENCE/run-environment.md` | Initialization | What the framework injected, and the rule that the injected lists are the whole vocabulary. |
-| `$BRAID_SHARED_REFERENCE/output-forms.md` | When `$BRAID_OUTPUT_FORM` is not `blocks` | What to write when this run renders nothing, and how much of it. |
+| `$BRAID_SHARED_REFERENCE/prose-protocol.md` | When `$BRAID_OUTPUT_FORM` is not `blocks` | What to write when this run renders nothing, and how much of it. |
 | `$BRAID_SHARED_REFERENCE/block-protocol.md` | Before the first render call | The rules across every call, the provenance rule, and what a rendering run owes. |
 | `$BRAID_SHARED_REFERENCE/calls/<call>.md` | Before your first use of that call | What that one call carries and the mistakes it invites. Read only the ones you were given. |
 | `$BRAID_SHARED_REFERENCE/clarification-format.md` | Before Step 5 | `Clarification` request body and candidate shape. |
 | `$BRAID_SHARED_REFERENCE/content-conventions.md` | Whenever writing a `name`, `description`, `rationale`, or `question` | Plain-text rule, length caps, structural conventions for every user-facing string field. |
-| `$BRAID_SHARED_REFERENCE/validators.md` | Before Step 4 | The four server-side validators; self-check ops here so they don't hit a 400 unnecessarily. |
+| `$BRAID_SHARED_REFERENCE/validator-rules.md` | Before Step 4 | The four server-side validators; self-check ops here so they don't hit a 400 unnecessarily. |
 | `$BRAID_SHARED_REFERENCE/drift-detection.md` | Step 3, when two sources disagree on a field | The framework `DriftIssue` contract, description pattern, severity rules, JSON shape. |
 | `$BRAID_ONTOLOGY_REFERENCE/concept.md` § Drift Dimensions | Step 3, alongside `drift-detection.md` | The dimensions DDD checks, with a worked example finding for each. |
 | `$BRAID_SHARED_REFERENCE/reference-syntax.md` | Whenever prose names a node | Token grammar for node references, and which fields accept them. |

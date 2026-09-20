@@ -75,7 +75,7 @@ Compare the sources against each other on the dimensions relevant to the questio
 | Form | Read |
 |---|---|
 | `blocks` | `$BRAID_SHARED_REFERENCE/block-protocol.md`, plus `calls/` for each call you use |
-| anything else | `$BRAID_SHARED_REFERENCE/output-forms.md`, and render nothing |
+| anything else | `$BRAID_SHARED_REFERENCE/prose-protocol.md`, and render nothing |
 
 What this skill owes on top of that contract:
 
@@ -97,7 +97,7 @@ Consistency: {N dimensions checked, M drifted}.
 
 It lands in the run's transcript, which is where somebody looks to see what this run did. The answer is already on the page, so do not restate it here.
 
-Where `$BRAID_OUTPUT_FORM` is not `blocks`, this is the summary `output-forms.md` refers to.
+Where `$BRAID_OUTPUT_FORM` is not `blocks`, this is the summary `prose-protocol.md` refers to.
 
 ## Completion Checklist
 
@@ -115,7 +115,7 @@ What the contract for your form owes is listed there. These are this skill's own
 | File | When to Read | Why |
 |---|---|---|
 | `$BRAID_SHARED_REFERENCE/run-environment.md` | Initialization | What the framework injected, and the rule that the injected lists are the whole vocabulary. |
-| `$BRAID_SHARED_REFERENCE/output-forms.md` | When `$BRAID_OUTPUT_FORM` is not `blocks` | What to write when this run renders nothing, and how much of it. |
+| `$BRAID_SHARED_REFERENCE/prose-protocol.md` | When `$BRAID_OUTPUT_FORM` is not `blocks` | What to write when this run renders nothing, and how much of it. |
 | `$BRAID_SHARED_REFERENCE/block-protocol.md` | Before the first render call | The rules across every call, how `$BRAID_AUDIENCES` works, the provenance rule, and what a rendering run owes. |
 | `$BRAID_SHARED_REFERENCE/calls/<call>.md` | Before your first use of that call | What that one call carries and the mistakes it invites. Read only the ones you were given. |
 | `$BRAID_SHARED_REFERENCE/drift-detection.md` | Step 5, when describing a finding | What counts as drift, and the description pattern for writing it so reviewers can act on it. |

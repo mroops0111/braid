@@ -28,5 +28,5 @@ Your skill's Companion Docs table names what to read from each and when. Concate
 
 ## This Run
 
-- `$BRAID_OUTPUT_FORM` is what this run produces. `blocks` means read `block-protocol.md`, anything else means read `output-forms.md` and render nothing.
+- `$BRAID_OUTPUT_FORM` is what this run produces, `blocks` or words. Your skill's Output section says which contract to read for it.
 - `$BRAID_UNATTENDED` is `true` when a batch or a reactor cycle is driving you and nobody is waiting. A question you raise then is filed for whoever next opens the graph rather than answered in time to carry this run on, so record the doubt and continue rather than stopping on it.

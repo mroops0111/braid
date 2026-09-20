@@ -10,7 +10,7 @@ braid:
     zh-Hant: 教學
   summary: Teach a container to someone new to the subject
   hidden: true
-  required-env: [BRAID_WORKSPACE, BRAID_AUDIENCES, BRAID_OUTPUT_FORM, BRAID_SHARED_REFERENCE]
+  required-env: [BRAID_WORKSPACE, BRAID_AUDIENCES, BRAID_SHARED_REFERENCE]
   output:
     calls: [showSection, showAnswer, showCheck, showDiagram, showSubgraph]
     required-calls: [showSection, showAnswer, showCheck]

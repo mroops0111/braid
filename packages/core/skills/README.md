@@ -18,7 +18,7 @@ skills/
 ├── <verb>/SKILL.md            one skill, one directory
 └── shared/
     ├── run-environment.md     what the framework injects
-    ├── output-forms.md        what a run that renders nothing owes
+    ├── prose-protocol.md        what a run that renders nothing owes
     ├── block-protocol.md      what a run that renders owes, across every call
     ├── calls/<call>.md        one file per render call
     └── *.md                   formats and conventions, read as needed
@@ -47,7 +47,7 @@ Nothing in a prompt should restate something one of these already settles.
 
 | Axis | Settled by | Decides |
 |---|---|---|
-| **form** | the runner, per run, from `braid.output.forms` and whether anybody is watching | whether the run reads `block-protocol.md` or `output-forms.md` |
+| **form** | the runner, per run, from `braid.output.forms` and whether anybody is watching | whether the run reads `block-protocol.md` or `prose-protocol.md` |
 | **calls** | the skill, in `braid.output.calls`, within its category's ceiling | which files under `calls/` it reads, and which tools it is handed |
 | **ontology** | the workspace | the vocabulary the injected lists carry |
 

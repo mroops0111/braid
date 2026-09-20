@@ -23,7 +23,7 @@ Edges carry the structural contract. Always use the exact `edgeTypes[].id` from 
 
 ### Mandatory parent / wiring
 
-Every new node carries an edge into its owning structural parent. Orphans are a hard reject in `StructuralValidator` (see `validators.md` in `shared/`).
+Every new node carries an edge into its owning structural parent. Orphans are a hard reject in `StructuralValidator` (see `validator-rules.md` in `shared/`).
 
 | New Node | Required Parent Edge |
 |---|---|

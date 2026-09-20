@@ -10,7 +10,7 @@ braid:
     zh-Hant: 手冊
   summary: Write a container up as a document to look things up in
   hidden: true
-  required-env: [BRAID_WORKSPACE, BRAID_AUDIENCES, BRAID_OUTPUT_FORM, BRAID_SHARED_REFERENCE]
+  required-env: [BRAID_WORKSPACE, BRAID_AUDIENCES, BRAID_SHARED_REFERENCE]
   output:
     calls: [showSection, showAnswer, showEvidence, showMatrix, showDiagram, showSubgraph]
     required-calls: [showSection, showAnswer, showSubgraph, showEvidence]

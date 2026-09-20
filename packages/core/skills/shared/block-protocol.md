@@ -4,8 +4,6 @@ How a skill puts structure on the screen. Instead of writing one document and ho
 
 These are `braid-core` tools like any other. They know which run they belong to from the credential this run carries, so there is no run to name, and they return an acknowledgement, nothing you need to read. The gateway names them in snake case, so a call named `showAnswer` here reaches you as `show_answer`.
 
-This document assumes `$BRAID_OUTPUT_FORM` is `blocks`. Any other value means this run renders nothing, and `output-forms.md` rather than this file says what it owes.
-
 Your skill declares which calls it draws with, and your tool list holds exactly those. One file per call sits in `calls/` beside this one, named for the call, and the rules below hold across all of them. Read the file for a call before your first use of it, and read no file for a call you were not given.
 
 A skill may also declare an output contract in its frontmatter, naming the calls it owes and how many blocks each audience is due. When a run ends without meeting it, the framework resumes the same session once with the gap spelled out. Treat that correction as a request to add what is missing, not to redo the answer.
