@@ -3,13 +3,19 @@ import { AudienceId, OntologyId } from './common.js'
 import { localizedText } from './locale.js'
 import { SourceRole } from './source.js'
 
-export const NodeTypeId = z.string().min(1).brand<'NodeTypeId'>()
+export const NodeTypeId = z.string().min(1).brand<'NodeTypeId'>().describe('One node type, named by the workspace ontology. Read the ontology rather than guessing one.')
 export type NodeTypeId = z.infer<typeof NodeTypeId>
 
-export const EdgeTypeId = z.string().min(1).brand<'EdgeTypeId'>()
+export const EdgeTypeId = z.string().min(1).brand<'EdgeTypeId'>().describe('One relationship type, named by the workspace ontology, which also fixes which node types it may join.')
 export type EdgeTypeId = z.infer<typeof EdgeTypeId>
 
-export const NodeStatus = z.enum(['draft', 'completed', 'unclear', 'deprecated'])
+export const NodeStatus = z.enum(['draft', 'completed', 'unclear', 'deprecated']).describe(
+  'How settled a node is. '
+  + '`draft` is derived but unreviewed, '
+  + '`unclear` carries an unresolved `error` drift, '
+  + '`completed` was applied by a person and needs at least one source reference, '
+  + 'and `deprecated` outlived its source and is kept for history rather than removed.',
+)
 export type NodeStatus = z.infer<typeof NodeStatus>
 
 /** Layout hints so a document generator places nodes without ontology-specific code. */

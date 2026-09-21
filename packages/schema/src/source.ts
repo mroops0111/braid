@@ -4,7 +4,7 @@ import { McpServerId } from './mcp.js'
 import { SourceSyncPolicy } from './source-sync.js'
 
 /** Open set. The active ontology declares its own roles, core stays agnostic. */
-export const SourceRole = z.string().min(1).brand<'SourceRole'>()
+export const SourceRole = z.string().min(1).brand<'SourceRole'>().describe('One source role, named by the workspace ontology, saying what a source counts as rather than where it lives.')
 export type SourceRole = z.infer<typeof SourceRole>
 
 export const SourceKind = z.enum(['filesystem', 'mcp'])

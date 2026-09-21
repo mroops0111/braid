@@ -13,8 +13,8 @@ import { assertEntityInWorkspace } from './helpers.js'
 
 const ListQuery = z.object({
   status: z.union([ProposalStatus, z.array(ProposalStatus)]).optional().openapi({ description: 'Filter by proposal status. Pass one or many.' }),
-  limit: z.coerce.number().int().positive().optional(),
-  offset: z.coerce.number().int().nonnegative().optional(),
+  limit: z.coerce.number().int().positive().optional().describe('How many to return at most, newest first. Absent returns the server\'s own page size.'),
+  offset: z.coerce.number().int().nonnegative().optional().describe('How many to skip before returning any, for reading past the first page.'),
   showAll: z.coerce.boolean().optional().openapi({ description: 'Requires workspace.manage: drop the personal filter, so every member\'s unsettled work is visible.' }),
 })
 
@@ -70,7 +70,7 @@ const createProposalRoute = createRoute(forRuns({
   path: '/',
   operationId: 'createProposal',
   summary: 'Submit a proposal draft. Server validates operations against the live graph.',
-  description: 'Skills POST here to submit graph operations for HITL review. Returns 201 with the saved proposal on success, 400 with structured issues on validation failure.',
+  description: 'Nothing in the graph changes here. A proposal waits for a person, who applies every operation in it or none. The operations are checked against the live graph on the way in, so an operation that could not apply comes back as a 400 carrying the issues rather than being stored.',
   tags: ['proposals'],
   request: {
     params: WorkspaceIdParam,

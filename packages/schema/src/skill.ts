@@ -87,7 +87,7 @@ export function renderCallsFor(category: SkillCategory): readonly RenderCallName
  * A conversation lent to somebody else therefore reads
  * the way its author made it, not the way its reader would have asked for.
  */
-export const OutputForm = z.enum(['blocks', 'prose'])
+export const OutputForm = z.enum(['blocks', 'prose']).describe('What the run leaves behind. `blocks` draws on a surface as the run works, and `prose` writes the answer out instead. The two are alternatives rather than a pair.')
 export type OutputForm = z.infer<typeof OutputForm>
 
 /**

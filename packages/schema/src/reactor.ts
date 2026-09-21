@@ -12,7 +12,7 @@ export const ReactorConfig = z.object({
 export type ReactorConfig = z.infer<typeof ReactorConfig>
 
 /** One reactive cycle: diff source, dispatch per changed unit, then checkpoint. */
-export const ReactorCycleId = z.string().min(1).brand<'ReactorCycleId'>()
+export const ReactorCycleId = z.string().min(1).brand<'ReactorCycleId'>().describe('Id of one reactor cycle, which is one unattended pass over the workspace.')
 export type ReactorCycleId = z.infer<typeof ReactorCycleId>
 
 export const ReactorUnitStatus = z.enum(['queued', 'running', 'success', 'failure'])

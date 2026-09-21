@@ -85,7 +85,6 @@ A "minor" supplementary op is one that preserves the reviewer's intent (their an
 Submit a Proposal via the `braid-core` proposal-create capability:
 
 - `operations`: the resolution (plus any Step-2 supplementary ops)
-- `clarificationId`: the id of the Clarification being resolved, so applying the Proposal later closes it.
 - `rationale`: `"Materialised from Clarification <id>, candidate <candidateId>."`
 
 Outcomes:

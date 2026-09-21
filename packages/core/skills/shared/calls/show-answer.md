@@ -1,8 +1,3 @@
 # `show_answer`
 
-Prose. Markdown is allowed, and `@node:<id>` tokens render as live tags carrying the node's name.
-
-Use one call per idea rather than one call for the whole answer. Separate blocks let a reader skim, and let the surface place them independently.
-
-- `markdown`: the passage.
-- `title`: optional heading for the passage.
+Prose, for an idea rather than for a whole answer. One call per idea lets a reader skim, and lets the surface place the passages independently.

@@ -25,23 +25,17 @@ const PRE_RUN_REFRESH_DEADLINE_MS = 20_000
 
 const SourceUnitRef = z.object({
   sourceId: SourceId,
-  path: z.string().min(1),
-}).openapi('SourceUnitRef')
+  path: z.string().min(1).describe('Path of the document inside that source, as the source addresses it.'),
+}).describe('The document this run should work through, which is what lets the server record that the document was read.').openapi('SourceUnitRef')
 
 const RunBody = z.object({
-  args: z.string().default(''),
-  // Continue a prior claude conversation from a session-started event.
-  resumeSessionId: z.string().min(1).optional(),
-  // Identifies the source unit this run will process,
-  // so the server records an observation against it after a clean run.
-  // Studio sends this when the user picks a `source` option.
-  // Only `ddd:extract` consumes it today, other skills ignore it.
+  args: z.string().default('').describe('What to tell the skill, in its own terms. The skill\'s prompt says what it expects, and an empty string runs it with nothing.'),
+  resumeSessionId: z.string().min(1).optional().describe('Carry on a prior conversation, by the session id its run reported. Absent starts a fresh one.'),
   sourceUnit: SourceUnitRef.optional(),
-  // The form the caller wants back, absent meaning the skill's own default.
   // A request for a form the skill never declared renders as usual,
   // which the runner settles rather than this route refusing the request.
-  outputForm: OutputForm.optional(),
-}).openapi('SkillRunBody')
+  outputForm: OutputForm.optional().describe('The form to ask this run for. Absent leaves the skill\'s own default.'),
+}).describe('What to run a skill on.').openapi('SkillRunBody')
 
 const SkillIdParam = WorkspaceIdParam.extend({
   skillId: SkillIdSchema.openapi({ param: { name: 'skillId', in: 'path' } }),
