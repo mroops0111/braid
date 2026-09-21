@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { AgentEffort, AgentKind } from './agent.js'
-import { RenderBlock, RenderCallName } from './block.js'
+import { RENDER_CALLS, RenderBlock, RenderCallName } from './block.js'
 import { AbsolutePath, BlockId, PluginId, SkillId, SkillRunId, SourceId, Timestamp, UserId, WorkspaceId } from './common.js'
 import { localizedText } from './locale.js'
 import { McpServerId } from './mcp.js'
@@ -39,6 +39,132 @@ export type ClaudeCodeSkillFrontmatter = z.infer<typeof ClaudeCodeSkillFrontmatt
 /** Studio sidebar section, mapped 1:1. ask: read-only Q&A. build: mutate the graph. generate: produce artifacts. */
 export const SkillCategory = z.enum(['ask', 'build', 'generate'])
 export type SkillCategory = z.infer<typeof SkillCategory>
+
+/**
+ * The most any run of a kind may be offered, before its skill narrows further.
+ *
+ * A ceiling rather than the surface itself.
+ * What a run of a kind could never sensibly call is settled here,
+ * and which of the rest it actually gets is the skill's own declaration,
+ * so two skills of one kind need not carry each other's calls.
+ * Held in one table.
+ * Ten routes each marking their own gave ten chances to disagree,
+ * against the one table a validator checks a declaration against.
+ */
+export const RENDER_CALL_CATEGORIES: Record<RenderCallName, readonly SkillCategory[]> = {
+  showAnswer: ['ask', 'build', 'generate'],
+  showEvidence: ['ask', 'build', 'generate'],
+  showFinding: ['ask', 'build'],
+  showMatrix: ['ask', 'generate'],
+  showTrace: ['ask', 'build'],
+  showDiagram: ['ask', 'build', 'generate'],
+  showSubgraph: ['ask', 'build', 'generate'],
+  showSection: ['generate'],
+  showCheck: ['generate'],
+  showCustom: ['generate'],
+}
+
+/** The calls a run of this kind may be offered at most. */
+export function renderCallsFor(category: SkillCategory): readonly RenderCallName[] {
+  return RENDER_CALLS.filter(call => RENDER_CALL_CATEGORIES[call].includes(category))
+}
+
+/**
+ * The form a run's output takes, decided before it starts.
+ *
+ * `blocks` is the default: the run renders typed blocks a surface draws,
+ * carrying evidence a reader can open and findings they can act on.
+ * `prose` is the answer written out and nothing else,
+ * which is what a reader wanting the answer rather than what it rests on gets,
+ * and what a run nobody is watching gets whether it asked or not.
+ *
+ * The two are alternatives rather than a pair.
+ * A run that renders blocks has already said everything it has to say,
+ * and writing the same answer out again is paid for twice and read once.
+ *
+ * Recorded on the run rather than held as a reader's preference,
+ * because it decides what the run produces.
+ * A conversation lent to somebody else therefore reads
+ * the way its author made it, not the way its reader would have asked for.
+ */
+export const OutputForm = z.enum(['blocks', 'prose'])
+export type OutputForm = z.infer<typeof OutputForm>
+
+/**
+ * What each form leaves behind, so adding one is adding a row here.
+ *
+ * Every decision a form drives asks this one question.
+ * A run either renders blocks a surface draws, or writes its answer out,
+ * and what narrows its tool surface, what `emit_block` refuses,
+ * and what an unattended run falls to all read it from here.
+ * Held as a table rather than as comparisons against `'prose'`,
+ * so a third form is a row and a value in a skill's `forms`,
+ * rather than an edit to every branch that ever named a form.
+ */
+const OUTPUT_FORM_TRAITS: Record<OutputForm, { readonly rendersBlocks: boolean }> = {
+  blocks: { rendersBlocks: true },
+  prose: { rendersBlocks: false },
+}
+
+/** Whether a run in this form is offered the render operations at all. */
+export function rendersBlocks(form: OutputForm): boolean {
+  return OUTPUT_FORM_TRAITS[form].rendersBlocks
+}
+
+/**
+ * What a skill produces when it declares nothing.
+ *
+ * Blocks alone, which is what every skill did before a form could be asked for.
+ * A skill whose blocks are its artefact keeps producing them,
+ * however little of it anybody reads.
+ */
+export const DEFAULT_OUTPUT_FORMS: readonly OutputForm[] = ['blocks']
+
+/**
+ * The render calls one run is offered, narrowed from its kind's ceiling.
+ *
+ * A run that renders nothing is offered none, whatever its skill declares,
+ * since the form is settled first and the surface follows it.
+ * A skill declaring nothing keeps the ceiling,
+ * and one declaring a call its kind never offers gets the overlap,
+ * not the wish.
+ */
+export function settleRenderCalls(input: {
+  readonly category: SkillCategory
+  readonly form: OutputForm
+  readonly declaredCalls?: readonly RenderCallName[] | undefined
+}): readonly RenderCallName[] {
+  if (!rendersBlocks(input.form))
+    return []
+  const ceiling = renderCallsFor(input.category)
+  if (!input.declaredCalls)
+    return ceiling
+  return ceiling.filter(call => input.declaredCalls!.includes(call))
+}
+
+/**
+ * The form one run produces, settled from what is on offer and who is reading.
+ *
+ * Nothing outside a skill's own list can be reached by asking,
+ * so a skill whose blocks are its artefact keeps rendering,
+ * even when no one is watching.
+ * Within the list, a run nobody is watching takes the form that renders nothing,
+ * since rendering is paid for by whoever produces it and read by nobody,
+ * and an attended run takes what its reader asked for.
+ */
+export function settleOutputForm(input: {
+  readonly declaredForms?: readonly OutputForm[] | undefined
+  readonly requestedForm?: OutputForm | undefined
+  readonly unattended?: boolean | undefined
+}): OutputForm {
+  const offeredForms = input.declaredForms?.length ? input.declaredForms : DEFAULT_OUTPUT_FORMS
+  const defaultForm = offeredForms[0]!
+  if (input.unattended)
+    return offeredForms.find(form => !rendersBlocks(form)) ?? defaultForm
+  if (input.requestedForm && offeredForms.includes(input.requestedForm))
+    return input.requestedForm
+  return defaultForm
+}
 
 /**
  * Declarative form schema rendered by Studio's Actions page.
@@ -175,7 +301,7 @@ export type SkillAgentOverride = z.infer<typeof SkillAgentOverride>
  * Read by SubprocessSkillRunner for preflight (env / path / MCP) before spawning.
  */
 /**
- * What a finished run must have rendered for its output to count as complete.
+ * What this skill's output is, and what a finished run owes before it counts.
  *
  * A prompt asking for something is not the same as getting it,
  * and a run that stops early looks like one that had nothing more to say.
@@ -183,17 +309,38 @@ export type SkillAgentOverride = z.infer<typeof SkillAgentOverride>
  * and hand the gap back to the agent rather than leaving a reader to find it.
  */
 export const SkillOutputContract = z.object({
-  // Calls the run must have made at least once.
+  /**
+   * The forms a run of this skill can produce, richest first.
+   *
+   * The first is what an attended run gets when nobody asks for another,
+   * so a list is an ordering as much as it is a set.
+   * Declaring `prose` says the prompt can answer without the render calls,
+   * which is what lets a run nobody is watching stop paying for them.
+   * A skill leaving this out renders, as every skill did before this existed.
+   */
+  forms: z.array(OutputForm).min(1).default([...DEFAULT_OUTPUT_FORMS]),
+  /**
+   * The render calls a run of this skill may make.
+   *
+   * The kind of run sets a ceiling, and this narrows within it,
+   * so two skills of one kind stop carrying each other's calls.
+   * Absent leaves the ceiling in place,
+   * which is what a skill declaring nothing got before it could say.
+   */
+  calls: z.array(RenderCallName).optional(),
+  // Calls the run must have made at least once, a subset of `calls`.
   requiredCalls: z.array(RenderCallName).default([]),
   /**
-   * Blocks each audience the ontology declares must be able to see.
+   * Blocks each declared reader must be able to see, at least.
    *
-   * Named by count rather than by audience,
-   * so a builtin skill can require coverage,
+   * A block naming nobody is addressed to everyone, so it counts for each,
+   * so this is a floor on the answer's size,
+   * rather than a rule about addressing anyone in particular.
+   * Named by count rather than by reader,
+   * so a builtin skill holds a floor,
    * without knowing which readers a product splits on.
-   * A block with no audience counts toward every one of them.
    */
-  coverDeclaredAudiences: z.number().int().positive().optional(),
+  minBlocksPerReader: z.number().int().positive().optional(),
   // How many corrective retries the framework may spend before giving up.
   // One is usually enough, and a loop here burns a subscription.
   maxRetries: z.number().int().min(0).max(3).default(1),
@@ -452,6 +599,13 @@ export const RunRecord = z.object({
    * because what a run's questions mean outlives the process that spawned it.
    */
   unattended: z.boolean().optional(),
+  /**
+   * The form this run was asked to produce.
+   *
+   * Absent on every run made before the question could be asked,
+   * and those rendered blocks, which is what the default reads as.
+   */
+  outputForm: OutputForm.default('blocks'),
 })
 export type RunRecord = z.infer<typeof RunRecord>
 

@@ -1,6 +1,6 @@
 import type { AbsolutePath, Timestamp, UserId } from '@braidhq/schema'
 import type { AppDependencies } from './composeApp.js'
-import { SkillCategory } from '@braidhq/schema'
+import { OutputForm, RenderCallName, SkillCategory } from '@braidhq/schema'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { OpenAPIHono } from '@hono/zod-openapi'
 import { withoutTrailingSlash } from './infrastructure/_shared/urls.js'
@@ -434,14 +434,31 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   app.doc31('/openapi.json', specConfig)
 
   // The spec a run's own gateway reads,
-  // holding only the operations that kind of run may call.
+  // holding only the operations that run may call,
+  // which is its kind and the form its output takes.
   // A question about who may do what is answered once, here,
   // rather than by every handler learning who is calling it.
-  app.get('/openapi/runs/:category/openapi.json', (context) => {
+  //
+  // Which forms a run can be in is the skill's to declare, not this route's,
+  // so a pairing no skill offers is served rather than refused.
+  // Nothing requests one, since the runner settles the pair before asking.
+  app.get('/openapi/runs/:category/:form/openapi.json', (context) => {
     const category = SkillCategory.safeParse(context.req.param('category'))
     if (!category.success)
       return context.json({ error: 'Unknown run category' }, 404)
-    return context.json(toolSurfaceFor(app.getOpenAPI31Document(specConfig) as unknown as Record<string, unknown>, category.data))
+    const form = OutputForm.safeParse(context.req.param('form'))
+    if (!form.success)
+      return context.json({ error: 'Unknown output form' }, 404)
+    // A skill narrows the render calls within its kind's ceiling.
+    // Absent leaves the ceiling in place,
+    // and a name nothing answers to matches no operation,
+    // so a typo costs a tool rather than a 404.
+    const declared = context.req.query('calls')
+    const calls = declared === undefined
+      ? undefined
+      : RenderCallName.array().catch([]).parse(declared.split(',').filter(Boolean))
+    const document = app.getOpenAPI31Document(specConfig) as unknown as Record<string, unknown>
+    return context.json(toolSurfaceFor(document, category.data, form.data, calls))
   })
 
   return app

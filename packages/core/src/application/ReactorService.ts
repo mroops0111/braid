@@ -38,6 +38,15 @@ import { computeSourceDiff } from './computeSourceDiff.js'
  */
 export const REACTOR_USER_ID = UserId.parse('reactor')
 
+/**
+ * A cycle runs off a timer, so nothing it dispatches has a reader.
+ *
+ * The same standing a batch gives its runs, arrived at a different way.
+ * A question one of these raises waits for whoever next opens the graph,
+ * rather than for the person who started the run, since nobody did.
+ */
+const UNATTENDED = { unattended: true } as const
+
 export interface ReactorServiceDeps {
   readonly eventBus: WorkspaceEventBus
   readonly workspaceService: WorkspaceService
@@ -291,6 +300,7 @@ export class ReactorService {
       runId = await this.deps.skillRunner.start(workspace, batchBinding.perUnit.skillId, args, {
         startedBy: REACTOR_USER_ID,
         ...(context.callerToken ? { callerToken: context.callerToken } : {}),
+        ...UNATTENDED,
       })
       context.cycle = updateUnit(cycle, index, { status: 'running', skillRunId: runId, startedAt: this.deps.clock.now() })
       await this.persistAndEmit(context, this.unitStartedEvent(context, index, runId, total))
@@ -337,6 +347,7 @@ export class ReactorService {
       const runId = await this.deps.skillRunner.start(workspace, skillId, '', {
         startedBy: REACTOR_USER_ID,
         ...(context.callerToken ? { callerToken: context.callerToken } : {}),
+        ...UNATTENDED,
       })
       context.cycle = updateCheckpoint(context.cycle, { skillId, status: 'running', skillRunId: runId, startedAt })
       await this.persistAndEmit(context, this.checkpointStartedEvent(context, skillId, runId))

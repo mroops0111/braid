@@ -1,13 +1,13 @@
 # Proposal Format
 
-What a skill puts on the wire for the `braid-core` proposal-create capability that the MCP tool schema can't describe on its own. The envelope shape (`operations`, `generatedBy`, `rationale`, `externalReferences`) is in the MCP tool's `inputSchema` and not repeated here. What this doc covers:
+What a skill puts on the wire for the `braid-core` proposal-create capability that the MCP tool schema can't describe on its own. The envelope shape (`operations`, `rationale`, `externalReferences`) is in the MCP tool's `inputSchema` and not repeated here. Which skill filed it and who was running are read off the credential the call arrives with, so neither is yours to send. What this doc covers:
 
 - The 12 `GraphOperation` variants the gateway flattens to `dict[str, Any]` in MCP.
 - `NewGraphNode` / `NewGraphEdge` payload shapes (same reason).
 - Status semantics on `node.status`.
 - The < 30 ops per proposal rule.
 
-For the `DriftIssue` shape on `node.metadata.driftIssues[]`, see `drift-detection.md`. For per-field content rules (description length, name format, rationale structure), see `content-conventions.md`. For per-ontology id prefix conventions and per-type description aspects, see the active ontology's `concept.md` at `$BRAID_ONTOLOGY_REFERENCE/concept.md`. For the server-side validators that gate `createProposal`, see `validators.md`.
+For the `DriftIssue` shape on `node.metadata.driftIssues[]`, see `drift-detection.md`. For per-field content rules (description length, name format, rationale structure), see `content-conventions.md`. For per-ontology id prefix conventions and per-type description aspects, see the active ontology's `concept.md` at `$BRAID_ONTOLOGY_REFERENCE/concept.md`. For the server-side validators that gate `createProposal`, see `validator-rules.md`.
 
 ## GraphOperation (Discriminated Union on `operation`)
 
@@ -49,7 +49,7 @@ Each entry in `operations[]` is one of:
 }
 ```
 
-`EvidenceValidator` (in `validators.md`) requires *some* evidence: at least one `sourceReferences` entry, or a non-empty `missingRoles`.
+`EvidenceValidator` (in `validator-rules.md`) requires *some* evidence: at least one `sourceReferences` entry, or a non-empty `missingRoles`.
 
 ### Picking sourceReferences
 
@@ -77,7 +77,7 @@ The order is consumed by Studio's detail panel and the document forms as "the li
 }
 ```
 
-`StructuralValidator` (in `validators.md`) enforces `fromNodeId`'s type ∈ `edgeTypes[<type>].fromTypes` and `toNodeId`'s likewise for `toTypes`.
+`StructuralValidator` (in `validator-rules.md`) enforces `fromNodeId`'s type ∈ `edgeTypes[<type>].fromTypes` and `toNodeId`'s likewise for `toTypes`.
 
 
 ## Status Semantics

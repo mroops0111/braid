@@ -10,7 +10,7 @@ import type {
 } from '@braidhq/core'
 import type { SkillEvent, SkillRunId as SkillRunIdType } from '@braidhq/schema'
 import { createLogger, unitBearingRoleIds, ValidationError } from '@braidhq/core'
-import { SkillId as SkillIdSchema, SkillManifest, SkillRunId, SourceId } from '@braidhq/schema'
+import { OutputForm, SkillId as SkillIdSchema, SkillManifest, SkillRunId, SourceId } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { extractBearerToken, getUserId } from '../middleware/auth.js'
 import { requirePermission } from '../middleware/workspaceAccess.js'
@@ -37,6 +37,10 @@ const RunBody = z.object({
   // Studio sends this when the user picks a `source` option.
   // Only `ddd:extract` consumes it today, other skills ignore it.
   sourceUnit: SourceUnitRef.optional(),
+  // The form the caller wants back, absent meaning the skill's own default.
+  // A request for a form the skill never declared renders as usual,
+  // which the runner settles rather than this route refusing the request.
+  outputForm: OutputForm.optional(),
 }).openapi('SkillRunBody')
 
 const SkillIdParam = WorkspaceIdParam.extend({
@@ -168,7 +172,7 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
   router.openapi(runSkillRoute, async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const { skillId } = context.req.valid('param')
-    const { args, resumeSessionId, sourceUnit } = context.req.valid('json')
+    const { args, resumeSessionId, sourceUnit, outputForm } = context.req.valid('json')
     const callerToken = extractBearerToken(context)
     // A conversation lent to you is read-only,
     // and the recipient learns its session id the moment they read it,
@@ -181,6 +185,7 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
       startedBy: getUserId(context),
       ...(resumeSessionId ? { resumeSessionId } : {}),
       ...(callerToken ? { callerToken } : {}),
+      ...(outputForm ? { outputForm } : {}),
     }
     const perUnitSkillId = resolvePerUnitSkillId(deps.pluginRegistry, workspace)
 

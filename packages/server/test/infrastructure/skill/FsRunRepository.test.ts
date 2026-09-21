@@ -20,6 +20,7 @@ function makeRecord(runId: string, overrides: Partial<RunRecord> = {}): RunRecor
     resumed: false,
     startedBy: 'tester' as UserId,
     startedAt: isoTimestamp,
+    outputForm: 'blocks',
     ...overrides,
   }
 }

@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { isDesktop } from './platform'
+import { STORAGE_KEYS } from './storage'
 
 /**
  * Per-remote Bearer token store.
@@ -16,7 +17,7 @@ import { isDesktop } from './platform'
  * to load the keyring snapshot into cache, a no-op on web.
  */
 
-const LS_KEY = 'braid:tokens'
+const LS_KEY = STORAGE_KEYS.tokens
 
 const cache = new Map<string, string>()
 let hydrated = false

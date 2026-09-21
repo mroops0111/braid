@@ -10,9 +10,7 @@ braid:
     zh-Hant: 萃取
   order: 100
   summary: Extract domain nodes/edges from PRDs and code
-  output:
-    required-calls: [showTrace, showAnswer]
-  required-env: [BRAID_API_URL, BRAID_WORKSPACE, BRAID_WORKSPACE_ID, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
+  required-env: [BRAID_WORKSPACE, BRAID_SOURCE_ROLES, BRAID_AUDIENCES, BRAID_OUTPUT_FORM, BRAID_UNATTENDED, BRAID_SHARED_REFERENCE, BRAID_ONTOLOGY_REFERENCE]
   inputs:
     - name: scope
       label: Intent
@@ -24,6 +22,10 @@ braid:
         filter:
           role: intent
       fallback: text
+  output:
+    forms: [blocks, prose]
+    calls: [showTrace, showAnswer, showFinding, showDiagram, showSubgraph]
+    required-calls: [showTrace, showAnswer]
 ---
 
 ## Role
@@ -45,11 +47,10 @@ This skill is shipped by the DDD ontology plugin (`@braidhq/ontology-ddd`). Its 
 
 ## Initialization
 
-1. Read `$BRAID_WORKSPACE/PRODUCT.md` to learn the active `ontologyId`, sources, and any extra MCP servers.
-2. Note `$BRAID_SHARED_REFERENCE` (framework contracts) and `$BRAID_ONTOLOGY_REFERENCE` (the active ontology). Companion docs (§ Companion Docs) live under those paths; concatenate when you Read them.
-3. Fetch the active ontology via `braid-core` to learn the canonical list of valid node and edge type ids. Every `node.type` / `edge.type` you emit MUST equal one of `nodeTypes[].id` / `edgeTypes[].id`. Case-sensitive. If you find yourself wanting `context` or `CONTAINS`, re-read the ontology response.
-4. Fetch the current graph snapshot via `braid-core` to know what's already there.
-5. Parse `$ARGUMENTS` (bounded-context name, file path, sub-dir, or empty).
+1. Read `$BRAID_SHARED_REFERENCE/run-environment.md` and take the workspace, the source roles, and the readers from it.
+2. Fetch the active ontology via `braid-core` to learn the canonical list of valid node and edge type ids. Every `node.type` / `edge.type` you emit MUST equal one of `nodeTypes[].id` / `edgeTypes[].id`. Case-sensitive. If you find yourself wanting `context` or `CONTAINS`, re-read the ontology response.
+3. Fetch the current graph snapshot via `braid-core` to know what's already there.
+4. Parse `$ARGUMENTS` (bounded-context name, file path, sub-dir, or empty).
 
 ## Procedure
 
@@ -97,7 +98,7 @@ What you do next depends on whether anyone is waiting to answer.
 
 **Attended, the default.** Emit a Clarification per Step 5, then stop. See § Step 4 for what the server will and will not let you do here.
 
-**Unattended, when `$BRAID_UNATTENDED` is `true`.** A batch is driving you and applying what you produce, so stopping would leave the graph empty rather than approximate, which is the wrong trade during a bootstrap. Model it the splittable way instead: keep the readings as separate nodes rather than merging them into one, since merging two nodes later is mechanical while splitting one is not, its references have already been pooled and nothing records which belonged where. Set `status: 'unclear'` on every node the doubt touches, attach a `DriftIssue` naming the two readings, and still emit the Clarification per Step 5. Then carry on and submit the proposal.
+**Unattended, when `$BRAID_UNATTENDED` is `true`.** A batch or a reactor cycle is driving you and nobody is waiting to answer, so stopping would leave the graph empty rather than approximate, which is the wrong trade during a bootstrap. Model it the splittable way instead: keep the readings as separate nodes rather than merging them into one, since merging two nodes later is mechanical while splitting one is not, its references have already been pooled and nothing records which belonged where. Set `status: 'unclear'` on every node the doubt touches, attach a `DriftIssue` naming the two readings, and still emit the Clarification per Step 5. Then carry on and submit the proposal.
 
 Never guess silently in either mode. The difference is whether the doubt stops the run or is recorded in the graph, not whether it is recorded at all.
 
@@ -121,7 +122,6 @@ A batch that applies its own output is exempt, and there both are wanted. See §
 Submit the Proposal via the `braid-core` proposal-create capability:
 
 - `operations`: the GraphOperation array you derived in Step 2.
-- `generatedBy`: `"ddd:extract"`.
 - `rationale`: one paragraph stating what was extracted, from which sources, and why this scope split.
 
 Outcomes: 201 means move on. 400 (`code: BRAID-VAL`) means fix the cited `issues[]` and resubmit, max 3 rounds; after that list remaining issues and stop. 409 (id collision) means mint a fresh id. 5xx means bail and report. `warning` issues don't block apply; mention them in `rationale` if intentional.
@@ -136,24 +136,29 @@ Before writing the `question` and each `candidate.description`, re-read `$BRAID_
 
 ## Output
 
-Two forms, and the render calls are the one a person reads.
+`$BRAID_OUTPUT_FORM` says which contract this run answers under.
 
-### Render Calls
+| Form | Read |
+|---|---|
+| `blocks` | `$BRAID_SHARED_REFERENCE/block-protocol.md`, plus `calls/` for each call you use |
+| anything else | `$BRAID_SHARED_REFERENCE/prose-protocol.md`, and render nothing |
 
-A reviewer decides whether to apply what you propose, and a stdout summary gives them nothing to decide with. Show your working as you go, using the `braid-core` render tools with `$BRAID_RUN_ID`. Follow `$BRAID_SHARED_REFERENCE/block-protocol.md` for what each call carries.
+What this skill owes on top of that contract:
+
+- The proposal is the change. The blocks are the working behind it, which is what makes it reviewable rather than merely present.
+- Call them as each part settles, never batched at the end.
+- Leave `audiences` empty throughout. The graph is one canonical model and a proposal against it is read by whoever holds the gate, so there is no second perspective to split.
+- Close with § Run Summary.
 
 | When | Call | Carries |
 |---|---|---|
 | Before proposing anything | `show_trace` | What you searched, read, and cited, so a reviewer sees the scope you worked from. |
-| After reading the sources | `show_answer` | What this scope turned out to be about, in the ubiquitous language. Name nodes as `@node:<id>`. |
-| Whenever a claim rests on a source | `show_evidence` | The locations behind it, each with its provenance. |
+| After reading the sources | `show_answer` | What this scope turned out to be about, in the ubiquitous language. Name nodes as `@node:<id>`, and give each claim its locations in the same passage. |
 | When two sources disagree on specifics | `show_finding` | The disagreement and both sides. This is the same drift you attach to the node, shown where a reviewer can weigh it. |
-| Only when the spec itself is a sequence you had to follow to model it | `show_diagram` | A mermaid diagram of that sequence. Skip it otherwise, a reviewer is deciding whether these nodes are right, and a picture of a flow does not help with that. |
+| Only when the intent itself is a sequence you had to follow to model it | `show_diagram` | A mermaid diagram of that sequence. Skip it otherwise, a reviewer is deciding whether these nodes are right, and a picture of a flow does not help with that. |
 | When the proposal touches nodes already in the graph | `show_subgraph` | The ids it lands next to, so a reviewer sees where it attaches. |
 
-Call them as each part settles, never batched at the end. A reviewer watches the reasoning assemble, which is what makes a proposal reviewable rather than merely present.
-
-#### What `show_subgraph` Says That The Proposal Does Not
+### What `show_subgraph` Says That The Proposal Does Not
 
 The proposal is the change: every operation, in full, gated by review. Repeating it as a picture adds nothing and costs a reviewer a second reading of the same list. So a `show_subgraph` that draws the nodes you are creating is wasted, and its title giving away that it is the proposal again is the sign you drew the wrong thing.
 
@@ -161,11 +166,9 @@ What the proposal cannot show is the graph it lands in. It names the nodes it cr
 
 So include the existing nodes the proposal connects to, and the new ones only where an edge between the two is the point. Leave out any new node that touches nothing existing, since it has no position to show yet. If the proposal attaches to nothing at all, skip the call: an empty graph is not a place, and saying so is the honest answer.
 
-Leave `audiences` empty on all of them, and write nothing addressed to one reader. The graph is one canonical model, and a proposal against it is read by whoever holds the gate, so there is no second perspective to split. Rendering what this means for one audience or another belongs to a skill that answers a question, not to one that proposes a change.
+### Run Summary
 
-### Stdout
-
-A summary at the end, for the log rather than for a person:
+Your last message, a count rather than a second telling:
 
 ```
 Produced N proposals + M clarifications:
@@ -173,6 +176,8 @@ Produced N proposals + M clarifications:
   - p-2026-05-12-def (scope: ctx.billing, 8 ops)
   - ct-2026-05-12-xyz (question: cancelOrder vs revokeOrder)
 ```
+
+Where `$BRAID_OUTPUT_FORM` is not `blocks`, this is the summary `prose-protocol.md` refers to.
 
 ## Completion Checklist
 
@@ -183,24 +188,21 @@ Produced N proposals + M clarifications:
 - [ ] Each proposal was submitted via `braid-core` proposal-create and the final response was 201 (not 4xx).
 - [ ] No `removeNode` of a node still referenced elsewhere; deprecate instead.
 - [ ] Each Clarification candidate carries `proposedOperations`.
-- [ ] Final stdout lists outcomes (or, if proposal-create kept returning 400 after 3 rounds, lists the remaining issues).
-
-## Referencing Nodes
-
-When any prose you write names a graph node, write it as the token `@node:<id>` instead of a bare id. Studio renders the token as a live tag carrying the node's name and description. This applies to your narration, to `clarification.context`, to `proposal.rationale`, and to `node.description`. It does not apply to `clarify.question` or `candidate.description`, whose audience rule is unchanged. Full grammar in `$BRAID_SHARED_REFERENCE/reference-syntax.md`.
+- [ ] The run summary lists outcomes, or, if proposal-create kept returning 400 after 3 rounds, lists the remaining issues.
 
 ## Companion Docs
-
-Companion docs live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
 
 | File | When to Read | Why |
 |---|---|---|
 | `$BRAID_ONTOLOGY_REFERENCE/concept.md` | **Before Step 2 and any time you author a node / edge** | The DDD vocabulary, wiring rules, policy pattern, Context Mapping rules, ID prefix conventions, and per-type description aspects. The contract for everything Step 2 does. |
 | `$BRAID_SHARED_REFERENCE/proposal-format.md` | Before Step 4 | `GraphOperation` discriminated union, `DriftIssue` shape, status semantics, sizing. |
-| `$BRAID_SHARED_REFERENCE/block-protocol.md` | Before the first render call | Which render tool carries which part of the working, and the provenance rule for every reference. |
+| `$BRAID_SHARED_REFERENCE/run-environment.md` | Initialization | What the framework injected, and the rule that the injected lists are the whole vocabulary. |
+| `$BRAID_SHARED_REFERENCE/prose-protocol.md` | When `$BRAID_OUTPUT_FORM` is not `blocks` | What to write when this run renders nothing, and how much of it. |
+| `$BRAID_SHARED_REFERENCE/block-protocol.md` | Before the first render call | The rules across every call, the provenance rule, and what a rendering run owes. |
+| `$BRAID_SHARED_REFERENCE/calls/<call>.md` | Before your first use of that call | What that one call carries and the mistakes it invites. Read only the ones you were given. |
 | `$BRAID_SHARED_REFERENCE/clarification-format.md` | Before Step 5 | `Clarification` request body and candidate shape. |
 | `$BRAID_SHARED_REFERENCE/content-conventions.md` | Whenever writing a `name`, `description`, `rationale`, or `question` | Plain-text rule, length caps, structural conventions for every user-facing string field. |
-| `$BRAID_SHARED_REFERENCE/validators.md` | Before Step 4 | The four server-side validators; self-check ops here so they don't hit a 400 unnecessarily. |
+| `$BRAID_SHARED_REFERENCE/validator-rules.md` | Before Step 4 | The four server-side validators; self-check ops here so they don't hit a 400 unnecessarily. |
 | `$BRAID_SHARED_REFERENCE/drift-detection.md` | Step 3, when two sources disagree on a field | The framework `DriftIssue` contract, description pattern, severity rules, JSON shape. |
 | `$BRAID_ONTOLOGY_REFERENCE/concept.md` § Drift Dimensions | Step 3, alongside `drift-detection.md` | The dimensions DDD checks, with a worked example finding for each. |
 | `$BRAID_SHARED_REFERENCE/reference-syntax.md` | Whenever prose names a node | Token grammar for node references, and which fields accept them. |

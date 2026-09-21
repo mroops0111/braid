@@ -6,7 +6,7 @@ What a skill puts on the wire for the `braid-core` clarification-create capabili
 - Status transitions and which one a skill is allowed to drive.
 - The "don't guess" principle that decides when to emit a Clarification vs a DriftIssue.
 
-For `question` / `candidate.description` content rules (length, single-line, ending in `?`), see `content-conventions.md`. For per-field schema caps and validation, see the OpenAPI `inputSchema`. For the validator that checks the selected candidate's ops at answer-time, see `validators.md`.
+For `question` / `candidate.description` content rules (length, single-line, ending in `?`), see `content-conventions.md`. For per-field schema caps and validation, see the OpenAPI `inputSchema`. For the validator that checks the selected candidate's ops at answer-time, see `validator-rules.md`.
 
 ## Candidate Shape
 

@@ -1,4 +1,4 @@
-import type { SkillEvent } from '@braidhq/schema'
+import type { OutputForm, SkillEvent } from '@braidhq/schema'
 import type { AguiTurn } from './agui/aguiTransport'
 import { EventType } from '@ag-ui/client'
 import { readAguiRun, runViaAgui } from './agui/aguiTransport'
@@ -238,6 +238,8 @@ class RunStore {
     readonly resumeSessionId?: string
     /** Overrides the per-skill thread, for a run that stands on its own. */
     readonly threadId?: string
+    /** Absent means blocks, which is what every caller but Ask wants. */
+    readonly outputForm?: OutputForm
   }): Promise<void> {
     const { workspaceId, skillId, question } = options
     const messages: AguiTurn[] = [...this.conversationFor(workspaceId, skillId), { role: 'user', content: question }]
@@ -254,6 +256,7 @@ class RunStore {
       threadId: options.threadId ?? options.resumeSessionId ?? `${workspaceId}|${skillId}`,
       messages,
       ...(options.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
+      ...(options.outputForm ? { outputForm: options.outputForm } : {}),
       onEvent: (event) => {
         if (event.type === EventType.RUN_STARTED) {
           runId = String((event as unknown as { runId: string }).runId)

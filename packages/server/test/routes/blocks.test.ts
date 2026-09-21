@@ -61,6 +61,17 @@ async function readEvents(
   return events
 }
 
+/**
+ * The credential a run calls with,
+ * which is how the server knows whose block this is.
+ */
+function asRun(runTokens: RunTokenRegistry, runId: string): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${runTokens.issue(runId as never, UserId.parse('local-user'))}`,
+  }
+}
+
 describe('render routes', () => {
   // A held process outlives a test that threw before releasing it,
   // and its drain promise never settles.
@@ -68,12 +79,12 @@ describe('render routes', () => {
   afterEach(endAllSpawned)
 
   it('records a showAnswer call on the run that made it', async () => {
-    const { app, workspace, runRepository, skillRunner, endAll } = await buildApp()
+    const { app, workspace, runRepository, skillRunner, endAll, runTokens } = await buildApp()
     const runId = await startRun(app, workspace.id)
 
-    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/answer`, {
+    const response = await app.request(`/workspaces/${workspace.id}/runs/blocks/answer`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: asRun(runTokens, runId),
       body: JSON.stringify({ audience: 'business', markdown: 'A shared template is a state of @node:ctx.documentTemplate.' }),
     })
 
@@ -91,12 +102,12 @@ describe('render routes', () => {
   })
 
   it('records a showFinding call with both of its sides', async () => {
-    const { app, workspace, runRepository, skillRunner, endAll } = await buildApp()
+    const { app, workspace, runRepository, skillRunner, endAll, runTokens } = await buildApp()
     const runId = await startRun(app, workspace.id)
 
-    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/finding`, {
+    const response = await app.request(`/workspaces/${workspace.id}/runs/blocks/finding`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: asRun(runTokens, runId),
       body: JSON.stringify({
         audience: 'business',
         statement: 'The spec makes Admin mandatory, the code never enforces it.',
@@ -125,7 +136,7 @@ describe('render routes', () => {
   })
 
   it('derives corroborated support when every side cites the graph', async () => {
-    const { app, workspace, runRepository, skillRunner, endAll } = await buildApp()
+    const { app, workspace, runRepository, skillRunner, endAll, runTokens } = await buildApp()
     const runId = await startRun(app, workspace.id)
     const ref = (provenance: string) => ({
       provenance,
@@ -133,9 +144,9 @@ describe('render routes', () => {
       reference: { sourceId: 'spec', location: { uri: 'docs/spec.md', startLine: 3 } },
     })
 
-    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/finding`, {
+    const response = await app.request(`/workspaces/${workspace.id}/runs/blocks/finding`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: asRun(runTokens, runId),
       body: JSON.stringify({
         statement: 'Both sides are cited by a node.',
         verdict: 'conflict',
@@ -155,7 +166,7 @@ describe('render routes', () => {
   })
 
   it('derives partial support when a side rests on what the run read itself', async () => {
-    const { app, workspace, runRepository, skillRunner, endAll } = await buildApp()
+    const { app, workspace, runRepository, skillRunner, endAll, runTokens } = await buildApp()
     const runId = await startRun(app, workspace.id)
     const ref = (provenance: string) => ({
       provenance,
@@ -163,9 +174,9 @@ describe('render routes', () => {
       reference: { sourceId: 'spec', location: { uri: 'docs/spec.md', startLine: 3 } },
     })
 
-    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/finding`, {
+    const response = await app.request(`/workspaces/${workspace.id}/runs/blocks/finding`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: asRun(runTokens, runId),
       body: JSON.stringify({
         statement: 'One side is unrecorded.',
         verdict: 'conflict',
@@ -185,12 +196,12 @@ describe('render routes', () => {
   })
 
   it('rejects a finding carrying fewer than two sides', async () => {
-    const { app, workspace, endAll } = await buildApp()
+    const { app, workspace, endAll, runTokens } = await buildApp()
     const runId = await startRun(app, workspace.id)
 
-    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/finding`, {
+    const response = await app.request(`/workspaces/${workspace.id}/runs/blocks/finding`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: asRun(runTokens, runId),
       body: JSON.stringify({
         audience: 'business',
         statement: 'Only one side.',
@@ -225,12 +236,12 @@ describe('render routes', () => {
   // A ref saying it came from the graph is the one claim this side can settle,
   // so it is settled here rather than left for a reader to trip over.
   it('refuses a block citing the graph for a node the model does not hold', async () => {
-    const { app, workspace, endAll } = await buildApp()
+    const { app, workspace, endAll, runTokens } = await buildApp()
     const runId = await startRun(app, workspace.id)
 
-    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/evidence`, {
+    const response = await app.request(`/workspaces/${workspace.id}/runs/blocks/evidence`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: asRun(runTokens, runId),
       body: JSON.stringify({
         refs: [{
           provenance: 'graph',
@@ -248,12 +259,12 @@ describe('render routes', () => {
   // Claiming the graph while naming nothing makes the same claim,
   // and withholds the only thing that would let anyone test it.
   it('refuses a block claiming the graph without naming what it took', async () => {
-    const { app, workspace, endAll } = await buildApp()
+    const { app, workspace, endAll, runTokens } = await buildApp()
     const runId = await startRun(app, workspace.id)
 
-    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/evidence`, {
+    const response = await app.request(`/workspaces/${workspace.id}/runs/blocks/evidence`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: asRun(runTokens, runId),
       body: JSON.stringify({
         refs: [{
           provenance: 'graph',
@@ -270,12 +281,12 @@ describe('render routes', () => {
   // so there is nothing for the graph to settle,
   // and refusing it would refuse the ordinary case.
   it('records a ref the run read for itself, which the graph cannot settle', async () => {
-    const { app, workspace, endAll } = await buildApp()
+    const { app, workspace, endAll, runTokens } = await buildApp()
     const runId = await startRun(app, workspace.id)
 
-    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/evidence`, {
+    const response = await app.request(`/workspaces/${workspace.id}/runs/blocks/evidence`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: asRun(runTokens, runId),
       body: JSON.stringify({
         refs: [{
           provenance: 'agent',
@@ -307,6 +318,22 @@ describe('render routes', () => {
     endAll()
   })
 
+  // The run a block lands on is the one the credential names,
+  // so there is no id left to aim somewhere else.
+  it('refuses to render for a caller carrying no run', async () => {
+    const { app, workspace, endAll } = await buildApp()
+    await startRun(app, workspace.id)
+
+    const response = await app.request(`/workspaces/${workspace.id}/runs/blocks/answer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audiences: [], markdown: 'rendered by nobody' }),
+    })
+
+    expect(response.status).toBe(400)
+    endAll()
+  })
+
   it('leaves a proposal a person filed unattributed', async () => {
     const { app, workspace, endAll } = await buildApp()
 
@@ -322,14 +349,14 @@ describe('render routes', () => {
   })
 
   it('reports a run that is no longer active as absent', async () => {
-    const { app, workspace, skillRunner, endAll } = await buildApp()
+    const { app, workspace, skillRunner, endAll, runTokens } = await buildApp()
     const runId = await startRun(app, workspace.id)
     endAll()
     await waitForRunToEnd(skillRunner, runId)
 
-    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/answer`, {
+    const response = await app.request(`/workspaces/${workspace.id}/runs/blocks/answer`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: asRun(runTokens, runId),
       body: JSON.stringify({ audience: 'business', markdown: 'Too late.' }),
     })
 
@@ -337,12 +364,12 @@ describe('render routes', () => {
   })
 
   it('records a showMatrix call with per-cell tone and evidence', async () => {
-    const { app, workspace, runRepository, skillRunner, endAll } = await buildApp()
+    const { app, workspace, runRepository, skillRunner, endAll, runTokens } = await buildApp()
     const runId = await startRun(app, workspace.id)
 
-    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/matrix`, {
+    const response = await app.request(`/workspaces/${workspace.id}/runs/blocks/matrix`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: asRun(runTokens, runId),
       body: JSON.stringify({
         audience: 'business',
         rowAxis: { label: 'Actor', items: [{ id: 'owner', label: 'Owner' }] },
@@ -361,12 +388,12 @@ describe('render routes', () => {
   })
 
   it('records a showTrace call including what the run declined to use', async () => {
-    const { app, workspace, runRepository, skillRunner, endAll } = await buildApp()
+    const { app, workspace, runRepository, skillRunner, endAll, runTokens } = await buildApp()
     const runId = await startRun(app, workspace.id)
 
-    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/trace`, {
+    const response = await app.request(`/workspaces/${workspace.id}/runs/blocks/trace`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: asRun(runTokens, runId),
       body: JSON.stringify({
         audience: 'both',
         searched: [{ query: 'template sharing', hits: 12 }],
@@ -386,12 +413,12 @@ describe('render routes', () => {
   })
 
   it('records a showSubgraph call with its edges', async () => {
-    const { app, workspace, runRepository, skillRunner, endAll } = await buildApp()
+    const { app, workspace, runRepository, skillRunner, endAll, runTokens } = await buildApp()
     const runId = await startRun(app, workspace.id)
 
-    const response = await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/subgraph`, {
+    const response = await app.request(`/workspaces/${workspace.id}/runs/blocks/subgraph`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: asRun(runTokens, runId),
       body: JSON.stringify({
         nodes: ['agg.template', 'agg.publicForm'],
         edges: [{ from: 'agg.template', to: 'agg.publicForm', label: 'gates' }],
@@ -408,12 +435,12 @@ describe('render routes', () => {
   })
 
   it('defaults a block to every reader when it names no audience', async () => {
-    const { app, workspace, runRepository, skillRunner, endAll } = await buildApp()
+    const { app, workspace, runRepository, skillRunner, endAll, runTokens } = await buildApp()
     const runId = await startRun(app, workspace.id)
 
-    await app.request(`/workspaces/${workspace.id}/runs/${runId}/blocks/diagram`, {
+    await app.request(`/workspaces/${workspace.id}/runs/blocks/diagram`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: asRun(runTokens, runId),
       body: JSON.stringify({ mermaid: 'flowchart LR\n A --> B' }),
     })
 

@@ -1,4 +1,5 @@
 import type { BaseEvent } from '@ag-ui/client'
+import type { OutputForm } from '@braidhq/schema'
 import { EventSchemas, HttpAgent } from '@ag-ui/client'
 import { getAuthToken } from '../authToken'
 import { getServerUrl } from '../serverUrl'
@@ -31,6 +32,8 @@ export async function runViaAgui(options: {
   readonly threadId: string
   readonly messages: readonly AguiTurn[]
   readonly resumeSessionId?: string
+  /** The form this run should produce, absent meaning blocks. */
+  readonly outputForm?: OutputForm
   /**
    * The interrupts this run answers.
    * The server looks up which run to continue and which conversation it holds,
@@ -58,6 +61,7 @@ export async function runViaAgui(options: {
       forwardedProps: {
         ...(options.skillId ? { skillId: options.skillId } : {}),
         ...(options.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
+        ...(options.outputForm ? { outputForm: options.outputForm } : {}),
       },
     },
     { onEvent: ({ event }) => options.onEvent(event) },

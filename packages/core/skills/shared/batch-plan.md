@@ -1,4 +1,4 @@
-# Batch Plan Write Contract
+# Batch Plan
 
 The write contract for `artifacts/batch-plan.json`, the file the batch orchestrator hands to an ontology's `deriveUnits` skill. Framework mechanics owned by `@braidhq/core`: the plan schema is the same whatever ontology binds `deriveUnits`, so every derive skill follows this one document rather than restating the rules in its own prompt.
 

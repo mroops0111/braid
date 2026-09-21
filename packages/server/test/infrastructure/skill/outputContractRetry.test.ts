@@ -24,7 +24,7 @@ function askOwingATrace(): SkillManifest {
       ...data.frontmatter,
       braid: {
         ...data.frontmatter.braid,
-        output: { requiredCalls: ['showTrace'], maxRetries: 1 },
+        output: { forms: ['blocks'], requiredCalls: ['showTrace'], maxRetries: 1 },
       },
     },
   })

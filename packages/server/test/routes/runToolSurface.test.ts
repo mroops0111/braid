@@ -15,15 +15,17 @@ const surfaces = new Map<string, Record<string, Record<string, unknown>>>()
 // The full composition,
 // because the render operations only reach the document with a runner wired,
 // and they are half of what a run is offered.
-async function surface(category: string): Promise<Record<string, Record<string, unknown>>> {
-  const read = surfaces.get(category)
+async function surface(category: string, form: string = 'blocks', calls?: readonly string[]): Promise<Record<string, Record<string, unknown>>> {
+  const query = calls ? `?calls=${calls.join(',')}` : ''
+  const key = `${category}/${form}${query}`
+  const read = surfaces.get(key)
   if (read)
     return read
   const { app } = await buildRunnerApp()
-  const response = await app.request(`/openapi/runs/${category}/openapi.json`)
+  const response = await app.request(`/openapi/runs/${category}/${form}/openapi.json${query}`)
   expect(response.status).toBe(200)
   const document = await response.json() as { paths: Record<string, Record<string, unknown>> }
-  surfaces.set(category, document.paths)
+  surfaces.set(key, document.paths)
   return document.paths
 }
 
@@ -114,13 +116,79 @@ describe('the spec a run is given', () => {
   })
 
   // Braid's own bookkeeping, answered by the time the document is built.
-  it('does not ship its own marker to the gateway', async () => {
+  it('does not ship its own markers to the gateway', async () => {
     const body = JSON.stringify(await surface('build'))
     expect(body).not.toContain('x-braid-run-categories')
+    expect(body).not.toContain('x-braid-run-output-forms')
   })
 
   it('answers 404 for a category no skill can declare', async () => {
     const { app } = await buildRunnerApp()
-    expect((await app.request('/openapi/runs/anything/openapi.json')).status).toBe(404)
+    expect((await app.request('/openapi/runs/anything/blocks/openapi.json')).status).toBe(404)
+  })
+
+  // The saving is the operation never reaching the model,
+  // rather than a prompt asking it to leave what it can see alone.
+  it('shows a prose run no way to render', async () => {
+    const ids = operations(await surface('ask', 'prose'))
+    expect(ids).not.toContain('showAnswer')
+    expect(ids).not.toContain('showEvidence')
+    expect(ids).not.toContain('showFinding')
+    expect(ids).not.toContain('showMatrix')
+    expect(ids).not.toContain('showTrace')
+    expect(ids).not.toContain('showDiagram')
+    expect(ids).not.toContain('showSubgraph')
+  })
+
+  it('leaves a prose run everything it answers a question with', async () => {
+    const prose = operations(await surface('ask', 'prose'))
+    const blocks = operations(await surface('ask', 'blocks'))
+    const missing = blocks.filter(id => !prose.includes(id))
+
+    expect(prose).toContain('listNodes')
+    // The render calls are the whole of the difference.
+    expect(missing.every(id => id.startsWith('show'))).toBe(true)
+  })
+
+  it('answers 404 for a form no run can take', async () => {
+    const { app } = await buildRunnerApp()
+    expect((await app.request('/openapi/runs/ask/sonnet/openapi.json')).status).toBe(404)
+  })
+
+  // The kind of run sets a ceiling and the skill narrows within it,
+  // so two skills of one kind stop paying for each other's calls.
+  it('narrows the render calls to the ones a skill declared', async () => {
+    const ids = operations(await surface('build', 'blocks', ['showTrace', 'showAnswer']))
+    expect(ids).toContain('showAnswer')
+    expect(ids).toContain('showTrace')
+    expect(ids).not.toContain('showFinding')
+    expect(ids).not.toContain('showSubgraph')
+  })
+
+  it('leaves everything that is not a render call alone', async () => {
+    const narrowed = operations(await surface('build', 'blocks', ['showAnswer']))
+    expect(narrowed).toContain('listNodes')
+    expect(narrowed).toContain('createProposal')
+  })
+
+  // A build skill wanting the sources behind a claim can now ask for them,
+  // and one that does not ask keeps paying nothing for them.
+  it('offers a build run show_evidence only when its skill declared it', async () => {
+    expect(operations(await surface('build', 'blocks', ['showEvidence']))).toContain('showEvidence')
+    expect(operations(await surface('build', 'blocks', ['showAnswer']))).not.toContain('showEvidence')
+  })
+
+  it('takes a declared call its kind never offers as no call at all', async () => {
+    const ids = operations(await surface('build', 'blocks', ['showAnswer', 'showSection']))
+    expect(ids).toContain('showAnswer')
+    expect(ids).not.toContain('showSection')
+  })
+
+  // Which forms a run can take is the skill's to declare, not this route's,
+  // so a pairing no skill offers is served rather than judged.
+  // Nothing requests one, since the runner settles the pair before asking.
+  it('serves a pairing no skill offers rather than refusing it', async () => {
+    const { app } = await buildRunnerApp()
+    expect((await app.request('/openapi/runs/generate/prose/openapi.json')).status).toBe(200)
   })
 })

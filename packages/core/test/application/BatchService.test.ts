@@ -337,9 +337,9 @@ describe('BatchService', () => {
     await service.start(workspace.id, { autoApply: true, startedBy: STARTED_BY })
     await flushBatch(planRepository)
 
-    const modes = skillRunner.startCalls.map(call => call.options?.extraEnv?.BRAID_UNATTENDED)
+    const modes = skillRunner.startCalls.map(call => call.options?.unattended)
     expect(modes.length).toBeGreaterThan(0)
-    expect(modes.every(mode => mode === 'true')).toBe(true)
+    expect(modes.every(mode => mode === true)).toBe(true)
   })
 
   // Whether a batch applies its own output decides what happens to a proposal.
@@ -354,9 +354,9 @@ describe('BatchService', () => {
     await service.start(workspace.id, { autoApply: false, startedBy: STARTED_BY })
     await flushBatch(planRepository)
 
-    const modes = skillRunner.startCalls.map(call => call.options?.extraEnv?.BRAID_UNATTENDED)
+    const modes = skillRunner.startCalls.map(call => call.options?.unattended)
     expect(modes.length).toBeGreaterThan(0)
-    expect(modes.every(mode => mode === 'true')).toBe(true)
+    expect(modes.every(mode => mode === true)).toBe(true)
   })
 
   it('marks a unit failed when extract exits non-zero, continues to next', async () => {

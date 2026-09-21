@@ -13,7 +13,9 @@
       // logic in src/lib/theme.ts; keep them in sync.
       (function () {
         try {
-          var stored = localStorage.getItem('braid-theme')
+          // Runs before the bundle, and so before the key migration,
+          // which is why the old name is still read here.
+          var stored = localStorage.getItem('braid:theme') || localStorage.getItem('braid-theme')
           var pref = (stored === 'light' || stored === 'dark') ? stored : null
           var resolved = pref || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
           if (resolved === 'dark') document.documentElement.classList.add('dark')

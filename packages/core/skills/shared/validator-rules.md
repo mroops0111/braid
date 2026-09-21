@@ -1,4 +1,4 @@
-# Server-Side Validators
+# Validator Rules
 
 The server runs four validators on every proposal submission (and on Apply). If any reports a `severity: 'error'` issue, the call returns `400` with a `code: BRAID-VAL` body and an `issues[]` array naming each violation. `warning` issues don't block apply but do appear on the proposal review pane.
 
@@ -93,7 +93,7 @@ And: every `DriftIssue` attached to a node's `metadata.driftIssues[]` is surface
 }
 ```
 
-Each issue carries an `nodeId` or `edgeId` pinning the offending artifact. Fix the cited issues and resend. Cap retries at **3 rounds**; after that, list remaining issues in stdout and stop.
+Each issue carries an `nodeId` or `edgeId` pinning the offending artifact. Fix the cited issues and resend. Cap retries at **3 rounds**, after that list the remaining issues in your run summary and stop.
 
 ## What's Not Enforced Server-Side
 

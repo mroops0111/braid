@@ -35,7 +35,7 @@ export function validateOutput(
       violations.push({ kind: 'missing-call', target: call, found, required: 1 })
   }
 
-  const required = contract.coverDeclaredAudiences
+  const required = contract.minBlocksPerReader
   if (required !== undefined) {
     for (const audience of declaredAudiences) {
       // A block naming nobody is addressed to everyone, so it counts here.

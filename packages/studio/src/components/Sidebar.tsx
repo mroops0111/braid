@@ -9,6 +9,7 @@ import { useSurfaceReach } from '@/lib/landingSurface'
 import { usePendingClarification, usePendingProposals, useRuns, useSkills } from '@/lib/queries'
 import { setActiveRemoteId, useActiveRemoteId } from '@/lib/remotes'
 import { startSignIn } from '@/lib/signIn'
+import { readStored, STORAGE_KEYS, writeStored } from '@/lib/storage'
 import { type RemoteSummary, type RemoteWorkspacesResult, useAllRemoteWorkspaces } from '@/lib/useRemoteWorkspaces'
 import { useRunningSkills } from '@/lib/useRun'
 import { cn } from '@/lib/utils'
@@ -16,8 +17,6 @@ import { CreateWorkspaceWizard } from './CreateWorkspaceWizard'
 import { ListRow } from './ListRow'
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
 import { WorkspaceSwatch, WorkspaceSwatchWithPending } from './WorkspaceSwatch'
-
-const COLLAPSED_KEY = 'braid-sidebar-collapsed'
 
 // Server-stripe palette mirrors the workspace swatch palette,
 // but with a stronger left-edge bar tone,
@@ -43,19 +42,11 @@ function remoteStripeClass(remote: RemoteSummary): string {
 }
 
 function readStoredCollapsed(): boolean {
-  try {
-    return localStorage.getItem(COLLAPSED_KEY) === 'true'
-  }
-  catch {
-    return false
-  }
+  return readStored(STORAGE_KEYS.sidebarCollapsed) === 'true'
 }
 
 function writeStoredCollapsed(collapsed: boolean): void {
-  try {
-    localStorage.setItem(COLLAPSED_KEY, String(collapsed))
-  }
-  catch {}
+  writeStored(STORAGE_KEYS.sidebarCollapsed, String(collapsed))
 }
 
 interface SidebarProps {
