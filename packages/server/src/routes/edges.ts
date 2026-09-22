@@ -37,6 +37,8 @@ const listEdgesRoute = createRoute(mcpReadTool({
     },
     400: ValidationFailureResponse,
   },
+}, {
+  description: 'The relationships in the graph, narrowed by type or by either end. Reach for it when the question is how things connect rather than what they are.',
 }))
 
 export function createEdgesRouter(deps: EdgesRouterDeps): OpenAPIHono {

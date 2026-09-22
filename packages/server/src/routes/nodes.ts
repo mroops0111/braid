@@ -60,6 +60,8 @@ const getNodeRoute = createRoute(mcpReadTool({
     },
     404: NotFoundResponse,
   },
+}, {
+  description: 'Everything one node holds, including the passages it was derived from. Reach for it once a search has given you an id.',
 }))
 
 const scopeRoute = createRoute(mcpReadTool({
@@ -79,6 +81,8 @@ const scopeRoute = createRoute(mcpReadTool({
     },
     404: NotFoundResponse,
   },
+}, {
+  description: 'The neighbourhood around one node, out to a depth you set. Reach for it to see what a node connects to, rather than following its edges one call at a time.',
 }))
 
 const listQuery = z.object({
@@ -120,6 +124,8 @@ const listNodesRoute = createRoute(mcpReadTool({
     },
     400: ValidationFailureResponse,
   },
+}, {
+  description: 'Find nodes by what they are or by what they say. Start with a substring and narrow by type or status, rather than reading the whole graph.',
 }))
 
 export function createNodesRouter(deps: NodesRouterDeps): OpenAPIHono {
