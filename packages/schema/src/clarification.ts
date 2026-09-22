@@ -50,10 +50,10 @@ export type ClarificationAmbiguityType = z.infer<typeof ClarificationAmbiguityTy
 /**
  * One shape, registered twice.
  *
- * A candidate on the way in may leave its id to the server, so the body's
- * version is the same shape with that one field optional. Built from the shape
- * rather than from the registered schema, which keeps the two components apart
- * in the served document.
+ * A candidate on the way in may leave its id to the server,
+ * so the body takes the same shape with that one field optional.
+ * Built from the shape rather than from the registered schema,
+ * which keeps the two components apart in the served document.
  */
 const clarificationCandidateShape = {
   id: ClarificationCandidateId,

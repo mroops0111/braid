@@ -90,11 +90,8 @@ describe('the MCP tool surface', () => {
 /**
  * The tools the deployment's own endpoint hands a client, and what they say.
  *
- * The other tool surface is the narrowed spec a run is given,
- * checked in `runToolSurfaceDescriptions.test.ts` against the same helpers.
- * This one is served to whoever holds a token,
- * a client Braid did not write and cannot send a prompt to,
- * so the spec is the whole of what its model will ever know about these tools.
+ * The client is one Braid did not write and cannot send a prompt to,
+ * so the spec is the whole of what its model will know about these tools.
  */
 describe('what the MCP tools say about themselves', () => {
   async function toolOperations(): Promise<{ document: Surface, operations: Array<{ id: string, operation: SpecOperation }> }> {

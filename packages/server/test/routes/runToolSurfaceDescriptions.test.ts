@@ -11,12 +11,9 @@ import {
 } from '../helpers/specDescriptions.js'
 
 /**
- * What a run's tools say about themselves, checked on the spec it is served.
+ * What a run's tools say about themselves, on the spec its gateway is given.
  *
- * The narrowed document is what the run's gateway is given,
- * so this is the surface a skill actually meets,
- * rather than the whole spec, most of which no run can see.
- * The deployment's own MCP endpoint is the other surface,
+ * The deployment's own endpoint is the other tool surface,
  * checked in `mcpToolSurface.test.ts` against the same helpers.
  */
 
@@ -51,10 +48,9 @@ function surface(category: string, form: string): Promise<Surface> {
  * The composition a deployment actually runs, rather than a lighter one.
  *
  * Several routers mount only when the dependency behind them exists,
- * so a lighter app serves a smaller document,
- * and a field on one of those routes would go unchecked while a run is handed it.
- * A real `ask` run against `composeFsApp` was offered nineteen operations
- * that the runner harness never builds, ten of whose fields said nothing.
+ * so a lighter composition serves a smaller document,
+ * and a field on a route it never mounts goes unchecked,
+ * while a run against a real deployment is handed that field to fill.
  */
 async function readSurface(category: string, form: string): Promise<Surface> {
   const { app } = await buildMultiUserApp()

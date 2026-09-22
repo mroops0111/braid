@@ -43,9 +43,9 @@ export type GraphEdgeMetadata = z.infer<typeof GraphEdgeMetadata>
 /**
  * One shape, registered twice.
  *
- * A patch is the same fields with every one optional, and building it from the
- * shape rather than from the registered schema keeps the two components apart
- * in the served document.
+ * A patch is the same fields with every one optional,
+ * and building it from the shape rather than from the registered schema,
+ * keeps the two components apart in the served document.
  */
 const graphNodeShape = {
   id: NodeId,

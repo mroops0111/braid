@@ -1,14 +1,5 @@
 import { z } from 'zod'
 
-/**
- * Prose on an id travels to every caller that sends one.
- *
- * `openapi-mcp-gateway` copies a field's description into the tool schema a
- * model reads, at every depth, so a line written once here is the line every
- * operation taking that id shows. A use site whose meaning is narrower than
- * the id itself overrides it with its own `.describe()`.
- */
-
 export const Timestamp = z.string().datetime({ offset: true }).describe('An instant in ISO 8601 with an offset, such as `2026-01-31T09:00:00Z`.')
 export type Timestamp = z.infer<typeof Timestamp>
 

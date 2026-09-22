@@ -3,17 +3,10 @@ import { dddOntology } from '@braidhq/ontology-ddd'
 /**
  * What a tool tells a model about itself, read off a served spec.
  *
- * The spec is the only place an MCP tool's prose can come from.
- * `openapi-mcp-gateway` copies a field's `description` into the tool's
- * `inputSchema` at every depth and adds nothing of its own,
+ * The gateway copies a field's description into the tool's `inputSchema`,
  * so a field left undescribed reaches the model as a bare type.
- * A TS comment does not exist at runtime and a skill prompt reaches one skill,
- * which is why neither counts as documenting a field.
- *
- * Shared because Braid serves two kinds of tool surface from one spec.
- * A run is handed a narrowed document per category and form,
- * and the deployment's own endpoint exposes the operations marked for it,
- * and both become tools through the same gateway.
+ * Shared because Braid serves two tool surfaces from one spec,
+ * the narrowed document a run is handed and the deployment's own endpoint.
  */
 
 export type Schema = Record<string, unknown>
@@ -69,10 +62,10 @@ function propertiesOf(node: Schema): Record<string, Schema> | undefined {
 /**
  * Every request-body field a caller must decide about with no prose to go on.
  *
- * `$ref` is followed because the gateway expands it, so a component's
- * description is what the model sees at the use site.
- * A cycle stops at the component that closes it, which cannot add a path
- * the walk has not already reported once.
+ * `$ref` is followed because the gateway expands it,
+ * so a component's description is what the model sees at the use site.
+ * A cycle stops at the component that closes it,
+ * which cannot add a path the walk has not already reported once.
  */
 function undescribedFields(
   document: Surface,
@@ -96,8 +89,8 @@ function undescribedFields(
   if (arms) {
     const objects = arms.filter(arm => propertiesOf(resolve(document, arm)))
     // A union of scalars is one decision, so the field carries the prose.
-    // A union of shapes is a choice between shapes, and the walk goes on into
-    // each, where the discriminant is what has to say which shape it names.
+    // A union of shapes is a choice between shapes, so the walk goes on,
+    // and the discriminant is what has to say which shape it names.
     if (objects.length === 0)
       return describes(node) || describes(schema) ? [] : [at]
     return objects.flatMap(arm => undescribedFields(document, arm, at, chain))
@@ -200,10 +193,10 @@ function everyDescription(held: unknown): readonly string[] {
 /**
  * Prose that addresses the caller as `you`, which nothing else here does.
  *
- * One description is read by a model choosing a call and by a person reading
- * the API, so it stays a statement about the field rather than an instruction
- * to whoever is holding it. An imperative is fine, since `Keep only nodes of
- * these types` still describes what the field does.
+ * A description serves a model choosing a call and a person reading the API,
+ * so it states what the field is rather than instructing whoever holds it.
+ * An imperative still describes the field,
+ * so `Keep only nodes of these types` is fine.
  */
 export function secondPersonIn(held: unknown): readonly string[] {
   const found = everyDescription(held).filter(prose => /\byou(?:r|rs|rself)?\b/i.test(prose))

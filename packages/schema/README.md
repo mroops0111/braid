@@ -33,6 +33,19 @@ The modules group into a few families.
 - **Config**: `source`, `mcp`, `storage`, `agent`, `embedding`, `workspace`. The product manifest and what it declares.
 - **Cross-Cutting**: `common`, `error`, `event`, `history`, `user`, `capability`, `locale`, `view`, `plugin`. Primitives and contracts shared across the rest.
 
+## Descriptions
+
+A field's `.describe()` is the only thing a model calling the tool reads about it, since the gateway copies it into the tool's `inputSchema` and a TS comment does not exist at runtime. Two tests walk the specs Braid serves and name any field a caller could send with nothing to go on.
+
+- **One Voice**: A statement about the field, never an instruction to whoever holds it. Nothing addresses the caller as `you`, which is checked.
+- **One Definition Point**: Prose sits on the shared const or branded id, and a use site restates it only where the meaning narrows (`fromNodeId`).
+- **Say It Once**: Describe the registered component rather than the `$ref` pointing at it, and let a union arm speak through its discriminant, which is the only part of an arm a model sees.
+- **Absent, Or Unset**: A sentence about a missing value opens with `Absent`. A value the server settles ends with `so a run leaves it unset`, which is the fact a model needs and optionality alone does not carry.
+- **Containers**: An array or object carries prose only for a decision its fields do not hold, such as `applied together or not at all`.
+- **No Ontology Vocabulary**: A description may say a value comes from the workspace's ontology, never name a node type, source role, or audience.
+
+An operation carries prose of its own only for a rule spanning more than one field. A tool on the deployment endpoint always carries one, written for a client handed a token and no prompt.
+
 ## Boundaries
 
 These are the rules that keep schema a pure contract. They are enforced in review.
@@ -42,26 +55,6 @@ These are the rules that keep schema a pure contract. They are enforced in revie
 - **No Side Effects**: Shapes, validation, and pure helpers only. No I/O, and no import from another Braid package.
 - **Closed or Open**: A fixed set is a `z.enum`, an extensible one is a branded string, and that choice is the extension boundary for plugins.
 - **Types Ride With Schemas**: Every `const Foo = z.object(...)` is paired with `export type Foo = z.infer<typeof Foo>`, so consumers get both from one name.
-
-## Descriptions
-
-A field's `.describe()` is the only thing a model calling the tool will ever read about it. `openapi-mcp-gateway` copies it into the tool's `inputSchema` at every depth, so a TS comment cannot stand in for one. A JSDoc block keeps what an implementer needs and nothing a caller does.
-
-Which fields need one is not a judgement anybody makes by eye. Two tests walk the specs Braid actually serves, `runToolSurfaceDescriptions.test.ts` for the document a run is handed and `mcpToolSurface.test.ts` for the deployment's own endpoint, and name the exact path of anything a caller could send with nothing to go on.
-
-What a line says, and how:
-
-- **One voice**: a statement about the field, never an instruction to whoever holds it. An imperative is a statement of what the field does, so `Keep only nodes of these types` is fine and `Pass the ids you want` is not. Nothing addresses the caller as `you`, which is checked.
-- **One definition point**: prose lives on the shared const or branded id, so `NodeId` says what a node id is once and every field taking one inherits it. A use site restates it only where its meaning is narrower, such as `fromNodeId`.
-- **A missing value opens with `Absent`**: `Absent keeps every type`, `Absent leaves the server to derive one`, `Absent for a source with no lines`.
-- **A value the server settles ends with `so a run leaves it unset`**, which is a different fact from a value being optional, and the more useful one, since a model with no such line fills the field in.
-- **A container speaks only for itself**: an array or object carries prose when it holds a decision its fields do not, such as `applied together or not at all`. Otherwise the fields say it.
-- **A registered component says it once**: describe the component, not the `$ref` that points at it, since a description written beside a bare `$ref` is dropped on the way out.
-- **A union arm speaks through its discriminant**: the gateway builds one model per variant from the variant's fields, so an arm's own description is the one part a model never sees.
-- **Values in backticks**: `draft`, `error`, `blocks`. Numeric levels stay bare.
-- **No ontology vocabulary**: a description may say a value comes from the workspace's ontology and may name a framework concept, but never a concrete node type, source role, or audience, which is checked the way the framework skills are.
-
-An operation carries prose of its own only for a rule spanning more than one field, such as a proposal applying every operation in it or none. A tool on the deployment endpoint always carries one, written for a client that was handed a token and no prompt.
 
 ## Dependencies
 
