@@ -13,8 +13,8 @@ import { assertEntityInWorkspace } from './helpers.js'
 
 const ListQuery = z.object({
   status: z.union([ClarificationStatus, z.array(ClarificationStatus)]).optional().openapi({ description: 'Filter by clarification status. Pass one or many.' }),
-  limit: z.coerce.number().int().positive().optional(),
-  offset: z.coerce.number().int().nonnegative().optional(),
+  limit: z.coerce.number().int().positive().optional().describe('How many to return at most, newest first. Absent returns the server\'s own page size.'),
+  offset: z.coerce.number().int().nonnegative().optional().describe('How many to skip before returning any, for reading past the first page.'),
   showAll: z.coerce.boolean().optional().openapi({ description: 'Requires workspace.manage: drop the personal filter, so every member\'s open questions are visible.' }),
 })
 
@@ -43,15 +43,11 @@ const SkipBody = z.object({
   userId: UserId.optional(),
 }).openapi('ClarificationSkipBody')
 
-// PATCH body for clarification state transitions.
-// The only legal transition the skill drives is `answered` to `applied`.
-// The proposalId is optional, present when a Proposal was produced,
-// absent when the chosen candidate had no graph impact.
-// The skill then records the clarification as applied without a linking proposal.
+// The only legal transition a run drives is `answered` to `applied`.
 const ApplyBody = z.object({
-  status: z.literal('applied'),
-  proposalId: ProposalId.optional(),
-  userId: UserId.optional(),
+  status: z.literal('applied').describe('The only transition a run may drive here, which records that the answer has been carried out.'),
+  proposalId: ProposalId.optional().describe('The proposal that carried the answer, when one was filed. Absent where the chosen candidate changed nothing in the graph.'),
+  userId: UserId.optional().describe('Who is acting, for a caller that carries neither the `X-Braid-User` header nor a bearer token, so a run leaves it unset.'),
 }).openapi('ClarificationApplyBody')
 
 // Skill-emitted candidates ship their own ids (`cc-1`, `cc-merge`).
@@ -85,6 +81,7 @@ const createClarificationRoute = createRoute(forRuns({
   path: '/',
   operationId: 'createClarification',
   summary: 'Create a clarification. Skills submit this when they cannot decide between candidate interpretations.',
+  description: 'Ask when the choice between two readings would change what the run files, rather than when a detail is merely missing. Offer the readings being weighed as candidates, since picking one is faster for a person than writing an answer. Whether answering carries this run on or is recorded for later is settled by the server from whether anybody was watching.',
   tags: ['clarify'],
   request: {
     params: WorkspaceIdParam,

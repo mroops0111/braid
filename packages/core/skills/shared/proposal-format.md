@@ -1,55 +1,15 @@
 # Proposal Format
 
-What a skill puts on the wire for the `braid-core` proposal-create capability that the MCP tool schema can't describe on its own. The envelope shape (`operations`, `rationale`, `externalReferences`) is in the MCP tool's `inputSchema` and not repeated here. Which skill filed it and who was running are read off the credential the call arrives with, so neither is yours to send. What this doc covers:
+How a skill decides what to put in a proposal. Every field of one, and what each is for, is in the MCP tool's `inputSchema`, so nothing about a field's shape or its allowed values is repeated here. What this doc covers:
 
-- The 12 `GraphOperation` variants the gateway flattens to `dict[str, Any]` in MCP.
-- `NewGraphNode` / `NewGraphEdge` payload shapes (same reason).
-- Status semantics on `node.status`.
-- The < 30 ops per proposal rule.
+- Which entry to lead `sourceReferences` with, which is a judgement no schema can make.
+- What the server checks before it stores a proposal.
 
-For the `DriftIssue` shape on `node.metadata.driftIssues[]`, see `drift-detection.md`. For per-field content rules (description length, name format, rationale structure), see `content-conventions.md`. For per-ontology id prefix conventions and per-type description aspects, see the active ontology's `concept.md` at `$BRAID_ONTOLOGY_REFERENCE/concept.md`. For the server-side validators that gate `createProposal`, see `validator-rules.md`.
+Which types and statuses exist comes from the active ontology. Pull the current set from the `braid-core` ontology-fetch capability, since `OntologyTypeValidator` rejects a value that is not in it. For the `DriftIssue` judgement rules, see `drift-detection.md`. For content rules (description length, name format, rationale structure), see `content-conventions.md`. For per-ontology id prefix conventions and per-type description aspects, see the active ontology's `concept.md` at `$BRAID_ONTOLOGY_REFERENCE/concept.md`. For the server-side validators that gate `createProposal`, see `validator-rules.md`.
 
-## GraphOperation (Discriminated Union on `operation`)
+## Evidence
 
-Each entry in `operations[]` is one of:
-
-```json
-{ "operation": "addNode", "payload": { /* NewGraphNode */ } }
-{ "operation": "addNodes", "payloads": [ /* NewGraphNode[] */ ] }
-{ "operation": "removeNode", "nodeId": "..." }
-{ "operation": "removeNodes", "nodeIds": [ "...", "..." ] }
-{ "operation": "updateNode", "nodeId": "...", "patch": { "status": "completed" } }
-{ "operation": "updateNodes", "updates": [{ "nodeId": "...", "patch": {...} }] }
-{ "operation": "addEdge", "payload": { /* NewGraphEdge */ } }
-{ "operation": "addEdges", "payloads": [ /* NewGraphEdge[] */ ] }
-{ "operation": "removeEdge", "edgeId": "..." }
-{ "operation": "removeEdges", "edgeIds": [ "...", "..." ] }
-{ "operation": "updateEdge", "edgeId": "...", "patch": { "type": "..." } }
-{ "operation": "updateEdges", "updates": [{ "edgeId": "...", "patch": {...} }] }
-```
-
-`type` and `status` valid values come from the active ontology plugin. Pull the current set from the `braid-core` ontology-fetch capability. `OntologyTypeValidator` rejects any value that isn't there.
-
-## NewGraphNode Payload
-
-```jsonc
-{
-  "id": "<node-id>",                 // optional; skill mints by the ontology's convention (see its concept.md)
-  "type": "<nodeType id>",           // must match one of the ontology's nodeTypes[].id
-  "name": "<display name>",          // see content-conventions.md
-  "description": "...",              // see content-conventions.md + ontology concept.md
-  "status": "draft",                 // default 'draft'; promote to 'completed' only when sources align
-  "metadata": {                      // required object
-    "sourceReferences": [
-      { "sourceId": "<a source id>", "location": { "uri": "...", "anchor": "..." } }
-    ],
-    "missingRoles": [],             // optional list of roles not yet evidenced
-    "driftIssues": [ /* DriftIssue[]; see drift-detection.md */ ]
-  }
-}
-```
-
-`EvidenceValidator` (in `validator-rules.md`) requires *some* evidence: at least one `sourceReferences` entry, or a non-empty `missingRoles`.
+`EvidenceValidator` (in `validator-rules.md`) requires *some* evidence on a node: at least one `sourceReferences` entry, or a non-empty `missingRoles`.
 
 ### Picking sourceReferences
 
@@ -65,28 +25,10 @@ Source role is **not** a fixed order. Lead with whichever role genuinely defines
 
 The order is consumed by Studio's detail panel and the document forms as "the link a reader should click first." Drift detection treats every entry equally regardless of order.
 
-## NewGraphEdge Payload
+## Edges
 
-```jsonc
-{
-  "id": "<edge-id>",                     // optional; skill mints by the ontology's convention
-  "type": "<edgeType id>",               // must match one of the ontology's edgeTypes[].id
-  "fromNodeId": "<source node id>",
-  "toNodeId": "<target node id>",
-  "metadata": { "sourceReferences": [] }
-}
-```
-
-`StructuralValidator` (in `validator-rules.md`) enforces `fromNodeId`'s type ∈ `edgeTypes[<type>].fromTypes` and `toNodeId`'s likewise for `toTypes`.
-
-
-## Status Semantics
-
-- `draft`: extracted, not yet reviewed.
-- `unclear`: at least one `error`-severity `DriftIssue` is attached.
-- `completed`: human applied; sources align. Requires `sourceReferences` ≥ 1.
-- `deprecated`: source removed but history kept. Use `updateNode { status: 'deprecated' }`; never `removeNode` for nodes that were once `completed`.
+`StructuralValidator` (in `validator-rules.md`) enforces that an edge's endpoints are types the ontology allows for that edge type, on both ends.
 
 ## Sizing
 
-A proposal must carry **fewer than 30 operations**. If a slice produces more, split into multiple proposals. They share an `externalReferences` entry if they trace back to the same source.
+Split a slice that runs past the operation cap into several proposals rather than trimming the work. They share an `externalReferences` entry when they trace back to the same source.

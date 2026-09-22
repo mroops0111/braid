@@ -1,9 +1,5 @@
 # `show_section`
 
-Opens a part of a document, and exists because a document has a shape where an answer has only an order.
+A document has a shape where an answer has only an order, and this is the call that carries it.
 
-- `heading`: what this part is, in words a reader could pick out of a list.
-- `level`: 1, 2, or 3.
-- `covers`: the nodes this part is about. This is what lets one part be told it has gone out of date while the rest has not, so name the nodes the part actually explains rather than every node it mentions.
-
-Call it before the prose that sits under it, never after.
+Open a part where the subject changes, not where the page has grown long.

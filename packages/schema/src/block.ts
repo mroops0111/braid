@@ -9,43 +9,25 @@ import { AudienceId, BlockId, DriftIssueId, NodeId, SourceReference } from './co
  * so the second kind carries findings the graph could not have produced.
  * Studio renders it as unverified rather than dropping it.
  */
-export const RefProvenance = z.enum(['graph', 'agent'])
+export const RefProvenance = z.enum(['graph', 'agent']).describe('Where this reference came from. `graph` was copied off a node\'s recorded evidence, and `agent` is a place the run opened itself, which the surface marks as unverified.')
 export type RefProvenance = z.infer<typeof RefProvenance>
 
 export const BlockRef = z.object({
   provenance: RefProvenance,
   reference: SourceReference,
-  // Set when provenance is `graph`, naming the node the ref was copied from.
-  nodeId: NodeId.optional(),
-}).openapi('BlockRef')
+  nodeId: NodeId.optional().describe('The node the reference was copied from, sent when provenance is `graph`.'),
+}).describe('One citation shown inside a block, and where it came from.').openapi('BlockRef')
 export type BlockRef = z.infer<typeof BlockRef>
 
 const blockBase = {
   /**
-   * Readers this block is only for, from the audiences the ontology declares.
-   *
-   * Empty is the common case and means every reader sees it,
-   * because a conclusion belongs to whoever asked.
-   * Naming an audience is for content that says nothing to the others,
-   * such as a search trail.
    * What differs between readers is usually how much of a reference is shown,
    * which the audience's own `evidenceDetail` decides,
    * rather than whether the finding above it exists.
    */
-  audiences: z.array(AudienceId).default([]),
-  /**
-   * Blocks that belong together, named by a shared free string.
-   *
-   * This says the blocks are two readings of one comparison,
-   * never where to put them.
-   * The surface lays a group out side by side when there is room,
-   * and stacks it when there is not,
-   * which is why a block still carries no position and no size.
-   * Two flows being compared share a group,
-   * while a flow and the matrix summarising it do not.
-   */
-  group: z.string().min(1).max(80).optional(),
-  title: z.string().min(1).max(200).optional(),
+  audiences: z.array(AudienceId).default([]).describe('Readers this block is only for. Empty is the common case and means every reader sees it, since a conclusion belongs to whoever asked. Name an audience only for content that says nothing to the others.'),
+  group: z.string().min(1).max(80).optional().describe('A free string two blocks share to say they are readings of one comparison. It never says where to put them, the surface sets them side by side when there is room. Two flows being compared share a group, a flow and the matrix summarising it do not.'),
+  title: z.string().min(1).max(200).optional().describe('A heading for this block, for a reader scanning rather than reading.'),
 }
 
 /**
@@ -55,14 +37,14 @@ const blockBase = {
 export const ShowAnswer = z.object({
   ...blockBase,
   call: z.literal('showAnswer'),
-  markdown: z.string().min(1),
+  markdown: z.string().min(1).describe('The prose itself, in Markdown. An `@node:<id>` token renders as a live tag a reader can open.'),
 }).openapi('ShowAnswer')
 export type ShowAnswer = z.infer<typeof ShowAnswer>
 
 export const ShowEvidence = z.object({
   ...blockBase,
   call: z.literal('showEvidence'),
-  refs: z.array(BlockRef).min(1),
+  refs: z.array(BlockRef).min(1).describe('The passages this block shows, at least one.'),
 }).openapi('ShowEvidence')
 export type ShowEvidence = z.infer<typeof ShowEvidence>
 
@@ -70,13 +52,13 @@ export type ShowEvidence = z.infer<typeof ShowEvidence>
  * What a finding concluded. `unverifiable` is a first-class outcome,
  * a run that could not settle a question says so instead of picking a side.
  */
-export const FindingVerdict = z.enum(['consistent', 'conflict', 'unverifiable'])
+export const FindingVerdict = z.enum(['consistent', 'conflict', 'unverifiable']).describe('What the finding concluded. `unverifiable` is a first-class outcome, so a run that could not settle the question says so rather than picking a side.')
 export type FindingVerdict = z.infer<typeof FindingVerdict>
 
 export const FindingSide = z.object({
-  summary: z.string().min(1).max(400),
-  refs: z.array(BlockRef).default([]),
-})
+  summary: z.string().min(1).max(400).describe('What this side says, in its own terms rather than as a comparison.'),
+  refs: z.array(BlockRef).default([]).describe('The passages this side rests on.'),
+}).describe('One of the readings a finding weighs.').openapi('FindingSide')
 export type FindingSide = z.infer<typeof FindingSide>
 
 /**
@@ -87,7 +69,7 @@ export type FindingSide = z.infer<typeof FindingSide>
  * whatever the evidence,
  * so the figure reads like a measurement while carrying no information.
  */
-export const EvidenceSupport = z.enum(['corroborated', 'partial', 'thin'])
+export const EvidenceSupport = z.enum(['corroborated', 'partial', 'thin']).describe('How far the references behind a finding carry it. Derived from the sides and never sent by a run, reading `corroborated` when every side rests on a `graph` reference, `partial` when every side has a reference but at least one is `agent`, and `thin` when a side has none.')
 export type EvidenceSupport = z.infer<typeof EvidenceSupport>
 
 /**
@@ -97,19 +79,17 @@ export type EvidenceSupport = z.infer<typeof EvidenceSupport>
 export const ShowFinding = z.object({
   ...blockBase,
   call: z.literal('showFinding'),
-  statement: z.string().min(1).max(400),
+  statement: z.string().min(1).max(400).describe('What was checked, written as a claim rather than a question, so the verdict below reads against it.'),
   verdict: FindingVerdict,
-  // True when the model already records this as a DriftIssue.
-  registered: z.boolean().default(false),
-  driftId: DriftIssueId.optional(),
-  sides: z.array(FindingSide).min(2),
+  registered: z.boolean().default(false).describe('True when the graph already records this as a drift issue, so a reader knows it is tracked rather than newly noticed.'),
+  driftId: DriftIssueId.optional().describe('The drift issue this finding reports, when the graph already records one.'),
+  sides: z.array(FindingSide).min(2).describe('The readings being weighed, at least two, one entry each.'),
   // Computed from the sides when the block is recorded, never sent by the skill.
   // Optional because a run log is append-only,
   // and holds blocks written before this was derived,
   // where dropping those lines would erase recorded history.
   support: EvidenceSupport.optional(),
-  // Only for the unverifiable case, naming what would settle it.
-  suggestedSource: z.string().min(1).max(400).optional(),
+  suggestedSource: z.string().min(1).max(400).optional().describe('What would settle this, named only when the verdict is `unverifiable`.'),
 }).openapi('ShowFinding')
 export type ShowFinding = z.infer<typeof ShowFinding>
 
@@ -119,30 +99,29 @@ export type ShowFinding = z.infer<typeof ShowFinding>
  * so an ontology names its own states,
  * while a renderer only needs to know which of five ways to colour them.
  */
-export const CellTone = z.enum(['affirmed', 'denied', 'conditional', 'conflict', 'not-applicable'])
+export const CellTone = z.enum(['affirmed', 'denied', 'conditional', 'conflict', 'not-applicable']).describe('How the cell reads at a glance, which is all a renderer needs to colour the grid. The label beside it stays in the run\'s own words.')
 export type CellTone = z.infer<typeof CellTone>
 
 export const AxisItem = z.object({
-  id: z.string().min(1),
-  label: z.string().min(1).max(120),
-})
+  id: z.string().min(1).describe('Short id for this item, which a cell names to say where it sits.'),
+  label: z.string().min(1).max(120).describe('What a reader sees for this item.'),
+}).describe('One position along an axis.').openapi('AxisItem')
 export type AxisItem = z.infer<typeof AxisItem>
 
 export const MatrixAxis = z.object({
-  label: z.string().min(1).max(120),
-  items: z.array(AxisItem).min(1),
-})
+  label: z.string().min(1).max(120).describe('What this axis is, such as what the comparison varies along.'),
+  items: z.array(AxisItem).min(1).describe('The positions along this axis, in the order a reader should meet them.'),
+}).describe('One side of the comparison, which the run chooses rather than the ontology.').openapi('MatrixAxis')
 export type MatrixAxis = z.infer<typeof MatrixAxis>
 
 export const MatrixCell = z.object({
-  row: z.string().min(1),
-  column: z.string().min(1),
-  // What this crossing amounts to, in the skill's own words.
-  state: z.string().min(1).max(120),
+  row: z.string().min(1).describe('Which row this cell sits in, by the row item\'s id.'),
+  column: z.string().min(1).describe('Which column this cell sits in, by the column item\'s id.'),
+  state: z.string().min(1).max(120).describe('What this crossing amounts to, in the run\'s own words rather than a fixed vocabulary.'),
   tone: CellTone,
-  note: z.string().max(400).optional(),
-  refs: z.array(BlockRef).default([]),
-})
+  note: z.string().max(400).optional().describe('One line of detail a reader needs to take the state at face value.'),
+  refs: z.array(BlockRef).default([]).describe('The passages this cell rests on.'),
+}).describe('One crossing of the two axes.').openapi('MatrixCell')
 export type MatrixCell = z.infer<typeof MatrixCell>
 
 /**
@@ -154,21 +133,20 @@ export const ShowMatrix = z.object({
   call: z.literal('showMatrix'),
   rowAxis: MatrixAxis,
   columnAxis: MatrixAxis,
-  cells: z.array(MatrixCell).min(1),
+  cells: z.array(MatrixCell).min(1).describe('One entry per crossing that means something, rather than one per pair.'),
 }).openapi('ShowMatrix')
 export type ShowMatrix = z.infer<typeof ShowMatrix>
 
 export const TraceSearch = z.object({
-  query: z.string().min(1).max(200),
-  hits: z.number().int().nonnegative(),
-})
+  query: z.string().min(1).max(200).describe('The query as it was run, not a paraphrase of it.'),
+  hits: z.number().int().nonnegative().describe('How many results came back, zero included, since an empty search is worth recording.'),
+}).describe('One search the run ran, and what it returned.').openapi('TraceSearch')
 export type TraceSearch = z.infer<typeof TraceSearch>
 
 export const TraceSkip = z.object({
-  ref: BlockRef,
-  // Why this was opened and then left out, so a reader can challenge the call.
-  why: z.string().min(1).max(200),
-})
+  ref: BlockRef.describe('The passage that was opened and then left out.'),
+  why: z.string().min(1).max(200).describe('Why it was left out, in one line, including having run out of budget rather than having ruled it out.'),
+}).describe('Something the run opened and chose not to use, which is where a wrong answer hides.').openapi('TraceSkip')
 export type TraceSkip = z.infer<typeof TraceSkip>
 
 /**
@@ -179,10 +157,10 @@ export type TraceSkip = z.infer<typeof TraceSkip>
 export const ShowTrace = z.object({
   ...blockBase,
   call: z.literal('showTrace'),
-  searched: z.array(TraceSearch).default([]),
-  read: z.array(BlockRef).default([]),
-  cited: z.array(NodeId).default([]),
-  skipped: z.array(TraceSkip).default([]),
+  searched: z.array(TraceSearch).default([]).describe('Every query the run ran, with how many hits each came back with.'),
+  read: z.array(BlockRef).default([]).describe('The sources the run actually opened.'),
+  cited: z.array(NodeId).default([]).describe('The nodes the answer ends up standing on.'),
+  skipped: z.array(TraceSkip).default([]).describe('What was opened and then dismissed, each with its reason, which a reader cannot infer from the answer.'),
 }).openapi('ShowTrace')
 export type ShowTrace = z.infer<typeof ShowTrace>
 
@@ -197,16 +175,16 @@ export type ShowTrace = z.infer<typeof ShowTrace>
 export const ShowDiagram = z.object({
   ...blockBase,
   call: z.literal('showDiagram'),
-  mermaid: z.string().min(1),
-  caption: z.string().max(400).optional(),
+  mermaid: z.string().min(1).describe('The diagram as a mermaid definition. Keep it small enough to read without panning.'),
+  caption: z.string().max(400).optional().describe('One line saying what the diagram shows, for a reader who will not trace it.'),
 }).openapi('ShowDiagram')
 export type ShowDiagram = z.infer<typeof ShowDiagram>
 
 export const SubgraphEdge = z.object({
-  from: NodeId,
-  to: NodeId,
-  label: z.string().max(80).optional(),
-})
+  from: NodeId.describe('The node the arrow starts at.'),
+  to: NodeId.describe('The node the arrow points to.'),
+  label: z.string().max(80).optional().describe('What the relationship is, when the shape alone does not say.'),
+}).describe('One relationship drawn between two of the nodes shown.').openapi('SubgraphEdge')
 export type SubgraphEdge = z.infer<typeof SubgraphEdge>
 
 /**
@@ -220,13 +198,13 @@ export type SubgraphEdge = z.infer<typeof SubgraphEdge>
 export const ShowSubgraph = z.object({
   ...blockBase,
   call: z.literal('showSubgraph'),
-  nodes: z.array(NodeId).min(1),
-  edges: z.array(SubgraphEdge).default([]),
+  nodes: z.array(NodeId).min(1).describe('The nodes to draw, by id and nothing more. The surface resolves each to its own name and colour, so a name repeated here goes stale on a rename. Send only ids a read of the graph has returned.'),
+  edges: z.array(SubgraphEdge).default([]).describe('The relationships to draw between those nodes.'),
 }).openapi('ShowSubgraph')
 export type ShowSubgraph = z.infer<typeof ShowSubgraph>
 
 /** How deep a part sits, closed so a renderer can style each one. */
-export const SectionLevel = z.union([z.literal(1), z.literal(2), z.literal(3)])
+export const SectionLevel = z.union([z.literal(1), z.literal(2), z.literal(3)]).describe('How deep this part sits. 1 opens a part, 2 a chapter inside it, 3 a passage inside that.')
 export type SectionLevel = z.infer<typeof SectionLevel>
 
 /**
@@ -241,21 +219,20 @@ export type SectionLevel = z.infer<typeof SectionLevel>
 export const ShowSection = z.object({
   ...blockBase,
   call: z.literal('showSection'),
-  heading: z.string().min(1).max(120),
-  /** 1 opens a part, 2 a chapter inside it, 3 a passage inside that. */
+  heading: z.string().min(1).max(120).describe('What this part is about, as a heading rather than a sentence.'),
   level: SectionLevel,
-  covers: z.array(NodeId).default([]),
+  covers: z.array(NodeId).default([]).describe('The nodes this part is written from, which is what lets one part be told it has gone stale while the rest has not. Name what the part explains rather than everything it mentions.'),
 }).openapi('ShowSection')
 export type ShowSection = z.infer<typeof ShowSection>
 
 /** How deep a question reaches, which is not the same as how hard it is. */
-export const CheckLevel = z.enum(['recall', 'apply', 'judge'])
+export const CheckLevel = z.enum(['recall', 'apply', 'judge']).describe('How deep the question reaches, which is not how hard it is. `recall` asks for a fact, `apply` asks the reader to use it, and `judge` asks them to weigh something.')
 export type CheckLevel = z.infer<typeof CheckLevel>
 
 export const CheckChoice = z.object({
-  id: z.string().min(1).max(40),
-  text: z.string().min(1).max(400),
-})
+  id: z.string().min(1).max(40).describe('Short id for this choice, which `correct` names.'),
+  text: z.string().min(1).max(400).describe('The choice as the reader reads it.'),
+}).describe('One option a reader can pick.').openapi('CheckChoice')
 export type CheckChoice = z.infer<typeof CheckChoice>
 
 /**
@@ -268,22 +245,12 @@ export type CheckChoice = z.infer<typeof CheckChoice>
 export const ShowCheckFields = z.object({
   ...blockBase,
   call: z.literal('showCheck'),
-  prompt: z.string().min(1).max(1000),
+  prompt: z.string().min(1).max(1000).describe('The question the reader answers before they are shown the answer, in one sentence.'),
   level: CheckLevel,
-  /** Choices present means the reader picks, absent means they write. */
-  choices: z.array(CheckChoice).default([]),
-  /**
-   * Which choice is right, by its id.
-   *
-   * Without it a surface can show the explanation and nothing else,
-   * so a reader who picked wrong works out from prose whether they did.
-   * Being told plainly is most of what a question is for.
-   */
-  correct: z.string().min(1).optional(),
-  /** Why that is the answer, which a reader sees once they have committed. */
-  answer: z.string().min(1),
-  /** The nodes this question is asking about. */
-  covers: z.array(NodeId).default([]),
+  choices: z.array(CheckChoice).default([]).describe('The options to pick between. Send them where picking is the honest test, and send none where the reader should produce the answer themselves.'),
+  correct: z.string().min(1).optional().describe('Which choice is right, by its id. Required once there are choices, since a reader who picked wrong should be told plainly rather than left to infer it from the explanation.'),
+  answer: z.string().min(1).describe('What the reader should have arrived at, and why, shown once they have committed.'),
+  covers: z.array(NodeId).default([]).describe('The nodes this question is asking about.'),
 })
 
 /**
@@ -342,15 +309,15 @@ export type ShowCheck = z.infer<typeof ShowCheck>
  * because a framework cannot be responsible for looks it did not design.
  * A plugin that wants its shape drawn draws it in its own surface.
  */
-export const BlockKind = z.string().min(1).brand<'BlockKind'>()
+export const BlockKind = z.string().min(1).brand<'BlockKind'>().describe('Which shape this block is, named by the plugin that ships it. The server validates the payload against that plugin\'s schema.')
 export type BlockKind = z.infer<typeof BlockKind>
 
 export const ShowCustom = z.object({
   ...blockBase,
   call: z.literal('showCustom'),
   kind: BlockKind,
-  payload: z.unknown(),
-  covers: z.array(NodeId).default([]),
+  payload: z.unknown().describe('The block\'s content, in whatever shape the plugin behind `kind` declares.'),
+  covers: z.array(NodeId).default([]).describe('The nodes this block is written from.'),
 }).openapi('ShowCustom')
 export type ShowCustom = z.infer<typeof ShowCustom>
 
@@ -379,6 +346,6 @@ export type RenderCallName = z.infer<typeof RenderCallName>
 /** A block as it reaches a surface, the call plus the identity the server minted. */
 export const EmittedBlock = z.object({
   id: BlockId,
-  block: RenderBlock,
-}).openapi('EmittedBlock')
+  block: RenderBlock.describe('The call as the run made it.'),
+}).describe('A block as it reaches a surface, the call plus the identity the server minted.').openapi('EmittedBlock')
 export type EmittedBlock = z.infer<typeof EmittedBlock>

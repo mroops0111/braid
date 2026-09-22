@@ -1,6 +1,15 @@
+import type { Operation as SpecOperation, Surface } from '../helpers/specDescriptions.js'
 import { describe, expect, it } from 'vitest'
 import { buildTestApp } from '../helpers/buildApp.js'
 import { readJson } from '../helpers/readJson.js'
+import {
+  ontologyVocabularyIn,
+  operationsOf,
+  secondPersonIn,
+  silentOperations,
+  undescribedBodyFields,
+  undescribedParameters,
+} from '../helpers/specDescriptions.js'
 
 interface Operation {
   'operationId'?: string
@@ -75,5 +84,67 @@ describe('the MCP tool surface', () => {
     expect(shaping).not.toContain('rootPath')
     expect(shaping).toContain('id')
     expect(shaping).toContain('productManifest.name')
+  })
+})
+
+/**
+ * The tools the deployment's own endpoint hands a client, and what they say.
+ *
+ * The client is one Braid did not write and cannot send a prompt to,
+ * so the spec is the whole of what its model will know about these tools.
+ */
+describe('what the MCP tools say about themselves', () => {
+  async function toolOperations(): Promise<{ document: Surface, operations: Array<{ id: string, operation: SpecOperation }> }> {
+    const { app } = await buildTestApp()
+    const document = await readJson<Surface>(await app.request('/openapi.json'))
+    const operations = operationsOf(document)
+      .filter(({ operation }) => operation['x-mcp-integration'] !== undefined)
+    expect(operations.map(({ id }) => id).sort()).toEqual(MCP_TOOLS)
+    return { document, operations }
+  }
+
+  it('says what every path and query parameter is', async () => {
+    const { operations } = await toolOperations()
+    expect(undescribedParameters(operations)).toEqual([])
+  })
+
+  // Reads only today, and the rule holds for whatever is marked next.
+  it('says what every body field is', async () => {
+    const { document, operations } = await toolOperations()
+    expect(undescribedBodyFields(document, operations)).toEqual([])
+  })
+
+  it('says what every tool is for', async () => {
+    const { operations } = await toolOperations()
+    expect(silentOperations(operations)).toEqual([])
+  })
+
+  // A summary is written for somebody reading the REST API,
+  // who already knows what Braid is and what a node is.
+  // A client on this endpoint was handed a token and nothing else,
+  // so the tool's own line is the whole of what its model will ever know,
+  // and falling back to a summary is a line that was never aimed at it.
+  it('writes that line for a model rather than falling back to the summary', async () => {
+    const { operations } = await toolOperations()
+    const unwritten = operations
+      .filter(({ operation }) => {
+        const integration = operation['x-mcp-integration'] as { tool?: { description?: unknown } } | undefined
+        const written = integration?.tool?.description
+        return !(typeof written === 'string' && written.trim().length > 0)
+      })
+      .map(({ id }) => id)
+      .sort()
+    expect(unwritten).toEqual([])
+  })
+
+  // These tools serve whatever ontology the workspace behind them declares.
+  it('names no vocabulary only one ontology would have', async () => {
+    const { operations } = await toolOperations()
+    expect(ontologyVocabularyIn(operations.map(({ operation }) => operation))).toEqual([])
+  })
+
+  it('addresses nobody as `you`', async () => {
+    const { operations } = await toolOperations()
+    expect(secondPersonIn(operations.map(({ operation }) => operation))).toEqual([])
   })
 })

@@ -231,3 +231,21 @@ describe('every shipped skill declares the environment it reads', () => {
     }
   })
 })
+
+describe('every call doc', () => {
+  // A render call's fields are described in the spec the run's gateway is given,
+  // so a doc glossing one of them says the same thing a second time,
+  // and the run pays to read a copy that can go stale against the schema.
+  // What is left is the part a spec cannot hold,
+  // which call to reach for, and what a call obliges elsewhere.
+  it('glosses no field the spec already describes', async () => {
+    const dir = join(PACKAGES, 'core/skills/shared/calls')
+    const files = await readdir(dir)
+    expect(files.length).toBeGreaterThan(0)
+    for (const file of files) {
+      const body = await readFile(join(dir, file), 'utf-8')
+      const glosses = body.split('\n').filter(line => /^\s*[-*]\s*`\w+`\s*(?:and\s*`\w+`\s*)?:/.test(line))
+      expect({ file, glosses }).toEqual({ file, glosses: [] })
+    }
+  })
+})

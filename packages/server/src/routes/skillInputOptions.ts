@@ -20,17 +20,10 @@ import { loadWorkspaceById } from './helpers.js'
 const ProviderKind = z.enum(['graph-node', 'source', 'clarify'])
 
 const QuerySchema = z.object({
-  kind: ProviderKind.openapi({ param: { name: 'kind', in: 'query' } }),
-  // JSON-encoded filter object whose shape depends on the provider.
-  // graph-node uses `{ types?, statuses?, renderHint?: { container? } }`,
-  // source uses `{ role?, loaderKind? }`,
-  // and clarify uses `{ status?: pending | answered | applied | skipped }`.
-  //
+  kind: ProviderKind.describe('Which kind of option to resolve, which decides where the list comes from.').openapi({ param: { name: 'kind', in: 'query' } }),
   // Query-string-encoded JSON keeps the schema simple,
   // while letting each provider carry a different filter shape.
-  // Studio is the only intended caller.
-  // Humans drafting URLs by hand will rarely need it.
-  filter: z.string().optional().openapi({ param: { name: 'filter', in: 'query' } }),
+  filter: z.string().optional().describe('A JSON object narrowing the list, whose shape depends on `kind`. `graph-node` takes `{ types?, statuses?, renderHint?: { container? } }`, `source` takes `{ role?, loaderKind? }`, and `clarify` takes `{ status? }`.').openapi({ param: { name: 'filter', in: 'query' } }),
 })
 
 const route = createRoute({

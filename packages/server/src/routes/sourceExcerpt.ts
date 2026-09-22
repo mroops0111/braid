@@ -22,10 +22,10 @@ export interface SourceExcerptRouterDeps {
 
 const ExcerptBody = z.object({
   sourceId: SourceId,
-  uri: z.string().min(1),
-  startLine: z.number().int().positive().optional(),
-  endLine: z.number().int().positive().optional(),
-}).openapi('SourceExcerptRequest')
+  uri: z.string().min(1).describe('Which file inside that source, as a reference names it.'),
+  startLine: z.number().int().positive().optional().describe('First line to read, counted from 1. Absent reads from the top.'),
+  endLine: z.number().int().positive().optional().describe('Last line to read, inclusive. Absent reads to the end of the range, and a few lines of context come back either side.'),
+}).describe('A passage to read out of a source.').openapi('SourceExcerptRequest')
 
 const ExcerptResponse = z.object({
   /** Line number of the first returned line, so a renderer can number them. */

@@ -33,6 +33,19 @@ The modules group into a few families.
 - **Config**: `source`, `mcp`, `storage`, `agent`, `embedding`, `workspace`. The product manifest and what it declares.
 - **Cross-Cutting**: `common`, `error`, `event`, `history`, `user`, `capability`, `locale`, `view`, `plugin`. Primitives and contracts shared across the rest.
 
+## Descriptions
+
+A field's `.describe()` is the only thing a model calling the tool reads about it, since the gateway copies it into the tool's `inputSchema` and a TS comment does not exist at runtime. Two tests walk the specs Braid serves and name any field a caller could send with nothing to go on.
+
+- **One Voice**: A statement about the field, never an instruction to whoever holds it. Nothing addresses the caller as `you`, which is checked.
+- **One Definition Point**: Prose sits on the shared const or branded id, and a use site restates it only where the meaning narrows (`fromNodeId`).
+- **Say It Once**: Describe the registered component rather than the `$ref` pointing at it, and let a union arm speak through its discriminant, which is the only part of an arm a model sees.
+- **Absent, Or Unset**: A sentence about a missing value opens with `Absent`. A value the server settles ends with `so a run leaves it unset`, which is the fact a model needs and optionality alone does not carry.
+- **Containers**: An array or object carries prose only for a decision its fields do not hold, such as `applied together or not at all`.
+- **No Ontology Vocabulary**: A description may say a value comes from the workspace's ontology, never name a node type, source role, or audience.
+
+An operation carries prose of its own only for a rule spanning more than one field. A tool on the deployment endpoint always carries one, written for a client handed a token and no prompt.
+
 ## Boundaries
 
 These are the rules that keep schema a pure contract. They are enforced in review.

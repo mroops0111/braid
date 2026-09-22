@@ -16,7 +16,7 @@ const UserListResponse = z.object({
 // Self-service profile edit, only the display name.
 // Server-role changes go through the admin-gated `/admin/users` routes.
 const SelfProfileUpdate = z.object({
-  displayName: z.string().min(1),
+  displayName: z.string().min(1).describe('The name other members see, which survives in anything already recorded under the old one.'),
 })
 
 export interface UsersRouterDeps {
@@ -72,7 +72,7 @@ const updateUserRoute = createRoute({
   method: 'patch',
   path: '/{userId}',
   operationId: 'updateUser',
-  summary: 'Update your own display name, role changes go through /admin.',
+  summary: 'Update the signed-in member\'s own display name. A role change goes through /admin.',
   tags: ['users'],
   request: {
     params: UserIdParam,

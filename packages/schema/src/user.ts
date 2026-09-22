@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { Timestamp, UserId } from './common.js'
 
-export const ServerRole = z.enum(['admin', 'user'])
+export const ServerRole = z.enum(['admin', 'user']).describe('What a person may do across the deployment. `admin` manages members and every workspace, `user` reaches only what they are a member of.')
 export type ServerRole = z.infer<typeof ServerRole>
 
 // Absent or 'human' is a person who logs in.

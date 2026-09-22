@@ -16,7 +16,7 @@ import { HandoffFilter, HandoffOwner } from './handoff.js'
 import { GraphOperation } from './proposal.js'
 
 // Only the hard contract here. Authoring rules (length, tone, language) live in the skill layer.
-const clarificationQuestion = z.string().min(1).max(400).describe('The single question shown to the reviewer.')
+const clarificationQuestion = z.string().min(1).max(400).describe('The one question a person is asked. One doubt per clarification, so a second doubt is a second clarification.')
 
 /**
  * Whether the question still needs an answer, and what became of it.
@@ -27,35 +27,63 @@ const clarificationQuestion = z.string().min(1).max(400).describe('The single qu
  * That lives on `answerMode`, so the two questions stay separable,
  * where skipping throws a question away and deferring keeps it.
  */
-export const ClarificationStatus = z.enum(['pending', 'answered', 'applied', 'skipped'])
+export const ClarificationStatus = z.enum(['pending', 'answered', 'applied', 'skipped']).describe(
+  'Where the question stands. '
+  + '`pending` still wants an answer, `answered` has one, '
+  + '`applied` had its answer carried into the graph, '
+  + 'and `skipped` was thrown away unanswered.',
+)
 export type ClarificationStatus = z.infer<typeof ClarificationStatus>
 
-/** 'skill' = AI-emitted with candidates. 'human' = filed via Studio. */
-export const ClarificationOrigin = z.enum(['skill', 'human'])
+export const ClarificationOrigin = z.enum(['skill', 'human']).describe('Who is asking. `skill` is a run that stopped to ask, and `human` is a person filing a doubt of their own. A run leaves it unset, which records `skill`.')
 export type ClarificationOrigin = z.infer<typeof ClarificationOrigin>
 
-/** Human picks this when filing to steer the AI. Skill clarifications leave it unset. */
-export const ClarificationAmbiguityType = z.enum(['gap', 'contradiction', 'ambiguous', 'assumption'])
+export const ClarificationAmbiguityType = z.enum(['gap', 'contradiction', 'ambiguous', 'assumption']).describe(
+  'What kind of doubt this is, which a person sets when filing one to steer the run that picks it up. '
+  + '`gap` is something nobody wrote down, `contradiction` is two sources disagreeing, '
+  + '`ambiguous` is one statement that reads two ways, '
+  + 'and `assumption` is something taken for granted that needs confirming. '
+  + 'A run raising a question of its own leaves it unset.',
+)
 export type ClarificationAmbiguityType = z.infer<typeof ClarificationAmbiguityType>
 
-export const ClarificationCandidate = z.object({
+/**
+ * One shape, registered twice.
+ *
+ * A candidate on the way in may leave its id to the server,
+ * so the body takes the same shape with that one field optional.
+ * Built from the shape rather than from the registered schema,
+ * which keeps the two components apart in the served document.
+ */
+const clarificationCandidateShape = {
   id: ClarificationCandidateId,
-  description: z.string().min(1).max(200).regex(/^[^\n]+$/, 'Candidate description must be a single line').describe('One-line summary of this candidate resolution.'),
-  sourceReferences: z.array(SourceReference).default([]),
-  proposedOperations: z.array(GraphOperation).default([]),
-})
+  description: z.string().min(1).max(200).regex(/^[^\n]+$/, 'Candidate description must be a single line').describe('This answer in one line, phrased so a person can choose between candidates without opening a source.'),
+  sourceReferences: z.array(SourceReference).default([]).describe('The passages that support this answer, which is what makes it a reading rather than a guess.'),
+  proposedOperations: z.array(GraphOperation).default([]).describe('The graph changes this answer would make, so picking it is enough to act on. They are checked against the graph only once a person picks this candidate, so a reading worth offering can carry changes worth questioning.'),
+}
+
+const candidateDescription = 'One answer a person can pick, offered by whoever raised the question.'
+
+export const ClarificationCandidate = z.object(clarificationCandidateShape).describe(candidateDescription).openapi('ClarificationCandidate')
+
+/** The same candidate with its id left to the server to mint. */
+export const ClarificationCandidateDraft = z.object({
+  ...clarificationCandidateShape,
+  id: ClarificationCandidateId.optional().describe('Id to give this candidate. Absent leaves the server to derive one.'),
+}).describe(candidateDescription).openapi('ClarificationCandidateDraft')
+export type ClarificationCandidateDraft = z.infer<typeof ClarificationCandidateDraft>
 export type ClarificationCandidate = z.infer<typeof ClarificationCandidate>
 
-export const ClarificationAnswerMode = z.enum(['resumes', 'standing'])
+export const ClarificationAnswerMode = z.enum(['resumes', 'standing']).describe('Whether a conversation is parked on the answer. `resumes` carries a stopped run on, and `standing` records the answer for a later step. The server decides which, never the asker.')
 export type ClarificationAnswerMode = z.infer<typeof ClarificationAnswerMode>
 
 export const Clarification = HandoffOwner.extend({
   id: ClarificationId,
   workspaceId: WorkspaceId,
   question: clarificationQuestion,
-  candidates: z.array(ClarificationCandidate),
+  candidates: z.array(ClarificationCandidate).describe('The answers offered, which a person picks between.'),
   status: ClarificationStatus,
-  answeredBy: UserId.optional(),
+  answeredBy: UserId.optional().describe('Who answered. Absent while the question is open.'),
   /**
    * When somebody answered, the counterpart to a proposal's `reviewedAt`.
    *
@@ -63,10 +91,9 @@ export const Clarification = HandoffOwner.extend({
    * and on everything recorded before the field existed.
    */
   answeredAt: Timestamp.optional(),
-  selectedCandidateId: ClarificationCandidateId.optional(),
-  resolution: z.array(GraphOperation).optional(),
-  // Set when the resolution becomes a Proposal, so the UI can link the two.
-  proposalId: ProposalId.optional(),
+  selectedCandidateId: ClarificationCandidateId.optional().describe('The candidate the person picked, when they picked one of the offered answers.'),
+  resolution: z.array(GraphOperation).optional().describe('The graph changes the answer settled on, which a proposal then carries.'),
+  proposalId: ProposalId.optional().describe('The proposal that carries this answer, once one has been filed for it.'),
   externalReferences: z.array(ExternalReference).optional(),
   /**
    * The run that raised this, when a skill did. Absent on a human-filed one.
@@ -110,22 +137,20 @@ export const Clarification = HandoffOwner.extend({
    */
   answerMode: ClarificationAnswerMode.optional(),
   origin: ClarificationOrigin,
-  // Free-form background on a human-filed issue. Skill clarifications leave it empty.
-  context: z.string().max(2000).optional(),
-  // Node the human believes the issue concerns, to help the AI scope its resolution.
-  relatedNode: NodeId.optional(),
+  context: z.string().max(2000).optional().describe('Background the asker wrote in their own words, beyond what the question itself says.'),
+  relatedNode: NodeId.optional().describe('The node the doubt is about, which is where whoever picks this up should start reading.'),
   ambiguityType: ClarificationAmbiguityType.optional(),
-})
+}).describe('A question a run could not settle on its own, waiting on a person.').openapi('Clarification')
 export type Clarification = z.infer<typeof Clarification>
 
 export const ClarificationCreate = z.object({
   workspaceId: WorkspaceId,
   question: clarificationQuestion,
-  candidates: z.array(ClarificationCandidate),
-  externalReferences: z.array(ExternalReference).optional(),
+  candidates: z.array(ClarificationCandidate).describe('The answers to offer. Two or three readings a person can choose between beat one question with none, since picking is faster than writing.'),
+  externalReferences: z.array(ExternalReference).optional().describe('Links out to the work this doubt came from.'),
   origin: ClarificationOrigin.optional(),
-  context: z.string().max(2000).optional(),
-  relatedNode: NodeId.optional(),
+  context: z.string().max(2000).optional().describe('Background beyond the question itself, such as what was read on the way to the doubt.'),
+  relatedNode: NodeId.optional().describe('The node the doubt is about, which is where whoever picks this up should start reading.'),
   ambiguityType: ClarificationAmbiguityType.optional(),
 })
 export type ClarificationCreate = z.infer<typeof ClarificationCreate>
@@ -136,7 +161,7 @@ export type ClarificationCreate = z.infer<typeof ClarificationCreate>
  */
 export const ClarificationCreateBody = ClarificationCreate
   .omit({ workspaceId: true })
-  .extend({ candidates: z.array(ClarificationCandidate.partial({ id: true })) })
+  .extend({ candidates: z.array(ClarificationCandidateDraft).describe('The answers to offer. Two or three readings a person can choose between beat one question with none, since picking is faster than writing.') })
 export type ClarificationCreateBody = z.infer<typeof ClarificationCreateBody>
 
 export const ClarificationFilter = HandoffFilter.extend({

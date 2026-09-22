@@ -21,6 +21,8 @@ const getOntologyRoute = createRoute(mcpReadTool({
     },
     404: NotFoundResponse,
   },
+}, {
+  description: 'The vocabulary this workspace was built with, which is the node types, relationship types, and source roles it declares. Read it before filtering a search or reading a node, since every type a node carries is named here.',
 }))
 
 export function createOntologyRouter(deps: OntologyRouterDeps): OpenAPIHono {
