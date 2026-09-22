@@ -1,6 +1,6 @@
 import type { Surface } from '../helpers/specDescriptions.js'
-import { afterEach, describe, expect, it } from 'vitest'
-import { buildRunnerApp, endAllSpawned } from '../helpers/runnerApp.js'
+import { describe, expect, it } from 'vitest'
+import { buildMultiUserApp } from '../helpers/multiUser.js'
 import {
   ontologyVocabularyIn,
   operationsOf,
@@ -47,18 +47,23 @@ function surface(category: string, form: string): Promise<Surface> {
   return read
 }
 
-// The full composition, since the render operations only reach the document
-// with a runner wired, and they are half of what a run is offered.
+/**
+ * The composition a deployment actually runs, rather than a lighter one.
+ *
+ * Several routers mount only when the dependency behind them exists,
+ * so a lighter app serves a smaller document,
+ * and a field on one of those routes would go unchecked while a run is handed it.
+ * A real `ask` run against `composeFsApp` was offered nineteen operations
+ * that the runner harness never builds, ten of whose fields said nothing.
+ */
 async function readSurface(category: string, form: string): Promise<Surface> {
-  const { app } = await buildRunnerApp()
+  const { app } = await buildMultiUserApp()
   const response = await app.request(`/openapi/runs/${category}/${form}/openapi.json`)
   expect(response.status).toBe(200)
   return await response.json() as Surface
 }
 
 describe('every field a run is asked to fill', () => {
-  afterEach(endAllSpawned)
-
   // What a field means belongs where every caller reads it.
   // The alternative was one skill's prompt explaining it,
   // which is how `clarificationId` came to be a rule only `clarify` knew.
@@ -81,8 +86,6 @@ describe('every field a run is asked to fill', () => {
 })
 
 describe('the prose a run is served', () => {
-  afterEach(endAllSpawned)
-
   it.each(PAIRINGS)('names no vocabulary only one ontology would have, on a $category run writing $form', async ({ category, form }) => {
     expect(ontologyVocabularyIn(await surface(category, form))).toEqual([])
   })

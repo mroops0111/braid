@@ -4,7 +4,7 @@ import { NodeId, Timestamp } from './common.js'
 import { localizedText } from './locale.js'
 import { type NodeTypeDescriptor, NodeTypeId } from './ontology.js'
 
-export const ViewKind = z.string().min(1).brand<'ViewKind'>()
+export const ViewKind = z.string().min(1).brand<'ViewKind'>().describe('Which kind of document, from the kinds the deployment\'s view generators declare.')
 export type ViewKind = z.infer<typeof ViewKind>
 
 export const ViewArtifactFormat = z.string().min(1).brand<'ViewArtifactFormat'>()
@@ -30,7 +30,7 @@ export type ViewArtifact = z.infer<typeof ViewArtifact>
  * Open by design, the way a view kind is.
  * A plugin adds a form and the framework serves it without learning its name.
  */
-export const ViewFormId = z.string().min(1).brand<'ViewFormId'>()
+export const ViewFormId = z.string().min(1).brand<'ViewFormId'>().describe('Which form of that kind to write, from the forms its kind declares.')
 export type ViewFormId = z.infer<typeof ViewFormId>
 
 /** One answer a reader may give to what a form asks. */
@@ -200,15 +200,14 @@ export const GenerateViewRequest = z.object({
   kind: ViewKind,
   form: ViewFormId,
   subject: NodeId,
-  asked: z.record(z.string(), z.string()).optional(),
+  asked: z.record(z.string(), z.string()).optional().describe('The reader\'s answers to what the form asks, keyed by option. Absent takes the form\'s own defaults.'),
 }).openapi('GenerateViewRequest')
 export type GenerateViewRequest = z.infer<typeof GenerateViewRequest>
 
 export const GenerateViewResponse = z.object({
   runId: z.string().min(1),
   form: ViewFormId,
-  /** What the reader was taken to have asked, with anything unsaid filled in. */
-  asked: z.record(z.string(), z.string()),
+  asked: z.record(z.string(), z.string()).describe('What the reader was taken to have asked, with anything unsaid filled in.'),
   /** Where the material this run writes from was projected to. */
   material: z.string().min(1),
 }).openapi('GenerateViewResponse')

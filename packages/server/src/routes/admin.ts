@@ -11,7 +11,7 @@ import { requireServerCapability } from '../middleware/workspaceAccess.js'
 import { NotFoundResponse, ValidationFailureResponse } from './_shared.js'
 
 const Invite = z.object({
-  email: z.string().email(),
+  email: z.string().email().describe('The address let in, matched against the one the person signs in with.'),
   invitedAt: z.string().datetime({ offset: true }),
   serverRole: ServerRole,
 }).openapi('Invite')
@@ -21,12 +21,12 @@ const InviteListResponse = z.object({
 }).openapi('InviteListResponse')
 
 const InviteDraft = z.object({
-  email: z.string().email(),
-  serverRole: ServerRole.optional(),
+  email: z.string().email().describe('The address to let in, matched against the one the person signs in with.'),
+  serverRole: ServerRole.optional().describe('What to grant on arrival. Absent grants the lower of the two.'),
 }).openapi('InviteDraft')
 
 const EmailParam = z.object({
-  email: z.string().email().openapi({ param: { name: 'email', in: 'path' } }),
+  email: z.string().email().describe('The invited address, as it was entered.').openapi({ param: { name: 'email', in: 'path' } }),
 })
 
 const UserIdParam = z.object({
