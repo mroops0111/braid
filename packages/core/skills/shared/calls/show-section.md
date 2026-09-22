@@ -1,5 +1,5 @@
 # `show_section`
 
-Opens a part of a document, and exists because a document has a shape where an answer has only an order.
+A document has a shape where an answer has only an order, and this is the call that carries it.
 
-Call it before the prose that sits under it, never after.
+Open a part where the subject changes, not where the page has grown long.

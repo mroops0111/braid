@@ -1,5 +1,5 @@
 # `show_check`
 
-One question about what the reader just read, with the answer held back until they commit. A reader who has just read something believes they know it and is usually wrong.
+A reader who has just read something believes they know it, and is usually wrong, so a passage that never asks cannot tell whether it landed.
 
-Depth is not difficulty. An obscure fact dressed up as `judge` is still recall, and the reader learns only that the question was unfair.
+An obscure fact dressed up as `judge` is still recall, and the reader learns only that the question was unfair.

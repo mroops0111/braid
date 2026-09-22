@@ -1,5 +1,3 @@
 # `show_custom`
 
-A shape only your own plugin understands. Braid checks the payload against the schema that plugin registered, refuses it when no plugin claims the kind, and stores it.
-
-Braid's own surface does not draw one and says plainly that it cannot, so reach for this when your own application is what renders the result.
+Braid's own surface does not draw a shape it does not know, and says plainly that it cannot, so reach for this when your own application is what renders the result.
