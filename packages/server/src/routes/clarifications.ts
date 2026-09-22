@@ -46,8 +46,8 @@ const SkipBody = z.object({
 // The only legal transition a run drives is `answered` to `applied`.
 const ApplyBody = z.object({
   status: z.literal('applied').describe('The only transition a run may drive here, which records that the answer has been carried out.'),
-  proposalId: ProposalId.optional().describe('The proposal that carried the answer, when one was filed. Leave it out where the chosen candidate changed nothing in the graph.'),
-  userId: UserId.optional().describe('Who is acting, for a caller that carries neither the `X-Braid-User` header nor a bearer token. A run leaves it unset.'),
+  proposalId: ProposalId.optional().describe('The proposal that carried the answer, when one was filed. Absent where the chosen candidate changed nothing in the graph.'),
+  userId: UserId.optional().describe('Who is acting, for a caller that carries neither the `X-Braid-User` header nor a bearer token, so a run leaves it unset.'),
 }).openapi('ClarificationApplyBody')
 
 // Skill-emitted candidates ship their own ids (`cc-1`, `cc-merge`).
@@ -81,7 +81,7 @@ const createClarificationRoute = createRoute(forRuns({
   path: '/',
   operationId: 'createClarification',
   summary: 'Create a clarification. Skills submit this when they cannot decide between candidate interpretations.',
-  description: 'Ask when the choice between two readings would change what you file, rather than when a detail is merely missing. Offer the readings you are weighing as candidates, since picking one is faster for a person than writing an answer. Whether answering carries this run on or is recorded for later is settled by the server from whether anybody was watching.',
+  description: 'Ask when the choice between two readings would change what the run files, rather than when a detail is merely missing. Offer the readings being weighed as candidates, since picking one is faster for a person than writing an answer. Whether answering carries this run on or is recorded for later is settled by the server from whether anybody was watching.',
   tags: ['clarify'],
   request: {
     params: WorkspaceIdParam,

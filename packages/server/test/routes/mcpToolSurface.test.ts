@@ -5,6 +5,7 @@ import { readJson } from '../helpers/readJson.js'
 import {
   ontologyVocabularyIn,
   operationsOf,
+  secondPersonIn,
   silentOperations,
   undescribedBodyFields,
   undescribedParameters,
@@ -143,5 +144,10 @@ describe('what the MCP tools say about themselves', () => {
   it('names no vocabulary only one ontology would have', async () => {
     const { operations } = await toolOperations()
     expect(ontologyVocabularyIn(operations.map(({ operation }) => operation))).toEqual([])
+  })
+
+  it('addresses nobody as `you`', async () => {
+    const { operations } = await toolOperations()
+    expect(secondPersonIn(operations.map(({ operation }) => operation))).toEqual([])
   })
 })

@@ -69,7 +69,7 @@ export const ClarificationCandidate = z.object(clarificationCandidateShape).desc
 /** The same candidate with its id left to the server to mint. */
 export const ClarificationCandidateDraft = z.object({
   ...clarificationCandidateShape,
-  id: ClarificationCandidateId.optional().describe('Id to give this candidate. Omit it and the server derives one.'),
+  id: ClarificationCandidateId.optional().describe('Id to give this candidate. Absent leaves the server to derive one.'),
 }).describe(candidateDescription).openapi('ClarificationCandidateDraft')
 export type ClarificationCandidateDraft = z.infer<typeof ClarificationCandidateDraft>
 export type ClarificationCandidate = z.infer<typeof ClarificationCandidate>

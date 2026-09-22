@@ -80,8 +80,8 @@ export type Actor = z.infer<typeof Actor>
 
 export const SourceLocation = z.object({
   uri: z.string().min(1).describe('Where inside the source, as the source addresses itself, such as a file path.'),
-  startLine: z.number().int().nonnegative().optional().describe('First line covered, counted from 1. Omit for a source with no lines.'),
-  endLine: z.number().int().nonnegative().optional().describe('Last line covered, inclusive. Omit when the reference is one line.'),
+  startLine: z.number().int().nonnegative().optional().describe('First line covered, counted from 1. Absent for a source with no lines.'),
+  endLine: z.number().int().nonnegative().optional().describe('Last line covered, inclusive. Absent when the reference is one line.'),
   anchor: z.string().optional().describe('A named place inside the source, for one a line number cannot address.'),
 }).describe('Where in a source something was read, precise enough for a reader to open it.').openapi('SourceLocation')
 export type SourceLocation = z.infer<typeof SourceLocation>

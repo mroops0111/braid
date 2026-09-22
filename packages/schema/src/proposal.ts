@@ -147,7 +147,7 @@ export type Proposal = z.infer<typeof Proposal>
 export const ProposalCreate = z.object({
   workspaceId: WorkspaceId,
   operations: z.array(GraphOperation).describe('The changes to make, applied together or not at all. Keep a proposal under 30 of them and split the rest into another.'),
-  generatedBy: SkillId.optional().describe('Which skill produced this. A run is already identified by the credential it calls with, so leave it unset unless there is no run.'),
+  generatedBy: SkillId.optional().describe('Which skill produced this. The credential the call arrives with already identifies the run, so a run leaves it unset, and only a caller with no run sends it.'),
   rationale: proposalRationale,
   externalReferences: z.array(ExternalReference).optional().describe('Links out to the work this came from, such as the ticket that asked for it.'),
   clarificationId: ClarificationId.optional().describe('The clarification this proposal resolves, when it resolves one. Sending it closes that question once a person applies this, and leaving it out leaves the question open for somebody to answer twice.'),

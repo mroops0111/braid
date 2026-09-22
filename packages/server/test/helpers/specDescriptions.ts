@@ -177,6 +177,39 @@ export function silentOperations(
     .sort()
 }
 
+function everyDescription(held: unknown): readonly string[] {
+  const found: string[] = []
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      for (const item of value)
+        visit(item)
+      return
+    }
+    if (typeof value !== 'object' || value === null)
+      return
+    for (const [key, nested] of Object.entries(value)) {
+      if ((key === 'description' || key === 'summary') && typeof nested === 'string')
+        found.push(nested)
+      else visit(nested)
+    }
+  }
+  visit(held)
+  return found
+}
+
+/**
+ * Prose that addresses the caller as `you`, which nothing else here does.
+ *
+ * One description is read by a model choosing a call and by a person reading
+ * the API, so it stays a statement about the field rather than an instruction
+ * to whoever is holding it. An imperative is fine, since `Keep only nodes of
+ * these types` still describes what the field does.
+ */
+export function secondPersonIn(held: unknown): readonly string[] {
+  const found = everyDescription(held).filter(prose => /\byou(?:r|rs|rself)?\b/i.test(prose))
+  return [...new Set(found)].sort()
+}
+
 /**
  * Ids only one ontology would have, as the skill prompts are checked for.
  *
@@ -197,26 +230,6 @@ const ONTOLOGY_PROSE = [
   /\ban engineer\b/i,
   /\bspec and the code\b/i,
 ]
-
-function everyDescription(held: unknown): readonly string[] {
-  const found: string[] = []
-  const visit = (value: unknown): void => {
-    if (Array.isArray(value)) {
-      for (const item of value)
-        visit(item)
-      return
-    }
-    if (typeof value !== 'object' || value === null)
-      return
-    for (const [key, nested] of Object.entries(value)) {
-      if ((key === 'description' || key === 'summary') && typeof nested === 'string')
-        found.push(nested)
-      else visit(nested)
-    }
-  }
-  visit(held)
-  return found
-}
 
 /**
  * Vocabulary in `held` that only one ontology would have, by what it named.

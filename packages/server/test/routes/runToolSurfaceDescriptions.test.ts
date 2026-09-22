@@ -4,6 +4,7 @@ import { buildRunnerApp, endAllSpawned } from '../helpers/runnerApp.js'
 import {
   ontologyVocabularyIn,
   operationsOf,
+  secondPersonIn,
   silentOperations,
   undescribedBodyFields,
   undescribedParameters,
@@ -84,5 +85,11 @@ describe('the prose a run is served', () => {
 
   it.each(PAIRINGS)('names no vocabulary only one ontology would have, on a $category run writing $form', async ({ category, form }) => {
     expect(ontologyVocabularyIn(await surface(category, form))).toEqual([])
+  })
+
+  // One description serves a model choosing a call and a person reading the API,
+  // so it says what the field is rather than addressing whoever holds it.
+  it.each(PAIRINGS)('addresses nobody as `you`, on a $category run writing $form', async ({ category, form }) => {
+    expect(secondPersonIn(await surface(category, form))).toEqual([])
   })
 })

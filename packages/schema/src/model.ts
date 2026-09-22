@@ -29,7 +29,7 @@ export const GraphNodeMetadata = z.object({
   lastTouchedBy: SkillId.optional().describe('The skill whose proposal last changed this node.'),
   externalReferences: z.array(ExternalReference).optional().describe('Links out to work about this node, such as the ticket that asked for it.'),
   driftIssues: z.array(DriftIssue).optional().describe('Disagreements between this node\'s sources. A patch replaces the whole list rather than adding to it, since drift is re-derived on each build, so leaving one out is what clears it.'),
-  acknowledgedDrifts: z.array(z.string().min(1)).optional().describe('Drift descriptions a person has accepted, where an exact string match suppresses that drift. A person\'s acknowledgement rather than an observation, so a run never sends it.'),
+  acknowledgedDrifts: z.array(z.string().min(1)).optional().describe('Drift descriptions a person has accepted, where an exact string match suppresses that drift. A person\'s acknowledgement rather than an observation, never sent by a run.'),
 }).describe('What is known about a node besides its own content, chiefly the evidence behind it.').openapi('GraphNodeMetadata')
 export type GraphNodeMetadata = z.infer<typeof GraphNodeMetadata>
 
@@ -64,7 +64,7 @@ export const GraphNodePatch = z.object(graphNodeShape).partial().describe('The f
 export type GraphNodePatch = z.infer<typeof GraphNodePatch>
 
 export const GraphNodeCreate = z.object({
-  id: NodeId.optional().describe('Id to give the new node. Omit it and the server derives one.'),
+  id: NodeId.optional().describe('Id to give the new node. Absent leaves the server to derive one.'),
   type: NodeTypeId,
   name: nodeName,
   description: nodeDescription,
@@ -89,7 +89,7 @@ export const GraphEdgePatch = z.object(graphEdgeShape).partial().describe('The f
 export type GraphEdgePatch = z.infer<typeof GraphEdgePatch>
 
 export const GraphEdgeCreate = z.object({
-  id: EdgeId.optional().describe('Id to give the new edge. Omit it and the server derives one.'),
+  id: EdgeId.optional().describe('Id to give the new edge. Absent leaves the server to derive one.'),
   type: EdgeTypeId,
   fromNodeId: NodeId.describe('The node the relationship starts at. It must already exist, or be added in the same proposal.'),
   toNodeId: NodeId.describe('The node the relationship points to. It must already exist, or be added in the same proposal.'),

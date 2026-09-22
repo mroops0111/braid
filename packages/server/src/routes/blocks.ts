@@ -120,7 +120,7 @@ const showMatrixRoute = createRoute(forRenderCall({
   method: 'post',
   path: '/blocks/matrix',
   operationId: 'showMatrix',
-  summary: 'Render two axes crossing, each cell a state with its own evidence. Both axes are yours to choose.',
+  summary: 'Render two axes crossing, each cell a state with its own evidence. The axes are whatever the question crosses.',
   tags: ['render'],
   request: {
     params: WorkspaceIdParam,
@@ -198,7 +198,7 @@ const showCustomRoute = createRoute(forRenderCall({
   method: 'post',
   path: '/blocks/custom',
   operationId: 'showCustom',
-  summary: 'Render a block shape your own plugin declares, which Braid stores and your own surface draws.',
+  summary: 'Render a block shape a plugin declares, which Braid stores and that plugin\'s own surface draws.',
   tags: ['render'],
   request: {
     params: WorkspaceIdParam,

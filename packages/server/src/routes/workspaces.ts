@@ -151,7 +151,7 @@ const listWorkspacesRoute = createRoute(mcpReadTool({
     },
   },
 }, {
-  description: 'List the workspaces the caller can see. Start here, then pass an id to the other tools.',
+  description: 'The workspaces the caller can see. Start here, then pass an id to the other tools.',
   response: '{"items": [items.{"id": id, "name": productManifest.name, "description": productManifest.description}]}',
 }))
 

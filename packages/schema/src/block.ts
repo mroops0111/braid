@@ -198,7 +198,7 @@ export type SubgraphEdge = z.infer<typeof SubgraphEdge>
 export const ShowSubgraph = z.object({
   ...blockBase,
   call: z.literal('showSubgraph'),
-  nodes: z.array(NodeId).min(1).describe('The nodes to draw, by id and nothing more. The surface resolves each to its own name and colour, so a name repeated here goes stale on a rename. Send only ids you have actually read.'),
+  nodes: z.array(NodeId).min(1).describe('The nodes to draw, by id and nothing more. The surface resolves each to its own name and colour, so a name repeated here goes stale on a rename. Send only ids a read of the graph has returned.'),
   edges: z.array(SubgraphEdge).default([]).describe('The relationships to draw between those nodes.'),
 }).openapi('ShowSubgraph')
 export type ShowSubgraph = z.infer<typeof ShowSubgraph>
