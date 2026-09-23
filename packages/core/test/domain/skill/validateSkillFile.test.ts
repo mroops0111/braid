@@ -138,6 +138,114 @@ describe('validateSkillFile', () => {
     expect(result.ok).toBe(true)
   })
 
+  it('flags a pick default naming no option its static provider lists', () => {
+    const result = validateSkillFile({
+      body: body(ALL_SECTIONS),
+      frontmatter: {
+        ...frontmatter('build'),
+        braid: {
+          requiredEnv: [],
+          requiredMcpServers: [],
+          allowedRoles: ['owner', 'maintainer'],
+          category: 'build',
+          inputs: [
+            {
+              name: 'mode',
+              label: 'Mode',
+              kind: 'pick',
+              optional: false,
+              default: 'reconcile',
+              fallback: 'text',
+              provider: {
+                kind: 'static',
+                options: [
+                  { value: 'build', label: 'Build' },
+                  { value: 'validate', label: 'Validate' },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    })
+    expect(result.ok).toBe(false)
+    expect(result.issues).toEqual([
+      expect.objectContaining({ kind: 'unlisted-default', target: 'mode' }),
+    ])
+  })
+
+  it('accepts a pick default naming an empty-value option, and one that matches', () => {
+    const result = validateSkillFile({
+      body: body(ALL_SECTIONS),
+      frontmatter: {
+        ...frontmatter('build'),
+        braid: {
+          requiredEnv: [],
+          requiredMcpServers: [],
+          allowedRoles: ['owner', 'maintainer'],
+          category: 'build',
+          inputs: [
+            {
+              name: 'mode',
+              label: 'Mode',
+              kind: 'pick',
+              optional: false,
+              default: '',
+              fallback: 'text',
+              provider: {
+                kind: 'static',
+                options: [
+                  { value: '', label: 'Build + Validate' },
+                  { value: 'validate', label: 'Validate' },
+                ],
+              },
+            },
+            {
+              name: 'scope',
+              label: 'Scope',
+              kind: 'pick',
+              optional: false,
+              default: 'checkout',
+              fallback: 'text',
+              provider: {
+                kind: 'static',
+                options: [{ value: 'checkout', label: 'Checkout' }],
+              },
+            },
+          ],
+        },
+      },
+    })
+    expect(result.ok).toBe(true)
+  })
+
+  it('does not check a default against a dynamic provider, resolved per workspace', () => {
+    const result = validateSkillFile({
+      body: body(ALL_SECTIONS),
+      frontmatter: {
+        ...frontmatter('build'),
+        braid: {
+          requiredEnv: [],
+          requiredMcpServers: [],
+          allowedRoles: ['owner', 'maintainer'],
+          category: 'build',
+          inputs: [
+            {
+              name: 'unit',
+              label: 'Unit',
+              kind: 'pick',
+              optional: false,
+              default: 'anything',
+              fallback: 'text',
+              provider: { kind: 'graph-node' },
+            },
+          ],
+        },
+      },
+    })
+    expect(result.ok).toBe(true)
+  })
+
   it('ignores H3 headings, anchors, and trailing whitespace', () => {
     const allSectionsWithAnchor = ALL_SECTIONS.map((s, i) => i === 0 ? `Role {#role}  ` : s)
     const text = `${allSectionsWithAnchor.map(s => `## ${s}\n`).join('\n')}\n### Sub-section\nBody.\n`

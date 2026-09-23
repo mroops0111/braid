@@ -417,6 +417,7 @@ export const SkillLoadIssue = z.object({
     'unparsable-frontmatter',
     'missing-section',
     'duplicate-input-name',
+    'unlisted-default',
     'unreachable-reference-document',
     'unparsable-extension-name',
     'missing-extension-target',

@@ -72,6 +72,7 @@ const CHECKS: readonly SkillFileCheck[] = [
   missingSectionIssues,
   unreachableReferenceDocumentIssues,
   duplicateInputNameIssues,
+  unlistedDefaultIssues,
 ]
 
 /**
@@ -84,7 +85,8 @@ const CHECKS: readonly SkillFileCheck[] = [
  * Every check names a way the file breaks once an agent reads it:
  * a section the prompt tells the agent to follow that is not there,
  * a reference document path the Read tool cannot resolve,
- * two inputs the form would bind to one name.
+ * two inputs the form would bind to one name,
+ * a pick input's default naming no option its static provider lists.
  *
  * House style is deliberately absent. Heading case, dash choice, section
  * order, and prompt length are review matters, and a skill withheld over
@@ -148,6 +150,35 @@ function duplicateInputNameIssues(file: ReadableSkillFile): SkillLoadIssue[] {
       })
     }
     seen.add(declaration.name)
+  }
+  return issues
+}
+
+/**
+ * A static provider is the one case where the option list is known at load
+ * time, so a `default` naming a value it does not offer is checkable here
+ * rather than only at run time, where it would preselect nothing and let a
+ * value the picker never listed reach `$ARGUMENTS` unnoticed.
+ *
+ * A dynamic provider (graph-node, source, clarify) resolves its options
+ * against one workspace, which this file-only moment cannot read, so its
+ * default goes unchecked here. Nothing later checks it either; that gap is
+ * left for whoever picks up an availability-level version of this rule.
+ */
+function unlistedDefaultIssues(file: ReadableSkillFile): SkillLoadIssue[] {
+  const issues: SkillLoadIssue[] = []
+  for (const declaration of file.frontmatter.braid.inputs ?? []) {
+    if (declaration.kind !== 'pick' || declaration.provider.kind !== 'static')
+      continue
+    if (declaration.default === undefined)
+      continue
+    if (declaration.provider.options.some(option => option.value === declaration.default))
+      continue
+    issues.push({
+      kind: 'unlisted-default',
+      message: `Input "${declaration.name}" declares default "${declaration.default}", which names no option in its static provider. The form would preselect nothing and could submit a value the picker never listed.`,
+      target: declaration.name,
+    })
   }
   return issues
 }
