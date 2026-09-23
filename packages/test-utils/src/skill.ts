@@ -1,4 +1,4 @@
-import type { RunRepository, SessionShareRepository, SkillRunner } from '@braidhq/core'
+import type { AgentCredentialStore, RunRepository, SessionShareRepository, SkillRunner } from '@braidhq/core'
 import type {
   AbsolutePath,
   McpServerId,
@@ -162,6 +162,17 @@ export function makeRunRecord(overrides: Partial<RunRecord> = {}): RunRecord {
     unattended: false,
     outputForm: 'blocks',
     ...overrides,
+  }
+}
+
+/** The credential-store port a test satisfies but never drives, same reason as the rest. */
+export function inertAgentCredentialStore(): AgentCredentialStore {
+  return {
+    reveal: async () => undefined,
+    save: async () => {},
+    forget: async () => {},
+    describe: async () => undefined,
+    markUsed: async () => {},
   }
 }
 

@@ -1,4 +1,5 @@
-import type { SkillFrontmatter } from '@braidhq/schema'
+import type { SkillFrontmatter, SkillInputDescriptor } from '@braidhq/schema'
+import { makeSkillManifestData } from '@braidhq/test-utils'
 import { describe, expect, it } from 'vitest'
 import { validateSkillFile } from '../../../src/domain/skill/validateSkillFile.js'
 
@@ -17,17 +18,12 @@ function body(sections: readonly string[]): string {
 }
 
 function frontmatter(category?: SkillFrontmatter['braid']['category']): SkillFrontmatter {
-  return {
-    name: 'braid-test',
-    description: 'a test skill',
-    disableModelInvocation: false,
-    braid: {
-      requiredEnv: [],
-      requiredMcpServers: [],
-      allowedRoles: ['owner', 'maintainer'],
-      ...(category ? { category } : {}),
-    },
-  }
+  return makeSkillManifestData(category ? { category } : {}).frontmatter
+}
+
+/** A `build` skill declaring exactly these inputs, the one shape every inputs[] test needs. */
+function frontmatterWithInputs(inputs: readonly SkillInputDescriptor[]): SkillFrontmatter {
+  return { ...frontmatter('build'), braid: { ...frontmatter('build').braid, inputs: [...inputs] } }
 }
 
 describe('validateSkillFile', () => {
@@ -61,6 +57,15 @@ describe('validateSkillFile', () => {
     expect(result.issues).toEqual([
       expect.objectContaining({ kind: 'missing-section', target: 'Output Files' }),
     ])
+  })
+
+  it('passes category: generate once Output Files is present', () => {
+    const result = validateSkillFile({
+      body: body([...ALL_SECTIONS, 'Output Files']),
+      frontmatter: frontmatter('generate'),
+    })
+    expect(result.ok).toBe(true)
+    expect(result.issues).toHaveLength(0)
   })
 
   it('does not require Output Files for category: build', () => {
@@ -99,19 +104,10 @@ describe('validateSkillFile', () => {
   it('flags duplicate input names', () => {
     const result = validateSkillFile({
       body: body(ALL_SECTIONS),
-      frontmatter: {
-        ...frontmatter('build'),
-        braid: {
-          requiredEnv: [],
-          requiredMcpServers: [],
-          allowedRoles: ['owner', 'maintainer'],
-          category: 'build',
-          inputs: [
-            { name: 'mode', label: 'Mode', kind: 'text', multiline: false, optional: false },
-            { name: 'mode', label: 'Mode 2', kind: 'text', multiline: false, optional: false },
-          ],
-        },
-      },
+      frontmatter: frontmatterWithInputs([
+        { name: 'mode', label: 'Mode', kind: 'text', multiline: false, optional: false },
+        { name: 'mode', label: 'Mode 2', kind: 'text', multiline: false, optional: false },
+      ]),
     })
     expect(result.ok).toBe(false)
     expect(result.issues).toEqual([
@@ -122,19 +118,10 @@ describe('validateSkillFile', () => {
   it('accepts well-formed inputs[] with unique names', () => {
     const result = validateSkillFile({
       body: body(ALL_SECTIONS),
-      frontmatter: {
-        ...frontmatter('build'),
-        braid: {
-          requiredEnv: [],
-          requiredMcpServers: [],
-          allowedRoles: ['owner', 'maintainer'],
-          category: 'build',
-          inputs: [
-            { name: 'mode', label: 'Mode', kind: 'text', multiline: false, optional: false },
-            { name: 'scope', label: 'Scope', kind: 'text', multiline: false, optional: true },
-          ],
-        },
-      },
+      frontmatter: frontmatterWithInputs([
+        { name: 'mode', label: 'Mode', kind: 'text', multiline: false, optional: false },
+        { name: 'scope', label: 'Scope', kind: 'text', multiline: false, optional: true },
+      ]),
     })
     expect(result.ok).toBe(true)
   })
@@ -142,32 +129,23 @@ describe('validateSkillFile', () => {
   it('flags a pick default naming no option its static provider lists', () => {
     const result = validateSkillFile({
       body: body(ALL_SECTIONS),
-      frontmatter: {
-        ...frontmatter('build'),
-        braid: {
-          requiredEnv: [],
-          requiredMcpServers: [],
-          allowedRoles: ['owner', 'maintainer'],
-          category: 'build',
-          inputs: [
-            {
-              name: 'mode',
-              label: 'Mode',
-              kind: 'pick',
-              optional: false,
-              default: 'reconcile',
-              fallback: 'text',
-              provider: {
-                kind: 'static',
-                options: [
-                  { value: 'build', label: 'Build' },
-                  { value: 'validate', label: 'Validate' },
-                ],
-              },
-            },
-          ],
+      frontmatter: frontmatterWithInputs([
+        {
+          name: 'mode',
+          label: 'Mode',
+          kind: 'pick',
+          optional: false,
+          default: 'reconcile',
+          fallback: 'text',
+          provider: {
+            kind: 'static',
+            options: [
+              { value: 'build', label: 'Build' },
+              { value: 'validate', label: 'Validate' },
+            ],
+          },
         },
-      },
+      ]),
     })
     expect(result.ok).toBe(false)
     expect(result.issues).toEqual([
@@ -178,44 +156,35 @@ describe('validateSkillFile', () => {
   it('accepts a pick default naming an empty-value option, and one that matches', () => {
     const result = validateSkillFile({
       body: body(ALL_SECTIONS),
-      frontmatter: {
-        ...frontmatter('build'),
-        braid: {
-          requiredEnv: [],
-          requiredMcpServers: [],
-          allowedRoles: ['owner', 'maintainer'],
-          category: 'build',
-          inputs: [
-            {
-              name: 'mode',
-              label: 'Mode',
-              kind: 'pick',
-              optional: false,
-              default: '',
-              fallback: 'text',
-              provider: {
-                kind: 'static',
-                options: [
-                  { value: '', label: 'Build + Validate' },
-                  { value: 'validate', label: 'Validate' },
-                ],
-              },
-            },
-            {
-              name: 'scope',
-              label: 'Scope',
-              kind: 'pick',
-              optional: false,
-              default: 'checkout',
-              fallback: 'text',
-              provider: {
-                kind: 'static',
-                options: [{ value: 'checkout', label: 'Checkout' }],
-              },
-            },
-          ],
+      frontmatter: frontmatterWithInputs([
+        {
+          name: 'mode',
+          label: 'Mode',
+          kind: 'pick',
+          optional: false,
+          default: '',
+          fallback: 'text',
+          provider: {
+            kind: 'static',
+            options: [
+              { value: '', label: 'Build + Validate' },
+              { value: 'validate', label: 'Validate' },
+            ],
+          },
         },
-      },
+        {
+          name: 'scope',
+          label: 'Scope',
+          kind: 'pick',
+          optional: false,
+          default: 'checkout',
+          fallback: 'text',
+          provider: {
+            kind: 'static',
+            options: [{ value: 'checkout', label: 'Checkout' }],
+          },
+        },
+      ]),
     })
     expect(result.ok).toBe(true)
   })
@@ -223,26 +192,17 @@ describe('validateSkillFile', () => {
   it('does not check a default against a dynamic provider, resolved per workspace', () => {
     const result = validateSkillFile({
       body: body(ALL_SECTIONS),
-      frontmatter: {
-        ...frontmatter('build'),
-        braid: {
-          requiredEnv: [],
-          requiredMcpServers: [],
-          allowedRoles: ['owner', 'maintainer'],
-          category: 'build',
-          inputs: [
-            {
-              name: 'unit',
-              label: 'Unit',
-              kind: 'pick',
-              optional: false,
-              default: 'anything',
-              fallback: 'text',
-              provider: { kind: 'graph-node' },
-            },
-          ],
+      frontmatter: frontmatterWithInputs([
+        {
+          name: 'unit',
+          label: 'Unit',
+          kind: 'pick',
+          optional: false,
+          default: 'anything',
+          fallback: 'text',
+          provider: { kind: 'graph-node' },
         },
-      },
+      ]),
     })
     expect(result.ok).toBe(true)
   })

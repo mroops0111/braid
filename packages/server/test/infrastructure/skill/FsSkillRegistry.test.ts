@@ -96,10 +96,8 @@ describe('FsSkillRegistry', () => {
       const skillDir = join(dir, verb)
       await mkdir(skillDir, { recursive: true })
       // Everything but `## Procedure`, which the contract requires.
-      const body = ['Role', 'Design Principles', 'Initialization', 'Output', 'Completion Checklist', 'Reference Documents']
-        .map(section => `## ${section}\n\nBody.`)
-        .join('\n\n')
-      await writeFile(join(skillDir, 'SKILL.md'), `---\nname: ${verb}\ndescription: broken\n---\n\n${body}\n`, 'utf-8')
+      const content = makeSkillFileContents({ name: verb, omitSections: ['Procedure'] })
+      await writeFile(join(skillDir, 'SKILL.md'), content, 'utf-8')
     }
 
     it('keeps the rest of the workspace working', async () => {

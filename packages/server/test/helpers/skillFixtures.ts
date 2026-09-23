@@ -18,6 +18,8 @@ export interface MakeSkillFileOptions {
   readonly description?: string
   /** Skill category. Omit for the Custom-bucket (no `braid.category`) shape. */
   readonly category?: 'ask' | 'build' | 'generate'
+  /** Section names to leave out of the body, for a test that wants a file missing one. */
+  readonly omitSections?: readonly string[]
 }
 
 /**
@@ -43,7 +45,8 @@ export function makeSkillFileContents(opts: MakeSkillFileOptions): string {
     'Reference Documents',
   ]
   const categorySections = opts.category === 'generate' ? ['Output Files'] : []
-  const sections = [...commonSections, ...categorySections]
+  const omitted = new Set(opts.omitSections ?? [])
+  const sections = [...commonSections, ...categorySections].filter(section => !omitted.has(section))
 
   const body = sections.map(s => `## ${s}\n\nFixture body for ${s}.`).join('\n\n')
 

@@ -15,8 +15,9 @@ import {
   type WorkspaceEventBus,
 } from '@braidhq/core'
 import { UserId } from '@braidhq/schema'
-import { T0 } from '@braidhq/test-utils'
+import { inertAgentCredentialStore, T0 } from '@braidhq/test-utils'
 import { describe, expect, it, vi } from 'vitest'
+import { sessionsDir } from '../../../src/infrastructure/_shared/paths.js'
 import { AgentCredentialBroker } from '../../../src/infrastructure/agent/AgentCredentialBroker.js'
 import { FsRunRepository } from '../../../src/infrastructure/skill/FsRunRepository.js'
 import { RunOutputGate } from '../../../src/infrastructure/skill/RunOutputGate.js'
@@ -24,6 +25,7 @@ import { RunTokenRegistry } from '../../../src/infrastructure/skill/RunTokenRegi
 import { SubprocessSkillRunner } from '../../../src/infrastructure/skill/SubprocessSkillRunner.js'
 import { DEFAULT_AGENT_BINDING, makeWorkspace } from '../../helpers/fakes.js'
 import { createMockSpawn, type MockSpawnRecord, type MockSpawnScript } from '../../helpers/mockSpawn.js'
+import { makeSingleSkillRegistry } from '../../helpers/runnerApp.js'
 import { makeSkillFileContents } from '../../helpers/skillFixtures.js'
 
 const SKILL_ID = 'braid:ask' as SkillId
@@ -133,12 +135,7 @@ async function makeSkillRegistry(skillSourceParent: AbsolutePath, declares: {
       },
     },
   })
-  return {
-    list: async () => [manifest],
-    listUnloadable: async () => [],
-    find: async () => manifest,
-    get: async () => manifest,
-  }
+  return makeSingleSkillRegistry(manifest)
 }
 
 async function collectRunEvents(
@@ -347,13 +344,7 @@ describe('SubprocessSkillRunner', () => {
     const runTokens = new RunTokenRegistry()
     const outputGate = new RunOutputGate()
     const agentCredentials = new AgentCredentialBroker({
-      store: {
-        reveal: async () => undefined,
-        save: async () => {},
-        forget: async () => {},
-        describe: async () => undefined,
-        markUsed: async () => {},
-      },
+      store: inertAgentCredentialStore(),
       serverCredential: 'test-server-credential',
       baseUrl: 'http://localhost:4321/agent',
     })
@@ -377,6 +368,9 @@ describe('SubprocessSkillRunner', () => {
     expect(revokeSpy).toHaveBeenCalledTimes(1)
     expect(closeSpy).toHaveBeenCalledTimes(1)
     expect(releaseSpy).toHaveBeenCalledTimes(1)
+    // The session dir was built (skill bundles, reference mounts) before the
+    // preflight ran, and is this failed attempt's own to clean up.
+    await expect(readdir(sessionsDir(rootPath))).resolves.toEqual([])
   })
 
   it('points the gateway at the loopback API, since the spec names the public one', async () => {
