@@ -54,8 +54,9 @@ const SkillListResponse = z.object({
   /**
    * Workspace skill files that did not load, and why.
    *
-   * Reported rather than logged, because the person who can fix one
-   * is the person reading this list, not whoever runs the server.
+   * Reported rather than logged,
+   * because the person who can fix one is the person reading this list,
+   * not whoever runs the server.
    */
   unloadable: z.array(UnloadableSkill),
 }).openapi('SkillListResponse')

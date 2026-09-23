@@ -10,8 +10,8 @@ export interface SkillRegistry {
    * The workspace's own skill files that did not load, and why.
    *
    * Separate from `list` because these have no manifest to carry,
-   * and because every caller that stages or runs a skill wants the list
-   * to hold only what it can actually hand to an agent.
+   * and because every caller that stages or runs a skill,
+   * wants the list to hold only what it can actually hand to an agent.
    */
   listUnloadable: (workspace: Workspace) => Promise<readonly UnloadableSkill[]>
 }
