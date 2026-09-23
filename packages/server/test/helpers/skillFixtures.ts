@@ -1,16 +1,16 @@
 /**
  * SKILL.md fixtures for tests that materialise a real file on disk.
  *
- * The repo's `validateSkillFile` requires a fixed set of H2
- * sections per skill category; a SKILL.md missing one is rejected by
- * `FsSkillRegistry` at load time. Tests don't care about prose
- * content, they care that the structural contract is satisfied — so
- * we keep a single minimal-conforming body here that every test
- * fixture writer can reuse.
+ * The repo's `validateSkillFile` requires a fixed set of H2 sections per skill category,
+ * and a SKILL.md missing one is rejected by `FsSkillRegistry` at load time.
+ * Tests don't care about prose content,
+ * they care that the structural contract is satisfied,
+ * so we keep a single minimal-conforming body here,
+ * and every test fixture writer can reuse it.
  *
- * When the structure contract evolves (a new required section, a new
- * category-specific section), update this helper and the existing
- * tests pick it up automatically.
+ * When the structure contract evolves,
+ * a new required section or a new category-specific one,
+ * update this helper and the existing tests pick it up automatically.
  */
 
 export interface MakeSkillFileOptions {
@@ -21,9 +21,8 @@ export interface MakeSkillFileOptions {
 }
 
 /**
- * Returns a complete SKILL.md text (frontmatter + body) that passes
- * `validateSkillFile`. The body contains all required H2 sections
- * with one-line placeholder content.
+ * Returns a complete SKILL.md text (frontmatter + body) that passes `validateSkillFile`.
+ * The body contains all required H2 sections with one-line placeholder content.
  */
 export function makeSkillFileContents(opts: MakeSkillFileOptions): string {
   const frontmatter = [

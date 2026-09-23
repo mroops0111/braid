@@ -60,9 +60,9 @@ export class SkillManifest {
   /**
    * Why this skill cannot run in this workspace, though it may in others.
    *
-   * Answered from what the workspace declares, so it is settled as the list
-   * is built. What a run's own environment supplies belongs to a later
-   * moment and is asserted by `assertSkillCanStart` instead.
+   * Answered from what the workspace declares, so it is settled as the list is built.
+   * What a run's own environment supplies belongs to a later moment,
+   * and is asserted by `assertSkillCanStart` instead.
    */
   availabilityIssuesIn(workspace: Workspace): readonly SkillAvailabilityIssue[] {
     return this.braidFields.requiredMcpServers

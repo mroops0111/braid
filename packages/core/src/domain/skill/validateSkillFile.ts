@@ -78,19 +78,19 @@ const CHECKS: readonly SkillFileCheck[] = [
 /**
  * Whether a SKILL.md is a usable skill, answered from the file alone.
  *
- * This is the earliest of the three moments a skill is checked at, and the
- * only one whose answer holds in every workspace and on every run, which is
- * why a failure here keeps the file out of the list rather than flagging it.
+ * This is the earliest of the three moments a skill is checked at,
+ * and the only one whose answer holds in every workspace and on every run,
+ * which is why a failure here keeps the file out of the list rather than flagging it.
  *
- * Every check names a way the file breaks once an agent reads it:
- * a section the prompt tells the agent to follow that is not there,
+ * Every check names a way the file breaks once an agent reads it,
+ * such as a section the prompt tells the agent to follow that is not there,
  * a reference document path the Read tool cannot resolve,
  * two inputs the form would bind to one name,
- * a pick input's default naming no option its static provider lists.
+ * or a pick input's default naming no option its static provider lists.
  *
- * House style is deliberately absent. Heading case, dash choice, section
- * order, and prompt length are review matters, and a skill withheld over
- * one of those costs its author more than the rule saves.
+ * House style is deliberately absent. Heading case, dash choice,
+ * section order, and prompt length are review matters,
+ * and a skill withheld over one of those costs its author more than the rule saves.
  *
  * The checks are text-level, not AST-level.
  */
@@ -117,9 +117,9 @@ function missingSectionIssues(file: ReadableSkillFile): SkillLoadIssue[] {
 }
 
 /**
- * Every row of the Reference Documents table names a file through a mounted
- * path. Only the first cell is read, since that is the column the path lives
- * in, and the prose columns quote field names freely.
+ * Every row of the Reference Documents table names a file through a mounted path.
+ * Only the first cell is read, since that is the column the path lives in,
+ * and the prose columns quote field names freely.
  */
 function unreachableReferenceDocumentIssues(file: ReadableSkillFile): SkillLoadIssue[] {
   const issues: SkillLoadIssue[] = []
@@ -155,15 +155,16 @@ function duplicateInputNameIssues(file: ReadableSkillFile): SkillLoadIssue[] {
 }
 
 /**
- * A static provider is the one case where the option list is known at load
- * time, so a `default` naming a value it does not offer is checkable here
- * rather than only at run time, where it would preselect nothing and let a
- * value the picker never listed reach `$ARGUMENTS` unnoticed.
+ * A static provider is the one case where the option list is known at load time,
+ * so a `default` naming a value it does not offer is checkable here,
+ * rather than only at run time, where it would preselect nothing,
+ * and let a value the picker never listed reach `$ARGUMENTS` unnoticed.
  *
- * A dynamic provider (graph-node, source, clarify) resolves its options
- * against one workspace, which this file-only moment cannot read, so its
- * default goes unchecked here. Nothing later checks it either; that gap is
- * left for whoever picks up an availability-level version of this rule.
+ * A dynamic provider, graph-node, source, or clarify,
+ * resolves its options against one workspace,
+ * which this file-only moment cannot read, so its default goes unchecked here.
+ * Nothing later checks it either.
+ * That gap is left for whoever picks up an availability-level version of this rule.
  */
 function unlistedDefaultIssues(file: ReadableSkillFile): SkillLoadIssue[] {
   const issues: SkillLoadIssue[] = []

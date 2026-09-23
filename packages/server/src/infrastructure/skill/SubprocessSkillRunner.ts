@@ -301,15 +301,17 @@ export class SubprocessSkillRunner implements SkillRunner {
       ...(options.extraEnv ?? {}),
     }
 
-    // Both preflights fail before a process exists, rather than letting an
-    // agent discover mid-run that a tool or a variable was never there.
+    // Both preflights fail before a process exists,
+    // rather than letting an agent discover mid-run,
+    // that a tool or a variable was never there.
     // This is the first moment the injected variables exist to be checked.
     //
-    // The token, gate, and lease above are already live by this point, and
-    // nothing past here runs drain()'s finally block to release them. A
-    // preflight failure is released here for the same reason drain() releases
-    // one on exit: an unrecognised token must stop opening doors, not outlive
-    // the run that never started.
+    // The token, gate, and lease above are already live by this point,
+    // and nothing past here runs drain()'s finally block to release them.
+    // A preflight failure is released here,
+    // for the same reason drain() releases one on exit,
+    // since an unrecognised token must stop opening doors,
+    // not outlive the run that never started.
     try {
       assertSkillCanStart({ skillId, frontmatter: manifest.frontmatter, env: runEnv })
       // Fail fast when the braid-core gateway cannot turn the spec into tools,

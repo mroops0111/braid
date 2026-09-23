@@ -14,7 +14,10 @@ export function workspaceEventsUrl(workspaceId: string): string {
 
 export interface ItemList<T> { items: T[] }
 
-/** A skill with why this workspace cannot run it, beside files that would not load at all. */
+/**
+ * A skill with why this workspace cannot run it,
+ * beside files that would not load at all.
+ */
 export type SkillListItem = SkillManifest & { availability: SkillAvailabilityIssue[] }
 
 export interface SkillListResponse {

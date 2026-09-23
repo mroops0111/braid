@@ -197,12 +197,13 @@ function AutoRefreshSwitch({ workspaceId, enabled, canWrite, onChange }: {
 /**
  * Skill files that did not load, and skills this workspace cannot run.
  *
- * Absent entirely when there is nothing wrong, since a healthy workspace
- * gains nothing from a row saying so, and the section is a diagnosis.
+ * Absent entirely when there is nothing wrong,
+ * since a healthy workspace gains nothing from a row saying so,
+ * and the section is a diagnosis.
  * Whoever can fix one of these is whoever opened this panel,
  * which is why it is reported here rather than left in the server log.
- * What only a starting run can answer is not here, since this list is
- * built long before one starts.
+ * What only a starting run can answer is not here,
+ * since this list is built long before one starts.
  */
 function SkillIssuesSection({ workspaceId }: { workspaceId: string }) {
   const { t } = useTranslation()
