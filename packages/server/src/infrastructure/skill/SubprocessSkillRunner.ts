@@ -304,10 +304,24 @@ export class SubprocessSkillRunner implements SkillRunner {
     // Both preflights fail before a process exists, rather than letting an
     // agent discover mid-run that a tool or a variable was never there.
     // This is the first moment the injected variables exist to be checked.
-    assertSkillCanStart({ skillId, frontmatter: manifest.frontmatter, env: runEnv })
-    // Fail fast when the braid-core gateway cannot turn the spec into tools,
-    // rather than spawning an agent that discovers the missing tools mid-run.
-    await this.ensureGatewayReady(spawnFn, toolSurface, outputForm, renderCalls)
+    //
+    // The token, gate, and lease above are already live by this point, and
+    // nothing past here runs drain()'s finally block to release them. A
+    // preflight failure is released here for the same reason drain() releases
+    // one on exit: an unrecognised token must stop opening doors, not outlive
+    // the run that never started.
+    try {
+      assertSkillCanStart({ skillId, frontmatter: manifest.frontmatter, env: runEnv })
+      // Fail fast when the braid-core gateway cannot turn the spec into tools,
+      // rather than spawning an agent that discovers the missing tools mid-run.
+      await this.ensureGatewayReady(spawnFn, toolSurface, outputForm, renderCalls)
+    }
+    catch (error) {
+      this.deps.agentCredentials?.release(runId)
+      this.deps.runTokens?.revoke(runId)
+      this.deps.outputGate?.close(runId)
+      throw error
+    }
 
     const child = spawnFn(invocation.bin, [...invocation.args], {
       cwd: sessionDir,

@@ -267,7 +267,7 @@ describe('FsSkillRegistry', () => {
     })
   })
 
-  describe('SkillStructureValidator integration', () => {
+  describe('validateSkillFile integration', () => {
     it('rejects a SKILL.md that is missing a required H2 section', async () => {
       const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
       const skillDir = join(builtinRoot, 'malformed')

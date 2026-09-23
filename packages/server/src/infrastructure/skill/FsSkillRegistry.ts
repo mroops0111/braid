@@ -48,6 +48,14 @@ export interface FsSkillRegistryOptions {
 export class FsSkillRegistry implements SkillRegistry {
   constructor(private readonly options: FsSkillRegistryOptions) {}
 
+  // In-flight scans, keyed by workspace id.
+  // `list` and `listUnloadable` both read `scan`'s result, and a caller
+  // wanting both, such as GET /workspaces/:id/skills, fires them together.
+  // Without this they walk the same directories twice for one request.
+  // Each entry is removed once its scan settles, so a later call still
+  // rescans rather than reading a result that has gone stale.
+  private readonly scansInFlight = new Map<string, Promise<ScanResult>>()
+
   async list(workspace: Workspace): Promise<readonly SkillManifest[]> {
     return (await this.scan(workspace)).manifests
   }
@@ -71,20 +79,44 @@ export class FsSkillRegistry implements SkillRegistry {
   /**
    * Every origin in one pass, so what loaded and what did not stay in step.
    *
-   * Each origin owns its own namespace, so no id can be claimed twice
-   * and the map is an index rather than a precedence chain.
+   * `builtin` and `workspace` each own a namespace fixed by this class
+   * (`braid` and `workspace`), so between those two no id can be claimed
+   * twice and the map is an index rather than a precedence chain. A plugin
+   * declares its own `skillNamespace` and nothing here checks it against
+   * the other two, or against another plugin's; a collision there still
+   * resolves by insertion order, silently.
    * Extensions attach an EXTEND.md path to a skill that is already there.
    * They never override it, and the agent binding points claude at that file.
    */
   private async scan(workspace: Workspace): Promise<ScanResult> {
+    const cached = this.scansInFlight.get(workspace.id)
+    if (cached)
+      return cached
+    const scanning = this.runScan(workspace)
+    this.scansInFlight.set(workspace.id, scanning)
+    try {
+      return await scanning
+    }
+    finally {
+      this.scansInFlight.delete(workspace.id)
+    }
+  }
+
+  private async runScan(workspace: Workspace): Promise<ScanResult> {
     const unloadable: UnloadableSkill[] = []
-    const builtins = await this.scanSkillsRoot(this.options.builtinSkillsRoot, 'builtin', unloadable)
-    const pluginSkills = await this.scanPluginSkills()
-    const workspaceSkills = await this.scanSkillsRoot(
-      AbsolutePathSchema.parse(workspaceSkillsDir(workspace.rootPath)),
-      'workspace',
-      unloadable,
-    )
+    // None of the three depends on another's result,
+    // so they run together rather than paying the sum of their latencies.
+    // Two of them push onto the same `unloadable` array; safe, since
+    // JavaScript never interleaves the synchronous work between awaits.
+    const [builtins, pluginSkills, workspaceSkills] = await Promise.all([
+      this.scanSkillsRoot(this.options.builtinSkillsRoot, 'builtin', unloadable),
+      this.scanPluginSkills(),
+      this.scanSkillsRoot(
+        AbsolutePathSchema.parse(workspaceSkillsDir(workspace.rootPath)),
+        'workspace',
+        unloadable,
+      ),
+    ])
 
     const manifests = new Map<SkillId, SkillManifest>()
     for (const manifest of [...builtins, ...pluginSkills, ...workspaceSkills])
@@ -282,6 +314,11 @@ export class FsSkillRegistry implements SkillRegistry {
  * `ddd:extract`. `SkillId` itself is any non-empty string, so the grammar
  * is checked by the one function that defines it.
  */
+// The extension dir is `<namespace>-<verb>`, filesystem-safe.
+// The first hyphen maps back to the id's `:` separator,
+// so `ddd-extract` targets `ddd:extract`, and `doc-reference` targets `doc:reference`.
+// A namespace that itself contains a hyphen is not addressable this way,
+// the same limit the directory convention has always carried.
 function extensionTargetId(directoryName: string): SkillId | undefined {
   const candidate = SkillIdSchema.parse(directoryName.replace('-', ':'))
   try {
