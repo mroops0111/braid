@@ -169,7 +169,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       )
     }
     const runId = newSkillRunId()
-    const sessionDir = await this.resolveSessionDir(workspace, runId, options.resumeSessionId)
+    const { sessionDir, fresh: freshSessionDir } = await this.resolveSessionDir(workspace, runId, options.resumeSessionId)
     const skillBundleDirs = await this.skillBundleDirsFor(workspace, sessionDir)
     // The run's own credential, so what it creates is attributed from the request,
     // rather than from a field an agent had to fill in correctly.
@@ -322,6 +322,10 @@ export class SubprocessSkillRunner implements SkillRunner {
       this.deps.agentCredentials?.release(runId)
       this.deps.runTokens?.revoke(runId)
       this.deps.outputGate?.close(runId)
+      // A reused directory belongs to the run it was resumed from,
+      // and must outlive this failed attempt.
+      if (freshSessionDir && this.deps.cleanupSession !== false)
+        await rm(sessionDir, { recursive: true, force: true }).catch(() => {})
       throw error
     }
 
@@ -759,22 +763,28 @@ export class SubprocessSkillRunner implements SkillRunner {
     }
   }
 
+  /**
+   * `fresh` tells a caller whether this run built the directory just now,
+   * as opposed to reusing one an earlier, resumed run already owns.
+   * Only a fresh directory is this call's own to remove on a later failure,
+   * a reused one holds a resumed conversation's state and must outlive this run.
+   */
   private async resolveSessionDir(
     workspace: Workspace,
     runId: SkillRunId,
     resumeSessionId: string | undefined,
-  ): Promise<string> {
+  ): Promise<{ sessionDir: string, fresh: boolean }> {
     if (resumeSessionId) {
       const cached = this.sessionDirs.get(resumeSessionId)
       if (cached)
-        return cached
+        return { sessionDir: cached, fresh: false }
       const recovered = await this.recoverSessionDir(workspace, resumeSessionId)
       if (recovered) {
         this.sessionDirs.set(resumeSessionId, recovered)
-        return recovered
+        return { sessionDir: recovered, fresh: false }
       }
     }
-    return this.buildSessionDir(workspace, runId)
+    return { sessionDir: await this.buildSessionDir(workspace, runId), fresh: true }
   }
 
   private async recoverSessionDir(workspace: Workspace, sessionId: string): Promise<string | undefined> {
