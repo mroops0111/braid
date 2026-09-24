@@ -3,17 +3,13 @@ import type {
   BraidSkillExtension,
   ClaudeCodeSkillFrontmatter,
   McpServerId,
+  SkillAvailabilityIssue,
   SkillFrontmatter,
   SkillId,
   SkillManifest as SkillManifestData,
   SkillOrigin,
 } from '@braidhq/schema'
 import type { Workspace } from '../workspace/Workspace.js'
-
-export interface SkillReadinessIssue {
-  readonly kind: 'missing-env' | 'missing-path' | 'missing-mcp-server'
-  readonly target: string
-}
 
 export class SkillManifest {
   constructor(private readonly data: SkillManifestData) {}
@@ -61,19 +57,17 @@ export class SkillManifest {
     return this.braidFields.requiredMcpServers.includes(serverId)
   }
 
-  readinessIssuesFor(workspace: Workspace, env: Readonly<Record<string, string | undefined>>): readonly SkillReadinessIssue[] {
-    const issues: SkillReadinessIssue[] = []
-    for (const name of this.braidFields.requiredEnv) {
-      if (!env[name]) {
-        issues.push({ kind: 'missing-env', target: name })
-      }
-    }
-    for (const serverId of this.braidFields.requiredMcpServers) {
-      if (!workspace.findMcpServer(serverId)) {
-        issues.push({ kind: 'missing-mcp-server', target: serverId })
-      }
-    }
-    return issues
+  /**
+   * Why this skill cannot run in this workspace, though it may in others.
+   *
+   * Answered from what the workspace declares, so it is settled as the list is built.
+   * What a run's own environment supplies belongs to a later moment,
+   * and is asserted by `assertSkillCanStart` instead.
+   */
+  availabilityIssuesIn(workspace: Workspace): readonly SkillAvailabilityIssue[] {
+    return this.braidFields.requiredMcpServers
+      .filter(serverId => !workspace.findMcpServer(serverId))
+      .map(serverId => ({ kind: 'missing-mcp-server' as const, target: serverId }))
   }
 
   toData(): SkillManifestData {

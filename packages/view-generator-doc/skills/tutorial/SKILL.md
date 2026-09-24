@@ -79,7 +79,7 @@ None. The framework takes the blocks this run rendered and keeps them as the doc
 - [ ] No node description copied into prose the surface already draws from the graph.
 - [ ] No sentence announcing a node's status.
 
-## Companion Docs
+## Reference Documents
 
 | File | When to Read | Why |
 |---|---|---|

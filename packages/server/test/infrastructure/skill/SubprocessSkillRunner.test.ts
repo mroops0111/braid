@@ -10,16 +10,22 @@ import {
   SkillManifest,
   type SkillRegistry,
   type SkillRunner as SkillRunnerPort,
+  ValidationError,
   type Workspace,
   type WorkspaceEventBus,
 } from '@braidhq/core'
 import { UserId } from '@braidhq/schema'
-import { T0 } from '@braidhq/test-utils'
-import { describe, expect, it } from 'vitest'
+import { inertAgentCredentialStore, T0 } from '@braidhq/test-utils'
+import { describe, expect, it, vi } from 'vitest'
+import { sessionsDir } from '../../../src/infrastructure/_shared/paths.js'
+import { AgentCredentialBroker } from '../../../src/infrastructure/agent/AgentCredentialBroker.js'
 import { FsRunRepository } from '../../../src/infrastructure/skill/FsRunRepository.js'
+import { RunOutputGate } from '../../../src/infrastructure/skill/RunOutputGate.js'
+import { RunTokenRegistry } from '../../../src/infrastructure/skill/RunTokenRegistry.js'
 import { SubprocessSkillRunner } from '../../../src/infrastructure/skill/SubprocessSkillRunner.js'
 import { DEFAULT_AGENT_BINDING, makeWorkspace } from '../../helpers/fakes.js'
 import { createMockSpawn, type MockSpawnRecord, type MockSpawnScript } from '../../helpers/mockSpawn.js'
+import { makeSingleSkillRegistry } from '../../helpers/runnerApp.js'
 import { makeSkillFileContents } from '../../helpers/skillFixtures.js'
 
 const SKILL_ID = 'braid:ask' as SkillId
@@ -41,6 +47,10 @@ interface BuildRunnerInput {
   readonly category?: SkillCategory
   readonly forms?: readonly OutputForm[]
   readonly calls?: readonly RenderCallName[]
+  readonly requiredEnv?: readonly string[]
+  readonly runTokens?: RunTokenRegistry
+  readonly outputGate?: RunOutputGate
+  readonly agentCredentials?: AgentCredentialBroker
 }
 
 interface BuiltRunner {
@@ -57,6 +67,7 @@ async function buildRunner(input: BuildRunnerInput): Promise<BuiltRunner> {
     ...(input.category ? { category: input.category } : {}),
     ...(input.forms ? { forms: input.forms } : {}),
     ...(input.calls ? { calls: input.calls } : {}),
+    ...(input.requiredEnv ? { requiredEnv: input.requiredEnv } : {}),
   })
   const runRepository = input.runRepository ?? new FsRunRepository()
   const { spawn, invocations } = createMockSpawn(input.sequence ?? [{ stdoutLines: [], exitCode: 0 }])
@@ -73,6 +84,9 @@ async function buildRunner(input: BuildRunnerInput): Promise<BuiltRunner> {
     ...(input.clock ? { clock: input.clock } : {}),
     ...(input.coreGateway ? { coreGateway: input.coreGateway } : {}),
     ...(input.resolveSourceRoles ? { resolveSourceRoles: input.resolveSourceRoles } : {}),
+    ...(input.runTokens ? { runTokens: input.runTokens } : {}),
+    ...(input.outputGate ? { outputGate: input.outputGate } : {}),
+    ...(input.agentCredentials ? { agentCredentials: input.agentCredentials } : {}),
   })
   const workspace = makeWorkspace({ rootPath: input.rootPath })
   return { runner, workspace, invocations, skillRegistry, runRepository }
@@ -87,6 +101,7 @@ async function makeSkillRegistry(skillSourceParent: AbsolutePath, declares: {
   readonly category?: SkillCategory
   readonly forms?: readonly OutputForm[]
   readonly calls?: readonly RenderCallName[]
+  readonly requiredEnv?: readonly string[]
 } = {}): Promise<SkillRegistry> {
   // Materialise a real SKILL.md so the runner's session-dir builder can symlink it.
   // Tests that don't care about the session-dir layout still get a valid manifest.
@@ -102,7 +117,7 @@ async function makeSkillRegistry(skillSourceParent: AbsolutePath, declares: {
       description: 'a',
       disableModelInvocation: false,
       braid: {
-        requiredEnv: [],
+        requiredEnv: [...(declares.requiredEnv ?? [])],
         requiredMcpServers: [],
         allowedRoles: ['owner', 'maintainer'],
         ...(declares.agent ? { agent: declares.agent } : {}),
@@ -120,11 +135,7 @@ async function makeSkillRegistry(skillSourceParent: AbsolutePath, declares: {
       },
     },
   })
-  return {
-    list: async () => [manifest],
-    find: async () => manifest,
-    get: async () => manifest,
-  }
+  return makeSingleSkillRegistry(manifest)
 }
 
 async function collectRunEvents(
@@ -326,6 +337,40 @@ describe('SubprocessSkillRunner', () => {
     await runner.start(workspace, SKILL_ID, '', { startedBy: STARTED_BY })
     expect(invocations).toHaveLength(2)
     expect(invocations[0]!.args).toEqual(expect.arrayContaining(['openapi-mcp-gateway', '--dry-run']))
+  })
+
+  it('releases the run token, output gate, and agent-credential lease when a preflight check fails after they were acquired', async () => {
+    const rootPath = await makeWorkspaceRoot()
+    const runTokens = new RunTokenRegistry()
+    const outputGate = new RunOutputGate()
+    const agentCredentials = new AgentCredentialBroker({
+      store: inertAgentCredentialStore(),
+      serverCredential: 'test-server-credential',
+      baseUrl: 'http://localhost:4321/agent',
+    })
+    const revokeSpy = vi.spyOn(runTokens, 'revoke')
+    const closeSpy = vi.spyOn(outputGate, 'close')
+    const releaseSpy = vi.spyOn(agentCredentials, 'release')
+
+    // requiredEnv names a variable nothing in the run's own environment sets,
+    // so assertSkillCanStart throws once the token, gate, and lease already exist.
+    const { runner, workspace, invocations } = await buildRunner({
+      rootPath,
+      requiredEnv: ['NEVER_INJECTED'],
+      runTokens,
+      outputGate,
+      agentCredentials,
+    })
+
+    await expect(runner.start(workspace, SKILL_ID, '', { startedBy: STARTED_BY })).rejects.toThrow(ValidationError)
+    // Nothing was spawned, since the preflight failed first.
+    expect(invocations).toHaveLength(0)
+    expect(revokeSpy).toHaveBeenCalledTimes(1)
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+    expect(releaseSpy).toHaveBeenCalledTimes(1)
+    // The session dir was built (skill bundles, reference mounts) before the
+    // preflight ran, and is this failed attempt's own to clean up.
+    await expect(readdir(sessionsDir(rootPath))).resolves.toEqual([])
   })
 
   it('points the gateway at the loopback API, since the spec names the public one', async () => {

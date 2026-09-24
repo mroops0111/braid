@@ -1,4 +1,4 @@
-import type { SkillRegistry, Workspace } from '@braidhq/core'
+import type { Workspace } from '@braidhq/core'
 import type { AbsolutePath, BlockId, SkillRunId, UserId } from '@braidhq/schema'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -11,6 +11,7 @@ import { FsRunRepository } from '../../../src/infrastructure/skill/FsRunReposito
 import { SubprocessSkillRunner } from '../../../src/infrastructure/skill/SubprocessSkillRunner.js'
 import { DEFAULT_AGENT_BINDING, makeWorkspace } from '../../helpers/fakes.js'
 import { createMockSpawn } from '../../helpers/mockSpawn.js'
+import { makeSingleSkillRegistry } from '../../helpers/runnerApp.js'
 import { waitUntilIdle } from '../../helpers/settle.js'
 
 const AUTHOR = 'user-1' as UserId
@@ -40,11 +41,7 @@ async function runWith(stdoutPerSpawn: readonly string[][], options: {
   const rootPath = (await mkdtemp(join(tmpdir(), 'braid-contract-'))) as AbsolutePath
   const workspace = makeWorkspace({ rootPath })
   const manifest = askOwingATrace()
-  const skillRegistry: SkillRegistry = {
-    list: async () => [manifest],
-    find: async () => manifest,
-    get: async () => manifest,
-  }
+  const skillRegistry = makeSingleSkillRegistry(manifest)
   const { spawn, invocations } = createMockSpawn(
     stdoutPerSpawn.map(stdoutLines => ({ stdoutLines, exitCode: 0 })),
   )

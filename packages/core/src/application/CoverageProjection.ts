@@ -370,7 +370,10 @@ function withGraphWideOutput(stage: CoverageStage, context: {
   }
 }
 
-function readStages(skills: readonly SkillManifestData[]): CoverageStage[] {
+// Takes only what a stage is read from,
+// so the domain class and the wire shape both satisfy it,
+// without one being cast to the other.
+function readStages(skills: readonly Pick<SkillManifestData, 'id' | 'frontmatter'>[]): CoverageStage[] {
   return skills
     .filter(skill => skill.frontmatter.braid?.category === 'build' && !skill.frontmatter.braid.hidden)
     .map(skill => ({

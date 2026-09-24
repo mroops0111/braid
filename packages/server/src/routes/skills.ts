@@ -10,7 +10,7 @@ import type {
 } from '@braidhq/core'
 import type { SkillEvent, SkillRunId as SkillRunIdType } from '@braidhq/schema'
 import { createLogger, unitBearingRoleIds, ValidationError } from '@braidhq/core'
-import { OutputForm, SkillId as SkillIdSchema, SkillManifest, SkillRunId, SourceId } from '@braidhq/schema'
+import { OutputForm, SkillAvailabilityIssue, SkillId as SkillIdSchema, SkillManifest, SkillRunId, SourceId, UnloadableSkill } from '@braidhq/schema'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { extractBearerToken, getUserId } from '../middleware/auth.js'
 import { requirePermission } from '../middleware/workspaceAccess.js'
@@ -41,8 +41,24 @@ const SkillIdParam = WorkspaceIdParam.extend({
   skillId: SkillIdSchema.openapi({ param: { name: 'skillId', in: 'path' } }),
 })
 
+// A skill carries why this workspace cannot run it alongside what it is,
+// so a surface shows the gap on the same row rather than on a second trip.
+// What a run's own environment supplies is not answerable here,
+// and is asserted as the run starts instead.
+const SkillListItem = SkillManifest.extend({
+  availability: z.array(SkillAvailabilityIssue),
+}).openapi('SkillListItem')
+
 const SkillListResponse = z.object({
-  items: z.array(SkillManifest),
+  items: z.array(SkillListItem),
+  /**
+   * Workspace skill files that did not load, and why.
+   *
+   * Reported rather than logged,
+   * because the person who can fix one is the person reading this list,
+   * not whoever runs the server.
+   */
+  unloadable: z.array(UnloadableSkill),
 }).openapi('SkillListResponse')
 
 const RunCreatedResponse = z.object({
@@ -83,7 +99,7 @@ const listSkillsRoute = createRoute({
   method: 'get',
   path: '/',
   operationId: 'listSkills',
-  summary: 'List skills available in a workspace (builtin + plugin + workspace + extension overlays).',
+  summary: 'List skills available in a workspace (builtin + plugin + workspace + extension overlays), with any workspace skill file that failed to load.',
   tags: ['skills'],
   request: { params: WorkspaceIdParam },
   responses: {
@@ -150,9 +166,16 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
 
   router.openapi(listSkillsRoute, async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
-    const manifests = await deps.skillRegistry.list(workspace)
+    const [manifests, unloadable] = await Promise.all([
+      deps.skillRegistry.list(workspace),
+      deps.skillRegistry.listUnloadable(workspace),
+    ])
     return context.json({
-      items: manifests.map(manifest => manifest.toData()),
+      items: manifests.map(manifest => ({
+        ...manifest.toData(),
+        availability: [...manifest.availabilityIssuesIn(workspace)],
+      })),
+      unloadable: [...unloadable],
     }, 200)
   })
 

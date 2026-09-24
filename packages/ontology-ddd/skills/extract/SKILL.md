@@ -190,7 +190,9 @@ Where `$BRAID_OUTPUT_FORM` is not `blocks`, this is the summary `prose-protocol.
 - [ ] Each Clarification candidate carries `proposedOperations`.
 - [ ] The run summary lists outcomes, or, if proposal-create kept returning 400 after 3 rounds, lists the remaining issues.
 
-## Companion Docs
+## Reference Documents
+
+Reference documents live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
 
 | File | When to Read | Why |
 |---|---|---|

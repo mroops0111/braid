@@ -17,7 +17,7 @@ import type { RunOutputGate } from './RunOutputGate.js'
 import type { RunTokenRegistry } from './RunTokenRegistry.js'
 import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { carriedEvents, ConflictError, describeViolations, newBlockId, newSkillRunId, NotFoundError, restateRunId, runScope, ServiceUnavailableError, validateOutput } from '@braidhq/core'
+import { assertSkillCanStart, carriedEvents, ConflictError, describeViolations, newBlockId, newSkillRunId, NotFoundError, restateRunId, runScope, ServiceUnavailableError, validateOutput } from '@braidhq/core'
 import { AbsolutePath as AbsolutePathSchema, localize, McpServerId, rendersBlocks, settleOutputForm, settleRenderCalls, SkillEvent as SkillEventSchema, SkillRunId as SkillRunIdSchema, splitSkillId } from '@braidhq/schema'
 import { sessionDirPath } from '../_shared/paths.js'
 import { type AsyncQueue, createAsyncQueue } from './asyncQueue.js'
@@ -77,9 +77,8 @@ export interface SubprocessSkillRunnerDeps {
   // `uvxBin` defaults to `'uvx'`, resolved against PATH.
   // The composeFsApp step preflight-checks for its presence at boot.
   //
-  // Leave undefined to skip the entry entirely.
-  // A skill needing `braid-core` then surfaces as not-ready,
-  // via SkillManifest.readinessIssuesFor.
+  // Leave undefined to skip the entry entirely,
+  // and a skill needing `braid-core` then fails its gateway preflight.
   readonly coreGateway?: {
     readonly specUrlFor: (category: SkillCategory, form: OutputForm, calls: readonly RenderCallName[]) => string
     readonly uvxBin?: string
@@ -170,7 +169,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       )
     }
     const runId = newSkillRunId()
-    const sessionDir = await this.resolveSessionDir(workspace, runId, options.resumeSessionId)
+    const { sessionDir, fresh: freshSessionDir } = await this.resolveSessionDir(workspace, runId, options.resumeSessionId)
     const skillBundleDirs = await this.skillBundleDirsFor(workspace, sessionDir)
     // The run's own credential, so what it creates is attributed from the request,
     // rather than from a field an agent had to fill in correctly.
@@ -261,47 +260,78 @@ export class SubprocessSkillRunner implements SkillRunner {
     }
 
     const spawnFn = this.deps.spawn ?? (await defaultSpawn())
-    // Fail fast when the braid-core gateway cannot turn the spec into tools,
-    // rather than spawning an agent that discovers the missing tools mid-run.
-    await this.ensureGatewayReady(spawnFn, toolSurface, outputForm, renderCalls)
     // BRAID_SESSION_DIR resolves ambiguity in SKILL.md paths.
     // claude sees both `BRAID_WORKSPACE` and a cwd inside it,
     // and would otherwise guess which one `.claude/skills/...` is rooted in.
+    const runEnv = {
+      ...invocation.env,
+      BRAID_SESSION_DIR: sessionDir,
+      // The run a render call posts back to.
+      // Without it a skill reaches the render tools,
+      // but cannot name which run they belong to.
+      BRAID_RUN_ID: runId,
+      // The active ontology's declared source roles, as JSON.
+      // A generic prompt reads this instead of naming role ids.
+      ...this.sourceRolesEnv(workspace),
+      // The readers this ontology splits for,
+      // so a builtin prompt reads the vocabulary,
+      // rather than naming any product's own facets.
+      ...this.audiencesEnv(workspace),
+      // Absolute paths to the reference docs a prompt may Read,
+      // so no SKILL.md carries a location of its own.
+      ...this.referenceEnv(workspace, skillId, sessionDir),
+      // The form this run was settled on, told rather than left to be inferred.
+      // The spec is what enforces it, since the operations are genuinely absent.
+      // A prompt left to notice their absence goes looking for them,
+      // and where tools are searched rather than listed,
+      // that search spends several calls to reach what this states.
+      BRAID_OUTPUT_FORM: outputForm,
+      // Read by a prompt deciding whether to stop and ask.
+      // A run nobody is watching files its question and carries on,
+      // since holding its work back waits on an answer that is not coming.
+      ...(unattended ? { BRAID_UNATTENDED: 'true' } : {}),
+      // BRAID_TOKEN is read by the braid-core MCP gateway,
+      // and by any shell-level callback (curl in a SKILL.md),
+      // so the subprocess can authenticate against the running server.
+      ...(runToken ? { BRAID_TOKEN: runToken } : {}),
+      // After the agent's own environment, so a run's credential wins.
+      // A configured key would otherwise take precedence,
+      // and the broker would go unused.
+      ...lease.env,
+      ...(options.extraEnv ?? {}),
+    }
+
+    // Both preflights fail before a process exists,
+    // rather than letting an agent discover mid-run,
+    // that a tool or a variable was never there.
+    // This is the first moment the injected variables exist to be checked.
+    //
+    // The token, gate, and lease above are already live by this point,
+    // and nothing past here runs drain()'s finally block to release them.
+    // A preflight failure is released here,
+    // for the same reason drain() releases one on exit,
+    // since an unrecognised token must stop opening doors,
+    // not outlive the run that never started.
+    try {
+      assertSkillCanStart({ skillId, frontmatter: manifest.frontmatter, env: runEnv })
+      // Fail fast when the braid-core gateway cannot turn the spec into tools,
+      // rather than spawning an agent that discovers the missing tools mid-run.
+      await this.ensureGatewayReady(spawnFn, toolSurface, outputForm, renderCalls)
+    }
+    catch (error) {
+      this.deps.agentCredentials?.release(runId)
+      this.deps.runTokens?.revoke(runId)
+      this.deps.outputGate?.close(runId)
+      // A reused directory belongs to the run it was resumed from,
+      // and must outlive this failed attempt.
+      if (freshSessionDir && this.deps.cleanupSession !== false)
+        await rm(sessionDir, { recursive: true, force: true }).catch(() => {})
+      throw error
+    }
+
     const child = spawnFn(invocation.bin, [...invocation.args], {
       cwd: sessionDir,
-      env: {
-        ...invocation.env,
-        BRAID_SESSION_DIR: sessionDir,
-        // The active ontology's declared source roles, as JSON.
-        // A generic prompt reads this instead of naming role ids.
-        ...this.sourceRolesEnv(workspace),
-        // The readers this ontology splits for,
-        // so a builtin prompt reads the vocabulary,
-        // rather than naming any product's own facets.
-        ...this.audiencesEnv(workspace),
-        // Absolute paths to the reference docs a prompt may Read,
-        // so no SKILL.md carries a location of its own.
-        ...this.referenceEnv(workspace, skillId, sessionDir),
-        // The form this run was settled on, told rather than left to be inferred.
-        // The spec is what enforces it, since the operations are genuinely absent.
-        // A prompt left to notice their absence goes looking for them,
-        // and where tools are searched rather than listed,
-        // that search spends several calls to reach what this states.
-        BRAID_OUTPUT_FORM: outputForm,
-        // Read by a prompt deciding whether to stop and ask.
-        // A run nobody is watching files its question and carries on,
-        // since holding its work back waits on an answer that is not coming.
-        ...(unattended ? { BRAID_UNATTENDED: 'true' } : {}),
-        // BRAID_TOKEN is read by the braid-core MCP gateway,
-        // and by any shell-level callback (curl in a SKILL.md),
-        // so the subprocess can authenticate against the running server.
-        ...(runToken ? { BRAID_TOKEN: runToken } : {}),
-        // After the agent's own environment, so a run's credential wins.
-        // A configured key would otherwise take precedence,
-        // and the broker would go unused.
-        ...lease.env,
-        ...(options.extraEnv ?? {}),
-      },
+      env: runEnv,
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     const queue = createAsyncQueue<SkillEvent>()
@@ -733,22 +763,28 @@ export class SubprocessSkillRunner implements SkillRunner {
     }
   }
 
+  /**
+   * `fresh` tells a caller whether this run built the directory just now,
+   * as opposed to reusing one an earlier, resumed run already owns.
+   * Only a fresh directory is this call's own to remove on a later failure,
+   * a reused one holds a resumed conversation's state and must outlive this run.
+   */
   private async resolveSessionDir(
     workspace: Workspace,
     runId: SkillRunId,
     resumeSessionId: string | undefined,
-  ): Promise<string> {
+  ): Promise<{ sessionDir: string, fresh: boolean }> {
     if (resumeSessionId) {
       const cached = this.sessionDirs.get(resumeSessionId)
       if (cached)
-        return cached
+        return { sessionDir: cached, fresh: false }
       const recovered = await this.recoverSessionDir(workspace, resumeSessionId)
       if (recovered) {
         this.sessionDirs.set(resumeSessionId, recovered)
-        return recovered
+        return { sessionDir: recovered, fresh: false }
       }
     }
-    return this.buildSessionDir(workspace, runId)
+    return { sessionDir: await this.buildSessionDir(workspace, runId), fresh: true }
   }
 
   private async recoverSessionDir(workspace: Workspace, sessionId: string): Promise<string | undefined> {

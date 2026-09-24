@@ -155,7 +155,9 @@ Where `$BRAID_OUTPUT_FORM` is not `blocks`, this is the summary `prose-protocol.
 - [ ] Each no-impact Clarification was closed to `applied` in Step 4. Each Clarification with a Proposal was left `answered` for the reviewer to apply.
 - [ ] The run summary lists each clarification's outcome.
 
-## Companion Docs
+## Reference Documents
+
+Reference documents live under `$BRAID_SHARED_REFERENCE/` and `$BRAID_ONTOLOGY_REFERENCE/`.
 
 | File | When to Read | Why |
 |---|---|---|
