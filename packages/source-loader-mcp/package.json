@@ -28,7 +28,7 @@
     "@braidhq/core": "workspace:*",
     "@braidhq/schema": "workspace:*",
     "@braidhq/sdk": "workspace:*",
-    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/client": "^2.2.0",
     "yaml": "^2.9.0",
     "zod": "^4.2.1"
   },
