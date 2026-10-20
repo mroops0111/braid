@@ -520,7 +520,6 @@ export async function composeFsAppWithRegistry(
   // Core's `shared/` lands under the builtin namespace,
   // carrying the Proposal, Clarification, Validator, batch-plan, drift contracts.
   // Each plugin's own dir lands under its namespace, the DDD concept doc under `ddd` for example.
-  // Plugin contributions resolve `URL` to an absolute path.
   const pluginReferenceDirs = pluginRegistry.pluginReferenceDirs().map((ref) => {
     const dir = typeof ref.directory === 'string' ? ref.directory : fileURLToPath(ref.directory)
     return { skillNamespace: ref.skillNamespace, path: dir as AbsolutePath }

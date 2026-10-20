@@ -200,7 +200,7 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
   }, [filtered, focusMode, selectedNodeId, neighborhood])
 
   const dagreLaidOut = useGraphLayout(visible.nodes, visible.edges)
-  // Session-only drag overrides. Each drag updates this map.
+  // Session-only drag overrides.
   // On refresh the graph re-lays out via dagre.
   // Per-user persistence is deferred until accounts ship.
   // A server-side layout would be shared across every collaborator, which is worse than a refresh resetting positions.
@@ -227,7 +227,6 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
       // Two independent dim conditions.
       // - focus-style: a node is selected and this one is not its neighbour.
       // - only-changes: the proposal did not touch this node.
-      // Either reason dims. Both together still just dim once.
       const dimmedByFocus = selectedNodeId !== null && !focusMode && !neighborhood.neighbors.has(n.data.node.id)
       const dimmedByDiff = dimUnchanged && !change
       const dimmed = dimmedByFocus || dimmedByDiff

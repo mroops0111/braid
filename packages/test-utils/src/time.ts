@@ -1,7 +1,6 @@
 import type { Timestamp } from '@braidhq/schema'
 
-// Test time anchor.
-// The absolute value is irrelevant, tests care only about relative ordering.
+// The anchor's absolute value is irrelevant, tests care only about relative ordering.
 // Picked an arbitrary 2024 instant because ISO formatters render it cleanly,
 // and it sits far from real commit timestamps as a sentinel.
 // Do not assert against this value. Use at(seconds) instead.

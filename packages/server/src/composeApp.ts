@@ -435,7 +435,6 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
 
   // Reactor shares Batch's dependency footprint of skillRunner, unitLister,
   // and sourceUnitObservationService, plus the event bus.
-  // We construct it whenever those are present.
   // The service stays inert until something calls `start(workspaceId)`.
   // `composeFsApp` drives start on workspaces, whose ProductManifest.reactor.enabled is true.
   const reactorCycleRepository: ReactorCycleRepository

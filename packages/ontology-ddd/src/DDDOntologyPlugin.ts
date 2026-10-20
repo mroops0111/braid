@@ -272,7 +272,6 @@ export const dddOntology = defineOntologyPlugin({
   ]),
 
   // Batch and reactor binding.
-  // The per-unit skill is ddd:extract.
   // The checkpoint ddd:reconcile fires every 5 successful extracts,
   // and once more at the end of the loop for global validation.
   // When the workspace has no intent source, ddd:scan derives units from the codebase.

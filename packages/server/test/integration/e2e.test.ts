@@ -111,7 +111,7 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
   it('routes a valid proposal through both framework and ontology validators', async () => {
     const wsId = await scaffold('e2e-valid')
 
-    // boundedContext to aggregate via `contains`. Three validators must pass:
+    // Three validators must pass:
     // - EvidenceValidator (framework): missingRoles satisfies it
     // - OntologyTypeValidator (ontology): both types declared in ddd
     // - StructuralValidator (ontology): contains direction matches descriptor

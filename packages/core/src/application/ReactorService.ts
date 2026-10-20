@@ -130,7 +130,6 @@ interface CycleContext {
 }
 
 /**
- * Reactor implementation.
  * Listens to `source.synced` on the `WorkspaceEventBus`, and for unit-bearing sources,
  * runs the active ontology's per-unit skill against the diff,
  * between the current units on disk and the recorded `SourceUnitObservation` ledger.

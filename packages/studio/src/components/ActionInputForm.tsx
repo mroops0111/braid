@@ -59,11 +59,7 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
     () => Object.fromEntries(inputs.filter(i => i.kind === 'multi-pick').map(input => [input.name, []])),
   )
 
-  // Required inputs must be filled.
-  // Multi-pick required = one selection, free text required = a non-empty value.
-  //
-  // A pick is different.
-  // What makes it filled is the value naming one of its options, rather than the value being non-empty.
+  // A pick is filled when its value names one of its options, rather than when the value is non-empty.
   // A skill is free to give an option the empty value, and reconcile does,
   // since "build and validate" is the mode you get by passing no mode at all.
   // Read as free text, that choice looked like no choice, and the run button never enabled.

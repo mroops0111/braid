@@ -19,7 +19,6 @@ const ListQuery = z.object({
 })
 
 // Reviewer-facing answer body.
-// The selection is either an existing `candidateId`, or a freshly authored `customCandidate` (description only).
 // The server appends it to the clarification and answers in one transaction.
 // `note` is a free-text rationale saved on the answer commit.
 // `userId` is accepted for backwards compat, the authoritative value is the request context set by middleware.
