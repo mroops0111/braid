@@ -42,7 +42,7 @@ function fsOptionsFromEnv(): ComposeFsOptions {
 
 export interface StartServerOptions extends ExtraPluginOptions {
   readonly port: number
-  // Called once the socket is listening, with the bound URL.
+  /** Called once the socket is listening, with the bound URL. */
   readonly onListen?: (url: string) => void
 }
 

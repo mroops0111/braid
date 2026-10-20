@@ -48,8 +48,10 @@ export const ProductManifest = z.object({
 })
 export type ProductManifest = z.infer<typeof ProductManifest>
 
-// `.extend` strips the defaults, zod 4 keeps defaults through `.partial()`.
-// A patch must leave absent fields absent, not reset them to their defaults.
+/**
+ * `.extend` strips the defaults, zod 4 keeps defaults through `.partial()`.
+ * A patch must leave absent fields absent, not reset them to their defaults.
+ */
 export const ProductManifestUpdate = ProductManifest.partial().extend({
   version: z.string().optional(),
   ontologyId: OntologyId.optional(),

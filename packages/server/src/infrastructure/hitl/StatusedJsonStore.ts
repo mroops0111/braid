@@ -15,7 +15,7 @@ export interface StatusedJsonStoreConfig<TEntity, TStatus extends string, TId ex
   readonly idOf: (entity: TEntity) => TId
   readonly statusOf: (entity: TEntity) => TStatus
   readonly workspaceIdOf: (entity: TEntity) => WorkspaceId
-  // Resolves the directory holding `{id}.json` for a workspace root and status.
+  /** Resolves the directory holding `{id}.json` for a workspace root and status. */
   readonly dirFor: (workspaceRoot: AbsolutePath, status: TStatus) => string
 
   // Disk codec, `parse` validates and class-wraps raw JSON,

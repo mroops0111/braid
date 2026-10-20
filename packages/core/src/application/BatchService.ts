@@ -58,7 +58,7 @@ export interface BatchServiceDeps {
   historyService: HistoryService
   hitlService: HITLService
   batchPlanRepository: BatchPlanRepository
-  // Filesystem walk happens in infrastructure. The orchestrator just consumes the list.
+  /** Filesystem walk happens in infrastructure. The orchestrator just consumes the list. */
   unitLister: UnitLister
   /**
    * Resolves the workspace's ontology plugin so the service can read its batch binding (per-unit skill,
@@ -177,7 +177,7 @@ export class BatchService {
     })
   }
 
-  // Promote stale running plans to failed at boot, so the UI never shows a frozen spinner from a previous crash.
+  /** Promote stale running plans to failed at boot, so the UI never shows a frozen spinner from a previous crash. */
   async reconcileAfterBoot(workspaceId: WorkspaceId): Promise<void> {
     const workspace = await this.deps.workspaceService.findById(workspaceId)
     const plan = await this.deps.batchPlanRepository.load(workspace)
@@ -252,9 +252,11 @@ export class BatchService {
     })
   }
 
-  // Move a terminal plan to `archived`.
-  // The Studio Batch page treats it like no active plan, but keeps the report browsable in the PreStart slot.
-  // Recorded in git history as a `batch-archive` commit.
+  /**
+   * Move a terminal plan to `archived`.
+   * The Studio Batch page treats it like no active plan, but keeps the report browsable in the PreStart slot.
+   * Recorded in git history as a `batch-archive` commit.
+   */
   async archive(workspaceId: WorkspaceId): Promise<BatchPlan> {
     return this.deps.workspaceLock.run(workspaceId, async () => {
       const workspace = await this.deps.workspaceService.findById(workspaceId)

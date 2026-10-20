@@ -38,20 +38,22 @@ export interface SkillReferenceDir {
 
 export interface SubprocessSkillRunnerDeps {
   readonly skillRegistry: SkillRegistry
-  // Builds an agent binding from a resolved descriptor.
-  // Composition resolves the plugin by kind.
-  // Called per run, so each skill can pick its own agent.
+  /**
+   * Builds an agent binding from a resolved descriptor.
+   * Composition resolves the plugin by kind.
+   * Called per run, so each skill can pick its own agent.
+   */
   readonly buildAgentBinding: (descriptor: AgentBindingDescriptor) => AgentBinding
-  // Fallback agent config for skills that declare no override.
+  /** Fallback agent config for skills that declare no override. */
   readonly defaultAgent: AgentBindingDescriptor
   readonly apiUrl: string
-  // Required. The persisted event log is the replay source of truth.
+  /** Required. The persisted event log is the replay source of truth. */
   readonly runRepository: RunRepository
   readonly spawn?: SpawnFn
   readonly clock?: () => string
-  // Reference-doc dirs mounted inside their own namespace's bundle.
+  /** Reference-doc dirs mounted inside their own namespace's bundle. */
   readonly referenceDirs?: readonly SkillReferenceDir[]
-  // Delete the per-run session directory after the run. Default `true`.
+  /** Delete the per-run session directory after the run. Default `true`. */
   readonly cleanupSession?: boolean
   /**
    * Lends a run the credential its author resolved to.
@@ -59,22 +61,24 @@ export interface SubprocessSkillRunnerDeps {
    * Absent on a deployment that models no users, where the agent's own configuration is the only credential there is.
    */
   readonly agentCredentials?: AgentCredentialBroker
-  // Enables the built-in `braid-core` MCP gateway.
-  // When set, every spawned skill gets a stdio MCP server entry,
-  // running `<uvxBin> openapi-mcp-gateway --spec <specUrl> --transport stdio`.
-  // claude spawns the gateway as a per-session child.
-  // The gateway fetches the OpenAPI spec from `specUrl`,
-  // and exposes the REST surface as MCP tools such as `braid_search_nodes`.
-  //
-  // `specUrlFor` names the spec for one run,
-  // so a run's tools are only the operations that run may call, narrowed by its kind and by the form its output takes.
-  // Narrowing the spec is what narrows the tools, since an operation absent from it never reaches the model at all,
-  // and costs neither a place in the tool list nor the tokens to describe.
-  // `uvxBin` defaults to `'uvx'`, resolved against PATH.
-  // The composeFsApp step preflight-checks for its presence at boot.
-  //
-  // Leave undefined to skip the entry entirely.
-  // A skill needing `braid-core` then surfaces as not-ready, via SkillManifest.readinessIssuesFor.
+  /**
+   * Enables the built-in `braid-core` MCP gateway.
+   * When set, every spawned skill gets a stdio MCP server entry,
+   * running `<uvxBin> openapi-mcp-gateway --spec <specUrl> --transport stdio`.
+   * claude spawns the gateway as a per-session child.
+   * The gateway fetches the OpenAPI spec from `specUrl`,
+   * and exposes the REST surface as MCP tools such as `braid_search_nodes`.
+   *
+   * `specUrlFor` names the spec for one run,
+   * so a run's tools are only the operations that run may call, narrowed by its kind and by the form its output takes.
+   * Narrowing the spec is what narrows the tools, since an operation absent from it never reaches the model at all,
+   * and costs neither a place in the tool list nor the tokens to describe.
+   * `uvxBin` defaults to `'uvx'`, resolved against PATH.
+   * The composeFsApp step preflight-checks for its presence at boot.
+   *
+   * Leave undefined to skip the entry entirely.
+   * A skill needing `braid-core` then surfaces as not-ready, via SkillManifest.readinessIssuesFor.
+   */
   readonly coreGateway?: {
     readonly specUrlFor: (category: SkillCategory, form: OutputForm, calls: readonly RenderCallName[]) => string
     readonly uvxBin?: string
@@ -90,14 +94,18 @@ export interface SubprocessSkillRunnerDeps {
    * Absent, a run may do both, which is the batch's mode rather than a person's.
    */
   readonly outputGate?: RunOutputGate
-  // Optional pub/sub for workspace-scoped notifications.
-  // Studio uses it to invalidate run and proposal lists live, without polling.
-  // Tests can leave this undefined.
+  /**
+   * Optional pub/sub for workspace-scoped notifications.
+   * Studio uses it to invalidate run and proposal lists live, without polling.
+   * Tests can leave this undefined.
+   */
   readonly eventBus?: WorkspaceEventBus
-  // Resolves the active ontology's declared source roles for a workspace.
-  // The runner serialises the result into `BRAID_SOURCE_ROLES` for every skill,
-  // so a generic prompt reads the role vocabulary rather than naming role ids.
-  // Composition wires this from the PluginRegistry, keeping the runner ontology-agnostic.
+  /**
+   * Resolves the active ontology's declared source roles for a workspace.
+   * The runner serialises the result into `BRAID_SOURCE_ROLES` for every skill,
+   * so a generic prompt reads the role vocabulary rather than naming role ids.
+   * Composition wires this from the PluginRegistry, keeping the runner ontology-agnostic.
+   */
   readonly resolveSourceRoles?: (workspace: Workspace) => readonly SourceRoleDescriptor[]
   /**
    * The workspace ontology's declared audiences, serialised for the prompt and used to check the output contract.

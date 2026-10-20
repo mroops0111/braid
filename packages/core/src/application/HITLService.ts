@@ -62,7 +62,7 @@ export interface HITLServiceDeps {
   // Both required together. Absence makes the commit hook a no-op.
   history?: WorkspaceHistory
   modelSerializer?: ModelSerializer
-  // Inject so HistoryService.restore can share the same exclusion domain.
+  /** Inject so HistoryService.restore can share the same exclusion domain. */
   workspaceLock?: WorkspaceLock
   /**
    * Looks up displayName + email to snapshot into git author at commit time.
@@ -217,7 +217,7 @@ export class HITLService {
     })
   }
 
-  // Candidates are only validated at answer time, since each picks a different op set.
+  /** Candidates are only validated at answer time, since each picks a different op set. */
   async submitClarification(draft: ClarificationCreate & { submitterId?: UserId, skillRunId?: SkillRunId }): Promise<Clarification> {
     await this.assertRunMaySubmit(draft.workspaceId, draft.skillRunId, clarificationSubmission)
     const answerMode = await this.answerModeFor(draft.workspaceId, draft.skillRunId)
@@ -326,7 +326,7 @@ export class HITLService {
     })
   }
 
-  // `note` is free-text saved on the answer commit subject.
+  /** `note` is free-text saved on the answer commit subject. */
   async answerClarification(options: {
     clarificationId: ClarificationId
     selection:
@@ -373,7 +373,7 @@ export class HITLService {
     })
   }
 
-  // No graph mutation here. The Proposal apply path (when there is one) handled that.
+  /** No graph mutation here. The Proposal apply path (when there is one) handled that. */
   async markClarificationApplied(
     clarificationId: ClarificationId,
     userId: UserId,

@@ -92,8 +92,10 @@ export interface AppDependencies {
   modelService: ModelService
   modelValidationService: ModelValidationService
   sourceLoaderRunner: SourceLoaderRunner
-  // The entry point every sync trigger uses.
-  // Calling the runner directly skips the lock, and leaves the sync-state store untouched.
+  /**
+   * The entry point every sync trigger uses.
+   * Calling the runner directly skips the lock, and leaves the sync-state store untouched.
+   */
   sourceSyncService: SourceSyncService
   sourcePollingService: SourcePollingService
   syncStateRepository: SourceSyncStateRepository
@@ -152,7 +154,7 @@ export interface AppDependencies {
    * since that is what a token is presented to.
    */
   apiUrl?: string
-  // Runs the active ontology's per-unit skill on intent-source diffs.
+  /** Runs the active ontology's per-unit skill on intent-source diffs. */
   reactorService?: ReactorService
 
   // Repositories, in-memory by default, fs-backed via `composeFsApp`.
@@ -162,10 +164,12 @@ export interface AppDependencies {
   clarificationRepository: ClarificationRepository
   runRepository: RunRepository
   sessionShareRepository: SessionShareRepository
-  // Always wired, the Activity page renders an empty list before any cycle.
+  /** Always wired, the Activity page renders an empty list before any cycle. */
   reactorCycleRepository: ReactorCycleRepository
-  // Reads every source document against the model.
-  // Absent without a unit lister, which is the only way to know what documents there are.
+  /**
+   * Reads every source document against the model.
+   * Absent without a unit lister, which is the only way to know what documents there are.
+   */
   coverageProjection?: CoverageProjection
 
   // Source-unit extraction, the filesystem walk and content digest, threaded into the source-unit-states diff endpoint.
@@ -186,17 +190,23 @@ export interface AppDependencies {
   pluginRegistry: PluginRegistry
   clock: Clock
 
-  // Workspace scaffolding.
-  // `POST /workspaces/scaffold { name }` resolves to `<workspacesRoot>/<name>`.
+  /**
+   * Workspace scaffolding.
+   * `POST /workspaces/scaffold { name }` resolves to `<workspacesRoot>/<name>`.
+   */
   workspacesRoot: AbsolutePath
-  // What a scaffold writes when its manifest names no ontology.
-  // Absent when the registry holds no ontology or more than one, then the manifest schema's own default applies.
+  /**
+   * What a scaffold writes when its manifest names no ontology.
+   * Absent when the registry holds no ontology or more than one, then the manifest schema's own default applies.
+   */
   defaultOntologyId?: OntologyId
   bootstrap?: WorkspaceBootstrapService
 
-  // Identity and auth, the multi-user axis.
-  // Local trust carries a default principal, so unauthenticated requests pass through as that user.
-  // Authenticated mode carries none, so a Bearer token is enforced.
+  /**
+   * Identity and auth, the multi-user axis.
+   * Local trust carries a default principal, so unauthenticated requests pass through as that user.
+   * Authenticated mode carries none, so a Bearer token is enforced.
+   */
   authMode: AuthMode
   // Each absent field drops its surface, no `userRegistry` unmounts `/users`,
   // no `sessionStore` with `accessPolicy` unmounts `/auth/*`,
@@ -205,20 +215,24 @@ export interface AppDependencies {
   workspaceRegistry?: WorkspaceRegistryFile
   sessionStore?: SessionStore
   accessPolicy?: AccessPolicy
-  // OAuth secret storage, file-based, pluggable for hosted deployments.
+  /** OAuth secret storage, file-based, pluggable for hosted deployments. */
   secretStore?: SecretStore
-  // Google client, undefined when its env is unset, then `/auth/google/*` respond 503.
+  /** Google client, undefined when its env is unset, then `/auth/google/*` respond 503. */
   googleOAuth?: GoogleOAuth
-  // GitHub App client, undefined when its env is unset, then `/oauth/github/*` respond 503.
+  /** GitHub App client, undefined when its env is unset, then `/oauth/github/*` respond 503. */
   githubOAuth?: GitHubOAuth
-  // Where the OAuth callback redirects with `#token=...`, defaults to the Vite dev origin.
+  /** Where the OAuth callback redirects with `#token=...`, defaults to the Vite dev origin. */
   studioUrl?: string
-  // Directory holding Studio's built files, in the sense nginx means by root.
-  // Present makes this server serve the UI as well as the API,
-  // which keeps a deployment to one origin and so out of CORS entirely.
+  /**
+   * Directory holding Studio's built files, in the sense nginx means by root.
+   * Present makes this server serve the UI as well as the API,
+   * which keeps a deployment to one origin and so out of CORS entirely.
+   */
   studioRoot?: string
-  // Origins allowed to call this API from a browser.
-  // Empty leaves the dev defaults, which is what a local install wants.
+  /**
+   * Origins allowed to call this API from a browser.
+   * Empty leaves the dev defaults, which is what a local install wants.
+   */
   corsOrigins?: readonly string[]
 }
 
@@ -238,9 +252,9 @@ export interface ComposeOptions {
    * so what a run creates is attributed from the request, rather than from a field it had to fill in.
    */
   readonly accessTokenVerifiers?: readonly AccessTokenVerifier[]
-  // Infrastructure singletons.
+  /** Infrastructure singletons. */
   clock?: Clock
-  // The same instance wired into `SubprocessSkillRunner`, so event-bus subscribers see runner events.
+  /** The same instance wired into `SubprocessSkillRunner`, so event-bus subscribers see runner events. */
   eventBus?: WorkspaceEventBus
   pluginRegistry?: PluginRegistry
 
@@ -260,7 +274,7 @@ export interface ComposeOptions {
   // Absent when a deployment configures no embedding backend, which leaves every other capability untouched.
   embeddingRepository?: EmbeddingRepository
   embedder?: Embedder
-  // Whether a skill run currently holds a workspace's sources.
+  /** Whether a skill run currently holds a workspace's sources. */
   isWorkspaceBusy?: (workspaceId: WorkspaceId) => boolean
 
   // Source-unit extraction.
@@ -268,30 +282,34 @@ export interface ComposeOptions {
   // to a no-op stub that throws, fine unless a batch or reactor runs.
   unitLister?: UnitLister
   sourceUnitDigest?: SourceUnitDigest
-  // Yields the caller token the reactor's autonomous runs act under.
-  // Absent means the reactor runs tokenless, falling back to the default principal.
+  /**
+   * Yields the caller token the reactor's autonomous runs act under.
+   * Absent means the reactor runs tokenless, falling back to the default principal.
+   */
   reactorToken?: () => Promise<string | undefined>
 
   // Skills.
   skillRegistry?: SkillRegistry
   skillRunner?: SkillRunner
 
-  // Where written documents and the material behind them are kept.
+  /** Where written documents and the material behind them are kept. */
   viewRepository?: ViewRepository
 
   // History and git authorship, both required together, HITL skips git hooks when absent.
   history?: WorkspaceHistory
   modelSerializer?: ModelSerializer
   bootstrap?: WorkspaceBootstrapService
-  // Read-only user lookup, snapshots displayName and email into the git author.
+  /** Read-only user lookup, snapshots displayName and email into the git author. */
   userDirectory?: UserDirectory
 
-  // Identity and scaffolding.
+  /** Identity and scaffolding. */
   authMode?: AuthMode
-  // Scaffold parent, `<braidHome>/workspaces` in `composeFsApp`.
+  /** Scaffold parent, `<braidHome>/workspaces` in `composeFsApp`. */
   workspacesRoot?: AbsolutePath
-  // Overrides the sole-registered-ontology derivation below.
-  // A build registering several ontologies names its scaffold default here.
+  /**
+   * Overrides the sole-registered-ontology derivation below.
+   * A build registering several ontologies names its scaffold default here.
+   */
   defaultOntologyId?: OntologyId
 }
 

@@ -88,8 +88,10 @@ export interface OAuthRouterDeps {
   readonly flowStore: OAuthFlowStore
   readonly google?: GoogleOAuth
   readonly github?: GitHubOAuth
-  // Used by the start router to gate an existing workspace, and to record who connected.
-  // Absent in in-memory tests, which skip the gate.
+  /**
+   * Used by the start router to gate an existing workspace, and to record who connected.
+   * Absent in in-memory tests, which skip the gate.
+   */
   readonly userRegistry?: UserRegistryFile
   readonly workspaceService?: WorkspaceService
   readonly workspaceRegistry?: WorkspaceRegistryFile

@@ -23,21 +23,25 @@ type Content = z.infer<typeof Content>
 
 export interface AccessDecision {
   readonly allow: boolean
-  // Human-readable reason surfaced when access is denied,
-  // so the user can self-diagnose ("not in allowlist", "no invite found").
-  // Suppressed when `allow=true`.
+  /**
+   * Human-readable reason surfaced when access is denied,
+   * so the user can self-diagnose ("not in allowlist", "no invite found").
+   * Suppressed when `allow=true`.
+   */
   readonly reason?: string
-  // For allowed access, whether this user's email matched an invite.
-  // When true, the caller redeems the invite via `consumeInvite` after creating the user record.
+  /**
+   * For allowed access, whether this user's email matched an invite.
+   * When true, the caller redeems the invite via `consumeInvite` after creating the user record.
+   */
   readonly viaInvite?: Invite
 }
 
 export interface AccessPolicyConfig {
-  // Allowed email domains (e.g. "kdanmobile.com,example.com").
+  /** Allowed email domains (e.g. "kdanmobile.com,example.com"). */
   readonly allowedDomains?: readonly string[]
-  // Allowlist of specific emails (per-user, not domain-based).
+  /** Allowlist of specific emails (per-user, not domain-based). */
   readonly allowedEmails?: readonly string[]
-  // Admin email addresses. Matched users get serverRole='admin'.
+  /** Admin email addresses. Matched users get serverRole='admin'. */
   readonly adminEmails?: readonly string[]
 }
 

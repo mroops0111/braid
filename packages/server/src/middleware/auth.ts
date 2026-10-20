@@ -42,11 +42,11 @@ const PUBLIC_PATH_PATTERNS = [/^\/oauth\/[^/]+\/callback(?:\/|$)/]
 const USER_HEADER = 'X-Braid-User'
 
 export interface AuthMiddlewareOptions {
-  // Resolves Bearer sessions. Required whenever `requireAuth` is true.
+  /** Resolves Bearer sessions. Required whenever `requireAuth` is true. */
   readonly sessionStore?: SessionStore
-  // Whether a caller must present a valid Bearer token.
+  /** Whether a caller must present a valid Bearer token. */
   readonly requireAuth: boolean
-  // The implicit caller under local trust, or null when there is none.
+  /** The implicit caller under local trust, or null when there is none. */
   readonly defaultPrincipal: UserIdType | null
   /**
    * Credentials this deployment accepts, tried in order.

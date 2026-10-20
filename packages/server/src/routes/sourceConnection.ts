@@ -20,8 +20,10 @@ interface StoredCredential {
 
 export interface SourceConnectionStatus {
   readonly connected: boolean
-  // A stored credential exists but a refresh has failed, so the source needs a reconnect.
-  // Distinct from `connected: false`, which is never linked.
+  /**
+   * A stored credential exists but a refresh has failed, so the source needs a reconnect.
+   * Distinct from `connected: false`, which is never linked.
+   */
   readonly needsAuth: boolean
   readonly connectedBy?: { userId: string, displayName: string }
   readonly connectedAt?: string

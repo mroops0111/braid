@@ -46,8 +46,10 @@ export class RunTokenRegistry implements AccessTokenVerifier {
     this.byToken.delete(token)
   }
 
-  // Null rather than a throw for anything else, since another verifier may recognise it.
-  // Only this prefix is ours to judge.
+  /**
+   * Null rather than a throw for anything else, since another verifier may recognise it.
+   * Only this prefix is ours to judge.
+   */
   async verify(token: string): Promise<VerifiedCaller | null> {
     const held = this.byToken.get(token)
     if (!held)

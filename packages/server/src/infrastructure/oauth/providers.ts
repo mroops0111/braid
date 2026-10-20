@@ -2,9 +2,9 @@
 export interface OAuthProviderInfo {
   readonly id: 'google' | 'github'
   readonly label: string
-  // Secret-store namespace holding this provider's tokens.
+  /** Secret-store namespace holding this provider's tokens. */
   readonly namespace: string
-  // Source loader kind whose sources authenticate through this provider.
+  /** Source loader kind whose sources authenticate through this provider. */
   readonly loaderKind: string
 }
 

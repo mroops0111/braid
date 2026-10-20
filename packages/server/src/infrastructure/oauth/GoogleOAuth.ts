@@ -17,26 +17,30 @@ export interface GoogleProfile {
 }
 
 export interface GoogleOAuthConfig {
-  // OAuth client id from the user's GCP project.
+  /** OAuth client id from the user's GCP project. */
   readonly clientId: string
-  // OAuth client secret.
+  /** OAuth client secret. */
   readonly clientSecret: string
-  // Redirect URI used by the Drive provisioning flow (existing OAuth router).
-  // Both paths must be registered in the GCP OAuth client's authorised redirect URIs list.
+  /**
+   * Redirect URI used by the Drive provisioning flow (existing OAuth router).
+   * Both paths must be registered in the GCP OAuth client's authorised redirect URIs list.
+   */
   readonly redirectUri: string
-  // Redirect URI used by the user-login flow.
-  // Optional, falls back to the Drive `redirectUri` if unset,
-  // which is what local dev wants (one path, one registered URI).
-  // Production usually points this at `${apiUrl}/auth/google/callback`, so the two flows mount on different routes.
+  /**
+   * Redirect URI used by the user-login flow.
+   * Optional, falls back to the Drive `redirectUri` if unset,
+   * which is what local dev wants (one path, one registered URI).
+   * Production usually points this at `${apiUrl}/auth/google/callback`, so the two flows mount on different routes.
+   */
   readonly loginRedirectUri?: string
 }
 
 export interface AuthorizationUrlInput {
-  // OAuth scopes requested. Braid passes Drive read-only.
+  /** OAuth scopes requested. Braid passes Drive read-only. */
   readonly scopes: readonly string[]
-  // State token (CSRF plus flow-restore).
+  /** State token (CSRF plus flow-restore). */
   readonly state: string
-  // PKCE verifier. The URL embeds its SHA-256 challenge.
+  /** PKCE verifier. The URL embeds its SHA-256 challenge. */
   readonly codeVerifier: string
 }
 
@@ -60,8 +64,10 @@ export interface RefreshedAccessToken {
  * Avoiding a heavyweight dependency keeps the server's install footprint small, and the auth surface auditable.
  */
 export class GoogleOAuth implements LoginProvider {
-  // Part of the registered redirect URI, so it is fixed once a deployment exists.
-  // Renaming it would invalidate the Google console entry.
+  /**
+   * Part of the registered redirect URI, so it is fixed once a deployment exists.
+   * Renaming it would invalidate the Google console entry.
+   */
   readonly id = 'google'
 
   constructor(private readonly config: GoogleOAuthConfig) {}

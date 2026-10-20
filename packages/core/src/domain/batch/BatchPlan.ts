@@ -36,7 +36,7 @@ export class BatchPlan {
   get createdAt(): Timestamp { return this.data.createdAt }
   get updatedAt(): Timestamp { return this.data.updatedAt }
 
-  // mode='derived' goes idle to deriving to running. mode='direct' goes idle to running.
+  /** mode='derived' goes idle to deriving to running. mode='direct' goes idle to running. */
   beginRun(now: Timestamp, baselineTag: string): BatchPlan {
     if (this.data.status !== 'idle')
       throw new ConflictError(`Batch plan ${this.data.id} is already ${this.data.status}`)
@@ -47,7 +47,7 @@ export class BatchPlan {
     })
   }
 
-  // Called when the ontology's `deriveUnits` skill finishes writing units back into the plan.
+  /** Called when the ontology's `deriveUnits` skill finishes writing units back into the plan. */
   promoteToRunning(now: Timestamp, units: readonly BatchUnit[]): BatchPlan {
     if (this.data.status !== 'deriving')
       throw new ConflictError(`Batch plan ${this.data.id} is not deriving (status=${this.data.status})`)
@@ -73,18 +73,22 @@ export class BatchPlan {
     return this.with({ status: 'stopped', running: undefined, updatedAt: now })
   }
 
-  // User-driven dismiss after reviewing the report,
-  // allowed only from a terminal state so an in-flight batch isn't hidden.
-  // Archived plans stay on disk, the UI treats them like "no active plan",
-  // and surfaces them via PreStart's "previous batch" slot.
+  /**
+   * User-driven dismiss after reviewing the report,
+   * allowed only from a terminal state so an in-flight batch isn't hidden.
+   * Archived plans stay on disk, the UI treats them like "no active plan",
+   * and surfaces them via PreStart's "previous batch" slot.
+   */
   archive(now: Timestamp): BatchPlan {
     if (!this.isTerminal())
       throw new ConflictError(`Cannot archive plan ${this.data.id} from status=${this.data.status}`)
     return this.with({ status: 'archived', running: undefined, updatedAt: now })
   }
 
-  // Re-enter running from a terminal state.
-  // Failed units reset to pending, completed units stay.
+  /**
+   * Re-enter running from a terminal state.
+   * Failed units reset to pending, completed units stay.
+   */
   resumeRun(now: Timestamp): BatchPlan {
     if (!this.isTerminal())
       throw new ConflictError(`Cannot resume plan ${this.data.id} from status=${this.data.status}`)

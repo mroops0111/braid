@@ -28,7 +28,7 @@ export interface AuthContext {
 export interface AuthMode {
   readonly defaultPrincipal: UserId | null
   readonly requiresAuth: boolean
-  // Seed the host state this mode needs, called once at boot.
+  /** Seed the host state this mode needs, called once at boot. */
   provision: (context: AuthContext) => Promise<void>
 }
 

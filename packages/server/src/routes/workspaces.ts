@@ -66,10 +66,12 @@ const PatchMcpServerBodySchema = z.object({
 export interface WorkspacesRouterDeps {
   workspaceService: WorkspaceService
   sourceLoaderRunner: SourceLoaderRunner
-  // Sync goes through the service, so the pass is locked and recorded.
-  // Provisioning stays on the runner, a scaffold has no prior state to guard.
+  /**
+   * Sync goes through the service, so the pass is locked and recorded.
+   * Provisioning stays on the runner, a scaffold has no prior state to guard.
+   */
   sourceSyncService: SourceSyncService
-  // Started and stopped in step with the workspace's polling flag, so the toggle takes effect without a restart.
+  /** Started and stopped in step with the workspace's polling flag, so the toggle takes effect without a restart. */
   sourcePollingService: SourcePollingService
   syncStateRepository: SourceSyncStateRepository
   workspacesRoot: AbsolutePath

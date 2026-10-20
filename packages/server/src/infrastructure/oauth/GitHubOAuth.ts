@@ -2,12 +2,14 @@ const AUTH_ENDPOINT = 'https://github.com/login/oauth/authorize'
 const TOKEN_ENDPOINT = 'https://github.com/login/oauth/access_token'
 
 export interface GitHubOAuthConfig {
-  // OAuth client id from the GitHub App.
+  /** OAuth client id from the GitHub App. */
   readonly clientId: string
-  // OAuth client secret.
+  /** OAuth client secret. */
   readonly clientSecret: string
-  // Redirect URI for the source-connection flow.
-  // Must match the App's Callback URL.
+  /**
+   * Redirect URI for the source-connection flow.
+   * Must match the App's Callback URL.
+   */
   readonly redirectUri: string
 }
 

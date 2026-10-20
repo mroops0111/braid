@@ -106,8 +106,10 @@ export interface ComposeFsRuntimeOptions {
   readonly agentModel?: string
   readonly agentEffort?: AgentEffort
 
-  // What a scaffold writes when its manifest names no ontology.
-  // Unset falls to the sole registered ontology, so a single-ontology build never has to repeat its own id.
+  /**
+   * What a scaffold writes when its manifest names no ontology.
+   * Unset falls to the sole registered ontology, so a single-ontology build never has to repeat its own id.
+   */
   readonly defaultOntologyId?: OntologyId
 }
 

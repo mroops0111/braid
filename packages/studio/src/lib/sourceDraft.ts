@@ -3,16 +3,18 @@ import type { TFunction } from 'i18next'
 import { asAbsolutePath, asLoaderKind, asSourceId, asSourceRole } from './brands'
 
 export interface SourceDraft {
-  // An ontology-declared role id. Open set, so no literal union here.
+  /** An ontology-declared role id. Open set, so no literal union here. */
   role: string
-  // Workspace subfolder this role provisions into, from the role descriptor.
+  /** Workspace subfolder this role provisions into, from the role descriptor. */
   pathSegment: string
   name: string
   description: string
-  // `''` is the "manual, no auto-sync" choice.
-  // A non-empty value mirrors a registered source-loader plugin's `kind`,
-  // and may be any string the server reports via `GET /source-loaders`.
-  // It is not a closed union here, so a future plugin's kind survives type-checking without a Studio change.
+  /**
+   * `''` is the "manual, no auto-sync" choice.
+   * A non-empty value mirrors a registered source-loader plugin's `kind`,
+   * and may be any string the server reports via `GET /source-loaders`.
+   * It is not a closed union here, so a future plugin's kind survives type-checking without a Studio change.
+   */
   loaderKind: string
   gitUrl: string
   gitBranch: string

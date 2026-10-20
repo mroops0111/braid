@@ -68,7 +68,7 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
     return { bin: 'claude', args: baseArgs, env }
   }
 
-  // Claude streams newline-delimited JSON, so the runner hands each line here.
+  /** Claude streams newline-delimited JSON, so the runner hands each line here. */
   parseLine = (line: string, now: string): SkillEvent[] => parseClaudeLine(line, now)
 }
 
