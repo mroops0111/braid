@@ -29,9 +29,8 @@ export function assertEndpointsResolve(
 
 /**
  * Permissive CSS colour check.
- * We accept the forms Studio renders without surprises,
- * `oklch(...)`, `oklab(...)`, `#xxx` or `#xxxxxx`,
- * `rgb(...)` or `rgba(...)`, and `hsl(...)` or `hsla(...)`.
+ * We accept the forms Studio renders without surprises.
+ * These are `oklch(...)`, `oklab(...)`, `#xxx` or `#xxxxxx`, `rgb(...)` or `rgba(...)`, and `hsl(...)` or `hsla(...)`.
  * Named CSS colours are intentionally rejected, so a plugin author does not ship `"red"`,
  * then find Studio's dark theme has no contrast token for it.
  */

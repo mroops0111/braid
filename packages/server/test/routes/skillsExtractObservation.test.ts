@@ -111,8 +111,9 @@ async function waitForRunSettled(deps: Awaited<ReturnType<typeof buildAppForExtr
 }
 
 /**
- * Fake child process that does nothing until killed. On `kill(signal)` it emits the `close` event with `(code=null,
- * signal)` so the runner's exitCode mapping (line 256-264 of SubprocessSkillRunner) sees a signal-terminated exit.
+ * Fake child process that does nothing until killed.
+ * On `kill(signal)` it emits the `close` event with `(code=null, signal)`,
+ * so the runner's exitCode mapping (line 256-264 of SubprocessSkillRunner) sees a signal-terminated exit.
  */
 function createCancellableChild(): ChildProcess {
   const stdout = new Readable({ read() {} })

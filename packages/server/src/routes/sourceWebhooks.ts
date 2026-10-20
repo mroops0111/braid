@@ -113,9 +113,9 @@ interface VerifiedDelivery {
   readonly rawBody: string
 }
 
-// Run the full pre-signature pipeline inside a single try/catch,
-// (header presence, body read, workspace and source lookup,
-// plugin webhook capability, repo identity, secret read, HMAC verify).
+// Run the full pre-signature pipeline inside a single try/catch.
+// It checks the headers are present, reads the body, and looks up the workspace and source.
+// It then checks the plugin's webhook capability and the repo identity, reads the secret, and verifies the HMAC.
 // Returns the trusted state on success and `undefined` on any failure.
 // The caller collapses every failure mode to a 401.
 async function verifyDelivery(
@@ -162,11 +162,10 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
   router.post('/github/:workspaceId/:sourceId', async (context) => {
     const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
     const sourceId = SourceId.parse(context.req.param('sourceId'))
-    // The verifyDelivery call returns either the trusted state or undefined,
-    // (workspace, resolved capability, repository identity, raw body).
-    // On undefined we always return a uniform 401,
-    // so distinct errors never tell an anonymous caller apart,
-    // "no such workspace", "no secret yet", and "bad signature".
+    // The verifyDelivery call returns either the trusted state or undefined.
+    // The trusted state holds the workspace, resolved capability, repository identity, and raw body.
+    // On undefined we always return a uniform 401.
+    // Distinct errors would tell an anonymous caller "no such workspace" from "no secret yet" and "bad signature".
     const verified = await verifyDelivery(deps, context, workspaceId, sourceId)
     if (!verified)
       return unauthorized()

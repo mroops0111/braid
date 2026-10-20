@@ -11,7 +11,7 @@ export const ReactorConfig = z.object({
 })
 export type ReactorConfig = z.infer<typeof ReactorConfig>
 
-/** One reactive cycle: diff source, dispatch per changed unit, then checkpoint. */
+/** One reactive cycle, which diffs the source, dispatches each changed unit, then checkpoints. */
 export const ReactorCycleId = z.string().min(1).brand<'ReactorCycleId'>().describe('Id of one reactor cycle, which is one unattended pass over the workspace.')
 export type ReactorCycleId = z.infer<typeof ReactorCycleId>
 

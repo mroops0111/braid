@@ -3,9 +3,8 @@ import { useEffect, useMemo, useRef } from 'react'
 
 /**
  * Re-fit the ReactFlow viewport whenever the laid-out node set changes.
- * Tracks a sorted-id key,
- * so unrelated re-renders do not trigger a fit,
- * such as selection, diff state, or edge highlights.
+ * Tracks a sorted-id key, so unrelated re-renders do not trigger a fit.
+ * Re-renders from selection, diff state, or edge highlights are the unrelated ones it ignores.
  * The very first render is skipped, because ReactFlow's own `fitView` prop handles the mount case.
  */
 export interface FitOnLayoutChangeOptions {

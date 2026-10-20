@@ -6,7 +6,7 @@ import type {
 } from '@braidhq/schema'
 
 /**
- * Framework invariant: every node must declare some evidence trail.
+ * It is a framework invariant that every node declares some evidence trail.
  * One of these must hold:
  *
  *   - at least one `metadata.sourceReferences[]` entry,

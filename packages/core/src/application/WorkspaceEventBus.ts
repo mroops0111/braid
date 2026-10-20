@@ -8,7 +8,7 @@ export type WorkspaceEventListener = (event: WorkspaceEvent) => void
  * The Studio subscribes via a single SSE per workspace.
  * Backend services publish into the same bus instance, after every state mutation that downstream views care about.
  *
- * Not persistent: events that arrive while no one is subscribed are dropped.
+ * Events are not persisted, so one that arrives while no one is subscribed is dropped.
  * The Studio reconciles by re-fetching list endpoints on `EventSource` open.
  */
 export interface WorkspaceEventBus {

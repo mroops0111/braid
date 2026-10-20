@@ -12,9 +12,8 @@ import type { CapabilityCheck } from './CapabilityCheck.js'
  * `workspaceAccessMiddleware` already refused everybody else,
  * so a check that only repeats it would never decide anything.
  *
- * `skill.run` keeps its own verb for its three-step resolution,
- * covering owner short-circuit, per-member override, allowedRoles,
- * which does not fit a read or write pair.
+ * `skill.run` keeps its own verb, since its three-step resolution does not fit a read or write pair.
+ * The three steps are owner short-circuit, per-member override, and allowedRoles.
  */
 export const checks: readonly CapabilityCheck[] = [
   { id: 'server.write', evaluate: v => v.user.serverRole === 'admin' },

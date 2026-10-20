@@ -72,7 +72,7 @@ export function renderCallsFor(category: SkillCategory): readonly RenderCallName
 /**
  * The form a run's output takes, decided before it starts.
  *
- * `blocks` is the default: the run renders typed blocks a surface draws,
+ * `blocks` is the default, where the run renders typed blocks a surface draws,
  * carrying evidence a reader can open and findings they can act on.
  * `prose` is the answer written out and nothing else,
  * which is what a reader wanting the answer rather than what it rests on gets,
@@ -93,9 +93,8 @@ export type OutputForm = z.infer<typeof OutputForm>
  * What each form leaves behind, so adding one is adding a row here.
  *
  * Every decision a form drives asks this one question.
- * A run either renders blocks a surface draws, or writes its answer out,
- * and what narrows its tool surface, what `emit_block` refuses,
- * and what an unattended run falls to all read it from here.
+ * A run either renders blocks a surface draws, or writes its answer out.
+ * Its tool surface, what `emit_block` refuses, and what an unattended run falls to are all read from here.
  * Held as a table rather than as comparisons against `'prose'`,
  * so a third form is a row and a value in a skill's `forms`,
  * rather than an edit to every branch that ever named a form.
@@ -293,7 +292,7 @@ export const SkillAgentOverride = z.object({
 export type SkillAgentOverride = z.infer<typeof SkillAgentOverride>
 
 /**
- * Braid-specific fields under the braid: key, so they never collide with Claude Code's own.
+ * Braid-specific fields under the `braid:` key, so they never collide with Claude Code's own.
  * Read by SubprocessSkillRunner for preflight (env / path / MCP) before spawning.
  */
 /**

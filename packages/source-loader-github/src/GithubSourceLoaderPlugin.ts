@@ -173,9 +173,9 @@ export function createGithubLoader(deps: GithubLoaderDeps): SourceLoaderPlugin {
         else if (result === 'updated')
           updated++
       }
-      // Reactive orphan delete: any issue that came back via `since=`,
-      // but failed the realized-intent filter (re-opened, PR unmerged, label removed, and so on),
-      // gets its on-disk file removed.
+      // Reactive orphan delete.
+      // Any issue that came back via `since=`, but failed the realized-intent filter, gets its on-disk file removed.
+      // Reasons it fails include being re-opened, an unmerged PR, and a removed label.
       // This keeps the intent dir aligned with the current filter without a separate full-scan path.
       // Issues that have not been touched since the last cursor do not show up in `rawIssues`.
       // Those need a manual full reconcile, not in scope for incremental sync.
@@ -304,7 +304,7 @@ interface RealizedIntentIssue {
  * Keep only issues that have at least one merged PR in their `closedByPullRequestsReferences` association,
  * and annotate each surviving issue with the merged-PR refs, so the markdown frontmatter can carry the provenance.
  *
- * Implementation note: GitHub REST does not expose closed-by-PR directly.
+ * GitHub REST does not expose closed-by-PR directly.
  * It gives only `commit_id` on closed events, which is set for PR merges but also for plain commit-close references.
  * GraphQL's `closedByPullRequestsReferences` is the canonical source.
  * One round-trip per issue keeps the code simple.

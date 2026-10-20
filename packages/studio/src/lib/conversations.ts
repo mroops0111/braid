@@ -7,7 +7,7 @@ import type { RunRecord, SessionMetadata } from '@braidhq/schema'
  * and the surfaces render it as a conversation of one.
  */
 export interface SessionGroup {
-  /** Stable id for selection: real sessionId when present, otherwise the runId. */
+  /** Stable id for selection, which is the real sessionId when present and the runId otherwise. */
   groupId: string
   sessionId: string | null
   records: RunRecord[]

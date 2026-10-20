@@ -1,15 +1,12 @@
-/**
- * Shared OpenAPI building blocks used across workspace-scoped routes.
- *
- * Path parameters on parent app.route() mounts do not merge, into a child route's OpenAPI definitions.
- * So each route under `/workspaces/:workspaceId/*` must re-declare it,
- * naming `workspaceId` in its own `request.params`.
- * Use `WorkspaceIdParam` to keep the declaration consistent.
- */
 import type { OutputForm, RenderCallName, SkillCategory } from '@braidhq/schema'
 import { BraidProblemJson, RENDER_CALL_CATEGORIES, WorkspaceId } from '@braidhq/schema'
 import { z } from '@hono/zod-openapi'
 
+/**
+ * Path parameters on parent app.route() mounts do not merge into a child route's OpenAPI definitions.
+ * So each route under `/workspaces/:workspaceId/*` re-declares `workspaceId` in its own `request.params`,
+ * and uses this to keep the declaration consistent.
+ */
 export const WorkspaceIdParam = z.object({
   workspaceId: WorkspaceId.openapi({
     param: { name: 'workspaceId', in: 'path' },

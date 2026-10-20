@@ -21,7 +21,7 @@ import type { EdgeTypeDescriptor, OntologyPlugin, OntologyValidator } from '../p
  * Edge types not declared by the ontology are skipped here.
  * The type validator already flags them as unknown.
  *
- * Not a plugin: each ontology constructs its own instance, exposed via `OntologyPlugin.validators[]`.
+ * Not a plugin. Each ontology constructs its own instance, exposed via `OntologyPlugin.validators[]`.
  */
 export class StructuralValidator implements OntologyValidator {
   private readonly edgeTypeById: ReadonlyMap<EdgeTypeId, EdgeTypeDescriptor>

@@ -121,8 +121,8 @@ describe('listUnitItems', () => {
 
     const items = await listUnitItems(makeWorkspace(workspaceRoot, 'primaries/notes'), ROLES)
 
-    // Root-level loose markdowns already work pre-change; this test pins the behaviour so
-    // the flat-directory expansion does not regress the simpler case.
+    // Root-level loose markdowns already work pre-change.
+    // This test pins the behaviour, so the flat-directory expansion does not regress the simpler case.
     expect(items.map(i => i.value).sort()).toEqual(['q1-roadmap.md', 'q2-roadmap.md'])
   })
 
@@ -135,8 +135,8 @@ describe('listUnitItems', () => {
 
     const items = await listUnitItems(makeWorkspace(workspaceRoot, 'primaries/mixed'), ROLES)
 
-    // Non-markdown sibling disqualifies flat-directory expansion; the dir
-    // stays as a single unit (caller must decide whether to drill in).
+    // A non-markdown sibling disqualifies flat-directory expansion.
+    // The dir stays as a single unit, and the caller must decide whether to drill in.
     expect(items.map(i => i.value)).toEqual(['mixed/'])
   })
 

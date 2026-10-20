@@ -12,7 +12,7 @@ import { readJson } from '../helpers/readJson.js'
 interface ProposalRef { id: string }
 
 /**
- * Phase-2 wiring proof: HITLService's mutation paths must land real commits on the workspace's git repo.
+ * Proves the phase-2 wiring. HITLService's mutation paths must land real commits on the workspace's git repo.
  * This drives the whole stack (route to service to simple-git) instead of mocking history,
  * so we also catch any composition wiring regressions.
  */

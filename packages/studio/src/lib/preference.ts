@@ -2,9 +2,8 @@ import type { StorageKey } from './storage.js'
 import { useCallback, useSyncExternalStore } from 'react'
 import { readStored, writeStored } from './storage.js'
 
-// One set for every key, since a preference changes rarely
-// and telling a handful of components to re-read costs less than
-// keeping a subscriber list per key correct.
+// One set serves every key, since a preference changes rarely.
+// Telling a handful of components to re-read costs less than keeping a subscriber list per key correct.
 const listeners = new Set<() => void>()
 
 /**

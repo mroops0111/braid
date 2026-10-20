@@ -13,7 +13,7 @@ const ctx: SourceLoaderContext = {
 }
 
 /**
- * Integration test: clones a *local* bare repo, not the public internet.
+ * An integration test that clones a *local* bare repo, not the public internet.
  * Keeps the test fast and offline. Real git binary on PATH is required.
  */
 describe('GitLoader', () => {

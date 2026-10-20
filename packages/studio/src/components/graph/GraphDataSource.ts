@@ -13,10 +13,9 @@ import { useModelSnapshot } from '@/lib/queries'
 /**
  * Uniform view shape consumed by the graph visualization and table.
  *
- * Decoupling rendering from data acquisition lets us reuse the same components,
- * for the live workspace graph, proposal previews,
- * and future read-only or historical views,
- * without conditionals leaking into the renderer.
+ * Decoupling rendering from data acquisition lets several views reuse the same components.
+ * The views are the live workspace graph, proposal previews, and future read-only or historical views.
+ * No conditionals leak into the renderer.
  *
  * `diff` is an optional overlay.
  * When present, nodes and edges in the map get a change-kind ring or badge.

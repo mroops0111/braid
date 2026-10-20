@@ -75,8 +75,9 @@ export interface PatchWorkspaceResult {
 }
 
 /**
- * Caller-friendly error: carries the original status code so the UI can map known cases (404, 409,
- * 400 with specific text) to suggested actions rather than dumping raw `application/problem+json` on the user.
+ * A caller-friendly error that carries the original status code.
+ * It lets the UI map known cases (404, 409, 400 with specific text) to suggested actions,
+ * rather than dump raw `application/problem+json` on the user.
  */
 export class ApiError extends Error {
   constructor(
@@ -449,7 +450,7 @@ export const api = {
   getClarification: (workspaceId: string, clarificationId: string) =>
     fetchJson<ClarificationDetail>(`/workspaces/${workspaceId}/clarifications/${clarificationId}`),
   /**
-   * Server mints any omitted candidate ids, skills supply them deterministically (cc-1 etc.),
+   * Server mints any omitted candidate ids, skills supply them deterministically (such as cc-1),
    * human-authored "New question" candidates leave them out and let `newClarificationCandidateId` fill in.
    */
   submitClarification: (workspaceId: string, draft: ClarificationCreateBody) =>

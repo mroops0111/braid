@@ -72,8 +72,8 @@ export class OidcTokenVerifier implements AccessTokenVerifier {
       claims = result.payload
     }
     catch (error) {
-      // Recognised and refused, so the caller learns why rather than falling
-      // through to a verifier that would only say the header was missing.
+      // The token is recognised and refused, so the caller learns why.
+      // Falling through instead would reach a verifier that only says the header was missing.
       throw new UnauthorizedError(`Token rejected: ${error instanceof Error ? error.message : String(error)}`)
     }
 

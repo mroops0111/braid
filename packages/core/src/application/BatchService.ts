@@ -61,8 +61,8 @@ export interface BatchServiceDeps {
   /** Filesystem walk happens in infrastructure. The orchestrator just consumes the list. */
   unitLister: UnitLister
   /**
-   * Resolves the workspace's ontology plugin so the service can read its batch binding (per-unit skill,
-   * checkpoint config, derive skill).
+   * Resolves the workspace's ontology plugin,
+   * so the service can read its batch binding (per-unit skill, checkpoint config, derive skill).
    * Without this binding the framework has no opinion on which skills to dispatch.
    */
   pluginRegistry: PluginRegistry

@@ -13,7 +13,7 @@ import { StorageDescriptor } from './storage.js'
 export const WorkspaceRole = z.enum(['owner', 'maintainer', 'guest'])
 export type WorkspaceRole = z.infer<typeof WorkspaceRole>
 
-/** Per-member skill override: allow opens, deny closes, absent inherits the manifest. */
+/** Per-member skill override, where allow opens, deny closes, and absent inherits the manifest. */
 export const SkillPermission = z.enum(['allow', 'deny'])
 export type SkillPermission = z.infer<typeof SkillPermission>
 
@@ -60,7 +60,7 @@ export const ProductManifestUpdate = ProductManifest.partial().extend({
 })
 export type ProductManifestUpdate = z.infer<typeof ProductManifestUpdate>
 
-/** Scaffold subset: user gives name/sources/mcpServers, server defaults the rest. */
+/** Scaffold subset, where the user gives name, sources, and mcpServers, and the server defaults the rest. */
 export const ProductManifestCreate = z.object({
   name: z.string().min(1),
   version: z.string().optional(),

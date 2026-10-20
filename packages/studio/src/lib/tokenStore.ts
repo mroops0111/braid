@@ -5,8 +5,8 @@ import { STORAGE_KEYS } from './storage'
 /**
  * Per-remote Bearer token store.
  *
- * Web build: tokens live in localStorage under `braid:tokens`.
- * Tauri build: tokens live in the OS keyring, Keychain, Credential Manager, or libsecret, via Rust commands.
+ * In the web build, tokens live in localStorage under `braid:tokens`.
+ * In the Tauri build, tokens live in the OS keyring (Keychain, Credential Manager, or libsecret) via Rust commands.
  * An in-memory cache mirrors them, so reads stay synchronous for `fetchJson` and friends.
  *
  * Callers go through `getToken` and `setToken`, rather than touching localStorage directly.

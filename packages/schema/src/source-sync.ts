@@ -3,9 +3,9 @@ import { SourceId, Timestamp, WorkspaceId } from './common.js'
 
 /**
  * How stale a source may be before something reads it.
- * One knob rather than a separate poll interval,
- * since a cadence that disagrees with the budget either spins,
- * on already-fresh sources, or leaves the budget unenforced between ticks.
+ * It is one knob rather than a separate poll interval.
+ * A cadence that disagrees with the budget would either spin on already-fresh sources,
+ * or leave the budget unenforced between ticks.
  * The poller derives its wake-up from this.
  *
  * Absent on a source means it never refreshes on its own,

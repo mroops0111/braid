@@ -70,7 +70,7 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
   })
 
   afterEach(async () => {
-    // Kuzu cleanup: release cached connections before nuking the dir, to avoid lock errors.
+    // For Kuzu, release cached connections before nuking the dir, to avoid lock errors.
     // The KuzuModelRepository owns the cache, production composeFsApp doesn't dispose at process exit either.
     await rm(braidHome, { recursive: true, force: true }).catch(() => {})
   })
@@ -229,7 +229,7 @@ describe('e2e: scaffold → submit → validate → apply (post-Model-A-refactor
     const body = await readJson<OntologyBody>(response)
     expect(body.ontologyId).toBe('ddd')
     expect(body.nodeTypes.some(t => t.id === 'boundedContext')).toBe(true)
-    // P0 additions: actor node + performedBy edge.
+    // The P0 additions are the actor node and the performedBy edge.
     expect(body.nodeTypes.some(t => t.id === 'actor')).toBe(true)
     expect(body.edgeTypes.some(t => t.id === 'performedBy')).toBe(true)
   })

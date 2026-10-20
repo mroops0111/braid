@@ -20,7 +20,7 @@ export interface ProposalPreview {
 }
 
 /**
- * Lenient apply: invalid ops are no-op'd so preview never throws.
+ * Applies leniently, so invalid ops are no-op'd and preview never throws.
  * Real apply is strict.
  * Diffs by comparing snapshots, so cascade-deleted edges still show as removed.
  */

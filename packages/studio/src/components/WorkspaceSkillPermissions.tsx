@@ -49,8 +49,8 @@ export function WorkspaceSkillPermissions({ workspaceId }: { workspaceId: string
   // Owners always pass the ACL gate regardless of overrides, so showing a row for them would be misleading.
   // Hidden skills are orchestration-only and never user-runnable, so they are not actionable here either.
   const visibleMembers = (members?.items ?? []).filter(m => m.role !== 'owner')
-  // Mirror the Actions page column order (ask, build by `order`, generate,
-  // custom) so members map cells to the page they'll find the skill on.
+  // Mirror the Actions page column order, so members map cells to the page they'll find the skill on.
+  // That order is ask, build by `order`, generate, then custom.
   const visibleSkills = orderSkillsForGrid((skills?.items ?? []).filter(s => !s.frontmatter.braid.hidden))
 
   if (visibleMembers.length === 0 || visibleSkills.length === 0) {

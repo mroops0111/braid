@@ -14,9 +14,9 @@ export interface SourceUnitObservationServiceDeps {
 
 /**
  * Application-level entry point for recording and querying source unit observations.
- * Every orchestrator that runs a skill against a source unit (BatchService today,
- * ReactorService and manual-extract dispatch later) goes through `recordObservation`,
+ * Every orchestrator that runs a skill against a source unit goes through `recordObservation`,
  * so the audit and diff primitives stay in one place.
+ * BatchService is one today, and ReactorService and manual-extract dispatch will be later.
  *
  * Reads (`listByWorkspace`, `diffAgainst`) are delegated to the repository / pure diff function.
  * The service exists mostly to (a) fan-in writes with sha computation,

@@ -61,10 +61,10 @@ function makeGitSource(branch?: string) {
 }
 
 // Stand-in loader plugins for the receiver's plugin-registry lookup.
-// We deliberately bypass `defineSourceLoaderPlugin` and construct the plugin
-// object literal so the test stays loader-agnostic: it only exercises
-// the receiver's contract (delegate to `plugin.webhook.{upstream,
-// shouldDispatch}`) and does NOT reproduce production loader semantics.
+// We deliberately bypass `defineSourceLoaderPlugin` and construct the plugin object literal,
+// so the test stays loader-agnostic.
+// It only exercises the receiver's contract, which delegates to `plugin.webhook.{upstream, shouldDispatch}`.
+// It does NOT reproduce production loader semantics.
 // Each real loader has its own webhook unit test in its own package.
 const FAKE_FETCHED_AT = '2026-01-01T00:00:00.000Z' as Timestamp
 
@@ -184,7 +184,7 @@ describe('POST /webhooks/github/:workspaceId/:sourceId (issue #30)', () => {
     })
 
     expect(response.status).toBe(202)
-    // syncOne runs in the background; give the microtask queue a tick.
+    // syncOne runs in the background, so give the microtask queue a tick.
     await new Promise(resolve => setTimeout(resolve, 10))
     expect(syncOne).toHaveBeenCalledTimes(1)
     expect(syncOne.mock.calls[0]?.[1]).toBe(SOURCE_ID)

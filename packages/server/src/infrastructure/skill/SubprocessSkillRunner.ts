@@ -382,9 +382,8 @@ export class SubprocessSkillRunner implements SkillRunner {
     const active = this.running.get(validated)
     if (!active)
       throw new NotFoundError(`SkillRun "${validated}" not active`)
-    // The spec a non-rendering run reads holds no render operation,
-    // so this is unreachable through the gateway and is refused here
-    // for anything that arrives with the run's token by another route.
+    // The spec a non-rendering run reads holds no render operation, so this is unreachable through the gateway.
+    // It is refused here for anything that arrives with the run's token by another route.
     // Without it, "this run has no blocks" would be a convention, and a surface cannot fall back on a convention.
     if (!rendersBlocks(active.outputForm)) {
       throw new ConflictError(

@@ -83,7 +83,7 @@ export function formatOpsSummary(summary: OpsSummary): string {
   return parts.join(' / ')
 }
 
-/** Letter prefix (A, B, C, and so on) for a candidate option index. */
+/** Letter prefix for a candidate option index, such as A for 0 and B for 1. */
 export function candidateLetter(index: number): string {
   return String.fromCharCode(65 + index)
 }
@@ -574,7 +574,7 @@ function CandidateRow({
         : 'border-border'
   } ${dimmed ? 'opacity-60' : ''}`
 
-  // Inner row layout: letter chip, then description and impact.
+  // The inner row lays out a letter chip, then the description and impact.
   // Always rendered, only the wrapping element flips,
   // between an interactive <button> (pending) and a passive <div> (terminal).
   const innerRow = (

@@ -5,7 +5,7 @@ import type {
 } from '@braidhq/schema'
 
 /**
- * Framework invariant: defense in depth on edge integrity.
+ * A framework invariant, kept as defense in depth on edge integrity.
  * `Model.preview` already rejects edges whose endpoints are missing,
  * but a corrupt JSONL stream or a buggy storage adapter, could still land us in a state with dangling edges.
  * Surface that loudly rather than letting queries return bad neighbours.

@@ -25,10 +25,8 @@ interface RawMetadata {
 /**
  * Read an issuer's metadata.
  *
- * Both well-known paths are tried, since an OpenID provider publishes at
- * `openid-configuration` and a plain OAuth server at
- * `oauth-authorization-server`, and a deployment should not have to know
- * which kind it was handed.
+ * An OpenID provider publishes at `openid-configuration`, and a plain OAuth server at `oauth-authorization-server`.
+ * Both well-known paths are tried, so a deployment need not know which kind it was handed.
  */
 export async function discoverOidcMetadata(
   issuer: string,

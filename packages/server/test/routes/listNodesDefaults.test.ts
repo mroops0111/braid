@@ -53,7 +53,7 @@ describe('listNodes defaults', () => {
 
     const body = await (await app.request(`/workspaces/${WORKSPACE}/nodes`)).json() as NodeList
 
-    // Unfiltered, this endpoint used to return the whole graph.
+    // Unfiltered, the endpoint returns a default-sized page rather than the whole graph.
     expect(body.items).toHaveLength(20)
     // And the caller can tell that it did, which decides whether to read on or to narrow the query.
     expect(body.total).toBe(25)

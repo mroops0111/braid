@@ -58,7 +58,7 @@ export class DriveClient {
     return globalBuffer().from(await response.arrayBuffer())
   }
 
-  /** Download a binary file (image, PDF, and so on) as-is. */
+  /** Download a binary file, such as an image or a PDF, as-is. */
   async downloadFile(fileId: string): Promise<Buffer> {
     const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`
     const response = await this.fetchFn(url, { headers: this.authHeader() })

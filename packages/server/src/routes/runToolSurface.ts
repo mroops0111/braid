@@ -41,9 +41,8 @@ function visibleTo(
  * The alternative was a prompt asking a skill not to reach for what it sees,
  * and the operation still costs a place in the tool list,
  * and the tokens to describe it, whether or not it is ever called.
- * That cost is the whole point of the `form` axis:
- * a run asked for prose is not told to leave the render tools alone,
- * it is never shown them.
+ * That cost is the whole point of the `form` axis.
+ * A run asked for prose is never shown the render tools, rather than told to leave them alone.
  *
  * `calls` narrows the same way one step further in.
  * The kind of run sets a ceiling, and its skill says which of those it actually draws with,

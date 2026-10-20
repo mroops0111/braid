@@ -32,7 +32,7 @@ describe('FsSecretStore', () => {
     const filePath = join(root, 'oauth-google', 'k.json')
     const fileStat = await stat(filePath)
     const dirStat = await stat(join(root, 'oauth-google'))
-    // Mask off the file-type bits; compare the permission bits only.
+    // Mask off the file-type bits, and compare the permission bits only.
     expect(fileStat.mode & 0o777).toBe(0o600)
     expect(dirStat.mode & 0o777).toBe(0o700)
   })

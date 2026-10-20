@@ -44,7 +44,7 @@ export class FsSkillRegistry implements SkillRegistry {
       AbsolutePathSchema.parse(workspaceSkillExtensionsDir(workspace.rootPath)),
     )
 
-    // Precedence, later wins: builtin < plugin < workspace.
+    // Precedence runs builtin < plugin < workspace, and the later one wins.
     // Extensions don't override.
     // They attach an EXTEND.md path, and the agent binding points claude at that file at run time.
     const manifests = new Map<SkillId, SkillManifest>()
@@ -160,7 +160,7 @@ export class FsSkillRegistry implements SkillRegistry {
     const { frontmatter: raw, body } = parseMarkdownFrontmatter<unknown>(content)
     const frontmatter = SkillFrontmatterSchema.parse(raw)
 
-    // Structural contract: SKILL.md must declare the required H2 sections, per its `braid.category`.
+    // The structural contract is that SKILL.md declares the H2 sections its `braid.category` requires.
     // The validator is hard-fail.
     // A broken skill never lands silently in the workspace list.
     // Were `## Procedure` absent, the skill would burn an entire run,

@@ -176,8 +176,8 @@ describe('PermissionRegistry', () => {
   it('unknown capability ids default to deny', () => {
     const registry = new PermissionRegistry()
     const v = resolveViewer(makeUser('admin'), undefined)
-    // Cast to the closed Capability union so we can test the lookup
-    // miss; in real code TypeScript would catch this at compile time.
+    // Cast to the closed Capability union so we can test the lookup miss.
+    // In real code TypeScript would catch this at compile time.
     expect(registry.can('skill.run' as Capability, v)).toBe(false)
   })
 

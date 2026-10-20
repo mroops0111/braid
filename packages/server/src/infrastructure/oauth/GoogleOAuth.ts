@@ -245,7 +245,7 @@ function pkceChallenge(verifier: string): string {
 }
 
 /**
- * Helper for callers: produce a fresh PKCE verifier (32 bytes, base64url).
+ * Produces a fresh PKCE verifier for callers (32 bytes, base64url).
  * Caller stashes alongside the `state` token until the callback returns.
  */
 export function createPkceVerifier(): string {

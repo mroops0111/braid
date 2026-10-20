@@ -34,9 +34,8 @@ function localeEdges(edges: readonly Omit<EdgeTypeDescriptor, 'label'>[]): EdgeT
 }
 
 /**
- * The default DDD ontology, consolidating Strategic DDD (Evans),
- * Tactical DDD (Vernon), EventStorming (Brandolini), and CQRS (Young),
- * as framed by Khononov's Learning Domain-Driven Design (2021).
+ * The default DDD ontology, as framed by Khononov's Learning Domain-Driven Design (2021).
+ * It consolidates Strategic DDD (Evans), Tactical DDD (Vernon), EventStorming (Brandolini), and CQRS (Young).
  * Every node and edge description tags its sub-domain and cites its source,
  * so an LLM or reviewer knows which tradition each element comes from.
  * Editing a type here flows through the ontology contract to Studio, the structural and ontology-type validators,

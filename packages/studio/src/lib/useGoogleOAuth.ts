@@ -5,8 +5,8 @@ import { useOAuthPopup } from './useOAuthPopup'
 /**
  * Start the Google OAuth flow for a `(workspaceId, sourceId)` pair.
  * A thin binding of `useOAuthPopup` to the Google start endpoint.
- * Used by `CreateWorkspaceWizard` (workspaceId from the typed name,
- * ahead of scaffold) and `AddSourceDialog` (the workspace's real id).
+ * `CreateWorkspaceWizard` uses it with a workspaceId from the typed name, ahead of scaffold.
+ * `AddSourceDialog` uses it with the workspace's real id.
  */
 export function useGoogleOAuth(
   workspaceId: string,

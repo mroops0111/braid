@@ -38,11 +38,11 @@ export interface GraphSurfaceProps {
   centerRequest?: number
   /** Opens the command palette from the navigator. */
   onOpenSearch?: () => void
-  /** Proposal-preview only: see GraphCanvas for semantics. */
+  /** Proposal preview only, with semantics as GraphCanvas defines them. */
   dimUnchanged?: boolean
-  /** Proposal-preview only: see GraphCanvas for semantics. */
+  /** Proposal preview only, with semantics as GraphCanvas defines them. */
   emphasizeAdded?: boolean
-  /** Nodes somebody arrived to look at: see GraphCanvas for semantics. */
+  /** Nodes somebody arrived to look at, with semantics as GraphCanvas defines them. */
   spotlightIds?: readonly NodeId[]
   onStartBootstrap?: () => void
 }

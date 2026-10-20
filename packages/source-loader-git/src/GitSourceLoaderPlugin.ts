@@ -19,10 +19,13 @@ export const GitLoaderConfig = z.object({
   branch: z.string().min(1).default('master'),
   /**
    * Subdirectory inside the cloned repo to use as the source content root.
-   * The loader still clones the full repo; you choose what claude sees by pointing the source `path` deeper.
+   * The loader still clones the full repo. You choose what claude sees by pointing the source `path` deeper.
    */
   subdir: z.string().optional(),
-  /** Shallow clone depth. Defaults to 1; we only need the working tree. */
+  /**
+   * Shallow clone depth.
+   * Defaults to 1, since we only need the working tree.
+   */
   depth: z.number().int().positive().default(1),
 })
 export type GitLoaderConfig = z.infer<typeof GitLoaderConfig>
@@ -103,7 +106,7 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
     // `push` events on other refs are guaranteed no-ops for `git fetch && reset --hard origin/<branch>`,
     // so skip them to avoid wasting a network round-trip.
     // `ping` always dispatches, so the user sees `lastObservedSha` populate on first wire-up.
-    // Other event types (issues, deploy, and so on) are unrelated to the code mirror and are skipped.
+    // Other event types, such as issues and deploy, are unrelated to the code mirror and are skipped.
     shouldDispatch: (config, delivery) => {
       if (delivery.event === 'ping')
         return true
@@ -153,7 +156,8 @@ function parseRemoteUrl(url: string): { host: string, path: string } | undefined
 
 /**
  * Parse `git diff --name-status <before>..<after>` into add, update, and remove counts.
- * Status letters: A=added, M=modified, D=deleted, R=renamed (treated as 1 update), C=copied (treated as 1 add).
+ * The status letters are A=added, M=modified, D=deleted, R=renamed, and C=copied.
+ * A rename counts as 1 update, and a copy as 1 add.
  * Anything else we conservatively classify as updated.
  */
 async function countChangedFiles(
