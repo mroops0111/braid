@@ -30,12 +30,12 @@
   },
   "dependencies": {
     "@braidhq/server": "workspace:*",
-    "cac": "^7.0.0",
+    "cac": "^7.1.0",
     "picocolors": "^1.1.0"
   },
   "devDependencies": {
     "@braidhq/test-utils": "workspace:*",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
   },
