@@ -6,8 +6,8 @@ import { Hono } from 'hono'
 import { OAUTH_PROVIDERS } from '../infrastructure/oauth/providers.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 
-// OAuth namespaces a source credential can live under,
-// keyed by `${workspaceId}--${sourceId}`. A source uses at most one.
+// OAuth namespaces a source credential can live under, keyed by `${workspaceId}--${sourceId}`.
+// A source uses at most one.
 const OAUTH_NAMESPACES = OAUTH_PROVIDERS.map(provider => provider.namespace)
 // Loader kinds whose sources authenticate over OAuth.
 const OAUTH_LOADER_KINDS = new Set(OAUTH_PROVIDERS.map(provider => provider.loaderKind))
@@ -20,8 +20,7 @@ interface StoredCredential {
 
 export interface SourceConnectionStatus {
   readonly connected: boolean
-  // A stored credential exists but a refresh has failed,
-  // so the source needs a reconnect.
+  // A stored credential exists but a refresh has failed, so the source needs a reconnect.
   // Distinct from `connected: false`, which is never linked.
   readonly needsAuth: boolean
   readonly connectedBy?: { userId: string, displayName: string }
@@ -36,10 +35,8 @@ export interface SourceConnectionRouterDeps {
 }
 
 /**
- * Reports whether a source has a live OAuth connection, who linked it,
- * and whether its token has gone stale.
- * Read-only, so any workspace member can see the status,
- * the reconnect action stays owner-gated on the start route.
+ * Reports whether a source has a live OAuth connection, who linked it, and whether its token has gone stale.
+ * Read-only, so any workspace member can see the status, the reconnect action stays owner-gated on the start route.
  * The collection route lets a banner flag a stale source without opening it.
  */
 export function createSourceConnectionRouter(deps: SourceConnectionRouterDeps): HonoType {

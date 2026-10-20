@@ -9,10 +9,8 @@ export interface AutoJoinDeps {
 type Joiner = Pick<User, 'id' | 'kind'>
 
 /**
- * A service account is a component of the deployment, not a colleague,
- * so it never picks up membership this way.
- * The reactor is the one in the tree,
- * and it reaches a workspace through its own token.
+ * A service account is a component of the deployment, not a colleague, so it never picks up membership this way.
+ * The reactor is the one in the tree, and it reaches a workspace through its own token.
  */
 function isPerson(user: Joiner): boolean {
   return user.kind !== 'service'
@@ -24,8 +22,8 @@ function isPerson(user: Joiner): boolean {
  * Called at first registration, and again when a workspace starts admitting,
  * which is what reaches the colleagues who were already here.
  *
- * Not called on every sign-in. An owner who removes a member means it,
- * and running this at each login would put them back.
+ * Not called on every sign-in.
+ * An owner who removes a member means it, and running this at each login would put them back.
  */
 export async function autoJoinOpenWorkspaces(
   deps: AutoJoinDeps,
@@ -44,8 +42,7 @@ export async function autoJoinOpenWorkspaces(
 /**
  * Give every registered user membership of a workspace that just opened.
  *
- * The mirror of the call above, for the moment a workspace opens,
- * rather than the moment a user arrives.
+ * The mirror of the call above, for the moment a workspace opens, rather than the moment a user arrives.
  */
 export async function autoJoinExistingUsers(
   deps: AutoJoinDeps,

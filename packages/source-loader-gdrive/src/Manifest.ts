@@ -22,8 +22,7 @@ export interface Manifest {
 /**
  * Read the manifest file from `destination`.
  * Returns `undefined` when the file is missing or unparseable.
- * Callers fall back to a clean provision in that case,
- * since no manifest means no incremental state to diff against.
+ * Callers fall back to a clean provision in that case, since no manifest means no incremental state to diff against.
  */
 export async function readManifest(destination: string): Promise<Manifest | undefined> {
   try {

@@ -15,11 +15,9 @@ export interface PluginContext {
 /**
  * Pointer to a SKILL.md directory shipped by a plugin.
  * PluginRegistry exposes these via `getPluginSkills()`,
- * so FsSkillRegistry can mount them under the `plugin` skill-origin,
- * alongside builtin and workspace skills.
+ * so FsSkillRegistry can mount them under the `plugin` skill-origin, alongside builtin and workspace skills.
  * Declaring `skills` on the base Plugin interface, not just on Ontology,
- * keeps the framework open to plugins of other types,
- * e.g. source-loader, validator, or future kinds,
+ * keeps the framework open to plugins of other types, e.g. source-loader, validator, or future kinds,
  * that want to ship a companion skill without widening the base interface.
  */
 export interface PluginSkillRef {
@@ -46,8 +44,7 @@ export interface Plugin {
    */
   readonly skillNamespace?: string
   /**
-   * Directory of reference docs this plugin's skills Read but never invoke,
-   * such as an ontology concept doc.
+   * Directory of reference docs this plugin's skills Read but never invoke, such as an ontology concept doc.
    * The runner mounts it under `skillNamespace` and passes the absolute path,
    * so no SKILL.md carries a location of its own.
    * A `URL` is accepted for `new URL('../skills/shared', import.meta.url)`.

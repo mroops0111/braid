@@ -22,9 +22,8 @@ export interface OpsSummary {
 }
 
 /**
- * Walk a candidate's proposed operations and count adds, updates,
- * and removes, fanning batch ops out into their element counts,
- * so a single `addNodes` of three nodes reads as +3, not +1.
+ * Walk a candidate's proposed operations and count adds, updates, and removes,
+ * fanning batch ops out into their element counts, so a single `addNodes` of three nodes reads as +3, not +1.
  */
 export function summarizeOps(operations: readonly GraphOperation[]): OpsSummary {
   let adds = 0
@@ -69,8 +68,7 @@ export function summarizeOps(operations: readonly GraphOperation[]): OpsSummary 
 
 /**
  * Short rendering of an OpsSummary for inline use, like `+2 / ~1`.
- * Returns the empty-impact phrase when total is 0,
- * so callers can display it as-is.
+ * Returns the empty-impact phrase when total is 0, so callers can display it as-is.
  */
 export function formatOpsSummary(summary: OpsSummary): string {
   if (summary.total === 0)
@@ -110,13 +108,11 @@ export function ClarificationDetail({
   /**
    * Called after the answer lands, for a caller that wants to act on it.
    * The Inbox continues the run that asked,
-   * so the work carries on where it stopped,
-   * instead of waiting for someone to start it again.
+   * so the work carries on where it stopped, instead of waiting for someone to start it again.
    */
   /**
    * Called once the question is settled, whichever way.
-   * A run parked on it is released by any of the three,
-   * so the caller hears about all three.
+   * A run parked on it is released by any of the three, so the caller hears about all three.
    */
   onSettled?: (ticket: Clarification) => void
 }) {
@@ -125,8 +121,7 @@ export function ClarificationDetail({
   const canWrite = useWorkspacePolicy(workspaceId).can('handoff.write')
   const isPending = ticket.status === 'pending'
   // The two answer paths are mutually exclusive.
-  // Picking an existing candidate closes the custom-answer form,
-  // and vice versa.
+  // Picking an existing candidate closes the custom-answer form, and vice versa.
   // Keeping them separated avoids a hidden "picked B but also typed" state,
   // where the user cannot tell what will be submitted.
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null)
@@ -137,8 +132,7 @@ export function ClarificationDetail({
   const [skipReason, setSkipReason] = useState('')
 
   function invalidateClarification(): void {
-    // The 3-element prefix matches every status sub-key,
-    // so the freshly-moved ticket disappears from the current list,
+    // The 3-element prefix matches every status sub-key, so the freshly-moved ticket disappears from the current list,
     // and re-appears in its new tab without manual reconciliation.
     queryClient.invalidateQueries({ queryKey: queryKeys.clarifications(workspaceId) })
   }
@@ -154,8 +148,7 @@ export function ClarificationDetail({
   })
 
   // Deferring gives up the conversation, not the question.
-  // Only a question a run is parked on has a conversation to give up,
-  // so it is offered nowhere else.
+  // Only a question a run is parked on has a conversation to give up, so it is offered nowhere else.
   const defer = useMutation({
     mutationFn: () => api.deferClarification(workspaceId, ticket.id),
     onSuccess: () => {
@@ -181,10 +174,8 @@ export function ClarificationDetail({
   const existingReady = !customOpen && selectedCandidateId !== null
   const canAnswer = (customReady || existingReady) && !answer.isPending
 
-  // For terminal states, fetch the projected answerNote and skipReason,
-  // once, and thread them down.
-  // Lets the answered candidate row show the rationale inline,
-  // the same anchor as the editable rationale on pending,
+  // For terminal states, fetch the projected answerNote and skipReason, once, and thread them down.
+  // Lets the answered candidate row show the rationale inline, the same anchor as the editable rationale on pending,
   // instead of dumping it in the footer.
   const detail = useClarificationDetail(workspaceId, isPending ? null : ticket.id)
   const terminalAnswerNote = !isPending ? detail.data?.answerNote : undefined
@@ -342,10 +333,8 @@ export function ClarificationDetail({
 
 /**
  * Inline "+ Add my own answer" form.
- * When the reviewer's actual answer matches no candidate,
- * they author one here.
- * The server appends it to the ticket on submit,
- * so it shows up in the candidates list afterwards.
+ * When the reviewer's actual answer matches no candidate, they author one here.
+ * The server appends it to the ticket on submit, so it shows up in the candidates list afterwards.
  */
 function CustomAnswerSection({
   open,
@@ -503,8 +492,7 @@ function CandidatesList({
   onNoteChange: (next: string) => void
   /**
    * Read-only rationale from the GET projection.
-   * Surfaced inline under the answered candidate,
-   * so the visual anchor matches the editable rationale on pending.
+   * Surfaced inline under the answered candidate, so the visual anchor matches the editable rationale on pending.
    */
   terminalAnswerNote: string | null
 }) {
@@ -522,8 +510,7 @@ function CandidatesList({
         const isSelected = isPending
           ? selectedCandidateId === candidate.id
           : appliedCandidateId === candidate.id
-        // Editable on pending and active, read-only on terminal and active,
-        // if a note exists, null otherwise.
+        // Editable on pending and active, read-only on terminal and active, if a note exists, null otherwise.
         // The card layout stays the same, only the inner control changes.
         const inlineNote = isPending && isSelected
           ? { mode: 'edit' as const, value: note, onChange: onNoteChange }
@@ -570,8 +557,7 @@ function CandidateRow({
   /**
    * Anchored rationale slot, identical visual position across statuses.
    * `edit` renders a textarea when pending and selected.
-   * `view` renders a read-only quote,
-   * when answered or applied and selected and a projection note exists.
+   * `view` renders a read-only quote, when answered or applied and selected and a projection note exists.
    * `null` hides the slot entirely.
    */
   inlineNote: InlineNote
@@ -612,8 +598,7 @@ function CandidateRow({
     </div>
   )
 
-  // Same reason as the rationale below, a tag is a button,
-  // and a button inside the radio button would be invalid HTML.
+  // Same reason as the rationale below, a tag is a button, and a button inside the radio button would be invalid HTML.
   const references = nodeIds.length > 0
     ? (
         <div className="flex flex-wrap gap-1 px-3 pb-2 text-2xs">
@@ -622,10 +607,8 @@ function CandidateRow({
       )
     : null
 
-  // Rationale lives in the same card as the row,
-  // but as a sibling of the click target,
-  // so it is not a textarea-inside-button, which is invalid HTML,
-  // and clicks inside it do not bubble to the radio.
+  // Rationale lives in the same card as the row, but as a sibling of the click target,
+  // so it is not a textarea-inside-button, which is invalid HTML, and clicks inside it do not bubble to the radio.
   const rationale = inlineNote !== null
     ? (
         <div className="border-t border-primary/20 px-3 py-2">
@@ -657,8 +640,7 @@ function CandidateRow({
 
 /**
  * Rationale slot rendered inline under the active candidate.
- * Same position and label whether the row is editable,
- * pending and selected, or read-only with a projection note.
+ * Same position and label whether the row is editable, pending and selected, or read-only with a projection note.
  * The consistency lets reviewers form one mental model,
  * that rationale lives under the chosen answer across the lifetime.
  */
@@ -733,10 +715,8 @@ function collectNodeIds(candidate: ClarificationCandidate): NodeId[] {
         for (const u of op.updates)
           ids.add(u.nodeId)
         break
-      // Edge ops are intentionally no-ops here,
-      // GraphNavigation has no edge-side selection yet.
-      // Enumerating them keeps the switch exhaustive,
-      // so adding a 13th discriminant compile-errors.
+      // Edge ops are intentionally no-ops here, GraphNavigation has no edge-side selection yet.
+      // Enumerating them keeps the switch exhaustive, so adding a 13th discriminant compile-errors.
       case 'addEdge':
       case 'addEdges':
       case 'removeEdge':
@@ -791,8 +771,7 @@ function TerminalFooter({ ticket, skipReason }: { ticket: Clarification, skipRea
   // is rendered inline under the selected candidate, not here,
   // so the visual anchor matches the editable rationale on pending.
   // The footer is reserved for status-action info only,
-  // such as "Run /ddd:clarify", "to Proposal #abc", or a skip reason,
-  // which has no candidate to anchor to.
+  // such as "Run /ddd:clarify", "to Proposal #abc", or a skip reason, which has no candidate to anchor to.
   if (ticket.status === 'answered') {
     return (
       <footer className="shrink-0 border-t border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
@@ -822,8 +801,7 @@ function TerminalFooter({ ticket, skipReason }: { ticket: Clarification, skipRea
       </footer>
     )
   }
-  // Skipped tickets have no selectedCandidate to anchor the reason under,
-  // so the footer is the right home for it.
+  // Skipped tickets have no selectedCandidate to anchor the reason under, so the footer is the right home for it.
   return (
     <footer className="shrink-0 space-y-1 border-t border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
       <div>
@@ -839,8 +817,7 @@ function TerminalFooter({ ticket, skipReason }: { ticket: Clarification, skipRea
 }
 
 /**
- * Click-through chip linking an applied ticket to the Proposal,
- * it materialised.
+ * Click-through chip linking an applied ticket to the Proposal, it materialised.
  * Switches to the Proposals tab and asks it to focus the target.
  * ProposalsPage handles the cross-status lookup.
  */

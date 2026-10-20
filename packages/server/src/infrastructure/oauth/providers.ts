@@ -9,9 +9,8 @@ export interface OAuthProviderInfo {
 }
 
 /**
- * The single place a provider's id, label, token namespace,
- * and loader kind are tied together. Routes and the composition root
- * derive their lists from this,
+ * The single place a provider's id, label, token namespace, and loader kind are tied together.
+ * Routes and the composition root derive their lists from this,
  * so a new provider is one entry here rather than edits across files.
  */
 export const OAUTH_PROVIDERS: readonly OAuthProviderInfo[] = [

@@ -12,8 +12,7 @@ const SESSION = 'sess-maintainer'
  * One conversation started by the maintainer, over two runs.
  *
  * Two runs because a share names the session,
- * and a resumed conversation would otherwise prove nothing,
- * about whether both halves of it travel together.
+ * and a resumed conversation would otherwise prove nothing, about whether both halves of it travel together.
  */
 async function seedConversation(workspaceRootPath: string, workspaceId: WorkspaceId, startedBy: string): Promise<void> {
   await seedRuns(workspaceRootPath, workspaceId, [

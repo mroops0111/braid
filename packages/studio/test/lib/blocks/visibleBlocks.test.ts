@@ -11,8 +11,7 @@ function entry(id: string, audiences: readonly AudienceId[]): EmittedBlock {
 }
 
 describe('visibleBlocks', () => {
-  // A conclusion belongs to whoever asked,
-  // so naming nobody is the common case and means everyone.
+  // A conclusion belongs to whoever asked, so naming nobody is the common case and means everyone.
   it('shows a block that names nobody to every reader', () => {
     const shared = entry('shared', [])
     expect(visibleBlocks([shared], BUSINESS)).toEqual([shared])

@@ -9,14 +9,11 @@ import { getUserId } from './auth.js'
 import { getWorkspaceId } from './workspaceId.js'
 
 /**
- * Server-scope capability guard for actions without a workspace context,
- * such as workspace creation.
- * Builds a viewer with an absent member,
- * so non-admin users resolve to a null effectiveRole,
+ * Server-scope capability guard for actions without a workspace context, such as workspace creation.
+ * Builds a viewer with an absent member, so non-admin users resolve to a null effectiveRole,
  * and fail every check by construction.
  *
- * Skips the gate when userRegistry is absent,
- * so in-memory test compositions stay open.
+ * Skips the gate when userRegistry is absent, so in-memory test compositions stay open.
  * Production deployments always pass it.
  */
 export function requireServerCapability(
@@ -59,8 +56,7 @@ export interface WorkspaceAccessOptions {
  * Outsiders get 403 here, meaning no member row and not a server admin.
  *
  * The actual policy decisions live in `policy/`.
- * This middleware only builds the viewer,
- * and rejects unauthenticated outsiders.
+ * This middleware only builds the viewer, and rejects unauthenticated outsiders.
  */
 export function workspaceAccessMiddleware(options: WorkspaceAccessOptions): MiddlewareHandler {
   return async (context, next) => {
@@ -87,8 +83,7 @@ export function getViewerContext(context: Context): ViewerContext | undefined {
 /**
  * Mutation guard.
  * Returns 403 when the viewer cannot perform the given capability.
- * Optional `buildResource` lets a capability such as `skill.run`
- * attach per-request data the check needs.
+ * Optional `buildResource` lets a capability such as `skill.run` attach per-request data the check needs.
  *
  * Compositions that don't mount `workspaceAccessMiddleware`,
  * such as in-memory tests or the headless server, skip the gate.

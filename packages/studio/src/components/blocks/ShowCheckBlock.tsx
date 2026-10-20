@@ -12,14 +12,11 @@ import { cn } from '@/lib/utils'
  * One question, with its answer held back until the reader commits.
  *
  * The holding back is the whole point.
- * A reader shown the answer beside the question reads both,
- * and learns neither,
+ * A reader shown the answer beside the question reads both, and learns neither,
  * because recognising an answer feels exactly like having known it.
  *
- * Once they have picked, every choice says what it was,
- * not only the one they took.
- * Marking the pick alone leaves a reader who guessed wrong,
- * knowing they were wrong and not what they should have seen.
+ * Once they have picked, every choice says what it was, not only the one they took.
+ * Marking the pick alone leaves a reader who guessed wrong, knowing they were wrong and not what they should have seen.
  */
 export function ShowCheckBlock({ block }: { block: ShowCheck }) {
   const { t } = useTranslation()

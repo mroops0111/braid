@@ -1,7 +1,6 @@
 import type { MiddlewareHandler } from 'hono'
 
-// Vite dev (5173) and preview (4173) ports, on both loopback hostnames,
-// which browsers treat as distinct origins.
+// Vite dev (5173) and preview (4173) ports, on both loopback hostnames, which browsers treat as distinct origins.
 const DEFAULT_DEV_ORIGINS = [
   'http://localhost:4173',
   'http://localhost:5173',
@@ -15,8 +14,8 @@ export interface CorsOptions {
 
 /**
  * Permissive CORS for Studio dev / Tier 1 (Tauri embedded server).
- * Origins default to Vite dev server ports. In production deployments,
- * pass the actual studio origin list explicitly.
+ * Origins default to Vite dev server ports.
+ * In production deployments, pass the actual studio origin list explicitly.
  */
 export function corsMiddleware(options: CorsOptions = {}): MiddlewareHandler {
   const allowed = new Set(options.allowedOrigins ?? DEFAULT_DEV_ORIGINS)

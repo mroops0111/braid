@@ -8,11 +8,9 @@ import { SkillTranscript } from './SkillTranscript'
 /**
  * One run's account, whole.
  *
- * Read from the stream, live while the run is going,
- * and replayed once it is over, which is the same events either way.
+ * Read from the stream, live while the run is going, and replayed once it is over, which is the same events either way.
  * A run that carries another on opens holding that run's account,
- * so the thread reads in order from the first thing asked to the last done,
- * however many processes it took.
+ * so the thread reads in order from the first thing asked to the last done, however many processes it took.
  */
 export function RunTranscript({ workspaceId, runId }: { workspaceId: string, runId: string | undefined }) {
   const run = useRun(workspaceId, runId ?? null)

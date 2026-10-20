@@ -54,8 +54,7 @@ describe('resolution order', () => {
     expect(await broker.redeem(lease.env.ANTHROPIC_AUTH_TOKEN!)).toBe('sk-server')
   })
 
-  // Letting the run start would reach an upstream 401,
-  // which tells the reader nothing about what to do.
+  // Letting the run start would reach an upstream 401, which tells the reader nothing about what to do.
   it('refuses when neither the author nor the server holds one', async () => {
     const { broker } = brokerWith({})
     const lease = await broker.lease(RUN, BO, CLAUDE)
@@ -69,8 +68,7 @@ describe('resolution order', () => {
     expect(await broker.sourceFor(BO, CLAUDE)).toBe('server')
   })
 
-  // One person may hold a credential per agent,
-  // and reaching for the wrong one spends an account they did not choose.
+  // One person may hold a credential per agent, and reaching for the wrong one spends an account they did not choose.
   it('keeps one person\'s credentials apart by agent kind', async () => {
     const { broker } = brokerWith({ 'user-ada--claude-code': 'sk-ada' })
     expect(await broker.sourceFor(ADA, 'other-agent' as AgentKind)).toBe('none')

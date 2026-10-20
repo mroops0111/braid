@@ -19,12 +19,10 @@ const ListQuery = z.object({
 })
 
 // Reviewer-facing answer body.
-// The selection is either an existing `candidateId`,
-// or a freshly authored `customCandidate` (description only).
+// The selection is either an existing `candidateId`, or a freshly authored `customCandidate` (description only).
 // The server appends it to the clarification and answers in one transaction.
 // `note` is a free-text rationale saved on the answer commit.
-// `userId` is accepted for backwards compat,
-// the authoritative value is the request context set by middleware.
+// `userId` is accepted for backwards compat, the authoritative value is the request context set by middleware.
 const AnswerBody = z
   .object({
     candidateId: ClarificationCandidateId.optional(),
@@ -53,8 +51,7 @@ const ApplyBody = z.object({
 // Skill-emitted candidates ship their own ids (`cc-1`, `cc-merge`).
 // Human-authored ones via Studio's "New question" form omit them,
 // letting the server mint via `newClarificationCandidateId`.
-// This keeps the ID minting rule intact,
-// no `crypto.randomUUID() as XxxId` in clients.
+// This keeps the ID minting rule intact, no `crypto.randomUUID() as XxxId` in clients.
 const CreateBody = ClarificationCreateBody.openapi('ClarificationCreateBody')
 
 const ClarificationIdParam = WorkspaceIdParam.extend({
@@ -69,8 +66,7 @@ export interface ClarificationRouterDeps {
   hitlService: HITLService
   /**
    * Holds a run to one outcome, a question or a proposal.
-   * Absent, nothing is gated,
-   * which is what an in-memory composition without skills wants.
+   * Absent, nothing is gated, which is what an in-memory composition without skills wants.
    */
   outputGate?: RunOutputGate
   clarificationRepository: ClarificationRepository
@@ -213,8 +209,7 @@ const reportNoClarificationRoute = createRoute(forRuns({
   tags: ['clarifications'],
   request: { params: WorkspaceIdParam },
   responses: {
-    // Nothing is created and nothing is decided here,
-    // so there is nothing to send back.
+    // Nothing is created and nothing is decided here, so there is nothing to send back.
     // A body restating the status would be paid for in the run's context,
     // only to say what the status line already said.
     204: { description: 'The declaration was recorded.' },
@@ -228,8 +223,7 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
   // Creating is a run handing a question over, carried by its own run token,
   // so it stays outside the gate a person passes.
   router.on('GET', ['/', '/:clarificationId'], requirePermission('handoff.read'))
-  // Answering, skipping, deferring, and marking applied all settle a handoff,
-  // Owner and Maintainer only.
+  // Answering, skipping, deferring, and marking applied all settle a handoff, Owner and Maintainer only.
   // Guests never see the queue, so this is what makes a direct curl 403.
   router.on('PATCH', '/:clarificationId', requirePermission('handoff.write'))
   router.use('/:clarificationId/answer', requirePermission('handoff.write'))
@@ -245,8 +239,7 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
   /**
    * Refuse a clarification that belongs to somebody else.
    *
-   * Reported as absent rather than forbidden,
-   * so the answer never confirms that another person's question exists.
+   * Reported as absent rather than forbidden, so the answer never confirms that another person's question exists.
    */
   function requireVisible(context: Context, clarification: ClarificationEntity): void {
     if (!getViewerContext(context) || seesEveryone(context))
@@ -283,8 +276,7 @@ export function createClarificationRouter(deps: ClarificationRouterDeps): OpenAP
     const workspaceId = getWorkspaceId(context)
     const { status, limit, offset, showAll } = context.req.valid('query')
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
-    // Show All is the one way to read another person's unsettled work,
-    // so everyone else is narrowed whatever they send.
+    // Show All is the one way to read another person's unsettled work, so everyone else is narrowed whatever they send.
     // No viewer is an open composition (in-memory), which narrows nothing.
     const viewerId = (!getViewerContext(context) || (showAll && seesEveryone(context)))
       ? undefined

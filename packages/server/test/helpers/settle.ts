@@ -1,12 +1,10 @@
 /**
  * Wait for something the runner does after the request returns.
  *
- * A run drains asynchronously,
- * so a fixed sleep asserts on whatever was true when the timer fired.
+ * A run drains asynchronously, so a fixed sleep asserts on whatever was true when the timer fired.
  * Under load that is a different moment than on an idle machine,
  * which is how a suite acquires a test that passes here and fails in CI.
- * Polling asks the same condition the production code checks,
- * and fails loudly rather than silently early.
+ * Polling asks the same condition the production code checks, and fails loudly rather than silently early.
  */
 export async function waitFor(
   condition: () => boolean,

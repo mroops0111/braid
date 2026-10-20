@@ -46,8 +46,7 @@ export interface ViewServiceDeps {
   /**
    * What a form's declared requirements are checked against.
    * Read rather than reached for.
-   * A test should not have to set a deployment's variable on the process,
-   * just to exercise this.
+   * A test should not have to set a deployment's variable on the process, just to exercise this.
    */
   environment?: Readonly<Record<string, string | undefined>>
 }
@@ -65,8 +64,7 @@ export interface GenerateViewInput {
 /**
  * What stands between a view generator and the skill that writes it out.
  *
- * The projection is a function on the plugin,
- * the writing is a skill in a subprocess,
+ * The projection is a function on the plugin, the writing is a skill in a subprocess,
  * and a subprocess cannot call a plugin.
  * Something has to run one and then start the other, and this is it.
  */
@@ -94,13 +92,10 @@ export class ViewService {
       if (parts === undefined)
         return []
       // What the form says it writes,
-      // since a generator declaring its own output,
-      // beats a surface guessing from three characters of a name.
+      // since a generator declaring its own output, beats a surface guessing from three characters of a name.
       const declared = this.declaredFormat(parts.kind, parts.form)
-      // A file in a format its form no longer writes was left behind,
-      // by a version of that form that is gone.
-      // Listing it puts two entries under one name,
-      // with nothing to tell them apart.
+      // A file in a format its form no longer writes was left behind, by a version of that form that is gone.
+      // Listing it puts two entries under one name, with nothing to tell them apart.
       if (declared !== undefined && declared !== parts.format)
         return []
       return [{
@@ -133,8 +128,7 @@ export class ViewService {
    * What the form that wrote this says it writes.
    *
    * Nothing where the form is one this deployment no longer registers.
-   * The caller then falls back to the name,
-   * which is what is actually true about a file nobody can ask about.
+   * The caller then falls back to the name, which is what is actually true about a file nobody can ask about.
    */
   private declaredFormat(kind: ViewKind, form: ViewFormId): ViewArtifactFormat | undefined {
     const generator = this.deps.pluginRegistry.findViewGenerator(kind)
@@ -145,8 +139,7 @@ export class ViewService {
    * The skill a form runs to write its document.
    *
    * Exposed so a caller can ask who may run it before anything is projected,
-   * since writing a document is that skill run,
-   * and permission to write one is permission to run it.
+   * since writing a document is that skill run, and permission to write one is permission to run it.
    * Refuses an unknown kind or form the way `generate` does,
    * so a bad request is answered as a bad request rather than as a refusal.
    */
@@ -167,8 +160,7 @@ export class ViewService {
   /**
    * Project the subject, then set a form writing it out.
    *
-   * Writing takes a minute or so,
-   * so the run is handed back for the caller to watch rather than waited on.
+   * Writing takes a minute or so, so the run is handed back for the caller to watch rather than waited on.
    */
   async generate(input: GenerateViewInput): Promise<GenerateViewResponse> {
     const generator = this.deps.pluginRegistry.requireViewGenerator(input.kind)
@@ -202,8 +194,7 @@ export class ViewService {
     )
 
     // Watched rather than waited on.
-    // The reader is handed the run,
-    // and the document appears when the run that writes it ends.
+    // The reader is handed the run, and the document appears when the run that writes it ends.
     void this.keep(workspace, runId, {
       kind: input.kind,
       form: form.id,
@@ -230,8 +221,7 @@ export class ViewService {
   /**
    * Take what a finished run rendered and keep it as the document.
    *
-   * The run is subscribed to for the ending alone,
-   * then its own event log is read back,
+   * The run is subscribed to for the ending alone, then its own event log is read back,
    * so a block emitted before the subscription attached is not lost.
    *
    * A run that ends having rendered nothing writes no document.
@@ -266,10 +256,8 @@ export class ViewService {
   /**
    * What a subject would be projected into now, without writing any of it.
    *
-   * The projection is a function,
-   * so asking what it would say costs a walk of the graph and nothing else.
-   * That is what lets a view be told it has gone stale,
-   * by comparing this against what it was written from.
+   * The projection is a function, so asking what it would say costs a walk of the graph and nothing else.
+   * That is what lets a view be told it has gone stale, by comparing this against what it was written from.
    */
   private async project(
     generator: ViewGeneratorPlugin,
@@ -290,8 +278,7 @@ export class ViewService {
    *
    * Compared against the material rather than against the graph,
    * so a change touching nothing a reader would read leaves a view current.
-   * Said over the subject rather than over each form,
-   * because one subject projects into one material,
+   * Said over the subject rather than over each form, because one subject projects into one material,
    * so every form of it goes out of date together or not at all.
    */
   private async movedOn(
@@ -318,8 +305,7 @@ export class ViewService {
       if (projected === undefined)
         continue
       const written = await this.deps.viewRepository.readMaterial(workspace, projected.path)
-      // Material nobody kept says nothing either way,
-      // and a document called stale on a guess is one a reader ignores.
+      // Material nobody kept says nothing either way, and a document called stale on a guess is one a reader ignores.
       if (written !== undefined && written !== projected.text)
         moved.add(key)
     }

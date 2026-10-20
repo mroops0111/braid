@@ -81,8 +81,7 @@ describe('openAiCompatibleEmbedder', () => {
   })
 
   // Some servers answer out of order and say so in `index`.
-  // Trusting arrival order would pair each node with another node's meaning,
-  // which no later check would catch.
+  // Trusting arrival order would pair each node with another node's meaning, which no later check would catch.
   it('places each vector by the index the server reports, not by arrival', async () => {
     const outOfOrder = {
       data: [

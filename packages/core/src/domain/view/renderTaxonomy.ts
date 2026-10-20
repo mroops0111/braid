@@ -4,10 +4,8 @@ import type { NodeTypeDescriptor } from '../plugin/OntologyPlugin.js'
 /**
  * How an ontology says a document out of it is laid out.
  *
- * Derived from `renderHint` alone,
- * so the walk never names `aggregate` or `command`.
- * An ontology declaring its own chains renders without an edit here,
- * which is the whole reason the hints exist.
+ * Derived from `renderHint` alone, so the walk never names `aggregate` or `command`.
+ * An ontology declaring its own chains renders without an edit here, which is the whole reason the hints exist.
  */
 export interface RenderTaxonomy {
   /** Types whose nodes each make a document of their own. */
@@ -33,8 +31,7 @@ export function renderTaxonomyOf(nodeTypes: readonly NodeTypeDescriptor[]): Rend
     if (hint?.expandedUnder !== undefined)
       parentOf.set(descriptor.id, hint.expandedUnder)
     // A flat list only where nothing else already places the type.
-    // One that nests is drawn under its parent,
-    // and a container is itself the document,
+    // One that nests is drawn under its parent, and a container is itself the document,
     // so treating either as a section lists it beside itself.
     // An ontology may set `section` on a container to name its body,
     // and reading that as a list lists every sibling container.
@@ -81,8 +78,7 @@ export interface DocumentSection {
  * One container written out, as the structure a renderer walks.
  *
  * `leafNodeIds` are in scope and deliberately not in the body.
- * They are what a footer names,
- * so a reader can trace the document without the prose carrying ids.
+ * They are what a footer names, so a reader can trace the document without the prose carrying ids.
  */
 export interface DocumentTree {
   readonly container: GraphNode
@@ -102,14 +98,12 @@ export interface DocumentTreeInput {
  *
  * Scope grows along the chains the ontology declared, never by distance.
  * A node joins because something in scope is the kind that holds it,
- * so a type whose declared parent is not there stays out,
- * rather than being promoted to a part of its own.
+ * so a type whose declared parent is not there stays out, rather than being promoted to a part of its own.
  * Walking by distance reaches a sibling container in a few steps,
  * and writes it up as though this document were about it.
  *
  * Which edge carries containment is the ontology's word, not the renderer's,
- * so adjacency decides whether two nodes are related at all,
- * and the declared chains decide what that relation means.
+ * so adjacency decides whether two nodes are related at all, and the declared chains decide what that relation means.
  */
 export function documentTreeOf(input: DocumentTreeInput): DocumentTree | undefined {
   const { taxonomy, model, containerId } = input

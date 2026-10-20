@@ -32,11 +32,9 @@ export interface ClassifyInput {
 }
 
 /**
- * Pure classifier, extracted so the state machine can be tested,
- * without standing up react-query.
+ * Pure classifier, extracted so the state machine can be tested, without standing up react-query.
  * It covers no-token, loading, 401, network error, and ok.
- * A 401 collapses to `unauthenticated`,
- * because the recourse is the same as having no token, to sign in.
+ * A 401 collapses to `unauthenticated`, because the recourse is the same as having no token, to sign in.
  */
 export function classifyRemoteResult(remote: RemoteSummary, input: ClassifyInput): RemoteWorkspacesResult {
   if (!remote.isLocal && !input.hasToken)
@@ -54,11 +52,9 @@ export function classifyRemoteResult(remote: RemoteSummary, input: ClassifyInput
 
 /**
  * Fetch `/workspaces` from every configured remote in parallel.
- * Local is always queried,
- * since the X-Braid-User fallback covers the no-token sidecar case.
+ * Local is always queried, since the X-Braid-User fallback covers the no-token sidecar case.
  * A remote without a stored token short-circuits to `unauthenticated`,
- * so the sidebar renders a Sign in affordance,
- * without ever issuing a doomed request.
+ * so the sidebar renders a Sign in affordance, without ever issuing a doomed request.
  */
 export function useAllRemoteWorkspaces(): RemoteWorkspacesResult[] {
   const remotes = useRemotes()

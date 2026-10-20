@@ -11,8 +11,7 @@ import { Button } from './ui/button'
  * so a reader crossing between surfaces could not tell it was one control.
  *
  * `floating` is the single exception, for a control with no band to sit in.
- * Laid over a canvas it needs a ground of its own,
- * or it disappears into whatever is drawn behind it,
+ * Laid over a canvas it needs a ground of its own, or it disappears into whatever is drawn behind it,
  * which is a legibility problem rather than a second opinion about looks.
  */
 export function PanelToggle({ open, label, onToggle, floating = false, className }: {
@@ -55,8 +54,7 @@ export function SurfaceLayout({ list, listClassName, collapse, children }: {
    * Offered only when the page can do without its list.
    *
    * `collapsed` is the page's state rather than this component's,
-   * since a surface landing with the list already put away,
-   * has to say so before anything renders.
+   * since a surface landing with the list already put away, has to say so before anything renders.
    */
   collapse?: {
     readonly collapsed: boolean

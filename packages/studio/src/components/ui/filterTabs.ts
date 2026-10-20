@@ -4,11 +4,9 @@
  * Clarification filters by Pending, Answered, Applied, and Skipped.
  * Renders as a segmented control.
  * A subtle outer container wraps the triggers,
- * so they read as options for one decision,
- * rather than three independent nav items.
+ * so they read as options for one decision, rather than three independent nav items.
  *
- * Atom-level scale, h-7 base, text-xs, rounded-md,
- * matches the workspace surface dock in `WorkspaceHeader`.
+ * Atom-level scale, h-7 base, text-xs, rounded-md, matches the workspace surface dock in `WorkspaceHeader`.
  * The visual difference is composition, container vs no container,
  * reflecting the semantic difference, filter vs primary nav.
  */

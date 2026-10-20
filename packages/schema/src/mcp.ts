@@ -4,8 +4,8 @@ export const McpServerId = z.string().min(1).brand<'McpServerId'>()
 export type McpServerId = z.infer<typeof McpServerId>
 
 /**
- * streamable-http: remote MCP servers reachable by URL (third-party). stdio: a child process,
- * used for the braid-core gateway to track the skill run.
+ * streamable-http: remote MCP servers reachable by URL (third-party).
+ * stdio: a child process, used for the braid-core gateway to track the skill run.
  */
 export const McpTransport = z.enum(['streamable-http', 'stdio'])
 export type McpTransport = z.infer<typeof McpTransport>

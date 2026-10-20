@@ -5,8 +5,7 @@
  * a lightweight default for tests and ephemeral boot, not a durable store.
  * They sit behind the `@braidhq/core/in-memory` subpath, not the main entry,
  * so `@braidhq/core` stays a pure port-and-service surface.
- * The signal to downstream packages,
- * anything reachable from `@braidhq/core` is the stable framework contract,
+ * The signal to downstream packages, anything reachable from `@braidhq/core` is the stable framework contract,
  * anything under `/in-memory` is a convenience for tests or ephemeral boot.
  *
  * The server composition root imports these for `composeApp()` defaults,

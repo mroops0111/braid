@@ -1,8 +1,8 @@
 import { createLucideIcon } from 'lucide-react'
 
 /**
- * Lucide removed brand icons in v1. This recreates the original `Github` glyph
- * from lucide-static 0.469.0 so the About tab renders exactly as before.
+ * Lucide removed brand icons in v1.
+ * This recreates the original `Github` glyph from lucide-static 0.469.0 so the About tab renders exactly as before.
  */
 export const GithubIcon = createLucideIcon('Github', [
   ['path', {

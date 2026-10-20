@@ -6,8 +6,7 @@ function key(workspaceId: WorkspaceId, sourceId: SourceId, path: string): string
 }
 
 /**
- * Default `SourceUnitObservationRepository` for tests,
- * and the in-memory `composeApp()` wiring.
+ * Default `SourceUnitObservationRepository` for tests, and the in-memory `composeApp()` wiring.
  * Composite-key lookup by `(workspaceId, sourceId, path)`.
  */
 export class InMemorySourceUnitObservationRepository implements SourceUnitObservationRepository {

@@ -22,11 +22,10 @@ export function useOutputForm(): [OutputForm, (next: OutputForm) => void] {
  *
  * Read off the run rather than off the reader,
  * so a conversation lent to somebody else reads the way its author made it,
- * and a reader who prefers prose does not see an answer built from blocks
- * emptied of them.
+ * and a reader who prefers prose does not see an answer built from blocks emptied of them.
  *
- * The earliest run wins. A conversation is one answer,
- * and later turns carry on in the form the first one set.
+ * The earliest run wins.
+ * A conversation is one answer, and later turns carry on in the form the first one set.
  */
 export function formOfConversation(records: readonly RunRecord[], sessionId: string | null): OutputForm | null {
   if (sessionId === null)

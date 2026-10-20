@@ -3,11 +3,9 @@ import type { Clarification } from './Clarification.js'
 /**
  * What became of a question a run stopped on.
  *
- * Three ways out and every one of them carries the run on,
- * because the run asked in order to keep going.
+ * Three ways out and every one of them carries the run on, because the run asked in order to keep going.
  * Only the reason differs, so only the sentence the run is told differs,
- * and a reader who deferred is not the same as one who skipped,
- * even though neither produced an answer.
+ * and a reader who deferred is not the same as one who skipped, even though neither produced an answer.
  */
 export type ClarificationOutcome = 'answered' | 'deferred' | 'skipped'
 
@@ -32,8 +30,7 @@ const answered: ClarificationOutcomeRule = {
 }
 
 // Deferring gives up the conversation, not the question.
-// It stays pending and stands on its own,
-// so a later step still owes an answer even though this run does not wait.
+// It stays pending and stands on its own, so a later step still owes an answer even though this run does not wait.
 const deferred: ClarificationOutcomeRule = {
   outcome: 'deferred',
   matches: clarification => clarification.status === 'pending' && clarification.answerMode === 'standing',
@@ -56,10 +53,8 @@ export function outcomeOf(clarification: Clarification): ClarificationOutcomeRul
 /**
  * What to tell a run so it takes up where it stopped.
  *
- * One paragraph per question, holding the question,
- * what the reviewer did, and what to do about it.
- * A run parked on three questions can be released by three decisions,
- * so each one carries its own,
+ * One paragraph per question, holding the question, what the reviewer did, and what to do about it.
+ * A run parked on three questions can be released by three decisions, so each one carries its own,
  * and nothing above them claims a state two of the outcomes contradict.
  */
 export function describeContinuation(clarifications: readonly Clarification[]): string {

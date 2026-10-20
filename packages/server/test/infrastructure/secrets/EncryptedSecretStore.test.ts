@@ -52,8 +52,7 @@ describe('encryptedSecretStore', () => {
   })
 
   // The path is bound in.
-  // Moving a record onto another person's key is an error,
-  // rather than a way to spend their account.
+  // Moving a record onto another person's key is an error, rather than a way to spend their account.
   it('refuses a record moved onto another path', async () => {
     const inner = memoryStore()
     const store = new EncryptedSecretStore({ inner, key: KEY })
@@ -70,8 +69,7 @@ describe('encryptedSecretStore', () => {
     await expect(store.read('agent-credential', 'user-ada--claude-code')).rejects.toThrow(/could not be opened/)
   })
 
-  // A store that fell back to plaintext would undo itself,
-  // the first time a record predated encryption.
+  // A store that fell back to plaintext would undo itself, the first time a record predated encryption.
   it('refuses a plaintext record rather than reading it', async () => {
     const inner = memoryStore()
     await inner.write('agent-credential', 'user-ada--claude-code', 'sk-plain')

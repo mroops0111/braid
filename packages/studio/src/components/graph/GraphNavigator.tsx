@@ -110,8 +110,7 @@ export function GraphNavigator({ workspaceId, nodes, orphanIds, filters, onFilte
 /**
  * Opens the palette, where a query is ranked rather than used to filter.
  *
- * The shortcut alone would leave the capability undiscoverable,
- * and this sits above the filter,
+ * The shortcut alone would leave the capability undiscoverable, and this sits above the filter,
  * because a reader who cannot find a node looks here first.
  */
 function SearchNodesButton({ onOpen }: { onOpen: () => void }) {
@@ -132,10 +131,8 @@ function SearchNodesButton({ onOpen }: { onOpen: () => void }) {
 /**
  * Narrows the canvas to nodes whose text contains the value.
  *
- * A funnel rather than a magnifier,
- * since this keeps or drops nodes and does not take the reader anywhere.
- * Finding one node by relevance is the command palette's job,
- * which ranks rather than filters.
+ * A funnel rather than a magnifier, since this keeps or drops nodes and does not take the reader anywhere.
+ * Finding one node by relevance is the command palette's job, which ranks rather than filters.
  */
 function TextFilterInput({ value, onChange }: { value: string, onChange: (value: string) => void }) {
   const { t } = useTranslation()

@@ -3,8 +3,8 @@ import type { McpGatewayResolution, McpUnrequestedReason } from './mcpGatewaySet
 /**
  * What a reader is told about the endpoint.
  *
- * Boot decides whether there is one at all, and the gateway decides
- * whether it is answering, so the two axes collapse into one state.
+ * Boot decides whether there is one at all, and the gateway decides whether it is answering,
+ * so the two axes collapse into one state.
  * A deployment that resolved `ready` can still be `unreachable`,
  * because the gateway is a supervised process that restarts.
  */

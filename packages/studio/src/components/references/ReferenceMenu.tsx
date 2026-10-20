@@ -27,8 +27,7 @@ export function optionId(menuId: string, index: number): string {
 
 /**
  * Combobox wiring for the field that drives a menu.
- * Shared so the textarea and the input announce themselves identically,
- * and so a fix to the pattern lands in one place.
+ * Shared so the textarea and the input announce themselves identically, and so a fix to the pattern lands in one place.
  */
 export function menuFieldAria(menuId: string, open: boolean, activeIndex: number, candidateCount: number) {
   return {

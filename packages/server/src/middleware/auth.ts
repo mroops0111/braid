@@ -14,31 +14,25 @@ declare module 'hono' {
   }
 }
 
-// Routes the auth middleware never gates,
-// since bootstrapping the login flow needs anonymous access.
-// `/openapi.json` follows the convention that OpenAPI reads publicly,
-// honored by Swagger UI, codegen, and MCP gateways.
+// Routes the auth middleware never gates, since bootstrapping the login flow needs anonymous access.
+// `/openapi.json` follows the convention that OpenAPI reads publicly, honored by Swagger UI, codegen, and MCP gateways.
 // It documents shape and not data, so exposing it to anonymous callers is safe.
-// Metadata a client reads before it has a token,
-// so gating it would make it useless.
+// Metadata a client reads before it has a token, so gating it would make it useless.
 // It names an issuer and nothing about this deployment's data.
 const PUBLIC_EXACT_PATHS = new Set(['/openapi.json', '/.well-known/oauth-protected-resource'])
 // Each `/webhooks/<provider>/` prefix is anonymous,
-// because the provider authenticates via a per-source HMAC,
-// checked inside the handler rather than via a Bearer token.
+// because the provider authenticates via a per-source HMAC, checked inside the handler rather than via a Bearer token.
 // Listing providers one by one, rather than the broad `/webhooks/`,
 // keeps a future admin or metrics webhook from inheriting the bypass.
 // A run's own spec is the same document narrowed to what that run may call,
 // so it is public for the same reason, being shape rather than data.
-// It also has to be,
-// since the gateway reads it before a run exists to authenticate as.
+// It also has to be, since the gateway reads it before a run exists to authenticate as.
 const PUBLIC_PATH_PREFIXES = ['/auth/', '/health', '/webhooks/github/', '/openapi/runs/']
 
-// Any OAuth provider callback is anonymous. It is a browser redirect,
-// so it carries no Bearer,
-// its `state` token validated against the pending-flow store is its auth.
-// The pattern matches the callback of every provider,
-// so a new one inherits the bypass without editing here,
+// Any OAuth provider callback is anonymous.
+// It is a browser redirect,
+// so it carries no Bearer, its `state` token validated against the pending-flow store is its auth.
+// The pattern matches the callback of every provider, so a new one inherits the bypass without editing here,
 // while the start route stays gated so its owner check runs.
 const PUBLIC_PATH_PATTERNS = [/^\/oauth\/[^/]+\/callback(?:\/|$)/]
 
@@ -58,27 +52,22 @@ export interface AuthMiddlewareOptions {
    * Credentials this deployment accepts, tried in order.
    *
    * The sessions Braid issues are one entry rather than a step of their own,
-   * so a deployment that also names an authorization server,
-   * extends the list instead of the code that walks it.
+   * so a deployment that also names an authorization server, extends the list instead of the code that walks it.
    * Required under `requireAuth`, since an empty list would refuse everyone.
    */
   readonly accessTokenVerifiers: readonly AccessTokenVerifier[]
 }
 
 // EventSource (browser SSE) cannot send custom Authorization headers,
-// so live-update endpoints also accept a `token` query parameter,
-// treated as a Bearer token.
-// Limited to paths ending in `/events`,
-// so the lenient path never applies to mutating routes.
+// so live-update endpoints also accept a `token` query parameter, treated as a Bearer token.
+// Limited to paths ending in `/events`, so the lenient path never applies to mutating routes.
 function isSseEventsPath(path: string): boolean {
   return path.endsWith('/events')
 }
 
 /**
- * Pull a Bearer token off the request,
- * returning `undefined` when the header is missing or malformed.
- * Route handlers use this to forward the caller's identity,
- * reaching spawned skill subprocesses without reparsing.
+ * Pull a Bearer token off the request, returning `undefined` when the header is missing or malformed.
+ * Route handlers use this to forward the caller's identity, reaching spawned skill subprocesses without reparsing.
  */
 export function extractBearerToken(context: { req: { header: (name: string) => string | undefined } }): string | undefined {
   const header = context.req.header('Authorization')
@@ -92,14 +81,13 @@ export function extractBearerToken(context: { req: { header: (name: string) => s
  * Establish the caller's identity, and gate when auth is enforced.
  * The single place a request's `userId` is resolved.
  *
- * Under local trust, identity comes from `X-Braid-User`,
- * else the default principal, on every path,
- * so public routes like `/auth/whoami` see the caller. Nothing is rejected.
+ * Under local trust, identity comes from `X-Braid-User`, else the default principal, on every path,
+ * so public routes like `/auth/whoami` see the caller.
+ * Nothing is rejected.
  *
  * When auth is enforced, identity comes only from a valid Bearer session,
  * and a missing or invalid token on a non-public route is a 401.
- * The header is never read here,
- * so it cannot impersonate an authenticated caller.
+ * The header is never read here, so it cannot impersonate an authenticated caller.
  */
 export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandler {
   return async (context, next) => {
@@ -111,16 +99,14 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
       // Studio under local trust sends no Bearer, so this never shadows it.
       const token = extractBearerToken(context)
       // A skill calls back with a run credential even here,
-      // so its work is attributed to the run,
-      // rather than to whoever the deployment assumes.
+      // so its work is attributed to the run, rather than to whoever the deployment assumes.
       const caller = token ? await resolveCaller(token, options.accessTokenVerifiers) : null
       if (caller) {
         setCaller(context, caller)
         await next()
         return undefined
       }
-      // A run credential that no longer resolves is a credential,
-      // rather than the absence of one,
+      // A run credential that no longer resolves is a credential, rather than the absence of one,
       // so it must not fall through to the anonymous caller local trust allows.
       // That is what let a run outliving the process that issued its token,
       // keep writing, unattributed, after being reaped.
@@ -165,8 +151,7 @@ export function authMiddleware(options: AuthMiddlewareOptions): MiddlewareHandle
 /**
  * The person a token stands for, from whichever verifier claims it.
  *
- * A verifier answering null has declined the token rather than judged it,
- * so the next one gets a turn.
+ * A verifier answering null has declined the token rather than judged it, so the next one gets a turn.
  * One that recognises and refuses throws instead,
  * which is why an expired token reports as expired rather than as unknown.
  */

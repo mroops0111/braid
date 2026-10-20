@@ -43,8 +43,7 @@ export class SecretAgentCredentialStore implements AgentCredentialStore {
     if (!stored)
       return undefined
     return {
-      // Derived here rather than read back,
-      // so a record written under an older shape needs no migration.
+      // Derived here rather than read back, so a record written under an older shape needs no migration.
       masked: maskCredential(stored.credential),
       updatedAt: stored.updatedAt,
       ...(stored.lastUsedAt ? { lastUsedAt: stored.lastUsedAt } : {}),
@@ -55,8 +54,7 @@ export class SecretAgentCredentialStore implements AgentCredentialStore {
    * Records that a run spent this credential.
    *
    * Silent where none is stored.
-   * The caller is reporting a use rather than asking for one,
-   * and a run that resolved elsewhere is not a fault.
+   * The caller is reporting a use rather than asking for one, and a run that resolved elsewhere is not a fault.
    */
   async markUsed(userId: UserId, kind: AgentKind): Promise<void> {
     const stored = await this.load(userId, kind)

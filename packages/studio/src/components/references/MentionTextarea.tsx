@@ -32,11 +32,10 @@ interface MentionTextareaProps {
 /**
  * Textarea whose `@kind:id` tokens are highlighted and whose `@` opens a picker.
  *
- * The highlight is a second box behind the textarea painting only the token
- * backgrounds, and it carries the anchor the menu positions against.
- * The two boxes must therefore share every metric, which is why the class
- * below is their single source, why typography is a prop rather than a caller
- * className, and why manual resize is off.
+ * The highlight is a second box behind the textarea painting only the token backgrounds,
+ * and it carries the anchor the menu positions against.
+ * The two boxes must therefore share every metric, which is why the class below is their single source,
+ * why typography is a prop rather than a caller className, and why manual resize is off.
  */
 const BOX_CLASS = 'w-full rounded-md border py-1.5 leading-relaxed whitespace-pre-wrap break-words'
 const DENSITY_CLASS = { default: 'px-3 text-sm', compact: 'px-2 text-xs' } as const
@@ -108,8 +107,7 @@ export function MentionTextarea({
     }
     const anchorBox = anchor.getBoundingClientRect()
     const containerBox = container.getBoundingClientRect()
-    // Sits against the caret's own line, a hair off it either way,
-    // so the list stays beside the word it is completing.
+    // Sits against the caret's own line, a hair off it either way, so the list stays beside the word it is completing.
     const placement = placeMenu({
       caretTop: anchorBox.top,
       caretBottom: anchorBox.bottom,
@@ -158,8 +156,7 @@ export function MentionTextarea({
     })
   }
 
-  // A claimed key never reaches the host, so Enter-to-submit cannot fire,
-  // while the reader is choosing a node.
+  // A claimed key never reaches the host, so Enter-to-submit cannot fire, while the reader is choosing a node.
   function menuHandledKey(event: KeyboardEvent<HTMLTextAreaElement>): boolean {
     const outcome = readMenuKey(toMenuKeyPress(event))
     if (outcome === null)
@@ -264,8 +261,7 @@ function syncScroll(overlay: RefObject<HTMLDivElement | null>, textarea: RefObje
 
 /**
  * Paints token backgrounds and drops the menu anchor at the live `@`.
- * The anchor always lands inside a text run,
- * since a caret inside a finished token is not treated as a mention.
+ * The anchor always lands inside a text run, since a caret inside a finished token is not treated as a mention.
  */
 function renderOverlay(value: string, anchorAt: number | null, anchorRef: RefObject<HTMLSpanElement | null>): ReactNode[] {
   const nodes: ReactNode[] = []
@@ -277,8 +273,7 @@ function renderOverlay(value: string, anchorAt: number | null, anchorRef: RefObj
     else if (anchorAt !== null && anchorAt >= offset && anchorAt <= offset + segment.text.length) {
       const cut = anchorAt - offset
       nodes.push(<Fragment key={`${index}-before`}>{segment.text.slice(0, cut)}</Fragment>)
-      // Carries the line's height and no width,
-      // so its box is the caret's line rather than a point on the baseline.
+      // Carries the line's height and no width, so its box is the caret's line rather than a point on the baseline.
       // A zero-height anchor reads as a line starting halfway down the text,
       // which puts a menu opening upward over the words it should clear.
       nodes.push(<span key={`${index}-anchor`} ref={anchorRef} className="inline-block h-[1lh] w-0 align-top" />)

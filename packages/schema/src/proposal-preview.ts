@@ -20,8 +20,9 @@ export interface ProposalPreview {
 }
 
 /**
- * Lenient apply: invalid ops are no-op'd so preview never throws. Real apply is strict. Diffs by comparing snapshots,
- * so cascade-deleted edges still show as removed.
+ * Lenient apply: invalid ops are no-op'd so preview never throws.
+ * Real apply is strict.
+ * Diffs by comparing snapshots, so cascade-deleted edges still show as removed.
  */
 export function previewProposal(
   current: ModelSnapshot,
@@ -116,8 +117,8 @@ function applyOperations(snapshot: ModelSnapshot, operations: readonly GraphOper
   return { nodes: [...nodes.values()], edges: [...edges.values()] }
 }
 
-// undefined patch keys are skipped ("undefined = leave unchanged"), unlike a plain spread. id is never patched,
-// since renaming it would break the caller's map keys.
+// undefined patch keys are skipped ("undefined = leave unchanged"), unlike a plain spread.
+// id is never patched, since renaming it would break the caller's map keys.
 function applyPatch<T extends { id: unknown }>(existing: T, patch: Record<string, unknown>): T {
   const next: Record<string, unknown> = { ...existing }
   for (const [key, value] of Object.entries(patch)) {
@@ -203,8 +204,9 @@ function edgesEqual(a: GraphEdge, b: GraphEdge): boolean {
     && externalRefsEqual(a.metadata.externalReferences, b.metadata.externalReferences)
 }
 
-// Structural comparison, not JSON.stringify. Stable across key order, no stringify cost. Array order matters,
-// since skills typically append.
+// Structural comparison, not JSON.stringify.
+// Stable across key order, no stringify cost.
+// Array order matters, since skills typically append.
 function stringArraysEqual(a: readonly string[] | undefined, b: readonly string[] | undefined): boolean {
   if (a === undefined && b === undefined)
     return true

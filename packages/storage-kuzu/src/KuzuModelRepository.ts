@@ -52,8 +52,7 @@ interface PreparedStatementCache {
  * Writes use diff-against-snapshot semantics.
  * Load, preview the ops via the domain `Model` which validates and mints ids,
  * then translate the diff into Cypher mutations.
- * That keeps domain invariants in one place,
- * and lets us stay non-transactional at the Kuzu layer until we need it.
+ * That keeps domain invariants in one place, and lets us stay non-transactional at the Kuzu layer until we need it.
  */
 export class KuzuModelRepository implements ModelRepository {
   private readonly cache = new Map<WorkspaceId, CachedConnection>()
@@ -70,9 +69,8 @@ export class KuzuModelRepository implements ModelRepository {
     const previous = await readSnapshot(cached.conn)
     const next = Model.preview(previous, operations)
     await writeDiff(cached, previous, next)
-    // Kuzu auto-checkpoint is lazy, so force it before we return,
-    // to merge the WAL into model.kuzu. Otherwise a dirty shutdown,
-    // a SIGKILL, or a tsx-watch reload drops an unmerged WAL on the floor.
+    // Kuzu auto-checkpoint is lazy, so force it before we return, to merge the WAL into model.kuzu.
+    // Otherwise a dirty shutdown, a SIGKILL, or a tsx-watch reload drops an unmerged WAL on the floor.
     await cached.conn.query('CHECKPOINT;')
   }
 

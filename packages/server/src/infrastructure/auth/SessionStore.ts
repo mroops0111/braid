@@ -7,10 +7,8 @@ import { z } from 'zod'
 
 const SessionRow = z.object({
   // SHA-256 hex of the actual token.
-  // The plaintext is shown to the client once at issuance time,
-  // the server only ever sees the hash thereafter.
-  // Constant-time compare is unnecessary for a pre-image lookup on hex strings,
-  // which is what `findByToken` does.
+  // The plaintext is shown to the client once at issuance time, the server only ever sees the hash thereafter.
+  // Constant-time compare is unnecessary for a pre-image lookup on hex strings, which is what `findByToken` does.
   tokenHash: z.string().length(64),
   userId: z.string().min(1),
   createdAt: z.string().datetime({ offset: true }),
@@ -37,8 +35,8 @@ export interface ResolvedSession {
 }
 
 /**
- * The port. A hosted deployment swaps the file-backed impl for a shared store,
- * such as Redis or Postgres, behind this interface.
+ * The port.
+ * A hosted deployment swaps the file-backed impl for a shared store, such as Redis or Postgres, behind this interface.
  */
 export interface SessionStore {
   issue: (userId: UserId, options?: { ttlSeconds?: number }) => Promise<IssuedSession>
@@ -53,8 +51,7 @@ export interface SessionStore {
  * The plain text is returned once at issuance time, the server stores SHA-256 of it.
  * A leaked sessions.json therefore cannot be replayed as a Bearer header.
  *
- * No rotation, no rolling expiry, no per-device tracking,
- * this is the minimum useful surface for v0.2.
+ * No rotation, no rolling expiry, no per-device tracking, this is the minimum useful surface for v0.2.
  * Future remote-server work can revisit if needed.
  */
 export class FsSessionStore implements SessionStore {

@@ -16,10 +16,8 @@ function Count({ value, label }: { value: number, label: string }) {
 /**
  * The run, while it is still working.
  *
- * Blocks only start arriving near the end of a long run,
- * so a surface that shows nothing until then reads as broken.
- * The stream already carries the work,
- * and the agent's narration says more about where it is than a spinner.
+ * Blocks only start arriving near the end of a long run, so a surface that shows nothing until then reads as broken.
+ * The stream already carries the work, and the agent's narration says more about where it is than a spinner.
  */
 export function RunActivity({ activity }: { activity: Activity }) {
   const { t } = useTranslation()

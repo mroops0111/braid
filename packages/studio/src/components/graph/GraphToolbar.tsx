@@ -8,9 +8,8 @@ export type GraphView = 'visualization' | 'table'
  * Mode switch for the selected node's neighbourhood.
  *
  * A mode rather than an action,
- * so it sits with the view switch instead of in the canvas cluster,
- * where every other control fires once and returns. Always rendered,
- * and disabled without a selection,
+ * so it sits with the view switch instead of in the canvas cluster, where every other control fires once and returns.
+ * Always rendered, and disabled without a selection,
  * since appearing only when one exists shifted whatever stood beside it.
  */
 export function FocusToggle({ active, disabled, onChange }: {
@@ -44,10 +43,8 @@ export function FocusToggle({ active, disabled, onChange }: {
  * Toggle for proposal preview.
  * Dims every node and edge that this proposal does not touch.
  * Restores the "I only want to see what changed" experience,
- * for incremental proposals where adds, updates, and removes,
- * make up a small fraction of the total snapshot.
- * Unaffected nodes stay visible and faded,
- * so reviewers retain topology context.
+ * for incremental proposals where adds, updates, and removes, make up a small fraction of the total snapshot.
+ * Unaffected nodes stay visible and faded, so reviewers retain topology context.
  * See `DIMMED_NODE_OPACITY` in `styleTokens.ts`.
  */
 export function OnlyChangesToggle({ active, onChange }: { active: boolean, onChange: (next: boolean) => void }) {

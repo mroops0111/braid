@@ -14,8 +14,8 @@ import { createApp } from '../src/app.js'
 import { composeFsApp, composeFsAppWithRegistry } from '../src/composeFsApp.js'
 import { readJson } from './helpers/readJson.js'
 
-// Stand-in for a third-party loader, the one plugin such an app brings
-// alongside the two it reuses, kuzu storage and the claude-code agent.
+// Stand-in for a third-party loader, the one plugin such an app brings alongside the two it reuses,
+// kuzu storage and the claude-code agent.
 const webLoader: SourceLoaderPlugin = {
   id: PluginId.parse('source-loader.web'),
   type: 'source-loader',

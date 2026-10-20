@@ -7,8 +7,7 @@ import { buildPalette, type OntologyPalette } from './ontologyPalette'
 const FALLBACK_PALETTE = buildPalette(undefined, FALLBACK_LOCALE)
 
 /**
- * Provided by GraphCanvas, consumed by node cards, navigator rows,
- * and detail-sheet badges.
+ * Provided by GraphCanvas, consumed by node cards, navigator rows, and detail-sheet badges.
  * Children get the palette without each having to know the workspaceId.
  */
 const PaletteContext = createContext<OntologyPalette | null>(null)
@@ -28,8 +27,7 @@ export function usePalette(workspaceId: string): OntologyPalette {
 
 /**
  * Read the active palette from context.
- * Falls back to an empty palette,
- * so isolated unit-tests or stories do not crash.
+ * Falls back to an empty palette, so isolated unit-tests or stories do not crash.
  */
 export function usePaletteContext(): OntologyPalette {
   const palette = useContext(PaletteContext)

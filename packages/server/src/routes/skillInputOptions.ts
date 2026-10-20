@@ -8,11 +8,9 @@ import { WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
 
 /**
- * Studio-facing endpoint that resolves a skill input provider kind,
- * declared in a SKILL.md frontmatter, to the current option list,
- * for a given workspace.
- * The typed Actions form uses it to populate pickers,
- * backed by `graph-node`, `source`, or `clarify` (not static).
+ * Studio-facing endpoint that resolves a skill input provider kind, declared in a SKILL.md frontmatter,
+ * to the current option list, for a given workspace.
+ * The typed Actions form uses it to populate pickers, backed by `graph-node`, `source`, or `clarify` (not static).
  * Read-only, and lives alongside other Studio-metadata routes.
  * Mounted under `/workspaces/:workspaceId/skill-input-options`.
  */
@@ -21,8 +19,7 @@ const ProviderKind = z.enum(['graph-node', 'source', 'clarify'])
 
 const QuerySchema = z.object({
   kind: ProviderKind.describe('Which kind of option to resolve, which decides where the list comes from.').openapi({ param: { name: 'kind', in: 'query' } }),
-  // Query-string-encoded JSON keeps the schema simple,
-  // while letting each provider carry a different filter shape.
+  // Query-string-encoded JSON keeps the schema simple, while letting each provider carry a different filter shape.
   filter: z.string().optional().describe('A JSON object narrowing the list, whose shape depends on `kind`. `graph-node` takes `{ types?, statuses?, renderHint?: { container? } }`, `source` takes `{ role?, loaderKind? }`, and `clarify` takes `{ status? }`.').openapi({ param: { name: 'filter', in: 'query' } }),
 })
 
@@ -142,8 +139,7 @@ async function resolveSource(
     })
     .map((item) => {
       // Use safeParse here.
-      // A hand-edited PRODUCT.md may carry an invalid sourceId,
-      // which should not 500 the whole dropdown.
+      // A hand-edited PRODUCT.md may carry an invalid sourceId, which should not 500 the whole dropdown.
       // Drop the field on parse failure so the option still shows up.
       const parsed = SourceId.safeParse(item.sourceId)
       return {

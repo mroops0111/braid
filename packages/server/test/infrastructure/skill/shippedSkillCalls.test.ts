@@ -30,8 +30,7 @@ interface ShippedSkill {
 
 /**
  * Read once and kept.
- * Every check below reads the same files,
- * and the shipped set does not change while the suite runs.
+ * Every check below reads the same files, and the shipped set does not change while the suite runs.
  */
 let shipped: Promise<ShippedSkill[]> | undefined
 
@@ -76,10 +75,8 @@ async function scanShippedSkills(): Promise<ShippedSkill[]> {
  * Ids one ontology declares that could not be ordinary prose.
  *
  * A framework skill runs against every ontology.
- * A type, a role, or a reader named by hand fits one workspace by accident,
- * and misdescribes every other.
- * Read from the plugin rather than listed here,
- * so an id added later is checked without anyone remembering to add it.
+ * A type, a role, or a reader named by hand fits one workspace by accident, and misdescribes every other.
+ * Read from the plugin rather than listed here, so an id added later is checked without anyone remembering to add it.
  *
  * Only the compound ids, since most of this ontology's are ordinary words.
  * A prompt saying `query` or `rule` is almost always writing English,
@@ -97,8 +94,7 @@ function declaredIdsOf(ontology: typeof dddOntology): readonly string[] {
  * Prose that names one ontology's world without quoting an id.
  *
  * A sample rather than a proof.
- * The leaks this caught were sentences rather than identifiers,
- * and no list finds every sentence somebody might write.
+ * The leaks this caught were sentences rather than identifiers, and no list finds every sentence somebody might write.
  * It holds the ones already found, so they cannot come back.
  */
 const ONTOLOGY_PROSE = [
@@ -161,8 +157,7 @@ describe('every framework skill', () => {
 })
 
 describe('every skill that can write instead of render', () => {
-  // A checklist item naming a render call cannot be met,
-  // by a run that was handed none,
+  // A checklist item naming a render call cannot be met, by a run that was handed none,
   // so what each form owes lives with that form's contract.
   it('keeps render calls out of its own checklist', async () => {
     for (const skill of await readShippedSkills()) {
@@ -181,8 +176,7 @@ describe('every skill that can write instead of render', () => {
   })
 })
 
-// The glossary names every variable in order to explain it,
-// so reading it is not a dependency on any one of them.
+// The glossary names every variable in order to explain it, so reading it is not a dependency on any one of them.
 const GLOSSARY = 'run-environment.md'
 
 function variablesIn(text: string): Set<string> {
@@ -221,8 +215,7 @@ describe('every shipped skill declares the environment it reads', () => {
     }
   })
 
-  // A declaration nothing reads is a claim no run can justify,
-  // and it outlives whatever once made it true.
+  // A declaration nothing reads is a claim no run can justify, and it outlives whatever once made it true.
   it('declares nothing it never reads', async () => {
     for (const skill of await readShippedSkills()) {
       const used = await readWith(skill)
@@ -236,8 +229,7 @@ describe('every call doc', () => {
   // A render call's fields are described in the spec the run's gateway is given,
   // so a doc glossing one of them says the same thing a second time,
   // and the run pays to read a copy that can go stale against the schema.
-  // What is left is the part a spec cannot hold,
-  // which call to reach for, and what a call obliges elsewhere.
+  // What is left is the part a spec cannot hold, which call to reach for, and what a call obliges elsewhere.
   it('glosses no field the spec already describes', async () => {
     const dir = join(PACKAGES, 'core/skills/shared/calls')
     const files = await readdir(dir)

@@ -88,8 +88,7 @@ export class BatchPlan {
   resumeRun(now: Timestamp): BatchPlan {
     if (!this.isTerminal())
       throw new ConflictError(`Cannot resume plan ${this.data.id} from status=${this.data.status}`)
-    // Everything short of completed goes back to pending,
-    // a unit left running by a crash included,
+    // Everything short of completed goes back to pending, a unit left running by a crash included,
     // since its subprocess died with the process that held it.
     const units = this.data.units.map(unit => unit.status === 'completed' ? unit : resetUnit(unit))
     // Drop failed checkpoint phases so the upcoming chunk accounting resets.
@@ -195,8 +194,7 @@ export class BatchPlan {
     return phases
   }
 
-  // Shared guard for transitions that only fire,
-  // after the orchestrator is done with the plan, e.g. Resume or Archive.
+  // Shared guard for transitions that only fire, after the orchestrator is done with the plan, e.g. Resume or Archive.
   // Add new terminal states here.
   private isTerminal(): boolean {
     return this.data.status === 'completed'
@@ -216,8 +214,7 @@ function resetUnit(unit: BatchUnit): BatchUnit {
     proposalIds: [],
     clarificationIds: [],
     // Kept so the retry can continue where the agent left off.
-    // Everything else is dropped,
-    // a stale runId or timestamp would only distort the next run.
+    // Everything else is dropped, a stale runId or timestamp would only distort the next run.
     ...(unit.resumeSessionId ? { resumeSessionId: unit.resumeSessionId } : {}),
   }
   return fresh

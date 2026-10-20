@@ -16,10 +16,8 @@ const listeners = new Set<() => void>()
  *
  * `resolve` turns what was stored into a value this render may use.
  * It runs on every render rather than being memoised,
- * so a caller can resolve against something that changes,
- * such as the audiences an ontology currently declares.
- * Returning a fallback there is what keeps a stale stored value
- * from showing an empty surface.
+ * so a caller can resolve against something that changes, such as the audiences an ontology currently declares.
+ * Returning a fallback there is what keeps a stale stored value from showing an empty surface.
  */
 export function usePreference<T extends string>(
   key: StorageKey,

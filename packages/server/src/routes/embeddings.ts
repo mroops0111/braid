@@ -64,8 +64,7 @@ export function createEmbeddingsRouter(deps: EmbeddingsRouterDeps): OpenAPIHono 
     const service = deps.embeddingService
     const before = await service.coverage(workspaceId)
     // Answering first keeps the caller from holding a connection open for minutes.
-    // The event stream carries progress and failure to a viewer,
-    // which leaves an operator reading logs with nothing,
+    // The event stream carries progress and failure to a viewer, which leaves an operator reading logs with nothing,
     // so a failure is recorded here as well.
     void service.rebuild(workspaceId).catch((error: unknown) => {
       logger.error(

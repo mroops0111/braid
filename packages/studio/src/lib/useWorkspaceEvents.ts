@@ -11,7 +11,8 @@ import { queryKeys } from './queries'
  *
  * Strategy: the SSE itself only delivers signals (one identifier each).
  * For every signal we re-fetch the relevant list / snapshot endpoint via the existing react-query keys,
- * the freshly-fetched value is what downstream UI consumes. No state lives in this hook.
+ * the freshly-fetched value is what downstream UI consumes.
+ * No state lives in this hook.
  */
 export function useWorkspaceEvents(workspaceId: string | null): void {
   const queryClient = useQueryClient()
@@ -21,11 +22,9 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
       return
     const source = new EventSource(workspaceEventsUrl(workspaceId))
 
-    // The board reads runs, proposals, clarifications, the graph,
-    // and the observation store at once,
+    // The board reads runs, proposals, clarifications, the graph, and the observation store at once,
     // so every signal that moves one of those moves a card.
-    // Invalidating it alongside each of them keeps the columns live,
-    // without the board polling for itself.
+    // Invalidating it alongside each of them keeps the columns live, without the board polling for itself.
     const invalidateCoverage = (): void => {
       queryClient.invalidateQueries({ queryKey: queryKeys.coverage(workspaceId) })
     }
@@ -45,8 +44,8 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
       queryClient.invalidateQueries({ queryKey: queryKeys.modelSnapshot(workspaceId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.nodes(workspaceId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.edges(workspaceId) })
-      // Pre-validation results depend on the current graph. Re-fetch after any mutation,
-      // so the Proposals tab can't show stale "no issues" after a change.
+      // Pre-validation results depend on the current graph.
+      // Re-fetch after any mutation, so the Proposals tab can't show stale "no issues" after a change.
       queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId, 'proposals'], exact: false })
       invalidateCoverage()
     }
@@ -54,7 +53,8 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
       queryClient.invalidateQueries({ queryKey: queryKeys.workspaceDetail(workspaceId) })
     }
 
-    // run.completed implies the graph may have changed. The skill may have applied operations via the proposal flow,
+    // run.completed implies the graph may have changed.
+    // The skill may have applied operations via the proposal flow,
     // so be liberal and invalidate runs, proposals, and graph.
     source.addEventListener('run.started', invalidateRuns)
     source.addEventListener('run.completed', () => {
@@ -70,8 +70,8 @@ export function useWorkspaceEvents(workspaceId: string | null): void {
     source.addEventListener('proposal.rejected', invalidateProposals)
     source.addEventListener('clarification.created', invalidateClarification)
     // `clarification.answered` is only a status update, no graph change yet.
-    // ddd:clarify later wraps it into a Proposal the user reviews. Applying that Proposal changes the graph,
-    // not this event.
+    // ddd:clarify later wraps it into a Proposal the user reviews.
+    // Applying that Proposal changes the graph, not this event.
     source.addEventListener('clarification.answered', invalidateClarification)
     source.addEventListener('clarification.applied', () => {
       invalidateClarification()

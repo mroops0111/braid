@@ -13,17 +13,14 @@ interface InFlightRunBannerProps {
   workspaceId: string | null
   /**
    * Surfaces that render the run's log themselves (Actions or Batch).
-   * Pass `true` to suppress the banner there,
-   * so the user is not shown two competing "still running" indicators.
+   * Pass `true` to suppress the banner there, so the user is not shown two competing "still running" indicators.
    */
   suppress?: boolean
 }
 
 /**
- * Top-of-app banner that surfaces in-flight skill runs,
- * when the active surface does not already show the log.
- * Reads the runs list, kept live by `useWorkspaceEvents`,
- * and shows the most recent run that has no `completedAt`.
+ * Top-of-app banner that surfaces in-flight skill runs, when the active surface does not already show the log.
+ * Reads the runs list, kept live by `useWorkspaceEvents`, and shows the most recent run that has no `completedAt`.
  *
  * Cancel POSTs `/runs/:id/cancel`, which SIGTERMs the claude subprocess.
  * The drain loop then emits `completed` with the actual exit code,

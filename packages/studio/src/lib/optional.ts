@@ -1,7 +1,6 @@
 /**
  * Build a partial-prop object where `undefined` keys are stripped.
- * Use it to satisfy `exactOptionalPropertyTypes`,
- * without the verbose `{...(cond ? { key: value } : {})}` JSX dance.
+ * Use it to satisfy `exactOptionalPropertyTypes`, without the verbose `{...(cond ? { key: value } : {})}` JSX dance.
  *
  *   <Foo {...optional({ source, focusMode })} />
  *

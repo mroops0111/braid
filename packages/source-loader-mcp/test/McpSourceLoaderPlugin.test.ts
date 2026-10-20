@@ -181,8 +181,7 @@ describe('mcp source loader', () => {
 
   // A real gateway puts the upstream error body in `structuredContent` as well,
   // which is where a payload would be read from.
-  // Reading the failure first is what keeps the cause visible,
-  // instead of a complaint that the envelope has no items.
+  // Reading the failure first is what keeps the cause visible, instead of a complaint that the envelope has no items.
   it('reports the failure, not the envelope, when the error carries a body', async () => {
     const server = fakeServer([{
       isError: true,

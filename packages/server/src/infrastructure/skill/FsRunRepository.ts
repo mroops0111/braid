@@ -15,10 +15,8 @@ import { runEventsPath, runIndexPath, runsDir, runSessionSharesPath, runSessions
  *     ├── sessions.jsonl             (reviewer titles, last-wins per session)
  *     └── <runId>.jsonl              (full SkillEvent stream for one run)
  *
- * The index is append-only because every write of one workspace goes,
- * today, through a single server process.
- * Should that ever change,
- * we would swap to atomic `mv tmp final` rewrites, or hand it to sqlite.
+ * The index is append-only because every write of one workspace goes, today, through a single server process.
+ * Should that ever change, we would swap to atomic `mv tmp final` rewrites, or hand it to sqlite.
  */
 export class FsRunRepository implements RunRepository {
   async saveRecord(workspace: Workspace, record: RunRecord): Promise<void> {
@@ -94,10 +92,8 @@ export class FsRunRepository implements RunRepository {
       throw error
     }
     // Rewrite the index excluding every line that names a target run.
-    // Last-wins reader semantics mean we must drop ALL occurrences,
-    // not just the latest one.
-    // An earlier entry left behind would,
-    // otherwise resurrect the run when `listRecords()` next runs.
+    // Last-wins reader semantics mean we must drop ALL occurrences, not just the latest one.
+    // An earlier entry left behind would, otherwise resurrect the run when `listRecords()` next runs.
     const kept: string[] = []
     for (const line of raw.split('\n')) {
       if (line.length === 0)
@@ -172,8 +168,7 @@ export class FsSessionShareRepository implements SessionShareRepository {
         return []
       throw error
     }
-    // One grant per session and grantee pair,
-    // so a withdrawal appended later replaces the grant it withdraws.
+    // One grant per session and grantee pair, so a withdrawal appended later replaces the grant it withdraws.
     const byGrant = new Map<string, SessionShare>()
     for (const line of raw.split('\n')) {
       if (line.length === 0)
@@ -197,8 +192,7 @@ export class FsSessionShareRepository implements SessionShareRepository {
       throw error
     }
     // Every occurrence goes, not just the winning one.
-    // Last-wins replay would otherwise resurrect the grant,
-    // from a line written before the one that settled it.
+    // Last-wins replay would otherwise resurrect the grant, from a line written before the one that settled it.
     const kept: string[] = []
     for (const line of raw.split('\n')) {
       if (line.length === 0)

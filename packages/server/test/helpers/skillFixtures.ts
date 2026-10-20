@@ -21,9 +21,8 @@ export interface MakeSkillFileOptions {
 }
 
 /**
- * Returns a complete SKILL.md text (frontmatter + body) that passes
- * `SkillStructureValidator`. The body contains all required H2 sections
- * with one-line placeholder content.
+ * Returns a complete SKILL.md text (frontmatter + body) that passes `SkillStructureValidator`.
+ * The body contains all required H2 sections with one-line placeholder content.
  */
 export function makeSkillFileContents(opts: MakeSkillFileOptions): string {
   const frontmatter = [

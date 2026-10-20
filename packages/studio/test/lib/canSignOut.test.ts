@@ -7,8 +7,8 @@ describe('canSignOut', () => {
   })
 
   it('withholds it on a local-trust server, where the gate ignores the token', () => {
-    // This is the case that looked broken. Signing out cleared the token,
-    // the gate re-evaluated, saw a server that requires no auth,
+    // This is the case that looked broken.
+    // Signing out cleared the token, the gate re-evaluated, saw a server that requires no auth,
     // and returned authenticated again, so the screen never changed.
     expect(canSignOut({ token: 'jwt', requiresAuth: false })).toBe(false)
   })

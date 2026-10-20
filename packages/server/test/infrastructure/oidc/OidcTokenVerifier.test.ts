@@ -57,9 +57,8 @@ function verifier(
 
 describe('oidcTokenVerifier', () => {
   it('refuses a caller the sign-in policy no longer allows', async () => {
-    // Offboarding is the case. The record still exists,
-    // so the email still resolves,
-    // but the domain was dropped or the invite revoked.
+    // Offboarding is the case.
+    // The record still exists, so the email still resolves, but the domain was dropped or the invite revoked.
     // The browser door closes at the next login, and this one has to agree.
     const users = registry([{ id: 'user-abc' as UserId, email: 'alice@example.com' }])
     const token = await mint({ sub: 'google-1', email: 'alice@example.com' })

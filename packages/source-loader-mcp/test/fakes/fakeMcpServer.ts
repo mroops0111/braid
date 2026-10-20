@@ -15,8 +15,7 @@ export interface FakeServer {
 
 /**
  * Answers each call with the next scripted reply.
- * Scripting the replies rather than a server keeps the paging, cursor,
- * and error paths reachable without one.
+ * Scripting the replies rather than a server keeps the paging, cursor, and error paths reachable without one.
  */
 export function fakeServer(replies: readonly McpToolResult[]): FakeServer {
   const remaining = [...replies]

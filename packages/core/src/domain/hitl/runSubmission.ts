@@ -18,10 +18,8 @@ export interface RunSubmissions {
 /**
  * Whether a run may still write one kind of thing.
  *
- * One rule per kind rather than a branch inside one check,
- * so a kind that arrives later brings its own rule,
- * instead of another arm of a conditional,
- * and so each rule can be read and tested on its own.
+ * One rule per kind rather than a branch inside one check, so a kind that arrives later brings its own rule,
+ * instead of another arm of a conditional, and so each rule can be read and tested on its own.
  */
 export interface RunSubmissionRule {
   readonly kind: SkillArtifactKind
@@ -35,8 +33,7 @@ export interface RunSubmissionRule {
  * A second proposal from the same run is the model splitting arbitrarily,
  * and it costs a reviewer two decisions where the run made one.
  * A run parked on a question proposes nothing until the answer carries it on,
- * since a proposal resting on an open question asks for approval,
- * of exactly what the answer may overturn.
+ * since a proposal resting on an open question asks for approval, of exactly what the answer may overturn.
  */
 export const proposalSubmission: RunSubmissionRule = {
   kind: 'proposal',
@@ -55,11 +52,9 @@ export const proposalSubmission: RunSubmissionRule = {
 /**
  * Doubt is raised before anything is submitted, never after.
  *
- * A run that has proposed has already decided,
- * so a question from it arrives too late to be worth anything,
+ * A run that has proposed has already decided, so a question from it arrives too late to be worth anything,
  * with the reviewer already holding a change the answer might undo.
- * Asking as many times as it needs to is fine,
- * because they are answered together as the one interrupt it is parked on.
+ * Asking as many times as it needs to is fine, because they are answered together as the one interrupt it is parked on.
  */
 export const clarificationSubmission: RunSubmissionRule = {
   kind: 'clarify',

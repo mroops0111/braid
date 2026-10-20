@@ -7,8 +7,7 @@ type PathItem = Record<string, unknown>
 /** Everything an OpenAPI path item can hold that is an operation. */
 const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const
 
-// Unmarked is visible, which is right for a read,
-// and keeps the marking to the operations that actually need narrowing.
+// Unmarked is visible, which is right for a read, and keeps the marking to the operations that actually need narrowing.
 function permits(operation: Operation, key: string, value: string): boolean {
   const declared = operation[key]
   if (!Array.isArray(declared))
@@ -38,8 +37,7 @@ function visibleTo(
 /**
  * The spec a run's gateway is given, holding only what that run may call.
  *
- * A run's tools come from its spec,
- * so narrowing the spec is what narrows the tools.
+ * A run's tools come from its spec, so narrowing the spec is what narrows the tools.
  * The alternative was a prompt asking a skill not to reach for what it sees,
  * and the operation still costs a place in the tool list,
  * and the tokens to describe it, whether or not it is ever called.
@@ -48,14 +46,12 @@ function visibleTo(
  * it is never shown them.
  *
  * `calls` narrows the same way one step further in.
- * The kind of run sets a ceiling,
- * and its skill says which of those it actually draws with,
+ * The kind of run sets a ceiling, and its skill says which of those it actually draws with,
  * so two skills of one kind stop paying for each other's calls.
  * Absent leaves the ceiling in place.
  *
  * Braid's own markers are dropped on the way out.
- * They say which runs may see an operation,
- * which is answered by the time the document is built,
+ * They say which runs may see an operation, which is answered by the time the document is built,
  * and the gateway has no use for them.
  */
 export function toolSurfaceFor(

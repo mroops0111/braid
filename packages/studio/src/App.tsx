@@ -74,8 +74,7 @@ function AppInner() {
   const [detailsId, setDetailsId] = useState<string | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const graphSurfaceState = useGraphSurfaceState()
-  // Lifted out of the palette so a visible control can open it,
-  // rather than the shortcut being the only way in.
+  // Lifted out of the palette so a visible control can open it, rather than the shortcut being the only way in.
   const [paletteOpen, setPaletteOpen] = useState(false)
   const { setSelectedNodeId, setSelectedEdgeId, setFocusMode, requestCenter, setArrival } = graphSurfaceState
   // One-shot deep-link target for the Proposals surface.
@@ -299,8 +298,7 @@ function GraphHomeView({ workspaceId, state, onStartBootstrap, onOpenSearch }: {
   // Until then the whole graph is drawn and the arrival is marked inside it.
   const narrowedSource = useSubgraphDataSource(workspaceId, narrowed && arrival ? arrival.ids : NO_ARRIVAL)
 
-  // This surface already shows node detail,
-  // so a reference swaps that panel rather than opening an identical one.
+  // This surface already shows node detail, so a reference swaps that panel rather than opening an identical one.
   const revealNode = useCallback((id: string) => {
     setSelectedEdgeId(null)
     setSelectedNodeId(asNodeId(id))
@@ -363,8 +361,8 @@ function WorkspaceHeader({ workspaceId, activeSurface, onOpenDetails }: {
   onOpenDetails: () => void
 }) {
   const { t } = useTranslation()
-  // Surface nav lives in the Sidebar's HERE section now. The header reports where you are,
-  // workspace name plus optional surface, and hosts page-specific tools on the right.
+  // Surface nav lives in the Sidebar's HERE section now.
+  // The header reports where you are, workspace name plus optional surface, and hosts page-specific tools on the right.
   const surfaceLabel
     = activeSurface === 'ask'
       ? t('shell.surfaces.ask')

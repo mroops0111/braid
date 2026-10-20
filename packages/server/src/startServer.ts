@@ -12,8 +12,7 @@ import { withoutTrailingSlash } from './infrastructure/_shared/urls.js'
 import { startupAfterServe } from './startup.js'
 
 /**
- * Walk up from the working directory to the first `.env`, and load it,
- * before anything reads process.env.
+ * Walk up from the working directory to the first `.env`, and load it, before anything reads process.env.
  * A missing file is silent, production boots from real env, not dotfiles.
  */
 export function loadRootEnv(): void {
@@ -48,21 +47,18 @@ export interface StartServerOptions extends ExtraPluginOptions {
 }
 
 /**
- * Boot the coding-preset app and start serving, shared by the standalone
- * entry and the cli `serve` command so both wire identically.
+ * Boot the coding-preset app and start serving,
+ * shared by the standalone entry and the cli `serve` command so both wire identically.
  * Resolves once the socket is listening, then keeps running under signal handlers.
  *
- * A deployment with its own plugins passes them here,
- * rather than assembling a server itself.
- * Doing that by hand means reproducing the shutdown,
- * which closes the graph store, and forgetting it is silent.
+ * A deployment with its own plugins passes them here, rather than assembling a server itself.
+ * Doing that by hand means reproducing the shutdown, which closes the graph store, and forgetting it is silent.
  */
 export async function startServer(options: StartServerOptions): Promise<void> {
   // Two addresses for one server.
   // Callers outside the host reach it at `BRAID_API_URL`,
   // which is also what OAuth redirects and webhook URLs have to name.
-  // A subprocess on the host reaches it on loopback,
-  // which stays true whatever the deployment is called from outside.
+  // A subprocess on the host reaches it on loopback, which stays true whatever the deployment is called from outside.
   const loopbackApiUrl = `http://localhost:${options.port}`
   const apiUrl = withoutTrailingSlash(process.env.BRAID_API_URL ?? loopbackApiUrl)
   const { port: _port, onListen: _onListen, ...extraPlugins } = options

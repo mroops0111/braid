@@ -71,8 +71,7 @@ import { startupBeforeServe } from './startup.js'
 
 // The coding preset's default plugin identities, its worldview in one place.
 // A caller overrides any of these through ComposeFsOptions,
-// or hands composeFsAppWithRegistry its own PluginRegistry,
-// for a different worldview over the same runtime.
+// or hands composeFsAppWithRegistry its own PluginRegistry, for a different worldview over the same runtime.
 const DEFAULT_STORAGE_KIND = 'kuzu'
 const DEFAULT_AGENT_KIND = 'claude-code'
 const DEFAULT_AGENT_MODEL = 'opus'
@@ -81,8 +80,8 @@ const DEFAULT_AGENT_EFFORT = 'high'
 // Multilingual too, so a query reaches a node named in another language.
 const DEFAULT_EMBEDDING_MODEL = 'bge-m3:latest'
 
-// How the embedding client paces itself. Fixed rather than configurable,
-// since a deployment has nothing to base a different number on.
+// How the embedding client paces itself.
+// Fixed rather than configurable, since a deployment has nothing to base a different number on.
 const EMBEDDING_BATCH_SIZE = 16
 // A cold server loads the model on the first call.
 // On a multi-gigabyte model that outlasts any default HTTP timeout.
@@ -92,8 +91,7 @@ export interface ComposeFsRuntimeOptions {
   // Paths and URLs.
   // `braidHome` defaults to `$BRAID_HOME` or `~/.braid`.
   // `apiUrl` is the address callers outside the host reach this server at,
-  // so it is what OAuth redirects, webhook URLs,
-  // and the OpenAPI `servers[]` block name.
+  // so it is what OAuth redirects, webhook URLs, and the OpenAPI `servers[]` block name.
   // `loopbackApiUrl` is the address a subprocess on this host uses,
   // which a deployment behind a proxy cannot always reach by its public name.
   // It defaults to `apiUrl`, which is right whenever the two coincide.
@@ -109,8 +107,7 @@ export interface ComposeFsRuntimeOptions {
   readonly agentEffort?: AgentEffort
 
   // What a scaffold writes when its manifest names no ontology.
-  // Unset falls to the sole registered ontology,
-  // so a single-ontology build never has to repeat its own id.
+  // Unset falls to the sole registered ontology, so a single-ontology build never has to repeat its own id.
   readonly defaultOntologyId?: OntologyId
 }
 
@@ -129,8 +126,7 @@ export type ComposeFsOptions = ComposeFsRuntimeOptions & ExtraPluginOptions
 
 /**
  * What the fs runtime has already built by the time it asks for a registry.
- * The OAuth-backed loaders need the secret store and the provider clients,
- * both derived from `braidHome` and `apiUrl`,
+ * The OAuth-backed loaders need the secret store and the provider clients, both derived from `braidHome` and `apiUrl`,
  * so a caller-supplied plugin reads them here rather than rebuilding them.
  * `googleOAuth` and `githubOAuth` are absent when their env is unset.
  */
@@ -170,8 +166,7 @@ export function defaultSourceLoaderPlugins(context: FsRuntimeContext): readonly 
     }),
     // Drive is listed even when its OAuth env is unset,
     // so a `kind: gdrive` source resolves a loader instead of failing lookup.
-    // The token resolver then throws at provision time,
-    // naming the env vars the user has to set.
+    // The token resolver then throws at provision time, naming the env vars the user has to set.
     createGoogleDriveLoader({
       resolveAccessToken: makeOAuthTokenResolver({
         secretStore,
@@ -187,18 +182,15 @@ export function defaultSourceLoaderPlugins(context: FsRuntimeContext): readonly 
       }),
     }),
     // Reaches whatever an MCP server exposes,
-    // so the tracker or wiki a team already runs becomes a source,
-    // without a package per product.
-    // Its credential rides in the source's own config,
-    // so there is nothing for the composition root to inject.
+    // so the tracker or wiki a team already runs becomes a source, without a package per product.
+    // Its credential rides in the source's own config, so there is nothing for the composition root to inject.
     createMcpLoader(),
   ]
 }
 
 /**
  * The registry `composeFsApp` runs on, the coding preset's whole bundle.
- * Defaults register first, then the caller's extras,
- * so `extraOntologyPlugins: [c4]` yields both ddd and c4.
+ * Defaults register first, then the caller's extras, so `extraOntologyPlugins: [c4]` yields both ddd and c4.
  * The active one is chosen per-workspace via PRODUCT.md.ontologyId.
  */
 export function defaultPluginRegistry(context: FsRuntimeContext, options: ExtraPluginOptions = {}): PluginRegistry {
@@ -231,12 +223,10 @@ export function defaultPluginRegistry(context: FsRuntimeContext, options: ExtraP
 /**
  * Opinionated production composition, the coding preset.
  * Filesystem-persists workspaces, proposals, and clarifications,
- * and bundles Kuzu storage, the DDD ontology, the git, github,
- * and drive loaders, and the claude-code agent.
+ * and bundles Kuzu storage, the DDD ontology, the git, github, and drive loaders, and the claude-code agent.
  *
- * To run a different plugin set, either pass `extraXxxPlugins` and flip
- * `storageKind` or `agentKind`, or hand `composeFsAppWithRegistry` a registry
- * holding only the plugins you want.
+ * To run a different plugin set, either pass `extraXxxPlugins` and flip `storageKind` or `agentKind`,
+ * or hand `composeFsAppWithRegistry` a registry holding only the plugins you want.
  */
 export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppDependencies> {
   return composeFsAppWithRegistry(context => defaultPluginRegistry(context, options), options)
@@ -244,19 +234,16 @@ export async function composeFsApp(options: ComposeFsOptions = {}): Promise<AppD
 
 /**
  * The same filesystem runtime as `composeFsApp`, over a registry you build.
- * Storage and agent resolve from whatever `buildRegistry` registered,
- * under `storageKind` and `agentKind`,
- * so a composition omitting the coding preset's ontology and loaders,
- * still gets the subprocess skill runner, the fs unit lister,
- * and every fs repository, and so a batch runs unchanged.
+ * Storage and agent resolve from whatever `buildRegistry` registered, under `storageKind` and `agentKind`,
+ * so a composition omitting the coding preset's ontology and loaders, still gets the subprocess skill runner,
+ * the fs unit lister, and every fs repository, and so a batch runs unchanged.
  */
 export async function composeFsAppWithRegistry(
   buildRegistry: PluginRegistryFactory,
   options: ComposeFsRuntimeOptions = {},
 ): Promise<AppDependencies> {
   const braidHome = options.braidHome ?? process.env.BRAID_HOME ?? join(homedir(), '.braid')
-  // Everything below appends a path to this,
-  // so a trailing slash would double the separator,
+  // Everything below appends a path to this, so a trailing slash would double the separator,
   // and leave an OAuth redirect no console entry matches.
   const apiUrl = withoutTrailingSlash(options.apiUrl ?? 'http://localhost:4321')
   const loopbackApiUrl = withoutTrailingSlash(options.loopbackApiUrl ?? apiUrl)
@@ -264,8 +251,7 @@ export async function composeFsAppWithRegistry(
   const secretStore = new FsSecretStore(join(braidHome, 'secrets'))
 
   // Only where the deployment supplied a key.
-  // Without one a person cannot save a credential at all,
-  // which is the honest outcome.
+  // Without one a person cannot save a credential at all, which is the honest outcome.
   // A key generated here would encrypt to something the code knows.
   const secretKeyRaw = process.env.BRAID_SECRET_KEY
   const agentCredentialStore = secretKeyRaw
@@ -312,8 +298,8 @@ export async function composeFsAppWithRegistry(
   // Auth and ACL belong to the host, not to what a workspace records.
   const userRegistry = new UserRegistryFile(join(braidHome, 'users.json'))
 
-  // Auth state. Both files live next to `users.json` under `${BRAID_HOME}`,
-  // never inside a workspace,
+  // Auth state.
+  // Both files live next to `users.json` under `${BRAID_HOME}`, never inside a workspace,
   // because access control is host state, not a workspace artifact.
   // AccessPolicy reads env at construct time.
   // Production deployments restart on config changes, so reading once is fine.
@@ -337,8 +323,7 @@ export async function composeFsAppWithRegistry(
   const studioUrl = process.env.BRAID_STUDIO_URL ?? 'http://localhost:5173'
   // Local trust is the default.
   // Production sets `BRAID_LOCAL_TRUST=false` to require real authentication.
-  // We do not flip the default when Google OAuth env is present,
-  // those creds also feed the Drive loader,
+  // We do not flip the default when Google OAuth env is present, those creds also feed the Drive loader,
   // and a dev pulling from Drive should not hit Login on every reload.
   const locallyTrusted = parseBoolEnv(process.env.BRAID_LOCAL_TRUST, true)
   assertLocalTrustIsLocal(locallyTrusted, studioUrl)
@@ -346,19 +331,16 @@ export async function composeFsAppWithRegistry(
   // Local trust seeds `local-user`, authenticated mode syncs the login allowlist.
   await authMode.provision({ userRegistry, accessPolicy })
   // The reactor is an autonomous component, so it seeds its own service account.
-  // Its kind=service rides onto every proposal it submits,
-  // so the HITL views classify it without a read-time lookup.
+  // Its kind=service rides onto every proposal it submits, so the HITL views classify it without a read-time lookup.
   await ensureServiceAccount(userRegistry, REACTOR_USER_ID, 'Reactor')
-  // A deployment that names an authorization server accepts its tokens,
-  // as well as the sessions Braid issues,
+  // A deployment that names an authorization server accepts its tokens, as well as the sessions Braid issues,
   // so a programmatic client has a door that does not involve a browser.
   // Unset leaves Braid exactly as it was.
   const oidcIssuer = process.env.BRAID_OIDC_ISSUER
   const oidcAudience = process.env.BRAID_OIDC_AUDIENCE ?? apiUrl
   // One way in, never two.
   // An authorization server displaces the Google client rather than joining it,
-  // so a person has one identity whichever door they use,
-  // and Google is configured once at the issuer instead of twice.
+  // so a person has one identity whichever door they use, and Google is configured once at the issuer instead of twice.
   // Without an issuer this falls back to the Google client,
   // which is what a laptop install and a small deployment run on.
   const loginMode = chooseLoginMode(process.env, { googleConfigured: googleOAuth !== undefined })
@@ -378,12 +360,10 @@ export async function composeFsAppWithRegistry(
 
   // A running skill's own credential, tried before any deployment's.
   // It is the only verifier that is always present,
-  // since a run calls back the same way,
-  // whether or not this deployment gates people at the door.
+  // since a run calls back the same way, whether or not this deployment gates people at the door.
   const runTokens = new RunTokenRegistry()
   // Attended runs are held to one outcome.
-  // A batch that applies its own output opts out per run,
-  // since it wants the proposal and the doubt recorded both.
+  // A batch that applies its own output opts out per run, since it wants the proposal and the doubt recorded both.
   const outputGate = new RunOutputGate()
   const accessTokenVerifiers = [
     runTokens,
@@ -435,8 +415,7 @@ export async function composeFsAppWithRegistry(
   )
 
   // Semantic search is optional.
-  // A deployment with no embedding backend keeps every other capability,
-  // and simply cannot rank by meaning,
+  // A deployment with no embedding backend keeps every other capability, and simply cannot rank by meaning,
   // so nothing here may throw when the axis is left unset.
   // The address is the switch, since a backend cannot be reached without one.
   const embeddingHost = process.env.BRAID_EMBEDDING_HOST
@@ -479,8 +458,7 @@ export async function composeFsAppWithRegistry(
     effort: options.agentEffort ?? DEFAULT_AGENT_EFFORT,
     extraArgs: [],
     // The server's own credential, named here rather than inherited.
-    // Left out where a broker is wired,
-    // since the broker lends the same value behind a stand-in,
+    // Left out where a broker is wired, since the broker lends the same value behind a stand-in,
     // and two credentials in one environment leave the agent to pick.
     env: !agentCredentialBroker && process.env.CLAUDE_CODE_OAUTH_TOKEN
       ? { CLAUDE_CODE_OAUTH_TOKEN: process.env.CLAUDE_CODE_OAUTH_TOKEN }
@@ -491,18 +469,16 @@ export async function composeFsAppWithRegistry(
   const sessionShareRepository = new FsSessionShareRepository()
 
   // Built after pluginRegistry is populated,
-  // so plugin-shipped SKILL.md files mount under the `plugin` origin,
-  // alongside builtins.
+  // so plugin-shipped SKILL.md files mount under the `plugin` origin, alongside builtins.
   const skillRegistry = new FsSkillRegistry({
     builtinSkillsRoot: builtinSkillsRoot as AbsolutePath,
     pluginRegistry,
   })
 
   const eventBus = new InMemoryWorkspaceEventBus()
-  // Built-in braid-core MCP gateway. Each spawned skill gets a stdio entry,
-  // running `uvx openapi-mcp-gateway --transport stdio`.
-  // The gateway lifecycle tracks the claude subprocess,
-  // with no separate long-running server, and needs `uv` on PATH.
+  // Built-in braid-core MCP gateway.
+  // Each spawned skill gets a stdio entry, running `uvx openapi-mcp-gateway --transport stdio`.
+  // The gateway lifecycle tracks the claude subprocess, with no separate long-running server, and needs `uv` on PATH.
   // If `uv` is missing, the entry is skipped.
   // Skills that require `braid-core` then surface as not-ready,
   // via SkillManifest.readinessIssuesFor, with a clear pointer.
@@ -513,8 +489,7 @@ export async function composeFsAppWithRegistry(
       + 'Install via `brew install uv` or https://docs.astral.sh/uv/ to enable.',
     )
   }
-  // The long-lived MCP endpoint a person points their own client at,
-  // distinct from the per-run stdio gateway above.
+  // The long-lived MCP endpoint a person points their own client at, distinct from the per-run stdio gateway above.
   // Only a deployment that names an authorization server gets one,
   // since a shared static token would flatten every caller into one identity.
   const gatewayResolution = resolveMcpGateway(process.env, {
@@ -542,8 +517,7 @@ export async function composeFsAppWithRegistry(
   // keyed by the namespace that owns them, so each stays paired with its skills.
   // Core's `shared/` lands under the builtin namespace,
   // carrying the Proposal, Clarification, Validator, batch-plan, drift contracts.
-  // Each plugin's own dir lands under its namespace,
-  // the DDD concept doc under `ddd` for example.
+  // Each plugin's own dir lands under its namespace, the DDD concept doc under `ddd` for example.
   // Plugin contributions resolve `URL` to an absolute path.
   const pluginReferenceDirs = pluginRegistry.pluginReferenceDirs().map((ref) => {
     const dir = typeof ref.directory === 'string' ? ref.directory : fileURLToPath(ref.directory)
@@ -581,8 +555,7 @@ export async function composeFsAppWithRegistry(
     },
   })
 
-  // Shared by WorkspaceBootstrapService (boot reconciliation),
-  // and HITLService (per-mutation commits).
+  // Shared by WorkspaceBootstrapService (boot reconciliation), and HITLService (per-mutation commits).
   const history = new GitWorkspaceHistory()
   const modelSerializer = new FsModelSerializer()
   const bootstrap = new WorkspaceBootstrapService({
@@ -673,10 +646,8 @@ export async function composeFsAppWithRegistry(
 /**
  * Build a token resolver for an OAuth-backed loader.
  * Returns a still-valid access token, or refreshes when it is near expiry.
- * A failed refresh flags the source `needsAuth` so Studio prompts a reconnect,
- * a fresh refresh clears that flag.
- * `refresh` is absent when the provider's server env is unset,
- * then the resolver throws `notConfigured`.
+ * A failed refresh flags the source `needsAuth` so Studio prompts a reconnect, a fresh refresh clears that flag.
+ * `refresh` is absent when the provider's server env is unset, then the resolver throws `notConfigured`.
  */
 function makeOAuthTokenResolver<R extends { accessToken: string, expiresAt: string }>(deps: {
   secretStore: SecretStore
@@ -715,9 +686,8 @@ function makeOAuthTokenResolver<R extends { accessToken: string, expiresAt: stri
 /**
  * Refuse to trust every caller on a deployment reachable by other people.
  *
- * The default is local trust and suits a laptop,
- * but it is catastrophic on a shared host. Nothing else tells the two apart,
- * and naming a Studio origin that is not loopback is a deployment saying so out loud.
+ * The default is local trust and suits a laptop, but it is catastrophic on a shared host.
+ * Nothing else tells the two apart, and naming a Studio origin that is not loopback is a deployment saying so out loud.
  */
 function assertLocalTrustIsLocal(locallyTrusted: boolean, studioUrl: string): void {
   if (!locallyTrusted)
@@ -751,8 +721,7 @@ function hostOf(url: string): string | undefined {
  * Which browser origins may call this API.
  *
  * A deployment that names its own Studio origin has left dev behind,
- * so the localhost defaults stop applying and only that origin,
- * plus anything named explicitly, gets through.
+ * so the localhost defaults stop applying and only that origin, plus anything named explicitly, gets through.
  * Leaving both unset keeps a local install on the dev defaults.
  */
 function resolveCorsOrigins(studioUrl: string, extra: string | undefined): readonly string[] | undefined {
@@ -783,11 +752,9 @@ function parseCsv(input: string | undefined): readonly string[] | undefined {
 
 // Resolve the `uvx` binary path by running `uvx --version`.
 // Returns `'uvx'` when the call succeeds.
-// We let `PATH` resolve it at spawn time,
-// so we don't bake an absolute path into mcp-config.
+// We let `PATH` resolve it at spawn time, so we don't bake an absolute path into mcp-config.
 // Returns `undefined` when `uv` isn't installed.
-// Honours `BRAID_UVX_BIN` for pinning a specific binary, a uv off PATH,
-// or a stub injected by tests.
+// Honours `BRAID_UVX_BIN` for pinning a specific binary, a uv off PATH, or a stub injected by tests.
 async function detectUvx(): Promise<string | undefined> {
   const pinned = process.env.BRAID_UVX_BIN
   const command = pinned && pinned.length > 0 ? pinned : 'uvx'

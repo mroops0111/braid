@@ -7,8 +7,7 @@ import { embeddingsPath } from '../_shared/paths.js'
 
 export interface FsEmbeddingRepositoryDeps {
   /**
-   * Locates a workspace on disk,
-   * mirroring how the storage plugins resolve their own state,
+   * Locates a workspace on disk, mirroring how the storage plugins resolve their own state,
    * rather than owning the registry.
    */
   readonly resolveWorkspaceRoot: (workspaceId: WorkspaceId) => Promise<string>
@@ -17,8 +16,7 @@ export interface FsEmbeddingRepositoryDeps {
 /**
  * Vectors on disk, one JSON object per line.
  *
- * A line per vector rather than one document,
- * so a malformed tail costs the vectors after it and not the whole index,
+ * A line per vector rather than one document, so a malformed tail costs the vectors after it and not the whole index,
  * which a rebuild then refills.
  */
 export class FsEmbeddingRepository implements EmbeddingRepository {
@@ -66,8 +64,8 @@ export class FsEmbeddingRepository implements EmbeddingRepository {
     const path = await this.pathFor(workspaceId)
     await mkdir(dirname(path), { recursive: true })
     const body = entries.map(entry => JSON.stringify(entry)).join('\n')
-    // Atomic write. A crash mid-rebuild must not leave a half index behind,
-    // which would read as a corpus with a torn final line.
+    // Atomic write.
+    // A crash mid-rebuild must not leave a half index behind, which would read as a corpus with a torn final line.
     const temporary = `${path}.tmp`
     await writeFile(temporary, entries.length > 0 ? `${body}\n` : '', 'utf-8')
     await rename(temporary, path)

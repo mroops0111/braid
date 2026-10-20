@@ -10,10 +10,8 @@ import { useGraphNavigation } from '@/lib/useGraphNavigation'
 import { NodeReferenceDetail } from './NodeReferenceDetail'
 
 /**
- * Binds the node resolver to the snapshot Studio has already loaded,
- * so hovering a tag costs no request.
- * The detail body lives here rather than in the pure resolver,
- * which keeps that module free of React.
+ * Binds the node resolver to the snapshot Studio has already loaded, so hovering a tag costs no request.
+ * The detail body lives here rather than in the pure resolver, which keeps that module free of React.
  */
 export function useNodeReferenceResolver(workspaceId: string | undefined): ReferenceResolver {
   const { t } = useTranslation()

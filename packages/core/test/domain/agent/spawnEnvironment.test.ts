@@ -33,8 +33,7 @@ describe('inheritableSpawnEnvironment', () => {
   })
 
   // An allowlist has to stay one.
-  // A name added to the deployment tomorrow must not arrive by default,
-  // which is the whole reason for the shape.
+  // A name added to the deployment tomorrow must not arrive by default, which is the whole reason for the shape.
   it('drops a name it has never heard of', () => {
     expect(inheritableSpawnEnvironment({ SOMETHING_NEW: 'value' })).toEqual({})
   })
@@ -50,11 +49,9 @@ describe('inheritableSpawnEnvironment', () => {
     })
   })
 
-  // `undefined` is how Node reports an unset name,
-  // and passing it through puts the string "undefined" in the child.
+  // `undefined` is how Node reports an unset name, and passing it through puts the string "undefined" in the child.
   // Asserted by absence.
-  // A value of `undefined` compares equal to a missing key,
-  // and would pass while the key was still there.
+  // A value of `undefined` compares equal to a missing key, and would pass while the key was still there.
   it('omits a name that is present but unset', () => {
     const env = inheritableSpawnEnvironment({ PATH: undefined, HOME: '/home/ada' })
     expect(Object.keys(env)).toEqual(['HOME'])

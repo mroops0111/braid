@@ -102,18 +102,15 @@ describe('GitLoader', () => {
   it('re-reads the environment on sync, so a rotated credential reaches the fetch', async () => {
     const loader = gitLoader
     const dest = join(scratch, 'rotating') as AbsolutePath
-    // A file remote ignores a user segment,
-    // so the placeholder goes in the path instead.
-    // Only the second value names the real repository,
-    // which makes the source of the fetch URL observable.
+    // A file remote ignores a user segment, so the placeholder goes in the path instead.
+    // Only the second value names the real repository, which makes the source of the fetch URL observable.
     const stale = join(scratch, 'stale-not-a-repo')
     await mkdir(stale, { recursive: true })
 
     const url = `file://${scratch}/\${BRAID_GITLOADER_TEST_TOKEN}`
 
     process.env.BRAID_GITLOADER_TEST_TOKEN = 'stale-not-a-repo'
-    // Clone would fail against the stale path,
-    // so seed the mirror from the real remote,
+    // Clone would fail against the stale path, so seed the mirror from the real remote,
     // and let the stored URL carry the placeholder as provision leaves it.
     await simpleGit().clone(remoteUrl, dest)
     await simpleGit({ baseDir: dest }).remote(['set-url', 'origin', url])
@@ -140,8 +137,7 @@ describe('GitLoader', () => {
 
 /**
  * A source that omits `branch` must still follow its remote.
- * Fetching `origin HEAD` writes only FETCH_HEAD,
- * leaving the tracking ref at the clone-time commit,
+ * Fetching `origin HEAD` writes only FETCH_HEAD, leaving the tracking ref at the clone-time commit,
  * so a reset against it freezes the mirror while every sync reports success.
  * These cover the branch defaulting that avoids that.
  */

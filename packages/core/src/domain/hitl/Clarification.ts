@@ -100,8 +100,7 @@ export class Clarification {
    * Stop the run waiting on this, without throwing the question away.
    *
    * Skipping discards.
-   * Deferring keeps the question and only gives up the conversation,
-   * so it goes back to pending and stands on its own.
+   * Deferring keeps the question and only gives up the conversation, so it goes back to pending and stands on its own.
    * Answering it later records the decision for a step that reads answered,
    * since the run that asked has by then carried on without it.
    */

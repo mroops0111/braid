@@ -12,9 +12,7 @@ export interface MirroredItem {
 
 /**
  * A filename that survives every filesystem and cannot escape its directory.
- * An upstream id is arbitrary text,
- * so anything outside the safe set becomes a dash,
- * and a run of dashes collapses.
+ * An upstream id is arbitrary text, so anything outside the safe set becomes a dash, and a run of dashes collapses.
  */
 export function toFilename(id: string): string {
   const safe = id.replace(/[^\w.-]+/g, '-').replace(/-{2,}/g, '-').replace(/^[-.]+|[-.]+$/g, '')

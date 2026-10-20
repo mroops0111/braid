@@ -12,8 +12,7 @@ import { buildRunnerApp, endAllSpawned } from '../helpers/runnerApp.js'
  */
 const surfaces = new Map<string, Record<string, Record<string, unknown>>>()
 
-// The full composition,
-// because the render operations only reach the document with a runner wired,
+// The full composition, because the render operations only reach the document with a runner wired,
 // and they are half of what a run is offered.
 async function surface(category: string, form: string = 'blocks', calls?: readonly string[]): Promise<Record<string, Record<string, unknown>>> {
   const query = calls ? `?calls=${calls.join(',')}` : ''
@@ -40,8 +39,7 @@ function operations(paths: Record<string, Record<string, unknown>>): string[] {
 describe('the spec a run is given', () => {
   afterEach(endAllSpawned)
 
-  // A run's tools come from its spec,
-  // so a question about what a kind of run may do is answered once, here,
+  // A run's tools come from its spec, so a question about what a kind of run may do is answered once, here,
   // rather than by every handler learning who is calling it.
   it('keeps proposing and clarifying out of an ask run', async () => {
     const ids = operations(await surface('ask'))
@@ -57,8 +55,7 @@ describe('the spec a run is given', () => {
     expect(ids).toContain('reportNoClarification')
   })
 
-  // Reads carry no marking,
-  // which keeps the marking to the operations that actually need narrowing.
+  // Reads carry no marking, which keeps the marking to the operations that actually need narrowing.
   it('gives every run the reads', async () => {
     for (const category of ['ask', 'build', 'generate']) {
       const ids = operations(await surface(category))
@@ -66,8 +63,7 @@ describe('the spec a run is given', () => {
     }
   })
 
-  // A render call costs a place in the tool list,
-  // and the tokens to describe it, whether or not it is ever made,
+  // A render call costs a place in the tool list, and the tokens to describe it, whether or not it is ever made,
   // so a run is offered only the calls its own kind of work owes.
   it('offers prose and a drawing to every kind of run', async () => {
     for (const category of ['ask', 'build', 'generate']) {
@@ -95,8 +91,7 @@ describe('the spec a run is given', () => {
     expect(ids).toContain('showEvidence')
   })
 
-  // A finding is two sides disagreeing and a trail is what a run searched,
-  // and a document is neither.
+  // A finding is two sides disagreeing and a trail is what a run searched, and a document is neither.
   it('keeps findings and trails out of a generate run', async () => {
     const ids = operations(await surface('generate'))
     expect(ids).not.toContain('showFinding')

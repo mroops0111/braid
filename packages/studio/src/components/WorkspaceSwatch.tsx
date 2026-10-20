@@ -3,10 +3,8 @@ import { cn } from '@/lib/utils'
 
 // Muted tint palette, a low-saturation background with accented foreground,
 // so multiple swatches stacked in the sidebar do not compete for attention.
-// Identification comes from the monogram letters first,
-// colour only as a secondary cue.
-// Tailwind needs each class as a static literal,
-// to make it into the final CSS bundle.
+// Identification comes from the monogram letters first, colour only as a secondary cue.
+// Tailwind needs each class as a static literal, to make it into the final CSS bundle.
 const SWATCH_PALETTE = [
   'bg-sky-500/15 text-sky-700 dark:text-sky-300',
   'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',

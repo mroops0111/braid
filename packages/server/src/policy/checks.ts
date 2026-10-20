@@ -1,8 +1,7 @@
 import type { CapabilityCheck } from './CapabilityCheck.js'
 
 /**
- * First-party capability checks,
- * mirrored byte-equivalent in `packages/studio/src/policy/checks.ts`.
+ * First-party capability checks, mirrored byte-equivalent in `packages/studio/src/policy/checks.ts`.
  * The server is the authoritative gate.
  * The client copy lets Studio render locked affordances, without hitting a 403.
  *
@@ -34,10 +33,8 @@ export const checks: readonly CapabilityCheck[] = [
   {
     id: 'run.share',
     // Authorship, not role.
-    // An owner reads every run already,
-    // but letting them hand someone else's conversation to a third party,
-    // would make a run readable without its author ever acting,
-    // so the grant stays with whoever opened it.
+    // An owner reads every run already, but letting them hand someone else's conversation to a third party,
+    // would make a run readable without its author ever acting, so the grant stays with whoever opened it.
     evaluate: v => v.resource?.sessionStartedBy !== undefined
       && v.resource.sessionStartedBy === v.user.id,
   },

@@ -10,8 +10,7 @@ import { SourceSyncState } from '../domain/source/SourceSyncState.js'
 
 /**
  * The single capability this service needs from the loader layer.
- * Narrower than `SourceLoaderRunner`, which also provisions,
- * so the seam states exactly what is depended on.
+ * Narrower than `SourceLoaderRunner`, which also provisions, so the seam states exactly what is depended on.
  */
 export interface SourceSyncExecutor {
   syncOne: (workspace: Workspace, sourceId: SourceId) => Promise<SyncReport>
@@ -21,8 +20,7 @@ export interface SourceSyncExecutor {
  * What happened to one source when the caller asked for it to be current.
  *
  * `failed` is not an error case for the caller.
- * A refresh that could not reach its remote leaves the previous mirror in place,
- * which is still readable.
+ * A refresh that could not reach its remote leaves the previous mirror in place, which is still readable.
  */
 export type SourceRefreshOutcome =
   | { readonly sourceId: SourceId, readonly outcome: 'fresh' | 'synced' | 'unmanaged' | 'timedOut' }
@@ -31,8 +29,8 @@ export type SourceRefreshOutcome =
 export interface EnsureWorkspaceFreshOptions {
   /**
    * How long to wait on refreshes before giving up and reporting `timedOut`.
-   * A caller with a request open needs this. Git offers no timeout of its own,
-   * so one unresponsive remote would otherwise wedge the call.
+   * A caller with a request open needs this.
+   * Git offers no timeout of its own, so one unresponsive remote would otherwise wedge the call.
    * The pass itself keeps running and its result lands in the sync state.
    */
   readonly deadlineMs?: number
@@ -47,12 +45,11 @@ export interface SourceSyncServiceDeps {
 }
 
 /**
- * The one entry point for every sync trigger, whether that is boot catch-up,
- * a webhook delivery, the Studio button, or the background poller.
+ * The one entry point for every sync trigger,
+ * whether that is boot catch-up, a webhook delivery, the Studio button, or the background poller.
  *
  * It owns three things the loader layer deliberately does not.
- * Concurrent callers for one source collapse to a single pass,
- * every attempt lands in the sync-state store,
+ * Concurrent callers for one source collapse to a single pass, every attempt lands in the sync-state store,
  * and `ensureFresh` decides whether a pass is needed at all.
  * `SourceLoaderRunner` stays a thin adapter over the plugin port.
  *
@@ -66,8 +63,7 @@ export class SourceSyncService {
   async syncNow(workspace: Workspace, sourceId: SourceId): Promise<SyncReport> {
     return this.deps.coalescer.run(coalesceKey(workspace, sourceId), async () => {
       // Stamped before the pass, not after.
-      // The loader observed its remote somewhere inside the window,
-      // so the earlier bound is the honest one.
+      // The loader observed its remote somewhere inside the window, so the earlier bound is the honest one.
       const attemptedAt = this.deps.clock.now()
       try {
         const report = await this.deps.sourceLoaderRunner.syncOne(workspace, sourceId)
@@ -85,12 +81,10 @@ export class SourceSyncService {
   }
 
   /**
-   * Separate from provisioning,
-   * because a workspace registers only once its sources are on disk,
+   * Separate from provisioning, because a workspace registers only once its sources are on disk,
    * and the state store resolves its path through that registration.
    * So the caller provisions, registers, then reports here.
-   * Without it a fresh mirror reads as never synced,
-   * and the first run refetches what it already has.
+   * Without it a fresh mirror reads as never synced, and the first run refetches what it already has.
    */
   async recordProvisioned(workspace: Workspace, outcomes: readonly ProvisionOutcome[]): Promise<void> {
     const provisionedAt = this.deps.clock.now()
@@ -103,8 +97,7 @@ export class SourceSyncService {
   /**
    * Best effort, so a failure never propagates.
    * Refusing to run over a mirror that could not refresh,
-   * would let one unreachable remote block every run in the workspace,
-   * which is worse than reading an hour-old mirror.
+   * would let one unreachable remote block every run in the workspace, which is worse than reading an hour-old mirror.
    * The attempt is recorded either way, so staleness surfaces.
    */
   async ensureFresh(workspace: Workspace, sourceId: SourceId): Promise<SourceRefreshOutcome> {
@@ -162,10 +155,8 @@ function coalesceKey(workspace: Workspace, sourceId: SourceId): string {
 }
 
 /**
- * Resolve `fallback` once `deadlineMs` passes,
- * leaving the original pass to finish in the background.
- * Its outcome still reaches the sync state,
- * so a slow remote surfaces rather than vanishing with the abandoned wait.
+ * Resolve `fallback` once `deadlineMs` passes, leaving the original pass to finish in the background.
+ * Its outcome still reaches the sync state, so a slow remote surfaces rather than vanishing with the abandoned wait.
  */
 async function withDeadline<T>(pass: Promise<T>, deadlineMs: number, fallback: T): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined

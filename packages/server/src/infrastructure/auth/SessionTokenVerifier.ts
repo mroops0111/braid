@@ -2,8 +2,7 @@ import type { AccessTokenVerifier, VerifiedCaller } from './AccessTokenVerifier.
 import type { SessionStore } from './SessionStore.js'
 
 /**
- * The sessions Braid issues itself,
- * behind the same port as any other credential.
+ * The sessions Braid issues itself, behind the same port as any other credential.
  *
  * An adapter rather than a special case in the middleware,
  * so the order credentials are tried is a matter of how the list is composed,
@@ -14,8 +13,7 @@ export class SessionTokenVerifier implements AccessTokenVerifier {
 
   async verify(token: string): Promise<VerifiedCaller | null> {
     // An unknown token is declined rather than refused.
-    // It may belong to another verifier,
-    // and only the last one to decline settles the answer.
+    // It may belong to another verifier, and only the last one to decline settles the answer.
     const session = await this.sessions.resolve(token)
     return session ? { userId: session.userId } : null
   }

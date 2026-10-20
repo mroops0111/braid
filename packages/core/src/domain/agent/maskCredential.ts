@@ -1,10 +1,8 @@
-// Enough of the front to recognise what kind of credential it is,
-// and enough of the back to tell two of your own apart.
+// Enough of the front to recognise what kind of credential it is, and enough of the back to tell two of your own apart.
 const HEAD = 12
 const TAIL = 6
 
-// Below this, showing both ends would give away most of the value,
-// so only the last few characters are shown.
+// Below this, showing both ends would give away most of the value, so only the last few characters are shown.
 const SHORT = HEAD + TAIL + 8
 const SHORT_TAIL = 4
 

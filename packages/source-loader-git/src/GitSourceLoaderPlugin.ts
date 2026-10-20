@@ -7,7 +7,9 @@ import { z } from 'zod'
 import { gitWebUrl } from './webUrl.js'
 
 export const GitLoaderConfig = z.object({
-  /** Remote URL. Supports `${VAR}` interpolation for tokens (e.g. `https://x-access-token:${GH_TOKEN}@github.com/...`). */
+  /**
+   * Remote URL. Supports `${VAR}` interpolation for tokens (e.g. `https://x-access-token:${GH_TOKEN}@github.com/...`).
+   */
   url: z.string().min(1),
   /**
    * Branch to track. Always concrete, so fetch and reset name a real ref.
@@ -15,7 +17,10 @@ export const GitLoaderConfig = z.object({
    * whereas a default that misses fails loudly at clone time.
    */
   branch: z.string().min(1).default('master'),
-  /** Subdirectory inside the cloned repo to use as the source content root. The loader still clones the full repo; you choose what claude sees by pointing the source `path` deeper. */
+  /**
+   * Subdirectory inside the cloned repo to use as the source content root.
+   * The loader still clones the full repo; you choose what claude sees by pointing the source `path` deeper.
+   */
   subdir: z.string().optional(),
   /** Shallow clone depth. Defaults to 1; we only need the working tree. */
   depth: z.number().int().positive().default(1),
@@ -27,8 +32,7 @@ export type GitLoaderConfig = z.infer<typeof GitLoaderConfig>
  * The `destination` is the full git working tree,
  * so an initial `provision` shallow-clones there and `sync` does fetch plus reset --hard,
  * so the user's local edits never drift the source content silently.
- * When that is not the behaviour you want,
- * pick the `manual` loader and manage the directory yourself.
+ * When that is not the behaviour you want, pick the `manual` loader and manage the directory yourself.
  *
  * Auth: the loader does not handle credential helpers or SSH agent set-up.
  * Use a token in the URL (`https://x-access-token:${GH_TOKEN}@...`),
@@ -45,10 +49,8 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
     const git = simpleGit({ baseDir: destination })
     const cloneOptions: string[] = ['--depth', String(config.depth), '--branch', config.branch]
     await git.clone(url, destination, cloneOptions)
-    // Clone leaves the interpolated credential in `.git/config`,
-    // so put the uninterpolated form back.
-    // A token read from the environment then never sits on disk,
-    // and sync re-interpolates before every fetch.
+    // Clone leaves the interpolated credential in `.git/config`, so put the uninterpolated form back.
+    // A token read from the environment then never sits on disk, and sync re-interpolates before every fetch.
     await git.remote(['set-url', 'origin', config.url])
     const sha = (await git.revparse(['HEAD'])).trim()
     return {
@@ -62,14 +64,12 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
     const git = simpleGit({ baseDir: destination })
     // Clone wrote the interpolated credential into `.git/config`,
     // so a rotated token leaves the mirror holding the old one.
-    // Every fetch then fails as "Access denied",
-    // which reads like a permission problem rather than a stale copy.
+    // Every fetch then fails as "Access denied", which reads like a permission problem rather than a stale copy.
     // Re-interpolate here, so the environment stays authoritative.
     await git.remote(['set-url', 'origin', interpolateEnv(config.url)])
     const trackingRef = `refs/remotes/origin/${config.branch}`
     const before = (await git.revparse(['HEAD'])).trim()
-    // An explicit refspec,
-    // since a bare `git fetch origin <branch>` leaves the tracking ref alone,
+    // An explicit refspec, since a bare `git fetch origin <branch>` leaves the tracking ref alone,
     // and the reset below would be a silent no-op.
     // The leading `+` makes a force-push upstream still land.
     await git.fetch('origin', `+refs/heads/${config.branch}:${trackingRef}`, ['--depth', String(config.depth)])
@@ -97,14 +97,12 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
     // Host and path come from the literal URL, never the credential portion.
     // `${VAR}` placeholders are deliberately left uninterpolated,
     // since resolving them would couple this to credential rotation,
-    // and a missing env var would throw on every anonymous probe,
-    // leaking the var name.
+    // and a missing env var would throw on every anonymous probe, leaking the var name.
     upstream: config => parseRemoteUrl(config.url),
     // We track a single ref.
     // `push` events on other refs are guaranteed no-ops for `git fetch && reset --hard origin/<branch>`,
     // so skip them to avoid wasting a network round-trip.
-    // `ping` always dispatches,
-    // so the user sees `lastObservedSha` populate on first wire-up.
+    // `ping` always dispatches, so the user sees `lastObservedSha` populate on first wire-up.
     // Other event types (issues, deploy, and so on) are unrelated to the code mirror and are skipped.
     shouldDispatch: (config, delivery) => {
       if (delivery.event === 'ping')
@@ -121,10 +119,10 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
 
 /**
  * Split a clone URL into its host and the path identifying the repository.
- * Any host, since git speaks to all of them,
- * and this loader has no business deciding which platforms exist.
+ * Any host, since git speaks to all of them, and this loader has no business deciding which platforms exist.
  *
  * Accepts the URL shapes git itself accepts:
+ *
  *   - `https://host/owner/repo`
  *   - `https://host/owner/repo.git`
  *   - `https://host/owner/repo/` (trailing slash)
@@ -138,8 +136,7 @@ export const gitLoader: SourceLoaderPlugin = defineSourceLoaderPlugin({
  * Query and fragment portions are dropped, they never identify the repo.
  */
 function parseRemoteUrl(url: string): { host: string, path: string } | undefined {
-  // Strip an optional `git+` prefix, trim, drop query or fragment,
-  // and normalise a trailing slash plus .git suffix.
+  // Strip an optional `git+` prefix, trim, drop query or fragment, and normalise a trailing slash plus .git suffix.
   let trimmed = url.trim().replace(/^git\+/, '')
   const queryAt = trimmed.search(/[?#]/)
   if (queryAt >= 0)
@@ -155,10 +152,8 @@ function parseRemoteUrl(url: string): { host: string, path: string } | undefined
 }
 
 /**
- * Parse `git diff --name-status <before>..<after>` into add, update,
- * and remove counts.
- * Status letters: A=added, M=modified, D=deleted,
- * R=renamed (treated as 1 update), C=copied (treated as 1 add).
+ * Parse `git diff --name-status <before>..<after>` into add, update, and remove counts.
+ * Status letters: A=added, M=modified, D=deleted, R=renamed (treated as 1 update), C=copied (treated as 1 add).
  * Anything else we conservatively classify as updated.
  */
 async function countChangedFiles(

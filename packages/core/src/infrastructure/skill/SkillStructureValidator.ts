@@ -49,13 +49,12 @@ export interface SkillStructureValidationResult {
 }
 
 /**
- * Pure parser and checker. Extracts every H2 heading from the SKILL.md body,
- * and asserts the required-section contract for the skill's category.
+ * Pure parser and checker.
+ * Extracts every H2 heading from the SKILL.md body, and asserts the required-section contract for the skill's category.
  *
  * Skills without a `braid.category` are held to the common contract only,
  * the workspace one-offs in the "Custom" sidebar bucket.
- * They must declare the structural sections,
- * but no category-specific section is required of them.
+ * They must declare the structural sections, but no category-specific section is required of them.
  *
  * The validator is intentionally text-level, not AST-level.
  * An H2 inside a fenced code block is rare, so we skip the parser cost.
@@ -113,8 +112,7 @@ export function validateSkillStructure(input: ValidateSkillStructureInput): Skil
 }
 
 /**
- * Extract the text of every line that opens with `## `, case-sensitive,
- * and isn't inside a fenced code block.
+ * Extract the text of every line that opens with `## `, case-sensitive, and isn't inside a fenced code block.
  * Returns a `Set` for O(1) membership checks downstream.
  *
  * Trailing whitespace and inline anchors like `## Role {#role}` are trimmed,

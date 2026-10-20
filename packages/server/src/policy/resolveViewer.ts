@@ -2,11 +2,12 @@ import type { User, WorkspaceMember } from '@braidhq/schema'
 import type { ViewerContext, ViewerResource } from './ViewerContext.js'
 
 /**
- * The sole place server-admin promotion happens. Every other layer,
- * including middleware, capability checks, and the Studio mirror,
+ * The sole place server-admin promotion happens.
+ * Every other layer, including middleware, capability checks, and the Studio mirror,
  * consumes the resulting `effectiveRole` and never re-derives it.
  *
  * Resolution runs in order:
+ *
  *   1. An admin serverRole yields an owner effectiveRole.
  *      The stored member.role, if any, stays on `member` for display,
  *      yet gates ignore it.

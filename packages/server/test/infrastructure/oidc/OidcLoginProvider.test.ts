@@ -28,8 +28,7 @@ describe('oidcLoginProvider end session', () => {
   })
 
   it('offers nothing when the issuer publishes no logout endpoint', async () => {
-    // Signing out then stays local,
-    // rather than sending the browser to an error page.
+    // Signing out then stays local, rather than sending the browser to an error page.
     const provider = providerWith({})
     expect(await provider.endSessionUrl({ returnTo: 'https://braid.example.com/' })).toBeUndefined()
   })

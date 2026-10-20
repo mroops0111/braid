@@ -51,8 +51,8 @@ describe('humaniseApiError', () => {
 
   it('stringifies plain object errors via Object.prototype.toString', () => {
     // fetch error shapes occasionally come through as plain { code, detail }
-    // objects (non-Error). We don't pretty-print these — at least the type
-    // tag is visible so users see "not just empty string".
+    // objects (non-Error).
+    // We don't pretty-print these — at least the type tag is visible so users see "not just empty string".
     expect(humaniseApiError({ code: 'X', detail: 'oops' })).toBe('[object Object]')
   })
 })

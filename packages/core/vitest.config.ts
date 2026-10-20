@@ -15,8 +15,8 @@ export default defineConfig({
         // Type-only contracts compile to nothing, v8 reports 0% with no meaning.
         'src/**/*Repository.ts',
         'src/domain/plugin/Plugin.ts',
-        // Orchestrators owned by the server layer, exercised end to end by
-        // @braidhq/server route and integration tests, not core unit tests.
+        // Orchestrators owned by the server layer,
+        // exercised end to end by @braidhq/server route and integration tests, not core unit tests.
         'src/application/HistoryService.ts',
         'src/application/ModelService.ts',
         'src/application/SourceLoaderRunner.ts',

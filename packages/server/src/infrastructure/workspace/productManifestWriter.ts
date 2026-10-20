@@ -18,12 +18,10 @@ const DEFAULT_STORAGE: StorageDescriptor = {
 }
 
 /**
- * Take a user-provided `ProductManifestCreate` and fill in the structure,
- * such as the storage block, so the result is a complete `ProductManifest`,
- * that Zod will accept.
- * `defaultOntologyId` comes from the composition, the sole registered
- * ontology in a single-ontology build, and only a build that registers
- * none at all falls back to the coding preset's `ddd`.
+ * Take a user-provided `ProductManifestCreate` and fill in the structure, such as the storage block,
+ * so the result is a complete `ProductManifest`, that Zod will accept.
+ * `defaultOntologyId` comes from the composition, the sole registered ontology in a single-ontology build,
+ * and only a build that registers none at all falls back to the coding preset's `ddd`.
  * Throws if the user's own input is inconsistent.
  */
 export function fillManifestDefaults(draft: ProductManifestCreate, defaultOntologyId?: OntologyId): ProductManifest {
@@ -40,10 +38,8 @@ export function fillManifestDefaults(draft: ProductManifestCreate, defaultOntolo
 }
 
 /**
- * Render a `ProductManifest` as YAML-frontmatter markdown,
- * then write it to `<workspaceRoot>/PRODUCT.md`.
- * A missing parent directory is created first,
- * and an existing PRODUCT.md is overwritten.
+ * Render a `ProductManifest` as YAML-frontmatter markdown, then write it to `<workspaceRoot>/PRODUCT.md`.
+ * A missing parent directory is created first, and an existing PRODUCT.md is overwritten.
  */
 export async function writeProductManifest(workspaceRoot: string, manifest: ProductManifest, bodyTitle?: string): Promise<string> {
   await mkdir(workspaceRoot, { recursive: true })
@@ -57,10 +53,8 @@ export async function writeProductManifest(workspaceRoot: string, manifest: Prod
 }
 
 /**
- * Replace the YAML frontmatter of an existing PRODUCT.md,
- * preserving the markdown body underneath.
- * Workspace mutation endpoints call this,
- * so user prose below the frontmatter survives an update.
+ * Replace the YAML frontmatter of an existing PRODUCT.md, preserving the markdown body underneath.
+ * Workspace mutation endpoints call this, so user prose below the frontmatter survives an update.
  * The file must exist, otherwise this throws.
  */
 export async function updateProductManifest(workspaceRoot: string, manifest: ProductManifest): Promise<string> {

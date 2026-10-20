@@ -19,8 +19,7 @@ interface SourceAuthBannerProps {
 /**
  * Top-of-app warning for any OAuth source that cannot sync,
  * so a broken or unlinked connection surfaces without opening settings.
- * Covers both a stale token and a source that was never connected,
- * since either way the user must connect it.
+ * Covers both a stale token and a source that was never connected, since either way the user must connect it.
  * Polls the summary, a token dies on a background refresh with no event.
  */
 export function SourceAuthBanner({ workspaceId, onOpenDetails }: SourceAuthBannerProps) {

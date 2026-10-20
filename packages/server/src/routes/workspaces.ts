@@ -28,8 +28,7 @@ import { requirePermission, requireServerCapability, workspaceAccessMiddleware }
 import { getWorkspaceId, workspaceIdMiddleware } from '../middleware/workspaceId.js'
 import { mcpReadTool } from './_shared.js'
 
-// Folder name resolved under the server-managed `workspacesRoot`,
-// default `~/.braid/workspaces/`.
+// Folder name resolved under the server-managed `workspacesRoot`, default `~/.braid/workspaces/`.
 // Slug-only so name == folder == workspace id.
 // Rejects `/`, `..` and other path-traversal cases.
 const WorkspaceFolderName = z.string().min(1).regex(
@@ -52,8 +51,8 @@ const PatchWorkspaceBodySchema = z.object({
   autoJoinAs: z.literal('guest').nullable().optional(),
 }).refine(body => Object.keys(body).length > 0, { message: 'PATCH body must contain at least one field' })
 
-// Per-item PATCH bodies. An empty string for `description` clears the field,
-// absent means leave as-is.
+// Per-item PATCH bodies.
+// An empty string for `description` clears the field, absent means leave as-is.
 const PatchSourceBodySchema = z.object({
   description: z.string().optional(),
   // `null` turns automatic refresh off, mirroring how `description: ''` clears.
@@ -70,8 +69,7 @@ export interface WorkspacesRouterDeps {
   // Sync goes through the service, so the pass is locked and recorded.
   // Provisioning stays on the runner, a scaffold has no prior state to guard.
   sourceSyncService: SourceSyncService
-  // Started and stopped in step with the workspace's polling flag,
-  // so the toggle takes effect without a restart.
+  // Started and stopped in step with the workspace's polling flag, so the toggle takes effect without a restart.
   sourcePollingService: SourcePollingService
   syncStateRepository: SourceSyncStateRepository
   workspacesRoot: AbsolutePath
@@ -87,20 +85,20 @@ export interface WorkspacesRouterDeps {
   defaultOntologyId?: OntologyId
   bootstrap?: WorkspaceBootstrapService
   /**
-   * Optional. When present, `GET /workspaces` filters to member ones,
-   * and newly registered workspaces stamp the caller as owner.
+   * Optional.
+   * When present, `GET /workspaces` filters to member ones, and newly registered workspaces stamp the caller as owner.
    * Absent in tests that don't exercise membership.
    */
   workspaceRegistry?: WorkspaceRegistryFile
   /**
-   * Optional. When present, server admins see every workspace,
-   * regardless of membership.
+   * Optional.
+   * When present, server admins see every workspace, regardless of membership.
    * Without this, only direct membership controls visibility.
    */
   userRegistry?: UserRegistryFile
   /**
-   * Optional. When present, manifest edits (sources, mcp servers,
-   * workspace fields) commit as their own `config` entry,
+   * Optional.
+   * When present, manifest edits (sources, mcp servers, workspace fields) commit as their own `config` entry,
    * instead of riding along on the next unrelated commit.
    * Absent in tests without git.
    */
@@ -133,8 +131,7 @@ const WorkspaceListResponse = z.object({
   items: z.array(WorkspaceSchema),
 }).openapi('WorkspaceListResponse')
 
-// Every other read tool is workspace-scoped,
-// so without this one an MCP client has no way to learn an id.
+// Every other read tool is workspace-scoped, so without this one an MCP client has no way to learn an id.
 // The projection drops `rootPath` and the manifest,
 // which name a path on the host and the credentials-shaped source config,
 // neither of which a caller needs in order to pick a workspace.
@@ -163,8 +160,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
   const serverCreate = requireServerCapability('server.write', deps.userRegistry)
 
   // Workspace-scope gate composed inline per :workspaceId route below.
-  // `workspaceIdMiddleware` resolves the path param onto the context,
-  // before `workspaceAccessMiddleware` reads it.
+  // `workspaceIdMiddleware` resolves the path param onto the context, before `workspaceAccessMiddleware` reads it.
   // Skipping without the registries keeps in-memory tests open.
   const wsAccess = (deps.workspaceRegistry && deps.userRegistry)
     ? workspaceAccessMiddleware({
@@ -180,8 +176,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
       return context.json({ items: all.map(workspace => workspace.toData()) }, 200)
     // Server admins see every workspace for support and oversight.
     // Other users get filtered to direct membership.
-    // Single-tenant local installs see everything,
-    // local-user is an admin owner seeded by the migration.
+    // Single-tenant local installs see everything, local-user is an admin owner seeded by the migration.
     const userId = getUserId(context)
     const me = await deps.userRegistry?.get(userId)
     if (me?.serverRole === 'admin')
@@ -201,13 +196,11 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
     return context.json(workspace.toData())
   })
 
-  // Create-only entrypoint. Existing workspaces are auto-discovered on boot,
-  // surfaced in the sidebar, so the wizard never doubles as "open".
-  // A conflict on submit is a 400 the UI can humanise,
-  // "pick a different name, or delete the existing one first".
+  // Create-only entrypoint.
+  // Existing workspaces are auto-discovered on boot, surfaced in the sidebar, so the wizard never doubles as "open".
+  // A conflict on submit is a 400 the UI can humanise, "pick a different name, or delete the existing one first".
   //
-  // Writes PRODUCT.md with server-filled defaults,
-  // runs every loader-backed source's `provision`, then registers.
+  // Writes PRODUCT.md with server-filled defaults, runs every loader-backed source's `provision`, then registers.
   // If provisioning fails, for example a bad git branch or scope,
   // we delete the PRODUCT.md just written and drop the parse cache,
   // so the retry sees a clean slate, not a stale half-created workspace.
@@ -224,10 +217,8 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
 
     const manifest = fillManifestDefaults(draft, deps.defaultOntologyId)
     // Each ontology declares which source roles it needs to function.
-    // Reject scaffolds that omit a role the ontology declares required,
-    // before any writes,
-    // so the wizard can name the missing role precisely,
-    // rather than reporting a post-scaffold validation error.
+    // Reject scaffolds that omit a role the ontology declares required, before any writes,
+    // so the wizard can name the missing role precisely, rather than reporting a post-scaffold validation error.
     const ontology = deps.pluginRegistry.findOntology(manifest.ontologyId)
     // An unregistered ontology only surfaces later, at the first batch,
     // so a build that registers any at all rejects the mismatch here.
@@ -254,8 +245,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
       const workspace = await deps.workspaceService.load(rootPath)
       const provisionOutcomes = await deps.sourceLoaderRunner.provisionAll(workspace)
       await deps.workspaceService.save(workspace)
-      // After save, since the sync-state store resolves a workspace's path,
-      // through the registration this call writes.
+      // After save, since the sync-state store resolves a workspace's path, through the registration this call writes.
       await deps.sourceSyncService.recordProvisioned(workspace, provisionOutcomes)
       await deps.bootstrap?.ensure(workspace)
       await ensureCallerOwner(deps.workspaceRegistry, workspace.rootPath, getUserId(context))
@@ -271,8 +261,8 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
     }
   })
 
-  // Add a source to an existing workspace. Rewrites PRODUCT.md,
-  // and runs `provision` if the source is loader-backed,
+  // Add a source to an existing workspace.
+  // Rewrites PRODUCT.md, and runs `provision` if the source is loader-backed,
   // so the local filesystem is populated before a skill runs on it.
   router.post('/:workspaceId/sources', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), zValidator('json', SourceDescriptorSchema), async (context) => {
     const workspaceId = getWorkspaceId(context)
@@ -294,11 +284,9 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
     return context.json({ workspace: updated.toData(), ...(provision ? { provision } : {}) }, 201)
   })
 
-  // Remove a source from the manifest,
-  // and rm its local files when the resolved path is inside the folder.
+  // Remove a source from the manifest, and rm its local files when the resolved path is inside the folder.
   // A relative path like `./intent` is safe to wipe, the loader made it.
-  // An absolute path outside the workspace keeps its files,
-  // returning a note instead.
+  // An absolute path outside the workspace keeps its files, returning a note instead.
   // We won't nuke a directory the user could plausibly own outside Braid.
   router.delete('/:workspaceId/sources/:sourceId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), async (context) => {
     const workspaceId = getWorkspaceId(context)
@@ -327,8 +315,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
   })
 
   // Edit a source's editable metadata, description for now.
-  // Structural fields (id, kind, path, role) are immutable,
-  // to keep cross-references and on-disk layout stable.
+  // Structural fields (id, kind, path, role) are immutable, to keep cross-references and on-disk layout stable.
   // A rename or loader-change flow would need its own migration story.
   router.patch('/:workspaceId/sources/:sourceId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), zValidator('json', PatchSourceBodySchema), async (context) => {
     const workspaceId = getWorkspaceId(context)
@@ -354,18 +341,15 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
     await updateProductManifest(workspace.rootPath, nextManifest)
     await commitConfigChange(deps, workspaceId, getUserId(context), `updated source ${existing.name}`, sourceId)
     const updated = await reload(deps.workspaceService, workspace.rootPath)
-    // The loop only runs for workspaces with something to warm,
-    // so setting the first schedule is what starts it.
+    // The loop only runs for workspaces with something to warm, so setting the first schedule is what starts it.
     if (patch.sync !== undefined && updated.isPollingEnabled())
       await deps.sourcePollingService.start(updated.id)
     return context.json({ workspace: updated.toData() })
   })
 
   // Edit an MCP server's editable metadata.
-  // URL, transport, and headers stay editable via the workspace PATCH,
-  // which expects the whole mcpServers[] array.
-  // This endpoint is only for the per-server description field,
-  // so Studio doesn't need to send the whole list.
+  // URL, transport, and headers stay editable via the workspace PATCH, which expects the whole mcpServers[] array.
+  // This endpoint is only for the per-server description field, so Studio doesn't need to send the whole list.
   router.patch('/:workspaceId/mcpServers/:mcpServerId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), zValidator('json', PatchMcpServerBodySchema), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const mcpServerId = McpServerId.parse(context.req.param('mcpServerId'))
@@ -388,8 +372,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
     return context.json({ workspace: updated.toData() })
   })
 
-  // Freshness and failure state per source,
-  // so Studio can show a stale or failing mirror without opening each source,
+  // Freshness and failure state per source, so Studio can show a stale or failing mirror without opening each source,
   // and monitoring can alert on one that has not succeeded in a while.
   // Read-only, so any member sees it, matching the source-connection route.
   router.get('/:workspaceId/source-sync-states', workspaceIdMiddleware, wsAccess, async (context) => {
@@ -397,8 +380,8 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
     return context.json({ states })
   })
 
-  // Per-source sync. Looks up the source's loader and invokes `sync`,
-  // or falls back to `provision` if the destination doesn't exist yet.
+  // Per-source sync.
+  // Looks up the source's loader and invokes `sync`, or falls back to `provision` if the destination doesn't exist yet.
   router.post('/:workspaceId/sources/:sourceId/sync', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const sourceId = SourceId.parse(context.req.param('sourceId'))
@@ -435,8 +418,7 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
     await commitConfigChange(deps, workspaceId, getUserId(context), renamed ? `renamed to ${patch.name}` : 'updated workspace config')
     const updated = await reload(deps.workspaceService, workspace.rootPath)
     // Match the running loop to what was just saved.
-    // A tick already re-reads the manifest,
-    // so turning it off would take effect anyway,
+    // A tick already re-reads the manifest, so turning it off would take effect anyway,
     // but turning it back on would otherwise wait for a restart.
     if (patch.polling !== undefined) {
       if (updated.isPollingEnabled())
@@ -450,8 +432,8 @@ export function createWorkspacesRouter(deps: WorkspacesRouterDeps): OpenAPIHono 
     })
   })
 
-  // `purge=true` rm -rf's the folder. Without it,
-  // discoverCanonicalWorkspaces re-registers on next boot.
+  // `purge=true` rm -rf's the folder.
+  // Without it, discoverCanonicalWorkspaces re-registers on next boot.
   router.delete('/:workspaceId', workspaceIdMiddleware, wsAccess, requirePermission('workspace.write'), async (context) => {
     const workspaceId = getWorkspaceId(context)
     const purge = context.req.query('purge') === 'true'

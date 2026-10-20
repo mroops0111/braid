@@ -40,10 +40,8 @@ export interface DefineOntologyInput {
   readonly edgeTypes: readonly EdgeTypeDescriptor[]
   /**
    * Extra validators bundled with this ontology,
-   * on top of the framework's OntologyTypeValidator and StructuralValidator,
-   * which are auto-attached.
-   * Use this for ontology-specific invariants the declarative nodeTypes,
-   * edgeTypes, and cardinality cannot express,
+   * on top of the framework's OntologyTypeValidator and StructuralValidator, which are auto-attached.
+   * Use this for ontology-specific invariants the declarative nodeTypes, edgeTypes, and cardinality cannot express,
    * such as an aggregate that needs at least one command.
    */
   readonly extraValidators?: readonly OntologyValidator[]
@@ -60,15 +58,13 @@ export interface DefineOntologyInput {
   readonly pluginId?: string
   /**
    * Optional batch and reactor binding.
-   * Declare which skill processes one unit, the checkpoint configuration,
-   * and the derive-units skill.
+   * Declare which skill processes one unit, the checkpoint configuration, and the derive-units skill.
    * Without it the workspace cannot start a batch under this ontology.
    */
   readonly batch?: OntologyBatchBinding
   /**
    * The source roles this ontology declares, with their capabilities.
-   * A `required` role missing from a manifest is rejected,
-   * so the wizard can prompt for it.
+   * A `required` role missing from a manifest is rejected, so the wizard can prompt for it.
    * `unitBearing` roles feed batch and the Reactor.
    */
   readonly sourceRoles?: readonly SourceRoleInput[]
@@ -82,17 +78,14 @@ export interface DefineOntologyInput {
 /**
  * Build a fully-validated OntologyPlugin from a declarative spec.
  *
- * Composes with another ontology via `extends`,
- * so node and edge types concatenate, and a duplicate is an error,
+ * Composes with another ontology via `extends`, so node and edge types concatenate, and a duplicate is an error,
  * so an extension cannot silently mask a base type.
  *
- * Auto-attaches the framework's two generic validation engines,
- * OntologyTypeValidator for the type allow-list,
+ * Auto-attaches the framework's two generic validation engines, OntologyTypeValidator for the type allow-list,
  * and StructuralValidator for topology and cardinality.
  * Plugin authors do not need to wire them.
  *
- * Validation is builder-time, not runtime,
- * so bad input throws before it reaches the PluginRegistry,
+ * Validation is builder-time, not runtime, so bad input throws before it reaches the PluginRegistry,
  * and the offending line in the plugin's own source is in the stack trace.
  */
 export function defineOntologyPlugin(input: DefineOntologyInput): OntologyPlugin {
@@ -124,12 +117,10 @@ export function defineOntologyPlugin(input: DefineOntologyInput): OntologyPlugin
   }
 
   // We assemble the plugin in two passes.
-  // Build the base shape first,
-  // so the type and structural validators have something to bind to,
+  // Build the base shape first, so the type and structural validators have something to bind to,
   // then attach the validators array referencing that same instance.
   // The freeze below makes later mutation impossible,
-  // but for an ontology that ships its own validators,
-  // binding them to the live instance is the standard pattern.
+  // but for an ontology that ships its own validators, binding them to the live instance is the standard pattern.
   const ontology: OntologyPlugin = {
     id: (input.pluginId ?? `ontology.${input.ontologyId}`) as PluginId,
     type: 'ontology' as const,
@@ -139,8 +130,7 @@ export function defineOntologyPlugin(input: DefineOntologyInput): OntologyPlugin
     edgeTypes,
     skills: input.skills ?? [],
     // The ontology id is the skill namespace,
-    // so its skills invoke as `/<ontologyId>:<verb>`,
-    // without the author repeating it per skill.
+    // so its skills invoke as `/<ontologyId>:<verb>`, without the author repeating it per skill.
     skillNamespace: input.ontologyId,
     ...(input.referenceDir ? { referenceDir: input.referenceDir } : {}),
     validators: [],

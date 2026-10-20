@@ -4,14 +4,11 @@ import type { Clarification, CoverageCard, Proposal } from '@braidhq/schema'
  * One waiting thing, whichever kind it is.
  *
  * The list is shared because a reviewer asks one question of it, what needs me.
- * The detail is not, because answering and reviewing are different acts,
- * and one shape for both would serve neither.
+ * The detail is not, because answering and reviewing are different acts, and one shape for both would serve neither.
  *
- * A parked run is one item however many questions it holds,
- * because one run is one interrupt,
+ * A parked run is one item however many questions it holds, because one run is one interrupt,
  * and answering the last of them carries that one run on.
- * A standing question stands alone,
- * because nothing groups it and nothing waits.
+ * A standing question stands alone, because nothing groups it and nothing waits.
  */
 export type Item =
   | { readonly kind: 'running', readonly id: string, readonly card: CoverageCard }

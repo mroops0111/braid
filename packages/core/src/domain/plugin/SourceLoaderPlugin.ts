@@ -3,8 +3,7 @@ import type { Plugin } from './Plugin.js'
 
 /**
  * Per-call context passed to a loader.
- * Lets loaders look up per-source state, e.g. OAuth tokens or sync cursors,
- * keyed by `(workspaceId, sourceId)`,
+ * Lets loaders look up per-source state, e.g. OAuth tokens or sync cursors, keyed by `(workspaceId, sourceId)`,
  * without those values leaking into the descriptor's `config`.
  * Loaders that don't need it can ignore it.
  */
@@ -17,9 +16,8 @@ export interface ProvisionReport {
   /** Local path where the source content now lives (under destination). */
   readonly localPath: AbsolutePath
   /**
-   * Opaque marker for the upstream state this pass landed on,
-   * e.g. a commit sha. The framework only stores and displays it,
-   * never parses it, so a loader with no such concept leaves it unset.
+   * Opaque marker for the upstream state this pass landed on, e.g. a commit sha.
+   * The framework only stores and displays it, never parses it, so a loader with no such concept leaves it unset.
    * Distinct from `metadata`, which stays loader-specific and unread.
    */
   readonly revision?: string
@@ -33,8 +31,8 @@ export interface SyncReport {
   /** Whether the local content actually changed. */
   readonly changed: boolean
   /**
-   * Per-file counts. Optional because some loaders can't compute them cheaply,
-   * e.g. a future S3 loader that only checks an ETag.
+   * Per-file counts.
+   * Optional because some loaders can't compute them cheaply, e.g. a future S3 loader that only checks an ETag.
    * When present, the UI shows a `+a ~u -r` style summary across loaders.
    * `changed` MUST equal `added + updated + removed > 0` when any are set.
    */
@@ -52,8 +50,7 @@ export interface SyncReport {
 /**
  * Provisioner plugin for a `FilesystemSourceDescriptor`.
  * The loader fills `destination` with content drawn from somewhere external,
- * e.g. a git remote, Google Drive folder, or S3 prefix,
- * so claude can later read the files via `--add-dir`.
+ * e.g. a git remote, Google Drive folder, or S3 prefix, so claude can later read the files via `--add-dir`.
  *
  * `provision` runs once at workspace scaffold / source-add time.
  * `sync` is triggered by the user, or by a future scheduler, to refresh.
@@ -85,8 +82,7 @@ export interface SourceLoaderPlugin extends Plugin {
    * the same discipline `ProvisionReport.revision` already follows.
    *
    * Return null when this location has no addressable form,
-   * and omit the method entirely when the host has no web presence at all,
-   * as a plain local directory does.
+   * and omit the method entirely when the host has no web presence at all, as a plain local directory does.
    */
   webUrlFor?: (input: SourceWebUrlInput) => Promise<string | null> | string | null
 
@@ -108,16 +104,13 @@ export interface SourceWebUrlInput {
   readonly location: SourceLocation
   /**
    * Where the mirror lives locally.
-   * A loader whose upstream address is not derivable from config,
-   * reads its own state from here,
+   * A loader whose upstream address is not derivable from config, reads its own state from here,
    * as a Drive mirror does when it needs the file id behind a folder name.
    */
   readonly destination: AbsolutePath
   /**
-   * The upstream state the local mirror currently sits on,
-   * when the loader reported one.
-   * A permalink needs it, and a link built without it drifts,
-   * the moment the branch moves.
+   * The upstream state the local mirror currently sits on, when the loader reported one.
+   * A permalink needs it, and a link built without it drifts, the moment the branch moves.
    */
   readonly revision?: string
 }
@@ -139,8 +132,7 @@ export interface SourceUpstream {
 
 /**
  * A delivery the receiver has already authenticated and matched to a source.
- * `payload` is still the platform's own shape,
- * so a loader reading it is coupled to that platform.
+ * `payload` is still the platform's own shape, so a loader reading it is coupled to that platform.
  * Normalising it is tracked separately.
  */
 export interface WebhookDelivery {
@@ -152,18 +144,16 @@ export interface WebhookDelivery {
 
 export interface WebhookCapability {
   /**
-   * Where this source's content lives, parsed from its own config,
-   * and nothing else. Return `undefined` when the config names no remote.
+   * Where this source's content lives, parsed from its own config, and nothing else.
+   * Return `undefined` when the config names no remote.
    * The receiver matches a delivery against this, and rejects a mismatch.
    */
   readonly upstream: (config: unknown) => SourceUpstream | undefined
   /**
    * Decide whether a verified delivery should actually fire `syncOne`.
    * Default `() => true` lets every verified delivery through.
-   * Loaders narrow this to avoid wasted fetches,
-   * e.g. a `push` to a ref the loader does not track.
-   * Returning `false` keeps the receiver's 202 response,
-   * so GitHub does not back off retries.
+   * Loaders narrow this to avoid wasted fetches, e.g. a `push` to a ref the loader does not track.
+   * Returning `false` keeps the receiver's 202 response, so GitHub does not back off retries.
    */
   readonly shouldDispatch?: (config: unknown, delivery: WebhookDelivery) => boolean
 }

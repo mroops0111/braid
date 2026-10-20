@@ -1,9 +1,8 @@
 /**
- * The two things Braid needs from an authorization server's published
- * metadata, per RFC 8414.
+ * The two things Braid needs from an authorization server's published metadata, per RFC 8414.
  *
- * Discovered rather than configured, so an operator names the issuer once and
- * a key rotation or an endpoint move needs no redeployment.
+ * Discovered rather than configured,
+ * so an operator names the issuer once and a key rotation or an endpoint move needs no redeployment.
  */
 export interface OidcMetadata {
   readonly issuer: string
@@ -44,8 +43,8 @@ export async function discoverOidcMetadata(
   for (const url of candidates) {
     try {
       const metadata = await readMetadata(url, fetchImpl)
-      // The issuer in the document is authoritative, and must be the one that
-      // was asked for. A mismatch means the document describes someone else.
+      // The issuer in the document is authoritative, and must be the one that was asked for.
+      // A mismatch means the document describes someone else.
       if (metadata.issuer !== base && metadata.issuer !== `${base}/`)
         throw new Error(`issuer is "${metadata.issuer}", expected "${base}"`)
       return metadata
@@ -67,8 +66,7 @@ async function readMetadata(url: string, fetchImpl: typeof globalThis.fetch): Pr
   return {
     issuer: body.issuer.replace(/\/$/, ''),
     jwksUri: body.jwks_uri,
-    // Optional,
-    // because a server that only validates tokens publishes neither,
+    // Optional, because a server that only validates tokens publishes neither,
     // and Braid still trusts it for the programmatic door.
     ...(typeof body.authorization_endpoint === 'string' ? { authorizationEndpoint: body.authorization_endpoint } : {}),
     ...(typeof body.token_endpoint === 'string' ? { tokenEndpoint: body.token_endpoint } : {}),

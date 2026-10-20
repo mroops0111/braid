@@ -69,8 +69,7 @@ export function useMcpEndpoint() {
   return useQuery({
     queryKey: queryKeys.mcpEndpoint(),
     queryFn: () => api.mcpEndpoint(),
-    // The gateway is supervised and restarts,
-    // so a stale `unreachable` would outlive the gap it described.
+    // The gateway is supervised and restarts, so a stale `unreachable` would outlive the gap it described.
     refetchInterval: 30_000,
   })
 }
@@ -137,10 +136,8 @@ export function useModelSnapshot(workspaceId: string | undefined) {
 /**
  * Ranked node results for a query.
  *
- * Disabled below two characters,
- * since a single character ranks the whole graph and costs a model call to do it.
- * Results are kept briefly,
- * so moving back through a term the reader already typed does not re-query.
+ * Disabled below two characters, since a single character ranks the whole graph and costs a model call to do it.
+ * Results are kept briefly, so moving back through a term the reader already typed does not re-query.
  */
 export function useEmbeddingCoverage(workspaceId: string | undefined) {
   return useQuery({
@@ -190,8 +187,9 @@ export function useOntology(workspaceId: string | undefined) {
     queryKey: workspaceId ? queryKeys.ontology(workspaceId) : ['ontology', 'none'],
     queryFn: () => api.getOntology(workspaceId!),
     enabled: !!workspaceId,
-    // The ontology is plugin-bound. It only changes if the workspace switches `ontologyId` in PRODUCT.md,
-    // which is rare, so avoid refetching on every focus.
+    // The ontology is plugin-bound.
+    // It only changes if the workspace switches `ontologyId` in PRODUCT.md, which is rare,
+    // so avoid refetching on every focus.
     staleTime: 60_000,
   })
 }
@@ -295,8 +293,8 @@ export function useBatchStatus(workspaceId: string | undefined) {
 /**
  * Every piece of work the workspace has set going, newest first.
  *
- * `useWorkspaceEvents` invalidates this on the same events the batch and
- * reactor views watch, so a running job advances without its own polling.
+ * `useWorkspaceEvents` invalidates this on the same events the batch and reactor views watch,
+ * so a running job advances without its own polling.
  */
 export function useCoverage(workspaceId: string | null | undefined) {
   return useQuery({

@@ -11,8 +11,7 @@ import { loadWorkspaceById } from './helpers.js'
 
 /**
  * These operations carry no `mcpReadTool` marker on purpose.
- * The per-run gateway serves every operation in the spec,
- * so a skill reaches them anyway,
+ * The per-run gateway serves every operation in the spec, so a skill reaches them anyway,
  * while the long-lived endpoint runs `annotated_only`,
  * and so keeps them out of a person's own MCP client where they mean nothing.
  */
@@ -26,8 +25,7 @@ export interface BlocksRouterDeps {
    * The shape a plugin declared for one of its own block kinds.
    *
    * Nothing back means no plugin claims the kind, and the block is refused.
-   * Braid validates what it will never draw,
-   * so a stored document cannot carry a shape its own surface would reject.
+   * Braid validates what it will never draw, so a stored document cannot carry a shape its own surface would reject.
    */
   readonly blockKindSchema?: (kind: BlockKind) => z.ZodTypeAny | undefined
 }
@@ -35,18 +33,14 @@ export interface BlocksRouterDeps {
 /**
  * What the call produced, and nothing the caller already knows.
  *
- * The status line says it succeeded,
- * so a body repeating that carries no information while still costing tokens.
- * Every render call is a tool call whose result re-enters the agent's context,
- * and an answer runs to twenty of them.
- * What the caller cannot know is what the server decided,
- * so that is what comes back.
+ * The status line says it succeeded, so a body repeating that carries no information while still costing tokens.
+ * Every render call is a tool call whose result re-enters the agent's context, and an answer runs to twenty of them.
+ * What the caller cannot know is what the server decided, so that is what comes back.
  */
 const RecordedResponse = z.object({
   blockId: BlockId,
   /**
-   * How well the sides of a finding are sourced,
-   * derived here from their references,
+   * How well the sides of a finding are sourced, derived here from their references,
    * because a skill asserting its own confidence would be marking its own work.
    * Only `showFinding` produces one.
    */
@@ -212,14 +206,11 @@ export function createBlocksRouter(deps: BlocksRouterDeps): OpenAPIHono {
 
   /**
    * A ref saying it came from the graph is a claim the graph can settle,
-   * and a citation to a node nobody holds is worse than none,
-   * because it reads as corroboration.
-   * Refused here so the run is told while it can still fix it,
-   * rather than a reader finding it later.
+   * and a citation to a node nobody holds is worse than none, because it reads as corroboration.
+   * Refused here so the run is told while it can still fix it, rather than a reader finding it later.
    *
    * Only the ids a block names are resolved, never the whole model.
-   * Every render call would otherwise load the graph,
-   * and an answer is a dozen calls.
+   * Every render call would otherwise load the graph, and an answer is a dozen calls.
    */
   async function checkCitations(
     workspaceId: WorkspaceId,
@@ -252,10 +243,8 @@ export function createBlocksRouter(deps: BlocksRouterDeps): OpenAPIHono {
   /**
    * The run this call belongs to, taken from the credential it arrived with.
    *
-   * A run is identified by what it carries,
-   * the same way a proposal's author is.
-   * Naming one in the path let a run draw into another,
-   * and gave the model a parameter to get wrong on every call.
+   * A run is identified by what it carries, the same way a proposal's author is.
+   * Naming one in the path let a run draw into another, and gave the model a parameter to get wrong on every call.
    */
   function requireRun(context: Context): SkillRunIdType {
     const runId = getSkillRunId(context)
@@ -291,8 +280,7 @@ export function createBlocksRouter(deps: BlocksRouterDeps): OpenAPIHono {
     const runId = requireRun(context)
     const custom = context.req.valid('json')
     const schema = deps.blockKindSchema?.(custom.kind)
-    // Refused rather than stored,
-    // because a block nobody claims is one no surface can draw,
+    // Refused rather than stored, because a block nobody claims is one no surface can draw,
     // and a document holding it is broken from the day it is written.
     if (schema === undefined)
       throw new ValidationError(`No plugin declares the block kind "${custom.kind}"`)

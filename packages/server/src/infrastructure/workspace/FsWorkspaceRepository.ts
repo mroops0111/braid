@@ -18,11 +18,9 @@ export class FsWorkspaceRepository implements WorkspaceRepository {
 
   constructor(private readonly deps: FsWorkspaceRepositoryDeps) {}
 
-  // One unreadable rootPath, a deleted dir or a broken PRODUCT.md,
-  // must not starve the rest.
+  // One unreadable rootPath, a deleted dir or a broken PRODUCT.md, must not starve the rest.
   // The asymmetry with `load()` is deliberate.
-  // Aggregate views recover,
-  // whereas a single-entity lookup must tell present apart from absent.
+  // Aggregate views recover, whereas a single-entity lookup must tell present apart from absent.
   async list(): Promise<Workspace[]> {
     const rootPaths = await this.deps.registry.list()
     const workspaces: Workspace[] = []

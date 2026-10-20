@@ -18,11 +18,9 @@ import { ListRow } from './ListRow'
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
 import { WorkspaceSwatch, WorkspaceSwatchWithPending } from './WorkspaceSwatch'
 
-// Server-stripe palette mirrors the workspace swatch palette,
-// but with a stronger left-edge bar tone,
+// Server-stripe palette mirrors the workspace swatch palette, but with a stronger left-edge bar tone,
 // so it reads as identity even at 2-3px.
-// Local always uses the muted token,
-// so the embedded sidecar never competes with named remotes for attention.
+// Local always uses the muted token, so the embedded sidecar never competes with named remotes for attention.
 const REMOTE_STRIPE_PALETTE = [
   'bg-sky-500',
   'bg-emerald-500',
@@ -417,8 +415,7 @@ function WorkspaceRow({
   onOpenDetails: () => void
 }) {
   const { t } = useTranslation()
-  // Inactive remotes get a dimmer stripe,
-  // so the active server still reads first,
+  // Inactive remotes get a dimmer stripe, so the active server still reads first,
   // while server identity stays visible across all rows.
   return (
     <ListRow
@@ -631,8 +628,7 @@ interface InFlight {
  * The local store knows the instant this reader presses a button,
  * and the server's list knows about runs somebody else started.
  * A count of what is waiting cannot stand in for this.
- * Work in flight has no length,
- * and a reader who sees nothing reads the wait as a surface that ignored them.
+ * Work in flight has no length, and a reader who sees nothing reads the wait as a surface that ignored them.
  */
 function useRunsInFlight(
   workspaceId: string,
@@ -650,10 +646,8 @@ function useRunsInFlight(
   const categoryOf = (skillId: string): string | undefined => categories.get(skillId)
   const asking = [...running].some(skillId => categoryOf(skillId) === 'ask')
   const writing = [...running].some(skillId => categoryOf(skillId) === 'generate')
-  // A build run lands somewhere to be decided,
-  // so the Inbox is where its reader waits, before it has produced a card.
-  // A question and a document both land on a surface of their own,
-  // so neither waits here.
+  // A build run lands somewhere to be decided, so the Inbox is where its reader waits, before it has produced a card.
+  // A question and a document both land on a surface of their own, so neither waits here.
   const working = [...running].some(skillId =>
     categoryOf(skillId) !== 'ask' && categoryOf(skillId) !== 'generate')
   return { asking, working, writing }
@@ -670,8 +664,7 @@ function HereRow({ collapsed, icon: Icon, label, active, count = 0, running = fa
    *
    * Not a count.
    * A queue has a length and work in flight does not,
-   * and a reader who has just started something needs to see it is under way,
-   * from wherever they wander off to,
+   * and a reader who has just started something needs to see it is under way, from wherever they wander off to,
    * not only once it has produced something to decide.
    */
   running?: boolean

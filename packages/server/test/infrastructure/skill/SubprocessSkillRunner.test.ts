@@ -169,8 +169,7 @@ describe('SubprocessSkillRunner', () => {
     expect(invocations[0]?.command).toBe('claude')
   })
 
-  // The graph only accumulates, so two builds against it race,
-  // each reading a snapshot the other is changing.
+  // The graph only accumulates, so two builds against it race, each reading a snapshot the other is changing.
   // Refused at the runner because every path that starts a run comes through.
   it('refuses a second build run while one is already going', async () => {
     const rootPath = await makeWorkspaceRoot()
@@ -399,8 +398,7 @@ describe('SubprocessSkillRunner', () => {
 
     const { events } = await collectRunEvents(runner, workspace, '')
 
-    // The result envelope restates the assistant's text,
-    // so it emits no second message.
+    // The result envelope restates the assistant's text, so it emits no second message.
     // Only the assistant's own text reaches a reader.
     expect(events.map(event => event.type)).toEqual(['started', 'thinking', 'message', 'tool-call', 'completed'])
     const thinking = events[1]
@@ -437,8 +435,8 @@ describe('SubprocessSkillRunner', () => {
       expect(spec).toContain('/prose/')
     })
 
-    // The spec holds no render operation, so this is unreachable through the
-    // gateway. It is refused here for anything arriving by another route.
+    // The spec holds no render operation, so this is unreachable through the gateway.
+    // It is refused here for anything arriving by another route.
     it('refuses to render on a run that produces no blocks', async () => {
       const rootPath = await makeWorkspaceRoot()
       const { runner, workspace } = await buildRunner({ rootPath, forms: ['blocks', 'prose'] })
@@ -464,8 +462,7 @@ describe('SubprocessSkillRunner', () => {
       expect(record?.outputForm).toBe('blocks')
     })
 
-    // The skill's declaration reaches the gateway,
-    // since the spec is what makes a call absent rather than discouraged.
+    // The skill's declaration reaches the gateway, since the spec is what makes a call absent rather than discouraged.
     it('points the gateway at the calls its skill declared', async () => {
       const rootPath = await makeWorkspaceRoot()
       const { runner, workspace, invocations } = await buildRunner({
@@ -500,8 +497,7 @@ describe('SubprocessSkillRunner', () => {
 
     // Told rather than left to be inferred.
     // A prompt left to notice the render tools were gone goes looking,
-    // and where tools are searched rather than listed,
-    // that search spends several calls to reach what this states.
+    // and where tools are searched rather than listed, that search spends several calls to reach what this states.
     it('tells the run which form it was settled on', async () => {
       const rootPath = await makeWorkspaceRoot()
       const { runner, workspace, invocations } = await buildRunner({ rootPath, forms: ['blocks', 'prose'] })
@@ -532,8 +528,7 @@ describe('SubprocessSkillRunner', () => {
       expect(record?.outputForm).toBe('prose')
     })
 
-    // Blocks that are the artefact rather than a rendering are still owed,
-    // even when the run has no reader at all.
+    // Blocks that are the artefact rather than a rendering are still owed, even when the run has no reader at all.
     it('still renders with nobody watching when blocks are all the skill offers', async () => {
       const rootPath = await makeWorkspaceRoot()
       const { runner, workspace, runRepository } = await buildRunner({ rootPath })

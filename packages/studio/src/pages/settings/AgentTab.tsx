@@ -11,8 +11,7 @@ import { queryKeys, useAgentCredential, useAgents } from '@/lib/queries'
 // Both full stops, since a catalog may be written in either script.
 const SENTENCE_END = /(?<=[.。])\s*/
 
-// Three tones rather than a badge per source,
-// since a reader acts on whether their runs are their own or refused.
+// Three tones rather than a badge per source, since a reader acts on whether their runs are their own or refused.
 const SOURCE_TONE = {
   own: 'text-emerald-400',
   server: 'text-amber-400',
@@ -55,8 +54,7 @@ export function AgentTab() {
 /**
  * One agent's credential, saved and forgotten on its own.
  *
- * A skill names the agent it wants in its frontmatter,
- * so a person may be running two and owe a credential to each.
+ * A skill names the agent it wants in its frontmatter, so a person may be running two and owe a credential to each.
  */
 function AgentCredentialFields({ agent }: { agent: AgentSummary }) {
   const { t } = useTranslation()
@@ -135,8 +133,7 @@ function AgentCredentialFields({ agent }: { agent: AgentSummary }) {
           type="password"
           value={draft}
           onChange={event => setDraft(event.target.value)}
-          // The command belongs to the agent, not to this page,
-          // so an agent that declares none is asked for plainly.
+          // The command belongs to the agent, not to this page, so an agent that declares none is asked for plainly.
           placeholder={agent.credentialCommand
             ? t('admin.agent.placeholderCommand', { command: agent.credentialCommand })
             : t('admin.agent.placeholder')}
@@ -162,8 +159,7 @@ function AgentCredentialFields({ agent }: { agent: AgentSummary }) {
  *
  * A browser breaks wherever the box runs out,
  * which lands mid clause and reads as though the sentence changed direction.
- * Each sentence is its own block instead,
- * so a break falls at a full stop wherever one still has to happen.
+ * Each sentence is its own block instead, so a break falls at a full stop wherever one still has to happen.
  */
 function Sentences({ text, className }: { text: string, className: string }) {
   return (
@@ -178,8 +174,7 @@ function Sentences({ text, className }: { text: string, className: string }) {
 /**
  * Which account the reader's runs currently spend.
  *
- * Shown even where they have saved nothing,
- * because a shared seat is easy to sit on without noticing.
+ * Shown even where they have saved nothing, because a shared seat is easy to sit on without noticing.
  */
 function SourceLine({ status }: { status: AgentCredentialStatus }) {
   const { t } = useTranslation()

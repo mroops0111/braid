@@ -1,15 +1,12 @@
 /**
  * Single-producer, single-consumer async queue backing an `AsyncIterable`.
- * Bridges node `EventEmitter`-style callbacks,
- * which fire whenever subprocess stdout, stderr, or close events arrive,
+ * Bridges node `EventEmitter`-style callbacks, which fire whenever subprocess stdout, stderr, or close events arrive,
  * into `for await of` consumers (Hono's SSE writer, vitest assertions),
  * without buffering every event until the producer is done.
  *
  * `push(item)` enqueues an item and wakes a pending consumer.
- * `end()` signals that no more items are coming,
- * the iterator finishes once it has drained the queue.
- * `iterate()` returns a single-use async generator,
- * calling it more than once is undefined.
+ * `end()` signals that no more items are coming, the iterator finishes once it has drained the queue.
+ * `iterate()` returns a single-use async generator, calling it more than once is undefined.
  */
 export interface AsyncQueue<T> {
   push: (item: T) => void

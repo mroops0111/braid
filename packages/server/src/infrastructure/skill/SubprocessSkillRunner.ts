@@ -27,8 +27,7 @@ import { attachOutputBuffers, type LineParser } from './subprocessEventStream.js
 export type SpawnFn = (command: string, args: readonly string[], options: SpawnOptions) => ChildProcess
 
 /**
- * Reference docs a skill Reads but never invokes,
- * such as core's shared formats or an ontology's concept doc.
+ * Reference docs a skill Reads but never invokes, such as core's shared formats or an ontology's concept doc.
  * Each mounts inside its own namespace's bundle, keyed by that namespace alone,
  * so a mount can never be named out of step with its skills.
  */
@@ -57,8 +56,7 @@ export interface SubprocessSkillRunnerDeps {
   /**
    * Lends a run the credential its author resolved to.
    *
-   * Absent on a deployment that models no users,
-   * where the agent's own configuration is the only credential there is.
+   * Absent on a deployment that models no users, where the agent's own configuration is the only credential there is.
    */
   readonly agentCredentials?: AgentCredentialBroker
   // Enables the built-in `braid-core` MCP gateway.
@@ -69,25 +67,21 @@ export interface SubprocessSkillRunnerDeps {
   // and exposes the REST surface as MCP tools such as `braid_search_nodes`.
   //
   // `specUrlFor` names the spec for one run,
-  // so a run's tools are only the operations that run may call,
-  // narrowed by its kind and by the form its output takes.
-  // Narrowing the spec is what narrows the tools,
-  // since an operation absent from it never reaches the model at all,
+  // so a run's tools are only the operations that run may call, narrowed by its kind and by the form its output takes.
+  // Narrowing the spec is what narrows the tools, since an operation absent from it never reaches the model at all,
   // and costs neither a place in the tool list nor the tokens to describe.
   // `uvxBin` defaults to `'uvx'`, resolved against PATH.
   // The composeFsApp step preflight-checks for its presence at boot.
   //
   // Leave undefined to skip the entry entirely.
-  // A skill needing `braid-core` then surfaces as not-ready,
-  // via SkillManifest.readinessIssuesFor.
+  // A skill needing `braid-core` then surfaces as not-ready, via SkillManifest.readinessIssuesFor.
   readonly coreGateway?: {
     readonly specUrlFor: (category: SkillCategory, form: OutputForm, calls: readonly RenderCallName[]) => string
     readonly uvxBin?: string
   }
   /**
    * Mints the credential a run calls back with.
-   * Wired, a run's identity rides its bearer token,
-   * and nothing has to be told which run is calling.
+   * Wired, a run's identity rides its bearer token, and nothing has to be told which run is calling.
    * Absent, the run carries its caller's own token as before.
    */
   readonly runTokens?: RunTokenRegistry
@@ -106,10 +100,8 @@ export interface SubprocessSkillRunnerDeps {
   // Composition wires this from the PluginRegistry, keeping the runner ontology-agnostic.
   readonly resolveSourceRoles?: (workspace: Workspace) => readonly SourceRoleDescriptor[]
   /**
-   * The workspace ontology's declared audiences,
-   * serialised for the prompt and used to check the output contract.
-   * Absent means a product whose readers do not split,
-   * and then nothing about audiences is required or injected.
+   * The workspace ontology's declared audiences, serialised for the prompt and used to check the output contract.
+   * Absent means a product whose readers do not split, and then nothing about audiences is required or injected.
    */
   readonly resolveAudiences?: (workspace: Workspace) => readonly AudienceDescriptor[]
 }
@@ -123,15 +115,13 @@ interface ActiveRun {
    * The form this run produces, settled when it started.
    *
    * Held beside the process rather than read back off the record,
-   * because it is consulted once per render call
-   * and the answer cannot change while the run is alive.
+   * because it is consulted once per render call and the answer cannot change while the run is alive.
    */
   readonly outputForm: OutputForm
   /**
    * The run's own event queue.
    * A render call arrives out of band over HTTP while the subprocess writes,
-   * so it joins here rather than at `emit`,
-   * keeping one consumer and therefore one order.
+   * so it joins here rather than at `emit`, keeping one consumer and therefore one order.
    */
   readonly queue: AsyncQueue<SkillEvent>
 }
@@ -161,8 +151,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     // The graph only accumulates, so two builds running against it race,
     // each reading a snapshot the other is still changing,
     // and whichever applies second proposes against a graph that has moved.
-    // Refused here rather than in a caller,
-    // because every path that starts a run comes through this one,
+    // Refused here rather than in a caller, because every path that starts a run comes through this one,
     // and a guard anywhere else can be walked around.
     if (category === 'build' && this.hasActiveRun(workspace.id, 'build')) {
       throw new ConflictError(
@@ -181,15 +170,13 @@ export class SubprocessSkillRunner implements SkillRunner {
     // Writing to the graph is a claim a skill has to make for itself.
     const toolSurface = category ?? 'ask'
     // Nothing outside a skill's own list can be reached by asking,
-    // so a request it never offered renders as usual,
-    // rather than making a run with no way to say anything.
+    // so a request it never offered renders as usual, rather than making a run with no way to say anything.
     const outputForm = settleOutputForm({
       declaredForms: manifest.frontmatter.braid.output?.forms,
       requestedForm: options.outputForm,
       unattended,
     })
-    // Settled here rather than in the spec route,
-    // so the record and the gateway agree on what this run was offered.
+    // Settled here rather than in the spec route, so the record and the gateway agree on what this run was offered.
     const renderCalls = settleRenderCalls({
       category: toolSurface,
       form: outputForm,
@@ -228,8 +215,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     // A caller holding the exchange supplies it.
     // Otherwise this turn is the whole conversation,
     // which is every run that did not come from a client keeping its history.
-    // A continued run is a new run inside an old conversation,
-    // and the conversation still holds the closed run's id.
+    // A continued run is a new run inside an old conversation, and the conversation still holds the closed run's id.
     // Correcting it here is what keeps its render calls landing somewhere.
     const prompt = options.continues ? `${args}\n\n${restateRunId(runId)}` : args
     const messages = options.messages
@@ -248,8 +234,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     })
 
     // Resolved before the process exists,
-    // so a run with nothing to spend is refused here,
-    // rather than reaching an upstream rejection nobody can act on.
+    // so a run with nothing to spend is refused here, rather than reaching an upstream rejection nobody can act on.
     const lease = this.deps.agentCredentials
       ? await this.deps.agentCredentials.lease(runId, options.startedBy, binding.descriptor.kind)
       : { source: 'server' as const, env: {} }
@@ -276,29 +261,24 @@ export class SubprocessSkillRunner implements SkillRunner {
         // A generic prompt reads this instead of naming role ids.
         ...this.sourceRolesEnv(workspace),
         // The readers this ontology splits for,
-        // so a builtin prompt reads the vocabulary,
-        // rather than naming any product's own facets.
+        // so a builtin prompt reads the vocabulary, rather than naming any product's own facets.
         ...this.audiencesEnv(workspace),
-        // Absolute paths to the reference docs a prompt may Read,
-        // so no SKILL.md carries a location of its own.
+        // Absolute paths to the reference docs a prompt may Read, so no SKILL.md carries a location of its own.
         ...this.referenceEnv(workspace, skillId, sessionDir),
         // The form this run was settled on, told rather than left to be inferred.
         // The spec is what enforces it, since the operations are genuinely absent.
         // A prompt left to notice their absence goes looking for them,
-        // and where tools are searched rather than listed,
-        // that search spends several calls to reach what this states.
+        // and where tools are searched rather than listed, that search spends several calls to reach what this states.
         BRAID_OUTPUT_FORM: outputForm,
         // Read by a prompt deciding whether to stop and ask.
         // A run nobody is watching files its question and carries on,
         // since holding its work back waits on an answer that is not coming.
         ...(unattended ? { BRAID_UNATTENDED: 'true' } : {}),
-        // BRAID_TOKEN is read by the braid-core MCP gateway,
-        // and by any shell-level callback (curl in a SKILL.md),
+        // BRAID_TOKEN is read by the braid-core MCP gateway, and by any shell-level callback (curl in a SKILL.md),
         // so the subprocess can authenticate against the running server.
         ...(runToken ? { BRAID_TOKEN: runToken } : {}),
         // After the agent's own environment, so a run's credential wins.
-        // A configured key would otherwise take precedence,
-        // and the broker would go unused.
+        // A configured key would otherwise take precedence, and the broker would go unused.
         ...lease.env,
         ...(options.extraEnv ?? {}),
       },
@@ -307,8 +287,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     const queue = createAsyncQueue<SkillEvent>()
     this.running.set(runId, { workspace, category, child, outputForm, queue })
 
-    // Persist the started record up front,
-    // so listing endpoints see the run immediately, before any output.
+    // Persist the started record up front, so listing endpoints see the run immediately, before any output.
     const startedAt = this.now()
     const initialRecord: RunRecord = {
       runId,
@@ -325,8 +304,7 @@ export class SubprocessSkillRunner implements SkillRunner {
       // The form settled above rather than the one asked for,
       // so a record never claims a run held back tools it was in fact offered.
       outputForm,
-      // Recorded rather than kept in memory,
-      // because what this run's questions mean outlives the process.
+      // Recorded rather than kept in memory, because what this run's questions mean outlives the process.
       ...(unattended ? { unattended: true } : {}),
       ...(options.resumeSessionId ? { sessionId: options.resumeSessionId } : {}),
     }
@@ -341,15 +319,13 @@ export class SubprocessSkillRunner implements SkillRunner {
       at: startedAt,
     })
 
-    // Fire-and-forget the drain,
-    // so the HTTP request that called start() can return immediately.
+    // Fire-and-forget the drain, so the HTTP request that called start() can return immediately.
     void this.drain({
       workspace,
       runId,
       child,
       queue,
-      // A retry inherits the remaining budget,
-      // so one correction cannot become a loop spending a subscription.
+      // A retry inherits the remaining budget, so one correction cannot become a loop spending a subscription.
       retriesLeft: options.retriesLeft ?? manifest.frontmatter.braid.output?.maxRetries ?? 0,
       parseLine: binding.parseLine,
       skillId,
@@ -401,8 +377,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     // The spec a non-rendering run reads holds no render operation,
     // so this is unreachable through the gateway and is refused here
     // for anything that arrives with the run's token by another route.
-    // Without it, "this run has no blocks" would be a convention,
-    // and a surface cannot fall back on a convention.
+    // Without it, "this run has no blocks" would be a convention, and a surface cannot fall back on a convention.
     if (!rendersBlocks(active.outputForm)) {
       throw new ConflictError(
         `SkillRun "${validated}" produces ${active.outputForm}, so it renders no blocks. Write the answer out instead.`,
@@ -418,8 +393,7 @@ export class SubprocessSkillRunner implements SkillRunner {
    *
    * The alternative was a link between two logs,
    * and a reader then has to know there is a second one and go and open it.
-   * One piece of work reads as one thread,
-   * so the thread is copied rather than pointed at,
+   * One piece of work reads as one thread, so the thread is copied rather than pointed at,
    * and the run that produced it still holds its own copy for what points there.
    */
   private async carryOver(workspace: Workspace, from: SkillRunId, to: SkillRunId): Promise<void> {
@@ -454,8 +428,7 @@ export class SubprocessSkillRunner implements SkillRunner {
 
   /**
    * Pre-flight the braid-core gateway before an agent runs.
-   * Runs `openapi-mcp-gateway --dry-run`, memoised per spec,
-   * so only the first run pays it.
+   * Runs `openapi-mcp-gateway --dry-run`, memoised per spec, so only the first run pays it.
    */
   private async ensureGatewayReady(spawnFn: SpawnFn, category: SkillCategory, form: OutputForm, calls: readonly RenderCallName[]): Promise<void> {
     const gateway = this.deps.coreGateway
@@ -551,8 +524,7 @@ export class SubprocessSkillRunner implements SkillRunner {
         queue.push(SkillEventSchema.parse({
           type: 'completed',
           runId: input.runId,
-          // A signal-killed run must be reported as non-zero,
-          // e.g. cancel via SIGTERM, or OS-level SIGKILL.
+          // A signal-killed run must be reported as non-zero, e.g. cancel via SIGTERM, or OS-level SIGKILL.
           // Downstream consumers then distinguish it from a clean exit.
           // Without this, `code ?? 0` collapses every signal kill to 0,
           // and cancellation looks identical to a clean run.
@@ -602,13 +574,12 @@ export class SubprocessSkillRunner implements SkillRunner {
       if (this.deps.cleanupSession !== false && !keepForResume)
         await rm(input.sessionDir, { recursive: true, force: true }).catch(() => {})
 
-      // A correction is a new run,
-      // so it starts only once this one has been announced finished and torn down.
+      // A correction is a new run, so it starts only once this one has been announced finished and torn down.
       // Started inside the teardown it could be refused for colliding with itself,
       // and the refusal would escape a promise nobody is holding.
       void this.correctOutput(input, rendered, capturedSessionId, exitCode, sawError).catch(() => {
-        // A run whose output missed its contract, and was not corrected,
-        // is already recorded as it happened. Nothing here can improve it.
+        // A run whose output missed its contract, and was not corrected, is already recorded as it happened.
+        // Nothing here can improve it.
       })
     }
   }
@@ -618,19 +589,15 @@ export class SubprocessSkillRunner implements SkillRunner {
    *
    * A skill prompt asking for something is not the same as getting it,
    * and a run that stopped early looks like one that had nothing left to say.
-   * The check runs after the stream drains,
-   * and the correction resumes the same claude session,
+   * The check runs after the stream drains, and the correction resumes the same claude session,
    * so the agent still has everything it just read.
    *
    * Silent on a failed or cancelled run,
-   * because a gap there is a symptom of the failure,
-   * rather than something the agent can fix by trying again.
+   * because a gap there is a symptom of the failure, rather than something the agent can fix by trying again.
    *
    * Silent on a prose run too.
-   * Its contract names calls whose tools it was never given,
-   * so every one of them reads as missing,
-   * and the correction would be a whole extra turn
-   * spent asking for what the run was deliberately not offered.
+   * Its contract names calls whose tools it was never given, so every one of them reads as missing,
+   * and the correction would be a whole extra turn spent asking for what the run was deliberately not offered.
    */
   private async correctOutput(
     input: { workspace: Workspace, runId: SkillRunId, skillId: SkillId, retriesLeft: number, initialRecord: RunRecord },
@@ -650,8 +617,7 @@ export class SubprocessSkillRunner implements SkillRunner {
     const declared = (this.deps.resolveAudiences?.(input.workspace) ?? []).map(audience => audience.id)
     if (validateOutput(contract, rendered, declared).length === 0)
       return
-    // A conversation is read as one answer,
-    // so a turn owes only what no turn before it rendered.
+    // A conversation is read as one answer, so a turn owes only what no turn before it rendered.
     // Judged on its own, a follow-up owes the whole contract again,
     // and the correction then repeats an answer already on the page.
     const outstanding = validateOutput(
@@ -843,8 +809,7 @@ export class SubprocessSkillRunner implements SkillRunner {
   }
 
   /**
-   * Absolute paths to the mounted reference dirs,
-   * `BRAID_SHARED_REFERENCE` for framework contracts,
+   * Absolute paths to the mounted reference dirs, `BRAID_SHARED_REFERENCE` for framework contracts,
    * `BRAID_ONTOLOGY_REFERENCE` for the active ontology,
    * and `BRAID_SKILL_REFERENCE` for whatever plugin ships the running skill.
    * A variable is set only when that namespace ships reference docs,
@@ -863,8 +828,7 @@ export class SubprocessSkillRunner implements SkillRunner {
         ? { BRAID_ONTOLOGY_REFERENCE: this.referenceDir(sessionDir, ontologyNamespace) }
         : {}),
       // Named for the running skill rather than for one plugin axis,
-      // so a plugin of any kind reaches its own docs,
-      // without the runner learning what kind it is.
+      // so a plugin of any kind reaches its own docs, without the runner learning what kind it is.
       ...(mounted.has(own) && own !== BUILTIN_SKILL_NAMESPACE && own !== ontologyNamespace
         ? { BRAID_SKILL_REFERENCE: this.referenceDir(sessionDir, own) }
         : {}),

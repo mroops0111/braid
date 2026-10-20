@@ -38,8 +38,7 @@ export function ShareConversationDialog({ workspaceId, sessionId, startedBy, ope
   const { grantedTo } = useSessionShareState(workspaceId, sessionId, startedBy)
   const [filter, setFilter] = useState('')
 
-  // The dialog only ever opens on the viewer's own conversation,
-  // so every grant on it is one they gave.
+  // The dialog only ever opens on the viewer's own conversation, so every grant on it is one they gave.
   const granteeIds = new Set(grantedTo)
 
   const toggle = useMutation({

@@ -16,10 +16,8 @@ export interface WalkResult {
 /**
  * Read every page the tool offers, starting after `since`.
  *
- * A gateway maps one call onto one upstream request and does not loop,
- * so walking the pages is the caller's job.
- * The walk ends when the reply carries no cursor,
- * or when a repeated cursor shows the server is not advancing.
+ * A gateway maps one call onto one upstream request and does not loop, so walking the pages is the caller's job.
+ * The walk ends when the reply carries no cursor, or when a repeated cursor shows the server is not advancing.
  */
 export async function walkPages(
   session: McpSession,
@@ -64,8 +62,8 @@ export async function walkPages(
 }
 
 /**
- * The items of one page. A payload that is already an array is taken whole,
- * which is what a tool shaped to return a bare list produces.
+ * The items of one page.
+ * A payload that is already an array is taken whole, which is what a tool shaped to return a bare list produces.
  */
 function itemsOf(payload: unknown, config: McpLoaderConfig): readonly unknown[] {
   const found = Array.isArray(payload) ? payload : readPath(payload, config.response.items)

@@ -11,8 +11,7 @@ import { assertNonEmpty } from './validation.js'
  *
  * The form and its skill are declared together so they cannot drift.
  * The builder derives the plugin's `skills` from this list,
- * which is what stops a fourth form reaching the runtime,
- * without reaching the reader who would have asked for it.
+ * which is what stops a fourth form reaching the runtime, without reaching the reader who would have asked for it.
  */
 export interface DefineViewFormInput extends PluginSkillRef {
   readonly id: string
@@ -30,8 +29,7 @@ export interface DefineViewGeneratorInput<TSchema extends z.ZodTypeAny> {
   /** Required. Project a model snapshot into a view artifact. */
   readonly render: (config: z.infer<TSchema>, input: RenderInput) => Promise<ViewArtifact>
   /**
-   * Which nodes this kind can be written about,
-   * narrowed by the hints an ontology declares,
+   * Which nodes this kind can be written about, narrowed by the hints an ontology declares,
    * or by named types where the plugin ships with one.
    * Omitted takes any node.
    */
@@ -40,8 +38,7 @@ export interface DefineViewGeneratorInput<TSchema extends z.ZodTypeAny> {
   readonly forms: readonly DefineViewFormInput[]
   /**
    * Namespace for this plugin's skill ids, composed as `<namespace>:<form>`.
-   * Defaults to the view kind,
-   * which is what a reader of a run's skill id would expect to see,
+   * Defaults to the view kind, which is what a reader of a run's skill id would expect to see,
    * and is what the service asks the registry for.
    */
   readonly skillNamespace?: string
@@ -56,8 +53,7 @@ export interface DefineViewGeneratorInput<TSchema extends z.ZodTypeAny> {
  *
  * The wrapper parses `input.config` against `configSchema` before `render` runs,
  * so the plugin body always receives a statically-typed config object.
- * Mirrors the other `defineXxx` builders,
- * so plugin authors find a uniform entry point across every axis.
+ * Mirrors the other `defineXxx` builders, so plugin authors find a uniform entry point across every axis.
  */
 export function defineViewGeneratorPlugin<TSchema extends z.ZodTypeAny>(
   input: DefineViewGeneratorInput<TSchema>,

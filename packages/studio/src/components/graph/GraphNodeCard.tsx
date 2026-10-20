@@ -10,16 +10,13 @@ import { NodeTypeBadge } from './NodeTypeBadge'
 
 /**
  * Custom react-flow node, styled to match the Linear list-row card.
- * A primary border when selected,
- * a type-coloured badge top-left, the name as primary label,
+ * A primary border when selected, a type-coloured badge top-left, the name as primary label,
  * and an optional description preview as subtitle.
- * The raw `id` is not on the card because it is a machine-facing identifier,
- * such as `ctx.cart` or `agg.cart`, which adds noise,
- * without helping the human reader.
+ * The raw `id` is not on the card because it is a machine-facing identifier, such as `ctx.cart` or `agg.cart`,
+ * which adds noise, without helping the human reader.
  * It shows up in the detail sheet instead.
  *
- * Handles are invisible because we never want users to draw new edges,
- * from the canvas.
+ * Handles are invisible because we never want users to draw new edges, from the canvas.
  * Graph mutations stay HITL-gated via Proposals.
  */
 export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
@@ -43,8 +40,7 @@ export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
   //     The green minority in a sea of unchanged context,
   //     needs that extra weight to be noticed.
   //   - Selected border-primary trumps the diff border on click.
-  // Removed cards also fade,
-  // so they read as "will disappear" rather than "still here".
+  // Removed cards also fade, so they read as "will disappear" rather than "still here".
   const changeBorder = change === 'updated'
     ? 'border-amber-500/70 shadow-[0_0_0_1px] shadow-amber-500/30'
     : change === 'removed'
@@ -64,8 +60,8 @@ export function GraphNodeCard({ data, selected }: NodeProps<NodeCardNode>) {
       className={cn(
         'relative w-[200px] rounded-md border bg-card px-3 py-2 transition-colors duration-150',
         selected ? 'border-primary' : (changeBorder ?? 'border-border hover:border-border/80'),
-        // What somebody arrived to look at. A ring rather than a border,
-        // so it layers over the diff border instead of replacing it.
+        // What somebody arrived to look at.
+        // A ring rather than a border, so it layers over the diff border instead of replacing it.
         spotlit && !selected && 'ring-2 ring-primary/60',
       )}
     >

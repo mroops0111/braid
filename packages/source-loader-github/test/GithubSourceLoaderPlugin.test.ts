@@ -220,8 +220,7 @@ describe('GithubLoader', () => {
     const loader = makeLoader({ fetchFn: buildMockFetch(router) })
     await loader.provision({ owner: 'o', repo: 'r', includePullRequests: true }, dest, ctx)
     // PR (#2) is filtered out regardless of the deprecated flag.
-    // Only #1 survives, and it passes the realized-intent gate,
-    // via the mock's default "one merged PR per issue" stub.
+    // Only #1 survives, and it passes the realized-intent gate, via the mock's default "one merged PR per issue" stub.
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md'])
   })
 
@@ -392,8 +391,7 @@ describe('GithubLoader', () => {
     await loader1.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md', '2.md'])
 
-    // Issue #2 gets re-opened, so `since=` returns it,
-    // the filter drops it because its state is not closed,
+    // Issue #2 gets re-opened, so `since=` returns it, the filter drops it because its state is not closed,
     // and the loader must delete the orphan file.
     const after: MockRouter = {
       issues: [

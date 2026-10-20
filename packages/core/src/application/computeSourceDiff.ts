@@ -10,8 +10,8 @@ import type { SourceUnitObservationService } from './SourceUnitObservationServic
  * so the two surfaces always agree on what is `new` / `changed` / `unchanged` / `orphaned`.
  *
  * The function intentionally lives outside `SourceUnitObservationService`,
- * so the service stays a pure-ledger port (no filesystem walks,
- * no digest computation), the orchestrator composes the pieces.
+ * so the service stays a pure-ledger port (no filesystem walks, no digest computation),
+ * the orchestrator composes the pieces.
  */
 export interface ComputeSourceDiffDeps {
   readonly unitLister: UnitLister

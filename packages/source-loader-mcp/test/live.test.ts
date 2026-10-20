@@ -14,8 +14,7 @@ const context = { workspaceId: 'ws' as WorkspaceId, sourceId: 'issues' as Source
 /**
  * The rest of the suite scripts the replies, which never runs the transport.
  * This one stands up a real MCP server and lets the loader reach it,
- * so the session handshake, the streamable HTTP framing,
- * and the envelope all have to agree.
+ * so the session handshake, the streamable HTTP framing, and the envelope all have to agree.
  */
 describe('against a real mcp server', () => {
   const items = Array.from({ length: 7 }, (_unused, index) => ({

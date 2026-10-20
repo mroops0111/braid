@@ -10,8 +10,7 @@ export interface ProtectedResourceRouterDeps {
 /**
  * Protected resource metadata, RFC 9728.
  *
- * A client that meets a 401 here reads this to learn where to ask for a token,
- * so nobody has to be told out of band.
+ * A client that meets a 401 here reads this to learn where to ask for a token, so nobody has to be told out of band.
  * It is also what lets Braid stay a resource server,
  * since naming an authorization server is the alternative to becoming one,
  * and the field is a list because a deployment may trust more than one.

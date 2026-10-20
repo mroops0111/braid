@@ -22,8 +22,7 @@ const AT = '2026-01-01T00:00:00.000Z'
 /**
  * What a projection writes, which is not what a form writes.
  *
- * The two differ on purpose here,
- * so a test cannot pass by confusing the material with the document.
+ * The two differ on purpose here, so a test cannot pass by confusing the material with the document.
  */
 const MATERIAL_FORMAT = 'material' as ViewArtifactFormat
 
@@ -92,8 +91,7 @@ function build(options: { generator?: ViewGeneratorPlugin, environment?: Record<
 
   const viewRepository = new FakeViewRepository()
   // The run ends as soon as anything subscribes,
-  // so a test does not have to drive a subprocess,
-  // to see what the service keeps afterwards.
+  // so a test does not have to drive a subprocess, to see what the service keeps afterwards.
   const listeners: ((event: SkillEvent) => void)[] = []
   const skillRunner = {
     ...inertSkillRunner(),

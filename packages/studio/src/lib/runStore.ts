@@ -52,15 +52,13 @@ export function withEvent(events: readonly SkillEvent[], event: SkillEvent): rea
  * Centralised, app-level state for in-flight and completed skill runs.
  *
  * It is a module-level store rather than per-component React state,
- * because a tab or skill switch unmounts the Skills page,
- * which would otherwise tear down the SSE consumer,
+ * because a tab or skill switch unmounts the Skills page, which would otherwise tear down the SSE consumer,
  * and stop appending events even though the subprocess runs server-side.
  * Hoisting state out of the React tree survives a remount.
  * The transcript picks up exactly where it left off.
  *
  * One stream per `(workspaceId, runId)`.
- * Components subscribe via `useSyncExternalStore`,
- * and the store itself owns the `fetch` lifecycle.
+ * Components subscribe via `useSyncExternalStore`, and the store itself owns the `fetch` lifecycle.
  */
 class RunStore {
   private readonly runs = new Map<string, RunState>()
@@ -91,8 +89,7 @@ class RunStore {
    * Which skills have a run going right now, in this workspace.
    *
    * Skill ids rather than run ids,
-   * because the reader is deciding whether a surface has work under way,
-   * not which run it is.
+   * because the reader is deciding whether a surface has work under way, not which run it is.
    * The server's run list answers the same question one refetch later,
    * and a reader who has just pressed a button should not wait for it.
    */
@@ -114,8 +111,7 @@ class RunStore {
 
   /**
    * Replace the current turn list for `(workspaceId, skillId)`.
-   * Used when the user clicks "Continue Conversation" from the Runs tab,
-   * to hydrate a past session.
+   * Used when the user clicks "Continue Conversation" from the Runs tab, to hydrate a past session.
    */
   setTurns(workspaceId: string, skillId: string, runIds: readonly string[]): void {
     this.currentTurns.set(turnsKey(workspaceId, skillId), [...runIds])
@@ -136,8 +132,7 @@ class RunStore {
 
   /**
    * Reset the current conversation slot.
-   * The persisted runs stay in `artifacts/runs/`,
-   * only the in-memory display state for this skill is cleared.
+   * The persisted runs stay in `artifacts/runs/`, only the in-memory display state for this skill is cleared.
    */
   clearTurns(workspaceId: string, skillId: string): void {
     this.currentTurns.delete(turnsKey(workspaceId, skillId))
@@ -146,8 +141,7 @@ class RunStore {
 
   /**
    * Idempotently ensure a run is loaded into the store.
-   * Used by the Runs tab to replay past runs,
-   * without touching the Skills tab's current conversation slot.
+   * Used by the Runs tab to replay past runs, without touching the Skills tab's current conversation slot.
    * No-op if already loaded.
    */
   loadRun(workspaceId: string, runId: string, skillId: string): void {
@@ -156,8 +150,7 @@ class RunStore {
 
   /**
    * Tear down everything tied to a workspace.
-   * Used when the user removes a workspace,
-   * so no stale streams or display state are kept around.
+   * Used when the user removes a workspace, so no stale streams or display state are kept around.
    */
   resetWorkspace(workspaceId: string): void {
     for (const [key, controller] of this.streams) {
@@ -197,16 +190,14 @@ class RunStore {
    *
    * The POST is the stream, so the run's id arrives inside it,
    * rather than from a separate call that would hydrate the run twice.
-   * The exchange travels with the request,
-   * because in AG-UI the client holds the conversation and hands it over whole.
+   * The exchange travels with the request, because in AG-UI the client holds the conversation and hands it over whole.
    */
   /**
    * Run one build step against one document.
    *
    * A board action is not a conversation.
-   * Nothing was said before it and nothing follows,
-   * so it carries a single message and a thread of its own, keyed by document,
-   * rather than joining whatever exchange the skill's surface is holding.
+   * Nothing was said before it and nothing follows, so it carries a single message and a thread of its own,
+   * keyed by document, rather than joining whatever exchange the skill's surface is holding.
    */
   async startUnit(options: {
     readonly workspaceId: string
@@ -215,18 +206,15 @@ class RunStore {
     readonly unitPath: string
     /**
      * What the step was told, when it asked.
-     * A step declaring inputs is answered before it starts,
-     * and the answer is the instruction,
+     * A step declaring inputs is answered before it starts, and the answer is the instruction,
      * so it replaces the stand-in a step with nothing to ask would send.
      */
     readonly args?: string
   }): Promise<void> {
     const { workspaceId, skillId, unitPath } = options
     this.currentTurns.delete(turnsKey(workspaceId, skillId))
-    // A run is started by naming what it is to work on,
-    // and a graph-wide step names nothing.
-    // An empty message is no message at all, so the step says what it is,
-    // which is also what the record then reads as.
+    // A run is started by naming what it is to work on, and a graph-wide step names nothing.
+    // An empty message is no message at all, so the step says what it is, which is also what the record then reads as.
     const question = options.args?.trim() ? options.args : (unitPath === '' ? WHOLE_GRAPH : unitPath)
     await this.startTurn({ workspaceId, skillId, question, threadId: `${workspaceId}|${skillId}|${unitPath}` })
   }
@@ -261,8 +249,7 @@ class RunStore {
         if (event.type === EventType.RUN_STARTED) {
           runId = String((event as unknown as { runId: string }).runId)
           const key = runKey(workspaceId, runId)
-          // A run that carries another on opens holding that run's account,
-          // so a second start arrives mid-stream.
+          // A run that carries another on opens holding that run's account, so a second start arrives mid-stream.
           // Only the first opens a slot, or the account handed over is lost.
           if (!this.runs.has(key))
             this.runs.set(key, { workspaceId, runId, skillId, events: [], phase: 'streaming' })
@@ -284,8 +271,7 @@ class RunStore {
       },
     })
 
-    // The stream outlives this call,
-    // so a failure before the run exists is the caller's to report,
+    // The stream outlives this call, so a failure before the run exists is the caller's to report,
     // and a failure after it belongs on the run itself.
     void streaming
       .catch((error: unknown) => {
@@ -304,10 +290,8 @@ class RunStore {
   /**
    * Carry on the run that asked, now that its question has an answer.
    *
-   * The answer is already recorded by the time this is called,
-   * so the client names only the interrupt it resolved.
-   * Which run to continue, and which conversation that run holds,
-   * are the server's to look up,
+   * The answer is already recorded by the time this is called, so the client names only the interrupt it resolved.
+   * Which run to continue, and which conversation that run holds, are the server's to look up,
    * since a caller naming them could continue a run it never answered for.
    */
   async resumeAfterAnswer(options: {
@@ -330,8 +314,7 @@ class RunStore {
           runId = String((event as unknown as { runId: string }).runId)
           const key = runKey(workspaceId, runId)
           // Same reason as above.
-          // The account it was handed arrives before its own start,
-          // so a second start must not clear it.
+          // The account it was handed arrives before its own start, so a second start must not clear it.
           if (!this.runs.has(key))
             this.runs.set(key, { workspaceId, runId, skillId, events: [], phase: 'streaming' })
           this.notify()
@@ -350,10 +333,8 @@ class RunStore {
   /**
    * The exchange so far, as the protocol wants it.
    *
-   * An assistant turn is the run's prose joined together,
-   * which is what the agent actually said.
-   * Blocks are Braid's own vocabulary and would mean nothing to another agent,
-   * so they stay out of the prompt.
+   * An assistant turn is the run's prose joined together, which is what the agent actually said.
+   * Blocks are Braid's own vocabulary and would mean nothing to another agent, so they stay out of the prompt.
    */
   private conversationFor(workspaceId: string, skillId: string): AguiTurn[] {
     const turns: AguiTurn[] = []
@@ -375,8 +356,7 @@ class RunStore {
    * Load a run's events, tailing only while there is something left to tail.
    *
    * A finished run is fetched in one response.
-   * Replaying history over SSE would pin a connection per run,
-   * and a browser allows only a handful per host,
+   * Replaying history over SSE would pin a connection per run, and a browser allows only a handful per host,
    * so a few opened answers were enough to stall every later request.
    */
   private async hydrate(workspaceId: string, runId: string, controller: AbortController): Promise<void> {
@@ -394,8 +374,7 @@ class RunStore {
         },
       })
       // The stream can close without a terminal event when the server hangs up,
-      // so a run left mid-flight is settled here,
-      // rather than leaving the surface waiting on what will not arrive.
+      // so a run left mid-flight is settled here, rather than leaving the surface waiting on what will not arrive.
       const state = this.runs.get(key)
       if (state && state.phase === 'streaming')
         this.markPhase(workspaceId, runId, 'done')

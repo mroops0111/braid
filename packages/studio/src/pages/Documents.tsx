@@ -60,8 +60,7 @@ export function DocumentsPage({ workspaceId, onSelectNode }: {
   const open = groups.flatMap(group => group.views).find(view => view.path === openPath)
   const openForm = open === undefined ? undefined : formOf(kinds.data?.items ?? [], open)
 
-  // What any registered kind will take as a subject,
-  // which is what decides whether this workspace can hold a document.
+  // What any registered kind will take as a subject, which is what decides whether this workspace can hold a document.
   const writable = useMemo(
     () => (kinds.data?.items ?? []).some(kind =>
       (ontology.data?.nodeTypes ?? []).some(type =>
@@ -70,8 +69,7 @@ export function DocumentsPage({ workspaceId, onSelectNode }: {
     [kinds.data, ontology.data, snapshot.data],
   )
 
-  // Shelved by what kind of thing each document is about,
-  // which the ontology already says,
+  // Shelved by what kind of thing each document is about, which the ontology already says,
   // so nobody files anything by hand to stop this being one long column.
   const shelves = useMemo(() => {
     const nodeById = new Map((snapshot.data?.nodes ?? []).map(node => [node.id as string, node]))
@@ -98,8 +96,7 @@ export function DocumentsPage({ workspaceId, onSelectNode }: {
   const busy = runId !== null
   const canWrite = useCanWriteDocuments(workspaceId)
 
-  // Three situations read as one blank column,
-  // and each has a different next move.
+  // Three situations read as one blank column, and each has a different next move.
   // Build the graph, write the first document, or widen what was typed.
   const empty = !writable
     ? { title: t('documents.noSubjects.title'), description: t('documents.noSubjects.description') }
@@ -279,8 +276,7 @@ function DocumentReader({ workspaceId, view, form, title, locale, busy, canWrite
         )}
       />
       {view.stale && (
-        // The tone every warning strip in the app already wears,
-        // rather than a louder one of its own.
+        // The tone every warning strip in the app already wears, rather than a louder one of its own.
         // Being out of date is worth saying once, not worth shouting.
         <div className="flex h-9 shrink-0 items-center gap-3 border-b border-amber-500/30 bg-amber-500/5 px-4 text-xs">
           <TriangleAlert className="size-3 text-amber-600 dark:text-amber-400" />

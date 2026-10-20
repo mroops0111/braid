@@ -6,8 +6,8 @@ import type { UserRegistryFile } from './infrastructure/users/UserRegistryFile.j
 export { REACTOR_USER_ID } from '@braidhq/core'
 
 /**
- * Upsert a service account, idempotently. It is an admin,
- * so its calls clear the workspace gate via the admin-to-owner rule.
+ * Upsert a service account, idempotently.
+ * It is an admin, so its calls clear the workspace gate via the admin-to-owner rule.
  * kind=service marks it non-human, and that kind rides onto its proposals,
  * so the HITL views classify its pending without a read-time registry lookup.
  * Each autonomous component seeds its own by calling this.

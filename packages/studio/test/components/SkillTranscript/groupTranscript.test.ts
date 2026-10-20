@@ -130,8 +130,7 @@ describe('groupTranscript', () => {
     expect(group.calls.map(c => c.call.tool)).toEqual(['Bash', 'Read', 'Bash'])
   })
 
-  // A render call produces a block, and the block arrives out of band,
-  // landing between the call and its result.
+  // A render call produces a block, and the block arrives out of band, landing between the call and its result.
   // Grouping only within a run of adjacent tool events left the result alone,
   // and a lone result renders as a tool nobody called.
   describe('with a block between a call and its result', () => {

@@ -20,8 +20,7 @@ interface NodeDetailPanelProps {
   /**
    * Diff state in a proposal preview.
    * Present only when the panel opens over a proposal's projected graph,
-   * where it spells out `New` / `Updated` / `Removed` in full,
-   * rather than the card's terse corner dot.
+   * where it spells out `New` / `Updated` / `Removed` in full, rather than the card's terse corner dot.
    */
   change?: NodeChange
   /**
@@ -35,8 +34,7 @@ interface NodeDetailPanelProps {
 /**
  * Shared right-side detail panel for both Canvas and Table views.
  *
- * Lives in-flow as a flex sibling, not a modal Sheet,
- * so its height matches the surrounding page chrome,
+ * Lives in-flow as a flex sibling, not a modal Sheet, so its height matches the surrounding page chrome,
  * and stays consistent with the table's in-flow aside.
  */
 export function NodeDetailPanel({
@@ -162,9 +160,7 @@ function EdgeList({ title, icon: Icon, edges, getOther, nodesById, onSelectNode 
 /**
  * Where this node and its evidence disagree.
  *
- * Named rather than counted,
- * because the whole content of a drift is the two claims,
- * and where each was read.
+ * Named rather than counted, because the whole content of a drift is the two claims, and where each was read.
  * A count says a node is in trouble and gives a reader nowhere to go.
  *
  * Read-only.

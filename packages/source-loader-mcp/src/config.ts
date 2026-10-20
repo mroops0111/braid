@@ -1,8 +1,7 @@
 import { z } from 'zod'
 
 /**
- * A dotted path into a parsed object,
- * so a reply can be read without the loader knowing the server's shape.
+ * A dotted path into a parsed object, so a reply can be read without the loader knowing the server's shape.
  * One segment is the common case.
  */
 export const ValuePath = z.string().min(1)
@@ -10,15 +9,13 @@ export const ValuePath = z.string().min(1)
 /**
  * Per-source config for the MCP loader.
  *
- * Every field below `url` and `headers` has a default,
- * and those defaults together describe one envelope,
+ * Every field below `url` and `headers` has a default, and those defaults together describe one envelope,
  * which a gateway can be configured to emit.
  * Point this at a server shaped that way and the config is a URL.
  * Point it at a server you do not control and override the names it uses instead.
  *
  * Each group carries one rule, which is why none of the keys need a suffix.
- * `arguments` names arguments the tool takes,
- * `response` names keys in the reply,
+ * `arguments` names arguments the tool takes, `response` names keys in the reply,
  * and `item` names keys on one item of that reply.
  */
 export const McpLoaderConfig = z.object({
@@ -29,8 +26,7 @@ export const McpLoaderConfig = z.object({
   url: z.string().min(1),
   /**
    * Sent on every request, which is where an upstream credential belongs.
-   * Values support the same `${VAR}` interpolation,
-   * so no token is written into the workspace manifest.
+   * Values support the same `${VAR}` interpolation, so no token is written into the workspace manifest.
    */
   headers: z.record(z.string(), z.string()).default({}),
   /** Tool that returns one page of items. */
@@ -46,8 +42,7 @@ export const McpLoaderConfig = z.object({
   /** How many items to ask for per call. */
   limit: z.number().int().positive().max(1000).default(100),
   /**
-   * A server that always answers with a cursor would otherwise be walked forever,
-   * so a sync stops here and says so.
+   * A server that always answers with a cursor would otherwise be walked forever, so a sync stops here and says so.
    */
   maxPages: z.number().int().positive().max(10_000).default(200),
   response: z.object({
@@ -70,8 +65,7 @@ export const McpLoaderConfig = z.object({
 export type McpLoaderConfig = z.infer<typeof McpLoaderConfig>
 
 /**
- * Resolve `${VAR}` against the server's process env,
- * the same shape `source-loader-git` accepts in a remote URL.
+ * Resolve `${VAR}` against the server's process env, the same shape `source-loader-git` accepts in a remote URL.
  */
 export function interpolateEnv(input: string, environment: Record<string, string | undefined>): string {
   return input.replace(/\$\{([A-Z_][A-Z0-9_]*)\}/g, (_match, name: string) => {

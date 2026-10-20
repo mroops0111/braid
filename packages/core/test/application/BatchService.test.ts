@@ -26,7 +26,8 @@ class FakeSkillRunner implements SkillRunner {
   readonly startCalls: Array<{ skillId: SkillId, args: string, options?: SkillRunOptions }> = []
   // Per-call exit code (default 0). Override by pushing to `exitCodes`.
   exitCodes: number[] = []
-  // Per-call error text. An entry emits an `error` event instead of `completed`,
+  // Per-call error text.
+  // An entry emits an `error` event instead of `completed`,
   // so a test can drive the exact wording the orchestrator classifies on.
   errorMessages: Array<string | undefined> = []
   // Announced on every run when set, mirroring the real runner's session event.
@@ -290,13 +291,12 @@ describe('BatchService', () => {
     await service.start(workspace.id, { autoApply: true, startedBy: STARTED_BY })
     await flushBatch(planRepository)
 
-    // 2 extracts and 1 final checkpoint make 3 skill runs, each produces a fresh proposal. With autoApply on,
-    // all three get applied.
+    // 2 extracts and 1 final checkpoint make 3 skill runs, each produces a fresh proposal.
+    // With autoApply on, all three get applied.
     expect(hitl.applyCalls).toEqual(['p-1', 'p-2', 'p-3'])
   })
 
-  // The event bus is workspace-wide,
-  // so a person filing a proposal during a batch would have it applied.
+  // The event bus is workspace-wide, so a person filing a proposal during a batch would have it applied.
   it('autoApply leaves a proposal that names no run of its own alone', async () => {
     const { service, workspace, proposalRepository, planRepository, skillRunner, hitl } = await setup()
     let counter = 0
@@ -329,8 +329,7 @@ describe('BatchService', () => {
   })
 
   // Bootstrap wants coverage,
-  // so a unit that cannot settle something records the doubt and carries on,
-  // rather than leaving the graph empty.
+  // so a unit that cannot settle something records the doubt and carries on, rather than leaving the graph empty.
   it('tells each unit nobody is watching when the batch applies its own output', async () => {
     const { service, workspace, planRepository, skillRunner } = await setup()
 
@@ -343,10 +342,8 @@ describe('BatchService', () => {
   })
 
   // Whether a batch applies its own output decides what happens to a proposal.
-  // It says nothing about whether a person is sitting there,
-  // and nobody sits through a batch either way.
-  // Left attended, a unit that stops to ask holds its proposal back,
-  // for an answer that is not coming,
+  // It says nothing about whether a person is sitting there, and nobody sits through a batch either way.
+  // Left attended, a unit that stops to ask holds its proposal back, for an answer that is not coming,
   // and the document ends the batch with a question and nothing else.
   it('tells each unit nobody is watching even when the batch is to be reviewed', async () => {
     const { service, workspace, planRepository, skillRunner } = await setup()
@@ -631,8 +628,7 @@ describe('BatchService', () => {
       expect(stale?.startedAt).toBeDefined()
 
       // The reset drops the stale stamps,
-      // so the retry's duration measures the retry,
-      // not the wall clock spanning the crash.
+      // so the retry's duration measures the retry, not the wall clock spanning the crash.
       const requeued = crashed!.resumeRun(T0).units.find(unit => unit.id === stale!.id)
       expect(requeued?.status).toBe('pending')
       expect(requeued?.startedAt).toBeUndefined()
@@ -753,8 +749,7 @@ describe('BatchService', () => {
       // The D fix, resume of a derived plan must not re-derive its units.
       expect(skillIds).not.toContain('test:derive')
       // The pending unit still re-runs.
-      // Skip-completed accounting is the sibling resume test's concern,
-      // so only assert extraction happened.
+      // Skip-completed accounting is the sibling resume test's concern, so only assert extraction happened.
       expect(skillIds).toContain('ddd:extract')
     })
   })

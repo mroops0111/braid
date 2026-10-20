@@ -452,8 +452,7 @@ describe('settleOutputForm', () => {
     expect(settleOutputForm({ declaredForms: ['blocks', 'prose'] })).toBe('blocks')
   })
 
-  // Rendering is paid for by whoever produces it and read by whoever opens it,
-  // and a batch opens nothing.
+  // Rendering is paid for by whoever produces it and read by whoever opens it, and a batch opens nothing.
   it('drops the rendering when nobody is watching', () => {
     expect(settleOutputForm({ declaredForms: ['blocks', 'prose'], unattended: true })).toBe('prose')
   })
@@ -483,8 +482,7 @@ describe('renderCallsFor', () => {
     expect(renderCallsFor('build')).not.toContain('showSection')
   })
 
-  // A build run shows its working to a reviewer,
-  // so the sources behind a claim are within reach of one that wants them.
+  // A build run shows its working to a reviewer, so the sources behind a claim are within reach of one that wants them.
   it('lets a build run reach the sources behind a claim', () => {
     expect(renderCallsFor('build')).toContain('showEvidence')
   })

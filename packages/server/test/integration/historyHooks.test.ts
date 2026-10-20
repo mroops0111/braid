@@ -83,8 +83,9 @@ describe('e2e history hooks: applying a proposal writes a commit', () => {
     const applied = await readJson<{ status: string }>(apply)
     expect(applied.status).toBe('applied')
 
-    // The real `.git/` should now hold an extra commit over the initial one. We hit simple-git directly,
-    // not the history routes, so the test pins the disk effect instead of tautologising on our own code.
+    // The real `.git/` should now hold an extra commit over the initial one.
+    // We hit simple-git directly, not the history routes,
+    // so the test pins the disk effect instead of tautologising on our own code.
     const git = simpleGit({ baseDir: workspaceRoot })
     const log = await git.log({ maxCount: 5 })
     expect(log.all.length).toBeGreaterThanOrEqual(2)

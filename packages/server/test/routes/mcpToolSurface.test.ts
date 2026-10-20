@@ -62,8 +62,7 @@ describe('the MCP tool surface', () => {
       await app.request('/openapi.json'),
     )
     // `annotated_only` exposes an operation whose extension names a `tool`.
-    // An extension carrying only a `resource`, or nothing,
-    // would pass the count above while surfacing no tool at all.
+    // An extension carrying only a `resource`, or nothing, would pass the count above while surfacing no tool at all.
     const operations = Object.values(doc.paths).flatMap(pathItem => Object.values(pathItem))
     const withExtension = operations.filter(operation => operation['x-mcp-integration'])
     expect(withExtension.length).toBe(MCP_TOOLS.length)
@@ -119,8 +118,7 @@ describe('what the MCP tools say about themselves', () => {
     expect(silentOperations(operations)).toEqual([])
   })
 
-  // A summary is written for somebody reading the REST API,
-  // who already knows what Braid is and what a node is.
+  // A summary is written for somebody reading the REST API, who already knows what Braid is and what a node is.
   // A client on this endpoint was handed a token and nothing else,
   // so the tool's own line is the whole of what its model will ever know,
   // and falling back to a summary is a line that was never aimed at it.

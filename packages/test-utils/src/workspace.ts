@@ -42,10 +42,9 @@ export interface MakeWorkspaceOptions {
 
 /**
  * Construct a Workspace aggregate for tests.
- * Defaults give the happy-path shape, a DDD ontology, in-memory storage,
- * and one filesystem code source. Override per test for the axis under test.
- * The id and manifest.name are kept aligned,
- * so the production invariant WorkspaceId === manifest.name holds.
+ * Defaults give the happy-path shape, a DDD ontology, in-memory storage, and one filesystem code source.
+ * Override per test for the axis under test.
+ * The id and manifest.name are kept aligned, so the production invariant WorkspaceId === manifest.name holds.
  */
 export function makeWorkspace(opts: MakeWorkspaceOptions = {}): Workspace {
   const id = opts.id ?? 'ws-1'
@@ -87,8 +86,7 @@ export interface MakeFilesystemSourceOptions {
 
 /**
  * A loader-backed filesystem source, the shape most source tests need.
- * Defaults give a git-backed code source with no staleness budget,
- * so a test states only the axis it exercises.
+ * Defaults give a git-backed code source with no staleness budget, so a test states only the axis it exercises.
  */
 export function makeFilesystemSource(options: MakeFilesystemSourceOptions = {}): FilesystemSourceDescriptor {
   const id = options.id ?? 'source-1'

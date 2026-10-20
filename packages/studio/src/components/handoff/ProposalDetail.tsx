@@ -41,8 +41,7 @@ export function ProposalDetail({
   const blockedByErrors = errorCount > 0
 
   // Invalidate the whole proposals namespace for this workspace,
-  // so the entry moves from Pending into Applied or Rejected,
-  // without a manual refresh.
+  // so the entry moves from Pending into Applied or Rejected, without a manual refresh.
   function invalidateProposals(): void {
     queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId, 'proposals'] })
   }
@@ -293,13 +292,13 @@ type PreviewView = 'graph' | 'list'
 
 /**
  * Dual-view preview for the proposal's effect on the graph.
+ *
  * - **List**: grouped add, update, and remove rows, the densest summary.
  * - **Graph**: reuses the workspace `GraphCanvas`,
  * fed with a derived data source that applies the proposal's operations,
  * and annotates nodes and edges with their change kind.
  *
- * The source is computed once via `useProposalGraphDataSource`,
- * and shared across views so toggling is cheap.
+ * The source is computed once via `useProposalGraphDataSource`, and shared across views so toggling is cheap.
  */
 function ProposalPreview({ workspaceId, operations, validation, rationale }: {
   workspaceId: string
@@ -309,15 +308,13 @@ function ProposalPreview({ workspaceId, operations, validation, rationale }: {
 }) {
   const { t } = useTranslation()
   // Proposal preview pairs the graph visualization with a flat list view.
-  // We manage `view` here,
-  // and delegate the graph view to GraphSurface.
+  // We manage `view` here, and delegate the graph view to GraphSurface.
   const [view, setView] = useState<PreviewView>('graph')
   const { selectedNodeId, setSelectedNodeId, selectedEdgeId, setSelectedEdgeId, focusMode, setFocusMode }
     = useFocusedSelection()
   // Default to only-changes so a review opens on the diff, not the whole model.
   const [onlyChanges, setOnlyChanges] = useState(true)
-  // One meta panel open at a time,
-  // so an expanded list never stacks on the other,
+  // One meta panel open at a time, so an expanded list never stacks on the other,
   // and pushes the graph further than one panel's worth.
   const [openMeta, setOpenMeta] = useState<'validation' | 'rationale' | null>(null)
   const full = useProposalGraphDataSource(workspaceId, operations)
@@ -550,8 +547,7 @@ type FlatOp =
 
 function flattenOperations(operations: readonly GraphOperation[]): FlatOp[] {
   // Each schema operation collapses to one FlatOp.
-  // Batch operations such as addNodes, removeEdges, or updateNodes,
-  // fan out into one FlatOp per item.
+  // Batch operations such as addNodes, removeEdges, or updateNodes, fan out into one FlatOp per item.
   // Keeps the list view scannable, one row per change.
   const out: FlatOp[] = []
   for (const op of operations) {

@@ -5,8 +5,8 @@ function globalBuffer(): typeof Buffer {
 }
 
 /**
- * Tiny Google Drive v3 client wrapper. We only use a few endpoints and
- * don't need the full `googleapis` package (which ships > 1 MB of types).
+ * Tiny Google Drive v3 client wrapper.
+ * We only use a few endpoints and don't need the full `googleapis` package (which ships > 1 MB of types).
  *
  * Inject `fetchFn` for tests. Real callers use globalThis.fetch.
  */

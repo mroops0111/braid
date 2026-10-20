@@ -5,8 +5,7 @@ import { EventType } from '@ag-ui/client'
 /**
  * AG-UI events, read back as Braid's own.
  *
- * The wire format is the protocol's,
- * the shape this app reasons about is Braid's,
+ * The wire format is the protocol's, the shape this app reasons about is Braid's,
  * and this is the one place the two meet.
  * A message spans three events on the wire and is one thing here,
  * so a translator is stateful and belongs to a single run.
@@ -22,8 +21,7 @@ export class AguiEventReader {
 
   /**
    * Zero or more Braid events.
-   * Zero is the common case mid-message,
-   * since nothing is complete until the end event that closes it arrives.
+   * Zero is the common case mid-message, since nothing is complete until the end event that closes it arrives.
    */
   read(event: BaseEvent): SkillEvent[] {
     const raw = event as Record<string, unknown>
@@ -36,8 +34,7 @@ export class AguiEventReader {
         if (raw.role === 'user')
           this.userMessages.add(String(raw.messageId))
         return []
-      // Surfaced as it arrives as well as accumulated,
-      // so a surface can show the sentence forming.
+      // Surfaced as it arrives as well as accumulated, so a surface can show the sentence forming.
       // A user message is the prompt we already sent, so only the agent's shows.
       case EventType.TEXT_MESSAGE_CONTENT: {
         this.appendTo(this.openText, raw)

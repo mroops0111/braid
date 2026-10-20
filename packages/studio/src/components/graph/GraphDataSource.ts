@@ -47,15 +47,12 @@ export function useLiveGraphDataSource(workspaceId: string): GraphDataSource {
 
 /**
  * Derive a preview by applying `operations` to the live snapshot.
- * Returns the projected nodes and edges,
- * plus a `diff` map for UI overlays.
+ * Returns the projected nodes and edges, plus a `diff` map for UI overlays.
  *
  * `operations` must be referentially stable.
  * This hook memoises on `data`, `isLoading`, and `operations`.
- * If the caller rebuilds the array each render,
- * `previewProposal` re-runs every time.
- * Real call sites pass `proposal.operations` from a React-Query result,
- * which is stable across renders.
+ * If the caller rebuilds the array each render, `previewProposal` re-runs every time.
+ * Real call sites pass `proposal.operations` from a React-Query result, which is stable across renders.
  * Do not construct an inline array literal at the call site.
  */
 export function useProposalGraphDataSource(
@@ -80,8 +77,7 @@ export function useProposalGraphDataSource(
  * The proposal's own neighbourhood, rather than the whole graph dimmed.
  *
  * Dimming leaves every untouched node in the layout,
- * so in a workspace of a thousand the handful that changed is a few marks,
- * somewhere in a wall of them.
+ * so in a workspace of a thousand the handful that changed is a few marks, somewhere in a wall of them.
  * Narrowing to what the proposal touches, plus one hop of context,
  * is what makes the change readable and a new edge's other end visible.
  */
@@ -91,11 +87,9 @@ export function narrowToChanges(source: GraphDataSource): GraphDataSource {
   const changed = new Set(source.diff.nodes.keys())
   const context = new Set<string>(changed)
   for (const edge of source.edges) {
-    // A changed edge is a change with no node of its own,
-    // so both its ends are what there is to look at.
+    // A changed edge is a change with no node of its own, so both its ends are what there is to look at.
     // Narrowing on touched nodes alone leaves nothing to narrow to,
-    // for a proposal that only draws edges between existing nodes,
-    // and the control for it does nothing when pressed.
+    // for a proposal that only draws edges between existing nodes, and the control for it does nothing when pressed.
     const edgeChanged = source.diff.edges.has(edge.id)
     if (edgeChanged || changed.has(edge.fromNodeId))
       context.add(edge.toNodeId)
@@ -120,11 +114,9 @@ const INCREMENTAL_RATIO_THRESHOLD = 0.3
 /**
  * Whether `added` needs the heavier treatment on this particular source.
  *
- * An incremental diff dilutes its own visual,
- * a few green dots in a sea of unmarked context,
+ * An incremental diff dilutes its own visual, a few green dots in a sea of unmarked context,
  * so under the threshold `added` earns a ring and shadow on its corner dot.
- * A fresh extraction touches nearly everything,
- * and there the subtle marker is right,
+ * A fresh extraction touches nearly everything, and there the subtle marker is right,
  * since a green border on every node would drown the type colour.
  *
  * Derived here rather than at each call site,
@@ -146,11 +138,9 @@ export function emphasizeAddedFor(source: GraphDataSource): boolean {
  * which is what a reader wants when an answer cites a removed node.
  *
  * `operations` are the changes still waiting on review.
- * A run that proposes names the nodes it is about to add,
- * alongside the ones it stood on,
+ * A run that proposes names the nodes it is about to add, alongside the ones it stood on,
  * and against the live snapshot alone half the slice was missing.
- * Previewing the operations first puts them on the canvas,
- * wearing the same `added` marking the proposal review uses,
+ * Previewing the operations first puts them on the canvas, wearing the same `added` marking the proposal review uses,
  * so new and existing read apart without a visual vocabulary of their own.
  */
 /** Shared, so a caller passing nothing does not defeat the memo below. */
@@ -177,8 +167,7 @@ export function useSubgraphDataSource(
       edges,
       isLoading,
       isEmpty: !isLoading && nodes.length === 0,
-      // Narrowed to what is drawn,
-      // so `emphasizeAddedFor` measures this slice, not the whole proposal.
+      // Narrowed to what is drawn, so `emphasizeAddedFor` measures this slice, not the whole proposal.
       ...(diff ? { diff: narrowDiff(diff, present, edges) } : {}),
     }
   }, [data, isLoading, key, operations])

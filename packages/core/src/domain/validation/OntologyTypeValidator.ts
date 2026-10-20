@@ -7,14 +7,11 @@ import type { OntologyPlugin, OntologyValidator } from '../plugin/OntologyPlugin
 
 /**
  * Generic engine reading an `OntologyPlugin`'s declared vocabulary.
- * Rejects any graph reference outside it, a node or edge `type`,
- * or a node's `metadata.missingRoles` entry.
+ * Rejects any graph reference outside it, a node or edge `type`, or a node's `metadata.missingRoles` entry.
  *
- * Not a plugin: callers construct an instance bound to their ontology,
- * typically `defineOntologyPlugin()` in the SDK,
+ * Not a plugin: callers construct an instance bound to their ontology, typically `defineOntologyPlugin()` in the SDK,
  * and expose it via `OntologyPlugin.validators[]`.
- * Other ontologies reuse the same engine without importing the ddd package,
- * e.g. c4 or event-modeling.
+ * Other ontologies reuse the same engine without importing the ddd package, e.g. c4 or event-modeling.
  */
 export class OntologyTypeValidator implements OntologyValidator {
   private readonly knownNodeTypes: ReadonlySet<string>

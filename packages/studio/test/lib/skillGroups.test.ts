@@ -41,8 +41,7 @@ describe('bucketByGroup', () => {
     expect(buckets.custom.map(s => s.id)).toEqual(['standalone'])
   })
 
-  // Ask has its own surface, so listing it here offers the same run twice,
-  // and this is the poorer of the two.
+  // Ask has its own surface, so listing it here offers the same run twice, and this is the poorer of the two.
   it('leaves an ask skill out, since the Ask surface owns it', () => {
     const buckets = bucketByGroup([
       skill({ id: 'ask-1', category: 'ask' }),

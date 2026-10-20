@@ -14,12 +14,9 @@ export type Invite = z.infer<typeof Invite>
 
 const Content = z.object({
   invites: z.array(Invite).default([]),
-  // Emails that have already redeemed an invite (or been approved directly),
-  // and are persistently allowed to sign in.
-  // Without this, an invite would be a one-shot ticket,
-  // gone after the first login, locking the user out on the second.
-  // Treat this as the "dynamic allowlist" that grows as invites get consumed,
-  // revoking a user removes their entry here.
+  // Emails that have already redeemed an invite (or been approved directly), and are persistently allowed to sign in.
+  // Without this, an invite would be a one-shot ticket, gone after the first login, locking the user out on the second.
+  // Treat this as the "dynamic allowlist" that grows as invites get consumed, revoking a user removes their entry here.
   approvedEmails: z.array(z.string().email().transform(s => s.toLowerCase())).default([]),
 })
 type Content = z.infer<typeof Content>
@@ -50,8 +47,7 @@ export interface AccessPolicyConfig {
  *
  * The static allowlist reads the `BRAID_ALLOWED_DOMAINS` and `BRAID_ALLOWED_EMAILS` env vars.
  * Domain matches (`@kdanmobile.com`) and email matches (`alice@example.com`) auto-pass.
- * Both may be left unset on a public instance,
- * combined with an empty invite list this rejects everyone (fail closed).
+ * Both may be left unset on a public instance, combined with an empty invite list this rejects everyone (fail closed).
  *
  * The invite list lives at `${BRAID_HOME}/access.json`, maintained by an admin via `/admin/invites`.
  * One invite per email, consumed on first successful login.
@@ -140,8 +136,7 @@ export class AccessPolicy {
 
   /**
    * Consume an invite once the user record exists.
-   * Remove it from invites,
-   * add to approvedEmails so the user can sign in again without the admin re-inviting them.
+   * Remove it from invites, add to approvedEmails so the user can sign in again without the admin re-inviting them.
    * Idempotent.
    */
   async consumeInvite(email: string): Promise<void> {
@@ -158,8 +153,7 @@ export class AccessPolicy {
 
   /**
    * Add an email to the persistent allowlist directly, without going through the invite step.
-   * Used by the bootstrap migration that back-fills approvedEmails,
-   * for users who registered before this field existed.
+   * Used by the bootstrap migration that back-fills approvedEmails, for users who registered before this field existed.
    */
   async approveEmail(email: string): Promise<void> {
     const lower = email.toLowerCase()
@@ -174,8 +168,7 @@ export class AccessPolicy {
 
   /**
    * Drop an email from the persistent allowlist.
-   * Called when an admin deletes a user,
-   * so the underlying email can't sneak back in without a fresh invite.
+   * Called when an admin deletes a user, so the underlying email can't sneak back in without a fresh invite.
    * Idempotent.
    */
   async revokeApproval(email: string): Promise<void> {

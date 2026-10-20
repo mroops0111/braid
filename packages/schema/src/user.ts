@@ -5,8 +5,7 @@ export const ServerRole = z.enum(['admin', 'user']).describe('What a person may 
 export type ServerRole = z.infer<typeof ServerRole>
 
 // Absent or 'human' is a person who logs in.
-// 'service' is an autonomous component acting via its own token,
-// seeded by whatever wires it.
+// 'service' is an autonomous component acting via its own token, seeded by whatever wires it.
 export const UserKind = z.enum(['human', 'service'])
 export type UserKind = z.infer<typeof UserKind>
 

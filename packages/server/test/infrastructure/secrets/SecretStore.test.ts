@@ -41,9 +41,8 @@ describe('FsSecretStore', () => {
     await store.write('oauth-google', '../../../etc/passwd', { value: 'pwned' })
     const out = await store.read('oauth-google', '../../../etc/passwd')
     expect(out).toEqual({ value: 'pwned' })
-    // The file lives under root (sanitised), not at /etc/passwd. `.` is
-    // allowed in keys (so config files can be named `client.id.json`), but
-    // every `/` is rewritten to `_`.
+    // The file lives under root (sanitised), not at /etc/passwd.
+    // `.` is allowed in keys (so config files can be named `client.id.json`), but every `/` is rewritten to `_`.
     await expect(stat(join(root, 'oauth-google', '.._.._.._etc_passwd.json'))).resolves.toBeDefined()
   })
 

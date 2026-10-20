@@ -3,8 +3,7 @@ import type { Plugin } from './Plugin.js'
 
 /**
  * A source role the ontology declares.
- * The framework branches on the capabilities here, never on the id,
- * so a new ontology adds roles with no core edit.
+ * The framework branches on the capabilities here, never on the id, so a new ontology adds roles with no core edit.
  */
 export interface SourceRoleDescriptor {
   readonly id: SourceRole
@@ -23,8 +22,8 @@ export interface NodeTypeDescriptor {
   readonly description?: string
   readonly allowedStatuses?: readonly NodeStatus[]
   /**
-   * Optional UI accent colour, any CSS colour string the browser accepts,
-   * for example `oklch(...)`, `#7c3aed`, or `rgb(...)`.
+   * Optional UI accent colour,
+   * any CSS colour string the browser accepts, for example `oklch(...)`, `#7c3aed`, or `rgb(...)`.
    * Studio uses it for node-card type badges and edge strokes.
    * If omitted, Studio falls back to a deterministic hash-of-id colour,
    * so an ontology without authored colours still renders distinct types.
@@ -32,9 +31,8 @@ export interface NodeTypeDescriptor {
   readonly color?: string
   /**
    * Whether this type is shown by default when the user first opens the graph.
-   * When any descriptor sets this, Studio initialises the type filter,
-   * to only those types, typically the high-level structural types,
-   * like boundedContext / aggregate.
+   * When any descriptor sets this, Studio initialises the type filter, to only those types,
+   * typically the high-level structural types, like boundedContext / aggregate.
    * The user can clear the filter to reveal the rest.
    * If no descriptor sets it, all types show.
    */
@@ -60,8 +58,7 @@ export interface EdgeTypeDescriptor {
   readonly label?: LocalizedText
   /**
    * Short prose explaining what this edge means and when to emit it.
-   * Surfaced to LLMs through the `/ontology` API,
-   * and to reviewers through the Studio palette / legend tooltip.
+   * Surfaced to LLMs through the `/ontology` API, and to reviewers through the Studio palette / legend tooltip.
    * Same role as `NodeTypeDescriptor.description`.
    */
   readonly description?: string
@@ -73,12 +70,11 @@ export interface EdgeTypeDescriptor {
 }
 
 /**
- * Validator bundled with an ontology. The ontology brings its own enforcement,
- * type checks, structural rules, and future ontology-specific invariants,
+ * Validator bundled with an ontology.
+ * The ontology brings its own enforcement, type checks, structural rules, and future ontology-specific invariants,
  * instead of separate plugins that cross-reference the ontology at runtime.
  *
- * `defineOntologyPlugin()` auto-binds the two generic engines,
- * `OntologyTypeValidator` and `StructuralValidator`.
+ * `defineOntologyPlugin()` auto-binds the two generic engines, `OntologyTypeValidator` and `StructuralValidator`.
  * Ontology authors pass `extraValidators` for anything beyond declarative checks.
  */
 export interface OntologyValidator {
@@ -114,8 +110,7 @@ export interface OntologyDeriveUnitsBinding {
 
 /**
  * Ontology's contract with framework-level batch / reactor processes.
- * Framework owns "what to dispatch and when",
- * ontology owns skill IDs and env contracts.
+ * Framework owns "what to dispatch and when", ontology owns skill IDs and env contracts.
  * Optional fields let an ontology opt out of phases.
  */
 export interface OntologyBatchBinding {
@@ -130,8 +125,7 @@ export interface OntologyPlugin extends Plugin {
   readonly nodeTypes: readonly NodeTypeDescriptor[]
   readonly edgeTypes: readonly EdgeTypeDescriptor[]
   /**
-   * Validators that run against the model,
-   * whenever the workspace is configured to use this ontology.
+   * Validators that run against the model, whenever the workspace is configured to use this ontology.
    * Populated by `defineOntologyPlugin()`.
    */
   readonly validators: readonly OntologyValidator[]
@@ -143,8 +137,7 @@ export interface OntologyPlugin extends Plugin {
   readonly batch?: OntologyBatchBinding
   /**
    * The source roles this ontology declares, with their capabilities.
-   * The scaffold endpoint rejects a manifest missing a `required` role,
-   * so the wizard can prompt for it.
+   * The scaffold endpoint rejects a manifest missing a `required` role, so the wizard can prompt for it.
    * `unitBearing` roles drive batch unit production and the Reactor.
    * Core reads capabilities, not ids.
    */
@@ -152,8 +145,7 @@ export interface OntologyPlugin extends Plugin {
   /**
    * Readers this ontology splits an answer for, in the order Studio shows them.
    *
-   * Empty, and absent, both mean a product whose readers do not split,
-   * which is the honest default.
+   * Empty, and absent, both mean a product whose readers do not split, which is the honest default.
    * What belongs in each half is this ontology's own editorial call,
    * so it travels in the descriptor rather than in any framework rule.
    */

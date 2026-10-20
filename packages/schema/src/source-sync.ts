@@ -18,10 +18,8 @@ export type SourceSyncPolicy = z.infer<typeof SourceSyncPolicy>
 
 /**
  * Whether the workspace runs background refreshes at all.
- * A kill switch for the timer, not a second opt-in gate,
- * since the per-source policy already decides who participates.
- * Reaching for it stops outbound load on a struggling remote,
- * without editing every source and losing their budgets.
+ * A kill switch for the timer, not a second opt-in gate, since the per-source policy already decides who participates.
+ * Reaching for it stops outbound load on a struggling remote, without editing every source and losing their budgets.
  */
 export const WorkspacePollingConfig = z.object({
   enabled: z.boolean().default(true),

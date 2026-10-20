@@ -23,8 +23,8 @@ export function splitSkillId(id: SkillId): { namespace: string, verb: string } {
 }
 
 /**
- * Frontmatter the Claude Code CLI reads to register the slash command, plus its invocation rules. camelCase in TS,
- * emitted as kebab-case in YAML.
+ * Frontmatter the Claude Code CLI reads to register the slash command, plus its invocation rules.
+ * camelCase in TS, emitted as kebab-case in YAML.
  */
 export const ClaudeCodeSkillFrontmatter = z.object({
   name: z.string().min(1),
@@ -82,10 +82,9 @@ export function renderCallsFor(category: SkillCategory): readonly RenderCallName
  * A run that renders blocks has already said everything it has to say,
  * and writing the same answer out again is paid for twice and read once.
  *
- * Recorded on the run rather than held as a reader's preference,
- * because it decides what the run produces.
- * A conversation lent to somebody else therefore reads
- * the way its author made it, not the way its reader would have asked for.
+ * Recorded on the run rather than held as a reader's preference, because it decides what the run produces.
+ * A conversation lent to somebody else therefore reads the way its author made it,
+ * not the way its reader would have asked for.
  */
 export const OutputForm = z.enum(['blocks', 'prose']).describe('What the run leaves behind. `blocks` draws on a surface as the run works, and `prose` writes the answer out instead. The two are alternatives rather than a pair.')
 export type OutputForm = z.infer<typeof OutputForm>
@@ -115,8 +114,7 @@ export function rendersBlocks(form: OutputForm): boolean {
  * What a skill produces when it declares nothing.
  *
  * Blocks alone, which is what every skill did before a form could be asked for.
- * A skill whose blocks are its artefact keeps producing them,
- * however little of it anybody reads.
+ * A skill whose blocks are its artefact keeps producing them, however little of it anybody reads.
  */
 export const DEFAULT_OUTPUT_FORMS: readonly OutputForm[] = ['blocks']
 
@@ -126,8 +124,7 @@ export const DEFAULT_OUTPUT_FORMS: readonly OutputForm[] = ['blocks']
  * A run that renders nothing is offered none, whatever its skill declares,
  * since the form is settled first and the surface follows it.
  * A skill declaring nothing keeps the ceiling,
- * and one declaring a call its kind never offers gets the overlap,
- * not the wish.
+ * and one declaring a call its kind never offers gets the overlap, not the wish.
  */
 export function settleRenderCalls(input: {
   readonly category: SkillCategory
@@ -146,8 +143,7 @@ export function settleRenderCalls(input: {
  * The form one run produces, settled from what is on offer and who is reading.
  *
  * Nothing outside a skill's own list can be reached by asking,
- * so a skill whose blocks are its artefact keeps rendering,
- * even when no one is watching.
+ * so a skill whose blocks are its artefact keeps rendering, even when no one is watching.
  * Within the list, a run nobody is watching takes the form that renders nothing,
  * since rendering is paid for by whoever produces it and read by nobody,
  * and an attended run takes what its reader asked for.
@@ -286,8 +282,8 @@ export const SkillInputOptionsResponse = z.object({
 export type SkillInputOptionsResponse = z.infer<typeof SkillInputOptionsResponse>
 
 /**
- * Per-skill agent selection. Every field is optional, unset ones fall back to the server agent,
- * which defaults to claude-code.
+ * Per-skill agent selection.
+ * Every field is optional, unset ones fall back to the server agent, which defaults to claude-code.
  */
 export const SkillAgentOverride = z.object({
   kind: AgentKind.optional(),
@@ -324,8 +320,7 @@ export const SkillOutputContract = z.object({
    *
    * The kind of run sets a ceiling, and this narrows within it,
    * so two skills of one kind stop carrying each other's calls.
-   * Absent leaves the ceiling in place,
-   * which is what a skill declaring nothing got before it could say.
+   * Absent leaves the ceiling in place, which is what a skill declaring nothing got before it could say.
    */
   calls: z.array(RenderCallName).optional(),
   // Calls the run must have made at least once, a subset of `calls`.
@@ -334,11 +329,9 @@ export const SkillOutputContract = z.object({
    * Blocks each declared reader must be able to see, at least.
    *
    * A block naming nobody is addressed to everyone, so it counts for each,
-   * so this is a floor on the answer's size,
-   * rather than a rule about addressing anyone in particular.
+   * so this is a floor on the answer's size, rather than a rule about addressing anyone in particular.
    * Named by count rather than by reader,
-   * so a builtin skill holds a floor,
-   * without knowing which readers a product splits on.
+   * so a builtin skill holds a floor, without knowing which readers a product splits on.
    */
   minBlocksPerReader: z.number().int().positive().optional(),
   // How many corrective retries the framework may spend before giving up.
@@ -358,8 +351,7 @@ export const BraidSkillExtension = z.object({
   /**
    * What to call this step in front of a reader.
    *
-   * A skill id is an address,
-   * and `ddd:extract` says nothing to somebody looking at a board.
+   * A skill id is an address, and `ddd:extract` says nothing to somebody looking at a board.
    * Localised the same way an ontology's node and edge types are,
    * since a step of the pipeline is as much its vocabulary as they are.
    * Absent, a surface falls back to the id, which is at least true.
@@ -412,8 +404,7 @@ export const SkillEventStarted = z.object({
    *
    * `resumed` says a conversation was continued, not which one.
    * Without the link, the reasoning that led a run to stop has no route back,
-   * once the thing that pointed at it is settled,
-   * and work spread over three runs reports three costs nothing adds up.
+   * once the thing that pointed at it is settled, and work spread over three runs reports three costs nothing adds up.
    */
   continues: SkillRunId.optional(),
   at: Timestamp,
@@ -430,8 +421,7 @@ export const SkillEventMessage = z.object({
   text: z.string(),
   /**
    * Who said it.
-   * Absent reads as the agent,
-   * which is what a message was before anything else could produce one,
+   * Absent reads as the agent, which is what a message was before anything else could produce one,
    * so nothing recorded earlier changes meaning.
    * A run's own prompt is the one thing the user says, and it is said once.
    */
@@ -442,8 +432,7 @@ export const SkillEventMessage = z.object({
  * A piece of a message still being written.
  *
  * Live only, never appended to a run's log.
- * The whole message follows and is what the log keeps,
- * so a replayed run reads exactly as it did before deltas existed.
+ * The whole message follows and is what the log keeps, so a replayed run reads exactly as it did before deltas existed.
  */
 export const SkillEventMessageDelta = z.object({
   type: z.literal('message-delta'),
@@ -478,8 +467,7 @@ export const SkillEventArtifactWritten = z.object({
 
 /**
  * A render call the run made, lifted out of its tool call.
- * Surfaces compose these instead of reading the transcript,
- * so a skill that makes none still renders as prose.
+ * Surfaces compose these instead of reading the transcript, so a skill that makes none still renders as prose.
  */
 export const SkillEventBlock = z.object({
   type: z.literal('block'),
@@ -501,8 +489,7 @@ export const SkillEventError = z.object({
 })
 
 /**
- * The agent's private reasoning,
- * surfaced so a reviewer can see why a skill proposed what it did.
+ * The agent's private reasoning, surfaced so a reviewer can see why a skill proposed what it did.
  * Studio renders it collapsed, since it is not the output.
  */
 export const SkillEventThinking = z.object({
@@ -512,8 +499,7 @@ export const SkillEventThinking = z.object({
 
 /**
  * The agent hit a usage limit.
- * Only emitted when the run is actually throttled,
- * so a stalled transcript reads as waiting rather than frozen.
+ * Only emitted when the run is actually throttled, so a stalled transcript reads as waiting rather than frozen.
  */
 export const SkillEventRateLimit = z.object({
   type: z.literal('rate-limit'),
@@ -523,8 +509,7 @@ export const SkillEventRateLimit = z.object({
 })
 
 /**
- * Cost and effort of a finished run,
- * surfaced so the reviewer sees what each skill run spent.
+ * Cost and effort of a finished run, surfaced so the reviewer sees what each skill run spent.
  * Every field is optional, since agents report a different subset.
  */
 export const SkillEventUsage = z.object({
@@ -566,8 +551,7 @@ export const RunRecord = z.object({
   /**
    * What the run works on, when that is not what it was told.
    *
-   * A fresh per-unit run is started by naming its unit,
-   * so the two are the same and this stays absent.
+   * A fresh per-unit run is started by naming its unit, so the two are the same and this stays absent.
    * A run carrying another on is told to continue instead,
    * and every surface attributes work by matching a document against this,
    * so without it a continued run detaches from what it is reading.
@@ -579,8 +563,7 @@ export const RunRecord = z.object({
    *
    * `resumed` says a conversation was continued, not which one.
    * Without the link, the reasoning that led a run to stop has no route back,
-   * once the thing that pointed at it is settled,
-   * and work spread over three runs reports three costs nothing adds up.
+   * once the thing that pointed at it is settled, and work spread over three runs reports three costs nothing adds up.
    */
   continues: SkillRunId.optional(),
   // Whose identity the run acts under, matching the caller token it carries.
@@ -593,10 +576,8 @@ export const RunRecord = z.object({
   completedAt: Timestamp.optional(),
   exitCode: z.number().int().optional(),
   /**
-   * True when nobody was watching,
-   * so nothing it asks will be answered in time to carry it on.
-   * Recorded rather than held in memory,
-   * because what a run's questions mean outlives the process that spawned it.
+   * True when nobody was watching, so nothing it asks will be answered in time to carry it on.
+   * Recorded rather than held in memory, because what a run's questions mean outlives the process that spawned it.
    */
   unattended: z.boolean().optional(),
   /**
@@ -623,14 +604,11 @@ export type SessionMetadata = z.infer<typeof SessionMetadata>
 /**
  * One person let into one conversation.
  *
- * The session is the unit rather than the run,
- * because a resumed conversation spans several runs,
+ * The session is the unit rather than the run, because a resumed conversation spans several runs,
  * and sharing one of them would leave the reader half a transcript.
  *
- * Append-only at artifacts/runs/shares.jsonl,
- * last-wins per sessionId and grantee together.
- * Withdrawal appends a record carrying `revokedAt`,
- * so replaying the file in order still ends on the current answer.
+ * Append-only at artifacts/runs/shares.jsonl, last-wins per sessionId and grantee together.
+ * Withdrawal appends a record carrying `revokedAt`, so replaying the file in order still ends on the current answer.
  */
 export const SessionShare = z.object({
   sessionId: z.string().min(1),

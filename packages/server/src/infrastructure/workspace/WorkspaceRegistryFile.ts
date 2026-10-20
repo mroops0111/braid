@@ -9,8 +9,7 @@ import {
 import { z } from 'zod'
 
 // The registry stores a per-workspace `members[]` list alongside `rootPath`.
-// Old shapes carrying only `rootPath` are accepted by `.default([])`,
-// then lazily upgraded on the next write.
+// Old shapes carrying only `rootPath` are accepted by `.default([])`, then lazily upgraded on the next write.
 // `ensureWorkspaceOwners` in `composeFsApp` seeds the default owner,
 // so the single-tenant install keeps working without any manual migration.
 const RegistryEntry = z.object({
@@ -64,8 +63,8 @@ export class WorkspaceRegistryFile {
   }
 
   /**
-   * All entries with their members in one read. An admin view can then,
-   * invert to a user-to-workspaces map, with no N+1 reads of the file.
+   * All entries with their members in one read.
+   * An admin view can then, invert to a user-to-workspaces map, with no N+1 reads of the file.
    */
   async listAllWithMembers(): Promise<ReadonlyArray<{ rootPath: AbsolutePath, members: readonly WorkspaceMember[] }>> {
     const content = await this.read()
@@ -129,11 +128,9 @@ export class WorkspaceRegistryFile {
   }
 
   /**
-   * In one atomic write, demote the current owner to maintainer,
-   * and promote `newOwnerId` to owner.
+   * In one atomic write, demote the current owner to maintainer, and promote `newOwnerId` to owner.
    * If the target is not yet a maintainer here, this throws.
-   * We never auto-add the target,
-   * so the caller must add them first when that is needed.
+   * We never auto-add the target, so the caller must add them first when that is needed.
    */
   async transferOwnership(rootPath: AbsolutePath, newOwnerId: UserId): Promise<void> {
     const content = await this.read()

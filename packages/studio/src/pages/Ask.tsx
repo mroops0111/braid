@@ -45,7 +45,8 @@ function detailFor(view: AnswerView, audiences: readonly AudienceDescriptor[]): 
 
 /** The run's own accounting, so a reader can see what an answer cost to produce. */
 /**
- * The workspace's read surface. An answer is the product, so it holds the page,
+ * The workspace's read surface.
+ * An answer is the product, so it holds the page,
  * and the transcript that produced it sits behind a disclosure underneath.
  */
 export function AskPage({ workspaceId }: { workspaceId: string }) {
@@ -149,8 +150,7 @@ function AnswerList({ workspaceId, skill, answers, onCollapse }: {
 /**
  * One past answer, and the controls for who else may read it.
  *
- * Only the person who asked can lend a conversation out,
- * so the share control is theirs alone,
+ * Only the person who asked can lend a conversation out, so the share control is theirs alone,
  * and everyone else sees a marker saying the answer reached them second-hand.
  */
 /** A conversation carries one turn per run that did not carry another on. */
@@ -394,8 +394,7 @@ function carriedOnRuns(records: readonly RunRecord[]): ReadonlySet<string> {
 /**
  * The question that opened the conversation.
  *
- * A follow-up heads its own section in the canvas,
- * so carrying the latest one up here prints the same sentence twice.
+ * A follow-up heads its own section in the canvas, so carrying the latest one up here prints the same sentence twice.
  * A correction is told the gap it must close rather than a question,
  * and is skipped for the same reason it heads no section.
  *
@@ -437,12 +436,10 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
   const openedBy = records.find(record => record.sessionId === conversation.sessionId)?.startedBy ?? null
   const share = useSessionShareState(workspaceId, conversation.sessionId, openedBy)
   // A conversation somebody lent you is read-only.
-  // The server already refuses the turn,
-  // but it refuses by saying the session is absent,
+  // The server already refuses the turn, but it refuses by saying the session is absent,
   // which reads as a bug to someone looking at the transcript it names.
   //
-  // `workspace.manage` reads every run and may carry any of them on,
-  // so a grant adds nothing to what it already holds,
+  // `workspace.manage` reads every run and may carry any of them on, so a grant adds nothing to what it already holds,
   // and locking it out would be the lie this block exists to avoid.
   const isBorrowed = share.isBorrowed && !policy.can('workspace.manage')
   const turns = collectTurns(conversation.events, carriedOnRuns(records))
@@ -488,8 +485,7 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
   // so a turn can appear that this client never started.
   // Adopt it, or the correction's blocks never reach the canvas.
   //
-  // Keyed on the run ids rather than on the live turn list,
-  // because adopting changes that list,
+  // Keyed on the run ids rather than on the live turn list, because adopting changes that list,
   // and depending on what you mutate re-fires forever.
   const sessionId = conversation.sessionId
   const sessionRunIds = (runsData?.items ?? [])
@@ -567,8 +563,7 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
           onChange={setQuestion}
           disabled={running || isBorrowed}
           onKeyDown={(event) => {
-            // An IME confirming a CJK candidate also sends Enter,
-            // so composing input must never submit.
+            // An IME confirming a CJK candidate also sends Enter, so composing input must never submit.
             if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && !running && !isBorrowed) {
               event.preventDefault()
               void send()
@@ -594,8 +589,7 @@ function Answer({ workspaceId, skill }: { workspaceId: string, skill: SkillManif
  * Which form the next run produces.
  *
  * Beside the question rather than in a setting,
- * because it decides what the run is charged for
- * and cannot be changed once the answer exists.
+ * because it decides what the run is charged for and cannot be changed once the answer exists.
  */
 function FormToggle({ value, onChange, settled, disabled }: {
   value: OutputForm
@@ -650,8 +644,7 @@ function ViewToggle({ value, onChange, audiences, toolCalls }: {
             <TabsTrigger
               key={audience.id}
               value={audience.id}
-              // `title` gives the hover description,
-              // and would otherwise become the accessible name,
+              // `title` gives the hover description, and would otherwise become the accessible name,
               // so the short label is pinned explicitly.
               aria-label={label}
               {...(audience.description ? { title: audience.description } : {})}

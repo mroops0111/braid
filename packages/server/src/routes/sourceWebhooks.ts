@@ -14,8 +14,7 @@ import { Hono } from 'hono'
 import { WorkspaceIdParam } from './_shared.js'
 
 /**
- * GitHub webhook plumbing for filesystem sources,
- * whose loader plugin declares a `webhook` capability.
+ * GitHub webhook plumbing for filesystem sources, whose loader plugin declares a `webhook` capability.
  *
  * Two routers.
  *
@@ -31,20 +30,16 @@ import { WorkspaceIdParam } from './_shared.js'
  *   Studio uses it to display the webhook URL and rotate the secret.
  *
  * The receiver is loader-agnostic and does not switch on `loader.kind`.
- * A new loader extends the webhook surface from its plugin definition,
- * via `webhook: { upstream, shouldDispatch }`.
+ * A new loader extends the webhook surface from its plugin definition, via `webhook: { upstream, shouldDispatch }`.
  *
- * Secrets live in the existing `SecretStore`,
- * under namespace `webhook-github`, keyed by `<workspaceId>--<sourceId>`.
- * That mirrors the OAuth namespaces (oauth-google, oauth-github),
- * which already use the same `--` separator.
+ * Secrets live in the existing `SecretStore`, under namespace `webhook-github`, keyed by `<workspaceId>--<sourceId>`.
+ * That mirrors the OAuth namespaces (oauth-google, oauth-github), which already use the same `--` separator.
  */
 
 const SECRET_NAMESPACE = 'webhook-github'
 // Hosts this receiver knows how to verify deliveries from.
 // A source whose upstream lives elsewhere is not webhook-capable here,
-// and says so with a 400,
-// rather than minting a secret that could never authenticate anything.
+// and says so with a 400, rather than minting a secret that could never authenticate anything.
 const GITHUB_HOSTS = new Set(['github.com'])
 
 interface WebhookSecretRecord {
@@ -64,8 +59,7 @@ export interface GithubWebhookReceiverDeps {
   /**
    * Whether a skill run currently holds the workspace's sources.
    * Deliveries are dropped while one does, matching the poller.
-   * A manual sync stays unconditional,
-   * since a person asked for it and can see the result.
+   * A manual sync stays unconditional, since a person asked for it and can see the result.
    */
   readonly isWorkspaceBusy?: (workspaceId: WorkspaceId) => boolean
 }
@@ -75,14 +69,12 @@ const receiverLogger = createLogger('webhooks.github.receiver')
 // Verify GitHub's `X-Hub-Signature-256` header.
 // GitHub computes `sha256=<hex>` over the raw body with the secret.
 // We recompute and compare in constant time.
-// The prefix check is case-insensitive,
-// because some proxies and WAFs normalise headers.
+// The prefix check is case-insensitive, because some proxies and WAFs normalise headers.
 function verifySignature(rawBody: string, header: string | undefined, secret: string): boolean {
   if (!header || !header.toLowerCase().startsWith('sha256='))
     return false
   // Normalise the hex digest to lowercase,
-  // so the timing-safe compare still accepts an uppercased hex,
-  // (rare but valid).
+  // so the timing-safe compare still accepts an uppercased hex, (rare but valid).
   const provided = `sha256=${header.slice('sha256='.length).toLowerCase()}`
   const expected = `sha256=${createHmac('sha256', secret).update(rawBody).digest('hex')}`
   const a = Buffer.from(expected)
@@ -108,8 +100,7 @@ function resolveWebhookCapability(
 
 // Uniform anonymous response for any pre-signature failure,
 // (missing workspace, source, webhook capability, secret, or HMAC).
-// Distinct error bodies would leak which pairs exist,
-// and which are webhook-armed, to an unauthenticated caller.
+// Distinct error bodies would leak which pairs exist, and which are webhook-armed, to an unauthenticated caller.
 // That recon ladder we deliberately close off.
 function unauthorized(): never {
   throw new UnauthorizedError('Invalid webhook signature.')
@@ -164,11 +155,9 @@ async function verifyDelivery(
 export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Hono {
   const router = new Hono()
 
-  // `:workspaceId/:sourceId` is the routing identity,
-  // the user installs on the GitHub side.
+  // `:workspaceId/:sourceId` is the routing identity, the user installs on the GitHub side.
   // We accept the request, verify, and return 202 immediately.
-  // Sync runs in the background,
-  // so a slow loader never blocks GitHub's delivery worker.
+  // Sync runs in the background, so a slow loader never blocks GitHub's delivery worker.
   // GitHub times deliveries out at ~10s.
   router.post('/github/:workspaceId/:sourceId', async (context) => {
     const workspaceId = WorkspaceId.parse(context.req.param('workspaceId'))
@@ -195,18 +184,15 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
 
     const fullName = extractFullName(payload)
     const expectedFullName = upstream.path.toLowerCase()
-    // GitHub repo names are case-insensitive,
-    // (a stored `Owner/Repo` may arrive as `owner/repo`, or vice versa).
+    // GitHub repo names are case-insensitive, (a stored `Owner/Repo` may arrive as `owner/repo`, or vice versa).
     // Compare normalised. Also REQUIRE full_name to be present.
     // A verified delivery without one is rejected,
-    // since this receiver is per-source,
-    // (some org-level or installation events omit it).
+    // since this receiver is per-source, (some org-level or installation events omit it).
     if (typeof fullName !== 'string' || fullName.toLowerCase() !== expectedFullName)
       throw new ValidationError(`Payload repository "${fullName ?? '(missing)'}" does not match configured "${expectedFullName}".`)
 
     // X-GitHub-Event must be present on real deliveries.
-    // Treating an absent header as "unknown",
-    // would let a stripping proxy silently drop every event,
+    // Treating an absent header as "unknown", would let a stripping proxy silently drop every event,
     // since loaders default to skipping unknown events.
     const event = context.req.header('X-GitHub-Event')
     if (!event)
@@ -219,8 +205,7 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
       return context.json({ accepted: true, event, workspaceId, sourceId, skipped: true }, 202)
     }
 
-    // A run holds this workspace's files,
-    // and a refresh rewrites them under the agent mid-read.
+    // A run holds this workspace's files, and a refresh rewrites them under the agent mid-read.
     // Nobody is waiting on a delivery, so drop it and let the next one,
     // or the poller, pick the change up once the run is done.
     if (deps.isWorkspaceBusy?.(workspaceId)) {
@@ -228,13 +213,11 @@ export function createGithubWebhookReceiver(deps: GithubWebhookReceiverDeps): Ho
       return context.json({ ok: true, skipped: true }, 202)
     }
 
-    // Fire-and-forget. Deliveries time out at ~10s,
-    // and a clean repo with many issues can take minutes to poll.
-    // Errors are logged so a failing sync doesn't silently disappear,
-    // the next delivery retries.
+    // Fire-and-forget.
+    // Deliveries time out at ~10s, and a clean repo with many issues can take minutes to poll.
+    // Errors are logged so a failing sync doesn't silently disappear, the next delivery retries.
     // Concurrent deliveries are allowed to race, loaders are idempotent,
-    // (last-writer-wins per file) so the result still converges,
-    // to the latest remote state.
+    // (last-writer-wins per file) so the result still converges, to the latest remote state.
     void deps.sourceSyncService.syncNow(workspace, sourceId).catch((err) => {
       receiverLogger.warn(
         {
@@ -355,8 +338,7 @@ export function createSourceWebhooksAdminRouter(deps: SourceWebhooksAdminDeps): 
       throw new ServiceUnavailableError('Server is not configured with a public apiUrl. Webhook URLs cannot be rendered.')
     await guardWebhookSource(deps, workspaceId, sourceId)
 
-    // 32 bytes is the GitHub-recommended minimum,
-    // matching what their own webhook setup UI generates.
+    // 32 bytes is the GitHub-recommended minimum, matching what their own webhook setup UI generates.
     const secret = randomBytes(32).toString('hex')
     const createdAt = new Date().toISOString()
     const record: WebhookSecretRecord = { secret, createdAt }
@@ -374,8 +356,8 @@ export function createSourceWebhooksAdminRouter(deps: SourceWebhooksAdminDeps): 
 // Shared admin precondition check.
 // Returns undefined when the source is a webhook-capable github source,
 // otherwise returns the 4xx the caller should surface.
-// We never throw. On schema drift defineSourceLoaderPlugin's wrapper,
-// may throw ZodError, which we catch and translate to 400.
+// We never throw.
+// On schema drift defineSourceLoaderPlugin's wrapper, may throw ZodError, which we catch and translate to 400.
 async function guardWebhookSource(
   deps: SourceWebhooksAdminDeps,
   workspaceId: WorkspaceId,

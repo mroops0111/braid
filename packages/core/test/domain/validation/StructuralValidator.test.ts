@@ -92,8 +92,7 @@ describe('StructuralValidator', () => {
 
       const issues = await validator.validate({
         nodes: [node('a1', aggregate), node('c1', command), node('c2', command), node('a2', aggregate)],
-        // a1 to c1 and a1 to c2 duplicate the source,
-        // a2 to c1 duplicates the target.
+        // a1 to c1 and a1 to c2 duplicate the source, a2 to c1 duplicates the target.
         edges: [
           edge('e1', handles, 'a1', 'c1'),
           edge('e2', handles, 'a1', 'c2'),
@@ -113,8 +112,7 @@ describe('StructuralValidator', () => {
 
       const issues = await validator.validate({
         nodes: [node('bc1', boundedContext), node('bc2', boundedContext), node('agg1', aggregate), node('agg2', aggregate)],
-        // bc1 fans out to agg1 and agg2, which is fine,
-        // bc2 to agg1 then gives agg1 two parents, a violation.
+        // bc1 fans out to agg1 and agg2, which is fine, bc2 to agg1 then gives agg1 two parents, a violation.
         edges: [
           edge('e1', contains, 'bc1', 'agg1'),
           edge('e2', contains, 'bc1', 'agg2'),

@@ -14,8 +14,7 @@ export interface DevCommandInput {
 /**
  * Boot Braid for interactive development.
  * In a monorepo checkout (a pnpm-workspace.yaml at the cwd or an ancestor),
- * spawn the server and Studio dev processes so edits to either reload live,
- * prefix their logs, and stop both on Ctrl+C.
+ * spawn the server and Studio dev processes so edits to either reload live, prefix their logs, and stop both on Ctrl+C.
  * Standalone, with no workspace context, run the server only.
  * v0.1 ships no bundled Studio dist for standalone installs yet.
  */

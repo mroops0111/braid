@@ -14,13 +14,11 @@ export interface OutputViolation {
  * Checks blocks against the contract the skill declared.
  *
  * What the caller passes decides what the contract binds.
- * A conversation is read as one answer,
- * so the caller hands in every block its turns rendered,
+ * A conversation is read as one answer, so the caller hands in every block its turns rendered,
  * and a follow-up then owes only what no turn before it covered.
  *
  * Pure and total, so the retry decision stays testable without a subprocess.
- * A contract that asks for nothing yields no violations,
- * which is what an undeclared skill gets.
+ * A contract that asks for nothing yields no violations, which is what an undeclared skill gets.
  */
 export function validateOutput(
   contract: SkillOutputContract,
@@ -51,8 +49,7 @@ export function validateOutput(
 }
 
 /**
- * The correction handed back to the agent,
- * phrased as the gap rather than as a repeat of the original request,
+ * The correction handed back to the agent, phrased as the gap rather than as a repeat of the original request,
  * so the next turn adds instead of redoing.
  */
 export function describeViolations(violations: readonly OutputViolation[]): string {

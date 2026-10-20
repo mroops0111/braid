@@ -88,8 +88,8 @@ export function makeSkillManifestData(opts: MakeSkillManifestOptions = {}): Skil
 
 /**
  * Construct a wrapped SkillManifest.
- * Defaults to a braid:ask builtin manifest with no env, path,
- * or mcp requirements. Override for readiness-check tests.
+ * Defaults to a braid:ask builtin manifest with no env, path, or mcp requirements.
+ * Override for readiness-check tests.
  */
 export function makeSkillManifest(opts: MakeSkillManifestOptions = {}): SkillManifest {
   return new SkillManifest(makeSkillManifestData(opts))
@@ -99,14 +99,12 @@ export function makeSkillManifest(opts: MakeSkillManifestOptions = {}): SkillMan
  * The part of `SkillRunner` a fake has to satisfy and no test drives.
  *
  * A fake exists to give one behaviour a test can steer.
- * The rest of the port still has to be there,
- * and written out per fake it becomes the thing that silently drifts.
+ * The rest of the port still has to be there, and written out per fake it becomes the thing that silently drifts.
  * Three copies of Braid's own fakes each had to gain `emitBlock`,
  * and their `hasActiveRun` had already stopped matching the real signature.
  *
  * Spread this and override what the test steers.
- * Anything left is inert on purpose,
- * answering as if nothing is running and refusing what it cannot do,
+ * Anything left is inert on purpose, answering as if nothing is running and refusing what it cannot do,
  * rather than returning a plausible value a test might come to rely on.
  */
 export function inertSkillRunner(): SkillRunner {
@@ -127,8 +125,7 @@ export function inertSkillRunner(): SkillRunner {
  *
  * Same reason as `inertSkillRunner`.
  * A test needing one method was casting the whole port away,
- * which also turned off the checking on the record it was building,
- * and the record had drifted.
+ * which also turned off the checking on the record it was building, and the record had drifted.
  */
 export function inertRunRepository(): RunRepository {
   return {
@@ -145,10 +142,8 @@ export function inertRunRepository(): RunRepository {
 /**
  * A run summary, as the log would hold it.
  *
- * Every field is real rather than cast away,
- * so a test stops compiling when the record gains something a surface needs.
- * Two call sites built this inline,
- * one of them behind an `as never` that turned the type off.
+ * Every field is real rather than cast away, so a test stops compiling when the record gains something a surface needs.
+ * Two call sites built this inline, one of them behind an `as never` that turned the type off.
  */
 export function makeRunRecord(overrides: Partial<RunRecord> = {}): RunRecord {
   return {

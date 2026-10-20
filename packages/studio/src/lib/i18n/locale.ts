@@ -9,8 +9,7 @@ export { FALLBACK_LOCALE, isLocale, type Locale, type LocaleOption, SUPPORTED_LO
 /**
  * Locale to use on first paint.
  * Returns the user's stored pick if they have ever chosen one,
- * otherwise the closest match to the browser preference,
- * otherwise English.
+ * otherwise the closest match to the browser preference, otherwise English.
  */
 export function initialLocale(): Locale {
   const stored = readStored(STORAGE_KEYS.locale)

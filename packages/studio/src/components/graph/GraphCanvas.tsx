@@ -40,24 +40,20 @@ interface GraphCanvasProps {
   /**
    * Rendered inside another surface rather than as the Graph page.
    *
-   * The minimap goes,
-   * because a slice small enough to embed is already the overview it provides,
+   * The minimap goes, because a slice small enough to embed is already the overview it provides,
    * and every type starts visible,
-   * because an embedded slice was chosen by whoever put it there,
-   * rather than filtered down by the reader.
+   * because an embedded slice was chosen by whoever put it there, rather than filtered down by the reader.
    */
   embedded?: boolean
   /**
    * Optional data source override. Defaults to the live workspace snapshot.
    * Proposal previews pass a derived source carrying a `diff` overlay,
-   * so the renderer can tint added, updated, and removed elements,
-   * without knowing anything about proposals.
+   * so the renderer can tint added, updated, and removed elements, without knowing anything about proposals.
    */
   source?: GraphDataSource
   /**
    * Controlled selection.
-   * When both `selectedNodeId` and `onSelectNode` are provided,
-   * the canvas defers ownership to the parent,
+   * When both `selectedNodeId` and `onSelectNode` are provided, the canvas defers ownership to the parent,
    * so a sibling view such as the table can share the highlight.
    * When omitted the canvas falls back to internal state.
    */
@@ -65,15 +61,12 @@ interface GraphCanvasProps {
   onSelectNode?: (id: NodeId | null) => void
   /**
    * Controlled edge selection. Mirrors node selection.
-   * Mutual exclusion is the parent's responsibility,
-   * see GraphSurface's setter pair.
-   * When omitted the canvas falls back to internal state,
-   * and still maintains its own mutual-exclusion invariant.
+   * Mutual exclusion is the parent's responsibility, see GraphSurface's setter pair.
+   * When omitted the canvas falls back to internal state, and still maintains its own mutual-exclusion invariant.
    */
   /**
    * Bumped by a caller arriving from outside to pan onto the current selection.
-   * Selection alone cannot trigger the pan,
-   * since a direct canvas click changes the same value,
+   * Selection alone cannot trigger the pan, since a direct canvas click changes the same value,
    * and auto-panning on those felt twitchy.
    */
   centerRequest?: number
@@ -81,8 +74,7 @@ interface GraphCanvasProps {
   onSelectEdge?: (id: EdgeId | null) => void
   /**
    * Controlled focus mode. When provided, the parent owns the on/off state.
-   * Pages set this from a page-level toolbar,
-   * so the same toggle drives both canvas and table.
+   * Pages set this from a page-level toolbar, so the same toggle drives both canvas and table.
    */
   focusMode?: boolean
   /**
@@ -93,29 +85,23 @@ interface GraphCanvasProps {
    */
   dimUnchanged?: boolean
   /**
-   * When `true`, `added` nodes wear a green ring and accent dot,
-   * instead of just the small corner dot.
+   * When `true`, `added` nodes wear a green ring and accent dot, instead of just the small corner dot.
    * Studio normally keeps `added` subtle,
-   * so a fresh-extract proposal where all nodes are added,
-   * is not overwhelmed by green.
-   * For an incremental proposal where a small fraction changed,
-   * the subtler treatment hides the diff.
+   * so a fresh-extract proposal where all nodes are added, is not overwhelmed by green.
+   * For an incremental proposal where a small fraction changed, the subtler treatment hides the diff.
    * Caller `Proposals` flips this on when the diff ratio is low.
    */
   emphasizeAdded?: boolean
   /**
-   * When provided, the empty-graph EmptyState shows an action button,
-   * routing to the Batch surface.
+   * When provided, the empty-graph EmptyState shows an action button, routing to the Batch surface.
    * Lets a freshly-scaffolded workspace discover the bootstrap flow.
    */
   onStartBootstrap?: () => void
   /** Opens the command palette from the navigator, not only from the shortcut. */
   onOpenSearch?: () => void
   /**
-   * Nodes somebody arrived to look at,
-   * marked and framed inside whatever is drawn.
-   * Arriving is a fresh intent, so it also opens the type whitelist,
-   * the same relaxation a reference already gets,
+   * Nodes somebody arrived to look at, marked and framed inside whatever is drawn.
+   * Arriving is a fresh intent, so it also opens the type whitelist, the same relaxation a reference already gets,
    * since a filter set while browsing must not hide what was just asked for.
    */
   spotlightIds?: readonly NodeId[]
@@ -154,8 +140,7 @@ export function GraphCanvas({ workspaceId, source, embedded, selectedNodeId, onS
 
 function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: controlledSelected, onSelectNode, selectedEdgeId: controlledEdgeSelected, onSelectEdge, focusMode = false, centerRequest = 0, dimUnchanged = false, emphasizeAdded = false, onStartBootstrap, onOpenSearch, spotlightIds = NO_SPOTLIGHT }: GraphCanvasProps) {
   const { t } = useTranslation()
-  // React Query dedupes the live snapshot fetch by queryKey,
-  // so it is effectively free when `source` is supplied.
+  // React Query dedupes the live snapshot fetch by queryKey, so it is effectively free when `source` is supplied.
   const liveSource = useLiveGraphDataSource(workspaceId)
   const effective = source ?? liveSource
   const { data: ontology } = useOntology(workspaceId)
@@ -172,8 +157,7 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
   const [filters, setFilters] = useState<GraphFilters>(INITIAL_FILTERS)
   const [selectedNodeId, setSelectedNodeId] = useControllableState<NodeId | null>(controlledSelected, onSelectNode, null)
   const [selectedEdgeId, setSelectedEdgeId] = useControllableState<EdgeId | null>(controlledEdgeSelected, onSelectEdge, null)
-  // Navigator stays open across tab and preview modes,
-  // so the filter chips are visible from the start.
+  // Navigator stays open across tab and preview modes, so the filter chips are visible from the start.
   // Reviewers got stuck in preview mode wondering how to surface types.
   // An embedded slice starts with the panel folded.
   // The reader came for the picture, and the slice was chosen for them,
@@ -181,9 +165,8 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
   const [navigatorOpen, setNavigatorOpen] = useState(!embedded)
   const canvasRef = useRef<HTMLDivElement>(null)
   /**
-   * How the viewport was last framed on purpose,
-   * replayed when the canvas changes width. Null until something frames it,
-   * so a resize with no intent behind it leaves the reader where they were.
+   * How the viewport was last framed on purpose, replayed when the canvas changes width.
+   * Null until something frames it, so a resize with no intent behind it leaves the reader where they were.
    */
   const viewportIntentRef = useRef<(() => void) | null>(null)
 
@@ -206,8 +189,7 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
     () => computeNeighborhood(selectedNodeId, filtered.edges),
     [selectedNodeId, filtered.edges],
   )
-  // Focus mode shrinks the layout input,
-  // so dagre does not lay out off-screen cards that get filtered later.
+  // Focus mode shrinks the layout input, so dagre does not lay out off-screen cards that get filtered later.
   const visible = useMemo(() => {
     if (!focusMode || !selectedNodeId)
       return filtered
@@ -221,8 +203,7 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
   // Session-only drag overrides. Each drag updates this map.
   // On refresh the graph re-lays out via dagre.
   // Per-user persistence is deferred until accounts ship.
-  // A server-side layout would be shared across every collaborator,
-  // which is worse than a refresh resetting positions.
+  // A server-side layout would be shared across every collaborator, which is worse than a refresh resetting positions.
   const [dragPositions, setDragPositions] = useState<Map<string, { x: number, y: number }>>(() => new Map())
   const laidOut = useMemo(() => {
     if (dragPositions.size === 0)
@@ -262,8 +243,7 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
 
   // Edges keep their type colour so topology is readable.
   // Diff state is signalled via stroke shape, dashed removed, thicker added.
-  // Labels are hidden until selected,
-  // long-jump edges would otherwise drop pills over every card they cross.
+  // Labels are hidden until selected, long-jump edges would otherwise drop pills over every card they cross.
   const labelAllEdges = laidOut.edges.length <= EDGE_LABEL_LIMIT
   const reactFlowEdges = useMemo(
     () => laidOut.edges.map((edge) => {
@@ -274,10 +254,8 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
       const dimmedByDiff = dimUnchanged && !change
       const dimmed = dimmedByFocus || dimmedByDiff
       const baseColor = palette.edgeColor(edge.data!.edge.type)
-      // Fading the unselected helps a reader find the few that matter,
-      // in a graph they did not choose.
-      // An embedded slice was chosen for them,
-      // so every edge in one already matters and none of it fades.
+      // Fading the unselected helps a reader find the few that matter, in a graph they did not choose.
+      // An embedded slice was chosen for them, so every edge in one already matters and none of it fades.
       const stroke = selected || incident || embedded
         ? baseColor
         : withAlpha(baseColor, change === 'removed' ? EDGE_DIM_REMOVED : EDGE_DIM_DEFAULT)
@@ -330,8 +308,7 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
    *
    * ReactFlow's own `fitView` prop runs before a node reports its size,
    * so it frames a bounds it cannot know yet and lands on `minZoom`.
-   * The layout-change fit normally corrects this,
-   * because the snapshot usually arrives after mount and moves the key.
+   * The layout-change fit normally corrects this, because the snapshot usually arrives after mount and moves the key.
    * A canvas mounted over an already-cached snapshot never gets that pass,
    * which is every embedded subgraph, and stays zoomed out.
    */
@@ -365,8 +342,7 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
   }, [dimUnchanged, changedNodeIds, reactFlow, navigatorOpen])
 
   // Arriving frames what was arrived at,
-  // so a dozen nodes are legible inside a graph of a thousand,
-  // rather than sitting somewhere off screen.
+  // so a dozen nodes are legible inside a graph of a thousand, rather than sitting somewhere off screen.
   useEffect(() => {
     if (spotlightIds.length === 0)
       return
@@ -377,15 +353,13 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
   }, [spotlightIds, laidOut.nodes, reactFlow])
 
   // Where a node card's title and first description line are legible.
-  // Below this, arriving at a node tells the reader where it is,
-  // and nothing about what it says.
+  // Below this, arriving at a node tells the reader where it is, and nothing about what it says.
   /**
    * Put a graph point in the middle of what the reader can actually see.
    *
    * ReactFlow learns its size from a ResizeObserver,
    * which has not fired yet on the render that opened the detail panel,
-   * so `setCenter` would aim at the width the canvas had,
-   * before the panel took a third of it.
+   * so `setCenter` would aim at the width the canvas had, before the panel took a third of it.
    * Measuring here and setting the viewport directly removes that race.
    */
   const centerOnPoint = useCallback((x: number, y: number) => {
@@ -413,8 +387,7 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
   // Seeded with the resting value, never the current one.
   // An arrival mounts this canvas, so its request is already counted here.
   const servedCenterRef = useRef(0)
-  // Revealing and panning are separate passes,
-  // since the relayout a filter change triggers lands on the next render.
+  // Revealing and panning are separate passes, since the relayout a filter change triggers lands on the next render.
   useEffect(() => {
     if (centerRequest === servedCenterRef.current || !selectedNodeId)
       return
@@ -427,8 +400,7 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
       neighbourTypes: neighbourTypesOf(selectedNodeId, incoming, outgoing, nodesById),
     }
     if (revealNode(filters, revealTarget) !== filters) {
-      // An updater, since the ontology seed can already have one queued,
-      // which a plain value would drop.
+      // An updater, since the ontology seed can already have one queued, which a plain value would drop.
       setFilters(current => revealNode(current, revealTarget))
       return
     }
@@ -439,8 +411,7 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
   }, [centerRequest, selectedNodeId, nodesById, filters, orphanIds, incoming, outgoing, laidOut.nodes, centerOnNode])
 
   // Node and edge selections are mutually exclusive.
-  // These helpers encapsulate the "set one, clear the other" invariant,
-  // so callers cannot accidentally leave both set.
+  // These helpers encapsulate the "set one, clear the other" invariant, so callers cannot accidentally leave both set.
   const selectNode = useCallback((nodeId: NodeId | null) => {
     setSelectedNodeId(nodeId)
     setSelectedEdgeId(null)
@@ -461,12 +432,11 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
     centerOnNode(nodeId)
   }, [centerOnNode, selectNode])
 
-  // Direct canvas clicks use `selectNode` with no centering,
-  // auto-pan on every click felt twitchy.
+  // Direct canvas clicks use `selectNode` with no centering, auto-pan on every click felt twitchy.
   // Only navigator and detail-sheet entry points use `selectAndCenter`.
 
-  // Edge-centring helper. Declared before any early return,
-  // so the hook call order is identical across renders (Rules of Hooks).
+  // Edge-centring helper.
+  // Declared before any early return, so the hook call order is identical across renders (Rules of Hooks).
   const centerOnEdge = useCallback((edge: GraphEdge) => {
     const fromPos = laidOut.nodes.find(n => n.id === edge.fromNodeId)?.position
     const toPos = laidOut.nodes.find(n => n.id === edge.toNodeId)?.position
@@ -477,8 +447,7 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
 
   // A width change means the panels took or gave back space,
   // so whatever last positioned the viewport has to say it again.
-  // Only something that moved the canvas on purpose is repeated,
-  // since a plain selection moves nothing,
+  // Only something that moved the canvas on purpose is repeated, since a plain selection moves nothing,
   // and repeating a fit for it would pan on every click.
   useRefitOnResize(canvasRef, useCallback(() => {
     viewportIntentRef.current?.()
@@ -486,9 +455,9 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
 
   useGraphShortcuts(reactFlow)
 
-  // Export the visible graph as a clean image. We render `.react-flow__viewport`,
-  // which holds only nodes and edges, so the minimap, controls, background,
-  // and every panel are left out.
+  // Export the visible graph as a clean image.
+  // We render `.react-flow__viewport`, which holds only nodes and edges,
+  // so the minimap, controls, background, and every panel are left out.
   // The transform reframes the node bounds into a margin,
   // so the file is sized to the graph, not the current pan and zoom.
   const exportImage = useCallback(async (format: 'png' | 'svg') => {
@@ -521,8 +490,7 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
     }
   }, [reactFlow, workspaceId])
 
-  // xyflow v12 controlled mode requires `onNodesChange`,
-  // to advance the visual during a drag.
+  // xyflow v12 controlled mode requires `onNodesChange`, to advance the visual during a drag.
   // Mirroring position changes into `dragPositions` tracks the cursor,
   // the final position stays in the map after drag-end.
   // Re-renders then keep the node where the user left it until refresh.
@@ -567,8 +535,8 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
     : null
   const selectedEdgeFromNode = selectedEdge ? nodesById.get(selectedEdge.fromNodeId) : undefined
   const selectedEdgeToNode = selectedEdge ? nodesById.get(selectedEdge.toNodeId) : undefined
-  // When we reach the `FilteredEmpty` branch below, `allNodes` is non-empty,
-  // and `filtered` is empty. The early return covers the zero case.
+  // When we reach the `FilteredEmpty` branch below, `allNodes` is non-empty, and `filtered` is empty.
+  // The early return covers the zero case.
   // The filter is, by elimination, the cause.
 
   return (
@@ -633,8 +601,7 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
                 onClear={() => setFilters({
                   ...INITIAL_FILTERS,
                   // Reset must enable every type currently in the workspace.
-                  // Under the strict-whitelist convention,
-                  // an empty list would just stay empty.
+                  // Under the strict-whitelist convention, an empty list would just stay empty.
                   types: Array.from(new Set(allNodes.map(n => n.type))),
                 })}
               />
@@ -676,9 +643,8 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
                 )}
                 <Controls
                   showInteractive={false}
-                  // ReactFlow fills control icons,
-                  // which its own set is drawn for. Lucide draws strokes,
-                  // so an unfilled icon renders as a solid blob without this.
+                  // ReactFlow fills control icons, which its own set is drawn for.
+                  // Lucide draws strokes, so an unfilled icon renders as a solid blob without this.
                   className="!bg-card !border !border-border [&_button]:!bg-card [&_button]:!border-border [&_button]:!text-foreground [&_button:disabled]:!opacity-40 [&_button_svg]:!fill-none [&_button_svg]:!stroke-current"
                 >
                   {/* Zoom and fit already live here, and centring is the same
@@ -742,17 +708,14 @@ function CanvasInner({ workspaceId, source, embedded = false, selectedNodeId: co
 /**
  * States how much of the graph is on screen, over the canvas itself.
  *
- * Every other filter UI can lean on the reader having applied the filter,
- * and this one cannot. The canvas opens already narrowed,
- * by a default nobody chose, so a workspace can hide most of itself,
+ * Every other filter UI can lean on the reader having applied the filter, and this one cannot.
+ * The canvas opens already narrowed, by a default nobody chose, so a workspace can hide most of itself,
  * and read as the whole graph.
  *
  * Counted first, the way a result list says how many of how many it shows,
- * since the reader's question is whether this is everything,
- * not which types went missing. The type clause follows as the reason,
- * and points at the navigator's list, where the filter is actually tuned.
- * Suppressed once the filter empties the canvas,
- * where `FilteredEmpty` already says it and offers the same way out.
+ * since the reader's question is whether this is everything, not which types went missing.
+ * The type clause follows as the reason, and points at the navigator's list, where the filter is actually tuned.
+ * Suppressed once the filter empties the canvas, where `FilteredEmpty` already says it and offers the same way out.
  */
 function HiddenTypesNotice({ shownCount, totalCount, typeCount, onShowAll }: {
   shownCount: number
@@ -837,16 +800,13 @@ function applyFilters(
   const nodeMatches = nodes.filter((node) => {
     // Type filter is a strict whitelist.
     // An empty list means nothing matches, the user cleared all chips.
-    // The "empty = show all" convention surprised users,
-    // clicking `clear` looked like a no-op.
-    // Initial state is seeded from the ontology's `defaultVisible` types,
-    // so first render still has content.
+    // The "empty = show all" convention surprised users, clicking `clear` looked like a no-op.
+    // Initial state is seeded from the ontology's `defaultVisible` types, so first render still has content.
     if (!filters.types.includes(node.type))
       return false
     if (filters.orphansOnly && !orphanIds.has(node.id))
       return false
-    // Search is free-text against the human-facing content,
-    // name and description.
+    // Search is free-text against the human-facing content, name and description.
     // Structured criteria such as type and orphan have their own filter UI.
     // Conflating them into search caused "what does typing here even do?".
     return matchesSearch(filters.search, node)

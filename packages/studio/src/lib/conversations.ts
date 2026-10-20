@@ -3,8 +3,7 @@ import type { RunRecord, SessionMetadata } from '@braidhq/schema'
 /**
  * One conversation, which is every run recorded under a single session.
  *
- * A run that errored before the agent reported a session has none to join,
- * so it stands alone under its own run id,
+ * A run that errored before the agent reported a session has none to join, so it stands alone under its own run id,
  * and the surfaces render it as a conversation of one.
  */
 export interface SessionGroup {
@@ -19,8 +18,7 @@ export interface SessionGroup {
   title: string | null
   /**
    * Who opened the conversation, taken from its first run.
-   * Null on runs recorded before attribution existed,
-   * and on any run with no caller behind it.
+   * Null on runs recorded before attribution existed, and on any run with no caller behind it.
    */
   startedBy: string | null
 }
@@ -33,8 +31,7 @@ export function groupBySession(
   const groups = new Map<string, SessionGroup>()
   const orphans: SessionGroup[] = []
   // Records arrive newest-first from the API.
-  // We want oldest-first inside a session,
-  // so the replay reads top-to-bottom in chronological order.
+  // We want oldest-first inside a session, so the replay reads top-to-bottom in chronological order.
   for (const record of [...records].reverse()) {
     if (!record.sessionId) {
       orphans.push({

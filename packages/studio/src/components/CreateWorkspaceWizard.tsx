@@ -134,8 +134,7 @@ export function CreateWorkspaceWizard({ open, onOpenChange, onCreated }: CreateW
           close()
           return
         }
-        // Anything else is a draft the user typed,
-        // so Escape and outside-click keep it for the next open.
+        // Anything else is a draft the user typed, so Escape and outside-click keep it for the next open.
         // Only Cancel discards it.
         onOpenChange(false)
       }}
@@ -487,10 +486,8 @@ function SourceRow({ workspaceName, draft, oauthConnected, onUpdate, onRemove, o
 
 /**
  * Loader dropdown for the wizard.
- * Reads the server's `/source-loaders` list,
- * so any newly-registered plugin appears here without a Studio code change.
- * The `manual` option is always offered first,
- * because it is not backed by a plugin.
+ * Reads the server's `/source-loaders` list, so any newly-registered plugin appears here without a Studio code change.
+ * The `manual` option is always offered first, because it is not backed by a plugin.
  * It just tells the workspace the source has no auto-sync.
  */
 function LoaderSelect({ value, onChange }: { value: string, onChange: (kind: string) => void }) {
@@ -518,10 +515,8 @@ function GdriveOauthBlock({ workspaceName, sourceName, connected, onConnected }:
 }) {
   const { t } = useTranslation()
   // Token storage key is `${workspaceId}--${sourceId}`.
-  // Workspace id is the typed name, the PRODUCT.md name,
-  // source id is derived from the source name.
-  // Both come from the wizard's current state,
-  // so we authorise before scaffold.
+  // Workspace id is the typed name, the PRODUCT.md name, source id is derived from the source name.
+  // Both come from the wizard's current state, so we authorise before scaffold.
   const workspaceId = workspaceName.trim()
   const sourceId = nameToId(sourceName)
   const canStart = workspaceId.length > 0 && sourceId.length > 0
@@ -564,8 +559,7 @@ function GithubOauthBlock({ workspaceName, sourceName, connected, onConnected }:
   onConnected: (sourceId: string) => void
 }) {
   const { t } = useTranslation()
-  // Same pre-scaffold token stashing as gdrive,
-  // the key is `${workspaceId}--${sourceId}`, both from the wizard state.
+  // Same pre-scaffold token stashing as gdrive, the key is `${workspaceId}--${sourceId}`, both from the wizard state.
   const workspaceId = workspaceName.trim()
   const sourceId = nameToId(sourceName)
   const canStart = workspaceId.length > 0 && sourceId.length > 0
@@ -901,8 +895,7 @@ function canAdvanceFrom(
       }
       if (source.loaderKind === 'git' && source.gitUrl.trim().length === 0)
         return false
-      // GitHub reads issues over the API,
-      // so it needs a connected token before scaffold, else sync fails opaquely.
+      // GitHub reads issues over the API, so it needs a connected token before scaffold, else sync fails opaquely.
       if (source.loaderKind === 'github' && !state.oauthConnectedFor.has(nameToId(source.name)))
         return false
       return true

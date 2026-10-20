@@ -27,8 +27,7 @@ export async function loadWorkspaceById(
 /**
  * The skill a batch runs once per document, declared by the ontology.
  *
- * Absent means this ontology has no per-unit step,
- * so there is nothing for a batch to run and nothing to authorise.
+ * Absent means this ontology has no per-unit step, so there is nothing for a batch to run and nothing to authorise.
  */
 export function resolvePerUnitSkillId(pluginRegistry: PluginRegistry, workspace: Workspace): SkillId | undefined {
   const ontology = pluginRegistry.findOntology(workspace.productManifest.ontologyId)

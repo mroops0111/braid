@@ -14,8 +14,8 @@ export const BatchStatus = z.enum(['idle', 'deriving', 'running', 'completed', '
 export type BatchStatus = z.infer<typeof BatchStatus>
 
 /**
- * direct mode enumerates unit-bearing sources into units. derived mode seeds
- * units via the ontology's deriveUnits skill, when no unit-bearing source exists.
+ * direct mode enumerates unit-bearing sources into units.
+ * derived mode seeds units via the ontology's deriveUnits skill, when no unit-bearing source exists.
  */
 export const BatchInputMode = z.enum(['direct', 'derived'])
 export type BatchInputMode = z.infer<typeof BatchInputMode>
@@ -36,8 +36,7 @@ export const BatchUnit = z.object({
   proposalIds: z.array(ProposalId).default([]),
   clarificationIds: z.array(ClarificationId).default([]),
   error: z.string().optional(),
-  // Carried across a resume,
-  // so the retry continues the agent's session rather than re-reading it all.
+  // Carried across a resume, so the retry continues the agent's session rather than re-reading it all.
   // Absent until a run reports one, and on a unit that never started.
   resumeSessionId: z.string().min(1).optional(),
 })

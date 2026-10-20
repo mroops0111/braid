@@ -11,10 +11,8 @@ export interface ViewPathParts {
 /**
  * Where a written view lands, and what a reader asks for it by.
  *
- * The subject is escaped rather than flattened,
- * so the node it was written out of survives the trip through a filename.
- * Replacing a separator with a hyphen makes the mapping one-way,
- * since a node id may already carry a hyphen,
+ * The subject is escaped rather than flattened, so the node it was written out of survives the trip through a filename.
+ * Replacing a separator with a hyphen makes the mapping one-way, since a node id may already carry a hyphen,
  * and a regenerate would then be guessing which document it meant.
  */
 export function viewPathOf(parts: ViewPathParts): string {

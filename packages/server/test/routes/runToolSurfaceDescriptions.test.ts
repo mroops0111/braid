@@ -48,8 +48,7 @@ function surface(category: string, form: string): Promise<Surface> {
  * The composition a deployment actually runs, rather than a lighter one.
  *
  * Several routers mount only when the dependency behind them exists,
- * so a lighter composition serves a smaller document,
- * and a field on a route it never mounts goes unchecked,
+ * so a lighter composition serves a smaller document, and a field on a route it never mounts goes unchecked,
  * while a run against a real deployment is handed that field to fill.
  */
 async function readSurface(category: string, form: string): Promise<Surface> {
@@ -73,8 +72,7 @@ describe('every field a run is asked to fill', () => {
     expect(undescribedParameters(operationsOf(document))).toEqual([])
   })
 
-  // A tool with no prose at all is a name and a shape,
-  // and the name is the only part a model reads before deciding.
+  // A tool with no prose at all is a name and a shape, and the name is the only part a model reads before deciding.
   it.each(PAIRINGS)('says what the operation does on a $category run writing $form', async ({ category, form }) => {
     const document = await surface(category, form)
     expect(silentOperations(operationsOf(document))).toEqual([])

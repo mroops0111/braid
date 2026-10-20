@@ -54,8 +54,7 @@ describe('startEmbeddingReindexer', () => {
     emit('proposal.applied')
     emit('workspace.restored')
 
-    // A batch emits many of these in a row,
-    // and each rebuild reads the whole index,
+    // A batch emits many of these in a row, and each rebuild reads the whole index,
     // so overlapping them would repeat the same work.
     expect(embeddingService.rebuild).toHaveBeenCalledTimes(1)
     release?.()
@@ -73,8 +72,7 @@ describe('startEmbeddingReindexer', () => {
     })
 
     emit('proposal.applied')
-    // The slot is only freed once the rejection has been handled,
-    // so waiting on the call count would race the cleanup.
+    // The slot is only freed once the rejection has been handled, so waiting on the call count would race the cleanup.
     await vi.waitFor(() => expect(settled).toBe(1))
     await Promise.resolve()
 

@@ -88,9 +88,8 @@ describe('validateSkillStructure', () => {
   })
 
   it('ignores H2-like text inside fenced code blocks', () => {
-    // The fenced block contains a literal `## Role` line that must NOT
-    // count as a real section. The skill is missing the actual Role
-    // section so we expect the validator to still complain.
+    // The fenced block contains a literal `## Role` line that must NOT count as a real section.
+    // The skill is missing the actual Role section so we expect the validator to still complain.
     const without = ALL_SECTIONS.filter(s => s !== 'Role')
     const text = `\`\`\`md\n## Role\nfaux heading\n\`\`\`\n\n${body(without)}`
     const result = validateSkillStructure({

@@ -3,15 +3,12 @@ import { useCallback, useState } from 'react'
 /**
  * Controlled-or-uncontrolled state primitive.
  *
- * When the caller passes both `value` and `onChange`,
- * the component defers ownership to them.
+ * When the caller passes both `value` and `onChange`, the component defers ownership to them.
  * When either is omitted, the component keeps the value in local state.
- * The setter signature stays the same in both modes,
- * so call sites do not branch.
+ * The setter signature stays the same in both modes, so call sites do not branch.
  *
- * Use this when a component supports both modes,
- * such as a selection shared across sibling views, or used standalone,
- * to avoid the `isControlled ? onChange!(next) : setInternal(next)` boilerplate.
+ * Use this when a component supports both modes, such as a selection shared across sibling views,
+ * or used standalone, to avoid the `isControlled ? onChange!(next) : setInternal(next)` boilerplate.
  */
 export function useControllableState<T>(
   controlledValue: T | undefined,

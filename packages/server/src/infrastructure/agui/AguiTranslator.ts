@@ -16,14 +16,11 @@ const CUSTOM_NAMES = {
  * Braid's own run events, spoken as AG-UI.
  *
  * The translation is one way and happens only here, at the HTTP boundary.
- * Nothing upstream knows AG-UI exists,
- * which is why an agent plugin needs no change to be reachable by a client.
+ * Nothing upstream knows AG-UI exists, which is why an agent plugin needs no change to be reachable by a client.
  * It parses its agent's output into `SkillEvent` as it always did.
  *
- * Stateful because AG-UI addresses a message by id across three events,
- * while an agent hands Braid whole messages.
- * The counter is what turns one into the other,
- * so a translator belongs to one run and is not shared.
+ * Stateful because AG-UI addresses a message by id across three events, while an agent hands Braid whole messages.
+ * The counter is what turns one into the other, so a translator belongs to one run and is not shared.
  */
 export class AguiTranslator {
   private messageCount = 0
@@ -45,10 +42,8 @@ export class AguiTranslator {
       // A run that carries another on opens holding that run's account,
       // so a second start arrives inside the same stream,
       // and the protocol refuses a second `RUN_STARTED` while a run is active.
-      // The later ones are the carried thread describing itself,
-      // which the log keeps and the wire does not need.
-      // The instruction behind it travels as what it is,
-      // the user message that starts the turn.
+      // The later ones are the carried thread describing itself, which the log keeps and the wire does not need.
+      // The instruction behind it travels as what it is, the user message that starts the turn.
       // The protocol's own start event carries ids and nothing else,
       // so a reader given only that sees work with no sight of the request.
       case 'started': {
@@ -76,8 +71,7 @@ export class AguiTranslator {
       }
 
       // A message arrives whole, so the triplet is emitted at once.
-      // A consumer sees a complete message either way,
-      // and the shape stays the one every AG-UI client already handles.
+      // A consumer sees a complete message either way, and the shape stays the one every AG-UI client already handles.
       //
       // Unless deltas already carried it, where only the close is still owed.
       // A replayed run holds none, so it takes the triplet as before.
@@ -141,8 +135,7 @@ export class AguiTranslator {
         return [{ type: EventType.CUSTOM, name: CUSTOM_NAMES.usage, value: { ...event, type: undefined } }]
 
       // Not RUN_ERROR.
-      // A Braid run reports an error and keeps going,
-      // while RUN_ERROR ends the stream for a conformant client.
+      // A Braid run reports an error and keeps going, while RUN_ERROR ends the stream for a conformant client.
       // What the run finished as is decided below, by the exit code.
       case 'error':
         return [{ type: EventType.CUSTOM, name: CUSTOM_NAMES.error, value: { message: event.message } }]

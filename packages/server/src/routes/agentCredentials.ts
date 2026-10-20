@@ -12,8 +12,7 @@ const KindParam = z.object({
 /**
  * What a run would spend, and what the caller has saved towards it.
  *
- * `credential` is absent where they have saved none,
- * and `source` then says whether the server covers them,
+ * `credential` is absent where they have saved none, and `source` then says whether the server covers them,
  * or the run would be refused.
  */
 const StatusResponse = z.object({
@@ -85,8 +84,7 @@ const deleteRoute = createRoute({
  * A person's own agent credentials, and nobody else's.
  *
  * Every route acts on the caller.
- * No path carries another user's id,
- * so an admin has no route to read or replace what a colleague saved.
+ * No path carries another user's id, so an admin has no route to read or replace what a colleague saved.
  * The absence is the guarantee, rather than a check somewhere.
  */
 export function createAgentCredentialsRouter(deps: AgentCredentialsRouterDeps): OpenAPIHono {

@@ -14,14 +14,13 @@ const DOC_MIME = 'application/vnd.google-apps.document'
 /**
  * Drive auto-creates duplicates named "Copy of" (English) or ending in "的副本" (Chinese),
  * when users use the Make a Copy menu.
- * They almost always carry stale content that would conflict with the canonical doc,
- * so we skip them silently. Same rule as redoc.
+ * They almost always carry stale content that would conflict with the canonical doc, so we skip them silently.
+ * Same rule as redoc.
  */
 const COPY_PATTERNS = [/^Copy of /, /的副本$/]
 
 /**
- * Drive's `text/markdown` export inlines images as base64 data URIs,
- * in reference-style link form:
+ * Drive's `text/markdown` export inlines images as base64 data URIs, in reference-style link form:
  *
  *   [image0]: <data:image/png;base64,iVBORw0KG...>
  *
@@ -38,8 +37,7 @@ export const GoogleDriveLoaderConfig = z.object({
    * Drive folder id (the long alphanumeric in the URL).
    * Reject the alias `root` outright,
    * since it expands to the user's entire My Drive and would mirror every file they own,
-   * which is almost never what someone wants from an "intent docs" source,
-   * and easily costs gigabytes and minutes.
+   * which is almost never what someone wants from an "intent docs" source, and easily costs gigabytes and minutes.
    * Make people pick a specific subfolder.
    */
   folderId: z.string()
@@ -93,8 +91,7 @@ interface CandidateDoc {
 
 /**
  * Build a Google Drive source loader.
- * Walks a Drive folder, exports every Google Doc inside as markdown,
- * extracts inlined base64 images into sibling files,
+ * Walks a Drive folder, exports every Google Doc inside as markdown, extracts inlined base64 images into sibling files,
  * and lays everything out as:
  *
  *   <destination>/
@@ -107,8 +104,7 @@ interface CandidateDoc {
  *
  * Drive folder hierarchy is not preserved on disk.
  * Every matched doc is flattened into a sibling directory under `destination/`.
- * Two docs with the same sanitised title will collide,
- * so rename one in Drive to disambiguate.
+ * Two docs with the same sanitised title will collide, so rename one in Drive to disambiguate.
  *
  * Out of scope (intentional): Google Sheets, Slides, Drawings, Forms, and standalone binaries.
  * Mirrors redoc's PRD-focused workflow.
@@ -297,8 +293,7 @@ async function downloadOne(
 
 /**
  * Pull every `[label]: <data:image/ext;base64,...>` reference out of the markdown,
- * write the decoded bytes as `<label>.<ext>` in `docDir`,
- * and rewrite the reference to point at the new local file.
+ * write the decoded bytes as `<label>.<ext>` in `docDir`, and rewrite the reference to point at the new local file.
  * Returns the cleaned markdown. Matches redoc's behaviour.
  */
 async function extractInlineImages(markdown: string, docDir: string): Promise<string> {
@@ -333,8 +328,7 @@ function entryOf(doc: CandidateDoc): ManifestEntry {
 
 function sanitiseName(name: string): string {
   // Replace path separators, control chars, and common shell-hostile characters with `_`.
-  // Spaces stay so human-readable titles survive,
-  // for example "Roadmap Q3 2026" stays "Roadmap Q3 2026".
+  // Spaces stay so human-readable titles survive, for example "Roadmap Q3 2026" stays "Roadmap Q3 2026".
   return name.replace(/[/\\:*?"<>|]/g, '_')
 }
 

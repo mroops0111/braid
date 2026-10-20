@@ -19,8 +19,7 @@ const IDLE = { rebuilding: false, done: 0, total: 0, error: null }
 /**
  * Follows a rebuild as it runs.
  *
- * Its own EventSource rather than a channel through the shared one,
- * because that hook deliberately holds no state,
+ * Its own EventSource rather than a channel through the shared one, because that hook deliberately holds no state,
  * and progress is the one signal whose value is the message itself.
  */
 export function useEmbeddingProgress(workspaceId: string | null): EmbeddingProgress {

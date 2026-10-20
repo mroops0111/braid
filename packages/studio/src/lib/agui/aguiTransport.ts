@@ -36,14 +36,12 @@ export async function runViaAgui(options: {
   readonly outputForm?: OutputForm
   /**
    * The interrupts this run answers.
-   * The server looks up which run to continue and which conversation it holds,
-   * so a caller names only what it resolved.
+   * The server looks up which run to continue and which conversation it holds, so a caller names only what it resolved.
    */
   readonly resume?: readonly { readonly interruptId: string, readonly status: 'resolved' | 'cancelled' }[]
   readonly onEvent: (event: BaseEvent) => void
 }): Promise<void> {
-  // The conversation is the agent's own state,
-  // the protocol's model being that the client holds the exchange,
+  // The conversation is the agent's own state, the protocol's model being that the client holds the exchange,
   // and hands it over whole on every run.
   const agent = new HttpAgent({
     url: aguiUrl(options.workspaceId),
@@ -71,8 +69,7 @@ export async function runViaAgui(options: {
 /**
  * Read a run that is already under way, or already over.
  *
- * The protocol standardises the events,
- * rather than an endpoint for fetching a past one,
+ * The protocol standardises the events, rather than an endpoint for fetching a past one,
  * so this is Braid's own route emitting the protocol's events.
  * Every event is parsed by the protocol's schemas before it is believed,
  * so a malformed frame is caught here rather than deep in a renderer.

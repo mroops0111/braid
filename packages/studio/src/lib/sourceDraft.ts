@@ -12,8 +12,7 @@ export interface SourceDraft {
   // `''` is the "manual, no auto-sync" choice.
   // A non-empty value mirrors a registered source-loader plugin's `kind`,
   // and may be any string the server reports via `GET /source-loaders`.
-  // It is not a closed union here,
-  // so a future plugin's kind survives type-checking without a Studio change.
+  // It is not a closed union here, so a future plugin's kind survives type-checking without a Studio change.
   loaderKind: string
   gitUrl: string
   gitBranch: string
@@ -67,8 +66,7 @@ const LOADER_CONFIGS: Record<string, (draft: SourceDraft) => Record<string, unkn
       includeComments: draft.githubIncludeComments,
     }
   },
-  // Every other field is left to the loader's defaults,
-  // which describe the envelope a shaped gateway emits.
+  // Every other field is left to the loader's defaults, which describe the envelope a shaped gateway emits.
   mcp: draft => ({
     url: draft.mcpUrl,
     ...(draft.mcpAuthorization ? { headers: { Authorization: draft.mcpAuthorization } } : {}),
@@ -78,15 +76,12 @@ const LOADER_CONFIGS: Record<string, (draft: SourceDraft) => Record<string, unkn
 
 /**
  * Loader kinds for which Studio ships a per-field config form.
- * Other kinds the server reports still appear in the dropdown,
- * but the dialog shows a warning instead of a form,
- * and disables submit until the kind is configured,
- * by editing PRODUCT.md directly.
+ * Other kinds the server reports still appear in the dropdown, but the dialog shows a warning instead of a form,
+ * and disables submit until the kind is configured, by editing PRODUCT.md directly.
  */
 export const STUDIO_KNOWN_LOADER_KINDS = new Set(Object.keys(LOADER_CONFIGS))
 
-// Spelled out rather than derived from the table above,
-// because the catalog's keys are typed,
+// Spelled out rather than derived from the table above, because the catalog's keys are typed,
 // and a key built at run time is only a string.
 // `manual` names the absence of a loader, so it has no config builder.
 const LOADER_LABEL_KEYS = {
@@ -99,8 +94,7 @@ const LOADER_LABEL_KEYS = {
 
 /**
  * Human-friendly label for a loader kind.
- * Falls back to the raw kind,
- * so a new plugin without a Studio-side label still renders sensibly.
+ * Falls back to the raw kind, so a new plugin without a Studio-side label still renders sensibly.
  */
 export function loaderKindLabel(kind: string, t: TFunction): string {
   const key = LOADER_LABEL_KEYS[kind as keyof typeof LOADER_LABEL_KEYS]
@@ -109,8 +103,7 @@ export function loaderKindLabel(kind: string, t: TFunction): string {
 
 /**
  * Top-level grouping dir for a role, from its descriptor.
- * Falls back to the role id,
- * so a role that declares no pathSegment still provisions into a stable folder.
+ * Falls back to the role id, so a role that declares no pathSegment still provisions into a stable folder.
  */
 export function draftPathSegment(draft: Pick<SourceDraft, 'role' | 'pathSegment'>): string {
   return draft.pathSegment || draft.role
@@ -118,8 +111,8 @@ export function draftPathSegment(draft: Pick<SourceDraft, 'role' | 'pathSegment'
 
 export function toSourceDescriptor(draft: SourceDraft): SourceDescriptor {
   const id = asSourceId(nameToId(draft.name))
-  // Path is fully derived. The role's grouping dir decides the parent,
-  // and the source name decides the leaf,
+  // Path is fully derived.
+  // The role's grouping dir decides the parent, and the source name decides the leaf,
   // so any tool can walk `workspaces/x/<segment>/` without parsing PRODUCT.md.
   const path = asAbsolutePath(`./${draftPathSegment(draft)}/${id}`)
   const buildConfig = LOADER_CONFIGS[draft.loaderKind]

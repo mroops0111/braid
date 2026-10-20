@@ -82,8 +82,7 @@ import { localTrust } from './authMode.js'
 /**
  * The assembled application, what routes and middleware consume.
  * A required field is always present.
- * An optional field is a capability slot,
- * absent under in-memory or test wiring, filled by `composeFsApp`.
+ * An optional field is a capability slot, absent under in-memory or test wiring, filled by `composeFsApp`.
  */
 export interface AppDependencies {
   outputGate?: RunOutputGate
@@ -94,8 +93,7 @@ export interface AppDependencies {
   modelValidationService: ModelValidationService
   sourceLoaderRunner: SourceLoaderRunner
   // The entry point every sync trigger uses.
-  // Calling the runner directly skips the lock,
-  // and leaves the sync-state store untouched.
+  // Calling the runner directly skips the lock, and leaves the sync-state store untouched.
   sourceSyncService: SourceSyncService
   sourcePollingService: SourcePollingService
   syncStateRepository: SourceSyncStateRepository
@@ -113,24 +111,20 @@ export interface AppDependencies {
   /**
    * The read-only MCP endpoint, absent unless the deployment asked for one.
    *
-   * Built here but started by `startServer`,
-   * which owns the lifecycle it shares with the socket,
+   * Built here but started by `startServer`, which owns the lifecycle it shares with the socket,
    * so a composed app in a test spawns nothing.
    */
   mcpGateway?: McpGatewayProcess
   /**
    * Where the MCP gateway listens on loopback.
    *
-   * Present with `mcpGateway`,
-   * separate from it because the forwarding router needs an address,
-   * not the process.
+   * Present with `mcpGateway`, separate from it because the forwarding router needs an address, not the process.
    */
   mcpGatewayUrl?: string
   /**
    * How this deployment resolved the endpoint at boot.
    *
-   * Separate from `mcpGatewayUrl`,
-   * which only exists once there is one to forward to.
+   * Separate from `mcpGatewayUrl`, which only exists once there is one to forward to.
    * Studio needs the cases where there is not, and why.
    */
   mcpResolution?: McpGatewayResolution
@@ -170,12 +164,11 @@ export interface AppDependencies {
   sessionShareRepository: SessionShareRepository
   // Always wired, the Activity page renders an empty list before any cycle.
   reactorCycleRepository: ReactorCycleRepository
-  // Reads every source document against the model. Absent without a unit lister,
-  // which is the only way to know what documents there are.
+  // Reads every source document against the model.
+  // Absent without a unit lister, which is the only way to know what documents there are.
   coverageProjection?: CoverageProjection
 
-  // Source-unit extraction, the filesystem walk and content digest,
-  // threaded into the source-unit-states diff endpoint.
+  // Source-unit extraction, the filesystem walk and content digest, threaded into the source-unit-states diff endpoint.
   unitLister?: UnitLister
   sourceUnitDigest?: SourceUnitDigest
 
@@ -197,18 +190,15 @@ export interface AppDependencies {
   // `POST /workspaces/scaffold { name }` resolves to `<workspacesRoot>/<name>`.
   workspacesRoot: AbsolutePath
   // What a scaffold writes when its manifest names no ontology.
-  // Absent when the registry holds no ontology or more than one,
-  // then the manifest schema's own default applies.
+  // Absent when the registry holds no ontology or more than one, then the manifest schema's own default applies.
   defaultOntologyId?: OntologyId
   bootstrap?: WorkspaceBootstrapService
 
   // Identity and auth, the multi-user axis.
-  // Local trust carries a default principal,
-  // so unauthenticated requests pass through as that user.
+  // Local trust carries a default principal, so unauthenticated requests pass through as that user.
   // Authenticated mode carries none, so a Bearer token is enforced.
   authMode: AuthMode
-  // Each absent field drops its surface,
-  // no `userRegistry` unmounts `/users`,
+  // Each absent field drops its surface, no `userRegistry` unmounts `/users`,
   // no `sessionStore` with `accessPolicy` unmounts `/auth/*`,
   // no `workspaceRegistry` unmounts member-gating and the members routes.
   userRegistry?: UserRegistryFile
@@ -217,14 +207,11 @@ export interface AppDependencies {
   accessPolicy?: AccessPolicy
   // OAuth secret storage, file-based, pluggable for hosted deployments.
   secretStore?: SecretStore
-  // Google client, undefined when its env is unset,
-  // then `/auth/google/*` respond 503.
+  // Google client, undefined when its env is unset, then `/auth/google/*` respond 503.
   googleOAuth?: GoogleOAuth
-  // GitHub App client, undefined when its env is unset,
-  // then `/oauth/github/*` respond 503.
+  // GitHub App client, undefined when its env is unset, then `/oauth/github/*` respond 503.
   githubOAuth?: GitHubOAuth
-  // Where the OAuth callback redirects with `#token=...`,
-  // defaults to the Vite dev origin.
+  // Where the OAuth callback redirects with `#token=...`, defaults to the Vite dev origin.
   studioUrl?: string
   // Directory holding Studio's built files, in the sense nginx means by root.
   // Present makes this server serve the UI as well as the API,
@@ -248,14 +235,12 @@ export interface ComposeOptions {
   /**
    * Credentials this composition accepts, beyond the sessions Braid issues.
    * A running skill's own token is one,
-   * so what a run creates is attributed from the request,
-   * rather than from a field it had to fill in.
+   * so what a run creates is attributed from the request, rather than from a field it had to fill in.
    */
   readonly accessTokenVerifiers?: readonly AccessTokenVerifier[]
   // Infrastructure singletons.
   clock?: Clock
-  // The same instance wired into `SubprocessSkillRunner`,
-  // so event-bus subscribers see runner events.
+  // The same instance wired into `SubprocessSkillRunner`, so event-bus subscribers see runner events.
   eventBus?: WorkspaceEventBus
   pluginRegistry?: PluginRegistry
 
@@ -272,8 +257,7 @@ export interface ComposeOptions {
   sourceSyncStateRepository?: SourceSyncStateRepository
   batchPlanRepository?: BatchPlanRepository
   // Semantic search.
-  // Absent when a deployment configures no embedding backend,
-  // which leaves every other capability untouched.
+  // Absent when a deployment configures no embedding backend, which leaves every other capability untouched.
   embeddingRepository?: EmbeddingRepository
   embedder?: Embedder
   // Whether a skill run currently holds a workspace's sources.
@@ -295,8 +279,7 @@ export interface ComposeOptions {
   // Where written documents and the material behind them are kept.
   viewRepository?: ViewRepository
 
-  // History and git authorship, both required together,
-  // HITL skips git hooks when absent.
+  // History and git authorship, both required together, HITL skips git hooks when absent.
   history?: WorkspaceHistory
   modelSerializer?: ModelSerializer
   bootstrap?: WorkspaceBootstrapService
@@ -315,8 +298,7 @@ export interface ComposeOptions {
 export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const clock = options.clock ?? new SystemClock()
   const proposalRepository = options.proposalRepository ?? new InMemoryProposalRepository()
-  // Hoisted because three consumers read it,
-  // and a second Noop instance would be a second empty history.
+  // Hoisted because three consumers read it, and a second Noop instance would be a second empty history.
   const runRepository = options.runRepository ?? new NoopRunRepository()
   const sessionShareRepository = options.sessionShareRepository ?? new NoopSessionShareRepository()
   const clarificationRepository = options.clarificationRepository ?? new InMemoryClarificationRepository()
@@ -333,8 +315,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   const workspaceService = new WorkspaceService({ workspaceRepository, pluginRegistry })
   const modelService = new ModelService({ modelRepository })
   // Started here rather than per route,
-  // so any future path that mutates the graph reindexes,
-  // without its author having to know this exists.
+  // so any future path that mutates the graph reindexes, without its author having to know this exists.
   const embeddingService = options.embedder && options.embeddingRepository
     ? new EmbeddingService({
       modelRepository,
@@ -390,8 +371,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     clock,
     eventBus,
     workspaceLock,
-    // All three needed to stamp which documents a proposal came from,
-    // and at which version,
+    // All three needed to stamp which documents a proposal came from, and at which version,
     // so coverage is a fact the server watched rather than one it was told.
     runRepository,
     ...(options.unitLister ? { unitLister: options.unitLister } : {}),
@@ -439,12 +419,11 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
   // and sourceUnitObservationService, plus the event bus.
   // We construct it whenever those are present.
   // The service stays inert until something calls `start(workspaceId)`.
-  // `composeFsApp` drives start on workspaces,
-  // whose ProductManifest.reactor.enabled is true.
+  // `composeFsApp` drives start on workspaces, whose ProductManifest.reactor.enabled is true.
   const reactorCycleRepository: ReactorCycleRepository
     = options.reactorCycleRepository ?? new InMemoryReactorCycleRepository()
-  // Always wired. It only reads,
-  // so a deployment missing one of the three sources shows fewer jobs,
+  // Always wired.
+  // It only reads, so a deployment missing one of the three sources shows fewer jobs,
   // rather than failing to show the board.
   const coverageProjection = options.unitLister && options.skillRegistry
     ? new CoverageProjection({
@@ -528,8 +507,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
     workspacesRoot: options.workspacesRoot ?? (join(tmpdir(), 'braid-workspaces') as AbsolutePath),
     ...(defaultOntologyId ? { defaultOntologyId } : {}),
     // `composeApp` is the test and in-memory composition entry.
-    // It defaults to local trust, the local-user fallback,
-    // so a test that wires a sessionStore still resolves a caller.
+    // It defaults to local trust, the local-user fallback, so a test that wires a sessionStore still resolves a caller.
     authMode: options.authMode ?? localTrust,
     clock,
   }
@@ -537,8 +515,7 @@ export function composeApp(options: ComposeOptions = {}): AppDependencies {
 
 // Default `SourceUnitDigest` for in-memory `composeApp()` callers. Any call throws.
 // Production must wire a real impl via `composeFsApp` or pass one explicitly.
-// Tests that don't exercise observations stay happy,
-// because the digest is never reached.
+// Tests that don't exercise observations stay happy, because the digest is never reached.
 class FailingSourceUnitDigest implements SourceUnitDigest {
   async computeSha(): Promise<never> {
     throw new Error(

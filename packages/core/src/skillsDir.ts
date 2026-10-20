@@ -9,9 +9,8 @@ import { fileURLToPath } from 'node:url'
  * so the walk from a module up to its own package root stops leading anywhere.
  * Two packages that both ship a `shared/` would overwrite each other.
  *
- * So a bundle stages each package's skills under its own name,
- * and that layout is checked first. Unbundled, nothing is staged,
- * and the usual walk from the module to its package root applies.
+ * So a bundle stages each package's skills under its own name, and that layout is checked first.
+ * Unbundled, nothing is staged, and the usual walk from the module to its package root applies.
  */
 export function resolveSkillsDir(moduleUrl: string, packageName: string): string {
   const here = dirname(fileURLToPath(moduleUrl))

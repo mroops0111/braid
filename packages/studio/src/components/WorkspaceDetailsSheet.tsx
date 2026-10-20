@@ -156,8 +156,7 @@ function Body({ workspaceId, onUnregistered, onRenamed }: {
  * Whether this workspace refreshes its sources in the background at all.
  *
  * Off leaves each source's own schedule saved but idle,
- * so a remote under strain can be spared,
- * without unpicking every source and losing what they were set to.
+ * so a remote under strain can be spared, without unpicking every source and losing what they were set to.
  * It does not affect the refresh that runs before a skill reads a source,
  * which cannot block work and so has nothing to switch off.
  */
@@ -263,8 +262,7 @@ function SourceRow({ workspaceId, source, paused, onChange }: {
     mutationFn: () => api.syncSource(workspaceId, source.id),
     onSuccess: () => {
       // The freshness line polls on a slow interval,
-      // so without this a manual sync shows the previous revision,
-      // for up to a minute.
+      // so without this a manual sync shows the previous revision, for up to a minute.
       void queryClient.invalidateQueries({ queryKey: ['source-sync-states', workspaceId] })
       onChange()
     },
@@ -365,8 +363,8 @@ function SourceRow({ workspaceId, source, paused, onChange }: {
 }
 
 /**
- * Connection state for an OAuth-backed source. Any member sees the status,
- * only an owner (`workspace.write`) gets the connect or reconnect action,
+ * Connection state for an OAuth-backed source.
+ * Any member sees the status, only an owner (`workspace.write`) gets the connect or reconnect action,
  * so a stale token surfaces here rather than only in the server log.
  */
 function SourceConnectionStatus({ workspaceId, sourceId, loaderKind, canWrite }: {
@@ -381,8 +379,7 @@ function SourceConnectionStatus({ workspaceId, sourceId, loaderKind, canWrite }:
     queryKey: ['source-connection', workspaceId, sourceId],
     queryFn: () => api.getSourceConnection(workspaceId, sourceId),
   })
-  // Refresh this badge and the top banner's list query,
-  // so both drop the stale state the moment a connection succeeds.
+  // Refresh this badge and the top banner's list query, so both drop the stale state the moment a connection succeeds.
   const onConnected = (): void => {
     void queryClient.invalidateQueries({ queryKey: ['source-connection', workspaceId, sourceId] })
     void queryClient.invalidateQueries({ queryKey: ['source-connections', workspaceId] })
@@ -422,11 +419,9 @@ function SourceConnectionStatus({ workspaceId, sourceId, loaderKind, canWrite }:
 }
 
 /**
- * Render the GitHub webhook panel only when the server reports,
- * the source's loader plugin as webhook-capable.
+ * Render the GitHub webhook panel only when the server reports, the source's loader plugin as webhook-capable.
  * Asking the server keeps Studio loader-agnostic.
- * Registering a new loader with a `webhook` field,
- * surfaces the panel automatically, no Studio code change.
+ * Registering a new loader with a `webhook` field, surfaces the panel automatically, no Studio code change.
  */
 function WebhookPanelGate({ workspaceId, source }: { workspaceId: string, source: SourceDescriptor }) {
   const loaders = useSourceLoaders()
@@ -582,8 +577,8 @@ function SourceFreshness({ workspaceId, sourceId, maxStalenessMs }: {
   )
 }
 
-// Presets rather than a free number field. Nobody reasons in milliseconds,
-// and the exact value never matters, only the order of magnitude.
+// Presets rather than a free number field.
+// Nobody reasons in milliseconds, and the exact value never matters, only the order of magnitude.
 //
 // None of them are minutes-scale.
 // Shortening the budget does not make a run read anything newer,
@@ -603,8 +598,7 @@ function useIntervalLabel(): (ms: number) => string {
 
 /**
  * How stale this source may get before Braid refreshes it on its own.
- * Off leaves the source manual,
- * which is what an existing workspace gets until someone opts it in.
+ * Off leaves the source manual, which is what an existing workspace gets until someone opts it in.
  */
 function RefreshSchedule({ workspaceId, sourceId, current, paused, canWrite, onChange }: {
   workspaceId: string
@@ -626,8 +620,8 @@ function RefreshSchedule({ workspaceId, sourceId, current, paused, canWrite, onC
     },
   })
 
-  // An unrecognised value from a hand-edited PRODUCT. md still needs an option,
-  // else selecting nothing would silently look like Off.
+  // An unrecognised value from a hand-edited PRODUCT.
+  // md still needs an option, else selecting nothing would silently look like Off.
   const options = current !== undefined && !REFRESH_PRESETS_MS.includes(current as never)
     ? [...REFRESH_PRESETS_MS, current].sort((a, b) => a - b)
     : REFRESH_PRESETS_MS
@@ -668,8 +662,7 @@ function isoSeconds(value: string | number): string {
 
 function SyncSummary({ report }: { report: { changed?: boolean, added?: number, updated?: number, removed?: number } }) {
   const { t } = useTranslation()
-  // When the loader reports structured counts,
-  // use the unified `+a ~u -r` format.
+  // When the loader reports structured counts, use the unified `+a ~u -r` format.
   // Otherwise fall back to a plain changed or unchanged label.
   const hasCounts = report.added !== undefined || report.updated !== undefined || report.removed !== undefined
   if (!hasCounts)
@@ -835,9 +828,8 @@ const MEMBER_ROLE_RANK: Record<WorkspaceRole, number> = {
 
 /**
  * Same ordering as the Admin Console's user list.
- * Self is pinned at the top, then by rank within scope,
- * workspace role here, server role there,
- * then by display name for a predictable scan.
+ * Self is pinned at the top,
+ * then by rank within scope, workspace role here, server role there, then by display name for a predictable scan.
  */
 function sortMembers(
   members: readonly WorkspaceMember[],
@@ -866,8 +858,7 @@ function MembersSection({ workspaceId }: { workspaceId: string }) {
   const policy = useWorkspacePolicy(workspaceId)
   const canManageMembers = policy.can('workspace.manage')
 
-  // Admitting everyone edits the workspace itself and backfills the list,
-  // so one such save leaves both of them stale,
+  // Admitting everyone edits the workspace itself and backfills the list, so one such save leaves both of them stale,
   // and the toggle below reads its own state from the workspace rather than here.
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: queryKeys.workspaceMembers(workspaceId) })
@@ -950,9 +941,8 @@ function AutoJoinControl({ workspaceId, onChanged }: {
 
   return (
     // The size sits on the row, not on the two spans inside it.
-    // A label carries the strut of whatever it inherits,
-    // so a span cannot shrink the line box, and the box beside it
-    // ends up centred on a taller line than the one it can see.
+    // A label carries the strut of whatever it inherits, so a span cannot shrink the line box,
+    // and the box beside it ends up centred on a taller line than the one it can see.
     <div className="mt-3 flex items-start gap-2 border-t border-border pt-3 text-2xs">
       <input
         type="checkbox"
@@ -1015,8 +1005,7 @@ function MemberRow({ member, user, workspaceId, canManage, isMe, onChange }: {
       ? UserRoundCog
       : UserRound
   const displayName = user?.displayName ?? member.userId
-  // Owners cannot be demoted directly, the server forbids it,
-  // use Transfer Ownership instead.
+  // Owners cannot be demoted directly, the server forbids it, use Transfer Ownership instead.
   // Self cannot be removed, it would lock the UI out.
   // Owners are excluded from every kebab action.
   const targetIsOwner = member.role === 'owner'

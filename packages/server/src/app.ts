@@ -59,8 +59,7 @@ export interface AppOptions {
    * Downstream consumers use it to dispatch REST calls,
    * openapi-mcp-gateway, Swagger UI, and code generators among them.
    * When unset, the spec omits `servers[]` and leaves the consumer to guess.
-   * `composeFsApp` threads its `apiUrl` here,
-   * so the gateway routes calls back without an explicit base-url flag.
+   * `composeFsApp` threads its `apiUrl` here, so the gateway routes calls back without an explicit base-url flag.
    */
   readonly apiUrl?: string
 }
@@ -73,30 +72,24 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   app.use('*', corsOrigins ? corsMiddleware({ allowedOrigins: corsOrigins }) : corsMiddleware())
 
   // The MCP endpoint, served on this port rather than one of its own.
-  // The gateway binds loopback and this forwards to it,
-  // so a deployment exposes one address and one certificate.
-  // Ahead of the app shell and the auth gate,
-  // because the endpoint runs its own OAuth against the same issuer.
-  // Braid's gate answers with a problem document,
-  // where the endpoint owes it a challenge naming where to authenticate.
+  // The gateway binds loopback and this forwards to it, so a deployment exposes one address and one certificate.
+  // Ahead of the app shell and the auth gate, because the endpoint runs its own OAuth against the same issuer.
+  // Braid's gate answers with a problem document, where the endpoint owes it a challenge naming where to authenticate.
   if (deps.mcpGatewayUrl) {
     const mcpProxy = createMcpProxyRouter({ gatewayUrl: deps.mcpGatewayUrl })
     app.route('/braid', mcpProxy)
     app.route('/.well-known/oauth-protected-resource/braid', mcpProxy)
   }
-  // Ahead of the auth gate,
-  // because a run authenticates with the stand-in this server lent it.
+  // Ahead of the auth gate, because a run authenticates with the stand-in this server lent it.
   if (deps.agentCredentialBroker) {
     app.route('/agent-api', createAgentProxyRouter({
       broker: deps.agentCredentialBroker,
       upstreamUrl: deps.agentUpstreamUrl ?? 'https://api.anthropic.com',
     }))
   }
-  // The app shell is what a signed-out visitor loads in order to sign in,
-  // so it mounts before the auth gate.
-  // Gating it would leave nobody able to reach the login screen,
-  // while the API behind it stays gated. Vite emits `index.html` and `assets/`,
-  // neither of which can collide with an API prefix,
+  // The app shell is what a signed-out visitor loads in order to sign in, so it mounts before the auth gate.
+  // Gating it would leave nobody able to reach the login screen, while the API behind it stays gated.
+  // Vite emits `index.html` and `assets/`, neither of which can collide with an API prefix,
   // and a miss falls through to the routes below.
   if (deps.studioRoot) {
     const root = deps.studioRoot
@@ -134,8 +127,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   // Host-level routes, not scoped to a single workspace.
   app.route('/health', healthRouter)
 
-  // What this deployment does with MCP,
-  // so Studio can show it rather than leaving an operator to read the logs.
+  // What this deployment does with MCP, so Studio can show it rather than leaving an operator to read the logs.
   if (deps.mcpResolution) {
     app.route('/mcp-endpoint', createMcpStatusRouter({
       resolution: deps.mcpResolution,
@@ -213,11 +205,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   if (deps.viewService)
     app.route('/view-kinds', createViewKindsRouter({ viewService: deps.viewService }))
 
-  // Public webhook receivers, authenticated by per-source HMAC secrets,
-  // inside the handler, not by a Bearer token.
+  // Public webhook receivers, authenticated by per-source HMAC secrets, inside the handler, not by a Bearer token.
   // The auth middleware exempts the `/webhooks/` prefix.
-  // Mounted only when a SecretStore is wired,
-  // without one there is nowhere to read the secrets.
+  // Mounted only when a SecretStore is wired, without one there is nowhere to read the secrets.
   if (deps.secretStore) {
     app.route('/webhooks', createGithubWebhookReceiver({
       workspaceService: deps.workspaceService,
@@ -228,8 +218,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     }))
   }
 
-  // Shared by the OAuth start and callback routers,
-  // so a flow opened by start is resolved by callback.
+  // Shared by the OAuth start and callback routers, so a flow opened by start is resolved by callback.
   const oauthFlowStore = new OAuthFlowStore()
 
   // Workspace-scoped sub-app, mounted under `/workspaces/:workspaceId` below.
@@ -237,8 +226,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   workspaceScoped.use('*', workspaceIdMiddleware)
   // Workspace membership gate, present only in composeFsApp,
   // which wires both the workspace registry and the user registry.
-  // In-memory tests compose without these and stay open,
-  // so existing routes keep behaving.
+  // In-memory tests compose without these and stay open, so existing routes keep behaving.
   if (deps.workspaceRegistry && deps.userRegistry) {
     workspaceScoped.use('*', workspaceAccessMiddleware({
       registry: deps.workspaceRegistry,
@@ -255,8 +243,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   ))
   workspaceScoped.route('/nodes', createNodesRouter({
     modelService: deps.modelService,
-    // Checks a `type` filter against the ontology this workspace speaks,
-    // which no static schema can express.
+    // Checks a `type` filter against the ontology this workspace speaks, which no static schema can express.
     workspaceRepository: deps.workspaceRepository,
     pluginRegistry: deps.pluginRegistry,
     ...(deps.embeddingService ? { embeddingService: deps.embeddingService } : {}),
@@ -317,10 +304,8 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
       workspaceRepository: deps.workspaceRepository,
       ...(deps.workspaceRegistry ? { workspaceRegistry: deps.workspaceRegistry } : {}),
     }))
-    // Second mount under the same prefix,
-    // because the render operations must reach the OpenAPI doc,
-    // for the gateway to serve them as tools,
-    // and the runs router above is a plain Hono sub-app.
+    // Second mount under the same prefix, because the render operations must reach the OpenAPI doc,
+    // for the gateway to serve them as tools, and the runs router above is a plain Hono sub-app.
     workspaceScoped.route('/runs', createBlocksRouter({
       skillRunner: deps.skillRunner,
       workspaceRepository: deps.workspaceRepository,
@@ -393,8 +378,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   app.route('/workspaces/:workspaceId', workspaceScoped)
 
   if (deps.secretStore) {
-    // Start is owner-gated in-handler,
-    // so an existing workspace needs `workspace.write`,
+    // Start is owner-gated in-handler, so an existing workspace needs `workspace.write`,
     // while the Wizard can connect before scaffold.
     app.route('/oauth', createOAuthStartRouter({
       secretStore: deps.secretStore,
@@ -416,10 +400,8 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   // OpenAPI 3 spec, consumed by openapi-mcp-gateway, to surface REST operations as MCP tools.
   // SSE routes and the OAuth HTML callback are intentionally absent,
   // they mount plain Hono sub-routers, so they never register with the doc.
-  // The `servers[]` block lets the gateway resolve the upstream base URL,
-  // without an explicit --base-url flag.
-  // 3.1 so schemas are JSON Schema 2020-12,
-  // the dialect a tool `input_schema` is validated against.
+  // The `servers[]` block lets the gateway resolve the upstream base URL, without an explicit --base-url flag.
+  // 3.1 so schemas are JSON Schema 2020-12, the dialect a tool `input_schema` is validated against.
   // A 3.0 doc emits `nullable` and boolean `exclusiveMinimum`,
   // which the model API rejects once the gateway forwards them as MCP tool schemas.
   const specConfig = {
@@ -433,11 +415,9 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
   }
   app.doc31('/openapi.json', specConfig)
 
-  // The spec a run's own gateway reads,
-  // holding only the operations that run may call,
+  // The spec a run's own gateway reads, holding only the operations that run may call,
   // which is its kind and the form its output takes.
-  // A question about who may do what is answered once, here,
-  // rather than by every handler learning who is calling it.
+  // A question about who may do what is answered once, here, rather than by every handler learning who is calling it.
   //
   // Which forms a run can be in is the skill's to declare, not this route's,
   // so a pairing no skill offers is served rather than refused.
@@ -450,8 +430,7 @@ export function createApp(deps: AppDependencies, options: AppOptions = {}): Open
     if (!form.success)
       return context.json({ error: 'Unknown output form' }, 404)
     // A skill narrows the render calls within its kind's ceiling.
-    // Absent leaves the ceiling in place,
-    // and a name nothing answers to matches no operation,
+    // Absent leaves the ceiling in place, and a name nothing answers to matches no operation,
     // so a typo costs a tool rather than a 404.
     const declared = context.req.query('calls')
     const calls = declared === undefined

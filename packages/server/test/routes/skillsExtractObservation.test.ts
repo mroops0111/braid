@@ -70,8 +70,9 @@ async function buildAppForExtract(opts: { exitCode: number, perUnitSkillId?: str
     spawn,
   })
   // Register an ontology whose batch.perUnit.skillId matches the ontologyId,
-  // so the route knows which skill may carry sourceUnit. Default keeps the production wiring,
-  // extract is the per-unit skill. A test wanting the active ontology to disagree can override.
+  // so the route knows which skill may carry sourceUnit.
+  // Default keeps the production wiring, extract is the per-unit skill.
+  // A test wanting the active ontology to disagree can override.
   const pluginRegistry = new PluginRegistry()
   pluginRegistry.register(ontologyWithPerUnit(opts.perUnitSkillId ?? 'ddd:extract'))
   const deps = composeApp({

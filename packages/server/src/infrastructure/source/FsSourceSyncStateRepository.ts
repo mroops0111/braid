@@ -14,13 +14,11 @@ export interface FsSourceSyncStateRepositoryOptions {
 }
 
 /**
- * Filesystem-backed `SourceSyncStateRepository`, one file per source,
- * at `artifacts/source-sync-state/<sourceId>.json`,
+ * Filesystem-backed `SourceSyncStateRepository`, one file per source, at `artifacts/source-sync-state/<sourceId>.json`,
  * matching the file-per-entity pattern the other fs stores use.
  *
  * Writes go through a temp file and a rename,
- * so a crash mid-write leaves the previous record intact,
- * rather than a truncated one the next boot cannot parse.
+ * so a crash mid-write leaves the previous record intact, rather than a truncated one the next boot cannot parse.
  */
 export class FsSourceSyncStateRepository implements SourceSyncStateRepository {
   constructor(private readonly options: FsSourceSyncStateRepositoryOptions) {}

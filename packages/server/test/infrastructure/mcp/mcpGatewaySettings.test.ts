@@ -46,8 +46,7 @@ describe('resolveMcpGateway', () => {
 
   it('never falls back to a shared static token', () => {
     // A deployment with no authorization server gets no endpoint at all.
-    // The alternative, one token every caller shares,
-    // would land every MCP call under a single identity,
+    // The alternative, one token every caller shares, would land every MCP call under a single identity,
     // and lose per-user attribution.
     const resolution = resolveMcpGateway({ BRAID_MCP_GATEWAY_CLIENT_ID: 'x' }, context)
     expect(resolution.kind).toBe('unrequested')
@@ -63,8 +62,8 @@ describe('resolveMcpGateway', () => {
     expect(server.auth.flow).toBe('token_exchange')
     expect(server.auth.issuer).toBe('https://as.example.com')
     // Names Braid, so the forwarded token passes Braid's own audience check,
-    // rather than the authorization server's default. Both spellings,
-    // since servers disagree on which one drives the exchange.
+    // rather than the authorization server's default.
+    // Both spellings, since servers disagree on which one drives the exchange.
     expect(server.auth.upstream.resource).toBe('https://braid.example.com')
     expect(server.auth.upstream.audience).toBe('https://braid.example.com')
     // References, not values, so the generated file holds no secret.
@@ -78,8 +77,7 @@ describe('resolveMcpGateway', () => {
       throw new Error('expected a ready resolution')
     const server = resolution.config.servers[0]!
     expect(server.policy.annotated_only).toBe(true)
-    // The spec's `servers[]` names the public URL,
-    // which a proxied host cannot always reach by its own name.
+    // The spec's `servers[]` names the public URL, which a proxied host cannot always reach by its own name.
     expect(server.spec).toBe('http://localhost:4321/openapi.json')
     expect(server.base_url).toBe('http://localhost:4321')
   })
@@ -88,8 +86,7 @@ describe('resolveMcpGateway', () => {
     const resolution = resolveMcpGateway(completeEnv, { ...context, apiUrl: 'https://braid.example.com/' })
     if (resolution.kind !== 'ready')
       throw new Error('expected a ready resolution')
-    // The endpoint reaches callers on this server's port,
-    // so the metadata names this API.
+    // The endpoint reaches callers on this server's port, so the metadata names this API.
     // A trailing slash would reach a client doubled.
     expect(resolution.config.url).toBe('https://braid.example.com')
     // Never published. The only way in is through this server.

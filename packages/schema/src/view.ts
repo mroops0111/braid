@@ -47,8 +47,7 @@ export type ViewFormChoice = z.infer<typeof ViewFormChoice>
  *
  * A view is not obliged to be a fixed thing.
  * What a reader wants from a document while learning a subject,
- * and what they want once they are looking one fact up,
- * are different documents out of the same material.
+ * and what they want once they are looking one fact up, are different documents out of the same material.
  */
 export const ViewFormAsk = z.object({
   id: z.string().min(1),
@@ -62,10 +61,8 @@ export type ViewFormAsk = z.infer<typeof ViewFormAsk>
 /**
  * A form, and what it asks before writing.
  *
- * Declared once by the plugin that ships its skill,
- * because three places read the same list.
- * A route refuses an unknown form before a run starts,
- * a surface offers the forms and their options,
+ * Declared once by the plugin that ships its skill, because three places read the same list.
+ * A route refuses an unknown form before a run starts, a surface offers the forms and their options,
  * and the plugin ships one skill per form.
  * Three copies drift the moment a fourth form is added.
  */
@@ -80,8 +77,7 @@ export const ViewFormDescriptor = z.object({
    * `blocks` is the one the framework holds and draws.
    * The field is open so a form producing something else can say so,
    * and a surface can then offer it rather than guess from a file name.
-   * Nothing reads a second format yet,
-   * so a form declaring one is stored and not drawn.
+   * Nothing reads a second format yet, so a form declaring one is stored and not drawn.
    */
   format: ViewArtifactFormat,
   asks: z.array(ViewFormAsk).default([]),
@@ -99,10 +95,8 @@ export type ViewFormDescriptor = z.infer<typeof ViewFormDescriptor>
  * One way a node type qualifies as something a kind can be written about.
  *
  * `container` is said in the hints an ontology declares,
- * so a kind shipped apart from any one ontology still narrows the list,
- * without naming a vocabulary it could not know.
- * `type` names one outright,
- * which is honest for a kind shipped alongside the ontology it reads.
+ * so a kind shipped apart from any one ontology still narrows the list, without naming a vocabulary it could not know.
+ * `type` names one outright, which is honest for a kind shipped alongside the ontology it reads.
  */
 export const ViewSubjectRule = z.discriminatedUnion('by', [
   z.object({ by: z.literal('container') }),
@@ -115,8 +109,7 @@ export type ViewSubjectRule = z.infer<typeof ViewSubjectRule>
  *
  * A list rather than a set of flags, so one rule reads as one reason,
  * and a third kind of reason is an entry rather than another field.
- * An empty list takes every node,
- * which is the honest answer for a kind with no opinion.
+ * An empty list takes every node, which is the honest answer for a kind with no opinion.
  */
 export const ViewSubjects = z.array(ViewSubjectRule).default([])
 export type ViewSubjects = z.infer<typeof ViewSubjects>
@@ -147,8 +140,7 @@ export type ListViewKindsResponse = z.infer<typeof ListViewKindsResponse>
  * One written view, as a surface lists it.
  *
  * The subject is the node it was written out of rather than the filename,
- * because a node id may carry the separator a filename uses,
- * which makes the mapping one-way and a regenerate a guess.
+ * because a node id may carry the separator a filename uses, which makes the mapping one-way and a regenerate a guess.
  */
 export const GeneratedView = z.object({
   /** Path under the views directory, which is also how one is asked for. */
@@ -161,8 +153,7 @@ export const GeneratedView = z.object({
   writtenAt: Timestamp,
   /**
    * Whether the graph has moved on since this was written.
-   * A view is derived, so it goes out of date when its subject does,
-   * and nothing about the file itself says so.
+   * A view is derived, so it goes out of date when its subject does, and nothing about the file itself says so.
    */
   stale: z.boolean(),
 }).openapi('GeneratedView')
@@ -176,10 +167,8 @@ export type ListViewsResponse = z.infer<typeof ListViewsResponse>
 /**
  * One written view, as the blocks a run rendered it out of.
  *
- * Blocks rather than a rendered page,
- * so the deterministic half never passes through the model's output.
- * A block names node ids,
- * and the surface reads their names and status straight from the graph,
+ * Blocks rather than a rendered page, so the deterministic half never passes through the model's output.
+ * A block names node ids, and the surface reads their names and status straight from the graph,
  * which is both cheaper to produce and correct after a rename.
  */
 export const ViewContent = z.object({
@@ -193,8 +182,7 @@ export type ViewContent = z.infer<typeof ViewContent>
  * What a reader asked for, which is a form and whatever that form asks.
  *
  * The answers are read loosely here and settled against the form afterwards,
- * because which options exist depends on which form was named,
- * and a schema cannot know that until it has one.
+ * because which options exist depends on which form was named, and a schema cannot know that until it has one.
  */
 export const GenerateViewRequest = z.object({
   kind: ViewKind,

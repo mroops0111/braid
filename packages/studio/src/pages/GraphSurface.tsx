@@ -18,11 +18,10 @@ export interface GraphSurfaceProps {
    */
   source?: GraphDataSource
   /**
-   * The surface is fully controlled. The parent owns `view`,
-   * `selectedNodeId`, `selectedEdgeId`, and `focusMode`,
+   * The surface is fully controlled.
+   * The parent owns `view`, `selectedNodeId`, `selectedEdgeId`, and `focusMode`,
    * so a page-level toolbar or section header can drive them.
-   * Node and edge selection are mutually exclusive,
-   * so setting one should clear the other in the parent's setter pair.
+   * Node and edge selection are mutually exclusive, so setting one should clear the other in the parent's setter pair.
    */
   view: GraphView
   selectedNodeId: NodeId | null
@@ -33,8 +32,7 @@ export interface GraphSurfaceProps {
   /**
    * Bumped by a caller that arrived from outside, such as a reference tag,
    * to pan the canvas onto the current selection.
-   * A plain selection change cannot stand in for it,
-   * since a direct canvas click changes the same value,
+   * A plain selection change cannot stand in for it, since a direct canvas click changes the same value,
    * and auto-panning on those felt twitchy.
    */
   centerRequest?: number
@@ -50,13 +48,10 @@ export interface GraphSurfaceProps {
 }
 
 /**
- * Renders either the Canvas or the Table,
- * for the same shared node, edge, focus, and diff-overlay state.
- * Consumed by the Graph page for a live snapshot,
- * and by the Proposals preview for a diff source.
+ * Renders either the Canvas or the Table, for the same shared node, edge, focus, and diff-overlay state.
+ * Consumed by the Graph page for a live snapshot, and by the Proposals preview for a diff source.
  * Toolbar placement is left to the consumer.
- * See {@link GraphSurfaceActions} for the canonical Focus and ViewToggle pair,
- * when defaults suffice.
+ * See {@link GraphSurfaceActions} for the canonical Focus and ViewToggle pair, when defaults suffice.
  */
 export function GraphSurface({
   workspaceId,
@@ -103,8 +98,7 @@ export function GraphSurface({
 /**
  * A set of nodes somebody arrived to look at, and what sent them.
  *
- * Held rather than applied,
- * because arriving and narrowing are two different asks.
+ * Held rather than applied, because arriving and narrowing are two different asks.
  * Arriving wants the nodes findable in context, narrowing wants only them,
  * and a reader who has just landed cannot want the second before the first.
  */
@@ -123,8 +117,7 @@ export function useGraphSurfaceState(initialView: GraphView = 'visualization') {
   const requestCenter = useCallback(() => setCenterRequest(current => current + 1), [])
   // Null when the reader is browsing rather than arriving from somewhere.
   const [arrival, setArrivalState] = useState<GraphArrival | null>(null)
-  // Landing narrowed, the way a proposal preview opens on its diff,
-  // rather than on the whole model.
+  // Landing narrowed, the way a proposal preview opens on its diff, rather than on the whole model.
   // Somebody who followed a document here came for its nodes,
   // and finding a ring among a thousand is work they did not ask for.
   // Widening is one press away once they want the context.
@@ -155,8 +148,7 @@ export function useGraphSurfaceState(initialView: GraphView = 'visualization') {
  * Canonical Focus and ViewToggle pair.
  * Focus stays here rather than in the canvas cluster,
  * since it is a mode and every control in that cluster fires once and returns.
- * It is disabled without a selection instead of hidden,
- * so the toolbar keeps its width.
+ * It is disabled without a selection instead of hidden, so the toolbar keeps its width.
  */
 export function GraphSurfaceActions({
   view,

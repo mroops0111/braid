@@ -30,9 +30,8 @@ describe('paginate', () => {
   })
 
   it('returns the last items when offset is negative (Array.slice semantics)', () => {
-    // Pinned behavior: paginate delegates to Array.prototype.slice, so a
-    // negative offset counts from the end. Production routes filter to
-    // non-negative via zod, but the helper itself trusts its input.
+    // Pinned behavior: paginate delegates to Array.prototype.slice, so a negative offset counts from the end.
+    // Production routes filter to non-negative via zod, but the helper itself trusts its input.
     expect(paginate(items, undefined, -2)).toEqual([4, 5])
   })
 

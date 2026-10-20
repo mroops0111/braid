@@ -87,8 +87,7 @@ export const Clarification = HandoffOwner.extend({
   /**
    * When somebody answered, the counterpart to a proposal's `reviewedAt`.
    *
-   * Absent while a question is still open,
-   * and on everything recorded before the field existed.
+   * Absent while a question is still open, and on everything recorded before the field existed.
    */
   answeredAt: Timestamp.optional(),
   selectedCandidateId: ClarificationCandidateId.optional().describe('The candidate the person picked, when they picked one of the offered answers.'),
@@ -105,10 +104,8 @@ export const Clarification = HandoffOwner.extend({
   /**
    * When the run handed this over, named as a proposal's is.
    *
-   * Producing a handoff is one act whichever shape it takes,
-   * so the two carry it under one word.
-   * Settling them is two different acts,
-   * which is why `answeredBy` and a proposal's `reviewedBy` stay apart.
+   * Producing a handoff is one act whichever shape it takes, so the two carry it under one word.
+   * Settling them is two different acts, which is why `answeredBy` and a proposal's `reviewedBy` stay apart.
    *
    * Absent on everything recorded before the field existed,
    * so a surface reads it as unknown rather than as the beginning of time.
@@ -118,22 +115,19 @@ export const Clarification = HandoffOwner.extend({
    * Which skill raised this, taken from the run that filed it.
    *
    * Set by the server rather than sent, the same way a proposal's is.
-   * A reader wants to know which step of the pipeline stopped to ask,
-   * and the run record already holds the answer.
+   * A reader wants to know which step of the pipeline stopped to ask, and the run record already holds the answer.
    */
   generatedBy: SkillId.optional(),
   /**
    * Whether a conversation is parked on this answer.
    *
    * `resumes` means a run stopped here and answering carries it on.
-   * `standing` means nothing is waiting,
-   * so the answer is recorded for a later step to pick up.
+   * `standing` means nothing is waiting, so the answer is recorded for a later step to pick up.
    * Which one it is depends on whether anybody was watching the run,
    * so the server decides it and the asker is never consulted.
    *
    * Absent on a human-filed one, and on everything recorded before this,
-   * which reads as standing,
-   * correct in both cases since neither has a conversation to continue.
+   * which reads as standing, correct in both cases since neither has a conversation to continue.
    */
   answerMode: ClarificationAnswerMode.optional(),
   origin: ClarificationOrigin,
@@ -156,8 +150,8 @@ export const ClarificationCreate = z.object({
 export type ClarificationCreate = z.infer<typeof ClarificationCreate>
 
 /**
- * The POST body for creating a clarification. Workspace comes from the path,
- * and human-authored candidates omit their id for the server to mint.
+ * The POST body for creating a clarification.
+ * Workspace comes from the path, and human-authored candidates omit their id for the server to mint.
  */
 export const ClarificationCreateBody = ClarificationCreate
   .omit({ workspaceId: true })

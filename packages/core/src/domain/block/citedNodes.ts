@@ -3,8 +3,7 @@ import type { BlockRef, NodeId, RenderBlock } from '@braidhq/schema'
 /**
  * Every reference a block makes, wherever its own shape happens to keep them.
  *
- * One block puts them at the top,
- * another puts a set on each side of a disagreement, a third on every cell.
+ * One block puts them at the top, another puts a set on each side of a disagreement, a third on every cell.
  * A caller checking what a block claims should not have to know which.
  */
 export function refsOf(block: RenderBlock): BlockRef[] {
@@ -18,11 +17,9 @@ export function refsOf(block: RenderBlock): BlockRef[] {
     case 'showTrace':
       return [...block.read]
     // These carry no references of their own.
-    // Prose, a drawing, a set of nodes to draw, a heading, a question,
-    // and a shape only its own plugin understands,
+    // Prose, a drawing, a set of nodes to draw, a heading, a question, and a shape only its own plugin understands,
     // each of which rests on the blocks around it.
-    // The ones naming `covers` name nodes rather than sources,
-    // so they make no claim this side could check.
+    // The ones naming `covers` name nodes rather than sources, so they make no claim this side could check.
     case 'showAnswer':
     case 'showDiagram':
     case 'showSubgraph':
@@ -41,18 +38,14 @@ export function refsOf(block: RenderBlock): BlockRef[] {
  * What a block claims the graph already says.
  *
  * A ref declares where it came from.
- * `agent` is the run's own reading and rests on nothing but itself,
- * so there is nothing here to settle.
- * `graph` says the model holds this,
- * and that is the one claim this side can check.
+ * `agent` is the run's own reading and rests on nothing but itself, so there is nothing here to settle.
+ * `graph` says the model holds this, and that is the one claim this side can check.
  * Unchecked, a reader is shown a citation to something never there,
  * which is worse than no citation because it reads as corroboration.
  *
- * A graph ref that names no node is returned too,
- * under the location it does carry.
+ * A graph ref that names no node is returned too, under the location it does carry.
  * It makes the same claim while withholding the one thing that would test it,
- * so treating it as nothing to check would leave the claim standing,
- * and the check trivially avoidable.
+ * so treating it as nothing to check would leave the claim standing, and the check trivially avoidable.
  *
  * What a block draws is not part of this.
  * A run proposing a new subsystem draws it before anybody has applied it,

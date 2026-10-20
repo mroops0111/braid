@@ -27,8 +27,7 @@ function isEnvelope(value: unknown): value is Envelope {
 /**
  * Reads a key the deployment supplies, and refuses to run without one.
  *
- * A generated or defaulted key encrypts to something the code can open,
- * which reads as protection while offering none.
+ * A generated or defaulted key encrypts to something the code can open, which reads as protection while offering none.
  */
 export function readSecretKey(raw: string | undefined, name: string): Buffer {
   if (!raw)
@@ -43,8 +42,7 @@ export interface EncryptedSecretStoreDeps {
   readonly inner: SecretStore
   readonly key: Buffer
   /**
-   * Opens records written under a key being rotated away from,
-   * and never writes with it.
+   * Opens records written under a key being rotated away from, and never writes with it.
    * A record read this way is rewritten under the current key,
    * so a rotation completes by use rather than by a migration step.
    */
@@ -55,8 +53,7 @@ export interface EncryptedSecretStoreDeps {
  * Encrypts what another store holds, without changing what it is asked.
  *
  * The namespace and key are bound in as additional data,
- * so a record moved onto another person's path fails to open,
- * rather than resolving as theirs.
+ * so a record moved onto another person's path fails to open, rather than resolving as theirs.
  * That turns a filesystem rename from an escalation into an error.
  */
 export class EncryptedSecretStore implements SecretStore {
@@ -79,8 +76,7 @@ export class EncryptedSecretStore implements SecretStore {
     if (previous === undefined)
       throw new Error(`Secret at ${namespace}/${key} could not be opened with the configured key.`)
 
-    // Rewritten under the current key, so a rotation finishes by use,
-    // rather than needing a pass over the whole store.
+    // Rewritten under the current key, so a rotation finishes by use, rather than needing a pass over the whole store.
     await this.write(namespace, key, JSON.parse(previous))
     return JSON.parse(previous) as T
   }

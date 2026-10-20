@@ -12,13 +12,11 @@ const PACKAGE_VAR = 'BRAID_MCP_GATEWAY_PACKAGE'
 const DEFAULT_PORT = 4322
 
 // The `oidc` extra carries the JWT verification token_exchange needs.
-// Without it the gateway starts and then refuses every call,
-// since it cannot check the token the caller arrived with.
+// Without it the gateway starts and then refuses every call, since it cannot check the token the caller arrived with.
 const DEFAULT_PACKAGE = 'openapi-mcp-gateway[oidc]'
 
 /**
- * Where Braid reaches itself and who it trusts,
- * the two facts the gateway config needs that do not come from env.
+ * Where Braid reaches itself and who it trusts, the two facts the gateway config needs that do not come from env.
  */
 export interface McpGatewayContext {
   /**
@@ -56,8 +54,7 @@ export type McpGatewayResolution =
  * There is no static-token fallback on purpose.
  * A shared token would flatten every MCP caller into one identity,
  * which is exactly what per-user run attribution rules out.
- * A deployment without an authorization server gets no endpoint,
- * rather than an anonymous one.
+ * A deployment without an authorization server gets no endpoint, rather than an anonymous one.
  */
 export function resolveMcpGateway(
   env: Readonly<Record<string, string | undefined>>,
@@ -86,8 +83,8 @@ export function resolveMcpGateway(
     kind: 'ready',
     gatewayPackage: env[PACKAGE_VAR] || DEFAULT_PACKAGE,
     config: buildMcpGatewayConfig({
-      // Loopback only. This server proxies the endpoint on its own port,
-      // so the gateway never needs an address of its own.
+      // Loopback only.
+      // This server proxies the endpoint on its own port, so the gateway never needs an address of its own.
       host: '127.0.0.1',
       port: readPort(env[PORT_VAR]),
       publicUrl: withoutTrailingSlash(context.apiUrl),
@@ -95,8 +92,7 @@ export function resolveMcpGateway(
       baseUrl: context.loopbackApiUrl,
       issuer,
       audience: context.audience,
-      // References rather than values,
-      // resolved by the gateway against the env it inherits,
+      // References rather than values, resolved by the gateway against the env it inherits,
       // so the generated file holds no secret.
       // eslint-disable-next-line no-template-curly-in-string
       clientIdRef: '${BRAID_MCP_GATEWAY_CLIENT_ID}',

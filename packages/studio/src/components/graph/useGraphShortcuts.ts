@@ -3,10 +3,8 @@ import { useEffect } from 'react'
 
 /**
  * Keyboard shortcuts scoped to the graph canvas.
- * Cmd+F focuses the navigator search input,
- * and Cmd+0 fits the canvas to viewport.
- * The effect's mount and unmount window ensures other tabs' chords,
- * are not affected when the canvas is not mounted.
+ * Cmd+F focuses the navigator search input, and Cmd+0 fits the canvas to viewport.
+ * The effect's mount and unmount window ensures other tabs' chords, are not affected when the canvas is not mounted.
  */
 export function useGraphShortcuts(reactFlow: ReactFlowInstance): void {
   useEffect(() => {

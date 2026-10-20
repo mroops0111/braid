@@ -203,10 +203,8 @@ function BatchHeader({ workspaceId, plan, terminal }: {
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  // Every header action mutates the plan server-side,
-  // so they all need to refetch the same query.
-  // Sharing the callback keeps each mutation declaration,
-  // to a single responsibility, its mutationFn.
+  // Every header action mutates the plan server-side, so they all need to refetch the same query.
+  // Sharing the callback keeps each mutation declaration, to a single responsibility, its mutationFn.
   const refreshBatch = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.batch(workspaceId) })
   }
@@ -345,12 +343,10 @@ interface UnitChunk {
 /**
  * Build the visual chunks.
  * For each committed checkpoint phase we group the units it consumed.
- * Remaining units are split into anticipated chunks,
- * using `batchPolicy.checkpointChunkSize`,
+ * Remaining units are split into anticipated chunks, using `batchPolicy.checkpointChunkSize`,
  * so the reviewer sees the structure before any checkpoint fires.
  *
- * When `checkpointRunAtEnd` is true we also surface the mandatory final pass,
- * even if units happen to divide evenly.
+ * When `checkpointRunAtEnd` is true we also surface the mandatory final pass, even if units happen to divide evenly.
  * The orchestrator fires one more checkpoint with an empty unit list.
  */
 function groupUnitsByCheckpoint(plan: BatchPlan): UnitChunk[] {

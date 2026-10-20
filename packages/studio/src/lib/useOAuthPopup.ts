@@ -13,8 +13,7 @@ interface OauthPostMessage {
  * and fire `onConnected` when the popup posts a success for this provider.
  * The popup closes itself in the page that `/oauth/<provider>/callback` serves.
  * The workspace may not exist yet when the Wizard connects,
- * the token is stashed by `${workspaceId}--${sourceId}` ahead of scaffold,
- * and the caller becomes the workspace owner.
+ * the token is stashed by `${workspaceId}--${sourceId}` ahead of scaffold, and the caller becomes the workspace owner.
  */
 export function useOAuthPopup(
   provider: 'google' | 'github',

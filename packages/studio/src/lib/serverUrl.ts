@@ -2,13 +2,13 @@ import { getActiveRemoteId, listRemotes, LOCAL_REMOTE_ID } from './remotes'
 
 export const DEFAULT_SERVER_URL = 'http://localhost:4321'
 
-// Cached at module scope so getServerUrl stays sync,
-// since every API helper hits it.
+// Cached at module scope so getServerUrl stays sync, since every API helper hits it.
 // Populated by initServerUrl in Tauri runtime, null in web dev.
 let cachedEmbeddedUrl: string | null = null
 
 /**
  * Resolves the URL Studio should talk to right now.
+ *
  *   1. Active remote in Settings, when not Local
  *   2. Cached embedded sidecar URL (Tauri runtime)
  *   3. The origin this page came from, when a server served it
@@ -29,12 +29,9 @@ export function getServerUrl(): string {
 /**
  * The server behind the Local entry.
  *
- * A page a server served has to call that same server,
- * whatever hostname and port it happens to be reachable on.
- * A build-time default cannot know that,
- * and it would send a deployed Studio to a port on the visitor's own machine.
- * Vite serves Studio on its own port in development,
- * the one case where the page's origin is not the API.
+ * A page a server served has to call that same server, whatever hostname and port it happens to be reachable on.
+ * A build-time default cannot know that, and it would send a deployed Studio to a port on the visitor's own machine.
+ * Vite serves Studio on its own port in development, the one case where the page's origin is not the API.
  */
 function localServerUrl(): string {
   if (cachedEmbeddedUrl)
